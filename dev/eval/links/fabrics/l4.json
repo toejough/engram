@@ -1,0 +1,1127 @@
+[
+  {
+    "src": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "dst": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "cosine": 0.818729
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.787144
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "cosine": 0.777567
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.767213
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.765507
+  },
+  {
+    "src": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.765371
+  },
+  {
+    "src": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "cosine": 0.763257
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "cosine": 0.759871
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "cosine": 0.748384
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "cosine": 0.747892
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "cosine": 0.741799
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "cosine": 0.731433
+  },
+  {
+    "src": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.727905
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.724183
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "cosine": 0.717455
+  },
+  {
+    "src": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "cosine": 0.707894
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.706939
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "cosine": 0.706687
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "cosine": 0.699347
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "cosine": 0.699239
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.698716
+  },
+  {
+    "src": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "cosine": 0.690705
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "cosine": 0.689402
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.688688
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "cosine": 0.677266
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "cosine": 0.675388
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.674475
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.673211
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "cosine": 0.673021
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.670369
+  },
+  {
+    "src": "34.2026-06-16.working-memory-analog-gap",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.667073
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "cosine": 0.666764
+  },
+  {
+    "src": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "cosine": 0.666231
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "80.2026-06-24.recall-split-not-worth-complexity",
+    "cosine": 0.662894
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "cosine": 0.656126
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.64853
+  },
+  {
+    "src": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "cosine": 0.647896
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.645481
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.644018
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "cosine": 0.643691
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.643143
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "cosine": 0.640597
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "cosine": 0.640349
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "cosine": 0.636633
+  },
+  {
+    "src": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "cosine": 0.636522
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.636186
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.633363
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "cosine": 0.6317
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "cosine": 0.631329
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "cosine": 0.630857
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "cosine": 0.629183
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "cosine": 0.628256
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "cosine": 0.62432
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "cosine": 0.620589
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "cosine": 0.617112
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "cosine": 0.613092
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.61282
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "cosine": 0.612351
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "cosine": 0.609328
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "cosine": 0.608491
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "cosine": 0.60841
+  },
+  {
+    "src": "34.2026-06-16.working-memory-analog-gap",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "cosine": 0.608283
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "cosine": 0.60658
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "cosine": 0.60651
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "cosine": 0.605666
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.605373
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.605283
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "cosine": 0.604431
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "cosine": 0.60398
+  },
+  {
+    "src": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "cosine": 0.603504
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.602499
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "cosine": 0.598074
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "cosine": 0.597909
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.597517
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "cosine": 0.597019
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "cosine": 0.591601
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "cosine": 0.590414
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.58955
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.588688
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "cosine": 0.588458
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.587545
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "cosine": 0.585614
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.583462
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.582062
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.580846
+  },
+  {
+    "src": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "cosine": 0.580448
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.580376
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.578424
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "cosine": 0.578185
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.577049
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.576774
+  },
+  {
+    "src": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.575743
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "cosine": 0.575651
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "cosine": 0.57527
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.572572
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "cosine": 0.570139
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "cosine": 0.5691
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "cosine": 0.569013
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.568644
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "cosine": 0.567755
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "cosine": 0.56753
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.567518
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "cosine": 0.56745
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.566991
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "cosine": 0.566194
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.565287
+  },
+  {
+    "src": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.564479
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "cosine": 0.564101
+  },
+  {
+    "src": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.563956
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "cosine": 0.563772
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "cosine": 0.563703
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "cosine": 0.561127
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.560332
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "cosine": 0.559763
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "cosine": 0.55869
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.55658
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "cosine": 0.554527
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "cosine": 0.553791
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "cosine": 0.553175
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "cosine": 0.553133
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "cosine": 0.552781
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.551629
+  },
+  {
+    "src": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "cosine": 0.551568
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.550816
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "cosine": 0.549944
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "cosine": 0.549654
+  },
+  {
+    "src": "34.2026-06-16.working-memory-analog-gap",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.548901
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "cosine": 0.548898
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "cosine": 0.548202
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.546401
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "cosine": 0.545815
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "cosine": 0.545405
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "cosine": 0.544318
+  },
+  {
+    "src": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.543931
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "cosine": 0.543479
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.541518
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "cosine": 0.54119
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "cosine": 0.541116
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "cosine": 0.53946
+  },
+  {
+    "src": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.539368
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.538712
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.538467
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "cosine": 0.537724
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "cosine": 0.537437
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "cosine": 0.536396
+  },
+  {
+    "src": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "dst": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "cosine": 0.534559
+  },
+  {
+    "src": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "cosine": 0.53414
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.53331
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "cosine": 0.53287
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "cosine": 0.532707
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "cosine": 0.532399
+  },
+  {
+    "src": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "cosine": 0.53119
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "cosine": 0.530636
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "cosine": 0.529833
+  },
+  {
+    "src": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "cosine": 0.529535
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.529241
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "cosine": 0.528807
+  },
+  {
+    "src": "34.2026-06-16.working-memory-analog-gap",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.528647
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.528156
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "cosine": 0.527914
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "cosine": 0.527655
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "cosine": 0.52735
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "cosine": 0.527102
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "cosine": 0.527081
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.526984
+  },
+  {
+    "src": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "cosine": 0.526959
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "cosine": 0.526234
+  },
+  {
+    "src": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "cosine": 0.525549
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "cosine": 0.525235
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "cosine": 0.524287
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "cosine": 0.523755
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.523058
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "cosine": 0.522697
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.522345
+  },
+  {
+    "src": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.521796
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "cosine": 0.521768
+  },
+  {
+    "src": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "dst": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "cosine": 0.521547
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "cosine": 0.52147
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "cosine": 0.521136
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "cosine": 0.521009
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.518201
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.517954
+  },
+  {
+    "src": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.517686
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "77.2026-06-24.recall-not-cost-bottleneck",
+    "cosine": 0.517028
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "cosine": 0.516456
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "cosine": 0.516133
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "cosine": 0.51587
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "cosine": 0.515777
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.515638
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "cosine": 0.51555
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "cosine": 0.513657
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "cosine": 0.51305
+  },
+  {
+    "src": "154.2026-07-01.record-parked-observations-durably",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "cosine": 0.513015
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.512962
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.512274
+  },
+  {
+    "src": "67.2026-06-22.corrections-become-reproducible-tests",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "cosine": 0.512076
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "cosine": 0.511936
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "cosine": 0.511935
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.51152
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "cosine": 0.511262
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "cosine": 0.510888
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "cosine": 0.51067
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "cosine": 0.510586
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "cosine": 0.509944
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "cosine": 0.50906
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "cosine": 0.50853
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "cosine": 0.508079
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "cosine": 0.507193
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "cosine": 0.50664
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "cosine": 0.506596
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "cosine": 0.506159
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.506036
+  },
+  {
+    "src": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "cosine": 0.505718
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "cosine": 0.504443
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "cosine": 0.504268
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "cosine": 0.503904
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "cosine": 0.503612
+  },
+  {
+    "src": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "cosine": 0.502762
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "cosine": 0.50244
+  },
+  {
+    "src": "34.2026-06-16.working-memory-analog-gap",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "cosine": 0.502412
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "cosine": 0.501761
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "cosine": 0.501693
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "cosine": 0.501319
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "cosine": 0.501267
+  },
+  {
+    "src": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "cosine": 0.50001
+  }
+]

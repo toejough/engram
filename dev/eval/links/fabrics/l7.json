@@ -1,0 +1,2062 @@
+[
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "key": "date:2026-06-26"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "date:2026-06-26"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "key": "session:2026-06-26"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "key": "session:2026-06-26"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "key": "session:2026-06-26"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "date:2026-06-26"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "key": "session:2026-06-27"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "key": "date:2026-06-28"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "key": "date:2026-06-28"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "key": "date:2026-06-28"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "key": "date:2026-06-28"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "key": "date:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "124.2026-06-28.wrap-errors-with-context",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "126.2026-06-28.permission-denied-retry-loop",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "key": "date:2026-06-28"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "session:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "124.2026-06-28.wrap-errors-with-context",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "126.2026-06-28.permission-denied-retry-loop",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "126.2026-06-28.permission-denied-retry-loop",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "126.2026-06-28.permission-denied-retry-loop",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "131.2026-06-28.parallel-test-shared-state",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "131.2026-06-28.parallel-test-shared-state",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "131.2026-06-28.parallel-test-shared-state",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "created:2026-06-28"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "key": "session:2026-06-29"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "key": "session:2026-06-29"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "key": "session:2026-06-29"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "key": "session:2026-06-29"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "key": "session:2026-06-29"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "key": "session:2026-06-29"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "key": "session:2026-06-29"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "key": "session:2026-06-29"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "key": "session:2026-06-29"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "key": "date:2026-06-29"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "key": "session:2026-06-29"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "key": "session:2026-06-30"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "key": "session:2026-06-30"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "key": "session:2026-06-30"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "key": "session:2026-06-30"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "key": "session:2026-06-30"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "key": "session:2026-06-30"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "key": "session:2026-06-30"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "key": "session:2026-06-30"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "key": "session:2026-06-30"
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "key": "session:2026-06-30"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "key": "session:2026-07-01"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "154.2026-07-01.record-parked-observations-durably",
+    "key": "session:2026-07-01"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "key": "session:2026-07-01"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "date:2026-07-01"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "154.2026-07-01.record-parked-observations-durably",
+    "key": "session:2026-07-01"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "key": "session:2026-07-01"
+  },
+  {
+    "src": "154.2026-07-01.record-parked-observations-durably",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "key": "session:2026-07-01"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "key": "session:2026-06-12"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "key": "session:2026-06-12"
+  },
+  {
+    "src": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "dst": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "key": "session:2026-06-12"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "date:2026-06-12"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "key": "date:2026-06-12"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "key": "date:2026-06-12"
+  },
+  {
+    "src": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "dst": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "key": "date:2026-06-14"
+  },
+  {
+    "src": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "date:2026-06-14"
+  },
+  {
+    "src": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "date:2026-06-14"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "dst": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "dst": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "dst": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "dst": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "session:2026-06-17"
+  },
+  {
+    "src": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "date:2026-06-17"
+  },
+  {
+    "src": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "dst": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "key": "session:2026-06-19"
+  },
+  {
+    "src": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "key": "session:2026-06-19"
+  },
+  {
+    "src": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "session:2026-06-19"
+  },
+  {
+    "src": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "session:2026-06-19"
+  },
+  {
+    "src": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "key": "session:2026-06-19"
+  },
+  {
+    "src": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "session:2026-06-19"
+  },
+  {
+    "src": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "session:2026-06-19"
+  },
+  {
+    "src": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "session:2026-06-19"
+  },
+  {
+    "src": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "session:2026-06-19"
+  },
+  {
+    "src": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "session:2026-06-19"
+  },
+  {
+    "src": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "dst": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "key": "session:2026-06-20"
+  },
+  {
+    "src": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "session:2026-06-20"
+  },
+  {
+    "src": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "session:2026-06-20"
+  },
+  {
+    "src": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "session:2026-06-20"
+  },
+  {
+    "src": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "session:2026-06-20"
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "session:2026-06-20"
+  },
+  {
+    "src": "67.2026-06-22.corrections-become-reproducible-tests",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "session:2026-06-22"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "session:2026-06-23"
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "date:2026-06-24"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "80.2026-06-24.recall-split-not-worth-complexity",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "session:2026-06-24"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "date:2026-06-25"
+  },
+  {
+    "src": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "session:2026-06-25"
+  },
+  {
+    "src": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "session:2026-06-25"
+  }
+]

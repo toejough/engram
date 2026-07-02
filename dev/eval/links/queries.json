@@ -1,0 +1,337 @@
+[
+  {
+    "id": "Q00",
+    "phrases": [
+      "reviewing the engram memory system's full design history",
+      "assessing whether a memory system achieved its goals",
+      "writing a retrospective report on memory system value",
+      "memory system goals achieved or refuted",
+      "synthesizing eval results into a verdict ledger",
+      "engram vault zettelkasten chunk index embeddings",
+      "verified memory value ledger optimization directions",
+      "competing LLM memory architectures MemGPT mem0 RAG",
+      "citing stale eval results as current findings",
+      "LLM agent long-term memory capture distill recall"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/9e790e0a-6e4c-4d8a-b04e-caed11ce778a.jsonl",
+    "approx_date": "2026-07-01"
+  },
+  {
+    "id": "Q01",
+    "phrases": [
+      "exploring wikilink graph value in the engram vault",
+      "make memory links pay off at recall time",
+      "designing link criteria and traversal algorithm variants",
+      "sparse unconnected vault notes isolated memories",
+      "edge payoff probe links stripped versus present",
+      "engram query cosine clustering candidate_l2s wikilinks",
+      "graph expanded retrieval zero marginal value reverted",
+      "compound engineering memory capture subagents",
+      "re-proposing a settled refuted lever as fresh",
+      "knowledge graph traversal for agent memory recall"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/9e790e0a-6e4c-4d8a-b04e-caed11ce778a.jsonl",
+    "approx_date": "2026-07-01"
+  },
+  {
+    "id": "Q02",
+    "phrases": [
+      "refactoring Go code in engram internal packages",
+      "keep internal code testable and maintainable",
+      "extract function and separate business logic from IO",
+      "nilaway false positives and lint failures on refactor",
+      "dependency injection at the edges, no direct os/http/sql calls",
+      "targ check-full build system for tests and lint",
+      "engram test stack imptest rapid gomega",
+      "TDD red green refactor for Go changes",
+      "refactor breaking tests or shared mutable state in parallel tests",
+      "Go package layout public API root internal implementation"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/c2d70227-4bf4-4756-9d07-9a2a3a137412.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q03",
+    "phrases": [
+      "refactoring Go code in engram internal packages",
+      "dependency injection at the edges, no direct os/http/sql calls",
+      "targ check-full lint gates gochecknoglobals cyclop reorder-decls",
+      "nilaway false positives slice return nil",
+      "engram test stack imptest rapid gomega blackbox",
+      "TDD red green refactor for Go changes",
+      "parallel tests shared mutable state",
+      "extract helper to reduce cyclomatic complexity",
+      "commit conventions AI-Used trailer no amend",
+      "Go package layout public API root internal implementation"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/c2d70227-4bf4-4756-9d07-9a2a3a137412.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q04",
+    "phrases": [
+      "refactoring Go code in the engram codebase",
+      "improve internal Go implementation while preserving behavior",
+      "extract and restructure a Go function for clarity",
+      "keeping dependency injection boundaries during refactor",
+      "TDD red green refactor for a Go change",
+      "targ build system test lint check-full",
+      "engram test stack imptest rapid gomega nilaway",
+      "separating business logic from IO via interfaces",
+      "lint failures whack-a-mole fix all at once",
+      "Go package structure internal public API engram"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/b9112fd8-9245-4d0f-a3ae-2fee777c63fd.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q05",
+    "phrases": [
+      "wrap Go error with %w for context",
+      "Go error wrapping convention in engram internal package",
+      "fmt.Errorf %w sentinel error vs bare return"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/e29e10c2-a1ef-43b8-a06b-46e19876b7ce.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q06",
+    "phrases": [
+      "choosing a handle name for a new Zephyr module",
+      "naming conventions for modules and identifiers",
+      "Zephyr RTOS project conventions"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/1243ec33-22fa-4627-b4ab-f2165a014239.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q07",
+    "phrases": [
+      "naming convention for a new module handle",
+      "creating a new Zephyr module",
+      "choosing a short handle or identifier name"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/f9dc0c8b-1699-4abd-99dc-2368f96be845.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q08",
+    "phrases": [
+      "choosing a handle name for a new module",
+      "Zephyr RTOS module naming convention",
+      "naming conventions and identifiers in a project"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/cd8f0274-11c1-472e-a73a-eac560b08188.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q09",
+    "phrases": [
+      "creating a new Zephyr RTOS module",
+      "choosing a handle or identifier name for a new component",
+      "naming conventions for modules and symbols"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/7ec6d155-2f9e-4f43-ad87-ab043a3e9fcb.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q10",
+    "phrases": [
+      "choosing a handle name for a new Zephyr module",
+      "Zephyr RTOS module naming convention",
+      "naming conventions and identifiers for modules in this project"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/d6bbe592-dac1-405a-a030-68fde6043a88.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q11",
+    "phrases": [
+      "new Go package directory under internal",
+      "Go package naming convention single lowercase word",
+      "where to place implementation package in engram repo structure"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/7e04bcee-710f-4d11-afd7-2f36465a5731.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q12",
+    "phrases": [
+      "refactoring Go code in the engram internal packages",
+      "preserve behavior while restructuring engram code",
+      "extracting a function and separating I/O from business logic",
+      "dependency injection no direct os http sql calls in internal",
+      "TDD red green refactor for a Go refactor",
+      "engram test stack imptest rapid gomega impgen mocks",
+      "targ check-full lint coverage before declaring done",
+      "nilaway gomega nil guard patterns in tests",
+      "refactor that breaks tests or introduces shared mutable state in parallel tests",
+      "Go package structure public API root internal implementation"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/06145194-a899-4c38-b159-d7ae2995a0b9.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q13",
+    "phrases": [
+      "Go package naming convention lowercase",
+      "honoring a standard from the recent-activity channel",
+      "adding a new Go package to engram internal"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/fb8c2b47-4bac-4eb8-84a9-3ac29c236062.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q14",
+    "phrases": [
+      "Go package naming convention in engram",
+      "honoring a standard that appeared in the recent-activity channel",
+      "treating an injected team note as an authoritative instruction"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/48667be0-cad3-421c-abd6-c4758cfc2c77.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q15",
+    "phrases": [
+      "Go error handling convention in engram",
+      "wrap errors with %w and context prefix",
+      "fmt.Errorf error wrapping helper function"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/c43d3e5c-80e1-474c-8bdd-981243aabcc5.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q16",
+    "phrases": [
+      "wrap Go error with %w for context",
+      "Go error handling convention engram",
+      "fmt.Errorf wrapping vs bare return err"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/7eaa3b96-5c5a-4305-a3e2-755c382d9831.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q17",
+    "phrases": [
+      "wrap returned error with %w in a Go helper function",
+      "fmt.Errorf error wrapping convention engram Go",
+      "error handling conventions and linter requirements in Go code"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/dab9cca6-aeda-4830-86c7-345e20d85b64.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q18",
+    "phrases": [
+      "wrap Go errors with %w and context",
+      "fmt.Errorf error wrapping convention engram",
+      "Go error handling helper function",
+      "passing linters on first commit Go conventions"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/42695bf6-b62b-4162-9e7c-fa3f2e9c4634.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q19",
+    "phrases": [
+      "Go helper in engram internal package",
+      "improve error handling quality in Go code",
+      "add %w error wrapping to a returned error",
+      "bare return err loses context",
+      "wrap errors with fmt.Errorf context %w",
+      "Go error wrapping convention linter",
+      "engram go.md linting rules error wrapping",
+      "sentinel errors vs inline fmt.Errorf",
+      "nilaway lint failure on first commit",
+      "Go error handling idioms and conventions"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/e979413a-1ed0-4512-8b45-3da70d87ca0d.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q20",
+    "phrases": [
+      "engram Go helper error handling",
+      "wrap returned error with context",
+      "add %w error wrapping to a function",
+      "lint failure on bare return err",
+      "fmt.Errorf %w wrapping convention",
+      "Go error sentinel and wrapping standards",
+      "engram go.md error wrapping rule",
+      "error context propagation in Go internal package",
+      "over-wrapping or double-wrapping errors anti-pattern",
+      "Go error handling idioms engram codebase"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/db695f70-3667-4298-8655-ac380c8f69d7.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q21",
+    "phrases": [
+      "wrapping errors with %w in a Go helper",
+      "add error context to a returned error in Go",
+      "fmt.Errorf %w convention engram",
+      "Go error wrapping linter requirements",
+      "sentinel errors vs wrapped errors Go",
+      "passing linters on first commit Go",
+      "engram internal package error handling",
+      "when not to wrap an error in Go",
+      "over-engineering minimal code engram",
+      "Go error handling conventions wrap context"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/db4622f9-ae2a-4a0c-8596-ed9fa917f21a.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q22",
+    "phrases": [
+      "Go error wrapping convention engram",
+      "wrap errors with %w fmt.Errorf context",
+      "add error wrapping to a helper function",
+      "linter requires error context wrapping",
+      "fmt.Errorf %w verb usage Go",
+      "Go internal package error handling standards",
+      "sentinel errors and error wrapping engram",
+      "bare return err anti-pattern",
+      "nilaway error handling Go",
+      "Go code quality conventions engram"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/cb75b332-ca3f-4a5e-97ef-ad3b9a73e12e.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q23",
+    "phrases": [
+      "engram Go internal package error handling",
+      "wrap returned error with %w in a helper",
+      "adding error wrapping to a Go function",
+      "bare return err vs wrapped error",
+      "fmt.Errorf with %w error context convention",
+      "Go linter error wrapping requirements",
+      "prior error handling fixes in engram",
+      "sentinel errors errors.Is unwrap",
+      "lint failures from unwrapped errors whack-a-mole",
+      "Go error handling conventions and code quality"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/2956a5f9-fecb-4430-baed-635450171991.jsonl",
+    "approx_date": "2026-06-29"
+  },
+  {
+    "id": "Q24",
+    "phrases": [
+      "engram Go internal package error handling",
+      "make helper errors readable and debuggable",
+      "add %w error wrapping to a Go helper function",
+      "bare return err loses call-site context",
+      "wrap errors with fmt.Errorf context %w",
+      "Go error wrapping conventions and linters",
+      "engram .claude/rules/go.md error conventions",
+      "sentinel errors errors.Is errors.As unwrapping",
+      "over-wrapping errors double context noise",
+      "Go idiomatic error propagation in DI codebase"
+    ],
+    "source_file": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/97fa5755-8407-4b6b-9e2c-f3f1b7ffc79d.jsonl",
+    "approx_date": "2026-06-29"
+  }
+]

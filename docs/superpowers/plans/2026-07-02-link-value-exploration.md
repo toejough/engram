@@ -49,7 +49,18 @@ construction (today's ranking never reads edges).
 
 ## Stage S0 — Research (delegated; sonnet + web)
 
-- Fetch https://every.to/guides/compound-engineering (WebFetch) + 2–4 adjacent primary sources.
+**Scope rule (Joe, 2026-07-02, mid-workflow correction):** a named source is a pointer into the
+landscape, never the boundary. S0 is a BROAD multi-source sweep across four beats, run as parallel
+researchers: (1) the compound-engineering system (done first, below); (2) **peer memory systems'
+linking practice** — what edges A-Mem/Zep-Graphiti/Cognee/HippoRAG/Mem0-graph actually create, gated
+how, consumed how at recall; (3) **PKM/zettelkasten practice** — human-side evidence on which link
+kinds pay (Obsidian/Roam/Logseq communities, Luhmann practice, backlinks-vs-tags-vs-MOC debates);
+(4) **IR/KG literature + Claude-Code-ecosystem tools** — link prediction, spreading-activation
+retrieval, typed-edge KG retrieval, plus claude-mem/MCP-memory-server implementations. Every beat
+returns catalog implications (Section A) AND vision-relevant followups (Section B); ALL Section Bs
+consolidate into ONE report.
+
+- Fetch https://every.to/guides/compound-engineering (WebFetch) + adjacent primary sources.
 - **Interrogate ALL SIX roles of their capture skill for link-criteria/traversal implications** (not
   just the finder): context analyzer (→ situation-framing edges? L4?), solution extractor (→ what
   gets linkable?), **related docs finder (→ their link kinds + how links are consumed at read
@@ -61,9 +72,10 @@ construction (today's ranking never reads edges).
   already covers HippoRAG/PPR, GraphRAG, A-Mem, Generative-Agents scoring — the researcher reads it
   first.
 - Outputs: (i) amendments to the variant catalog (the catalog is a prior, not a cage); (ii) the
-  **followup doc** (`docs/design/2026-07-02-compound-engineering-followups.md`) of
-  vision-relevant-but-out-of-scope findings — **drafted and committed at S0 completion** (parked ≠
-  unrecorded, note 154), not held to the stop-point.
+  **consolidated followups report** (`docs/design/2026-07-02-research-followups.md`) — ALL
+  vision-relevant-but-out-of-scope findings from the ENTIRE sweep in one report, organized by
+  source-beat — **drafted and committed at S0 completion** (parked ≠ unrecorded, note 154), not
+  held to the stop-point.
 
 ## The variant catalog (prior; S0 may amend)
 
@@ -164,7 +176,8 @@ The conversation covers, per winner (or the honest null):
   unit-tested, qanchor pattern: `qanchor_score.py`/`test_qanchor.py`).
 - `docs/design/2026-07-02-link-value-exploration.md` — results doc (labeled tables with units,
   dates, vintage flags if the system changes mid-exploration).
-- `docs/design/2026-07-02-compound-engineering-followups.md` — committed at S0 completion.
+- `docs/design/2026-07-02-research-followups.md` — the ONE consolidated followups report,
+  committed at S0 completion and extended as each research beat lands.
 - This plan (committed before execution).
 
 ## Constraints

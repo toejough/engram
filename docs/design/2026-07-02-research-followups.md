@@ -1,8 +1,12 @@
-# Compound Engineering: Findings for Engram (2026-07-02)
+# Research followups for engram (2026-07-02)
 
-> Vision-relevant findings from the S0 link-value research that are out-of-scope for the link-value
-> exploration itself but engram-relevant. Parked here per note 154 (parked ≠ unrecorded).
-> Sources surveyed 2026-07-02; vendor/blog claims labeled (claimed, unverified).
+> THE consolidated report of vision-relevant findings from the link-value exploration's S0 research
+> sweep that are out-of-scope for the linking work itself but engram-relevant. Parked here per note
+> 154 (parked ≠ unrecorded). One report for the whole sweep — compound engineering, peer memory
+> systems' linking practice, PKM/zettelkasten evidence, IR/KG literature, and Claude-Code-ecosystem
+> memory tools. Sources surveyed 2026-07-02; vendor/blog claims labeled (claimed, unverified).
+
+# Part 1 — Compound Engineering (every.to / EveryInc plugin)
 
 ## What compound engineering actually does
 

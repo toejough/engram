@@ -1,0 +1,4682 @@
+[
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "key": "recall_cost"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "key": "recall_cost"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "key": "payload-size"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "key": "reduce"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "key": "breadth"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "key": "written"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "key": "description"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "matched-note"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "key": "procedure"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "step-3"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "key": "touching"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "loads"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "key": "lives"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "key": "extra"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "matched-note"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "frontmatter"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "mere"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "77.2026-06-24.recall-not-cost-bottleneck",
+    "key": "tier-routing"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "workflow"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "warm-over-cold"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "procedure"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "cache_read"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "cutting"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "whole-op"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "workflow"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "key": "recall_cost"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "key": "verifying"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "key": "total"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "key": "estimating"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "key": "guessed"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "verifying"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "deriving"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "total"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "key": "defeats"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "key": "multiply"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "key": "json"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "key": "point"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "invocation"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "ignored"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "meter"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "intuition"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "regime"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "many"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "emitting"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "key": "inconclusive"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "key": "optimize"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "key": "bars"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "required"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "key": "valid"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "key": "required"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "key": "edit"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "schema"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "key": "splits"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "mandatory"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "edit"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "meter"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "splits"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "recall-only"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "key": "tier-1"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "key": "generalize"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "key": "semantically"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "key": "semantically"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "resolves"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "key": "honored"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "key": "real-vault"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "production"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "strictly"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "key": "flat"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "key": "competing"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "composed"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "resolves"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "ranks"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "paired"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "paired"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "toys"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "toys"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "key": "survives"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "key": "cases"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "key": "need"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "key": "alternative"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "key": "collapses"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "key": "fake"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "key": "skip"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "principle"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "evals"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "risks"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "skip"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "key": "asks"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "need"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "asks"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "key": "calls"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "complementary"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "reachable"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "stub"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "stub"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "collapses"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "per-gotcha"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "cold-fail-is-empirical-not-predictable-pilot-each-gotcha"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "crowded-vault"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "key": "efficiency"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "key": "often"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "key": "measuring"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "key": "planned"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "often"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "key": "planned"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "key": "decide"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "label"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "key": "smaller"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "almost"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "safe"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "started"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "started"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "channel"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "biggest"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "biggest"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "key": "provide"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "verifying"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "key": "re-measure"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "global"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "key": "made"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "re-measure"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "made"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "lint"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "key": "lint"
+  },
+  {
+    "src": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "product"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "key": "defer"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "key": "varied"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "key": "reliably"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "key": "sole"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "key": "topic"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "key": "defer"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "key": "naming"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "key": "recalls"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "key": "stay"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "two-speed"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "key": "show-chunk"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "key": "naming"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "topic"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "capable"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "key": "alone"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "stay"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "key": "parse"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "lazy-chunks"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "capable"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "reliably"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "saved"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "size"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "key": "classify"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "key": "classify"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "key": "defer"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "124.2026-06-28.wrap-errors-with-context",
+    "key": "making"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "key": "fewer"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "key": "kept"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "total"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "away"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "levers"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "proposing"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "idea"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "levers"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "separates"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "decompose"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "decompose"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "ledger"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "key": "recall-trigger"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "key": "trigger"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "key": "budget"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "key": "classify"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "key": "proposals"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "key": "errors"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "key": "application"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "key": "task-init"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "often"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "key": "per-fire"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "key": "propose"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "always-loaded"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "away"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "number"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "mark"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "key": "proposals"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "capture"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "evaluating"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "propose"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "capture"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "asserted"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "fixes"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "recall-miss-is-structural-not-retrieval"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "fixes"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "asserted"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "dont-assert-cannot-decompose-axes-structural-vs-contingent"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "key": "measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "key": "mining"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "key": "mining"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "feeds"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "key": "found"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "patterns"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "key": "others"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "active"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "key": "active"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "artifacts"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "key": "reality"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "found"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "reality"
+  },
+  {
+    "src": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "caveat"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "key": "rate"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "key": "process"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "key": "volume"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "key": "subagents"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "key": "ingest"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "key": "wastes"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "key": "changing"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "key": "subagents"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "key": "assume"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "trigger"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "key": "longer"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "something"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "guess"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "concluding"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "pulled"
+  },
+  {
+    "src": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "story"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "key": "mining"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "key": "semantically"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "key": "positive"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "rate"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "key": "missed"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "carry"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "key": "detect"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "lost"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "key": "conversational"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "key": "tuned"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "prune"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "carry"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "key": "steer"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "key": "improve"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "steer"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "better"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "154.2026-07-01.record-parked-observations-durably",
+    "key": "leave"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "uncovered"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "reaches"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "improve"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "better"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "investigating"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "help"
+  },
+  {
+    "src": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "help"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "key": "detection"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "key": "expensive"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "steer"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "key": "confirming"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "recovered"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "ships"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "naive"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "key": "agents"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "key": "ships"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "invest"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "invest"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "expensive"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "key": "matches"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "inferred"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "key": "concern"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "key": "detect"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "key": "weak"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "similarity"
+  },
+  {
+    "src": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "weak"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "124.2026-06-28.wrap-errors-with-context",
+    "key": "stack"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "key": "makefuzz"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "key": "oracle"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "superset"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "property-rigor"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "bridges"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "bridges"
+  },
+  {
+    "src": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "core"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "key": "transcript"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "124.2026-06-28.wrap-errors-with-context",
+    "key": "caller"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "key": "caller"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "key": "controls"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "key": "marker"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "implementation"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "key": "logic"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "key": "subagents"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "key": "assertions"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "implementation"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "key": "marker"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "branch"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "partial"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "exercised"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "asserting"
+  },
+  {
+    "src": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "asserting"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "key": "captures"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "compete"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "write-side"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "search"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "need"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "search"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "persist"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "layer"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "write-side"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "written"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "reliably"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "key": "distilled"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "key": "down-weight"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "key": "called"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "key": "types"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "lower"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "key": "ones"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "superpowers"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "knowledge-delivery"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "superpowers"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "key": "defined"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "candidate"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "types"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "candidate"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "defined"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "77.2026-06-24.recall-not-cost-bottleneck",
+    "key": "closes"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "80.2026-06-24.recall-split-not-worth-complexity",
+    "key": "crystallization-quality"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "outcome"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "justify"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "displaces"
+  },
+  {
+    "src": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "frame"
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "key": "delivery"
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "topic"
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "key": "pitches"
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "useful"
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "improve"
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "vague"
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "re-anchoring"
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "narrow"
+  },
+  {
+    "src": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "narrow"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "latent"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "key": "note-vs-chunk"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "key": "misleading"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "key": "planned"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "key": "reading"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "note-vs-chunk"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "key": "reading"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "construction"
+  },
+  {
+    "src": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "saturated"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "key": "fresh-context"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "key": "direction"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "key": "parking"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "key": "diagnostic"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "154.2026-07-01.record-parked-observations-durably",
+    "key": "park"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "key": "park"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "key": "proposals"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "headroom"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "diagnostic"
+  },
+  {
+    "src": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "direction"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "key": "homogeneous"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "key": "gave"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "key": "gave"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "key": "sees"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "key": "homogeneous"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "key": "pool"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "genuine"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "genuine"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "measurable"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "127.2026-06-28.go-wrap-errors-with-context",
+    "key": "caller"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "captured"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "key": "captured"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "key": "traces"
+  },
+  {
+    "src": "124.2026-06-28.wrap-errors-with-context",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "operation"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "key": "bugs"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "key": "declare"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "key": "complete"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "resolved"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "complete"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "resolved"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "installed"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "key": "feature"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "declare"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "key": "pivot"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "key": "retry"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "key": "transient"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "wasted"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "transient"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "keeps"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "changed"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "key": "changed"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "keeps"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "key": "reframe"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "77.2026-06-24.recall-not-cost-bottleneck",
+    "key": "turns"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "times"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "giving"
+  },
+  {
+    "src": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "key": "drop"
+  },
+  {
+    "src": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "isolated"
+  },
+  {
+    "src": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "dst": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "key": "relative"
+  },
+  {
+    "src": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "installed"
+  },
+  {
+    "src": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "resolves"
+  },
+  {
+    "src": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "takes"
+  },
+  {
+    "src": "131.2026-06-28.parallel-test-shared-state",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "key": "copy"
+  },
+  {
+    "src": "131.2026-06-28.parallel-test-shared-state",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "isolation"
+  },
+  {
+    "src": "131.2026-06-28.parallel-test-shared-state",
+    "dst": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "key": "leaving"
+  },
+  {
+    "src": "131.2026-06-28.parallel-test-shared-state",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "leaving"
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "key": "clustered"
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "note-vs-chunk"
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "merged"
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "emits"
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "exists"
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "key": "features"
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "80.2026-06-24.recall-split-not-worth-complexity",
+    "key": "retrieves"
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "space"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "key": "exercises"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "equivalent"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "key": "homogeneous"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "key": "pool"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "exercises"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "shows"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "diagnosing"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "diagnosing"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "provides"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "key": "matches"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "key": "re-run"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "key": "re-run"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "application"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "key": "variant"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "sonnet"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "key": "wire"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "wire"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "covered"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "types"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "re-derive"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "expensive"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "refines"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "harder"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "trial"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "key": "moment"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "key": "moment"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "drops"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "key": "routing"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "key": "rewritten"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "sonnet"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "key": "drops"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "key": "guard"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "rest"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "guard"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "infer"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "lean"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "boundary"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "key": "moment"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "key": "neutral-framing-reproduces-under-load-behavioral-failures"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "key": "naming"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "skips"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "downstream"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+    "key": "defines"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "key": "refactor"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "self-check"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "literal"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "neutral-framing-reproduces-under-load-behavioral-failures"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "collapses"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "key": "gave"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "key": "tested"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "tested"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "recalls"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "declare"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "rich"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "key": "cost-filter"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "key": "under-firing"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "key": "gotcha"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "key": "rejected"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "final"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "update"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "key": "update"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "key": "correctly"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "key": "merge"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "stay"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "key": "final"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "merge"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "reviewers"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "reviewers"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "redundant"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "redundant"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "rejected"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "neutral-framing-reproduces-under-load-behavioral-failures"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "recall-miss-is-structural-not-retrieval"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "verdict"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "verdict"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "gotcha"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "key": "depth-dial"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "key": "decision-moment"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "recall-decision-moments-guidance-not-hooks-shipped"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "retrieve"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "issues"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "problem"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "stays"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+    "key": "stays"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "key": "drops"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "matched-note"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "problem"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "issues"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "write-side"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "keeps"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "paging"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "challenged"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "paging"
+  },
+  {
+    "src": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "delivery"
+  },
+  {
+    "src": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "dst": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "key": "marker"
+  },
+  {
+    "src": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "reversed"
+  },
+  {
+    "src": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "procedure"
+  },
+  {
+    "src": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "saving"
+  },
+  {
+    "src": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "skeptical"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "key": "trusting"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "key": "renders"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "overstated"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "key": "land"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+    "key": "render"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "exercises"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "renders"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "independent"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "independent"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "paper"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "prove"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "key": "lists"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "presented"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "tracks"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "key": "presented"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "key": "section"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "77.2026-06-24.recall-not-cost-bottleneck",
+    "key": "bf959f4"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "recommend"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "recommend"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "settled"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "perf"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "hint"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "direction"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "key": "routine"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "key": "under-firing"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "recall-firing"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "prevent"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "key": "opus-4"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "key": "routine"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "consistent"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "key": "recall-firing"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "worse"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "key": "decisions"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "skip"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "key": "relevance"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "key": "suppressing"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "wording"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "self-check"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "strong"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "strong"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "80.2026-06-24.recall-split-not-worth-complexity",
+    "key": "tried"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "tried"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "decisions"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "consistent"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "gotcha"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "doesn"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "judged"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "re-measure"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "absolute"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "threshold"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "relative"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "absolute"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "carried"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "earlier"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "original"
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "prevent"
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "propose"
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "rejected"
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "closed"
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "closed"
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "helps"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "key": "proceed"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "key": "re-run"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "key": "twice"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "authority"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "key": "reading"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "gating"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "key": "reports"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "transient"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "delegating"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "diagnostic"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "trusting"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "claims"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "key": "required"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "key": "proxy"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "key": "captured"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "superpowers"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "appears"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "key": "final"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "re-reading"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "key": "form"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "success"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "planning"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "warm-over-cold"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "confirms"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "carrying"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "cache_read"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "underpowered"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "underpowered"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "per-app"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "key": "outside"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "key": "strength"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "mandatory"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "delegating"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "proves"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "proves"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "dependency"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "untouched"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "mislabeled"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "key": "update"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "key": "external"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "key": "file"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "key": "editing"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "key": "editing"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "key": "approval"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "alongside"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "key": "import"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "key": "references"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "key": "ships"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "always-on"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "home"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "hops"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "carry"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "key": "file"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "key": "correctly"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "key": "defaults"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "made"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "refreshed"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "key": "import"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "gets"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "gets"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "went"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "154.2026-07-01.record-parked-observations-durably",
+    "key": "qanchor"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "dropping"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "key": "anchor"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "key": "phrase"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "anchor"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "wording"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "downstream"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "fell"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "better"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "strictly"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "advice"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "generic"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "gotchas"
+  },
+  {
+    "src": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "doesn"
+  },
+  {
+    "src": "154.2026-07-01.record-parked-observations-durably",
+    "dst": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "key": "park"
+  },
+  {
+    "src": "154.2026-07-01.record-parked-observations-durably",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "recorded"
+  },
+  {
+    "src": "154.2026-07-01.record-parked-observations-durably",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "recorded"
+  },
+  {
+    "src": "154.2026-07-01.record-parked-observations-durably",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "durable"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "key": "memory-system"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "key": "substituting"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "key": "trace"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "key": "trace"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "research"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "renders"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "planning"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "easier"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "adjacent"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "adjacent"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "substituting"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "key": "changed"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "key": "presented"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "including"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "sessions"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "key": "date"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "cites"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "levers"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "carried"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "number"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "evals"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "key": "rules"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "key": "replacing"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "k-means"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "precisely"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "redesign"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "lessons"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "judgment"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "flat"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "substituting"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "judgment"
+  },
+  {
+    "src": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "deliberate"
+  },
+  {
+    "src": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "cleanup"
+  },
+  {
+    "src": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "dst": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "key": "deleted"
+  },
+  {
+    "src": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "found"
+  },
+  {
+    "src": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "anything"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "key": "editing"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "complete"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "edit"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "showing"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "showing"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "key": "sequencing"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "key": "sequencing"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "resolved"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "key": "block"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "implementation"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "key": "trace"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "key": "spec"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "issues"
+  },
+  {
+    "src": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "followed"
+  },
+  {
+    "src": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "decisions"
+  },
+  {
+    "src": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "comparing"
+  },
+  {
+    "src": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "property-rigor"
+  },
+  {
+    "src": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "bridge"
+  },
+  {
+    "src": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "comparison"
+  },
+  {
+    "src": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "key": "oracle"
+  },
+  {
+    "src": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "key": "reference"
+  },
+  {
+    "src": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "key": "sequencing"
+  },
+  {
+    "src": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "compares"
+  },
+  {
+    "src": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "dst": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "key": "uses"
+  },
+  {
+    "src": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "uses"
+  },
+  {
+    "src": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "definition"
+  },
+  {
+    "src": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "dst": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "key": "subset"
+  },
+  {
+    "src": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "key": "additive"
+  },
+  {
+    "src": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "search"
+  },
+  {
+    "src": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "outputs"
+  },
+  {
+    "src": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "absolute"
+  },
+  {
+    "src": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "failing"
+  },
+  {
+    "src": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "capable"
+  },
+  {
+    "src": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "told"
+  },
+  {
+    "src": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "steps"
+  },
+  {
+    "src": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "told"
+  },
+  {
+    "src": "34.2026-06-16.working-memory-analog-gap",
+    "dst": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "key": "pure"
+  },
+  {
+    "src": "34.2026-06-16.working-memory-analog-gap",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "window"
+  },
+  {
+    "src": "34.2026-06-16.working-memory-analog-gap",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "key": "indexed"
+  },
+  {
+    "src": "34.2026-06-16.working-memory-analog-gap",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "window"
+  },
+  {
+    "src": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "asks"
+  },
+  {
+    "src": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "weaker"
+  },
+  {
+    "src": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "weak"
+  },
+  {
+    "src": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "dominant"
+  },
+  {
+    "src": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "collapsed"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "key": "multiplier"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "key": "fillrecencyband"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "key": "multiplier"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "anchor"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "resolveditem"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "no-op"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "no-op"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "typed"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "key": "multiplier"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "key": "noteagedays"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "deps"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "key": "cutoff"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "merge"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "key": "windowdays"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "nolint"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "repo"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "consumer"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "unused"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "deviation"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "key": "plantedrank"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "key": "plantedrank"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "gives"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "survive"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "key": "package"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "package"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "maps"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "key": "package"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "key": "wire"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "guards"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "key": "helper"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "key": "sites"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "key": "string"
+  },
+  {
+    "src": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "sites"
+  },
+  {
+    "src": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "dst": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "key": "active"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "key": "plantedrank"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "setting"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "guarantee"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "80.2026-06-24.recall-split-not-worth-complexity",
+    "key": "worked"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "key": "blank"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "gone"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "sites"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "defined"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "key": "defaults"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "key": "days"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "key": "guarantee"
+  },
+  {
+    "src": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "time-based"
+  },
+  {
+    "src": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "baked"
+  },
+  {
+    "src": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "sessions"
+  },
+  {
+    "src": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "key": "contenthash"
+  },
+  {
+    "src": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "key": "sidecars"
+  },
+  {
+    "src": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "key": "assertions"
+  },
+  {
+    "src": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "dst": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "key": "strings"
+  },
+  {
+    "src": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "key": "branch"
+  },
+  {
+    "src": "47.2026-06-17.date-only-parse-noon-arithmetic",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "date"
+  },
+  {
+    "src": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "key": "added"
+  },
+  {
+    "src": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "dst": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "key": "lint"
+  },
+  {
+    "src": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "added"
+  },
+  {
+    "src": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "consumers"
+  },
+  {
+    "src": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "unused"
+  },
+  {
+    "src": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "genuinely"
+  },
+  {
+    "src": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "genuinely"
+  },
+  {
+    "src": "49.2026-06-17.strings-splitseq-go126-modernize",
+    "dst": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "key": "range"
+  },
+  {
+    "src": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "dst": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+    "key": "follow"
+  },
+  {
+    "src": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "alongside"
+  },
+  {
+    "src": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "established"
+  },
+  {
+    "src": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "dst": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+    "key": "stays"
+  },
+  {
+    "src": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "added"
+  },
+  {
+    "src": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "candidate"
+  },
+  {
+    "src": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "evaluated"
+  },
+  {
+    "src": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "no-op"
+  },
+  {
+    "src": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "key": "flow"
+  },
+  {
+    "src": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "chunks-only"
+  },
+  {
+    "src": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "consistency"
+  },
+  {
+    "src": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+    "dst": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "key": "synthesize-l2"
+  },
+  {
+    "src": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "synthesize-l2"
+  },
+  {
+    "src": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "convention"
+  },
+  {
+    "src": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "dst": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "key": "striprelatedtosection"
+  },
+  {
+    "src": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "key": "striprelatedtosection"
+  },
+  {
+    "src": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "producing"
+  },
+  {
+    "src": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "dst": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "key": "striprelatedtosection"
+  },
+  {
+    "src": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "key": "wrote"
+  },
+  {
+    "src": "58.2026-06-19.engram-modernize-linter-slices-backward",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "slices"
+  },
+  {
+    "src": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "key": "immediately"
+  },
+  {
+    "src": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+    "dst": "67.2026-06-22.corrections-become-reproducible-tests",
+    "key": "guard"
+  },
+  {
+    "src": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "key": "recorded"
+  },
+  {
+    "src": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "subcommands"
+  },
+  {
+    "src": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "framed"
+  },
+  {
+    "src": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "lean"
+  },
+  {
+    "src": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "matched"
+  },
+  {
+    "src": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "reviewers"
+  },
+  {
+    "src": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "reversal"
+  },
+  {
+    "src": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "propagated"
+  },
+  {
+    "src": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "dst": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "key": "described"
+  },
+  {
+    "src": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "dst": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "key": "agents"
+  },
+  {
+    "src": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "a19e7b75-8bfb-4185-9abb-dd8e59fb2b62"
+  },
+  {
+    "src": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "key": "synthesize-l2"
+  },
+  {
+    "src": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "dst": "69.2026-06-23.analogy-is-generator-not-proof",
+    "key": "uses"
+  },
+  {
+    "src": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "invokes"
+  },
+  {
+    "src": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "calls"
+  },
+  {
+    "src": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "key": "leaving"
+  },
+  {
+    "src": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "actively"
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "relevant"
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "absent"
+  },
+  {
+    "src": "67.2026-06-22.corrections-become-reproducible-tests",
+    "dst": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "key": "blind"
+  },
+  {
+    "src": "67.2026-06-22.corrections-become-reproducible-tests",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "capture"
+  },
+  {
+    "src": "67.2026-06-22.corrections-become-reproducible-tests",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "distinction"
+  },
+  {
+    "src": "67.2026-06-22.corrections-become-reproducible-tests",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "genuine"
+  },
+  {
+    "src": "67.2026-06-22.corrections-become-reproducible-tests",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "want"
+  },
+  {
+    "src": "67.2026-06-22.corrections-become-reproducible-tests",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "mistake"
+  },
+  {
+    "src": "67.2026-06-22.corrections-become-reproducible-tests",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "standard"
+  },
+  {
+    "src": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "key": "domains"
+  },
+  {
+    "src": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "graph-expanded"
+  },
+  {
+    "src": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "graph-expanded"
+  },
+  {
+    "src": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "emergent"
+  },
+  {
+    "src": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "emergent"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "key": "cross-cluster"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "connect"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "composition"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "composition"
+  },
+  {
+    "src": "69.2026-06-23.analogy-is-generator-not-proof",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "persist"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "key": "slice-1"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "tested"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "empirically"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "reality"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "splits"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "form"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "domain"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "key": "graph-expanded"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "slice-2"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "slice-1"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "force"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "confident"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "key": "invest"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "compose"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "gets"
+  },
+  {
+    "src": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "key": "started"
+  },
+  {
+    "src": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "emergent"
+  },
+  {
+    "src": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "dst": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "key": "no-persist"
+  },
+  {
+    "src": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "key": "redundant"
+  },
+  {
+    "src": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "concluded"
+  },
+  {
+    "src": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "conflated"
+  },
+  {
+    "src": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "persistence"
+  },
+  {
+    "src": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "genuinely"
+  },
+  {
+    "src": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "stated"
+  },
+  {
+    "src": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "compounding"
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "key": "strong"
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "80.2026-06-24.recall-split-not-worth-complexity",
+    "key": "dropped"
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "independent"
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "induction"
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "stating"
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "asserted"
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "induction"
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "key": "content-budget"
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "empirical"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "80.2026-06-24.recall-split-not-worth-complexity",
+    "key": "host"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "host"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "judgment"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "workflow"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "key": "tried"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "sub-share"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "key": "known-failed"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "proves"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "key": "warm-build"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "re-proposing"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "key": "recommend"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "despite"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "showing"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "experiment-log"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "key": "known-failed"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "key": "closed"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "lever-keyed"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "diagnosing"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "fixes"
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "remains"
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "pair"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "sink"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "phases"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "phases"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "reporting"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "biggest"
+  },
+  {
+    "src": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "key": "stub"
+  },
+  {
+    "src": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "toy-reproducible"
+  },
+  {
+    "src": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "angle"
+  },
+  {
+    "src": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "angle"
+  },
+  {
+    "src": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "key": "induction"
+  },
+  {
+    "src": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "anti-amnesia-miss-not-toy-reproducible"
+  },
+  {
+    "src": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "cheaply"
+  },
+  {
+    "src": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "key": "displaces"
+  },
+  {
+    "src": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "reversing"
+  },
+  {
+    "src": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "re-read"
+  },
+  {
+    "src": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "told"
+  },
+  {
+    "src": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "key": "instruction"
+  },
+  {
+    "src": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "displacement"
+  },
+  {
+    "src": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "measurably"
+  },
+  {
+    "src": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "dst": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "key": "displacement"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "key": "speed"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "help"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "speed"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "key": "impossible"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "key": "recall-only"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "timed"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "overhead"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "payoff"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "speed"
+  },
+  {
+    "src": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "key": "decompose"
+  },
+  {
+    "src": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "verdict"
+  },
+  {
+    "src": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "phases"
+  },
+  {
+    "src": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "decomposition"
+  },
+  {
+    "src": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "key": "overhead"
+  },
+  {
+    "src": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "key": "paired"
+  },
+  {
+    "src": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "regime"
+  },
+  {
+    "src": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "costlier"
+  },
+  {
+    "src": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "key": "narrow"
+  },
+  {
+    "src": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "claims"
+  },
+  {
+    "src": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "key": "toys"
+  }
+]
