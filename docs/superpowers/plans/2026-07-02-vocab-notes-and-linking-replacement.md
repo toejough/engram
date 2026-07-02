@@ -3,121 +3,158 @@
 > **For agentic workers:** architecture change to the vault substrate + binary + skills. Executes the
 > link-value exploration's winning mechanism (tag nomination, `9153bec5`) in the vocab-note shape Joe
 > directed 2026-07-02, and performs the approved linking-ritual removal. Every slice is TDD'd,
-> gate-reviewed, and capability-gated (C3–C6 traps + S2 recovery probe + no-regression replay).
+> gate-reviewed, and capability-gated. (Amended post-Gate-A: "do both" ACCEPTED — Dataview is the
+> frontmatter consumer; slice order fixed — skill rewrite + `go install` before migration; removal
+> sized honestly; all executor rules pinned.)
 
-**Ask (Joe, 2026-07-02, condensed):** make the vocabulary **term notes in the vault**, wikilinked
-from member notes — terms-to-search live in the wikilinks, not (only) frontmatter — so the network
-is human-visible in Obsidian; term notes distinguishable by filename + frontmatter for easy
-search/filter ("or do both"); replace the current linking with the proposed frontmatter if it's not
-useful to the system; propose a holistic plan for retagging and how the tag set grows/prunes; think
-about, test, and implement.
+**Ask (Joe, 2026-07-02, verbatim):** "Instead of vocab.yaml, can we make term notes that are
+wikilinked to the relevant notes? then the terms to search live in the wikilinks rather than in the
+frontmatter, but that should not be a problem for the binary, and it would make the vault
+connections more visible to humans. note vs vocab-node can be distinguished in both the filename and
+the frontmatter tagging for easy search/filter. Or instead of pulling the tags out of the
+frontmatter, we could do both... but I'd like to have vocab nodes & links to them for better human
+visualization of the network in obsidian. /please help me think about, test, and implement this."
+Prior frame (approved by Joe in the same conversation): remove the current linking if not useful to
+the system, replace with the proposed frontmatter, and propose a holistic retag/grow/prune plan.
 
-**Evidence base:** `docs/design/2026-07-02-link-value-exploration.md` — tag NOMINATION is the
-winner (54.2% recovery, delivery +17.3pp overall / +50pp bridges, both >2σ, zero collateral); the
-mechanical (embedding) assigner holds at 64.6% recovery / 86% tag-agreement (probe, 2026-07-02);
-prose-wikilink traversal is worthless at recall (L1 all-T zero; PPR killed). Supersession
-ride-along (L5×T5) mechanism-proven, delivery-underpowered — shipped here as structure, re-smoked
-after the fabric grows.
+**Evidence base:** `docs/design/2026-07-02-link-value-exploration.md` — tag NOMINATION wins (54.2%
+recovery; delivery +17.3pp overall / +50pp bridges, >2σ; zero collateral); mechanical embedding
+assigner holds (64.6% recovery, 86% tag-agreement); prose-wikilink traversal worthless at recall;
+PPR killed. **Probed facts (2026-07-02, real binary, temp vault):** scanner/check/embed tolerate
+`vocab.<term>.md` filenames; G0 resolves member→term body links; an embedded vocab note DOES surface
+in query results (`kind: vocab`) — exclusion is mandatory; body-line wikilinks are
+Obsidian-guaranteed.
 
-**Verified facts this plan stands on (probed 2026-07-02, real binary, temp vault):**
-- `engram check`/scan/embed tolerate non-Luhmann filenames (`vocab.eval-methodology.md`); G0
-  resolves member→term body wikilinks.
-- **Pollution is real:** an embedded vocab note surfaces in query results as `kind: vocab` — the
-  exclusion seam (below) is mandatory, not optional.
-- Body-line wikilinks are Obsidian-graph-guaranteed; frontmatter property links are not relied on.
+## Data model (each decision is Joe-vetoable at plan review)
 
-## Data model (decisions — veto at Gate A/plan review)
+1. **Term note** `vocab.<term>.md` (no Luhmann number): frontmatter `type: vocab`, `term`,
+   `description`, `vocab_version`, `created`; body = description prose + refit-maintained exemplar
+   list (this body IS the term's embedding text; sidecar written on embed like any note).
+2. **Membership — BOTH channels, one writer (Gate-A reversal of the earlier "decline"):**
+   - Body line on the member note: `Vocab: [[vocab.eval-methodology]], [[vocab.scope-discipline]]`
+     — the Obsidian-graph-guaranteed channel and the binary's parse source (vaultgraph
+     `ParseWikilinks` + `Graph.Incoming` give membership by backlink — verified).
+   - Frontmatter list on the member note: `vocab: [eval-methodology, scope-discipline]` — the
+     **Dataview/search consumer** (Dataview queries frontmatter, not body links).
+   - Drift is impossible by construction: ONE binary codepath writes both in the same operation;
+     neither is ever hand-edited. **Idempotency rule: every write REPLACES the whole `Vocab:` line
+     and the whole `vocab:` frontmatter list with the current top-K assignment — never append/merge.**
+   - A note with no qualifying term gets NO `Vocab:` line and NO `vocab:` key (absence = untagged;
+     counted by stats). 
+   - **Direction flag (Joe sign-off):** links point member→term (the ask's phrasing reads
+     term→member). In Obsidian's undirected graph view the rendering is identical (term nodes become
+     hubs either way), and the term note's backlinks panel lists its members. Member→term keeps term
+     notes write-stable (no churn against the flock discipline). Veto if you want term→member lists
+     maintained too.
+3. **`vocab.index.md`** (`type: vocab-index`) — binary-generated MOC: one line per term
+   (`[[vocab.<term>]] — description — N members`), plus `vocab_version`. Human entry point, machine
+   manifest, version carrier. Regenerated by vocab commands; never hand-edited.
+4. **Supersession (SURFACED as its own go/no-go — carried from the approved "replace links with the
+   proposed frontmatter" proposal, NOT new-in-plan):** typed frontmatter on the superseding note
+   (`supersedes: [{note, type: updates|narrows|refutes, claim}]`); binary maintains the derived
+   inverse for O(1) ride-along at query; also rendered as a body line
+   (`Supersedes: [[<note>]] — <type>: <claim>`) for Obsidian visibility. Evidence: L5×T5 mechanism
+   proven, delivery-underpowered — shipped as structure, re-smoked after the fabric grows.
+5. **Exclusion seam (measured-mandatory):** `type: vocab` and `type: vocab-index` items are filtered
+   from the matched set, note-floor, and clustering. **Code reality (Gate-A): 2–3 targeted filter
+   sites, not one** — `kindFromContent` is render-time today but content is available earlier; the
+   filters insert at `applyFloorAndCap`/`capWithNoteFloor` and pre-clustering. The recency channel
+   needs NO filter (chunk-only by construction — vocab notes cannot enter).
+6. **What is removed** (Gate-A honest sizing — a removal pass, not a rename):
+   - recall Step 2.6 (whole section, SKILL.md lines ~187–237, plus its overview/mode/red-flag refs);
+   - the "Related to:" body ritual;
+   - **`--relation` REMOVED entirely** (not repurposed): `AmendArgs.Relations` + `LearnArgs.Relations`
+     struct fields; ~6 orphaned functions (`mergeRelatedSection`, `relatedTailFromBody`,
+     `resolveAmendRelations`, `resolveRelationTargetsStrict`, `resolveRelationTargets`,
+     `renderRelatedSection`) ~200 LOC; `migrateRelationLinks`/`migrate-links` retired; audit
+     `embed.RelatedSectionMarker` consumers before deleting the constant.
+   - `outbound_links` payload field (clean field deletion, verified present).
+   - `--supersedes "<basename>|<type>|<claim>"` is a NEW flag on learn/amend (parse + frontmatter
+     write + inverse maintenance), not a rename.
+   - Wikilinks in running prose stay legal.
 
-1. **Term note** `vocab.<term>.md` (no Luhmann number):
-   ```yaml
-   ---
-   type: vocab
-   term: eval-methodology
-   description: designing, running, and judging evaluations of agent behavior
-   vocab_version: 1
-   created: "2026-07-02"
-   ---
-   <description prose + refit-maintained exemplar list — this body IS the term's embedding text>
-   ```
-   Embedded on write like any note (sidecar vector = the assigner's comparison target).
-2. **Membership = body-line wikilinks in MEMBER notes only.** The binary appends/maintains one
-   line at the end of each memory note: `Vocab: [[vocab.eval-methodology]], [[vocab.scope-discipline]]`.
-   Term notes are never edited on member writes (no churn; flock-friendly). Membership is derived
-   from backlinks (vaultgraph parses body wikilinks today). **Declined:** duplicating membership
-   into member frontmatter — two sources of truth invite drift and no consumer needs the second.
-3. **`vocab.index.md`** — a binary-generated MOC (type: vocab-index): one line per term with
-   description + member count + `vocab_version`. The human entry point in Obsidian, the machine
-   manifest, and the version carrier. Regenerated by vocab commands; never hand-edited.
-4. **Supersession = typed frontmatter on the superseding note:**
-   ```yaml
-   supersedes:
-     - note: 120.2026-06-28.crystallize-question-shaped…
-       type: refutes            # updates | narrows | refutes
-       claim: "re-anchor prescription refuted on delivery+retrieval"
-   ```
-   The binary maintains a derived inverse (superseded→superseder) for O(1) ride-along. Rendered
-   ALSO as a body line (`Supersedes: [[…]] — refutes: <claim>`) so Obsidian shows the edge.
-5. **Exclusion seam:** `type: vocab` / `vocab-index` notes are excluded from the matched set, the
-   note-floor, clustering, and the recency channel. They exist for nomination + humans only.
-6. **What is removed** (after migration): recall Step 2.6 (cross-cluster linking pass); the
-   "Related to:" body-bullet ritual and generic `--relation` semantics (flag repurposed: learn/amend
-   accept `--supersedes "<basename>|<type>|<claim>"`); `outbound_links` in the query payload.
-   Wikilinks in running prose stay legal. The 77 existing edges: an LLM migration pass classifies
-   each — supersession-shaped → typed frontmatter; the rest → dropped as edges, rationales archived
-   to `docs/design/artifacts/2026-07-02-retired-relation-rationales.md` (+ git history).
-
-## Vocabulary lifecycle (the holistic retag/grow/prune answer)
+## Vocabulary lifecycle (retag / grow / prune)
 
 Binary = mechanical; LLM = judgment; skills = optional proposals only.
 
 | Motion | Mechanism | Trigger / cost |
 |---|---|---|
-| **Bootstrap** | `engram vocab bootstrap`: seeds term notes from the validated 25-term set (dev/eval/links/fabrics/l6.json) with LLM-written descriptions; embeds them; tags all existing notes mechanically; generates vocab.index.md | once, ~$2 |
-| **Write-time assign** | On every `learn`/`amend` note write: cosine(note body vector, term sidecar vectors), top-2 (≤3) ≥ floor τ (start 0.30, tuned by the S2 probe); append/update the `Vocab:` line | $0, every write, every writer (recall's 2.5 writes and synthesis notes included — they all flow through the binary) |
-| **Growth** | Below-floor writes stamped `Vocab: (none)` + counted. `engram vocab propose <term> --why` → LLM gate: (a) no existing term covers it, (b) not a hub (projected attachment ≤20% of vault) → creates the term note, minor version bump, index regen | ~$0.05/proposal |
-| **Health** | `engram vocab stats`: untagged rate, per-term member counts, hub terms (>25%), orphan terms (<2 members), version staleness | $0 |
-| **Refit (prune+drift)** | `engram vocab refit`: LLM re-derives the term set seeing current terms + all situations + stats — preserve names whose meaning held, merge orphans, split hubs; rewrites term notes; mechanically re-tags every member line; major version bump; index regen. Renames rewrite member wikilinks (migrate-links-style) | ~$2; fires on: untagged >10% of recent writes, any hub crossing 25%, or vault +30% since last refit |
-| **Regression gate** | After bootstrap/refit/threshold change: re-run the S2 recovery probe (free) + C3–C6 trap smoke — recovery ≥ prior − noise, capability GREEN | $0–3 |
+| **Bootstrap** (idempotent) | `engram vocab bootstrap`: seeds term notes from the validated 25-term set (`dev/eval/links/fabrics/l6.json`) with LLM-written descriptions; embeds them; mechanically tags all existing notes (both channels); generates vocab.index.md. Re-running refreshes assignments without duplicating. | once per vault, ~$2 |
+| **Write-time assign** | On every note write via `learn`/`amend`: cosine(note body vector, term sidecar vectors), top-2 (max 3) ≥ floor; replace-whole-line/list write of both channels | $0, every write, every writer (recall's 2.5 writes + synthesis notes flow through the binary) |
+| **Growth** | Below-floor → untagged (absent line/key), counted. `engram vocab propose <term> --why` → LLM gate: (a) no existing term covers it, (b) projected attachment ≤ 20% of vault → creates term note, minor version bump, index regen | ~$0.05/proposal |
+| **Health** | `engram vocab stats` → per-term `{term, member_count, vocab_version}` + vault untagged-rate + hub terms (> 25% of vault) + orphan terms (< 2 members) + version staleness | $0 |
+| **Refit** | `engram vocab refit`: LLM prompt = current term notes (name+description) + every note's situation line + the stats structure, instructed: preserve names whose meaning held; merge orphans; split hubs (> 25%); output the new term set with descriptions. Binary then: rewrites/creates/deletes term notes; **renames rewrite member links + frontmatter automatically within the same command**; mechanically re-tags all members; major version bump; index regen | ~$2; fires when untagged-rate > 10% of the last 25 writes, OR any term > 25% of vault, OR vault grew > 30% since last refit |
+| **Regression gate** | After bootstrap/refit/threshold change: S2 recovery probe (free) + C3–C6 trap smoke. Pass: recovery ≥ 60% AND median nomination pool ≤ 40 notes AND traps GREEN | $0–3 |
+
+**Assignment tuning procedure (pinned):** sweep floor ∈ {0.25, 0.30, 0.35, 0.40} × K ∈ {2, 3} on the
+bootstrapped copy vault; run the S2 probe per config; pick max recovery subject to median pool ≤ 40;
+tie → higher floor. Baselines for reference: mechanical 64.6% @ floor 0.30/K=2(+close-3rd), LLM
+pools ≈ 30 median.
 
 ## Query integration
 
-- **Nomination:** notes sharing ≥1 term with the top-3 delivered notes join `candidate_l2s`
-  nomination (never the ranked payload). Pool cap + floor tuned against the S2 probe (mechanical
-  baseline 64.6% recovery, median pool 44 — tighten toward the LLM pools' ~30 with floor/K).
-- **Supersession ride-along:** any delivered note with a superseder gets it inserted at the next
-  rank (payload +1 note per hit; measured +3.9%).
+- **Nomination:** notes sharing ≥ 1 term with the top-3 delivered notes join `candidate_l2s`
+  nomination (never the ranked payload).
+- **Supersession ride-along:** a delivered note with a superseder gets it inserted at the next rank
+  (+1 note per hit; measured +3.9%).
 
-## Execution slices (each: RED→GREEN→REFACTOR, Gate B on refactor, verify with real binary)
+## Execution slices (each: RED→GREEN→REFACTOR, Gate B per refactor, real-binary verification)
 
-1. **Binary substrate:** vocab-note model + exclusion seam + write-time assigner + `Vocab:` line
-   writer (+ idempotent rewrite) + supersedes frontmatter parse/inverse. Unit tests via
-   imptest/rapid/gomega; integration via temp-vault real-binary runs.
-2. **Query:** nomination + ride-along; gates: C3–C6 smoke, no-regression replay (the 38 zero-miss
-   queries), S2 recovery probe re-run reading LIVE wikilinks instead of fabric JSON.
-3. **Vocab commands:** bootstrap / propose / stats / refit (refit's LLM prompt seeded with the
-   health stats; rename-rewrite machinery).
-4. **Migration:** bootstrap on the live vault (backup first: copy vault aside); edge-classification
-   LLM pass over the 77 edges; strip "Related to:" ritual from note bodies; archival dump; verify
-   `engram check` GREEN + Obsidian eyeball by Joe (vault opens, vocab hubs visible).
-5. **Skill + doc scrub:** recall SKILL.md (drop 2.6, rewrite 2.5C/Step-4 relation semantics →
-   supersedes; writing-skills TDD with headless RED/GREEN), learn SKILL.md (same), GLOSSARY,
-   c1 diagrams, README, ROADMAP. Gate C over all.
-6. **Deploy:** `engram update`, live-vault verification (real binary, real args, non-data-dir cwd).
+1. **Binary substrate:** exclusion filters (2–3 sites) · term-note model · write-time assigner ·
+   dual-channel Vocab writer (NEW function ~60–80 LOC, `mergeRelatedSection` as pattern only, with
+   replace-whole rule + tests) · `--supersedes` flag + frontmatter + inverse · the `--relation`
+   removal pass (fields, 6 functions, marker-constant audit). imptest/rapid/gomega; temp-vault
+   integration runs.
+2. **Query:** nomination + ride-along. Gates run against a **bootstrapped COPY of the live vault**
+   (copy → bootstrap on the copy → probe reads the copy's real wikilinks): C3–C6 smoke ·
+   no-regression replay (the 38 zero-miss queries) · S2 recovery probe ≥ 60% @ pool ≤ 40.
+3. **Vocab commands:** bootstrap / propose / stats / refit (with the pinned prompt + rename-rewrite
+   inside refit). Exercised end-to-end on the copy vault. Assignment tuning sweep runs here.
+4. **Skill rewrite BEFORE install (Gate-A reorder, closes the `--relation` window):** recall
+   SKILL.md — delete Step 2.6, rewrite 2.5C coverage-table flags (drop `--relation`; `--chunk-source`
+   stays; absent-path unchanged otherwise), rewrite Step 4 (synthesis links via `--supersedes` when
+   negating a prior note; otherwise no link ritual), purge 2.6 red-flags/overview/mode refs; learn
+   SKILL.md — same sweep. writing-skills TDD (headless RED/GREEN). THEN `go install ./cmd/engram`.
+5. **Migration (the one live-vault write):**
+   - Backup: `cp -R ~/.local/share/engram/vault ~/.local/share/engram/vault.backup.2026-07-02`;
+     verify file count equality before proceeding.
+   - `engram vocab bootstrap` on the live vault.
+   - **Edge classification (criteria pinned):** LLM sees each of the 77 edges as (source basename,
+     target basename, rationale text). Classify SUPERSESSION only if the rationale states one note
+     refutes/narrows/updates/corrects/scopes the other's claim; thematic/cross-reference/supporting
+     rationales → DROP. Supersession → `supersedes:` frontmatter on the newer note; dropped edges →
+     `docs/design/artifacts/2026-07-02-retired-relation-rationales.md` (full rationale text).
+   - Strip "Related to:" sections from all note bodies; regenerate index; `engram check` GREEN;
+     re-run the S2 probe + trap smoke on the LIVE vault.
+6. **Doc scrub + deploy + acceptance:** execute the Gate-A docs checklist (embedded below);
+   `engram update`; live verification (real binary, real args, non-data-dir cwd).
+   **Obsidian acceptance criteria (the ask's primary goal, Joe signs off):** graph view shows the
+   ~25 term nodes as visible hubs (each ≥ 2 member spokes; `eval-methodology` ≈ 33 spokes);
+   `vocab.index.md` links to every term note; clicking a term note's backlinks lists its members;
+   a Dataview `TABLE ... WHERE contains(vocab, "eval-methodology")` returns the member set.
+
+## Doc-scrub checklist (Gate-A docs review — execute verbatim in slice 6)
+
+- **GLOSSARY:** update `--relation` (removed → `--supersedes`), `candidate_l2s` (nomination
+  semantics), `contradiction` (typed supersedes, no body ritual); ADD entries: vocab term-note,
+  vocab-index, vocab nomination, the `Vocab:` line.
+- **recall SKILL.md:** overview line 20 ("Link — …" → nomination), mode descriptions (drop 2.6),
+  2.5C table, Step 2.6 deletion, Step 4 rewrite, red-flag rows; **learn SKILL.md:** any `--relation`
+  refs.
+- **c1-system-context.md:** remove the Step 2.6 loop (lines ~178–183); fix 2.5 amend/learn call
+  annotations (~164–173); rewrite the coverage-decision description (~98–102); check the C3
+  component diagram's vaultgraph references.
+- **README:** graph caption (line ~14), recall description (~42), `engram amend` signature (~88),
+  the `content_hash`/"Related to:" note (~120).
+- **ROADMAP:** relational-synthesis arc — mark the write-side answered by vocab nomination; verify
+  the link-value entry needs no change.
+- **2026-06-23-cross-cluster-linking.md:** add a superseded-2026-07-02 header note pointing at the
+  link-value results + this migration (historical record kept, not rewritten).
 
 ## Constraints
 
-- The live vault is written ONLY in slice 4 (migration), after a filesystem backup and behind the
-  gates; slices 1–3 run on temp/copy vaults.
-- Scope guard: another workstream is concurrently modifying `internal/` — every commit scope-checks
-  `git diff --stat --cached` and stages only this plan's files; rebase-on-main + re-test before any
-  merge if branches diverge.
-- No repo-wide tooling. Results as labeled tables with units + n. Honest ledger.
-- Spend estimate: LLM ~$5–12 (bootstrap descriptions, edge classification, refit seeds) + gates
-  ~$5–15. Total **~$10–30** (this build is mostly code, unlike the exploration).
-
-## Deliverables
-
-- Binary: vocab substrate + query integration + vocab commands (+ tests).
-- Vault: term notes + vocab.index.md + tagged members + typed supersessions + stripped ritual.
-- Docs: updated skills/GLOSSARY/diagrams/README/ROADMAP; migration artifact (retired rationales);
-  results/verification doc.
+- Live vault written ONLY in slice 5, post-backup, behind gates; slices 1–3 on temp/copy vaults.
+- Scope guard: another workstream is modifying `internal/` concurrently — every commit stages only
+  this plan's files (`git diff --stat --cached` check); coordinate/rebase before merge if needed.
+- No repo-wide tooling. Labeled tables with units + n. Honest ledger.
+- Spend estimate: LLM ~$5–12 + gates ~$5–15 → **~$10–30 total**.
