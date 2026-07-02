@@ -69,8 +69,10 @@ emphasis is the self-assessment):**
 - **1c. Conversational history (the ask's first source):** query the chunk index directly
   (`engram query` with phrases like "what engram should do", "the goal of memory", "why we built",
   "decided not to", "next for engram") and read surfaced chunks via `engram show-chunk`; additionally
-  sample 3–5 session transcripts across project phases (`ls -t ~/.claude/projects/-Users-joe-repos-personal-engram/*.jsonl`
-  — earliest, middle, recent) and skim for: in-session goal statements, informal decisions that never
+  sample 3–5 session transcripts across project phases (list
+  `~/.claude/projects/-Users-joe-repos-personal-engram/*.jsonl`; mtime approximates but does not
+  guarantee session order — the chunk-index query is the primary source; pick earliest/middle/recent
+  by best available signal) and skim for: in-session goal statements, informal decisions that never
   became docs, usage patterns, abandoned directions. Output: dated list of conversational findings
   NOT already in docs (explicitly marked "transcript-only").
 
@@ -81,8 +83,9 @@ emphasis is the self-assessment):**
   measured vs claimed (label vendor claims).
 - **2b. Techniques survey:** RAG+rerank, GraphRAG, HippoRAG, reflection (Reflexion/Generative
   Agents), skill/procedure libraries (Voyager), A-Mem, MemoryBank, episodic-memory work,
-  sleep-time/offline consolidation, context compaction/editing. Per technique: mechanism, evidence
-  quality, and applicability on three named axes — (i) local-first CLI agent fit (no external service
+  sleep-time/offline consolidation, context compaction/editing. Per technique: mechanism (noting
+  which of the five verbs it serves — explicit "none" allowed, mirroring 2a), evidence quality, and
+  applicability on three named axes — (i) local-first CLI agent fit (no external service
   dependency), (ii) skills+binary architecture fit, (iii) addresses a gap our evidence says is real
   (not an axis we've refuted/solved).
 - Both: prefer primary sources/papers/docs; note publication dates.
