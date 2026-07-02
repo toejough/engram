@@ -136,6 +136,13 @@ settled-rejected; binary re-clustering **not built** (the phrase-provenance plum
 up at `docs/design/artifacts/2026-07-01-phrase-provenance-plumbing.patch`). Harness: `dev/eval/traps/qanchor_*.py`.
 The first wave's real win (#7, weaker-model reuse) shipped as Track B tier-routing.
 
+**Untested sub-lever (recorded, NOT to act on yet):** the eval hinted anchoring interacts with lesson **type** —
+question-anchoring/abstraction *helped* transferable-**pattern** lessons (B 83% vs A 58%) but *hurt* concrete-**API**
+lessons (A 64% vs B 39%). So a narrower lever — *question-anchor pattern-type lessons only, keep the token for
+concrete-API lessons* — is untested as an isolated intervention. **Honest bound: n=3 pattern pairs, within the same
+eval, not independently validated** — a hint, not a result. Parked; revisit only if crystallization quality resurfaces
+as a bottleneck.
+
 ### Ranking follow-ups — only if the floor proves too blunt  [QUALITY]
 The note-floor (shipped, see Done) reserves up to `noteFloorK=5` per-phrase slots. If it proves blunt (caps
 relevant notes, or promotes a marginal one), the principled successors are **per-population score
