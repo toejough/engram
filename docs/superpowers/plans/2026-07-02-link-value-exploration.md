@@ -72,7 +72,7 @@ construction (today's ranking never reads edges).
 
 | ID | Edges from | Cost | Rationale |
 |---|---|---|---|
-| L1 | status-quo fabric (the 80 resolved edges) | $0 | control |
+| L1 | status-quo fabric (**77 resolved edges, measured post-pre-step** — `migrate-links` handles bare-ID links, not the 3 slug-only drift links, which repaired 0; those 3 stay broken/excluded, deferred to the stop-point) | $0 | control |
 | L2 | corpus-wide link-on-write: per note, top-K embedding candidates over the whole vault → **harness-local LLM pass replicating recall 2.6's GENERATE/JUSTIFY/PERSIST gate** (relation menu + shared-key + hub test) → surviving edges into the fabric JSON | ~$5–10 | the compound-eng "related docs finder" mechanism; fixes "only co-surfaced pairs ever considered" |
 | L3 | shared rare tokens (TF-IDF-rare concrete tokens shared across notes) | $0 | note 153: the concrete token is load-bearing |
 | L4 | situation-field cosine (embed situation handles only; near-family situations) | $0 | same-moment lessons should co-surface |
