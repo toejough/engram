@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -21,7 +20,7 @@ import (
 type AmendArgs struct {
 	Vault        string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                          //nolint:lll // single unbreakable struct-tag string
 	Target       string   `targ:"flag,name=target,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"` //nolint:lll // single unbreakable struct-tag string
-	Relations    []string `targ:"flag,name=relation,desc=relation <target>|<rationale> for Related to: (repeatable)"`
+	Supersedes   []string `targ:"flag,name=supersedes,desc=supersession: <note>|<type>|<claim> (updates/narrows/refutes)"`
 	ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk id (source#anchor) merged into sources: (repeatable)"`
 	ChunksDir    string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
 	// Content flags — only supplied fields are overwritten.
@@ -49,14 +48,13 @@ type AmendDeps struct {
 	// Acquire only at the RunAmend entry point — shared helpers (reEmbedAndActivate,
 	// bumpLastUsed) must NOT re-acquire (RunAmend already holds it, re-acquiring would
 	// self-deadlock on a per-fd flock).
-	Lock          func(vault string) (func(), error)
-	Scan          func(vault string) ([]vaultgraph.Note, error)
-	Read          func(path string) ([]byte, error)
-	Write         func(path string, data []byte) error
-	Embedder      embed.Embedder
-	Now           func() time.Time
-	ListBasenames func(vault string) ([]string, error)
-	LoadChunkIDs  func(
+	Lock         func(vault string) (func(), error)
+	Scan         func(vault string) ([]vaultgraph.Note, error)
+	Read         func(path string) ([]byte, error)
+	Write        func(path string, data []byte) error
+	Embedder     embed.Embedder
+	Now          func() time.Time
+	LoadChunkIDs func(
 		chunksDir string,
 		listIndexes func(dir string) ([]string, error),
 		readFile func(path string) ([]byte, error),
@@ -104,12 +102,12 @@ func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Wri
 		return chunkErr
 	}
 
-	resolvedRelations, relErr := resolveAmendRelations(args, deps)
-	if relErr != nil {
-		return relErr
+	parsedSupersedes, supErr := parseAllSupersedes(args.Supersedes)
+	if supErr != nil {
+		return fmt.Errorf("amend: %w", supErr)
 	}
 
-	amended, contentChanged, amendErr := amendContent(raw, args, resolvedRelations)
+	amended, contentChanged, amendErr := amendContent(raw, args, parsedSupersedes)
 	if amendErr != nil {
 		return amendErr
 	}
@@ -155,14 +153,14 @@ type fieldOverride struct {
 type typedAmend[T any] struct {
 	kind     string
 	created  func(doc T) string
-	override func(doc *T, args AmendArgs) bool
+	override func(doc *T, args AmendArgs, parsedSupersedes []supersedesEntry) bool
 	render   func(doc T, when time.Time, body string, contentChanged bool) string
 }
 
 // amendContent applies all amendments to raw note bytes. Returns the
 // updated content, whether the semantic content changed (triggers re-embed),
-// and any error. Link/provenance-only changes do NOT set contentChanged.
-func amendContent(raw []byte, args AmendArgs, resolvedRelations []string) (string, bool, error) {
+// and any error. Provenance-only or supersedes-only changes do NOT set contentChanged.
+func amendContent(raw []byte, args AmendArgs, parsedSupersedes []supersedesEntry) (string, bool, error) {
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
 		return "", false, errAmendNoFrontmatter
@@ -171,14 +169,8 @@ func amendContent(raw []byte, args AmendArgs, resolvedRelations []string) (strin
 	noteType := peekNoteType(frontmatter)
 	body := embed.ExtractBody(raw)
 
-	// merge relations into body
-	bodyStr := string(body)
-	if len(resolvedRelations) > 0 {
-		bodyStr = mergeRelatedSection(bodyStr, resolvedRelations)
-	}
-
-	// merge chunk sources into frontmatter + apply field overrides
-	updated, contentChanged, fieldErr := applyFieldReplacement(raw, args, bodyStr, noteType)
+	// Merge chunk sources into frontmatter + apply field overrides + supersedes.
+	updated, contentChanged, fieldErr := applyFieldReplacement(raw, args, string(body), noteType, parsedSupersedes)
 	if fieldErr != nil {
 		return "", false, fieldErr
 	}
@@ -188,8 +180,13 @@ func amendContent(raw []byte, args AmendArgs, resolvedRelations []string) (strin
 
 // applyFactAmend overrides supplied fact fields, merges chunk-source provenance,
 // and re-renders the note (Issue round-trips via quotedString — CA-11).
-func applyFactAmend(frontmatter []byte, args AmendArgs, body string) (string, bool, error) {
-	return applyTypedAmend(frontmatter, args, body, typedAmend[factFrontmatterDoc]{
+func applyFactAmend(
+	frontmatter []byte,
+	args AmendArgs,
+	body string,
+	parsedSupersedes []supersedesEntry,
+) (string, bool, error) {
+	return applyTypedAmend(frontmatter, args, body, parsedSupersedes, typedAmend[factFrontmatterDoc]{
 		kind:     "fact",
 		created:  func(doc factFrontmatterDoc) string { return doc.Created },
 		override: overrideFactFields,
@@ -199,8 +196,13 @@ func applyFactAmend(frontmatter []byte, args AmendArgs, body string) (string, bo
 
 // applyFeedbackAmend mirrors applyFactAmend for feedback notes (behavior/impact/
 // action fields; Issue round-trips via quotedString — CA-11).
-func applyFeedbackAmend(frontmatter []byte, args AmendArgs, body string) (string, bool, error) {
-	return applyTypedAmend(frontmatter, args, body, typedAmend[feedbackFrontmatterDoc]{
+func applyFeedbackAmend(
+	frontmatter []byte,
+	args AmendArgs,
+	body string,
+	parsedSupersedes []supersedesEntry,
+) (string, bool, error) {
+	return applyTypedAmend(frontmatter, args, body, parsedSupersedes, typedAmend[feedbackFrontmatterDoc]{
 		kind:     "feedback",
 		created:  func(doc feedbackFrontmatterDoc) string { return doc.Created },
 		override: overrideFeedbackFields,
@@ -223,21 +225,22 @@ func applyFieldOverrides(overrides []fieldOverride) bool {
 }
 
 // applyFieldReplacement parses the note frontmatter, applies field overrides and
-// provenance merge, rebuilds the frontmatter, and reassembles with the (already
-// relation-merged) body. contentChanged is true only when a semantic field
+// provenance merge, rebuilds the frontmatter, and reassembles with the body.
+// contentChanged is true only when a semantic field
 // (situation/subject/predicate/object/behavior/impact/action) changed.
 func applyFieldReplacement(
 	raw []byte,
 	args AmendArgs,
 	body, noteType string,
+	parsedSupersedes []supersedesEntry,
 ) (string, bool, error) {
 	frontmatter, _ := splitFrontmatter(raw) // already validated upstream
 
 	switch noteType {
 	case typeFact:
-		return applyFactAmend(frontmatter, args, body)
+		return applyFactAmend(frontmatter, args, body, parsedSupersedes)
 	case typeFeedback:
-		return applyFeedbackAmend(frontmatter, args, body)
+		return applyFeedbackAmend(frontmatter, args, body, parsedSupersedes)
 	default:
 		return "", false, fmt.Errorf("%w: %q", errAmendUnknownType, noteType)
 	}
@@ -246,12 +249,13 @@ func applyFieldReplacement(
 // applyTypedAmend is the shared fact/feedback amend driver. It unmarshals the
 // frontmatter into T, preserves the created date, applies the type-specific
 // overrides + provenance merge, and renders. contentChanged is true only when a
-// semantic field actually changed value, so relation-only or provenance-only
+// semantic field actually changed value, so provenance-only or supersedes-only
 // amends do not trigger a re-embed (D3).
 func applyTypedAmend[T any](
 	frontmatter []byte,
 	args AmendArgs,
 	body string,
+	parsedSupersedes []supersedesEntry,
 	spec typedAmend[T],
 ) (string, bool, error) {
 	var doc T
@@ -266,7 +270,7 @@ func applyTypedAmend[T any](
 		return "", false, createdErr
 	}
 
-	contentChanged := spec.override(&doc, args)
+	contentChanged := spec.override(&doc, args, parsedSupersedes)
 
 	return spec.render(doc, when, body, contentChanged), contentChanged, nil
 }
@@ -293,70 +297,6 @@ func mergeChunkSources(existing, incoming []string) []string {
 	return out
 }
 
-// mergeRelatedSection parses the existing "Related to:" block from body,
-// deduplicates with incoming relations, and returns the updated body with
-// only new relations appended. Incoming relations must already be in
-// "basename|rationale" resolved form. Existing bullets "- [[basename]] — ..."
-// are parsed for their basename to detect duplicates.
-func mergeRelatedSection(body string, incoming []string) string {
-	idx := strings.LastIndex(body, relatedSectionMarker)
-
-	var head, existingSection string
-
-	if idx == -1 {
-		head = body
-	} else {
-		head = body[:idx]
-		existingSection = body[idx:]
-	}
-
-	// collect existing basenames from bullets. Normalize a trailing ".md": a
-	// hand-edited bullet may carry "[[foo.md]]" while resolveRelationTargetsStrict
-	// yields the ".md"-stripped ListBasenames form, so dedup on the bare basename
-	// keeps the merge idempotent regardless of which form the note already holds.
-	existing := map[string]struct{}{}
-
-	for line := range strings.SplitSeq(existingSection, "\n") {
-		sub := wikilinkRE.FindStringSubmatch(line)
-		if sub != nil {
-			existing[strings.TrimSuffix(sub[1], ".md")] = struct{}{}
-		}
-	}
-
-	// build new bullets for relations not already present
-	newBullets := make([]string, 0, len(incoming))
-
-	for _, rel := range incoming {
-		target, rationale, _ := strings.Cut(rel, "|")
-		target = strings.TrimSpace(target)
-
-		if _, dup := existing[strings.TrimSuffix(target, ".md")]; dup {
-			continue
-		}
-
-		bullet := "- [[" + target + "]]"
-		if r := strings.TrimSpace(rationale); r != "" {
-			bullet += " — " + r + "."
-		}
-
-		newBullets = append(newBullets, bullet)
-	}
-
-	if len(newBullets) == 0 {
-		return body // no change
-	}
-
-	if idx == -1 {
-		tail := relatedSectionMarker + "\n" + strings.Join(newBullets, "\n") + "\n"
-
-		return strings.TrimRight(body, "\n") + "\n\n" + tail
-	}
-
-	trimmed := strings.TrimRight(existingSection, "\n")
-
-	return head + trimmed + "\n" + strings.Join(newBullets, "\n") + "\n"
-}
-
 // newOsAmendDeps wires RunAmend to the real filesystem + bundled embedder.
 // ChunksDir flows through AmendArgs, not here.
 func newOsAmendDeps() AmendDeps {
@@ -376,11 +316,8 @@ func newOsAmendDeps() AmendDeps {
 
 			return nil
 		},
-		Embedder: sharedEmbedder,
-		Now:      time.Now,
-		ListBasenames: func(vault string) ([]string, error) {
-			return (&osLearnFS{}).ListBasenames(vault)
-		},
+		Embedder:     sharedEmbedder,
+		Now:          time.Now,
 		LoadChunkIDs: buildChunkIDSet,
 		// listJSONLIndexes (query_chunks.go) lists *.jsonl chunk indexes, treats
 		// an absent dir as empty (not an error), and never matches manifest.json
@@ -393,9 +330,13 @@ func newOsAmendDeps() AmendDeps {
 
 // overrideFactFields merges provenance into the fact doc and applies any
 // supplied situation/subject/predicate/object overrides, reporting whether a
-// semantic field changed.
-func overrideFactFields(doc *factFrontmatterDoc, args AmendArgs) bool {
+// semantic field changed. Supersedes is written to doc.Supersedes when non-nil.
+func overrideFactFields(doc *factFrontmatterDoc, args AmendArgs, parsedSupersedes []supersedesEntry) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
+
+	if parsedSupersedes != nil {
+		doc.Supersedes = parsedSupersedes
+	}
 
 	return applyFieldOverrides([]fieldOverride{
 		{&doc.Situation, args.Situation},
@@ -407,9 +348,17 @@ func overrideFactFields(doc *factFrontmatterDoc, args AmendArgs) bool {
 
 // overrideFeedbackFields merges provenance into the feedback doc and applies any
 // supplied situation/behavior/impact/action overrides, reporting whether a
-// semantic field changed.
-func overrideFeedbackFields(doc *feedbackFrontmatterDoc, args AmendArgs) bool {
+// semantic field changed. Supersedes is written to doc.Supersedes when non-nil.
+func overrideFeedbackFields(
+	doc *feedbackFrontmatterDoc,
+	args AmendArgs,
+	parsedSupersedes []supersedesEntry,
+) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
+
+	if parsedSupersedes != nil {
+		doc.Supersedes = parsedSupersedes
+	}
 
 	return applyFieldOverrides([]fieldOverride{
 		{&doc.Situation, args.Situation},
@@ -460,75 +409,54 @@ func reEmbedAndActivate(
 	}
 }
 
-// relatedTailFromBody extracts the "Related to:\n..." suffix from an
-// already-relation-merged body string. Returns "" when absent.
-func relatedTailFromBody(body string) string {
-	idx := strings.LastIndex(body, relatedSectionMarker)
-	if idx == -1 {
-		return ""
-	}
-
-	return body[idx:]
-}
-
-// renderAmendedFact re-renders a fact note from the (possibly updated) doc,
-// rebuilding the body formula only when a semantic field changed.
+// renderAmendedFact re-renders a fact note from the (possibly updated) doc.
+// When a semantic field changed, the body formula is rebuilt from scratch and
+// the supersedes lines are appended. Otherwise, the body is preserved but
+// supersedes lines are replaced in place.
 func renderAmendedFact(
 	doc factFrontmatterDoc,
-	when time.Time,
+	_ time.Time,
 	body string,
 	contentChanged bool,
 ) string {
-	f := factFields{
-		Situation: doc.Situation, Subject: doc.Subject, Predicate: doc.Predicate,
-		Object: doc.Object, Luhmann: string(doc.Luhmann), Source: doc.Source,
-		Project: doc.Project, Issue: string(doc.Issue), Tier: doc.Tier, ChunkSources: doc.Sources,
-	}
 	if contentChanged {
-		body = renderFactBody(f, relatedTailFromBody(body))
+		f := factFields{
+			Situation: doc.Situation, Subject: doc.Subject, Predicate: doc.Predicate,
+			Object: doc.Object, Luhmann: string(doc.Luhmann), Source: doc.Source,
+			Project: doc.Project, Issue: string(doc.Issue), Tier: doc.Tier,
+			ChunkSources: doc.Sources, Supersedes: doc.Supersedes,
+		}
+		body = renderFactBody(f)
+	} else {
+		body = replaceSupersedes(body, doc.Supersedes)
 	}
 
-	return renderFactFrontmatter(f, when) + body
+	return marshalFrontmatter(doc) + body
 }
 
 // renderAmendedFeedback re-renders a feedback note from the (possibly updated)
-// doc, rebuilding the body formula only when a semantic field changed.
+// doc. When a semantic field changed, the body formula is rebuilt from scratch
+// and supersedes lines are appended. Otherwise, the body is preserved but
+// supersedes lines are replaced in place.
 func renderAmendedFeedback(
 	doc feedbackFrontmatterDoc,
-	when time.Time,
+	_ time.Time,
 	body string,
 	contentChanged bool,
 ) string {
-	f := feedbackFields{
-		Situation: doc.Situation, Behavior: doc.Behavior, Impact: doc.Impact,
-		Action: doc.Action, Luhmann: string(doc.Luhmann), Source: doc.Source,
-		Project: doc.Project, Issue: string(doc.Issue), Tier: doc.Tier, ChunkSources: doc.Sources,
-	}
 	if contentChanged {
-		body = renderFeedbackBody(f, relatedTailFromBody(body))
+		f := feedbackFields{
+			Situation: doc.Situation, Behavior: doc.Behavior, Impact: doc.Impact,
+			Action: doc.Action, Luhmann: string(doc.Luhmann), Source: doc.Source,
+			Project: doc.Project, Issue: string(doc.Issue), Tier: doc.Tier,
+			ChunkSources: doc.Sources, Supersedes: doc.Supersedes,
+		}
+		body = renderFeedbackBody(f)
+	} else {
+		body = replaceSupersedes(body, doc.Supersedes)
 	}
 
-	return renderFeedbackFrontmatter(f, when) + body
-}
-
-// resolveAmendRelations resolves --relation targets to full basenames, failing
-// loud on unresolved ids. Returns nil when no relations were supplied.
-func resolveAmendRelations(args AmendArgs, deps AmendDeps) ([]string, error) {
-	if len(args.Relations) == 0 {
-		return nil, nil
-	}
-
-	basenames, bErr := deps.ListBasenames(args.Vault)
-	if bErr != nil {
-		return nil, fmt.Errorf("amend: listing basenames: %w", bErr)
-	}
-
-	resolved, strictErr := resolveRelationTargetsStrict(args.Relations, basenames)
-	if strictErr != nil {
-		return nil, fmt.Errorf("amend: %w", strictErr)
-	}
-
-	return resolved, nil
+	return marshalFrontmatter(doc) + body
 }
 
 // validateChunkSources loads the chunk-id set and fails loud when any

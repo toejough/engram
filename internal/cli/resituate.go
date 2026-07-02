@@ -209,7 +209,7 @@ func rerenderFact(frontmatter, body []byte, situation string) (string, error) {
 		Tier:      doc.Tier,
 	}
 
-	return renderFactFrontmatter(fields, when) + renderFactBody(fields, relatedTail(body)), nil
+	return renderFactFrontmatter(fields, when) + renderFactBody(fields) + relatedTail(body), nil
 }
 
 // rerenderFeedback rebuilds a feedback note with the new situation in both the
@@ -239,13 +239,7 @@ func rerenderFeedback(frontmatter, body []byte, situation string) (string, error
 		Tier:      doc.Tier,
 	}
 
-	return renderFeedbackFrontmatter(
-		fields,
-		when,
-	) + renderFeedbackBody(
-		fields,
-		relatedTail(body),
-	), nil
+	return renderFeedbackFrontmatter(fields, when) + renderFeedbackBody(fields) + relatedTail(body), nil
 }
 
 // resituateContent re-renders raw with situation replaced. For fact and

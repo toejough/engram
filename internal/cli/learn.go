@@ -30,8 +30,10 @@ type LearnArgs struct {
 	Issue    string
 	Tier     string
 
-	// feedback / fact both support related-note bullets
-	Relations []string
+	// Supersedes carries `--supersedes "<basename>|<type>|<claim>"` flags. Each
+	// entry is validated and written to both the frontmatter supersedes: list and
+	// the body Supersedes: wikilink lines.
+	Supersedes []string
 
 	// ChunkSources carries chunk-index ids (source#anchor) to record as frontmatter
 	// provenance. Written to `sources:` when non-empty. Passed via --chunk-source.
@@ -103,23 +105,26 @@ type factFields struct {
 	Issue        string
 	Tier         string
 	ChunkSources []string
+	Supersedes   []supersedesEntry
 }
 
 // factFrontmatterDoc is the YAML shape of a fact's frontmatter. Field order
 // here determines key order in the rendered document.
 type factFrontmatterDoc struct {
-	Type      string       `yaml:"type"`
-	Tier      string       `yaml:"tier,omitempty"`
-	Situation string       `yaml:"situation"`
-	Subject   string       `yaml:"subject"`
-	Predicate string       `yaml:"predicate"`
-	Object    string       `yaml:"object"`
-	Luhmann   quotedString `yaml:"luhmann"`
-	Created   string       `yaml:"created"`
-	Source    string       `yaml:"source"`
-	Project   string       `yaml:"project,omitempty"`
-	Issue     quotedString `yaml:"issue,omitempty"`
-	Sources   []string     `yaml:"sources,omitempty"`
+	Type       string            `yaml:"type"`
+	Tier       string            `yaml:"tier,omitempty"`
+	Situation  string            `yaml:"situation"`
+	Subject    string            `yaml:"subject"`
+	Predicate  string            `yaml:"predicate"`
+	Object     string            `yaml:"object"`
+	Luhmann    quotedString      `yaml:"luhmann"`
+	Created    string            `yaml:"created"`
+	Source     string            `yaml:"source"`
+	Project    string            `yaml:"project,omitempty"`
+	Issue      quotedString      `yaml:"issue,omitempty"`
+	Sources    []string          `yaml:"sources,omitempty"`
+	Vocab      []string          `yaml:"vocab,omitempty"`
+	Supersedes []supersedesEntry `yaml:"supersedes,omitempty"`
 }
 
 type feedbackFields struct {
@@ -133,22 +138,25 @@ type feedbackFields struct {
 	Issue        string
 	Tier         string
 	ChunkSources []string
+	Supersedes   []supersedesEntry
 }
 
 // feedbackFrontmatterDoc is the YAML shape of a feedback note's frontmatter.
 type feedbackFrontmatterDoc struct {
-	Type      string       `yaml:"type"`
-	Tier      string       `yaml:"tier,omitempty"`
-	Situation string       `yaml:"situation"`
-	Behavior  string       `yaml:"behavior"`
-	Impact    string       `yaml:"impact"`
-	Action    string       `yaml:"action"`
-	Luhmann   quotedString `yaml:"luhmann"`
-	Created   string       `yaml:"created"`
-	Source    string       `yaml:"source"`
-	Project   string       `yaml:"project,omitempty"`
-	Issue     quotedString `yaml:"issue,omitempty"`
-	Sources   []string     `yaml:"sources,omitempty"`
+	Type       string            `yaml:"type"`
+	Tier       string            `yaml:"tier,omitempty"`
+	Situation  string            `yaml:"situation"`
+	Behavior   string            `yaml:"behavior"`
+	Impact     string            `yaml:"impact"`
+	Action     string            `yaml:"action"`
+	Luhmann    quotedString      `yaml:"luhmann"`
+	Created    string            `yaml:"created"`
+	Source     string            `yaml:"source"`
+	Project    string            `yaml:"project,omitempty"`
+	Issue      quotedString      `yaml:"issue,omitempty"`
+	Sources    []string          `yaml:"sources,omitempty"`
+	Vocab      []string          `yaml:"vocab,omitempty"`
+	Supersedes []supersedesEntry `yaml:"supersedes,omitempty"`
 }
 
 // quotedString is a YAML scalar that always renders double-quoted. Used for
@@ -178,7 +186,10 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 		return "", tierErr
 	}
 
-	related := renderRelatedSection(args.Relations)
+	parsedSupersedes, supErr := parseAllSupersedes(args.Supersedes)
+	if supErr != nil {
+		return "", fmt.Errorf("learn: %w", supErr)
+	}
 
 	switch args.Type {
 	case typeFeedback:
@@ -190,10 +201,10 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 			Situation: args.Situation, Behavior: args.Behavior, Impact: args.Impact,
 			Action: args.Action, Luhmann: luhmann, Source: args.Source,
 			Project: args.Project, Issue: args.Issue, Tier: tierOrDefault(args.Tier),
-			ChunkSources: args.ChunkSources,
+			ChunkSources: args.ChunkSources, Supersedes: parsedSupersedes,
 		}
 
-		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f, related), nil
+		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f), nil
 	case typeFact:
 		if strings.TrimSpace(args.Situation) == "" {
 			return "", errFactSituationRequired
@@ -203,10 +214,10 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 			Situation: args.Situation, Subject: args.Subject, Predicate: args.Predicate,
 			Object: args.Object, Luhmann: luhmann, Source: args.Source,
 			Project: args.Project, Issue: args.Issue, Tier: tierOrDefault(args.Tier),
-			ChunkSources: args.ChunkSources,
+			ChunkSources: args.ChunkSources, Supersedes: parsedSupersedes,
 		}
 
-		return renderFactFrontmatter(f, when) + renderFactBody(f, related), nil
+		return renderFactFrontmatter(f, when) + renderFactBody(f), nil
 	default:
 		return "", fmt.Errorf("%w: got %q", errLearnUnknownType, args.Type)
 	}
@@ -290,77 +301,58 @@ func newOsLearnDeps() LearnDeps {
 	}
 }
 
-func renderFactBody(f factFields, relatedSection string) string {
+func renderFactBody(f factFields) string {
 	formula := fmt.Sprintf(
 		"Information learned: when in %s, %s %s %s.\n",
 		stripLeadingWhen(f.Situation), f.Subject, f.Predicate, f.Object,
 	)
 
-	return formula + "\n" + relatedSection
+	return formula + "\n" + renderSupersedes(f.Supersedes)
 }
 
 func renderFactFrontmatter(f factFields, when time.Time) string {
 	return marshalFrontmatter(factFrontmatterDoc{
-		Type:      typeFact,
-		Tier:      f.Tier,
-		Situation: f.Situation,
-		Subject:   f.Subject,
-		Predicate: f.Predicate,
-		Object:    f.Object,
-		Luhmann:   quotedString(f.Luhmann),
-		Created:   when.Format(dateFormat),
-		Source:    f.Source,
-		Project:   f.Project,
-		Issue:     quotedString(f.Issue),
-		Sources:   f.ChunkSources,
+		Type:       typeFact,
+		Tier:       f.Tier,
+		Situation:  f.Situation,
+		Subject:    f.Subject,
+		Predicate:  f.Predicate,
+		Object:     f.Object,
+		Luhmann:    quotedString(f.Luhmann),
+		Created:    when.Format(dateFormat),
+		Source:     f.Source,
+		Project:    f.Project,
+		Issue:      quotedString(f.Issue),
+		Sources:    f.ChunkSources,
+		Supersedes: f.Supersedes,
 	})
 }
 
-func renderFeedbackBody(f feedbackFields, relatedSection string) string {
+func renderFeedbackBody(f feedbackFields) string {
 	formula := fmt.Sprintf(
 		"Lesson learned: when %s, %s.\n",
 		stripLeadingWhen(f.Situation), f.Action,
 	)
 
-	return formula + "\n" + relatedSection
+	return formula + "\n" + renderSupersedes(f.Supersedes)
 }
 
 func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 	return marshalFrontmatter(feedbackFrontmatterDoc{
-		Type:      typeFeedback,
-		Tier:      f.Tier,
-		Situation: f.Situation,
-		Behavior:  f.Behavior,
-		Impact:    f.Impact,
-		Action:    f.Action,
-		Luhmann:   quotedString(f.Luhmann),
-		Created:   when.Format(dateFormat),
-		Source:    f.Source,
-		Project:   f.Project,
-		Issue:     quotedString(f.Issue),
-		Sources:   f.ChunkSources,
+		Type:       typeFeedback,
+		Tier:       f.Tier,
+		Situation:  f.Situation,
+		Behavior:   f.Behavior,
+		Impact:     f.Impact,
+		Action:     f.Action,
+		Luhmann:    quotedString(f.Luhmann),
+		Created:    when.Format(dateFormat),
+		Source:     f.Source,
+		Project:    f.Project,
+		Issue:      quotedString(f.Issue),
+		Sources:    f.ChunkSources,
+		Supersedes: f.Supersedes,
 	})
-}
-
-// renderRelatedSection turns a list of "wikilink|rationale" entries into the
-// "Related to:\n- [[...]] — rationale.\n" block. Returns "" when empty.
-func renderRelatedSection(entries []string) string {
-	if len(entries) == 0 {
-		return ""
-	}
-
-	lines := make([]string, 0, len(entries)+1)
-	lines = append(lines, relatedSectionMarker)
-
-	for _, entry := range entries {
-		target, rationale, _ := strings.Cut(entry, "|")
-		lines = append(
-			lines,
-			fmt.Sprintf("- [[%s]] — %s.", strings.TrimSpace(target), strings.TrimSpace(rationale)),
-		)
-	}
-
-	return strings.Join(lines, "\n") + "\n"
 }
 
 // resolveVault returns the vault path. Flag wins, then env, then the XDG
@@ -438,7 +430,7 @@ func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer
 		Project:      a.Project,
 		Issue:        a.Issue,
 		Tier:         a.Tier,
-		Relations:    a.Relations,
+		Supersedes:   a.Supersedes,
 		ChunkSources: a.ChunkSources,
 		Situation:    a.Situation,
 		Subject:      a.Subject,
@@ -460,7 +452,7 @@ func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout i
 		Project:      a.Project,
 		Issue:        a.Issue,
 		Tier:         a.Tier,
-		Relations:    a.Relations,
+		Supersedes:   a.Supersedes,
 		ChunkSources: a.ChunkSources,
 		Situation:    a.Situation,
 		Behavior:     a.Behavior,
@@ -586,15 +578,6 @@ func writeLearnUnderLock(
 
 	when := deps.Now()
 	path := learnPath(vault, luhmann, args.Slug, when)
-
-	if deps.ListBasenames != nil {
-		basenames, bErr := deps.ListBasenames(vault)
-		if bErr != nil {
-			return "", fmt.Errorf("learn: listing basenames: %w", bErr)
-		}
-
-		args.Relations = resolveRelationTargets(args.Relations, basenames)
-	}
 
 	content, contentErr := assembleLearnContent(args, luhmann, when)
 	if contentErr != nil {

@@ -100,7 +100,6 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 		"--behavior", "ignoring ctx",
 		"--impact", "leaks goroutines",
 		"--action", "check ctx.Done()",
-		"--relation", "X|adjacent",
 	)
 	runOut, runErr := run.CombinedOutput()
 	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
@@ -131,7 +130,6 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 	g.Expect(string(body)).To(ContainSubstring("type: feedback"))
 	g.Expect(string(body)).
 		To(ContainSubstring("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
-	g.Expect(string(body)).To(ContainSubstring("Related to:"))
 
 	expectSidecarValid(g, filepath.Join(expectedPath, sidecarName))
 }

@@ -151,8 +151,8 @@ func TestTargets(t *testing.T) {
 
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
 		// learn (group), update, embed (group), query, ingest, query-chunks,
-		// activate, show, show-chunk, check, migrate-links, resituate, amend, prune
-		g.Expect(targets).To(gomega.HaveLen(14))
+		// activate, show, show-chunk, check, resituate, amend, prune
+		g.Expect(targets).To(gomega.HaveLen(13))
 	})
 
 	t.Run("show parses positional ref through targ", func(t *testing.T) {
@@ -214,7 +214,6 @@ func TestTargets(t *testing.T) {
 			"--vault", vault,
 			"--source", "agent",
 			"--situation", "running tests",
-			"--relation", "top",
 		})
 		// May or may not error; goal is to invoke the closure.
 		_ = stderr
@@ -233,7 +232,6 @@ func TestTargets(t *testing.T) {
 			"--vault", vault,
 			"--source", "agent",
 			"--situation", "running tests",
-			"--relation", "top",
 		})
 		_ = stderr
 	})
@@ -250,7 +248,6 @@ func TestTargets(t *testing.T) {
 			"engram", "learn", "feedback",
 			"--slug", "test-slug",
 			"--vault", vault,
-			"--relation", "top",
 			"--situation", "x", "--behavior", "x", "--impact", "x", "--action", "x",
 		}, targets...)
 		g.Expect(err).To(gomega.HaveOccurred())
@@ -269,7 +266,6 @@ func TestTargets(t *testing.T) {
 			"engram", "learn", "fact",
 			"--slug", "test-slug",
 			"--vault", vault,
-			"--relation", "top",
 			"--situation", "x", "--subject", "x", "--predicate", "x", "--object", "x",
 		}, targets...)
 		g.Expect(err).To(gomega.HaveOccurred())
@@ -340,22 +336,6 @@ func TestTargets_IngestAndQueryChunksEmpty(t *testing.T) {
 	stderr = executeForTest(t, []string{
 		"engram", "query-chunks", "--chunks-dir", chunks, "--phrase", "anything",
 	})
-	g.Expect(stderr).To(gomega.BeEmpty())
-}
-
-// TestTargets_MigrateLinks exercises the migrate-links closure end-to-end through
-// Targets() so the newOsMigrateDeps wiring is covered. The vault is empty, so the
-// real ScanVault finds no notes and the command reports zero changes in dry-run
-// mode (the default).
-func TestTargets_MigrateLinks(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	vault := t.TempDir()
-	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
-	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
-
-	stderr := executeForTest(t, []string{"engram", "migrate-links", "--vault", vault})
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 

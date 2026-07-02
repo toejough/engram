@@ -178,7 +178,6 @@ type aggregatedSummary struct {
 	phrases        []string
 	resolvedItems  []resolvedItem
 	phraseClusters []phrasedCluster
-	outgoing       map[string][]string
 	totalNotes     int
 	withEmbeddings int
 	limit          int
@@ -299,18 +298,14 @@ type queryClusterMember struct {
 // queryItem is the rendered item shape per the resolved-payload spec.
 // ClusterID and InDegree use *int so YAML omits them when nil per
 // the spec contract (set only when the provenance role is present).
-// OutboundLinks lists the note's authored wikilink target basenames (the
-// fence-aware graph parser's output) so the recall skill can follow links
-// to adjacent notes via `engram show <basename>` without a separate query.
 type queryItem struct {
-	Path          string   `yaml:"path"`
-	Kind          string   `yaml:"kind"`
-	Score         float32  `yaml:"score"`
-	Provenances   []string `yaml:"provenances"`
-	ClusterID     *int     `yaml:"cluster_id,omitempty"`
-	InDegree      *int     `yaml:"in_degree,omitempty"`
-	OutboundLinks []string `yaml:"outbound_links,omitempty"`
-	Content       string   `yaml:"content,omitempty"`
+	Path        string   `yaml:"path"`
+	Kind        string   `yaml:"kind"`
+	Score       float32  `yaml:"score"`
+	Provenances []string `yaml:"provenances"`
+	ClusterID   *int     `yaml:"cluster_id,omitempty"`
+	InDegree    *int     `yaml:"in_degree,omitempty"`
+	Content     string   `yaml:"content,omitempty"`
 }
 
 // queryPayload is the top-level YAML document.
@@ -420,9 +415,15 @@ func applyFloorAndCap(byKey map[string]matchedSetItem) []matchedSetItem {
 	matched := make([]matchedSetItem, 0, len(byKey))
 
 	for _, item := range byKey {
-		if item.baseScore >= matchRelevanceFloor {
-			matched = append(matched, item)
+		if item.baseScore < matchRelevanceFloor {
+			continue
 		}
+
+		if !item.isChunk && isVocabKind(item.note.content) {
+			continue
+		}
+
+		matched = append(matched, item)
 	}
 
 	sortMatchedByScoreDesc(matched)
@@ -827,8 +828,9 @@ func floorQualifyingNotes(items []matchedSetItem) []matchedSetItem {
 
 // isFloorQualifyingNote reports whether a matched-set item is a note that cleared
 // the relevance floor and is therefore eligible for the note-floor reservation.
+// Vocab notes are excluded: they are never promoted into recall results.
 func isFloorQualifyingNote(item matchedSetItem) bool {
-	return !item.isChunk && item.baseScore >= matchRelevanceFloor
+	return !item.isChunk && item.baseScore >= matchRelevanceFloor && !isVocabKind(item.note.content)
 }
 
 // itemMatchesProject scans the item's loaded content's frontmatter for a
@@ -1065,6 +1067,11 @@ func mergePhraseIntoUnion(
 	perPhrase = capWithNoteFloor(perPhrase, matchPhraseLimit, noteFloorK)
 
 	for _, item := range perPhrase {
+		// Vocab notes are excluded from the matched set entirely.
+		if !item.isChunk && isVocabKind(item.note.content) {
+			continue
+		}
+
 		existing, ok := byKey[item.key]
 		if !ok || item.score > existing.score {
 			byKey[item.key] = item
@@ -1149,17 +1156,6 @@ func newOsQueryDeps() QueryDeps {
 		ListChunkIndexes: listJSONLIndexes,
 		Now:              time.Now,
 	}
-}
-
-// outgoingByBasename indexes each scanned note's authored wikilink targets by
-// its basename. Used to attach outbound-link basenames to rendered items.
-func outgoingByBasename(notes []vaultgraph.Note) map[string][]string {
-	out := make(map[string][]string, len(notes))
-	for _, note := range notes {
-		out[note.Basename] = note.Outgoing
-	}
-
-	return out
 }
 
 // perClusterMeanSilhouette returns one mean silhouette score per cluster
@@ -1351,9 +1347,7 @@ func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
 }
 
 // renderItems converts resolved items into the YAML wire-shape items.
-// outgoing maps a note basename to its authored wikilink targets so each
-// item carries the basenames of its authored wikilink targets (for follow-on `engram show`).
-func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryItem {
+func renderItems(resolved []resolvedItem) []queryItem {
 	items := make([]queryItem, len(resolved))
 
 	for i, item := range resolved {
@@ -1363,14 +1357,13 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 		}
 
 		items[i] = queryItem{
-			Path:          item.notePath,
-			Kind:          kind,
-			Score:         item.score,
-			Provenances:   item.provenances,
-			ClusterID:     item.clusterID,
-			InDegree:      item.inDegree,
-			OutboundLinks: outgoing[basenameFromNotePath(item.notePath)],
-			Content:       item.content,
+			Path:        item.notePath,
+			Kind:        kind,
+			Score:       item.score,
+			Provenances: item.provenances,
+			ClusterID:   item.clusterID,
+			InDegree:    item.inDegree,
+			Content:     item.content,
 		}
 	}
 
@@ -1380,7 +1373,7 @@ func renderItems(resolved []resolvedItem, outgoing map[string][]string) []queryI
 // renderQueryPayload encodes the resolved YAML payload for the multi-phrase
 // pipeline output.
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
-	items := renderItems(merged.resolvedItems, merged.outgoing)
+	items := renderItems(merged.resolvedItems)
 	clusters := renderClusters(merged.phraseClusters)
 
 	// Lazy-chunk mode (opt-in): empty chunk content so the agent pages a
@@ -1552,9 +1545,6 @@ func runQuery(
 		phraseClusters: []phrasedCluster{
 			{phrase: singleClusterPhrase, report: report, matched: matchSet},
 		},
-		// candidate_l2s are nominated from each cluster's own note members
-		// (Phase 3, within-cluster nomination), not the full-vault index.
-		outgoing:       outgoingByBasename(notes),
 		totalNotes:     len(notes),
 		withEmbeddings: len(hits),
 		limit:          limit,

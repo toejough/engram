@@ -19,62 +19,61 @@ const (
 
 // Exported variables.
 var (
-	ErrCheckFailedForTest              = errCheckFailed
-	ErrLearnBadTierForTest             = errLearnBadTier
-	ErrResituateNoteNotFoundForTest    = errResituateNoteNotFound
-	ExportAnyHarnessFailed             = anyHarnessFailed
-	ExportApplyProjectFilter           = applyProjectFilter
-	ExportAutoEmbedNote                = autoEmbedNote
-	ExportBumpLastUsed                 = bumpLastUsed
-	ExportDefaultRecencyParams         = defaultRecencyParams
-	ExportExtractLuhmannFromFilename   = extractLuhmannFromFilename
-	ExportFillRecencyBand              = fillRecencyBand
-	ExportFinishUpdate                 = finishUpdate
-	ExportInitializeVault              = initializeVault
-	ExportKindFromContent              = kindFromContent
-	ExportLearnPath                    = learnPath
-	ExportLogWarningToStderr           = logWarningToStderrf
-	ExportMarshalFrontmatter           = marshalFrontmatter
-	ExportMaxTurnBySource              = maxTurnBySource
-	ExportMigrateRelationLinks         = migrateRelationLinks
-	ExportMostRecentlyUsedNoteItems    = mostRecentlyUsedNoteItems
-	ExportNewErrHandler                = newErrHandler
-	ExportNewOsActivateDeps            = newOsActivateDeps
-	ExportNewOsAmendDeps               = newOsAmendDeps
-	ExportNewOsCheckDeps               = newOsCheckDeps
-	ExportNewOsMigrateDeps             = newOsMigrateDeps
-	ExportNewOsPruneDeps               = newOsPruneDeps
-	ExportNewOsShowDeps                = newOsShowDeps
-	ExportNextLuhmannID                = nextLuhmannID
-	ExportNoteAgeDays                  = noteAgeDays
-	ExportParseCreatedFromNote         = parseCreatedFromNote
-	ExportParseTurnN                   = parseTurnN
-	ExportPluralFile                   = pluralFile
-	ExportPrintLinkExamples            = printLinkExamples
-	ExportPrintNoteExamples            = printNoteExamples
-	ExportRecencyMultiplier            = recencyMultiplier
-	ExportRenderFactBody               = renderFactBody
-	ExportRenderFactFrontmatter        = renderFactFrontmatter
-	ExportRenderFeedbackBody           = renderFeedbackBody
-	ExportRenderFeedbackFrontmatter    = renderFeedbackFrontmatter
-	ExportRenderRelatedSection         = renderRelatedSection
-	ExportResolveRelationTargets       = resolveRelationTargets
-	ExportResolveRelationTargetsStrict = resolveRelationTargetsStrict
-	ExportResolveVault                 = resolveVault
-	ExportRunActivate                  = RunActivate
-	ExportRunAmend                     = RunAmend
-	ExportRunLearn                     = runLearn
-	ExportRunUpdate                    = runUpdate
-	ExportSelectStates                 = selectStates
-	ExportShouldEmbed                  = func(args EmbedApplyArgs, state embed.State) bool {
+	ErrCheckFailedForTest            = errCheckFailed
+	ErrLearnBadTierForTest           = errLearnBadTier
+	ErrResituateNoteNotFoundForTest  = errResituateNoteNotFound
+	ExportAnyHarnessFailed           = anyHarnessFailed
+	ExportApplyProjectFilter         = applyProjectFilter
+	ExportAutoEmbedNote              = autoEmbedNote
+	ExportBuildSupersedesInverse     = BuildSupersedesInverse
+	ExportBumpLastUsed               = bumpLastUsed
+	ExportDefaultRecencyParams       = defaultRecencyParams
+	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
+	ExportFillRecencyBand            = fillRecencyBand
+	ExportFinishUpdate               = finishUpdate
+	ExportInitializeVault            = initializeVault
+	ExportIsVocabKind                = isVocabKind
+	ExportKindFromContent            = kindFromContent
+	ExportLearnPath                  = learnPath
+	ExportLogWarningToStderr         = logWarningToStderrf
+	ExportMarshalFrontmatter         = marshalFrontmatter
+	ExportMaxTurnBySource            = maxTurnBySource
+	ExportMostRecentlyUsedNoteItems  = mostRecentlyUsedNoteItems
+	ExportNewErrHandler              = newErrHandler
+	ExportNewOsActivateDeps          = newOsActivateDeps
+	ExportNewOsAmendDeps             = newOsAmendDeps
+	ExportNewOsCheckDeps             = newOsCheckDeps
+	ExportNewOsPruneDeps             = newOsPruneDeps
+	ExportNewOsShowDeps              = newOsShowDeps
+	ExportNextLuhmannID              = nextLuhmannID
+	ExportNoteAgeDays                = noteAgeDays
+	ExportParseCreatedFromNote       = parseCreatedFromNote
+	ExportParseSupersedesFlag        = parseSupersedesFlag
+	ExportParseTurnN                 = parseTurnN
+	ExportPluralFile                 = pluralFile
+	ExportPrintLinkExamples          = printLinkExamples
+	ExportPrintNoteExamples          = printNoteExamples
+	ExportRecencyMultiplier          = recencyMultiplier
+	ExportRenderFactBody             = renderFactBody
+	ExportRenderFactFrontmatter      = renderFactFrontmatter
+	ExportRenderFeedbackBody         = renderFeedbackBody
+	ExportRenderFeedbackFrontmatter  = renderFeedbackFrontmatter
+	ExportResolveVault               = resolveVault
+	ExportRunActivate                = RunActivate
+	ExportRunAmend                   = RunAmend
+	ExportRunLearn                   = runLearn
+	ExportRunUpdate                  = runUpdate
+	ExportSelectStates               = selectStates
+	ExportShouldEmbed                = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
-	ExportShouldSkipDir       = shouldSkipDir
-	ExportTildify             = tildify
-	ExportValidateIssueID     = validateIssueID
-	ExportValidateProjectSlug = validateProjectSlug
-	ExportValidateSlug        = validateSlug
-	ExportWriteUpdateReport   = writeUpdateReport
+	ExportShouldSkipDir        = shouldSkipDir
+	ExportTildify              = tildify
+	ExportValidateIssueID      = validateIssueID
+	ExportValidateProjectSlug  = validateProjectSlug
+	ExportValidateSlug         = validateSlug
+	ExportWriteUpdateReport    = writeUpdateReport
+	ExportWriteVocabAssignment = WriteVocabAssignment
 )
 
 type ExportFactFields = factFields
@@ -101,6 +100,8 @@ type ExportResolvedItem = resolvedItem
 type ExportScoredCandidate = scoredCandidate
 
 type ExportScoredChunk = scoredChunk
+
+type ExportSupersedesEntry = supersedesEntry
 
 // Exported types.
 type ExportVaultInitFS = VaultInitFS
@@ -405,6 +406,22 @@ func ExportNewScoredCandidate(notePath string, score, baseScore float32) scoredC
 		basename:  basenameFromNotePath(notePath),
 		score:     score,
 		baseScore: baseScore,
+	}
+}
+
+// ExportNewScoredCandidateWithContent builds a scoredCandidate with the content
+// field set so vocab-exclusion tests can drive isVocabKind inside the pipeline.
+func ExportNewScoredCandidateWithContent(
+	notePath string,
+	score, baseScore float32,
+	content string,
+) scoredCandidate {
+	return scoredCandidate{
+		notePath:  notePath,
+		basename:  basenameFromNotePath(notePath),
+		score:     score,
+		baseScore: baseScore,
+		content:   content,
 	}
 }
 

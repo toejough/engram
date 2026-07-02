@@ -84,7 +84,7 @@ func TestRunAmend_Activate_BumpsLastUsed(t *testing.T) {
 
 	const basename = "1aa.2026-01-01.test.md"
 
-	noteContent := makeFactNote("ctx", "A", "has", "B", "")
+	noteContent := makeFactNote("ctx", "A")
 	// A valid sidecar (correct schema version + matching Dims/vectors) so
 	// bumpLastUsed's UnmarshalSidecar accepts it; the plan's bare LastUsed-only
 	// fixture fails the schema-version guard and never writes.
@@ -116,7 +116,6 @@ func TestRunAmend_Activate_BumpsLastUsed(t *testing.T) {
 
 			return nil
 		},
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil
 		},
@@ -159,7 +158,7 @@ func TestRunAmend_Activate_PreservesLastUsedAcrossReEmbed(t *testing.T) {
 	// A content change triggers a re-embed, which writes a FRESH sidecar with
 	// LastUsed="". --activate must then stamp today's date on that fresh sidecar,
 	// so the final LastUsed is today — not "" (re-embed lost it) nor the stale date.
-	noteContent := makeFactNote("ctx", "OldSubject", "has", "B", "")
+	noteContent := makeFactNote("ctx", "OldSubject")
 
 	store := map[string][]byte{}
 
@@ -185,7 +184,6 @@ func TestRunAmend_Activate_PreservesLastUsedAcrossReEmbed(t *testing.T) {
 
 			return nil
 		},
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil
 		},
@@ -229,7 +227,7 @@ func TestRunAmend_FieldReplacement_Fact_SubjectOnly(t *testing.T) {
 
 	const basename = "1aa.2026-01-01.test.md"
 
-	noteContent := makeFactNote("ctx", "OldSubject", "has", "B", "")
+	noteContent := makeFactNote("ctx", "OldSubject")
 
 	var written []byte
 
@@ -237,9 +235,8 @@ func TestRunAmend_FieldReplacement_Fact_SubjectOnly(t *testing.T) {
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
-		Read:          func(string) ([]byte, error) { return noteContent, nil },
-		Write:         func(_ string, data []byte) error { written = data; return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil
 		},
@@ -291,9 +288,8 @@ func TestRunAmend_FieldReplacement_Feedback_ActionAndProvMerge(t *testing.T) {
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
-		Read:          func(string) ([]byte, error) { return noteContent, nil },
-		Write:         func(_ string, data []byte) error { written = data; return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{dupID: true, newID: true}, nil
 		},
@@ -333,18 +329,15 @@ func TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
 
 	const basename = "1aa.2026-01-01.test.md"
 
-	const relBasename = "105.2026-01-01.foo.md"
-
-	noteContent := makeFactNote("ctx", "A", "has", "B", "")
+	noteContent := makeFactNote("ctx", "A")
 
 	embedCalled := false
 	deps := cli.AmendDeps{
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
-		Read:          func(string) ([]byte, error) { return noteContent, nil },
-		Write:         func(string, []byte) error { return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename, relBasename}, nil },
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil
 		},
@@ -352,9 +345,9 @@ func TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
 		Embedder: &spyEmbedder{called: &embedCalled},
 	}
 	args := cli.AmendArgs{
-		Vault:     "/vault",
-		Target:    "1aa",
-		Relations: []string{relBasename + "|why"},
+		Vault:  "/vault",
+		Target: "1aa",
+		// no semantic field changes — no re-embed expected
 	}
 
 	var buf bytes.Buffer
@@ -366,7 +359,7 @@ func TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
 		return
 	}
 
-	g.Expect(embedCalled).To(BeFalse(), "relation-only change must not trigger re-embed")
+	g.Expect(embedCalled).To(BeFalse(), "no-content-change amend must not trigger re-embed")
 }
 
 // TestRunAmend_LocksVaultAroundReadModifyWrite asserts that RunAmend acquires
@@ -378,7 +371,7 @@ func TestRunAmend_LocksVaultAroundReadModifyWrite(t *testing.T) {
 
 	const basename = "1aa.2026-01-01.test"
 
-	noteContent := makeFactNote("ctx", "A", "has", "B", "")
+	noteContent := makeFactNote("ctx", "A")
 
 	var order []string
 
@@ -401,7 +394,6 @@ func TestRunAmend_LocksVaultAroundReadModifyWrite(t *testing.T) {
 
 			return nil
 		},
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil
 		},
@@ -410,8 +402,7 @@ func TestRunAmend_LocksVaultAroundReadModifyWrite(t *testing.T) {
 	args := cli.AmendArgs{
 		Vault:  "/vault",
 		Target: "1aa",
-		// relation-only amend: no content change, no embed
-		Relations: []string{basename + "|why"},
+		// no-op amend: no content change, no embed — lock ordering verified
 	}
 
 	var buf bytes.Buffer
@@ -455,9 +446,8 @@ func TestRunAmend_MalformedCreated_Errors(t *testing.T) {
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
-		Read:          func(string) ([]byte, error) { return noteContent, nil },
-		Write:         func(string, []byte) error { return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil
 		},
@@ -482,9 +472,8 @@ func TestRunAmend_NoFrontmatter_Errors(t *testing.T) {
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
-		Read:          func(string) ([]byte, error) { return []byte("no frontmatter here\n"), nil },
-		Write:         func(string, []byte) error { return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		Read:  func(string) ([]byte, error) { return []byte("no frontmatter here\n"), nil },
+		Write: func(string, []byte) error { return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil
 		},
@@ -531,7 +520,7 @@ func TestRunAmend_ProvMerge_ChunkSources_Written(t *testing.T) {
 
 	const chunkID = "/sessions/s.jsonl#turn-1"
 
-	noteContent := makeFactNote("ctx", "A", "has", "B", "")
+	noteContent := makeFactNote("ctx", "A")
 
 	var written []byte
 
@@ -539,9 +528,8 @@ func TestRunAmend_ProvMerge_ChunkSources_Written(t *testing.T) {
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
-		Read:          func(string) ([]byte, error) { return noteContent, nil },
-		Write:         func(_ string, data []byte) error { written = data; return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{chunkID: true}, nil
 		},
@@ -577,9 +565,8 @@ func TestRunAmend_ProvMerge_UnresolvedChunkSource_Errors(t *testing.T) {
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
-		Read:          func(string) ([]byte, error) { return makeFactNote("ctx", "A", "has", "B", ""), nil },
-		Write:         func(string, []byte) error { return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		Read:  func(string) ([]byte, error) { return makeFactNote("ctx", "A"), nil },
+		Write: func(string, []byte) error { return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil // empty — id won't resolve
 		},
@@ -604,7 +591,7 @@ func TestRunAmend_ReEmbedFailure_WarnsAndContinues(t *testing.T) {
 
 	const basename = "1aa.2026-01-01.test.md"
 
-	noteContent := makeFactNote("ctx", "OldSubject", "has", "B", "")
+	noteContent := makeFactNote("ctx", "OldSubject")
 
 	var logged string
 
@@ -612,9 +599,8 @@ func TestRunAmend_ReEmbedFailure_WarnsAndContinues(t *testing.T) {
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
-		Read:          func(string) ([]byte, error) { return noteContent, nil },
-		Write:         func(string, []byte) error { return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil
 		},
@@ -637,238 +623,6 @@ func TestRunAmend_ReEmbedFailure_WarnsAndContinues(t *testing.T) {
 	g.Expect(logged).To(ContainSubstring("embed failed"))
 }
 
-func TestRunAmend_RelationMerge_Idempotent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	const relBasename = "105.2026-01-01.foo.md"
-
-	existing := "Related to:\n- [[" + relBasename + "]] — why.\n"
-	noteContent := makeFactNote("ctx", "A", "has", "B", existing)
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		ListBasenames: func(string) ([]string, error) {
-			return []string{basename, relBasename}, nil
-		},
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:     "/vault",
-		Target:    "1aa",
-		Relations: []string{relBasename + "|why"},
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Should contain the relation exactly once.
-	body := string(written)
-	count := strings.Count(body, "[["+relBasename+"]]")
-	g.Expect(count).To(Equal(1))
-}
-
-func TestRunAmend_RelationMerge_Idempotent_MixedMdForm(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test"
-
-	// The existing bullet carries a trailing ".md" (a hand-edited / legacy form),
-	// while ListBasenames returns the bare basename (production: cli.go strips
-	// ".md"), so resolveRelationTargetsStrict yields the bare target. The dedup
-	// must still recognise the duplicate — otherwise a re-run appends a second
-	// bullet and amend is not idempotent.
-	const relBare = "105.2026-01-01.foo"
-
-	existing := "Related to:\n- [[" + relBare + ".md]] — why.\n"
-	noteContent := makeFactNote("ctx", "A", "has", "B", existing)
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		ListBasenames: func(string) ([]string, error) {
-			return []string{basename, relBare}, nil
-		},
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:     "/vault",
-		Target:    "1aa",
-		Relations: []string{"105|why"},
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// The bare basename must appear exactly once (the existing ".md" bullet),
-	// with no second bullet appended for the ".md"-stripped resolved target.
-	g.Expect(strings.Count(string(written), relBare)).To(Equal(1),
-		"dedup must normalize a trailing .md so the merge stays idempotent")
-}
-
-func TestRunAmend_RelationMerge_NewRelationAdded_ToExisting(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	const relA = "105.2026-01-01.foo.md"
-
-	const relB = "106.2026-01-01.bar.md"
-
-	existing := "Related to:\n- [[" + relA + "]] — first.\n"
-	noteContent := makeFactNote("ctx", "A", "has", "B", existing)
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		ListBasenames: func(string) ([]string, error) {
-			return []string{basename, relA, relB}, nil
-		},
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:     "/vault",
-		Target:    "1aa",
-		Relations: []string{relB + "|second"},
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	body := string(written)
-	g.Expect(body).To(ContainSubstring("[[" + relA + "]]"))
-	g.Expect(body).To(ContainSubstring("[[" + relB + "]]"))
-}
-
-func TestRunAmend_RelationMerge_NewRelation_Appended(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	const relBasename = "105.2026-01-01.foo.md"
-
-	noteContent := makeFactNote("ctx", "A", "has", "B", "")
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		ListBasenames: func(string) ([]string, error) {
-			return []string{basename, relBasename}, nil
-		},
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:     "/vault",
-		Target:    "1aa",
-		Relations: []string{relBasename + "|why"},
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(written)).To(ContainSubstring("Related to:"))
-	g.Expect(string(written)).To(ContainSubstring("[[" + relBasename + "]]"))
-}
-
-func TestRunAmend_RelationMerge_UnresolvedRelation_Errors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := makeFactNote("ctx", "A", "has", "B", "")
-
-	deps := cli.AmendDeps{
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:          func(string) ([]byte, error) { return noteContent, nil },
-		Write:         func(string, []byte) error { return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-	args := cli.AmendArgs{
-		Vault:     "/vault",
-		Target:    "1aa",
-		Relations: []string{"999|why"},
-	}
-
-	var buf bytes.Buffer
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).To(MatchError(ContainSubstring("unresolved relation target")))
-}
-
 // TestRunAmend_ResolvesTargetWithMdSuffix asserts that RunAmend resolves a
 // --target passed as "basename.md" (the form emitted by the recall skill's
 // Step-2.5C amend calls) rather than returning "note not found".
@@ -879,16 +633,15 @@ func TestRunAmend_ResolvesTargetWithMdSuffix(t *testing.T) {
 
 	const basename = "1.linting"
 
-	noteContent := makeFactNote("ctx", "A", "has", "B", "")
+	noteContent := makeFactNote("ctx", "A")
 	writeCalled := false
 
 	deps := cli.AmendDeps{
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1"}}, nil
 		},
-		Read:          func(string) ([]byte, error) { return noteContent, nil },
-		Write:         func(string, []byte) error { writeCalled = true; return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { writeCalled = true; return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil
 		},
@@ -920,20 +673,14 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
 	dir := t.TempDir()
 	chunksDir := t.TempDir()
 
-	// Vault basenames are the .md-stripped keys (vaultgraph.ParseBasename); the
-	// real on-disk files carry the .md extension. The --relation target is the
-	// bare Luhmann id (Obsidian convention), which the strict resolver expands
-	// to the full basename.
 	const noteKey = "1aa.2026-01-01.test"
-
-	const relKey = "105.2026-01-01.foo"
 
 	const chunkID = "/sessions/s.jsonl#turn-1"
 
 	notePath := filepath.Join(dir, noteKey+".md")
 
 	// write initial note
-	noteContent := makeFactNote("original ctx", "OldSubject", "has", "B", "")
+	noteContent := makeFactNote("original ctx", "OldSubject")
 	err := os.WriteFile(notePath, noteContent, 0o600)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -955,18 +702,6 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
 		return
 	}
 
-	// write a relation-target note
-	err = os.WriteFile(
-		filepath.Join(dir, relKey+".md"),
-		makeFactNote("r ctx", "X", "is", "Y", ""),
-		0o600,
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
 	// Use the production deps end-to-end (real Scan/Read/Write/ListBasenames),
 	// overriding only the clock for determinism. This exercises newOsAmendDeps.
 	deps := cli.ExportNewOsAmendDeps()
@@ -976,7 +711,6 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
 		Vault:        dir,
 		Target:       "1aa",
 		Subject:      "NewSubject",
-		Relations:    []string{"105|because"},
 		ChunkSources: []string{chunkID},
 		ChunksDir:    chunksDir,
 	}
@@ -1004,8 +738,6 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
 	g.Expect(body).To(ContainSubstring("created: \"2026-01-01\""))
 	g.Expect(body).To(ContainSubstring("sources:"))
 	g.Expect(body).To(ContainSubstring(chunkID))
-	g.Expect(body).To(ContainSubstring("Related to:"))
-	g.Expect(body).To(ContainSubstring("[[" + relKey + "]]"))
 }
 
 func TestRunAmend_UnknownNoteType_Errors(t *testing.T) {
@@ -1024,9 +756,8 @@ func TestRunAmend_UnknownNoteType_Errors(t *testing.T) {
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
-		Read:          func(string) ([]byte, error) { return noteContent, nil },
-		Write:         func(string, []byte) error { return nil },
-		ListBasenames: func(string) ([]string, error) { return []string{basename}, nil },
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
 			return map[string]bool{}, nil
 		},
@@ -1057,9 +788,13 @@ func (s *spyEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
 
 func (s *spyEmbedder) ModelID() string { return "spy" }
 
-// makeFactNote renders a minimal fact note (frontmatter + formula + optional
-// related section) for amend tests.
-func makeFactNote(situation, subject, predicate, object, relatedSection string) []byte {
+// makeFactNote renders a minimal fact note (frontmatter + formula) for amend tests.
+// Predicate is always "has", object always "B", no related section.
+func makeFactNote(situation, subject string) []byte {
+	const predicate = "has"
+
+	const object = "B"
+
 	frontmatter := "---\ntype: fact\ntier: L2\n" +
 		fmt.Sprintf(
 			"situation: %s\nsubject: %s\npredicate: %s\nobject: %s\n",
@@ -1077,7 +812,7 @@ func makeFactNote(situation, subject, predicate, object, relatedSection string) 
 		object,
 	)
 
-	return []byte(frontmatter + formula + "\n" + relatedSection)
+	return []byte(frontmatter + formula + "\n")
 }
 
 // makeFeedbackNote renders a minimal feedback note. When source is non-empty it

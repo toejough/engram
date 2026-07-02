@@ -136,12 +136,11 @@ func TestRenderBody_Fact(t *testing.T) {
 		Subject:   "subagent dispatch",
 		Predicate: "is fundamentally",
 		Object:    "a verification problem dressed as coordination",
-	}, "Related to:\n- [[X]] — adjacent.\n")
+	})
 	g.Expect(got).To(Equal(
 		"Information learned: when in reasoning about agent coordination, " +
 			"subagent dispatch is fundamentally a verification problem dressed as coordination.\n" +
-			"\n" +
-			"Related to:\n- [[X]] — adjacent.\n"))
+			"\n"))
 }
 
 func TestRenderBody_Feedback(t *testing.T) {
@@ -152,12 +151,11 @@ func TestRenderBody_Feedback(t *testing.T) {
 	got := cli.ExportRenderFeedbackBody(cli.ExportFeedbackFields{
 		Situation: "orchestrating multi-step work as the main LLM under context pressure",
 		Action:    action,
-	}, "Related to:\n- [[1a.foo]] — same shape.\n- [[5.bar]] — the MOC.\n")
+	})
 	g.Expect(got).To(Equal(
 		"Lesson learned: when orchestrating multi-step work as the main LLM under context pressure, " +
 			action + ".\n" +
-			"\n" +
-			"Related to:\n- [[1a.foo]] — same shape.\n- [[5.bar]] — the MOC.\n",
+			"\n",
 	))
 }
 
@@ -171,7 +169,7 @@ func TestRenderFactBody_StripsLeadingWhenFromSituation(t *testing.T) {
 		Subject:   "subagent dispatch",
 		Predicate: "is fundamentally",
 		Object:    "a verification problem",
-	}, "")
+	})
 	g.Expect(got).
 		To(HavePrefix("Information learned: when in reasoning about agent coordination, " +
 			"subagent dispatch is fundamentally a verification problem."))
@@ -244,7 +242,7 @@ func TestRenderFeedbackBody_StripsLeadingWhenFromSituation(t *testing.T) {
 	got := cli.ExportRenderFeedbackBody(cli.ExportFeedbackFields{
 		Situation: "When writing concurrent Go code",
 		Action:    "check ctx.Done()",
-	}, "")
+	})
 	g.Expect(got).
 		To(HavePrefix("Lesson learned: when writing concurrent Go code, check ctx.Done()."))
 	g.Expect(got).NotTo(ContainSubstring("when When"))
@@ -416,30 +414,6 @@ func TestRenderFrontmatter_Feedback(t *testing.T) {
 		"created":   "2026-05-09",
 		"source":    "session log foo, 2026-05-09 12:00 UTC",
 	}))
-}
-
-func TestRenderRelatedSection_Empty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	g.Expect(cli.ExportRenderRelatedSection(nil)).To(Equal(""))
-}
-
-func TestRenderRelatedSection_MultipleEntries(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportRenderRelatedSection([]string{
-		"1a.foo|same shape",
-		"5.bar | the MOC",
-	})
-	g.Expect(got).To(Equal(
-		"Related to:\n- [[1a.foo]] — same shape.\n- [[5.bar]] — the MOC.\n"))
-}
-
-func TestRenderRelatedSection_NoPipeMeansEmptyRationale(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	got := cli.ExportRenderRelatedSection([]string{"7"})
-	g.Expect(got).To(Equal("Related to:\n- [[7]] — .\n"))
 }
 
 func TestRunLearn_BootstrapsVaultWhenMissing(t *testing.T) {
