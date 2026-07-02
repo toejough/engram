@@ -99,7 +99,7 @@ emphasis is the self-assessment):**
 - Gate B (design-fit): **N/A — no code is changed; the artifact is a report** (named per protocol;
   the report itself is gated by C).
 - Gate C concrete pass checks: (a) every historical claim carries a date + doc/note citation;
-  (b) each §3 verdict is traceable to a Task-1b row; (c) §5 comparisons are architectural — no
+  (b) each measured §3 verdict is traceable to a Task-1b row — UNMEASURED verdicts state what's missing; (c) §5 comparisons are architectural — no
   unlabeled vendor numbers, no superiority claims; (d) no §6 candidate duplicates shipped/parked/
   filed work uncited. Plus the standard relevance + clarity/cohesion angles.
 - Gate D: commit message. Commit report + plan. Present the report's substance in-conversation.
