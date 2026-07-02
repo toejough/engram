@@ -137,6 +137,14 @@ token and 3× latency cost; (c) no peer system publishes a sparse-vault (<200 no
 S2 fills a real evidence gap; (d) **density gate:** before running any T2 cell, check the fabric's
 connectivity (isolated %, mean component size) — PPR cannot propagate across a disconnected fabric,
 so a T2 null on a sparse fabric is "fabric too thin", not "traversal refuted".
+**Human-evidence priors (beat-3, same pre-registration):** practitioner evidence triangulates with
+the literature on L5×T5 (supersession/refutation is the ONE link type practitioners sustain; broad
+typed taxonomies get abandoned) and on T3/T6 (links-as-strongest-tie; follow-from-a-found-note);
+it UNDERMINES L7 (temporal proximity is the weakest tie tier — Roam's daily-note hub failure) and
+L6-as-ranking (tags decay as vaults grow; acceptable only as T4-style candidate nomination); L4c
+(hard category match) has more practitioner warrant than L4 cosine. Luhmann benchmark: his vault
+ran 23% isolated vs our 58% — L1 nulls are fabric-density findings. Evidence gap noted: no study
+measures which links get TRAVERSED vs written-and-never-used; S2 measures exactly that.
 
 ## Stage S2 — PoC probes + prune
 

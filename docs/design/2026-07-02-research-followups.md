@@ -271,7 +271,7 @@ These are not conditioned on the link exploration results:
 - https://davidguttman.github.io/every-vibe-code-camp-distilled/13_kevin_kieran.html (2026)
 
 
-## Part 2 — Peer memory systems (research date: 2026-07-02)
+# Part 2 — Peer memory systems (research date: 2026-07-02)
 
 ### B2-1 · A-Mem write-time link enrichment as a note-quality lever (not a retrieval lever)
 
@@ -418,3 +418,254 @@ actual vault and actual recall binary — is not replicated by any peer system o
 The pre-registered prune rules are conservative and appropriate given the evidence base.
 
 Sources: arXiv:2502.12110, 2501.13956, 2405.14831, 2502.14802, 2504.19413. Accessed 2026-07-02.
+
+
+# Part 3 — PKM/zettelkasten practice
+
+*Human-side evidence on linking disciplines that proved durable. Evidence quality labeled:
+[study] = peer-reviewed; [archival] = archival quantitative analysis; [anecdote] = practitioner report.*
+
+### 3.1 Luhmann's archival structure
+
+Luhmann's Zettelkasten II (1963–1998): ~66,000 cards in the main slip box. Archival analysis
+(Martijn Aslander, "Mapping Luhmann's Brain," 2024–2025, martijnaslander.github.io) [archival]:
+73,715 indexed cards; 59,773 extracted references; 33,650 Fernverweise (cross-section/non-local
+references, 56%); 14,389 neighbourhood links (24%); 11,182 unclassified. 23% of cards have no
+cross-references beyond their own branch.
+
+Schmidt (2016), "Niklas Luhmann's Card Index: Thinking Tool, Communication Partner, Publication
+Machine," in *Forgetting Machines*, Brill [archival summary via zettelkasten.de, 2017]: Luhmann
+maintained "hub notes" — Zettels containing extensive lists of links to core Zettels on a topic.
+These functioned as "highways between topics." Schmidt's emphasis: references BETWEEN notes (the
+Fernverweise) are more important for navigability than references FROM the keyword index.
+
+Implications not captured in the link-value exploration: (a) Hub notes as a MAINTENANCE pattern
+(not an automated feature) — engram has no analog; manual hub curation is expensive but the
+highest-leverage linking discipline Luhmann employed. (b) The 23% isolation figure is a benchmark:
+any agent-memory vault with >30% isolation is structurally under-linked relative to Luhmann's
+floor. (c) Luhmann's Folgezettel (sequential branching by ID) were primarily a PHYSICAL constraint
+workaround, not a conceptual primitive — their digital equivalent is episode/provenance edges (L7),
+which the human evidence suggests are the weakest tier.
+
+Source: martijnaslander.github.io/luhmann-zettelkasten/ (accessed 2026-07-02);
+zettelkasten.de/posts/zettelkasten-hubs/ (accessed 2026-07-02).
+
+### 3.2 Capture discipline — the Collector's Fallacy
+
+Practitioners consistently report that collecting notes is easy; adding links and synthesis is hard.
+The Collector's Fallacy (zettelkasten.de/posts/collectors-fallacy/) [anecdote]: "having information
+≠ understanding it." The PKM community's failure mode: large vaults with dense tag networks and few
+contextual links. The observation recurs: "if you just add links without any explanation you will
+not create knowledge; your future self has no idea why he should follow the link."
+(zettelkasten.de/introduction/) [anecdote].
+
+Implication for engram's learn skill: any link engram creates should include an inline rationale
+("why this link exists") — this is the practitioner standard for durable links. Links without
+rationale are the collector's-fallacy analog in a linked graph. The JUSTIFY step in L2's LLM gate
+already implements this; it should be treated as non-optional, not as a prunable step.
+
+Source: zettelkasten.de (accessed 2026-07-02); zettelkasten forum discussion on link types,
+forum.zettelkasten.de/discussion/2023/link-types (accessed 2026-07-02).
+
+### 3.3 Tags as a weak association structure
+
+Andy Matuschak, "Tags are an ineffective association structure" (notes.andymatuschak.org) [anecdote,
+continuous since ~2019]: tags are vague, apply to whole items when only a fragment is relevant,
+lack context explaining WHY items are associated, and present "jumbled unordered lists." He
+recommends instead: explicit links, fine-grained (passage-level rather than note-level), labeled
+(inline rationale for the association).
+
+Nick Milo (Medium, 2021): tags are "relatively weak associations" that don't scale; users forget
+tag names as vaults grow. [anecdote] Zettelkasten.de strength hierarchy: direct hyperlinks >
+Folgezettel sequences > tags > juxtaposition. [anecdote]
+
+Implication: engram should resist a tag-hub strategy as the PRIMARY discovery mechanism. Tags may
+be viable as a FILTER at the candidate stage (T4-style nomination), but the practitioner consensus
+is that tags decay in value as the vault grows while direct links appreciate.
+
+Source: notes.andymatuschak.org/Tags_are_an_ineffective_association_structure (accessed 2026-07-02);
+Nick Milo, "In what ways can we form useful relationships between notes," Medium 2021
+(accessed 2026-07-02).
+
+### 3.4 Review cadence and link discovery
+
+Matuschak ("Evergreen notes should be densely linked"): "finding the right links requires reading
+old notes, so it's an organic mechanism for intermittently reviewing the notes we've written." [anecdote]
+Dense linking creates a spaced-repetition analog — the act of linking forces review. Progressive
+summarization (Tiago Forte): revisit and compress notes after a day or two. [anecdote]
+
+The fractal review pattern (daily → weekly → monthly → yearly note compilation) [anecdote, PKM
+community]: creates emergent structure through iterative review cycles rather than upfront
+classification. Links discovered at review time are reported as more meaningful than links
+created mechanically at write time.
+
+Implication: engram's learn skill fires at session end (write time). Practitioners report review-time
+links feel more earned and get traversed more. A deferred-linking pass (review a batch of recent
+notes and link them to older content) may yield higher-quality edges than write-time-only linking.
+This is a potential Track-A trigger moment (after a gap between sessions, offer a linking review
+over recent notes). Not in scope for the current exploration but a concrete expansion direction.
+
+Source: notes.andymatuschak.org/Evergreen_notes_should_be_densely_linked (accessed 2026-07-02);
+incremental formalization pattern from no.silverbullet.plus/incremental-formalization
+(accessed 2026-07-02).
+
+### 3.5 Note granularity and atomicity
+
+Matuschak ("Evergreen notes should be concept-oriented"): factor notes by concept, not by author,
+book, event, or project. One concept per note. "By discovering connections across books and domains
+as you update and link to the note over time." [anecdote] Nick Milo: same principle; MOCs
+explicitly link to atomic notes, not to chapter-level summaries.
+
+Luhmann: cards were typically short (one to a few paragraphs). His 90,000 cards represent highly
+granular capture.
+
+Implication for engram: memory notes that bundle multiple lessons from the same session limit
+retrieval precision (a multi-lesson note can only rank once in a cosine search). This is the
+practitioner case for atomic memory notes — one lesson per note — and an argument for splitting
+composite notes during the linking sweep. Out of scope for the current exploration; relevant to the
+shape of step 3 (retroactive linking sweep) if it includes a note-splitting pass.
+
+Source: notes.andymatuschak.org/Evergreen_notes_should_be_concept-oriented (accessed 2026-07-02);
+Ernest Chiang, "Niklas Luhmann's Original Zettelkasten Method," 2025,
+ernestchiang.com/en/posts/2025/niklas-luhmann-original-zettelkasten-method/ (accessed 2026-07-02).
+
+### 3.6 MOC curation as a maintenance pattern
+
+Nick Milo's MOC (Map of Content) pattern [anecdote, Medium 2021]: a note containing curated links
+to other notes, functioning as an index for a topic, question, or perspective. Key property: many
+MOCs can link to the same note (unlike folders). MOCs enable "deliberate positioning" — they are
+curated, not auto-generated. dsebastien.net analysis of 8,000 notes [anecdote, 2024]: MOCs average
+90.1 links/note vs. 2.9 links/note for regular notes; MOCs are "used more and more" as the vault
+grows.
+
+Schmidt's Luhmann hub notes are the historical precedent: curated link lists to core notes,
+functioning as "article outlines or book tables of contents."
+
+Implication for engram: a periodic MOC-generation step (LLM pass over the vault to generate
+curated link-list notes for recurring topics) would be the practitioner-validated alternative to
+hub-by-automation (L6). Unlike L6's taxonomy approach, MOC curation is additive (doesn't modify
+existing notes) and doesn't require classification of every note. This could be a post-step-3
+deliverable if the link-value exploration finds that curated hubs outperform automated tag hubs.
+Likely a Track-A direction.
+
+Source: Nick Milo, Medium 2021 (accessed 2026-07-02);
+dsebastien.net, "PKM at scale: analyzing 8,000 notes and 64,000 links" (accessed 2026-07-02);
+zettelkasten.de/posts/zettelkasten-hubs/ (accessed 2026-07-02).
+
+### 3.7 Typed-link maintenance overhead — the abandonment signal
+
+Zettelkasten forum link-types discussion [anecdote, ~2023]: MartinBB: "I don't use link types at
+all. A link is a link for me, and that is that. When you have several hundred or several thousand
+notes there is a lot of labour involved in keeping up such categories." Practitioner bradfordfournier
+uses inline commentary (why the link exists, in the note body) rather than formal link types.
+Sascha (zettelkasten.de): "link types naturally emerge when you connect knowledge; they are a
+posteriori descriptions, not a priori requirements."
+
+The Obsidian Breadcrumbs plugin (typed hierarchy links) has sustained active use (transferred
+maintainers, still alive as of 2026-05 per obsidianstats.com) but no large-scale community
+evidence of deep typed-taxonomy adoption. The plugin's primary value appears to be up/down/next/prev
+(structural hierarchy) rather than semantic typed edges (supports/refutes/updates).
+
+Implication: the human evidence argues for a minimal typed-link strategy (one high-value type:
+supersession/refutation) over a rich semantic taxonomy. Any future expansion of L5 beyond
+supersession edges should be gated on demonstrated value per type, not adopted as a category system
+upfront.
+
+Source: forum.zettelkasten.de/discussion/2023/link-types (accessed 2026-07-02);
+obsidianstats.com/plugins/breadcrumbs (accessed 2026-07-02).
+
+### 3.8 Graph view — awareness tool, not retrieval interface
+
+Arthur Perret (2022), "What is the point of a graph view?" (arthurperret.fr) [opinion]: the graph
+view reveals abstract structure and prevents siloed thinking, but "links aren't users' top priority
+— the spot is occupied by mobile and sync." The graph is a memory aid that surfaces connections
+users weren't actively seeking; it is not a primary retrieval interface. Perret notes that
+"contextualized links accelerate information retrieval" — implying that uncontextualized link
+graphs have limited navigability.
+
+The practitioner consensus: the Obsidian graph view is aesthetically appealing but practically
+underused for actual navigation. Search + backlinks panel is the primary daily retrieval path.
+[anecdote, multiple community reports]
+
+Implication for engram: `vaultgraph` as a visualization substrate is an awareness tool. Its value
+for engram is as a substrate for traversal algorithms (T2–T6), not as a UI feature. The practitioner
+evidence that graph navigation is underused does NOT argue against algorithmic traversal — it argues
+against exposing the graph as a user-facing navigation surface.
+
+Source: arthurperret.fr/blog/2022-02-13-what-is-the-point-of-a-graph-view.html
+(accessed 2026-07-02).
+
+### 3.9 Empirical study: how industry researchers use Obsidian
+
+"How People Manage Knowledge in their 'Second Brains': A Case Study with Industry Researchers
+Using Obsidian," INTERACT 2025 (arXiv:2509.20187, Springer LNCS 16111) [study — qualitative]:
+key finding: "participants' knowledge retrieval strategy significantly influences how they build and
+maintain their content." The abstract does not disclose which specific strategies dominated, but
+the framing (retrieval strategy → organization structure, not the reverse) aligns with the broader
+practitioner observation that link discipline needs to be calibrated to how you actually recall, not
+how you aspire to organize.
+
+This is the only peer-reviewed empirical study found in this beat on PKM tool usage patterns.
+Full paper not accessed (PDF binary-encoded); the finding is from the abstract only.
+
+Source: arxiv.org/abs/2509.20187 (accessed 2026-07-02).
+
+# Part 4 — IR/KG literature + Claude-Code-ecosystem memory tools
+
+*Research performed 2026-07-02. All sources cited inline with date. Claim quality labels per MEMORY.md conventions.*
+
+#### 4.1 Learned associations vs explicit wikilinks
+
+Association-Augmented Retrieval (AAR, arxiv 2604.20850, 2026) shows a 4.2M-parameter MLP trained on passage co-occurrence annotations recovers +28.5 pp on hard multi-hop cases where dense retrieval fails, with 3.7ms inference overhead. The core principle: "association is not similarity" — passages copresent in reasoning chains are linked even when semantically distant. **Vision-relevant implication:** if engram accumulates sufficient co-retrieval history (which notes were retrieved together for the same task session), it could compute a co-occurrence signal and train or approximate an association scorer — a zero-link-curation alternative to explicit wikilink maintenance. Deferred because it requires labeled task data or proxy co-retrieval logs that engram does not currently emit. [paper-claimed]
+
+Sources: [Association Is Not Similarity (arxiv 2604.20850)](https://arxiv.org/abs/2604.20850)
+
+#### 4.2 GRAFT — post-retrieval graph repair
+
+GAAMA (arxiv 2603.27910, 2025) includes a post-retrieval corrective layer (GRAFT: Graph Repair by Augmenting Facts & Topology) that diagnoses retrieval failures and surgically adds edges to the KG at the identified gap. The diagnostic pass identifies whether failure was due to (a) missing edges to a needed note, (b) hub dilution, or (c) incomplete fact extraction. **Vision-relevant implication:** after S2 PoC probes identify miss cases where a traversal variant fails to recover a needed note, GRAFT-style targeted edge addition to the L2 fabric is a principled repair step. This is directly relevant to the retroactive linking sweep (step 3 of the original ask) and could be the mechanism for making that sweep intelligent rather than exhaustive. [empirical, 10k-node graph, LoCoMo-10]
+
+Sources: [GAAMA: Graph Augmented Associative Memory for Agents (arxiv 2603.27910)](https://arxiv.org/abs/2603.27910)
+
+#### 4.3 Temporal validity windows on supersession edges
+
+Zep/Graphiti (arxiv 2501.13956, 2025) attaches temporal validity windows (valid_from, valid_until) to every graph edge. For supersession/update relationships: a superseded note's edges carry `valid_until = T_supersession`, making time-sensitive recall possible ("surface the version valid at time T"). **Vision-relevant implication:** L5 supersession edges in engram currently model binary supersession (note A is superseded by note B). A temporal field would enable queries anchored to a specific time to surface the historically valid note rather than always the latest superseder. Relevant to P3 (supersession pairs): the old note may be the correct answer for "what was the state of our understanding at time T." Deferred — requires timestamp metadata on notes and a time-anchored query interface. [practitioner, 94.8% DMR accuracy]
+
+Sources: [Zep: A Temporal Knowledge Graph Architecture for Agent Memory (arxiv 2501.13956)](https://arxiv.org/abs/2501.13956)
+
+#### 4.4 Dynamic alpha routing for PPR (query-type-conditional)
+
+MixPR (arxiv 2412.06078, 2024) uses α=0.6 for QA/reasoning queries and α=0 (pure global PageRank) for summarization, routed by a lightweight LLM classifier. **Vision-relevant implication:** engram's T2 could use higher PPR weight (α≈0.5–0.6) during deep-recall and lower weight (α≈0.2) during glance, since glance already has fewer phrases and flooding the context with PPR-activated nodes is more costly. This is a conditional parameterization of T2 rather than a new variant. Deferred to post-stop-point if T2 survives S3. [paper-claimed, TF-IDF-based graph, large corpora]
+
+Sources: [Mixture-of-PageRanks (arxiv 2412.06078)](https://arxiv.org/abs/2412.06078)
+
+#### 4.5 Concept-mediated nodes as a bridge fabric design
+
+GAAMA builds concept/topic nodes (like "pottery_hobby", "camping_trip") that multiple episode and fact nodes link to, creating cross-cutting traversal paths 30x sparser than entity-centric designs. These concept nodes prevent hub dilution while enabling multi-session associative recall. **Vision-relevant implication:** a hybrid fabric design — L2 note-to-note edges + L6 concept/tag nodes that sit in the graph — would allow PPR to route through tag/topic nodes to reach non-obvious neighbors. This is not currently in the L×T matrix (L6 is tag-only, not used as PPR traversal node). Deferred to post-stop-point as a potential hybrid if L2+T2 and L6-filter both show partial benefit. [empirical, 10k-node graph]
+
+Sources: [GAAMA: Graph Augmented Associative Memory for Agents (arxiv 2603.27910)](https://arxiv.org/abs/2603.27910)
+
+#### 4.6 Obsidian-vault wikilink traversal as context-building (Basic Memory / agentcairn)
+
+Basic Memory (github.com/basicmachines-co/basic-memory) and agentcairn (mcpservers.org) both implement wikilink-aware retrieval over Obsidian-style markdown vaults. Basic Memory's `build_context` tool navigates `memory://` URLs (wikilinks) to assemble related note content; agentcairn uses DuckDB with hybrid BM25 + vector + graph recall. Neither uses PPR. Both treat wikilinks as context-building (content assembly) rather than as a ranking signal. **Vision-relevant implication:** this is essentially engram's T4 or T6 in implementation form — wikilinks expand context, not ranking. The ecosystem data point says wikilink traversal is being deployed as "follow the link and include the content" rather than as a scoring input. If T4/T6 probe shows recovery, this confirms the ecosystem is on the right track with the simpler approach. [practitioner, no controlled benchmarks]
+
+Sources: [Basic Memory (GitHub)](https://github.com/basicmachines-co/basic-memory) · [Memory MCP Servers (mcpservers.org)](https://mcpservers.org/category/memory)
+
+#### 4.7 MCP knowledge-graph server: graph not consulted algorithmically at query time
+
+The official MCP `memory` server (modelcontextprotocol/servers, github.com/modelcontextprotocol/servers/tree/main/src/memory) uses entity-relation-observation triplets stored as JSONL. `search_nodes` is keyword-based (entity names, types, observation text — NOT embedding). `open_nodes` retrieves by name and returns co-relations between requested entities. The graph structure (relation edges) is exposed to the agent for manual reasoning but is NOT traversed algorithmically for discovery. **Implication:** the official MCP baseline is a named lookup with keyword index — far below what engram's query + cosine clustering already does. Engram's current retrieval is substantially more sophisticated than the MCP baseline. [practitioner, official Anthropic/MCP implementation]
+
+Sources: [Knowledge Graph Memory Server (GitHub)](https://github.com/modelcontextprotocol/servers/tree/main/src/memory) · [Glama overview](https://glama.ai/mcp/servers/@modelcontextprotocol/knowledge-graph-memory-server)
+
+#### 4.8 GraphRAG frequently underperforms vanilla RAG on average-case queries
+
+GraphRAG-Bench (arxiv 2506.05690, 2025) was motivated by the observation that "GraphRAG frequently underperforms vanilla RAG on many real-world tasks" and was designed to characterize when it does and does not help. This is consistent with our settled null (note 73, Δ=0 on average-case recall) and GAAMA's +1pp finding. **Vision-relevant implication:** graph retrieval's benefit is concentrated in the tail (hard multi-hop cases) — exactly the miss-population approach this plan uses. The GraphRAG-Bench characterization of when graphs help (graph characteristics, query types) would be valuable for future fabric design decisions. Deferred — paper found, full results not extracted. [empirical, paper-claimed; exact conditions pending full paper access]
+
+Sources: [When to use Graphs in RAG (arxiv 2506.05690)](https://arxiv.org/abs/2506.05690)
+
+#### 4.9 Link prediction does not have downstream retrieval validation
+
+No controlled study was found demonstrating that embedding-based link prediction (TransE, RotatE, etc.) — adding model-predicted edges to a KG — improves downstream RAG retrieval metrics. The link prediction literature optimizes for graph-structural metrics (Hits@k, MRR on held-out triples). A PMC paper (2024) notes "significant drop in quality when evaluated on localized metrics," suggesting predicted edges that look good globally may degrade local retrieval. **Vision-relevant implication:** do not invest in an LP-predicted edge fabric variant without a specific downstream retrieval benchmark to validate it against. This closes out the "embedding-based link prediction" sub-question with a negative finding. [structural inference, no direct empirical validation found]
+
+Sources: [Link prediction using low-dimensional node embeddings: The measurement problem (PMC, 2024)](https://pmc.ncbi.nlm.nih.gov/articles/PMC10895345/)
+
+---
