@@ -12,6 +12,10 @@ path is not a reduction, note 100). **Do one at a time, ship each gated, measure
 **Track 0 (concurrency & write-safety) is foundational — it fixes live correctness bugs and blocks the
 payload-prune production build, so it comes before both frontiers (split out + prioritized 2026-07-01).**
 
+> **Full-system review (2026-07-01):** goals scorecard (4 ACHIEVED / 3 PARTIAL / 3 REFUTED /
+> 3 UNMEASURED), external landscape, and the ranked exploration list live in
+> `docs/design/2026-07-01-memory-system-review.md`.
+
 ## Where we are
 
 - **Retrieval quality was the real bug (fixed 2026-06-28).** A probe found engram's embedder is fine

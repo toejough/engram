@@ -38,7 +38,7 @@ in code, it is sometimes called a *source* (see triage).
 
 ### binary
 The compiled `engram` Go program. Subcommands: `learn`, `query`, `embed`,
-`ingest`, `prune`, `show`, `show-chunk`, `amend`, `activate`, `update`. The binary handles all I/O
+`ingest`, `prune`, `show`, `show-chunk`, `amend`, `activate`, `resituate`, `update`. The binary handles all I/O
 (vault read/write, chunk indexing, file locking); skills handle behavior
 and prompting.
 
