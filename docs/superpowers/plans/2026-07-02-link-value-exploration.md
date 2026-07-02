@@ -116,8 +116,8 @@ L5 × T5; L6 × a filter-style lookup (tag-match adds candidates, closest to T4)
 - **Prune rules (pre-registered):** kill any cell with (a) recovery@10 ≤ its control, (b) payload
   growth > +20% without recovery gain, (c) **collateral regression = ≥1 no-regression query where a
   previously-top-5 relevant note drops out of the top-5**, or (d) recovery wins achievable only with
-  a "recall changes required" burden judged heavier than T2's while recovering no more than a
-  lighter variant. Report the kill list with numbers.
+  a "recall changes required" burden comparable to or heavier than T2's while recovering no more
+  than a lighter variant. Report the kill list with numbers.
 
 ## Stage S3 — Rigor round (survivors; LLM-judged)
 
