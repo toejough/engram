@@ -269,3 +269,152 @@ These are not conditioned on the link exploration results:
 - https://bitsby.me/2026/03/compound-engineering/ (2026-03)
 - https://lethain.com/everyinc-compound-engineering/ (2026)
 - https://davidguttman.github.io/every-vibe-code-camp-distilled/13_kevin_kieran.html (2026)
+
+
+## Part 2 — Peer memory systems (research date: 2026-07-02)
+
+### B2-1 · A-Mem write-time link enrichment as a note-quality lever (not a retrieval lever)
+
+A-Mem (arXiv 2502.12110, NeurIPS 2025) uses LLM-generated links at write time to trigger
+"memory evolution" — retroactive updates to neighboring notes' contextual descriptions, keywords,
+and tags. The ablation (Table 2) shows multi-hop F1 improves from 24.55 → 31.24 when link
+generation is added, and from 31.24 → 45.85 when memory evolution is added on top.
+Links serve write-time enrichment, NOT retrieval-time traversal — retrieval is pure cosine.
+
+**Vision relevance for engram**: The gain from A-Mem's link generation is entirely from better
+note quality (linked notes get their attributes updated when new related notes are written). This
+is analogous to engram's `learn` skill triggering `engram amend` on related notes — a lever that
+is separate from the retrieval traversal experiments in this workstream. Worth a dedicated
+exploration once the link-value exploration settles which note update triggers are worth
+instrumenting at `learn` time.
+
+Source: arXiv:2502.12110v1, §3.3–3.4, Table 2. Accessed 2026-07-02.
+
+---
+
+### B2-2 · Graphiti's bi-temporal edge model for precise supersession tracking
+
+Graphiti (arXiv 2501.13956, January 2025) models every edge with four timestamp fields:
+t_valid (event-world start), t_invalid (event-world end), created_at (system ingestion),
+expired_at (system invalidation). New information that contradicts an existing edge triggers
+LLM-based semantic comparison; the old edge's t_invalid is set to the new edge's t_valid.
+Rule: "Graphiti consistently prioritizes new information."
+
+Entity dedup: 1024-dim embedding cosine search + full-text name/summary search + LLM judge.
+An externally documented MinHash + LSH fast path exists but threshold values are not published.
+
+**Vision relevance**: The bi-temporal model is the production-grade implementation of engram's
+L5/T5 supersession concept. If the link-value exploration validates T5, the L5 edge schema
+should adopt Graphiti's four-field structure. The LLM-based conflict detection (semantic, not
+exact-match) prevents missed supersessions where the wording differs.
+
+Source: arXiv:2501.13956v1, §3.2–3.4; getzep/graphiti README; deepwiki.com/getzep/graphiti.
+Accessed 2026-07-02.
+
+---
+
+### B2-3 · Mem0g: the most directly applicable graph-vs-flat ablation for agent memory
+
+Mem0 (arXiv 2504.19413, April 2025) published a controlled comparison of Mem0g (graph variant,
+entity/relation triplet graph with LLM-based entity resolution) vs. plain Mem0 (flat vector
+store) on LOCOMO, a conversational agent memory benchmark. Results (GPT-4o):
+
+- Overall: Mem0g 68.44 vs. Mem0 66.88 (+1.56)
+- Temporal: Mem0g 58.13 vs. Mem0 55.51 (+2.62)
+- Open-domain: 75.71 vs. 72.93 (+2.78)
+- Single-hop: 65.71 vs. 67.13 (−1.42, graph loses)
+- Multi-hop: 47.19 vs. 51.15 (−3.96, graph loses)
+- Memory cost: 14k tokens (Mem0g) vs. 7k tokens (Mem0) — 2× overhead
+- Search speed: ~3× slower
+
+**Vision relevance**: This is the closest published ablation to engram's S2 evaluation design
+(agent memory, not factoid QA corpora). The result pattern — graph helps temporal/relational
+reasoning, hurts precise single-fact lookup — is a calibration prior for engram's miss-population
+design. P3 (supersession) and open-domain bridge queries are the predicted win zone; P1 real-query
+single-hop misses may be the risk zone. The 2× token overhead is a concrete viability factor
+against deploying T2 in engram's payload-sensitive context.
+
+Source: arXiv:2504.19413, Table 4 (Mem0g vs. Mem0 ablation). Accessed 2026-07-02.
+
+---
+
+### B2-4 · HippoRAG's hub-suppression via node specificity inverse weighting
+
+HippoRAG (arXiv 2405.14831) applies node specificity weighting before running PPR: each phrase
+node i is weighted by sᵢ = |Pᵢ|⁻¹ (inverse of the number of passages that contain the phrase).
+This suppresses high-degree hub phrases (e.g., "the model," "the system") from dominating PPR
+propagation. The effect: low-degree specific phrases (rare concepts) get proportionally more
+influence in the spreading activation.
+
+**Vision relevance**: Engram's hub-kill problem (high-connectivity notes dominating traversal) is
+directly addressed by this mechanism. If T2 is implemented, node specificity inverse weighting
+should be applied to note degree, not just phrase frequency — notes with many incoming links
+should have their PPR seed weight divided by their in-degree.
+
+Source: arXiv:2405.14831v1 (HippoRAG 1), §3.3; arXiv:2502.14802v1 (HippoRAG 2), §3.2.
+Accessed 2026-07-02.
+
+---
+
+### B2-5 · HippoRAG 2's passage nodes: dense-sparse integration via context edges
+
+HippoRAG 2 (arXiv 2502.14802, February 2025) introduces passage nodes alongside phrase nodes,
+connected by "contains" context edges (each passage node links to all phrase nodes extracted
+from it). At retrieval, passage nodes receive PPR seed probability proportional to
+embedding_similarity × w_dp where w_dp=0.05 (optimal per Table 5 ablation). This allows both
+specific phrase matching (phrase node seeds) and broader passage embedding to seed the graph.
+Result on MuSiQue R@5: 74.7 (HippoRAG 2) vs. 53.2 (HippoRAG 1) vs. 69.7 (NV-Embed-v2 flat).
+HippoRAG 1 was worse than flat NV-Embed on MuSiQue; passage nodes are the swing.
+
+**Vision relevance**: For engram, "passage nodes" maps to the source session chunk (a transcript
+chunk) and "phrase nodes" map to the crystallized note. The L7 (provenance/episode) fabric creates
+this structure. L7 + T2 (PPR) is the combination HippoRAG 2 validates — the combination may
+outperform either L2 alone or embedding-only retrieval, but only if chunk vectors are used as
+PPR seeds alongside note vectors. The retrieval probe harness already has access to chunk vectors
+(.jsonl index); this integration would require seeding PPR from both note and chunk nodes.
+
+Source: arXiv:2502.14802v1, §3.2–3.3, Tables 4–5. Accessed 2026-07-02.
+
+---
+
+### B2-6 · Cognee's multi-mode retrieval (14 modes, auto-routing) as a retrieval strategy
+
+Cognee (topoteretes/cognee, 2025; arXiv 2505.24478 Markovic et al.) ships 14 named retrieval
+modes ranging from classic vector RAG to chain-of-thought graph traversal (GRAPH_COMPLETION).
+Auto-routing selects the mode based on query characteristics. GRAPH_COMPLETION: vector search
+seeds matching entities/triples, then an LLM reasons over the subgraph. Vendor-claimed HotpotQA:
+F1 0.63 vs. flat RAG 0.12; BEAM at 100K tokens: 0.79 vs. prior SOTA 0.735. No controlled ablation
+separating graph traversal from LLM reasoning.
+
+**Vision relevance**: Cognee's multi-mode design validates engram's cell matrix approach (T2/T3/T5/
+T6 as different modes for different query types) rather than a single unified traversal. The auto-
+routing pattern — let query characteristics determine traversal depth — maps to engram's phrase-
+count heuristic for T6 (under 3 phrases → T6 breadth recovery). Worth tracking Cognee's BEAM and
+forthcoming arXiv 2505.24478 results for evidence on which retrieval mode wins which query type.
+
+Source: cognee.ai blog (vendor); deepnote.com Cognee vs RAG comparison (vendor); arXiv:2505.24478
+abstract. Accessed 2026-07-02.
+
+---
+
+### B2-7 · No peer system publishes a clean graph-edges-present vs. absent ablation (the evidence gap)
+
+Across all five systems surveyed:
+
+- **A-Mem**: Ablation conflates link generation with memory evolution; retrieval is not graph-traversal.
+- **Graphiti/Zep**: No ablation isolating graph traversal vs. flat retrieval; paper shows only full-
+  system vs. full-context/session-summary/MemGPT baselines.
+- **HippoRAG 1**: Ablates PPR vs. no-traversal within the graph system, but NOT graph-present vs.
+  strong flat embedding (NV-Embed-v2). HippoRAG 2 does compare against NV-Embed-v2 flat but the
+  HippoRAG 1 graph actually underperforms NV-Embed on MuSiQue (53.2 vs. 69.7 R@5), underscoring
+  that graph traversal on a weak graph is worse than strong embeddings on no graph.
+- **Mem0g**: The cleanest ablation (graph vs. flat on agent memory LOCOMO), but on a
+  conversational-memory corpus, not agent procedural-lesson memory.
+- **Cognee**: Vendor-reported comparisons only; graph and LLM-reasoning contributions are inseparable.
+
+**Vision relevance**: Engram's S2 probe is filling a genuine evidence gap in the literature. The
+clean ablation design — recover from engram's miss population with/without graph traversal, on the
+actual vault and actual recall binary — is not replicated by any peer system on comparable data.
+The pre-registered prune rules are conservative and appropriate given the evidence base.
+
+Sources: arXiv:2502.12110, 2501.13956, 2405.14831, 2502.14802, 2504.19413. Accessed 2026-07-02.

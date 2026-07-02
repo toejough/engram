@@ -87,7 +87,7 @@ consolidate into ONE report.
 | L1 | status-quo fabric (**77 resolved edges, measured post-pre-step** — `migrate-links` handles bare-ID links, not the 3 slug-only drift links, which repaired 0; those 3 stay broken/excluded, deferred to the stop-point) | $0 | control |
 | L2 | corpus-wide link-on-write: per note, top-K embedding candidates over the whole vault → **harness-local LLM pass replicating recall 2.6's GENERATE/JUSTIFY/PERSIST gate** (relation menu + shared-key + hub test) → surviving edges into the fabric JSON | ~$5–10 | fixes "only co-surfaced pairs ever considered". **S0 finding:** goes BEYOND compound-eng's related-docs finder (which is write-time dedup only — they create no read-time traversal edges), so L2 stands on its own merits, not on their validation |
 | L3 | shared rare tokens (TF-IDF-rare concrete tokens shared across notes) | $0 | note 153: the concrete token is load-bearing |
-| L4 | situation-field cosine (embed situation handles only; near-family situations) | $0 | same-moment lessons should co-surface. **S0:** compound-eng's equivalent is HARD controlled-vocab category placement, not cosine — if L4 underperforms, the S3 mutation is L4c (hard category match) |
+| L4 | situation-field cosine (embed situation handles only; near-family situations) | $0 | same-moment lessons should co-surface. **S0:** compound-eng's equivalent is HARD controlled-vocab category placement, not cosine — if L4 underperforms, the S3 mutation is L4c (hard category match). **Beat-2:** HippoRAG's synonym-edge threshold is τ=0.8 (empirically grounded); the built fabric used 0.50 — the probe sweeps {0.5, 0.6, 0.8} since threshold changes are free |
 | L5 | supersession/temporal edges (LLM-typed: updates / narrows / refutes) | ~$3–5 | conflict surfacing; C4i as persistent structure |
 | L6 | tag/category taxonomy (controlled vocabulary per note; hub-by-design, used for filter/discovery not ranking) | ~$2–4 | tests whether hub-kill overcorrects for discovery. **S0:** compound-eng implements tags as frontmatter fields judged by an LLM agent, NOT graph hubs — the T4-style nomination is engram's own bet |
 | L7 | provenance/episode edges (same origin session/source) | $0 | cheap temporal cohesion |
@@ -98,7 +98,7 @@ first-class viability factor in S2 pruning (heavy adaptation weighs against a ma
 | ID | Mechanism | Recall changes required | Claim it tests |
 |---|---|---|---|
 | T1 | one-hop payload expansion of matched notes | binary: expansion pass post-union | control — must reproduce the null on L1 |
-| T2 | PPR/spreading activation seeded by matched set; score = α·cosine + β·ppr | binary: graph-aware scoring stage (largest change) | HippoRAG-lite associative recovery |
+| T2 | PPR/spreading activation seeded by the cosine-matched notes; **rank by PPR score (HippoRAG's actual formula — no additive cosine blend), damping α=0.5, with node-specificity inverse weighting (seed weight ÷ in-degree) as the principled hub suppressor**; the probe also scores the α·cosine+β·ppr blend as a cheap second variant | binary: graph-aware scoring stage (largest change) | HippoRAG-faithful associative recovery. **Beat-2 prior: PPR beat no-traversal by +11–28 R@5 on dense corpora, but HippoRAG-1 LOST to strong flat embedding on MuSiQue — density is load-bearing** |
 | T3 | neighbor rank-boost (edges never ADD items, only re-rank buried/below-floor notes upward) | binary: score-adjust pass; payload shape unchanged | recovery without payload growth |
 | T4 | candidate_l2s enrichment (neighbors join CANDIDATE nomination for 2.5 coverage only) | binary: candidate nomination only; skill unchanged | better dedup/coverage at zero payload cost |
 | T5 | typed-selective traversal (follow ONLY supersession/contradiction edges; superseder rides along with any matched superseded note) | binary: small typed lookup; skill: 2.5B consumes the flag | conflict-correctness generalized |
@@ -128,6 +128,15 @@ entered candidate_l2s nomination (the T4 claim) — no separate cells.
 - Build L2–L7 fabrics; report fabric stats (edges added, degree distribution) — no silent caps.
 - **Gate S1 (pre-registered):** if P1+P2+P3 yield **< 8** distinct real miss cases, STOP EARLY and
   report — a thin miss population is itself the finding.
+
+**Literature priors for S2 (beat-2, recorded before probing so hindsight can't claim them):**
+(a) the T1 null reproduces in print — HippoRAG Table 5 shows direct-neighbor expansion WORSE than
+no traversal on MuSiQue; (b) Mem0g's agent-memory ablation predicts the win zone is temporal/
+supersession + open-domain bridges (P3, P2) and the risk zone is single-hop misses (P1), at 2×
+token and 3× latency cost; (c) no peer system publishes a sparse-vault (<200 nodes) ablation —
+S2 fills a real evidence gap; (d) **density gate:** before running any T2 cell, check the fabric's
+connectivity (isolated %, mean component size) — PPR cannot propagate across a disconnected fabric,
+so a T2 null on a sparse fabric is "fabric too thin", not "traversal refuted".
 
 ## Stage S2 — PoC probes + prune
 
