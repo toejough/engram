@@ -278,6 +278,79 @@ def test_supersession_inserted_score_lower():
 
 
 # ---------------------------------------------------------------------------
+# S2b chunk-pinning tests (harness correction — note-only re-ranking)
+# ---------------------------------------------------------------------------
+
+def chunk_item(basename: str, score: float, rank: int = 1) -> dict:
+    return {"basename": basename, "score": score, "kind": "chunk", "rank": rank}
+
+
+def test_ppr_chunk_pinned_at_baseline_position():
+    """A chunk at baseline position 3 stays at position 3 no matter what PPR says."""
+    ranked = [
+        ranked_item("A.md", 0.9, rank=1),
+        ranked_item("D.md", 0.8, rank=2),
+        chunk_item("SKILL.md", 0.99, rank=3),  # huge score; PPR must not move it
+        ranked_item("E.md", 0.5, rank=4),
+    ]
+    result, _ = ppr_rank(
+        ranked, FABRIC, alpha=0.5, idf_weight=False, rescale_c=1.0, act_tau=0.01
+    )
+    bns = basenames(result)
+    assert len(bns) >= 3, f"Result too short to hold pinned chunk: {bns}"
+    assert bns[2] == "SKILL.md", \
+        f"Chunk must stay at baseline position 3 (index 2); got {bns}"
+    assert bns.count("SKILL.md") == 1, f"Chunk duplicated: {bns}"
+
+
+def test_ppr_blend_chunk_pinned():
+    """ppr_blend keeps a chunk at its baseline position; notes re-rank around it."""
+    ranked = [
+        chunk_item("SKILL.md", 0.99, rank=1),  # chunk at position 1
+        ranked_item("A.md", 0.9, rank=2),
+        ranked_item("B.md", 0.7, rank=3),
+    ]
+    result, _ = ppr_blend(ranked, FABRIC)
+    bns = basenames(result)
+    assert bns[0] == "SKILL.md", \
+        f"Chunk at baseline position 1 must stay first: {bns}"
+    assert "A.md" in bns and "B.md" in bns, f"Baseline notes missing: {bns}"
+
+
+def test_rank_boost_chunk_pinned():
+    """rank_boost never moves a chunk: boosted notes displace only other notes."""
+    ranked = [
+        ranked_item("D.md", 0.9, rank=1),
+        chunk_item("SKILL.md", 0.2, rank=2),  # low-score chunk between notes
+        ranked_item("A.md", 0.5, rank=3),
+    ]
+    # w=0.9: D's neighbor C gets 0.81 > A's 0.5 → C enters between D and A
+    result, _ = rank_boost(ranked, FABRIC, w=0.9)
+    bns = basenames(result)
+    # Chunk must remain at absolute position 2 (index 1)
+    assert bns[1] == "SKILL.md", \
+        f"Chunk must stay at baseline position 2 (index 1): {bns}"
+    # Note ordering among notes: D (0.9), then C (0.81), then A (0.5)
+    note_order = [b for b in bns if b != "SKILL.md"]
+    assert note_order.index("D.md") < note_order.index("C.md") < note_order.index("A.md"), \
+        f"Note-only re-rank order wrong: {note_order}"
+
+
+def test_rank_boost_chunk_never_seeds_neighbors():
+    """Chunks do not seed neighbor boosts (only notes are traversal sources)."""
+    # Chunk named "A" (same name as fabric node A) must NOT propagate a boost to B.
+    ranked = [
+        chunk_item("A.md", 0.9, rank=1),   # chunk, despite matching node A
+        ranked_item("F.md", 0.5, rank=2),  # note with no edges
+    ]
+    result, entrants = rank_boost(ranked, FABRIC, w=0.1)
+    bns = basenames(result)
+    assert "B.md" not in bns, \
+        f"B.md must not be boosted (its only linked item is a chunk): {bns}"
+    assert entrants == 0, f"No entrants expected, got {entrants}"
+
+
+# ---------------------------------------------------------------------------
 # tag_filter_candidates tests
 # ---------------------------------------------------------------------------
 
@@ -365,6 +438,10 @@ ALL_TESTS = [
     test_supersession_no_duplicate_if_already_present,
     test_supersession_no_matching_edge_unchanged,
     test_supersession_inserted_score_lower,
+    test_ppr_chunk_pinned_at_baseline_position,
+    test_ppr_blend_chunk_pinned,
+    test_rank_boost_chunk_pinned,
+    test_rank_boost_chunk_never_seeds_neighbors,
     test_tag_filter_basic,
     test_tag_filter_pool_excludes_delivered,
     test_tag_filter_top_m_limits_seed,

@@ -27,6 +27,50 @@ def _add_md(basename: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Chunk pinning (S2b harness correction)
+# ---------------------------------------------------------------------------
+
+def _is_chunk(item: dict) -> bool:
+    """True if a ranked item is a chunk (pinned; never re-ranked by traversals)."""
+    return item.get("kind") == "chunk"
+
+
+def _rebuild_with_pinned_chunks(
+    baseline: list[dict],
+    note_sequence: list[dict],
+) -> list[dict]:
+    """Rebuild a ranked list with chunks pinned at their baseline positions.
+
+    S2b harness correction (chunk-pinned): traversals may only re-order/insert
+    NOTE items (kind fact/feedback). Chunk items keep their absolute baseline
+    indices — the list is treated as slots: chunks are pinned, notes compete
+    among themselves for the remaining slots + appended positions.
+
+    If the note sequence exhausts before reaching a chunk's pinned index, the
+    remaining chunks compact earlier (a list cannot hold gaps); with enough
+    notes, every chunk stays at its exact baseline position.
+    """
+    chunk_positions = [
+        (idx, item) for idx, item in enumerate(baseline) if _is_chunk(item)
+    ]
+    result: list[dict] = []
+    chunk_i = 0
+    note_i = 0
+    pos = 0
+    while chunk_i < len(chunk_positions) or note_i < len(note_sequence):
+        if chunk_i < len(chunk_positions) and (
+            pos >= chunk_positions[chunk_i][0] or note_i >= len(note_sequence)
+        ):
+            result.append(chunk_positions[chunk_i][1])
+            chunk_i += 1
+        else:
+            result.append(note_sequence[note_i])
+            note_i += 1
+        pos += 1
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Graph construction
 # ---------------------------------------------------------------------------
 
@@ -174,20 +218,24 @@ def ppr_rank(
     Activation threshold act_tau (relative to max PPR score) bounds the result.
     Scores are multiplied by rescale_c (SA-RAG anti-flood scaling).
 
-    Result is ranked purely by PPR score; baseline notes not in the graph are absent.
+    S2b (chunk-pinned): NOTE-ONLY re-ranking. Only fact/feedback items are
+    seeded and re-ranked; chunk items keep their baseline positions. Baseline
+    NOTES not activated by PPR are absent from the note sequence (HippoRAG's
+    actual formula — rank ALL activated nodes, only activated nodes).
 
     Returns:
         (result_list, newly_activated_count) where newly_activated_count is the
-        count of result nodes not present in the input baseline.
+        count of activated nodes not present in the input baseline.
     """
     graph = _build_undirected_graph(fabric)
     if not graph:
         return list(ranked_scores), 0
 
     degrees = {n: len(nbrs) for n, nbrs in graph.items()}
+    baseline_notes = [r for r in ranked_scores if not _is_chunk(r)]
 
     seeds: dict[str, float] = {}
-    for item in ranked_scores:
+    for item in baseline_notes:
         node = _strip_md(item["basename"])
         if node in graph:
             raw_score = item["score"] if item["score"] is not None else 0.0
@@ -216,12 +264,13 @@ def ppr_rank(
     ]
     activated.sort(key=lambda x: -x[1])
 
-    baseline_set = {_strip_md(r["basename"]) for r in ranked_scores}
-    result = [
+    baseline_set = {_strip_md(r["basename"]) for r in baseline_notes}
+    note_sequence = [
         {"basename": _add_md(node), "score": ppr_score, "kind": None, "rank": None}
         for node, ppr_score in activated
     ]
     new_count = sum(1 for node, _ in activated if node not in baseline_set)
+    result = _rebuild_with_pinned_chunks(ranked_scores, note_sequence)
     return result, new_count
 
 
@@ -239,16 +288,20 @@ def ppr_blend(
 
     sim = cosine score from baseline (0 for notes absent from baseline).
     ppr = rescale_c-scaled PPR score (0 for notes not activated).
-    All baseline notes are included; activated non-baseline nodes are added.
+    All baseline NOTES are included; activated non-baseline nodes are added.
+
+    S2b (chunk-pinned): NOTE-ONLY re-ranking. Only fact/feedback items are
+    seeded and blended; chunk items keep their baseline positions.
 
     Returns:
         (result_list, newly_activated_count)
     """
     graph = _build_undirected_graph(fabric)
     degrees = {n: len(nbrs) for n, nbrs in graph.items()}
+    baseline_notes = [r for r in ranked_scores if not _is_chunk(r)]
 
     seeds: dict[str, float] = {}
-    for item in ranked_scores:
+    for item in baseline_notes:
         node = _strip_md(item["basename"])
         if node in graph:
             raw_score = item["score"] if item["score"] is not None else 0.0
@@ -271,21 +324,24 @@ def ppr_blend(
                 for node, score in raw_ppr.items()
                 if score >= threshold
             }
-            baseline_set = {_strip_md(r["basename"]) for r in ranked_scores}
+            baseline_set = {_strip_md(r["basename"]) for r in baseline_notes}
             new_count = sum(1 for node in scaled_ppr if node not in baseline_set)
 
     sim_map = {
         _strip_md(r["basename"]): (r["score"] if r["score"] is not None else 0.0)
-        for r in ranked_scores
+        for r in baseline_notes
     }
 
     all_nodes = set(sim_map.keys()) | set(scaled_ppr.keys())
-    result = []
+    note_sequence = []
     for node in all_nodes:
         blend_score = sim_w * sim_map.get(node, 0.0) + ppr_w * scaled_ppr.get(node, 0.0)
-        result.append({"basename": _add_md(node), "score": blend_score, "kind": None, "rank": None})
+        note_sequence.append(
+            {"basename": _add_md(node), "score": blend_score, "kind": None, "rank": None}
+        )
 
-    result.sort(key=lambda x: -x["score"])
+    note_sequence.sort(key=lambda x: -x["score"])
+    result = _rebuild_with_pinned_chunks(ranked_scores, note_sequence)
     return result, new_count
 
 
@@ -298,11 +354,15 @@ def rank_boost(
     fabric: list[dict],
     w: float = 0.1,
 ) -> tuple[list[dict], int]:
-    """T3: re-rank the union of baseline notes + their 1-hop neighbors.
+    """T3: re-rank the union of baseline NOTES + their 1-hop neighbors.
 
     Baseline notes keep their cosine sim score.
     A non-delivered neighbor gets score = w × max(sim of its linked delivered notes).
-    Entrant count = non-baseline items that appear in the top-20 of the re-ranked list.
+    Entrant count = non-baseline notes that appear in the top-20 of the result.
+
+    S2b (chunk-pinned): NOTE-ONLY re-ranking, per the plan's T3 definition
+    ("re-rank buried/below-floor NOTES upward"). Chunk items keep their
+    baseline positions; a boosted note may only displace other notes.
 
     Relative order of baseline notes is preserved among themselves as long as no
     neighbor's boosted score exceeds a baseline note's sim score.
@@ -311,10 +371,11 @@ def rank_boost(
         (re_ranked_list, entrant_count_at_top_20)
     """
     graph = _build_undirected_graph(fabric)
-    baseline_map: dict[str, dict] = {_strip_md(r["basename"]): r for r in ranked_scores}
+    baseline_notes = [r for r in ranked_scores if not _is_chunk(r)]
+    baseline_map: dict[str, dict] = {_strip_md(r["basename"]): r for r in baseline_notes}
 
     neighbor_max_sim: dict[str, float] = defaultdict(float)
-    for item in ranked_scores:
+    for item in baseline_notes:
         node = _strip_md(item["basename"])
         sim = item["score"] if item["score"] is not None else 0.0
         for nbr in graph.get(node, []):
@@ -322,7 +383,7 @@ def rank_boost(
                 if sim > neighbor_max_sim[nbr]:
                     neighbor_max_sim[nbr] = sim
 
-    union = list(ranked_scores)
+    union = list(baseline_notes)
     for nbr, max_sim in neighbor_max_sim.items():
         union.append({
             "basename": _add_md(nbr),
@@ -333,11 +394,12 @@ def rank_boost(
 
     union.sort(key=lambda x: -(x["score"] if x["score"] is not None else 0.0))
 
+    result = _rebuild_with_pinned_chunks(ranked_scores, union)
     entrant_count = sum(
-        1 for item in union[:20]
-        if _strip_md(item["basename"]) not in baseline_map
+        1 for item in result[:20]
+        if not _is_chunk(item) and _strip_md(item["basename"]) not in baseline_map
     )
-    return union, entrant_count
+    return result, entrant_count
 
 
 # ---------------------------------------------------------------------------

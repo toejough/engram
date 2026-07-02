@@ -55,7 +55,7 @@
     "L3\u00d7T1": "SURVIVOR",
     "L3\u00d7T2ppr": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
     "L3\u00d7T2blend": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
-    "L3\u00d7T3": "KILLED(c: 34 collateral regression(s))",
+    "L3\u00d7T3": "SURVIVOR",
     "L3\u00d7T6": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
     "L4\u00d7T1": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
     "L4\u00d7T2ppr": "KILLED(c: 36 collateral regression(s))",
@@ -65,7 +65,7 @@
     "L7\u00d7T1": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
     "L7\u00d7T2ppr": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
     "L7\u00d7T2blend": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
-    "L7\u00d7T3": "KILLED(c: 34 collateral regression(s))",
+    "L7\u00d7T3": "SURVIVOR",
     "L7\u00d7T6": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
     "L5\u00d7T5": "SURVIVOR",
     "L6\u00d7TAG": "SURVIVOR"
@@ -784,10 +784,11 @@
         "r10": 4.2,
         "r20": 4.2,
         "median_rank": 5.5,
-        "payload_delta_pct": -82.6,
+        "payload_delta_pct": -28.1,
         "regression_count": 36,
         "t4_ride_along_count": 2,
-        "traversal_id": "T2ppr"
+        "traversal_id": "T2ppr",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
       "verdict": "KILLED(c: 36 collateral regression(s))",
       "case_results": [
@@ -795,252 +796,252 @@
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 12,
+          "result_len": 46,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 12,
+          "result_len": 46,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": 5,
           "baseline_len": 58,
-          "result_len": 12,
+          "result_len": 46,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 5,
+          "result_len": 24,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 5,
+          "result_len": 24,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 5,
+          "result_len": 24,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 8,
+          "result_len": 40,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 8,
+          "result_len": 40,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 8,
+          "result_len": 40,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 5,
+          "result_len": 81,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 5,
+          "result_len": 81,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 5,
+          "result_len": 81,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 5,
+          "result_len": 81,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n3",
           "rank": null,
           "baseline_len": 36,
-          "result_len": 6,
+          "result_len": 30,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 6,
+          "result_len": 71,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 6,
+          "result_len": 71,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 6,
+          "result_len": 71,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 6,
+          "result_len": 71,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 6,
+          "result_len": 71,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n3",
           "rank": null,
           "baseline_len": 29,
-          "result_len": 2,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n3",
           "rank": null,
           "baseline_len": 29,
-          "result_len": 2,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 6,
+          "result_len": 82,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": 6,
           "baseline_len": 104,
-          "result_len": 6,
+          "result_len": 82,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 6,
+          "result_len": 82,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 6,
+          "result_len": 82,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 6,
+          "result_len": 82,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n3",
           "rank": null,
           "baseline_len": 31,
-          "result_len": 3,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
           "rank": null,
           "baseline_len": 96,
-          "result_len": 8,
+          "result_len": 79,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
           "rank": null,
           "baseline_len": 96,
-          "result_len": 8,
+          "result_len": 79,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q22-n10",
           "rank": null,
           "baseline_len": 46,
-          "result_len": 4,
+          "result_len": 29,
           "t4_ride_along": false
         },
         {
@@ -1103,28 +1104,28 @@
           "case_id": "P3-P3-4",
           "rank": null,
           "baseline_len": 24,
-          "result_len": 7,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-5",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 9,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-6",
           "rank": null,
           "baseline_len": 20,
-          "result_len": 8,
+          "result_len": 20,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-7",
           "rank": null,
           "baseline_len": 33,
-          "result_len": 2,
+          "result_len": 26,
           "t4_ride_along": false
         }
       ],
@@ -1135,12 +1136,13 @@
         "applicable": 48,
         "r5": 0.0,
         "r10": 0.0,
-        "r20": 0.0,
-        "median_rank": 33,
-        "payload_delta_pct": -38.8,
-        "regression_count": 34,
+        "r20": 14.6,
+        "median_rank": 17,
+        "payload_delta_pct": 0.4,
+        "regression_count": 0,
         "t4_ride_along_count": 11,
-        "traversal_id": "T2blend"
+        "traversal_id": "T2blend",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
       "verdict": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
       "case_results": [
@@ -1148,252 +1150,252 @@
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 39,
+          "result_len": 60,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 39,
+          "result_len": 60,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
+          "rank": 15,
+          "baseline_len": 58,
+          "result_len": 60,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n10",
+          "rank": null,
+          "baseline_len": 68,
+          "result_len": 69,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n10",
           "rank": 25,
-          "baseline_len": 58,
-          "result_len": 39,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n10",
-          "rank": null,
           "baseline_len": 68,
-          "result_len": 49,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n10",
-          "rank": 35,
-          "baseline_len": 68,
-          "result_len": 49,
+          "result_len": 69,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 49,
+          "result_len": 69,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 34,
+          "rank": 18,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n3",
           "rank": null,
           "baseline_len": 36,
-          "result_len": 19,
+          "result_len": 36,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 32,
+          "rank": 16,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 33,
+          "rank": 17,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 44,
+          "rank": 28,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
+          "rank": 11,
+          "baseline_len": 98,
+          "result_len": 98,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q04-n3",
+          "rank": null,
+          "baseline_len": 29,
+          "result_len": 29,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n3",
+          "rank": null,
+          "baseline_len": 29,
+          "result_len": 29,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": null,
+          "baseline_len": 104,
+          "result_len": 104,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
           "rank": 27,
-          "baseline_len": 98,
-          "result_len": 50,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q04-n3",
-          "rank": null,
-          "baseline_len": 29,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n3",
-          "rank": null,
-          "baseline_len": 29,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": 43,
-          "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n3",
           "rank": null,
           "baseline_len": 31,
-          "result_len": 20,
+          "result_len": 31,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 39,
+          "rank": 25,
           "baseline_len": 96,
-          "result_len": 40,
+          "result_len": 96,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 23,
+          "rank": 14,
           "baseline_len": 96,
-          "result_len": 40,
+          "result_len": 96,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q22-n10",
-          "rank": 21,
+          "rank": 14,
           "baseline_len": 46,
-          "result_len": 29,
+          "result_len": 46,
           "t4_ride_along": true
         },
         {
@@ -1456,28 +1458,28 @@
           "case_id": "P3-P3-4",
           "rank": null,
           "baseline_len": 24,
-          "result_len": 14,
+          "result_len": 24,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-5",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 16,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-6",
           "rank": null,
           "baseline_len": 20,
-          "result_len": 10,
+          "result_len": 20,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-7",
           "rank": null,
           "baseline_len": 33,
-          "result_len": 19,
+          "result_len": 34,
           "t4_ride_along": false
         }
       ],
@@ -1488,25 +1490,26 @@
         "applicable": 48,
         "r5": 0.0,
         "r10": 0.0,
-        "r20": 12.5,
-        "median_rank": 38.0,
+        "r20": 16.7,
+        "median_rank": 25.0,
         "payload_delta_pct": 58.7,
-        "regression_count": 34,
+        "regression_count": 0,
         "t4_ride_along_count": 24,
-        "traversal_id": "T3"
+        "traversal_id": "T3",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
       "verdict": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
       "case_results": [
         {
           "case_id": "P1-Q00-n3",
-          "rank": 16,
+          "rank": 27,
           "baseline_len": 26,
           "result_len": 40,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q00-n3",
-          "rank": 19,
+          "rank": 30,
           "baseline_len": 26,
           "result_len": 40,
           "t4_ride_along": true
@@ -1527,7 +1530,7 @@
         },
         {
           "case_id": "P1-Q00-n3",
-          "rank": 20,
+          "rank": 31,
           "baseline_len": 26,
           "result_len": 40,
           "t4_ride_along": true
@@ -1548,14 +1551,14 @@
         },
         {
           "case_id": "P1-Q00-n10",
-          "rank": 63,
+          "rank": 78,
           "baseline_len": 58,
           "result_len": 89,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q00-n10",
-          "rank": 33,
+          "rank": 15,
           "baseline_len": 58,
           "result_len": 89,
           "t4_ride_along": true
@@ -1576,7 +1579,7 @@
         },
         {
           "case_id": "P1-Q01-n3",
-          "rank": 37,
+          "rank": 53,
           "baseline_len": 34,
           "result_len": 60,
           "t4_ride_along": true
@@ -1590,14 +1593,14 @@
         },
         {
           "case_id": "P1-Q01-n10",
-          "rank": 39,
+          "rank": 25,
           "baseline_len": 68,
           "result_len": 102,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n10",
-          "rank": 74,
+          "rank": 92,
           "baseline_len": 68,
           "result_len": 102,
           "t4_ride_along": true
@@ -1625,49 +1628,49 @@
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 83,
+          "rank": 18,
           "baseline_len": 103,
           "result_len": 134,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n3",
-          "rank": 29,
+          "rank": 40,
           "baseline_len": 36,
           "result_len": 44,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 91,
+          "rank": 102,
           "baseline_len": 98,
           "result_len": 127,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 70,
+          "rank": 16,
           "baseline_len": 98,
           "result_len": 127,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 71,
+          "rank": 17,
           "baseline_len": 98,
           "result_len": 127,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 82,
+          "rank": 28,
           "baseline_len": 98,
           "result_len": 127,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 65,
+          "rank": 11,
           "baseline_len": 98,
           "result_len": 127,
           "t4_ride_along": true
@@ -1695,7 +1698,7 @@
         },
         {
           "case_id": "P1-Q04-n10",
-          "rank": 92,
+          "rank": 27,
           "baseline_len": 104,
           "result_len": 130,
           "t4_ride_along": true
@@ -1730,21 +1733,21 @@
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 85,
+          "rank": 25,
           "baseline_len": 96,
           "result_len": 128,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 63,
+          "rank": 14,
           "baseline_len": 96,
           "result_len": 128,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q22-n10",
-          "rank": 28,
+          "rank": 14,
           "baseline_len": 46,
           "result_len": 66,
           "t4_ride_along": true
@@ -1807,21 +1810,21 @@
         },
         {
           "case_id": "P3-P3-4",
-          "rank": 14,
+          "rank": 25,
           "baseline_len": 24,
           "result_len": 42,
           "t4_ride_along": true
         },
         {
           "case_id": "P3-P3-5",
-          "rank": 35,
+          "rank": 46,
           "baseline_len": 26,
           "result_len": 47,
           "t4_ride_along": true
         },
         {
           "case_id": "P3-P3-6",
-          "rank": 12,
+          "rank": 23,
           "baseline_len": 20,
           "result_len": 39,
           "t4_ride_along": true
@@ -2549,10 +2552,11 @@
         "r10": 0.0,
         "r20": 0.0,
         "median_rank": null,
-        "payload_delta_pct": -85.5,
+        "payload_delta_pct": -31.0,
         "regression_count": 32,
         "t4_ride_along_count": 0,
-        "traversal_id": "T2ppr"
+        "traversal_id": "T2ppr",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
       "verdict": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
       "case_results": [
@@ -2560,252 +2564,252 @@
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 8,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 8,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 8,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 8,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 8,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 8,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 5,
+          "result_len": 39,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 5,
+          "result_len": 39,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 5,
+          "result_len": 39,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 3,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 3,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 3,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 11,
+          "result_len": 43,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 11,
+          "result_len": 43,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 11,
+          "result_len": 43,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 2,
+          "result_len": 78,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 2,
+          "result_len": 78,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 2,
+          "result_len": 78,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 2,
+          "result_len": 78,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n3",
           "rank": null,
           "baseline_len": 36,
-          "result_len": 6,
+          "result_len": 30,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 2,
+          "result_len": 67,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 2,
+          "result_len": 67,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 2,
+          "result_len": 67,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 2,
+          "result_len": 67,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 2,
+          "result_len": 67,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n3",
           "rank": null,
           "baseline_len": 29,
-          "result_len": 4,
+          "result_len": 24,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n3",
           "rank": null,
           "baseline_len": 29,
-          "result_len": 4,
+          "result_len": 24,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n3",
           "rank": null,
           "baseline_len": 31,
-          "result_len": 4,
+          "result_len": 23,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
           "rank": null,
           "baseline_len": 96,
-          "result_len": 2,
+          "result_len": 73,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
           "rank": null,
           "baseline_len": 96,
-          "result_len": 2,
+          "result_len": 73,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q22-n10",
           "rank": null,
           "baseline_len": 46,
-          "result_len": 5,
+          "result_len": 30,
           "t4_ride_along": false
         },
         {
@@ -2868,28 +2872,28 @@
           "case_id": "P3-P3-4",
           "rank": null,
           "baseline_len": 24,
-          "result_len": 4,
+          "result_len": 18,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-5",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 20,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-6",
           "rank": null,
           "baseline_len": 20,
-          "result_len": 2,
+          "result_len": 14,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-7",
           "rank": null,
           "baseline_len": 33,
-          "result_len": 3,
+          "result_len": 27,
           "t4_ride_along": false
         }
       ],
@@ -2900,12 +2904,13 @@
         "applicable": 48,
         "r5": 0.0,
         "r10": 0.0,
-        "r20": 0.0,
-        "median_rank": 33,
-        "payload_delta_pct": -39.1,
-        "regression_count": 34,
+        "r20": 14.6,
+        "median_rank": 17,
+        "payload_delta_pct": 0.0,
+        "regression_count": 0,
         "t4_ride_along_count": 11,
-        "traversal_id": "T2blend"
+        "traversal_id": "T2blend",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
       "verdict": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
       "case_results": [
@@ -2913,252 +2918,252 @@
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 37,
+          "result_len": 58,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 37,
+          "result_len": 58,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
+          "rank": 15,
+          "baseline_len": 58,
+          "result_len": 58,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n10",
+          "rank": null,
+          "baseline_len": 68,
+          "result_len": 68,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n10",
           "rank": 25,
-          "baseline_len": 58,
-          "result_len": 37,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n10",
-          "rank": null,
           "baseline_len": 68,
-          "result_len": 48,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n10",
-          "rank": 35,
-          "baseline_len": 68,
-          "result_len": 48,
+          "result_len": 68,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 48,
+          "result_len": 68,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 34,
+          "rank": 18,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n3",
           "rank": null,
           "baseline_len": 36,
-          "result_len": 19,
+          "result_len": 36,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 32,
+          "rank": 16,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 33,
+          "rank": 17,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 44,
+          "rank": 28,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
+          "rank": 11,
+          "baseline_len": 98,
+          "result_len": 98,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q04-n3",
+          "rank": null,
+          "baseline_len": 29,
+          "result_len": 29,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n3",
+          "rank": null,
+          "baseline_len": 29,
+          "result_len": 29,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": null,
+          "baseline_len": 104,
+          "result_len": 104,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
           "rank": 27,
-          "baseline_len": 98,
-          "result_len": 50,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q04-n3",
-          "rank": null,
-          "baseline_len": 29,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n3",
-          "rank": null,
-          "baseline_len": 29,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": 43,
-          "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n3",
           "rank": null,
           "baseline_len": 31,
-          "result_len": 20,
+          "result_len": 31,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 39,
+          "rank": 25,
           "baseline_len": 96,
-          "result_len": 40,
+          "result_len": 96,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 23,
+          "rank": 14,
           "baseline_len": 96,
-          "result_len": 40,
+          "result_len": 96,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q22-n10",
-          "rank": 21,
+          "rank": 14,
           "baseline_len": 46,
-          "result_len": 29,
+          "result_len": 46,
           "t4_ride_along": true
         },
         {
@@ -3221,28 +3226,28 @@
           "case_id": "P3-P3-4",
           "rank": null,
           "baseline_len": 24,
-          "result_len": 14,
+          "result_len": 24,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-5",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 16,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-6",
           "rank": null,
           "baseline_len": 20,
-          "result_len": 10,
+          "result_len": 20,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-7",
           "rank": null,
           "baseline_len": 33,
-          "result_len": 18,
+          "result_len": 33,
           "t4_ride_along": false
         }
       ],
@@ -3253,55 +3258,63 @@
         "applicable": 48,
         "r5": 0.0,
         "r10": 2.1,
-        "r20": 8.3,
-        "median_rank": 67.0,
+        "r20": 18.8,
+        "median_rank": 48.0,
         "payload_delta_pct": 282.6,
-        "regression_count": 34,
+        "regression_count": 0,
         "t4_ride_along_count": 42,
-        "traversal_id": "T3"
+        "traversal_id": "T3",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
-      "verdict": "KILLED(c: 34 collateral regression(s))",
+      "verdict": "SURVIVOR",
       "case_results": [
         {
           "case_id": "P1-Q00-n3",
-          "rank": 36,
+          "rank": 47,
           "baseline_len": 26,
           "result_len": 109,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q00-n3",
-          "rank": 40,
+          "rank": 51,
           "baseline_len": 26,
           "result_len": 109,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q00-n3",
-          "rank": 81,
+          "rank": 92,
           "baseline_len": 26,
           "result_len": 109,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q00-n3",
-          "rank": 23,
+          "rank": 34,
           "baseline_len": 26,
           "result_len": 109,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q00-n3",
-          "rank": 97,
+          "rank": 108,
           "baseline_len": 26,
           "result_len": 109,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q00-n3",
-          "rank": 57,
+          "rank": 68,
           "baseline_len": 26,
           "result_len": 109,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q00-n10",
+          "rank": 84,
+          "baseline_len": 58,
+          "result_len": 155,
           "t4_ride_along": true
         },
         {
@@ -3313,14 +3326,7 @@
         },
         {
           "case_id": "P1-Q00-n10",
-          "rank": 54,
-          "baseline_len": 58,
-          "result_len": 155,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q00-n10",
-          "rank": 33,
+          "rank": 15,
           "baseline_len": 58,
           "result_len": 155,
           "t4_ride_along": true
@@ -3334,105 +3340,105 @@
         },
         {
           "case_id": "P1-Q01-n3",
-          "rank": 100,
+          "rank": 116,
           "baseline_len": 34,
           "result_len": 127,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n3",
-          "rank": 96,
+          "rank": 112,
           "baseline_len": 34,
           "result_len": 127,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n10",
-          "rank": 56,
+          "rank": 74,
           "baseline_len": 68,
           "result_len": 160,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n10",
-          "rank": 39,
+          "rank": 25,
           "baseline_len": 68,
           "result_len": 160,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n10",
-          "rank": 86,
+          "rank": 104,
           "baseline_len": 68,
           "result_len": 160,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 161,
+          "rank": 172,
           "baseline_len": 103,
           "result_len": 202,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 129,
+          "rank": 140,
           "baseline_len": 103,
           "result_len": 202,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 134,
+          "rank": 145,
           "baseline_len": 103,
           "result_len": 202,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 83,
+          "rank": 18,
           "baseline_len": 103,
           "result_len": 202,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n3",
-          "rank": 51,
+          "rank": 62,
           "baseline_len": 36,
           "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 125,
+          "rank": 136,
           "baseline_len": 98,
           "result_len": 191,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 70,
+          "rank": 16,
           "baseline_len": 98,
           "result_len": 191,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 71,
+          "rank": 17,
           "baseline_len": 98,
           "result_len": 191,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 82,
+          "rank": 28,
           "baseline_len": 98,
           "result_len": 191,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 65,
+          "rank": 11,
           "baseline_len": 98,
           "result_len": 191,
           "t4_ride_along": true
@@ -3453,35 +3459,35 @@
         },
         {
           "case_id": "P1-Q04-n10",
-          "rank": 96,
+          "rank": 107,
           "baseline_len": 104,
           "result_len": 199,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q04-n10",
-          "rank": 92,
+          "rank": 27,
           "baseline_len": 104,
           "result_len": 199,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q04-n10",
-          "rank": 176,
+          "rank": 187,
           "baseline_len": 104,
           "result_len": 199,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q04-n10",
-          "rank": 161,
+          "rank": 172,
           "baseline_len": 104,
           "result_len": 199,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q04-n10",
-          "rank": 105,
+          "rank": 116,
           "baseline_len": 104,
           "result_len": 199,
           "t4_ride_along": true
@@ -3495,21 +3501,21 @@
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 85,
+          "rank": 25,
           "baseline_len": 96,
           "result_len": 191,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 63,
+          "rank": 14,
           "baseline_len": 96,
           "result_len": 191,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q22-n10",
-          "rank": 28,
+          "rank": 14,
           "baseline_len": 46,
           "result_len": 134,
           "t4_ride_along": true
@@ -3572,21 +3578,21 @@
         },
         {
           "case_id": "P3-P3-4",
-          "rank": 16,
+          "rank": 27,
           "baseline_len": 24,
           "result_len": 102,
           "t4_ride_along": true
         },
         {
           "case_id": "P3-P3-5",
-          "rank": 86,
+          "rank": 97,
           "baseline_len": 26,
           "result_len": 101,
           "t4_ride_along": true
         },
         {
           "case_id": "P3-P3-6",
-          "rank": 14,
+          "rank": 25,
           "baseline_len": 20,
           "result_len": 100,
           "t4_ride_along": true
@@ -4354,13 +4360,14 @@
         "r10": 14.6,
         "r20": 14.6,
         "median_rank": 5,
-        "payload_delta_pct": -83.2,
+        "payload_delta_pct": -28.7,
         "regression_count": 36,
         "t4_ride_along_count": 7,
         "threshold": 0.6,
         "edges_at_threshold": 71,
         "best_threshold": 0.6,
-        "traversal_id": "T2ppr"
+        "traversal_id": "T2ppr",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
       "verdict": "KILLED(c: 36 collateral regression(s))",
       "case_results": [
@@ -4368,252 +4375,252 @@
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 4,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 4,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 4,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 4,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 4,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 4,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 7,
+          "result_len": 41,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 7,
+          "result_len": 41,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 7,
+          "result_len": 41,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 8,
+          "result_len": 27,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 8,
+          "result_len": 27,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 8,
+          "result_len": 27,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 13,
+          "result_len": 45,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 13,
+          "result_len": 45,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 13,
+          "result_len": 45,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 3,
+          "result_len": 79,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 3,
+          "result_len": 79,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 3,
+          "result_len": 79,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 3,
+          "result_len": 79,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n3",
           "rank": null,
           "baseline_len": 36,
-          "result_len": 5,
+          "result_len": 29,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 7,
+          "result_len": 72,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": 3,
           "baseline_len": 98,
-          "result_len": 7,
+          "result_len": 72,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": 4,
           "baseline_len": 98,
-          "result_len": 7,
+          "result_len": 72,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": 6,
           "baseline_len": 98,
-          "result_len": 7,
+          "result_len": 72,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": 5,
           "baseline_len": 98,
-          "result_len": 7,
+          "result_len": 72,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q04-n3",
           "rank": null,
           "baseline_len": 29,
-          "result_len": 3,
+          "result_len": 23,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n3",
           "rank": null,
           "baseline_len": 29,
-          "result_len": 3,
+          "result_len": 23,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 5,
+          "result_len": 81,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": 5,
           "baseline_len": 104,
-          "result_len": 5,
+          "result_len": 81,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 5,
+          "result_len": 81,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 5,
+          "result_len": 81,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 5,
+          "result_len": 81,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n3",
           "rank": null,
           "baseline_len": 31,
-          "result_len": 3,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
           "rank": null,
           "baseline_len": 96,
-          "result_len": 4,
+          "result_len": 75,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
           "rank": null,
           "baseline_len": 96,
-          "result_len": 4,
+          "result_len": 75,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q22-n10",
           "rank": 6,
           "baseline_len": 46,
-          "result_len": 6,
+          "result_len": 31,
           "t4_ride_along": true
         },
         {
@@ -4676,28 +4683,28 @@
           "case_id": "P3-P3-4",
           "rank": null,
           "baseline_len": 24,
-          "result_len": 8,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-5",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 5,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-6",
           "rank": null,
           "baseline_len": 20,
-          "result_len": 4,
+          "result_len": 16,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-7",
           "rank": null,
           "baseline_len": 33,
-          "result_len": 2,
+          "result_len": 26,
           "t4_ride_along": false
         }
       ],
@@ -4708,7 +4715,7 @@
           "r10": 6.2,
           "r20": 6.2,
           "median_rank": 6,
-          "payload_delta_pct": -80.2,
+          "payload_delta_pct": -25.6,
           "regression_count": 36,
           "t4_ride_along_count": 3,
           "threshold": 0.5,
@@ -4720,7 +4727,7 @@
           "r10": 14.6,
           "r20": 14.6,
           "median_rank": 5,
-          "payload_delta_pct": -83.2,
+          "payload_delta_pct": -28.7,
           "regression_count": 36,
           "t4_ride_along_count": 7,
           "threshold": 0.6,
@@ -4732,7 +4739,7 @@
           "r10": 4.2,
           "r20": 10.4,
           "median_rank": 16.5,
-          "payload_delta_pct": -14.2,
+          "payload_delta_pct": -4.7,
           "regression_count": 25,
           "t4_ride_along_count": 8,
           "threshold": 0.8,
@@ -4745,408 +4752,16 @@
         "applicable": 48,
         "r5": 0.0,
         "r10": 0.0,
-        "r20": 0.0,
-        "median_rank": 30,
-        "payload_delta_pct": -39.1,
-        "regression_count": 35,
-        "t4_ride_along_count": 11,
-        "threshold": 0.8,
-        "edges_at_threshold": 1,
-        "best_threshold": 0.8,
-        "traversal_id": "T2blend"
-      },
-      "verdict": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
-      "case_results": [
-        {
-          "case_id": "P1-Q00-n3",
-          "rank": null,
-          "baseline_len": 26,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q00-n3",
-          "rank": null,
-          "baseline_len": 26,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q00-n3",
-          "rank": null,
-          "baseline_len": 26,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q00-n3",
-          "rank": null,
-          "baseline_len": 26,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q00-n3",
-          "rank": null,
-          "baseline_len": 26,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q00-n3",
-          "rank": null,
-          "baseline_len": 26,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q00-n10",
-          "rank": null,
-          "baseline_len": 58,
-          "result_len": 37,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q00-n10",
-          "rank": null,
-          "baseline_len": 58,
-          "result_len": 37,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q00-n10",
-          "rank": 25,
-          "baseline_len": 58,
-          "result_len": 37,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n10",
-          "rank": null,
-          "baseline_len": 68,
-          "result_len": 48,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n10",
-          "rank": 35,
-          "baseline_len": 68,
-          "result_len": 48,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q01-n10",
-          "rank": null,
-          "baseline_len": 68,
-          "result_len": 48,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q02-n10",
-          "rank": null,
-          "baseline_len": 103,
-          "result_len": 44,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q02-n10",
-          "rank": null,
-          "baseline_len": 103,
-          "result_len": 44,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q02-n10",
-          "rank": null,
-          "baseline_len": 103,
-          "result_len": 44,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q02-n10",
-          "rank": 34,
-          "baseline_len": 103,
-          "result_len": 44,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q03-n3",
-          "rank": null,
-          "baseline_len": 36,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q03-n10",
-          "rank": null,
-          "baseline_len": 98,
-          "result_len": 50,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q03-n10",
-          "rank": 28,
-          "baseline_len": 98,
-          "result_len": 50,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q03-n10",
-          "rank": 30,
-          "baseline_len": 98,
-          "result_len": 50,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q03-n10",
-          "rank": 44,
-          "baseline_len": 98,
-          "result_len": 50,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q03-n10",
-          "rank": 27,
-          "baseline_len": 98,
-          "result_len": 50,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q04-n3",
-          "rank": null,
-          "baseline_len": 29,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n3",
-          "rank": null,
-          "baseline_len": 29,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": null,
-          "baseline_len": 104,
-          "result_len": 45,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": 43,
-          "baseline_len": 104,
-          "result_len": 45,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": null,
-          "baseline_len": 104,
-          "result_len": 45,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": null,
-          "baseline_len": 104,
-          "result_len": 45,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": null,
-          "baseline_len": 104,
-          "result_len": 45,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q12-n3",
-          "rank": null,
-          "baseline_len": 31,
-          "result_len": 20,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q12-n10",
-          "rank": 39,
-          "baseline_len": 96,
-          "result_len": 40,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q12-n10",
-          "rank": 23,
-          "baseline_len": 96,
-          "result_len": 40,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q22-n10",
-          "rank": 22,
-          "baseline_len": 46,
-          "result_len": 29,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P2-B2",
-          "rank": null,
-          "baseline_len": 9,
-          "result_len": 9,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P2-B3",
-          "rank": null,
-          "baseline_len": 6,
-          "result_len": 6,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P2-B4",
-          "rank": null,
-          "baseline_len": 7,
-          "result_len": 7,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P2-B5",
-          "rank": null,
-          "baseline_len": 10,
-          "result_len": 10,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P2-B6",
-          "rank": null,
-          "baseline_len": 6,
-          "result_len": 6,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P2-B7",
-          "rank": null,
-          "baseline_len": 10,
-          "result_len": 10,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P2-B8",
-          "rank": null,
-          "baseline_len": 10,
-          "result_len": 10,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P2-B9",
-          "rank": null,
-          "baseline_len": 10,
-          "result_len": 10,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P3-P3-4",
-          "rank": null,
-          "baseline_len": 24,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P3-P3-5",
-          "rank": null,
-          "baseline_len": 26,
-          "result_len": 16,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P3-P3-6",
-          "rank": null,
-          "baseline_len": 20,
-          "result_len": 10,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P3-P3-7",
-          "rank": null,
-          "baseline_len": 33,
-          "result_len": 18,
-          "t4_ride_along": false
-        }
-      ],
-      "threshold_sweep": {
-        "0.5": {
-          "applicable": 48,
-          "r5": 0.0,
-          "r10": 0.0,
-          "r20": 0.0,
-          "median_rank": 33,
-          "payload_delta_pct": -38.7,
-          "regression_count": 34,
-          "t4_ride_along_count": 11,
-          "threshold": 0.5,
-          "edges_at_threshold": 225
-        },
-        "0.6": {
-          "applicable": 48,
-          "r5": 0.0,
-          "r10": 0.0,
-          "r20": 4.2,
-          "median_rank": 32.0,
-          "payload_delta_pct": -37.1,
-          "regression_count": 34,
-          "t4_ride_along_count": 12,
-          "threshold": 0.6,
-          "edges_at_threshold": 71
-        },
-        "0.8": {
-          "applicable": 48,
-          "r5": 0.0,
-          "r10": 0.0,
-          "r20": 0.0,
-          "median_rank": 30,
-          "payload_delta_pct": -39.1,
-          "regression_count": 35,
-          "t4_ride_along_count": 11,
-          "threshold": 0.8,
-          "edges_at_threshold": 1
-        }
-      }
-    },
-    "L4\u00d7T3": {
-      "metrics": {
-        "applicable": 48,
-        "r5": 0.0,
-        "r10": 0.0,
-        "r20": 0.0,
-        "median_rank": 70,
+        "r20": 14.6,
+        "median_rank": 15,
         "payload_delta_pct": 0.0,
-        "regression_count": 34,
+        "regression_count": 7,
         "t4_ride_along_count": 11,
         "threshold": 0.8,
         "edges_at_threshold": 1,
         "best_threshold": 0.8,
-        "traversal_id": "T3"
+        "traversal_id": "T2blend",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
       "verdict": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
       "case_results": [
@@ -5208,7 +4823,7 @@
         },
         {
           "case_id": "P1-Q00-n10",
-          "rank": 33,
+          "rank": 15,
           "baseline_len": 58,
           "result_len": 58,
           "t4_ride_along": true
@@ -5243,7 +4858,7 @@
         },
         {
           "case_id": "P1-Q01-n10",
-          "rank": 39,
+          "rank": 25,
           "baseline_len": 68,
           "result_len": 68,
           "t4_ride_along": true
@@ -5278,7 +4893,7 @@
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 83,
+          "rank": 18,
           "baseline_len": 103,
           "result_len": 103,
           "t4_ride_along": true
@@ -5299,28 +4914,28 @@
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 70,
+          "rank": 12,
           "baseline_len": 98,
           "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 71,
+          "rank": 14,
           "baseline_len": 98,
           "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 82,
+          "rank": 28,
           "baseline_len": 98,
           "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 65,
+          "rank": 11,
           "baseline_len": 98,
           "result_len": 98,
           "t4_ride_along": true
@@ -5348,7 +4963,7 @@
         },
         {
           "case_id": "P1-Q04-n10",
-          "rank": 92,
+          "rank": 27,
           "baseline_len": 104,
           "result_len": 104,
           "t4_ride_along": true
@@ -5383,21 +4998,21 @@
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 85,
+          "rank": 25,
           "baseline_len": 96,
           "result_len": 96,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 63,
+          "rank": 14,
           "baseline_len": 96,
           "result_len": 96,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q22-n10",
-          "rank": 28,
+          "rank": 15,
           "baseline_len": 46,
           "result_len": 46,
           "t4_ride_along": true
@@ -5492,10 +5107,404 @@
           "applicable": 48,
           "r5": 0.0,
           "r10": 0.0,
-          "r20": 4.2,
-          "median_rank": 38.5,
+          "r20": 14.6,
+          "median_rank": 17,
+          "payload_delta_pct": 0.4,
+          "regression_count": 2,
+          "t4_ride_along_count": 11,
+          "threshold": 0.5,
+          "edges_at_threshold": 225
+        },
+        "0.6": {
+          "applicable": 48,
+          "r5": 0.0,
+          "r10": 0.0,
+          "r20": 16.7,
+          "median_rank": 16.0,
+          "payload_delta_pct": 2.1,
+          "regression_count": 0,
+          "t4_ride_along_count": 12,
+          "threshold": 0.6,
+          "edges_at_threshold": 71
+        },
+        "0.8": {
+          "applicable": 48,
+          "r5": 0.0,
+          "r10": 0.0,
+          "r20": 14.6,
+          "median_rank": 15,
+          "payload_delta_pct": 0.0,
+          "regression_count": 7,
+          "t4_ride_along_count": 11,
+          "threshold": 0.8,
+          "edges_at_threshold": 1
+        }
+      }
+    },
+    "L4\u00d7T3": {
+      "metrics": {
+        "applicable": 48,
+        "r5": 0.0,
+        "r10": 0.0,
+        "r20": 14.6,
+        "median_rank": 17,
+        "payload_delta_pct": 0.0,
+        "regression_count": 0,
+        "t4_ride_along_count": 11,
+        "threshold": 0.8,
+        "edges_at_threshold": 1,
+        "best_threshold": 0.8,
+        "traversal_id": "T3",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
+      },
+      "verdict": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
+      "case_results": [
+        {
+          "case_id": "P1-Q00-n3",
+          "rank": null,
+          "baseline_len": 26,
+          "result_len": 26,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q00-n3",
+          "rank": null,
+          "baseline_len": 26,
+          "result_len": 26,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q00-n3",
+          "rank": null,
+          "baseline_len": 26,
+          "result_len": 26,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q00-n3",
+          "rank": null,
+          "baseline_len": 26,
+          "result_len": 26,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q00-n3",
+          "rank": null,
+          "baseline_len": 26,
+          "result_len": 26,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q00-n3",
+          "rank": null,
+          "baseline_len": 26,
+          "result_len": 26,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q00-n10",
+          "rank": null,
+          "baseline_len": 58,
+          "result_len": 58,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q00-n10",
+          "rank": null,
+          "baseline_len": 58,
+          "result_len": 58,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q00-n10",
+          "rank": 15,
+          "baseline_len": 58,
+          "result_len": 58,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n10",
+          "rank": null,
+          "baseline_len": 68,
+          "result_len": 68,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n10",
+          "rank": 25,
+          "baseline_len": 68,
+          "result_len": 68,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q01-n10",
+          "rank": null,
+          "baseline_len": 68,
+          "result_len": 68,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q02-n10",
+          "rank": null,
+          "baseline_len": 103,
+          "result_len": 103,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q02-n10",
+          "rank": null,
+          "baseline_len": 103,
+          "result_len": 103,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q02-n10",
+          "rank": null,
+          "baseline_len": 103,
+          "result_len": 103,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q02-n10",
+          "rank": 18,
+          "baseline_len": 103,
+          "result_len": 103,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q03-n3",
+          "rank": null,
+          "baseline_len": 36,
+          "result_len": 36,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q03-n10",
+          "rank": null,
+          "baseline_len": 98,
+          "result_len": 98,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q03-n10",
+          "rank": 16,
+          "baseline_len": 98,
+          "result_len": 98,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q03-n10",
+          "rank": 17,
+          "baseline_len": 98,
+          "result_len": 98,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q03-n10",
+          "rank": 28,
+          "baseline_len": 98,
+          "result_len": 98,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q03-n10",
+          "rank": 11,
+          "baseline_len": 98,
+          "result_len": 98,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q04-n3",
+          "rank": null,
+          "baseline_len": 29,
+          "result_len": 29,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n3",
+          "rank": null,
+          "baseline_len": 29,
+          "result_len": 29,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": null,
+          "baseline_len": 104,
+          "result_len": 104,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": 27,
+          "baseline_len": 104,
+          "result_len": 104,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": null,
+          "baseline_len": 104,
+          "result_len": 104,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": null,
+          "baseline_len": 104,
+          "result_len": 104,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": null,
+          "baseline_len": 104,
+          "result_len": 104,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q12-n3",
+          "rank": null,
+          "baseline_len": 31,
+          "result_len": 31,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q12-n10",
+          "rank": 25,
+          "baseline_len": 96,
+          "result_len": 96,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q12-n10",
+          "rank": 14,
+          "baseline_len": 96,
+          "result_len": 96,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q22-n10",
+          "rank": 14,
+          "baseline_len": 46,
+          "result_len": 46,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P2-B2",
+          "rank": null,
+          "baseline_len": 9,
+          "result_len": 9,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P2-B3",
+          "rank": null,
+          "baseline_len": 6,
+          "result_len": 6,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P2-B4",
+          "rank": null,
+          "baseline_len": 7,
+          "result_len": 7,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P2-B5",
+          "rank": null,
+          "baseline_len": 10,
+          "result_len": 10,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P2-B6",
+          "rank": null,
+          "baseline_len": 6,
+          "result_len": 6,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P2-B7",
+          "rank": null,
+          "baseline_len": 10,
+          "result_len": 10,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P2-B8",
+          "rank": null,
+          "baseline_len": 10,
+          "result_len": 10,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P2-B9",
+          "rank": null,
+          "baseline_len": 10,
+          "result_len": 10,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P3-P3-4",
+          "rank": null,
+          "baseline_len": 24,
+          "result_len": 24,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P3-P3-5",
+          "rank": null,
+          "baseline_len": 26,
+          "result_len": 26,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P3-P3-6",
+          "rank": null,
+          "baseline_len": 20,
+          "result_len": 20,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P3-P3-7",
+          "rank": null,
+          "baseline_len": 33,
+          "result_len": 33,
+          "t4_ride_along": false
+        }
+      ],
+      "threshold_sweep": {
+        "0.5": {
+          "applicable": 48,
+          "r5": 0.0,
+          "r10": 0.0,
+          "r20": 14.6,
+          "median_rank": 31.0,
           "payload_delta_pct": 79.6,
-          "regression_count": 34,
+          "regression_count": 0,
           "t4_ride_along_count": 26,
           "threshold": 0.5,
           "edges_at_threshold": 225
@@ -5504,10 +5513,10 @@
           "applicable": 48,
           "r5": 0.0,
           "r10": 0.0,
-          "r20": 4.2,
-          "median_rank": 64.0,
+          "r20": 16.7,
+          "median_rank": 25.0,
           "payload_delta_pct": 28.3,
-          "regression_count": 34,
+          "regression_count": 0,
           "t4_ride_along_count": 20,
           "threshold": 0.6,
           "edges_at_threshold": 71
@@ -5516,10 +5525,10 @@
           "applicable": 48,
           "r5": 0.0,
           "r10": 0.0,
-          "r20": 0.0,
-          "median_rank": 70,
+          "r20": 14.6,
+          "median_rank": 17,
           "payload_delta_pct": 0.0,
-          "regression_count": 34,
+          "regression_count": 0,
           "t4_ride_along_count": 11,
           "threshold": 0.8,
           "edges_at_threshold": 1
@@ -6279,10 +6288,11 @@
         "r10": 0.0,
         "r20": 0.0,
         "median_rank": null,
-        "payload_delta_pct": -88.8,
+        "payload_delta_pct": -34.3,
         "regression_count": 34,
         "t4_ride_along_count": 0,
-        "traversal_id": "T2ppr"
+        "traversal_id": "T2ppr",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
       "verdict": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
       "case_results": [
@@ -6290,252 +6300,252 @@
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 21,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 3,
+          "result_len": 37,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 3,
+          "result_len": 37,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 3,
+          "result_len": 37,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 3,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 3,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n3",
           "rank": null,
           "baseline_len": 34,
-          "result_len": 3,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 5,
+          "result_len": 37,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 5,
+          "result_len": 37,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 5,
+          "result_len": 37,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n3",
           "rank": null,
           "baseline_len": 36,
-          "result_len": 2,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 8,
+          "result_len": 73,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 8,
+          "result_len": 73,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 8,
+          "result_len": 73,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 8,
+          "result_len": 73,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 8,
+          "result_len": 73,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n3",
           "rank": null,
           "baseline_len": 29,
-          "result_len": 2,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n3",
           "rank": null,
           "baseline_len": 29,
-          "result_len": 2,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 4,
+          "result_len": 80,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n3",
           "rank": null,
           "baseline_len": 31,
-          "result_len": 3,
+          "result_len": 22,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
           "rank": null,
           "baseline_len": 96,
-          "result_len": 6,
+          "result_len": 77,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
           "rank": null,
           "baseline_len": 96,
-          "result_len": 6,
+          "result_len": 77,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q22-n10",
           "rank": null,
           "baseline_len": 46,
-          "result_len": 2,
+          "result_len": 27,
           "t4_ride_along": false
         },
         {
@@ -6598,28 +6608,28 @@
           "case_id": "P3-P3-4",
           "rank": null,
           "baseline_len": 24,
-          "result_len": 3,
+          "result_len": 17,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-5",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 3,
+          "result_len": 20,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-6",
           "rank": null,
           "baseline_len": 20,
-          "result_len": 2,
+          "result_len": 14,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-7",
           "rank": null,
           "baseline_len": 33,
-          "result_len": 3,
+          "result_len": 27,
           "t4_ride_along": false
         }
       ],
@@ -6630,12 +6640,13 @@
         "applicable": 48,
         "r5": 0.0,
         "r10": 0.0,
-        "r20": 0.0,
-        "median_rank": 33,
-        "payload_delta_pct": -38.0,
-        "regression_count": 34,
+        "r20": 14.6,
+        "median_rank": 17,
+        "payload_delta_pct": 1.1,
+        "regression_count": 2,
         "t4_ride_along_count": 11,
-        "traversal_id": "T2blend"
+        "traversal_id": "T2blend",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
       "verdict": "KILLED(a: r@10=0.0 \u2264 control=0.0)",
       "case_results": [
@@ -6643,252 +6654,252 @@
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n3",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 14,
+          "result_len": 26,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 37,
+          "result_len": 58,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
           "rank": null,
           "baseline_len": 58,
-          "result_len": 37,
+          "result_len": 58,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q00-n10",
+          "rank": 15,
+          "baseline_len": 58,
+          "result_len": 58,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n3",
+          "rank": null,
+          "baseline_len": 34,
+          "result_len": 34,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n10",
+          "rank": null,
+          "baseline_len": 68,
+          "result_len": 68,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q01-n10",
           "rank": 25,
-          "baseline_len": 58,
-          "result_len": 37,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n3",
-          "rank": null,
-          "baseline_len": 34,
-          "result_len": 19,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n10",
-          "rank": null,
           "baseline_len": 68,
-          "result_len": 48,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q01-n10",
-          "rank": 35,
-          "baseline_len": 68,
-          "result_len": 48,
+          "result_len": 68,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n10",
           "rank": null,
           "baseline_len": 68,
-          "result_len": 48,
+          "result_len": 68,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
           "rank": null,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 34,
+          "rank": 18,
           "baseline_len": 103,
-          "result_len": 44,
+          "result_len": 103,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n3",
           "rank": null,
           "baseline_len": 36,
-          "result_len": 19,
+          "result_len": 36,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
           "rank": null,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 32,
+          "rank": 16,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 33,
+          "rank": 17,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 45,
+          "rank": 29,
           "baseline_len": 98,
-          "result_len": 50,
+          "result_len": 98,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
+          "rank": 11,
+          "baseline_len": 98,
+          "result_len": 98,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q04-n3",
+          "rank": null,
+          "baseline_len": 29,
+          "result_len": 29,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n3",
+          "rank": null,
+          "baseline_len": 29,
+          "result_len": 29,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": null,
+          "baseline_len": 104,
+          "result_len": 104,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
           "rank": 27,
-          "baseline_len": 98,
-          "result_len": 50,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q04-n3",
-          "rank": null,
-          "baseline_len": 29,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n3",
-          "rank": null,
-          "baseline_len": 29,
-          "result_len": 14,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": 43,
-          "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q04-n10",
           "rank": null,
           "baseline_len": 104,
-          "result_len": 45,
+          "result_len": 104,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n3",
           "rank": null,
           "baseline_len": 31,
-          "result_len": 20,
+          "result_len": 31,
           "t4_ride_along": false
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 39,
+          "rank": 25,
           "baseline_len": 96,
-          "result_len": 40,
+          "result_len": 96,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 23,
+          "rank": 14,
           "baseline_len": 96,
-          "result_len": 40,
+          "result_len": 96,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q22-n10",
-          "rank": 21,
+          "rank": 14,
           "baseline_len": 46,
-          "result_len": 29,
+          "result_len": 46,
           "t4_ride_along": true
         },
         {
@@ -6951,28 +6962,28 @@
           "case_id": "P3-P3-4",
           "rank": null,
           "baseline_len": 24,
-          "result_len": 15,
+          "result_len": 25,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-5",
           "rank": null,
           "baseline_len": 26,
-          "result_len": 17,
+          "result_len": 27,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-6",
           "rank": null,
           "baseline_len": 20,
-          "result_len": 10,
+          "result_len": 20,
           "t4_ride_along": false
         },
         {
           "case_id": "P3-P3-7",
           "rank": null,
           "baseline_len": 33,
-          "result_len": 18,
+          "result_len": 33,
           "t4_ride_along": false
         }
       ],
@@ -6982,15 +6993,16 @@
       "metrics": {
         "applicable": 48,
         "r5": 0.0,
-        "r10": 4.2,
-        "r20": 8.3,
-        "median_rank": 61.0,
+        "r10": 2.1,
+        "r20": 20.8,
+        "median_rank": 27.5,
         "payload_delta_pct": 131.5,
-        "regression_count": 34,
+        "regression_count": 0,
         "t4_ride_along_count": 32,
-        "traversal_id": "T3"
+        "traversal_id": "T3",
+        "s2b_note": "S2b corrected \u2014 chunk-pinned"
       },
-      "verdict": "KILLED(c: 34 collateral regression(s))",
+      "verdict": "SURVIVOR",
       "case_results": [
         {
           "case_id": "P1-Q00-n3",
@@ -7029,7 +7041,7 @@
         },
         {
           "case_id": "P1-Q00-n3",
-          "rank": 21,
+          "rank": 32,
           "baseline_len": 26,
           "result_len": 47,
           "t4_ride_along": true
@@ -7043,14 +7055,14 @@
         },
         {
           "case_id": "P1-Q00-n10",
-          "rank": 46,
+          "rank": 61,
           "baseline_len": 58,
           "result_len": 131,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q00-n10",
-          "rank": 33,
+          "rank": 15,
           "baseline_len": 58,
           "result_len": 131,
           "t4_ride_along": true
@@ -7064,7 +7076,7 @@
         },
         {
           "case_id": "P1-Q01-n3",
-          "rank": 25,
+          "rank": 41,
           "baseline_len": 34,
           "result_len": 68,
           "t4_ride_along": true
@@ -7078,91 +7090,91 @@
         },
         {
           "case_id": "P1-Q01-n10",
-          "rank": 103,
+          "rank": 121,
           "baseline_len": 68,
           "result_len": 134,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n10",
-          "rank": 39,
+          "rank": 25,
           "baseline_len": 68,
           "result_len": 134,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q01-n10",
-          "rank": 59,
+          "rank": 77,
           "baseline_len": 68,
           "result_len": 134,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 159,
+          "rank": 170,
           "baseline_len": 103,
           "result_len": 180,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 113,
+          "rank": 124,
           "baseline_len": 103,
           "result_len": 180,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 167,
+          "rank": 178,
           "baseline_len": 103,
           "result_len": 180,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q02-n10",
-          "rank": 83,
+          "rank": 18,
           "baseline_len": 103,
           "result_len": 180,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n3",
-          "rank": 43,
+          "rank": 54,
           "baseline_len": 36,
           "result_len": 77,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 105,
+          "rank": 116,
           "baseline_len": 98,
           "result_len": 166,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 70,
+          "rank": 16,
           "baseline_len": 98,
           "result_len": 166,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 71,
+          "rank": 17,
           "baseline_len": 98,
           "result_len": 166,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 82,
+          "rank": 28,
           "baseline_len": 98,
           "result_len": 166,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q03-n10",
-          "rank": 65,
+          "rank": 11,
           "baseline_len": 98,
           "result_len": 166,
           "t4_ride_along": true
@@ -7176,37 +7188,9 @@
         },
         {
           "case_id": "P1-Q04-n3",
-          "rank": 39,
+          "rank": 50,
           "baseline_len": 29,
           "result_len": 60,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": 101,
-          "baseline_len": 104,
-          "result_len": 151,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": 92,
-          "baseline_len": 104,
-          "result_len": 151,
-          "t4_ride_along": true
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": null,
-          "baseline_len": 104,
-          "result_len": 151,
-          "t4_ride_along": false
-        },
-        {
-          "case_id": "P1-Q04-n10",
-          "rank": 115,
-          "baseline_len": 104,
-          "result_len": 151,
           "t4_ride_along": true
         },
         {
@@ -7217,29 +7201,57 @@
           "t4_ride_along": true
         },
         {
+          "case_id": "P1-Q04-n10",
+          "rank": 27,
+          "baseline_len": 104,
+          "result_len": 151,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": null,
+          "baseline_len": 104,
+          "result_len": 151,
+          "t4_ride_along": false
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": 126,
+          "baseline_len": 104,
+          "result_len": 151,
+          "t4_ride_along": true
+        },
+        {
+          "case_id": "P1-Q04-n10",
+          "rank": 123,
+          "baseline_len": 104,
+          "result_len": 151,
+          "t4_ride_along": true
+        },
+        {
           "case_id": "P1-Q12-n3",
-          "rank": 26,
+          "rank": 37,
           "baseline_len": 31,
           "result_len": 80,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 85,
+          "rank": 25,
           "baseline_len": 96,
           "result_len": 173,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q12-n10",
-          "rank": 63,
+          "rank": 14,
           "baseline_len": 96,
           "result_len": 173,
           "t4_ride_along": true
         },
         {
           "case_id": "P1-Q22-n10",
-          "rank": 28,
+          "rank": 14,
           "baseline_len": 46,
           "result_len": 106,
           "t4_ride_along": true
@@ -7316,7 +7328,7 @@
         },
         {
           "case_id": "P3-P3-6",
-          "rank": 10,
+          "rank": 21,
           "baseline_len": 20,
           "result_len": 49,
           "t4_ride_along": true
@@ -8390,5 +8402,23 @@
       ],
       "threshold_sweep": null
     }
+  },
+  "s2b_correction": {
+    "date": "2026-07-02",
+    "note": "T2ppr/T2blend/T3 cells re-run with chunk-pinned (note-only) re-ranking. Harness-spec fix per the plan's T3 definition ('re-rank buried/below-floor NOTES upward'); prune rules unchanged.",
+    "affected_cells": [
+      "L2\u00d7T2blend",
+      "L2\u00d7T2ppr",
+      "L2\u00d7T3",
+      "L3\u00d7T2blend",
+      "L3\u00d7T2ppr",
+      "L3\u00d7T3",
+      "L4\u00d7T2blend",
+      "L4\u00d7T2ppr",
+      "L4\u00d7T3",
+      "L7\u00d7T2blend",
+      "L7\u00d7T2ppr",
+      "L7\u00d7T3"
+    ]
   }
 }
