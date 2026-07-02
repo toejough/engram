@@ -108,7 +108,9 @@ pools ≈ 30 median.
    flag + frontmatter + inverse · the `--relation` removal pass (fields, 6 functions,
    marker-constant audit). imptest/rapid/gomega; temp-vault integration runs.
 2. **Vocab commands:** bootstrap / propose / stats / refit (with the pinned prompt + rename-rewrite
-   inside refit). Exercised end-to-end on a **bootstrapped COPY of the live vault** (copy →
+   inside refit) — **plus the assigner wiring into learn/amend writes (explicit slice-1 deferral,
+   Gate-B F4: the write path needs term vectors to exist, and terms are created by bootstrap)**.
+   Exercised end-to-end on a **bootstrapped COPY of the live vault** (copy →
    bootstrap the copy). The assignment tuning sweep runs here and PICKS the config slice 3 gates
    with. (Ordering note: bootstrap must exist before any copy-vault gate — hence commands precede
    query integration.)
