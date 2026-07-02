@@ -169,7 +169,9 @@ The conversation covers, per winner (or the honest null):
 
 ## Constraints
 
-- Isolated harness only; fabrics are JSON on disk; **the live vault is never written** this round.
+- Isolated harness only; fabrics are JSON on disk; **the live vault is never written** this round —
+  with the single named exception of the S1 `engram migrate-links` pre-step (shipped maintenance
+  repairing 3 pre-existing prefix-drift links; no experimental content).
 - T1×L1 is a control, not a candidate — the settled null must reproduce or the harness is suspect.
 - Results as labeled tables with units + n; every number dated.
 - Pre-registered gates and prune rules above — no post-hoc survivor selection.
