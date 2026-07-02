@@ -40,9 +40,12 @@ construction (today's ranking never reads edges).
   cosine does NOT surface a needed note (glance's n=3 phrase floor is set by C6-badge, buried at
   n<3 — `2026-06-29-glance-delivery-661.md` Phase 1), buries it below the payload cut, or surfaces
   a superseded note without its superseder. Every variant is judged on recovery in that population.
-- **Fabric reality (measured 2026-07-02):** 135 notes; 84 directed wikilinks (80 resolving to
-  existing notes, 4 broken); 58% of notes isolated; one 45-note component. Today's fabric is too
-  sparse to test traversal fairly — so fabric-construction variants are half the exploration.
+- **Fabric reality (measured 2026-07-02, under `vaultgraph`'s exact-basename resolver — the actual
+  substrate):** 135 notes; 84 directed wikilinks — **77 resolving, 7 broken** (3 slug-only
+  prefix-drift links whose targets exist, fixable via the shipped `engram migrate-links`; 4 pointing
+  at auto-memory files outside the vault, broken under any resolver and excluded from L1); 58% of
+  notes isolated; one 45-note component. Today's fabric is too sparse to test traversal fairly — so
+  fabric-construction variants are half the exploration.
 
 ## Stage S0 — Research (delegated; sonnet + web)
 
@@ -89,18 +92,27 @@ first-class viability factor in S2 pruning (heavy adaptation weighs against a ma
 | T5 | typed-selective traversal (follow ONLY supersession/contradiction edges; superseder rides along with any matched superseded note) | binary: small typed lookup; skill: 2.5B consumes the flag | conflict-correctness generalized |
 | T6 | glance-breadth substitute (under 3-phrase glance, one-hop from top matches) | binary: conditional on phrase-count; glance skill text unchanged | links as cheap breadth-recovery for the frequent rung |
 
-Not every L×T cell runs — S2 probes the sensible pairings: mechanical fabrics (L1–L4, L7) × T1/T2/T3/T6;
-L5 × T5; L6 × a filter-style lookup (tag-match adds candidates, closest to T4). ~14 cells.
+Not every L×T cell runs — the S2 matrix, exactly: **L1×T1** (the settled-null control, 1 cell);
+**{L2, L3, L4, L7} × {T1, T2, T3, T6}** (16 cells — L2 is LLM-built, L3/L4/L7 mechanical); **L5×T5**
+(1); **L6 × filter-lookup** (tag-match adds candidates, T4-style; 1). **Total = 19 scored cells.**
+T4 itself rides along free: wherever a cell recovers a note, report whether that note would also have
+entered candidate_l2s nomination (the T4 claim) — no separate cells.
 
 ## Stage S1 — Build the miss population + fabrics
 
 - **P1 real-query misses:** replay phrase sets from real recorded recalls (session transcripts +
   saved payloads) at n=3 (glance) and n=10 (deep) via the real binary; a sonnet judge sweeps ALL
   135 notes per query and emits `{query_id, missed_note_basename, why_needed}` — needed = the
-  note's lesson bears on the query's task and it is absent from the top-K output.
+  note's lesson bears on the query's task and it is absent from that replay's delivered output. A
+  miss is recorded per (query, n) pair — glance-misses (n=3) and deep-misses (n=10) are tallied
+  separately, never conflated.
 - **P2 constructed bridges:** C6-badge-style two-hop cases from the real vault (~6–10).
 - **P3 supersession pairs:** known pairs (120→153; the 350s→190s mislabel; 82's fixed leg; qanchor
   park) — query matches the OLD note; does the NEW one surface?
+- **S1 pre-step:** run `engram migrate-links` to repair the 3 prefix-drift links, then re-measure
+  and record L1's edge count. This is the ONE sanctioned vault write this round — a shipped
+  maintenance command fixing pre-existing drift, adding no experimental content (named exception to
+  the no-vault-writes constraint).
 - Build L2–L7 fabrics; report fabric stats (edges added, degree distribution) — no silent caps.
 - **Gate S1 (pre-registered):** if P1+P2+P3 yield **< 8** distinct real miss cases, STOP EARLY and
   report — a thin miss population is itself the finding.
@@ -114,8 +126,10 @@ L5 × T5; L6 × a filter-style lookup (tag-match adds candidates, closest to T4)
 - Metrics per L×T cell: **recovery@10 (primary; @5 and @20 reported)**, rank movement, payload
   delta (items added), and **collateral** on a 20-query no-regression set.
 - **Prune rules (pre-registered):** kill any cell with (a) recovery@10 ≤ its control, (b) payload
-  growth > +20% without recovery gain, (c) **collateral regression = ≥1 no-regression query where a
-  previously-top-5 relevant note drops out of the top-5**, or (d) recovery wins achievable only with
+  growth > +20% without recovery gain, (c) **collateral regression = ≥1 no-regression query where any baseline top-5 note (kind
+  fact/feedback) falls out of the top-5** — no relevance judging; displacement of any baseline
+  top-5 note counts (conservative pre-registration; S3 can exonerate a survivor if the displacer
+  proves better), or (d) recovery wins achievable only with
   a "recall changes required" burden comparable to or heavier than T2's while recovering no more
   than a lighter variant. Report the kill list with numbers.
 
