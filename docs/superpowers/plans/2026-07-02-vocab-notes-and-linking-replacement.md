@@ -115,7 +115,7 @@ pools ≈ 30 median.
 3. **Query:** nomination + ride-along, using the slice-2 swept config. Gates against the
    bootstrapped copy: C3–C6 smoke · no-regression replay (**the 38 zero-miss (query,n) replays,
    computed from `dev/eval/links/replays.json` minus the (query,n) pairs appearing in
-   `misses_p1.json`**) · S2 recovery probe ≥ 60% @ median pool ≤ 40.
+   `dev/eval/links/misses_p1.json`**) · S2 recovery probe ≥ 60% @ median pool ≤ 40.
 4. **Skill rewrite BEFORE install (Gate-A reorder, closes the `--relation` window):** recall
    SKILL.md — delete Step 2.6, rewrite 2.5C coverage-table flags (drop `--relation`; `--chunk-source`
    stays; absent-path unchanged otherwise), rewrite Step 4 (synthesis links via `--supersedes` when
@@ -142,16 +142,22 @@ pools ≈ 30 median.
 ## Doc-scrub checklist (Gate-A docs review — execute verbatim in slice 6)
 
 - **GLOSSARY:** update `--relation` (removed → `--supersedes`), `candidate_l2s` (nomination
-  semantics), `contradiction` (typed supersedes, no body ritual); ADD entries: vocab term-note,
-  vocab-index, vocab nomination, the `Vocab:` line.
+  semantics), `contradiction` (typed supersedes, no body ritual), **`wikilink` (~74–79: drop the
+  "per-link rationale required by `--relation`" claim; new roles = prose links + `Vocab:` member→term
+  + `Supersedes:` body line)**, **`binary` (~39–44: add the `vocab` subcommand family + `--supersedes`
+  on learn/amend)**; ADD entries: vocab term-note, vocab-index, vocab nomination, the `Vocab:` line.
 - **recall SKILL.md:** overview line 20 ("Link — …" → nomination), mode descriptions (drop 2.6),
-  2.5C table, Step 2.6 deletion, Step 4 rewrite, red-flag rows; **learn SKILL.md:** any `--relation`
-  refs.
+  **Step 2 flow note (~102–103) + Step 2.5A intro (~138–143): rewrite the within-cluster-only
+  `candidate_l2s` descriptions → nomination + ride-along semantics**, 2.5C table, Step 2.6 deletion,
+  Step 4 rewrite, red-flag rows; **learn SKILL.md:** any `--relation` refs.
 - **c1-system-context.md:** remove the Step 2.6 loop (lines ~178–183); fix 2.5 amend/learn call
-  annotations (~164–173); rewrite the coverage-decision description (~98–102); check the C3
-  component diagram's vaultgraph references.
-- **README:** graph caption (line ~14), recall description (~42), `engram amend` signature (~88),
-  the `content_hash`/"Related to:" note (~120).
+  annotations (~164–173); rewrite the coverage-decision description (**~92–102 including the
+  payload prose**); check the C3 component diagram's vaultgraph references.
+- **c2-containers.md (Gate-A counter — was missing):** strip `--relation` from both recall sequence
+  diagrams (~106–110, ~167–171) and the coverage flowchart (~185–187).
+- **README:** graph caption (line ~14), recall description (~42), **`candidate_l2s` semantics also
+  at ~79 (`engram query` doc) and ~132 (pipeline description)**, **`engram migrate-links` (~82 —
+  command retired)**, `engram amend` signature (~88), the `content_hash`/"Related to:" note (~120).
 - **ROADMAP:** relational-synthesis arc — mark the write-side answered by vocab nomination; verify
   the link-value entry needs no change.
 - **2026-06-23-cross-cluster-linking.md:** add a superseded-2026-07-02 header note pointing at the
