@@ -1,0 +1,198 @@
+[
+  {
+    "case_id": "B2",
+    "phrases": [
+      "eval metric design to test whether recall surfaces the disproving evidence",
+      "anti-amnesia eval measuring retrieval failure versus synthesis failure in recall",
+      "designing a recall regression test for known past failures"
+    ],
+    "needed_note": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval.md",
+    "bridge_note": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md",
+    "bridge_rationale": "Task: designing an anti-amnesia eval metric. Note 83 surfaces (pair end metric with retrieval sub-metric; ensure retrieval miss is reproduced). Note 115 is the needed lesson: detection is LLM reasoning not embedding retrieval — so a metric testing 'did the embedder surface the evidence' fundamentally misframes the task. Bridge is conceptual: distinguishing retrieval from synthesis failure (83) requires knowing that embedders cannot detect/classify failures (115). Vocabulary gap is large: 83 uses 'anti-amnesia / lever-recheck / synthesis-failure / retrieval-miss'; 115 uses 'LLM reasoning / embedder / semantic classification / failure-mining / detection'.",
+    "bridge_is_linked": false,
+    "delivered_top10": [
+      "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md",
+      "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible.md",
+      "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+      "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+      "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+      "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval.md",
+      "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures.md",
+      "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability.md",
+      "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more.md"
+    ],
+    "verified_miss": true,
+    "verified_date": "2026-07-02"
+  },
+  {
+    "case_id": "B3",
+    "phrases": [
+      "parallel Go subtest failing with data race on shared fixture",
+      "go test t.Parallel flaky due to shared slice between subtests",
+      "fixing concurrent test isolation in Go without removing t.Parallel"
+    ],
+    "needed_note": "134.2026-06-28.recency-eval-spread-distractor-ages.md",
+    "bridge_note": "131.2026-06-28.parallel-test-shared-state.md",
+    "bridge_rationale": "Task: fixing parallel Go test failures from shared state. Note 131 surfaces (give each subtest its own isolated fixture; never drop t.Parallel). Note 134 is the needed lesson: spread distractors across realistic age tiers so the eval parameter has signal to act on — the same principle (test setup must provide independent, discriminating data per case) applies to any eval design including recency evals. Bridge: both are about isolation and discrimination in test data setup, but vocabulary is completely different. Note 131 uses 'data race / shared fixture / t.Parallel / mutable state'; note 134 uses 'recency eval / distractor ages / half-life sweep / age tiers'.",
+    "bridge_is_linked": false,
+    "delivered_top10": [
+      "131.2026-06-28.parallel-test-shared-state.md",
+      "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+      "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+      "31.2026-06-14.pbt-stateful-model-based-technique.md",
+      "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+      "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+    ],
+    "verified_miss": true,
+    "verified_date": "2026-07-02"
+  },
+  {
+    "case_id": "B4",
+    "phrases": [
+      "claiming a CLI command feature is done after unit tests pass without running the binary",
+      "in-memory path tests passing but installed binary may have cwd resolution bug",
+      "declaring a path-taking CLI feature complete before verifying installed binary"
+    ],
+    "needed_note": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture.md",
+    "bridge_note": "125.2026-06-28.verify-cli-real-binary-real-path-args.md",
+    "bridge_rationale": "Task: verifying a CLI feature is done after unit tests pass. Note 125 surfaces (run installed binary with real path args from non-data-dir cwd). Note 86 is the needed lesson: when a test needs a 'buried at scale' condition that a small fixture cannot reproduce, put a stub binary on PATH. Bridge: both involve 'real binary' as the verification substrate, but from completely different angles — 125 is about path-resolution bugs hidden by in-memory tests, while 86 is about deterministic scale simulation for eval correctness. Vocabulary gap: 125 uses 'installed binary / cwd / path-args / data-dir'; 86 uses 'stub binary on PATH / logs calls / buried at scale / mechanism test'.",
+    "bridge_is_linked": false,
+    "delivered_top10": [
+      "125.2026-06-28.verify-cli-real-binary-real-path-args.md",
+      "130.2026-06-28.verify-cli-with-real-binary-real-paths.md",
+      "54.2026-06-17.verify-cli-with-real-binary-real-args.md",
+      "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+      "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal.md",
+      "152.2026-07-01.opt-in-deploy-flags-should-be-one-time.md",
+      "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload.md"
+    ],
+    "verified_miss": true,
+    "verified_date": "2026-07-02"
+  },
+  {
+    "case_id": "B5",
+    "phrases": [
+      "persisting reasoned conclusions as synthesis notes in the engram vault",
+      "deciding which derived insights from an analysis to write as durable memory notes",
+      "linking synthesis notes to their contributing inputs with typed relationships for auditability"
+    ],
+    "needed_note": "69.2026-06-23.analogy-is-generator-not-proof.md",
+    "bridge_note": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+    "bridge_rationale": "Task: deciding what reasoned conclusions to persist as vault notes. Note 76 surfaces (persist sound reasoned conclusions as synthesis notes, marked derived, linked with typed relationships, gated against vault-rot). Note 69 is the needed lesson: analogy is a GENERATION step (propose candidates, persist nothing); only persist after a truth-preserving mode (deduction/abduction) validates it. Bridge: 76 says 'persist sound conclusions' but doesn't define 'sound'; 69 specifies the generation-vs-justification gate. Vocabulary gap: 76 uses 'synthesis note / typed relationship / inference mode / deduction asserted / induction probable'; 69 uses 'analogy / structure-mapping / candidate inferences / justification gate / truth-preserving'.",
+    "bridge_is_linked": false,
+    "delivered_top10": [
+      "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+      "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank.md",
+      "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+      "132.2026-06-28.recall-unified-cosine-ranking.md",
+      "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes.md",
+      "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability.md",
+      "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds.md",
+      "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary.md",
+      "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd.md",
+      "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning.md"
+    ],
+    "verified_miss": true,
+    "verified_date": "2026-07-02"
+  },
+  {
+    "case_id": "B6",
+    "phrases": [
+      "counting how often recall fires per session to measure over-fire rate",
+      "estimating the over-fire tax for recall by analyzing past session transcripts",
+      "measuring recall trigger frequency using transcript data to size the firing overhead"
+    ],
+    "needed_note": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project.md",
+    "bridge_note": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more.md",
+    "bridge_rationale": "Task: measuring how often recall fires (over-fire rate from transcripts). Note 109 surfaces (measure ceiling + pin fire-unit before proposing 'fire more'; derive over-fire at a PINNED fire-unit from a CLASSIFIED corpus). Note 110 is the needed lesson: when the corpus comes from a retention store (session logs), it is silently biased toward the active/recent project; cross-check with a breadth source before sizing the over-fire rate. Bridge: both concern the measurement methodology for recall firing analysis, but 110's vocabulary (corpus retention bias, session log bias toward active project, breadth source, prompt history) is remote from 109's vocabulary (fire-unit / task-initiation vs assistant-turn / ceiling classification / addressable vs capture-ceiling).",
+    "bridge_is_linked": false,
+    "delivered_top10": [
+      "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire.md",
+      "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more.md",
+      "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing.md",
+      "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+      "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes.md",
+      "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md"
+    ],
+    "verified_miss": true,
+    "verified_date": "2026-07-02"
+  },
+  {
+    "case_id": "B7",
+    "phrases": [
+      "designing the recency window and decay parameters for engram working memory",
+      "configuring recency weight to distinguish what happened yesterday from last month",
+      "engram payload design to prioritize recent session content while keeping older relevant notes"
+    ],
+    "needed_note": "45.2026-06-17.calibrate-defaults-to-user-cadence.md",
+    "bridge_note": "34.2026-06-16.working-memory-analog-gap.md",
+    "bridge_rationale": "Task: designing engram's recency decay and window parameters. Note 34 surfaces (recall payload should be a bounded, ordered, recency-decaying window — human memory combines recency + importance + relevance, not relevance alone). Note 45 is the needed lesson: ask the user's actual work cadence BEFORE setting time-based defaults; calibrate both constants AND eval age scale to the real cadence. Bridge: 34 frames the theoretical design requirement (recency-decaying window); 45 adds that the timescale must come from the user's actual rhythm not an assumed daily cadence. Vocabulary gap: 34 uses 'working-memory analog / bounded ordered window / recency-decaying'; 45 uses 'user cadence / monthly cycles / half-life / recency band window / timescale'.",
+    "bridge_is_linked": false,
+    "delivered_top10": [
+      "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md",
+      "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds.md",
+      "34.2026-06-16.working-memory-analog-gap.md",
+      "65.2026-06-20.engram-recall-mechanism-synthesize-l2.md",
+      "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+      "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd.md",
+      "132.2026-06-28.recall-unified-cosine-ranking.md",
+      "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+      "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion.md",
+      "79.2026-06-24.engram-content-budget-default-15-not-bottleneck.md"
+    ],
+    "verified_miss": true,
+    "verified_date": "2026-07-02"
+  },
+  {
+    "case_id": "B8",
+    "phrases": [
+      "the user corrected a recall miss and I need to make this non-recurring as a test",
+      "designing a reproducible check to prevent a known correction from happening again",
+      "turning a user correction into a triggerable test condition that catches the same failure"
+    ],
+    "needed_note": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md",
+    "bridge_note": "67.2026-06-22.corrections-become-reproducible-tests.md",
+    "bridge_rationale": "Task: designing a test to prevent a known recall miss from recurring. Note 67 surfaces (treat every correction as non-recurring; capture the concrete triggering condition so it can be reproduced). Note 83 is the needed lesson: when designing that test, pair the end metric with a diagnostic sub-metric (did the disproving evidence surface in recall at all?); ensure at least one fixture reproduces the retrieval miss, not just the synthesis miss. Bridge: 67 establishes the general discipline (corrections become tests); 83 specifies the metric design for recall-specific corrections. Vocabulary gap: 67 uses 'triggering condition / non-recurring / correction trap / goal is reproducibility'; 83 uses 'end metric / retrieval-vs-synthesis / sub-metric / anti-amnesia eval / retrieve the disproving evidence'.",
+    "bridge_is_linked": false,
+    "delivered_top10": [
+      "67.2026-06-22.corrections-become-reproducible-tests.md",
+      "112.2026-06-28.semantic-overmatch-false-negative-failure-mining.md",
+      "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+      "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+      "113.2026-06-28.open-injection-point-analysis-not-existing-sites.md",
+      "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more.md",
+      "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible.md",
+      "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing.md",
+      "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures.md",
+      "70.2026-06-23.red-baseline-can-falsify-the-premise.md"
+    ],
+    "verified_miss": true,
+    "verified_date": "2026-07-02"
+  },
+  {
+    "case_id": "B9",
+    "phrases": [
+      "evaluating whether clustering-based memory system achieves emergent synthesis across domains",
+      "testing if vector retrieval recall produces truly synthesized cross-domain insights",
+      "designing a C6 eval for synthesis capability in a similarity-based memory system"
+    ],
+    "needed_note": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning.md",
+    "bridge_note": "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+    "bridge_rationale": "Task: evaluating whether a clustering-based memory system achieves synthesis. Note 68 surfaces (aggregation = what cosine+k-means already does; real emergent synthesis needs a relational graph — engram is blind to compositional/transitive/analogical transfer). Note 74 is the needed lesson: the in-session composition need has already been PROVEN redundant (opus already composes from recalled notes 18/18); the open question is PERSISTING validated synthesis as a durable note, which is a distinct write-side capability. Bridge: 68 diagnoses what the eval is testing (aggregation vs real synthesis); 74 refines what 'synthesis' means in context (in-session is solved; persisting is the real gap). Vocabulary gap: 68 uses 'aggregation / compositional-join / relational representation / GraphRAG'; 74 uses 'multi-session laddering / persist-C vs no-persist / write-side capability / compounding lever'.",
+    "bridge_is_linked": false,
+    "delivered_top10": [
+      "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+      "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+      "132.2026-06-28.recall-unified-cosine-ranking.md",
+      "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds.md",
+      "34.2026-06-16.working-memory-analog-gap.md",
+      "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value.md",
+      "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal.md",
+      "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped.md",
+      "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval.md",
+      "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd.md"
+    ],
+    "verified_miss": true,
+    "verified_date": "2026-07-02"
+  }
+]

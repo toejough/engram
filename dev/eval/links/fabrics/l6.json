@@ -1,0 +1,965 @@
+{
+  "vocab": [
+    "eval-methodology",
+    "retrieval-design",
+    "memory-system-architecture",
+    "cost-optimization",
+    "token-budget",
+    "go-code-conventions",
+    "cli-verification",
+    "parallel-test-isolation",
+    "skill-and-guidance-design",
+    "agent-behavior-patterns",
+    "corpus-mining",
+    "recency-decay",
+    "vocabulary-crystallization",
+    "subagent-orchestration",
+    "lever-tracking",
+    "model-routing",
+    "synthesis-vs-retrieval",
+    "behavioral-failure-reproduction",
+    "engram-binary-ops",
+    "agentic-recall-triggers",
+    "pbt-and-test-tooling",
+    "data-structure-conventions",
+    "doc-and-memory-hygiene",
+    "eval-fixture-design",
+    "scope-discipline"
+  ],
+  "assignments": [
+    {
+      "note": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+      "tags": [
+        "cost-optimization",
+        "lever-tracking"
+      ]
+    },
+    {
+      "note": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+      "tags": [
+        "eval-methodology",
+        "cost-optimization"
+      ]
+    },
+    {
+      "note": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+      "tags": [
+        "cost-optimization",
+        "lever-tracking"
+      ]
+    },
+    {
+      "note": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+      "tags": [
+        "retrieval-design",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+      "tags": [
+        "eval-methodology",
+        "retrieval-design"
+      ]
+    },
+    {
+      "note": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+      "tags": [
+        "lever-tracking",
+        "retrieval-design"
+      ]
+    },
+    {
+      "note": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+      "tags": [
+        "engram-binary-ops",
+        "cli-verification"
+      ]
+    },
+    {
+      "note": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+      "tags": [
+        "retrieval-design",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+      "tags": [
+        "cost-optimization",
+        "lever-tracking"
+      ]
+    },
+    {
+      "note": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+      "tags": [
+        "agentic-recall-triggers",
+        "lever-tracking"
+      ]
+    },
+    {
+      "note": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+      "tags": [
+        "corpus-mining",
+        "eval-fixture-design"
+      ]
+    },
+    {
+      "note": "111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess",
+      "tags": [
+        "behavioral-failure-reproduction"
+      ]
+    },
+    {
+      "note": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+      "tags": [
+        "corpus-mining",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "113.2026-06-28.open-injection-point-analysis-not-existing-sites",
+      "tags": [
+        "agentic-recall-triggers",
+        "skill-and-guidance-design"
+      ]
+    },
+    {
+      "note": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+      "tags": [
+        "cost-optimization",
+        "model-routing"
+      ]
+    },
+    {
+      "note": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+      "tags": [
+        "synthesis-vs-retrieval",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+      "tags": [
+        "pbt-and-test-tooling",
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+      "tags": [
+        "pbt-and-test-tooling",
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+      "tags": [
+        "retrieval-design",
+        "memory-system-architecture"
+      ]
+    },
+    {
+      "note": "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank",
+      "tags": [
+        "retrieval-design",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped",
+      "tags": [
+        "vocabulary-crystallization",
+        "corpus-mining"
+      ]
+    },
+    {
+      "note": "121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge",
+      "tags": [
+        "lever-tracking",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction",
+      "tags": [
+        "eval-methodology",
+        "scope-discipline"
+      ]
+    },
+    {
+      "note": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+      "tags": [
+        "eval-fixture-design",
+        "recency-decay"
+      ]
+    },
+    {
+      "note": "124.2026-06-28.wrap-errors-with-context",
+      "tags": [
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+      "tags": [
+        "cli-verification"
+      ]
+    },
+    {
+      "note": "126.2026-06-28.permission-denied-retry-loop",
+      "tags": [
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "127.2026-06-28.go-wrap-errors-with-context",
+      "tags": [
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "128.2026-06-28.permission-denied-stop-retrying",
+      "tags": [
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+      "tags": [
+        "parallel-test-isolation"
+      ]
+    },
+    {
+      "note": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+      "tags": [
+        "cli-verification"
+      ]
+    },
+    {
+      "note": "131.2026-06-28.parallel-test-shared-state",
+      "tags": [
+        "parallel-test-isolation"
+      ]
+    },
+    {
+      "note": "132.2026-06-28.recall-unified-cosine-ranking",
+      "tags": [
+        "retrieval-design",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+      "tags": [
+        "retrieval-design",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "134.2026-06-28.recency-eval-spread-distractor-ages",
+      "tags": [
+        "eval-methodology",
+        "recency-decay",
+        "eval-fixture-design"
+      ]
+    },
+    {
+      "note": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+      "tags": [
+        "model-routing",
+        "cost-optimization",
+        "synthesis-vs-retrieval"
+      ]
+    },
+    {
+      "note": "136.2026-06-28.route-by-capability-tier-not-model-name",
+      "tags": [
+        "model-routing",
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+      "tags": [
+        "skill-and-guidance-design",
+        "agentic-recall-triggers"
+      ]
+    },
+    {
+      "note": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+      "tags": [
+        "behavioral-failure-reproduction",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+      "tags": [
+        "agentic-recall-triggers",
+        "skill-and-guidance-design"
+      ]
+    },
+    {
+      "note": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+      "tags": [
+        "agentic-recall-triggers",
+        "cost-optimization"
+      ]
+    },
+    {
+      "note": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+      "tags": [
+        "agentic-recall-triggers",
+        "eval-methodology",
+        "cost-optimization"
+      ]
+    },
+    {
+      "note": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+      "tags": [
+        "eval-methodology",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+      "tags": [
+        "lever-tracking",
+        "doc-and-memory-hygiene"
+      ]
+    },
+    {
+      "note": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+      "tags": [
+        "agentic-recall-triggers",
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+      "tags": [
+        "agentic-recall-triggers",
+        "skill-and-guidance-design"
+      ]
+    },
+    {
+      "note": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+      "tags": [
+        "eval-methodology",
+        "model-routing"
+      ]
+    },
+    {
+      "note": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+      "tags": [
+        "agentic-recall-triggers",
+        "doc-and-memory-hygiene"
+      ]
+    },
+    {
+      "note": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+      "tags": [
+        "subagent-orchestration",
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+      "tags": [
+        "cost-optimization",
+        "token-budget"
+      ]
+    },
+    {
+      "note": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+      "tags": [
+        "cli-verification",
+        "scope-discipline"
+      ]
+    },
+    {
+      "note": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+      "tags": [
+        "agent-behavior-patterns",
+        "skill-and-guidance-design"
+      ]
+    },
+    {
+      "note": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+      "tags": [
+        "skill-and-guidance-design",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes",
+      "tags": [
+        "vocabulary-crystallization",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "154.2026-07-01.record-parked-observations-durably",
+      "tags": [
+        "doc-and-memory-hygiene"
+      ]
+    },
+    {
+      "note": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+      "tags": [
+        "subagent-orchestration",
+        "scope-discipline"
+      ]
+    },
+    {
+      "note": "156.2026-07-02.date-scope-every-number-in-a-review",
+      "tags": [
+        "eval-methodology",
+        "doc-and-memory-hygiene"
+      ]
+    },
+    {
+      "note": "157.2026-07-02.research-means-broad-sweep-not-the-named-source",
+      "tags": [
+        "corpus-mining",
+        "scope-discipline"
+      ]
+    },
+    {
+      "note": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+      "tags": [
+        "memory-system-architecture",
+        "data-structure-conventions"
+      ]
+    },
+    {
+      "note": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+      "tags": [
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+      "tags": [
+        "skill-and-guidance-design",
+        "behavioral-failure-reproduction"
+      ]
+    },
+    {
+      "note": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+      "tags": [
+        "eval-methodology",
+        "scope-discipline"
+      ]
+    },
+    {
+      "note": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+      "tags": [
+        "skill-and-guidance-design",
+        "behavioral-failure-reproduction"
+      ]
+    },
+    {
+      "note": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+      "tags": [
+        "doc-and-memory-hygiene",
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+      "tags": [
+        "pbt-and-test-tooling",
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "31.2026-06-14.pbt-stateful-model-based-technique",
+      "tags": [
+        "pbt-and-test-tooling"
+      ]
+    },
+    {
+      "note": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+      "tags": [
+        "pbt-and-test-tooling",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+      "tags": [
+        "skill-and-guidance-design",
+        "behavioral-failure-reproduction"
+      ]
+    },
+    {
+      "note": "34.2026-06-16.working-memory-analog-gap",
+      "tags": [
+        "retrieval-design",
+        "recency-decay",
+        "memory-system-architecture"
+      ]
+    },
+    {
+      "note": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+      "tags": [
+        "agent-behavior-patterns",
+        "scope-discipline"
+      ]
+    },
+    {
+      "note": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+      "tags": [
+        "recency-decay",
+        "retrieval-design"
+      ]
+    },
+    {
+      "note": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+      "tags": [
+        "recency-decay",
+        "retrieval-design"
+      ]
+    },
+    {
+      "note": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+      "tags": [
+        "go-code-conventions",
+        "doc-and-memory-hygiene"
+      ]
+    },
+    {
+      "note": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+      "tags": [
+        "recency-decay",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+      "tags": [
+        "pbt-and-test-tooling",
+        "eval-fixture-design"
+      ]
+    },
+    {
+      "note": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+      "tags": [
+        "engram-binary-ops",
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "40.2026-06-17.dry-helper-for-cross-file-string-construction",
+      "tags": [
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+      "tags": [
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+      "tags": [
+        "eval-fixture-design",
+        "recency-decay"
+      ]
+    },
+    {
+      "note": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+      "tags": [
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+      "tags": [
+        "eval-methodology",
+        "recency-decay"
+      ]
+    },
+    {
+      "note": "45.2026-06-17.calibrate-defaults-to-user-cadence",
+      "tags": [
+        "recency-decay",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+      "tags": [
+        "go-code-conventions",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "47.2026-06-17.date-only-parse-noon-arithmetic",
+      "tags": [
+        "go-code-conventions",
+        "pbt-and-test-tooling"
+      ]
+    },
+    {
+      "note": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+      "tags": [
+        "go-code-conventions",
+        "pbt-and-test-tooling"
+      ]
+    },
+    {
+      "note": "49.2026-06-17.strings-splitseq-go126-modernize",
+      "tags": [
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "50.2026-06-17.activate-command-deps-struct-pattern",
+      "tags": [
+        "go-code-conventions",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+      "tags": [
+        "engram-binary-ops",
+        "data-structure-conventions"
+      ]
+    },
+    {
+      "note": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+      "tags": [
+        "go-code-conventions",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+      "tags": [
+        "recency-decay",
+        "retrieval-design"
+      ]
+    },
+    {
+      "note": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+      "tags": [
+        "cli-verification"
+      ]
+    },
+    {
+      "note": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+      "tags": [
+        "recency-decay",
+        "memory-system-architecture"
+      ]
+    },
+    {
+      "note": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+      "tags": [
+        "data-structure-conventions"
+      ]
+    },
+    {
+      "note": "57.2026-06-19.bytes-split-join-trailing-newline-no-separator",
+      "tags": [
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "58.2026-06-19.engram-modernize-linter-slices-backward",
+      "tags": [
+        "go-code-conventions",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing",
+      "tags": [
+        "go-code-conventions"
+      ]
+    },
+    {
+      "note": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+      "tags": [
+        "doc-and-memory-hygiene",
+        "scope-discipline"
+      ]
+    },
+    {
+      "note": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+      "tags": [
+        "agent-behavior-patterns",
+        "scope-discipline"
+      ]
+    },
+    {
+      "note": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+      "tags": [
+        "doc-and-memory-hygiene",
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+      "tags": [
+        "eval-methodology",
+        "synthesis-vs-retrieval"
+      ]
+    },
+    {
+      "note": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+      "tags": [
+        "doc-and-memory-hygiene"
+      ]
+    },
+    {
+      "note": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+      "tags": [
+        "engram-binary-ops",
+        "synthesis-vs-retrieval"
+      ]
+    },
+    {
+      "note": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+      "tags": [
+        "cli-verification",
+        "behavioral-failure-reproduction"
+      ]
+    },
+    {
+      "note": "67.2026-06-22.corrections-become-reproducible-tests",
+      "tags": [
+        "pbt-and-test-tooling",
+        "behavioral-failure-reproduction"
+      ]
+    },
+    {
+      "note": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+      "tags": [
+        "synthesis-vs-retrieval",
+        "memory-system-architecture"
+      ]
+    },
+    {
+      "note": "69.2026-06-23.analogy-is-generator-not-proof",
+      "tags": [
+        "synthesis-vs-retrieval"
+      ]
+    },
+    {
+      "note": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+      "tags": [
+        "eval-methodology",
+        "pbt-and-test-tooling"
+      ]
+    },
+    {
+      "note": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+      "tags": [
+        "behavioral-failure-reproduction",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+      "tags": [
+        "retrieval-design",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+      "tags": [
+        "memory-system-architecture",
+        "retrieval-design"
+      ]
+    },
+    {
+      "note": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+      "tags": [
+        "synthesis-vs-retrieval",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+      "tags": [
+        "eval-fixture-design",
+        "synthesis-vs-retrieval"
+      ]
+    },
+    {
+      "note": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+      "tags": [
+        "synthesis-vs-retrieval",
+        "memory-system-architecture"
+      ]
+    },
+    {
+      "note": "77.2026-06-24.recall-not-cost-bottleneck",
+      "tags": [
+        "cost-optimization",
+        "token-budget"
+      ]
+    },
+    {
+      "note": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+      "tags": [
+        "model-routing",
+        "skill-and-guidance-design"
+      ]
+    },
+    {
+      "note": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+      "tags": [
+        "engram-binary-ops",
+        "cost-optimization"
+      ]
+    },
+    {
+      "note": "80.2026-06-24.recall-split-not-worth-complexity",
+      "tags": [
+        "cost-optimization",
+        "model-routing"
+      ]
+    },
+    {
+      "note": "81.2026-06-24.check-lever-not-already-rolled-back",
+      "tags": [
+        "lever-tracking",
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+      "tags": [
+        "agentic-recall-triggers",
+        "retrieval-design"
+      ]
+    },
+    {
+      "note": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+      "tags": [
+        "eval-methodology",
+        "synthesis-vs-retrieval"
+      ]
+    },
+    {
+      "note": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+      "tags": [
+        "cost-optimization",
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+      "tags": [
+        "behavioral-failure-reproduction",
+        "lever-tracking"
+      ]
+    },
+    {
+      "note": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+      "tags": [
+        "eval-fixture-design",
+        "behavioral-failure-reproduction"
+      ]
+    },
+    {
+      "note": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+      "tags": [
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+      "tags": [
+        "behavioral-failure-reproduction",
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+      "tags": [
+        "agent-behavior-patterns",
+        "skill-and-guidance-design"
+      ]
+    },
+    {
+      "note": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+      "tags": [
+        "agent-behavior-patterns",
+        "lever-tracking"
+      ]
+    },
+    {
+      "note": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+      "tags": [
+        "cost-optimization",
+        "memory-system-architecture"
+      ]
+    },
+    {
+      "note": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+      "tags": [
+        "cost-optimization",
+        "agent-behavior-patterns"
+      ]
+    },
+    {
+      "note": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+      "tags": [
+        "eval-methodology",
+        "engram-binary-ops"
+      ]
+    },
+    {
+      "note": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+      "tags": [
+        "eval-methodology"
+      ]
+    },
+    {
+      "note": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+      "tags": [
+        "eval-methodology",
+        "cost-optimization",
+        "memory-system-architecture"
+      ]
+    },
+    {
+      "note": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+      "tags": [
+        "eval-methodology",
+        "behavioral-failure-reproduction"
+      ]
+    },
+    {
+      "note": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+      "tags": [
+        "eval-methodology",
+        "eval-fixture-design"
+      ]
+    },
+    {
+      "note": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+      "tags": [
+        "eval-methodology",
+        "memory-system-architecture"
+      ]
+    },
+    {
+      "note": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+      "tags": [
+        "eval-methodology",
+        "memory-system-architecture",
+        "synthesis-vs-retrieval"
+      ]
+    }
+  ]
+}

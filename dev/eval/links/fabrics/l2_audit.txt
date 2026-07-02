@@ -1,0 +1,1088 @@
+DROP	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	key=None
+PERSIST	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	93.2026-06-25.harness-recall-s-is-round1-not-recall	type=means-ends	key='recall procedure duration ~190s (not mislabeled 350s) underpinning the ~186s procedure tax figure'
+PERSIST	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	type=means-ends	key='regression guardrails (trap gate + recall_cost meter) required before optimizing procedure tax'
+DROP	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+PERSIST	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	type=means-ends	key='lighter per-fire recall procedure (glance rung) as validated procedure tax reduction'
+PERSIST	101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	type=means-ends	key='recall_cost $METER for accurate per-run cost tracking'
+DROP	101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+PERSIST	101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost	93.2026-06-25.harness-recall-s-is-round1-not-recall	type=means-ends	key='harness recall_s field misinterprets round-1 as recall cost, corrupting per-cell cost estimates'
+DROP	101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+DROP	101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost	77.2026-06-24.recall-not-cost-bottleneck	key=None
+DROP	101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost	81.2026-06-24.check-lever-not-already-rolled-back	key=None
+DROP	101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	key=None
+DROP	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+PERSIST	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	type=means-ends	key='regression guardrails (trap gate + recall_cost meter) required before optimizing procedure tax'
+DROP	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+DROP	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	key=None
+DROP	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+PERSIST	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	type=means-ends	key='C3/C4i/C5/C6 capability wins generalize to crowded vault at realistic scale'
+DROP	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+DROP	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	132.2026-06-28.recall-unified-cosine-ranking	key=None
+DROP	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+DROP	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	key=None
+DROP	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+DROP	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+DROP	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+PERSIST	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	type=means-ends	key='stub binary to fake buried-at-scale condition without expensive large fixture'
+DROP	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	81.2026-06-24.check-lever-not-already-rolled-back	key=None
+PERSIST	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	type=means-ends	key='anti-amnesia miss not reproducible in single-recall toy fixture, requiring probe-bounded approach'
+DROP	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	134.2026-06-28.recency-eval-spread-distractor-ages	key=None
+DROP	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+DROP	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	key=None
+DROP	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	key=None
+DROP	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+PERSIST	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	type=causal	key='assuming payload-size cut is the win before verifying where bulk cost lives'
+DROP	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP(hub)	106.2026-06-27.engram-binary-install-go-install-not-targ-build	130.2026-06-28.verify-cli-with-real-binary-real-paths	key='stale binary masking CLI behavior under real invocation'
+DROP(hub)	106.2026-06-27.engram-binary-install-go-install-not-targ-build	125.2026-06-28.verify-cli-real-binary-real-path-args	key='stale binary masking CLI behavior under real invocation'
+DROP	106.2026-06-27.engram-binary-install-go-install-not-targ-build	50.2026-06-17.activate-command-deps-struct-pattern	key=None
+DROP(hub)	106.2026-06-27.engram-binary-install-go-install-not-targ-build	54.2026-06-17.verify-cli-with-real-binary-real-args	key='stale binary masking CLI behavior under real invocation'
+DROP	106.2026-06-27.engram-binary-install-go-install-not-targ-build	62.2026-06-20.feedback-stale-docs-cause-design-misses	key=None
+DROP	106.2026-06-27.engram-binary-install-go-install-not-targ-build	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+DROP	106.2026-06-27.engram-binary-install-go-install-not-targ-build	151.2026-07-01.claude-code-claudemd-import-always-loaded	key=None
+DROP	106.2026-06-27.engram-binary-install-go-install-not-targ-build	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+DROP	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+PERSIST	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	type=causal	key='assuming payload-size cut is the win before verifying where bulk cost lives'
+DROP	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+PERSIST	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	type=means-ends	key='measured fetch-behavior condition required before shipping lazy retrieval'
+DROP	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	key=None
+DROP	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+PERSIST	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	type=contradiction	key='async/deferred work as a token-cost reduction lever'
+DROP	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	143.2026-06-29.verify-lever-shipped-status-before-framing-open	key=None
+DROP	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	key=None
+DROP	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	81.2026-06-24.check-lever-not-already-rolled-back	key=None
+DROP	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	key=None
+DROP	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	key=None
+PERSIST	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	type=means-ends	key='per-fire cost reduction as the mechanism to raise the over-fire ceiling'
+PERSIST	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	type=causal	key='wording-based value filter failing to hold over-fire below measured ceiling'
+DROP	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+PERSIST	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	type=contradiction	key='over-firing recall as the primary cost risk to gate against'
+PERSIST	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	type=means-ends	key='measured over-fire ceiling and per-fire unit required before proposing fire-more levers'
+DROP	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+DROP	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+DROP	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+DROP	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	key=None
+DROP	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	34.2026-06-16.working-memory-analog-gap	key=None
+DROP	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	132.2026-06-28.recall-unified-cosine-ranking	key=None
+DROP	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	key=None
+DROP	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	key=None
+DROP	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	key=None
+DROP	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	key=None
+DROP	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+DROP	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	143.2026-06-29.verify-lever-shipped-status-before-framing-open	key=None
+DROP	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	key=None
+DROP	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+PERSIST	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	type=means-ends	key='failure-turn detection method beyond signal-word matching'
+DROP	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	key=None
+DROP	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	67.2026-06-22.corrections-become-reproducible-tests	key=None
+PERSIST	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	type=means-ends	key='corpus failure/correction detection at scale under token budget'
+DROP	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	key=None
+DROP	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	key=None
+DROP	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+DROP	113.2026-06-28.open-injection-point-analysis-not-existing-sites	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	key=None
+DROP	113.2026-06-28.open-injection-point-analysis-not-existing-sites	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	113.2026-06-28.open-injection-point-analysis-not-existing-sites	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	key=None
+DROP	113.2026-06-28.open-injection-point-analysis-not-existing-sites	67.2026-06-22.corrections-become-reproducible-tests	key=None
+DROP	113.2026-06-28.open-injection-point-analysis-not-existing-sites	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	key=None
+DROP	113.2026-06-28.open-injection-point-analysis-not-existing-sites	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+DROP	113.2026-06-28.open-injection-point-analysis-not-existing-sites	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	113.2026-06-28.open-injection-point-analysis-not-existing-sites	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	key=None
+PERSIST	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	type=means-ends	key='failure-turn detection via LLM reasoning rather than embedding'
+PERSIST	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	type=means-ends	key='corpus failure detection at volume — 112 has the need, 114 provides the framing-over-tier solution'
+DROP	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	key=None
+DROP	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	key=None
+DROP	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	key=None
+DROP	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	77.2026-06-24.recall-not-cost-bottleneck	key=None
+DROP	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+DROP	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+DROP	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	key=None
+DROP	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+DROP	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	key=None
+DROP	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	key=None
+DROP	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	34.2026-06-16.working-memory-analog-gap	key=None
+DROP	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+DROP	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	30.2026-06-14.pbt-frameworks-random-input-property-validation	key=None
+DROP	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	31.2026-06-14.pbt-stateful-model-based-technique	key=None
+DROP	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	127.2026-06-28.go-wrap-errors-with-context	key=None
+DROP	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	124.2026-06-28.wrap-errors-with-context	key=None
+DROP	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	32.2026-06-14.metamorphic-relation-patterns-catalog	key=None
+DROP	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	131.2026-06-28.parallel-test-shared-state	key=None
+DROP	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	48.2026-06-17.unused-struct-fields-export-test-accessor	key=None
+DROP	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	key=None
+DROP	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	key=None
+DROP	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	31.2026-06-14.pbt-stateful-model-based-technique	key=None
+DROP	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+DROP	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	key=None
+DROP	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	key=None
+PERSIST	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	132.2026-06-28.recall-unified-cosine-ranking	type=causal	key='unified cosine ranking causes raw chunks to surface less reliably than crystallized notes'
+PERSIST	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	133.2026-06-28.engram-recall-unified-cosine-ranking	type=causal	key='unified cosine ranking causes raw chunks to surface less reliably than crystallized notes'
+PERSIST	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	34.2026-06-16.working-memory-analog-gap	type=means-ends	key='reliable surfacing of recent model conclusions'
+PERSIST	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	65.2026-06-20.engram-recall-mechanism-synthesize-l2	type=causal	key='D1 unified clustering puts raw chunks in direct competition with notes, disadvantaging chunks'
+DROP	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+DROP	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	key=None
+DROP	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+DROP	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	key=None
+DROP	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	34.2026-06-16.working-memory-analog-gap	key=None
+DROP	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	key=None
+DROP	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+DROP	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	132.2026-06-28.recall-unified-cosine-ranking	key=None
+DROP	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	132.2026-06-28.recall-unified-cosine-ranking	key=None
+DROP	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+DROP	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+DROP	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	key=None
+DROP	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+DROP	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	34.2026-06-16.working-memory-analog-gap	key=None
+DROP	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+DROP	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	81.2026-06-24.check-lever-not-already-rolled-back	key=None
+DROP	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	143.2026-06-29.verify-lever-shipped-status-before-framing-open	key=None
+DROP	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	key=None
+DROP	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	key=None
+DROP	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	key=None
+DROP	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	key=None
+DROP	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction	154.2026-07-01.record-parked-observations-durably	key=None
+DROP	122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction	113.2026-06-28.open-injection-point-analysis-not-existing-sites	key=None
+DROP	122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	key=None
+DROP	122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	key=None
+DROP	122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction	143.2026-06-29.verify-lever-shipped-status-before-framing-open	key=None
+DROP	122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+PERSIST	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	134.2026-06-28.recency-eval-spread-distractor-ages	type=means-ends	key='indistinguishable half-life scores caused by homogeneous distractor ages'
+DROP	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	key=None
+PERSIST	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	42.2026-06-17.recency-eval-band-dominates-recent-probe	type=causal	key='band guarantee fires regardless of half-life value when all distractors are uniformly old'
+PERSIST	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	type=causal	key='stale score collapse to ~0 when distractor age >> all halfLife values tested'
+DROP	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	key=None
+DROP	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	45.2026-06-17.calibrate-defaults-to-user-cadence	key=None
+DROP	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+DROP	124.2026-06-28.wrap-errors-with-context	127.2026-06-28.go-wrap-errors-with-context	key=None
+DROP	124.2026-06-28.wrap-errors-with-context	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	key=None
+DROP	124.2026-06-28.wrap-errors-with-context	48.2026-06-17.unused-struct-fields-export-test-accessor	key=None
+DROP	124.2026-06-28.wrap-errors-with-context	58.2026-06-19.engram-modernize-linter-slices-backward	key=None
+DROP	124.2026-06-28.wrap-errors-with-context	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	key=None
+DROP	124.2026-06-28.wrap-errors-with-context	131.2026-06-28.parallel-test-shared-state	key=None
+DROP	124.2026-06-28.wrap-errors-with-context	30.2026-06-14.pbt-frameworks-random-input-property-validation	key=None
+DROP	124.2026-06-28.wrap-errors-with-context	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	key=None
+PERSIST	125.2026-06-28.verify-cli-real-binary-real-path-args	130.2026-06-28.verify-cli-with-real-binary-real-paths	type=contradiction	key='path resolution correctness when cwd differs from data directory'
+PERSIST	125.2026-06-28.verify-cli-real-binary-real-path-args	54.2026-06-17.verify-cli-with-real-binary-real-args	type=causal	key='declaring done on in-memory tests without running installed binary → path-resolution bug ships'
+PERSIST	125.2026-06-28.verify-cli-real-binary-real-path-args	106.2026-06-27.engram-binary-install-go-install-not-targ-build	type=means-ends	key='installed binary on PATH needed to verify path-resolution behavior'
+DROP	125.2026-06-28.verify-cli-real-binary-real-path-args	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	125.2026-06-28.verify-cli-real-binary-real-path-args	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	key=None
+DROP	125.2026-06-28.verify-cli-real-binary-real-path-args	30.2026-06-14.pbt-frameworks-random-input-property-validation	key=None
+DROP	125.2026-06-28.verify-cli-real-binary-real-path-args	31.2026-06-14.pbt-stateful-model-based-technique	key=None
+DROP	125.2026-06-28.verify-cli-real-binary-real-path-args	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	key=None
+PERSIST	126.2026-06-28.permission-denied-retry-loop	128.2026-06-28.permission-denied-stop-retrying	type=contradiction	key='retrying identical command after permission denied'
+DROP	126.2026-06-28.permission-denied-retry-loop	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	key=None
+DROP	126.2026-06-28.permission-denied-retry-loop	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	key=None
+DROP	126.2026-06-28.permission-denied-retry-loop	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	key=None
+DROP	126.2026-06-28.permission-denied-retry-loop	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	key=None
+DROP	126.2026-06-28.permission-denied-retry-loop	130.2026-06-28.verify-cli-with-real-binary-real-paths	key=None
+DROP	126.2026-06-28.permission-denied-retry-loop	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	key=None
+DROP	126.2026-06-28.permission-denied-retry-loop	148.2026-06-30.verify-subagent-reports-against-actual-state	key=None
+PERSIST	127.2026-06-28.go-wrap-errors-with-context	124.2026-06-28.wrap-errors-with-context	type=contradiction	key='returning bare err from a Go call site'
+DROP	127.2026-06-28.go-wrap-errors-with-context	48.2026-06-17.unused-struct-fields-export-test-accessor	key=None
+DROP	127.2026-06-28.go-wrap-errors-with-context	30.2026-06-14.pbt-frameworks-random-input-property-validation	key=None
+DROP	127.2026-06-28.go-wrap-errors-with-context	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	key=None
+DROP	127.2026-06-28.go-wrap-errors-with-context	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	key=None
+DROP	127.2026-06-28.go-wrap-errors-with-context	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	key=None
+DROP	127.2026-06-28.go-wrap-errors-with-context	58.2026-06-19.engram-modernize-linter-slices-backward	key=None
+DROP	127.2026-06-28.go-wrap-errors-with-context	49.2026-06-17.strings-splitseq-go126-modernize	key=None
+PERSIST	128.2026-06-28.permission-denied-stop-retrying	126.2026-06-28.permission-denied-retry-loop	type=contradiction	key='retrying identical command after permission denied'
+DROP	128.2026-06-28.permission-denied-stop-retrying	130.2026-06-28.verify-cli-with-real-binary-real-paths	key=None
+DROP	128.2026-06-28.permission-denied-stop-retrying	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	key=None
+DROP	128.2026-06-28.permission-denied-stop-retrying	54.2026-06-17.verify-cli-with-real-binary-real-args	key=None
+DROP	128.2026-06-28.permission-denied-stop-retrying	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	key=None
+DROP	128.2026-06-28.permission-denied-stop-retrying	125.2026-06-28.verify-cli-real-binary-real-path-args	key=None
+DROP	128.2026-06-28.permission-denied-stop-retrying	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	key=None
+DROP	128.2026-06-28.permission-denied-stop-retrying	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	key=None
+PERSIST	129.2026-06-28.parallel-tests-must-not-share-mutable-state	131.2026-06-28.parallel-test-shared-state	type=contradiction	key='removing t.Parallel() to fix a racing parallel subtest'
+DROP	129.2026-06-28.parallel-tests-must-not-share-mutable-state	31.2026-06-14.pbt-stateful-model-based-technique	key=None
+DROP	129.2026-06-28.parallel-tests-must-not-share-mutable-state	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	129.2026-06-28.parallel-tests-must-not-share-mutable-state	148.2026-06-30.verify-subagent-reports-against-actual-state	key=None
+DROP	129.2026-06-28.parallel-tests-must-not-share-mutable-state	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	key=None
+DROP	129.2026-06-28.parallel-tests-must-not-share-mutable-state	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	129.2026-06-28.parallel-tests-must-not-share-mutable-state	30.2026-06-14.pbt-frameworks-random-input-property-validation	key=None
+DROP	129.2026-06-28.parallel-tests-must-not-share-mutable-state	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	key=None
+DROP	130.2026-06-28.verify-cli-with-real-binary-real-paths	54.2026-06-17.verify-cli-with-real-binary-real-args	key=None
+DROP	130.2026-06-28.verify-cli-with-real-binary-real-paths	125.2026-06-28.verify-cli-real-binary-real-path-args	key=None
+PERSIST	130.2026-06-28.verify-cli-with-real-binary-real-paths	106.2026-06-27.engram-binary-install-go-install-not-targ-build	type=means-ends	key='go install command for rebuilding engram binary to verify with real binary'
+DROP	130.2026-06-28.verify-cli-with-real-binary-real-paths	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	key=None
+DROP	130.2026-06-28.verify-cli-with-real-binary-real-paths	128.2026-06-28.permission-denied-stop-retrying	key=None
+DROP	130.2026-06-28.verify-cli-with-real-binary-real-paths	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	130.2026-06-28.verify-cli-with-real-binary-real-paths	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	key=None
+DROP	130.2026-06-28.verify-cli-with-real-binary-real-paths	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	key=None
+DROP	131.2026-06-28.parallel-test-shared-state	129.2026-06-28.parallel-tests-must-not-share-mutable-state	key=None
+DROP	131.2026-06-28.parallel-test-shared-state	30.2026-06-14.pbt-frameworks-random-input-property-validation	key=None
+DROP	131.2026-06-28.parallel-test-shared-state	124.2026-06-28.wrap-errors-with-context	key=None
+DROP	131.2026-06-28.parallel-test-shared-state	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	key=None
+DROP	131.2026-06-28.parallel-test-shared-state	48.2026-06-17.unused-struct-fields-export-test-accessor	key=None
+DROP	131.2026-06-28.parallel-test-shared-state	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	key=None
+DROP	131.2026-06-28.parallel-test-shared-state	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	key=None
+DROP	131.2026-06-28.parallel-test-shared-state	58.2026-06-19.engram-modernize-linter-slices-backward	key=None
+DROP	132.2026-06-28.recall-unified-cosine-ranking	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+PERSIST	132.2026-06-28.recall-unified-cosine-ranking	65.2026-06-20.engram-recall-mechanism-synthesize-l2	type=means-ends	key='unified D1 clustering mechanism that implements the single-pass cosine ranking'
+DROP	132.2026-06-28.recall-unified-cosine-ranking	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+PERSIST	132.2026-06-28.recall-unified-cosine-ranking	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	type=causal	key='raw chunks competing in unified cosine ranking against crystallized vault notes → chunks surface unreliably'
+DROP	132.2026-06-28.recall-unified-cosine-ranking	34.2026-06-16.working-memory-analog-gap	key=None
+DROP	132.2026-06-28.recall-unified-cosine-ranking	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	132.2026-06-28.recall-unified-cosine-ranking	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	key=None
+DROP	132.2026-06-28.recall-unified-cosine-ranking	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	133.2026-06-28.engram-recall-unified-cosine-ranking	132.2026-06-28.recall-unified-cosine-ranking	key=None
+PERSIST	133.2026-06-28.engram-recall-unified-cosine-ranking	65.2026-06-20.engram-recall-mechanism-synthesize-l2	type=means-ends	key='unified D1 clustering mechanism that implements the single-pass cosine ranking'
+DROP	133.2026-06-28.engram-recall-unified-cosine-ranking	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+DROP	133.2026-06-28.engram-recall-unified-cosine-ranking	34.2026-06-16.working-memory-analog-gap	key=None
+DROP	133.2026-06-28.engram-recall-unified-cosine-ranking	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+PERSIST	133.2026-06-28.engram-recall-unified-cosine-ranking	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	type=causal	key='raw chunks competing in unified cosine ranking against crystallized vault notes → chunks surface unreliably'
+DROP	133.2026-06-28.engram-recall-unified-cosine-ranking	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	key=None
+DROP	133.2026-06-28.engram-recall-unified-cosine-ranking	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	134.2026-06-28.recency-eval-spread-distractor-ages	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	key=None
+DROP	134.2026-06-28.recency-eval-spread-distractor-ages	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	key=None
+PERSIST	134.2026-06-28.recency-eval-spread-distractor-ages	42.2026-06-17.recency-eval-band-dominates-recent-probe	type=causal	key='band guarantee firing regardless of half-life when all distractors share the same age'
+PERSIST	134.2026-06-28.recency-eval-spread-distractor-ages	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	type=causal	key='exp2(-90/hl) collapsing all stale scores to ~0 when distractors are uniformly 90 days old'
+DROP	134.2026-06-28.recency-eval-spread-distractor-ages	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+DROP	134.2026-06-28.recency-eval-spread-distractor-ages	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	key=None
+DROP	134.2026-06-28.recency-eval-spread-distractor-ages	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	134.2026-06-28.recency-eval-spread-distractor-ages	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+PERSIST	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	type=means-ends	key='sonnet-warm == opus-warm on idiosyncratic capability axes'
+PERSIST	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	136.2026-06-28.route-by-capability-tier-not-model-name	type=causal	key='hardcoding sonnet as the memory-backed routing target rots on model roster change'
+DROP	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+DROP	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+DROP	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+PERSIST	136.2026-06-28.route-by-capability-tier-not-model-name	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	type=means-ends	key='capability-tier evidence that cheap-tier matches strong-tier with memory'
+DROP	136.2026-06-28.route-by-capability-tier-not-model-name	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	136.2026-06-28.route-by-capability-tier-not-model-name	80.2026-06-24.recall-split-not-worth-complexity	key=None
+DROP	136.2026-06-28.route-by-capability-tier-not-model-name	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	136.2026-06-28.route-by-capability-tier-not-model-name	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	key=None
+DROP	136.2026-06-28.route-by-capability-tier-not-model-name	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	136.2026-06-28.route-by-capability-tier-not-model-name	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	key=None
+DROP	136.2026-06-28.route-by-capability-tier-not-model-name	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+PERSIST	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	type=means-ends	key='action-naming as the mechanism that holds firing behavior where value-gate wording fails'
+PERSIST	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	type=means-ends	key='action-named recall cues shipped in CLAUDE.md guidance'
+DROP	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+PERSIST	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	type=means-ends	key='neutral-framing test that detects action-collapse under load'
+DROP	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	key=None
+DROP	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	key=None
+DROP	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+PERSIST	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	type=means-ends	key='neutral task-load framing that separates retrieval failure from synthesis failure in eval'
+DROP	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	key=None
+DROP	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	key=None
+PERSIST	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	type=means-ends	key='neutral-framing test that detects action-collapse under load'
+DROP	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+DROP	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	154.2026-07-01.record-parked-observations-durably	key=None
+PERSIST	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	type=causal	key='shipped CLAUDE.md recall cues → over-fire ceiling that glance rung relaxes'
+PERSIST	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	type=means-ends	key='trap regression gate and recall_cost $METER needed to validate shipped recall guidance cost'
+PERSIST	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	type=causal	key='worded value-gate in shipped guidance does not hold selective firing on opus-4.8'
+DROP	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+PERSIST	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	type=means-ends	key='glance rung as cheaper alternative to full recall at shipped CLAUDE.md cue points'
+DROP	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	key=None
+PERSIST	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	type=causal	key='shipped recall cues → over-fire and after-failure non-fire problems rejected as not worth fixing'
+DROP	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+PERSIST	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	type=means-ends	key='glance rung cost-win validation'
+DROP	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	key=None
+DROP	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+DROP	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+PERSIST	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	type=means-ends	key='theoretical basis for glance rung over-fire ceiling relaxation'
+DROP	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+PERSIST	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	type=means-ends	key='C5 honor-standard failure at glance rung'
+DROP	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	key=None
+DROP	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	key=None
+DROP	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+DROP	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+PERSIST	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	type=causal	key='stubbing the SUT binary causes gate to pass without exercising real behavior'
+DROP	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	key=None
+DROP	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	71.2026-06-23.verify-reviewer-blocking-claims-against-code	key=None
+PERSIST	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	type=means-ends	key='real engram binary exercised by regression gate'
+DROP	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	key=None
+DROP	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	143.2026-06-29.verify-lever-shipped-status-before-framing-open	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	key=None
+PERSIST	143.2026-06-29.verify-lever-shipped-status-before-framing-open	81.2026-06-24.check-lever-not-already-rolled-back	type=causal	key='presenting a shipped/rolled-back lever as a fresh open proposal'
+DROP	143.2026-06-29.verify-lever-shipped-status-before-framing-open	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	143.2026-06-29.verify-lever-shipped-status-before-framing-open	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	key=None
+DROP	143.2026-06-29.verify-lever-shipped-status-before-framing-open	154.2026-07-01.record-parked-observations-durably	key=None
+DROP	143.2026-06-29.verify-lever-shipped-status-before-framing-open	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	key=None
+DROP	143.2026-06-29.verify-lever-shipped-status-before-framing-open	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+DROP	143.2026-06-29.verify-lever-shipped-status-before-framing-open	105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever	key=None
+PERSIST	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	type=means-ends	key='over-firing recall treated as the primary risk to gate against'
+DROP	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+PERSIST	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	type=causal	key='value gate suppressing recall on routine work inflates under-fire risk'
+DROP	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	key=None
+DROP	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+PERSIST	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	type=contradiction	key='over-firing recall treated as cost ceiling to design against'
+DROP	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+PERSIST	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	type=causal	key='value-gate over-fire on routine work → mis-weighted priority (over-firing is not the risk)'
+DROP	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+DROP	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	key=None
+PERSIST	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	type=causal	key='value-gate over-fire via wording → rejected as not worth fixing 2026-06-30'
+PERSIST	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	type=means-ends	key='over-fire ceiling not eliminable by wording → glance rung relaxes it proportionally to lower per-fire cost'
+DROP	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+DROP	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+PERSIST	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	156.2026-07-02.date-scope-every-number-in-a-review	type=causal	key='undated/unscoped measured result carried as current → overstated live gap'
+DROP	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+DROP	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+DROP	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	key=None
+DROP	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	key=None
+DROP	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	81.2026-06-24.check-lever-not-already-rolled-back	key=None
+DROP	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+PERSIST	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	type=means-ends	key='over-firing not worth fixing (Joe rejection) → under-firing is the actual risk to address'
+DROP	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+PERSIST	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	type=means-ends	key='value-gate over-fire via wording → rejected as not worth fixing'
+DROP	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+DROP	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	key=None
+DROP	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+DROP	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	key=None
+DROP	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+PERSIST	148.2026-06-30.verify-subagent-reports-against-actual-state	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	type=causal	key='trusting subagent completion report without inspection → committing repo-wide unintended changes'
+DROP	148.2026-06-30.verify-subagent-reports-against-actual-state	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	key=None
+DROP	148.2026-06-30.verify-subagent-reports-against-actual-state	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	key=None
+DROP	148.2026-06-30.verify-subagent-reports-against-actual-state	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	key=None
+DROP	148.2026-06-30.verify-subagent-reports-against-actual-state	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	key=None
+DROP	148.2026-06-30.verify-subagent-reports-against-actual-state	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	key=None
+DROP	148.2026-06-30.verify-subagent-reports-against-actual-state	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	key=None
+DROP	148.2026-06-30.verify-subagent-reports-against-actual-state	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	key=None
+PERSIST	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	type=means-ends	key='40% build cost cut via payload-prune → reduces post-fire procedure tax without touching win-nucleus'
+PERSIST	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	type=means-ends	key='~40% build cost reduction via payload-prune → addresses build-loop cost axis identified as the payoff lever'
+PERSIST	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	type=means-ends	key='40% build cost cut via synthesis-injection → partially addresses warm-build being costlier than cold'
+DROP	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+DROP	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+DROP	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+PERSIST	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	148.2026-06-30.verify-subagent-reports-against-actual-state	type=means-ends	key='subagent report trusted before diff inspection leads to out-of-scope changes committed'
+DROP	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	key=None
+DROP	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	key=None
+DROP	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	key=None
+DROP	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint	key=None
+DROP	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	151.2026-07-01.claude-code-claudemd-import-always-loaded	key=None
+DROP	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	key=None
+DROP	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	key=None
+DROP	151.2026-07-01.claude-code-claudemd-import-always-loaded	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	key=None
+DROP	151.2026-07-01.claude-code-claudemd-import-always-loaded	50.2026-06-17.activate-command-deps-struct-pattern	key=None
+PERSIST	151.2026-07-01.claude-code-claudemd-import-always-loaded	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	type=means-ends	key='CLAUDE.md @import always-on context at launch enabling recall trigger guidance'
+DROP	151.2026-07-01.claude-code-claudemd-import-always-loaded	62.2026-06-20.feedback-stale-docs-cause-design-misses	key=None
+DROP	151.2026-07-01.claude-code-claudemd-import-always-loaded	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+DROP	151.2026-07-01.claude-code-claudemd-import-always-loaded	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	key=None
+DROP	151.2026-07-01.claude-code-claudemd-import-always-loaded	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	151.2026-07-01.claude-code-claudemd-import-always-loaded	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+PERSIST	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	151.2026-07-01.claude-code-claudemd-import-always-loaded	type=means-ends	key='always-loaded guidance deployment after one-time opt-in'
+DROP	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	key=None
+DROP	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	148.2026-06-30.verify-subagent-reports-against-actual-state	key=None
+DROP	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	key=None
+DROP	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	130.2026-06-28.verify-cli-with-real-binary-real-paths	key=None
+DROP	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	143.2026-06-29.verify-lever-shipped-status-before-framing-open	key=None
+DROP	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	key=None
+DROP	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	key=None
+DROP	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	120.2026-06-28.crystallize-question-shaped-not-cluster-shaped	key=None
+DROP	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	132.2026-06-28.recall-unified-cosine-ranking	key=None
+DROP	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+DROP	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	key=None
+DROP	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+DROP	154.2026-07-01.record-parked-observations-durably	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	154.2026-07-01.record-parked-observations-durably	122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction	key=None
+DROP	154.2026-07-01.record-parked-observations-durably	143.2026-06-29.verify-lever-shipped-status-before-framing-open	key=None
+DROP	154.2026-07-01.record-parked-observations-durably	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	key=None
+DROP	154.2026-07-01.record-parked-observations-durably	67.2026-06-22.corrections-become-reproducible-tests	key=None
+DROP	154.2026-07-01.record-parked-observations-durably	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	key=None
+DROP	154.2026-07-01.record-parked-observations-durably	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	key=None
+DROP	154.2026-07-01.record-parked-observations-durably	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+PERSIST	155.2026-07-01.named-sources-in-ask-each-get-a-task	157.2026-07-02.research-means-broad-sweep-not-the-named-source	type=causal	key='treating a named source as the full scope instead of one example'
+DROP	155.2026-07-01.named-sources-in-ask-each-get-a-task	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+PERSIST	155.2026-07-01.named-sources-in-ask-each-get-a-task	27.2026-06-12.llm-spec-vetting-alignment-gate	type=means-ends	key='ask item with zero plan/task coverage'
+DROP	155.2026-07-01.named-sources-in-ask-each-get-a-task	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	key=None
+PERSIST	155.2026-07-01.named-sources-in-ask-each-get-a-task	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	type=causal	key='substituting an adjacent easier source for the ask-named source'
+DROP	155.2026-07-01.named-sources-in-ask-each-get-a-task	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	key=None
+DROP	155.2026-07-01.named-sources-in-ask-each-get-a-task	34.2026-06-16.working-memory-analog-gap	key=None
+DROP	155.2026-07-01.named-sources-in-ask-each-get-a-task	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	key=None
+PERSIST	156.2026-07-02.date-scope-every-number-in-a-review	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	type=causal	key='carrying a number measured on a prior system state as describing the current system'
+DROP	156.2026-07-02.date-scope-every-number-in-a-review	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	156.2026-07-02.date-scope-every-number-in-a-review	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	key=None
+PERSIST	156.2026-07-02.date-scope-every-number-in-a-review	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	type=causal	key='presenting a stale/misattributed number as describing the current system state'
+DROP	156.2026-07-02.date-scope-every-number-in-a-review	45.2026-06-17.calibrate-defaults-to-user-cadence	key=None
+DROP	156.2026-07-02.date-scope-every-number-in-a-review	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	156.2026-07-02.date-scope-every-number-in-a-review	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	156.2026-07-02.date-scope-every-number-in-a-review	113.2026-06-28.open-injection-point-analysis-not-existing-sites	key=None
+PERSIST	157.2026-07-02.research-means-broad-sweep-not-the-named-source	155.2026-07-01.named-sources-in-ask-each-get-a-task	type=causal	key='treating a named source as the full scope instead of one example'
+DROP	157.2026-07-02.research-means-broad-sweep-not-the-named-source	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	key=None
+DROP	157.2026-07-02.research-means-broad-sweep-not-the-named-source	62.2026-06-20.feedback-stale-docs-cause-design-misses	key=None
+DROP	157.2026-07-02.research-means-broad-sweep-not-the-named-source	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+DROP	157.2026-07-02.research-means-broad-sweep-not-the-named-source	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	key=None
+DROP	157.2026-07-02.research-means-broad-sweep-not-the-named-source	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	key=None
+DROP	157.2026-07-02.research-means-broad-sweep-not-the-named-source	40.2026-06-17.dry-helper-for-cross-file-string-construction	key=None
+DROP	157.2026-07-02.research-means-broad-sweep-not-the-named-source	68.2026-06-22.aggregation-is-not-emergent-synthesis	key=None
+DROP	24.2026-06-12.keep-deterministic-machinery-when-simplifying	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	24.2026-06-12.keep-deterministic-machinery-when-simplifying	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	key=None
+PERSIST	24.2026-06-12.keep-deterministic-machinery-when-simplifying	62.2026-06-20.feedback-stale-docs-cause-design-misses	type=causal	key='discarding structured vault IDs and deterministic rules during simplification → stale references mislead future agents'
+DROP	24.2026-06-12.keep-deterministic-machinery-when-simplifying	69.2026-06-23.analogy-is-generator-not-proof	key=None
+DROP	24.2026-06-12.keep-deterministic-machinery-when-simplifying	136.2026-06-28.route-by-capability-tier-not-model-name	key=None
+PERSIST	24.2026-06-12.keep-deterministic-machinery-when-simplifying	82.2026-06-24.recall-miss-is-structural-not-retrieval	type=causal	key='removing deterministic dedup/ID machinery → recall misses become structural not retrieval failures'
+DROP	24.2026-06-12.keep-deterministic-machinery-when-simplifying	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	24.2026-06-12.keep-deterministic-machinery-when-simplifying	68.2026-06-22.aggregation-is-not-emergent-synthesis	key=None
+DROP	25.2026-06-12.ask-before-restoring-deleted-user-data	87.2026-06-24.reconcile-recommendation-against-recent-history	key=None
+DROP	25.2026-06-12.ask-before-restoring-deleted-user-data	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	25.2026-06-12.ask-before-restoring-deleted-user-data	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	key=None
+DROP	25.2026-06-12.ask-before-restoring-deleted-user-data	62.2026-06-20.feedback-stale-docs-cause-design-misses	key=None
+PERSIST	25.2026-06-12.ask-before-restoring-deleted-user-data	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	type=contradiction	key="disposition toward user-deleted files: 25 says ask before restoring, 60 says lean aggressive/trust user's cleanup intent"
+DROP	25.2026-06-12.ask-before-restoring-deleted-user-data	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+DROP	25.2026-06-12.ask-before-restoring-deleted-user-data	154.2026-07-01.record-parked-observations-durably	key=None
+DROP	25.2026-06-12.ask-before-restoring-deleted-user-data	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	key=None
+PERSIST	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	type=causal	key='RED baseline fails to reproduce when capable model already applies the technique'
+PERSIST	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	70.2026-06-23.red-baseline-can-falsify-the-premise	type=causal	key='RED baseline run falsifies the design premise rather than confirming the failure mode'
+PERSIST	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	type=means-ends	key='pressure tests against rationalization loopholes before treating edit as done'
+DROP	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+PERSIST	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	type=means-ends	key='skill text must name the concrete action (run RED baseline) not the purpose to prevent agent collapse'
+DROP	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+PERSIST	27.2026-06-12.llm-spec-vetting-alignment-gate	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	type=means-ends	key='committed plan doc as reviewable artifact before editing'
+DROP	27.2026-06-12.llm-spec-vetting-alignment-gate	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	27.2026-06-12.llm-spec-vetting-alignment-gate	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+PERSIST	27.2026-06-12.llm-spec-vetting-alignment-gate	143.2026-06-29.verify-lever-shipped-status-before-framing-open	type=causal	key='unvetted plan coverage gap causes shipped lever to be re-presented as open'
+DROP	27.2026-06-12.llm-spec-vetting-alignment-gate	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	key=None
+PERSIST	27.2026-06-12.llm-spec-vetting-alignment-gate	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	type=means-ends	key='tracing plan artifacts to ask requirements catches vestigial mechanism assumptions before design executes'
+DROP	27.2026-06-12.llm-spec-vetting-alignment-gate	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	key=None
+DROP	27.2026-06-12.llm-spec-vetting-alignment-gate	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+PERSIST	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	type=means-ends	key='pressure tests against rationalization loopholes before treating edit as done'
+PERSIST	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	27.2026-06-12.llm-spec-vetting-alignment-gate	type=means-ends	key='explicit alignment gate tracing plan artifacts to ask requirements before execution'
+PERSIST	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	type=means-ends	key='committed plan doc as reviewable artifact the user can react to'
+PERSIST	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	148.2026-06-30.verify-subagent-reports-against-actual-state	type=causal	key='trusting fresh-agent pressure test report without verifying actual behavior causes rationalization to pass undetected'
+PERSIST	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	type=means-ends	key='naming the specific rationalization loophole in pressure test instructions to prevent displacement'
+DROP	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	key=None
+DROP	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	key=None
+PERSIST	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	type=means-ends	key='naming the concrete action (run pressure tests) not the purpose prevents agent collapse into downstream verb'
+PERSIST	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	155.2026-07-01.named-sources-in-ask-each-get-a-task	type=causal	key='chat-summary ratification leaves named ask-sources with zero artifact coverage until gate reviewer flags it'
+DROP	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	148.2026-06-30.verify-subagent-reports-against-actual-state	key=None
+DROP	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	key=None
+DROP	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	key=None
+PERSIST	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	type=means-ends	key='committed plan doc as reviewable artifact the user can react to'
+DROP	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	key=None
+DROP	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	68.2026-06-22.aggregation-is-not-emergent-synthesis	key=None
+DROP	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+PERSIST	30.2026-06-14.pbt-frameworks-random-input-property-validation	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	type=contradiction	key='role of go test -fuzz: 30 lists it as a PBT framework alongside rapid; 116 assigns it the distinct no-crash oracle role separate from PBT'
+PERSIST	30.2026-06-14.pbt-frameworks-random-input-property-validation	31.2026-06-14.pbt-stateful-model-based-technique	type=means-ends	key='stateful model-based technique as a specific PBT pattern for testing stateful systems'
+DROP	30.2026-06-14.pbt-frameworks-random-input-property-validation	127.2026-06-28.go-wrap-errors-with-context	key=None
+DROP	30.2026-06-14.pbt-frameworks-random-input-property-validation	48.2026-06-17.unused-struct-fields-export-test-accessor	key=None
+DROP	30.2026-06-14.pbt-frameworks-random-input-property-validation	131.2026-06-28.parallel-test-shared-state	key=None
+DROP	30.2026-06-14.pbt-frameworks-random-input-property-validation	124.2026-06-28.wrap-errors-with-context	key=None
+PERSIST	30.2026-06-14.pbt-frameworks-random-input-property-validation	32.2026-06-14.metamorphic-relation-patterns-catalog	type=means-ends	key='metamorphic relation patterns as oracle technique needed to write PBT properties'
+DROP	30.2026-06-14.pbt-frameworks-random-input-property-validation	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	31.2026-06-14.pbt-stateful-model-based-technique	32.2026-06-14.metamorphic-relation-patterns-catalog	key=None
+DROP	31.2026-06-14.pbt-stateful-model-based-technique	30.2026-06-14.pbt-frameworks-random-input-property-validation	key=None
+DROP	31.2026-06-14.pbt-stateful-model-based-technique	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	key=None
+DROP	31.2026-06-14.pbt-stateful-model-based-technique	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	31.2026-06-14.pbt-stateful-model-based-technique	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	key=None
+DROP	31.2026-06-14.pbt-stateful-model-based-technique	129.2026-06-28.parallel-tests-must-not-share-mutable-state	key=None
+DROP	31.2026-06-14.pbt-stateful-model-based-technique	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+DROP	31.2026-06-14.pbt-stateful-model-based-technique	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	32.2026-06-14.metamorphic-relation-patterns-catalog	31.2026-06-14.pbt-stateful-model-based-technique	key=None
+DROP	32.2026-06-14.metamorphic-relation-patterns-catalog	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	key=None
+DROP	32.2026-06-14.metamorphic-relation-patterns-catalog	30.2026-06-14.pbt-frameworks-random-input-property-validation	key=None
+DROP	32.2026-06-14.metamorphic-relation-patterns-catalog	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	key=None
+DROP	32.2026-06-14.metamorphic-relation-patterns-catalog	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	32.2026-06-14.metamorphic-relation-patterns-catalog	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	32.2026-06-14.metamorphic-relation-patterns-catalog	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+DROP	32.2026-06-14.metamorphic-relation-patterns-catalog	68.2026-06-22.aggregation-is-not-emergent-synthesis	key=None
+PERSIST	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	70.2026-06-23.red-baseline-can-falsify-the-premise	type=causal	key="RED baseline failing to reproduce → premise of 'model needs teaching' is false"
+DROP	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	key=None
+DROP	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	key=None
+DROP	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	key=None
+DROP	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	key=None
+DROP	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	key=None
+DROP	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	key=None
+DROP	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	key=None
+DROP	34.2026-06-16.working-memory-analog-gap	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+DROP	34.2026-06-16.working-memory-analog-gap	132.2026-06-28.recall-unified-cosine-ranking	key=None
+DROP	34.2026-06-16.working-memory-analog-gap	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+DROP	34.2026-06-16.working-memory-analog-gap	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+DROP	34.2026-06-16.working-memory-analog-gap	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+PERSIST	34.2026-06-16.working-memory-analog-gap	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	type=means-ends	key='recency-decaying window over both chunks and notes'
+DROP	34.2026-06-16.working-memory-analog-gap	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	key=None
+DROP	34.2026-06-16.working-memory-analog-gap	77.2026-06-24.recall-not-cost-bottleneck	key=None
+DROP	35.2026-06-16.deliver-full-diverse-set-not-pruned	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	key=None
+DROP	35.2026-06-16.deliver-full-diverse-set-not-pruned	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	key=None
+DROP	35.2026-06-16.deliver-full-diverse-set-not-pruned	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	key=None
+DROP	35.2026-06-16.deliver-full-diverse-set-not-pruned	81.2026-06-24.check-lever-not-already-rolled-back	key=None
+DROP	35.2026-06-16.deliver-full-diverse-set-not-pruned	136.2026-06-28.route-by-capability-tier-not-model-name	key=None
+PERSIST	35.2026-06-16.deliver-full-diverse-set-not-pruned	155.2026-07-01.named-sources-in-ask-each-get-a-task	type=causal	key='silently substituting/dropping user-enumerated items → removing the diversity/coverage the user asked for'
+DROP	35.2026-06-16.deliver-full-diverse-set-not-pruned	110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project	key=None
+DROP	35.2026-06-16.deliver-full-diverse-set-not-pruned	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	key=None
+PERSIST	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	type=means-ends	key='recency applied before resolvedItem conversion (scoredChunk/scoredCandidate stage)'
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	132.2026-06-28.recall-unified-cosine-ranking	key=None
+PERSIST	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	type=means-ends	key='baseScore (pre-decay cosine) as cutoff input to avoid silencing relevant-but-dormant items'
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	key=None
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	key=None
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	key=None
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	51.2026-06-17.activated-flag-queryitem-yaml-field	key=None
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	key=None
+PERSIST	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	type=means-ends	key='recency applied before resolvedItem conversion (scoredChunk/scoredCandidate stage)'
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	key=None
+PERSIST	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	type=means-ends	key='baseScore (pre-decay cosine) as cutoff input so dormant-but-relevant notes still activate'
+PERSIST	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	type=means-ends	key='LastUsed decay on notes in rankCandidates (c1 architecture scope)'
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	132.2026-06-28.recall-unified-cosine-ranking	key=None
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+DROP	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	key=None
+PERSIST	37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint	48.2026-06-17.unused-struct-fields-export-test-accessor	type=means-ends	key='export_test.go accessor to satisfy unused-field linter without nolint'
+DROP	37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	key=None
+DROP	37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint	27.2026-06-12.llm-spec-vetting-alignment-gate	key=None
+DROP	37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint	148.2026-06-30.verify-subagent-reports-against-actual-state	key=None
+DROP	37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint	154.2026-07-01.record-parked-observations-durably	key=None
+DROP	37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint	143.2026-06-29.verify-lever-shipped-status-before-framing-open	key=None
+DROP	37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	key=None
+DROP	37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+PERSIST	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	134.2026-06-28.recency-eval-spread-distractor-ages	type=means-ends	key='spread distractor ages to make half-life sweep discriminate parameter values'
+DROP	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	key=None
+PERSIST	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	type=causal	key='homogeneous-age distractor pool → half-life sweep indistinguishable (all stale scores collapse to ~0)'
+DROP	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	key=None
+DROP	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+PERSIST	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	type=causal	key='all distractors 90 days old → every half-life cell produces plantedRank=0 (exp2(-90/hl) collapses score)'
+DROP	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	51.2026-06-17.activated-flag-queryitem-yaml-field	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	40.2026-06-17.dry-helper-for-cross-file-string-construction	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	125.2026-06-28.verify-cli-real-binary-real-path-args	key=None
+PERSIST	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	type=means-ends	key='QueryDeps.Lock field absent — bumpLastUsed concurrent sidecar write needs its own write guard'
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	131.2026-06-28.parallel-test-shared-state	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	54.2026-06-17.verify-cli-with-real-binary-real-args	key=None
+PERSIST	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	50.2026-06-17.activate-command-deps-struct-pattern	type=means-ends	key='activate write guard requiring its own ActivateDeps struct'
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	46.2026-06-17.sidecar-additive-field-no-schema-bump	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	51.2026-06-17.activated-flag-queryitem-yaml-field	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	key=None
+DROP	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	key=None
+DROP	40.2026-06-17.dry-helper-for-cross-file-string-construction	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	key=None
+DROP	40.2026-06-17.dry-helper-for-cross-file-string-construction	151.2026-07-01.claude-code-claudemd-import-always-loaded	key=None
+DROP	40.2026-06-17.dry-helper-for-cross-file-string-construction	157.2026-07-02.research-means-broad-sweep-not-the-named-source	key=None
+DROP	40.2026-06-17.dry-helper-for-cross-file-string-construction	127.2026-06-28.go-wrap-errors-with-context	key=None
+DROP	40.2026-06-17.dry-helper-for-cross-file-string-construction	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	key=None
+DROP	40.2026-06-17.dry-helper-for-cross-file-string-construction	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	key=None
+DROP	40.2026-06-17.dry-helper-for-cross-file-string-construction	49.2026-06-17.strings-splitseq-go126-modernize	key=None
+DROP	40.2026-06-17.dry-helper-for-cross-file-string-construction	30.2026-06-14.pbt-frameworks-random-input-property-validation	key=None
+PERSIST	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	type=means-ends	key='inline call-site expression to break funlen+wsl variable-lift cycle'
+DROP	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	124.2026-06-28.wrap-errors-with-context	key=None
+DROP	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	127.2026-06-28.go-wrap-errors-with-context	key=None
+DROP	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+DROP	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	48.2026-06-17.unused-struct-fields-export-test-accessor	key=None
+DROP	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	key=None
+DROP	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	27.2026-06-12.llm-spec-vetting-alignment-gate	key=None
+DROP	42.2026-06-17.recency-eval-band-dominates-recent-probe	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	key=None
+DROP	42.2026-06-17.recency-eval-band-dominates-recent-probe	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	key=None
+PERSIST	42.2026-06-17.recency-eval-band-dominates-recent-probe	134.2026-06-28.recency-eval-spread-distractor-ages	type=means-ends	key='distractor age spread required for half-life parameter discrimination'
+DROP	42.2026-06-17.recency-eval-band-dominates-recent-probe	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	key=None
+DROP	42.2026-06-17.recency-eval-band-dominates-recent-probe	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	key=None
+DROP	42.2026-06-17.recency-eval-band-dominates-recent-probe	45.2026-06-17.calibrate-defaults-to-user-cadence	key=None
+DROP	42.2026-06-17.recency-eval-band-dominates-recent-probe	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	key=None
+DROP	42.2026-06-17.recency-eval-band-dominates-recent-probe	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	key=None
+PERSIST	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	type=means-ends	key='inline call-site expression to break funlen+wsl variable-lift cycle'
+DROP	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	key=None
+DROP	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	127.2026-06-28.go-wrap-errors-with-context	key=None
+DROP	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	124.2026-06-28.wrap-errors-with-context	key=None
+DROP	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+DROP	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	key=None
+PERSIST	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	42.2026-06-17.recency-eval-band-dominates-recent-probe	type=causal	key='homogeneous 90-day distractors → plantedRank=0 via band guarantee not half-life tuning'
+PERSIST	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	type=causal	key='homogeneous distractor pool age → zero discrimination across half-life parameter values'
+PERSIST	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	134.2026-06-28.recency-eval-spread-distractor-ages	type=means-ends	key='zero discrimination from homogeneous distractor ages'
+PERSIST	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	type=causal	key='90-day-old chunks collapse all halfLife decay scores to ~0 via exp2(-90/hl)'
+DROP	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	45.2026-06-17.calibrate-defaults-to-user-cadence	key=None
+DROP	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	key=None
+DROP	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+DROP	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP	45.2026-06-17.calibrate-defaults-to-user-cadence	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+DROP	45.2026-06-17.calibrate-defaults-to-user-cadence	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	key=None
+DROP	45.2026-06-17.calibrate-defaults-to-user-cadence	47.2026-06-17.date-only-parse-noon-arithmetic	key=None
+DROP	45.2026-06-17.calibrate-defaults-to-user-cadence	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	key=None
+DROP	45.2026-06-17.calibrate-defaults-to-user-cadence	134.2026-06-28.recency-eval-spread-distractor-ages	key=None
+DROP	45.2026-06-17.calibrate-defaults-to-user-cadence	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	key=None
+DROP	45.2026-06-17.calibrate-defaults-to-user-cadence	42.2026-06-17.recency-eval-band-dominates-recent-probe	key=None
+DROP	45.2026-06-17.calibrate-defaults-to-user-cadence	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+PERSIST	46.2026-06-17.sidecar-additive-field-no-schema-bump	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	type=means-ends	key='omitempty + ContentHash exclusion satisfies additive-field-no-schema-bump contract'
+DROP	46.2026-06-17.sidecar-additive-field-no-schema-bump	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	key=None
+DROP	46.2026-06-17.sidecar-additive-field-no-schema-bump	51.2026-06-17.activated-flag-queryitem-yaml-field	key=None
+DROP	46.2026-06-17.sidecar-additive-field-no-schema-bump	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	key=None
+DROP	46.2026-06-17.sidecar-additive-field-no-schema-bump	48.2026-06-17.unused-struct-fields-export-test-accessor	key=None
+DROP	46.2026-06-17.sidecar-additive-field-no-schema-bump	50.2026-06-17.activate-command-deps-struct-pattern	key=None
+DROP	46.2026-06-17.sidecar-additive-field-no-schema-bump	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	key=None
+DROP	46.2026-06-17.sidecar-additive-field-no-schema-bump	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	key=None
+DROP	47.2026-06-17.date-only-parse-noon-arithmetic	45.2026-06-17.calibrate-defaults-to-user-cadence	key=None
+DROP	47.2026-06-17.date-only-parse-noon-arithmetic	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	key=None
+DROP	47.2026-06-17.date-only-parse-noon-arithmetic	134.2026-06-28.recency-eval-spread-distractor-ages	key=None
+DROP	47.2026-06-17.date-only-parse-noon-arithmetic	44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination	key=None
+DROP	47.2026-06-17.date-only-parse-noon-arithmetic	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+DROP	47.2026-06-17.date-only-parse-noon-arithmetic	70.2026-06-23.red-baseline-can-falsify-the-premise	key=None
+DROP	47.2026-06-17.date-only-parse-noon-arithmetic	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	47.2026-06-17.date-only-parse-noon-arithmetic	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+PERSIST	48.2026-06-17.unused-struct-fields-export-test-accessor	37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint	type=means-ends	key='unused linter failure on struct fields added before their consumer lands'
+DROP	48.2026-06-17.unused-struct-fields-export-test-accessor	127.2026-06-28.go-wrap-errors-with-context	key=None
+DROP	48.2026-06-17.unused-struct-fields-export-test-accessor	124.2026-06-28.wrap-errors-with-context	key=None
+DROP	48.2026-06-17.unused-struct-fields-export-test-accessor	30.2026-06-14.pbt-frameworks-random-input-property-validation	key=None
+DROP	48.2026-06-17.unused-struct-fields-export-test-accessor	46.2026-06-17.sidecar-additive-field-no-schema-bump	key=None
+DROP	48.2026-06-17.unused-struct-fields-export-test-accessor	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	key=None
+DROP	48.2026-06-17.unused-struct-fields-export-test-accessor	131.2026-06-28.parallel-test-shared-state	key=None
+DROP	48.2026-06-17.unused-struct-fields-export-test-accessor	41.2026-06-17.funlen-wsl-tension-at-scope-boundary	key=None
+DROP	49.2026-06-17.strings-splitseq-go126-modernize	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	key=None
+DROP	49.2026-06-17.strings-splitseq-go126-modernize	58.2026-06-19.engram-modernize-linter-slices-backward	key=None
+DROP	49.2026-06-17.strings-splitseq-go126-modernize	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	key=None
+DROP	49.2026-06-17.strings-splitseq-go126-modernize	48.2026-06-17.unused-struct-fields-export-test-accessor	key=None
+DROP	49.2026-06-17.strings-splitseq-go126-modernize	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	key=None
+DROP	49.2026-06-17.strings-splitseq-go126-modernize	127.2026-06-28.go-wrap-errors-with-context	key=None
+DROP	49.2026-06-17.strings-splitseq-go126-modernize	124.2026-06-28.wrap-errors-with-context	key=None
+DROP	49.2026-06-17.strings-splitseq-go126-modernize	131.2026-06-28.parallel-test-shared-state	key=None
+PERSIST	50.2026-06-17.activate-command-deps-struct-pattern	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	type=means-ends	key='vault write lock for activate sidecar write'
+DROP	50.2026-06-17.activate-command-deps-struct-pattern	151.2026-07-01.claude-code-claudemd-import-always-loaded	key=None
+DROP	50.2026-06-17.activate-command-deps-struct-pattern	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	key=None
+DROP	50.2026-06-17.activate-command-deps-struct-pattern	106.2026-06-27.engram-binary-install-go-install-not-targ-build	key=None
+DROP	50.2026-06-17.activate-command-deps-struct-pattern	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	50.2026-06-17.activate-command-deps-struct-pattern	62.2026-06-20.feedback-stale-docs-cause-design-misses	key=None
+DROP	50.2026-06-17.activate-command-deps-struct-pattern	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	key=None
+DROP	50.2026-06-17.activate-command-deps-struct-pattern	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	key=None
+PERSIST	51.2026-06-17.activated-flag-queryitem-yaml-field	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	type=means-ends	key='yaml omitempty struct field pattern for query output struct'
+DROP	51.2026-06-17.activated-flag-queryitem-yaml-field	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	key=None
+DROP	51.2026-06-17.activated-flag-queryitem-yaml-field	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	key=None
+DROP	51.2026-06-17.activated-flag-queryitem-yaml-field	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	key=None
+DROP	51.2026-06-17.activated-flag-queryitem-yaml-field	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	key=None
+DROP	51.2026-06-17.activated-flag-queryitem-yaml-field	46.2026-06-17.sidecar-additive-field-no-schema-bump	key=None
+DROP	51.2026-06-17.activated-flag-queryitem-yaml-field	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	key=None
+DROP	51.2026-06-17.activated-flag-queryitem-yaml-field	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	key=None
+PERSIST	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	46.2026-06-17.sidecar-additive-field-no-schema-bump	type=means-ends	key='SidecarSchemaVersion bump requirement for omitempty additive sidecar fields'
+DROP	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	key=None
+DROP	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	51.2026-06-17.activated-flag-queryitem-yaml-field	key=None
+DROP	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	key=None
+DROP	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	key=None
+DROP	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	50.2026-06-17.activate-command-deps-struct-pattern	key=None
+DROP	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	154.2026-07-01.record-parked-observations-durably	key=None
+DROP	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	48.2026-06-17.unused-struct-fields-export-test-accessor	key=None
+DROP	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife	key=None
+DROP	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	123.2026-06-28.homogeneous-distractor-pool-no-discrimination	key=None
+DROP	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort	key=None
+DROP	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	134.2026-06-28.recency-eval-spread-distractor-ages	key=None
+DROP	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	42.2026-06-17.recency-eval-band-dominates-recent-probe	key=None
+PERSIST	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	type=means-ends	key='pre-decay cosine score field on scoredChunk'
+DROP	53.2026-06-17.recency-cutoff-on-basescore-not-decayed	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	key=None
+DROP	54.2026-06-17.verify-cli-with-real-binary-real-args	130.2026-06-28.verify-cli-with-real-binary-real-paths	key=None
+DROP	54.2026-06-17.verify-cli-with-real-binary-real-args	125.2026-06-28.verify-cli-real-binary-real-path-args	key=None
+PERSIST	54.2026-06-17.verify-cli-with-real-binary-real-args	106.2026-06-27.engram-binary-install-go-install-not-targ-build	type=means-ends	key='go install command to rebuild the engram binary on PATH for real-binary CLI verification'
+DROP	54.2026-06-17.verify-cli-with-real-binary-real-args	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	key=None
+DROP	54.2026-06-17.verify-cli-with-real-binary-real-args	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	key=None
+DROP	54.2026-06-17.verify-cli-with-real-binary-real-args	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	54.2026-06-17.verify-cli-with-real-binary-real-args	128.2026-06-28.permission-denied-stop-retrying	key=None
+DROP	54.2026-06-17.verify-cli-with-real-binary-real-args	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	key=None
+DROP	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+DROP	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	132.2026-06-28.recall-unified-cosine-ranking	key=None
+DROP	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+DROP	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+PERSIST	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	34.2026-06-16.working-memory-analog-gap	type=means-ends	key='recency-decaying window applied to both chunks (mtime+turn-position) and notes (LastUsed)'
+DROP	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+PERSIST	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	51.2026-06-17.activated-flag-queryitem-yaml-field	type=means-ends	key='yaml tag + omitempty struct field pattern for query output (activated flag as the reference implementation)'
+DROP	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion	key=None
+DROP	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	46.2026-06-17.sidecar-additive-field-no-schema-bump	key=None
+DROP	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash	key=None
+DROP	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	key=None
+DROP	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	132.2026-06-28.recall-unified-cosine-ranking	key=None
+DROP	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard	key=None
+DROP	56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	key=None
+DROP	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	key=None
+DROP	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	49.2026-06-17.strings-splitseq-go126-modernize	key=None
+DROP	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	58.2026-06-19.engram-modernize-linter-slices-backward	key=None
+DROP	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	124.2026-06-28.wrap-errors-with-context	key=None
+DROP	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	key=None
+DROP	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	key=None
+DROP	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	127.2026-06-28.go-wrap-errors-with-context	key=None
+DROP	58.2026-06-19.engram-modernize-linter-slices-backward	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	key=None
+DROP	58.2026-06-19.engram-modernize-linter-slices-backward	49.2026-06-17.strings-splitseq-go126-modernize	key=None
+DROP	58.2026-06-19.engram-modernize-linter-slices-backward	124.2026-06-28.wrap-errors-with-context	key=None
+DROP	58.2026-06-19.engram-modernize-linter-slices-backward	131.2026-06-28.parallel-test-shared-state	key=None
+DROP	58.2026-06-19.engram-modernize-linter-slices-backward	127.2026-06-28.go-wrap-errors-with-context	key=None
+DROP	58.2026-06-19.engram-modernize-linter-slices-backward	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	key=None
+DROP	58.2026-06-19.engram-modernize-linter-slices-backward	116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz	key=None
+DROP	58.2026-06-19.engram-modernize-linter-slices-backward	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	key=None
+DROP	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	58.2026-06-19.engram-modernize-linter-slices-backward	key=None
+DROP	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	57.2026-06-19.bytes-split-join-trailing-newline-no-separator	key=None
+DROP	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	49.2026-06-17.strings-splitseq-go126-modernize	key=None
+DROP	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes	key=None
+DROP	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	key=None
+DROP	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	131.2026-06-28.parallel-test-shared-state	key=None
+DROP	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	51.2026-06-17.activated-flag-queryitem-yaml-field	key=None
+DROP	59.2026-06-19.nilaway-bytes-split-nil-slice-indexing	124.2026-06-28.wrap-errors-with-context	key=None
+DROP	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	key=None
+DROP	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	key=None
+DROP	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	62.2026-06-20.feedback-stale-docs-cause-design-misses	key=None
+DROP	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	87.2026-06-24.reconcile-recommendation-against-recent-history	key=None
+DROP	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	148.2026-06-30.verify-subagent-reports-against-actual-state	key=None
+DROP	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	25.2026-06-12.ask-before-restoring-deleted-user-data	key=None
+DROP	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	154.2026-07-01.record-parked-observations-durably	key=None
+PERSIST	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	71.2026-06-23.verify-reviewer-blocking-claims-against-code	type=means-ends	key='unverified reviewer blocking claim accepted as true → false design reversal recorded'
+DROP	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	87.2026-06-24.reconcile-recommendation-against-recent-history	key=None
+DROP	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+DROP	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	key=None
+DROP	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	key=None
+DROP	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	key=None
+DROP	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	29.2026-06-12.present-synthesis-as-artifact-not-chat-summary	key=None
+PERSIST	62.2026-06-20.feedback-stale-docs-cause-design-misses	65.2026-06-20.engram-recall-mechanism-synthesize-l2	type=means-ends	key='correct recall mechanism description (--synthesize-l2 clustering vs removed 3-hop subgraph)'
+PERSIST	62.2026-06-20.feedback-stale-docs-cause-design-misses	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	type=causal	key='docs not scrubbed after code removal → agents design for dead paths'
+DROP	62.2026-06-20.feedback-stale-docs-cause-design-misses	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	62.2026-06-20.feedback-stale-docs-cause-design-misses	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	62.2026-06-20.feedback-stale-docs-cause-design-misses	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+PERSIST	62.2026-06-20.feedback-stale-docs-cause-design-misses	133.2026-06-28.engram-recall-unified-cosine-ranking	type=means-ends	key='unified cosine ranking (no separate tiers) replaces removed mechanism stale docs describe'
+DROP	62.2026-06-20.feedback-stale-docs-cause-design-misses	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	key=None
+DROP	62.2026-06-20.feedback-stale-docs-cause-design-misses	34.2026-06-16.working-memory-analog-gap	key=None
+DROP	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	143.2026-06-29.verify-lever-shipped-status-before-framing-open	key=None
+DROP	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	key=None
+DROP	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	key=None
+DROP	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	key=None
+DROP	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	148.2026-06-30.verify-subagent-reports-against-actual-state	key=None
+PERSIST	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	62.2026-06-20.feedback-stale-docs-cause-design-misses	type=causal	key='stale docs/memory surviving code removal → agents design for dead paths'
+DROP	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	key=None
+PERSIST	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	type=means-ends	key='incomplete removal sweep after code change compiles/passes'
+DROP	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	150.2026-07-01.verify-diff-scope-not-just-validity-before-committing	key=None
+DROP	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	130.2026-06-28.verify-cli-with-real-binary-real-paths	key=None
+DROP	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	25.2026-06-12.ask-before-restoring-deleted-user-data	key=None
+DROP	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	151.2026-07-01.claude-code-claudemd-import-always-loaded	key=None
+DROP	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	24.2026-06-12.keep-deterministic-machinery-when-simplifying	key=None
+PERSIST	65.2026-06-20.engram-recall-mechanism-synthesize-l2	132.2026-06-28.recall-unified-cosine-ranking	type=contradiction	key='whether --synthesize-l2 flag is a distinct step vs always-on unified D1 clustering'
+PERSIST	65.2026-06-20.engram-recall-mechanism-synthesize-l2	133.2026-06-28.engram-recall-unified-cosine-ranking	type=contradiction	key='whether --synthesize-l2 flag is a distinct step vs always-on unified cosine clustering'
+DROP	65.2026-06-20.engram-recall-mechanism-synthesize-l2	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+DROP	65.2026-06-20.engram-recall-mechanism-synthesize-l2	34.2026-06-16.working-memory-analog-gap	key=None
+DROP	65.2026-06-20.engram-recall-mechanism-synthesize-l2	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	65.2026-06-20.engram-recall-mechanism-synthesize-l2	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	65.2026-06-20.engram-recall-mechanism-synthesize-l2	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+PERSIST	65.2026-06-20.engram-recall-mechanism-synthesize-l2	62.2026-06-20.feedback-stale-docs-cause-design-misses	type=causal	key='stale docs describing removed --synthesize-l2 flag as current → agents design against dead path'
+PERSIST	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal	type=means-ends	key='incomplete removal sweep after code change compiles/passes'
+PERSIST	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	type=causal	key='gate stubs the binary under test → downstream consumer breakage goes undetected'
+DROP	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	152.2026-07-01.opt-in-deploy-flags-should-be-one-time	key=None
+DROP	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	148.2026-06-30.verify-subagent-reports-against-actual-state	key=None
+DROP	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	key=None
+DROP	67.2026-06-22.corrections-become-reproducible-tests	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+PERSIST	67.2026-06-22.corrections-become-reproducible-tests	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	type=means-ends	key='correction-detector needed to mine corrections for reproducible tests'
+DROP	67.2026-06-22.corrections-become-reproducible-tests	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	key=None
+DROP	67.2026-06-22.corrections-become-reproducible-tests	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	key=None
+DROP	67.2026-06-22.corrections-become-reproducible-tests	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	key=None
+DROP	67.2026-06-22.corrections-become-reproducible-tests	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+DROP	67.2026-06-22.corrections-become-reproducible-tests	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	67.2026-06-22.corrections-become-reproducible-tests	113.2026-06-28.open-injection-point-analysis-not-existing-sites	key=None
+PERSIST	68.2026-06-22.aggregation-is-not-emergent-synthesis	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	type=causal	key='conflating aggregation with emergent synthesis → building retrieval scaffolds that yield zero marginal gain'
+DROP	68.2026-06-22.aggregation-is-not-emergent-synthesis	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+DROP	68.2026-06-22.aggregation-is-not-emergent-synthesis	62.2026-06-20.feedback-stale-docs-cause-design-misses	key=None
+DROP	68.2026-06-22.aggregation-is-not-emergent-synthesis	69.2026-06-23.analogy-is-generator-not-proof	key=None
+DROP	68.2026-06-22.aggregation-is-not-emergent-synthesis	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	key=None
+DROP	68.2026-06-22.aggregation-is-not-emergent-synthesis	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+DROP	68.2026-06-22.aggregation-is-not-emergent-synthesis	34.2026-06-16.working-memory-analog-gap	key=None
+PERSIST	68.2026-06-22.aggregation-is-not-emergent-synthesis	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	type=means-ends	key='emergent synthesis (cross-domain insight) that aggregation cannot produce → need for persisting reasoned conclusions for inspection'
+DROP	69.2026-06-23.analogy-is-generator-not-proof	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	69.2026-06-23.analogy-is-generator-not-proof	68.2026-06-22.aggregation-is-not-emergent-synthesis	key=None
+DROP	69.2026-06-23.analogy-is-generator-not-proof	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	key=None
+DROP	69.2026-06-23.analogy-is-generator-not-proof	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	69.2026-06-23.analogy-is-generator-not-proof	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	key=None
+DROP	69.2026-06-23.analogy-is-generator-not-proof	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	key=None
+DROP	69.2026-06-23.analogy-is-generator-not-proof	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+DROP	69.2026-06-23.analogy-is-generator-not-proof	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+PERSIST	70.2026-06-23.red-baseline-can-falsify-the-premise	33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach	type=causal	key='RED baseline false-pass when capable model already applies the assumed-missing discipline'
+DROP	70.2026-06-23.red-baseline-can-falsify-the-premise	26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests	key=None
+DROP	70.2026-06-23.red-baseline-can-falsify-the-premise	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	70.2026-06-23.red-baseline-can-falsify-the-premise	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	key=None
+DROP	70.2026-06-23.red-baseline-can-falsify-the-premise	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	key=None
+DROP	70.2026-06-23.red-baseline-can-falsify-the-premise	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	key=None
+DROP	70.2026-06-23.red-baseline-can-falsify-the-premise	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+DROP	70.2026-06-23.red-baseline-can-falsify-the-premise	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+PERSIST	71.2026-06-23.verify-reviewer-blocking-claims-against-code	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	type=causal	key='unverified adversarial-reviewer reversal claim accepted at face value → false decision recorded'
+DROP	71.2026-06-23.verify-reviewer-blocking-claims-against-code	142.2026-06-29.gate-that-stubs-the-sut-validates-nothing	key=None
+DROP	71.2026-06-23.verify-reviewer-blocking-claims-against-code	113.2026-06-28.open-injection-point-analysis-not-existing-sites	key=None
+DROP	71.2026-06-23.verify-reviewer-blocking-claims-against-code	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	71.2026-06-23.verify-reviewer-blocking-claims-against-code	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	71.2026-06-23.verify-reviewer-blocking-claims-against-code	67.2026-06-22.corrections-become-reproducible-tests	key=None
+DROP	71.2026-06-23.verify-reviewer-blocking-claims-against-code	63.2026-06-20.verify-shipping-mechanism-before-designing-against-it	key=None
+DROP	71.2026-06-23.verify-reviewer-blocking-claims-against-code	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	key=None
+PERSIST	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	133.2026-06-28.engram-recall-unified-cosine-ranking	type=means-ends	key='unified cosine ranking in one pass — explains why graph expansion adds no marginal retrieval lift'
+PERSIST	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	132.2026-06-28.recall-unified-cosine-ranking	type=means-ends	key='unified cosine ranking in one pass — explains why graph expansion adds no marginal retrieval lift'
+PERSIST	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	65.2026-06-20.engram-recall-mechanism-synthesize-l2	type=means-ends	key='engram query --lazy-chunks unified clustering mechanism — explains why graph expansion is redundant'
+DROP	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	34.2026-06-16.working-memory-analog-gap	key=None
+PERSIST	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	type=means-ends	key='graph expansion = 0 marginal lift in real-skill A/B — provides empirical grounding for scaffold-rejection claim'
+DROP	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	key=None
+DROP	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+PERSIST	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	type=means-ends	key='graph expansion = 0 marginal lift in real-skill A/B — provides empirical support for scaffold-rejection claim'
+DROP	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	77.2026-06-24.recall-not-cost-bottleneck	key=None
+DROP	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	34.2026-06-16.working-memory-analog-gap	key=None
+DROP	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+DROP	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+DROP	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha	key=None
+DROP	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+DROP	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	key=None
+DROP	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	key=None
+PERSIST	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	type=means-ends	key='why persist synthesis when model already reasons the conclusion in-session'
+DROP	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+DROP	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	key=None
+DROP	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	key=None
+DROP	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	key=None
+DROP	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+PERSIST	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	type=causal	key='literal terminal answer enables lookup-and-follow rather than synthesis, yielding 18/18 that masks the real capability gap'
+DROP	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	81.2026-06-24.check-lever-not-already-rolled-back	key=None
+DROP	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+DROP	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+DROP	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline	key=None
+PERSIST	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	type=means-ends	key='cheap-model reasoning on persisted synthesis conclusions'
+DROP	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	69.2026-06-23.analogy-is-generator-not-proof	key=None
+PERSIST	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability	type=means-ends	key='vault notes vs raw chunks for reliable conclusion retrieval'
+PERSIST	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning	type=means-ends	key='transient in-session synthesis lost after session ends'
+DROP	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes	key=None
+DROP	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	key=None
+PERSIST	77.2026-06-24.recall-not-cost-bottleneck	93.2026-06-25.harness-recall-s-is-round1-not-recall	type=means-ends	key='recall_s timer measures round-1 (recall + first build), not recall alone'
+DROP	77.2026-06-24.recall-not-cost-bottleneck	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	key=None
+PERSIST	77.2026-06-24.recall-not-cost-bottleneck	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	type=means-ends	key='build loop as measured cost source vs recall payload'
+PERSIST	77.2026-06-24.recall-not-cost-bottleneck	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	type=means-ends	key='recall cost ~190s vs build loop cost optimization axis'
+DROP	77.2026-06-24.recall-not-cost-bottleneck	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+PERSIST	77.2026-06-24.recall-not-cost-bottleneck	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	type=means-ends	key='content-budget=15 payload cut -61% with flat end-to-end cost/time'
+DROP	77.2026-06-24.recall-not-cost-bottleneck	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+PERSIST	77.2026-06-24.recall-not-cost-bottleneck	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	type=means-ends	key='procedure tax as the cost lever once recall is excluded as bottleneck'
+PERSIST	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	80.2026-06-24.recall-split-not-worth-complexity	type=causal	key='recall split at seam implemented → ~14% cost cut, not worth complexity'
+DROP	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	136.2026-06-28.route-by-capability-tier-not-model-name	key=None
+DROP	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	148.2026-06-30.verify-subagent-reports-against-actual-state	key=None
+DROP	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier	key=None
+PERSIST	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	type=means-ends	key='cheap model capability match on memory-backed tasks justifying seam split'
+DROP	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	key=None
+PERSIST	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	type=means-ends	key='payload-prune synthesis-injection proxy as validated seam-based split'
+DROP	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+PERSIST	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	77.2026-06-24.recall-not-cost-bottleneck	type=causal	key='recall payload -61% cut leaving C1/C2 flat'
+PERSIST	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	type=causal	key='recall payload reduction leaving C1/C2 unchanged → build loop is real cost axis'
+DROP	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+DROP	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	72.2026-06-23.multiphrase-recall-subsumes-graph-expansion	key=None
+DROP	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+DROP	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+DROP	79.2026-06-24.engram-content-budget-default-15-not-bottleneck	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+DROP	80.2026-06-24.recall-split-not-worth-complexity	78.2026-06-24.split-skill-at-seam-not-bespoke-infra	key=None
+DROP	80.2026-06-24.recall-split-not-worth-complexity	136.2026-06-28.route-by-capability-tier-not-model-name	key=None
+PERSIST	80.2026-06-24.recall-split-not-worth-complexity	77.2026-06-24.recall-not-cost-bottleneck	type=causal	key='recall is sub-share of op cost → recall not cost bottleneck'
+PERSIST	80.2026-06-24.recall-split-not-worth-complexity	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	type=causal	key='recall sub-share of op cost → build loop is real cost axis'
+DROP	80.2026-06-24.recall-split-not-worth-complexity	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	key=None
+DROP	80.2026-06-24.recall-split-not-worth-complexity	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	key=None
+DROP	80.2026-06-24.recall-split-not-worth-complexity	145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes	key=None
+DROP	80.2026-06-24.recall-split-not-worth-complexity	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+PERSIST	81.2026-06-24.check-lever-not-already-rolled-back	143.2026-06-29.verify-lever-shipped-status-before-framing-open	type=means-ends	key='lever-status check before proposing as open'
+DROP	81.2026-06-24.check-lever-not-already-rolled-back	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	81.2026-06-24.check-lever-not-already-rolled-back	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	key=None
+DROP	81.2026-06-24.check-lever-not-already-rolled-back	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+DROP	81.2026-06-24.check-lever-not-already-rolled-back	121.2026-06-28.dont-ship-secondary-lever-on-saturated-gauge	key=None
+DROP	81.2026-06-24.check-lever-not-already-rolled-back	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+DROP	81.2026-06-24.check-lever-not-already-rolled-back	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	key=None
+DROP	81.2026-06-24.check-lever-not-already-rolled-back	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+PERSIST	82.2026-06-24.recall-miss-is-structural-not-retrieval	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	type=causal	key="single-fire recall on incoming ask (never re-checked mid-synthesis) → toy fixture can't reproduce miss when disproving note surfaces"
+DROP	82.2026-06-24.recall-miss-is-structural-not-retrieval	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	key=None
+DROP	82.2026-06-24.recall-miss-is-structural-not-retrieval	55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes	key=None
+PERSIST	82.2026-06-24.recall-miss-is-structural-not-retrieval	65.2026-06-20.engram-recall-mechanism-synthesize-l2	type=causal	key='recall fires once on incoming ask → lever invented mid-synthesis never re-checked'
+DROP	82.2026-06-24.recall-miss-is-structural-not-retrieval	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+DROP	82.2026-06-24.recall-miss-is-structural-not-retrieval	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP	82.2026-06-24.recall-miss-is-structural-not-retrieval	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	82.2026-06-24.recall-miss-is-structural-not-retrieval	133.2026-06-28.engram-recall-unified-cosine-ranking	key=None
+DROP	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	key=None
+PERSIST	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	82.2026-06-24.recall-miss-is-structural-not-retrieval	type=means-ends	key='retrieval failure vs synthesis failure distinction'
+DROP	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	key=None
+DROP	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+PERSIST	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	type=means-ends	key='free retrieval probe to isolate retrieval failure from synthesis failure'
+DROP	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval	key=None
+DROP	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank	key=None
+DROP	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+DROP	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	key=None
+DROP	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+PERSIST	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	77.2026-06-24.recall-not-cost-bottleneck	type=means-ends	key='build loop as dollar-cost bottleneck'
+DROP	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	key=None
+PERSIST	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	82.2026-06-24.recall-miss-is-structural-not-retrieval	type=means-ends	key='recall fires once at task-entry, not during synthesis'
+DROP	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+DROP	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+DROP	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+DROP	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	93.2026-06-25.harness-recall-s-is-round1-not-recall	key=None
+DROP	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+DROP	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval	key=None
+DROP	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior	key=None
+DROP	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	key=None
+DROP	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal	key=None
+DROP	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+DROP	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload	key=None
+DROP	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	134.2026-06-28.recency-eval-spread-distractor-ages	key=None
+DROP	87.2026-06-24.reconcile-recommendation-against-recent-history	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	87.2026-06-24.reconcile-recommendation-against-recent-history	61.2026-06-20.gate-reviewer-decision-reversal-verify-scope	key=None
+DROP	87.2026-06-24.reconcile-recommendation-against-recent-history	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	key=None
+DROP	87.2026-06-24.reconcile-recommendation-against-recent-history	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	key=None
+DROP	87.2026-06-24.reconcile-recommendation-against-recent-history	76.2026-06-23.persist-synthesis-for-inspection-not-accuracy	key=None
+DROP	87.2026-06-24.reconcile-recommendation-against-recent-history	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	key=None
+DROP	87.2026-06-24.reconcile-recommendation-against-recent-history	62.2026-06-20.feedback-stale-docs-cause-design-misses	key=None
+DROP	87.2026-06-24.reconcile-recommendation-against-recent-history	60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net	key=None
+PERSIST	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	type=means-ends	key='vague reconcile instruction only halves displacement failure rate'
+DROP	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	82.2026-06-24.recall-miss-is-structural-not-retrieval	key=None
+DROP	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	key=None
+DROP	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	key=None
+DROP	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	key=None
+DROP	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	key=None
+DROP	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	key=None
+DROP	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	key=None
+PERSIST	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	type=causal	key='vague anti-displacement instruction → agent re-rationalizes displacement as legitimate'
+PERSIST	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	type=causal	key='blending action with purpose in a behavioral rule → agent collapses to downstream verb and skips the action'
+DROP	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	key=None
+DROP	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	126.2026-06-28.permission-denied-retry-loop	key=None
+PERSIST	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures	type=means-ends	key='RED/GREEN test that reproduces task-displacement under realistic load'
+DROP	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+PERSIST	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests	type=means-ends	key='pressure tests that verify an anti-displacement instruction survives rationalization'
+DROP	89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task	148.2026-06-30.verify-subagent-reports-against-actual-state	key=None
+PERSIST	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	143.2026-06-29.verify-lever-shipped-status-before-framing-open	type=causal	key='carrying a prior plan forward without re-anchoring → presenting already-shipped lever as open'
+DROP	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean	key=None
+PERSIST	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	82.2026-06-24.recall-miss-is-structural-not-retrieval	type=causal	key='recall fires once on incoming ask and never re-checks levers invented during synthesis → goal-drift on carried work goes undetected'
+DROP	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped	key=None
+DROP	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance	key=None
+DROP	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30	key=None
+DROP	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+PERSIST	90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh	87.2026-06-24.reconcile-recommendation-against-recent-history	type=causal	key='chain of locally-justified tasks without re-anchoring → recommendation contrary to what recent history already established'
+PERSIST	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	93.2026-06-25.harness-recall-s-is-round1-not-recall	type=means-ends	key='real recall cost ~190s (not mislabeled 350s) needed to conclude both cheaper and faster are achievable'
+PERSIST	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	type=causal	key='memory-assisted build end-to-end on small 2-round CRUD → slower and costlier than cold'
+PERSIST	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	type=means-ends	key='post-fire procedure tax (~186s) as the lever to reduce to make both cheaper and more-used'
+PERSIST	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	type=means-ends	key='adversarially verified ledger of where memory wins needed to confirm builds axis claim'
+DROP	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+PERSIST	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	type=means-ends	key='40% build-cost cut via payload-prune addresses the build-loop as the cost sink'
+PERSIST	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	type=means-ends	key='trap regression gate + recall_cost $METER needed before acting on cost/speed conclusions'
+DROP	92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+PERSIST	92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	type=causal	key='preliminary favorable nuance reported without adversarial verify → nuance refuted on verification'
+DROP	92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent	108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction	key=None
+DROP	92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent	143.2026-06-29.verify-lever-shipped-status-before-framing-open	key=None
+PERSIST	92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent	84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute	type=means-ends	key="independent wall-time vs dollar axes needed to avoid collapsing a contingent finding on one axis into a structural 'cannot' across all axes"
+PERSIST	92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	type=causal	key="taking field name at face value ('recall_s'=350s as recall cost) → propagated wrong value that grounded the structural 'cannot' claim"
+DROP	92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent	111.2026-06-28.diagnose-anomalous-runtime-by-measurement-not-guess	key=None
+DROP	92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+PERSIST	93.2026-06-25.harness-recall-s-is-round1-not-recall	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	type=means-ends	key='real recall cost ~190s (not mislabeled 350s) needed to conclude both cheaper and faster are achievable'
+DROP	93.2026-06-25.harness-recall-s-is-round1-not-recall	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	93.2026-06-25.harness-recall-s-is-round1-not-recall	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	93.2026-06-25.harness-recall-s-is-round1-not-recall	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	key=None
+DROP	93.2026-06-25.harness-recall-s-is-round1-not-recall	77.2026-06-24.recall-not-cost-bottleneck	key=None
+DROP	93.2026-06-25.harness-recall-s-is-round1-not-recall	144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing	key=None
+DROP	93.2026-06-25.harness-recall-s-is-round1-not-recall	65.2026-06-20.engram-recall-mechanism-synthesize-l2	key=None
+DROP	93.2026-06-25.harness-recall-s-is-round1-not-recall	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	key=None
+DROP	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+DROP	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+PERSIST	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	93.2026-06-25.harness-recall-s-is-round1-not-recall	type=means-ends	key='recall_s field definition (round-1 timer, not recall-only)'
+DROP	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+DROP	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	key=None
+DROP	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+DROP	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	102.2026-06-26.cost-usage-guardrails-built-gate-and-meter	key=None
+PERSIST	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	type=contradiction	key='warm memory build end-to-end cost vs cold on easy builds'
+DROP	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	key=None
+PERSIST	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	93.2026-06-25.harness-recall-s-is-round1-not-recall	type=means-ends	key='recall_s field definition (round-1 timer, not recall-only)'
+PERSIST	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	type=means-ends	key='procedure tax (~186s) as lever to reduce warm build overhead'
+DROP	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+PERSIST	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	type=means-ends	key='40% build cost cut via payload pruning (synthesis-only injection)'
+PERSIST	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	type=means-ends	key='cheap CRUD build eval structurally biased against memory value'
+DROP	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+DROP	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	156.2026-07-02.date-scope-every-number-in-a-review	key=None
+DROP	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	112.2026-06-28.semantic-overmatch-false-negative-failure-mining	key=None
+DROP	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	81.2026-06-24.check-lever-not-already-rolled-back	key=None
+DROP	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis	key=None
+DROP	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent	key=None
+DROP	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture	key=None
+DROP	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more	key=None
+DROP	96.2026-06-25.adversarial-verify-overturns-favorable-nuance	94.2026-06-25.verify-a-metric-measures-what-its-name-implies	key=None
+PERSIST	97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	type=means-ends	key='narrow reproducible-cold-fail class in easy CRUD builds'
+DROP	97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha	73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds	key=None
+PERSIST	97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	type=causal	key='CRUD oracle cold-fail = dead weight (opus one-shots easy builds cold)'
+PERSIST	97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	type=causal	key='cold-fail occurs only on idiosyncratic gotchas, not derivable content'
+DROP	97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha	77.2026-06-24.recall-not-cost-bottleneck	key=None
+DROP	97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	key=None
+DROP	97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	key=None
+PERSIST	97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	type=means-ends	key='behavioral lever-recheck miss not reproducible in single-note toy fixture'
+PERSIST	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	type=causal	key='narrow reproducible-cold-fail class causes absence of cost/speed wins in eval ledger'
+PERSIST	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	type=means-ends	key='cheap CRUD build eval structurally biased against memory value'
+DROP	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+PERSIST	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha	type=causal	key='cold-fail class is narrow for easy CRUD builds (empirically measured)'
+PERSIST	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	85.2026-06-24.anti-amnesia-miss-not-toy-reproducible	type=means-ends	key='behavioral lever-recheck miss not reproducible in cheap toy fixture'
+DROP	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	key=None
+DROP	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut	key=None
+DROP	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds	key=None
+DROP	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed	key=None
+DROP	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever	key=None
+PERSIST	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value	type=causal	key='cheap-build eval structural bias prevents measuring behavioral payoff'
+DROP	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke	key=None
+DROP	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong	key=None
+DROP	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire	key=None
+DROP	99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability	103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd	key=None

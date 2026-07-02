@@ -1,0 +1,218 @@
+[
+  {
+    "query_id": "Q00",
+    "n": 3,
+    "missed_note": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong.md",
+    "why_needed": "Records a key verified value finding (memory enables cheaper models to match stronger ones) that belongs in any retrospective assessing whether the memory system achieved its goals."
+  },
+  {
+    "query_id": "Q00",
+    "n": 3,
+    "missed_note": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut.md",
+    "why_needed": "Records a shipped optimization result (\u221240% build cost, capability-neutral) that a retrospective on system value must account for when assessing the cost story."
+  },
+  {
+    "query_id": "Q00",
+    "n": 3,
+    "missed_note": "155.2026-07-01.named-sources-in-ask-each-get-a-task.md",
+    "why_needed": "When planning a review/retrospective that enumerates specific sources (design history, docs, evals), each named source should get its own task \u2014 changes how the agent structures the research."
+  },
+  {
+    "query_id": "Q00",
+    "n": 3,
+    "missed_note": "156.2026-07-02.date-scope-every-number-in-a-review.md",
+    "why_needed": "Directly governs how to write a retrospective report that cites measured results from a system that changed over time \u2014 agent must date-scope every number or the report misleads."
+  },
+  {
+    "query_id": "Q00",
+    "n": 3,
+    "missed_note": "77.2026-06-24.recall-not-cost-bottleneck.md",
+    "why_needed": "Key finding that recall payload is not the cost bottleneck (the procedure tax is) \u2014 a retrospective on whether the system achieved efficiency goals must cite this or it misattributes the cost story."
+  },
+  {
+    "query_id": "Q00",
+    "n": 3,
+    "missed_note": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance.md",
+    "why_needed": "Warns that favorable nuances from evals get overturned under adversarial scrutiny \u2014 an agent writing a value assessment should apply this before reporting positive findings as settled."
+  },
+  {
+    "query_id": "Q00",
+    "n": 10,
+    "missed_note": "155.2026-07-01.named-sources-in-ask-each-get-a-task.md",
+    "why_needed": "A retrospective that enumerates specific sources (evals, docs, history) to examine should assign each its own task \u2014 this changes the planning structure of the review."
+  },
+  {
+    "query_id": "Q00",
+    "n": 10,
+    "missed_note": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh.md",
+    "why_needed": "Synthesizing a chain of accumulated evals into a verdict requires re-anchoring on the original product goal to detect drift \u2014 this note directly governs that re-anchoring step."
+  },
+  {
+    "query_id": "Q00",
+    "n": 10,
+    "missed_note": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance.md",
+    "why_needed": "When synthesizing eval results into a verdict ledger, this note changes how favorable/hoped-for nuances are reported \u2014 they must survive adversarial verification before being stated as conclusions."
+  },
+  {
+    "query_id": "Q01",
+    "n": 3,
+    "missed_note": "34.2026-06-16.working-memory-analog-gap.md",
+    "why_needed": "Designing link criteria must account for the working-memory gap (recent session activity vs indexed corpus); wikilinks may be proposed to bridge it, and this note constrains what that can achieve."
+  },
+  {
+    "query_id": "Q01",
+    "n": 3,
+    "missed_note": "69.2026-06-23.analogy-is-generator-not-proof.md",
+    "why_needed": "Directly shapes link-traversal algorithm design: analogy/association links are useful as generators of candidates, not as proof of relevance \u2014 changes how the agent would weight or gate traversal hops."
+  },
+  {
+    "query_id": "Q01",
+    "n": 3,
+    "missed_note": "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+    "why_needed": "Agent may propose graph expansion to fix recall misses; this note says misses are structural (wrong trigger moment), not retrieval failures \u2014 making link traversal the wrong fix and changing the design direction."
+  },
+  {
+    "query_id": "Q01",
+    "n": 10,
+    "missed_note": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction.md",
+    "why_needed": "When the agent encounters 'graph expansion was reverted / zero value,' this note tells it to scope the negative evidence precisely (which query types, which vault conditions) before treating the whole direction as closed."
+  },
+  {
+    "query_id": "Q01",
+    "n": 10,
+    "missed_note": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion.md",
+    "why_needed": "Directly records that graph expansion was evaluated and found to add zero marginal value over multi-phrase cosine recall \u2014 the agent designing traversal variants must know this lever is already closed."
+  },
+  {
+    "query_id": "Q01",
+    "n": 10,
+    "missed_note": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible.md",
+    "why_needed": "The task phrase 're-proposing a settled refuted lever as fresh' is exactly the anti-amnesia failure this note covers \u2014 it tells the agent how to detect and eval that failure mode rather than fall into it."
+  },
+  {
+    "query_id": "Q02",
+    "n": 10,
+    "missed_note": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary.md",
+    "why_needed": "Covers linter conflicts (funlen + wsl_v5) triggered when lifting variables during refactors \u2014 changes how the agent resolves lint failures after extracting functions."
+  },
+  {
+    "query_id": "Q02",
+    "n": 10,
+    "missed_note": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var.md",
+    "why_needed": "Provides the concrete fix pattern (inline instead of var) for funlen+wsl conflicts at scope boundaries during refactoring \u2014 directly actionable during the described task."
+  },
+  {
+    "query_id": "Q02",
+    "n": 10,
+    "missed_note": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing.md",
+    "why_needed": "Covers nilaway false positives on slice indexing in engram Go code \u2014 directly changes how the agent handles nilaway lint failures during refactoring."
+  },
+  {
+    "query_id": "Q02",
+    "n": 10,
+    "missed_note": "70.2026-06-23.red-baseline-can-falsify-the-premise.md",
+    "why_needed": "TDD RED baseline may reveal the assumed failure doesn't exist \u2014 changes how the agent interprets a RED phase result before proceeding with a refactor."
+  },
+  {
+    "query_id": "Q03",
+    "n": 3,
+    "missed_note": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint.md",
+    "why_needed": "Directly addresses how to handle unused struct fields under lint gates during refactoring phases in Go."
+  },
+  {
+    "query_id": "Q03",
+    "n": 10,
+    "missed_note": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint.md",
+    "why_needed": "Teaches that unused-field lint (relevant to gochecknoglobals/similar gates) must be resolved with an early consumer, not nolint suppression \u2014 directly applicable when refactoring structs across internal packages."
+  },
+  {
+    "query_id": "Q03",
+    "n": 10,
+    "missed_note": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary.md",
+    "why_needed": "Covers the funlen+wsl_v5 lint conflict that fires when extracting helpers or lifting variables to reduce cyclomatic complexity \u2014 agent would hit this gate and need the resolution pattern."
+  },
+  {
+    "query_id": "Q03",
+    "n": 10,
+    "missed_note": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var.md",
+    "why_needed": "Gives the concrete fix (inline instead of var) when funlen+wsl block a scope-lift during helper extraction \u2014 complements note 41 with the actual solution."
+  },
+  {
+    "query_id": "Q03",
+    "n": 10,
+    "missed_note": "58.2026-06-19.engram-modernize-linter-slices-backward.md",
+    "why_needed": "Covers linter-required modernization patterns for backward slice iteration in engram Go code \u2014 agent refactoring internal packages would encounter this lint gate."
+  },
+  {
+    "query_id": "Q03",
+    "n": 10,
+    "missed_note": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing.md",
+    "why_needed": "Directly covers nilaway false positives on slice returns in engram Go code \u2014 agent needs this to avoid fighting the linter when refactoring functions that index into bytes.Split results."
+  },
+  {
+    "query_id": "Q04",
+    "n": 3,
+    "missed_note": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary.md",
+    "why_needed": "Refactoring Go functions risks triggering funlen+wsl linter conflicts when lifting variables across scope boundaries."
+  },
+  {
+    "query_id": "Q04",
+    "n": 3,
+    "missed_note": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var.md",
+    "why_needed": "Extracting/restructuring Go functions may require scope lifts that conflict with funlen+wsl_v5 linters."
+  },
+  {
+    "query_id": "Q04",
+    "n": 10,
+    "missed_note": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload.md",
+    "why_needed": "TDD red/green/refactor for engram internals: this note specifies that tests must cover both branches of binary gate fields in structs, changing what the agent writes in the RED phase."
+  },
+  {
+    "query_id": "Q04",
+    "n": 10,
+    "missed_note": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint.md",
+    "why_needed": "During a Go refactor that adds or restructures struct fields, the linter fires on unused fields \u2014 this note says to add an early consumer instead of using nolint, which directly changes how to handle lint in a refactor."
+  },
+  {
+    "query_id": "Q04",
+    "n": 10,
+    "missed_note": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary.md",
+    "why_needed": "Refactoring Go functions often requires lifting variables to outer scopes, triggering funlen+wsl conflicts \u2014 this note gives the specific resolution pattern for engram's linter config."
+  },
+  {
+    "query_id": "Q04",
+    "n": 10,
+    "missed_note": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var.md",
+    "why_needed": "Same funlen+wsl lint conflict during scope changes in a refactor; provides the inline-instead-of-var fix, changing how the agent resolves the specific lint error."
+  },
+  {
+    "query_id": "Q04",
+    "n": 10,
+    "missed_note": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing.md",
+    "why_needed": "The task explicitly mentions nilaway \u2014 this note covers nilaway's behavior with bytes.Split indexing in engram Go code, directly changing how the agent writes or refactors affected code."
+  },
+  {
+    "query_id": "Q12",
+    "n": 3,
+    "missed_note": "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+    "why_needed": "Refactoring Go code that adds t.Parallel() to tests must not introduce shared mutable state across subtests."
+  },
+  {
+    "query_id": "Q12",
+    "n": 10,
+    "missed_note": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing.md",
+    "why_needed": "Directly covers nilaway nil-guard patterns for engram Go code, which is one of the explicit task concerns, and the delivered notes only cover the general gomega pattern not the bytes.Split-specific indexing case."
+  },
+  {
+    "query_id": "Q12",
+    "n": 10,
+    "missed_note": "70.2026-06-23.red-baseline-can-falsify-the-premise.md",
+    "why_needed": "TDD RED baseline for a refactor may contradict the assumed failure mode and require reframing the spec rather than engineering the fixture \u2014 directly changes how the agent runs the red phase of a Go refactor."
+  },
+  {
+    "query_id": "Q22",
+    "n": 10,
+    "missed_note": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing.md",
+    "why_needed": "Directly covers nilaway nil-slice indexing patterns in engram Go code, relevant when adding error-handling with nilaway constraints."
+  }
+]

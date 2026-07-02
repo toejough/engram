@@ -1,0 +1,128 @@
+[
+  {
+    "pair_id": "P3-1",
+    "old_note": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped.md",
+    "new_note": "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes.md",
+    "relation": "scoped-by (120 has explicit wikilink to 153 as 'scoped-by: 2026-07-01 delivery+retrieval eval refutes the re-anchor-to-question prescription')",
+    "old_claim": "Cluster-distilled notes should be reformulated in question-shaped form for better retrieval and delivery (40% vs 79% question-shaped gap).",
+    "new_claim": "Keeping concrete idiosyncratic token is strictly better: re-anchoring to question loses retrieval 10/10 (mean cosine 0.52→0.35) and shows no delivery benefit (62% vs 52%, within 2σ). Note 120's gap is wording-only, delivery-inert.",
+    "phrases": [
+      "improving cluster-distilled memory notes by reformulating them as questions",
+      "question-shaped notes retrieve better than topic-shaped cluster notes",
+      "rewriting cluster summaries to be question-anchored for better recall quality"
+    ],
+    "old_rank": 1,
+    "new_rank": 2,
+    "supersession_miss": false,
+    "note": "Both OLD and NEW surface (OLD=1, NEW=2). Evidence AGAINST L5×T5 headroom: the correction (153) already co-surfaces with the superseded claim (120) under a natural query for the old prescription.",
+    "verified_date": "2026-07-02"
+  },
+  {
+    "pair_id": "P3-2",
+    "old_note": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+    "new_note": "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+    "relation": "corrects (93 states 'corrects 91's premise: recall is 190s not 350s, so faster is not structurally blocked')",
+    "old_claim": "Recall takes ~350s (the harness 'recall_s' field), making memory-assisted builds structurally slower (recall exceeds the cold build). Faster is not achievable.",
+    "new_claim": "The recall_s field timed round-1 = /recall + the ENTIRE first code build (do_build inside the timer). Measured recall-ONLY is ~190s, BELOW the cold build (~288s). 'Faster is structurally impossible' was a measurement artifact.",
+    "phrases": [
+      "recall takes 350 seconds which is the dominant time cost before the build starts",
+      "engram recall step is slower than the cold build making faster builds structurally hard",
+      "recall procedure time exceeds cold build time making memory-assisted builds slower"
+    ],
+    "old_rank": 2,
+    "new_rank": 1,
+    "supersession_miss": false,
+    "note": "Both OLD and NEW surface (NEW=1, OLD=2). The correction is the stronger match. Evidence AGAINST L5×T5 headroom: the 190s corrected value in 93 has stronger embedding signal than the 350s mislabel in 91.",
+    "verified_date": "2026-07-02"
+  },
+  {
+    "pair_id": "P3-3",
+    "old_note": "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+    "new_note": "65.2026-06-20.engram-recall-mechanism-synthesize-l2.md",
+    "relation": "fixes-leg (65 documents the note-floor fix: 'capWithNoteFloor, 2026-06-28 reserves per-phrase slots so relevant notes are not drowned by chunks', addressing 82's claim that 'crystallized notes are outranked by raw chunks even on a lever-keyed query')",
+    "old_claim": "Crystallized notes are outranked by raw chunks even on a lever-keyed query; the recent-activity channel is chunks-only so a fresh disproving NOTE has no recency safety-net.",
+    "new_claim": "The matched-note FLOOR (capWithNoteFloor, shipped 2026-06-28) reserves per-phrase slots so relevant notes are not drowned by chunks. Note recall@5 improved 0.22→0.83 (embedder ceiling).",
+    "phrases": [
+      "crystallized vault notes not surfacing in recall because chunks outrank them cosine ranking",
+      "notes outranked by raw transcript chunks in recall even on a note-keyed query",
+      "memory notes buried below chunks in unified cosine ranking cannot surface for the right query"
+    ],
+    "old_rank": null,
+    "new_rank": 4,
+    "supersession_miss": false,
+    "note": "OLD (82) is ABSENT from top-10; NEW (65) surfaces at rank 4. Unusual outcome: cosine maps 'notes drowned by chunks' queries directly to the fix (65) not the problem note (82). Evidence AGAINST L5×T5 headroom for this leg: the correction is already the better vocabulary match.",
+    "verified_date": "2026-07-02"
+  },
+  {
+    "pair_id": "P3-4",
+    "old_note": "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+    "new_note": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped.md",
+    "relation": "addresses-leg (139 shipped the CLAUDE.md guidance that closed 82's structural miss: 'before building a new approach' cue catches levers invented post-recall; note 138 verified 0/5→5/5 closure)",
+    "old_claim": "Recall fires once keyed to the incoming ask and never re-checks a lever invented DURING synthesis. This is a structural miss requiring recall-before-recommend re-entry, note-negation override, or reconcile-proposals.",
+    "new_claim": "CLAUDE.md guidance shipped 3 decision-moment cues including 'before building a new approach', which catches levers invented after the initial recall. Re-validated RED 0/5 → GREEN 4/5 via headless harness; the structural miss is addressed.",
+    "phrases": [
+      "recall fires once keyed to the ask but cannot surface a note invented during synthesis",
+      "recall does not re-fire when a lever is conceived after the initial recall completes",
+      "structural recall gap: note exists but is not re-queried after synthesis invents new approach"
+    ],
+    "old_rank": 2,
+    "new_rank": null,
+    "supersession_miss": true,
+    "note": "OLD (82) surfaces at rank 2; NEW (139) is absent from top-10. Supersession miss: an agent finding 82 would still treat this structural gap as open/unfixed, unaware that 139 shipped the guidance that closed it. Potential L5×T5 headroom.",
+    "verified_date": "2026-07-02"
+  },
+  {
+    "pair_id": "P3-5",
+    "old_note": "77.2026-06-24.recall-not-cost-bottleneck.md",
+    "new_note": "136.2026-06-28.route-by-capability-tier-not-model-name.md",
+    "relation": "supersedes-scope (136 explicitly states: 'note 77 named model-tier as future cost target; tier-routing SHIPPED 2026-06-28 (route skill, commit 2bf959f4) closes that lever')",
+    "old_claim": "Future cost work must target build rounds/turns/model-tier, not recall. Model-tier is an open target.",
+    "new_claim": "Model-tier routing is SHIPPED (route skill, 2026-06-28). Express routing by CAPABILITY-TIER not model-name; memory DISCOUNTS the tier. Note 77's named future target is now a closed lever.",
+    "phrases": [
+      "optimizing engram build cost by routing recall to a cheaper model tier",
+      "future cost work for engram should target model-tier routing not the recall payload",
+      "reducing engram dollar cost by using a cheaper model for the recall or build step"
+    ],
+    "old_rank": 4,
+    "new_rank": null,
+    "supersession_miss": true,
+    "note": "OLD (77) surfaces at rank 4; NEW (136) is absent from top-10 (135 surfaces instead). Supersession miss: an agent reading 77 would propose building model-tier routing as an open direction, unaware it already shipped. Potential L5×T5 headroom.",
+    "verified_date": "2026-07-02"
+  },
+  {
+    "pair_id": "P3-6",
+    "old_note": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped.md",
+    "new_note": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing.md",
+    "relation": "supersedes-component (144 overrides 139's cost-filter framing: 139 gated each cue on 'fire only when you expect a vault-specific gotcha'; 144 says optimize against UNDER-FIRING first, treat over-firing as acceptable when rung is cheap, do NOT gate firing to prevent cheap over-fire)",
+    "old_claim": "Recall decision-moment cues are cost-filtered: fire only when you expect a vault-specific gotcha; skip routine work. This is the shipped guidance.",
+    "new_claim": "The bigger risk is UNDER-firing (shipping past a lesson you'd already learned). Over-firing is acceptable when the rung is cheap (glance). Do NOT gate firing to prevent cheap over-fire.",
+    "phrases": [
+      "recall should only fire when I expect a vault-specific gotcha to save on cost",
+      "gating recall with a value filter to skip obvious routine work",
+      "recall cost filter: only fire when content is idiosyncratic not on easy routine tasks"
+    ],
+    "old_rank": 4,
+    "new_rank": null,
+    "supersession_miss": true,
+    "note": "OLD (139) surfaces at rank 4; NEW (144) is absent from top-10. Supersession miss: an agent reading 139 would apply the cost-filter gate (only fire on idiosyncratic work), unaware that 144 overrides this framing in favor of encouraging firing. Potential L5×T5 headroom.",
+    "verified_date": "2026-07-02"
+  },
+  {
+    "pair_id": "P3-7",
+    "old_note": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever.md",
+    "new_note": "136.2026-06-28.route-by-capability-tier-not-model-name.md",
+    "relation": "supersedes-scope (136 explicitly states: 'supersedes-scope: tier-routing SHIPPED 2026-06-28 as the bigger whole-op dollar lever; note 100's only-live-dollar-lever was recall-scoped + written pre-shipping')",
+    "old_claim": "The ONLY live dollar lever is pruning the recall payload out of build context after Step 3 (~1 USD/op). Model-tier routing is not yet shipped and is not in scope here.",
+    "new_claim": "Tier-routing shipped 2026-06-28 as the bigger whole-op dollar lever (route skill). Note 100's 'only live dollar lever' statement was written pre-shipping and is now scoped/superseded.",
+    "phrases": [
+      "the only verified dollar cost lever for engram is pruning the recall payload out of build context",
+      "recall payload pruning is the sole remaining dollar lever after payload cap failed",
+      "making engram cheaper by removing the step-3 recall payload from build context"
+    ],
+    "old_rank": 1,
+    "new_rank": null,
+    "supersession_miss": true,
+    "note": "OLD (100) surfaces at rank 1; NEW (136) is absent from top-10. Supersession miss: an agent reading 100 would treat payload-pruning as THE only remaining dollar lever, unaware that tier-routing shipped as the bigger lever. Potential L5×T5 headroom.",
+    "verified_date": "2026-07-02"
+  }
+]

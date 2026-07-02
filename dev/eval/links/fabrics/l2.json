@@ -1,0 +1,1274 @@
+[
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "type": "means-ends",
+    "key": "recall procedure duration ~190s (not mislabeled 350s) underpinning the ~186s procedure tax figure"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "type": "means-ends",
+    "key": "regression guardrails (trap gate + recall_cost meter) required before optimizing procedure tax"
+  },
+  {
+    "src": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "type": "means-ends",
+    "key": "lighter per-fire recall procedure (glance rung) as validated procedure tax reduction"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "type": "means-ends",
+    "key": "recall_cost $METER for accurate per-run cost tracking"
+  },
+  {
+    "src": "101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "type": "means-ends",
+    "key": "harness recall_s field misinterprets round-1 as recall cost, corrupting per-cell cost estimates"
+  },
+  {
+    "src": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "dst": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "type": "means-ends",
+    "key": "regression guardrails (trap gate + recall_cost meter) required before optimizing procedure tax"
+  },
+  {
+    "src": "103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "type": "means-ends",
+    "key": "C3/C4i/C5/C6 capability wins generalize to crowded vault at realistic scale"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "type": "means-ends",
+    "key": "stub binary to fake buried-at-scale condition without expensive large fixture"
+  },
+  {
+    "src": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "type": "means-ends",
+    "key": "anti-amnesia miss not reproducible in single-recall toy fixture, requiring probe-bounded approach"
+  },
+  {
+    "src": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "dst": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "type": "causal",
+    "key": "assuming payload-size cut is the win before verifying where bulk cost lives"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever",
+    "type": "causal",
+    "key": "assuming payload-size cut is the win before verifying where bulk cost lives"
+  },
+  {
+    "src": "107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "type": "means-ends",
+    "key": "measured fetch-behavior condition required before shipping lazy retrieval"
+  },
+  {
+    "src": "108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction",
+    "dst": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "type": "contradiction",
+    "key": "async/deferred work as a token-cost reduction lever"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "type": "means-ends",
+    "key": "per-fire cost reduction as the mechanism to raise the over-fire ceiling"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "type": "causal",
+    "key": "wording-based value filter failing to hold over-fire below measured ceiling"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "type": "contradiction",
+    "key": "over-firing recall as the primary cost risk to gate against"
+  },
+  {
+    "src": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "dst": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "type": "means-ends",
+    "key": "measured over-fire ceiling and per-fire unit required before proposing fire-more levers"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "type": "means-ends",
+    "key": "failure-turn detection method beyond signal-word matching"
+  },
+  {
+    "src": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "dst": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "type": "means-ends",
+    "key": "corpus failure/correction detection at scale under token budget"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval",
+    "type": "means-ends",
+    "key": "failure-turn detection via LLM reasoning rather than embedding"
+  },
+  {
+    "src": "114.2026-06-28.validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "dst": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "type": "means-ends",
+    "key": "corpus failure detection at volume \u2014 112 has the need, 114 provides the framing-over-tier solution"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "type": "causal",
+    "key": "unified cosine ranking causes raw chunks to surface less reliably than crystallized notes"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "type": "causal",
+    "key": "unified cosine ranking causes raw chunks to surface less reliably than crystallized notes"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "type": "means-ends",
+    "key": "reliable surfacing of recent model conclusions"
+  },
+  {
+    "src": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "type": "causal",
+    "key": "D1 unified clustering puts raw chunks in direct competition with notes, disadvantaging chunks"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "type": "means-ends",
+    "key": "indistinguishable half-life scores caused by homogeneous distractor ages"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "type": "causal",
+    "key": "band guarantee fires regardless of half-life value when all distractors are uniformly old"
+  },
+  {
+    "src": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "dst": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "type": "causal",
+    "key": "stale score collapse to ~0 when distractor age >> all halfLife values tested"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "type": "contradiction",
+    "key": "path resolution correctness when cwd differs from data directory"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "type": "causal",
+    "key": "declaring done on in-memory tests without running installed binary \u2192 path-resolution bug ships"
+  },
+  {
+    "src": "125.2026-06-28.verify-cli-real-binary-real-path-args",
+    "dst": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "type": "means-ends",
+    "key": "installed binary on PATH needed to verify path-resolution behavior"
+  },
+  {
+    "src": "126.2026-06-28.permission-denied-retry-loop",
+    "dst": "128.2026-06-28.permission-denied-stop-retrying",
+    "type": "contradiction",
+    "key": "retrying identical command after permission denied"
+  },
+  {
+    "src": "127.2026-06-28.go-wrap-errors-with-context",
+    "dst": "124.2026-06-28.wrap-errors-with-context",
+    "type": "contradiction",
+    "key": "returning bare err from a Go call site"
+  },
+  {
+    "src": "128.2026-06-28.permission-denied-stop-retrying",
+    "dst": "126.2026-06-28.permission-denied-retry-loop",
+    "type": "contradiction",
+    "key": "retrying identical command after permission denied"
+  },
+  {
+    "src": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "dst": "131.2026-06-28.parallel-test-shared-state",
+    "type": "contradiction",
+    "key": "removing t.Parallel() to fix a racing parallel subtest"
+  },
+  {
+    "src": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "dst": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "type": "means-ends",
+    "key": "go install command for rebuilding engram binary to verify with real binary"
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "type": "means-ends",
+    "key": "unified D1 clustering mechanism that implements the single-pass cosine ranking"
+  },
+  {
+    "src": "132.2026-06-28.recall-unified-cosine-ranking",
+    "dst": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "type": "causal",
+    "key": "raw chunks competing in unified cosine ranking against crystallized vault notes \u2192 chunks surface unreliably"
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "type": "means-ends",
+    "key": "unified D1 clustering mechanism that implements the single-pass cosine ranking"
+  },
+  {
+    "src": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "dst": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "type": "causal",
+    "key": "raw chunks competing in unified cosine ranking against crystallized vault notes \u2192 chunks surface unreliably"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "type": "causal",
+    "key": "band guarantee firing regardless of half-life when all distractors share the same age"
+  },
+  {
+    "src": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "dst": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "type": "causal",
+    "key": "exp2(-90/hl) collapsing all stale scores to ~0 when distractors are uniformly 90 days old"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "type": "means-ends",
+    "key": "sonnet-warm == opus-warm on idiosyncratic capability axes"
+  },
+  {
+    "src": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "dst": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "type": "causal",
+    "key": "hardcoding sonnet as the memory-backed routing target rots on model roster change"
+  },
+  {
+    "src": "136.2026-06-28.route-by-capability-tier-not-model-name",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "type": "means-ends",
+    "key": "capability-tier evidence that cheap-tier matches strong-tier with memory"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "type": "means-ends",
+    "key": "action-naming as the mechanism that holds firing behavior where value-gate wording fails"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "type": "means-ends",
+    "key": "action-named recall cues shipped in CLAUDE.md guidance"
+  },
+  {
+    "src": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "dst": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "type": "means-ends",
+    "key": "neutral-framing test that detects action-collapse under load"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "type": "means-ends",
+    "key": "neutral task-load framing that separates retrieval failure from synthesis failure in eval"
+  },
+  {
+    "src": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "dst": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "type": "means-ends",
+    "key": "neutral-framing test that detects action-collapse under load"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "type": "causal",
+    "key": "shipped CLAUDE.md recall cues \u2192 over-fire ceiling that glance rung relaxes"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "type": "means-ends",
+    "key": "trap regression gate and recall_cost $METER needed to validate shipped recall guidance cost"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "type": "causal",
+    "key": "worded value-gate in shipped guidance does not hold selective firing on opus-4.8"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "type": "means-ends",
+    "key": "glance rung as cheaper alternative to full recall at shipped CLAUDE.md cue points"
+  },
+  {
+    "src": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "type": "causal",
+    "key": "shipped recall cues \u2192 over-fire and after-failure non-fire problems rejected as not worth fixing"
+  },
+  {
+    "src": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "dst": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "type": "means-ends",
+    "key": "glance rung cost-win validation"
+  },
+  {
+    "src": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "type": "means-ends",
+    "key": "theoretical basis for glance rung over-fire ceiling relaxation"
+  },
+  {
+    "src": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "type": "means-ends",
+    "key": "C5 honor-standard failure at glance rung"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload",
+    "type": "causal",
+    "key": "stubbing the SUT binary causes gate to pass without exercising real behavior"
+  },
+  {
+    "src": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "dst": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "type": "means-ends",
+    "key": "real engram binary exercised by regression gate"
+  },
+  {
+    "src": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "dst": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "type": "causal",
+    "key": "presenting a shipped/rolled-back lever as a fresh open proposal"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "type": "means-ends",
+    "key": "over-firing recall treated as the primary risk to gate against"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "type": "causal",
+    "key": "value gate suppressing recall on routine work inflates under-fire risk"
+  },
+  {
+    "src": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "type": "contradiction",
+    "key": "over-firing recall treated as cost ceiling to design against"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "type": "causal",
+    "key": "value-gate over-fire on routine work \u2192 mis-weighted priority (over-firing is not the risk)"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "type": "causal",
+    "key": "value-gate over-fire via wording \u2192 rejected as not worth fixing 2026-06-30"
+  },
+  {
+    "src": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "dst": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "type": "means-ends",
+    "key": "over-fire ceiling not eliminable by wording \u2192 glance rung relaxes it proportionally to lower per-fire cost"
+  },
+  {
+    "src": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "dst": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "type": "causal",
+    "key": "undated/unscoped measured result carried as current \u2192 overstated live gap"
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "type": "means-ends",
+    "key": "over-firing not worth fixing (Joe rejection) \u2192 under-firing is the actual risk to address"
+  },
+  {
+    "src": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "dst": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "type": "means-ends",
+    "key": "value-gate over-fire via wording \u2192 rejected as not worth fixing"
+  },
+  {
+    "src": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "dst": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "type": "causal",
+    "key": "trusting subagent completion report without inspection \u2192 committing repo-wide unintended changes"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "type": "means-ends",
+    "key": "40% build cost cut via payload-prune \u2192 reduces post-fire procedure tax without touching win-nucleus"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "type": "means-ends",
+    "key": "~40% build cost reduction via payload-prune \u2192 addresses build-loop cost axis identified as the payoff lever"
+  },
+  {
+    "src": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "type": "means-ends",
+    "key": "40% build cost cut via synthesis-injection \u2192 partially addresses warm-build being costlier than cold"
+  },
+  {
+    "src": "150.2026-07-01.verify-diff-scope-not-just-validity-before-committing",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "type": "means-ends",
+    "key": "subagent report trusted before diff inspection leads to out-of-scope changes committed"
+  },
+  {
+    "src": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "dst": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "type": "means-ends",
+    "key": "CLAUDE.md @import always-on context at launch enabling recall trigger guidance"
+  },
+  {
+    "src": "152.2026-07-01.opt-in-deploy-flags-should-be-one-time",
+    "dst": "151.2026-07-01.claude-code-claudemd-import-always-loaded",
+    "type": "means-ends",
+    "key": "always-loaded guidance deployment after one-time opt-in"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "157.2026-07-02.research-means-broad-sweep-not-the-named-source",
+    "type": "causal",
+    "key": "treating a named source as the full scope instead of one example"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "type": "means-ends",
+    "key": "ask item with zero plan/task coverage"
+  },
+  {
+    "src": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "type": "causal",
+    "key": "substituting an adjacent easier source for the ask-named source"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "146.2026-06-30.eval-pass-bars-are-model-specific-remeasure-baseline",
+    "type": "causal",
+    "key": "carrying a number measured on a prior system state as describing the current system"
+  },
+  {
+    "src": "156.2026-07-02.date-scope-every-number-in-a-review",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "type": "causal",
+    "key": "presenting a stale/misattributed number as describing the current system state"
+  },
+  {
+    "src": "157.2026-07-02.research-means-broad-sweep-not-the-named-source",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "type": "causal",
+    "key": "treating a named source as the full scope instead of one example"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "type": "causal",
+    "key": "discarding structured vault IDs and deterministic rules during simplification \u2192 stale references mislead future agents"
+  },
+  {
+    "src": "24.2026-06-12.keep-deterministic-machinery-when-simplifying",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "type": "causal",
+    "key": "removing deterministic dedup/ID machinery \u2192 recall misses become structural not retrieval failures"
+  },
+  {
+    "src": "25.2026-06-12.ask-before-restoring-deleted-user-data",
+    "dst": "60.2026-06-19.cleanup-asks-lean-aggressive-git-as-safety-net",
+    "type": "contradiction",
+    "key": "disposition toward user-deleted files: 25 says ask before restoring, 60 says lean aggressive/trust user's cleanup intent"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "type": "causal",
+    "key": "RED baseline fails to reproduce when capable model already applies the technique"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "type": "causal",
+    "key": "RED baseline run falsifies the design premise rather than confirming the failure mode"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "type": "means-ends",
+    "key": "pressure tests against rationalization loopholes before treating edit as done"
+  },
+  {
+    "src": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "dst": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "type": "means-ends",
+    "key": "skill text must name the concrete action (run RED baseline) not the purpose to prevent agent collapse"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "type": "means-ends",
+    "key": "committed plan doc as reviewable artifact before editing"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "type": "causal",
+    "key": "unvetted plan coverage gap causes shipped lever to be re-presented as open"
+  },
+  {
+    "src": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "dst": "63.2026-06-20.verify-shipping-mechanism-before-designing-against-it",
+    "type": "means-ends",
+    "key": "tracing plan artifacts to ask requirements catches vestigial mechanism assumptions before design executes"
+  },
+  {
+    "src": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "dst": "26.2026-06-12.skill-edits-validated-by-baseline-pressure-tests",
+    "type": "means-ends",
+    "key": "pressure tests against rationalization loopholes before treating edit as done"
+  },
+  {
+    "src": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "dst": "27.2026-06-12.llm-spec-vetting-alignment-gate",
+    "type": "means-ends",
+    "key": "explicit alignment gate tracing plan artifacts to ask requirements before execution"
+  },
+  {
+    "src": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "dst": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "type": "means-ends",
+    "key": "committed plan doc as reviewable artifact the user can react to"
+  },
+  {
+    "src": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "dst": "148.2026-06-30.verify-subagent-reports-against-actual-state",
+    "type": "causal",
+    "key": "trusting fresh-agent pressure test report without verifying actual behavior causes rationalization to pass undetected"
+  },
+  {
+    "src": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "type": "means-ends",
+    "key": "naming the specific rationalization loophole in pressure test instructions to prevent displacement"
+  },
+  {
+    "src": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "dst": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "type": "means-ends",
+    "key": "naming the concrete action (run pressure tests) not the purpose prevents agent collapse into downstream verb"
+  },
+  {
+    "src": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "type": "causal",
+    "key": "chat-summary ratification leaves named ask-sources with zero artifact coverage until gate reviewer flags it"
+  },
+  {
+    "src": "29.2026-06-12.present-synthesis-as-artifact-not-chat-summary",
+    "dst": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "type": "means-ends",
+    "key": "committed plan doc as reviewable artifact the user can react to"
+  },
+  {
+    "src": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "dst": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "type": "contradiction",
+    "key": "role of go test -fuzz: 30 lists it as a PBT framework alongside rapid; 116 assigns it the distinct no-crash oracle role separate from PBT"
+  },
+  {
+    "src": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "dst": "31.2026-06-14.pbt-stateful-model-based-technique",
+    "type": "means-ends",
+    "key": "stateful model-based technique as a specific PBT pattern for testing stateful systems"
+  },
+  {
+    "src": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "dst": "32.2026-06-14.metamorphic-relation-patterns-catalog",
+    "type": "means-ends",
+    "key": "metamorphic relation patterns as oracle technique needed to write PBT properties"
+  },
+  {
+    "src": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "dst": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "type": "causal",
+    "key": "RED baseline failing to reproduce \u2192 premise of 'model needs teaching' is false"
+  },
+  {
+    "src": "34.2026-06-16.working-memory-analog-gap",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "type": "means-ends",
+    "key": "recency-decaying window over both chunks and notes"
+  },
+  {
+    "src": "35.2026-06-16.deliver-full-diverse-set-not-pruned",
+    "dst": "155.2026-07-01.named-sources-in-ask-each-get-a-task",
+    "type": "causal",
+    "key": "silently substituting/dropping user-enumerated items \u2192 removing the diversity/coverage the user asked for"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "type": "means-ends",
+    "key": "recency applied before resolvedItem conversion (scoredChunk/scoredCandidate stage)"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "type": "means-ends",
+    "key": "baseScore (pre-decay cosine) as cutoff input to avoid silencing relevant-but-dormant items"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "type": "means-ends",
+    "key": "recency applied before resolvedItem conversion (scoredChunk/scoredCandidate stage)"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "type": "means-ends",
+    "key": "baseScore (pre-decay cosine) as cutoff input so dormant-but-relevant notes still activate"
+  },
+  {
+    "src": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion1.2026-06-17.note-recency-decay-hooks-into-rankcandidates-before-sort",
+    "dst": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "type": "means-ends",
+    "key": "LastUsed decay on notes in rankCandidates (c1 architecture scope)"
+  },
+  {
+    "src": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "dst": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "type": "means-ends",
+    "key": "export_test.go accessor to satisfy unused-field linter without nolint"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "type": "means-ends",
+    "key": "spread distractor ages to make half-life sweep discriminate parameter values"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "type": "causal",
+    "key": "homogeneous-age distractor pool \u2192 half-life sweep indistinguishable (all stale scores collapse to ~0)"
+  },
+  {
+    "src": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "dst": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "type": "causal",
+    "key": "all distractors 90 days old \u2192 every half-life cell produces plantedRank=0 (exp2(-90/hl) collapses score)"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "type": "means-ends",
+    "key": "QueryDeps.Lock field absent \u2014 bumpLastUsed concurrent sidecar write needs its own write guard"
+  },
+  {
+    "src": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "dst": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "type": "means-ends",
+    "key": "activate write guard requiring its own ActivateDeps struct"
+  },
+  {
+    "src": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "dst": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "type": "means-ends",
+    "key": "inline call-site expression to break funlen+wsl variable-lift cycle"
+  },
+  {
+    "src": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "type": "means-ends",
+    "key": "distractor age spread required for half-life parameter discrimination"
+  },
+  {
+    "src": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var",
+    "dst": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary",
+    "type": "means-ends",
+    "key": "inline call-site expression to break funlen+wsl variable-lift cycle"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "type": "causal",
+    "key": "homogeneous 90-day distractors \u2192 plantedRank=0 via band guarantee not half-life tuning"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "123.2026-06-28.homogeneous-distractor-pool-no-discrimination",
+    "type": "causal",
+    "key": "homogeneous distractor pool age \u2192 zero discrimination across half-life parameter values"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "type": "means-ends",
+    "key": "zero discrimination from homogeneous distractor ages"
+  },
+  {
+    "src": "44.2026-06-17.recency-eval-homogeneous-distractors-no-discrimination",
+    "dst": "38.2026-06-17.recency-eval-sweep-math-dominated-by-halflife",
+    "type": "causal",
+    "key": "90-day-old chunks collapse all halfLife decay scores to ~0 via exp2(-90/hl)"
+  },
+  {
+    "src": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "dst": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "type": "means-ends",
+    "key": "omitempty + ContentHash exclusion satisfies additive-field-no-schema-bump contract"
+  },
+  {
+    "src": "48.2026-06-17.unused-struct-fields-export-test-accessor",
+    "dst": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint",
+    "type": "means-ends",
+    "key": "unused linter failure on struct fields added before their consumer lands"
+  },
+  {
+    "src": "50.2026-06-17.activate-command-deps-struct-pattern",
+    "dst": "39.2026-06-17.integration-test-chunk-query-via-runquery-no-notes1.2026-06-17.query-does-not-hold-vault-lock-activate-needs-its-own-write-guard",
+    "type": "means-ends",
+    "key": "vault write lock for activate sidecar write"
+  },
+  {
+    "src": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "dst": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+    "type": "means-ends",
+    "key": "yaml omitempty struct field pattern for query output struct"
+  },
+  {
+    "src": "52.2026-06-17.sidecar-lastused-omitempty-not-in-contenthash",
+    "dst": "46.2026-06-17.sidecar-additive-field-no-schema-bump",
+    "type": "means-ends",
+    "key": "SidecarSchemaVersion bump requirement for omitempty additive sidecar fields"
+  },
+  {
+    "src": "53.2026-06-17.recency-cutoff-on-basescore-not-decayed",
+    "dst": "36.2026-06-17.recency-band-operate-on-scoredchunk-before-resolveditem-conversion",
+    "type": "means-ends",
+    "key": "pre-decay cosine score field on scoredChunk"
+  },
+  {
+    "src": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "dst": "106.2026-06-27.engram-binary-install-go-install-not-targ-build",
+    "type": "means-ends",
+    "key": "go install command to rebuild the engram binary on PATH for real-binary CLI verification"
+  },
+  {
+    "src": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "dst": "34.2026-06-16.working-memory-analog-gap",
+    "type": "means-ends",
+    "key": "recency-decaying window applied to both chunks (mtime+turn-position) and notes (LastUsed)"
+  },
+  {
+    "src": "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query",
+    "dst": "51.2026-06-17.activated-flag-queryitem-yaml-field",
+    "type": "means-ends",
+    "key": "yaml tag + omitempty struct field pattern for query output (activated flag as the reference implementation)"
+  },
+  {
+    "src": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "dst": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "type": "means-ends",
+    "key": "unverified reviewer blocking claim accepted as true \u2192 false design reversal recorded"
+  },
+  {
+    "src": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "type": "means-ends",
+    "key": "correct recall mechanism description (--synthesize-l2 clustering vs removed 3-hop subgraph)"
+  },
+  {
+    "src": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "dst": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "type": "causal",
+    "key": "docs not scrubbed after code removal \u2192 agents design for dead paths"
+  },
+  {
+    "src": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "type": "means-ends",
+    "key": "unified cosine ranking (no separate tiers) replaces removed mechanism stale docs describe"
+  },
+  {
+    "src": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "type": "causal",
+    "key": "stale docs/memory surviving code removal \u2192 agents design for dead paths"
+  },
+  {
+    "src": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "dst": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "type": "means-ends",
+    "key": "incomplete removal sweep after code change compiles/passes"
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "type": "contradiction",
+    "key": "whether --synthesize-l2 flag is a distinct step vs always-on unified D1 clustering"
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "type": "contradiction",
+    "key": "whether --synthesize-l2 flag is a distinct step vs always-on unified cosine clustering"
+  },
+  {
+    "src": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "dst": "62.2026-06-20.feedback-stale-docs-cause-design-misses",
+    "type": "causal",
+    "key": "stale docs describing removed --synthesize-l2 flag as current \u2192 agents design against dead path"
+  },
+  {
+    "src": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "dst": "64.2026-06-20.doc-memory-scrub-is-part-of-architectural-removal",
+    "type": "means-ends",
+    "key": "incomplete removal sweep after code change compiles/passes"
+  },
+  {
+    "src": "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal",
+    "dst": "142.2026-06-29.gate-that-stubs-the-sut-validates-nothing",
+    "type": "causal",
+    "key": "gate stubs the binary under test \u2192 downstream consumer breakage goes undetected"
+  },
+  {
+    "src": "67.2026-06-22.corrections-become-reproducible-tests",
+    "dst": "112.2026-06-28.semantic-overmatch-false-negative-failure-mining",
+    "type": "means-ends",
+    "key": "correction-detector needed to mine corrections for reproducible tests"
+  },
+  {
+    "src": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "type": "causal",
+    "key": "conflating aggregation with emergent synthesis \u2192 building retrieval scaffolds that yield zero marginal gain"
+  },
+  {
+    "src": "68.2026-06-22.aggregation-is-not-emergent-synthesis",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "type": "means-ends",
+    "key": "emergent synthesis (cross-domain insight) that aggregation cannot produce \u2192 need for persisting reasoned conclusions for inspection"
+  },
+  {
+    "src": "70.2026-06-23.red-baseline-can-falsify-the-premise",
+    "dst": "33.2026-06-14.skills-for-capable-models-enforce-discipline-not-teach",
+    "type": "causal",
+    "key": "RED baseline false-pass when capable model already applies the assumed-missing discipline"
+  },
+  {
+    "src": "71.2026-06-23.verify-reviewer-blocking-claims-against-code",
+    "dst": "61.2026-06-20.gate-reviewer-decision-reversal-verify-scope",
+    "type": "causal",
+    "key": "unverified adversarial-reviewer reversal claim accepted at face value \u2192 false decision recorded"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "type": "means-ends",
+    "key": "unified cosine ranking in one pass \u2014 explains why graph expansion adds no marginal retrieval lift"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "132.2026-06-28.recall-unified-cosine-ranking",
+    "type": "means-ends",
+    "key": "unified cosine ranking in one pass \u2014 explains why graph expansion adds no marginal retrieval lift"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "type": "means-ends",
+    "key": "engram query --lazy-chunks unified clustering mechanism \u2014 explains why graph expansion is redundant"
+  },
+  {
+    "src": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "dst": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "type": "means-ends",
+    "key": "graph expansion = 0 marginal lift in real-skill A/B \u2014 provides empirical grounding for scaffold-rejection claim"
+  },
+  {
+    "src": "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds",
+    "dst": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion",
+    "type": "means-ends",
+    "key": "graph expansion = 0 marginal lift in real-skill A/B \u2014 provides empirical support for scaffold-rejection claim"
+  },
+  {
+    "src": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "dst": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "type": "means-ends",
+    "key": "why persist synthesis when model already reasons the conclusion in-session"
+  },
+  {
+    "src": "75.2026-06-23.synthesis-eval-needs-emergent-not-literal-terminal",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "type": "causal",
+    "key": "literal terminal answer enables lookup-and-follow rather than synthesis, yielding 18/18 that masks the real capability gap"
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "type": "means-ends",
+    "key": "cheap-model reasoning on persisted synthesis conclusions"
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "type": "means-ends",
+    "key": "vault notes vs raw chunks for reliable conclusion retrieval"
+  },
+  {
+    "src": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy",
+    "dst": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning",
+    "type": "means-ends",
+    "key": "transient in-session synthesis lost after session ends"
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "type": "means-ends",
+    "key": "recall_s timer measures round-1 (recall + first build), not recall alone"
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "type": "means-ends",
+    "key": "build loop as measured cost source vs recall payload"
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "type": "means-ends",
+    "key": "recall cost ~190s vs build loop cost optimization axis"
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "type": "means-ends",
+    "key": "content-budget=15 payload cut -61% with flat end-to-end cost/time"
+  },
+  {
+    "src": "77.2026-06-24.recall-not-cost-bottleneck",
+    "dst": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "type": "means-ends",
+    "key": "procedure tax as the cost lever once recall is excluded as bottleneck"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "80.2026-06-24.recall-split-not-worth-complexity",
+    "type": "causal",
+    "key": "recall split at seam implemented \u2192 ~14% cost cut, not worth complexity"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong",
+    "type": "means-ends",
+    "key": "cheap model capability match on memory-backed tasks justifying seam split"
+  },
+  {
+    "src": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "type": "means-ends",
+    "key": "payload-prune synthesis-injection proxy as validated seam-based split"
+  },
+  {
+    "src": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "dst": "77.2026-06-24.recall-not-cost-bottleneck",
+    "type": "causal",
+    "key": "recall payload -61% cut leaving C1/C2 flat"
+  },
+  {
+    "src": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "type": "causal",
+    "key": "recall payload reduction leaving C1/C2 unchanged \u2192 build loop is real cost axis"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "77.2026-06-24.recall-not-cost-bottleneck",
+    "type": "causal",
+    "key": "recall is sub-share of op cost \u2192 recall not cost bottleneck"
+  },
+  {
+    "src": "80.2026-06-24.recall-split-not-worth-complexity",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "type": "causal",
+    "key": "recall sub-share of op cost \u2192 build loop is real cost axis"
+  },
+  {
+    "src": "81.2026-06-24.check-lever-not-already-rolled-back",
+    "dst": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "type": "means-ends",
+    "key": "lever-status check before proposing as open"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "type": "causal",
+    "key": "single-fire recall on incoming ask (never re-checked mid-synthesis) \u2192 toy fixture can't reproduce miss when disproving note surfaces"
+  },
+  {
+    "src": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "dst": "65.2026-06-20.engram-recall-mechanism-synthesize-l2",
+    "type": "causal",
+    "key": "recall fires once on incoming ask \u2192 lever invented mid-synthesis never re-checked"
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "type": "means-ends",
+    "key": "retrieval failure vs synthesis failure distinction"
+  },
+  {
+    "src": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis",
+    "dst": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "type": "means-ends",
+    "key": "free retrieval probe to isolate retrieval failure from synthesis failure"
+  },
+  {
+    "src": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "dst": "77.2026-06-24.recall-not-cost-bottleneck",
+    "type": "means-ends",
+    "key": "build loop as dollar-cost bottleneck"
+  },
+  {
+    "src": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "type": "means-ends",
+    "key": "recall fires once at task-entry, not during synthesis"
+  },
+  {
+    "src": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "dst": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "type": "means-ends",
+    "key": "vague reconcile instruction only halves displacement failure rate"
+  },
+  {
+    "src": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "dst": "88.2026-06-24.task-displacement-reproduced-and-amplified-by-please-lean",
+    "type": "causal",
+    "key": "vague anti-displacement instruction \u2192 agent re-rationalizes displacement as legitimate"
+  },
+  {
+    "src": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "dst": "137.2026-06-29.name-the-action-not-the-purpose-in-behavior-guidance",
+    "type": "causal",
+    "key": "blending action with purpose in a behavioral rule \u2192 agent collapses to downstream verb and skips the action"
+  },
+  {
+    "src": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "dst": "138.2026-06-29.neutral-framing-reproduces-under-load-behavioral-failures",
+    "type": "means-ends",
+    "key": "RED/GREEN test that reproduces task-displacement under realistic load"
+  },
+  {
+    "src": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "dst": "28.2026-06-12.workflow-skill-changes-plan-doc-pressure-tests",
+    "type": "means-ends",
+    "key": "pressure tests that verify an anti-displacement instruction survives rationalization"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "143.2026-06-29.verify-lever-shipped-status-before-framing-open",
+    "type": "causal",
+    "key": "carrying a prior plan forward without re-anchoring \u2192 presenting already-shipped lever as open"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "82.2026-06-24.recall-miss-is-structural-not-retrieval",
+    "type": "causal",
+    "key": "recall fires once on incoming ask and never re-checks levers invented during synthesis \u2192 goal-drift on carried work goes undetected"
+  },
+  {
+    "src": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh",
+    "dst": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "type": "causal",
+    "key": "chain of locally-justified tasks without re-anchoring \u2192 recommendation contrary to what recent history already established"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "type": "means-ends",
+    "key": "real recall cost ~190s (not mislabeled 350s) needed to conclude both cheaper and faster are achievable"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "type": "causal",
+    "key": "memory-assisted build end-to-end on small 2-round CRUD \u2192 slower and costlier than cold"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "type": "means-ends",
+    "key": "post-fire procedure tax (~186s) as the lever to reduce to make both cheaper and more-used"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "type": "means-ends",
+    "key": "adversarially verified ledger of where memory wins needed to confirm builds axis claim"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "type": "means-ends",
+    "key": "40% build-cost cut via payload-prune addresses the build-loop as the cost sink"
+  },
+  {
+    "src": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "dst": "102.2026-06-26.cost-usage-guardrails-built-gate-and-meter",
+    "type": "means-ends",
+    "key": "trap regression gate + recall_cost $METER needed before acting on cost/speed conclusions"
+  },
+  {
+    "src": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "dst": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance",
+    "type": "causal",
+    "key": "preliminary favorable nuance reported without adversarial verify \u2192 nuance refuted on verification"
+  },
+  {
+    "src": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "dst": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "type": "means-ends",
+    "key": "independent wall-time vs dollar axes needed to avoid collapsing a contingent finding on one axis into a structural 'cannot' across all axes"
+  },
+  {
+    "src": "92.2026-06-25.dont-assert-cannot-decompose-axes-structural-vs-contingent",
+    "dst": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "type": "causal",
+    "key": "taking field name at face value ('recall_s'=350s as recall cost) \u2192 propagated wrong value that grounded the structural 'cannot' claim"
+  },
+  {
+    "src": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "type": "means-ends",
+    "key": "real recall cost ~190s (not mislabeled 350s) needed to conclude both cheaper and faster are achievable"
+  },
+  {
+    "src": "94.2026-06-25.verify-a-metric-measures-what-its-name-implies",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "type": "means-ends",
+    "key": "recall_s field definition (round-1 timer, not recall-only)"
+  },
+  {
+    "src": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "dst": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "type": "contradiction",
+    "key": "warm memory build end-to-end cost vs cold on easy builds"
+  },
+  {
+    "src": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "dst": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "type": "means-ends",
+    "key": "recall_s field definition (round-1 timer, not recall-only)"
+  },
+  {
+    "src": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "dst": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "type": "means-ends",
+    "key": "procedure tax (~186s) as lever to reduce warm build overhead"
+  },
+  {
+    "src": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "dst": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "type": "means-ends",
+    "key": "40% build cost cut via payload pruning (synthesis-only injection)"
+  },
+  {
+    "src": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "type": "means-ends",
+    "key": "cheap CRUD build eval structurally biased against memory value"
+  },
+  {
+    "src": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "type": "means-ends",
+    "key": "narrow reproducible-cold-fail class in easy CRUD builds"
+  },
+  {
+    "src": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "type": "causal",
+    "key": "CRUD oracle cold-fail = dead weight (opus one-shots easy builds cold)"
+  },
+  {
+    "src": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "type": "causal",
+    "key": "cold-fail occurs only on idiosyncratic gotchas, not derivable content"
+  },
+  {
+    "src": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "type": "means-ends",
+    "key": "behavioral lever-recheck miss not reproducible in single-note toy fixture"
+  },
+  {
+    "src": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "dst": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "type": "causal",
+    "key": "narrow reproducible-cold-fail class causes absence of cost/speed wins in eval ledger"
+  },
+  {
+    "src": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "dst": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "type": "means-ends",
+    "key": "cheap CRUD build eval structurally biased against memory value"
+  },
+  {
+    "src": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "dst": "97.2026-06-25.cold-fail-is-empirical-not-predictable-pilot-each-gotcha",
+    "type": "causal",
+    "key": "cold-fail class is narrow for easy CRUD builds (empirically measured)"
+  },
+  {
+    "src": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "dst": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible",
+    "type": "means-ends",
+    "key": "behavioral lever-recheck miss not reproducible in cheap toy fixture"
+  },
+  {
+    "src": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "dst": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value",
+    "type": "causal",
+    "key": "cheap-build eval structural bias prevents measuring behavioral payoff"
+  }
+]

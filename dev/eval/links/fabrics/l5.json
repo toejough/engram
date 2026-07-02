@@ -1,0 +1,152 @@
+[
+  {
+    "old": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped",
+    "new": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "type": "narrows",
+    "claim": "recall-at-decision-moments guidance should gate firing on expected value to avoid over-fire"
+  },
+  {
+    "old": "84.2026-06-24.cost-axes-time-vs-dollar-premium-vs-absolute",
+    "new": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "type": "refutes",
+    "claim": "recall phase timing (~350s label) and whether 'faster' is structurally hard for memory ops"
+  },
+  {
+    "old": "77.2026-06-24.recall-not-cost-bottleneck",
+    "new": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "type": "narrows",
+    "claim": "recall payload is not the cost bottleneck \u2014 NEWER confirms this and extends it: cost, speed, and compounding are all refuted as memory levers; only idiosyncratic capability survives"
+  },
+  {
+    "old": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture",
+    "new": "104.2026-06-26.free-retrieval-probe-bounds-expensive-applied-eval",
+    "type": "updates",
+    "claim": "how to handle 'buried at scale' conditions in evals \u2014 OLDER says use a stub binary; NEWER refines: first run a free retrieval probe; only use a stub when the probe confirms the stressor cannot surface naturally"
+  },
+  {
+    "old": "87.2026-06-24.reconcile-recommendation-against-recent-history",
+    "new": "89.2026-06-24.fix-displacement-name-the-rationalization-and-settle-the-task",
+    "type": "narrows",
+    "claim": "vague 'reconcile before recommending / do not displace' instruction is insufficient \u2014 must also name the rationalization pattern to halve residual failures"
+  },
+  {
+    "old": "132.2026-06-28.recall-unified-cosine-ranking",
+    "new": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "type": "updates",
+    "claim": "engram recall merges crystallized notes and raw chunks into one unified cosine ranking with no separate retrieval path"
+  },
+  {
+    "old": "54.2026-06-17.verify-cli-with-real-binary-real-args",
+    "new": "130.2026-06-28.verify-cli-with-real-binary-real-paths",
+    "type": "updates",
+    "claim": "CLI commands taking path arguments must be verified with the real binary and real paths, not just unit tests"
+  },
+  {
+    "old": "126.2026-06-28.permission-denied-retry-loop",
+    "new": "128.2026-06-28.permission-denied-stop-retrying",
+    "type": "updates",
+    "claim": "do not retry a bash command that returned permission denied \u2014 the failure is deterministic"
+  },
+  {
+    "old": "129.2026-06-28.parallel-tests-must-not-share-mutable-state",
+    "new": "131.2026-06-28.parallel-test-shared-state",
+    "type": "updates",
+    "claim": "do not remove t.Parallel() to fix a flaky parallel test \u2014 fix the shared mutable state instead"
+  },
+  {
+    "old": "30.2026-06-14.pbt-frameworks-random-input-property-validation",
+    "new": "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz",
+    "type": "updates",
+    "claim": "Go PBT tool roles: rapid for explicit-oracle property tests, go test -fuzz for no-crash oracle, rapid.MakeFuzz as the bridge"
+  },
+  {
+    "old": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "new": "93.2026-06-25.harness-recall-s-is-round1-not-recall",
+    "type": "narrows",
+    "claim": "recall-only duration (~190s) \u2014 NEWER shows recall_s timer actually includes the full first build, so the ~190s figure cited in OLDER requires reinterpretation of what was measured"
+  },
+  {
+    "old": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed",
+    "new": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "type": "narrows",
+    "claim": "engram memory's cost/speed payoff \u2014 OLDER says both cheaper and faster are achievable; NEWER narrows: cost and speed wins are refuted/below noise; only idiosyncratic capability survives"
+  },
+  {
+    "old": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "new": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30",
+    "type": "refutes",
+    "claim": "whether recall over-firing is a problem worth fixing \u2014 OLDER says glance relaxes the ceiling; NEWER says Joe rejected fixing over-fire as not a concern at all"
+  },
+  {
+    "old": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "new": "132.2026-06-28.recall-unified-cosine-ranking",
+    "type": "refutes",
+    "claim": "whether raw chunks and vault notes travel separate retrieval paths \u2014 OLDER says they compete and chunks surface poorly; NEWER says they merge into one unified cosine ranking with no separate path"
+  },
+  {
+    "old": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever",
+    "new": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "type": "narrows",
+    "claim": "reducing per-fire cost is the lever to increase usage \u2014 NEWER narrows: a glance rung reduces per-fire cost but does NOT dissolve the over-fire ceiling or the separate value gate"
+  },
+  {
+    "old": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "new": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing",
+    "type": "refutes",
+    "claim": "whether over-firing recall is a meaningful cost/risk to gate against"
+  },
+  {
+    "old": "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "new": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "type": "narrows",
+    "claim": "the over-fire tax formula (tax = over-fire x per-fire-cost) applies to recall depth variants \u2014 glance lowers per-fire-cost but does not dissolve the ceiling or value gate"
+  },
+  {
+    "old": "78.2026-06-24.split-skill-at-seam-not-bespoke-infra",
+    "new": "80.2026-06-24.recall-split-not-worth-complexity",
+    "type": "narrows",
+    "claim": "whether to split an agent skill across models to cut cost"
+  },
+  {
+    "old": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "new": "132.2026-06-28.recall-unified-cosine-ranking",
+    "type": "refutes",
+    "claim": "whether engram recall uses separate retrieval paths for notes vs chunks"
+  },
+  {
+    "old": "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds",
+    "new": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut",
+    "type": "updates",
+    "claim": "whether memory-assisted builds can be made cheaper than cold builds"
+  },
+  {
+    "old": "118.2026-06-28.engram-raw-chunks-vs-vault-notes-conclusion-searchability",
+    "new": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "type": "refutes",
+    "claim": "whether raw chunks compete in the same ranking space as crystallized vault notes"
+  },
+  {
+    "old": "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes",
+    "new": "133.2026-06-28.engram-recall-unified-cosine-ranking",
+    "type": "refutes",
+    "claim": "whether engram recall uses separate retrieval paths/tiers for notes vs chunks"
+  },
+  {
+    "old": "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability",
+    "new": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke",
+    "type": "narrows",
+    "claim": "C5 (honor-standard) is a verified capability win for engram memory \u2014 NEWER shows glance rung FAILS C5, narrowing full-depth recall's C5 win to deep (not glance) recall"
+  },
+  {
+    "old": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire",
+    "new": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes",
+    "type": "refutes",
+    "claim": "whether a worded value gate can hold the over-fire ceiling \u2014 OLDER says the gate remains necessary and operative; NEWER says the value gate did not hold via wording on opus-4.8 regardless of prose"
+  },
+  {
+    "old": "42.2026-06-17.recency-eval-band-dominates-recent-probe",
+    "new": "134.2026-06-28.recency-eval-spread-distractor-ages",
+    "type": "updates",
+    "claim": "using homogeneous-age distractors in a recency eval causes no discrimination \u2014 OLDER attributed this to band guarantee masking half-life, NEWER generalizes it to any age-uniform distractor pool masking all decay parameter differences"
+  }
+]
