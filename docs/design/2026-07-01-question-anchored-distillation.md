@@ -115,12 +115,47 @@ applied better on a FUTURE related question than a topic-anchored one.**
   procedure cost). **RED signal:** if delivery-with-notes == delivery-with-no-notes, the grouping adds no leverage
   → park.
 
-## Decision after the eval
+## Results (2026-07-01) — PARK (no delivery benefit; clear retrieval loss)
 
-- **B moves delivery above noise** → invest in the **binary-level question-clustering** (the full form: cluster/
-  distill around question intent in `engram query`, not just skill-level grouping). Spec that as a follow-on.
-- **B ≈ A (below noise)** → **park with evidence**, alongside the other deflated crystallization-quality levers.
-  The verified value stays idiosyncratic capability; we stop polishing distillation.
+Ran as designed: 10 idiosyncratic pairs, opus model + blind name-agnostic opus judge, harness
+`dev/eval/traps/qanchor_{corpus,eval,score,retrieval_probe}.py` (+ `test_qanchor.py`). Total spend ≈ $30.
+
+**Headroom real (not ceiling-limited):** none-condition (cold, no note) delivered the principle only
+**25%** (10/40) — 73% of cases fail cold — so an A≈B null here is a genuine finding, not underpowered.
+
+**Application channel (note injected, opus applies?):**
+
+| Condition | Delivery rate (applied) | ±1σ | Δ vs cold |
+|---|---|---|---|
+| none (cold) | 25% (10/40) | 6.8 pp | — |
+| A — topic-anchored (current) | **62%** (25/40) | 7.7 pp | +37 pp |
+| B — question-anchored (prototype) | 52% (21/40) | 7.9 pp | +27 pp |
+
+B − A = **−10 pp**, inside the 2σ floor (±22 pp) → the pre-registered "B beats A by ≥2σ" bar is **not met**.
+
+**Retrieval channel (FREE probe — cosine of the concrete future question to each note):** topic-anchored
+out-scored question-anchored in **10/10 pairs** (mean 0.52 vs 0.35; one B note abstracted below the 0.25
+relevance floor entirely). So the retrieval channel *inverts* the design's premise — it favors topic-anchoring.
+
+**Unified mechanism:** the **concrete idiosyncratic token is load-bearing on both channels.** Keeping it
+(topic-anchoring) embeds the note nearer a concrete future question (real future questions name the system,
+not the abstract principle) AND lets a downstream agent confidently apply it to the named system.
+Question-abstraction strips the token and loses both ways. Anchoring interacts with lesson TYPE — abstraction
+helped only the 3 transferable-*pattern* pairs (B 83% vs A 58%), lost the 7 concrete-*API* pairs (A 64% vs
+B 39%) — but nets to no win. This is note 119's "proxy moves, outcome doesn't": the note-120 40-vs-79 wording
+gap is real but delivery-inert.
+
+## Decision after the eval — PARK with evidence
+
+- **B ≈ A on delivery AND loses retrieval 10/10 → PARK.** Do not build binary-level question-clustering; do
+  not add a question-shaping skill rule. The phrase-provenance plumbing prototype is **reverted** (backed up:
+  `docs/design/artifacts/2026-07-01-phrase-provenance-plumbing.patch`). The verified value stays idiosyncratic
+  capability (both notes deliver +27–37 pp of it over cold); we stop polishing distillation anchoring.
+- **Note 120 amended, not discarded:** its wording-audit finding stands; its *prescription* ("re-anchor the
+  handle to the question") is refuted on delivery+retrieval and is scoped down accordingly.
+- **Honest bound:** both crystallizer and delivery agent were opus (strong distiller → abstracts topic notes
+  to the principle at read time), and the fictional tokens (needed for headroom) amplify the API-call retrieval
+  deficit. The safe claim is "question-anchoring does not beat topic-anchoring," not "it is strictly worse."
 
 ## Explicitly out of scope / do-not-rebuild
 - The handle-**wording** prose rule (settled-rejected — baseline passes).

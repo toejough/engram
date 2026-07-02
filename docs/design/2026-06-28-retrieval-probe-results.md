@@ -122,7 +122,9 @@ the change — same metric, fair before/after pair; the index grew between the o
 already clear the relevance floor (commit `33821e64`). Trap gate C3–C6 GREEN (no win regression); payload
 neutral-to-smaller (notes swap for chunks within the existing 30-cap). The crystallization audit
 (`2026-06-28-crystallization-audit.md`) is the follow-up: the floor makes a good note surface, but ~half of
-cluster-driven notes are not question-useful, so **question-shaped crystallization** is the next lever. The
+cluster-driven notes are not question-useful, so **question-shaped crystallization** is the next lever (⛔ that
+lever was evaluated and **PARKED** 2026-07-01 — `docs/design/2026-07-01-question-anchored-distillation.md`
+§Results: no delivery benefit (tie within noise) + a clear retrieval loss; the wording gap is delivery-inert). The
 chunk-down-weight (Track 2) was deferred — the floor saturated the note-recall gauge, so it needs its own
 chunk-quality gauge before it's worth shipping.
 

@@ -117,20 +117,24 @@ naming routine examples in the guidance made it *worse*, not better). Accepted b
 glance rung is low-cost; the deeper value-gate problem is tracked as **#665**. Depth-dial arc (#661→#662→#663)
 complete.
 
-### Residual — question-anchored distillation  [QUALITY — handle-wording deflated; clustering/distillation un-measured, in eval]
+### Residual — question-anchored distillation  [QUALITY — ⛔ PARKED 2026-07-01: no delivery benefit + clear retrieval loss]
 The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
-**cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79%). **But the first wave
-(2026-06-28) deflated this lever** (`…question-shaped-crystallization-proposals.md` §First-wave results):
-diagnostic surfacing is healthy (recall@5 0.99, **#4 dropped**); the prose-rule RED baseline *passed* (fresh
-agents already write question-shaped handles when focused), so the audit's gap is a session-load/old-notes
-artifact. **Reframe (2026-07-01):** the *deflated* lever was the handle-**wording** prose rule (+ the retroactive
-`engram resituate` cleanup) — that stays low-priority/settled. The *un-measured* lever is **question-anchored
-clustering/distillation**: recall clusters the matched set by content centroid and discards the query phrases at
-the union, so notes distill the cluster *topic*, not the *question* investigated (never proposed before). Designed
-2026-07-01 (`docs/design/2026-07-01-question-anchored-distillation.md`) — a cheap skill-level prototype (carry
-phrases through + distill per question-intent, cross-cluster) gated on a note-119 **delivery eval**; binary
-re-clustering only if delivery moves above 2σ. The first wave's real win (#7, weaker-model reuse) shipped as Track
-B tier-routing.
+**cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79%). That is a **note-wording audit**
+(haiku judging whether a note *reads* question-shaped), NOT a delivery test. Its prescriptive tail — *"derive the
+handle from the question, not the cluster topic"* — was the un-measured lever: recall clusters by content centroid
+and discards the query phrases at the union, so notes distill the *topic*, not the *question* investigated. Designed
++ prototyped + **eval'd** 2026-07-01 (`docs/design/2026-07-01-question-anchored-distillation.md`).
+**Verdict: PARK** — question-anchoring beats topic-anchoring on **neither** channel. **Application** (note
+injected) topic-anchored 62% vs question-anchored 52% — B−A = −10pp, **inside the 2σ floor (±22pp) → no detectable
+benefit** (a gap below noise is "can't distinguish," not a win). **Retrieval** (cosine of a concrete future
+question to each note) topic-anchored won **10/10** (mean 0.52 vs 0.35) — **a clear loss** for question-anchoring.
+Root cause: the **concrete idiosyncratic token is load-bearing on both channels** — keeping it
+(topic-anchoring) embeds nearer a concrete future question *and* lets a downstream agent confidently apply it to the
+named system; question-abstraction strips the token and loses both ways. The 40-vs-79 wording gap is real but
+**delivery-inert** (note 119's "proxy moves, outcome doesn't"). The handle-**wording** prose rule stays
+settled-rejected; binary re-clustering **not built** (the phrase-provenance plumbing prototype is reverted, backed
+up at `docs/design/artifacts/2026-07-01-phrase-provenance-plumbing.patch`). Harness: `dev/eval/traps/qanchor_*.py`.
+The first wave's real win (#7, weaker-model reuse) shipped as Track B tier-routing.
 
 ### Ranking follow-ups — only if the floor proves too blunt  [QUALITY]
 The note-floor (shipped, see Done) reserves up to `noteFloorK=5` per-phrase slots. If it proves blunt (caps

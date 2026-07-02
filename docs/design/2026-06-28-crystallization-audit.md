@@ -68,6 +68,10 @@ question-shaped crystallization would close.
   path), derive the `situation` handle from the **question/failure it answers**, not the cluster topic; consider
   routing cluster-driven candidates through the same question-shaping the learn (correction) path uses. This
   fixes Finding 1 directly and, paired with failure-mining capture, closes Finding 2's partial+uncovered gap.
+  - **⛔ Update 2026-07-01 — PARKED.** This "derive the handle from the question" prescription was prototyped
+    and evaluated (`docs/design/2026-07-01-question-anchored-distillation.md` §Results): question-anchoring beat
+    topic-anchoring on **neither** channel (delivery tie −10pp; retrieval lost 10/10). Finding 1's 40-vs-79 gap
+    is a real **wording** difference but **delivery-inert** — the concrete idiosyncratic token is what delivers.
 - **Relationship to note 68:** the deeper limit is that engram does aggregation, not relational synthesis — the
   cluster path is structurally topic-shaped. Question-shaping is the cheap near-term lever; the vaultgraph
   relational substrate (note 68) is the longer arc.
