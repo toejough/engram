@@ -80,15 +80,15 @@ Binary = mechanical; LLM = judgment; skills = optional proposals only.
 | Motion | Mechanism | Trigger / cost |
 |---|---|---|
 | **Bootstrap** (idempotent) | `engram vocab bootstrap`: seeds term notes from the validated 25-term set (`dev/eval/links/fabrics/l6.json`) with LLM-written descriptions; embeds them; mechanically tags all existing notes (both channels); generates vocab.index.md. Re-running refreshes assignments without duplicating. | once per vault, ~$2 |
-| **Write-time assign** | On every note write via `learn`/`amend`: cosine(note body vector, term sidecar vectors), top-2 (max 3) ≥ floor; replace-whole-line/list write of both channels | $0, every write, every writer (recall's 2.5 writes + synthesis notes flow through the binary) |
+| **Write-time assign** | On every note write via `learn`/`amend`: cosine(note body vector, term sidecar vectors), top-2 ≥ floor, plus a 3rd iff ≥ floor AND within 0.02 cosine of the 2nd (the close-3rd rider); replace-whole-line/list write of both channels | $0, every write, every writer (recall's 2.5 writes + synthesis notes flow through the binary) |
 | **Growth** | Below-floor → untagged (absent line/key), counted. `engram vocab propose <term> --why` → LLM gate: (a) no existing term covers it, (b) projected attachment ≤ 20% of vault → creates term note, minor version bump, index regen | ~$0.05/proposal |
 | **Health** | `engram vocab stats` → per-term `{term, member_count, vocab_version}` + vault untagged-rate + hub terms (> 25% of vault) + orphan terms (< 2 members) + version staleness | $0 |
 | **Refit** | `engram vocab refit`: LLM prompt = current term notes (name+description) + every note's situation line + the stats structure, instructed: preserve names whose meaning held; merge orphans; split hubs (> 25%); output the new term set with descriptions. Binary then: rewrites/creates/deletes term notes; **renames rewrite member links + frontmatter automatically within the same command**; mechanically re-tags all members; major version bump; index regen | ~$2; fires when untagged-rate > 10% of the last 25 writes, OR any term > 25% of vault, OR vault grew > 30% since last refit |
 | **Regression gate** | After bootstrap/refit/threshold change: S2 recovery probe (free) + C3–C6 trap smoke. Pass: recovery ≥ 60% AND median nomination pool ≤ 40 notes AND traps GREEN | $0–3 |
 
-**Assignment tuning procedure (pinned):** sweep floor ∈ {0.25, 0.30, 0.35, 0.40} × K ∈ {2, 3} on the
+**Assignment tuning procedure (pinned):** sweep floor ∈ {0.25, 0.30, 0.35, 0.40} × K ∈ {2 (with the close-3rd rider — the baseline config), 3 (plain top-3, no rider)} on the
 bootstrapped copy vault; run the S2 probe per config; pick max recovery subject to median pool ≤ 40;
-tie → higher floor. Baselines for reference: mechanical 64.6% @ floor 0.30/K=2(+close-3rd), LLM
+tie → higher floor. Baselines for reference: mechanical 64.6% @ floor 0.30 / K=2 with rider, LLM
 pools ≈ 30 median.
 
 ## Query integration
@@ -102,14 +102,20 @@ pools ≈ 30 median.
 
 1. **Binary substrate:** exclusion filters (2–3 sites) · term-note model · write-time assigner ·
    dual-channel Vocab writer (NEW function ~60–80 LOC, `mergeRelatedSection` as pattern only, with
-   replace-whole rule + tests) · `--supersedes` flag + frontmatter + inverse · the `--relation`
-   removal pass (fields, 6 functions, marker-constant audit). imptest/rapid/gomega; temp-vault
-   integration runs.
-2. **Query:** nomination + ride-along. Gates run against a **bootstrapped COPY of the live vault**
-   (copy → bootstrap on the copy → probe reads the copy's real wikilinks): C3–C6 smoke ·
-   no-regression replay (the 38 zero-miss queries) · S2 recovery probe ≥ 60% @ pool ≤ 40.
-3. **Vocab commands:** bootstrap / propose / stats / refit (with the pinned prompt + rename-rewrite
-   inside refit). Exercised end-to-end on the copy vault. Assignment tuning sweep runs here.
+   replace-whole rule + tests) · **`vocab:` field added to the typed frontmatter structs
+   (`factFrontmatterDoc`/`feedbackFrontmatterDoc`) with a RED test that amend round-trips preserve
+   it (Gate-A code note — without the field, re-renders silently drop the key)** · `--supersedes`
+   flag + frontmatter + inverse · the `--relation` removal pass (fields, 6 functions,
+   marker-constant audit). imptest/rapid/gomega; temp-vault integration runs.
+2. **Vocab commands:** bootstrap / propose / stats / refit (with the pinned prompt + rename-rewrite
+   inside refit). Exercised end-to-end on a **bootstrapped COPY of the live vault** (copy →
+   bootstrap the copy). The assignment tuning sweep runs here and PICKS the config slice 3 gates
+   with. (Ordering note: bootstrap must exist before any copy-vault gate — hence commands precede
+   query integration.)
+3. **Query:** nomination + ride-along, using the slice-2 swept config. Gates against the
+   bootstrapped copy: C3–C6 smoke · no-regression replay (**the 38 zero-miss (query,n) replays,
+   computed from `dev/eval/links/replays.json` minus the (query,n) pairs appearing in
+   `misses_p1.json`**) · S2 recovery probe ≥ 60% @ median pool ≤ 40.
 4. **Skill rewrite BEFORE install (Gate-A reorder, closes the `--relation` window):** recall
    SKILL.md — delete Step 2.6, rewrite 2.5C coverage-table flags (drop `--relation`; `--chunk-source`
    stays; absent-path unchanged otherwise), rewrite Step 4 (synthesis links via `--supersedes` when
@@ -121,7 +127,7 @@ pools ≈ 30 median.
    - `engram vocab bootstrap` on the live vault.
    - **Edge classification (criteria pinned):** LLM sees each of the 77 edges as (source basename,
      target basename, rationale text). Classify SUPERSESSION only if the rationale states one note
-     refutes/narrows/updates/corrects/scopes the other's claim; thematic/cross-reference/supporting
+     refutes/narrows/updates/corrects/scopes the other's claim (enum mapping pinned: corrects→updates, scopes→narrows); thematic/cross-reference/supporting
      rationales → DROP. Supersession → `supersedes:` frontmatter on the newer note; dropped edges →
      `docs/design/artifacts/2026-07-02-retired-relation-rationales.md` (full rationale text).
    - Strip "Related to:" sections from all note bodies; regenerate index; `engram check` GREEN;
