@@ -160,6 +160,13 @@ intended benefit — needs its own chunk-quality gauge before shipping (vault no
 Engram does *aggregation* (cosine similarity), not *emergent synthesis* (compositional-join / transitive-chain
 / analogical-transfer). The substrate for the real thing is the unused `internal/vaultgraph` wikilink graph,
 via graph-expanded retrieval (spreading activation / GraphRAG local search). Long arc, not next.
+**Link-value exploration RESOLVED the retrieval half of this arc (2026-07-02,
+`docs/design/2026-07-02-link-value-exploration.md`):** spreading activation/PPR is ⛔ KILLED on this vault
+(drops non-activated baseline notes; 32–36 collateral regressions); the WINNER is **controlled-vocab tag
+NOMINATION (L6×TAG)** — 54% retrieval recovery of verified misses, delivery +17.3pp overall / +50pp on
+cross-domain bridges, both above 2σ, zero collateral. Supersession edges (L5×T5) proven as mechanism,
+underpowered on delivery. Ship-shape (pending Joe's go): learn assigns controlled-vocab tags at write time;
+one-time retroactive tag sweep (~$1.50); binary extends candidate nomination with tag-match, C3–C6-gated.
 
 ### Deeper arc — rebuild the skills from behavioral atoms  [ARCHITECTURE — Joe 2026-06-29]
 The skills (recall, learn, please, route) overlap; the underlying *atoms* are distinct behaviors —
