@@ -109,6 +109,9 @@ const (
 	// closeThirdRiderMargin is the maximum cosine gap between the 2nd and 3rd
 	// qualifying term for the close-3rd rider to activate.
 	closeThirdRiderMargin = float32(0.02)
+	fmEnd                 = "\n---\n"
+	// fmStart/fmEnd delimit YAML frontmatter in a note's raw content.
+	fmStart = "---\n"
 	// topVocabTermCount is the maximum number of top-ranked terms selected
 	// before the close-3rd rider check.
 	topVocabTermCount = 2
@@ -197,11 +200,6 @@ func renderVocabYAMLList(terms []string) string {
 // replaceVocabBodyLine replaces (or removes) the `Vocab: [[...]]` line in the
 // note body. Operates only in the body section (after the frontmatter delimiters).
 func replaceVocabBodyLine(content string, terms []string) string {
-	const (
-		fmStart = "---\n"
-		fmEnd   = "\n---\n"
-	)
-
 	if !strings.HasPrefix(content, fmStart) {
 		return replaceVocabBodyLineInSection(content, terms)
 	}
@@ -257,11 +255,6 @@ func replaceVocabBodyLineInSection(section string, terms []string) string {
 // the key is removed. Operates only inside the `---` delimiters so any
 // `vocab:` text in the body is unaffected.
 func replaceVocabFrontmatterList(content string, terms []string) string {
-	const (
-		fmStart = "---\n"
-		fmEnd   = "\n---\n"
-	)
-
 	if !strings.HasPrefix(content, fmStart) {
 		return content
 	}

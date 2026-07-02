@@ -63,10 +63,10 @@ type AmendDeps struct {
 	LogWarning  func(string, ...any)
 }
 
-// RunAmend modifies a note in place. It merges --relation links into the
-// "Related to:" body section (idempotent), merges --chunk-source ids into the
-// frontmatter "sources:" list (idempotent), and overwrites only the supplied
-// content fields. Re-embeds only when content changed. --activate bumps
+// RunAmend modifies a note in place. It applies --supersedes entries to the
+// frontmatter "supersedes:" list and the "Supersedes:" body line (replace-whole,
+// idempotent), merges --chunk-source ids into the frontmatter "sources:" list
+// (idempotent), and overwrites only the supplied content fields. Re-embeds only when content changed. --activate bumps
 // LastUsed in the same write.
 func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Writer) error {
 	// Acquire the vault lock before any read-modify-write on the note so

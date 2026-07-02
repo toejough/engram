@@ -9,6 +9,10 @@ import (
 
 // Exported constants.
 const (
+	// RelatedSectionMarker is retained for backward compatibility: unmigrated
+	// vault bodies still carry "Related to:" sections (the ritual was removed
+	// 2026-07-02; bodies are stripped by the vocab migration). Hash exclusion
+	// must keep working for them until that migration lands, then this can go.
 	RelatedSectionMarker = "Related to:"
 )
 
