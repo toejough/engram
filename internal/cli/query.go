@@ -272,8 +272,9 @@ type queryBudget struct {
 	ContentBudget        int `yaml:"content_budget"`
 	ChunksSnippeted      int `yaml:"chunks_snippeted"`
 	// TagNominationsAdded/Dropped surface the tag-match nomination tally
-	// (no-silent-caps rule): added = nominations merged into candidate_l2s
-	// post-cap; dropped = nominations truncated by nominationCapPerCluster.
+	// (no-silent-caps rule): added = nominations OFFERED post-cap (render-time
+	// path-dedup may skip ones already present as candidates); dropped =
+	// nominations truncated by nominationCapPerCluster (exact, at the cap site).
 	TagNominationsAdded   int  `yaml:"tag_nominations_added,omitempty"`
 	TagNominationsDropped int  `yaml:"tag_nominations_dropped,omitempty"`
 	LazyChunks            bool `yaml:"lazy_chunks,omitempty"`
