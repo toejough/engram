@@ -1518,7 +1518,7 @@ for i in 1 2 3; do
 done
 ```
 
-**Expected RED (pinned):** 0/3 runs mention `engram learn qa` in the ad-hoc capture step.
+**RED criterion (pinned, binary):** PASS if 0/3 runs mention `engram learn qa` in the ad-hoc capture step; FAIL if ≥1/3 mention it — record the count and STOP (a failed RED falsifies the premise; a finding, never a fixture to adjust — note 70).
 
 #### B. GREEN — edit `skills/learn/SKILL.md` via `superpowers:writing-skills`, then `engram update`.
 
@@ -1582,9 +1582,11 @@ cat > "$FIXTURE_RED/CLAUDE.md" <<'EOF'
 @/Users/joe/.claude/skills/please/SKILL.md
 EOF
 cd "$FIXTURE_RED"
-claude -p \
-  "You are running the please workflow. You just completed step 6. Describe step 7 in detail." \
-  2>&1 | tee "$FIXTURE_RED/step7-baseline.txt"
+for i in 1 2 3; do
+  claude -p \
+    "You are running the please workflow. You just completed step 6. Describe step 7 in detail." \
+    2>&1 | tee "$FIXTURE_RED/run-$i.txt"
+done
 ```
 
 **RED (pinned, two pre-specified branches):** clean baseline = ≤1/3 runs mention QA capture unprompted in step 7; trained baseline = ≥2/3 (record 2/3-boundary results as trained). GREEN branches, PRE-SPECIFIED (no mid-task improvisation):
@@ -1595,7 +1597,11 @@ claude -p \
 
 #### C. GREEN verification
 
-Same fixture, same prompt. **Pass criterion:** response for step 7 mentions that learn's Step 2.5 owns QA capture and does NOT add a second QA capture call.
+New fixture (same mechanics — @import resolves to the EDITED deployed skill), same prompt, same
+`for i in 1 2 3` loop into `run-$i.txt`. **Pass criterion: the PRE-SPECIFIED branch from RED
+above** — clean baseline → ≥2/3 runs state learn's Step 2.5 owns ad-hoc QA capture AND add no
+second capture call; trained baseline → ≥2/3 runs explicitly cite the single-owner rule AND add
+no second capture call. No other criterion applies.
 
 **Commit:** `feat(please-skill): step 7 pointer — learn owns QA ad-hoc capture`
 
@@ -1638,9 +1644,23 @@ topics = {e[\"question\"] for e in data}
 assert len(topics) >= 10, f'Need >=10 distinct topics, got {len(topics)}'
 print(f'PASS: {len(data)} paraphrases, {len(topics)} topics')
 "
+
+# AND (Gate A R2 — false-failure guard): after seeding, every corpus target must exist —
+# a date-stamped seeder that drifts from the pre-registered basenames would otherwise report
+# a FALSE Q-channel FAIL (<60%) that is actually a harness bug, and the round-3 gate would
+# record it. Fail loud BEFORE any scoring:
+python3 -c "
+import json, glob, os, sys
+vault = os.environ['COPY_VAULT']
+data = json.load(open('dev/eval/qa/arm_v_large_n.json'))
+have = {os.path.basename(f)[:-3] for f in glob.glob(os.path.join(vault, 'qa.*.md'))}
+missing = sorted({e['target_q_basename'] for e in data} - have)
+assert not missing, f'HARNESS BUG — corpus targets absent from seeded vault: {missing}'
+print('PASS: all corpus target_q_basenames exist in the seeded copy vault')
+"
 ```
 
-This must pass before the harness runs.
+Both checks must pass before the harness scores anything.
 
 **Result handling:** record the Arm V large-n result in `dev/eval/qa/results-2026-07-03.md`:
 - PASS (≥80%): Q-channel build LICENSED for round 3.
@@ -1701,7 +1721,8 @@ ENGRAM_VAULT_PATH="$COPY_VAULT" engram learn qa \
   --source "acceptance test 2026-07-03"
 
 echo "=== vault stats ==="
-ENGRAM_VAULT_PATH="$COPY_VAULT" engram vocab stats | grep "qa pairs:"
+ENGRAM_VAULT_PATH="$COPY_VAULT" engram vocab stats | grep "qa pairs:" \
+  || { echo "FAIL: qa pairs line absent from stats"; exit 1; }
 
 echo "=== Q note has no vocab: key ==="
 if ! grep -q "^vocab:" "$COPY_VAULT"/qa.*.qa-acceptance-test.q.md; then
@@ -1714,10 +1735,12 @@ echo "=== A note has vocab: key (may be empty list if no terms match) ==="
 cat "$COPY_VAULT"/qa.*.acceptance-test.a.md | grep "^vocab:" || echo "(no vocab assigned — OK for bootstrap-only vault)"
 
 echo "=== Q note sidecar exists ==="
-ls "$COPY_VAULT"/qa.*.acceptance-test.q.vec.json && echo "PASS: Q sidecar present"
+ls "$COPY_VAULT"/qa.*.qa-acceptance-test.q.vec.json \
+  && echo "PASS: Q sidecar present" || { echo "FAIL: Q sidecar missing"; exit 1; }
 
 echo "=== A note sidecar exists ==="
-ls "$COPY_VAULT"/qa.*.acceptance-test.a.vec.json && echo "PASS: A sidecar present"
+ls "$COPY_VAULT"/qa.*.qa-acceptance-test.a.vec.json \
+  && echo "PASS: A sidecar present" || { echo "FAIL: A sidecar missing"; exit 1; }
 
 echo "=== Q note excluded from query results ==="
 ENGRAM_VAULT_PATH="$COPY_VAULT" engram query --phrase "qa acceptance test write notes" \
@@ -1727,10 +1750,10 @@ data = yaml.safe_load(sys.stdin.read())
 qa_q_items = [i for i in data.get('items', []) if 'acceptance-test.q' in i.get('path','')]
 assert not qa_q_items, f'Q note appeared in items[]: {qa_q_items}'
 print('PASS: Q note excluded from query items')
-"
+" || { echo "FAIL: Q note leaked into query items"; exit 1; }
 
 rm -rf "$COPY_VAULT"
-echo "Acceptance test complete."
+echo "Acceptance test complete — ALL five criteria hard-gated (stats line, Q-no-vocab, Q sidecar, A sidecar, Q-excluded); any FAIL above exits 1 and blocks the live-vault write."
 ```
 
 #### D. First live QA pair (ONLY after copy-vault acceptance passes)
