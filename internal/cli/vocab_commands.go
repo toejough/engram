@@ -146,10 +146,11 @@ func RunVocabBootstrap(ctx context.Context, args VocabBootstrapArgs, deps VocabD
 
 	// Centroid two-pass over all non-vocab member notes: pass 1 against the
 	// description+exemplar embeddings, pass 2 against the member centroids.
+	// Seed last_refit so the trigger checker has a starting baseline.
 	memberCounts := make(map[string]int)
 
 	if len(terms) > 0 {
-		memberCounts = retagAllNotesTwoPass(deps, args.Vault, terms, floor)
+		memberCounts = retagAllNotesTwoPass(deps, args.Vault, terms, floor, buildLastRefitDoc(deps, args.Vault, when))
 	}
 
 	entries := buildIndexEntries(seed, memberCounts)
@@ -246,9 +247,11 @@ func RunVocabRefit(ctx context.Context, args VocabRefitArgs, deps VocabDeps, std
 	}
 
 	// Re-tag all members against the new term set (centroid two-pass).
+	// Seed last_refit so the trigger checker has a fresh baseline after refit.
 	terms, _ := loadTermVectors(args.Vault, deps.ListMD, deps.ReadFile)
+
 	if len(terms) > 0 {
-		_ = retagAllNotesTwoPass(deps, args.Vault, terms, DefaultVocabFloor)
+		_ = retagAllNotesTwoPass(deps, args.Vault, terms, DefaultVocabFloor, buildLastRefitDoc(deps, args.Vault, when))
 	}
 
 	// Regenerate index.
@@ -487,6 +490,18 @@ func buildIndexEntries(seed []SeedTerm, memberCounts map[string]int) []vocabInde
 	}
 
 	return entries
+}
+
+// buildLastRefitDoc builds a vocabLastRefitDoc stamped with the current note
+// count and date. Used by bootstrap and refit to seed last_refit so the trigger
+// checker has a baseline from the moment the vocab set is (re)initialised.
+func buildLastRefitDoc(deps VocabDeps, vault string, now time.Time) *vocabLastRefitDoc {
+	names, _ := deps.ListMD(vault)
+
+	return &vocabLastRefitDoc{
+		NoteCount: countNonVocabNoteFiles(names),
+		Date:      now.Format(dateFormat),
+	}
 }
 
 // bumpMajorVersion increments the major component and resets the minor to 0.

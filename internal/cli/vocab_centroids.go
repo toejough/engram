@@ -220,12 +220,16 @@ func readCentroidsDoc(vault string, readFile func(string) ([]byte, error)) (voca
 // pass 1 assigns in-memory against descTerms (description+exemplar embeddings),
 // pass 2 re-assigns every note against the member centroids and writes both
 // channels. The derived centroids are persisted to vocab.centroids.json.
+// lastRefit is forwarded to writeCentroidsFile: non-nil seeds the last_refit
+// baseline so the trigger checker has a starting point; pass nil from callers
+// that do not need seeding (e.g. tests that do not exercise trigger fields).
 // Returns pass-2 member counts (for the index).
 func retagAllNotesTwoPass(
 	deps VocabDeps,
 	vault string,
 	descTerms []TermWithVector,
 	floor float32,
+	lastRefit *vocabLastRefitDoc,
 ) map[string]int {
 	noteVecs := loadMemberNoteVectors(deps, vault)
 
@@ -241,7 +245,7 @@ func retagAllNotesTwoPass(
 		deps.LogWarning("vocab: pass-2 assignment: %v", assignErr)
 	}
 
-	writeCentroidsFile(deps, vault, entries)
+	writeCentroidsFile(deps, vault, entries, lastRefit)
 
 	return memberCounts
 }
@@ -269,7 +273,15 @@ func uniformDimVectors(vecs [][]float32) [][]float32 {
 // writeCentroidsFile persists the derived centroids to vocab.centroids.json,
 // stamped with the term sidecars' model id and dims. See vocabCentroidsDoc
 // for the storage rationale (separate derived file, survives embed apply).
-func writeCentroidsFile(deps VocabDeps, vault string, entries map[string]vocabCentroidEntry) {
+// When lastRefit is non-nil it is written into last_refit; bootstrap/refit
+// always pass a non-nil value so the trigger checker has a baseline.
+// RefitPending/RefitReason are intentionally zero: bootstrap/refit is a fresh start.
+func writeCentroidsFile(
+	deps VocabDeps,
+	vault string,
+	entries map[string]vocabCentroidEntry,
+	lastRefit *vocabLastRefitDoc,
+) {
 	names, _ := deps.ListMD(vault)
 	modelID, dims := firstTermSidecarMeta(vault, names, deps.ReadFile)
 
@@ -278,6 +290,7 @@ func writeCentroidsFile(deps VocabDeps, vault string, entries map[string]vocabCe
 		EmbeddingModelID: modelID,
 		Dims:             dims,
 		Terms:            entries,
+		LastRefit:        lastRefit,
 	}
 
 	data, _ := json.Marshal(doc) //nolint:errchkjson // finite floats + string keys never fail to encode

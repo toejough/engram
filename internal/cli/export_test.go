@@ -73,6 +73,7 @@ var (
 	ExportRenderFeedbackBody               = renderFeedbackBody
 	ExportRenderFeedbackFrontmatter        = renderFeedbackFrontmatter
 	ExportResolveVault                     = resolveVault
+	ExportRetagAllNotesTwoPass             = retagAllNotesTwoPass
 	ExportRunActivate                      = RunActivate
 	ExportRunAmend                         = RunAmend
 	ExportRunLearn                         = runLearn

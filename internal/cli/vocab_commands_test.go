@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -168,6 +169,47 @@ func TestNoteContainsAnyRemoval_NoMatch(t *testing.T) {
 
 	g.Expect(cli.ExportNoteContainsAnyRemoval("some content about eval", []string{"nonexistent-term"})).
 		To(BeFalse(), "must return false when no removal term is in content")
+}
+
+// ── Task 4: retagAllNotesTwoPass seeds last_refit ────────────────────────────
+
+// TestRetagAllNotesTwoPass_SeedsLastRefit verifies that a non-nil lastRefit
+// supplied to retagAllNotesTwoPass is written into vocab.centroids.json.
+func TestRetagAllNotesTwoPass_SeedsLastRefit(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	lastRefit := &cli.ExportVocabLastRefitDoc{NoteCount: 50, Date: "2026-07-03"}
+
+	var written []byte
+
+	deps := cli.VocabDeps{
+		ListMD:     func(string) ([]string, error) { return nil, nil },
+		ReadFile:   func(string) ([]byte, error) { return nil, os.ErrNotExist },
+		WriteFile:  func(_ string, data []byte) error { written = data; return nil },
+		LogWarning: nil,
+	}
+
+	cli.ExportRetagAllNotesTwoPass(deps, "/vault", nil, 0.35, lastRefit)
+
+	g.Expect(written).NotTo(BeNil())
+
+	var doc cli.ExportVocabCentroidsDoc
+
+	g.Expect(json.Unmarshal(written, &doc)).NotTo(HaveOccurred())
+
+	if err := json.Unmarshal(written, &doc); err != nil {
+		return
+	}
+
+	g.Expect(doc.LastRefit).NotTo(BeNil())
+
+	if doc.LastRefit == nil {
+		return
+	}
+
+	g.Expect(doc.LastRefit.NoteCount).To(Equal(50))
 }
 
 // ── Coverage: assigner error paths ───────────────────────────────────────────
