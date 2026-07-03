@@ -165,8 +165,11 @@ via graph-expanded retrieval (spreading activation / GraphRAG local search). Lon
 (drops non-activated baseline notes; 32–36 collateral regressions); the WINNER is **controlled-vocab tag
 NOMINATION (L6×TAG)** — 54% retrieval recovery of verified misses, delivery +17.3pp overall / +50pp on
 cross-domain bridges, both above 2σ, zero collateral. Supersession edges (L5×T5) proven as mechanism,
-underpowered on delivery. Ship-shape (pending Joe's go): learn assigns controlled-vocab tags at write time;
-one-time retroactive tag sweep (~$1.50); binary extends candidate nomination with tag-match, C3–C6-gated.
+underpowered on delivery. **✅ WRITE-SIDE SHIPPED 2026-07-03:** vocab term-notes (25-term set, `vocab.<term>.md`,
+dual-channel assignment at every `learn`/`amend` write), tag-match nomination in `candidate_l2s`, supersession
+ride-along, typed `--supersedes` flag, live vault migrated (vocab bootstrap + 6 supersessions classified; retired
+relation edges archived in `docs/design/artifacts/2026-07-02-retired-relation-rationales.md`).
+See `docs/design/2026-07-03-vocab-notes-build-results.md`. Obsidian acceptance (graph hub visibility) pending Joe sign-off.
 
 ### Deeper arc — rebuild the skills from behavioral atoms  [ARCHITECTURE — Joe 2026-06-29]
 The skills (recall, learn, please, route) overlap; the underlying *atoms* are distinct behaviors —

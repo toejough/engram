@@ -1,5 +1,14 @@
 # Design — cross-cluster linking pass for recall (minimal first slice)
 
+> **Superseded 2026-07-02/03.** Step 2.6 (cross-cluster linking via `--relation`) was removed as part of
+> the vocab-notes + linking-replacement build. The link-value exploration
+> (`docs/design/2026-07-02-link-value-exploration.md`) showed prose-wikilink traversal worthless at recall
+> and the winning mechanism was **controlled-vocab tag nomination** (not cross-cluster amend calls).
+> The 77 relation edges were classified and migrated: 6 supersessions typed via `--supersedes` frontmatter
+> (updates/narrows/refutes), the rest archived in
+> `docs/design/artifacts/2026-07-02-retired-relation-rationales.md`. `--relation` and `migrate-links` are
+> removed from the binary. **This doc is kept as historical record; the system it describes no longer operates.**
+
 > **Status: BUILT (2026-06-23).** Step 2.6 is live in `skills/recall/SKILL.md`; the end-to-end
 > isolated-agent proof is `dev/eval/traps/cake.py` (+ `cake_fixtures.py`). Built via
 > `superpowers:writing-skills` TDD. Grounded in `docs/research/2026-06-22-emergent-synthesis-case.md`.

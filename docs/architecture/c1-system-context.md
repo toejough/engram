@@ -89,18 +89,16 @@ phrases with dedup keeping max score, drops items below a **relevance floor**
 (`matchRelevanceFloor`, baseScore < 0.25), and caps the matched set at **~300**
 (`matchSetCap`, 10×30 per phrase). This bounded matched set is the **only clustering
 input**: one AutoK pass over matched notes+chunks (D1 preserved).
-Each cluster carries `candidate_l2s: [{path, cosine, content}]` — the top-5 notes from
-**within that cluster** ranked by centroid cosine (reversed from the earlier
-full-vault nomination of D7). The harness then, **inline and blocking**, reads
-the cluster's members and candidates and applies an **agent-judged coverage
-decision**: **covered** (candidate already states the principle with no material
-omission, judged against the recency-weighted view) → `engram amend --activate
---relation <note sources> --chunk-source <chunk ids>` (refresh recency + enrich
-links/provenance, no content rewrite); **near** (same situation, ≥1 substantive
-claim omitted) → `engram amend --relation … --chunk-source … <re-synthesized
-content>` (update in place, recency-weighted, D6); **absent** (no candidate
-addresses the situation) → `engram learn fact|feedback --relation … --chunk-source
-… --source "<descriptive>"` (create the single representative note).
+Each cluster carries `candidate_l2s: [{path, cosine, content}]` — the within-cluster top-5 notes by centroid
+cosine **plus tag-nominated notes** (notes sharing ≥1 vocab term with the top-3 delivered notes; budget fields
+`tag_nominations_added`/`dropped`; pool cap 40/cluster). Superseded-note ride-alongs are inserted at the next
+rank. The harness then, **inline and blocking**, reads the cluster's members and candidates and applies an
+**agent-judged coverage decision**: **covered** (candidate already states the principle with no material
+omission, judged against the recency-weighted view) → `engram amend --activate --chunk-source <chunk ids>`
+(refresh recency + provenance, no content rewrite); **near** (same situation, ≥1 substantive claim omitted)
+→ `engram amend --chunk-source … <re-synthesized content>` (update in place, recency-weighted, D6);
+**absent** (no candidate addresses the situation) → `engram learn fact|feedback --chunk-source …
+--source "<descriptive>"` (create the single representative note).
 
 **Channel 2 — Recency (un-clustered):** after the matched+clustered set, the
 binary appends the **newest chunks by `IngestedAt`** (`recentFillChunks`, default **25**, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`),
@@ -161,25 +159,18 @@ sequenceDiagram
         end
         Note over H: apply recency weight; judge coverage (covered / near / absent)
         alt covered — candidate already states the principle
-            H->>E: engram amend --target <note> --activate --relation <note srcs> --chunk-source <ids>
-            E->>V: acquire flock, merge relations + provenance, bump LastUsed
+            H->>E: engram amend --target <note> --activate --chunk-source <ids>
+            E->>V: acquire flock, merge provenance, bump LastUsed
             V-->>E: written path
         else near — same situation, substantive claim omitted
-            H->>E: engram amend --target <note> --relation <note srcs> --chunk-source <ids> <re-synth content>
-            E->>V: acquire flock, replace content fields, merge relations + provenance, re-embed
+            H->>E: engram amend --target <note> --chunk-source <ids> <re-synth content>
+            E->>V: acquire flock, replace content fields, merge provenance, re-embed
             V-->>E: written path
         else absent — no candidate addresses the situation
-            H->>E: engram learn fact|feedback --relation <note srcs> --chunk-source <ids> --source "<desc>"
+            H->>E: engram learn fact|feedback --chunk-source <ids> --source "<desc>"
             E->>V: acquire flock, compute Luhmann ID, write note
             V-->>E: written path
         end
-    end
-
-    Note over H: Step 2.6 — cross-cluster linking (precision gate): generate→justify→persist over members
-    loop per surviving cross-cluster candidate (directed relation + 1:1 shared key; default DROP)
-        H->>E: engram amend --target <A> --relation "<B>|<TYPE>: <shared key>" (no --activate)
-        E->>V: acquire flock, merge typed cross-cluster edge
-        V-->>E: written path
     end
 
     Note over H: agent calls engram activate on notes actually USED (covered/near candidates and cited notes only)
