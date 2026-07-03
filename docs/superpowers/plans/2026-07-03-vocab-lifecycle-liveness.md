@@ -1,7 +1,9 @@
 # Vocab lifecycle liveness — investigation plan
 
 > **For agentic workers:** investigate-and-propose ask. The deliverable is a PROPOSALS doc Joe
-> reviews — NO build this round. Measurements are free/cheap; no production changes.
+> reviews — NO build this round. Measurements are free/cheap; no production changes. (Amended
+> post-Gate-A: O0 recalibration-only added; O4 pre-judgment stripped; the detection/action reframe
+> scoped to O2 only; measurement labels honestied; trigger grid pinned with joint replay.)
 
 **Ask (Joe, 2026-07-03, condensed):** think end-to-end about keeping the vocabulary live and
 effective. Learn isn't the only note writer — if vocab checks must follow every write, recall needs
@@ -9,63 +11,102 @@ them too. Joe's lean: learn is the sensible check site (to avoid re-inflating re
 the actual impact is unknown. Investigate a few options balancing liveness/effectiveness vs time/$,
 and present proposals.
 
-**Measured facts this plan stands on (2026-07-03, all free):**
-- `engram vocab stats`: 22 ms, 236 tokens of output — detection cost is negligible ANYWHERE; the
-  real placement cost is PROCEDURE INFLATION (skill length / steps), per the recall-economics
-  notes (140/141/144: under-firing is the risk; every added recall step erodes glance's 2.23×).
-- **Recall is the MAJORITY note-writer:** 73/141 notes (46 via Step 2.5 coverage writes + 27 via
-  Step 4 synthesis) vs learn's 55 — so "detection at the write site" means covering recall, and
-  any learn-only detection misses half the writes unless detection PERSISTS between sites.
-- **The documented +30%-growth refit trigger is mis-tuned:** historical replay fires 8 refits in
-  3 weeks (~$16 + tag churn + gate runs). Percentage triggers on a small base run hot; triggers
-  need recalibration (absolute growth + minimum interval + utility signals), not just placement.
-- Vault growth: 10/35/70/26 notes per week over the last 4 weeks; untagged today 3.6%.
+## Facts, labeled honestly (2026-07-03)
 
-**Key reframe to test (stated at orientation):** detection and action DECOUPLE. If the binary
-evaluates thresholds during any vocab-touching write (learn + amend — which recall's writes flow
-through) and persists a pending verdict, the write SITE stops mattering: a threshold tripped by a
-recall-written note waits, flagged, until the action site next runs. Then Joe's lean (act in learn)
-costs nothing in coverage.
+**Measured:**
+- `engram vocab stats`: 22 ms, ~237 tokens of output. It already flags `[hub]`/`[orphan]` per term
+  and vault-wide untagged-rate — but emits NO verdict line; threshold-comparison output is NET-NEW
+  binary work (~50–100 LOC incl. tests; code-verified against `vocab_commands.go:267`).
+- Vault: 141 memory notes; growth 10/37/75/19 per week (week 4 partial — 4 days in).
+- Untagged today: 3.6%. Write-time threshold hooks: NONE exist today (verified — learn/amend's
+  assignment functions `applyVocabAssignmentAfterLearn`/`...AfterAmend` have no threshold logic).
+- Payload flag feasibility: a top-level `refit_pending` omitempty field ≈5 tokens when set
+  (verified against the queryPayload struct; mechanically trivial).
 
-## Options to model (detection site × action site × trigger set)
+**Estimated (not field-verifiable):** note-origin split ≈ learn 55 / recall-2.5 ≈46 / synthesis 27 /
+eval-other 13 (sums to 141; the `source:` field does not reliably distinguish recall-2.5 writes from
+learn writes — keyword heuristic). Direction is safe: **recall writes roughly half the vault's
+notes.** `resituate` is a further write site (rewrites situation + sidecar — check whether it
+re-assigns vocab; include in the coverage matrix).
 
-- **O1 — Learn-anchored stateless:** learn's sweep runs `vocab stats` (now emitting a binary-computed
-  verdict line); a skill conditional keyed to the observable verdict acts (refit flow / propose).
-  Recall untouched. Staleness bound: triggers are slow-moving; learn runs at every /please bracket.
-- **O2 — Binary-persistent flag:** the binary evaluates thresholds on EVERY vocab-touching write
-  (covers recall's 52% automatically), persists `refit_pending` + reason in index metadata; learn's
-  sweep surfaces + acts on it. Optional: the query payload carries a 1-line pending flag (≈5 tokens,
-  no instruction change) purely as visibility.
-- **O3 — Scheduled autonomous maintenance:** a weekly headless agent (cron/scheduled job) runs
-  stats → refit-if-tripped → regression gates → commits nothing (vault-only). Zero skill inflation
-  anywhere; full autonomy (Joe's stated interest); harness-scheduling dependency. Not
-  relocation-not-reduction (note 108): the check is ~free; the $2 action fires only when tripped.
-- **O4 — Recall-side checks:** modeled honestly for completeness, expected REJECTED on the
-  economics (procedure inflation × fire frequency) given O2 covers recall's writes without recall
-  doing anything.
-- **Cross-cutting — trigger recalibration (applies to every option):** replace +30%-growth with
-  {absolute growth ≥ N notes since last refit (propose N≈40), minimum interval, untagged-rate
-  window with binary-tracked write outcomes, hub threshold unchanged}. Replay each candidate set
-  against vault history (free) and report fire counts.
+**Projected (from growth data, not a script run):** the documented +30%-growth refit trigger
+(baseline: `2026-07-02-vocab-notes-and-linking-replacement.md:86` — the shipped trigger set is
+(a) untagged-rate >10% of last 25 writes, (b) any term >25% of vault, (c) vault grew >30% since
+last refit) would have fired **~8 refits in 3 weeks** at the observed growth (~$16 + tag churn +
+gate runs). Percentage triggers run hot on a small base. Step 1 replaces this projection with a
+real replay.
 
-## Cost model per option (the deliverable's comparison table)
+## The write-site coverage question (Joe's core concern, stated precisely)
 
-Per option: added tokens/steps per learn fire · per recall fire · staleness window · autonomy
-(fires without a human/workflow?) · agent-reliability class (observable predicate vs judgment —
-note 145) · implementation cost (binary/skill/infra) · $ per month at measured growth (check cost ×
-fire frequency + action cost × replayed trip rate).
+Recall writes ~half the notes (2.5C amends/learns + Step 4 synthesis + any resituate use), so any
+design whose DETECTION only runs at learn-time has a staleness window = all vocab-relevant events
+between learn runs. Whether that window matters depends on trigger speed (all current triggers are
+slow-moving aggregates). **The "detection persists so the write site stops mattering" claim is the
+O2 DESIGN, not a property of O1** — O1's window must be modeled honestly, not assumed away
+(Gate-A correction).
+
+## Options to model — the full set, none pre-judged
+
+- **O0 — Recalibrate only, placement unchanged:** keep today's reality (stats on demand, no
+  automatic check anywhere) but fix the trigger set + document a human/agent cadence. Zero
+  implementation. Models the "is the trigger the whole problem?" hypothesis.
+- **O1 — Learn-anchored stateless:** learn's sweep runs `vocab stats` (with the NEW verdict line);
+  a skill conditional keyed to the observable verdict acts (refit flow / propose). Recall untouched.
+  Staleness window = vocab events between learn runs (model it: heavy /please day ≈ 10+ recall
+  writes before the closing learn).
+- **O2 — Binary-persistent flag:** threshold evaluation hooked into BOTH assignment call sites
+  (learn + amend — recall's writes flow through amend/learn; verified hook points exist), verdict
+  persisted as `refit_pending` + reason in **`vocab.centroids.json`** (code-recommended home:
+  machine-maintained, survives `embed apply`, already versioned; index frontmatter would be
+  clobbered by regen). Learn's sweep surfaces + acts; flag clears when the action runs. Optional
+  visibility: the ≈5-token payload field. NOTE (code-verified): the windowed "last-25-writes
+  untagged" trigger needs a write-history ring buffer — the HEAVIEST sub-piece; the vault-wide
+  untagged-rate variant is nearly free. Model both.
+- **O3 — Scheduled autonomous maintenance:** a weekly headless agent runs stats → refit-if-tripped
+  → regression gates. **Named tension (ROADMAP:99):** Joe rejected HOOKS for recall — but that
+  rejection was about procedural inflation during agent reasoning (over-fire 147–380× at ~190s/fire);
+  O3 is background GC in isolation, ~$0 when healthy, ~$2 when tripped — distinguishable, but it IS
+  a scheduling dependency (harness-side; none exists in-repo, verified) and re-opens an
+  autonomy-adjacent decision → **Joe's explicit sign-off is a gate criterion for O3.** Precedent:
+  compound-engineering fires its researcher inside `/ce-plan` — automatic within a workflow, manual
+  at workflow level (`2026-07-02-research-followups.md:129–145`); O1/O2 are that pattern, O3 goes
+  beyond it.
+- **O4 — Recall-side checks:** recall's skill gains the same observable-verdict conditional as
+  learn. Modeled with real numbers like every other option — per-recall-fire overhead (added
+  steps/tokens × fire frequency), against the recall-economics constraints (140/141/144). The
+  RATING follows the modeling.
+
+**Trigger recalibration (cross-cutting AND standalone as O0):** keep (a-vault-wide untagged
+variant) and (b) hub >25% (justified: both are utility signals that never fired falsely in the
+projection); recalibrate (c): candidates = absolute growth ∈ {30, 40, 50} notes × minimum interval
+∈ {7, 14, 30} days × untagged ∈ {vault-wide >8%, windowed >10%/25 (heavy — needs ring buffer)}.
+**Replay the full candidate grid JOINTLY against vault history** (per note 161: verify conjuncts
+co-occur; report per-conjunction fire counts AND which subsets never co-fire) — a real script this
+time, committed with the proposals.
+
+## Cost model (the deliverable's comparison table — one row per option incl. O0 and O4)
+
+Columns: added tokens/steps per learn fire · per recall fire · staleness window (events, not just
+time) · autonomy (fires without a human/workflow?) · agent-reliability class (observable predicate
+vs judgment — note 145) · implementation cost (binary LOC / skill edits / infra) · $ per month
+across growth scenarios {each observed week, steady-40/week} reported as a range + sensitivity.
 
 ## Steps
 
-1. Replay recalibrated trigger candidates against vault history (free python).
-2. Fill the cost model with measured numbers; stress the common cases end-to-end (a heavy /please
-   day with 10 recall writes; an idle week; a new-domain influx driving untagged up).
-3. Draft 3–4 proposals with an explicit recommendation + honest bounds; include what each option
-   does NOT catch.
-4. Proposals doc → `docs/design/2026-07-03-vocab-lifecycle-proposals.md`; Gate C; commit (Gate D);
-   PRESENT to Joe and stop.
+0. Write-site audit: confirm resituate's vocab behavior; finalize the coverage matrix (who writes,
+   what flows through the assignment hooks).
+1. Build + run the trigger-replay script (real, committed): full joint grid vs vault history.
+2. Fill the cost model; stress the three common cases end-to-end: a heavy /please day (10+ recall
+   writes, 2 learn runs), an idle week, a new-domain influx (untagged climbing).
+3. Draft the proposals (O0–O4 + recommendation + honest bounds + what each does NOT catch) →
+   `docs/design/2026-07-03-vocab-lifecycle-proposals.md`; note the ROADMAP Track-A integration the
+   winning option implies (deliverable line, executed on Joe's go).
+4. Gate C; commit (Gate D); PRESENT to Joe and STOP.
 
 ## Constraints
-- No production changes; measurements read-only. Labeled tables with units. Every claim dated.
+- No production changes; measurements/replays read-only against the vault. Labeled tables with
+  units. Every claim carries its label (measured / estimated / projected / replayed).
 - The recommendation must respect: observable-predicate reliability (145), recall economics
-  (140/141/144), relocation≠reduction (108), fire-unit pinning (109).
+  (140/141/144), relocation≠reduction (108 — stated plainly: the CHECK is ~free everywhere; only
+  the ACTION costs, and it fires conditionally), fire-unit pinning (109), joint-conjunct
+  calibration (161).
