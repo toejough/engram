@@ -1,3 +1,7 @@
+> **Update 2026-07-03:** references to Step 2.6 below are historical — the step was removed in the
+> vocab-notes build (glance/deep's read-vs-write split survives; the write side no longer includes
+> cross-cluster linking).
+
 # Recall depth dial (#662) + stale model-tier reconciliation — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or

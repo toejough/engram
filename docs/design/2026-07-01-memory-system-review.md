@@ -106,6 +106,8 @@ successes of the method: each was a cheap kill of a plausible lever before it sh
 5. **The original unanticipated-query ask is still open.** Precision-gated linking (Step 2.6) ships,
    but nothing measures whether persisted edges ever *save* a recall that cosine alone would miss —
    `vaultgraph` sits unused. Note 68's aggregation-vs-synthesis boundary stands unaddressed.
+   **⛔ Update 2026-07-03: measured and RESOLVED — edge traversal is delivery-inert; Step 2.6 was
+   REMOVED; the shipping answer is vocab tag nomination (`2026-07-03-vocab-notes-build-results.md`).**
 6. **Refine is thin.** Recency-weighted conflict resolution works at recall time (C4i 5/5), but there
    is no vault-wide consolidation: no dedup pass, no contradiction sweep, no decay-to-prune. At 154
    notes this is invisible; at 1,000 it may not be. (#648 constants never tuned; #659 prune bug open.)

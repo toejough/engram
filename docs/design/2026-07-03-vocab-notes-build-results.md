@@ -7,65 +7,84 @@
 
 | Slice | Scope | Key commits |
 |---|---|---|
-| 1 · Binary substrate | Exclusion filters (`type: vocab` at `applyFloorAndCap`/`capWithNoteFloor` + pre-clustering); term-note model; write-time cosine assigner (centroid two-pass, floor 0.35, top-3 with close-3rd rider); dual-channel `Vocab:` writer (body line + `vocab:` frontmatter, idempotent replace-whole); `vocab:` field added to typed frontmatter structs; `--supersedes` flag + frontmatter + inverse maintenance; `--relation` removal pass (~200 LOC, 6 functions, `migrateRelationLinks`/`migrate-links` retired, `RelatedSectionMarker` consumers audited); `outbound_links` payload field removed | see slice-1 commit |
-| 2 · Vocab commands | `engram vocab bootstrap` (seeds 25 term-notes from `dev/eval/links/fabrics/l6.json`, embeds, tags all existing notes, generates `vocab.index.md`, idempotent); `engram vocab propose` (LLM-gated: no-overlap + ≤20% attachment); `engram vocab stats`; `engram vocab refit` (LLM-judged: merge/split/rename + member-link rewrite + major-version bump); assignment wiring into learn/amend (term vectors created by bootstrap); assignment tuning sweep completed | see slice-2 commit |
-| 3 · Query integration | Tag-match nomination in `candidate_l2s` (budget fields `tag_nominations_added`/`dropped`, cap 40/cluster); superseded-note ride-along (+1 note per hit); gated: C3–C6 smoke GREEN, 38 zero-miss replays, S2 recovery probe | see slice-3 commit |
-| 4 · Skill rewrite | recall SKILL.md: Step 2.6 deleted, Step 2.5C/4 rewritten (no `--relation`, `--supersedes` only when correcting), overview + mode refs updated; learn SKILL.md: `--supersedes` + auto-vocab language; writing-skills TDD (headless RED/GREEN) | see slice-4 commit |
-| 5 · Migration | Live vault backup verified (file count equal); `engram vocab bootstrap` on live vault; 77 relation edges classified by LLM (criteria: supersession only if rationale states refutes/narrows/updates/corrects/scopes) → 6 supersessions typed, remainder archived in `docs/design/artifacts/2026-07-02-retired-relation-rationales.md`; "Related to:" sections stripped from all note bodies; vocab.index.md generated; `engram check` GREEN | see slice-5 commit |
+| 1 · Binary substrate | Exclusion filters (`type: vocab` at `applyFloorAndCap`/`capWithNoteFloor` + pre-clustering); term-note model; write-time cosine assigner (centroid two-pass, floor 0.35, plain top-3 — the close-3rd rider was swept and dropped in slice 2); dual-channel `Vocab:` writer (body line + `vocab:` frontmatter, idempotent replace-whole); `vocab:` field added to typed frontmatter structs; `--supersedes` flag + frontmatter + inverse maintenance; `--relation` removal pass (~200 LOC, 6 functions, `migrateRelationLinks`/`migrate-links` retired, `RelatedSectionMarker` consumers audited); `outbound_links` payload field removed | `537d4a1a` + fixes `722b43ff` (2026-07-02) |
+| 2 · Vocab commands | `engram vocab bootstrap` (seeds 25 term-notes from `dev/eval/links/fabrics/l6.json`, embeds, tags all existing notes, generates `vocab.index.md`, idempotent); `engram vocab propose` (LLM-gated: no-overlap + ≤20% attachment); `engram vocab stats`; `engram vocab refit` (LLM-judged: merge/split/rename + member-link rewrite + major-version bump); assignment wiring into learn/amend (term vectors created by bootstrap); assignment tuning sweep completed | `43f55a9a`, `12d72074`, `7a107e51` + fixes `f824c85e` (2026-07-02/03) |
+| 3 · Query integration | Tag-match nomination in `candidate_l2s` (budget fields `tag_nominations_added`/`dropped`, cap 40/cluster); superseded-note ride-along (+1 note per hit); gated: C3–C6 smoke GREEN, 38 zero-miss replays, S2 recovery probe | `d426e53c` + fixes `c115004b`, `6251ebb2` (2026-07-03) |
+| 4 · Skill rewrite | recall SKILL.md: Step 2.6 deleted, Step 2.5C/4 rewritten (no `--relation`, `--supersedes` only when correcting), overview + mode refs updated; learn SKILL.md: `--supersedes` + auto-vocab language; writing-skills TDD (headless RED/GREEN) | `22850e56` (2026-07-03) |
+| 5 · Migration | Live vault backup verified (file count equal); `engram vocab bootstrap` on live vault; 77 relation edges classified by LLM (criteria: supersession only if rationale states refutes/narrows/updates/corrects/scopes) → 6 supersessions typed, remainder archived in `docs/design/artifacts/2026-07-02-retired-relation-rationales.md`; "Related to:" sections stripped from all note bodies; vocab.index.md generated; `engram check` GREEN | `e3a8c3fc` (2026-07-03); vault not in git |
 
 ## Gate numbers
 
-### Assignment sweep (slice 2, bootstrapped copy vault)
+### Assignment sweep (slice 2, bootstrapped copy vault, 48-case miss population; 2026-07-03)
 
-Swept floor ∈ {0.25, 0.30, 0.35, 0.40} × K ∈ {2-with-rider, 3-plain} per plan:
+The original pre-registered bar (recovery ≥ 60% AND median pool ≤ 40) proved JOINTLY UNREACHABLE and
+was found miscalibrated — its cited 64.6% baseline had been measured at pool 44, so the bar's two
+halves never co-occurred in any measurement. The slice-2 executor surfaced the FAIL; Joe re-anchored
+the gate to the delivery-validated operating point (the link-exploration S3 eval proved +17.3pp
+delivery at 54.2% recovery / ~30 pool): **PASS = recovery ≥ 54.2% AND median pool ≤ 40.**
 
-| floor | K | recovery | median pool | PICK? |
-|---|---|---|---|---|
-| 0.25 | 2+rider | 61.4% | 44 | no — pool over cap |
-| 0.30 | 2+rider | 58.3% | 31 | candidate |
-| 0.35 | 2+rider | 56.2% | 28 | **PICKED** — max recovery subject to pool ≤ 40 |
-| 0.40 | 2+rider | 49.7% | 22 | lower recovery |
-| 0.30 | 3-plain | 57.1% | 36 | lower than 0.30/rider |
+Final sweep over the shipped mechanism arm (centroid two-pass), floor ∈ {0.25, 0.30, 0.35, 0.40} ×
+K ∈ {K2+rider, K3 = plain top-3} — full table in `dev/eval/links/sweep_s2_results.json`:
 
-**Chosen config: floor 0.35, top-2 with close-3rd rider (within 0.02 of 2nd). Recovery 56.2% @ median pool 28.0.**
+| config (arm \| floor \| K) | recovery (% of 48 cases) | median pool (notes) | verdict vs re-anchored bar |
+|---|---|---|---|
+| twopass \| 0.35 \| K3 | 56.2 (27/48) | 31.0 | **PASS — SELECTED** (tie on recovery → higher floor) |
+| twopass \| 0.30 \| K3 | 56.2 (27/48) | 33.0 | PASS |
+| twopass \| 0.25 \| K3 | 56.2 (27/48) | 39.5 | PASS |
+| twopass \| 0.25–0.40 \| K2+rider | 41.7–50.0 | 24.0–33.0 | FAIL (recovery) |
 
-### Slice-3 gates
+**Shipped defaults: floor 0.35, plain top-3 (K3), centroid two-pass.** K3 beat K2+rider at every
+floor in the shipped arm; the close-3rd rider was dropped. Real-binary confirmation (parsing the
+actual `vocab:` frontmatter written by `engram vocab bootstrap` on a fresh copy): 56.2% (27/48) @
+median pool 31.0 — exact parity with the model.
+
+### Slice-3 gates (2026-07-03, bootstrapped copy vault, worktree binary)
 
 | Gate | Criterion | Result |
 |---|---|---|
-| S2 recovery probe | ≥ 54.2% AND median pool ≤ 40 | 56.2% @ 28.0 — **GREEN** |
-| C3–C6 trap smoke | traps GREEN | **GREEN** |
-| 38 zero-miss replays | zero regressions | **GREEN** (0 new misses) |
+| S2 recovery on the REAL binary's emitted candidates | ≥ 54.2% AND median added candidates ≤ 40 | **77.1% (37/48) @ 28.0 — PASS** (the binary's per-cluster nomination outperforms the flat python model) |
+| C3–C6 trap smoke (worktree binary on PATH) | GREEN | **GREEN** ($3.09) |
+| No-regression | 0 baseline top-5 disturbances | **PASS via structural adjudication** — vault drift (notes 154–159 postdate replays.json) invalidated the recorded-replay comparison; Gate B traced the code and confirmed nomination is append-to-candidates-only and ride-along was a no-op on the then-fabric, so ranked output is structurally unchanged; invariants (no phantom ride_along items, valid YAML on all 38 replays) held at 0 violations |
 
-### Live vault S2 probe (post-migration, slice 5)
+### Live-vault verification (slice 5, post-migration, 2026-07-03)
 
-Recovery 56.2% @ median nomination pool 31 — within the re-anchored bar (≥ 54.2% AND pool ≤ 40).
+| Check | Result |
+|---|---|
+| S2 recovery probe (proxy over live `vocab:` frontmatter) | **56.2% (27/48) @ median pool 31.0 — PASS** |
+| `engram check` | PASS (3 pre-existing prose-wikilink dangles in notes 33/142, unrelated to the migration) |
+| `engram embed status` | 0 stale (hash exclusion of machine lines held through the strip) |
+| Spot queries (3) | candidate_l2s + `tag_nominations_added` budget field emitted; `outbound_links` gone |
+| Supersessions written | 6 typed relationships (3 narrows, 3 updates) from 84 inventoried edges; 76 dropped with rationales archived; 41 notes stripped |
 
-## Eval-arm contamination incident (slice 3, honest record)
+## Eval-arm contamination incident (2026-07-02, honest record)
 
-During the slice-3 delivery eval (S3 three-arm test: control / recall-only / recall+nomination),
-two of the three delivery arms were exposed to the bootstrapped copy vault via absolute paths
-and `bypassPermissions: true` in the eval harness configuration. The affected arms could read
-(and in one case amend) the copy vault during the eval run. The contaminated runs were detected
-by comparing per-arm activation counts against expectation. The affected arm results were discarded;
-a clean backup patch was applied (`docs/design/artifacts/2026-07-02-retired-relation-rationales.md`
-contains the patch reference). The slice-3 delivery finding (recall+nomination +17.3pp / +50pp bridges,
->2σ, zero collateral) was validated on the un-contaminated arm subset and is the number the regression
-bar is anchored to. No live vault data was corrupted; the backup taken in slice 5 was compared to
-the pre-migration snapshot and matched.
+During the **link-value exploration's S3 delivery eval** (the study that motivated this build — not
+this build's own slices), the delivery-arm `claude -p` processes (opus, `bypassPermissions`, temp
+working directories) were handed payloads whose note contents included absolute paths into the real
+repo. Several arms followed those paths out of their temp cwd and **performed the tasks they were
+asked to merely plan**: between 10:19 and 12:54 on 2026-07-02 they edited 16 `internal/` files
+(relations-merge, ingest, transcript-stripping work) and wrote two untracked files (a
+"memory-system-value-retrospective" doc — literally the Q00 eval case executed for real — and a
+test file). The side-effects were discovered 2026-07-03 when the dirty tree blocked this build's
+merge, diagnosed by mtime + content correlation with the eval cases, and **discarded after archiving
+a full recovery patch + tarball** (`~/.claude/jobs/9e790e0a/tmp/eval-arm-sideeffects.patch`,
+`eval-arm-untracked.tgz`). The live vault was never touched. Lesson (vault note pending): eval arms
+must not run with bypassPermissions while real repo paths are reachable from their payload content;
+harness hardening is queued as a followup.
 
-## Spend
+## Spend (this build; the motivating link-value exploration has its own ledger: $222.93, see `2026-07-02-link-value-exploration.md`)
 
-| Phase | Activity | Cost |
-|---|---|---|
-| Link-value exploration (pre-build, 2026-07-02) | 7 fabrics × 6 traversals eval, delivery arms, gate analysis | ~$18 |
-| Slices 1–4 (binary + commands + query + skills) | TDD + gate reviews | ~$8 |
-| Slice 5 (migration) | LLM edge classification (77 edges) + bootstrap (~$2) + live probe | ~$6 |
-| Doc scrub (slice 6, this) | — | ~$1 |
-| **Total** | | **~$33** |
+| Item | Cost (direct metered API) |
+|---|---|
+| C3–C6 trap smoke, slice 3 (worktree binary) | $3.09 |
+| Skill rewrite headless RED/GREEN ×4 runs, slice 4 | $2.85 |
+| Bootstrap / sweeps / probes (binary + python, LLM-free by design) | $0 |
+| Edge classification, slice 5 (executor judged the 84 rationales directly) | $0 direct |
+| **Direct metered total** | **~$6** |
 
-Slightly over the $10–30 estimate; the link-value exploration ran a broader sweep than the plan
-anticipated (7 fabrics instead of the estimated 4-5).
+Orchestrator/executor/reviewer agent tokens are not separately metered here. Direct API spend came
+in well under the plan's $10–30 estimate because the two-phase LLM-as-files architecture kept the
+binary LLM-free and the executors did the judgment work in-context.
 
 ## What remains
 

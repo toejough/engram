@@ -1,3 +1,8 @@
+> **Update 2026-07-03:** recall Step 2.6 (cross-cluster linking), referenced below, was REMOVED in
+> the vocab-notes build — the link-value exploration (2026-07-02) measured edge traversal as
+> delivery-inert; the shipping mechanism for the relational gap is vocab tag NOMINATION
+> (`2026-07-03-vocab-notes-build-results.md`). This doc is kept as the research record.
+
 # What synthesis engram should build toward — a literature-grounded case
 
 **Question (Joe):** what kinds of synthesis *should* engram support? Is "search → group →

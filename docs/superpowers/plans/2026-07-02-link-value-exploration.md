@@ -1,3 +1,10 @@
+> **Status: HISTORICAL PLAN (2026-07-02) — superseded by the build it led to.** This plan predates
+> the vocab-notes build (2026-07-03, `docs/design/2026-07-03-vocab-notes-build-results.md`).
+> References to `engram migrate-links` are historical — the command was retired 2026-07-03 (with
+> `--relation` and recall Step 2.6). The plan's steps 2–3 were reshaped by Joe's direction into the
+> vocab-notes build (`2026-07-02-vocab-notes-and-linking-replacement.md`): tags at write time +
+> tag-match nomination shipped; generic link habits did not.
+
 # Link-value exploration — plan
 
 > **For agentic workers:** research + isolated-harness eval plan (no production binary/skill changes

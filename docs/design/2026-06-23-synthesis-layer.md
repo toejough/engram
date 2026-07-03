@@ -1,3 +1,7 @@
+> **Update 2026-07-03:** Step 2.6 (cross-cluster linking), referenced below as shipped, was
+> subsequently REMOVED in the vocab-notes build (see `2026-07-02-link-value-exploration.md` results
+> + `2026-07-03-vocab-notes-build-results.md`). Historical record.
+
 # Design — the synthesis layer (emergent composition over recalled notes)
 
 > **Status: RED RUN 2026-06-23 → synthesis STEP NOT BUILT (redundant). But the eval IS the C6 proof.**
