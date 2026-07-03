@@ -61,6 +61,10 @@ Rules:
   described ("releasing a Go module", "writing eval harness metrics").
 - One note per distinct principle. An explicit save-request ALWAYS gets its note, immediately —
   "remember this" means stop and write before anything else.
+- **If the new lesson CORRECTS, narrows, or refutes an existing vault note**, add
+  `--supersedes "<basename>|<type>|<claim>"` (types: `updates|narrows|refutes`) to the `engram learn`
+  call. The binary maintains the inverse automatically.
+- **Vocab tags are assigned automatically** by the binary on every write — do not hand-author them.
 - **No moments of either kind → write nothing.** Routine work is already captured by Step 1;
   a session with no corrections and no save-requests is a two-command learn (sweep + report).
 

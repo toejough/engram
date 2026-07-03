@@ -17,7 +17,7 @@ Memory has two layers retrieved in ONE call: raw chunks (every past conversation
 1. **Make your plan visible** before retrieving anything — an unstated plan cannot be tested against memory.
 2. **Sweep, then run ONE unified `engram query`.** Items tagged `kind: chunk` are raw fragments; `kind: fact`/`feedback` are crystallized lessons. They compete in the same top-N.
 3. **Crystallize** — when several near-match chunks evidence the same principle and no note states it yet, write the vault note now.
-4. **Link** — gate and persist precision-checked edges across clusters (default DROP; no topical floods).
+4. **Tag-nominate and ride-along** — the binary nominates notes sharing a vocab term with the top-3 delivered notes and inserts superseded-note supersessors at the next rank; the agent judges the surfaced candidates, never links.
 5. **Synthesize impact on the plan** — confirm / adjust / contradict / silent, per planned action.
 
 The binary resolves the vault and chunk index automatically (`$XDG_DATA_HOME/engram/...`;
@@ -27,14 +27,14 @@ The binary resolves the vault and chunk index automatically (`$XDG_DATA_HOME/eng
 
 Recall runs in one of two **modes**, selected by the caller (the mode word is the skill argument; absent → `deep`):
 
-- **`deep` (default).** The full procedure below — all 10 phrases and the write side (Steps 2.5C, 2.6, Step 4).
-  It both *applies* memory to this decision **and** *grows the vault* (crystallizes, links, persists synthesis).
+- **`deep` (default).** The full procedure below — all 10 phrases and the write side (Steps 2.5C, Step 4).
+  It both *applies* memory to this decision **and** *grows the vault* (crystallizes, persists synthesis).
   Use it when the decision is weighty or irreversible, when you want recall to also learn, or when in doubt.
 - **`glance` (opt-in, cheap — for firing often).** A pass that is **read-only with respect to vault knowledge**
   (Step 2.7 `activate` still bumps the used-notes recency metadata — that is kept, not a knowledge write). Run
   Steps 0–3 with **~3 phrases** (not 10) and **keep the read side** — Step 2.5A (read candidates), **Step 2.5B
   (apply the recency weight)**, Step 2.7 (activate used notes), and the Step 3 synthesis — but **skip the write
-  side**: Step 2.5C (coverage amend/learn), Step 2.6 (cross-cluster linking), Step 4 (synthesis-persist). Glance
+  side**: Step 2.5C (coverage amend/learn), Step 4 (synthesis-persist). Glance
   *applies* memory to this decision; it does **not** grow the vault's knowledge.
 
 **Escalate `glance` → `deep` for recency-channel standards (C5).** Glance reliably *surfaces* a recent-activity
@@ -100,7 +100,9 @@ engram query --lazy-chunks \
 
 One call; the binary merges ranking server-side. `engram query` always runs the unified D1
 clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path, cosine, content}]`
-per cluster. Do NOT collapse phrases, do NOT run per-phrase calls.
+per cluster. The candidate pool includes the within-cluster top-5 **plus tag-nominated notes** — notes
+sharing a vocab term with the top-3 delivered notes (budget fields `tag_nominations_added`/`dropped`
+report the pool size). Do NOT collapse phrases, do NOT run per-phrase calls.
 
 The payload has **two channels**:
 
@@ -136,11 +138,13 @@ for coverage purposes.)
 ### Step 2.5 — Lazy note synthesis from the clustering (agent-judged)
 
 The query output's `clusters` list contains the unified clustering of matched chunks
-and notes. Each cluster carries `candidate_l2s: [{path, cosine, content}]` — the top-5 existing notes
-ranked from within that cluster's own matched members (NOT the full vault). A note that did not
-match any phrase will never appear as a candidate. A cluster with no note members yields an empty
-`candidate_l2s` list; skip to the next cluster when that happens. **Process every cluster.** For
-each:
+and notes. Each cluster carries `candidate_l2s: [{path, cosine, content}]` — the within-cluster
+top-5 notes ranked from the cluster's own matched members, **plus any tag-nominated notes** whose
+vocab terms overlap the top-3 delivered notes (nominated notes may cross cluster boundaries). A note
+that did not match any phrase AND was not nominated will never appear as a candidate. Superseded-note
+ride-alongs are inserted at the next rank after the note they supersede. A cluster with no note
+members yields an empty `candidate_l2s` list; skip to the next cluster when that happens.
+**Process every cluster.** For each:
 
 **A. Read candidates and members**
 
@@ -164,76 +168,20 @@ because it lacks a recent instance.
 
 | Outcome | Criterion | Action |
 | --- | --- | --- |
-| **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend --target <candidate-path> --activate --relation <new-note-sources> --chunk-source <new-chunk-ids>` — link-enrich only; **do not rewrite content** |
-| **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --relation <note-sources> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted |
-| **Absent** | No candidate addresses the situation | `engram learn fact\|feedback --position top --relation <note-sources> --chunk-source <chunk-ids> --source "<descriptive>" --situation "..." --subject/--predicate/--object (or --behavior/--impact/--action)` |
+| **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend --target <candidate-path> --activate --chunk-source <new-chunk-ids>` — provenance-enrich only; **do not rewrite content**. If this note CORRECTS/narrows/refutes a surfaced note, also pass `--supersedes "<basename>\|<type>\|<claim>"` (types: `updates\|narrows\|refutes`). |
+| **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted. Add `--supersedes "<basename>\|<type>\|<claim>"` if this note corrects a surfaced note. |
+| **Absent** | No candidate addresses the situation | `engram learn fact\|feedback --position top --chunk-source <chunk-ids> --source "<descriptive>" --situation "..." --subject/--predicate/--object (or --behavior/--impact/--action)`. Add `--supersedes "<basename>\|<type>\|<claim>"` if the new note corrects a surfaced note. |
 
 **One write per cluster; one representative note per cluster.** The representative is always a note
 (never a chunk). For `absent`, write exactly one note (fact *or* feedback) covering
 the cluster's principle. Do not write one fact and one feedback note for the same cluster.
 
-For `amend` (covered or near), pass one `--relation "<wikilink-target>|<one-line rationale>"`
-(repeatable) for every **note** source in the cluster that passes the Step 2.6 precision gate (below)
-— not for every co-occurring member. Pass one `--chunk-source <source#anchor>` (repeatable) for every
-**chunk** source (provenance, not wikilinks). For `learn`, pass the same flags. The `--source` flag on
-`learn` is the human-readable provenance string (unchanged); `--chunk-source` is the chunk-id list (new).
+Pass one `--chunk-source <source#anchor>` (repeatable) for every **chunk** source in the cluster
+(provenance tracking). For `learn`, pass the same flag plus `--source` (human-readable provenance).
+Vocab tags are assigned **automatically** by the binary on every write — do not hand-author them.
 
 **WAIT for each write before moving to the next cluster.** Writes are blocking and inline — the
 note created or updated by one cluster may be a candidate for another.
-
-**As you finish each cluster, record its representative** — the basename you amended (Covered/Near)
-or created (Absent). Step 2.6 needs the post-2.5 vault state these writes produce.
-
-### Step 2.6 — Cross-cluster linking (the precision gate, agent-judged)
-
-> **[glance: SKIP Step 2.6 — write side.]**
-
-Gate and persist edges *across* clusters. Recall will form cross-cluster edges whether or not you gate
-them — **ungated, it floods** (links a note to property-*mismatched* notes: "needs sweetness" →
-"provides texture"). Step 2.6 is the **precision gate**: after the per-cluster loop — and **before**
-Step 2.7 activation — run ONE reasoning pass over
-**all surfaced note members across clusters** (use their `content` in `items[]`, or the cluster
-`members`) and persist a cross-cluster edge ONLY when it passes the gate. Use each note's **basename
-exactly as in the payload** (Luhmann-prefixed) as the `--target`/`<B>` — `engram amend` resolves
-relation targets strictly against existing basenames and errors on a bare slug.
-
-**A. GENERATE (loose, persists nothing).** Scan members across clusters for *candidate* relationships
-— use analogy and "what here relates to what" freely. Proposes only; never writes. (Analogy
-generates, it does not justify.)
-
-**B. JUSTIFY (strict — default DROP). Emit one audit line per candidate** so the drop is observable:
-`<A> ~ <B> | relation=<…> shared_key=<…> | PERSIST|DROP`. PERSIST only if ALL hold: (1) a
-relation TYPE from the menu, (2) the SHARED KEY that passes that relation's test, (3) the key is a
-*specific property/entity/effect* — NOT a domain/topic word or generic adjective ("both baking",
-"both Go"). Any missing → **DROP. Default is DROP.**
-
-**The hub test (the flood-killer).** A valid shared key pairs notes ~**1:1** — it joins a specific A to
-a specific B. If a candidate key would license linking ONE note to MANY others (a **hub** like "the
-cake", "properties of a cake", "errors", "Go"), it is topical, not structural → **DROP every edge it
-licenses.** Concretely: "cake-needs-sweetness" and "cake-needs-texture" both name the whole "cake," but
-"cake" is a hub (it would mesh all six notes) → no edge between them. Their only valid links are
-means-ends to their *distinct* providers ("sweetness"→sugar, "texture"→flour) — keys that pair 1:1. If
-you find yourself linking three or more notes through one key, that key is a hub: stop and DROP.
-
-| relation (persist if…) | shared-key TEST | direction |
-|---|---|---|
-| **means-ends / requires-provides** — A needs X, B provides X | the need term in A is the provided effect in B (**same X** — "sweetness"≠"texture") | directed need→provider A→B |
-| **causal / transitive** — A causes/depends-on B | A names a cause/dependency whose effect term is B's subject (bridge term in both) | directed cause→effect A→B (chains compose only if each hop passes) |
-| **contradiction** — A asserts X, B asserts ¬X | same subject+predicate, opposite/negated object | symmetric A↔B (flag conflict; resolution out of scope) |
-
-**Only these three relations are enabled.** Do NOT link two notes because they share a common whole
-("both parts of the cake" — part-whole) or a common schema ("both instances of X" — abstraction):
-those keys are always hubs, and they are the flood vector. No edge from them this pass.
-
-**C. PERSIST.** For each surviving link: `engram amend --target <A> --relation "<B>|<TYPE>: <shared
-key> — <one-line>"`. The rationale encodes the relation TYPE so the edge is typed. **No `--activate`**
-(2.6 writes an edge, it does not mark coverage). Both directions for symmetric relations; one for
-directed. **Bound:** the matched set is small per query; propose only the property-sharing candidates
-the GENERATE step surfaces — not all pairs.
-
-**Cross-cluster linking is handled by Step 2.6.** Cross-cluster *supersession* — reconciling a
-conflict whose evidence did not cosine-cluster — remains deferred: 2.6 *flags* a contradiction (the
-contradiction row) but does not *resolve* the supersession.
 
 ### Step 2.7 — Activation (use-driven, after synthesis)
 
@@ -284,12 +232,11 @@ Write ONE synthesis note for the conclusion with `engram learn fact|feedback`:
   preserving inference is a hypothesis, not a fact.)
 - **Mark it as derived** in `--source`, e.g. `--source "synthesis (abduction) from recalled memory"`, so
   a human or a weaker model can tell it is a reasoned conclusion to review — not a primitive fact.
-- **Link every input that contributed, with a _good relationship note_:** one
-  `--relation "<input-basename>|<the role that input played in the inference>"` per contributing note —
-  the rationale states HOW it fed the conclusion (e.g. `--relation "<…rx9-rejects-old>|rule: RX-9
-  silently rejects pre-2021 badges"` and `--relation "<…badge-reader-swap>|condition: RX-9 readers are
-  now the installed lobby hardware"`). These typed edges connect the conclusion to its evidence so the
-  derivation is auditable and traversable.
+- **If the synthesis conclusion CORRECTS, narrows, or refutes an existing surfaced note**, pass
+  `--supersedes "<basename>|<type>|<claim>"` (types: `updates|narrows|refutes`) on the `engram learn`
+  call — the binary maintains the inverse automatically. Otherwise no link ritual is needed; the
+  binary's vocab-tag assignment connects the new note to related notes structurally. Do not
+  hand-author wikilinks for structural linking.
 
 **Gate — do not rot the vault (notes 68/69):** persist ONLY conclusions you judge sound. If it is a
 hunch, you'd hedge below "probable", or it merely re-aggregates one note, do NOT persist. One synthesis
@@ -318,10 +265,8 @@ note per conclusion; link all of its inputs.
 | You activated every returned note | Activate only the notes you actually USED — judged Covered/Near or cited in Step 3 |
 | You activated recent-channel items | Chunks are never activated; recent-block items are not activation targets |
 | You skipped `engram activate` after drawing on notes | Call it after synthesis — used notes must stay warm or the recency-competition mechanism breaks |
-| You persisted a cross-cluster edge from an analogy with no named shared key | DROP it — analogy generates candidates; only a menu relation type + a passing shared key persists (Step 2.6) |
-| You linked "needs X" to a property-mismatched "provides Y" (X≠Y) | The means-ends shared-key test requires the **same** key — DROP the mismatch (this is the flood Step 2.6 exists to stop) |
-| You passed `--activate` on a Step 2.6 amend | 2.6 writes an edge, not a coverage mark — `--activate` is Step 2.5's |
+| You're about to write `--relation` or hand-author wikilinks for structural linking | The binary removed `--relation`; vocab tags are automatic; use `--supersedes` only when the note corrects/narrows/refutes a surfaced note |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
 | You're recommending a prerequisite or better test as the first step, not the asked task | That displacement IS relitigating the settled task — old reasoning isn't new evidence. Do the asked task; displace only on a NEW fact, stated as a reversal |
-| You ran the write side (2.5C/2.6/Step 4) while in `glance` mode | Glance is read-only w.r.t. vault knowledge — skip the write side; switch to `deep` if you need to crystallize |
+| You ran the write side (2.5C/Step 4) while in `glance` mode | Glance is read-only w.r.t. vault knowledge — skip the write side; switch to `deep` if you need to crystallize |
 | A recency-channel (Channel 2) standard is load-bearing and you stayed in `glance` | Escalate to `deep` — glance surfaces the recent item but won't elevate it to a requirement (C5, #661) |
