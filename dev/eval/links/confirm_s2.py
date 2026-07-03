@@ -10,6 +10,9 @@ pool ≤ 40).
 Usage:
     python dev/eval/links/confirm_s2.py --vault /path/to/bootstrapped/copy
 """
+# NOTE: this is a vocab-frontmatter PROXY probe — it regex-parses each note's
+# `vocab:` frontmatter directly and simulates nomination in python; it does NOT
+# parse the binary's YAML query payload (binary-parity is gated separately).
 from __future__ import annotations
 
 import argparse

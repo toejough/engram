@@ -69,6 +69,15 @@ type noteQueryFrontmatter struct {
 	Supersedes []supersedesEntry `yaml:"supersedes"`
 }
 
+// tagNominationTally reports the nomination outcome for the query budget —
+// the no-silent-caps rule: every truncation by nominationCapPerCluster is
+// counted here and emitted as tag_nominations_added / tag_nominations_dropped
+// in the payload budget, so a capped pool is always visible to the caller.
+type tagNominationTally struct {
+	added   int // nominations kept (post-cap) across all clusters
+	dropped int // nominations truncated by nominationCapPerCluster
+}
+
 // addNominationsForTerm appends candidate notes from entries to nominations[clusterID],
 // skipping notes already in results or already nominated, and vocab-kind notes.
 // It updates nominated in-place so cross-term dedup is maintained by the caller.
@@ -178,6 +187,33 @@ func applySupersedesRideAlong(resolved []resolvedItem, meta AllVaultNotesMeta) [
 	return out
 }
 
+// applyTagNominationAndRideAlong runs the Slice-3 query integration: one
+// metadata scan over all vault hits (vocab: + supersedes: frontmatter), the
+// supersession ride-along insertion into the ranked items, and tag-match
+// nomination for the per-cluster candidate_l2s. Returns the (possibly
+// extended) items, the per-cluster nominations, and the nomination tally
+// emitted in the payload budget (no-silent-caps rule).
+func applyTagNominationAndRideAlong(
+	resolved []resolvedItem,
+	hits []compatibleSidecar,
+	vaultPath string,
+	read func(string) ([]byte, error),
+	matchSet matchedSet,
+	report clusterReport,
+) ([]resolvedItem, map[int][]queryCandidateNote, tagNominationTally) {
+	vaultMeta := loadAllVaultNotesMeta(hits, vaultPath, read)
+
+	// Supersession ride-along: insert each superseding note directly after its
+	// superseded note in the ranked items (note items only; deduped).
+	resolved = applySupersedesRideAlong(resolved, vaultMeta)
+
+	// Tag-match nomination: for the top-3 delivered notes, find all vault notes
+	// sharing a vocab term and add them to the per-cluster candidate_l2s.
+	tagNominations, tally := buildTagNominations(resolved, vaultMeta, matchSet, report)
+
+	return resolved, tagNominations, tally
+}
+
 // buildTagNominations computes per-cluster nomination candidates from the vault's
 // vocab term index.
 //
@@ -194,26 +230,27 @@ func applySupersedesRideAlong(resolved []resolvedItem, meta AllVaultNotesMeta) [
 //   - Deduplication: a note is added at most once across all clusters, and never
 //     if it is already in the ranked items (resolved).
 //
-//   - Per-cluster cap: nominationCapPerCluster (5) additional candidates per cluster.
-//     Truncation is not silent — callers accumulate and report the count.
+//   - Per-cluster cap: nominationCapPerCluster additional candidates per cluster.
+//     Truncation is not silent — the returned tally reports kept and dropped
+//     counts, emitted in the payload budget.
 //
 //   - Vocab/vocab-index notes are excluded upstream in AllVaultNotesMeta.TermIndex.
 //
-// Returns nil when there is no vocab data (TermIndex is empty) or no top-3 delivered
-// notes — the no-op path for backward compatibility.
+// Returns (nil, zero tally) when there is no vocab data (TermIndex is empty) or
+// no top-3 delivered notes — the no-op path for backward compatibility.
 func buildTagNominations(
 	resolved []resolvedItem,
 	meta AllVaultNotesMeta,
 	matchSet matchedSet,
 	report clusterReport,
-) map[int][]queryCandidateNote {
+) (map[int][]queryCandidateNote, tagNominationTally) {
 	if len(meta.TermIndex) == 0 {
-		return nil
+		return nil, tagNominationTally{}
 	}
 
 	top3 := topDeliveredNotes(resolved, topNForNomination)
 	if len(top3) == 0 {
-		return nil
+		return nil, tagNominationTally{}
 	}
 
 	// alreadyInResults tracks paths present in the ranked output — nominees must
@@ -242,18 +279,24 @@ func buildTagNominations(
 	}
 
 	// Apply the per-cluster cap. Excess entries are dropped (not silently —
-	// the caller reports TagNominationsAdded in the query budget).
+	// the tally's added/dropped counts are emitted in the query budget as
+	// tag_nominations_added / tag_nominations_dropped).
+	tally := tagNominationTally{}
+
 	for clusterID, notes := range nominations {
 		if len(notes) > nominationCapPerCluster {
+			tally.dropped += len(notes) - nominationCapPerCluster
 			nominations[clusterID] = notes[:nominationCapPerCluster]
 		}
+
+		tally.added += len(nominations[clusterID])
 	}
 
 	if len(nominations) == 0 {
-		return nil
+		return nil, tagNominationTally{}
 	}
 
-	return nominations
+	return nominations, tally
 }
 
 // loadAllVaultNotesMeta reads every note in hits once, parsing their vocab: and

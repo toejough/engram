@@ -183,6 +183,10 @@ type aggregatedSummary struct {
 	limit          int
 	contentBudget  int
 	lazyChunks     bool
+	// tagNomsAdded/tagNomsDropped carry the tag-nomination tally into the
+	// payload budget (no-silent-caps rule: truncation is always reported).
+	tagNomsAdded   int
+	tagNomsDropped int
 }
 
 // candidateNoteIndex holds the note paths and BOTH sidecar vectors for the
@@ -258,16 +262,21 @@ type phrasedCluster struct {
 
 // queryBudget reports the totals visible to the caller per the YAML schema.
 type queryBudget struct {
-	PhrasesQueried       int  `yaml:"phrases_queried"`
-	TotalNotes           int  `yaml:"total_notes"`
-	WithEmbeddings       int  `yaml:"with_embeddings"`
-	ClustersFound        int  `yaml:"clusters_found"`
-	DirectHitsReturned   int  `yaml:"direct_hits_returned"`
-	ItemsWithFullContent int  `yaml:"items_with_full_content"`
-	Limit                int  `yaml:"limit"`
-	ContentBudget        int  `yaml:"content_budget"`
-	ChunksSnippeted      int  `yaml:"chunks_snippeted"`
-	LazyChunks           bool `yaml:"lazy_chunks,omitempty"`
+	PhrasesQueried       int `yaml:"phrases_queried"`
+	TotalNotes           int `yaml:"total_notes"`
+	WithEmbeddings       int `yaml:"with_embeddings"`
+	ClustersFound        int `yaml:"clusters_found"`
+	DirectHitsReturned   int `yaml:"direct_hits_returned"`
+	ItemsWithFullContent int `yaml:"items_with_full_content"`
+	Limit                int `yaml:"limit"`
+	ContentBudget        int `yaml:"content_budget"`
+	ChunksSnippeted      int `yaml:"chunks_snippeted"`
+	// TagNominationsAdded/Dropped surface the tag-match nomination tally
+	// (no-silent-caps rule): added = nominations merged into candidate_l2s
+	// post-cap; dropped = nominations truncated by nominationCapPerCluster.
+	TagNominationsAdded   int  `yaml:"tag_nominations_added,omitempty"`
+	TagNominationsDropped int  `yaml:"tag_nominations_dropped,omitempty"`
+	LazyChunks            bool `yaml:"lazy_chunks,omitempty"`
 }
 
 // queryCandidateNote is one candidate note for a cluster. The binary emits
@@ -1424,16 +1433,18 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 		Items:    items,
 		Clusters: clusters,
 		Budget: queryBudget{
-			PhrasesQueried:       len(merged.phrases),
-			TotalNotes:           merged.totalNotes,
-			WithEmbeddings:       merged.withEmbeddings,
-			ClustersFound:        len(clusters),
-			DirectHitsReturned:   directCount,
-			ItemsWithFullContent: contentful,
-			Limit:                merged.limit,
-			ContentBudget:        resolveContentBudget(merged.contentBudget),
-			ChunksSnippeted:      snipped,
-			LazyChunks:           merged.lazyChunks,
+			PhrasesQueried:        len(merged.phrases),
+			TotalNotes:            merged.totalNotes,
+			WithEmbeddings:        merged.withEmbeddings,
+			ClustersFound:         len(clusters),
+			DirectHitsReturned:    directCount,
+			ItemsWithFullContent:  contentful,
+			Limit:                 merged.limit,
+			ContentBudget:         resolveContentBudget(merged.contentBudget),
+			ChunksSnippeted:       snipped,
+			TagNominationsAdded:   merged.tagNomsAdded,
+			TagNominationsDropped: merged.tagNomsDropped,
+			LazyChunks:            merged.lazyChunks,
 		},
 	}
 
@@ -1550,17 +1561,10 @@ func runQuery(
 	resolved := mergeProvenances(noteUnion, matchedSet{}, clusterReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
 
-	// Slice 3 — tag nomination + supersession ride-along.
-	// Load vocab/supersedes metadata once over all vault hits.
-	vaultMeta := loadAllVaultNotesMeta(hits, args.VaultPath, deps.Read)
-
-	// Supersession ride-along: insert each superseding note directly after its
-	// superseded note in the ranked items (note items only; deduped).
-	resolved = applySupersedesRideAlong(resolved, vaultMeta)
-
-	// Tag-match nomination: for the top-3 delivered notes, find all vault notes
-	// sharing a vocab term and add them to the per-cluster candidate_l2s.
-	tagNominations := buildTagNominations(resolved, vaultMeta, matchSet, report)
+	// Slice 3 — tag nomination + supersession ride-along (tally → budget).
+	resolved, tagNominations, tagTally := applyTagNominationAndRideAlong(
+		resolved, hits, args.VaultPath, deps.Read, matchSet, report,
+	)
 
 	resolved = append(resolved, chunkItems...)
 
@@ -1582,6 +1586,8 @@ func runQuery(
 		limit:          limit,
 		contentBudget:  args.ContentBudget,
 		lazyChunks:     args.LazyChunks,
+		tagNomsAdded:   tagTally.added,
+		tagNomsDropped: tagTally.dropped,
 	}
 
 	return renderQueryPayload(stdout, merged)

@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -141,6 +142,64 @@ func TestApplySupersedesRideAlong_SupersederNotInVault_Skipped(t *testing.T) {
 	g.Expect(got).To(HaveLen(1), "no insert when superseder is not in vault")
 }
 
+// TestApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld verifies that
+// a delivered note with TWO superseders gets both inserted directly after it,
+// each carrying ride_along provenance. Insertion order between the two is
+// unspecified (the inverse map is built from map iteration), so the test
+// asserts set membership at positions 1-2, not a fixed order.
+func TestApplySupersedesRideAlong_TwoSuperseders_BothInsertedAfterOld(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const oldBasename = "1aa.old-note"
+
+	const newOneBasename = "1bb.new-one"
+
+	const newTwoBasename = "1cc.new-two"
+
+	const newOneContent = "---\ntype: fact\nsituation: x\n---\n\nnew one content\n"
+
+	const newTwoContent = "---\ntype: fact\nsituation: y\n---\n\nnew two content\n"
+
+	resolved := []cli.ExportResolvedItem{
+		cli.ExportNewNoteResolvedItemWithProvenances(oldBasename+".md", 0.9, []string{"direct"}),
+		cli.ExportNewNoteResolvedItemWithProvenances("1dd.other.md", 0.7, []string{"direct"}),
+	}
+
+	meta := cli.ExportNewVaultNotesMetaWithSupersedes(
+		map[string][]cli.ExportSupersedesEntry{
+			newOneBasename: {{Note: oldBasename, Type: "updates", Claim: "old was incomplete"}},
+			newTwoBasename: {{Note: oldBasename, Type: "refutes", Claim: "old was wrong"}},
+		},
+		map[string]string{
+			newOneBasename: newOneContent,
+			newTwoBasename: newTwoContent,
+		},
+	)
+
+	got := cli.ExportApplySupersedesRideAlong(resolved, meta)
+
+	g.Expect(got).To(HaveLen(4), "both superseders must be inserted (+2 total)")
+
+	if len(got) < 4 {
+		return
+	}
+
+	inserted := []string{
+		cli.ExportResolvedItemPath(got[1]),
+		cli.ExportResolvedItemPath(got[2]),
+	}
+	g.Expect(inserted).To(ConsistOf(newOneBasename+".md", newTwoBasename+".md"),
+		"positions 1-2 must be the two superseders (order unspecified)")
+
+	g.Expect(cli.ExportResolvedItemProvenances(got[1])).To(ContainElement("ride_along"))
+	g.Expect(cli.ExportResolvedItemProvenances(got[2])).To(ContainElement("ride_along"))
+
+	g.Expect(cli.ExportResolvedItemPath(got[3])).To(Equal("1dd.other.md"),
+		"the non-superseded note must stay after the insertions")
+}
+
 // TestBuildTagNominations_AlreadyInResults_NotNominated verifies that a note
 // already in the ranked items is never re-nominated.
 func TestBuildTagNominations_AlreadyInResults_NotNominated(t *testing.T) {
@@ -183,6 +242,54 @@ func TestBuildTagNominations_AlreadyInResults_NotNominated(t *testing.T) {
 
 // ── Unit: buildTagNominations ─────────────────────────────────────────────────
 
+// TestBuildTagNominations_CapExceeded_ReportsAddedAndDropped is the RED test for
+// the no-silent-caps rule: when a term's entries exceed nominationCapPerCluster,
+// the tally must report how many nominations were kept (added) and how many the
+// cap truncated (dropped) — so the payload budget can surface the truncation.
+func TestBuildTagNominations_CapExceeded_ReportsAddedAndDropped(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// nominationCapPerCluster is 40; overflow by 5 to force truncation.
+	const expectedAdded = 40
+
+	const expectedDropped = 5
+
+	const entryCount = expectedAdded + expectedDropped
+
+	top3Content := "---\ntype: fact\nsituation: ctx\nvocab: [eval-methodology]\n---\n\nbody A\n"
+	resolved := []cli.ExportResolvedItem{
+		cli.ExportNewNoteResolvedItemWithContentAndProvenances(
+			"1aa.top-note.md", top3Content, 0.9, []string{"direct"},
+		),
+	}
+
+	entries := make([]cli.ExportNominationEntry, 0, entryCount)
+	for i := range entryCount {
+		entries = append(entries, cli.ExportNominationEntry{
+			NotePath: fmt.Sprintf("nominee-%02d.md", i),
+			Content:  "---\ntype: fact\nsituation: x\n---\n\nbody\n",
+		})
+	}
+
+	meta := cli.ExportNewVaultNotesMetaWithTerms(map[string][]cli.ExportNominationEntry{
+		"eval-methodology": entries,
+	})
+
+	noms, added, dropped := cli.ExportBuildTagNominationsWithTally(resolved, meta)
+
+	g.Expect(added).To(Equal(expectedAdded), "tally must report nominations kept after the cap")
+	g.Expect(dropped).To(Equal(expectedDropped), "tally must report nominations truncated by the cap")
+
+	total := 0
+	for _, candidates := range noms {
+		total += len(candidates)
+	}
+
+	g.Expect(total).To(Equal(expectedAdded), "the map must carry exactly the capped nominations")
+}
+
 // TestBuildTagNominations_EmptyMeta_Nil verifies that buildTagNominations returns
 // nil when there is no vocab data — backward compat no-op.
 func TestBuildTagNominations_EmptyMeta_Nil(t *testing.T) {
@@ -197,6 +304,58 @@ func TestBuildTagNominations_EmptyMeta_Nil(t *testing.T) {
 	noms := cli.ExportBuildTagNominationsUnit(resolved, cli.ExportNewEmptyVaultNotesMeta())
 
 	g.Expect(noms).To(BeNil())
+}
+
+// TestBuildTagNominations_MultiCluster_NomineesKeyedByTriggeringCluster exercises
+// the REAL clusterID assignment path (non-empty matchedSet + clusterReport):
+// each nominee must be keyed under the cluster of the top-3 note that triggered
+// it — not the cluster-0 fallback.
+func TestBuildTagNominations_MultiCluster_NomineesKeyedByTriggeringCluster(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	noteAContent := "---\ntype: fact\nsituation: ctx\nvocab: [term-a]\n---\n\nbody A\n"
+	noteBContent := "---\ntype: fact\nsituation: ctx\nvocab: [term-b]\n---\n\nbody B\n"
+
+	resolved := []cli.ExportResolvedItem{
+		cli.ExportNewNoteResolvedItemWithContentAndProvenances(
+			"note-a.md", noteAContent, 0.9, []string{"direct"},
+		),
+		cli.ExportNewNoteResolvedItemWithContentAndProvenances(
+			"note-b.md", noteBContent, 0.8, []string{"direct"},
+		),
+	}
+
+	meta := cli.ExportNewVaultNotesMetaWithTerms(map[string][]cli.ExportNominationEntry{
+		"term-a": {{NotePath: "nominee-a.md", Content: "---\ntype: fact\nsituation: p\n---\n\nna\n"}},
+		"term-b": {{NotePath: "nominee-b.md", Content: "---\ntype: fact\nsituation: q\n---\n\nnb\n"}},
+	})
+
+	// Member index 0 = note-a.md lives in cluster 1; member index 1 = note-b.md
+	// lives in cluster 0.
+	noms := cli.ExportBuildTagNominationsWithClusters(
+		resolved,
+		meta,
+		[]string{"note-a.md", "note-b.md"},
+		[][]int{{1}, {0}},
+	)
+
+	g.Expect(noms).To(HaveKey(1), "nominee-a must be keyed under note-a's cluster (1)")
+	g.Expect(noms).To(HaveKey(0), "nominee-b must be keyed under note-b's cluster (0)")
+
+	clusterOnePaths := make([]string, 0, len(noms[1]))
+	for _, candidate := range noms[1] {
+		clusterOnePaths = append(clusterOnePaths, candidate.Path)
+	}
+
+	clusterZeroPaths := make([]string, 0, len(noms[0]))
+	for _, candidate := range noms[0] {
+		clusterZeroPaths = append(clusterZeroPaths, candidate.Path)
+	}
+
+	g.Expect(clusterOnePaths).To(ConsistOf("nominee-a.md"))
+	g.Expect(clusterZeroPaths).To(ConsistOf("nominee-b.md"))
 }
 
 // TestBuildTagNominations_NoTop3Notes_Nil verifies that buildTagNominations returns
@@ -559,6 +718,45 @@ func TestRenderClusters_TagNominationsAdded(t *testing.T) {
 
 	g.Expect(paths).To(ContainElement("nominee-a.md"), "tag nomination must appear in candidate_l2s")
 	g.Expect(paths).To(ContainElement("nominee-b.md"), "tag nomination must appear in candidate_l2s")
+}
+
+// ── Unit: renderQueryPayload (tag-nomination budget) ─────────────────────────
+
+// TestRenderQueryPayloadBudget_TagNominationCounts is the RED test for the
+// budget half of the no-silent-caps rule: the payload budget must emit
+// tag_nominations_added and tag_nominations_dropped when nominations occurred.
+func TestRenderQueryPayloadBudget_TagNominationCounts(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const added = 40
+
+	const dropped = 5
+
+	out, err := cli.ExportRenderQueryPayloadTagNominationBudget(added, dropped)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(out).To(ContainSubstring("tag_nominations_added: 40"),
+		"budget must report the nomination count")
+	g.Expect(out).To(ContainSubstring("tag_nominations_dropped: 5"),
+		"budget must report the cap-truncated count — truncation is never silent")
+}
+
+// TestRenderQueryPayloadBudget_TagNominationCountsOmittedWhenZero verifies the
+// omitempty contract: a query with no nominations emits neither budget field.
+func TestRenderQueryPayloadBudget_TagNominationCountsOmittedWhenZero(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	out, err := cli.ExportRenderQueryPayloadTagNominationBudget(0, 0)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(out).NotTo(ContainSubstring("tag_nominations_added"),
+		"zero nominations must omit the added field")
+	g.Expect(out).NotTo(ContainSubstring("tag_nominations_dropped"),
+		"zero drops must omit the dropped field")
 }
 
 // ── Unit: topDeliveredNotes ───────────────────────────────────────────────────

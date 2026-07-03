@@ -179,12 +179,52 @@ func ExportBuildChunkIDSet(
 
 // ExportBuildTagNominationsUnit drives buildTagNominations with empty matchedSet
 // and clusterReport (cluster-0 fallback), so unit tests can assert nomination
-// results without wiring a full clustering pipeline.
+// results without wiring a full clustering pipeline. The tally is discarded;
+// tests asserting the tally use ExportBuildTagNominationsWithTally.
 func ExportBuildTagNominationsUnit(
 	resolved []resolvedItem,
 	meta AllVaultNotesMeta,
 ) map[int][]queryCandidateNote {
-	return buildTagNominations(resolved, meta, matchedSet{}, clusterReport{})
+	nominations, _ := buildTagNominations(resolved, meta, matchedSet{}, clusterReport{})
+
+	return nominations
+}
+
+// ExportBuildTagNominationsWithClusters drives buildTagNominations with a REAL
+// matchedSet + clusterReport built from plain member paths and per-cluster
+// member-index lists, so tests can exercise the real clusterID assignment path
+// (noteClusterIDForPath) rather than the cluster-0 fallback.
+func ExportBuildTagNominationsWithClusters(
+	resolved []resolvedItem,
+	meta AllVaultNotesMeta,
+	memberPaths []string,
+	memberIDs [][]int,
+) map[int][]queryCandidateNote {
+	members := make([]matchedMember, len(memberPaths))
+	for i, path := range memberPaths {
+		members[i] = matchedMember{notePath: path}
+	}
+
+	nominations, _ := buildTagNominations(
+		resolved,
+		meta,
+		matchedSet{members: members},
+		clusterReport{memberIDs: memberIDs},
+	)
+
+	return nominations
+}
+
+// ExportBuildTagNominationsWithTally drives buildTagNominations (cluster-0
+// fallback path) and returns the nomination map plus the tally's added and
+// dropped counts, for no-silent-caps assertions.
+func ExportBuildTagNominationsWithTally(
+	resolved []resolvedItem,
+	meta AllVaultNotesMeta,
+) (map[int][]queryCandidateNote, int, int) {
+	nominations, tally := buildTagNominations(resolved, meta, matchedSet{}, clusterReport{})
+
+	return nominations, tally.added, tally.dropped
 }
 
 // ExportCapChunkContent builds queryItems from parallel kind/content slices,
@@ -643,6 +683,21 @@ func ExportRenderQueryPayloadBudget(
 		resolvedItems: resolved,
 		lazyChunks:    lazyChunks,
 		contentBudget: contentBudget,
+	})
+
+	return buf.String(), err
+}
+
+// ExportRenderQueryPayloadTagNominationBudget renders a minimal payload whose
+// aggregatedSummary carries the given tag-nomination tally, so tests can assert
+// the budget's tag_nominations_added / tag_nominations_dropped fields (and
+// their omitempty behavior at zero).
+func ExportRenderQueryPayloadTagNominationBudget(added, dropped int) (string, error) {
+	var buf bytes.Buffer
+
+	err := renderQueryPayload(&buf, aggregatedSummary{
+		tagNomsAdded:   added,
+		tagNomsDropped: dropped,
 	})
 
 	return buf.String(), err
