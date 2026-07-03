@@ -23,6 +23,11 @@ const (
 var (
 	ErrCheckFailedForTest                  = errCheckFailed
 	ErrLearnBadTierForTest                 = errLearnBadTier
+	ErrQAAnswerSourceRequired              = errQAAnswerSourceRequired
+	ErrQACertaintyInvalid                  = errQACertaintyInvalid
+	ErrQAContributorNotFound               = errQAContributorNotFound
+	ErrQAQuestionRequired                  = errQAQuestionRequired
+	ErrQASourceRequired                    = errQASourceRequired
 	ErrResituateNoteNotFoundForTest        = errResituateNoteNotFound
 	ExportAnyHarnessFailed                 = anyHarnessFailed
 	ExportApplyProjectFilter               = applyProjectFilter
@@ -78,6 +83,8 @@ var (
 	ExportRenderFactFrontmatter            = renderFactFrontmatter
 	ExportRenderFeedbackBody               = renderFeedbackBody
 	ExportRenderFeedbackFrontmatter        = renderFeedbackFrontmatter
+	ExportRenderQAAnswerNote               = renderQAAnswerNote
+	ExportRenderQAQuestionNote             = renderQAQuestionNote
 	ExportResolveVault                     = resolveVault
 	ExportRetagAllNotesTwoPass             = retagAllNotesTwoPass
 	ExportRunActivate                      = RunActivate
@@ -92,7 +99,9 @@ var (
 	ExportShouldSkipDir        = shouldSkipDir
 	ExportTildify              = tildify
 	ExportTopDeliveredNotes    = topDeliveredNotes
+	ExportValidateContributors = validateContributors
 	ExportValidateIssueID      = validateIssueID
+	ExportValidateLearnQAArgs  = validateLearnQAArgs
 	ExportValidateProjectSlug  = validateProjectSlug
 	ExportValidateSlug         = validateSlug
 	ExportWriteCentroidsDocRaw = writeCentroidsDocRaw

@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -112,6 +113,53 @@ func TestIsQueryExcludedKind(t *testing.T) {
 	}
 }
 
+func TestRenderQAAnswerNote_ContainsMachineLines(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	when := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
+	contributors := []string{"100.2026-06-01.note", "101.2026-06-02.other-note"}
+	got := cli.ExportRenderQAAnswerNote("The answer.", "my-slug", "session 2026-07-03", "medium", contributors, when)
+
+	g.Expect(got).To(ContainSubstring("type: qa-answer"))
+	g.Expect(got).To(ContainSubstring("answers: qa.2026-07-03.my-slug.q"))
+	g.Expect(got).To(ContainSubstring("certainty: medium"))
+	g.Expect(got).To(ContainSubstring("The answer."))
+	g.Expect(got).To(ContainSubstring("Answers: [[qa.2026-07-03.my-slug.q]]"))
+	g.Expect(got).To(ContainSubstring("Contributors: [[100.2026-06-01.note]], [[101.2026-06-02.other-note]]"))
+}
+
+func TestRenderQAAnswerNote_NoContributors_NoContributorsLine(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	when := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderQAAnswerNote("Answer.", "slug", "source", "high", nil, when)
+	g.Expect(got).NotTo(ContainSubstring("Contributors:"))
+}
+
+func TestRenderQAQuestionNote_ContainsExpectedParts(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	when := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderQAQuestionNote("What is the question?", "my-slug", "session 2026-07-03", when)
+
+	g.Expect(got).To(ContainSubstring("type: qa-question"))
+	g.Expect(got).To(ContainSubstring("answered_by: qa.2026-07-03.my-slug.a"))
+	g.Expect(got).To(ContainSubstring("What is the question?"))
+	g.Expect(got).To(ContainSubstring("Answered by: [[qa.2026-07-03.my-slug.a]]"))
+	// Answered by: line must be in the BODY, not frontmatter
+	body := strings.SplitN(got, "---\n\n", 2)
+	g.Expect(body).To(HaveLen(2))
+
+	if len(body) < 2 {
+		return
+	}
+
+	g.Expect(body[1]).To(ContainSubstring("Answered by:"))
+}
+
 func TestScanNonVocabNotes_QAQuestionFilenameSkipped(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -131,4 +179,70 @@ func TestScanNonVocabNotes_QAQuestionFilenameSkipped(t *testing.T) {
 	)
 
 	g.Expect(visited).To(ConsistOf("qa.2026-07-03.slug.a.md", "100.2026-07-01.note.md"))
+}
+
+func TestValidateContributors_KnownBasename_OK(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vaultNames := []string{"100.2026-01-01.note.md"}
+	g.Expect(cli.ExportValidateContributors([]string{"100.2026-01-01.note"}, vaultNames)).To(Succeed())
+}
+
+func TestValidateContributors_UnknownBasename_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vaultNames := []string{"100.2026-01-01.note.md"}
+	err := cli.ExportValidateContributors([]string{"999.2026-01-01.ghost"}, vaultNames)
+	g.Expect(err).To(MatchError(cli.ErrQAContributorNotFound))
+}
+
+func TestValidateLearnQAArgs_BothAnswerAndFile_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	args := cli.LearnQAArgs{Slug: "slug", Question: "Q?", Answer: "body", AnswerFile: "/tmp/f.md", Source: "src"}
+	g.Expect(cli.ExportValidateLearnQAArgs(args)).To(MatchError(cli.ErrQAAnswerSourceRequired))
+}
+
+func TestValidateLearnQAArgs_InvalidCertainty_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	args := cli.LearnQAArgs{Slug: "slug", Question: "Q?", Answer: "body", Source: "src", Certainty: "bad"}
+	g.Expect(cli.ExportValidateLearnQAArgs(args)).To(MatchError(cli.ErrQACertaintyInvalid))
+}
+
+func TestValidateLearnQAArgs_InvalidSlug_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// A slug with spaces / uppercase is rejected by validateSlug.
+	args := cli.LearnQAArgs{Slug: "INVALID SLUG", Question: "Q?", Answer: "body", Source: "src"}
+	g.Expect(cli.ExportValidateLearnQAArgs(args)).To(HaveOccurred())
+}
+
+func TestValidateLearnQAArgs_MissingQuestion_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	args := cli.LearnQAArgs{Slug: "slug", Answer: "body", Source: "src"}
+	g.Expect(cli.ExportValidateLearnQAArgs(args)).To(MatchError(cli.ErrQAQuestionRequired))
+}
+
+func TestValidateLearnQAArgs_MissingSource_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	args := cli.LearnQAArgs{Slug: "slug", Question: "Q?", Answer: "body"}
+	g.Expect(cli.ExportValidateLearnQAArgs(args)).To(MatchError(cli.ErrQASourceRequired))
+}
+
+func TestValidateLearnQAArgs_Valid_NoError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	args := cli.LearnQAArgs{Slug: "slug", Question: "Q?", Answer: "body", Source: "src"}
+	g.Expect(cli.ExportValidateLearnQAArgs(args)).To(Succeed())
 }
