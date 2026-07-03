@@ -1,8 +1,11 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +16,69 @@ import (
 
 	"github.com/toejough/engram/internal/cli"
 )
+
+// TestApplyVocabAssignmentAfterLearn_TriggerFires drives applyVocabAssignmentAfterLearn
+// with a vault at the growth threshold and asserts the trigger flag is persisted.
+// ListMD is set but LoadTermVectors is nil — the trigger check must still run.
+func TestApplyVocabAssignmentAfterLearn_TriggerFires(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 150 non-vocab notes, last_refit at 100 notes 20 days ago → growth trigger
+	names := make([]string, 150)
+	for i := range names {
+		names[i] = fmt.Sprintf("%d.2026-01-01.note.md", i+1)
+	}
+
+	centroidsDoc := cli.ExportVocabCentroidsDoc{
+		SchemaVersion: 1,
+		LastRefit:     &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-06-13"},
+	}
+
+	centroidsData, marshalErr := json.Marshal(centroidsDoc)
+
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	var centroidsWritten []byte
+
+	deps := cli.LearnDeps{
+		Now:    func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		ListMD: func(string) ([]string, error) { return names, nil },
+		ReadSidecar: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				return centroidsData, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+		WriteNote: func(path string, data []byte) error {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				centroidsWritten = data
+			}
+
+			return nil
+		},
+		LogWarning: nil,
+	}
+
+	cli.ExportApplyVocabAssignmentAfterLearn(deps, "/vault", "/vault/150.note.md", "---\ntype: fact\n---\n")
+
+	g.Expect(centroidsWritten).NotTo(BeNil(), "trigger check must write centroids")
+
+	var got cli.ExportVocabCentroidsDoc
+
+	g.Expect(json.Unmarshal(centroidsWritten, &got)).NotTo(HaveOccurred())
+
+	if err := json.Unmarshal(centroidsWritten, &got); err != nil {
+		return
+	}
+
+	g.Expect(got.RefitPending).To(BeTrue())
+}
 
 func TestExtractLuhmannFromFilename(t *testing.T) {
 	t.Parallel()

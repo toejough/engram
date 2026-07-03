@@ -83,6 +83,11 @@ type LearnDeps struct {
 	// WriteNote atomically rewrites an existing note file. Used only when
 	// vocab assignment produces tags to write both channels.
 	WriteNote func(path string, data []byte) error
+	// ListMD lists full .md filenames in the vault for the vocab trigger scan.
+	// Optional: nil skips the trigger check (backward compat).
+	// Must use full filenames (not stripped basenames) to avoid false-firing the
+	// untagged-rate trigger on every learn.
+	ListMD func(vault string) ([]string, error)
 }
 
 // unexported constants.
@@ -193,10 +198,10 @@ func (q quotedString) MarshalYAML() (any, error) {
 	}, nil
 }
 
-// applyVocabAssignmentAfterLearn assigns vocab terms to a newly written note.
-// Requires all three of: LoadTermVectors, ReadSidecar, WriteNote to be non-nil.
-// A nil dep or empty term set silently skips the assignment (backward compat).
-func applyVocabAssignmentAfterLearn(deps LearnDeps, vault, notePath, content string) {
+// applyLearnVocabAssignment performs only the term-assignment part of
+// applyVocabAssignmentAfterLearn, keeping the trigger check outside this
+// early-return chain.
+func applyLearnVocabAssignment(deps LearnDeps, vault, notePath, content string) {
 	if deps.LoadTermVectors == nil || deps.ReadSidecar == nil || deps.WriteNote == nil {
 		return
 	}
@@ -222,6 +227,26 @@ func applyVocabAssignmentAfterLearn(deps LearnDeps, vault, notePath, content str
 	if writeErr != nil && deps.LogWarning != nil {
 		deps.LogWarning("learn: vocab assignment write failed for %s: %v", notePath, writeErr)
 	}
+}
+
+// applyVocabAssignmentAfterLearn assigns vocab terms to a newly written note,
+// then evaluates the vocab refit trigger. Vocab assignment requires all three
+// of LoadTermVectors, ReadSidecar, and WriteNote to be non-nil; a nil dep or
+// empty term set silently skips assignment (backward compat). The trigger
+// check runs unconditionally — it is gated on deps.ListMD inside the callee.
+func applyVocabAssignmentAfterLearn(deps LearnDeps, vault, notePath, content string) {
+	applyLearnVocabAssignment(deps, vault, notePath, content)
+
+	// Trigger check: evaluate vocab refit thresholds after every note write.
+	// Uses existing deps; all must be non-nil (gated inside the callee).
+	checkAndPersistVocabRefitTrigger(
+		vault,
+		deps.ListMD,
+		deps.ReadSidecar,
+		deps.WriteNote,
+		deps.LogWarning,
+		deps.Now(),
+	)
 }
 
 func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
@@ -353,6 +378,10 @@ func newOsLearnDeps() LearnDeps {
 		WriteNote: func(path string, data []byte) error {
 			return atomicWriteFile(path, data, vocabNotePerm)
 		},
+		// ListMD provides full .md filenames for the vocab trigger scan.
+		// Must use ListMD (not ListBasenames) — ListBasenames strips .md and
+		// filters to Luhmann IDs, causing 100% false-fire on the untagged trigger.
+		ListMD: osVault.ListMD,
 	}
 }
 

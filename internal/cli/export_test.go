@@ -27,6 +27,7 @@ var (
 	ExportAnyHarnessFailed                 = anyHarnessFailed
 	ExportApplyProjectFilter               = applyProjectFilter
 	ExportApplySupersedesRideAlong         = applySupersedesRideAlong
+	ExportApplyVocabAssignmentAfterLearn   = applyVocabAssignmentAfterLearn
 	ExportAutoEmbedNote                    = autoEmbedNote
 	ExportBuildSupersedesInverse           = BuildSupersedesInverse
 	ExportBumpLastUsed                     = bumpLastUsed
