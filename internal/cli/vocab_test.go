@@ -10,6 +10,7 @@ import (
 
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
@@ -271,6 +272,47 @@ func TestParseVocabFrontmatter_Valid(t *testing.T) {
 	g.Expect(doc.Description).To(Equal("how we evaluate."))
 }
 
+// TestVocabAssignment_KeepsSidecarStateOK is the write→embed→assign→state
+// round-trip: a note embedded BEFORE vocab assignment must still classify
+// StateOK afterwards — the machine-written Vocab: line and vocab: frontmatter
+// key are channel content, not body text, so the assignment write must not
+// stale the sidecar (otherwise `embed apply --stale` re-embeds every assigned
+// note with [[vocab.…]] wikilink noise baked into its body vector).
+func TestVocabAssignment_KeepsSidecarStateOK(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const modelID = "test-model"
+
+	preAssign := "---\ntype: feedback\nsituation: wiring a Go CLI\nbehavior: b\nimpact: i\naction: a\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n" +
+		"Lesson learned: when wiring a Go CLI, a.\n"
+
+	// "Embed" the pre-assignment note: sidecar carries its ContentHash.
+	sidecar := embed.Sidecar{
+		SchemaVersion:    1,
+		EmbeddingModelID: modelID,
+		Dims:             2,
+		SituationVector:  []float32{1, 0},
+		BodyVector:       []float32{1, 0},
+		ContentHash:      embed.ContentHash([]byte(preAssign)),
+	}
+
+	// Assign vocab AFTER embedding — the write-time assignment path.
+	postAssign := cli.WriteVocabAssignment(preAssign, []string{"eval-methodology", "retrieval-design"})
+	g.Expect(postAssign).NotTo(Equal(preAssign), "assignment must have written both channels")
+
+	filesystem := &fakeStateFS{files: map[string][]byte{
+		"/vault/1aa.note.md":       []byte(postAssign),
+		"/vault/1aa.note.vec.json": embed.MarshalSidecar(sidecar),
+	}}
+
+	g.Expect(embed.ComputeState(filesystem, "/vault/1aa.note.md", modelID)).
+		To(Equal(embed.StateOK),
+			"vocab assignment must not stale the sidecar (Vocab: line excluded from body hash)")
+}
+
 // ── Unit 2: exclusion seam ────────────────────────────────────────────────────
 
 // TestVocabNote_ExcludedFromFloorPromotion proves that a vocab note is NOT
@@ -400,4 +442,17 @@ func TestWriteVocabAssignment_WritesBothChannels(t *testing.T) {
 		"frontmatter vocab list must be written")
 	g.Expect(got).To(ContainSubstring("Vocab: [[vocab.eval-methodology]], [[vocab.scope-discipline]]"),
 		"body Vocab wikilink line must be written")
+}
+
+// fakeStateFS serves ComputeState reads from a map (note + sidecar paths).
+type fakeStateFS struct {
+	files map[string][]byte
+}
+
+func (f *fakeStateFS) ReadFile(path string) ([]byte, error) {
+	if data, ok := f.files[path]; ok {
+		return data, nil
+	}
+
+	return nil, &testNotFoundError{path: path}
 }

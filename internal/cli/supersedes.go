@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/toejough/engram/internal/embed"
 )
 
 // SupersedesInverse maps a superseded-note basename to the slice of notes that
@@ -37,7 +39,9 @@ func BuildSupersedesInverse(supersedersByNote map[string][]supersedesEntry) Supe
 
 // unexported constants.
 const (
-	supersedesBodyMarker = "Supersedes:"
+	// supersedesBodyMarker is aliased to the embed marker so the writer's line
+	// matching and the BodyText/ContentHash exclusion can never drift apart.
+	supersedesBodyMarker = embed.SupersedesBodyMarker
 	// supersedesPartCount is the number of pipe-separated parts in a
 	// --supersedes flag value: <note>|<type>|<claim>.
 	supersedesPartCount = 3

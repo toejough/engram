@@ -14,15 +14,37 @@ const (
 	// 2026-07-02; bodies are stripped by the vocab migration). Hash exclusion
 	// must keep working for them until that migration lands, then this can go.
 	RelatedSectionMarker = "Related to:"
+	// SupersedesBodyMarker prefixes the machine-written `Supersedes: [[…]] —
+	// type: claim` body lines (replace-whole channel, written by learn/amend).
+	// Excluded from BodyText/ContentHash for the same reason as VocabBodyMarker.
+	// The cli writer's line matching aliases this constant — keep them in sync.
+	SupersedesBodyMarker = "Supersedes:"
+	// VocabBodyMarker prefixes the machine-written `Vocab: [[vocab.…]]` body
+	// line (replace-whole channel, written by WriteVocabAssignment AFTER a
+	// note is embedded). Excluding it from BodyText/ContentHash keeps a
+	// vocab-assigning write from staling the sidecar and keeps [[vocab.…]]
+	// wikilink noise out of body vectors on re-embed. The cli writer's line
+	// matching aliases this constant — keep them in sync.
+	VocabBodyMarker = "Vocab:"
 )
 
-// BodyText returns the note body (frontmatter stripped) with any trailing
-// "Related to:" section removed. It is the body-vector source for every
-// note type. Dropping the relation block means a link-only edit (adding or
-// changing [[wikilinks]] under "Related to:") leaves the body vector and
-// ContentHash unchanged (D3).
+// BodyText returns the note body (frontmatter stripped) with all
+// machine-written channel content removed: `Vocab:` and `Supersedes:` body
+// lines (replace-whole channels) and any trailing "Related to:" section.
+// It is the body-vector source for every note type. Dropping channel content
+// means a channel-only edit (vocab assignment, supersession write, link edit)
+// leaves the body vector and ContentHash unchanged (D3).
+//
+// Machine lines are stripped BEFORE the Related-to pass: the writers append
+// their lines after an unmigrated note's trailing "Related to:" block, and a
+// non-bullet line after the block would otherwise disqualify it.
+//
+// Trailing blank lines are normalized to a single newline LAST: the learn
+// renderers end bodies with "\n\n" while the channel writers trim trailing
+// blanks before appending their line — the original count is unrecoverable
+// after a write, so the hash must be insensitive to it on both sides.
 func BodyText(raw []byte) []byte {
-	return stripRelatedToSection(ExtractBody(raw))
+	return normalizeTrailingBlanks(stripRelatedToSection(stripMachineLines(ExtractBody(raw))))
 }
 
 // ContentHash returns a sha256: prefixed hex digest covering BOTH embed
@@ -134,6 +156,75 @@ func isRelatedToBlock(after [][]byte) bool {
 	}
 
 	return sawBullet
+}
+
+// normalizeTrailingBlanks trims trailing BLANK LINES from body, restoring a
+// single trailing newline when any content remains. Bodies already ending in
+// exactly one newline (or none) are returned byte-identical — only the blank
+// lines themselves are normalized, never the last content line.
+func normalizeTrailingBlanks(body []byte) []byte {
+	lines := bytes.Split(body, []byte("\n"))
+	// bytes.Split never returns nil in practice; the guard satisfies nilaway.
+	if lines == nil {
+		return body
+	}
+
+	end := len(lines)
+	for end > 0 && len(bytes.TrimSpace(lines[end-1])) == 0 {
+		end--
+	}
+
+	// No trailing newline at all, or exactly one — already normal.
+	if end == len(lines) || end == len(lines)-1 && len(lines[len(lines)-1]) == 0 {
+		return body
+	}
+
+	if end == 0 {
+		return nil
+	}
+
+	result := bytes.Join(lines[:end], []byte("\n"))
+
+	return append(result, '\n')
+}
+
+// stripMachineLines removes machine-written channel lines (`Vocab:` and
+// `Supersedes:` prefixes — exactly the writers' replace-whole line matching)
+// from body. When any line is removed, trailing blank lines are trimmed and a
+// single trailing newline restored, mirroring the writers' append form
+// ("body\n" → "body\n\nVocab: …\n" must strip back to "body\n"). A body with
+// no machine lines is returned byte-identical so pre-channel hashes never churn.
+func stripMachineLines(body []byte) []byte {
+	lines := bytes.Split(body, []byte("\n"))
+	kept := make([][]byte, 0, len(lines))
+	removed := false
+
+	for _, line := range lines {
+		trimmed := bytes.TrimRight(line, "\r")
+		if bytes.HasPrefix(trimmed, []byte(VocabBodyMarker)) ||
+			bytes.HasPrefix(trimmed, []byte(SupersedesBodyMarker)) {
+			removed = true
+
+			continue
+		}
+
+		kept = append(kept, line)
+	}
+
+	if !removed {
+		return body
+	}
+
+	for len(kept) > 0 && len(bytes.TrimSpace(kept[len(kept)-1])) == 0 {
+		kept = kept[:len(kept)-1]
+	}
+
+	result := bytes.Join(kept, []byte("\n"))
+	if len(result) > 0 && result[len(result)-1] != '\n' {
+		result = append(result, '\n')
+	}
+
+	return result
 }
 
 // stripRelatedToSection removes a trailing "Related to:" relation block from

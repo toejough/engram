@@ -109,8 +109,10 @@ const (
 	topVocabTermCount = 3
 	typeVocab         = "vocab"
 	typeVocabIndex    = "vocab-index"
-	// vocabBodyMarker is the line-start prefix of a Vocab body line on a member note.
-	vocabBodyMarker = "Vocab:"
+	// vocabBodyMarker is the line-start prefix of a Vocab body line on a member
+	// note. Aliased to the embed marker so the writer's line matching and the
+	// BodyText/ContentHash exclusion can never drift apart.
+	vocabBodyMarker = embed.VocabBodyMarker
 )
 
 // termScore is the internal working type for scoring terms against a note vector.

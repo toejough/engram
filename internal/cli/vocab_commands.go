@@ -182,7 +182,7 @@ func RunVocabPropose(ctx context.Context, args VocabProposeArgs, deps VocabDeps,
 	when := deps.Now()
 
 	// Read the current version and bump it.
-	currentVersion := loadCurrentVocabVersion(args.Vault, deps.ListMD, deps.ReadFile)
+	currentVersion := loadCurrentVocabVersion(args.Vault, deps.ReadFile)
 	newVersion := bumpMinorVersion(currentVersion)
 
 	// Write and embed the new term note.
@@ -230,7 +230,7 @@ func RunVocabRefit(ctx context.Context, args VocabRefitArgs, deps VocabDeps, std
 
 	when := deps.Now()
 
-	currentVersion := loadCurrentVocabVersion(args.Vault, deps.ListMD, deps.ReadFile)
+	currentVersion := loadCurrentVocabVersion(args.Vault, deps.ReadFile)
 	newVersion := bumpMajorVersion(currentVersion)
 
 	applyRefitRemovals(deps, args.Vault, plan.Removals)
@@ -271,7 +271,7 @@ func RunVocabStats(args VocabStatsArgs, deps VocabStatsDeps, stdout io.Writer) e
 	}
 
 	termNames, memberCounts, totalNotes, untaggedCount := collectVaultStats(names, deps, args.Vault)
-	vocabVersion := loadCurrentVocabVersion(args.Vault, deps.ListMD, deps.ReadFile)
+	vocabVersion := loadCurrentVocabVersion(args.Vault, deps.ReadFile)
 
 	sort.Strings(termNames)
 	printStatsReport(stdout, termNames, memberCounts, totalNotes, untaggedCount, vocabVersion)
@@ -864,11 +864,8 @@ func isVocabTermFilename(name string) bool {
 // Returns initialVocabVersion ("1.0") when the index file is absent or unreadable.
 func loadCurrentVocabVersion(
 	vault string,
-	listMD func(string) ([]string, error),
 	readFile func(string) ([]byte, error),
 ) string {
-	_ = listMD // for symmetry with other helpers; not needed here
-
 	indexPath := filepath.Join(vault, vocabIndexFilename)
 
 	raw, err := readFile(indexPath)
@@ -1118,6 +1115,40 @@ func regenVocabIndex(deps VocabDeps, vault, vocabVersion string, when time.Time)
 	return nil
 }
 
+// renameTermInVocabList parses the note's current vocab: frontmatter list
+// (noteMiniDoc pattern, mirroring clearRemovalsFromNoteContent) and returns
+// the list with fromTerm substituted by toTerm. changed=false when the note
+// has no parseable frontmatter or its list does not contain fromTerm.
+func renameTermInVocabList(raw []byte, fromTerm, toTerm string) ([]string, bool) {
+	frontmatter, ok := splitFrontmatter(raw)
+	if !ok {
+		return nil, false
+	}
+
+	var doc noteMiniDoc
+
+	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
+	if unmarshalErr != nil {
+		return nil, false
+	}
+
+	renamed := make([]string, len(doc.Vocab))
+	changed := false
+
+	for i, term := range doc.Vocab {
+		if term == fromTerm {
+			renamed[i] = toTerm
+			changed = true
+
+			continue
+		}
+
+		renamed[i] = term
+	}
+
+	return renamed, changed
+}
+
 // renderTermNoteContent produces the content of a vocab term note. The body
 // (description + exemplar list) IS the term's embedding text: exemplars are
 // situation lines from representative members, and including them moves the
@@ -1173,8 +1204,11 @@ func renderVocabIndexContent(entries []vocabIndexEntry, vocabVersion string, whe
 	return frontmatter + body
 }
 
-// rewriteMemberTermRename scans all member notes and replaces occurrences of
-// fromTerm with toTerm in both the vocab: frontmatter list and the Vocab: body line.
+// rewriteMemberTermRename scans all member notes and substitutes fromTerm →
+// toTerm in the two vocab channels ONLY (the vocab: frontmatter list, then
+// both channels rewritten via the single writer). Prose that merely contains
+// the term name as a substring is never touched — a whole-note ReplaceAll
+// would corrupt situation/body text mentioning the term.
 func rewriteMemberTermRename(deps VocabDeps, vault, fromTerm, toTerm string) error {
 	names, listErr := deps.ListMD(vault)
 	if listErr != nil {
@@ -1193,13 +1227,13 @@ func rewriteMemberTermRename(deps VocabDeps, vault, fromTerm, toTerm string) err
 			continue
 		}
 
-		content := string(raw)
-		if !strings.Contains(content, fromTerm) {
+		renamed, changed := renameTermInVocabList(raw, fromTerm, toTerm)
+		if !changed {
 			continue
 		}
 
-		updated := strings.ReplaceAll(content, fromTerm, toTerm)
-		if updated == content {
+		updated := WriteVocabAssignment(string(raw), renamed)
+		if updated == string(raw) {
 			continue
 		}
 

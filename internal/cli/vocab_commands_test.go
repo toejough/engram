@@ -1771,6 +1771,76 @@ func TestRunVocabRefit_Rename_DeleteError_LogsWarning(t *testing.T) {
 	g.Expect(warned).To(BeTrue(), "delete failure must trigger log warning")
 }
 
+// TestRunVocabRefit_Rename_LeavesProseIntact verifies a rename rewrites ONLY
+// the two vocab channels (frontmatter list + Vocab: body line): prose that
+// contains the old term name as a substring — in the situation field or the
+// body — must survive byte-identical. Guards against a whole-note ReplaceAll.
+func TestRunVocabRefit_Rename_LeavesProseIntact(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	oldTermNote := "---\ntype: vocab\nterm: eval-methodology\ndescription: old\n" +
+		"vocab_version: 1.0\ncreated: 2026-07-02\n---\n\nold\n"
+	// The old term name appears in PROSE (situation + body) as well as in the
+	// two machine channels. Only the channels may change.
+	memberNote := "---\ntype: feedback\nsituation: during an eval-methodology review\n" +
+		"behavior: b\nimpact: i\naction: a\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nvocab: [eval-methodology]\n---\n\n" +
+		"Lesson learned: the eval-methodology review found the gap.\n\n" +
+		"Vocab: [[vocab.eval-methodology]]\n"
+	indexNote := "---\ntype: vocab-index\nvocab_version: 1.0\ncreated: 2026-07-02\n---\n\n" +
+		"[[vocab.eval-methodology]] — old — 1 members\n"
+
+	planContent := "renames:\n  - from: eval-methodology\n    to: evaluation-practice\n"
+
+	files := map[string][]byte{
+		"/vault/vocab.eval-methodology.md": []byte(oldTermNote),
+		"/vault/1aa.2026-01-01.md":         []byte(memberNote),
+		"/vault/vocab.index.md":            []byte(indexNote),
+		"/plan.yaml":                       []byte(planContent),
+	}
+
+	written := map[string][]byte{}
+
+	deps := cli.VocabDeps{
+		Lock: func(string) (func(), error) { return func() {}, nil },
+		ListMD: func(string) ([]string, error) {
+			return []string{"vocab.eval-methodology.md", "1aa.2026-01-01.md", "vocab.index.md"}, nil
+		},
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile:    func(path string, data []byte) error { written[path] = data; return nil },
+		DeleteFile:   func(string) error { return nil },
+		WriteSidecar: func(string, []byte) error { return nil },
+		LogWarning:   func(string, ...any) {},
+		Now:          func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
+	}
+
+	args := cli.VocabRefitArgs{Vault: "/vault", PlanFile: "/plan.yaml"}
+
+	var buf strings.Builder
+
+	g.Expect(cli.RunVocabRefit(t.Context(), args, deps, &buf)).To(Succeed())
+
+	updated := string(written["/vault/1aa.2026-01-01.md"])
+	g.Expect(updated).To(ContainSubstring("situation: during an eval-methodology review"),
+		"prose in the situation field must survive a rename untouched")
+	g.Expect(updated).To(ContainSubstring("the eval-methodology review found the gap"),
+		"prose in the body must survive a rename untouched")
+	g.Expect(updated).To(ContainSubstring("vocab: [evaluation-practice]"),
+		"the frontmatter channel must carry the new term")
+	g.Expect(updated).To(ContainSubstring("Vocab: [[vocab.evaluation-practice]]"),
+		"the body channel must carry the new term")
+	g.Expect(updated).NotTo(ContainSubstring("evaluation-practice review"),
+		"the new term must not leak into prose")
+}
+
 // TestRunVocabRefit_Rename_MemberWriteError_LogsWarning verifies that when
 // WriteFile fails for a member note during rewriteMemberTermRename, a warning
 // is logged but refit succeeds (covers rewriteMemberTermRename write-error path).
