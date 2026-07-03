@@ -124,7 +124,6 @@ type LearnQADeps struct {
     Getenv          func(string) string
     StatDir         func(string) error
     InitVault       func(string) error
-    ListIDs         func(vault string) ([]string, error)
     ListMDFilenames func(vault string) ([]string, error) // full .md names for contributor validation + trigger
     Lock            func(vault string) (release func(), err error)
     WriteNew        func(path string, data []byte) error
@@ -570,12 +569,21 @@ func TestCollectVaultStats_QAQuestionExcluded_QAAnswerCounted(t *testing.T) {
     }
 
     qaAContent := "---\ntype: qa-answer\ndate: \"2026-07-03\"\nvocab: [agentic-recall-triggers]\n---\n\nAnswer body.\n"
+    // Gate A F1: the Q note MUST return real qa-question content — a read error would
+    // exclude it from totalNotes even WITHOUT the new skip (extractNoteVocabTags returns
+    // nil,false on read errors), making the RED phase a false pass. With real content,
+    // the unmodified code counts it (totalNotes=2 → RED genuinely fails) and only the
+    // added isQAQuestionFilename skip turns it GREEN (totalNotes=1).
+    qaQContent := "---\ntype: qa-question\ndate: \"2026-07-03\"\nanswered_by: qa.2026-07-03.slug.a\n---\n\nQuestion body.\n"
 
     deps := cli.VocabStatsDeps{
         ListMD: func(string) ([]string, error) { return names, nil },
         ReadFile: func(path string) ([]byte, error) {
-            if strings.HasSuffix(path, "slug.a.md") {
+            switch {
+            case strings.HasSuffix(path, "slug.a.md"):
                 return []byte(qaAContent), nil
+            case strings.HasSuffix(path, "slug.q.md"):
+                return []byte(qaQContent), nil
             }
             return nil, os.ErrNotExist
         },
@@ -975,28 +983,12 @@ func RunLearnQA(ctx context.Context, args LearnQAArgs, deps LearnQADeps, stdout 
     aContent  := renderQAAnswerNote(answerBody, args.Slug, args.Source, certainty,
         args.Contributors, when)
 
-    // Write under lock (Q then A). Lock prevents Luhmann-ID collisions from
-    // concurrent regular learn operations; QA notes use date+slug names, not
-    // Luhmann IDs, so we only need to prevent partial-write races.
-    release, lockErr := deps.Lock(vault)
-    if lockErr != nil {
-        return fmt.Errorf("learn qa: acquiring lock: %w", lockErr)
-    }
-    defer release()
-
-    // Write Q note.
-    if err := deps.WriteNew(qPath, []byte(qContent)); err != nil {
-        return fmt.Errorf("learn qa: writing Q note: %w", err)
-    }
-
-    // Write A note — on failure, remove Q (best-effort) and return error.
-    if err := deps.WriteNew(aPath, []byte(aContent)); err != nil {
-        removeErr := deps.RemoveFile(qPath)
-        if removeErr != nil {
-            return fmt.Errorf("learn qa: writing A note: %w (also failed to remove orphan Q note %q: %v)",
-                err, qPath, removeErr)
-        }
-        return fmt.Errorf("learn qa: writing A note (Q note removed): %w", err)
+    // Write both notes under the lock, then RELEASE before embed/vocab — the
+    // learn.go writeLearnUnderLock pattern (note 50: sidecar writes are atomic
+    // per-file and need no vault lock; holding it through embedding would block
+    // concurrent learns).
+    if err := writeQANotesUnderLock(deps, vault, qPath, aPath, qContent, aContent); err != nil {
+        return err
     }
 
     // Embed-on-write and vocab assignment for Q note (embed only; no vocab on Q).
@@ -1009,6 +1001,33 @@ func RunLearnQA(ctx context.Context, args LearnQAArgs, deps LearnQADeps, stdout 
 
     _, _ = fmt.Fprintln(stdout, qPath)
     _, _ = fmt.Fprintln(stdout, aPath)
+
+    return nil
+}
+
+// writeQANotesUnderLock writes the Q then A note under the vault lock and
+// releases it on return. The lock prevents partial-write races with concurrent
+// learn operations; QA notes use date+slug names, not Luhmann IDs.
+// On A-write failure the Q note is removed (best-effort) so no orphan remains.
+func writeQANotesUnderLock(deps LearnQADeps, vault, qPath, aPath, qContent, aContent string) error {
+    release, lockErr := deps.Lock(vault)
+    if lockErr != nil {
+        return fmt.Errorf("learn qa: acquiring lock: %w", lockErr)
+    }
+    defer release()
+
+    if err := deps.WriteNew(qPath, []byte(qContent)); err != nil {
+        return fmt.Errorf("learn qa: writing Q note: %w", err)
+    }
+
+    if err := deps.WriteNew(aPath, []byte(aContent)); err != nil {
+        removeErr := deps.RemoveFile(qPath)
+        if removeErr != nil {
+            return fmt.Errorf("learn qa: writing A note: %w (also failed to remove orphan Q note %q: %v)",
+                err, qPath, removeErr)
+        }
+        return fmt.Errorf("learn qa: writing A note (Q note removed): %w", err)
+    }
 
     return nil
 }
@@ -1051,7 +1070,6 @@ func newOsLearnQADeps() LearnQADeps {
         Getenv:          os.Getenv,
         StatDir:         vaultFS.StatDir,
         InitVault:       func(path string) error { return initializeVault(vaultFS, path) },
-        ListIDs:         vaultFS.ListIDs,
         ListMDFilenames: osVault.ListMD,
         Lock:            vaultFS.Lock,
         WriteNew:        vaultFS.WriteNew,
@@ -1084,7 +1102,6 @@ func TestRunLearnQA_WritesQAndAFiles(t *testing.T) {
         Getenv:          func(string) string { return "" },
         StatDir:         func(string) error { return nil },
         InitVault:       func(string) error { return nil },
-        ListIDs:         func(string) ([]string, error) { return nil, nil },
         ListMDFilenames: func(string) ([]string, error) { return []string{"100.note.md"}, nil },
         Lock:            func(string) (func(), error) { return func() {}, nil },
         WriteNew:        func(path string, _ []byte) error { written = append(written, path); return nil },
@@ -1117,7 +1134,6 @@ func TestRunLearnQA_AWriteFailure_RemovesQAndErrors(t *testing.T) {
         Getenv:          func(string) string { return "" },
         StatDir:         func(string) error { return nil },
         InitVault:       func(string) error { return nil },
-        ListIDs:         func(string) ([]string, error) { return nil, nil },
         ListMDFilenames: func(string) ([]string, error) { return nil, nil },
         Lock:            func(string) (func(), error) { return func() {}, nil },
         WriteNew: func(path string, _ []byte) error {
@@ -1150,7 +1166,6 @@ func TestRunLearnQA_UnknownContributor_ErrorBeforeWrite(t *testing.T) {
         Getenv:          func(string) string { return "" },
         StatDir:         func(string) error { return nil },
         InitVault:       func(string) error { return nil },
-        ListIDs:         func(string) ([]string, error) { return nil, nil },
         ListMDFilenames: func(string) ([]string, error) { return []string{"100.note.md"}, nil },
         Lock:            func(string) (func(), error) { return func() {}, nil },
         WriteNew:        func(string, []byte) error { writeCallCount++; return nil },
@@ -1617,7 +1632,13 @@ no second capture call. No other criterion applies.
 
 **Approach:** extend the existing Arm V section in `p1_retrieval_pollution.sh` to add a `LARGE_N_PARAPHRASES` variable and a second Python block that:
 1. Reads the ≥30 new paraphrases from a committed JSON file `dev/eval/qa/arm_v_large_n.json`
-2. Runs the same direct-cosine retrieval probe (no LLM — `engram query` only) against the copy vault
+2. Measures q-space ranking by DIRECT SIDECAR COSINE — a Python scorer that loads every
+`.vec.json` in the copy vault, embeds each paraphrase via the probe embedder path, and ranks
+raw cosines. It must NOT go through `engram query`: after Task 2 ships, the production binary
+excludes qa-question at all four seam points, so a query-pipeline probe would return 0/30
+Q-note retrievals and record a FALSE FAIL on the round-3 gate (Gate A finding). Direct sidecar
+cosine also measures exactly what the D5′ q-channel premise claims — q-space ranking —
+independent of pipeline mechanics. (No LLM; local embedder; copy vault only.)
 3. Scores: each paraphrase PASSES if its target Q-note ranks #1 among ALL Q-notes AND above every content note; otherwise FAILS
 4. Prints `Arm V large-n: N_pass/N_total PASS|BORDERLINE|FAIL`
 
