@@ -12,8 +12,10 @@ import (
 // Exported constants.
 const (
 	// DefaultVocabFloor is the minimum cosine similarity for a term to qualify
-	// for assignment to a note. Slice-2 sweep may tune this per-vault.
-	DefaultVocabFloor = float32(0.30)
+	// for assignment to a note. Set by the Slice-2 centroid two-pass sweep:
+	// twopass|0.35|K3 = 56.2% recovery @ median pool 31.0 on the 48-case miss
+	// population — PASS against the re-anchored gate (≥54.2% @ pool ≤40).
+	DefaultVocabFloor = float32(0.35)
 )
 
 // TermWithVector pairs a vocab term name with its embedding vector loaded from
@@ -35,12 +37,11 @@ type VocabFrontmatter struct {
 }
 
 // AssignVocabTerms computes cosine similarity between bodyVec and each term's
-// vector, returning the names of the top-2 terms whose score ≥ floor, plus a
-// 3rd (the close-3rd rider) if it also qualifies (≥ floor) and is within
-// closeThirdRiderMargin cosine of the 2nd. Returns nil when no term qualifies.
-// K2+rider is the enriched-sweep winner under the pre-registered nomination
-// pool ≤ 40 bar (desc arm 56.2% @ pool 35.5 vs K3's only pool-eligible config
-// 45.8% @ 40.0); K3 lifts raw recovery but blows the pool bar.
+// vector, returning the top-3 terms whose score ≥ floor (plain top-3, no
+// close-3rd rider). Config from the Slice-2 centroid two-pass sweep: within
+// the shipped twopass arm K3 beats K2+rider at every floor (56.2% vs ≤50.0%
+// recovery) and twopass|0.35|K3 passes the re-anchored gate (≥54.2% @ pool
+// ≤40) at median pool 31.0. Returns nil when no term qualifies.
 func AssignVocabTerms(bodyVec []float32, terms []TermWithVector, floor float32) []string {
 	if len(bodyVec) == 0 || len(terms) == 0 {
 		return nil
@@ -61,16 +62,7 @@ func AssignVocabTerms(bodyVec []float32, terms []TermWithVector, floor float32) 
 
 	sortTermScores(candidates)
 
-	// Top-2 always selected (up to however many qualify).
 	selectCount := min(topVocabTermCount, len(candidates))
-
-	// Close-3rd rider: 3rd qualifies iff it exists, is ≥ floor (already guaranteed
-	// by the filter above), and is within closeThirdRiderMargin of the 2nd.
-	if selectCount == 2 && len(candidates) >= 3 {
-		if candidates[1].score-candidates[2].score <= closeThirdRiderMargin {
-			selectCount = 3
-		}
-	}
 
 	result := make([]string, selectCount)
 	for i := range selectCount {
@@ -109,15 +101,12 @@ func WriteVocabAssignment(content string, terms []string) string {
 
 // unexported constants.
 const (
-	// closeThirdRiderMargin is the maximum cosine gap between the 2nd and 3rd
-	// qualifying term for the close-3rd rider to activate.
-	closeThirdRiderMargin = float32(0.02)
-	fmEnd                 = "\n---\n"
+	fmEnd = "\n---\n"
 	// fmStart/fmEnd delimit YAML frontmatter in a note's raw content.
 	fmStart = "---\n"
 	// topVocabTermCount is the maximum number of top-ranked terms selected
-	// before the close-3rd rider check.
-	topVocabTermCount = 2
+	// (plain top-3 — the sweep-chosen K; see AssignVocabTerms).
+	topVocabTermCount = 3
 	typeVocab         = "vocab"
 	typeVocabIndex    = "vocab-index"
 	// vocabBodyMarker is the line-start prefix of a Vocab body line on a member note.

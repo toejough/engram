@@ -37,6 +37,7 @@ var (
 	ExportIsVocabKind                = isVocabKind
 	ExportKindFromContent            = kindFromContent
 	ExportLearnPath                  = learnPath
+	ExportLoadAssignmentTermVectors  = loadAssignmentTermVectors
 	ExportLogWarningToStderr         = logWarningToStderrf
 	ExportMarshalFrontmatter         = marshalFrontmatter
 	ExportMaxTurnBySource            = maxTurnBySource

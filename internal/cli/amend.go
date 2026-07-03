@@ -363,8 +363,10 @@ func newOsAmendDeps() AmendDeps {
 		ListIndexes: listJSONLIndexes,
 		LogWarning:  logWarningToStderrf,
 		// Vocab assignment wiring: no-op when the vault has no term notes.
+		// Uses stored member centroids (vocab.centroids.json) when present,
+		// falling back to description embeddings per term.
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
-			return loadTermVectors(vault, osVault.ListMD, osVault.ReadFile)
+			return loadAssignmentTermVectors(vault, osVault.ListMD, osVault.ReadFile)
 		},
 	}
 }

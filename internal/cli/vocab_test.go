@@ -81,60 +81,6 @@ func TestAssignVocabTerms_BelowFloor_NilResult(t *testing.T) {
 	g.Expect(got).To(BeNil(), "no terms above floor must return nil")
 }
 
-func TestAssignVocabTerms_CloseThirdRider_Activated(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Unit vectors at different angles from bodyVec=[1,0] to produce meaningful
-	// cosine gaps. [a, b] where a²+b²≈1 gives cosine≈a with bodyVec.
-	bodyVec := []float32{1.0, 0.0}
-	terms := []cli.TermWithVector{
-		{Term: "alpha", Vector: []float32{0.90, 0.4359}}, // cosine ≈ 0.90
-		{Term: "beta", Vector: []float32{0.80, 0.60}},    // cosine = 0.80
-		// gap between beta (~0.80) and gamma (~0.79): 0.01 ≤ 0.02 → rider activates.
-		{Term: "gamma", Vector: []float32{0.79, 0.6131}}, // cosine ≈ 0.79
-	}
-
-	got := cli.AssignVocabTerms(bodyVec, terms, 0.30)
-
-	g.Expect(got).To(HaveLen(3), "close-3rd rider activates when gap ≤ 0.02")
-
-	if got == nil {
-		return
-	}
-
-	g.Expect(got[2]).To(Equal("gamma"))
-}
-
-// ── Unit 3: write-time assigner (AssignVocabTerms) ───────────────────────────
-
-func TestAssignVocabTerms_CloseThirdRider_NotActivated(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// All three qualify but the 3rd is 0.10 cosine behind the 2nd (> 0.02),
-	// so the rider stays inactive and only top-2 are selected.
-	bodyVec := []float32{1.0, 0.0, 0.0}
-	terms := []cli.TermWithVector{
-		{Term: "eval-methodology", Vector: []float32{0.95, 0.1, 0.0}},
-		{Term: "scope-discipline", Vector: []float32{0.85, 0.2, 0.0}},
-		{Term: "verification", Vector: []float32{0.75, 0.3, 0.0}},
-	}
-
-	got := cli.AssignVocabTerms(bodyVec, terms, 0.30)
-
-	g.Expect(got).To(HaveLen(2), "close-3rd rider must not activate when gap > 0.02")
-
-	if got == nil {
-		return
-	}
-
-	g.Expect(got[0]).To(Equal("eval-methodology"), "highest cosine term should be first")
-	g.Expect(got[1]).To(Equal("scope-discipline"), "second cosine term should be second")
-}
-
 func TestAssignVocabTerms_EmptyBodyVec_NilResult(t *testing.T) {
 	t.Parallel()
 
@@ -152,6 +98,34 @@ func TestAssignVocabTerms_EmptyTerms_NilResult(t *testing.T) {
 
 	got := cli.AssignVocabTerms([]float32{1.0}, nil, 0.30)
 	g.Expect(got).To(BeNil())
+}
+
+// ── Unit 3: write-time assigner (AssignVocabTerms) ───────────────────────────
+
+func TestAssignVocabTerms_FourQualifying_CapsAtTopThree(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Four terms qualify; plain top-3 (the sweep-chosen K) caps the selection
+	// at the three highest cosines, in descending order.
+	bodyVec := []float32{1.0, 0.0}
+	terms := []cli.TermWithVector{
+		{Term: "alpha", Vector: []float32{0.90, 0.4359}}, // cosine ≈ 0.90
+		{Term: "beta", Vector: []float32{0.80, 0.60}},    // cosine = 0.80
+		{Term: "gamma", Vector: []float32{0.79, 0.6131}}, // cosine ≈ 0.79
+		{Term: "delta", Vector: []float32{0.50, 0.8660}}, // cosine = 0.50
+	}
+
+	got := cli.AssignVocabTerms(bodyVec, terms, 0.30)
+
+	g.Expect(got).To(HaveLen(3), "selection caps at top-3")
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got).To(Equal([]string{"alpha", "beta", "gamma"}))
 }
 
 func TestAssignVocabTerms_OnlyOneQualifies_ReturnsSingle(t *testing.T) {
@@ -178,6 +152,33 @@ func TestAssignVocabTerms_OnlyOneQualifies_ReturnsSingle(t *testing.T) {
 	}
 
 	g.Expect(got[0]).To(Equal("alpha"))
+}
+
+func TestAssignVocabTerms_ThreeQualifying_TakesAllThree(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// All three qualify; plain top-3 takes all of them regardless of the
+	// cosine gap between 2nd and 3rd (no close-3rd rider in the K3 config).
+	bodyVec := []float32{1.0, 0.0, 0.0}
+	terms := []cli.TermWithVector{
+		{Term: "eval-methodology", Vector: []float32{0.95, 0.1, 0.0}},
+		{Term: "scope-discipline", Vector: []float32{0.85, 0.2, 0.0}},
+		{Term: "verification", Vector: []float32{0.75, 0.3, 0.0}},
+	}
+
+	got := cli.AssignVocabTerms(bodyVec, terms, 0.30)
+
+	g.Expect(got).To(HaveLen(3), "all floor-passing terms up to 3 are selected")
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got[0]).To(Equal("eval-methodology"), "highest cosine term should be first")
+	g.Expect(got[1]).To(Equal("scope-discipline"), "second cosine term should be second")
+	g.Expect(got[2]).To(Equal("verification"), "third cosine term should be third")
 }
 
 func TestAssignVocabTerms_TwoQualifyingOneBelowFloor_TakesTwo(t *testing.T) {

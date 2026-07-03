@@ -6,7 +6,7 @@
     "P3": 4
   },
   "gate": {
-    "recovery_pct": 60.0,
+    "recovery_pct": 54.2,
     "median_pool": 40
   },
   "configs": {
@@ -130,8 +130,128 @@
         "P3": "4/4"
       }
     },
-    "centroid|floor=0.25|K2+rider": {
-      "arm": "centroid",
+    "twopass|floor=0.25|K2+rider": {
+      "arm": "twopass",
+      "floor": 0.25,
+      "k_mode": "K2+rider",
+      "n_tagged": 137,
+      "n": 48,
+      "recovery": 47.9,
+      "recovered": 23,
+      "median_pool": 33.0,
+      "by_kind": {
+        "P1": "15/36",
+        "P2": "4/8",
+        "P3": "4/4"
+      }
+    },
+    "twopass|floor=0.25|K3": {
+      "arm": "twopass",
+      "floor": 0.25,
+      "k_mode": "K3",
+      "n_tagged": 137,
+      "n": 48,
+      "recovery": 56.2,
+      "recovered": 27,
+      "median_pool": 39.5,
+      "by_kind": {
+        "P1": "18/36",
+        "P2": "5/8",
+        "P3": "4/4"
+      }
+    },
+    "twopass|floor=0.30|K2+rider": {
+      "arm": "twopass",
+      "floor": 0.3,
+      "k_mode": "K2+rider",
+      "n_tagged": 136,
+      "n": 48,
+      "recovery": 47.9,
+      "recovered": 23,
+      "median_pool": 29.5,
+      "by_kind": {
+        "P1": "15/36",
+        "P2": "4/8",
+        "P3": "4/4"
+      }
+    },
+    "twopass|floor=0.30|K3": {
+      "arm": "twopass",
+      "floor": 0.3,
+      "k_mode": "K3",
+      "n_tagged": 135,
+      "n": 48,
+      "recovery": 56.2,
+      "recovered": 27,
+      "median_pool": 33.0,
+      "by_kind": {
+        "P1": "19/36",
+        "P2": "4/8",
+        "P3": "4/4"
+      }
+    },
+    "twopass|floor=0.35|K2+rider": {
+      "arm": "twopass",
+      "floor": 0.35,
+      "k_mode": "K2+rider",
+      "n_tagged": 133,
+      "n": 48,
+      "recovery": 50.0,
+      "recovered": 24,
+      "median_pool": 25.0,
+      "by_kind": {
+        "P1": "16/36",
+        "P2": "4/8",
+        "P3": "4/4"
+      }
+    },
+    "twopass|floor=0.35|K3": {
+      "arm": "twopass",
+      "floor": 0.35,
+      "k_mode": "K3",
+      "n_tagged": 133,
+      "n": 48,
+      "recovery": 56.2,
+      "recovered": 27,
+      "median_pool": 31.0,
+      "by_kind": {
+        "P1": "19/36",
+        "P2": "4/8",
+        "P3": "4/4"
+      }
+    },
+    "twopass|floor=0.40|K2+rider": {
+      "arm": "twopass",
+      "floor": 0.4,
+      "k_mode": "K2+rider",
+      "n_tagged": 125,
+      "n": 48,
+      "recovery": 41.7,
+      "recovered": 20,
+      "median_pool": 24.0,
+      "by_kind": {
+        "P1": "13/36",
+        "P2": "3/8",
+        "P3": "4/4"
+      }
+    },
+    "twopass|floor=0.40|K3": {
+      "arm": "twopass",
+      "floor": 0.4,
+      "k_mode": "K3",
+      "n_tagged": 125,
+      "n": 48,
+      "recovery": 50.0,
+      "recovered": 24,
+      "median_pool": 44.0,
+      "by_kind": {
+        "P1": "16/36",
+        "P2": "4/8",
+        "P3": "4/4"
+      }
+    },
+    "l6cent|floor=0.25|K2+rider": {
+      "arm": "l6cent",
       "floor": 0.25,
       "k_mode": "K2+rider",
       "n_tagged": 138,
@@ -145,8 +265,8 @@
         "P3": "4/4"
       }
     },
-    "centroid|floor=0.25|K3": {
-      "arm": "centroid",
+    "l6cent|floor=0.25|K3": {
+      "arm": "l6cent",
       "floor": 0.25,
       "k_mode": "K3",
       "n_tagged": 138,
@@ -160,8 +280,8 @@
         "P3": "4/4"
       }
     },
-    "centroid|floor=0.30|K2+rider": {
-      "arm": "centroid",
+    "l6cent|floor=0.30|K2+rider": {
+      "arm": "l6cent",
       "floor": 0.3,
       "k_mode": "K2+rider",
       "n_tagged": 138,
@@ -175,8 +295,8 @@
         "P3": "4/4"
       }
     },
-    "centroid|floor=0.30|K3": {
-      "arm": "centroid",
+    "l6cent|floor=0.30|K3": {
+      "arm": "l6cent",
       "floor": 0.3,
       "k_mode": "K3",
       "n_tagged": 138,
@@ -190,8 +310,8 @@
         "P3": "4/4"
       }
     },
-    "centroid|floor=0.35|K2+rider": {
-      "arm": "centroid",
+    "l6cent|floor=0.35|K2+rider": {
+      "arm": "l6cent",
       "floor": 0.35,
       "k_mode": "K2+rider",
       "n_tagged": 138,
@@ -205,8 +325,8 @@
         "P3": "4/4"
       }
     },
-    "centroid|floor=0.35|K3": {
-      "arm": "centroid",
+    "l6cent|floor=0.35|K3": {
+      "arm": "l6cent",
       "floor": 0.35,
       "k_mode": "K3",
       "n_tagged": 138,
@@ -220,8 +340,8 @@
         "P3": "4/4"
       }
     },
-    "centroid|floor=0.40|K2+rider": {
-      "arm": "centroid",
+    "l6cent|floor=0.40|K2+rider": {
+      "arm": "l6cent",
       "floor": 0.4,
       "k_mode": "K2+rider",
       "n_tagged": 135,
@@ -235,8 +355,8 @@
         "P3": "4/4"
       }
     },
-    "centroid|floor=0.40|K3": {
-      "arm": "centroid",
+    "l6cent|floor=0.40|K3": {
+      "arm": "l6cent",
       "floor": 0.4,
       "k_mode": "K3",
       "n_tagged": 135,
@@ -251,5 +371,5 @@
       }
     }
   },
-  "selected": "centroid|floor=0.40|K2+rider"
+  "selected": "twopass|floor=0.35|K3"
 }

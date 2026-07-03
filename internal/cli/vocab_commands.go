@@ -47,7 +47,7 @@ type TermRename struct {
 type VocabBootstrapArgs struct {
 	Vault    string  `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll // unbreakable env+desc struct-tag string
 	SeedFile string  `targ:"flag,name=seed,required,desc=YAML seed file: list of {term+description} entries (required)"`
-	Floor    float32 `targ:"flag,name=floor,desc=minimum cosine similarity for vocab assignment (default 0.30)"`
+	Floor    float32 `targ:"flag,name=floor,desc=minimum cosine similarity for vocab assignment (default 0.35)"`
 }
 
 // VocabDeps holds injected I/O dependencies for all vocab write commands
@@ -144,11 +144,12 @@ func RunVocabBootstrap(ctx context.Context, args VocabBootstrapArgs, deps VocabD
 		return fmt.Errorf("vocab bootstrap: loading term vectors: %w", termsErr)
 	}
 
-	// Scan all non-vocab member notes and assign terms.
+	// Centroid two-pass over all non-vocab member notes: pass 1 against the
+	// description+exemplar embeddings, pass 2 against the member centroids.
 	memberCounts := make(map[string]int)
 
 	if len(terms) > 0 {
-		memberCounts, _ = assignTermsToAllNotes(deps, args.Vault, terms, floor)
+		memberCounts = retagAllNotesTwoPass(deps, args.Vault, terms, floor)
 	}
 
 	entries := buildIndexEntries(seed, memberCounts)
@@ -244,10 +245,10 @@ func RunVocabRefit(ctx context.Context, args VocabRefitArgs, deps VocabDeps, std
 		}
 	}
 
-	// Re-tag all members against the new term set.
+	// Re-tag all members against the new term set (centroid two-pass).
 	terms, _ := loadTermVectors(args.Vault, deps.ListMD, deps.ReadFile)
 	if len(terms) > 0 {
-		_, _ = assignTermsToAllNotes(deps, args.Vault, terms, DefaultVocabFloor)
+		_ = retagAllNotesTwoPass(deps, args.Vault, terms, DefaultVocabFloor)
 	}
 
 	// Regenerate index.

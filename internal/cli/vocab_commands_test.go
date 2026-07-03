@@ -34,6 +34,103 @@ func TestBumpVersion_InvalidInput(t *testing.T) {
 		"bumpMinorVersion must return input unchanged for a non-semver string")
 }
 
+// TestLoadAssignmentTermVectors_PrefersCentroids verifies write-time assignment
+// vectors: terms present in vocab.centroids.json use the stored centroid; absent
+// terms fall back to the term sidecar (description) embedding; a model-id
+// mismatch discards the whole file (stale embedding space).
+func TestLoadAssignmentTermVectors_PrefersCentroids(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	zeroVec := make([]float32, 2)
+	sidecar := func(vec []float32) []byte {
+		return embed.MarshalSidecar(embed.Sidecar{
+			SchemaVersion:    1,
+			EmbeddingModelID: "test",
+			Dims:             2,
+			BodyVector:       vec,
+			SituationVector:  zeroVec,
+		})
+	}
+
+	// vocab.index.md exercises the skip branch; bad1 has no sidecar (read
+	// error) and bad2 a malformed sidecar — both are skipped by the model-id
+	// walk before it reaches x's readable sidecar.
+	listMD := func(string) ([]string, error) {
+		return []string{"vocab.index.md", "vocab.bad1.md", "vocab.bad2.md", "vocab.x.md", "vocab.y.md"}, nil
+	}
+
+	centroids := []byte(`{"schema_version":1,"embedding_model_id":"test","dims":2,` +
+		`"terms":{"x":{"vector":[0.5,0.5],"member_count":3}}}`)
+
+	files := map[string][]byte{
+		"/vault/vocab.bad2.vec.json":  []byte("{not json"),
+		"/vault/vocab.x.vec.json":     sidecar([]float32{1, 0}),
+		"/vault/vocab.y.vec.json":     sidecar([]float32{0, 1}),
+		"/vault/vocab.centroids.json": centroids,
+	}
+	readFile := func(path string) ([]byte, error) {
+		if data, ok := files[path]; ok {
+			return data, nil
+		}
+
+		return nil, &testNotFoundError{path: path}
+	}
+
+	terms, err := cli.ExportLoadAssignmentTermVectors("/vault", listMD, readFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	byName := map[string][]float32{}
+	for _, term := range terms {
+		byName[term.Term] = term.Vector
+	}
+
+	g.Expect(byName["x"]).To(Equal([]float32{0.5, 0.5}), "term with a stored centroid must use it")
+	g.Expect(byName["y"]).To(Equal([]float32{0, 1}), "term absent from the file falls back to its sidecar")
+
+	// Model-id mismatch: the centroid file is from another embedding space — ignore it.
+	files["/vault/vocab.centroids.json"] = []byte(`{"schema_version":1,` +
+		`"embedding_model_id":"other-model","dims":2,"terms":{"x":{"vector":[0.5,0.5],"member_count":3}}}`)
+
+	staleTerms, staleErr := cli.ExportLoadAssignmentTermVectors("/vault", listMD, readFile)
+	g.Expect(staleErr).NotTo(HaveOccurred())
+
+	if staleErr != nil {
+		return
+	}
+
+	staleByName := map[string][]float32{}
+	for _, term := range staleTerms {
+		staleByName[term.Term] = term.Vector
+	}
+
+	g.Expect(staleByName["x"]).To(Equal([]float32{1, 0}),
+		"a centroids file from a different model must be ignored (stale space)")
+
+	// Malformed centroids file: degrade to description embeddings.
+	files["/vault/vocab.centroids.json"] = []byte("{not json")
+
+	malformedTerms, malformedErr := cli.ExportLoadAssignmentTermVectors("/vault", listMD, readFile)
+	g.Expect(malformedErr).NotTo(HaveOccurred())
+
+	if malformedErr != nil {
+		return
+	}
+
+	malformedByName := map[string][]float32{}
+	for _, term := range malformedTerms {
+		malformedByName[term.Term] = term.Vector
+	}
+
+	g.Expect(malformedByName["x"]).To(Equal([]float32{1, 0}),
+		"a malformed centroids file must be ignored")
+}
+
 // ── Coverage: newOsVocabDeps closures ────────────────────────────────────────
 
 // TestNewOsVocabDeps_ClosuresCalled verifies that the ListMD, WriteFile, and
@@ -577,6 +674,60 @@ func TestRunVocabBootstrap_AssignsTermsToExistingNote(t *testing.T) {
 	g.Expect(updatedContent).To(ContainSubstring("vocab:"), "vocab: frontmatter key must be written")
 	g.Expect(updatedContent).To(ContainSubstring("Vocab:"), "Vocab: body line must be written")
 	g.Expect(updatedContent).To(ContainSubstring("eval-methodology"), "term must be assigned")
+}
+
+// TestRunVocabBootstrap_CentroidTwoPass_SecondPassAssignsNote verifies the
+// centroid two-pass: note B ([0,1]) misses every term's DESCRIPTION embedding
+// at floor 0.30, but after pass 1 makes note A the sole eval-topic member the
+// term centroid becomes [0.8,0.6] and pass 2 assigns B (cos 0.6). The derived
+// centroids land in vocab.centroids.json; member-less terms are omitted
+// (fallback = description embedding).
+func TestRunVocabBootstrap_CentroidTwoPass_SecondPassAssignsNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files := centroidTwoPassFiles(g)
+	written := map[string][]byte{}
+	deps := centroidTwoPassDeps(files, written)
+
+	args := cli.VocabBootstrapArgs{Vault: "/vault", SeedFile: "/seed.yaml"}
+
+	var buf strings.Builder
+
+	g.Expect(cli.RunVocabBootstrap(t.Context(), args, deps, &buf)).To(Succeed())
+
+	noteB := string(written["/vault/1ab.note-b.md"])
+	g.Expect(noteB).To(ContainSubstring("eval-topic"),
+		"pass 2 must assign note B against the member centroid (desc embedding alone misses it)")
+
+	centroidsRaw, ok := written["/vault/vocab.centroids.json"]
+	g.Expect(ok).To(BeTrue(), "bootstrap must write the derived centroids file")
+
+	if !ok {
+		return
+	}
+
+	//nolint:tagliatelle // centroids JSON keys follow the sidecar spec contract (snake_case)
+	var doc struct {
+		SchemaVersion    int    `json:"schema_version"`
+		EmbeddingModelID string `json:"embedding_model_id"`
+		Dims             int    `json:"dims"`
+		Terms            map[string]struct {
+			Vector      []float32 `json:"vector"`
+			MemberCount int       `json:"member_count"`
+		} `json:"terms"`
+	}
+	g.Expect(json.Unmarshal(centroidsRaw, &doc)).To(Succeed())
+	g.Expect(doc.EmbeddingModelID).To(Equal("test"), "centroids file must carry the sidecar model id")
+	g.Expect(doc.Dims).To(Equal(2))
+	g.Expect(doc.Terms).To(HaveKey("eval-topic"))
+	g.Expect(doc.Terms).NotTo(HaveKey("orphan-topic"),
+		"member-less terms keep their description embedding and are omitted from the file")
+	g.Expect(doc.Terms["eval-topic"].MemberCount).To(Equal(1), "centroid computed from the 1 pass-1 member")
+	g.Expect(doc.Terms["eval-topic"].Vector).To(HaveLen(2))
+	g.Expect(doc.Terms["eval-topic"].Vector[0]).To(BeNumerically("~", 0.8, 1e-5))
+	g.Expect(doc.Terms["eval-topic"].Vector[1]).To(BeNumerically("~", 0.6, 1e-5))
 }
 
 // ── Vocab commands: bootstrap ─────────────────────────────────────────────────
@@ -1179,6 +1330,30 @@ func TestRunVocabRefit_AppliesRenames(t *testing.T) {
 	updatedMember := string(written["/vault/1aa.2026-01-01.md"])
 	g.Expect(updatedMember).NotTo(ContainSubstring("old-term"), "old term must be removed from member")
 	g.Expect(updatedMember).To(ContainSubstring("new-term"), "new term must be written to member")
+}
+
+// TestRunVocabRefit_CentroidTwoPass_RetagsAgainstCentroids verifies the refit
+// re-tag pass runs the same centroid two-pass and refreshes vocab.centroids.json.
+func TestRunVocabRefit_CentroidTwoPass_RetagsAgainstCentroids(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files := centroidTwoPassFiles(g)
+	written := map[string][]byte{}
+	deps := centroidTwoPassDeps(files, written)
+
+	args := cli.VocabRefitArgs{Vault: "/vault", PlanFile: "/plan.yaml"}
+
+	var buf strings.Builder
+
+	g.Expect(cli.RunVocabRefit(t.Context(), args, deps, &buf)).To(Succeed())
+
+	noteB := string(written["/vault/1ab.note-b.md"])
+	g.Expect(noteB).To(ContainSubstring("eval-topic"),
+		"refit re-tag must assign note B against the member centroid")
+	g.Expect(written).To(HaveKey("/vault/vocab.centroids.json"),
+		"refit must refresh the derived centroids file")
 }
 
 // ── Coverage: clearRemovalsFromNoteContent unmarshal-error path ───────────────
@@ -1938,6 +2113,85 @@ func (e *testNotFoundError) Error() string { return "not found: " + e.path }
 
 func (e *testNotFoundError) Is(target error) bool {
 	return target.Error() == "file does not exist" || strings.Contains(target.Error(), "not exist")
+}
+
+// centroidTwoPassDeps wires VocabDeps over the fixture files, capturing writes.
+// Reads prefer `written` so pass 2 sees pass-1 output when both write.
+func centroidTwoPassDeps(files, written map[string][]byte) cli.VocabDeps {
+	return cli.VocabDeps{
+		Lock: func(string) (func(), error) { return func() {}, nil },
+		ListMD: func(string) ([]string, error) {
+			return []string{
+				"1aa.note-a.md", "1ab.note-b.md",
+				"vocab.eval-topic.md", "vocab.orphan-topic.md",
+			}, nil
+		},
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := written[path]; ok {
+				return data, nil
+			}
+
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile:    func(path string, data []byte) error { written[path] = data; return nil },
+		DeleteFile:   func(string) error { return nil },
+		WriteSidecar: func(string, []byte) error { return nil },
+		LogWarning:   func(string, ...any) {},
+		Now:          func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
+	}
+}
+
+// ── Centroid two-pass assignment ──────────────────────────────────────────────
+
+// centroidTwoPassFiles builds the shared fixture for the two-pass tests:
+// term eval-topic (desc vector [1,0]), term orphan-topic (desc vector [0,-1],
+// no members at floor 0.30), note A [0.8,0.6] (pass-1 member of eval-topic),
+// note B [0,1] (below floor vs desc; cos 0.6 vs the A-only centroid → pass-2 member).
+func centroidTwoPassFiles(g Gomega) map[string][]byte {
+	zeroVec := make([]float32, 2)
+
+	marshalTermSidecar := func(vec []float32) []byte {
+		return embed.MarshalSidecar(embed.Sidecar{
+			SchemaVersion:    1,
+			EmbeddingModelID: "test",
+			Dims:             2,
+			BodyVector:       vec,
+			SituationVector:  zeroVec,
+		})
+	}
+
+	noteA := "---\ntype: feedback\nsituation: ctx\nbehavior: b\nimpact: i\naction: a\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\nLesson learned: when ctx, a.\n"
+	noteB := "---\ntype: feedback\nsituation: ctx\nbehavior: b\nimpact: i\naction: a\n" +
+		"luhmann: \"1ab\"\ncreated: 2026-01-01\nsource: test\n---\n\nLesson learned: when ctx, a.\n"
+	termNote := func(term string) string {
+		return "---\ntype: vocab\nterm: " + term + "\ndescription: desc\n" +
+			"vocab_version: \"1.0\"\ncreated: \"2026-01-01\"\n---\n\ndesc\n"
+	}
+
+	seed := []cli.SeedTerm{
+		{Term: "eval-topic", Description: "desc"},
+		{Term: "orphan-topic", Description: "desc"},
+	}
+	seedYAML, yamlErr := yaml.Marshal(seed)
+	g.Expect(yamlErr).NotTo(HaveOccurred())
+
+	return map[string][]byte{
+		"/seed.yaml":                         seedYAML,
+		"/plan.yaml":                         []byte("removals: []\n"),
+		"/vault/vocab.eval-topic.md":         []byte(termNote("eval-topic")),
+		"/vault/vocab.orphan-topic.md":       []byte(termNote("orphan-topic")),
+		"/vault/vocab.eval-topic.vec.json":   marshalTermSidecar([]float32{1, 0}),
+		"/vault/vocab.orphan-topic.vec.json": marshalTermSidecar([]float32{0, -1}),
+		"/vault/1aa.note-a.md":               []byte(noteA),
+		"/vault/1ab.note-b.md":               []byte(noteB),
+		"/vault/1aa.note-a.vec.json":         marshalTermSidecar([]float32{0.8, 0.6}),
+		"/vault/1ab.note-b.vec.json":         marshalTermSidecar([]float32{0, 1}),
+	}
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

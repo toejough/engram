@@ -7,15 +7,23 @@ probe on the FULL P1+P2+P3 miss population (48 cases, matching probe.py).
 Usage:
     python dev/eval/links/sweep_s2.py --vault /path/to/bootstrapped/vault/copy
 
-Sweep: floor ∈ {0.25, 0.30, 0.35, 0.40} × K ∈ {K2+rider, K3}
-     + a member-CENTROID diagnostic arm (term vector = mean of l6 seed-member
-       body vectors) at the same floors/Ks, to isolate whether term-note
-       embedding quality (description vs member neighborhood) is the gap.
+Arms:
+  desc     — single-pass against description+exemplar term embeddings.
+  twopass  — the SHIPPED centroid two-pass (plan §Write-time assign, Joe's call
+             2026-07-02): pass 1 assigns against desc embeddings at the same
+             (floor, K); each term's vector becomes its pass-1 members'
+             body-vector mean (member-less terms keep the desc embedding);
+             pass 2 re-assigns all notes against the centroids. Mirrors
+             retagAllNotesTwoPass in vocab_centroids.go.
+  l6cent   — legacy diagnostic: centroids from l6.json LLM labels (comparison
+             point for the earlier diagnostic numbers).
 
-PRE-REGISTERED GATE (plan §Regression gate): recovery ≥ 60% AND median pool ≤ 40.
+Sweep: each arm × floor ∈ {0.25, 0.30, 0.35, 0.40} × K ∈ {K2+rider, K3}.
+
+GATE (re-anchored 2026-07-02, Joe's call, plan commit b4ec4cc5): recovery ≥
+54.2% AND median pool ≤ 40 — the delivery-validated operating point (S3 proved
++17.3pp delivery at 54.2%/~30 pool).
 Selection rule: max recovery subject to median pool ≤ 40; tie → higher floor.
-Reference points: LLM tags (l6.json) r@5=54.2% @ pool≈30; mechanical
-member-centroid probe 64.6% @ floor 0.30.
 
 P3 baselines are cached in p3_baselines.json (live `engram query` runs, the
 same construction probe.py uses). A missing cache is a hard error — no fallback.
@@ -37,8 +45,8 @@ REPLAYS_PATH = os.path.join(HERE, "replays.json")
 P3_BASELINES_PATH = os.path.join(HERE, "p3_baselines.json")
 L6_PATH = os.path.join(HERE, "fabrics", "l6.json")
 
-# Pre-registered gate (plan §Regression gate).
-GATE_RECOVERY_PCT = 60.0
+# Gate re-anchored to the delivery-validated point (Joe's call, plan b4ec4cc5).
+GATE_RECOVERY_PCT = 54.2
 GATE_MEDIAN_POOL = 40
 
 # ---------------------------------------------------------------------------
@@ -113,7 +121,7 @@ def build_centroid_term_vectors(
     note_vecs: dict[str, list[float]],
     l6: dict,
 ) -> dict[str, list[float]]:
-    """Term vector = mean of the l6 seed members' body vectors (diagnostic arm)."""
+    """Term vector = mean of the l6 seed members' body vectors (legacy diagnostic)."""
     term_members: dict[str, list[str]] = defaultdict(list)
     for entry in l6.get("assignments", []):
         for tag in entry.get("tags", []):
@@ -131,6 +139,31 @@ def build_centroid_term_vectors(
         ]
         centroids[term] = centroid
     return centroids
+
+
+def build_twopass_term_vectors(
+    note_vecs: dict[str, list[float]],
+    desc_vecs: dict[str, list[float]],
+    floor: float,
+    k_mode: str,
+) -> dict[str, list[float]]:
+    """The SHIPPED two-pass: pass-1 members from desc embeddings at the SAME
+    (floor, k_mode); term vector = members' body-vector mean; member-less terms
+    keep the description embedding. Mirrors retagAllNotesTwoPass (vocab_centroids.go)."""
+    term_members: dict[str, list[str]] = defaultdict(list)
+    for note, nvec in note_vecs.items():
+        for term in assign_terms(nvec, desc_vecs, floor, k_mode):
+            term_members[term].append(note)
+
+    result: dict[str, list[float]] = {}
+    for term, dvec in desc_vecs.items():
+        vecs = [note_vecs[m] for m in term_members.get(term, [])]
+        if not vecs:
+            result[term] = dvec  # member-less: keep description embedding
+            continue
+        dims = len(vecs[0])
+        result[term] = [sum(v[i] for v in vecs) / len(vecs) for i in range(dims)]
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -360,19 +393,26 @@ def main() -> None:
     print(f"  {len(cases)} miss cases ({n_p1} P1 + {n_p2} P2 + {n_p3} P3)\n", flush=True)
 
     l6 = load_json(L6_PATH)
-    centroid_vecs = build_centroid_term_vectors(note_vecs, l6)
-    print(f"  centroid arm: {len(centroid_vecs)} member-centroid term vectors\n", flush=True)
+    l6cent_vecs = build_centroid_term_vectors(note_vecs, l6)
+    print(f"  l6cent arm: {len(l6cent_vecs)} label-centroid term vectors\n", flush=True)
 
     FLOORS = [0.25, 0.30, 0.35, 0.40]
     K_MODES = ["K2+rider", "K3"]
-    ARMS = [("desc", term_vecs), ("centroid", centroid_vecs)]
+    ARMS = ["desc", "twopass", "l6cent"]
 
     results: dict[str, dict] = {}
 
-    for arm_name, arm_vecs in ARMS:
+    for arm_name in ARMS:
         for floor in FLOORS:
             for k_mode in K_MODES:
                 config_id = f"{arm_name}|floor={floor:.2f}|{k_mode}"
+                if arm_name == "desc":
+                    arm_vecs = term_vecs
+                elif arm_name == "twopass":
+                    # pass-1 membership depends on (floor, k_mode) — build per cell
+                    arm_vecs = build_twopass_term_vectors(note_vecs, term_vecs, floor, k_mode)
+                else:
+                    arm_vecs = l6cent_vecs
                 l6_sweep = build_assignments(note_vecs, arm_vecs, floor, k_mode)
                 n_tagged = len(l6_sweep["assignments"])
                 m = run_probe(cases, l6_sweep)
@@ -392,8 +432,8 @@ def main() -> None:
     # -----------------------------------------------------------------------
     print(f"\n{'='*100}")
     print(f"SWEEP TABLE — arm × floor × K-mode (TAG nomination, {len(cases)}-case miss population)")
-    print(f"GATE (pre-registered): recovery ≥ {GATE_RECOVERY_PCT:.0f}% AND median_pool ≤ {GATE_MEDIAN_POOL}")
-    print("Reference: LLM tags (l6.json) recovery=54.2% @ pool≈30 | member-centroid probe 64.6% @ floor 0.30")
+    print(f"GATE (re-anchored, Joe's call): recovery ≥ {GATE_RECOVERY_PCT}% AND median_pool ≤ {GATE_MEDIAN_POOL}")
+    print("Reference: LLM tags (l6.json) recovery=54.2% @ pool≈30 (the delivery-validated point)")
     print(f"{'='*100}")
     print(
         f"{'Config':<34}  {'n_tagged':>8}  {'recovery%':>9}  {'med_pool':>8}  "
@@ -409,19 +449,27 @@ def main() -> None:
     print("=" * 100)
 
     # -----------------------------------------------------------------------
-    # Select best config (max recovery s.t. median_pool ≤ 40; tie → higher floor)
+    # Select best SHIPPABLE config: the twopass arm is the shipped mechanism
+    # (desc = ablation, l6cent = LLM-label diagnostic — not producible by the
+    # binary). Rule: max recovery s.t. median_pool ≤ 40; tie → higher floor.
     # -----------------------------------------------------------------------
-    eligible = {cid: m for cid, m in results.items() if m["median_pool"] <= GATE_MEDIAN_POOL}
+    eligible = {
+        cid: m for cid, m in results.items()
+        if m["arm"] == "twopass" and m["median_pool"] <= GATE_MEDIAN_POOL
+    }
     if eligible:
         best_id = max(eligible, key=lambda cid: (eligible[cid]["recovery"], eligible[cid]["floor"]))
         best = eligible[best_id]
         gate_pass = best["recovery"] >= GATE_RECOVERY_PCT
-        print(f"\n  SELECTED (max recovery s.t. pool ≤ {GATE_MEDIAN_POOL}): {best_id}")
+        print(f"\n  SELECTED (twopass arm, max recovery s.t. pool ≤ {GATE_MEDIAN_POOL}): {best_id}")
         print(f"    recovery={best['recovery']}%, median_pool={best['median_pool']}")
-        print(f"    PRE-REGISTERED GATE (≥{GATE_RECOVERY_PCT:.0f}%): {'PASS' if gate_pass else 'FAIL'}")
+        print(f"    GATE (≥{GATE_RECOVERY_PCT}% @ ≤{GATE_MEDIAN_POOL}): {'PASS' if gate_pass else 'FAIL'}")
     else:
-        print(f"\n  WARNING: no config meets median_pool ≤ {GATE_MEDIAN_POOL}")
-        best_id = max(results, key=lambda cid: results[cid]["recovery"])
+        print(f"\n  WARNING: no twopass config meets median_pool ≤ {GATE_MEDIAN_POOL}")
+        best_id = max(
+            (cid for cid, m in results.items() if m["arm"] == "twopass"),
+            key=lambda cid: results[cid]["recovery"],
+        )
 
     # -----------------------------------------------------------------------
     # Write results
