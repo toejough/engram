@@ -1486,12 +1486,35 @@ ENGRAM_VAULT_PATH="$COPY_VAULT" engram vocab refit --emit-request | tee "$WORK_D
 echo "PHASE A done — script STOPS here. Phase B is executor work, not script."
 ```
 
-**PHASE B (executor — the LLM half of the two-phase flow, and the metered work):** the harness
-is deliberately two script blocks with YOUR derivation between them; it cannot and must not run
-unattended end-to-end. Read `$WORK_DIR/refit-request.json`, derive the refit plan yourself
-(term merges/splits/renames per the request's instructions), and Write it to
-`$WORK_DIR/refit-plan.yaml`. Note your token usage before and after this derivation (from your
-usage report at task end); that delta plus the two binary calls IS the per-refit cost. Record
+**PHASE B (the LLM half of the two-phase flow, and the metered work):** the harness is
+deliberately two script blocks with the derivation between them; it cannot run unattended
+end-to-end. To get a REAL measured dollar figure (Rider 2's whole point — an executor cannot
+isolate one step's tokens from its session total), run the derivation as a dedicated fresh
+headless process and use its whole-session cost:
+
+```bash
+claude -p \
+  "Derive an engram vocab refit plan. Below is the refit request JSON (current terms, member counts, stats, and instructions). Output ONLY the YAML plan ({new_terms, renames, removals} — merge/split/rename per the request's instructions; orphans <2 members, hubs >25%). No prose.
+
+$(cat "$WORK_DIR/refit-request.json")" \
+  --output-format json > "$WORK_DIR/refit-derivation.json"
+
+# Extract the plan and the MEASURED cost of the derivation:
+python3 - <<'EOF'
+import json, os
+work = os.environ['WORK_DIR']
+with open(os.path.join(work, 'refit-derivation.json')) as f:
+    result = json.load(f)
+with open(os.path.join(work, 'refit-plan.yaml'), 'w') as f:
+    f.write(result['result'])
+print(f"MEASURED derivation cost: ${result['total_cost_usd']:.4f}")
+print(f"(field name may vary by CLI version — inspect refit-derivation.json if absent; "
+      f"the binary calls are pure Go, ~$0)")
+EOF
+```
+
+Sanity-check the extracted YAML before Phase C (it must parse and reference only existing
+terms). The printed `total_cost_usd` IS the per-refit LLM cost — record it. Also record
 wall-clock for phases A–C together.
 
 ```bash
@@ -1555,11 +1578,14 @@ and line references are verified against the working tree (2026-07-03, main bran
 
 **Not in this plan — executed by the /please Document step (Step 5) immediately after these
 tasks ship (this build IS "recalibration lands"; named targets so nothing goes silently stale):**
-- `docs/ROADMAP.md:96–98` — documents the OLD trigger set verbatim (untagged >10% of last 25
-  writes / term >25% / vault +30%); replace with the shipped set (growth ≥40 notes AND ≥14d /
-  vault-wide untagged >8% / hub >25%) + the Track-A integration line.
-- `docs/design/2026-07-03-vocab-notes-build-results.md` "What remains" — same stale trigger
-  numbers; update.
+- `docs/ROADMAP.md:163–172` (Track A "WRITE-SIDE SHIPPED" block) — add the integration line:
+  refit lifecycle live as of this build (write-time trigger check → refit_pending →
+  verdict-line/payload surfacing → autonomous learn-skill refit), recalibrated triggers named
+  (growth ≥40 notes AND ≥14d / vault-wide untagged >8% / hub >25%). ROADMAP contains no trigger
+  numbers to replace — this is an addition, not an edit.
+- `docs/design/2026-07-03-vocab-notes-build-results.md:96–98` "What remains" — documents the
+  OLD trigger set verbatim (untagged >10% of last 25 writes / term >25% / vault +30%); replace
+  with the shipped set above.
 - `docs/architecture/c1-system-context.md` learn flow — add a footnote: the learn/amend/resituate
   write path now runs an in-process vocab trigger check that persists `refit_pending` in
   `vocab.centroids.json` (side-effect only; surfaced via the stats verdict line + query payload
