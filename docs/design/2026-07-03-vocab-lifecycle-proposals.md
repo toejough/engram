@@ -176,3 +176,8 @@ mostly forgive.
 Decision needed from Joe: (1) option pick — O2 recommended, O1 fallback; (2) trigger numbers —
 40/14 recommended, 30/7 if you want weekly freshness during active stretches; (3) riders —
 whether immediate riders 1–2 (resituate fix, metered refit) ride along with the build.
+
+## Metered refit result (2026-07-03)
+
+per-refit cost: $0.0857 (measured 2026-07-03, dedicated headless derivation; binary phases ~$0)
+wall-clock: ~9s (phases A–C; Phase B derivation 9s, binary phases A+C <1s each)
