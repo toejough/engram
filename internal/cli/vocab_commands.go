@@ -695,7 +695,8 @@ func collectVaultStats(
 }
 
 // countMembersFromNotes scans all non-vocab notes and counts per-term members
-// by parsing the vocab: frontmatter key.
+// by parsing the vocab: frontmatter key. Uses scanNonVocabNotes (vocab_trigger.go)
+// to share the loop with collectTriggerVaultStats.
 func countMembersFromNotes(
 	listMD func(string) ([]string, error),
 	readFile func(string) ([]byte, error),
@@ -708,34 +709,26 @@ func countMembersFromNotes(
 
 	counts := make(map[string]int)
 
-	for _, name := range names {
-		if isVocabKindFilename(name) {
-			continue
-		}
-
-		notePath := filepath.Join(vault, name)
-		raw, readErr := readFile(notePath)
-
+	scanNonVocabNotes(vault, names, readFile, func(_ string, raw []byte, readErr error) {
 		if readErr != nil || len(raw) == 0 {
-			continue
+			return
 		}
 
 		frontmatter, ok := splitFrontmatter(raw)
 		if !ok {
-			continue
+			return
 		}
 
 		var doc noteMiniDoc
 
-		unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-		if unmarshalErr != nil {
-			continue
+		if yaml.Unmarshal(frontmatter, &doc) != nil {
+			return
 		}
 
 		for _, term := range doc.Vocab {
 			counts[term]++
 		}
-	}
+	})
 
 	return counts, nil
 }
