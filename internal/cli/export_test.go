@@ -158,6 +158,12 @@ func ExportAppendUniqueProvenance(initial []string, roles ...string) []string {
 	return item.provenances
 }
 
+// ExportApplyVocabAssignmentAfterResituate exposes applyVocabAssignmentAfterResituate
+// so resituate_test can assert the vocab-assignment + trigger wiring.
+func ExportApplyVocabAssignmentAfterResituate(deps ResituateDeps, vault, notePath, content string) {
+	applyVocabAssignmentAfterResituate(deps, vault, notePath, content)
+}
+
 // ExportAtomicWriteFile exposes atomicWriteFile for writesafe tests.
 func ExportAtomicWriteFile(path string, data []byte, perm os.FileMode) error {
 	return atomicWriteFile(path, data, perm)

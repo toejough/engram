@@ -32,6 +32,11 @@ type ResituateDeps struct {
 	Read     func(path string) ([]byte, error)
 	Write    func(path string, data []byte) error
 	Embedder embed.Embedder
+	// Optional fields — nil skips vocab assignment and trigger check.
+	LoadTermVectors func(vault string) ([]TermWithVector, error)
+	ListMD          func(vault string) ([]string, error)
+	LogWarning      func(format string, args ...any)
+	Now             func() time.Time
 }
 
 // RunResituate rewrites a single note's situation in both places it lives —
@@ -89,6 +94,8 @@ func RunResituate(
 		return embedErr
 	}
 
+	applyVocabAssignmentAfterResituate(deps, args.Vault, full, content)
+
 	_, _ = fmt.Fprintln(stdout, full)
 
 	return nil
@@ -100,6 +107,52 @@ var (
 	errResituateNoteNotFound = errors.New("resituate: note not found")
 	errResituateUnknownType  = errors.New("resituate: unknown note type")
 )
+
+// applyResituateVocabAssignment performs only the term-assignment part of
+// applyVocabAssignmentAfterResituate, keeping the trigger check outside this
+// early-return chain.
+func applyResituateVocabAssignment(deps ResituateDeps, vault, notePath, content string) {
+	if deps.LoadTermVectors == nil || deps.Read == nil || deps.Write == nil {
+		return
+	}
+
+	terms, termsErr := deps.LoadTermVectors(vault)
+	if termsErr != nil || len(terms) == 0 {
+		return
+	}
+
+	bodyVec, ok := loadBodyVectorForNote(deps.Read, notePath)
+	if !ok {
+		return
+	}
+
+	assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
+	updated := WriteVocabAssignment(content, assigned)
+
+	if updated != content {
+		writeErr := deps.Write(notePath, []byte(updated))
+		if writeErr != nil && deps.LogWarning != nil {
+			deps.LogWarning("resituate: vocab assignment write failed for %s: %v", notePath, writeErr)
+		}
+	}
+}
+
+// applyVocabAssignmentAfterResituate assigns vocab terms and checks the refit
+// trigger for a resituated note. Mirrors applyVocabAssignmentAfterAmend.
+// Requires LoadTermVectors + Read + Write for assignment (gated inside helper).
+// Requires Now to be non-nil for the trigger check (ListMD is gated inside callee).
+func applyVocabAssignmentAfterResituate(deps ResituateDeps, vault, notePath, content string) {
+	applyResituateVocabAssignment(deps, vault, notePath, content)
+
+	if deps.Now == nil {
+		return // trigger check needs an injected clock; wiring provides time.Now
+	}
+
+	// Trigger check — uses ListMD dep (optional, gated inside the callee).
+	checkAndPersistVocabRefitTrigger(
+		vault, deps.ListMD, deps.Read, deps.Write, deps.LogWarning, deps.Now(),
+	)
+}
 
 // findNote locates the note whose leading luhmann id OR full basename matches
 // target, returning its vault-relative path. The target is normalized first
@@ -124,12 +177,14 @@ func findNote(notes []vaultgraph.Note, target string) (string, error) {
 func newOsResituateDeps() ResituateDeps {
 	const perm = 0o600
 
+	osVault := &osVaultFS{}
+
 	return ResituateDeps{
 		Lock: (&osLearnFS{}).Lock,
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
-			return vaultgraph.ScanVault(&osVaultFS{}, vault)
+			return vaultgraph.ScanVault(osVault, vault)
 		},
-		Read: (&osVaultFS{}).ReadFile,
+		Read: osVault.ReadFile,
 		Write: func(path string, data []byte) error {
 			err := atomicWriteFile(path, data, perm)
 			if err != nil {
@@ -139,6 +194,12 @@ func newOsResituateDeps() ResituateDeps {
 			return nil
 		},
 		Embedder: sharedEmbedder,
+		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
+			return loadAssignmentTermVectors(vault, osVault.ListMD, osVault.ReadFile)
+		},
+		ListMD:     osVault.ListMD,
+		LogWarning: logWarningToStderrf,
+		Now:        time.Now,
 	}
 }
 

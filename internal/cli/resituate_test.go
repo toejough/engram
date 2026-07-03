@@ -15,6 +15,107 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// TestApplyVocabAssignmentAfterResituate_TagsNote verifies that
+// applyVocabAssignmentAfterResituate assigns a vocab term to the note body
+// when the body vector is close enough to the term vector.
+func TestApplyVocabAssignmentAfterResituate_TagsNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	termVec := []float32{1, 0, 0, 0}
+	noteVec := []float32{0.9, 0.1, 0, 0} // cosine ≈ 0.99 — above the default floor
+
+	fakeSidecar := embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "test", Dims: 4,
+		BodyVector: noteVec, SituationVector: make([]float32, 4),
+	})
+
+	const rawNote = "---\ntype: fact\n---\n\nBody.\n"
+
+	var written []byte
+
+	deps := cli.ResituateDeps{
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, ".vec.json") {
+				return fakeSidecar, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+		Write: func(_ string, data []byte) error {
+			written = data
+
+			return nil
+		},
+		LoadTermVectors: func(string) ([]cli.TermWithVector, error) {
+			return []cli.TermWithVector{{Term: "agentic-recall-triggers", Vector: termVec}}, nil
+		},
+	}
+
+	cli.ExportApplyVocabAssignmentAfterResituate(deps, "/vault", "/vault/1.note.md", rawNote)
+	g.Expect(written).NotTo(BeNil())
+	g.Expect(string(written)).To(ContainSubstring("agentic-recall-triggers"))
+}
+
+// TestRunResituate_CallsVocabAssignment verifies that RunResituate invokes
+// the vocab-assignment path (LoadTermVectors is called) after writing the note.
+func TestRunResituate_CallsVocabAssignment(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const noteContent = "---\ntype: fact\ntier: L2\nsituation: old\nsubject: A\npredicate: has\nobject: B\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\nInformation learned: when in old, A has B.\n"
+
+	fakeVec := make([]float32, 4)
+	fakeSidecar := embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion: embed.SidecarSchemaVersion, EmbeddingModelID: "test", Dims: 4,
+		BodyVector: fakeVec, SituationVector: fakeVec,
+	})
+
+	loadTermsCalled := false
+
+	deps := cli.ResituateDeps{
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: "1aa.2026-01-01.note.md", LuhmannID: "1aa"}}, nil
+		},
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, ".md") {
+				return []byte(noteContent), nil
+			}
+
+			if strings.HasSuffix(path, ".vec.json") {
+				return fakeSidecar, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+		Write: func(string, []byte) error {
+			return nil
+		},
+		Embedder: successEmbedder{},
+		LoadTermVectors: func(string) ([]cli.TermWithVector, error) {
+			loadTermsCalled = true
+
+			return nil, nil // no terms → no assignment, but call path exercised
+		},
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunResituate(t.Context(), cli.ResituateArgs{
+		Vault:     "/vault",
+		Note:      "1aa",
+		Situation: "new situation",
+	}, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(loadTermsCalled).To(BeTrue(), "LoadTermVectors must be called after writing the note")
+}
+
 // TestRunResituate_ContentErrors drives the render-path failure branches:
 // a note with no frontmatter, a note whose delimited frontmatter is not
 // valid YAML (routed to the unknown-type arm), and a note whose created
