@@ -33,6 +33,7 @@ var (
 	ExportBumpMajorVersion           = bumpMajorVersion
 	ExportBumpMinorVersion           = bumpMinorVersion
 	ExportDefaultRecencyParams       = defaultRecencyParams
+	ExportEvaluateVocabTriggers      = evaluateVocabTriggers
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
 	ExportFillRecencyBand            = fillRecencyBand
 	ExportFinishUpdate               = finishUpdate
