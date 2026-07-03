@@ -675,6 +675,62 @@ func TestRunVocabBootstrap_EmbedError_BootstrapSucceeds(t *testing.T) {
 	g.Expect(warned).To(BeTrue(), "embed error must trigger a log warning")
 }
 
+// TestRunVocabBootstrap_ExemplarsInTermNoteBody verifies that seed exemplars
+// are rendered into the term-note body — the body IS the term's embedding text,
+// so exemplars must be present for the embedding to reflect member usage.
+func TestRunVocabBootstrap_ExemplarsInTermNoteBody(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	seed := []cli.SeedTerm{{
+		Term:        "eval-methodology",
+		Description: "how we evaluate",
+		Exemplars: []string{
+			"designing an eval harness for memory-vs-baseline comparison",
+			"choosing the miss population for a retrieval probe",
+			"validating a cheap model tier against a gold standard",
+		},
+	}}
+	seedYAML, err := yaml.Marshal(seed)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	files := map[string][]byte{"/seed.yaml": seedYAML}
+	written := map[string][]byte{}
+
+	deps := cli.VocabDeps{
+		Lock:         func(string) (func(), error) { return func() {}, nil },
+		ListMD:       func(string) ([]string, error) { return nil, nil },
+		ReadFile:     func(path string) ([]byte, error) { return files[path], nil },
+		WriteFile:    func(path string, data []byte) error { written[path] = data; return nil },
+		WriteSidecar: func(path string, data []byte) error { written[path] = data; return nil },
+		LogWarning:   func(string, ...any) {},
+		Now:          func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
+	}
+
+	args := cli.VocabBootstrapArgs{Vault: "/vault", SeedFile: "/seed.yaml"}
+
+	var buf strings.Builder
+
+	bootErr := cli.RunVocabBootstrap(t.Context(), args, deps, &buf)
+	g.Expect(bootErr).NotTo(HaveOccurred())
+
+	if bootErr != nil {
+		return
+	}
+
+	content := string(written["/vault/vocab.eval-methodology.md"])
+	g.Expect(content).To(ContainSubstring("Exemplars:"), "body must carry an exemplar section")
+	g.Expect(content).To(ContainSubstring("- designing an eval harness for memory-vs-baseline comparison"),
+		"each exemplar must appear as a body list line")
+	g.Expect(content).To(ContainSubstring("- validating a cheap model tier against a gold standard"),
+		"all exemplars must be rendered")
+}
+
 // TestRunVocabBootstrap_GeneratesIndex verifies that bootstrap writes
 // vocab.index.md with type: vocab-index.
 func TestRunVocabBootstrap_GeneratesIndex(t *testing.T) {

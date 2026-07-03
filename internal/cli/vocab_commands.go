@@ -26,10 +26,15 @@ type RefitPlan struct {
 	Removals []string     `yaml:"removals"`
 }
 
-// SeedTerm is one entry in the bootstrap seed YAML file: [{term, description}].
+// SeedTerm is one entry in the bootstrap seed YAML file:
+// [{term, description, exemplars}]. Exemplars are situation lines from
+// representative member notes; they are rendered into the term-note body,
+// which IS the term's embedding text (description alone under-feeds the
+// embedding — measured r@5 45.5% vs the 64.6% member-centroid baseline).
 type SeedTerm struct {
-	Term        string `yaml:"term"`
-	Description string `yaml:"description"`
+	Term        string   `yaml:"term"`
+	Description string   `yaml:"description"`
+	Exemplars   []string `yaml:"exemplars"`
 }
 
 // TermRename is one rename entry in a RefitPlan.
@@ -180,7 +185,7 @@ func RunVocabPropose(ctx context.Context, args VocabProposeArgs, deps VocabDeps,
 	newVersion := bumpMinorVersion(currentVersion)
 
 	// Write and embed the new term note.
-	embedErr := writeAndEmbedTermNote(ctx, deps, args.Vault, args.Term, args.Description, newVersion, when)
+	embedErr := writeAndEmbedTermNote(ctx, deps, args.Vault, args.Term, args.Description, nil, newVersion, when)
 	if embedErr != nil && deps.LogWarning != nil {
 		deps.LogWarning("vocab propose: embedding %s failed: %v", args.Term, embedErr)
 	}
@@ -340,7 +345,7 @@ func applyRefitNewTerms(
 	when time.Time,
 ) {
 	for _, term := range newTerms {
-		newErr := writeAndEmbedTermNote(ctx, deps, vault, term.Term, term.Description, newVersion, when)
+		newErr := writeAndEmbedTermNote(ctx, deps, vault, term.Term, term.Description, term.Exemplars, newVersion, when)
 		if newErr != nil && deps.LogWarning != nil {
 			deps.LogWarning("vocab refit: creating new term %s: %v", term.Term, newErr)
 		}
@@ -386,7 +391,9 @@ func applyRefitRenames(
 		// Create new term note (description carried from old term note if available).
 		desc := loadTermDescription(vault, rename.From, deps.ReadFile)
 
-		embedErr := writeAndEmbedTermNote(ctx, deps, vault, rename.To, desc, newVersion, when)
+		// Exemplars are refit-maintained; a rename carries only the description
+		// forward (the refit plan's re-tag pass regenerates exemplar context).
+		embedErr := writeAndEmbedTermNote(ctx, deps, vault, rename.To, desc, nil, newVersion, when)
 		if embedErr != nil && deps.LogWarning != nil {
 			deps.LogWarning("vocab refit: creating renamed term %s: %v", rename.To, embedErr)
 		}
@@ -1110,15 +1117,36 @@ func regenVocabIndex(deps VocabDeps, vault, vocabVersion string, when time.Time)
 	return nil
 }
 
-// renderTermNoteContent produces the content of a vocab term note.
-func renderTermNoteContent(term, description, vocabVersion string, when time.Time) string {
+// renderTermNoteContent produces the content of a vocab term note. The body
+// (description + exemplar list) IS the term's embedding text: exemplars are
+// situation lines from representative members, and including them moves the
+// term vector toward its members' vector neighborhood.
+func renderTermNoteContent(
+	term, description string,
+	exemplars []string,
+	vocabVersion string,
+	when time.Time,
+) string {
+	var body strings.Builder
+
+	body.WriteString(description)
+	body.WriteString("\n")
+
+	if len(exemplars) > 0 {
+		body.WriteString("\nExemplars:\n")
+
+		for _, exemplar := range exemplars {
+			body.WriteString("- " + exemplar + "\n")
+		}
+	}
+
 	return marshalFrontmatter(VocabFrontmatter{
 		Type:         typeVocab,
 		Term:         term,
 		Description:  description,
 		VocabVersion: vocabVersion,
 		Created:      when.Format(dateFormat),
-	}) + description + "\n"
+	}) + body.String()
 }
 
 // renderVocabIndexContent produces the content of vocab.index.md.
@@ -1216,7 +1244,7 @@ func writeAndEmbedSeedTerms(
 	when time.Time,
 ) {
 	for _, term := range seed {
-		embedErr := writeAndEmbedTermNote(ctx, deps, vault, term.Term, term.Description, version, when)
+		embedErr := writeAndEmbedTermNote(ctx, deps, vault, term.Term, term.Description, term.Exemplars, version, when)
 		if embedErr != nil && deps.LogWarning != nil {
 			deps.LogWarning("vocab bootstrap: embedding %s failed: %v", term.Term, embedErr)
 		}
@@ -1224,14 +1252,16 @@ func writeAndEmbedSeedTerms(
 }
 
 // writeAndEmbedTermNote creates or overwrites a vocab term note with the given
-// name, description, and version, then writes its embedding sidecar.
+// name, description, exemplars, and version, then writes its embedding sidecar.
 func writeAndEmbedTermNote(
 	ctx context.Context,
 	deps VocabDeps,
-	vault, term, description, vocabVersion string,
+	vault, term, description string,
+	exemplars []string,
+	vocabVersion string,
 	when time.Time,
 ) error {
-	content := renderTermNoteContent(term, description, vocabVersion, when)
+	content := renderTermNoteContent(term, description, exemplars, vocabVersion, when)
 	notePath := termNotePath(vault, term)
 
 	writeErr := deps.WriteFile(notePath, []byte(content))

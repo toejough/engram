@@ -35,9 +35,12 @@ type VocabFrontmatter struct {
 }
 
 // AssignVocabTerms computes cosine similarity between bodyVec and each term's
-// vector, returning the top-3 terms whose score ≥ floor (plain top-3; no rider).
-// Config chosen by the Slice-2 floor×K sweep: floor=0.30, K=3 won at r@5=45.5%,
-// median_pool=21, within the pool≤40 constraint. Returns nil when no term qualifies.
+// vector, returning the names of the top-2 terms whose score ≥ floor, plus a
+// 3rd (the close-3rd rider) if it also qualifies (≥ floor) and is within
+// closeThirdRiderMargin cosine of the 2nd. Returns nil when no term qualifies.
+// K2+rider is the enriched-sweep winner under the pre-registered nomination
+// pool ≤ 40 bar (desc arm 56.2% @ pool 35.5 vs K3's only pool-eligible config
+// 45.8% @ 40.0); K3 lifts raw recovery but blows the pool bar.
 func AssignVocabTerms(bodyVec []float32, terms []TermWithVector, floor float32) []string {
 	if len(bodyVec) == 0 || len(terms) == 0 {
 		return nil
@@ -58,8 +61,16 @@ func AssignVocabTerms(bodyVec []float32, terms []TermWithVector, floor float32) 
 
 	sortTermScores(candidates)
 
-	// Plain top-K: select up to topVocabTermCount qualifying terms.
+	// Top-2 always selected (up to however many qualify).
 	selectCount := min(topVocabTermCount, len(candidates))
+
+	// Close-3rd rider: 3rd qualifies iff it exists, is ≥ floor (already guaranteed
+	// by the filter above), and is within closeThirdRiderMargin of the 2nd.
+	if selectCount == 2 && len(candidates) >= 3 {
+		if candidates[1].score-candidates[2].score <= closeThirdRiderMargin {
+			selectCount = 3
+		}
+	}
 
 	result := make([]string, selectCount)
 	for i := range selectCount {
@@ -98,13 +109,15 @@ func WriteVocabAssignment(content string, terms []string) string {
 
 // unexported constants.
 const (
-	fmEnd = "\n---\n"
+	// closeThirdRiderMargin is the maximum cosine gap between the 2nd and 3rd
+	// qualifying term for the close-3rd rider to activate.
+	closeThirdRiderMargin = float32(0.02)
+	fmEnd                 = "\n---\n"
 	// fmStart/fmEnd delimit YAML frontmatter in a note's raw content.
 	fmStart = "---\n"
-	// topVocabTermCount is the maximum number of top-ranked terms selected.
-	// Set to 3 (plain top-3) per the Slice-2 sweep: K3 at floor=0.30 gives
-	// r@5=45.5%, median_pool=21 — higher recovery than K2+rider at all floors.
-	topVocabTermCount = 3
+	// topVocabTermCount is the maximum number of top-ranked terms selected
+	// before the close-3rd rider check.
+	topVocabTermCount = 2
 	typeVocab         = "vocab"
 	typeVocabIndex    = "vocab-index"
 	// vocabBodyMarker is the line-start prefix of a Vocab body line on a member note.

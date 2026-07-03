@@ -2,14 +2,23 @@
 
 Loads note and term body vectors from a bootstrapped vault copy, then for each
 (floor, K-mode) config computes mechanical assignments and runs the TAG nomination
-probe on the P1+P2 miss population.
+probe on the FULL P1+P2+P3 miss population (48 cases, matching probe.py).
 
 Usage:
     python dev/eval/links/sweep_s2.py --vault /path/to/bootstrapped/vault/copy
 
 Sweep: floor ∈ {0.25, 0.30, 0.35, 0.40} × K ∈ {K2+rider, K3}
-Selection rule: max recovery@5 subject to median pool ≤ 40; tie → higher floor.
-Baselines (from probe.py L6×TAG): recovery@5=54.2%, median_pool≈30.
+     + a member-CENTROID diagnostic arm (term vector = mean of l6 seed-member
+       body vectors) at the same floors/Ks, to isolate whether term-note
+       embedding quality (description vs member neighborhood) is the gap.
+
+PRE-REGISTERED GATE (plan §Regression gate): recovery ≥ 60% AND median pool ≤ 40.
+Selection rule: max recovery subject to median pool ≤ 40; tie → higher floor.
+Reference points: LLM tags (l6.json) r@5=54.2% @ pool≈30; mechanical
+member-centroid probe 64.6% @ floor 0.30.
+
+P3 baselines are cached in p3_baselines.json (live `engram query` runs, the
+same construction probe.py uses). A missing cache is a hard error — no fallback.
 """
 from __future__ import annotations
 
@@ -25,13 +34,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 MISSES_P1_PATH = os.path.join(HERE, "misses_p1.json")
 BRIDGES_P2_PATH = os.path.join(HERE, "bridges_p2.json")
 REPLAYS_PATH = os.path.join(HERE, "replays.json")
+P3_BASELINES_PATH = os.path.join(HERE, "p3_baselines.json")
+L6_PATH = os.path.join(HERE, "fabrics", "l6.json")
+
+# Pre-registered gate (plan §Regression gate).
+GATE_RECOVERY_PCT = 60.0
+GATE_MEDIAN_POOL = 40
 
 # ---------------------------------------------------------------------------
 # Constants (mirror vocab.go)
 # ---------------------------------------------------------------------------
 
-TOP_VOCAB_TERM_COUNT = 2         # top-K before close-3rd rider
-CLOSE_THIRD_MARGIN = 0.02        # rider fires if 3rd is within this of 2nd
+TOP_K2 = 2                 # top-K before close-3rd rider (K2+rider mode)
+CLOSE_THIRD_MARGIN = 0.02  # rider fires if 3rd is within this of 2nd
 
 # ---------------------------------------------------------------------------
 # I/O helpers
@@ -84,7 +99,6 @@ def load_note_vectors(vault: str) -> dict[str, list[float]]:
             continue
         if fname.startswith("vocab."):
             continue
-        # Derive note basename without .md
         note_name = fname[:-len(".vec.json")]
         path = os.path.join(vault, fname)
         with open(path) as fh:
@@ -93,6 +107,30 @@ def load_note_vectors(vault: str) -> dict[str, list[float]]:
         if bv:
             result[note_name] = bv
     return result
+
+
+def build_centroid_term_vectors(
+    note_vecs: dict[str, list[float]],
+    l6: dict,
+) -> dict[str, list[float]]:
+    """Term vector = mean of the l6 seed members' body vectors (diagnostic arm)."""
+    term_members: dict[str, list[str]] = defaultdict(list)
+    for entry in l6.get("assignments", []):
+        for tag in entry.get("tags", []):
+            term_members[tag].append(_strip_md(entry["note"]))
+
+    centroids: dict[str, list[float]] = {}
+    for term, members in term_members.items():
+        vecs = [note_vecs[m] for m in members if m in note_vecs]
+        if not vecs:
+            continue
+        dims = len(vecs[0])
+        centroid = [
+            sum(v[i] for v in vecs) / len(vecs)
+            for i in range(dims)
+        ]
+        centroids[term] = centroid
+    return centroids
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +146,7 @@ def assign_terms(
 ) -> list[str]:
     """Compute vocab assignment for one note under the given config.
 
-    k_mode: "K2+rider" = top-2 + close-3rd rider (mirrors AssignVocabTerms)
+    k_mode: "K2+rider" = top-2 + close-3rd rider (the original AssignVocabTerms)
             "K3"       = plain top-3, no rider
     """
     scores = [(term, cosine(note_vec, tvec)) for term, tvec in term_vecs.items()]
@@ -121,16 +159,12 @@ def assign_terms(
         return []
 
     if k_mode == "K2+rider":
-        selected = candidates[:TOP_VOCAB_TERM_COUNT]
-        # Close-3rd rider
-        if (
-            len(candidates) > TOP_VOCAB_TERM_COUNT
-            and len(selected) >= TOP_VOCAB_TERM_COUNT
-        ):
+        selected = candidates[:TOP_K2]
+        if len(candidates) > TOP_K2 and len(selected) >= TOP_K2:
             second_score = selected[-1][1]
-            third_score = candidates[TOP_VOCAB_TERM_COUNT][1]
+            third_score = candidates[TOP_K2][1]
             if second_score - third_score <= CLOSE_THIRD_MARGIN:
-                selected.append(candidates[TOP_VOCAB_TERM_COUNT])
+                selected.append(candidates[TOP_K2])
     else:  # K3: plain top-3
         selected = candidates[:3]
 
@@ -200,7 +234,7 @@ def _add_md(s: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Cases (mirrors build_cases from probe.py, P1+P2 only — no live engram calls)
+# Cases (mirrors build_cases from probe.py — full P1+P2+P3 population)
 # ---------------------------------------------------------------------------
 
 
@@ -208,8 +242,13 @@ def build_cases(
     replays: list[dict],
     misses_p1: list[dict],
     bridges_p2: list[dict],
+    p3_baselines: dict[str, dict],
 ) -> list[dict]:
-    """Build P1+P2 miss cases. Skips P3 (needs live engram query)."""
+    """Build the full P1+P2+P3 miss population (48 cases, matching probe.py).
+
+    P3 baselines come from p3_baselines.json (cached live `engram query` runs,
+    the same construction probe.py uses).
+    """
     replay_index = {
         (r["query_id"], r["n"]): r["ranked_notes"] for r in replays
     }
@@ -240,6 +279,14 @@ def build_cases(
             "needed_note": bridge["needed_note"],
         })
 
+    for pair_id, entry in sorted(p3_baselines.items()):
+        cases.append({
+            "case_id": f"P3-{pair_id}",
+            "kind": "P3",
+            "baseline": entry["baseline"],
+            "needed_note": entry["needed_note"],
+        })
+
     return cases
 
 
@@ -250,8 +297,9 @@ def build_cases(
 
 def run_probe(cases: list[dict], l6_sweep: dict, top_m: int = 3) -> dict:
     """Run the TAG nomination probe; return recovery and pool metrics."""
-    r5 = r10 = r20 = 0
+    recovered = 0
     pool_sizes: list[int] = []
+    by_kind: dict[str, list[int]] = defaultdict(list)
 
     for case in cases:
         baseline = case["baseline"]
@@ -261,19 +309,20 @@ def run_probe(cases: list[dict], l6_sweep: dict, top_m: int = 3) -> dict:
         target = _strip_md(needed_note)
         in_pool = any(_strip_md(b) == target for b in pool)
         pool_sizes.append(pool_size)
+        by_kind[case["kind"]].append(1 if in_pool else 0)
 
         if in_pool:
-            r5 += 1
-            r10 += 1
-            r20 += 1
+            recovered += 1
 
     total = len(cases)
     return {
         "n": total,
-        "r5": round(r5 / total * 100, 1) if total else 0.0,
-        "r10": round(r10 / total * 100, 1) if total else 0.0,
-        "r20": round(r20 / total * 100, 1) if total else 0.0,
+        "recovery": round(recovered / total * 100, 1) if total else 0.0,
+        "recovered": recovered,
         "median_pool": statistics.median(pool_sizes) if pool_sizes else 0,
+        "by_kind": {
+            kind: f"{sum(vals)}/{len(vals)}" for kind, vals in sorted(by_kind.items())
+        },
     }
 
 
@@ -297,70 +346,99 @@ def main() -> None:
     misses_p1 = load_json(MISSES_P1_PATH)
     bridges_p2 = load_json(BRIDGES_P2_PATH)
 
-    cases = build_cases(replays, misses_p1, bridges_p2)
-    print(f"  {len(cases)} miss cases (P1+P2)\n", flush=True)
+    if not os.path.exists(P3_BASELINES_PATH):
+        raise SystemExit(
+            f"FATAL: {P3_BASELINES_PATH} missing — cache the 4 P3 baselines via "
+            f"probe.run_engram_query first. No silent fallback to a 44-case population."
+        )
+    p3_baselines = load_json(P3_BASELINES_PATH)
+
+    cases = build_cases(replays, misses_p1, bridges_p2, p3_baselines)
+    n_p1 = sum(1 for c in cases if c["kind"] == "P1")
+    n_p2 = sum(1 for c in cases if c["kind"] == "P2")
+    n_p3 = sum(1 for c in cases if c["kind"] == "P3")
+    print(f"  {len(cases)} miss cases ({n_p1} P1 + {n_p2} P2 + {n_p3} P3)\n", flush=True)
+
+    l6 = load_json(L6_PATH)
+    centroid_vecs = build_centroid_term_vectors(note_vecs, l6)
+    print(f"  centroid arm: {len(centroid_vecs)} member-centroid term vectors\n", flush=True)
 
     FLOORS = [0.25, 0.30, 0.35, 0.40]
     K_MODES = ["K2+rider", "K3"]
+    ARMS = [("desc", term_vecs), ("centroid", centroid_vecs)]
 
     results: dict[str, dict] = {}
-    rows: list[tuple] = []
 
-    for floor in FLOORS:
-        for k_mode in K_MODES:
-            config_id = f"floor={floor:.2f}×{k_mode}"
-            l6_sweep = build_assignments(note_vecs, term_vecs, floor, k_mode)
-            n_tagged = sum(1 for a in l6_sweep["assignments"] if a["tags"])
-            m = run_probe(cases, l6_sweep)
-            results[config_id] = {"floor": floor, "k_mode": k_mode, "n_tagged": n_tagged, **m}
-            rows.append((config_id, n_tagged, m["r5"], m["median_pool"]))
-            print(
-                f"  {config_id:<30} n_tagged={n_tagged:>3}  "
-                f"r@5={m['r5']:>5.1f}%  median_pool={m['median_pool']:>5.1f}",
-                flush=True,
-            )
+    for arm_name, arm_vecs in ARMS:
+        for floor in FLOORS:
+            for k_mode in K_MODES:
+                config_id = f"{arm_name}|floor={floor:.2f}|{k_mode}"
+                l6_sweep = build_assignments(note_vecs, arm_vecs, floor, k_mode)
+                n_tagged = len(l6_sweep["assignments"])
+                m = run_probe(cases, l6_sweep)
+                results[config_id] = {
+                    "arm": arm_name, "floor": floor, "k_mode": k_mode,
+                    "n_tagged": n_tagged, **m,
+                }
+                print(
+                    f"  {config_id:<34} n_tagged={n_tagged:>3}  "
+                    f"recovery={m['recovery']:>5.1f}%  median_pool={m['median_pool']:>5.1f}  "
+                    f"{m['by_kind']}",
+                    flush=True,
+                )
 
     # -----------------------------------------------------------------------
     # Table
     # -----------------------------------------------------------------------
-    print(f"\n{'='*80}")
-    print("SWEEP TABLE — floor × K-mode (TAG nomination, P1+P2 miss population)")
-    print(f"Baseline (L6×TAG, LLM-labeled): r@5=54.2%, median_pool≈30")
-    print(f"Selection rule: max r@5 subject to median_pool ≤ 40; tie → higher floor")
-    print(f"{'='*80}")
-    print(f"{'Config':<30}  {'n_tagged':>8}  {'r@5%':>6}  {'r@10%':>6}  {'r@20%':>6}  {'med_pool':>9}")
-    print("-" * 80)
+    print(f"\n{'='*100}")
+    print(f"SWEEP TABLE — arm × floor × K-mode (TAG nomination, {len(cases)}-case miss population)")
+    print(f"GATE (pre-registered): recovery ≥ {GATE_RECOVERY_PCT:.0f}% AND median_pool ≤ {GATE_MEDIAN_POOL}")
+    print("Reference: LLM tags (l6.json) recovery=54.2% @ pool≈30 | member-centroid probe 64.6% @ floor 0.30")
+    print(f"{'='*100}")
+    print(
+        f"{'Config':<34}  {'n_tagged':>8}  {'recovery%':>9}  {'med_pool':>8}  "
+        f"{'gate':>6}  by_kind"
+    )
+    print("-" * 100)
     for config_id, m in results.items():
+        gate = "PASS" if (m["recovery"] >= GATE_RECOVERY_PCT and m["median_pool"] <= GATE_MEDIAN_POOL) else "FAIL"
         print(
-            f"{config_id:<30}  {m['n_tagged']:>8}  {m['r5']:>6.1f}  "
-            f"{m['r10']:>6.1f}  {m['r20']:>6.1f}  {m['median_pool']:>9.1f}"
+            f"{config_id:<34}  {m['n_tagged']:>8}  {m['recovery']:>9.1f}  "
+            f"{m['median_pool']:>8.1f}  {gate:>6}  {m['by_kind']}"
         )
-    print("=" * 80)
+    print("=" * 100)
 
     # -----------------------------------------------------------------------
-    # Select best config
+    # Select best config (max recovery s.t. median_pool ≤ 40; tie → higher floor)
     # -----------------------------------------------------------------------
-    eligible = {
-        cid: m for cid, m in results.items()
-        if m["median_pool"] <= 40
-    }
+    eligible = {cid: m for cid, m in results.items() if m["median_pool"] <= GATE_MEDIAN_POOL}
     if eligible:
-        best_id = max(eligible, key=lambda cid: (eligible[cid]["r5"], eligible[cid]["floor"]))
+        best_id = max(eligible, key=lambda cid: (eligible[cid]["recovery"], eligible[cid]["floor"]))
         best = eligible[best_id]
-        print(f"\n  SELECTED: {best_id}")
-        print(f"    floor={best['floor']}, k_mode={best['k_mode']}")
-        print(f"    r@5={best['r5']}%, median_pool={best['median_pool']}")
+        gate_pass = best["recovery"] >= GATE_RECOVERY_PCT
+        print(f"\n  SELECTED (max recovery s.t. pool ≤ {GATE_MEDIAN_POOL}): {best_id}")
+        print(f"    recovery={best['recovery']}%, median_pool={best['median_pool']}")
+        print(f"    PRE-REGISTERED GATE (≥{GATE_RECOVERY_PCT:.0f}%): {'PASS' if gate_pass else 'FAIL'}")
     else:
-        print("\n  WARNING: no config meets median_pool ≤ 40 constraint")
-        best_id = max(results, key=lambda cid: results[cid]["r5"])
-        print(f"  Best unconstrained: {best_id} r@5={results[best_id]['r5']}%")
+        print(f"\n  WARNING: no config meets median_pool ≤ {GATE_MEDIAN_POOL}")
+        best_id = max(results, key=lambda cid: results[cid]["recovery"])
 
     # -----------------------------------------------------------------------
     # Write results
     # -----------------------------------------------------------------------
     out_path = os.path.join(HERE, "sweep_s2_results.json")
     with open(out_path, "w") as fh:
-        json.dump({"configs": results, "selected": best_id}, fh, indent=2)
+        json.dump(
+            {
+                "n_cases": len(cases),
+                "population": {"P1": n_p1, "P2": n_p2, "P3": n_p3},
+                "gate": {"recovery_pct": GATE_RECOVERY_PCT, "median_pool": GATE_MEDIAN_POOL},
+                "configs": results,
+                "selected": best_id,
+            },
+            fh,
+            indent=2,
+        )
     print(f"\nResults written to {out_path}")
 
 

@@ -1,99 +1,213 @@
+# Vocab bootstrap seed — 25 terms from the validated l6 tag set.
+# Exemplars are situation lines from diverse seed members (l6.json assignments);
+# they are rendered into the term-note body, which IS the term's embedding text.
+
 - term: eval-methodology
-  description: How to design, run, and interpret evaluation experiments — what to measure,
-    what populations to test, and how to validate that results are real rather than noise.
+  description: "How to design, run, and interpret evaluation experiments \u2014 what to measure, what populations to test, and how to validate that results are real rather than noise."
+  exemplars:
+    - "estimating the dollar cost of an engram eval or LLM-harness run before launching it"
+    - "using a prior measured 'X does not work / no headroom' result to PARK or rule out a class of solutions for a new, broader ask"
+    - "vetting an LLM-generated spec or plan before execution"
+    - "designing an eval/metric for whether an agent respects prior knowledge (anti-amnesia, behavioral recall trap)"
+    - "judging what engram memory measurably helps with, or whether a proposed memory cost/usage/value direction is worth pursuing"
 
 - term: retrieval-design
-  description: Design principles for memory retrieval — ranking, filtering, payload
-    shaping, and floor/cap mechanics that govern which items surface at query time.
+  description: "Design principles for memory retrieval \u2014 ranking, filtering, payload shaping, and floor/cap mechanics that govern which items surface at query time."
+  exemplars:
+    - "judging whether engram's verified memory wins hold at scale, or designing a crowded-vault / retrieval-precision eval"
+    - "asking whether model conclusions produced during work are searchable later via engram recall"
+    - "when designing features against or reasoning about how engram recall retrieves content"
+    - "wiring a note recency decay multiplier into the note-ranking pipeline that produces scoredCandidate before unified merge"
+    - "designing recall triggers, or diagnosing why a known lesson failed to surface during recall"
 
 - term: memory-system-architecture
-  description: Architectural patterns for memory-augmented LLM agents — how recall, learn,
-    and update commands fit together, and where each tier (vault/chunks/index) lives.
+  description: "Architectural patterns for memory-augmented LLM agents \u2014 how recall, learn, and update commands fit together, and where each tier (vault/chunks/index) lives."
+  exemplars:
+    - "asking whether model conclusions produced during work are searchable later via engram recall"
+    - "designing engram recall/continuity; deciding how recent session activity should surface vs the whole indexed corpus"
+    - "proposing an engram mechanism that scaffolds the agent's reasoning or retrieval (graph expansion, a synthesis/composition step, multi-hop retrieval, reranking) to improve recall quality"
+    - "judging whether engram memory makes builds cheaper/faster end-to-end, or designing a warm-vs-cold cost test"
+    - "judging what engram memory measurably helps with, or whether a proposed memory cost/usage/value direction is worth pursuing"
 
 - term: cost-optimization
-  description: Reducing LLM and computation costs without capability loss — identifying
-    the expensive steps, measuring the tax, and cutting only what has no delivery impact.
+  description: "Reducing LLM and computation costs without capability loss \u2014 identifying the expensive steps, measuring the tax, and cutting only what has no delivery impact."
+  exemplars:
+    - "deciding how to make engram cheaper or more-used without losing its value, or choosing a recall/learn/please optimization lever"
+    - "sifting a large corpus with LLM agents (classification, detection, mining at volume) under a token budget"
+    - "judging whether pruning the recall payload out of build context saves money, or planning the payload-prune / subagent-isolated-recall build"
+    - "considering splitting an agent skill across models to cut cost (host reasons, cheap model retrieves)"
+    - "judging whether engram memory makes builds cheaper/faster end-to-end, or designing a warm-vs-cold cost test"
 
 - term: token-budget
-  description: Managing token consumption within context limits — payload caps, content
-    budgets, snippet strategies, and lazy-fetch patterns that keep payloads within bounds.
+  description: "Managing token consumption within context limits \u2014 payload caps, content budgets, snippet strategies, and lazy-fetch patterns that keep payloads within bounds."
+  exemplars:
+    - "judging whether pruning the recall payload out of build context saves money, or planning the payload-prune / subagent-isolated-recall build"
+    - "reducing the token/dollar/time cost of memory-augmented agent work in engram"
 
 - term: go-code-conventions
-  description: Go language idioms and project-specific conventions — DI everywhere, no
-    I/O in internal packages, nilaway guard patterns, parallel test isolation, error wrapping.
+  description: "Go language idioms and project-specific conventions \u2014 DI everywhere, no I/O in internal packages, nilaway guard patterns, parallel test isolation, error wrapping."
+  exemplars:
+    - "when choosing Go test tools that auto-generate varied inputs"
+    - "when choosing or comparing property-based testing libraries across language ecosystems"
+    - "when a Gate-B wiring fix requires a variable defined in an inner if-block to be readable at an outer call site, and funlen + wsl_v5 are both active linters"
+    - "implementing engram activate command with injected deps in internal/cli"
+    - "indexing into a slice returned by bytes.Split in engram Go code checked by nilaway"
 
 - term: cli-verification
-  description: Validating CLI commands with the real installed binary and real filesystem
-    arguments — not just unit tests, but end-to-end runs that expose path and wiring bugs.
+  description: "Validating CLI commands with the real installed binary and real filesystem arguments \u2014 not just unit tests, but end-to-end runs that expose path and wiring bugs."
+  exemplars:
+    - "needing to rebuild/install the engram binary to verify a CLI/query/output change with the real binary on PATH"
+    - "tests pass for a path-taking CLI command and I am about to declare the feature complete"
+    - "verifying a CLI command that takes path arguments as done"
+    - "finishing a CLI subcommand that does filesystem I/O on path arguments (reads/writes files by path)"
+    - "removing or renaming a flag/subcommand/API that downstream test or eval harnesses (and their self-checks) depend on"
 
 - term: parallel-test-isolation
-  description: Structuring tests so each subtest uses independent state and can run safely
-    with t.Parallel() — no shared maps, no global mutable variables, no shared temp dirs.
+  description: "Structuring tests so each subtest uses independent state and can run safely with t.Parallel() \u2014 no shared maps, no global mutable variables, no shared temp dirs."
+  exemplars:
+    - "parallel subtests share mutable state and produce flaky or racy failures"
+    - "a parallel Go subtest is flaky or data-racing and the tempting fix is to remove t.Parallel()"
 
 - term: skill-and-guidance-design
-  description: Writing, testing, and evolving agent skills and guidance documents — the
-    TDD discipline for SKILL.md edits, headless RED/GREEN validation, and recall-moment targeting.
+  description: "Writing, testing, and evolving agent skills and guidance documents \u2014 the TDD discipline for SKILL.md edits, headless RED/GREEN validation, and recall-moment targeting."
+  exemplars:
+    - "investigating where to improve an existing process \u2014 where to add a check, recall, gate, or intervention"
+    - "deciding between hooks and CLAUDE.md guidance for recall-at-decision-moments triggers, or confirming what was shipped and why"
+    - "designing a CLI flag that opts into deploying or maintaining an artifact into the user's environment (guidance file, config, plugin)"
+    - "designing or validating a skill aimed at capable models (TDD rigor, review discipline, testing technique, any 'do it the right way' skill)"
+    - "writing an instruction to stop an agent displacing the asked task with prerequisite / 'more rigorous' / deferred work"
 
 - term: agent-behavior-patterns
-  description: Recurring patterns in LLM agent behavior — what agents do reliably, what
-    they miss, and how session context, framing, and guidance shape their outputs.
+  description: "Recurring patterns in LLM agent behavior \u2014 what agents do reliably, what they miss, and how session context, framing, and guidance shape their outputs."
+  exemplars:
+    - "a bash command returns permission denied and the agent is deciding whether to retry the same command"
+    - "orchestrating: delegating object-level work to a subagent and reading its completion report to decide the work is done (before gating/committing/shipping)"
+    - "user asks for N diverse options/approaches/pitches to evaluate"
+    - "about to recommend, challenge, or re-scope a course of action \u2014 especially right after the user told you to do X, or when synthesizing a recommendation late in a task with prior conclusions/decisions in context"
+    - "about to assert a capability is impossible ('X cannot be cheaper/faster/etc.'), or drawing a net conclusion across multiple cost/perf axes"
 
 - term: corpus-mining
-  description: Extracting labeled examples from transcripts, session logs, or text corpora —
-    semantic detection, over-match-then-prune, and representative-sample validation.
+  description: "Extracting labeled examples from transcripts, session logs, or text corpora \u2014 semantic detection, over-match-then-prune, and representative-sample validation."
+  exemplars:
+    - "mining a corpus from a retained store (session logs, transcripts, history) to find patterns and generalize, especially when one source dominates the sample"
+    - "mining user corrections or agent failures from transcripts as eval material, or building any failure/correction detector"
+    - "crystallizing a memory note, especially distilling one from a semantic cluster (recall Step 2.5) vs from an explicit correction (learn Step 2)"
+    - "the user asks for research before a design/eval phase and names one or two example sources"
 
 - term: recency-decay
-  description: Weighting recent items more heavily in ranking and retrieval — half-life
-    parameters, recency bands, and how the decay multiplier interacts with cosine score.
+  description: "Weighting recent items more heavily in ranking and retrieval \u2014 half-life parameters, recency bands, and how the decay multiplier interacts with cosine score."
+  exemplars:
+    - "designing a retrieval or recency eval with a decay or half-life parameter to tune"
+    - "designing engram recall/continuity; deciding how recent session activity should surface vs the whole indexed corpus"
+    - "when implementing or tuning recency decay for chunk scoring in engram query"
+    - "choosing tunable defaults for time/decay/window/threshold knobs (e.g. recency half-life, recency window)"
+    - "reviewing analysis docs for consistency with the c1 architecture doc recall flow"
 
 - term: vocabulary-crystallization
-  description: Distilling raw session content and feedback into reusable structured
-    vocabulary — the process from chunk evidence to crystallized vault notes.
+  description: "Distilling raw session content and feedback into reusable structured vocabulary \u2014 the process from chunk evidence to crystallized vault notes."
+  exemplars:
+    - "crystallizing a memory note, especially distilling one from a semantic cluster (recall Step 2.5) vs from an explicit correction (learn Step 2)"
+    - "crystallizing a memory note for an idiosyncratic or platform-specific capability lesson (recall Step 2.5 / learn Step 2) \u2014 deciding how abstract to phrase the situation handle and the lesson"
 
 - term: subagent-orchestration
-  description: Coordinating multiple subagents — task decomposition, worktree isolation,
-    parallel versus serial dispatch, and argument-to-resolution protocols between reviewers and executors.
+  description: "Coordinating multiple subagents \u2014 task decomposition, worktree isolation, parallel versus serial dispatch, and argument-to-resolution protocols between reviewers and executors."
+  exemplars:
+    - "orchestrating: delegating object-level work to a subagent and reading its completion report to decide the work is done (before gating/committing/shipping)"
+    - "planning a review/research task whose ask enumerates specific sources to examine (conversational history, docs, code, external landscape)"
 
 - term: lever-tracking
-  description: Identifying, measuring, and validating optimization levers — quantifying
-    each lever's reach, ceiling, and cost, and maintaining an honest ledger of what shipped.
+  description: "Identifying, measuring, and validating optimization levers \u2014 quantifying each lever's reach, ceiling, and cost, and maintaining an honest ledger of what shipped."
+  exemplars:
+    - "deciding how to make engram cheaper or more-used without losing its value, or choosing a recall/learn/please optimization lever"
+    - "about to act on a 'restructure / make it more efficient' lever \u2014 recall payload, cost, or any optimization where the win's location is assumed"
+    - "evaluating whether firing/doing X more often (recall, a check, a gate) fixes a class of failures, or estimating a trigger's over-fire / precision against a budget"
+    - "about to recommend a cost or performance lever / optimization approach after an eval series"
+    - "working a chain of locally-justified tasks that may have drifted from the stated product goal, or about to carry a prior plan/lever forward as 'still necessary"
 
 - term: model-routing
-  description: Selecting the right model tier for a task — when to use opus vs. sonnet
-    vs. haiku, tier-routing implementation, and validating that cheaper tiers are capability-neutral.
+  description: "Selecting the right model tier for a task \u2014 when to use opus vs. sonnet vs. haiku, tier-routing implementation, and validating that cheaper tiers are capability-neutral."
+  exemplars:
+    - "sifting a large corpus with LLM agents (classification, detection, mining at volume) under a token budget"
+    - "deciding the model tier for a reasoning task whose needed knowledge/premises are crystallized in engram memory (recallable), or whether to route memory-backed reasoning to a cheaper model"
+    - "writing a model-selection / routing rule, or wiring a finding about a specific model (e.g. 'sonnet matches opus with memory') into how work is dispatched"
+    - "delegating part of an agent workflow to a cheaper model to cut cost"
+    - "considering splitting an agent skill across models to cut cost (host reasons, cheap model retrieves)"
 
 - term: synthesis-vs-retrieval
-  description: Distinguishing when to synthesize a new answer versus retrieve a stored
-    one — knowing which task is LLM reasoning and which is embedder retrieval.
+  description: "Distinguishing when to synthesize a new answer versus retrieve a stored one \u2014 knowing which task is LLM reasoning and which is embedder retrieval."
+  exemplars:
+    - "judging whether a model can find or classify failures or match quality semantically, or assessing an embedder's (engram's) usefulness from a detection result"
+    - "reasoning about or designing against how a shipping system actually works (its recall/query/processing mechanism)"
+    - "designing a reasoning/synthesis mechanism that uses analogy or 'what else is like this' to connect or infer"
+    - "deciding whether a memory system should persist the conclusions an agent reasons out from recalled notes"
+    - "judging what engram memory measurably helps with, or whether a proposed memory cost/usage/value direction is worth pursuing"
 
 - term: behavioral-failure-reproduction
-  description: Reproducing LLM behavioral failures in tests — why behavioral traps require
-    rich session context (not clean toys), and how to build evals that actually fire.
+  description: "Reproducing LLM behavioral failures in tests \u2014 why behavioral traps require rich session context (not clean toys), and how to build evals that actually fire."
+  exemplars:
+    - "a deterministic/mechanical process (ingest, embed, build, batch job) runs far longer than its input volume warrants, or the user flags 'this should be quick/mechanical \u2014 why isn't it done?"
+    - "changing a workflow-orchestration skill like please or dev"
+    - "the user gives a correction, or you are deciding how to prevent a corrected mistake from recurring (designing memory/tests/guards around past corrections)"
+    - "building an eval that reproduces the lever-recheck / anti-amnesia recall miss (re-proposing a closed lever)"
+    - "about to report a favorable/hoped-for nuance from an eval (e.g. 'amortization pays off', 'the consuming case wins', 'it's a tie')"
 
 - term: engram-binary-ops
-  description: engram CLI binary operations — installation via go install, vault/chunks-dir
-    resolution, subcommand wiring, and real-binary integration test patterns.
+  description: "engram CLI binary operations \u2014 installation via go install, vault/chunks-dir resolution, subcommand wiring, and real-binary integration test patterns."
+  exemplars:
+    - "needing to rebuild/install the engram binary to verify a CLI/query/output change with the real binary on PATH"
+    - "designing a CLI flag that opts into deploying or maintaining an artifact into the user's environment (guidance file, config, plugin)"
+    - "adding activated flag to query payload in query.go renderItems"
+    - "how engram recall works / what mechanism the /recall skill and engram query use"
+    - "interpreting engram eval cost phases, or citing 'recall takes ~350s' / reasoning about recall vs build cost"
 
 - term: agentic-recall-triggers
-  description: Knowing when and how to trigger memory recall — which decision moments
-    benefit from a glance or deep recall, and the cost-vs-catch tradeoff at each trigger point.
+  description: "Knowing when and how to trigger memory recall \u2014 which decision moments benefit from a glance or deep recall, and the cost-vs-catch tradeoff at each trigger point."
+  exemplars:
+    - "evaluating whether firing/doing X more often (recall, a check, a gate) fixes a class of failures, or estimating a trigger's over-fire / precision against a budget"
+    - "writing guidance or a skill rule that must make an agent PERFORM a specific action at a moment (e.g. recall before declaring done, run a check before proceeding)"
+    - "reconsidering whether recall over-firing is a problem, or designing variable-depth / two-speed / cheaper recall to fire more often"
+    - "writing guidance to make a strong model fire recall (or any tool) selectively \u2014 fire on idiosyncratic decisions, skip routine ones"
+    - "designing recall triggers, or diagnosing why a known lesson failed to surface during recall"
 
 - term: pbt-and-test-tooling
-  description: Property-based testing and test infrastructure — rapid for PBT, imptest/impgen
-    for mock generation, gomega for assertions, and the full engram test stack conventions.
+  description: "Property-based testing and test infrastructure \u2014 rapid for PBT, imptest/impgen for mock generation, gomega for assertions, and the full engram test stack conventions."
+  exemplars:
+    - "when choosing Go test tools that auto-generate varied inputs"
+    - "when choosing or comparing property-based testing libraries across language ecosystems"
+    - "when identifying metamorphic relations for property-based tests, especially for ML, search, APIs, scientific software"
+    - "adding struct fields in Go that will be consumed by a later implementation phase \u2014 lint flags them unused"
+    - "writing a TDD RED baseline for a skill/eval whose design assumed a specific failure mode"
 
 - term: data-structure-conventions
-  description: Conventions for data structures in the Go codebase — struct layouts, DI
-    interface patterns, sidecar formats, and how to represent typed errors and sentinel values.
+  description: "Conventions for data structures in the Go codebase \u2014 struct layouts, DI interface patterns, sidecar formats, and how to represent typed errors and sentinel values."
+  exemplars:
+    - "simplifying or replacing part of a memory/data system during a redesign"
+    - "adding activated flag to query payload in query.go renderItems"
+    - "adding candidate_l2s field to query output for --synthesize-l2 clustering"
 
 - term: doc-and-memory-hygiene
-  description: Keeping documentation and memory notes current and accurate — scrubbing
-    stale references when architecture changes, matching docs to the real call chain, no orphaned entries.
+  description: "Keeping documentation and memory notes current and accurate \u2014 scrubbing stale references when architecture changes, matching docs to the real call chain, no orphaned entries."
+  exemplars:
+    - "about to recommend or present a cost/perf optimization or lever as open/unbuilt, in a project that tracks shipped work in a roadmap"
+    - "surfacing an interesting residual observation or untested sub-lever at the end of a work item, when the decision is not to act on it"
+    - "asking the user to approve or ratify a design, plan, or synthesis"
+    - "scoping a repo cleanup / stale-artifact, branch, or historical-doc removal request from this user"
+    - "removing or replacing a code path, flag, or architecture"
 
 - term: eval-fixture-design
-  description: Constructing representative test fixtures for evaluations — avoiding
-    retention-bias in corpora, validating with breadth sources, and building traps from real failures.
+  description: "Constructing representative test fixtures for evaluations \u2014 avoiding retention-bias in corpora, validating with breadth sources, and building traps from real failures."
+  exemplars:
+    - "mining a corpus from a retained store (session logs, transcripts, history) to find patterns and generalize, especially when one source dominates the sample"
+    - "building a retrieval-recency eval or diagnosing why a half-life parameter sweep shows no discrimination between values"
+    - "when building a recency eval with a planted very-recent chunk and homogeneous old distractors"
+    - "building an eval fixture to test a reasoning/synthesis capability (compositional join, transitive chain, analogical transfer, compounding)"
+    - "Calibrating warm-vs-cold memory-eval build fixtures: predicting which idiosyncratic gotchas actually fool cold opus (so memory has rebuild-waste to remove) vs which opus one-shots cold (CRUD-oracle dead weight)"
 
 - term: scope-discipline
-  description: Scoping changes narrowly to avoid unintended side effects — staging only
-    this plan's files, coordinating with concurrent workstreams, and never widening a fix.
+  description: "Scoping changes narrowly to avoid unintended side effects \u2014 staging only this plan's files, coordinating with concurrent workstreams, and never widening a fix."
+  exemplars:
+    - "using a prior measured 'X does not work / no headroom' result to PARK or rule out a class of solutions for a new, broader ask"
+    - "planning a review/research task whose ask enumerates specific sources to examine (conversational history, docs, code, external landscape)"
+    - "vetting an LLM-generated spec or plan before execution"
+    - "user asks for N diverse options/approaches/pitches to evaluate"
+    - "an adversarial review gate or reviewer subagent flags that a locked/numbered design decision is reversed or violated by a change"

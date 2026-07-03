@@ -1,0 +1,928 @@
+{
+ "P3-4": {
+  "baseline": [
+   {
+    "basename": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+    "score": 0.69757026,
+    "kind": "feedback",
+    "rank": 1
+   },
+   {
+    "basename": "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+    "score": 0.6582039,
+    "kind": "fact",
+    "rank": 2
+   },
+   {
+    "basename": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible.md",
+    "score": 0.60202426,
+    "kind": "fact",
+    "rank": 3
+   },
+   {
+    "basename": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes.md",
+    "score": 0.5964206,
+    "kind": "feedback",
+    "rank": 4
+   },
+   {
+    "basename": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire.md",
+    "score": 0.5961442,
+    "kind": "fact",
+    "rank": 5
+   },
+   {
+    "basename": "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+    "score": 0.57486683,
+    "kind": "feedback",
+    "rank": 6
+   },
+   {
+    "basename": "132.2026-06-28.recall-unified-cosine-ranking.md",
+    "score": 0.55266845,
+    "kind": "fact",
+    "rank": 7
+   },
+   {
+    "basename": "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+    "score": 0.53868073,
+    "kind": "fact",
+    "rank": 8
+   },
+   {
+    "basename": "120.2026-06-28.crystallize-question-shaped-not-cluster-shaped.md",
+    "score": 0.53500086,
+    "kind": "fact",
+    "rank": 9
+   },
+   {
+    "basename": "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+    "score": 0.5168655,
+    "kind": "feedback",
+    "rank": 10
+   },
+   {
+    "basename": "README.md",
+    "score": 0.64462924,
+    "kind": "chunk",
+    "rank": 47
+   },
+   {
+    "basename": "ROADMAP.md",
+    "score": 0.623646,
+    "kind": "chunk",
+    "rank": 65
+   },
+   {
+    "basename": "2026-06-27-recall-trigger-patterns-and-proposals.md",
+    "score": 0.6207257,
+    "kind": "chunk",
+    "rank": 68
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 69
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 70
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 71
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 72
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 73
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 74
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 75
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 76
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 77
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 78
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 79
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 80
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 81
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 82
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 83
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 84
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 85
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 86
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 87
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 88
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 89
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 90
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 91
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 92
+   },
+   {
+    "basename": "go.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 93
+   }
+  ],
+  "needed_note": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped.md"
+ },
+ "P3-5": {
+  "baseline": [
+   {
+    "basename": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever.md",
+    "score": 0.7294404,
+    "kind": "fact",
+    "rank": 1
+   },
+   {
+    "basename": "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+    "score": 0.7031709,
+    "kind": "fact",
+    "rank": 2
+   },
+   {
+    "basename": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+    "score": 0.67682767,
+    "kind": "fact",
+    "rank": 3
+   },
+   {
+    "basename": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut.md",
+    "score": 0.60705554,
+    "kind": "fact",
+    "rank": 4
+   },
+   {
+    "basename": "77.2026-06-24.recall-not-cost-bottleneck.md",
+    "score": 0.60527503,
+    "kind": "fact",
+    "rank": 5
+   },
+   {
+    "basename": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing.md",
+    "score": 0.5938301,
+    "kind": "feedback",
+    "rank": 6
+   },
+   {
+    "basename": "98.2026-06-25.cheap-build-eval-cant-show-memorys-behavioral-value.md",
+    "score": 0.55405,
+    "kind": "fact",
+    "rank": 7
+   },
+   {
+    "basename": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong.md",
+    "score": 0.5508169,
+    "kind": "fact",
+    "rank": 8
+   },
+   {
+    "basename": "2026-06-30-payload-prune-mechanism-design.md",
+    "score": 0.6329007,
+    "kind": "chunk",
+    "rank": 21
+   },
+   {
+    "basename": "2026-06-24-engram-cost-round2-build-loop.md",
+    "score": 0.61450726,
+    "kind": "chunk",
+    "rank": 31
+   },
+   {
+    "basename": "OPUS-TRAP-CATALOG.md",
+    "score": 0.6143514,
+    "kind": "chunk",
+    "rank": 32
+   },
+   {
+    "basename": "project_verified_memory_value_and_optimization_directions.md",
+    "score": 0.55099535,
+    "kind": "chunk",
+    "rank": 49
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 51
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 52
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 53
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 54
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 55
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 56
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 57
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 58
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 59
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 60
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 61
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 62
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 63
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 64
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 65
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 66
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 67
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 68
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 69
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 70
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 71
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 72
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 73
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 74
+   },
+   {
+    "basename": "go.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 75
+   }
+  ],
+  "needed_note": "136.2026-06-28.route-by-capability-tier-not-model-name.md"
+ },
+ "P3-6": {
+  "baseline": [
+   {
+    "basename": "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes.md",
+    "score": 0.6185737,
+    "kind": "feedback",
+    "rank": 1
+   },
+   {
+    "basename": "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire.md",
+    "score": 0.5804132,
+    "kind": "fact",
+    "rank": 2
+   },
+   {
+    "basename": "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+    "score": 0.56168973,
+    "kind": "fact",
+    "rank": 3
+   },
+   {
+    "basename": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped.md",
+    "score": 0.5475712,
+    "kind": "fact",
+    "rank": 4
+   },
+   {
+    "basename": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+    "score": 0.5475662,
+    "kind": "feedback",
+    "rank": 5
+   },
+   {
+    "basename": "141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke.md",
+    "score": 0.54402155,
+    "kind": "fact",
+    "rank": 6
+   },
+   {
+    "basename": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut.md",
+    "score": 0.5309384,
+    "kind": "fact",
+    "rank": 7
+   },
+   {
+    "basename": "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+    "score": 0.51651824,
+    "kind": "fact",
+    "rank": 8
+   },
+   {
+    "basename": "CLAUDE.md",
+    "score": 0.63958496,
+    "kind": "chunk",
+    "rank": 31
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 65
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 66
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 67
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 68
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 69
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 70
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 71
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 72
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 73
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 74
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 75
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 76
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 77
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 78
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 79
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 80
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 81
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 82
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 83
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 84
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 85
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 86
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 87
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 88
+   },
+   {
+    "basename": "go.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 89
+   }
+  ],
+  "needed_note": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing.md"
+ },
+ "P3-7": {
+  "baseline": [
+   {
+    "basename": "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever.md",
+    "score": 0.719282,
+    "kind": "fact",
+    "rank": 1
+   },
+   {
+    "basename": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut.md",
+    "score": 0.6747865,
+    "kind": "fact",
+    "rank": 2
+   },
+   {
+    "basename": "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+    "score": 0.6667582,
+    "kind": "fact",
+    "rank": 3
+   },
+   {
+    "basename": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing.md",
+    "score": 0.62052566,
+    "kind": "feedback",
+    "rank": 4
+   },
+   {
+    "basename": "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+    "score": 0.6143572,
+    "kind": "fact",
+    "rank": 5
+   },
+   {
+    "basename": "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever.md",
+    "score": 0.60000646,
+    "kind": "feedback",
+    "rank": 6
+   },
+   {
+    "basename": "77.2026-06-24.recall-not-cost-bottleneck.md",
+    "score": 0.5898421,
+    "kind": "fact",
+    "rank": 7
+   },
+   {
+    "basename": "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+    "score": 0.45484963,
+    "kind": "feedback",
+    "rank": 8
+   },
+   {
+    "basename": "79.2026-06-24.engram-content-budget-default-15-not-bottleneck.md",
+    "score": 0.38732862,
+    "kind": "fact",
+    "rank": 9
+   },
+   {
+    "basename": "2026-06-30-payload-prune-mechanism-design.md",
+    "score": 0.7147198,
+    "kind": "chunk",
+    "rank": 20
+   },
+   {
+    "basename": "ROADMAP.md",
+    "score": 0.5608531,
+    "kind": "chunk",
+    "rank": 43
+   },
+   {
+    "basename": "ROADMAP.md",
+    "score": 0.5593275,
+    "kind": "chunk",
+    "rank": 44
+   },
+   {
+    "basename": "ROADMAP.md",
+    "score": 0.55647165,
+    "kind": "chunk",
+    "rank": 45
+   },
+   {
+    "basename": "ROADMAP.md",
+    "score": 0.54963034,
+    "kind": "chunk",
+    "rank": 47
+   },
+   {
+    "basename": "2026-06-30-payload-prune-mechanism-design.md",
+    "score": 0.5339683,
+    "kind": "chunk",
+    "rank": 51
+   },
+   {
+    "basename": "2026-06-25-memory-cost-reanchor.md",
+    "score": 0.5279703,
+    "kind": "chunk",
+    "rank": 52
+   },
+   {
+    "basename": "2026-06-26-cost-meter-and-trap-gate-design.md",
+    "score": 0.5145082,
+    "kind": "chunk",
+    "rank": 58
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 62
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 63
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 64
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 65
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 66
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 67
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 68
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 69
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 70
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 71
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 72
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 73
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 74
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 75
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 76
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 77
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 78
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 79
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 80
+   },
+   {
+    "basename": "engram-go-conventions.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 81
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 82
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 83
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 84
+   },
+   {
+    "basename": "commit.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 85
+   },
+   {
+    "basename": "go.md",
+    "score": 0.0,
+    "kind": "chunk",
+    "rank": 86
+   }
+  ],
+  "needed_note": "136.2026-06-28.route-by-capability-tier-not-model-name.md"
+ }
+}
