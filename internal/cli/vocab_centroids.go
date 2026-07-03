@@ -43,6 +43,18 @@ type vocabCentroidsDoc struct {
 	EmbeddingModelID string                        `json:"embedding_model_id"`
 	Dims             int                           `json:"dims"`
 	Terms            map[string]vocabCentroidEntry `json:"terms"`
+	// --- lifecycle fields ---
+	RefitPending bool               `json:"refit_pending,omitempty"`
+	RefitReason  string             `json:"refit_reason,omitempty"`
+	LastRefit    *vocabLastRefitDoc `json:"last_refit,omitempty"`
+}
+
+// vocabLastRefitDoc holds the vault state at the time of the last bootstrap or refit.
+//
+//nolint:tagliatelle // JSON keys follow snake_case sidecar spec contract
+type vocabLastRefitDoc struct {
+	NoteCount int    `json:"note_count"`
+	Date      string `json:"date"` // YYYY-MM-DD
 }
 
 // computeTermCentroids derives pass-2 term vectors from the pass-1 assignment:

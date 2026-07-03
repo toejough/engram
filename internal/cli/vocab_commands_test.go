@@ -2152,6 +2152,67 @@ func TestTargets_VocabStatsEmpty(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring("terms: 0"), "empty vault must report zero terms")
 }
 
+// ── Task 1: vocabCentroidsDoc new fields round-trip ──────────────────────────
+
+func TestVocabCentroidsDoc_NewFieldsRoundTrip(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	doc := cli.ExportVocabCentroidsDoc{
+		SchemaVersion: 1,
+		RefitPending:  true,
+		RefitReason:   "growth: 41 notes, 15 days",
+		LastRefit:     &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-07-03"},
+		Terms:         map[string]cli.ExportVocabCentroidEntry{"x": {MemberCount: 3}},
+	}
+	data, marshalErr := json.Marshal(doc)
+
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	var got cli.ExportVocabCentroidsDoc
+
+	g.Expect(json.Unmarshal(data, &got)).NotTo(HaveOccurred())
+
+	if err := json.Unmarshal(data, &got); err != nil {
+		return
+	}
+
+	g.Expect(got.RefitPending).To(BeTrue())
+	g.Expect(got.RefitReason).To(Equal("growth: 41 notes, 15 days"))
+	g.Expect(got.LastRefit).NotTo(BeNil())
+
+	if got.LastRefit == nil {
+		return
+	}
+
+	g.Expect(got.LastRefit.NoteCount).To(Equal(100))
+	g.Expect(got.LastRefit.Date).To(Equal("2026-07-03"))
+}
+
+func TestVocabCentroidsDoc_ZeroValueOmitted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	doc := cli.ExportVocabCentroidsDoc{SchemaVersion: 1}
+
+	data, marshalErr := json.Marshal(doc)
+
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	jsonStr := string(data)
+	g.Expect(jsonStr).NotTo(ContainSubstring("refit_pending"))
+	g.Expect(jsonStr).NotTo(ContainSubstring("refit_reason"))
+	g.Expect(jsonStr).NotTo(ContainSubstring("last_refit"))
+}
+
 // errEmbedder is a test-only embed.Embedder that always returns an error on Embed.
 type errEmbedder struct{}
 

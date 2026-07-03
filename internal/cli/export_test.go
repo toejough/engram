@@ -131,6 +131,13 @@ type ExportSupersedesEntry = supersedesEntry
 // Exported types.
 type ExportVaultInitFS = VaultInitFS
 
+type ExportVocabCentroidEntry = vocabCentroidEntry
+
+// Exported vocab schema types (Task 1).
+type ExportVocabCentroidsDoc = vocabCentroidsDoc
+
+type ExportVocabLastRefitDoc = vocabLastRefitDoc
+
 // ExportAppendUniqueProvenance returns the provenances slice after adding
 // role twice via the helper; verifies idempotency in tests.
 func ExportAppendUniqueProvenance(initial []string, roles ...string) []string {
