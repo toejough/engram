@@ -187,6 +187,7 @@ type aggregatedSummary struct {
 	// payload budget (no-silent-caps rule: truncation is always reported).
 	tagNomsAdded   int
 	tagNomsDropped int
+	refitPending   bool
 }
 
 // candidateNoteIndex holds the note paths and BOTH sidecar vectors for the
@@ -321,11 +322,12 @@ type queryItem struct {
 
 // queryPayload is the top-level YAML document.
 type queryPayload struct {
-	Version  int            `yaml:"version"`
-	Phrases  []string       `yaml:"phrases"`
-	Items    []queryItem    `yaml:"items"`
-	Clusters []queryCluster `yaml:"clusters"`
-	Budget   queryBudget    `yaml:"budget"`
+	Version      int            `yaml:"version"`
+	Phrases      []string       `yaml:"phrases"`
+	Items        []queryItem    `yaml:"items"`
+	Clusters     []queryCluster `yaml:"clusters"`
+	Budget       queryBudget    `yaml:"budget"`
+	RefitPending bool           `yaml:"refit_pending,omitempty"`
 }
 
 // resolvedItem is the working shape for the items[] section before
@@ -1315,6 +1317,17 @@ func rankCandidates(
 	return candidates
 }
 
+// readRefitPending returns the refitPending flag from vocab.centroids.json.
+// Degrades cleanly — returns false when the file is missing or malformed.
+func readRefitPending(vault string, readFile func(string) ([]byte, error)) bool {
+	doc, ok := readCentroidsDoc(vault, readFile)
+	if !ok {
+		return false
+	}
+
+	return doc.RefitPending
+}
+
 // renderClusters converts per-phrase cluster reports into the YAML wire shape.
 // Members are sorted by score desc and the representative is flagged. Each
 // cluster is tagged with the phrase that produced it.
@@ -1429,10 +1442,11 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	}
 
 	payload := queryPayload{
-		Version:  1,
-		Phrases:  merged.phrases,
-		Items:    items,
-		Clusters: clusters,
+		Version:      1,
+		Phrases:      merged.phrases,
+		Items:        items,
+		Clusters:     clusters,
+		RefitPending: merged.refitPending,
 		Budget: queryBudget{
 			PhrasesQueried:        len(merged.phrases),
 			TotalNotes:            merged.totalNotes,
@@ -1589,6 +1603,7 @@ func runQuery(
 		lazyChunks:     args.LazyChunks,
 		tagNomsAdded:   tagTally.added,
 		tagNomsDropped: tagTally.dropped,
+		refitPending:   readRefitPending(args.VaultPath, deps.Read),
 	}
 
 	return renderQueryPayload(stdout, merged)

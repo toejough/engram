@@ -68,6 +68,34 @@ func TestApplyProjectFilter_EmptyProjectReturnsAll(t *testing.T) {
 	g.Expect(filtered).To(HaveLen(2))
 }
 
+func TestQueryPayload_RefitPendingOmittedWhenFalse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	out, err := cli.ExportRenderQueryPayloadRefitPending(false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).NotTo(ContainSubstring("refit_pending"))
+}
+
+func TestQueryPayload_RefitPendingPresentWhenTrue(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	out, err := cli.ExportRenderQueryPayloadRefitPending(true)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("refit_pending: true"))
+}
+
 func TestQuery_EmbeddingFailureSurfacesError(t *testing.T) {
 	t.Parallel()
 
@@ -965,6 +993,44 @@ func TestRunQuery_RecencyLiftsRecentChunkOverStaleHighCosine(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring(recentSource+"#"+plantedAnchor),
 		"planted recent chunk must surface in output (pure cosine would bury it)")
+}
+
+func TestRunQuery_RefitPendingFromCentroids(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantNoteWithSidecar(t, memFS, vault, "1.fact.md", "---\ntype: fact\nsituation: s\n---\nbody\n")
+
+	centroidsDoc := cli.ExportVocabCentroidsDoc{
+		SchemaVersion: 1,
+		RefitPending:  true,
+	}
+
+	centroidsData, marshalErr := json.Marshal(centroidsDoc)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	memFS.files[filepath.Join(vault, "vocab.centroids.json")] = centroidsData
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"body"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.String()).To(ContainSubstring("refit_pending: true"))
 }
 
 type errorEmbedder struct{}

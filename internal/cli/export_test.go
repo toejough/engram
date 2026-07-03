@@ -704,6 +704,16 @@ func ExportRenderQueryPayloadBudget(
 	return buf.String(), err
 }
 
+// ExportRenderQueryPayloadRefitPending renders a minimal payload with refitPending set,
+// so tests can assert the refit_pending field's presence/omission.
+func ExportRenderQueryPayloadRefitPending(pending bool) (string, error) {
+	var buf bytes.Buffer
+
+	err := renderQueryPayload(&buf, aggregatedSummary{refitPending: pending})
+
+	return buf.String(), err
+}
+
 // ExportRenderQueryPayloadTagNominationBudget renders a minimal payload whose
 // aggregatedSummary carries the given tag-nomination tally, so tests can assert
 // the budget's tag_nominations_added / tag_nominations_dropped fields (and
