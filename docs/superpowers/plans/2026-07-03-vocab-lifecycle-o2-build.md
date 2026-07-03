@@ -1461,7 +1461,7 @@ go install ./cmd/engram
 
 # 2. Copy the live vault to a temp dir (read-only from here)
 set -u   # unset-var expansion fails loud — never silently falls back to the live vault
-LIVE_VAULT="${ENGRAM_VAULT_PATH:-$HOME/.local/share/engram/vault}"  # env var is usually UNSET; default per vocab_commands.go:48
+LIVE_VAULT="${ENGRAM_VAULT_PATH:-${XDG_DATA_HOME:-$HOME/.local/share}/engram/vault}"  # env var usually UNSET; mirrors the binary's resolution (vocab_commands.go:48 + DataDirFromHome honoring XDG_DATA_HOME)
 WORK_DIR=$(mktemp -d)   # per-run scratch (refit request/plan files); avoids /tmp collisions
 COPY_VAULT=$WORK_DIR/vocab-trigger-validation-vault
 export WORK_DIR COPY_VAULT   # the python heredocs below read these via os.environ
