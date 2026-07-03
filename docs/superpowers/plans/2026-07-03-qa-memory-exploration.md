@@ -11,7 +11,7 @@ more — scales better than binary activation); (4) crystallize answer-reasoning
 a note; (5) all serving a compounding knowledge graph. Answer whether we already acted on
 "persisted reasoning helps lesser models" (PARTIALLY — see Facts §1 below).
 
-## Three settled decisions (Joe, 2026-07-03 — recorded as SETTLED, no gate re-litigates)
+## Five settled decisions (Joe, 2026-07-03 — recorded as SETTLED, no gate re-litigates)
 
 | # | Decision | Joe's rationale |
 |---|---|---|
@@ -78,7 +78,7 @@ No `--contributors` flag. No `--question` or `--answer` flag. No `type: qa` kind
 by any subcommand. A new `engram learn qa` subcommand OR a `--kind qa` flag would be net-new
 binary work.
 
-### Fact 4 — Vocab-kind exclusion seam (code-verified; three-point, all required)
+### Fact 4 — Vocab-kind exclusion seam (code-verified; FOUR-point, all required)
 
 `isVocabKind(content string) bool` (internal/cli/vocab.go:165–168) checks the frontmatter
 `type:` field for `"vocab"` or `"vocab-index"`. `isVocabKindFilename(name string) bool`
@@ -105,10 +105,10 @@ func isExcludedKind(content string) bool {
 replacing EVERY `isVocabKind` call site in the query pipeline (grep for all of them — the four
 points above are the census as of 6fbe0612; a build must re-grep). `isVocabKindFilename` is a SEPARATE
 gate (vocab_commands.go scan loops); a `qa.` filename prefix convention would need the same.
-**Alternatively**: no special filename prefix for QA notes (numbered like regular notes); only
-the `type:` field gate is required. This is cheaper and sufficient — the filename check is only
-needed for commands that scan the vault by file (vocab stats, centroids, trigger) which don't
-need a QA-kind gate.
+The `qa.` filename prefix IS pinned (Dim A templates) — so the filename-level gates that scan
+by file (vocab stats/centroids/trigger loops use `isVocabKindFilename`) need the analogous
+`qa.` prefix check wherever QA notes must not be counted as member notes (e.g. the untagged-rate
+denominator). A build enumerates those scan loops explicitly.
 
 ### Fact 5 — vaultgraph InDegree capability (code-verified: internal/vaultgraph/graph.go)
 
@@ -206,7 +206,8 @@ Contributors: [[100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever]]
 
 **Link form is pinned — G0 constraint (c2-containers.md):** the vault's known G0 defect is
 that bare-id wikilinks (`[[100]]`) do NOT resolve in vaultgraph's basename resolver (census:
-138/171 links orphaned). Contributor links therefore MUST be full note basenames (filename
+151/183 link-instances bare-id; 138/171 NOTES orphaned). Contributor links therefore MUST be
+full note basenames (filename
 minus `.md`), the form that resolves today — the `[[vocab.<term>]]` links shipped this week
 are the working precedent. Enforcement is by construction: the `Contributors:` body line is
 MACHINE-WRITTEN by the binary at capture time (exactly like the `Vocab:` line — single writer,
@@ -287,7 +288,7 @@ round after P3 (usage-distribution dry-run, below) validates the signal has spre
 ### P1 — Retrieval-pollution probe (cost: ~$0, estimated — local embedder + local queries only)
 
 **Claim under test:** EMBEDDED synthetic QA nodes without the qa-kind exclusion pollute the
-matched set (surface on cosine, displace substantive notes); with the three-point exclusion
+matched set (surface on cosine, displace substantive notes); with the four-point exclusion
 (Fact 4) they cause zero baseline disturbance. Synthetic nodes MUST get sidecars (via
 `ENGRAM_VAULT_PATH=$COPY_VAULT engram embed apply` — local model, $0) or the probe is a
 tautology: sidecar-less files can never enter the cosine set, proving nothing (Gate A finding).
@@ -310,9 +311,9 @@ tautology: sidecar-less files can never enter the cosine set, proving nothing (G
   script, committed before running). Using the qanchor_retrieval_probe.py direct-cosine
   pattern (dev/eval/traps/), compute each paraphrase's cosine against ALL note embeddings in
   the copy vault (Q notes, A notes, content notes). PASS = ≥8/10 paraphrases rank their own
-  Q note #1 among Q notes AND above every content note; FAIL = <6/10 → question-to-question
-  matching is too weak to power the D5 channel, and the channel needs redesign before any
-  build. This is the qanchor-inversion test: Q-wording should WIN in q-space.
+  Q note #1 among Q notes AND above every content note; BORDERLINE = 6–7/10 → channel viable
+  but needs a larger-n check before any build; FAIL = <6/10 → question-to-question matching is
+  too weak to power the D5 channel, and the channel needs redesign before any build. This is the qanchor-inversion test: Q-wording should WIN in q-space.
 
 **Harness:** `dev/eval/qa/p1_retrieval_pollution.sh` (committed before running; single shell
 invocation, no cross-invocation env carry needed). Safety guards follow the Task-11 pattern:
@@ -328,12 +329,16 @@ export COPY_VAULT WORK_DIR
 
 # Inject N=5 synthetic Q/A PAIRS (10 files: qa.<date>.<slug>.q.md type: qa-question +
 # qa.<date>.<slug>.a.md type: qa-answer, contributors as full basenames, machine-form body
-# lines per Dim A) as raw .md files, then:
+# lines per Dim A) as raw .md files. Synthetic A notes MUST carry vocab: terms drawn from the
+# vault's REAL vocab set — Point D (TermIndex) only fires for vocab-tagged notes; omitting
+# them makes Arm 2's Point-D pass vacuous. Then:
 ENGRAM_VAULT_PATH="$COPY_VAULT" engram embed apply   # sidecars for the new nodes ($0, local)
 
 # Arm 0/1: current binary. Arm 2: worktree-patched binary (probe-only; never merges):
-#   git worktree add "$WORK_DIR/wt" && (patch Points A/B/C) && go build -o "$WORK_DIR/engram-qa" ./cmd/engram
-# Replay all 48 cases in dev/eval/links/misses_p1.json per arm; diff items[] + top-5 vs Arm 0.
+#   git worktree add "$WORK_DIR/wt" && (patch Points A/B/C/D) && go build -o "$WORK_DIR/engram-qa" ./cmd/engram
+# Replay all 48 cases per arm — 36 in misses_p1.json + 8 in bridges_p2.json + 4 in
+# p3_baselines.json (Fact 6); rows carry no phrases — join against queries.json for the query
+# phrases (the replay.py precedent). Diff items[] + top-5 vs Arm 0.
 ```
 
 Executor verifies the exact `embed apply` flag surface before running (`engram embed --help`);
@@ -344,15 +349,23 @@ if apply skips new files without `--force`/`--stale` semantics, use whichever fl
 
 **Claim under test:** cite-derived attribution (extract `[[basename]]` wikilinks actually
 written in the answer text) is more accurate and less confabulating than free-listed attribution
-(agent enumerates "what notes did you use?" at close). Ground truth: human reading of each
-session, identifying which vault notes were load-bearing.
+(agent enumerates "what notes did you use?" at close). Ground truth: the opus judge of step
+2c (pinned rubric, JSON schema, LLM-judged label, 3/10 orchestrator spot-check) — ONE ground
+truth definition; there is no separate human-reading arm.
 
 **Pass/fail (pre-registered):**
-- PASS: cite-derived confabulation rate < 20% (false positives: cited but not actually used) AND
-  free-list confabulation rate > 30%. Separation of ≥15pp confirms cite-derived is the right
-  channel.
-- FAIL: both methods confabulate equally (both <20% or both >30%) → revise D2's capture bar.
-- BORDERLINE: cite-derived recall (coverage of actually-used notes) < 50% → the bar "answer cites
+- PASS: cite-derived confabulation rate < 20% (false positives: cited but not actually used)
+  AND free-list confabulation rate > 30% AND separation ≥ 15pp → cite-derived is the channel.
+- BOTH > 30%: even cite-derived confabulates → revise D2's capture bar before any build.
+- BOTH < 20%: cite-derived is validated-accurate → ADOPT it (it remains the observable,
+  cheaper channel); free-list is NOT refuted this run — label the comparison inconclusive,
+  tier-specific.
+- ANY OTHER RESULT (mixed levels, any separation — incl. middle-band free-list 20–30% and
+  inverted ordering): BORDERLINE — report both rates; adopt cite-derived iff its rate < 20%,
+  with the caveat recorded (weak separation, middle-band free-list, or inverted ordering as
+  applicable). This branch is the catch-all: the set {PASS, BOTH>30%, BOTH<20%, ANY OTHER}
+  is exhaustive by construction.
+- RECALL-BORDERLINE: cite-derived recall (coverage of actually-used notes) < 50% → the bar "answer cites
   ≥1 vault note" misses too many contributors; consider enrichment step.
 
 **Agent safety (note 160, measured 2026-07-03 — mandatory for P2 AND P3):** eval agents run
@@ -379,8 +392,10 @@ follow them and execute tasks it was asked only to judge.
    probe measures the shipped contrast, not free-listing as an abstract method; label the
    finding tier-specific.
 
-**Cost estimate:** ~10 synthesis sessions × 1 sonnet call each (~$0.30/call) + human review
-= ~$3–5 (estimated; not metered). Upper bound $8 if 20 sessions.
+**Cost estimate:** ~10 sessions × (1 sonnet free-list call ~$0.30 + 1 opus judge call with
+full-session context ~$0.30–0.60 — the dominant line item) = ~$4–7 (estimated; not metered).
+Upper bound ~$8; if 20 sessions are needed, drop to 10 judged cases rather than exceeding the
+envelope.
 
 ### P3 — Usage-distribution dry run (cost: ~$2–4, estimated; optional if budget exceeded)
 
@@ -418,8 +433,8 @@ from ambiguous cases → ~$2–4 (estimated). No vault writes.
 
 **Step 0 — Commit this plan** to `docs/superpowers/plans/2026-07-03-qa-memory-exploration.md`.
 
-**Step 1 — Run probes in parallel** (P1 baseline + P2 attribution fidelity; P3 optional):
-- P1: `dev/eval/qa/p1_retrieval_pollution.sh` — baseline stability check (~free)
+**Step 1 — Run probes in parallel** (P1 four-arm probe + P2 attribution fidelity; P3 optional):
+- P1: `dev/eval/qa/p1_retrieval_pollution.sh` — four-arm pollution + value probe (~$0, local)
 - P2: `dev/eval/qa/p2_attribution_fidelity.py` — ~$3–8
 - P3 (if ≤$5 left in budget): `dev/eval/qa/p3_usage_distribution.py` — ~$2–4
 - All probe scripts committed under `dev/eval/qa/` BEFORE running (no inline scripts).
@@ -429,7 +444,7 @@ criteria post-hoc.
 
 **Step 3 — Write `docs/design/2026-07-03-qa-memory-proposals.md`** containing:
 - Answer to "did we act on persisted reasoning?" (this plan's §Facts Fact 1)
-- Probe results as labeled tables (columns: metric, units, arm A, arm B, delta)
+- Probe results as labeled tables (columns: metric, units, one column per arm — P1: arms 0/1/2/V — plus delta)
 - Design option table for each Dim A–E (option / contender-or-park / rationale / build cost estimate)
 - Recommended build sequence (lean: skill edits first [learn+please Step 4], binary learn-qa
   subcommand second, usage-report third — each gated on prior round's validation)
@@ -447,10 +462,12 @@ criteria post-hoc.
   `COPY_VAULT` as a separate `mktemp -d` subtree. Pattern: Task-11 harness in
   `docs/superpowers/plans/2026-07-03-vocab-lifecycle-o2-build.md`.
 - **All numbers labeled** measured / estimated / projected.
-- **Three settled decisions recorded** above (D1/D2/D3) — no gate re-litigates them.
-- **Q-shaped wording constraint** (note 153, measured: retrieval lost 10/10): QA nodes MUST be
-  excluded from the cosine matched set via the three-point vocab-kind exclusion seam analog.
-  Their retrieval value flows through wikilinks and Obsidian in-degree, NOT cosine competition.
+- **Five settled decisions recorded** above (D1–D5) — no gate re-litigates them.
+- **Q-shaped wording constraint** (note 153, measured: retrieval lost 10/10): QA notes MUST be
+  excluded from the MAIN cosine matched set via the four-point vocab-kind exclusion seam
+  analog. Their sanctioned retrieval paths are the D5 dedicated Q-channel (cosine in q-space,
+  additive payload section) plus wikilinks and Obsidian in-degree — never competition with
+  content notes in the main matched set.
 - **No retrieval-time traversal or reranking** in any option this round (3 consecutive A/B
   negatives, note 73). Contribution edges are write-time data, not a new retrieval scaffold.
 - **Free-form relation edges are retired** (2026-07-02; note the distinction: contribution edges
