@@ -171,6 +171,32 @@ func TestNoteContainsAnyRemoval_NoMatch(t *testing.T) {
 		To(BeFalse(), "must return false when no removal term is in content")
 }
 
+// ── Task 7: verdict line ──────────────────────────────────────────────────────
+
+func TestPrintStatsReport_VerdictOK(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buf strings.Builder
+
+	cli.ExportPrintStatsReport(&buf, nil, nil, 10, 0, "1.0", false, "")
+
+	g.Expect(buf.String()).To(ContainSubstring("verdict: OK"))
+}
+
+func TestPrintStatsReport_VerdictRefitPending(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buf strings.Builder
+
+	cli.ExportPrintStatsReport(&buf, nil, nil, 10, 0, "1.0", true, "growth: 41 notes, 15 days")
+
+	g.Expect(buf.String()).To(ContainSubstring("verdict: REFIT_PENDING (growth: 41 notes, 15 days)"))
+}
+
 // ── Task 4: retagAllNotesTwoPass seeds last_refit ────────────────────────────
 
 // TestRetagAllNotesTwoPass_SeedsLastRefit verifies that a non-nil lastRefit
@@ -1990,6 +2016,40 @@ func TestRunVocabStats_NoteWithNoFrontmatter(t *testing.T) {
 	// Only the tagged note is counted; the no-frontmatter note is excluded.
 	g.Expect(stdout.String()).To(ContainSubstring("member-notes: 1"),
 		"only the tagged note must appear in member-notes count")
+}
+
+func TestRunVocabStats_ReadsRefitPendingFromCentroids(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	centroidsDoc := cli.ExportVocabCentroidsDoc{
+		RefitPending: true,
+		RefitReason:  "hub: agentic-recall-triggers (30%)",
+	}
+
+	centroidsData, marshalErr := json.Marshal(centroidsDoc)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	deps := cli.VocabStatsDeps{
+		ListMD: func(string) ([]string, error) { return nil, nil },
+		ReadFile: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				return centroidsData, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+	}
+
+	var buf strings.Builder
+
+	g.Expect(cli.RunVocabStats(cli.VocabStatsArgs{Vault: "/vault"}, deps, &buf)).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(ContainSubstring("REFIT_PENDING"))
 }
 
 // TestRunVocabStats_ReportsHubAndOrphan verifies hub (>25% of vault) and

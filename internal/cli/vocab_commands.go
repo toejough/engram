@@ -266,7 +266,8 @@ func RunVocabRefit(ctx context.Context, args VocabRefitArgs, deps VocabDeps, std
 }
 
 // RunVocabStats prints a vocab health report: per-term member counts, vault
-// untagged rate, hub terms (>25% of vault), and orphan terms (<2 members).
+// untagged rate, hub terms (>25% of vault), orphan terms (<2 members), and a
+// verdict line (OK or REFIT_PENDING with reason) from vocab.centroids.json.
 func RunVocabStats(args VocabStatsArgs, deps VocabStatsDeps, stdout io.Writer) error {
 	names, listErr := deps.ListMD(args.Vault)
 	if listErr != nil {
@@ -276,8 +277,19 @@ func RunVocabStats(args VocabStatsArgs, deps VocabStatsDeps, stdout io.Writer) e
 	termNames, memberCounts, totalNotes, untaggedCount := collectVaultStats(names, deps, args.Vault)
 	vocabVersion := loadCurrentVocabVersion(args.Vault, deps.ReadFile)
 
+	// Read refit_pending from centroids (migration: absent = OK, no false fire).
+	refitPending := false
+	refitReason := ""
+
+	centroidsDoc, centroidsOK := readCentroidsDoc(args.Vault, deps.ReadFile)
+	if centroidsOK {
+		refitPending = centroidsDoc.RefitPending
+		refitReason = centroidsDoc.RefitReason
+	}
+
 	sort.Strings(termNames)
-	printStatsReport(stdout, termNames, memberCounts, totalNotes, untaggedCount, vocabVersion)
+	printStatsReport(stdout, termNames, memberCounts, totalNotes, untaggedCount,
+		vocabVersion, refitPending, refitReason)
 
 	return nil
 }
@@ -1024,12 +1036,16 @@ func noteContainsAnyRemoval(content string, removals []string) bool {
 }
 
 // printStatsReport writes the formatted vocab stats report to stdout.
+// refitPending and refitReason are read from vocab.centroids.json by the caller
+// (RunVocabStats). Absent centroids → refitPending=false → verdict: OK (migration-safe).
 func printStatsReport(
 	stdout io.Writer,
 	termNames []string,
 	memberCounts map[string]int,
 	totalNotes, untaggedCount int,
 	vocabVersion string,
+	refitPending bool,
+	refitReason string,
 ) {
 	_, _ = fmt.Fprintf(stdout, "vocab stats (version: %s)\n", vocabVersion)
 	_, _ = fmt.Fprintf(stdout, "terms: %d  member-notes: %d  untagged: %d\n",
@@ -1055,6 +1071,13 @@ func printStatsReport(
 		}
 
 		_, _ = fmt.Fprintf(stdout, "  %s: %d members%s\n", term, count, flags)
+	}
+
+	// Verdict line — single source of truth is the persisted flag.
+	if refitPending {
+		_, _ = fmt.Fprintf(stdout, "verdict: REFIT_PENDING (%s)\n", refitReason)
+	} else {
+		_, _ = fmt.Fprintln(stdout, "verdict: OK")
 	}
 }
 

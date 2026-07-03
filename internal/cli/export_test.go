@@ -67,6 +67,7 @@ var (
 	ExportPluralFile                       = pluralFile
 	ExportPrintLinkExamples                = printLinkExamples
 	ExportPrintNoteExamples                = printNoteExamples
+	ExportPrintStatsReport                 = printStatsReport
 	ExportRecencyMultiplier                = recencyMultiplier
 	ExportRenderFactBody                   = renderFactBody
 	ExportRenderFactFrontmatter            = renderFactFrontmatter
