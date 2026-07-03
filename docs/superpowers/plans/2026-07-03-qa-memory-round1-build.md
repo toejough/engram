@@ -33,7 +33,7 @@ All tasks must satisfy these non-negotiables before any task is marked done:
 - **Line length under 120 chars.**
 - **Commits per task** with trailer `AI-Used: [claude]` (NEVER Co-Authored-By).
 - **Live vault untouched** except by the shipped normal flow. Task 11 (validation) uses a copy vault — `set -u` + explicit `LIVE_VAULT` + `COPY_VAULT=$WORK_DIR/qa-r1-validation-vault` guard (Task-11 pattern from o2-build).
-- **Skill edits cannot be marked complete** without RED and GREEN headless evidence from fresh `claude -p` processes (one per arm). Subagents are forbidden for skill TDD arms — they inherit session context and will act on the edited text even without editing.
+- **Skill edits cannot be marked complete** without RED and GREEN headless evidence from fresh `claude -p` processes (one per arm). Subagents are forbidden as skill-TDD TEST ARMS — a Task-tool subagent inherits session context and will act on the edited text even before the edit, poisoning the control; each RED/GREEN arm is a fresh headless `claude -p` process. This prohibition covers the arms ONLY: the `superpowers:writing-skills` skill named in Tasks 7–9 is the executor's DISCIPLINE SOURCE (process instructions), not an agent launcher — no contradiction.
 - **D5′ is settled.** A-notes compete in the main set. Q-notes are excluded at all four seam points. No task relitigates this.
 - **Arm V eval:** copy-vault only; no absolute paths to the real repo in eval payloads (note 160 — measured).
 
@@ -176,7 +176,7 @@ func qaQuestionPath(vault, slug string, when time.Time) string
 func qaAnswerPath(vault, slug string, when time.Time) string
 
 // renderQAQuestionNote assembles the full content of a QA question note.
-func renderQAQuestionNote(questionText, slug string, when time.Time) string
+func renderQAQuestionNote(questionText, slug, source string, when time.Time) string
 
 // renderQAAnswerNote assembles the full content of a QA answer note.
 func renderQAAnswerNote(answerBody, slug, source, certainty string,
@@ -718,13 +718,8 @@ func qaAnswerPath(vault, slug string, when time.Time) string {
 // The machine `Answered by:` line is appended after the question body.
 func renderQAQuestionNote(questionText, slug, source string, when time.Time) string {
     sharedSlug := qaSlug(slug, when)
-    answerBasename := sharedSlug + strings.TrimSuffix(qaAnswerSuffix, ".md")
-    // answerBasename without .md — the full-basename convention (G0 constraint)
-    answerBasename = sharedSlug[:len(sharedSlug)] // slug already has the right form
-
-    // Derive answer basename: sharedSlug + ".a" (no .md suffix — full basename = filename - .md)
+    // Full basename = filename minus .md (G0 constraint): the paired answer note.
     aBasename := sharedSlug + ".a"
-    qBasename := sharedSlug + ".q"
 
     frontmatter := marshalFrontmatter(qaQuestionFrontmatterDoc{
         Type:       typeQAQuestion,
@@ -736,7 +731,6 @@ func renderQAQuestionNote(questionText, slug, source string, when time.Time) str
     body := strings.TrimRight(questionText, "\n") + "\n"
     body += "\n" + answeredByBodyMarker + " [[" + aBasename + "]]\n"
 
-    _ = qBasename // used in answer renderer; suppress unused warning
     return frontmatter + "\n" + body
 }
 
@@ -745,8 +739,8 @@ func renderQAQuestionNote(questionText, slug, source string, when time.Time) str
 func renderQAAnswerNote(answerBody, slug, source, certainty string,
     contributors []string, when time.Time) string {
     sharedSlug := qaSlug(slug, when)
+    // Full basename of the paired question note (G0 constraint).
     qBasename := sharedSlug + ".q"
-    aBasename := sharedSlug + ".a"
 
     frontmatter := marshalFrontmatter(qaAnswerFrontmatterDoc{
         Type:         typeQAAnswer,
@@ -768,7 +762,6 @@ func renderQAAnswerNote(answerBody, slug, source, certainty string,
         body += contributorsBodyMarker + " " + strings.Join(parts, ", ") + "\n"
     }
 
-    _ = aBasename // suppress
     return frontmatter + "\n" + body
 }
 ```
@@ -1327,7 +1320,7 @@ func TestRunVocabStats_CountsQAPairs(t *testing.T) {
 
 Note: `ExportPrintStatsReport` already exists in `export_test.go` (added in o2-build Task 7). Update its signature to accept the new `qaPairs int` parameter.
 
-**GREEN:** Update `printStatsReport` signature and body; update `RunVocabStats`; update `ExportPrintStatsReport` in `export_test.go`; update all existing call sites of `printStatsReport`.
+**GREEN:** Update `printStatsReport` signature and body; update `RunVocabStats`; update `ExportPrintStatsReport` in `export_test.go`; update ALL existing call sites of `printStatsReport` — enumerated (code-verified 2026-07-03): production exactly ONE (vocab_commands.go:293, in RunVocabStats); tests via the export shim at vocab_commands_test.go:183 and :195. Re-grep before editing and list every hit in the commit message.
 
 **Verify:** `targ test`, `targ check-full`.
 
@@ -1398,7 +1391,7 @@ Describe ALL actions you take after writing that synthesis note." \
 done
 ```
 
-**Expected RED (pinned criterion):** 0/3 runs mention `engram learn qa` in the post-synthesis actions. If any run mentions it, score 1/3 and record.
+**RED criterion (pinned, binary):** PASS if 0/3 runs mention `engram learn qa` in the post-synthesis actions; FAIL if ≥1/3 mention it — record the count and STOP (a failed RED falsifies the premise; it is a finding, never a fixture to adjust — note 70).
 
 #### B. GREEN — edit `skills/recall/SKILL.md`
 
@@ -1594,7 +1587,9 @@ claude -p \
   2>&1 | tee "$FIXTURE_RED/step7-baseline.txt"
 ```
 
-**Expected RED (pinned):** response does not mention QA capture in step 7 (it should just say "run /learn"). If it does mention QA capture unprompted (trained behavior), note the base rate and adjust GREEN criterion accordingly.
+**RED (pinned, two pre-specified branches):** clean baseline = ≤1/3 runs mention QA capture unprompted in step 7; trained baseline = ≥2/3 (record 2/3-boundary results as trained). GREEN branches, PRE-SPECIFIED (no mid-task improvisation):
+- from CLEAN baseline: PASS = ≥2/3 runs state that learn's Step 2.5 owns ad-hoc QA capture AND add no second capture call.
+- from TRAINED baseline: PASS = ≥2/3 runs explicitly cite the single-owner rule (learn Step 2.5) AND add no second capture call — the measured delta is the single-owner citation, since bare mention is already baseline.
 
 #### B. GREEN — minimal edit to `skills/please/SKILL.md` via `superpowers:writing-skills`, then `engram update`.
 
@@ -1629,7 +1624,7 @@ Same fixture, same prompt. **Pass criterion:** response for step 7 mentions that
 }
 ```
 
-**Requirement before running:** the ≥10 target Q notes must EXIST in the copy vault (created by a prior `engram learn qa` run during Task 11 or a seeding script). If the vault has fewer than 10 pairs, seed with synthetic pairs derived from real vault note content.
+**Requirement before running (pinned — no run-time improvisation):** the copy vault WILL have fewer than 10 pairs (round 1 just shipped), so the harness SELF-SEEDS: reuse the P1 script's synthetic-pair generator (dev/eval/qa/p1_retrieval_pollution.sh already writes Dim-A-shaped pairs) — extract it into a shared helper or replicate its exact output shape — seeded from ≥10 REAL vault note topics. The seeding code ships in the same pre-registered commit as the corpus.
 
 **RED test for the harness script itself:**
 
@@ -1652,7 +1647,7 @@ This must pass before the harness runs.
 - BORDERLINE (60–79%): needs a third round of paraphrases; channel NOT licensed.
 - FAIL (<60%): Q-channel redesign required before round 3.
 
-**Commit:** `test(qa): Arm V large-n corpus + harness extension (≥30 paraphrases, ≥10 topics)`
+**Commit:** `test(qa): Arm V large-n corpus (dev/eval/qa/arm_v_large_n.json) + self-seeding harness extension (≥30 paraphrases, ≥10 topics)`
 
 ---
 
@@ -1709,7 +1704,11 @@ echo "=== vault stats ==="
 ENGRAM_VAULT_PATH="$COPY_VAULT" engram vocab stats | grep "qa pairs:"
 
 echo "=== Q note has no vocab: key ==="
-cat "$COPY_VAULT"/qa.*.acceptance-test.q.md | grep -v "^vocab:" || echo "PASS: no vocab key in Q note"
+if ! grep -q "^vocab:" "$COPY_VAULT"/qa.*.qa-acceptance-test.q.md; then
+  echo "PASS: no vocab key in Q note"
+else
+  echo "FAIL: Q note has vocab key"; exit 1
+fi
 
 echo "=== A note has vocab: key (may be empty list if no terms match) ==="
 cat "$COPY_VAULT"/qa.*.acceptance-test.a.md | grep "^vocab:" || echo "(no vocab assigned — OK for bootstrap-only vault)"
@@ -1760,7 +1759,7 @@ Update the following targets in one step, each precisely:
      or ~2026-07-17 (whichever first).
    - [DEFERRED — round 3, gated on round-2 validation] the dedicated Q-channel (incoming ask
      matched against Q-note embeddings in q-space) and the `answered_by` ride-along (a surfaced
-     Q delivers its paired A). Gated on Arm V large-n sustaining the BORDERLINE-7/10 result and
+     Q delivers its paired A). Gated on Arm V large-n reaching PASS (≥80% — Task 10's pre-registered bands; BORDERLINE does not license the build) and
      on P2'/P3' post-ship validation over ≥20 real pairs. NOT built in round 1.
    ```
 
