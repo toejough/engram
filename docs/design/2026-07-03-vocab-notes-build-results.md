@@ -31,6 +31,7 @@ K ∈ {K2+rider, K3 = plain top-3} — full table in `dev/eval/links/sweep_s2_re
 | twopass \| 0.35 \| K3 | 56.2 (27/48) | 31.0 | **PASS — SELECTED** (tie on recovery → higher floor) |
 | twopass \| 0.30 \| K3 | 56.2 (27/48) | 33.0 | PASS |
 | twopass \| 0.25 \| K3 | 56.2 (27/48) | 39.5 | PASS |
+| twopass \| 0.40 \| K3 | 50.0 (24/48) | 44.0 | FAIL (both halves) |
 | twopass \| 0.25–0.40 \| K2+rider | 41.7–50.0 | 24.0–33.0 | FAIL (recovery) |
 
 **Shipped defaults: floor 0.35, plain top-3 (K3), centroid two-pass.** K3 beat K2+rider at every
