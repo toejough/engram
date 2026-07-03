@@ -64,6 +64,11 @@ type AmendDeps struct {
 	// LoadTermVectors returns vocab term→vector pairs from the vault.
 	// Optional: nil skips vocab assignment (backward compat).
 	LoadTermVectors func(vault string) ([]TermWithVector, error)
+	// ListMD lists full .md filenames in the vault for the vocab trigger scan.
+	// Optional: nil skips the trigger check (backward compat).
+	// Must use full filenames (not stripped basenames) to avoid false-firing the
+	// untagged-rate trigger on every amend.
+	ListMD func(vault string) ([]string, error)
 }
 
 // RunAmend modifies a note in place. It applies --supersedes entries to the
@@ -182,6 +187,37 @@ func amendContent(raw []byte, args AmendArgs, parsedSupersedes []supersedesEntry
 	return updated, contentChanged, nil
 }
 
+// applyAmendVocabAssignment performs only the term-assignment part of
+// applyVocabAssignmentAfterAmend, keeping the trigger check outside this
+// early-return chain.
+func applyAmendVocabAssignment(deps AmendDeps, vault, notePath, amended string) {
+	if deps.LoadTermVectors == nil || deps.Read == nil || deps.Write == nil {
+		return
+	}
+
+	terms, termsErr := deps.LoadTermVectors(vault)
+	if termsErr != nil || len(terms) == 0 {
+		return
+	}
+
+	bodyVec, ok := loadBodyVectorForNote(deps.Read, notePath)
+	if !ok {
+		return
+	}
+
+	assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
+	updated := WriteVocabAssignment(amended, assigned)
+
+	if updated == amended {
+		return
+	}
+
+	writeErr := deps.Write(notePath, []byte(updated))
+	if writeErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("amend: vocab assignment write failed for %s: %v", notePath, writeErr)
+	}
+}
+
 // applyFactAmend overrides supplied fact fields, merges chunk-source provenance,
 // and re-renders the note (Issue round-trips via quotedString — CA-11).
 func applyFactAmend(
@@ -279,35 +315,23 @@ func applyTypedAmend[T any](
 	return spec.render(doc, when, body, contentChanged), contentChanged, nil
 }
 
-// applyVocabAssignmentAfterAmend assigns vocab terms to an amended note.
-// Requires LoadTermVectors to be non-nil; uses the existing sidecar (via deps.Read)
-// to get the note's body vector. Silently no-ops when deps are absent or no terms exist.
+// applyVocabAssignmentAfterAmend assigns vocab terms to an amended note,
+// then evaluates the vocab refit trigger. Vocab assignment requires all three
+// of LoadTermVectors, Read, and Write to be non-nil; a nil dep or empty term
+// set silently skips assignment (backward compat). The trigger check runs
+// unconditionally — it is gated on deps.ListMD inside the callee.
 func applyVocabAssignmentAfterAmend(deps AmendDeps, vault, notePath, amended string) {
-	if deps.LoadTermVectors == nil || deps.Read == nil || deps.Write == nil {
-		return
-	}
+	applyAmendVocabAssignment(deps, vault, notePath, amended)
 
-	terms, termsErr := deps.LoadTermVectors(vault)
-	if termsErr != nil || len(terms) == 0 {
-		return
-	}
-
-	bodyVec, ok := loadBodyVectorForNote(deps.Read, notePath)
-	if !ok {
-		return
-	}
-
-	assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
-	updated := WriteVocabAssignment(amended, assigned)
-
-	if updated == amended {
-		return
-	}
-
-	writeErr := deps.Write(notePath, []byte(updated))
-	if writeErr != nil && deps.LogWarning != nil {
-		deps.LogWarning("amend: vocab assignment write failed for %s: %v", notePath, writeErr)
-	}
+	// Trigger check — reuses Read/Write deps already wired for vocab assignment.
+	checkAndPersistVocabRefitTrigger(
+		vault,
+		deps.ListMD,
+		deps.Read,
+		deps.Write,
+		deps.LogWarning,
+		deps.Now(),
+	)
 }
 
 // mergeChunkSources returns a deduped union of existing and incoming chunk ids.
@@ -368,6 +392,10 @@ func newOsAmendDeps() AmendDeps {
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
 			return loadAssignmentTermVectors(vault, osVault.ListMD, osVault.ReadFile)
 		},
+		// ListMD provides full .md filenames for the vocab trigger scan.
+		// Must use ListMD (not stripped basenames) — ListBasenames filters to
+		// Luhmann IDs, causing false-fire on the untagged trigger.
+		ListMD: osVault.ListMD,
 	}
 }
 
