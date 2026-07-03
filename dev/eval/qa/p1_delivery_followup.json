@@ -1,0 +1,1431 @@
+{
+  "meta": {
+    "arm0_target_any_rank": 15,
+    "arm1_target_any_rank": 15,
+    "arm0_target_top5": 2,
+    "arm1_target_top5": 2,
+    "delivery_losses": 0,
+    "n_cases": 48
+  },
+  "per_case": [
+    {
+      "case_id": "P1-Q00-n3",
+      "kind": "P1",
+      "needed": "135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 86,
+      "arm1_total_items": 86
+    },
+    {
+      "case_id": "P1-Q00-n3",
+      "kind": "P1",
+      "needed": "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 86,
+      "arm1_total_items": 86
+    },
+    {
+      "case_id": "P1-Q00-n3",
+      "kind": "P1",
+      "needed": "155.2026-07-01.named-sources-in-ask-each-get-a-task.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 86,
+      "arm1_total_items": 86
+    },
+    {
+      "case_id": "P1-Q00-n3",
+      "kind": "P1",
+      "needed": "156.2026-07-02.date-scope-every-number-in-a-review.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 86,
+      "arm1_total_items": 86
+    },
+    {
+      "case_id": "P1-Q00-n3",
+      "kind": "P1",
+      "needed": "77.2026-06-24.recall-not-cost-bottleneck.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 86,
+      "arm1_total_items": 86
+    },
+    {
+      "case_id": "P1-Q00-n3",
+      "kind": "P1",
+      "needed": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 86,
+      "arm1_total_items": 86
+    },
+    {
+      "case_id": "P1-Q00-n10",
+      "kind": "P1",
+      "needed": "155.2026-07-01.named-sources-in-ask-each-get-a-task.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 195,
+      "arm1_total_items": 195
+    },
+    {
+      "case_id": "P1-Q00-n10",
+      "kind": "P1",
+      "needed": "90.2026-06-25.re-anchor-on-goal-revalidate-carried-work-fresh.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 195,
+      "arm1_total_items": 195
+    },
+    {
+      "case_id": "P1-Q00-n10",
+      "kind": "P1",
+      "needed": "96.2026-06-25.adversarial-verify-overturns-favorable-nuance.md",
+      "arm0_target_rank": 20,
+      "arm0_target_score": 0.5134718,
+      "arm1_target_rank": 20,
+      "arm1_target_score": 0.51347136,
+      "arm0_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 195,
+      "arm1_total_items": 195
+    },
+    {
+      "case_id": "P1-Q01-n3",
+      "kind": "P1",
+      "needed": "34.2026-06-16.working-memory-analog-gap.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [
+        {
+          "basename": "qa.2026-07-03.usage-signal-design.a.md",
+          "rank": 6,
+          "score": 0.45118368
+        }
+      ],
+      "arm0_total_items": 91,
+      "arm1_total_items": 91
+    },
+    {
+      "case_id": "P1-Q01-n3",
+      "kind": "P1",
+      "needed": "69.2026-06-23.analogy-is-generator-not-proof.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [
+        {
+          "basename": "qa.2026-07-03.usage-signal-design.a.md",
+          "rank": 6,
+          "score": 0.45118368
+        }
+      ],
+      "arm0_total_items": 91,
+      "arm1_total_items": 91
+    },
+    {
+      "case_id": "P1-Q01-n3",
+      "kind": "P1",
+      "needed": "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [
+        {
+          "basename": "qa.2026-07-03.usage-signal-design.a.md",
+          "rank": 6,
+          "score": 0.45118368
+        }
+      ],
+      "arm0_total_items": 91,
+      "arm1_total_items": 91
+    },
+    {
+      "case_id": "P1-Q01-n10",
+      "kind": "P1",
+      "needed": "122.2026-06-28.scope-prior-negative-evidence-before-parking-a-direction.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query.md",
+        "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md"
+      ],
+      "arm1_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query.md",
+        "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md"
+      ],
+      "displaced_from_top5": [
+        "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md"
+      ],
+      "added_to_top5": [],
+      "qa_in_arm1": [
+        {
+          "basename": "qa.2026-07-03.usage-signal-design.q.md",
+          "rank": 4,
+          "score": 0.54047346
+        },
+        {
+          "basename": "qa.2026-07-03.usage-signal-design.a.md",
+          "rank": 18,
+          "score": 0.45902717
+        },
+        {
+          "basename": "qa.2026-07-03.qa-exclusion-seam.a.md",
+          "rank": 26,
+          "score": 0.40384015
+        }
+      ],
+      "arm0_total_items": 221,
+      "arm1_total_items": 222
+    },
+    {
+      "case_id": "P1-Q01-n10",
+      "kind": "P1",
+      "needed": "72.2026-06-23.multiphrase-recall-subsumes-graph-expansion.md",
+      "arm0_target_rank": 26,
+      "arm0_target_score": 0.401282,
+      "arm1_target_rank": 31,
+      "arm1_target_score": 0.32111877,
+      "arm0_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query.md",
+        "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md"
+      ],
+      "arm1_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query.md",
+        "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md"
+      ],
+      "displaced_from_top5": [
+        "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md"
+      ],
+      "added_to_top5": [],
+      "qa_in_arm1": [
+        {
+          "basename": "qa.2026-07-03.usage-signal-design.q.md",
+          "rank": 4,
+          "score": 0.54047346
+        },
+        {
+          "basename": "qa.2026-07-03.usage-signal-design.a.md",
+          "rank": 18,
+          "score": 0.45902717
+        },
+        {
+          "basename": "qa.2026-07-03.qa-exclusion-seam.a.md",
+          "rank": 26,
+          "score": 0.40384015
+        }
+      ],
+      "arm0_total_items": 221,
+      "arm1_total_items": 222
+    },
+    {
+      "case_id": "P1-Q01-n10",
+      "kind": "P1",
+      "needed": "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query.md",
+        "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md"
+      ],
+      "arm1_top5": [
+        "158.2026-07-02.link-value-is-nomination-not-ranking.md",
+        "56.2026-06-18.candidate-l2s-yaml-field-no-sidecar-in-query.md",
+        "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md"
+      ],
+      "displaced_from_top5": [
+        "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md"
+      ],
+      "added_to_top5": [],
+      "qa_in_arm1": [
+        {
+          "basename": "qa.2026-07-03.usage-signal-design.q.md",
+          "rank": 4,
+          "score": 0.54047346
+        },
+        {
+          "basename": "qa.2026-07-03.usage-signal-design.a.md",
+          "rank": 18,
+          "score": 0.45902717
+        },
+        {
+          "basename": "qa.2026-07-03.qa-exclusion-seam.a.md",
+          "rank": 26,
+          "score": 0.40384015
+        }
+      ],
+      "arm0_total_items": 221,
+      "arm1_total_items": 222
+    },
+    {
+      "case_id": "P1-Q02-n10",
+      "kind": "P1",
+      "needed": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 244,
+      "arm1_total_items": 244
+    },
+    {
+      "case_id": "P1-Q02-n10",
+      "kind": "P1",
+      "needed": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 244,
+      "arm1_total_items": 244
+    },
+    {
+      "case_id": "P1-Q02-n10",
+      "kind": "P1",
+      "needed": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 244,
+      "arm1_total_items": 244
+    },
+    {
+      "case_id": "P1-Q02-n10",
+      "kind": "P1",
+      "needed": "70.2026-06-23.red-baseline-can-falsify-the-premise.md",
+      "arm0_target_rank": 16,
+      "arm0_target_score": 0.39279446,
+      "arm1_target_rank": 16,
+      "arm1_target_score": 0.39279446,
+      "arm0_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 244,
+      "arm1_total_items": 244
+    },
+    {
+      "case_id": "P1-Q03-n3",
+      "kind": "P1",
+      "needed": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "48.2026-06-17.unused-struct-fields-export-test-accessor.md"
+      ],
+      "arm1_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "48.2026-06-17.unused-struct-fields-export-test-accessor.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 105,
+      "arm1_total_items": 105
+    },
+    {
+      "case_id": "P1-Q03-n10",
+      "kind": "P1",
+      "needed": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 246,
+      "arm1_total_items": 246
+    },
+    {
+      "case_id": "P1-Q03-n10",
+      "kind": "P1",
+      "needed": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary.md",
+      "arm0_target_rank": 15,
+      "arm0_target_score": 0.3887058,
+      "arm1_target_rank": 15,
+      "arm1_target_score": 0.3887058,
+      "arm0_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 246,
+      "arm1_total_items": 246
+    },
+    {
+      "case_id": "P1-Q03-n10",
+      "kind": "P1",
+      "needed": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var.md",
+      "arm0_target_rank": 16,
+      "arm0_target_score": 0.38601077,
+      "arm1_target_rank": 16,
+      "arm1_target_score": 0.38601077,
+      "arm0_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 246,
+      "arm1_total_items": 246
+    },
+    {
+      "case_id": "P1-Q03-n10",
+      "kind": "P1",
+      "needed": "58.2026-06-19.engram-modernize-linter-slices-backward.md",
+      "arm0_target_rank": 27,
+      "arm0_target_score": 0.28483498,
+      "arm1_target_rank": 27,
+      "arm1_target_score": 0.28483498,
+      "arm0_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 246,
+      "arm1_total_items": 246
+    },
+    {
+      "case_id": "P1-Q03-n10",
+      "kind": "P1",
+      "needed": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing.md",
+      "arm0_target_rank": 10,
+      "arm0_target_score": 0.41118446,
+      "arm1_target_rank": 10,
+      "arm1_target_score": 0.41118446,
+      "arm0_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 246,
+      "arm1_total_items": 246
+    },
+    {
+      "case_id": "P1-Q04-n3",
+      "kind": "P1",
+      "needed": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "arm1_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 87,
+      "arm1_total_items": 87
+    },
+    {
+      "case_id": "P1-Q04-n3",
+      "kind": "P1",
+      "needed": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "arm1_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 87,
+      "arm1_total_items": 87
+    },
+    {
+      "case_id": "P1-Q04-n10",
+      "kind": "P1",
+      "needed": "117.2026-06-28.test-both-paths-of-binary-gate-field-not-just-payload.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "arm1_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 237,
+      "arm1_total_items": 237
+    },
+    {
+      "case_id": "P1-Q04-n10",
+      "kind": "P1",
+      "needed": "37.2026-06-17.unused-struct-fields-need-early-consumer-not-nolint.md",
+      "arm0_target_rank": 26,
+      "arm0_target_score": 0.25226134,
+      "arm1_target_rank": 26,
+      "arm1_target_score": 0.25226134,
+      "arm0_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "arm1_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 237,
+      "arm1_total_items": 237
+    },
+    {
+      "case_id": "P1-Q04-n10",
+      "kind": "P1",
+      "needed": "41.2026-06-17.funlen-wsl-tension-at-scope-boundary.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "arm1_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 237,
+      "arm1_total_items": 237
+    },
+    {
+      "case_id": "P1-Q04-n10",
+      "kind": "P1",
+      "needed": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "arm1_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 237,
+      "arm1_total_items": 237
+    },
+    {
+      "case_id": "P1-Q04-n10",
+      "kind": "P1",
+      "needed": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "arm1_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 237,
+      "arm1_total_items": 237
+    },
+    {
+      "case_id": "P1-Q12-n3",
+      "kind": "P1",
+      "needed": "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "48.2026-06-17.unused-struct-fields-export-test-accessor.md"
+      ],
+      "arm1_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "48.2026-06-17.unused-struct-fields-export-test-accessor.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 105,
+      "arm1_total_items": 105
+    },
+    {
+      "case_id": "P1-Q12-n10",
+      "kind": "P1",
+      "needed": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing.md",
+      "arm0_target_rank": 24,
+      "arm0_target_score": 0.28626746,
+      "arm1_target_rank": 24,
+      "arm1_target_score": 0.28626746,
+      "arm0_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 239,
+      "arm1_total_items": 239
+    },
+    {
+      "case_id": "P1-Q12-n10",
+      "kind": "P1",
+      "needed": "70.2026-06-23.red-baseline-can-falsify-the-premise.md",
+      "arm0_target_rank": 16,
+      "arm0_target_score": 0.4106222,
+      "arm1_target_rank": 16,
+      "arm1_target_score": 0.4106222,
+      "arm0_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 239,
+      "arm1_total_items": 239
+    },
+    {
+      "case_id": "P1-Q22-n10",
+      "kind": "P1",
+      "needed": "59.2026-06-19.nilaway-bytes-split-nil-slice-indexing.md",
+      "arm0_target_rank": 12,
+      "arm0_target_score": 0.35036123,
+      "arm1_target_rank": 12,
+      "arm1_target_score": 0.35036123,
+      "arm0_top5": [
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "48.2026-06-17.unused-struct-fields-export-test-accessor.md",
+        "49.2026-06-17.strings-splitseq-go126-modernize.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "arm1_top5": [
+        "124.2026-06-28.wrap-errors-with-context.md",
+        "127.2026-06-28.go-wrap-errors-with-context.md",
+        "48.2026-06-17.unused-struct-fields-export-test-accessor.md",
+        "49.2026-06-17.strings-splitseq-go126-modernize.md",
+        "58.2026-06-19.engram-modernize-linter-slices-backward.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 159,
+      "arm1_total_items": 159
+    },
+    {
+      "case_id": "P2-B2",
+      "kind": "P2",
+      "needed": "115.2026-06-28.detection-is-llm-reasoning-not-embedding-retrieval.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+        "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+        "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+        "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md",
+        "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible.md"
+      ],
+      "arm1_top5": [
+        "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+        "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+        "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+        "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md",
+        "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 94,
+      "arm1_total_items": 94
+    },
+    {
+      "case_id": "P2-B3",
+      "kind": "P2",
+      "needed": "134.2026-06-28.recency-eval-spread-distractor-ages.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "arm1_top5": [
+        "116.2026-06-28.go-auto-input-test-tool-roles-pbt-vs-fuzz.md",
+        "129.2026-06-28.parallel-tests-must-not-share-mutable-state.md",
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "30.2026-06-14.pbt-frameworks-random-input-property-validation.md",
+        "31.2026-06-14.pbt-stateful-model-based-technique.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 65,
+      "arm1_total_items": 65
+    },
+    {
+      "case_id": "P2-B4",
+      "kind": "P2",
+      "needed": "86.2026-06-24.fake-scale-with-stub-binary-not-large-fixture.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "125.2026-06-28.verify-cli-real-binary-real-path-args.md",
+        "130.2026-06-28.verify-cli-with-real-binary-real-paths.md",
+        "54.2026-06-17.verify-cli-with-real-binary-real-args.md",
+        "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal.md"
+      ],
+      "arm1_top5": [
+        "106.2026-06-27.engram-binary-install-go-install-not-targ-build.md",
+        "125.2026-06-28.verify-cli-real-binary-real-path-args.md",
+        "130.2026-06-28.verify-cli-with-real-binary-real-paths.md",
+        "54.2026-06-17.verify-cli-with-real-binary-real-args.md",
+        "66.2026-06-20.verify-downstream-consumers-after-cross-cutting-removal.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 72,
+      "arm1_total_items": 72
+    },
+    {
+      "case_id": "P2-B5",
+      "kind": "P2",
+      "needed": "69.2026-06-23.analogy-is-generator-not-proof.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank.md",
+        "132.2026-06-28.recall-unified-cosine-ranking.md",
+        "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "82.2026-06-24.recall-miss-is-structural-not-retrieval.md"
+      ],
+      "arm1_top5": [
+        "119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank.md",
+        "132.2026-06-28.recall-unified-cosine-ranking.md",
+        "153.2026-07-01.keep-concrete-token-in-idiosyncratic-notes.md",
+        "76.2026-06-23.persist-synthesis-for-inspection-not-accuracy.md",
+        "82.2026-06-24.recall-miss-is-structural-not-retrieval.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [
+        {
+          "basename": "qa.2026-07-03.observable-attribution.a.md",
+          "rank": 8,
+          "score": 0.42459232
+        }
+      ],
+      "arm0_total_items": 109,
+      "arm1_total_items": 109
+    },
+    {
+      "case_id": "P2-B6",
+      "kind": "P2",
+      "needed": "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more.md",
+        "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire.md",
+        "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing.md",
+        "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes.md",
+        "82.2026-06-24.recall-miss-is-structural-not-retrieval.md"
+      ],
+      "arm1_top5": [
+        "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more.md",
+        "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire.md",
+        "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing.md",
+        "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes.md",
+        "82.2026-06-24.recall-miss-is-structural-not-retrieval.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 75,
+      "arm1_total_items": 75
+    },
+    {
+      "case_id": "P2-B7",
+      "kind": "P2",
+      "needed": "45.2026-06-17.calibrate-defaults-to-user-cadence.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "34.2026-06-16.working-memory-analog-gap.md",
+        "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes.md",
+        "65.2026-06-20.engram-recall-mechanism-synthesize-l2.md",
+        "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "arm1_top5": [
+        "34.2026-06-16.working-memory-analog-gap.md",
+        "55.2026-06-17.c1-recall-recency-applies-to-both-chunks-and-notes.md",
+        "65.2026-06-20.engram-recall-mechanism-synthesize-l2.md",
+        "95.2026-06-25.warm-vs-cold-memory-slower-costlier-on-easy-builds.md",
+        "99.2026-06-26.verified-benefit-ledger-memory-wins-are-idiosyncratic-capability.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 111,
+      "arm1_total_items": 111
+    },
+    {
+      "case_id": "P2-B8",
+      "kind": "P2",
+      "needed": "83.2026-06-24.eval-end-metric-conflates-retrieval-vs-synthesis.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more.md",
+        "112.2026-06-28.semantic-overmatch-false-negative-failure-mining.md",
+        "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+        "67.2026-06-22.corrections-become-reproducible-tests.md",
+        "82.2026-06-24.recall-miss-is-structural-not-retrieval.md"
+      ],
+      "arm1_top5": [
+        "109.2026-06-27.measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more.md",
+        "112.2026-06-28.semantic-overmatch-false-negative-failure-mining.md",
+        "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+        "67.2026-06-22.corrections-become-reproducible-tests.md",
+        "82.2026-06-24.recall-miss-is-structural-not-retrieval.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 94,
+      "arm1_total_items": 94
+    },
+    {
+      "case_id": "P2-B9",
+      "kind": "P2",
+      "needed": "74.2026-06-23.persisting-synthesis-differs-from-in-session-reasoning.md",
+      "arm0_target_rank": 10,
+      "arm0_target_score": 0.44865173,
+      "arm1_target_rank": 10,
+      "arm1_target_score": 0.44865146,
+      "arm0_top5": [
+        "132.2026-06-28.recall-unified-cosine-ranking.md",
+        "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+        "34.2026-06-16.working-memory-analog-gap.md",
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds.md"
+      ],
+      "arm1_top5": [
+        "132.2026-06-28.recall-unified-cosine-ranking.md",
+        "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+        "34.2026-06-16.working-memory-analog-gap.md",
+        "68.2026-06-22.aggregation-is-not-emergent-synthesis.md",
+        "73.2026-06-23.engram-value-is-memory-not-reasoning-scaffolds.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 98,
+      "arm1_total_items": 98
+    },
+    {
+      "case_id": "P3-P3-4",
+      "kind": "P3",
+      "needed": "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped.md",
+      "arm0_target_rank": null,
+      "arm0_target_score": null,
+      "arm1_target_rank": null,
+      "arm1_target_score": null,
+      "arm0_top5": [
+        "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire.md",
+        "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes.md",
+        "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+        "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+        "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible.md"
+      ],
+      "arm1_top5": [
+        "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire.md",
+        "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes.md",
+        "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md",
+        "82.2026-06-24.recall-miss-is-structural-not-retrieval.md",
+        "85.2026-06-24.anti-amnesia-miss-not-toy-reproducible.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 93,
+      "arm1_total_items": 93
+    },
+    {
+      "case_id": "P3-P3-5",
+      "kind": "P3",
+      "needed": "136.2026-06-28.route-by-capability-tier-not-model-name.md",
+      "arm0_target_rank": 2,
+      "arm0_target_score": 0.0,
+      "arm1_target_rank": 2,
+      "arm1_target_score": 0.0,
+      "arm0_top5": [
+        "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever.md",
+        "136.2026-06-28.route-by-capability-tier-not-model-name.md",
+        "77.2026-06-24.recall-not-cost-bottleneck.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md"
+      ],
+      "arm1_top5": [
+        "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever.md",
+        "136.2026-06-28.route-by-capability-tier-not-model-name.md",
+        "77.2026-06-24.recall-not-cost-bottleneck.md",
+        "91.2026-06-25.memory-net-negative-on-op-value-is-builds-not-op-speed.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 76,
+      "arm1_total_items": 76
+    },
+    {
+      "case_id": "P3-P3-6",
+      "kind": "P3",
+      "needed": "144.2026-06-30.under-firing-is-the-recall-risk-not-over-firing.md",
+      "arm0_target_rank": 6,
+      "arm0_target_score": 0.0,
+      "arm1_target_rank": 6,
+      "arm1_target_score": 0.0,
+      "arm0_top5": [
+        "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+        "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped.md",
+        "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire.md",
+        "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes.md",
+        "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md"
+      ],
+      "arm1_top5": [
+        "133.2026-06-28.engram-recall-unified-cosine-ranking.md",
+        "139.2026-06-29.recall-decision-moments-guidance-not-hooks-shipped.md",
+        "140.2026-06-29.recall-depth-dial-relaxes-not-dissolves-overfire.md",
+        "145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes.md",
+        "147.2026-06-30.rejected-recall-overfire-and-afterfailure-cue-2026-06-30.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 93,
+      "arm1_total_items": 93
+    },
+    {
+      "case_id": "P3-P3-7",
+      "kind": "P3",
+      "needed": "136.2026-06-28.route-by-capability-tier-not-model-name.md",
+      "arm0_target_rank": 2,
+      "arm0_target_score": 0.0,
+      "arm1_target_rank": 2,
+      "arm1_target_score": 0.0,
+      "arm0_top5": [
+        "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever.md",
+        "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever.md",
+        "136.2026-06-28.route-by-capability-tier-not-model-name.md",
+        "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md"
+      ],
+      "arm1_top5": [
+        "100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever.md",
+        "105.2026-06-27.verify-payload-bulk-location-before-labeling-a-lever.md",
+        "136.2026-06-28.route-by-capability-tier-not-model-name.md",
+        "149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut.md",
+        "93.2026-06-25.harness-recall-s-is-round1-not-recall.md"
+      ],
+      "displaced_from_top5": [],
+      "added_to_top5": [],
+      "qa_in_arm1": [],
+      "arm0_total_items": 88,
+      "arm1_total_items": 88
+    }
+  ]
+}
