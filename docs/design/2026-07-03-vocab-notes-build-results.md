@@ -93,8 +93,10 @@ binary LLM-free and the executors did the judgment work in-context.
   (each ≥ 2 member spokes; `eval-methodology` ≈ 33 spokes); `vocab.index.md` links to every term
   note; clicking a term note's backlinks lists its members; a Dataview
   `TABLE ... WHERE contains(vocab, "eval-methodology")` returns the member set.
-- **Refit lifecycle live**: `engram vocab stats` → monitor untagged-rate; `engram vocab refit`
-  fires when untagged-rate > 10% of last 25 writes, OR any term > 25% of vault, OR vault grew
-  > 30% since last refit.
+- **✅ Refit lifecycle SHIPPED 2026-07-03** (see `docs/superpowers/plans/2026-07-03-vocab-lifecycle-o2-build.md`):
+  in-process trigger check at all three write sites (learn, amend, resituate) → `refit_pending`
+  in `vocab.centroids.json`; shipped trigger set: growth ≥40 notes AND ≥14d, vault-wide
+  untagged >8%, any term >25% of vault; verdict line in `engram vocab stats`; ≈5-token
+  `refit_pending` query payload flag; learn skill Step 1.5 autonomous refit.
 - **Supersession re-smoke**: L5×T5 mechanism proven, delivery underpowered (n too small). Re-eval
   after the fabric grows (target: ≥ 10 supersession edges in the live vault).

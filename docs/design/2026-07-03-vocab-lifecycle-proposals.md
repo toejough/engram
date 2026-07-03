@@ -1,6 +1,7 @@
 # Vocab lifecycle liveness — proposals
 
 **Status:** proposals for Joe's decision — NO build this round.
+**Decided + shipped 2026-07-03:** O2 + autonomous refit (Joe); build plan `docs/superpowers/plans/2026-07-03-vocab-lifecycle-o2-build.md`.
 **Ask (Joe, 2026-07-03):** keep the vocabulary live and effective, balanced against time/$ —
 learn feels like the sensible check site (don't re-inflate recall), but the actual impact is
 unknown; investigate options and present proposals.
@@ -181,3 +182,4 @@ whether immediate riders 1–2 (resituate fix, metered refit) ride along with th
 
 per-refit cost: $0.0857 (measured 2026-07-03, dedicated headless derivation; binary phases ~$0)
 wall-clock: ~9s (phases A–C; Phase B derivation 9s, binary phases A+C <1s each)
+The measurement supersedes the ~$1–2/refit estimate above; the shipped autonomous flow runs no per-fire gates, so per-fire ≈$0.09 and the projected monthly cost at 40/14 is ≈$0.12 — the $5–7/month figures above are pre-measurement upper bounds.
