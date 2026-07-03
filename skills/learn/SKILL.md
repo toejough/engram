@@ -30,6 +30,21 @@ corpus → returns in seconds. Report the one-line tally it prints (or "memory i
 If the command fails, surface the error and continue to Step 2 — explicit lessons must not be
 lost to an ingest hiccup.
 
+## Step 1.5 — Vocab liveness check
+
+Run `engram vocab stats`.
+
+If the output includes a line matching `verdict: REFIT_PENDING (<reason>)`, run the vocab
+refit flow autonomously — do not defer to the user:
+
+1. Run `engram vocab refit --emit-request`. Save its JSON output.
+2. Derive a YAML refit plan from the JSON (review terms, propose merges/splits/removals for
+   orphans < 2 members and hubs > 25%). Write the plan to `/tmp/vocab-refit-plan.yaml`.
+3. Run `engram vocab refit --plan /tmp/vocab-refit-plan.yaml` to apply the plan.
+4. **Report loudly:** "Vocab refit applied: <version bump>. Triggered by: <reason>."
+
+If the verdict is `verdict: OK`, continue to Step 2 with no further vocab action.
+
 ## Step 2 — Crystallize explicit lessons (only when they exist)
 
 Scan THIS session for exactly two kinds of moments:
