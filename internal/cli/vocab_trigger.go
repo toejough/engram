@@ -133,7 +133,7 @@ func countNonVocabNoteFiles(names []string) int {
 	count := 0
 
 	for _, name := range names {
-		if !isVocabKindFilename(name) {
+		if !isVocabKindFilename(name) && !isQAQuestionFilename(name) {
 			count++
 		}
 	}
@@ -195,7 +195,7 @@ func scanNonVocabNotes(
 	visit func(name string, raw []byte, readErr error),
 ) {
 	for _, name := range names {
-		if isVocabKindFilename(name) {
+		if isVocabKindFilename(name) || isQAQuestionFilename(name) {
 			continue
 		}
 

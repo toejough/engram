@@ -37,12 +37,15 @@ var (
 	ExportCheckAndPersistVocabRefitTrigger = checkAndPersistVocabRefitTrigger
 	ExportCollectTriggerVaultStats         = collectTriggerVaultStats
 	ExportCountNonVocabNoteFiles           = countNonVocabNoteFiles
+	ExportCountQAPairs                     = countQAPairs
 	ExportDefaultRecencyParams             = defaultRecencyParams
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
 	ExportExtractLuhmannFromFilename       = extractLuhmannFromFilename
 	ExportFillRecencyBand                  = fillRecencyBand
 	ExportFinishUpdate                     = finishUpdate
 	ExportInitializeVault                  = initializeVault
+	ExportIsQAQuestionFilename             = isQAQuestionFilename
+	ExportIsQueryExcludedKind              = isQueryExcludedKind
 	ExportIsVocabKind                      = isVocabKind
 	ExportKindFromContent                  = kindFromContent
 	ExportLearnPath                        = learnPath
@@ -81,6 +84,7 @@ var (
 	ExportRunAmend                         = RunAmend
 	ExportRunLearn                         = runLearn
 	ExportRunUpdate                        = runUpdate
+	ExportScanNonVocabNotes                = scanNonVocabNotes
 	ExportSelectStates                     = selectStates
 	ExportShouldEmbed                      = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
@@ -284,6 +288,11 @@ func ExportClearChunkContent(kinds, contents []string) []string {
 	}
 
 	return out
+}
+
+// ExportCollectVaultStats exposes collectVaultStats for cli_test fixtures.
+func ExportCollectVaultStats(names []string, deps VocabStatsDeps, vault string) ([]string, map[string]int, int, int) {
+	return collectVaultStats(names, deps, vault)
 }
 
 // ExportDoAtomicWrite exposes doAtomicWrite for writesafe tests that need to

@@ -446,6 +446,10 @@ func assignTermsToAllNotes(
 			continue
 		}
 
+		if isQAQuestionFilename(name) {
+			continue
+		}
+
 		assigned := assignVocabToNote(deps, vault, name, terms, floor)
 
 		for _, term := range assigned {
@@ -664,6 +668,10 @@ func collectVaultStats(
 		if isVocabTermFilename(name) {
 			termNames = append(termNames, termNameFromFilename(name))
 
+			continue
+		}
+
+		if isQAQuestionFilename(name) {
 			continue
 		}
 

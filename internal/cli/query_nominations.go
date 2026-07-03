@@ -92,9 +92,9 @@ func addNominationsForTerm(
 			continue
 		}
 
-		if isVocabKind(entry.Content) {
-			// Safety guard: the TermIndex builder excludes vocab notes, but
-			// double-check here so nomination is always safe to call.
+		if isQueryExcludedKind(entry.Content) {
+			// Safety guard: the TermIndex builder excludes vocab/qa-question notes,
+			// but double-check here so nomination is always safe to call.
 			continue
 		}
 
@@ -333,8 +333,8 @@ func loadAllVaultNotesMeta(
 
 		meta := parseNoteQueryFrontmatter(content)
 
-		// Populate TermIndex — vocab/vocab-index notes are never nominated.
-		if !isVocabKind(content) && len(meta.Vocab) > 0 {
+		// Populate TermIndex — excluded kinds (vocab/vocab-index/qa-question) are never nominated.
+		if !isQueryExcludedKind(content) && len(meta.Vocab) > 0 {
 			entry := NominationEntry{NotePath: notePath, Content: content}
 
 			for _, term := range meta.Vocab {

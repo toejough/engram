@@ -432,7 +432,7 @@ func applyFloorAndCap(byKey map[string]matchedSetItem) []matchedSetItem {
 			continue
 		}
 
-		if !item.isChunk && isVocabKind(item.note.content) {
+		if !item.isChunk && isQueryExcludedKind(item.note.content) {
 			continue
 		}
 
@@ -843,7 +843,7 @@ func floorQualifyingNotes(items []matchedSetItem) []matchedSetItem {
 // the relevance floor and is therefore eligible for the note-floor reservation.
 // Vocab notes are excluded: they are never promoted into recall results.
 func isFloorQualifyingNote(item matchedSetItem) bool {
-	return !item.isChunk && item.baseScore >= matchRelevanceFloor && !isVocabKind(item.note.content)
+	return !item.isChunk && item.baseScore >= matchRelevanceFloor && !isQueryExcludedKind(item.note.content)
 }
 
 // itemMatchesProject scans the item's loaded content's frontmatter for a
@@ -1081,7 +1081,7 @@ func mergePhraseIntoUnion(
 
 	for _, item := range perPhrase {
 		// Vocab notes are excluded from the matched set entirely.
-		if !item.isChunk && isVocabKind(item.note.content) {
+		if !item.isChunk && isQueryExcludedKind(item.note.content) {
 			continue
 		}
 
