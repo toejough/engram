@@ -124,8 +124,12 @@ func writeCentroidsFile(
 
 ### New dep fields
 
-**`LearnDeps` — no new fields needed.** The trigger check reuses existing optional deps:
-`ListBasenames` (list .md files), `ReadSidecar` (read any vault file = `osVaultFS.ReadFile`),
+**`LearnDeps` — ONE new field: `ListMD func(vault string) ([]string, error)`** (mirrors the
+AmendDeps addition in Task 6; wire `ListMD: osVault.ListMD` in `newOsLearnDeps()` — `osVault`
+is already in scope at learn.go:332). Do NOT use the existing `ListBasenames` for the trigger
+scan: it strips `.md` and filters to Luhmann-ID notes (cli.go:39–47), so every
+`readFile(vault, name)` would miss, the untagged rate would read 100%, and the trigger would
+false-fire on every learn. The check also reuses `ReadSidecar` (read any vault file = `osVaultFS.ReadFile`),
 `WriteNote` (write any vault file = `atomicWriteFile`). All three are already wired in
 `newOsLearnDeps()`.
 
@@ -291,7 +295,8 @@ func evaluateVocabTriggers(
 }
 ```
 
-Add `hoursPerDay = 24.0` as a named constant to avoid the magic literal.
+`hoursPerDay` ALREADY EXISTS in package cli (`recency.go:19`, untyped constant `= 24`) —
+reference it directly; do NOT redeclare it in vocab_trigger.go (redeclaration breaks the build).
 
 **RED tests** (`internal/cli/vocab_trigger_test.go`, new file):
 
@@ -382,6 +387,10 @@ func countNonVocabNoteFiles(names []string) int {
 // collectTriggerVaultStats scans non-vocab note frontmatter for the trigger evaluation.
 // Returns (totalNotes, untaggedCount, perTermMemberCounts).
 // Unreadable or unparseable notes count as total but not tagged.
+// DRY (Gate A W2): countMembersFromNotes (vocab_commands.go:697) walks the same
+// read-unmarshal-filter loop for per-term counts. In the REFACTOR phase, extract a shared
+// scanNonVocabNotes primitive both call (this function adds only untaggedCount) rather than
+// keeping two copies of the loop.
 func collectTriggerVaultStats(
     vault    string,
     listMD   func(string) ([]string, error),
@@ -487,12 +496,13 @@ func writeCentroidsDocRaw(vault string, doc vocabCentroidsDoc, writeFile func(st
 ```go
 func TestCheckAndPersistVocabRefitTrigger_NilDeps_NoOp(t *testing.T) {
     t.Parallel()
+    g := NewWithT(t)
     // nil listMD → no panic, no write
     var written bool
     cli.ExportCheckAndPersistVocabRefitTrigger(
         "/vault", nil, func(string) ([]byte, error) { return nil, nil },
         func(string, []byte) error { written = true; return nil },
-        nil, time.Now(),
+        nil, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC),
     )
     g.Expect(written).To(BeFalse())
 }
@@ -732,17 +742,26 @@ var ExportRetagAllNotesTwoPass = retagAllNotesTwoPass
 **File:** `internal/cli/learn.go`
 
 **What:** Call `checkAndPersistVocabRefitTrigger` after the vocab assignment in
-`applyVocabAssignmentAfterLearn`. No new deps needed — reuses `ListBasenames`, `ReadSidecar`,
-`WriteNote`, `LogWarning`, `Now` from `LearnDeps`.
+`applyVocabAssignmentAfterLearn`. ONE new dep: `ListMD func(vault string) ([]string, error)`
+on `LearnDeps` (full `.md` filenames, unfiltered — Gate A F2: `ListBasenames` strips `.md`
+and Luhmann-filters, which would 100%-false-fire the untagged trigger). Wire in
+`newOsLearnDeps()`: `ListMD: osVault.ListMD` (osVault already in scope at learn.go:332).
+Reuses `ReadSidecar`, `WriteNote`, `LogWarning`, `Now` from `LearnDeps`.
+
+**Add to `LearnDeps`** (learn.go:64–86 block):
+
+```go
+ListMD func(vault string) ([]string, error) // full .md filenames, for the trigger vault scan
+```
 
 **Change `applyVocabAssignmentAfterLearn`** (line 199 in `learn.go`) — add at the end:
 
 ```go
 // Trigger check: evaluate vocab refit thresholds after every note write.
-// Uses existing deps; all three must be non-nil (gated inside the callee).
+// Uses existing deps; all must be non-nil (gated inside the callee).
 checkAndPersistVocabRefitTrigger(
     vault,
-    deps.ListBasenames,
+    deps.ListMD,
     deps.ReadSidecar,
     deps.WriteNote,
     deps.LogWarning,
@@ -772,8 +791,8 @@ func TestApplyVocabAssignmentAfterLearn_TriggerFires(t *testing.T) {
     var centroidsWritten []byte
 
     deps := cli.LearnDeps{
-        Now:           func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
-        ListBasenames: func(string) ([]string, error) { return names, nil },
+        Now:    func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+        ListMD: func(string) ([]string, error) { return names, nil },
         ReadSidecar: func(path string) ([]byte, error) {
             if strings.HasSuffix(path, "vocab.centroids.json") {
                 return centroidsData, nil
@@ -782,8 +801,8 @@ func TestApplyVocabAssignmentAfterLearn_TriggerFires(t *testing.T) {
             // return a minimal valid sidecar so term loading returns empty.
             return nil, os.ErrNotExist
         },
-        WriteNote: func(_ string, data []byte) error {
-            if strings.HasSuffix("vocab.centroids.json", "vocab.centroids.json") {
+        WriteNote: func(path string, data []byte) error {
+            if strings.HasSuffix(path, "vocab.centroids.json") { // check the REAL path (Gate A W1)
                 centroidsWritten = data
             }
             return nil
@@ -833,10 +852,11 @@ check at the end of `applyVocabAssignmentAfterAmend` using `deps.ListMD`, `deps.
 ListMD func(vault string) ([]string, error)
 ```
 
-**Wire in `newOsAmendDeps()`** (currently at line ~335):
+**Wire in `newOsAmendDeps()`** (currently at line ~335 — reuse the `osVault := &osVaultFS{}`
+instance already in scope at amend.go:340; do not construct a second one, Gate A W5):
 
 ```go
-ListMD: (&osVaultFS{}).ListMD,
+ListMD: osVault.ListMD,
 ```
 
 **Extend `applyVocabAssignmentAfterAmend`** (line 285 in `amend.go`) — add at the end:
@@ -1133,16 +1153,23 @@ type ResituateDeps struct {
     // NEW optional fields — nil skips vocab assignment and trigger check.
     LoadTermVectors func(vault string) ([]TermWithVector, error)
     ListMD          func(vault string) ([]string, error)
+    LogWarning      func(format string, args ...any)
+    Now             func() time.Time
 }
 ```
 
-**Wire in `newOsResituateDeps()`** (line ~122):
+**Wire in `newOsResituateDeps()`** (line ~122; single shared `osVault := &osVaultFS{}` — do
+not construct multiple instances, Gate A W5):
 
 ```go
+osVault := &osVaultFS{}
+// ... existing fields ...
 LoadTermVectors: func(vault string) ([]TermWithVector, error) {
-    return loadAssignmentTermVectors(vault, (&osVaultFS{}).ListMD, (&osVaultFS{}).ReadFile)
+    return loadAssignmentTermVectors(vault, osVault.ListMD, osVault.ReadFile)
 },
-ListMD: (&osVaultFS{}).ListMD,
+ListMD:     osVault.ListMD,
+LogWarning: logWarningToStderrf, // package-level helper, learn.go:315 (same wiring as amend.go:364)
+Now:        time.Now,            // DI at the edge — time.Now only in wiring, never in the function body
 ```
 
 **New function** (in `resituate.go`):
@@ -1167,15 +1194,16 @@ func applyVocabAssignmentAfterResituate(deps ResituateDeps, vault, notePath, con
     assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
     updated := WriteVocabAssignment(content, assigned)
     if updated != content {
-        if writeErr := deps.Write(notePath, []byte(updated)); writeErr != nil {
-            // no LogWarning in ResituateDeps; use the package-level stderr helper
-            // (defined at learn.go:315, same package — already used by newOsAmendDeps at amend.go:364)
-            logWarningToStderrf("resituate: vocab assignment write failed for %s: %v", notePath, writeErr)
+        if writeErr := deps.Write(notePath, []byte(updated)); writeErr != nil && deps.LogWarning != nil {
+            deps.LogWarning("resituate: vocab assignment write failed for %s: %v", notePath, writeErr)
         }
     }
-    // Trigger check — uses ListMD dep (optional).
+    if deps.Now == nil {
+        return // trigger check needs an injected clock; wiring provides time.Now
+    }
+    // Trigger check — uses ListMD dep (optional, gated inside the callee).
     checkAndPersistVocabRefitTrigger(
-        vault, deps.ListMD, deps.Read, deps.Write, logWarningToStderrf, time.Now(),
+        vault, deps.ListMD, deps.Read, deps.Write, deps.LogWarning, deps.Now(),
     )
 }
 ```
@@ -1190,10 +1218,9 @@ if embedErr := writeResituatedSidecar(ctx, deps, full, content); embedErr != nil
 applyVocabAssignmentAfterResituate(deps, args.Vault, full, content) // NEW
 ```
 
-**Note on `time.Now()` in the trigger call:** `ResituateDeps` has no `Now` dep. Since the
-trigger check is a side-effect (not time-critical and not tested for exact timestamp), using
-`time.Now()` directly is acceptable here. If precision matters in future, add `Now` to
-`ResituateDeps` in a follow-on task.
+**DI note (Gate A W3/W4):** `Now` and `LogWarning` are injected via `ResituateDeps` and wired
+to `time.Now`/`logWarningToStderrf` at the edge — no direct `time.Now()`/stderr calls in the
+function body (repo DI principle; consistent with LearnDeps/AmendDeps).
 
 **RED test** (`resituate_test.go` or `vocab_test.go`):
 
@@ -1400,8 +1427,9 @@ done
 
 #### E. Refactor — pressure test
 
-Run one more arm with an OK verdict to verify the conditional does NOT fire (from the same
-GREEN fixture dir):
+Run one more arm with an OK verdict to verify the conditional does NOT fire. Run this in the
+SAME shell session as D (`$FIXTURE_GREEN` is only set there); if the session was lost, re-set
+`FIXTURE_GREEN` to D's mktemp path first — `cd ""` on an unset var exits 1:
 
 ```bash
 cd "$FIXTURE_GREEN"
@@ -1432,9 +1460,12 @@ claude -p \
 go install ./cmd/engram
 
 # 2. Copy the live vault to a temp dir (read-only from here)
+set -u   # unset-var expansion fails loud — never silently falls back to the live vault
+LIVE_VAULT="${ENGRAM_VAULT_PATH:-$HOME/.local/share/engram/vault}"  # env var is usually UNSET; default per vocab_commands.go:48
 WORK_DIR=$(mktemp -d)   # per-run scratch (refit request/plan files); avoids /tmp collisions
 COPY_VAULT=$WORK_DIR/vocab-trigger-validation-vault
-cp -r "$ENGRAM_VAULT_PATH" "$COPY_VAULT"
+export WORK_DIR COPY_VAULT   # the python heredocs below read these via os.environ
+cp -r "$LIVE_VAULT" "$COPY_VAULT"
 
 # 3. Rewrite last_refit in the copy to simulate growth threshold:
 #    note_count = (current_count - 41), date = (today - 15d)
@@ -1480,19 +1511,23 @@ ENGRAM_VAULT_PATH="$COPY_VAULT" engram vocab stats | grep "verdict: REFIT_PENDIN
 echo "PASS: stats shows REFIT_PENDING"
 
 # 7. Run the metered refit flow once (this is the metered-refit rider)
-#    Record $-cost from Anthropic usage (check dashboard or API log after the run)
 echo "--- METERED REFIT: PHASE A (script) ---"
 ENGRAM_VAULT_PATH="$COPY_VAULT" engram vocab refit --emit-request | tee "$WORK_DIR/refit-request.json"
 echo "PHASE A done — script STOPS here. Phase B is executor work, not script."
+echo "Carry into Phases B/C: WORK_DIR=$WORK_DIR COPY_VAULT=$COPY_VAULT"
 ```
 
 **PHASE B (the LLM half of the two-phase flow, and the metered work):** the harness is
 deliberately two script blocks with the derivation between them; it cannot run unattended
-end-to-end. To get a REAL measured dollar figure (Rider 2's whole point — an executor cannot
+end-to-end. Shell state does NOT persist across tool invocations — re-set and re-export
+`WORK_DIR`/`COPY_VAULT` at the top of every Phase B/C block from Phase A's "Carry into" echo
+line. To get a REAL measured dollar figure (Rider 2's whole point — an executor cannot
 isolate one step's tokens from its session total), run the derivation as a dedicated fresh
 headless process and use its whole-session cost:
 
 ```bash
+set -u
+export WORK_DIR=<value from Phase A's carry echo>
 claude -p \
   "Derive an engram vocab refit plan. Below is the refit request JSON (current terms, member counts, stats, and instructions). Output ONLY the YAML plan ({new_terms, renames, removals} — merge/split/rename per the request's instructions; orphans <2 members, hubs >25%). No prose.
 
@@ -1518,6 +1553,11 @@ terms). The printed `total_cost_usd` IS the per-refit LLM cost — record it. Al
 wall-clock for phases A–C together.
 
 ```bash
+set -u
+export WORK_DIR=<value from Phase A's carry echo>
+export COPY_VAULT=<value from Phase A's carry echo>
+# GUARD (Gate A B3): an empty ENGRAM_VAULT_PATH falls back to the LIVE vault — abort instead.
+[ -d "$COPY_VAULT" ] || { echo "COPY_VAULT missing — abort (live-vault fallback hazard)"; exit 1; }
 echo "--- METERED REFIT: PHASE C (script) ---"
 ENGRAM_VAULT_PATH="$COPY_VAULT" engram vocab refit --plan "$WORK_DIR/refit-plan.yaml"
 echo "--- METERED REFIT END ---"
