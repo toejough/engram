@@ -18,6 +18,15 @@ a note; (5) all serving a compounding knowledge graph. Answer whether we already
 | D1 | Usage signal feeds RETENTION + TRIAGE first (pruning/keep decisions, human inspection, Obsidian degree-as-usefulness). Ranking changes deferred — future delivery A/B may sketch but must not build. | "retention/triage first — don't optimize recall ranking before we know the signal is real" |
 | D2 | Capture fires at SUBSTANTIVE-ANSWER moments: deep recall Step 4, /please closes, and ad-hoc answers that cite notes or crystallize novel reasoning. OBSERVABLE bar: answer cites ≥1 vault note OR crystallizes a new note. No agent-judged "was this valuable" gate. | vault note 145: observable predicates; agent-judged gates fail |
 | D3 | This round: design + 2–3 cheap probes (~$5–15 total). Full delivery A/B is out of scope. | "design before building" |
+| D4 | Q and A are SEPARATE notes with an explicit Q→A edge (full-basename wikilink + frontmatter). Joe chose this OVER the plan's containment lean (Gate A escalation, 2026-07-03): the question is a first-class graph node, accepting the file-count/split-embedding cost. | "separate Q and A notes" |
+| D5 | Past Q&As get a recall path via a SEPARATE CHANNEL (future build): incoming ask matched against Q-note embeddings in their own space — like the chunk space — top-1–2 appended to the payload as a distinct section. Additive tokens only; Q/A notes NEVER compete in the main matched set. Obsidian-only was offered and declined. | "a future similar question should surface the past answer" |
+
+**What this delivers for Joe (the point, up front):** every substantive answer becomes a Q-note
++ A-note pair in the graph, the A-note wikilinked to the notes that actually fed it. Over time:
+(a) a future similar question surfaces the past answer through the Q-channel (D5); (b)
+`engram usage report` shows which notes actually get USED — repeatedly-cited notes are proven
+keepers, never-cited notes are prune candidates — a graded signal where activation is binary;
+(c) reasoning invented during an answer is crystallized before it evaporates.
 
 ## Facts (all labeled; all code-verified unless noted)
 
@@ -75,22 +84,26 @@ binary work.
 `type:` field for `"vocab"` or `"vocab-index"`. `isVocabKindFilename(name string) bool`
 (vocab_commands.go:841–843) checks `strings.HasPrefix(name, "vocab.")`.
 
-Applied at three mandatory exclusion points in the query pipeline:
+Applied at FOUR mandatory exclusion points in the query pipeline (Gate A found the fourth):
 - **Point A** (query.go:435, 1084): pre-clustering filter — vocab notes never enter any cluster.
 - **Point B** (query.go:846): matched-set floor/cap (`!isVocabKind(item.note.content)`) — vocab
   notes do not receive a floor guarantee and are excluded from the matched set.
 - **Point C** (query_nominations.go:95): tag-nomination gate — vocab notes are never nominated.
+- **Point D** (query_nominations.go:337): the TermIndex BUILDER — without this point, a QA note
+  carrying auto-assigned `vocab:` terms (the template mandates them) enters the TermIndex and
+  gets nominated into `candidate_l2s` despite Points A–C.
 
-A `type: qa` QA kind requires the same three-point exclusion. The minimal implementation is:
+QA kinds require the same exclusion at ALL FOUR points. The minimal implementation is:
 
 ```go
 func isExcludedKind(content string) bool {
     kind := kindFromContent(content)
-    return kind == typeVocab || kind == typeVocabIndex || kind == typeQA
+    return kind == typeVocab || kind == typeVocabIndex || kind == typeQAQuestion || kind == typeQAAnswer
 }
 ```
 
-replacing the two `isVocabKind` call sites at Points A/B/C. `isVocabKindFilename` is a SEPARATE
+replacing EVERY `isVocabKind` call site in the query pipeline (grep for all of them — the four
+points above are the census as of 6fbe0612; a build must re-grep). `isVocabKindFilename` is a SEPARATE
 gate (vocab_commands.go scan loops); a `qa.` filename prefix convention would need the same.
 **Alternatively**: no special filename prefix for QA notes (numbered like regular notes); only
 the `type:` field gate is required. This is cheaper and sufficient — the filename check is only
@@ -150,34 +163,56 @@ wikilinks appear in the answer text) makes attribution near-observable — an ag
 
 ## Design dimensions (2–3 options + lean each)
 
-### Dim A — Q&A node shape
+### Dim A — Q&A node shape (SETTLED by Joe as D4: split notes)
 
-The node stores question + answer + metadata as a single vault note with `type: qa`.
-
-| Option | Shape | Lean |
+| Option | Shape | Status |
 |---|---|---|
-| A1 — Unified note | One note per Q&A pair; frontmatter: `type: qa`, `question: "..."` (verbatim question text), `date: YYYY-MM-DD`, `certainty: high\|medium\|low`; body: the answer text + `[[contributor-basename]]` wikilinks at close | **CONTENDER** |
-| A2 — Split Q/A | Separate Q note + A note linked by a `answers:` frontmatter field | PARK — doubles file count, complicates embedding (Q and A are complementary, not independent), adds link maintenance without clear retrieval benefit |
+| A1 — Unified note | One note per pair; Q in frontmatter, A in body (containment) | Was the plan's lean; **OVERRIDDEN by Joe (D4, Gate A escalation)** — containment demotes the question to metadata; Joe wants it as a first-class graph node |
+| A2 — Split Q/A | Separate Q note + A note, explicit Q→A edge | **SETTLED (D4)** |
 
-**Lean: A1.** The qanchor parked finding (note 153) shows Q-vocab loses retrieval — but that
-applies to notes COMPETING in the matched set via cosine. QA nodes are EXCLUDED from the
-matched set (vocab-kind seam precedent, Fact 4). Their retrieval value flows through
-`[[contributor]]` wikilinks (ride-along; free from supersession machinery) and the human
-Obsidian graph, NOT from cosine competition. A single note embeds the full Q+A context, making
-the node semantically richer for future non-cosine use (e.g., LLM citation lookup).
+**Design consequence that makes A2 shine (the qanchor inversion):** note 153's finding —
+question-shaped wording loses retrieval — applies to notes competing with CONTENT notes in one
+cosine space. In a dedicated Q-space (D5's channel matches incoming asks against Q-note
+embeddings ONLY), question wording is the *matching asset*: like matches like. The Q note's
+embedding is purely the question; the A note's embedding is purely the answer. P1's value arm
+measures exactly this (paraphrased-question → right Q note).
 
-**Frontmatter template:**
+**Templates (both kinds excluded at all four seam points; filename prefix `qa.` for the scan
+loops):**
+
+Q note — `qa.<date>.<slug>.q.md`:
 ```yaml
-type: qa
-question: "<verbatim question text>"
+type: qa-question
 date: "YYYY-MM-DD"
+answered_by: qa.<date>.<slug>.a   # FULL basename, no .md
+```
+Body: the verbatim question text, then a machine-written edge line:
+`Answered by: [[qa.<date>.<slug>.a]]`
+
+A note — `qa.<date>.<slug>.a.md`:
+```yaml
+type: qa-answer
+date: "YYYY-MM-DD"
+answers: qa.<date>.<slug>.q       # inverse edge, FULL basename
 certainty: high|medium|low
-contributors: [basename1, basename2]  # frontmatter channel (machine-readable)
+contributors: [100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever, 145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes]  # FULL basenames, no .md
 vocab: [...]  # auto-assigned at write time
 ```
+Body: the answer text, then machine-written lines:
+```
+Answers: [[qa.<date>.<slug>.q]]
+Contributors: [[100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever]], [[145.2026-06-30.recall-value-gate-not-holdable-by-wording-naming-primes]]
+```
 
-Body closes with `[[basename1]] [[basename2]]` (body channel; Obsidian in-degree + vaultgraph
-InDegree).
+**Link form is pinned — G0 constraint (c2-containers.md):** the vault's known G0 defect is
+that bare-id wikilinks (`[[100]]`) do NOT resolve in vaultgraph's basename resolver (census:
+138/171 links orphaned). Contributor links therefore MUST be full note basenames (filename
+minus `.md`), the form that resolves today — the `[[vocab.<term>]]` links shipped this week
+are the working precedent. Enforcement is by construction: the `Contributors:` body line is
+MACHINE-WRITTEN by the binary at capture time (exactly like the `Vocab:` line — single writer,
+replace-whole idempotency, excluded from BodyText/ContentHash), never hand-typed by the agent,
+so the resolving form is guaranteed rather than hoped for. Notes are never renamed in practice
+(resituate rewrites content, not filenames), so full-basename links do not rot.
 
 ### Dim B — Edge channels and inverse tracking
 
@@ -201,7 +236,7 @@ TDD, counted as implementation cost in the proposals table).
 
 | Moment | Current behavior | Extension | SKILL.md edit required |
 |---|---|---|---|
-| Deep recall Step 4 | Writes a synthesis note via `engram learn fact\|feedback --chunk-source` | After writing the synthesis note, `engram amend --target <note> --contributors <cited-basenames>` OR extend `engram learn` with `--contributors` flag; add `[[contributors]]` to body | learn SKILL.md (Step 4 block) — 1 TDD cycle |
+| Deep recall Step 4 | Writes a synthesis note via `engram learn fact\|feedback --chunk-source` | Extend `engram learn` with a repeatable `--contributors <full-basename>` flag; the binary machine-writes the `Contributors: [[<full-basename>]], ...` body line (Dim A form). Flag values are AUTO-EXTRACTED by the skill from the full-basename wikilinks already present in the written synthesis/answer text — the agent does not free-list (Fact 9) | learn SKILL.md (Step 4 block) — 1 TDD cycle |
 | /please closes | No capture hook today | Add a capture block at close: "if answer cites ≥1 [[note]], run `engram learn qa ...`" | please SKILL.md (close block) — 1 TDD cycle |
 | Ad-hoc `engram learn qa` | Does not exist | New subcommand (net-new binary work; NOT this round) | N/A |
 
@@ -221,10 +256,13 @@ TDD). Total follow-up build: ~$12–34 (estimated; not metered).
 | D-rt — Derived at read time | At stats/report time: build vaultgraph, call `InDegreeIn(noteName, qaNodeSet)` for every non-QA note; return sorted list. Zero new sidecar/frontmatter state. | **CONTENDER** |
 | D-ps — Persisted counter | Add `contributor_count: N` to sidecar; bump on every new QA node that cites the note | PARK — new sidecar field, drift risk (QA node deleted → count stale), requires scan on every learn-qa write |
 
-**Lean: D-rt.** `InDegreeIn` is free (Fact 5). Derived-at-read-time is the correct architectural
-choice: the count IS the graph state; persisting it creates a redundant copy that can drift. The
-only cost is building the vaultgraph once at stats time (~negligible, already done by
-`engram check`).
+**Lean: D-rt.** `InDegreeIn` is implemented (Fact 5) and derived-at-read-time is the correct
+architectural choice: the count IS the graph state; persisting it creates a redundant copy that
+can drift. Honest cost correction (Gate A): `BuildGraph` has ZERO production callers today —
+`engram check` uses `ScanVault`/`UnresolvedTargets`, not `BuildGraph`. The usage-report build
+wires `ScanVault → BuildGraph → InDegreeIn` for the first time (three existing library calls,
+small but net-new wiring — not "already done"). Cost remains O(notes × links), negligible at
+vault scale. The count restricts to the qa-ANSWER node set (contributors live on A notes, D4).
 
 **Consumer form (deferred build, describe now):** a new `engram usage report` command (or an
 addition to `engram vocab stats`) that prints, per non-QA non-vocab note, its contribution
@@ -246,22 +284,38 @@ round after P3 (usage-distribution dry-run, below) validates the signal has spre
 
 ## Probes (pinned; budgeted; ~$5–15 total; pass/fail stated before running)
 
-### P1 — Retrieval-pollution probe (cost: ~$0–1, estimated; FREE — embedder only)
+### P1 — Retrieval-pollution probe (cost: ~$0, estimated — local embedder + local queries only)
 
-**Claim under test:** injecting N synthetic QA nodes into the vault without the qa-kind
-exclusion WILL pollute the matched set (QA nodes surface on cosine, displace substantive notes).
-With the exclusion at Points A/B/C (Fact 4), zero baseline disturbance.
+**Claim under test:** EMBEDDED synthetic QA nodes without the qa-kind exclusion pollute the
+matched set (surface on cosine, displace substantive notes); with the three-point exclusion
+(Fact 4) they cause zero baseline disturbance. Synthetic nodes MUST get sidecars (via
+`ENGRAM_VAULT_PATH=$COPY_VAULT engram embed apply` — local model, $0) or the probe is a
+tautology: sidecar-less files can never enter the cosine set, proving nothing (Gate A finding).
 
-**Pass/fail (pre-registered):**
-- PASS: with `isExcludedKind` covering `type: qa`, the 48-case miss population + C3–C6 trap
-  suite shows 0 new misses vs the baseline; QA nodes appear nowhere in `items[]`.
-- FAIL: QA nodes surface in `items[]` OR a previously-surfaced note drops out of the top-5 → the
-  qa-kind exclusion gate has a hole.
-- PARTIAL-FAIL: some QA nodes surface via nomination (`tag_nominations_added`); check Point C
-  exclusion in `query_nominations.go:95`.
+**Four arms, single pre-registered criteria set:**
+- **Arm 0 (re-baseline):** copy vault, no QA nodes, CURRENT binary → record fresh 48-case
+  results (the recorded baselines predate this week's vault growth; re-baseline honestly).
+- **Arm 1 (pollution measurement):** +5 embedded synthetic QA nodes, CURRENT binary (no
+  exclusion exists) → MEASUREMENT, not a gate: report QA-node appearances in `items[]` and
+  top-5 disturbances vs Arm 0. Expected >0; the magnitude quantifies the risk the exclusion
+  prevents.
+- **Arm 2 (the gate):** same vault, PROBE-ONLY WORKTREE-PATCHED binary — add the qa kinds to
+  the exclusion at ALL FOUR points (Fact 4, incl. Point D query_nominations.go:337) in a git
+  worktree, `go build` there, never merge (precedent: the vocab build's slice-3 "worktree
+  binary on PATH" gates). PASS = QA notes appear NOWHERE in `items[]` (including
+  `tag_nominations_added` — Points C/D) AND 0 top-5 disturbances vs Arm 0. FAIL = any QA
+  surfacing or any displaced note → the seam design has a hole; name the leaking point.
+- **Arm V (the value arm — D5's channel premise, ~$0):** for each of the 5 synthetic pairs,
+  write 2 PARAPHRASES of its question (distinct wording, same intent — authored in the probe
+  script, committed before running). Using the qanchor_retrieval_probe.py direct-cosine
+  pattern (dev/eval/traps/), compute each paraphrase's cosine against ALL note embeddings in
+  the copy vault (Q notes, A notes, content notes). PASS = ≥8/10 paraphrases rank their own
+  Q note #1 among Q notes AND above every content note; FAIL = <6/10 → question-to-question
+  matching is too weak to power the D5 channel, and the channel needs redesign before any
+  build. This is the qanchor-inversion test: Q-wording should WIN in q-space.
 
-**Harness:** `dev/eval/qa/p1_retrieval_pollution.sh` (committed before running). Safety guards
-follow the Task-11 pattern (O2 build plan, 2026-07-03):
+**Harness:** `dev/eval/qa/p1_retrieval_pollution.sh` (committed before running; single shell
+invocation, no cross-invocation env carry needed). Safety guards follow the Task-11 pattern:
 
 ```bash
 set -u
@@ -270,37 +324,21 @@ WORK_DIR=$(mktemp -d)
 COPY_VAULT="$WORK_DIR/qa-pollution-probe-vault"
 cp -r "$LIVE_VAULT" "$COPY_VAULT"
 export COPY_VAULT WORK_DIR
+[ -d "$COPY_VAULT" ] || { echo "COPY_VAULT missing — abort"; exit 1; }
 
-# Inject N=5 synthetic QA nodes (type: qa, contributors: [...real-note-basenames...])
-# into $COPY_VAULT using a Python heredoc that writes raw .md files without the binary
-# (no --kind qa flag exists yet; probe tests the FUTURE seam, not the current binary).
+# Inject N=5 synthetic Q/A PAIRS (10 files: qa.<date>.<slug>.q.md type: qa-question +
+# qa.<date>.<slug>.a.md type: qa-answer, contributors as full basenames, machine-form body
+# lines per Dim A) as raw .md files, then:
+ENGRAM_VAULT_PATH="$COPY_VAULT" engram embed apply   # sidecars for the new nodes ($0, local)
 
-# Arm 1: WITHOUT exclusion (patch isExcludedKind to never exclude qa) — expect pollution
-# Arm 2: WITH exclusion (patch isExcludedKind to include qa) — expect 0 disturbance
-
-# Replay: for each of the 48 miss cases in dev/eval/links/misses_p1.json, run:
-#   ENGRAM_VAULT_PATH="$COPY_VAULT" engram query --lazy-chunks --phrase "..." [x10]
-# Check: no QA node in items[]; no baseline disturbance in top-5
-
-# Arm 2 requires a PATCHED binary (the exclusion gate doesn't exist yet).
-# Alternative without binary changes: inspect raw query output for type:qa in content.
-# The free proxy: run Arm 2 WITHOUT the binary patch but verify no qa-type note surfaces
-# by grepping items[].content for "type: qa" — valid because the qa nodes have no sidecar
-# embedding yet (no --contributors flag = no learn-qa path = no sidecar = items[] can't
-# score them). This makes P1 truly free (embedder never sees the synthetic nodes).
+# Arm 0/1: current binary. Arm 2: worktree-patched binary (probe-only; never merges):
+#   git worktree add "$WORK_DIR/wt" && (patch Points A/B/C) && go build -o "$WORK_DIR/engram-qa" ./cmd/engram
+# Replay all 48 cases in dev/eval/links/misses_p1.json per arm; diff items[] + top-5 vs Arm 0.
 ```
 
-**Note on no-sidecar synthetic nodes:** synthetic `.md` files written by the probe without an
-accompanying `.vec.json` sidecar will have no embedding and cannot enter the matched set.
-P1 therefore measures: (a) that the future BINARY exclusion is designed correctly (describe the
-gate, don't implement it in this probe); (b) that the RETRIEVAL PROBE BASELINE (48 cases) is
-stable on the copy vault. Cost: zero LLM calls. Estimated: $0.
-
-**Revised P1 scope:** since the binary change doesn't exist yet, P1 becomes a BASELINE
-STABILITY check: run the 48-case miss population + C3–C6 trap suite on the copy vault with
-5 synthetic QA .md files present (no sidecars → no scoring surface). Confirms the baseline
-before any build. Pass = zero disturbance to today's 48-case results (or documents today's
-delta as the new reference point). This is the right pre-build measurement.
+Executor verifies the exact `embed apply` flag surface before running (`engram embed --help`);
+if apply skips new files without `--force`/`--stale` semantics, use whichever flag embeds the
+5 new nodes — report the command used.
 
 ### P2 — Attribution fidelity probe (cost: ~$3–8, estimated)
 
@@ -317,16 +355,29 @@ session, identifying which vault notes were load-bearing.
 - BORDERLINE: cite-derived recall (coverage of actually-used notes) < 50% → the bar "answer cites
   ≥1 vault note" misses too many contributors; consider enrichment step.
 
+**Agent safety (note 160, measured 2026-07-03 — mandatory for P2 AND P3):** eval agents run
+WITHOUT bypassPermissions, and transcript excerpts are payload-sanitized before injection —
+strip or rewrite absolute paths into the real repo (`/Users/joe/repos/...`) so an agent cannot
+follow them and execute tasks it was asked only to judge.
+
 **Harness:** `dev/eval/qa/p2_attribution_fidelity.py`. Steps:
 1. From session transcripts in `~/.claude/projects/-Users-joe-repos-personal-engram/`, select
    ~10 deep recall Step-4 synthesis events (where a vault note was written). These are
    identifiable by `engram learn fact|feedback` calls in transcript turns.
 2. For each: extract (a) the notes cited in the synthesis body via `[[...]]` pattern, (b) have
-   a fresh sonnet agent free-list which notes it would credit, (c) human reads the synthesis
-   session context and judges ground truth (which notes were genuinely load-bearing).
+   a fresh sonnet agent free-list which notes it would credit, (c) GROUND TRUTH — an opus judge
+   reads the full session context with this pinned rubric: "a note is load-bearing iff removing
+   its content would change the answer's substance; for each load-bearing note, name the
+   specific claim it supplied." Output schema per case:
+   `{case_id, load_bearing: [<full basenames>], claim_supplied: {<basename>: "<claim>"}}`.
+   Ground truth is LABELED LLM-judged in all results; the orchestrator spot-checks 3 of the 10
+   judgments against the raw transcripts before the rates are computed.
 3. Compute: confabulation rate (cited or free-listed but not in ground truth), recall rate
    (ground truth notes captured by each method).
-4. Report as a table per step 3's pass/fail criteria.
+4. Report as a table per step 3's pass/fail criteria. NOTE (tier-specificity): the free-list arm
+   uses sonnet because the PRODUCTION attributor would be a session agent of that tier — the
+   probe measures the shipped contrast, not free-listing as an abstract method; label the
+   finding tier-specific.
 
 **Cost estimate:** ~10 synthesis sessions × 1 sonnet call each (~$0.30/call) + human review
 = ~$3–5 (estimated; not metered). Upper bound $8 if 20 sessions.
@@ -347,10 +398,15 @@ useful retention signal.
 - INFORMATIVE-NULL: fewer than 20 Q&A-eligible exchanges found in transcripts → usage
   distribution underpowered; note the floor and defer.
 
+**Pre-sample gate (free, runs FIRST):** grep the transcript corpus for the eligibility pattern
+and COUNT before spending: if <20 eligible moments exist, declare INFORMATIVE-NULL immediately
+and defer P3 — do not spend the LLM pass on an underpowered corpus (Gate A finding).
+
 **Harness:** `dev/eval/qa/p3_usage_distribution.py`. Steps:
-1. Scan `~/.claude/projects/-Users-joe-repos-personal-engram/` transcripts for turns where the
-   agent wrote a vault note (`engram learn ...`) AND the surrounding context cited ≥1 vault note
-   by name (`[[basename]]` pattern in ASSISTANT turns).
+1. Scan `~/.claude/projects/-Users-joe-repos-personal-engram/` transcripts for ASSISTANT turns
+   containing an `engram learn ...` call AND, IN THE SAME TURN's text, ≥1 vault-note citation
+   (full-basename `[[...]]` pattern or an explicit "note NNN" reference). Window = the same
+   assistant turn only — no prior-turn or time-window context (pinned; Gate A finding).
 2. For each such turn: extract the cited basenames as "would-be contributors."
 3. Count per-note would-be contribution citations across the corpus.
 4. Report: top-10 notes by count, total count, CV, Pareto fraction.
@@ -384,7 +440,9 @@ criteria post-hoc.
 
 ## Constraints (non-negotiable)
 
-- **No production changes** this round. No live-vault writes. No binary changes. No skill edits.
+- **No SHIPPED changes** this round: no live-vault writes, no merged binary changes, no skill
+  edits. P1's Arm-2 worktree-patched binary is probe-only — built in a throwaway worktree, run
+  against the copy vault, never merged (slice-3 worktree-binary precedent).
 - **Copy-vault only** in all probe scripts. `set -u` + explicit `LIVE_VAULT` resolution +
   `COPY_VAULT` as a separate `mktemp -d` subtree. Pattern: Task-11 harness in
   `docs/superpowers/plans/2026-07-03-vocab-lifecycle-o2-build.md`.
