@@ -1,0 +1,29 @@
+{
+  "eligible_count": 23,
+  "verdict": "FAIL: distribution flat (CV=0.000 <0.5) \u2014 signal uninformative; defer E1 until more Q&A nodes exist",
+  "distribution": {
+    "n_notes_cited": 3,
+    "total_citations": 3,
+    "mean_count": 1,
+    "median_count": 1,
+    "std_count": 0.0,
+    "cv": 0.0,
+    "pareto_fraction_top20pct": 0.333,
+    "top_10_pct_min_count": 1,
+    "passes_3x_criterion": false,
+    "top_10_notes": [
+      {
+        "basename": "feedback_skill_edits_writing_skills.md",
+        "count": 1
+      },
+      {
+        "basename": "feedback_eval_dont_bypass_component_under_test.md",
+        "count": 1
+      },
+      {
+        "basename": "feedback_red_baseline_can_falsify_the_design_premise.md",
+        "count": 1
+      }
+    ]
+  }
+}

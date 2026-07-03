@@ -1,0 +1,125 @@
+{
+  "run_date": "2026-07-03",
+  "arm0": {
+    "n_cases": 48,
+    "qa_in_items": 0,
+    "top5_disturbances": 0
+  },
+  "arm1": {
+    "n_cases": 48,
+    "qa_in_items": 7,
+    "total_qa_appearances": 13,
+    "top5_disturbances": 3,
+    "tag_nominations_total": 1528,
+    "qa_notes_appeared": {
+      "qa.2026-07-03.usage-signal-design.a.md": 6,
+      "qa.2026-07-03.usage-signal-design.q.md": 3,
+      "qa.2026-07-03.qa-exclusion-seam.a.md": 3,
+      "qa.2026-07-03.observable-attribution.a.md": 1
+    }
+  },
+  "arm2": {
+    "n_cases": 48,
+    "qa_in_items": 0,
+    "total_qa_appearances": 0,
+    "top5_disturbances": 0,
+    "tag_nominations_total": 1471,
+    "verdict": "PASS"
+  },
+  "armV": {
+    "results": [
+      {
+        "id": "V01a",
+        "q_slug": "qa.2026-07-03.eval-checkpoint.q",
+        "paraphrase": "How to make eval harnesses survive session-limit window term",
+        "target_score": 0.81509894,
+        "q_rank_among_q_notes": 1,
+        "top_content_score": 0.56992847,
+        "passes": true
+      },
+      {
+        "id": "V01b",
+        "q_slug": "qa.2026-07-03.eval-checkpoint.q",
+        "paraphrase": "What pattern prevents losing eval run progress when the orch",
+        "target_score": 0.7291219,
+        "q_rank_among_q_notes": 1,
+        "top_content_score": 0.60639066,
+        "passes": true
+      },
+      {
+        "id": "V02a",
+        "q_slug": "qa.2026-07-03.copy-vault-safety.q",
+        "paraphrase": "How do I copy a vault safely for use in an eval without touc",
+        "target_score": 0.70421135,
+        "q_rank_among_q_notes": 1,
+        "top_content_score": 0.45788282,
+        "passes": true
+      },
+      {
+        "id": "V02b",
+        "q_slug": "qa.2026-07-03.copy-vault-safety.q",
+        "paraphrase": "What shell-script guards protect the production vault during",
+        "target_score": 0.751655,
+        "q_rank_among_q_notes": 1,
+        "top_content_score": 0.37681422,
+        "passes": true
+      },
+      {
+        "id": "V03a",
+        "q_slug": "qa.2026-07-03.observable-attribution.q",
+        "paraphrase": "What citation pattern for note attribution avoids agent conf",
+        "target_score": 0.5790666,
+        "q_rank_among_q_notes": 1,
+        "top_content_score": 0.6965969,
+        "passes": false
+      },
+      {
+        "id": "V03b",
+        "q_slug": "qa.2026-07-03.observable-attribution.q",
+        "paraphrase": "How to derive which notes contributed to an answer from the ",
+        "target_score": 0.5682158,
+        "q_rank_among_q_notes": 1,
+        "top_content_score": 0.52705145,
+        "passes": true
+      },
+      {
+        "id": "V04a",
+        "q_slug": "qa.2026-07-03.qa-exclusion-seam.q",
+        "paraphrase": "Why must QA question and answer notes be excluded from the m",
+        "target_score": 0.857798,
+        "q_rank_among_q_notes": 1,
+        "top_content_score": 0.57552373,
+        "passes": true
+      },
+      {
+        "id": "V04b",
+        "q_slug": "qa.2026-07-03.qa-exclusion-seam.q",
+        "paraphrase": "What happens if QA nodes compete with content notes in engra",
+        "target_score": 0.6027203,
+        "q_rank_among_q_notes": 1,
+        "top_content_score": 0.6212677,
+        "passes": false
+      },
+      {
+        "id": "V05a",
+        "q_slug": "qa.2026-07-03.usage-signal-design.q",
+        "paraphrase": "How to build a usage frequency signal from Q&A contribution ",
+        "target_score": 0.47988978,
+        "q_rank_among_q_notes": 1,
+        "top_content_score": 0.49781,
+        "passes": false
+      },
+      {
+        "id": "V05b",
+        "q_slug": "qa.2026-07-03.usage-signal-design.q",
+        "paraphrase": "What accumulates which notes get cited across Q&A pairs for ",
+        "target_score": 0.63647527,
+        "q_rank_among_q_notes": 1,
+        "top_content_score": 0.61454946,
+        "passes": true
+      }
+    ],
+    "pass_count": 7,
+    "verdict": "BORDERLINE (6-7/10) \u2014 channel viable but needs larger-n check"
+  }
+}
