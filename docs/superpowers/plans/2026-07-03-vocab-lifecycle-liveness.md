@@ -18,16 +18,20 @@ and present proposals.
   and vault-wide untagged-rate — but emits NO verdict line; threshold-comparison output is NET-NEW
   binary work (~50–100 LOC incl. tests; code-verified against `vocab_commands.go:267`).
 - Vault: 141 memory notes; growth 10/37/75/19 per week (week 4 partial — 4 days in).
-- Untagged today: 3.6%. Write-time threshold hooks: NONE exist today (verified — learn/amend's
-  assignment functions `applyVocabAssignmentAfterLearn`/`...AfterAmend` have no threshold logic).
+- Untagged today: 3.5% (5/141, binary output verbatim). Write-time threshold hooks: NONE exist
+  today (verified — learn/amend's assignment functions
+  `applyVocabAssignmentAfterLearn`/`...AfterAmend` have no threshold logic).
+- `resituate` BYPASSES vocab assignment entirely (code-verified, Gate A: zero
+  `applyVocab*`/`AssignVocabTerms` calls in `resituate.go`/`supersedes.go`) — it re-embeds the
+  sidecar but never refreshes tags, so a resituated note can carry vocab stale relative to its new
+  embedding. Three write paths exist; only learn+amend flow through the assignment hooks.
 - Payload flag feasibility: a top-level `refit_pending` omitempty field ≈5 tokens when set
   (verified against the queryPayload struct; mechanically trivial).
 
 **Estimated (not field-verifiable):** note-origin split ≈ learn 55 / recall-2.5 ≈46 / synthesis 27 /
 eval-other 13 (sums to 141; the `source:` field does not reliably distinguish recall-2.5 writes from
 learn writes — keyword heuristic). Direction is safe: **recall writes roughly half the vault's
-notes.** `resituate` is a further write site (rewrites situation + sidecar — check whether it
-re-assigns vocab; include in the coverage matrix).
+notes.**
 
 **Projected (from growth data, not a script run):** the documented +30%-growth refit trigger
 (baseline: `2026-07-02-vocab-notes-and-linking-replacement.md:86` — the shipped trigger set is
@@ -76,10 +80,12 @@ O2 DESIGN, not a property of O1** — O1's window must be modeled honestly, not 
   steps/tokens × fire frequency), against the recall-economics constraints (140/141/144). The
   RATING follows the modeling.
 
-**Trigger recalibration (cross-cutting AND standalone as O0):** keep (a-vault-wide untagged
-variant) and (b) hub >25% (justified: both are utility signals that never fired falsely in the
-projection); recalibrate (c): candidates = absolute growth ∈ {30, 40, 50} notes × minimum interval
-∈ {7, 14, 30} days × untagged ∈ {vault-wide >8%, windowed >10%/25 (heavy — needs ring buffer)}.
+**Trigger recalibration (cross-cutting AND standalone as O0):** only (b) hub >25% is kept fixed
+(a utility-shaped signal with no growth dependence). The grid's untagged axis REPLACES (a) — the
+shipped windowed form and a cheaper vault-wide variant are both swept as candidates, neither is
+kept a priori. Recalibrate (c): candidates = absolute growth ∈ {30, 40, 50} notes × minimum
+interval ∈ {7, 14, 30} days × untagged ∈ {vault-wide >8%, windowed >10%/25 (heavy — needs ring
+buffer)}. Per-trigger fire attribution comes from the Step-1 replay, not the projection.
 **Replay the full candidate grid JOINTLY against vault history** (per note 161: verify conjuncts
 co-occur; report per-conjunction fire counts AND which subsets never co-fire) — a real script this
 time, committed with the proposals.
@@ -93,14 +99,18 @@ across growth scenarios {each observed week, steady-40/week} reported as a range
 
 ## Steps
 
-0. Write-site audit: confirm resituate's vocab behavior; finalize the coverage matrix (who writes,
-   what flows through the assignment hooks).
+0. Write-site audit: resituate's hook bypass is code-verified (Gate A) — confirm and finalize the
+   coverage matrix (who writes, what flows through the assignment hooks, resituate's stale-tag
+   hole).
 1. Build + run the trigger-replay script (real, committed): full joint grid vs vault history.
 2. Fill the cost model; stress the three common cases end-to-end: a heavy /please day (10+ recall
    writes, 2 learn runs), an idle week, a new-domain influx (untagged climbing).
 3. Draft the proposals (O0–O4 + recommendation + honest bounds + what each does NOT catch) →
-   `docs/design/2026-07-03-vocab-lifecycle-proposals.md`; note the ROADMAP Track-A integration the
-   winning option implies (deliverable line, executed on Joe's go).
+   `docs/design/2026-07-03-vocab-lifecycle-proposals.md`; note the ROADMAP Track-A integration
+   AND the build-results "What remains" update
+   (`2026-07-03-vocab-notes-build-results.md:96–98` documents the current trigger set verbatim —
+   stale the day recalibration lands) the winning option implies (deliverable lines, executed on
+   Joe's go).
 4. Gate C; commit (Gate D); PRESENT to Joe and STOP.
 
 ## Constraints
