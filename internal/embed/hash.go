@@ -9,6 +9,16 @@ import (
 
 // Exported constants.
 const (
+	// AnsweredByBodyMarker prefixes the machine-written `Answered by: [[…]]` body
+	// line on QA question notes. Same exclusion rationale as VocabBodyMarker.
+	AnsweredByBodyMarker = "Answered by:"
+	// AnswersBodyMarker prefixes the machine-written `Answers: [[…]]` body line on
+	// QA answer notes. Same exclusion rationale as VocabBodyMarker.
+	AnswersBodyMarker = "Answers:"
+	// ContributorsBodyMarker prefixes the machine-written `Contributors: [[…]], …`
+	// body line on QA answer notes. Excluded from BodyText/ContentHash so a
+	// contributors-only write leaves the body vector and hash unchanged.
+	ContributorsBodyMarker = "Contributors:"
 	// RelatedSectionMarker is retained for backward compatibility: unmigrated
 	// vault bodies still carry "Related to:" sections (the ritual was removed
 	// 2026-07-02; bodies are stripped by the vocab migration). Hash exclusion
@@ -134,6 +144,18 @@ func extractFrontmatterField(frontmatter []byte, key string) string {
 	return ""
 }
 
+// isMachineLine reports whether a body line (CRLF-stripped) is a
+// machine-written channel line that should be excluded from BodyText and
+// ContentHash. Recognised prefixes: Vocab:, Supersedes:, Contributors:,
+// Answered by:, and Answers:.
+func isMachineLine(trimmed []byte) bool {
+	return bytes.HasPrefix(trimmed, []byte(VocabBodyMarker)) ||
+		bytes.HasPrefix(trimmed, []byte(SupersedesBodyMarker)) ||
+		bytes.HasPrefix(trimmed, []byte(ContributorsBodyMarker)) ||
+		bytes.HasPrefix(trimmed, []byte(AnsweredByBodyMarker)) ||
+		bytes.HasPrefix(trimmed, []byte(AnswersBodyMarker))
+}
+
 // isRelatedToBlock reports whether the lines that follow a "Related to:"
 // marker form a relation block: every non-blank line must start with
 // relatedSectionBulletPfx, and at least one bullet must be present. A line
@@ -188,12 +210,13 @@ func normalizeTrailingBlanks(body []byte) []byte {
 	return append(result, '\n')
 }
 
-// stripMachineLines removes machine-written channel lines (`Vocab:` and
-// `Supersedes:` prefixes — exactly the writers' replace-whole line matching)
-// from body. When any line is removed, trailing blank lines are trimmed and a
-// single trailing newline restored, mirroring the writers' append form
-// ("body\n" → "body\n\nVocab: …\n" must strip back to "body\n"). A body with
-// no machine lines is returned byte-identical so pre-channel hashes never churn.
+// stripMachineLines removes machine-written channel lines (`Vocab:`,
+// `Supersedes:`, `Contributors:`, `Answered by:`, and `Answers:` prefixes —
+// exactly the writers' replace-whole line matching) from body. When any line
+// is removed, trailing blank lines are trimmed and a single trailing newline
+// restored, mirroring the writers' append form ("body\n" →
+// "body\n\nVocab: …\n" must strip back to "body\n"). A body with no machine
+// lines is returned byte-identical so pre-channel hashes never churn.
 func stripMachineLines(body []byte) []byte {
 	lines := bytes.Split(body, []byte("\n"))
 	kept := make([][]byte, 0, len(lines))
@@ -201,8 +224,7 @@ func stripMachineLines(body []byte) []byte {
 
 	for _, line := range lines {
 		trimmed := bytes.TrimRight(line, "\r")
-		if bytes.HasPrefix(trimmed, []byte(VocabBodyMarker)) ||
-			bytes.HasPrefix(trimmed, []byte(SupersedesBodyMarker)) {
+		if isMachineLine(trimmed) {
 			removed = true
 
 			continue

@@ -215,6 +215,14 @@ func TestContentHash_IsSha256OfSituationAndBody(t *testing.T) {
 		To(Equal("sha256:" + hex.EncodeToString(hasher.Sum(nil))))
 }
 
+func TestContributorsBodyMarker_IsExported(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(embed.ContributorsBodyMarker).To(Equal("Contributors:"))
+	g.Expect(embed.AnsweredByBodyMarker).To(Equal("Answered by:"))
+	g.Expect(embed.AnswersBodyMarker).To(Equal("Answers:"))
+}
+
 func TestExtractBody_NoFrontmatter(t *testing.T) {
 	t.Parallel()
 
@@ -256,4 +264,52 @@ func TestSituationText_WhitespaceIsTrimmed(t *testing.T) {
 	g := NewWithT(t)
 	in := []byte("---\ntype: episode\nsituation:  spaced value  \nluhmann: \"7\"\n---\n\nBody.\n")
 	g.Expect(string(embed.SituationText(in))).To(Equal("spaced value"))
+}
+
+func TestStripMachineLines_QAMarkersRemoved(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "contributors_line_stripped",
+			in:   "Body line.\n\nContributors: [[100.note]], [[101.note]]\n",
+			want: "Body line.\n",
+		},
+		{
+			name: "answered_by_line_stripped",
+			in:   "What is the question?\n\nAnswered by: [[qa.2026-07-03.slug.a]]\n",
+			want: "What is the question?\n",
+		},
+		{
+			name: "answers_line_stripped",
+			in:   "The answer body.\n\nAnswers: [[qa.2026-07-03.slug.q]]\n",
+			want: "The answer body.\n",
+		},
+		{
+			name: "all_three_stripped_together",
+			in: "Body.\n\nAnswered by: [[qa.2026-07-03.slug.a]]" +
+				"\nAnswers: [[qa.2026-07-03.slug.q]]\nContributors: [[100.note]]\n",
+			want: "Body.\n",
+		},
+		{
+			name: "no_markers_unchanged",
+			in:   "Body without machine lines.\n",
+			want: "Body without machine lines.\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+			// BodyText strips frontmatter first; wrap in frontmatter to exercise BodyText.
+			raw := []byte("---\ntype: qa-answer\n---\n\n" + tc.in)
+			got := string(embed.BodyText(raw))
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
 }
