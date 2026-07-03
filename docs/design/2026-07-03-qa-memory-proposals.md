@@ -27,11 +27,18 @@ The "persisted reasoning helps lesser models" finding was **measured and half-sh
 
 | Probe | Claim tested | Result (pre-registered branch) | Label |
 |---|---|---|---|
-| P1 Arm 1 | un-excluded QA notes pollute retrieval | **Pollution is real**: QA notes surfaced in 7/48 cases (13 appearances), 3/48 top-5 displacements | measured |
+| P1 Arm 1 | un-excluded QA notes pollute retrieval | **Rank intrusion, zero measured delivery cost**: QA notes surfaced in 7/48 cases (13 appearances), 3/48 top-5 displacements — but the delivery follow-up (below) found 0/48 target losses | measured |
+| P1 delivery follow-up (Joe's challenge, commit 2465139f) | did the intrusion COST anything at delivery? | **No**: target recovery identical both arms (15/48 any-rank, 2/48 top-5, 0 losses). Of 13 appearances: the 1 topically RELEVANT one was an A-note (rank 8, attribution query); the only displacer was an OFF-TOPIC Q-note (rank 4); 12/13 off-topic overall, driven by one query family × synthetic-pair topic bleed (n=5 pairs — direction, not magnitude) | measured |
 | P1 Arm 2 | the four-point exclusion eliminates it | **PASS**: 0/48 QA appearances, 0/48 disturbances, 0 QA nominations (probe-only patched binary, all four seam points) | measured |
 | P1 Arm V | Q-wording wins in a dedicated q-space (the D5 channel premise) | **BORDERLINE 7/10** paraphrases ranked their own Q note first → channel viable, larger-n check required before the channel builds (pre-registered consequence) | measured |
 | P2 | cite-derived beats free-listed attribution | Fired branches (verbatim): **"BOTH<20%"** + **"RECALL-BORDERLINE"** — but DEGENERATE: only 3 historical events, all 0%/0% (historical Step-4 writes carry `--chunk-source`, never `[[basename]]` citations — no cite-derived events exist to score); see results-2026-07-03.md | measured (degenerate) |
 | P3 | usage counts would have spread (top-10% ≥3× median) | Fired branch (verbatim): **"FAIL: distribution flat (CV=0.000 < 0.5)"** — from 3 OLD-format citations only; 0 vault-format contribution citations exist in the corpus, so the signal is unevaluable on real data | measured (null) |
+
+**Interpretation correction (Joe's challenge, 2026-07-03):** the original "pollution is real"
+headline judged rank shifts, not delivery — the follow-up shows the displacement cost nothing
+measured, and the appearance pattern splits exactly along note kind: the one useful surfacing
+was an A-note (a synthesis note in structure), the harm-shaped one an off-topic Q-note. That
+asymmetry re-settled D5 (below).
 
 **The honest reframe P2/P3 force** (the fired branches above are technically valid but carry
 no evidential weight — 0/0 rates over 3 degenerate events, a flat CV over 3 old-format
@@ -62,7 +69,7 @@ four-point patch. Arm V (separate metric): 7/10 paraphrases ranked their own Q n
 | Dim | Option | Rating | Rationale | Build cost (est.) |
 |---|---|---|---|---|
 | A node shape | A1 unified note | OVERRIDDEN (D4) | containment demotes the Q to metadata; Joe wants a first-class Q node | — |
-| A node shape | A2 split Q/A notes | **SETTLED (D4)** | Q is a graph node; q-space matching premise (Arm V) | in round 1 |
+| A node shape | A2 split Q/A notes | **SETTLED (D4)** | Q is a graph node; q-space matching premise (Arm V); post-follow-up: the split is also what makes D5′ asymmetric participation possible | in round 1 |
 | B edge channels | B1 dual-channel (frontmatter + body wikilinks) | **CONTENDER** | vocab precedent; InDegreeIn reads body edges; Obsidian-visible | in round 1 |
 | B edge channels | B2 frontmatter only | PARK | loses graph/Obsidian leverage; stats-time frontmatter scans | — |
 | C capture moments | Step 4 + /please close + ad-hoc `learn qa` | **CONTENDER (all three)** | the D2 observable-bar moments | 2 skill TDD cycles ~$2–4 + binary ~$10–30 |
@@ -97,16 +104,25 @@ four-point patch. Arm V (separate metric): 7/10 paraphrases ranked their own Q n
 - **Usage signal derived, not stored** : `vaultgraph.InDegreeIn(note, qaAnswerSet)` at report
   time. Honest cost note: `BuildGraph` has zero production callers today; the usage report is
   its first production wiring (`ScanVault → BuildGraph → InDegreeIn`) — small but net-new.
-- **D5 Q-channel** (Joe's call, deferred pending Arm V larger-n): incoming ask matched against
-  Q-note embeddings in their own space, top-1–2 appended to the payload as a distinct additive
-  section. Never competes in the main matched set.
+- **D5′ — ASYMMETRIC participation (re-settled by Joe 2026-07-03 after the delivery
+  follow-up, superseding the original full-exclusion D5):** A-notes COMPETE in the main matched
+  set — they are synthesis notes (pre-reasoned conclusions, the artifact class the set already
+  values) with provenance and a question handle; the exclusion seam applies to Q-NOTES ONLY
+  (`type: qa-question` — the qanchor-indicted kind, and the only displacer in the follow-up
+  data). Q-notes are reached via the q-space channel (deferred pending Arm V larger-n), and a
+  surfaced Q-note must deliver its A via a new `answered_by` RIDE-ALONG (supersession
+  ride-along precedent; does not exist yet — round-3 build item with the channel). Build notes:
+  the four-point seam covers one kind; A-notes count as vocab member notes (they carry real
+  tags and compete like content); Q-notes are excluded from member counting like vocab notes.
 
 ## Recommended build sequence (each round gated on the prior)
 
 **Round 1 — capture (the instrument):** `engram learn qa` (writes the pair + machine lines +
-auto-vocab on the A note) + the four-point exclusion + a `qa.` prefix audit of the filename-scan
-loops (vocab stats/centroids/trigger must not count qa notes as member notes) + capture blocks
-in the learn and please skills at the D2 moments (each a writing-skills TDD cycle).
+auto-vocab on the A note) + the four-point exclusion for `qa-question` ONLY (D5′ — A-notes
+compete) + a `qa.` prefix audit of the filename-scan loops (Q-notes excluded from vocab member
+counting; A-notes counted like content notes) + capture blocks in the learn and please skills
+at the D2 moments (each a writing-skills TDD cycle). The `answered_by` ride-along is round 3
+(with the q-channel).
 Estimated ~$12–34 TOTAL (skill TDD ~$2–4 + binary work ~$10–30 — plan Dim C; not metered).
 **What it delivers immediately:** no reasoning lost at substantive-answer moments; the graph
 Joe can see in Obsidian; the corpus P2'/P3' need.
@@ -135,12 +151,17 @@ pre-registered bar.
   (projected from this week's cadence: ~2–3 /please closes + ~2–3 deep recalls or substantive
   ad-hoc answers per active day; P3' measures the real rate), so round 2's ≥20-pair floor lands
   in roughly 1–2 working weeks.
-- The Q-channel is NOT built in round 1; until then, past answers are findable via Obsidian and
-  via contributor links from the notes they used.
+- The Q-channel and the `answered_by` ride-along are NOT built in round 1; until then, past
+  answers reach you three ways: A-notes competing in the main matched set (D5′), Obsidian, and
+  contributor links from the notes they used.
+- The D5′ asymmetry rests on n=5 synthetic pairs (direction, not magnitude); round 2's
+  validation re-checks A-note behavior at real corpus scale before round 3 builds on it.
 
 ## Decisions needed from Joe
 
-1. **Green-light round 1** (the capture build) as scoped above?
+0. ~~Re-settle D5~~ — DONE 2026-07-03: **asymmetric (D5′)**, chosen after the delivery
+   follow-up (commit 2465139f).
+1. **Green-light round 1** (the capture build) as scoped above, now with the one-kind seam?
 2. **Arm V larger-n**: run it inside round 1 (adds ~$1–2, settles the channel question sooner)
    or defer to round 2 as sequenced?
 3. **Naming**: `contributors` as the frontmatter key and `engram learn qa` as the subcommand —
