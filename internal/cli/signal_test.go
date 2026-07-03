@@ -69,6 +69,6 @@ func TestSetupSignalHandling_ReturnsTargets(t *testing.T) {
 
 	targets := cli.SetupSignalHandling(&stdout, &stderr, func(_ int) {}, nil)
 	// learn (group), update, embed (group), query, ingest, query-chunks,
-	// activate, show, show-chunk, check, resituate, amend, prune
-	g.Expect(targets).To(HaveLen(13))
+	// activate, show, show-chunk, check, resituate, amend, prune, vocab (group)
+	g.Expect(targets).To(HaveLen(14))
 }

@@ -27,6 +27,8 @@ var (
 	ExportAutoEmbedNote              = autoEmbedNote
 	ExportBuildSupersedesInverse     = BuildSupersedesInverse
 	ExportBumpLastUsed               = bumpLastUsed
+	ExportBumpMajorVersion           = bumpMajorVersion
+	ExportBumpMinorVersion           = bumpMinorVersion
 	ExportDefaultRecencyParams       = defaultRecencyParams
 	ExportExtractLuhmannFromFilename = extractLuhmannFromFilename
 	ExportFillRecencyBand            = fillRecencyBand
@@ -45,8 +47,10 @@ var (
 	ExportNewOsCheckDeps             = newOsCheckDeps
 	ExportNewOsPruneDeps             = newOsPruneDeps
 	ExportNewOsShowDeps              = newOsShowDeps
+	ExportNewOsVocabDeps             = newOsVocabDeps
 	ExportNextLuhmannID              = nextLuhmannID
 	ExportNoteAgeDays                = noteAgeDays
+	ExportNoteContainsAnyRemoval     = noteContainsAnyRemoval
 	ExportParseCreatedFromNote       = parseCreatedFromNote
 	ExportParseSupersedesFlag        = parseSupersedesFlag
 	ExportParseTurnN                 = parseTurnN

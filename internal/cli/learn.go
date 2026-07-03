@@ -58,6 +58,9 @@ type LearnArgs struct {
 // required except Embedder / WriteSidecar / LogWarning, which together
 // drive the auto-embed step. A nil Embedder skips auto-embed entirely
 // (used by tests that don't exercise the embedding pipeline).
+// The vocab assignment fields (LoadTermVectors / ReadSidecar / WriteNote)
+// are optional: all three must be non-nil for assignment to run. Nil deps
+// → no-op (backward compatible with pre-bootstrap vaults).
 type LearnDeps struct {
 	Now           func() time.Time
 	Getenv        func(string) string
@@ -70,6 +73,16 @@ type LearnDeps struct {
 	Embedder      embed.Embedder
 	WriteSidecar  func(path string, data []byte) error
 	LogWarning    func(format string, args ...any)
+	// Vocab assignment — optional; all three must be non-nil to activate.
+	// LoadTermVectors returns vocab term→vector pairs from the vault.
+	// Returns nil/empty when no term notes exist (no-op, backward compat).
+	LoadTermVectors func(vault string) ([]TermWithVector, error)
+	// ReadSidecar reads a .vec.json sidecar file. Used to load the
+	// newly-written note's body vector for vocab assignment.
+	ReadSidecar func(path string) ([]byte, error)
+	// WriteNote atomically rewrites an existing note file. Used only when
+	// vocab assignment produces tags to write both channels.
+	WriteNote func(path string, data []byte) error
 }
 
 // unexported constants.
@@ -180,6 +193,37 @@ func (q quotedString) MarshalYAML() (any, error) {
 	}, nil
 }
 
+// applyVocabAssignmentAfterLearn assigns vocab terms to a newly written note.
+// Requires all three of: LoadTermVectors, ReadSidecar, WriteNote to be non-nil.
+// A nil dep or empty term set silently skips the assignment (backward compat).
+func applyVocabAssignmentAfterLearn(deps LearnDeps, vault, notePath, content string) {
+	if deps.LoadTermVectors == nil || deps.ReadSidecar == nil || deps.WriteNote == nil {
+		return
+	}
+
+	terms, termsErr := deps.LoadTermVectors(vault)
+	if termsErr != nil || len(terms) == 0 {
+		return
+	}
+
+	bodyVec, ok := loadBodyVectorForNote(deps.ReadSidecar, notePath)
+	if !ok {
+		return
+	}
+
+	assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
+	updated := WriteVocabAssignment(content, assigned)
+
+	if updated == content {
+		return
+	}
+
+	writeErr := deps.WriteNote(notePath, []byte(updated))
+	if writeErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("learn: vocab assignment write failed for %s: %v", notePath, writeErr)
+	}
+}
+
 func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
 	tierErr := validateTier(args.Tier)
 	if tierErr != nil {
@@ -285,6 +329,7 @@ func marshalFrontmatter(v any) string {
 
 func newOsLearnDeps() LearnDeps {
 	vaultFS := &osLearnFS{}
+	osVault := &osVaultFS{}
 
 	return LearnDeps{
 		Now:           time.Now,
@@ -298,6 +343,14 @@ func newOsLearnDeps() LearnDeps {
 		Embedder:      sharedEmbedder,
 		WriteSidecar:  vaultFS.WriteSidecar,
 		LogWarning:    logWarningToStderrf,
+		// Vocab assignment wiring: no-op when the vault has no term notes.
+		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
+			return loadTermVectors(vault, osVault.ListMD, osVault.ReadFile)
+		},
+		ReadSidecar: osVault.ReadFile,
+		WriteNote: func(path string, data []byte) error {
+			return atomicWriteFile(path, data, vocabNotePerm)
+		},
 	}
 }
 
@@ -590,6 +643,7 @@ func writeLearnUnderLock(
 	}
 
 	autoEmbedNote(ctx, deps, path, content)
+	applyVocabAssignmentAfterLearn(deps, vault, path, content)
 
 	return path, nil
 }

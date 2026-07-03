@@ -1,0 +1,85 @@
+{
+  "configs": {
+    "floor=0.25\u00d7K2+rider": {
+      "floor": 0.25,
+      "k_mode": "K2+rider",
+      "n_tagged": 136,
+      "n": 44,
+      "r5": 40.9,
+      "r10": 40.9,
+      "r20": 40.9,
+      "median_pool": 23.5
+    },
+    "floor=0.25\u00d7K3": {
+      "floor": 0.25,
+      "k_mode": "K3",
+      "n_tagged": 136,
+      "n": 44,
+      "r5": 50.0,
+      "r10": 50.0,
+      "r20": 50.0,
+      "median_pool": 45.5
+    },
+    "floor=0.30\u00d7K2+rider": {
+      "floor": 0.3,
+      "k_mode": "K2+rider",
+      "n_tagged": 129,
+      "n": 44,
+      "r5": 38.6,
+      "r10": 38.6,
+      "r20": 38.6,
+      "median_pool": 17.5
+    },
+    "floor=0.30\u00d7K3": {
+      "floor": 0.3,
+      "k_mode": "K3",
+      "n_tagged": 129,
+      "n": 44,
+      "r5": 45.5,
+      "r10": 45.5,
+      "r20": 45.5,
+      "median_pool": 21.0
+    },
+    "floor=0.35\u00d7K2+rider": {
+      "floor": 0.35,
+      "k_mode": "K2+rider",
+      "n_tagged": 109,
+      "n": 44,
+      "r5": 31.8,
+      "r10": 31.8,
+      "r20": 31.8,
+      "median_pool": 11.0
+    },
+    "floor=0.35\u00d7K3": {
+      "floor": 0.35,
+      "k_mode": "K3",
+      "n_tagged": 109,
+      "n": 44,
+      "r5": 36.4,
+      "r10": 36.4,
+      "r20": 36.4,
+      "median_pool": 12.0
+    },
+    "floor=0.40\u00d7K2+rider": {
+      "floor": 0.4,
+      "k_mode": "K2+rider",
+      "n_tagged": 96,
+      "n": 44,
+      "r5": 25.0,
+      "r10": 25.0,
+      "r20": 25.0,
+      "median_pool": 7.0
+    },
+    "floor=0.40\u00d7K3": {
+      "floor": 0.4,
+      "k_mode": "K3",
+      "n_tagged": 96,
+      "n": 44,
+      "r5": 27.3,
+      "r10": 27.3,
+      "r20": 27.3,
+      "median_pool": 7.0
+    }
+  },
+  "selected": "floor=0.30\u00d7K3"
+}

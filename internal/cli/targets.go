@@ -93,6 +93,27 @@ func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) 
 	)
 }
 
+// amendResituateTargets returns the amend and resituate subcommands. Split out
+// of maintenanceTargets to stay within the per-function length budget.
+func amendResituateTargets(
+	stdout io.Writer,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+	home string,
+) []any {
+	return []any{
+		targ.Targ(func(ctx context.Context, a ResituateArgs) {
+			a.Vault = resolveVault(a.Vault, home, os.Getenv)
+			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), stdout))
+		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
+		targ.Targ(func(ctx context.Context, a AmendArgs) {
+			a.Vault = resolveVault(a.Vault, home, os.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
+			errHandler(RunAmend(withLog(ctx), a, newOsAmendDeps(), stdout))
+		}).Name("amend").Description("Amend a note in place: supersedes, provenance-merge, field-replacement, activate"),
+	}
+}
+
 // coreTargets returns the primary subcommands (learn, update, embed, query,
 // show, check). Split from Targets to stay within the per-function length
 // budget; the wiring mirrors maintenanceTargets exactly.
@@ -201,7 +222,7 @@ func learnUpdateTargets(
 }
 
 // maintenanceTargets returns the vault-maintenance subcommands (resituate,
-// amend). Split out of Targets to keep each function within the length budget;
+// amend, vocab). Split out of Targets to keep each function within the length budget;
 // the wiring mirrors the other targets exactly.
 func maintenanceTargets(
 	stdout io.Writer,
@@ -210,17 +231,10 @@ func maintenanceTargets(
 ) []any {
 	home := homeOrEmpty()
 
-	return []any{
-		targ.Targ(func(ctx context.Context, a ResituateArgs) {
-			a.Vault = resolveVault(a.Vault, home, os.Getenv)
-			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), stdout))
-		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
-		targ.Targ(func(ctx context.Context, a AmendArgs) {
-			a.Vault = resolveVault(a.Vault, home, os.Getenv)
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
-			errHandler(RunAmend(withLog(ctx), a, newOsAmendDeps(), stdout))
-		}).Name("amend").Description("Amend a note in place: supersedes, provenance-merge, field-replacement, activate"),
-	}
+	return append(
+		amendResituateTargets(stdout, withLog, errHandler, home),
+		vocabTargets(stdout, withLog, errHandler, home)...,
+	)
 }
 
 // newErrHandler returns a function that prints err to stderr and signals
@@ -234,5 +248,34 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 		_, _ = fmt.Fprintln(stderr, err)
 
 		exit(1)
+	}
+}
+
+// vocabTargets returns the vocab group subcommands (bootstrap, stats, propose, refit).
+func vocabTargets(
+	stdout io.Writer,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+	home string,
+) []any {
+	return []any{
+		targ.Group("vocab",
+			targ.Targ(func(ctx context.Context, a VocabBootstrapArgs) {
+				a.Vault = resolveVault(a.Vault, home, os.Getenv)
+				errHandler(RunVocabBootstrap(withLog(ctx), a, newOsVocabDeps(), stdout))
+			}).Name("bootstrap").Description("Seed vocab term notes + tag all existing notes (idempotent)"),
+			targ.Targ(func(_ context.Context, a VocabStatsArgs) {
+				a.Vault = resolveVault(a.Vault, home, os.Getenv)
+				errHandler(RunVocabStats(a, newOsVocabStatsDeps(), stdout))
+			}).Name("stats").Description("Print vocab health report (per-term counts, hubs, orphans, untagged rate)"),
+			targ.Targ(func(ctx context.Context, a VocabProposeArgs) {
+				a.Vault = resolveVault(a.Vault, home, os.Getenv)
+				errHandler(RunVocabPropose(withLog(ctx), a, newOsVocabDeps(), stdout))
+			}).Name("propose").Description("Add a new vocab term note + minor version bump (LLM gate runs agent-side)"),
+			targ.Targ(func(ctx context.Context, a VocabRefitArgs) {
+				a.Vault = resolveVault(a.Vault, home, os.Getenv)
+				errHandler(RunVocabRefit(withLog(ctx), a, newOsVocabDeps(), stdout))
+			}).Name("refit").Description("Apply a refit plan: renames, removals, additions, re-tag, major version bump"),
+		),
 	}
 }

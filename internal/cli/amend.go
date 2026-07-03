@@ -61,6 +61,9 @@ type AmendDeps struct {
 	) (map[string]bool, error)
 	ListIndexes func(dir string) ([]string, error)
 	LogWarning  func(string, ...any)
+	// LoadTermVectors returns vocab term→vector pairs from the vault.
+	// Optional: nil skips vocab assignment (backward compat).
+	LoadTermVectors func(vault string) ([]TermWithVector, error)
 }
 
 // RunAmend modifies a note in place. It applies --supersedes entries to the
@@ -118,6 +121,7 @@ func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Wri
 	}
 
 	reEmbedAndActivate(ctx, args, deps, full, relPath, amended, contentChanged)
+	applyVocabAssignmentAfterAmend(deps, args.Vault, full, amended)
 
 	_, _ = fmt.Fprintln(stdout, full)
 
@@ -275,6 +279,37 @@ func applyTypedAmend[T any](
 	return spec.render(doc, when, body, contentChanged), contentChanged, nil
 }
 
+// applyVocabAssignmentAfterAmend assigns vocab terms to an amended note.
+// Requires LoadTermVectors to be non-nil; uses the existing sidecar (via deps.Read)
+// to get the note's body vector. Silently no-ops when deps are absent or no terms exist.
+func applyVocabAssignmentAfterAmend(deps AmendDeps, vault, notePath, amended string) {
+	if deps.LoadTermVectors == nil || deps.Read == nil || deps.Write == nil {
+		return
+	}
+
+	terms, termsErr := deps.LoadTermVectors(vault)
+	if termsErr != nil || len(terms) == 0 {
+		return
+	}
+
+	bodyVec, ok := loadBodyVectorForNote(deps.Read, notePath)
+	if !ok {
+		return
+	}
+
+	assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
+	updated := WriteVocabAssignment(amended, assigned)
+
+	if updated == amended {
+		return
+	}
+
+	writeErr := deps.Write(notePath, []byte(updated))
+	if writeErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("amend: vocab assignment write failed for %s: %v", notePath, writeErr)
+	}
+}
+
 // mergeChunkSources returns a deduped union of existing and incoming chunk ids.
 func mergeChunkSources(existing, incoming []string) []string {
 	seen := make(map[string]struct{}, len(existing)+len(incoming))
@@ -302,12 +337,14 @@ func mergeChunkSources(existing, incoming []string) []string {
 func newOsAmendDeps() AmendDeps {
 	const perm = 0o600
 
+	osVault := &osVaultFS{}
+
 	return AmendDeps{
 		Lock: (&osLearnFS{}).Lock,
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
-			return vaultgraph.ScanVault(&osVaultFS{}, vault)
+			return vaultgraph.ScanVault(osVault, vault)
 		},
-		Read: (&osVaultFS{}).ReadFile,
+		Read: osVault.ReadFile,
 		Write: func(path string, data []byte) error {
 			err := atomicWriteFile(path, data, perm)
 			if err != nil {
@@ -325,6 +362,10 @@ func newOsAmendDeps() AmendDeps {
 		// it rather than hand-roll a closure.
 		ListIndexes: listJSONLIndexes,
 		LogWarning:  logWarningToStderrf,
+		// Vocab assignment wiring: no-op when the vault has no term notes.
+		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
+			return loadTermVectors(vault, osVault.ListMD, osVault.ReadFile)
+		},
 	}
 }
 

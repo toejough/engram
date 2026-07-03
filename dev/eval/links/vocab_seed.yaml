@@ -1,0 +1,99 @@
+- term: eval-methodology
+  description: How to design, run, and interpret evaluation experiments — what to measure,
+    what populations to test, and how to validate that results are real rather than noise.
+
+- term: retrieval-design
+  description: Design principles for memory retrieval — ranking, filtering, payload
+    shaping, and floor/cap mechanics that govern which items surface at query time.
+
+- term: memory-system-architecture
+  description: Architectural patterns for memory-augmented LLM agents — how recall, learn,
+    and update commands fit together, and where each tier (vault/chunks/index) lives.
+
+- term: cost-optimization
+  description: Reducing LLM and computation costs without capability loss — identifying
+    the expensive steps, measuring the tax, and cutting only what has no delivery impact.
+
+- term: token-budget
+  description: Managing token consumption within context limits — payload caps, content
+    budgets, snippet strategies, and lazy-fetch patterns that keep payloads within bounds.
+
+- term: go-code-conventions
+  description: Go language idioms and project-specific conventions — DI everywhere, no
+    I/O in internal packages, nilaway guard patterns, parallel test isolation, error wrapping.
+
+- term: cli-verification
+  description: Validating CLI commands with the real installed binary and real filesystem
+    arguments — not just unit tests, but end-to-end runs that expose path and wiring bugs.
+
+- term: parallel-test-isolation
+  description: Structuring tests so each subtest uses independent state and can run safely
+    with t.Parallel() — no shared maps, no global mutable variables, no shared temp dirs.
+
+- term: skill-and-guidance-design
+  description: Writing, testing, and evolving agent skills and guidance documents — the
+    TDD discipline for SKILL.md edits, headless RED/GREEN validation, and recall-moment targeting.
+
+- term: agent-behavior-patterns
+  description: Recurring patterns in LLM agent behavior — what agents do reliably, what
+    they miss, and how session context, framing, and guidance shape their outputs.
+
+- term: corpus-mining
+  description: Extracting labeled examples from transcripts, session logs, or text corpora —
+    semantic detection, over-match-then-prune, and representative-sample validation.
+
+- term: recency-decay
+  description: Weighting recent items more heavily in ranking and retrieval — half-life
+    parameters, recency bands, and how the decay multiplier interacts with cosine score.
+
+- term: vocabulary-crystallization
+  description: Distilling raw session content and feedback into reusable structured
+    vocabulary — the process from chunk evidence to crystallized vault notes.
+
+- term: subagent-orchestration
+  description: Coordinating multiple subagents — task decomposition, worktree isolation,
+    parallel versus serial dispatch, and argument-to-resolution protocols between reviewers and executors.
+
+- term: lever-tracking
+  description: Identifying, measuring, and validating optimization levers — quantifying
+    each lever's reach, ceiling, and cost, and maintaining an honest ledger of what shipped.
+
+- term: model-routing
+  description: Selecting the right model tier for a task — when to use opus vs. sonnet
+    vs. haiku, tier-routing implementation, and validating that cheaper tiers are capability-neutral.
+
+- term: synthesis-vs-retrieval
+  description: Distinguishing when to synthesize a new answer versus retrieve a stored
+    one — knowing which task is LLM reasoning and which is embedder retrieval.
+
+- term: behavioral-failure-reproduction
+  description: Reproducing LLM behavioral failures in tests — why behavioral traps require
+    rich session context (not clean toys), and how to build evals that actually fire.
+
+- term: engram-binary-ops
+  description: engram CLI binary operations — installation via go install, vault/chunks-dir
+    resolution, subcommand wiring, and real-binary integration test patterns.
+
+- term: agentic-recall-triggers
+  description: Knowing when and how to trigger memory recall — which decision moments
+    benefit from a glance or deep recall, and the cost-vs-catch tradeoff at each trigger point.
+
+- term: pbt-and-test-tooling
+  description: Property-based testing and test infrastructure — rapid for PBT, imptest/impgen
+    for mock generation, gomega for assertions, and the full engram test stack conventions.
+
+- term: data-structure-conventions
+  description: Conventions for data structures in the Go codebase — struct layouts, DI
+    interface patterns, sidecar formats, and how to represent typed errors and sentinel values.
+
+- term: doc-and-memory-hygiene
+  description: Keeping documentation and memory notes current and accurate — scrubbing
+    stale references when architecture changes, matching docs to the real call chain, no orphaned entries.
+
+- term: eval-fixture-design
+  description: Constructing representative test fixtures for evaluations — avoiding
+    retention-bias in corpora, validating with breadth sources, and building traps from real failures.
+
+- term: scope-discipline
+  description: Scoping changes narrowly to avoid unintended side effects — staging only
+    this plan's files, coordinating with concurrent workstreams, and never widening a fix.
