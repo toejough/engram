@@ -670,6 +670,9 @@ The frontmatter for both notes uses `marshalFrontmatter` (already in package, us
 #### New YAML doc types for frontmatter rendering
 
 ```go
+// (Plan note, Gate A: the templates here include the `source:` field the exploration doc's
+// Dim A sketches omitted — `--source` is REQUIRED on every engram learn call (exploration
+// Fact 3); the full shape HERE is the specification.)
 // qaQuestionFrontmatterDoc is the YAML shape of a QA question note's frontmatter.
 type qaQuestionFrontmatterDoc struct {
     Type       string `yaml:"type"`
@@ -1755,6 +1758,10 @@ Update the following targets in one step, each precisely:
    - [SHIPPED 2026-07-03] Q&A memory round-1 (capture): engram learn qa, D5' exclusion,
      stripMachineLines QA markers, qa pairs stats gate. round-2 check-back: ≥20 pairs
      or ~2026-07-17 (whichever first).
+   - [DEFERRED — round 3, gated on round-2 validation] the dedicated Q-channel (incoming ask
+     matched against Q-note embeddings in q-space) and the `answered_by` ride-along (a surfaced
+     Q delivers its paired A). Gated on Arm V large-n sustaining the BORDERLINE-7/10 result and
+     on P2'/P3' post-ship validation over ≥20 real pairs. NOT built in round 1.
    ```
 
 2. **`docs/GLOSSARY.md`** — add three entries:
@@ -1777,6 +1784,11 @@ Update the following targets in one step, each precisely:
    ```
 
 5. **`dev/eval/qa/results-2026-07-03.md`** — record Arm V large-n result from Task 10.
+
+Pre-flight for this step: verify `docs/architecture/c1-system-context.md`'s flows do not
+reference the deferred ride-along/Q-channel as if they exist (they should not — round 1 is the
+first QA capture path); add a learn-flow footnote for the qa capture only if the flow text
+names note-writing mechanics at that level.
 
 **Commit:** `docs(qa): round-1 shipped — ROADMAP, GLOSSARY, C2, proposals status, Arm V result`
 
