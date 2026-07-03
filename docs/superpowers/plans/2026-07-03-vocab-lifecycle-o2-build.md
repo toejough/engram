@@ -1168,7 +1168,8 @@ func applyVocabAssignmentAfterResituate(deps ResituateDeps, vault, notePath, con
     updated := WriteVocabAssignment(content, assigned)
     if updated != content {
         if writeErr := deps.Write(notePath, []byte(updated)); writeErr != nil {
-            // no LogWarning in ResituateDeps; log to stderr directly
+            // no LogWarning in ResituateDeps; use the package-level stderr helper
+            // (defined at learn.go:315, same package — already used by newOsAmendDeps at amend.go:364)
             logWarningToStderrf("resituate: vocab assignment write failed for %s: %v", notePath, writeErr)
         }
     }
@@ -1321,26 +1322,33 @@ No existing skill references this flow. The learn skill conditional must describ
 
 #### B. RED baseline — headless, fresh process
 
+**Prerequisite:** the current learn skill must already be deployed at
+`/Users/joe/.claude/skills/learn/SKILL.md` (verified present 2026-07-03) — the RED baseline
+captures the behavior of the DEPLOYED text.
+
 Establish that the CURRENT learn/SKILL.md does NOT act on a REFIT_PENDING verdict:
 
 ```bash
 # Create isolated fixture dir with only the current learn skill as context
-mkdir -p /tmp/learn-refit-red
-cat > /tmp/learn-refit-red/CLAUDE.md <<'EOF'
+FIXTURE_RED=$(mktemp -d)
+cat > "$FIXTURE_RED/CLAUDE.md" <<'EOF'
 @/Users/joe/.claude/skills/learn/SKILL.md
 EOF
 
-# Run headless (N=3 for confidence; each is independent)
+# Run headless FROM the fixture dir (claude -p reads CLAUDE.md from cwd); N=3, independent
+cd "$FIXTURE_RED"
 for i in 1 2 3; do
   claude -p \
-    "You are running the learn skill right now. Step 1 — you ran engram ingest --auto and got: 3 chunks embedded. The output of engram vocab stats is:\n\nvocab stats (version: 2.0)\nterms: 12  member-notes: 163  untagged: 4\nuntagged-rate: 2.5%\n  agentic-recall-triggers: 18 members [hub]\n  cost-optimization: 14 members\n  go-code-conventions: 22 members\nverdict: REFIT_PENDING (growth: 41 notes since last refit, 15 days ago)\n\nDescribe all the actions you now take. Be specific about what commands you run." \
-    --no-permissions \
-    2>&1 | tee /tmp/learn-refit-red/run-$i.txt
+    "You are running the learn skill right now. Step 1 — you ran engram ingest --auto and got: 3 chunks embedded. The output of engram vocab stats is:\n\nvocab stats (version: 2.0)\nterms: 12  member-notes: 163  untagged: 4\nuntagged-rate: 2.5%\n  agentic-recall-triggers: 18 members [hub]\n  cost-optimization: 14 members\n  go-code-conventions: 22 members\nverdict: REFIT_PENDING (growth: 41 notes, 15 days)\n\nDescribe all the actions you now take. Be specific about what commands you run." \
+    2>&1 | tee "$FIXTURE_RED/run-$i.txt"
 done
 ```
 
-**Expected RED:** none of the 3 runs mention `engram vocab refit` or describe a refit flow.
-The agent should stop after the sweep (Step 1) and proceed to Step 2 (crystallize lessons).
+(The prompt is describe-only — the arm needs no tool permissions, so no permission flags.)
+
+**Expected RED (pinned criterion):** a run FAILS-to-act when its response never names
+`engram vocab refit`. RED passes when 0/3 runs name it. The agent should stop after the sweep
+(Step 1) and proceed to Step 2 (crystallize lessons).
 
 Record the RED score (0/3, 1/3, etc.) in the plan results doc.
 
@@ -1371,26 +1379,35 @@ REFACTOR cycle and pressure tests.
 
 #### D. GREEN verification — headless, fresh process
 
+Same fixture mechanics as RED — the `@import` now resolves to the EDITED deployed skill:
+
 ```bash
+FIXTURE_GREEN=$(mktemp -d)
+cat > "$FIXTURE_GREEN/CLAUDE.md" <<'EOF'
+@/Users/joe/.claude/skills/learn/SKILL.md
+EOF
+
+cd "$FIXTURE_GREEN"
 for i in 1 2 3; do
   claude -p \
-    "You are running the learn skill right now. Step 1 — you ran engram ingest --auto and got: 3 chunks embedded. The output of engram vocab stats is:\n\nvocab stats (version: 2.0)\nterms: 12  member-notes: 163  untagged: 4\nuntagged-rate: 2.5%\nagentic-recall-triggers: 18 members [hub]\ncost-optimization: 14 members\ngo-code-conventions: 22 members\nverdict: REFIT_PENDING (growth: 41 notes since last refit, 15 days ago)\n\nDescribe all the actions you now take. Be specific about what commands you run." \
-    --no-permissions \
-    2>&1 | tee /tmp/learn-refit-green/run-$i.txt
+    "You are running the learn skill right now. Step 1 — you ran engram ingest --auto and got: 3 chunks embedded. The output of engram vocab stats is:\n\nvocab stats (version: 2.0)\nterms: 12  member-notes: 163  untagged: 4\nuntagged-rate: 2.5%\n  agentic-recall-triggers: 18 members [hub]\n  cost-optimization: 14 members\n  go-code-conventions: 22 members\nverdict: REFIT_PENDING (growth: 41 notes, 15 days)\n\nDescribe all the actions you now take. Be specific about what commands you run." \
+    2>&1 | tee "$FIXTURE_GREEN/run-$i.txt"
 done
 ```
 
-**Pass criterion:** ≥ 2/3 runs mention `engram vocab refit --emit-request` AND
-`engram vocab refit --plan`.
+**Pass criterion (pinned):** ≥ 2/3 runs name BOTH `engram vocab refit --emit-request` AND
+`engram vocab refit --plan` as actions they take (not merely quote the skill text).
 
 #### E. Refactor — pressure test
 
-Run one more arm with an OK verdict to verify the conditional does NOT fire:
+Run one more arm with an OK verdict to verify the conditional does NOT fire (from the same
+GREEN fixture dir):
 
 ```bash
+cd "$FIXTURE_GREEN"
 claude -p \
   "You are running the learn skill. engram ingest --auto returned 2 chunks embedded. engram vocab stats shows: verdict: OK. What do you do next?" \
-  --no-permissions 2>&1
+  2>&1
 ```
 
 **Pass criterion:** response does not mention vocab refit.
@@ -1464,13 +1481,21 @@ echo "PASS: stats shows REFIT_PENDING"
 
 # 7. Run the metered refit flow once (this is the metered-refit rider)
 #    Record $-cost from Anthropic usage (check dashboard or API log after the run)
-echo "--- METERED REFIT START ---"
+echo "--- METERED REFIT: PHASE A (script) ---"
 ENGRAM_VAULT_PATH="$COPY_VAULT" engram vocab refit --emit-request | tee "$WORK_DIR/refit-request.json"
-# The EXECUTOR is the LLM phase of the two-phase flow: read refit-request.json, derive the
-# refit plan yourself (term merges/splits/renames per the request's instructions), and write
-# it to "$WORK_DIR/refit-plan.yaml". THIS derivation is the metered work — note your token
-# usage before and after this step (the harness/usage report at task end); the delta plus the
-# two binary calls IS the per-refit cost. Also record wall-clock for the whole step 7.
+echo "PHASE A done — script STOPS here. Phase B is executor work, not script."
+```
+
+**PHASE B (executor — the LLM half of the two-phase flow, and the metered work):** the harness
+is deliberately two script blocks with YOUR derivation between them; it cannot and must not run
+unattended end-to-end. Read `$WORK_DIR/refit-request.json`, derive the refit plan yourself
+(term merges/splits/renames per the request's instructions), and Write it to
+`$WORK_DIR/refit-plan.yaml`. Note your token usage before and after this derivation (from your
+usage report at task end); that delta plus the two binary calls IS the per-refit cost. Record
+wall-clock for phases A–C together.
+
+```bash
+echo "--- METERED REFIT: PHASE C (script) ---"
 ENGRAM_VAULT_PATH="$COPY_VAULT" engram vocab refit --plan "$WORK_DIR/refit-plan.yaml"
 echo "--- METERED REFIT END ---"
 
@@ -1528,6 +1553,23 @@ ships (each touches a distinct file).
 None that could not be resolved from code and docs. All paths, function names, struct fields,
 and line references are verified against the working tree (2026-07-03, main branch).
 
-**Not in this plan (deferred per design doc):**
-- Doc updates when recalibration lands (ROADMAP Track-A integration line, build-results stale trigger numbers)
-- Re-replay after 30+ days of history (30d interval column unanswerable today)
+**Not in this plan — executed by the /please Document step (Step 5) immediately after these
+tasks ship (this build IS "recalibration lands"; named targets so nothing goes silently stale):**
+- `docs/ROADMAP.md:96–98` — documents the OLD trigger set verbatim (untagged >10% of last 25
+  writes / term >25% / vault +30%); replace with the shipped set (growth ≥40 notes AND ≥14d /
+  vault-wide untagged >8% / hub >25%) + the Track-A integration line.
+- `docs/design/2026-07-03-vocab-notes-build-results.md` "What remains" — same stale trigger
+  numbers; update.
+- `docs/architecture/c1-system-context.md` learn flow — add a footnote: the learn/amend/resituate
+  write path now runs an in-process vocab trigger check that persists `refit_pending` in
+  `vocab.centroids.json` (side-effect only; surfaced via the stats verdict line + query payload
+  field). No redraw — no new participant or edge.
+- `docs/GLOSSARY.md` — add the `vocab.centroids.json` schema fields: `refit_pending` (bool,
+  omitted when false), `refit_reason` (string), `last_refit` ({note_count int, date YYYY-MM-DD}
+  baseline set at bootstrap/refit).
+- `docs/design/2026-07-03-vocab-lifecycle-proposals.md` — Task 11 writes its one-line
+  "Metered refit result (2026-07-03)" section into this doc (the ONLY post-landing update it
+  gets).
+
+**Deferred beyond this effort (design-doc rider 4):**
+- Re-replay after 30+ days of history (30d interval column unanswerable today).
