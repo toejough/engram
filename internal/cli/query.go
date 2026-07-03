@@ -250,9 +250,10 @@ type matchedSetItem struct {
 // phrasedCluster pairs a cluster report with the phrase that produced it,
 // so the payload can tag each cluster with its originating query phrase.
 type phrasedCluster struct {
-	phrase  string
-	report  clusterReport
-	matched matchedSet
+	phrase         string
+	report         clusterReport
+	matched        matchedSet
+	tagNominations map[int][]queryCandidateNote // tag-match nominations per cluster ID
 }
 
 // queryBudget reports the totals visible to the caller per the YAML schema.
@@ -1327,6 +1328,24 @@ func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
 
 			centroid := pc.report.autoK.Centroids[clusterID]
 			clusterNotes := clusterNoteIndexFromMembers(pc.matched, pc.report.memberIDs[clusterID])
+			candidateL2s := topKCandidateNotes(centroid, clusterNotes)
+
+			// Merge tag-match nominations into candidate_l2s for this cluster.
+			// Nominations are deduped against the already-computed candidates.
+			if noms := pc.tagNominations[clusterID]; len(noms) > 0 {
+				existingPaths := make(map[string]bool, len(candidateL2s))
+
+				for _, candidate := range candidateL2s {
+					existingPaths[candidate.Path] = true
+				}
+
+				for _, nom := range noms {
+					if !existingPaths[nom.Path] {
+						candidateL2s = append(candidateL2s, nom)
+						existingPaths[nom.Path] = true
+					}
+				}
+			}
 
 			out = append(out, queryCluster{
 				ID:           clusterID,
@@ -1334,7 +1353,7 @@ func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
 				Size:         len(members),
 				Silhouette:   pc.report.silhouettesByID[clusterID],
 				Members:      members,
-				CandidateL2s: topKCandidateNotes(centroid, clusterNotes),
+				CandidateL2s: candidateL2s,
 			})
 		}
 	}
@@ -1530,6 +1549,19 @@ func runQuery(
 	// Direct-hit items come from the note union; chunk items are appended below.
 	resolved := mergeProvenances(noteUnion, matchedSet{}, clusterReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
+
+	// Slice 3 — tag nomination + supersession ride-along.
+	// Load vocab/supersedes metadata once over all vault hits.
+	vaultMeta := loadAllVaultNotesMeta(hits, args.VaultPath, deps.Read)
+
+	// Supersession ride-along: insert each superseding note directly after its
+	// superseded note in the ranked items (note items only; deduped).
+	resolved = applySupersedesRideAlong(resolved, vaultMeta)
+
+	// Tag-match nomination: for the top-3 delivered notes, find all vault notes
+	// sharing a vocab term and add them to the per-cluster candidate_l2s.
+	tagNominations := buildTagNominations(resolved, vaultMeta, matchSet, report)
+
 	resolved = append(resolved, chunkItems...)
 
 	// Channel 2 — Recency (Phase 2): append the newest chunks by IngestedAt
@@ -1543,7 +1575,7 @@ func runQuery(
 		phrases:       args.Phrases,
 		resolvedItems: resolved,
 		phraseClusters: []phrasedCluster{
-			{phrase: singleClusterPhrase, report: report, matched: matchSet},
+			{phrase: singleClusterPhrase, report: report, matched: matchSet, tagNominations: tagNominations},
 		},
 		totalNotes:     len(notes),
 		withEmbeddings: len(hits),

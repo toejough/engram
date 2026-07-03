@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"github.com/toejough/engram/internal/chunk"
+	"github.com/toejough/engram/internal/cluster"
 	"github.com/toejough/engram/internal/embed"
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 // Exported constants.
@@ -24,6 +26,7 @@ var (
 	ErrResituateNoteNotFoundForTest  = errResituateNoteNotFound
 	ExportAnyHarnessFailed           = anyHarnessFailed
 	ExportApplyProjectFilter         = applyProjectFilter
+	ExportApplySupersedesRideAlong   = applySupersedesRideAlong
 	ExportAutoEmbedNote              = autoEmbedNote
 	ExportBuildSupersedesInverse     = BuildSupersedesInverse
 	ExportBumpLastUsed               = bumpLastUsed
@@ -37,6 +40,7 @@ var (
 	ExportIsVocabKind                = isVocabKind
 	ExportKindFromContent            = kindFromContent
 	ExportLearnPath                  = learnPath
+	ExportLoadAllVaultNotesMeta      = loadAllVaultNotesMeta
 	ExportLoadAssignmentTermVectors  = loadAssignmentTermVectors
 	ExportLogWarningToStderr         = logWarningToStderrf
 	ExportMarshalFrontmatter         = marshalFrontmatter
@@ -53,6 +57,7 @@ var (
 	ExportNoteAgeDays                = noteAgeDays
 	ExportNoteContainsAnyRemoval     = noteContainsAnyRemoval
 	ExportParseCreatedFromNote       = parseCreatedFromNote
+	ExportParseNoteQueryFrontmatter  = parseNoteQueryFrontmatter
 	ExportParseSupersedesFlag        = parseSupersedesFlag
 	ExportParseTurnN                 = parseTurnN
 	ExportPluralFile                 = pluralFile
@@ -74,12 +79,20 @@ var (
 	}
 	ExportShouldSkipDir        = shouldSkipDir
 	ExportTildify              = tildify
+	ExportTopDeliveredNotes    = topDeliveredNotes
 	ExportValidateIssueID      = validateIssueID
 	ExportValidateProjectSlug  = validateProjectSlug
 	ExportValidateSlug         = validateSlug
 	ExportWriteUpdateReport    = writeUpdateReport
 	ExportWriteVocabAssignment = WriteVocabAssignment
 )
+
+// ExportAllVaultNotesMeta aliases AllVaultNotesMeta for cli_test fixtures.
+type ExportAllVaultNotesMeta = AllVaultNotesMeta
+
+// ExportCompatibleSidecar aliases the unexported compatibleSidecar so cli_test
+// can construct hits slices via ExportNewCompatibleSidecars.
+type ExportCompatibleSidecar = compatibleSidecar
 
 type ExportFactFields = factFields
 
@@ -95,6 +108,13 @@ type ExportMergeClusterRepsEntry struct {
 	Provenances []string
 	ClusterID   *int
 }
+
+// ExportNominationEntry aliases NominationEntry for cli_test struct literals.
+type ExportNominationEntry = NominationEntry
+
+// ExportQueriedCandidateNote aliases the unexported queryCandidateNote so
+// cli_test can construct nomination fixtures for ExportRenderClustersTagNominations.
+type ExportQueriedCandidateNote = queryCandidateNote
 
 type ExportRecencyParams = recencyParams
 
@@ -155,6 +175,16 @@ func ExportBuildChunkIDSet(
 	readFile func(path string) ([]byte, error),
 ) (map[string]bool, error) {
 	return buildChunkIDSet(chunksDir, listIndexes, readFile)
+}
+
+// ExportBuildTagNominationsUnit drives buildTagNominations with empty matchedSet
+// and clusterReport (cluster-0 fallback), so unit tests can assert nomination
+// results without wiring a full clustering pipeline.
+func ExportBuildTagNominationsUnit(
+	resolved []resolvedItem,
+	meta AllVaultNotesMeta,
+) map[int][]queryCandidateNote {
+	return buildTagNominations(resolved, meta, matchedSet{}, clusterReport{})
 }
 
 // ExportCapChunkContent builds queryItems from parallel kind/content slices,
@@ -305,12 +335,54 @@ func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
 	return resolvedItem{notePath: notePath, score: score, kind: chunkItemKind}
 }
 
+// ExportNewCompatibleSidecars zips parallel slices of notes and sidecars into
+// the internal compatibleSidecar type, for loadAllVaultNotesMeta unit tests.
+// notes[i] is paired with sidecars[i].
+func ExportNewCompatibleSidecars(
+	notes []vaultgraph.Note,
+	sidecars []embed.Sidecar,
+) []compatibleSidecar {
+	out := make([]compatibleSidecar, len(notes))
+
+	for i, note := range notes {
+		out[i] = compatibleSidecar{note: note, sidecar: sidecars[i]}
+	}
+
+	return out
+}
+
+// ExportNewEmptyVaultNotesMeta constructs an AllVaultNotesMeta with
+// empty (but non-nil) maps — the backward-compat no-op fixture.
+func ExportNewEmptyVaultNotesMeta() AllVaultNotesMeta {
+	return AllVaultNotesMeta{
+		TermIndex:         make(map[string][]NominationEntry),
+		SupersedesInverse: make(SupersedesInverse),
+		ContentByBasename: make(map[string]string),
+	}
+}
+
 // ExportNewNoteResolvedItem builds a note-kind resolvedItem for recency band
 // tests. lastUsed and created are YYYY-MM-DD strings (empty = not set).
 // kind is intentionally left blank — the zero value means "note" in the
 // resolvedItem model (only chunkItemKind overrides content-derived detection).
 func ExportNewNoteResolvedItem(notePath, lastUsed, created string) resolvedItem {
 	return resolvedItem{notePath: notePath, lastUsed: lastUsed, created: created}
+}
+
+// ExportNewNoteResolvedItemWithContentAndProvenances builds a note-kind
+// resolvedItem with explicit content, score, and provenances for nomination
+// and ride-along unit tests.
+func ExportNewNoteResolvedItemWithContentAndProvenances(
+	notePath, content string,
+	score float32,
+	provenances []string,
+) resolvedItem {
+	return resolvedItem{
+		notePath:    notePath,
+		content:     content,
+		score:       score,
+		provenances: provenances,
+	}
 }
 
 // ExportNewNoteResolvedItemWithProvenances builds a note-kind resolvedItem
@@ -446,9 +518,56 @@ func ExportNewScoredChunkWithIngestedAt(
 	return scoredChunk{record: rec, score: score}
 }
 
+// ExportNewVaultNotesMetaWithSupersedes builds an AllVaultNotesMeta that has
+// only SupersedesInverse + ContentByBasename populated (no TermIndex).
+// supersedersByNote maps each SUPERSEDER's basename to the list of entries it
+// supersedes (same shape as BuildSupersedesInverse's input).
+func ExportNewVaultNotesMetaWithSupersedes(
+	supersedersByNote map[string][]supersedesEntry,
+	contentByBasename map[string]string,
+) AllVaultNotesMeta {
+	return AllVaultNotesMeta{
+		TermIndex:         make(map[string][]NominationEntry),
+		SupersedesInverse: BuildSupersedesInverse(supersedersByNote),
+		ContentByBasename: contentByBasename,
+	}
+}
+
+// ExportNewVaultNotesMetaWithTerms builds an AllVaultNotesMeta that has only
+// TermIndex populated (no supersedes data), for tag-nomination unit tests.
+func ExportNewVaultNotesMetaWithTerms(terms map[string][]NominationEntry) AllVaultNotesMeta {
+	return AllVaultNotesMeta{
+		TermIndex:         terms,
+		SupersedesInverse: make(SupersedesInverse),
+		ContentByBasename: make(map[string]string),
+	}
+}
+
 // ExportNewestChunkItems exposes newestChunkItems with the direct provenance.
 func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 	return newestChunkItems(scored, n, provenanceDirect)
+}
+
+// ExportNoteClusterIDForPathFromPlain exercises noteClusterIDForPath with
+// plain-data inputs, for coverage of the note-finding and cluster-lookup paths.
+// memberPaths[i] is matched by notePath; memberIDs[c] is the set of member
+// indices belonging to cluster c.
+func ExportNoteClusterIDForPathFromPlain(
+	notePath string,
+	memberPaths []string,
+	memberIDs [][]int,
+) int {
+	members := make([]matchedMember, len(memberPaths))
+
+	for i, path := range memberPaths {
+		members[i] = matchedMember{notePath: path}
+	}
+
+	return noteClusterIDForPath(
+		notePath,
+		matchedSet{members: members},
+		clusterReport{memberIDs: memberIDs},
+	)
 }
 
 // ExportOsManifestLock exposes osManifestLock for coverage of its MkdirAll-error branch.
@@ -461,6 +580,49 @@ func ExportProvenanceRankFor(role string) int { return provenanceRankFor(role) }
 
 // ExportRecencyFloor exposes the floor field of recencyParams for tests.
 func ExportRecencyFloor(p recencyParams) int { return p.floor }
+
+// ExportRenderClustersTagNominations exercises the tag-nomination merging
+// path in renderClusters. It builds a minimal single-member, single-cluster
+// phrasedCluster with the given nominations and returns the CandidateL2s
+// of the first emitted cluster. Returns nil when no clusters are emitted.
+func ExportRenderClustersTagNominations(
+	nominations map[int][]queryCandidateNote,
+) []queryCandidateNote {
+	vec := []float32{1, 0}
+
+	member := matchedMember{
+		notePath: "test.md",
+		vector:   vec,
+		sitVec:   vec,
+		bodyVec:  vec,
+		score:    0.9,
+		content:  "# test member",
+	}
+
+	matched := matchedSet{members: []matchedMember{member}}
+
+	report := clusterReport{
+		autoK:           cluster.AutoKResult{K: 1, Centroids: [][]float32{vec}},
+		memberIDs:       [][]int{{0}},
+		representatives: []int{0},
+		silhouettesByID: []float64{0},
+	}
+
+	pc := phrasedCluster{
+		phrase:         "test phrase",
+		report:         report,
+		matched:        matched,
+		tagNominations: nominations,
+	}
+
+	clusters := renderClusters([]phrasedCluster{pc})
+
+	if len(clusters) == 0 {
+		return nil
+	}
+
+	return clusters[0].CandidateL2s
+}
 
 // ExportRenderQueryPayloadBudget builds an aggregatedSummary from parallel
 // kind/content slices, renders the YAML payload, and returns the encoded text.
@@ -500,6 +662,10 @@ func ExportResolveRecentFill(raw int) int {
 // activation-cutoff and band assertions (populated by Task 2.3).
 func ExportResolvedItemBaseScore(item ExportResolvedItem) float32 { return item.baseScore }
 
+// ExportResolvedItemContent exposes the unexported content field for
+// ride-along insertion assertions.
+func ExportResolvedItemContent(item resolvedItem) string { return item.content }
+
 // ExportResolvedItemCreated exposes the created frontmatter date field.
 func ExportResolvedItemCreated(item ExportResolvedItem) string { return item.created }
 
@@ -511,6 +677,10 @@ func ExportResolvedItemLess(a, b resolvedItem) bool { return resolvedItemLess(a,
 
 // ExportResolvedItemPath exposes the unexported notePath field for assertions.
 func ExportResolvedItemPath(item ExportResolvedItem) string { return item.notePath }
+
+// ExportResolvedItemProvenances exposes the unexported provenances field for
+// ride-along insertion assertions.
+func ExportResolvedItemProvenances(item resolvedItem) []string { return item.provenances }
 
 // ExportResolvedItemScore exposes the unexported score field for assertions.
 func ExportResolvedItemScore(item ExportResolvedItem) float32 { return item.score }
