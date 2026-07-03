@@ -196,8 +196,9 @@ is subsumed by `engram ingest --auto`.
 
 > Every `learn`, `amend`, and `resituate` write runs an in-process vocab trigger check
 > (token-free) that persists `refit_pending` in `vocab.centroids.json` when thresholds
-> trip (growth ≥40 notes AND ≥14d / vault-wide untagged >8% / hub >25%); surfaced via
-> the `engram vocab stats` verdict line + a ≈5-token `refit_pending` query payload field;
+> trip (independent — ANY one: growth ≥40 notes AND ≥14d since last refit; vault-wide
+> untagged >8%; any term >25% of vault); surfaced via
+> the `engram vocab stats` verdict line + a ≈5-token `refit_pending` field in the query output payload;
 > the learn skill's Step 1.5 acts on the verdict autonomously (2026-07-03).
 
 ```mermaid

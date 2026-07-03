@@ -115,7 +115,8 @@ Three fields written to `vocab.centroids.json` by the write-time trigger check (
 - **`refit_pending`** (`bool`, omitted when false): set by `checkAndPersistVocabRefitTrigger`
   when any trigger trips; cleared by `engram vocab refit` and `engram vocab bootstrap`.
 - **`refit_reason`** (`string`): human-readable reason recorded with the flag, e.g.
-  `"growth: 42 notes, 15 days"` or `"untagged_rate: 0.09"`. Present only when
+  `"growth: 42 notes, 15 days"`, `"untagged: 9.2%"`, or `"hub: token-budget (27%)"`
+  (the exact formats emitted by `evaluateVocabTriggers`). Present only when
   `refit_pending` is true.
 - **`last_refit`** (`{note_count: int, date: YYYY-MM-DD}`): vault state at the time of the
   last bootstrap or refit — the baseline the growth trigger measures against. Seeded at

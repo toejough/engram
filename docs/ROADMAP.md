@@ -170,7 +170,7 @@ dual-channel assignment at every `learn`/`amend` write), tag-match nomination in
 ride-along, typed `--supersedes` flag, live vault migrated (vocab bootstrap + 6 supersessions classified; retired
 relation edges archived in `docs/design/artifacts/2026-07-02-retired-relation-rationales.md`).
 See `docs/design/2026-07-03-vocab-notes-build-results.md`. Obsidian acceptance (graph hub visibility) pending Joe sign-off.
-**✅ REFIT LIFECYCLE LIVE 2026-07-03:** in-process trigger check at all three write sites (learn, amend, resituate) → `refit_pending` in `vocab.centroids.json` → `engram vocab stats` verdict line (`verdict: OK` / `verdict: REFIT_PENDING (<reason>)`) + query payload flag → learn skill Step 1.5 autonomous refit; recalibrated triggers: growth ≥40 notes AND ≥14d / vault-wide untagged >8% / hub >25%; metered per-refit ≈$0.09.
+**✅ REFIT LIFECYCLE LIVE 2026-07-03:** in-process trigger check at all three write sites (learn, amend, resituate) → `refit_pending` in `vocab.centroids.json` → `engram vocab stats` verdict line (`verdict: OK` / `verdict: REFIT_PENDING (<reason>)`) + query payload flag → learn skill Step 1.5 autonomous refit; recalibrated triggers (independent — ANY one trips the flag): growth ≥40 notes AND ≥14d since last refit; vault-wide untagged >8%; any term >25% of vault. Measured per-refit cost ≈$0.09 (2026-07-03 validation run).
 
 ### Deeper arc — rebuild the skills from behavioral atoms  [ARCHITECTURE — Joe 2026-06-29]
 The skills (recall, learn, please, route) overlap; the underlying *atoms* are distinct behaviors —

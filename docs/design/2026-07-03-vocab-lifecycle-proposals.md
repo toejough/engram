@@ -1,7 +1,9 @@
 # Vocab lifecycle liveness — proposals
 
-**Status:** proposals for Joe's decision — NO build this round.
-**Decided + shipped 2026-07-03:** O2 + autonomous refit (Joe); build plan `docs/superpowers/plans/2026-07-03-vocab-lifecycle-o2-build.md`.
+**Status:** proposals presented 2026-07-03 (that round: analysis only, no build) — then
+**decided + shipped the same day:** O2 (binary flag) + autonomous refit (Joe's call); build plan
+`docs/superpowers/plans/2026-07-03-vocab-lifecycle-o2-build.md`. The analysis below is the
+decision record, kept as written; post-ship measurements are appended at the end.
 **Ask (Joe, 2026-07-03):** keep the vocabulary live and effective, balanced against time/$ —
 learn feels like the sensible check site (don't re-inflate recall), but the actual impact is
 unknown; investigate options and present proposals.
@@ -182,4 +184,10 @@ whether immediate riders 1–2 (resituate fix, metered refit) ride along with th
 
 per-refit cost: $0.0857 (measured 2026-07-03, dedicated headless derivation; binary phases ~$0)
 wall-clock: ~9s (phases A–C; Phase B derivation 9s, binary phases A+C <1s each)
-The measurement supersedes the ~$1–2/refit estimate above; the shipped autonomous flow runs no per-fire gates, so per-fire ≈$0.09 and the projected monthly cost at 40/14 is ≈$0.12 — the $5–7/month figures above are pre-measurement upper bounds.
+This supersedes the pre-ship estimates, and the gap is large — state it plainly: the analysis
+above priced a fire at ~$4–5 ($1–2 refit estimated from token arithmetic + the $3.09 trap-smoke
+gate, assumed to run per fire). The shipped autonomous flow runs NO per-fire gates, and the
+refit itself measured $0.0857 — so a real fire costs ≈$0.09, and at the replayed 1.4 fires/month
+the projected monthly cost is **≈$0.12, roughly 50× below the $5–7/month pre-measurement upper
+bound** in the tables above. Those tables are kept as written (decision record); this
+measurement is the current number.

@@ -95,7 +95,9 @@ binary LLM-free and the executors did the judgment work in-context.
   `TABLE ... WHERE contains(vocab, "eval-methodology")` returns the member set.
 - **✅ Refit lifecycle SHIPPED 2026-07-03** (see `docs/superpowers/plans/2026-07-03-vocab-lifecycle-o2-build.md`):
   in-process trigger check at all three write sites (learn, amend, resituate) → `refit_pending`
-  in `vocab.centroids.json`; shipped trigger set: growth ≥40 notes AND ≥14d, vault-wide
+  in `vocab.centroids.json`; shipped trigger set (recalibrated from the original untagged->10%-of-last-25 / term>25% /
+    vault+30% set, which replayed HOT at 6 fires/22d — see the trigger-calibration evaluation in
+    `docs/design/2026-07-03-vocab-lifecycle-proposals.md`): growth ≥40 notes AND ≥14d, vault-wide
   untagged >8%, any term >25% of vault; verdict line in `engram vocab stats`; ≈5-token
   `refit_pending` query payload flag; learn skill Step 1.5 autonomous refit.
 - **Supersession re-smoke**: L5×T5 mechanism proven, delivery underpowered (n too small). Re-eval
