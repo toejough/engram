@@ -121,6 +121,44 @@ type termScore struct {
 	score float32
 }
 
+// applyVocabAssignmentCore is the shared body of the write-site assignment
+// helpers (learn/amend/resituate) — one copy of the load-assign-write flow;
+// each site's wrapper plucks its deps fields and forwards. Silent no-op when
+// any required func is nil, terms are absent, or the sidecar is unreadable.
+func applyVocabAssignmentCore(
+	loadTermVectors func(string) ([]TermWithVector, error),
+	read func(string) ([]byte, error),
+	write func(string, []byte) error,
+	logWarning func(string, ...any),
+	vault, notePath, content, site string,
+) {
+	if loadTermVectors == nil || read == nil || write == nil {
+		return
+	}
+
+	terms, termsErr := loadTermVectors(vault)
+	if termsErr != nil || len(terms) == 0 {
+		return
+	}
+
+	bodyVec, ok := loadBodyVectorForNote(read, notePath)
+	if !ok {
+		return
+	}
+
+	assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
+	updated := WriteVocabAssignment(content, assigned)
+
+	if updated == content {
+		return
+	}
+
+	writeErr := write(notePath, []byte(updated))
+	if writeErr != nil && logWarning != nil {
+		logWarning("%s: vocab assignment write failed for %s: %v", site, notePath, writeErr)
+	}
+}
+
 // isVocabKind reports whether the note content's type field marks it as a vocab
 // or vocab-index note. These are filtered from the matched set, note-floor
 // reservation, and clustering so they do not surface in recall results.

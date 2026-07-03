@@ -112,29 +112,9 @@ var (
 // applyVocabAssignmentAfterResituate, keeping the trigger check outside this
 // early-return chain.
 func applyResituateVocabAssignment(deps ResituateDeps, vault, notePath, content string) {
-	if deps.LoadTermVectors == nil || deps.Read == nil || deps.Write == nil {
-		return
-	}
-
-	terms, termsErr := deps.LoadTermVectors(vault)
-	if termsErr != nil || len(terms) == 0 {
-		return
-	}
-
-	bodyVec, ok := loadBodyVectorForNote(deps.Read, notePath)
-	if !ok {
-		return
-	}
-
-	assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
-	updated := WriteVocabAssignment(content, assigned)
-
-	if updated != content {
-		writeErr := deps.Write(notePath, []byte(updated))
-		if writeErr != nil && deps.LogWarning != nil {
-			deps.LogWarning("resituate: vocab assignment write failed for %s: %v", notePath, writeErr)
-		}
-	}
+	applyVocabAssignmentCore(
+		deps.LoadTermVectors, deps.Read, deps.Write, deps.LogWarning,
+		vault, notePath, content, "resituate")
 }
 
 // applyVocabAssignmentAfterResituate assigns vocab terms and checks the refit

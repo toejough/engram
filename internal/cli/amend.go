@@ -191,31 +191,9 @@ func amendContent(raw []byte, args AmendArgs, parsedSupersedes []supersedesEntry
 // applyVocabAssignmentAfterAmend, keeping the trigger check outside this
 // early-return chain.
 func applyAmendVocabAssignment(deps AmendDeps, vault, notePath, amended string) {
-	if deps.LoadTermVectors == nil || deps.Read == nil || deps.Write == nil {
-		return
-	}
-
-	terms, termsErr := deps.LoadTermVectors(vault)
-	if termsErr != nil || len(terms) == 0 {
-		return
-	}
-
-	bodyVec, ok := loadBodyVectorForNote(deps.Read, notePath)
-	if !ok {
-		return
-	}
-
-	assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
-	updated := WriteVocabAssignment(amended, assigned)
-
-	if updated == amended {
-		return
-	}
-
-	writeErr := deps.Write(notePath, []byte(updated))
-	if writeErr != nil && deps.LogWarning != nil {
-		deps.LogWarning("amend: vocab assignment write failed for %s: %v", notePath, writeErr)
-	}
+	applyVocabAssignmentCore(
+		deps.LoadTermVectors, deps.Read, deps.Write, deps.LogWarning,
+		vault, notePath, amended, "amend")
 }
 
 // applyFactAmend overrides supplied fact fields, merges chunk-source provenance,

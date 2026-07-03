@@ -202,31 +202,9 @@ func (q quotedString) MarshalYAML() (any, error) {
 // applyVocabAssignmentAfterLearn, keeping the trigger check outside this
 // early-return chain.
 func applyLearnVocabAssignment(deps LearnDeps, vault, notePath, content string) {
-	if deps.LoadTermVectors == nil || deps.ReadSidecar == nil || deps.WriteNote == nil {
-		return
-	}
-
-	terms, termsErr := deps.LoadTermVectors(vault)
-	if termsErr != nil || len(terms) == 0 {
-		return
-	}
-
-	bodyVec, ok := loadBodyVectorForNote(deps.ReadSidecar, notePath)
-	if !ok {
-		return
-	}
-
-	assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
-	updated := WriteVocabAssignment(content, assigned)
-
-	if updated == content {
-		return
-	}
-
-	writeErr := deps.WriteNote(notePath, []byte(updated))
-	if writeErr != nil && deps.LogWarning != nil {
-		deps.LogWarning("learn: vocab assignment write failed for %s: %v", notePath, writeErr)
-	}
+	applyVocabAssignmentCore(
+		deps.LoadTermVectors, deps.ReadSidecar, deps.WriteNote, deps.LogWarning,
+		vault, notePath, content, "learn")
 }
 
 // applyVocabAssignmentAfterLearn assigns vocab terms to a newly written note,

@@ -1,12 +1,14 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -55,6 +57,72 @@ func TestApplyVocabAssignmentAfterResituate_TagsNote(t *testing.T) {
 	cli.ExportApplyVocabAssignmentAfterResituate(deps, "/vault", "/vault/1.note.md", rawNote)
 	g.Expect(written).NotTo(BeNil())
 	g.Expect(string(written)).To(ContainSubstring("agentic-recall-triggers"))
+}
+
+// TestApplyVocabAssignmentAfterResituate_TriggerFires drives
+// applyVocabAssignmentAfterResituate with a vault at the growth threshold and
+// asserts the trigger flag is persisted. ListMD and Now are set but
+// LoadTermVectors is nil — the trigger check must still run (mirrors the
+// learn/amend trigger tests).
+func TestApplyVocabAssignmentAfterResituate_TriggerFires(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 150 non-vocab notes, last_refit at 100 notes 20 days ago → growth trigger
+	names := make([]string, 150)
+	for i := range names {
+		names[i] = fmt.Sprintf("%d.2026-01-01.note.md", i+1)
+	}
+
+	centroidsDoc := cli.ExportVocabCentroidsDoc{
+		SchemaVersion: 1,
+		LastRefit:     &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-06-13"},
+	}
+
+	centroidsData, marshalErr := json.Marshal(centroidsDoc)
+
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	var centroidsWritten []byte
+
+	deps := cli.ResituateDeps{
+		Now:    func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		ListMD: func(string) ([]string, error) { return names, nil },
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				return centroidsData, nil
+			}
+
+			return nil, os.ErrNotExist
+		},
+		Write: func(path string, data []byte) error {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				centroidsWritten = data
+			}
+
+			return nil
+		},
+	}
+
+	cli.ExportApplyVocabAssignmentAfterResituate(deps, "/vault", "/vault/150.note.md", "---\ntype: fact\n---\n")
+
+	g.Expect(centroidsWritten).NotTo(BeNil(), "trigger check must write centroids")
+
+	var got cli.ExportVocabCentroidsDoc
+
+	unmarshalErr := json.Unmarshal(centroidsWritten, &got)
+
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+
+	if unmarshalErr != nil {
+		return
+	}
+
+	g.Expect(got.RefitPending).To(BeTrue(), "growth trigger must set refit_pending")
 }
 
 // TestRunResituate_CallsVocabAssignment verifies that RunResituate invokes
