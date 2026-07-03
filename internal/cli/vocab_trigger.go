@@ -42,6 +42,10 @@ func checkAndPersistVocabRefitTrigger(
 
 	doc, _ := readCentroidsDoc(vault, readFile) // zero-value on missing file
 
+	if doc.RefitPending {
+		return // already flagged — idempotent; no vault scan needed
+	}
+
 	totalNotes, untaggedCount, memberCounts := collectTriggerVaultStats(vault, listMD, readFile)
 
 	if doc.LastRefit == nil {
@@ -54,10 +58,6 @@ func checkAndPersistVocabRefitTrigger(
 		writeWithWarn(vault, doc, writeFile, logWarn, "seeding last_refit")
 
 		return
-	}
-
-	if doc.RefitPending {
-		return // already flagged — idempotent
 	}
 
 	fired, reason := evaluateVocabTriggers(totalNotes, untaggedCount, memberCounts, doc.LastRefit, now)
@@ -84,6 +84,17 @@ func collectTriggerVaultStats(
 		return 0, 0, nil
 	}
 
+	return collectTriggerVaultStatsFromNames(vault, names, readFile)
+}
+
+// collectTriggerVaultStatsFromNames is the names-in-hand form of
+// collectTriggerVaultStats, for callers that already listed the vault
+// (e.g. emitRefitRequest) — avoids a second directory pass.
+func collectTriggerVaultStatsFromNames(
+	vault string,
+	names []string,
+	readFile func(string) ([]byte, error),
+) (int, int, map[string]int) {
 	memberCounts := make(map[string]int)
 	totalNotes, untaggedCount := 0, 0
 

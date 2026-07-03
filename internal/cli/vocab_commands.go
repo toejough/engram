@@ -150,7 +150,8 @@ func RunVocabBootstrap(ctx context.Context, args VocabBootstrapArgs, deps VocabD
 	memberCounts := make(map[string]int)
 
 	if len(terms) > 0 {
-		memberCounts = retagAllNotesTwoPass(deps, args.Vault, terms, floor, buildLastRefitDoc(deps, args.Vault, when))
+		names, _ := deps.ListMD(args.Vault)
+		memberCounts = retagAllNotesTwoPass(deps, args.Vault, terms, floor, buildLastRefitDoc(names, when))
 	}
 
 	entries := buildIndexEntries(seed, memberCounts)
@@ -251,7 +252,8 @@ func RunVocabRefit(ctx context.Context, args VocabRefitArgs, deps VocabDeps, std
 	terms, _ := loadTermVectors(args.Vault, deps.ListMD, deps.ReadFile)
 
 	if len(terms) > 0 {
-		_ = retagAllNotesTwoPass(deps, args.Vault, terms, DefaultVocabFloor, buildLastRefitDoc(deps, args.Vault, when))
+		names, _ := deps.ListMD(args.Vault)
+		_ = retagAllNotesTwoPass(deps, args.Vault, terms, DefaultVocabFloor, buildLastRefitDoc(names, when))
 	}
 
 	// Regenerate index.
@@ -505,11 +507,10 @@ func buildIndexEntries(seed []SeedTerm, memberCounts map[string]int) []vocabInde
 }
 
 // buildLastRefitDoc builds a vocabLastRefitDoc stamped with the current note
-// count and date. Used by bootstrap and refit to seed last_refit so the trigger
-// checker has a baseline from the moment the vocab set is (re)initialised.
-func buildLastRefitDoc(deps VocabDeps, vault string, now time.Time) *vocabLastRefitDoc {
-	names, _ := deps.ListMD(vault)
-
+// count and date. Pure: callers pass the names they already listed. Used by
+// bootstrap and refit to seed last_refit so the trigger checker has a baseline
+// from the moment the vocab set is (re)initialised.
+func buildLastRefitDoc(names []string, now time.Time) *vocabLastRefitDoc {
 	return &vocabLastRefitDoc{
 		NoteCount: countNonVocabNoteFiles(names),
 		Date:      now.Format(dateFormat),
@@ -645,40 +646,6 @@ func collectCurrentTermEntries(names []string, vault string, deps VocabDeps) []r
 	return currentTerms
 }
 
-// collectNoteStats scans non-vocab notes to count total and untagged notes.
-func collectNoteStats(names []string, vault string, deps VocabDeps) (totalNotes, untaggedCount int) {
-	for _, name := range names {
-		if isVocabKindFilename(name) {
-			continue
-		}
-
-		totalNotes++
-
-		notePath := filepath.Join(vault, name)
-
-		raw, readErr := deps.ReadFile(notePath)
-		if readErr != nil {
-			continue
-		}
-
-		frontmatter, ok := splitFrontmatter(raw)
-		if !ok {
-			untaggedCount++
-
-			continue
-		}
-
-		var doc noteMiniDoc
-
-		unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-		if unmarshalErr != nil || len(doc.Vocab) == 0 {
-			untaggedCount++
-		}
-	}
-
-	return totalNotes, untaggedCount
-}
-
 // collectVaultStats scans vault names and returns per-term member counts,
 // term names, total note count, and untagged note count.
 func collectVaultStats(
@@ -792,8 +759,9 @@ func emitRefitRequest(vault string, deps VocabDeps, stdout io.Writer) error {
 	}
 
 	currentTerms := collectCurrentTermEntries(names, vault, deps)
-	memberCounts, _ := countMembersFromNotes(deps.ListMD, deps.ReadFile, vault)
-	totalNotes, untaggedCount := collectNoteStats(names, vault, deps)
+	// One vault pass for all stats (names already in hand); unreadable notes
+	// count as untagged, matching the trigger path's convention.
+	totalNotes, untaggedCount, memberCounts := collectTriggerVaultStatsFromNames(vault, names, deps.ReadFile)
 
 	type statsBlock struct {
 		TotalNotes    int            `json:"totalNotes"`

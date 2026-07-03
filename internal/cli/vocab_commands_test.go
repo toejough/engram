@@ -1534,11 +1534,12 @@ func TestRunVocabRefit_ClearRemovals_WriteError_LogsWarning(t *testing.T) {
 	g.Expect(warned).To(BeTrue(), "write error must trigger log warning")
 }
 
-// ── Coverage: collectNoteStats read-error path ────────────────────────────────
+// ── Coverage: emit-request stats read-error path ─────────────────────────────
 
 // TestRunVocabRefit_EmitRequest_NoteReadError_CountsNote verifies that when
-// ReadFile fails for a non-vocab note in collectNoteStats, totalNotes is still
-// incremented but untaggedCount is not (covers the readErr → continue branch).
+// ReadFile fails for a non-vocab note, totalNotes is incremented AND the note
+// counts as untagged — emit-request shares collectTriggerVaultStatsFromNames
+// with the trigger path, whose convention is unreadable ⇒ untagged.
 func TestRunVocabRefit_EmitRequest_NoteReadError_CountsNote(t *testing.T) {
 	t.Parallel()
 
@@ -1568,8 +1569,8 @@ func TestRunVocabRefit_EmitRequest_NoteReadError_CountsNote(t *testing.T) {
 	g.Expect(ok).To(BeTrue(), "stats block must be present in payload")
 	g.Expect(stats["totalNotes"]).To(BeEquivalentTo(1),
 		"unreadable note must still be counted in totalNotes")
-	g.Expect(stats["untaggedCount"]).To(BeEquivalentTo(0),
-		"unreadable note must not increment untaggedCount")
+	g.Expect(stats["untaggedCount"]).To(BeEquivalentTo(1),
+		"unreadable note counts as untagged (trigger-path convention)")
 }
 
 // ── Vocab commands: refit ─────────────────────────────────────────────────────
