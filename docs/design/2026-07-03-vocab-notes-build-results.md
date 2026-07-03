@@ -11,7 +11,7 @@
 | 2 · Vocab commands | `engram vocab bootstrap` (seeds 25 term-notes from `dev/eval/links/fabrics/l6.json`, embeds, tags all existing notes, generates `vocab.index.md`, idempotent); `engram vocab propose` (LLM-gated: no-overlap + ≤20% attachment); `engram vocab stats`; `engram vocab refit` (LLM-judged: merge/split/rename + member-link rewrite + major-version bump); assignment wiring into learn/amend (term vectors created by bootstrap); assignment tuning sweep completed | `43f55a9a`, `12d72074`, `7a107e51` + fixes `f824c85e` (2026-07-02/03) |
 | 3 · Query integration | Tag-match nomination in `candidate_l2s` (budget fields `tag_nominations_added`/`dropped`, cap 40/cluster); superseded-note ride-along (+1 note per hit); gated: C3–C6 smoke GREEN, 38 zero-miss replays, S2 recovery probe | `d426e53c` + fixes `c115004b`, `6251ebb2` (2026-07-03) |
 | 4 · Skill rewrite | recall SKILL.md: Step 2.6 deleted, Step 2.5C/4 rewritten (no `--relation`, `--supersedes` only when correcting), overview + mode refs updated; learn SKILL.md: `--supersedes` + auto-vocab language; writing-skills TDD (headless RED/GREEN) | `22850e56` (2026-07-03) |
-| 5 · Migration | Live vault backup verified (file count equal); `engram vocab bootstrap` on live vault; 77 relation edges classified by LLM (criteria: supersession only if rationale states refutes/narrows/updates/corrects/scopes) → 6 supersessions typed, remainder archived in `docs/design/artifacts/2026-07-02-retired-relation-rationales.md`; "Related to:" sections stripped from all note bodies; vocab.index.md generated; `engram check` GREEN | `e3a8c3fc` (2026-07-03); vault not in git |
+| 5 · Migration | Live vault backup verified (file count equal); `engram vocab bootstrap` on live vault; 84 relation edges inventoried and classified (criteria: supersession only if rationale states refutes/narrows/updates/corrects/scopes) → 7 supersession edges = 6 unique relationships typed; 76 dropped; 1 dangling; all archived in `docs/design/artifacts/2026-07-02-retired-relation-rationales.md`; "Related to:" sections stripped from all note bodies; vocab.index.md generated; `engram check` GREEN | `e3a8c3fc` (2026-07-03); vault not in git |
 
 ## Gate numbers
 
@@ -55,7 +55,7 @@ median pool 31.0 — exact parity with the model.
 | `engram check` | PASS (3 pre-existing prose-wikilink dangles in notes 33/142, unrelated to the migration) |
 | `engram embed status` | 0 stale (hash exclusion of machine lines held through the strip) |
 | Spot queries (3) | candidate_l2s + `tag_nominations_added` budget field emitted; `outbound_links` gone |
-| Supersessions written | 6 typed relationships (3 narrows, 3 updates) from 84 inventoried edges; 76 dropped with rationales archived; 41 notes stripped |
+| Supersessions written | 6 typed relationships (3 narrows, 3 updates) from 84 inventoried edges (7 supersession edges — the 120↔153 pair was reciprocal; 76 dropped; 1 dangling); rationales archived; 41 notes stripped |
 
 ## Eval-arm contamination incident (2026-07-02, honest record)
 
@@ -73,7 +73,7 @@ a full recovery patch + tarball** (`~/.claude/jobs/9e790e0a/tmp/eval-arm-sideeff
 must not run with bypassPermissions while real repo paths are reachable from their payload content;
 harness hardening is queued as a followup.
 
-## Spend (this build; the motivating link-value exploration has its own ledger: $222.93, see `2026-07-02-link-value-exploration.md`)
+## Spend (this build; the motivating link-value exploration has its own ledger: $222.93, see `docs/design/2026-07-02-link-value-exploration.md`)
 
 | Item | Cost (direct metered API) |
 |---|---|
