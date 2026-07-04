@@ -1,5 +1,10 @@
 # Write-Memory Atom (O-A) Build Implementation Plan
 
+> **STATUS: SUPERSEDED (2026-07-04)** by `2026-07-04-write-memory-worker-build.md`. Executed
+> through commit 3c697e34: the reference-card atom's runtime dereference measured 0/27 across
+> haiku (two wording strengths) and sonnet; Joe's boundary correction redraws write-memory as a
+> WORKER skill. The harness, evidence, and non-fire/audit instruments built here carry forward.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. REQUIRED SUB-SKILL for every `skills/*/SKILL.md` edit: superpowers:writing-skills (Iron Law — the RED/GREEN/REFACTOR structure in Tasks 3–4 and the REFACTOR steps are executed UNDER that skill, not merely shaped like it). Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship O-A as scoped in `docs/design/2026-07-04-atomic-skills-options.md` — a `write-memory` atom skill holding the mechanical vault-write procedures, invoked by name from recall and learn, behavior preserved.
