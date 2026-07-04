@@ -1,0 +1,1 @@
+Done. I'll run `make lint` before any push going forward and flag it if tests or commits skip it.

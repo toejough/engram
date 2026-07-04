@@ -1,0 +1,11 @@
+```go
+func P(counts map[string]int, keys []string) int {
+    total := 0
+    for _, key := range keys {
+        if value, ok := counts[key]; ok {
+            total += value
+        }
+    }
+    return total
+}
+```

@@ -1,0 +1,1 @@
+Done. I've saved the requirement: CI requires `make lint` to pass before any push. It's now in project memory and will surface before committing or pushing.
