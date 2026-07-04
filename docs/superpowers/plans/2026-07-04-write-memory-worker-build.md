@@ -284,7 +284,7 @@ Seed dirs: W2 arms pass `dev/eval/atoms-build/fixtures/vault-seed` (the 159 note
 
 ### Task W5: Non-fire ship-gate (re-run with the worker description)
 
-Same design as the atom round's T3 (all four skills deployed in fixture dirs; prompts w-generic + w-adjacent × 3 arms each; classification rule: PARENT-INSTRUCTED iff the transcript shows recall/learn loaded before the invocation and its text directs it; learn-mediated on w-adjacent is the designed path). **PASS = 0 AUTONOMOUS write-memory invocations across 6 arms; any = ship-gate FAIL, no deploy.** Note: the worker's description is intentionally more inviting than the atom's ("Executes a vault write...") — this re-run is NOT optional.
+Same design as the atom round's T3 (all four skills deployed in fixture dirs — the parents as wrecall/wlearn per the fixture-isolation rule; prompts w-generic + w-adjacent × 3 arms each; classification rule: PARENT-INSTRUCTED iff the transcript shows wrecall/wlearn loaded before the invocation and its text directs it; wlearn-mediated on w-adjacent is the designed path). **PASS = 0 AUTONOMOUS write-memory invocations across 6 arms; any = ship-gate FAIL, no deploy.** Note: the worker's description is intentionally more inviting than the atom's ("Executes a vault write...") — this re-run is NOT optional.
 
 - [ ] **Step 1:** run 6 arms, classify each invocation with quoted context, append table, contamination check.
 - [ ] **Step 2:** commit: `test(atoms-build): worker non-fire negative results` (+ trailer).
