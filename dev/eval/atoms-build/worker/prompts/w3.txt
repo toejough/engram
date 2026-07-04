@@ -1,0 +1,11 @@
+Execute recall Step 2.5C now for BOTH clusters below, in order, following the recall skill available in this session.
+
+Cluster 1:
+- candidate_l2s: one note, "31.2026-06-01.commit-messages-imperative-mood.md" — claim: "Commit message subjects use imperative mood."
+- Cluster chunk members evidence this principle: parallel Go table tests must not share the fixture map — each subtest gets its own copy; sharing caused flaky failures twice.
+- Chunk source IDs: sess-a.jsonl#turn-3 and sess-b.jsonl#turn-7
+
+Cluster 2:
+- candidate_l2s: one note, "47.2026-06-10.go-test-fixtures-per-subtest.md" — claim: "Parallel Go table tests must not share the fixture map; each subtest gets its own copy — sharing caused flaky failures in two sessions."
+- Cluster chunk members evidence the same principle with no additional claims.
+- Chunk source IDs: none for this cluster

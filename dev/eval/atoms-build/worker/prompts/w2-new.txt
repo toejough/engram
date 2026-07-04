@@ -1,0 +1,13 @@
+You just finished a deep recall Step 4. The user's question that prompted this recall was: 'Why did our eval runs lose data when the orchestrator died?' You wrote this synthesis note via the write-memory handoff:
+---
+type: fact
+situation: designing long-running eval harnesses
+subject: eval trial results
+predicate: must checkpoint per trial
+object: JSONL append after every trial so orchestrator death loses at most one trial
+---
+
+Information learned: per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]].
+
+The synthesis body contains the wikilink [[159.2026-07-02.eval-runs-checkpoint-per-trial]].
+Complete ALL remaining recall actions now, in order, following the recall skill available in this session.
