@@ -1,0 +1,25 @@
+Looking at the deep recall workflow you've completed, here are the remaining actions to finish:
+
+## Remaining Recall Steps
+
+**Step 5: Persist the synthesis fact**
+- Save the synthesis note you generated as a new memory file in `/Users/joe/.claude/projects/-private-tmp-oa-t2-old-2/memory/`
+- File it with frontmatter matching the fact schema (type, situation, subject, predicate, object)
+- Add the entry to `MEMORY.md` index so it's retrievable in future sessions
+
+**Step 6: Resolve the wikilink** 
+- Check if the referenced memory `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]` exists
+- If it exists: verify it's up-to-date and add a reciprocal link back to this new fact
+- If it doesn't exist yet: create it as a follow-up memory documenting the specific checkpoint strategy (per-trial JSONL append)
+
+**Step 7: Apply to the current decision**
+- Return to whatever decision or task prompted the recall ("Why did our eval runs lose data...")
+- Use the recalled lesson to guide your approach — in this case, any long-running eval harness design should now incorporate per-trial JSONL checkpointing
+- If you're building or fixing eval infrastructure, this principle is now primed and available
+
+**Step 8: Mark recall complete**
+- The recall itself is done once you've applied the lesson; no formal "close" step needed, but the learning is crystallized
+
+---
+
+**Should I execute these steps now?** I can persist the fact to memory and update the index immediately, which anchors the lesson for future recall. Let me know if you'd like me to do that, or if you're just checking my understanding of the workflow.

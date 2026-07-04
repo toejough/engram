@@ -1,0 +1,33 @@
+Based on the recall skill definition you just loaded, here are ALL remaining actions to finish the recall, in order:
+
+## Remaining Actions After Step 4
+
+You have completed **Step 4 (synthesis write)** — you wrote a fact note about eval trial checkpointing with the wikilink `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`.
+
+Since your synthesis body contains ≥1 wikilink, the final required action is:
+
+### Step 4 QA Capture — Record the Q&A pair
+
+Write ONE QA pair using `engram learn qa` to link the question that prompted this recall to the synthesis conclusion:
+
+```bash
+engram learn qa \
+  --slug "eval-orchestrator-data-loss-prevention" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "Eval trial results must checkpoint per trial — JSONL append after every trial so orchestrator death loses at most one trial" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+**Details:**
+- `--slug`: kebab-case summary of the question
+- `--question`: the verbatim question you stated at the start
+- `--answer`: the synthesis conclusion you wrote in the fact note (the principle derived from the checkpoint analysis)
+- `--contributors`: the full basename from the wikilink in your synthesis body (one `--contributors` per wikilink; yours has one)
+- `--certainty`: matches the label on the synthesis note (this is a learned fact from past incident analysis, so `high`)
+- `--source`: "recall Step 4, session" + today's date
+
+---
+
+**After this QA capture completes, the recall is finished.** The entire sequence is: Step 0 → Step 0.5 → Steps 1–3 (query + synthesis) → Step 4 (synthesis note write) → **Step 4 QA capture** → done.

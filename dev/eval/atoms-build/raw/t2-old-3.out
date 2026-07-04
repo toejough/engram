@@ -1,0 +1,21 @@
+Based on the recall workflow, after completing Step 4 (synthesis) and creating the fact memory via engram learn, the remaining actions to finish the recall are:
+
+## Remaining Recall Actions
+
+**Step 5: Verify & Anchor**
+- Confirm the fact memory was created with the correct linkage to the referenced trial checkpoint memory `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`
+- Check that the synthesis is properly indexed and discoverable for future similar questions
+
+**Step 6: Apply to Original Context**
+- Return to your original question: "Why did our eval runs lose data when the orchestrator died?"
+- Apply the synthesized insight: The answer is that you were not checkpointing per-trial results to JSONL. Without per-trial append-only writes, orchestrator death loses all in-flight trial data. The fix is to checkpoint after each trial completes.
+
+**Step 7: Update Working Memory**
+- If you're currently designing or modifying an eval harness, use this recalled principle immediately—make per-trial JSONL checkpointing a requirement in your implementation, not an afterthought.
+
+**Step 8: Mark Complete**
+- The recall is finished once the synthesized lesson is applied to your current decision/task and the memory is confirmed saved.
+
+---
+
+Would you like me to invoke the recall skill to verify the memory structure, or are you ready to apply this lesson to your current work?

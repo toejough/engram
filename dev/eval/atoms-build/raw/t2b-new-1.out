@@ -1,0 +1,24 @@
+Looking at the learn skill and the session state you've described, here are the exact commands for the remaining steps:
+
+## Step 2 — Crystallize explicit lessons
+
+The one correction this session should be written as feedback:
+
+```bash
+engram learn feedback --slug lint-fix-not-suppress --position top \
+  --source "session 2026-07-04, context: Claude proposed adding nolint directive to silence a warning" \
+  --situation "when facing a linter warning during code changes" \
+  --behavior "proposed adding a nolint/noqa comment to suppress the warning" \
+  --impact "suppression hides the root cause instead of fixing it; same violation resurfaces in review or later maintenance" \
+  --action "investigate the underlying issue and fix it; do not use lint directives as a workaround"
+```
+
+## Step 2.5 — Ad-hoc QA capture
+
+Skip — this session contains no substantive answered questions (no questions with `[[...]]` wikilink answers, and no vault note was crystallized as an answer).
+
+## Step 3 — Report
+
+Once the feedback is written:
+- Confirm the command succeeded and report the vault note slug
+- Note that qa round-2 gate is at 1/20 (not yet ready; needs ≥20 pairs)

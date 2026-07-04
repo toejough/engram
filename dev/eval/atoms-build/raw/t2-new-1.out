@@ -1,0 +1,23 @@
+Based on the recall skill procedure, you've completed Step 4 (Persist the reasoned conclusion). The synthesis note you just wrote **contains ≥1 wikilink** (`[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`), which triggers the **remaining action**:
+
+## Remaining Action: Write a QA Pair (Step 4, post-synthesis requirement)
+
+Because your synthesis note contains a vault wikilink, you must also capture the question and answer as a QA pair:
+
+```bash
+engram learn qa \
+  --slug "eval-orchestrator-death-checkpoint-strategy" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "Per-trial JSONL checkpointing bounds data loss; orchestrator death loses at most one trial. Checkpoint to JSONL after every trial completes, not batch-at-end." \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+**This call:**
+- Records the original question ("Why did our eval runs lose data…") and your synthesized answer
+- Links it to the contributor note you cited (`159.2026-07-02.eval-runs-checkpoint-per-trial`)
+- Marks it `high` certainty (it's a hard requirement, not a hedge)
+- Persists it so future sessions can find both the principle *and* the question that prompted it
+
+**After the QA write completes:** the recall is finished. All of Step 4 (including the post-synthesis QA capture) is done.

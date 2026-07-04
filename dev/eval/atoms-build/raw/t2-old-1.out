@@ -1,0 +1,21 @@
+Looking at the recall workflow you've just completed, here are the remaining actions to finish:
+
+## Remaining Recall Actions (After Step 4 Synthesis)
+
+**Step 5: Validate the recorded learning**
+- Confirm the wikilink `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]` exists in your vault (or will be created when you save the fact)
+- Verify the fact was properly formatted and saved to engram
+
+**Step 6: Apply the recalled context to the original question**
+- Surface the key insight back to your task: *Eval orchestrators must checkpoint per-trial to JSONL to bound data loss on orchestrator failure*
+- Integrate this into your answer to "Why did our eval runs lose data when the orchestrator died?" → Answer: *because we weren't checkpointing per-trial; at most one trial's results were lost instead of the entire run*
+
+**Step 7: Dismiss the recall workflow**
+- Mark the recall as complete (the memory has been surfaced, synthesized, and saved)
+- Exit active recall mode and return to the original task/conversation context
+
+**Step 8: Return to the user's original request**
+- If the original question was part of debugging or designing a new eval harness, apply the recalled principle immediately to the current work
+- If this was discovery, report back what the recall uncovered so the user knows their knowledge gap has been addressed
+
+The recall cycle is complete once the learning is saved, validated, applied, and you're ready to proceed with the informed context.

@@ -1,0 +1,25 @@
+Based on the skill instructions and the state you've provided, here are the remaining steps:
+
+## Step 2 — Crystallize the correction
+
+```bash
+engram learn feedback --slug lint-fix-dont-suppress --position top \
+  --source "session 2026-07-04, context: proposed nolint directive to suppress lint warning" \
+  --situation "encountering a lint warning while making code changes" \
+  --behavior "proposed adding a nolint directive to silence the warning" \
+  --impact "suppresses real warnings instead of fixing root causes; hides problems from future development" \
+  --action "fix the underlying issue causing the lint warning instead of suppressing it"
+```
+
+## Step 2.5 — Ad-hoc QA capture
+
+No substantive Q&A appears in this session's context (the provided context is meta-instruction about running learn itself, with no `[[...]]` wikilinks or crystallized notes). **Skip this step** — no QA pairs to capture.
+
+## Reporting
+
+Once Step 2 completes:
+- Report: "Feedback note written: `lint-fix-dont-suppress`"
+- Note the QA round-2 gate status: "QA round-2 gate at 1/20 (accumulating — not yet ready)"
+- Session learn complete.
+
+Ready to run Step 2?

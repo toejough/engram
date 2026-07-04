@@ -1,0 +1,28 @@
+Looking at your session state, here are the exact commands for the remaining steps:
+
+## Step 1.5 — Vocab liveness check
+
+```bash
+engram vocab stats
+```
+
+Since you've confirmed the verdict is `OK` and QA round-2 gate is accumulating (1/20, not yet ready), no vocab refit is needed. Continue to Step 2.
+
+## Step 2 — Crystallize the correction
+
+```bash
+engram learn feedback --slug suppress-lint-warnings --position top \
+  --source "session 2026-07-04, context: proposed adding nolint directive to silence a warning" \
+  --situation "addressing lint warnings in code review" \
+  --behavior "proposed suppressing the warning with a nolint directive" \
+  --impact "masks the underlying issue; fixes are ignored, problems accumulate" \
+  --action "fix the underlying issue instead of suppressing the warning"
+```
+
+## Step 2.5 — Ad-hoc QA capture
+
+No substantive Q&A occurred this session (only a correction). Skip this step.
+
+---
+
+Run the three commands above in order. That completes the learn skill for this session.
