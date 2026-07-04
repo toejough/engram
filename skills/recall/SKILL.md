@@ -242,6 +242,25 @@ Write ONE synthesis note for the conclusion with `engram learn fact|feedback`:
 hunch, you'd hedge below "probable", or it merely re-aggregates one note, do NOT persist. One synthesis
 note per conclusion; link all of its inputs.
 
+**After writing the synthesis note: if the synthesis body contains ≥1 `[[full-basename]]` wikilink
+to a vault note, ALSO write a QA pair to record the question and this session's answer:**
+
+```bash
+engram learn qa \
+  --slug "<kebab summary of the question>" \
+  --question "<verbatim question that prompted this recall>" \
+  --answer "<the synthesis conclusion you just wrote as the note body>" \
+  --contributors "<full-basename-1>" \
+  --contributors "<full-basename-2>" \
+  ... (one --contributors per [[full-basename]] wikilink in the synthesis) \
+  --certainty "<high|medium|low — match the certainty label on the synthesis note>" \
+  --source "recall Step 4, session <date>"
+```
+
+Contributors are auto-extracted from the `[[full-basename]]` wikilinks you already wrote in the
+synthesis body — do NOT free-list ("what notes did you use?"). If the synthesis body contains no
+wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
+
 ## Red flags — STOP and re-read
 
 | Sign you're off-script | What you should be doing |
