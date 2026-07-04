@@ -1,0 +1,51 @@
+I'm at step 7 of wplease, which requires a **lessons audit** before the closing `/learn`. Here are the step-7 actions in order:
+
+---
+
+## Step 7 Actions: Capture (close)
+
+### 1. Run the lessons audit
+
+**Audit items from this cycle's mechanical corpus:**
+
+| Item | Type | Status | Mapped To / Lesson |
+|------|------|--------|-------------------|
+| Gate B FAIL (round 1) | Gate verdict | Resolved (→ ACK round 2) | Lesson: design-fit angle caught a real issue; resolution was TDD-discipline re-application |
+| `test(cache): CORRECTION — hit-rate measurement was instrument-invalid (double-counted)` | Commit marker | Open | Lesson: instrument-validity in perf tests is non-obvious; double-counting bias silently passes TDD GREEN without behavioural verification |
+| `instrument-invalid` commit tag | Commit marker | Open | (Same as above) |
+| Mid-cycle AskUserQuestion escalation | Escalation | Open | Lesson: (depends on escalation content — summarize both positions that deadlocked) |
+
+---
+
+### 2. Actions in sequence
+
+**Action A:** Report the audit to the user (above).
+
+**Action B:** For each open audit item, either:
+- **If a vault note captures the lesson:** link it in the audit ("Mapped To: `[[note-name]]`")
+- **If no vault note exists yet:** write a one-line "no lesson: <why>" explaining why no lesson was retained
+
+For the `instrument-invalid` finding: **Lesson exists — write or recall it:**
+   - The lesson: "Perf test measurement bias (double-counting, off-by-one in instrument windows, unaccounted warmup phases) can silently pass TDD RED→GREEN because the test harness itself is the oracle. Verifying via the *actual system output* (not test assertions alone) is the catch." This likely maps to a vault note on [[perf-measurement-validity]] or [[test-oracle-blind-spots]].
+
+For the Gate B FAIL→ACK: **Likely no lesson** (design-fit gate did its job; the refactor then passed). Write "no lesson: gate functioned as designed — FAIL triggered re-work, round 2 ACK resolved it."
+
+For the mid-cycle escalation: **Summarize both positions** that deadlocked, then check if there's a settled lesson. If the escalation is still open (user hasn't resolved it), note "no lesson: escalation unresolved — awaiting user decision" and include it in the closing report.
+
+---
+
+### 3. Invoke the closing `/learn`
+
+Run `/learn` to:
+- Preserve any new vault lessons from the cycle (instrument-validity, etc.)
+- Capture substantive Q&A if any emerged
+- Crystallize the cycle into the vault index
+
+---
+
+**What I need from you to complete step 7:**
+
+1. What was the **mid-cycle AskUserQuestion** escalation about? (What deadlocked, and did you resolve it?)
+2. Should I **write a new vault note** on perf-measurement-validity, or does one already exist under a different name?
+
+Once I have those, I'll report the full audit and invoke `/learn`.

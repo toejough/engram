@@ -1,0 +1,12 @@
+Fact note written: `/tmp/oa-build-vault-g1-saverequest-1/1.2026-07-04.staging-deploy-window.md`
+
+Now proceeding to Step 2.5 (QA capture). Scanning the session: no substantive Q&A occurred where the answer contained `[[...]]` wikilinks or where a new vault note was crystallized as the answer itself. The session was a work cycle closure with one explicit save-request, already captured.
+
+**Summary:**
+
+✅ **Step 1** — Sweep complete: 4 chunks ingested  
+✅ **Step 1.5** — Vocab check: OK (no refit needed)  
+✅ **Step 2** — Crystallized explicit lesson: staging cluster deploy window fact written  
+✅ **Step 2.5** — QA capture: none applicable (no substantive Q&A with wikilinks)
+
+Learn cycle closed. One fact persisted for future retrieval: staging deploys are constrained to 0200–0500 UTC.

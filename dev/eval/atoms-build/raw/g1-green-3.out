@@ -1,0 +1,16 @@
+Done. Vault note written: `/tmp/oa-build-vault-g1-green-3/1.2026-07-04.metrics-instrument-validation.md`
+
+Returning to wlearn for final report.
+
+---
+
+**Learn cycle complete:**
+
+- Step 1: Memory index swept (completed earlier: 4 chunks ingested)
+- Step 1.5: Vocab liveness — OK, no refit needed; QA pairs accumulating (0/20)
+- Step 2: Crystallized one explicit lesson — the reversal on metrics accuracy (40% → 5%)
+  - Vault note: `metrics-instrument-validation` (feedback)
+  - Root cause captured: instrument design validation required before reporting aggregate claims
+- Step 2.5: No substantive Q&A pairs with `[[...]]` wikilinks this session — skipped
+
+Work cycle closed.

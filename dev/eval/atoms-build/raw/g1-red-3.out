@@ -1,0 +1,11 @@
+**Step 1 complete.** Memory index updated: 28 chunks ingested (13 embedded).
+
+**Vocab health:** OK, no refit needed. QA accumulation: 0/20 (not yet at round-2 gate).
+
+**Step 2 — Explicit lessons scan:**
+
+Reviewing this session: you reported a metrics result, then discovered an error in your measurement methodology (double-counting cache hits), corrected the reported figure in a CORRECTION section, and told the user the true number. The user made no explicit corrections to your approach and made no save-requests.
+
+**Outcome:** No corrections to crystallize, no explicit save-requests. No Step 2 work.
+
+**Summary:** Two-command learn complete. Memory is current; no new vault notes required this cycle.

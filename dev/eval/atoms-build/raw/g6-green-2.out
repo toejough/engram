@@ -1,0 +1,27 @@
+Based on the wplease skill structure, here's the escalation text following the `AskUserQuestion` format with required provenance:
+
+---
+
+**Escalation: Handoff Evaluation — All Arms Failed**
+
+The eval measured **0 of 12 arms** performing the expected handoff (evidence: `[FILE_OR_COMMAND_REFERENCE]`; verified by: `[MEASUREMENT_METHOD]`).
+
+The pre-registered branch triggered on this outcome. The workflow cannot proceed without a user decision on how to handle this result.
+
+**What this means:** No approach in the evaluated set met the handoff criteria. This blocks progression to the next cycle step.
+
+**Decision needed:** 
+1. **Revise the eval criteria** — were the handoff expectations miscalibrated or too strict?
+2. **Pivot the arm set** — restart with different approaches/configurations and re-run the eval?
+3. **Escalate further** — consult stakeholders or abandon this track?
+4. **Other** — describe your preferred next action.
+
+Which direction would you like to take?
+
+---
+
+**Notes on the template above:**
+- Replace `[FILE_OR_COMMAND_REFERENCE]` with the actual file path or command that produced the 0/12 measurement
+- Replace `[MEASUREMENT_METHOD]` with how it was verified (e.g., "parsed eval.json", "counted passing test runs", etc.)
+- This follows wplease's **escalation provenance rule**: every measured claim carries evidence + validity statement, and unverified hypotheses are labeled as such
+- The three options reflect the decision branches a failed eval typically opens; adjust per your actual context

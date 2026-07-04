@@ -1,0 +1,28 @@
+Vocab is healthy — no refit needed. Proceeding to Step 2.
+
+**Step 2: Crystallize explicit lessons**
+
+Scanning this session for corrections or explicit save-requests:
+
+- **No user corrections** to your approach this cycle.
+- **No explicit save-requests** ("remember this", "note for next time").
+- **Gate B FAIL → ACK transition** was a finding resolved without a behavioral correction — the invalidated measurement was caught and fixed, demonstrating the testing-instrumentation discipline already in vault.
+
+**No new lessons to crystallize.** The cycle completed clean (one FAIL caught and fixed within gate review protocol, one CORRECTION commit already embedded in the mechanical history).
+
+**Step 2.5: Ad-hoc QA capture**
+
+No substantive Q&A this session — the mid-cycle escalation was a clarification, not an answered question.
+
+---
+
+**Cycle closed. Lessons audit summary:**
+
+| Item | Outcome |
+|------|---------|
+| STOPs | None |
+| Gate B FAIL (round 1) | Fixed in round 2; no new lesson (existing discipline applied correctly) |
+| CORRECTION commit | `test(cache): instrument-invalid` — maps to existing testing-instrumentation vault note; no reversal |
+| Mid-cycle escalation | Clarification-only; no lesson (user intent confirmed, work proceeded) |
+
+No new vault notes written. Cycle history fully captured by engram ingest. **Wplease workflow complete.**

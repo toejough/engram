@@ -1,0 +1,16 @@
+Reading the wplease skill, **step 7 is: Capture (close) — `/learn`.**
+
+This is the closing bracket to step 1's opening capture. Step 7 runs the `learn` skill to preserve the lessons from this completed workflow cycle — the substantive decisions, insights, blockers resolved, and patterns validated during execution.
+
+**Step 7 actions, in order:**
+
+1. **Invoke `/learn` to capture the session.** The learn skill sweeps the session's raw conversation and artifact memory into the vault's chunk index. Since this cycle produced three commits (feat/test/docs), a gate review with one FAIL→ACK resolution, and an escalation, there are lessons worth preserving:
+   - The pattern for cache invalidation testing (the correction to the hit-rate measurement instrument).
+   - The design decision and trade-off from the escalation.
+   - Any validated approach or gotcha the refactor phases surfaced during gate B.
+
+2. **Do not duplicate QA pair capture.** The `learn` skill's Step 2.5 already handles ad-hoc QA pairs from substantive answered questions in the session. I will not re-capture those here.
+
+3. **Complete the task.** Mark step 7 `completed` on the task list, which closes the wplease workflow for this ask.
+
+**Ready to invoke `/learn` now?**

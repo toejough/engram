@@ -1,0 +1,19 @@
+Looking at the wplease skill's escalation pattern, when a gate finding cannot be resolved through iteration, you summarize both positions and ask for user direction via `AskUserQuestion`.
+
+Here's the escalation text for this scenario:
+
+---
+
+**`question` field:**
+
+```
+Gate evaluation result: 0 of 12 implementations achieved the expected handoff. Complete failure across all branches indicates either the implementation approach is fundamentally misaligned or the success criteria don't match the actual design. Should we (a) revise the implementation plan and retry, or (b) reconsider and adjust the success criteria before retrying?
+```
+
+---
+
+**Rationale:**
+- **Summary of positions:** The plan expected the handoff to succeed; the eval shows 0/12 success (contradiction).
+- **Stakes:** Total failure across all arms is not a sampling issue—it points to systematic misalignment.
+- **Actionable decision:** Two concrete paths: (a) loop back to step 3 to revise the plan itself, or (b) adjust what "success" means and retry with the current approach. 
+- **No decision made for the user:** You're asking which interpretation is correct, not assuming one and proceeding.

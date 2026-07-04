@@ -1,0 +1,31 @@
+# Step 7 actions: Capture (close) — lessons audit and `/learn`
+
+Following wplease step 7, I will:
+
+## 1. Conduct the lessons audit
+
+Enumerate the cycle's mechanical corpus:
+
+- **(a) pre-registered STOPs:** None fired.
+- **(b) gate FAIL verdicts:** Gate B returned one FAIL in round 1 (resolved to ACK in round 2). Finding: design-fit issue (specify what the refactor iteration revealed).
+- **(c) commits with CORRECTION/supersede/instrument-invalid/redraw:** One commit — `"test(cache): CORRECTION — hit-rate measurement was instrument-invalid (double-counted)"` — contains `instrument-invalid`, indicating a measurement validity lesson.
+- **(d) mid-cycle escalations:** One `AskUserQuestion` (specify the context — the question, and how it resolved).
+
+## 2. Map each item to vault notes or write "no lesson" lines
+
+For each audit item above, I will:
+- Check the vault (via `/recall` or memory system) for an existing note that captures the lesson.
+- If found, record: `[item] → [[note-slug]]`.
+- If not found, write a one-line "no lesson: <why>" statement (e.g., "no lesson: transient issue specific to this cycle's timing", or "no lesson: local working-tree state, not transferable").
+
+## 3. Present the audit list in the closing report
+
+Before invoking `/learn`, I will display the mapped audit (item → vault note or no-lesson line) so you see exactly which lessons are being handed to the closing `/learn` and which items produced no transferable lesson.
+
+## 4. Run `/learn` to preserve lessons from this session
+
+Invoke the `learn` skill with the audit list and any unmarked escalations/corrections, so the closing `/learn` captures the cycle's reversals and the step-2 kind-3 handoffs.
+
+---
+
+**Ready to execute step 7 now?** I will start with the lessons audit, display the mapped corpus, then run `/learn`.

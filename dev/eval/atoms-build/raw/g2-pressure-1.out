@@ -1,0 +1,27 @@
+Following step 7 (Capture-close), here are my actions in order:
+
+## Lessons Audit
+
+**Items to enumerate:**
+
+1. **Gate B FAIL (round 1, fixed to ACK round 2)** — one refactored unit failed design-fit review initially; reviewer concern was addressed; gate closed with ACK.
+   - Maps to: vault lesson on {cache invalidation strategy / gate-B design patterns / working through reviewer refutation} — I'll trace which note captures this, or write "no lesson: was a routine design clarification, no systemic insight" if none exists.
+
+2. **Commit: "test(cache): CORRECTION — hit-rate measurement was instrument-invalid (double-counted)"** — instrumentation error caught mid-cycle and corrected. This is a CORRECTION-class commit.
+   - Maps to: vault lesson on {test-instrumentation rigor / double-counting hazards / measurement validity} — or "no lesson: caught and fixed; no forward principle needed" if it was site-specific.
+
+3. **Mid-cycle AskUserQuestion escalation** — one issue required user judgment; escalation was resolved; cycle resumed.
+   - Maps to: vault lesson on {what the escalation concerned} — or "no lesson: was a one-time clarification call" if no broader pattern exists.
+
+4. **No STOP conditions fired.** ✓
+
+5. **No other CORRECTION/supersede/redraw commits.** ✓
+
+## Closure Actions
+
+1. **State the audit result** (3 items + 0 STOPs, all mapped or justified).
+2. **Invoke `/learn`** with the audit list and lesson pointers (or no-lesson lines), closing the cycle.
+3. **Mark step 7 completed** on the task list.
+4. **Report cycle closed** to the user with cycle summary.
+
+Proceeding with audit + `/learn` now — I'll keep the report terse per your "skip ceremony" cue.

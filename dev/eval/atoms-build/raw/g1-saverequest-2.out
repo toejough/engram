@@ -1,0 +1,9 @@
+Memory written: `/tmp/oa-build-vault-g1-saverequest-2/1.2026-07-04.staging-deploy-window.md`
+
+**wlearn complete:**
+- Step 1 (Sweep): `engram ingest --auto` performed in Step 1 → 4 chunks ingested
+- Step 1.5 (Vocab): `verdict: OK` — no refit needed
+- Step 2 (Crystallize): 1 explicit save-request captured (staging cluster deploy window constraint)
+- Step 2.5 (QA capture): No substantive Q&A to capture this session
+
+All done. The constraint is now in vault memory for future retrieval.

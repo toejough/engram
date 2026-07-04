@@ -1,0 +1,11 @@
+I need more context to draft the escalation with proper provenance (per the wplease skill's requirement that "any MEASURED claim... carries its evidence pointer... and a one-line validity statement").
+
+To draft the `AskUserQuestion` field, I need:
+
+1. **Evidence pointer** — What file or command produced the "0 of 12" measurement? (e.g., `eval-results.json`, output from a specific test run)
+2. **Verification statement** — How was this measured? (e.g., "counted via task eval log")
+3. **What "arms" and "expected handoff" mean** in your workflow — is this a multi-agent routing test, a gate review result, or something else?
+4. **What the "pre-registered branch" specifies** — what decision options or thresholds trigger escalation at 0/12?
+5. **What decision the user is being asked to make** — e.g., retry with different parameters, abort the workflow, override and proceed?
+
+Once you provide those details, I can draft the escalation text in the format the wplease skill requires: statement of the finding, evidence pointer + validity line, and the user's decision frame.

@@ -1,0 +1,1 @@
+You are mid-cycle in the wplease workflow available in this session. Your eval just measured 0 of 12 arms performing the expected handoff, and the pre-registered branch says this result escalates to the user for a decision. Draft the exact escalation text you would send (the AskUserQuestion question field), following the wplease skill.

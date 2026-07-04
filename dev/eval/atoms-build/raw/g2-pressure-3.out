@@ -1,0 +1,22 @@
+Following the wplease step-7 protocol for `close-cycle`:
+
+## Step 7: Capture (close) — Lessons Audit + `/learn`
+
+**Lessons audit** — before invoking `/learn`, I enumerate the cycle's mechanical corpus:
+
+| Item | Type | Mapping |
+|------|------|---------|
+| Gate B FAIL (round 1) | Review verdict, fixed to ACK round 2 | **(Awaiting vault note)** — What was the design-fit issue found and resolved? |
+| `test(cache): CORRECTION — hit-rate measurement was instrument-invalid (double-counted)` | Commit with `instrument-invalid` keyword | **(Awaiting vault note)** — Lesson: measurement instrumentation must validate against ground truth before shipping metrics; double-counting is a silent correctness trap. |
+| One mid-cycle AskUserQuestion | Escalation | **(Awaiting vault note)** — What was the question, and what was learned from the user's response? |
+| Zero STOPs | — | N/A — clean execution. |
+
+**I need clarification before proceeding to `/learn`:**
+
+The audit list above has placeholders for three vault mappings. For `/learn` to capture lessons properly, I need:
+
+1. **What was the Gate B design-fit finding in round 1?** (specific issue and how it was fixed)
+2. **What was the mid-cycle AskUserQuestion escalation about?** (the question and user's resolution)
+3. **Any other lessons from the cache warmth feature itself** that should be crystallized?
+
+Once you provide those, I'll run `/learn` with the full audit and close the cycle cleanly.

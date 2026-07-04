@@ -1,0 +1,23 @@
+I'm at step 7 (lessons audit + closing capture). Here are my actions in order:
+
+## Step 7: Lessons Audit & Closing Capture
+
+**1. Enumerate the mechanical corpus** from the cycle:
+
+| Item | Class | Details | Maps to Lesson |
+|------|-------|---------|----------------|
+| Gate B FAIL (round 1) | Gate verdict | Design-fit refactor failed round 1, fixed to ACK in round 2 | *[Awaiting details on what the refactor flaw was — this becomes a lesson about that specific design pattern or oversight]* |
+| `test(cache): CORRECTION — hit-rate measurement was instrument-invalid (double-counted)` | CORRECTION commit | Test harness was double-counting hits; invalidated prior measurements | **Lesson: test-instrumentation validity must be verified before trusting test results — the test itself can fail in ways that measurements don't surface.** |
+| One mid-cycle AskUserQuestion escalation | Escalation | User input required during execution | *[Awaiting details on the decision/input — this becomes a lesson about that specific decision point]* |
+| No pre-registered STOPs | — | — | — |
+
+**2. Closing `/learn` call:**
+
+I'll now invoke `/learn` to capture the substantive lessons from this cycle — the CORRECTION finding about instrumentation validity, the Gate B refactor flaw (once I have context), the mid-cycle escalation decision point, and any other patterns that emerged.
+
+**Action sequence:**
+- Run `/learn` with the audit findings
+- `/learn` Step 2.5 will capture the QA pair for the escalation question (if substantive)
+- Report the audit + lessons back to you
+
+Ready to invoke `/learn` — shall I proceed?

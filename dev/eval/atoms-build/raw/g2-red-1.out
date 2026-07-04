@@ -1,0 +1,15 @@
+I see the issue — the working directory is not a git repository. To execute step 7 of the wplease workflow, I need to clarify the context:
+
+**The wplease skill description assumes an active workflow mid-cycle with:**
+- Three commits already made ("feat(cache): warm-path invalidation", "test(cache): CORRECTION — hit-rate measurement was instrument-invalid", "docs(cache): results")
+- Gate B reviews completed with one FAIL → ACK resolution
+- An AskUserQuestion escalation during the cycle
+
+**However, the current directory is not a git repository.** This breaks the context assumptions.
+
+Are you:
+1. **Running this from a different directory?** Should I change to `/tmp/g2-red-1` or another project path where the wplease cycle is actually in progress?
+2. **Describing a completed wplease cycle hypothetically**, and you want me to describe what step 7 *would* entail based on that history?
+3. **Testing the wplease skill itself** in isolation, without actual artifact context?
+
+Please clarify so I can proceed correctly with step 7.

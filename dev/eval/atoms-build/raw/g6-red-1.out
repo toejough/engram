@@ -1,0 +1,19 @@
+Looking at the wplease skill's escalation protocol (Reviewer protocol, point 4), the escalation happens after unresolved disagreement and must summarize both positions and ask via `AskUserQuestion`.
+
+In your case, all 12 review arms unanimously failed to confirm the handoff — this is a unanimous gate failure, not a disagreement. Here's the escalation text:
+
+---
+
+**All 12 review arms report: handoff protocol did not execute as specified. Unanimous gate failure.**
+
+Before the next cycle, I need to know the root cause — the fix depends on it:
+
+1. **Misspecified** — Reviewers checked for the wrong signal. What should "expected handoff" actually mean?
+2. **Incomplete implementation** — The code doesn't do what the spec says. Which part is missing?
+3. **Infeasible spec** — The specification itself is flawed and can't be met. Should it change?
+
+Which is it, and what should I do next?
+
+---
+
+This follows wplease's direct, stakes-first style: state the failure plainly, offer the decision paths that differ in how to proceed, and ask the user to pick one so the workflow can move forward.

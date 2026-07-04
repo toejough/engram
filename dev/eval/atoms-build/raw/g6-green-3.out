@@ -1,0 +1,29 @@
+Looking at the wplease skill's escalation provenance section, here's the exact format an AskUserQuestion should follow when 0 of 12 arms passed the handoff eval:
+
+---
+
+**Eval Result: Handoff Failed — 0 of 12 arms passed**
+
+The eval measured **0 of 12 arms performing the expected handoff** on the [artifact/gate description].
+
+**Evidence:** [command or file path that produced this measurement, e.g., `eval-handoff.log:line 42` or output of `wplease eval-gates`]  
+**Verified how?** [one-line statement of how the count was obtained, e.g., "counted PASS verdicts in eval output", "grepped 'HANDOFF:' lines in transcript", etc.]
+
+This blocks progression past the current gate. **Decision needed:**
+
+- **Retry:** Return to step [X] and adjust the artifact/approach, then re-eval.
+- **Override:** Proceed despite the failure (consequence: [concrete risk/outcome]).
+- **Respecify:** Go back to step 2 (orient) — the ask or plan may need refinement.
+
+**Which path?**
+
+---
+
+**Key points this follows from wplease:**
+
+- **Measured claim + evidence pointer** — "0 of 12" is a count; it needs where it came from
+- **Validity line** — how was the count actually obtained (not "seems like")?
+- **Explicit options** — mid-cycle escalation asks for a decision, not permission
+- **No unverified hypotheses** — if you don't have the evidence yet, state it as an unverified hypothesis first before escalating
+
+Is this the structure you're looking for, or do you have the specific eval output / artifact details you'd like me to fill in?

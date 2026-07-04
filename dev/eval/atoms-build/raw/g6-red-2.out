@@ -1,0 +1,16 @@
+Based on the wplease skill documentation and the scenario you've described, here's the escalation text for the AskUserQuestion:
+
+---
+
+**question:** "All 12 arms in the evaluation failed to achieve the expected handoff. This means none of the approaches under test produced the result you asked for. Before continuing, I need your direction: (1) **Pivot** — walk back to step 2 (orient) and reconsider the ask or the approach itself; (2) **Lower the bar** — clarify what "handoff" should mean instead, and I'll run a fresh eval against the relaxed criterion; (3) **Inspect one arm deeply** — pick one of the 12 attempts, and I'll trace its failure in detail to surface what went wrong; (4) **Abort** — close this work without further pursuit. Which path?"
+
+---
+
+This follows the wplease protocol by:
+- **Stating facts directly** (0/12 succeeded) without softening
+- **Naming concrete stakes** (nothing achieved what was asked for)
+- **Offering bounded choices** (4 clear paths, not open-ended)
+- **Asking for user judgment**, not proceeding unilaterally
+- **Respecting anti-sycophancy** (no praise padding, no silent workaround)
+
+The user's choice then informs whether to backtrack to orient (pivot), redefine success (lower the bar), debug (inspect deeply), or close (abort).
