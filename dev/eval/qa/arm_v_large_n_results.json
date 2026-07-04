@@ -1,0 +1,350 @@
+{
+  "pass_count": 19,
+  "total": 30,
+  "rate": 0.6333,
+  "verdict": "BORDERLINE (60-79%)",
+  "results_by_topic": {
+    "cost-same-lever": {
+      "pass": 2,
+      "total": 3
+    },
+    "binary-install": {
+      "pass": 1,
+      "total": 3
+    },
+    "lazy-retrieval-validation": {
+      "pass": 2,
+      "total": 3
+    },
+    "crowded-vault-generalization": {
+      "pass": 2,
+      "total": 3
+    },
+    "payload-prune-cut": {
+      "pass": 3,
+      "total": 3
+    },
+    "glance-recall-rung": {
+      "pass": 3,
+      "total": 3
+    },
+    "eval-spend-estimate": {
+      "pass": 1,
+      "total": 3
+    },
+    "model-routing-recall": {
+      "pass": 1,
+      "total": 3
+    },
+    "async-not-cost-reduction": {
+      "pass": 2,
+      "total": 3
+    },
+    "retrieval-note-floor": {
+      "pass": 2,
+      "total": 3
+    }
+  },
+  "rows": [
+    {
+      "id": "LN01a",
+      "topic": "cost-same-lever",
+      "target_q_basename": "qa.2026-07-03.cost-same-lever.q",
+      "paraphrase": "How do 'reduce engram recall cost' and 'use recall more often via lighter prompts' relate to each other?",
+      "q_rank": 1,
+      "target_score": 0.901,
+      "top_content_score": 0.6933,
+      "passes": true
+    },
+    {
+      "id": "LN01b",
+      "topic": "cost-same-lever",
+      "target_q_basename": "qa.2026-07-03.cost-same-lever.q",
+      "paraphrase": "Why do making recall cheaper and enabling lighter prompts for more usage point to the same optimization?",
+      "q_rank": 1,
+      "target_score": 0.8553,
+      "top_content_score": 0.5836,
+      "passes": true
+    },
+    {
+      "id": "LN01c",
+      "topic": "cost-same-lever",
+      "target_q_basename": "qa.2026-07-03.cost-same-lever.q",
+      "paraphrase": "What does it mean that the two engram efficiency directions converge to reducing the post-fire procedure tax?",
+      "q_rank": 1,
+      "target_score": 0.3799,
+      "top_content_score": 0.4574,
+      "passes": false
+    },
+    {
+      "id": "LN02a",
+      "topic": "binary-install",
+      "target_q_basename": "qa.2026-07-03.binary-install.q",
+      "paraphrase": "What command rebuilds and installs the engram binary after a Go code change?",
+      "q_rank": 1,
+      "target_score": 0.6922,
+      "top_content_score": 0.7178,
+      "passes": false
+    },
+    {
+      "id": "LN02b",
+      "topic": "binary-install",
+      "target_q_basename": "qa.2026-07-03.binary-install.q",
+      "paraphrase": "Why doesn't running targ build work for getting the engram binary onto PATH?",
+      "q_rank": 1,
+      "target_score": 0.5601,
+      "top_content_score": 0.722,
+      "passes": false
+    },
+    {
+      "id": "LN02c",
+      "topic": "binary-install",
+      "target_q_basename": "qa.2026-07-03.binary-install.q",
+      "paraphrase": "How do you ensure the engram command on PATH reflects a recent code change to cmd/engram?",
+      "q_rank": 1,
+      "target_score": 0.7007,
+      "top_content_score": 0.6193,
+      "passes": true
+    },
+    {
+      "id": "LN03a",
+      "topic": "lazy-retrieval-validation",
+      "target_q_basename": "qa.2026-07-03.lazy-retrieval-validation.q",
+      "paraphrase": "How do you confirm that deferred on-demand content retrieval actually saves tokens versus a single bulk payload dump?",
+      "q_rank": 1,
+      "target_score": 0.5672,
+      "top_content_score": 0.5606,
+      "passes": true
+    },
+    {
+      "id": "LN03b",
+      "topic": "lazy-retrieval-validation",
+      "target_q_basename": "qa.2026-07-03.lazy-retrieval-validation.q",
+      "paraphrase": "What two fetch-behavior measurements must pass before shipping a lazy-fetch retrieval mode for an LLM agent?",
+      "q_rank": 1,
+      "target_score": 0.6718,
+      "top_content_score": 0.7738,
+      "passes": false
+    },
+    {
+      "id": "LN03c",
+      "topic": "lazy-retrieval-validation",
+      "target_q_basename": "qa.2026-07-03.lazy-retrieval-validation.q",
+      "paraphrase": "Why is a deterministic payload size cut alone not enough to prove that lazy on-demand retrieval is a net cost win?",
+      "q_rank": 1,
+      "target_score": 0.7152,
+      "top_content_score": 0.649,
+      "passes": true
+    },
+    {
+      "id": "LN04a",
+      "topic": "crowded-vault-generalization",
+      "target_q_basename": "qa.2026-07-03.crowded-vault-generalization.q",
+      "paraphrase": "How does engram retrieval precision change as the vault grows from a toy to a 200-note realistic collection with distractors?",
+      "q_rank": 1,
+      "target_score": 0.6881,
+      "top_content_score": 0.6703,
+      "passes": true
+    },
+    {
+      "id": "LN04b",
+      "topic": "crowded-vault-generalization",
+      "target_q_basename": "qa.2026-07-03.crowded-vault-generalization.q",
+      "paraphrase": "Do the verified capability wins (C3, C4i, C5, C6) hold when many unrelated notes surround the target in the vault?",
+      "q_rank": 1,
+      "target_score": 0.6685,
+      "top_content_score": 0.5536,
+      "passes": true
+    },
+    {
+      "id": "LN04c",
+      "topic": "crowded-vault-generalization",
+      "target_q_basename": "qa.2026-07-03.crowded-vault-generalization.q",
+      "paraphrase": "What evidence shows that idiosyncratic vault notes remain retrievable even inside a realistic crowded vault of 200 notes?",
+      "q_rank": 1,
+      "target_score": 0.5753,
+      "top_content_score": 0.6049,
+      "passes": false
+    },
+    {
+      "id": "LN05a",
+      "topic": "payload-prune-cut",
+      "target_q_basename": "qa.2026-07-03.payload-prune-cut.q",
+      "paraphrase": "How much does injecting only the synthesis conclusion from recall into a fresh build session save in build cost?",
+      "q_rank": 1,
+      "target_score": 0.8754,
+      "top_content_score": 0.665,
+      "passes": true
+    },
+    {
+      "id": "LN05b",
+      "topic": "payload-prune-cut",
+      "target_q_basename": "qa.2026-07-03.payload-prune-cut.q",
+      "paraphrase": "What is the measured build cost reduction from subagent-isolated recall that passes only the Step-3 synthesis?",
+      "q_rank": 1,
+      "target_score": 0.7985,
+      "top_content_score": 0.6355,
+      "passes": true
+    },
+    {
+      "id": "LN05c",
+      "topic": "payload-prune-cut",
+      "target_q_basename": "qa.2026-07-03.payload-prune-cut.q",
+      "paraphrase": "Why does restricting the recall payload to only the synthesis step reduce build costs without capability regression?",
+      "q_rank": 1,
+      "target_score": 0.7335,
+      "top_content_score": 0.6718,
+      "passes": true
+    },
+    {
+      "id": "LN06a",
+      "topic": "glance-recall-rung",
+      "target_q_basename": "qa.2026-07-03.glance-recall-rung.q",
+      "paraphrase": "How does the read-only glance recall tier differ from a full deep recall with crystallization writes?",
+      "q_rank": 1,
+      "target_score": 0.6912,
+      "top_content_score": 0.6482,
+      "passes": true
+    },
+    {
+      "id": "LN06b",
+      "topic": "glance-recall-rung",
+      "target_q_basename": "qa.2026-07-03.glance-recall-rung.q",
+      "paraphrase": "What does the cheap glance rung of the recall depth-dial deliver and what capability does it miss compared to full recall?",
+      "q_rank": 1,
+      "target_score": 0.9609,
+      "top_content_score": 0.6475,
+      "passes": true
+    },
+    {
+      "id": "LN06c",
+      "topic": "glance-recall-rung",
+      "target_q_basename": "qa.2026-07-03.glance-recall-rung.q",
+      "paraphrase": "When is the lightweight glance recall rung sufficient and when does full deep recall with synthesis become necessary?",
+      "q_rank": 1,
+      "target_score": 0.7364,
+      "top_content_score": 0.6253,
+      "passes": true
+    },
+    {
+      "id": "LN07a",
+      "topic": "eval-spend-estimate",
+      "target_q_basename": "qa.2026-07-03.eval-spend-estimate.q",
+      "paraphrase": "What is the correct method for predicting the total dollar cost of a multi-trial LLM eval before launching it?",
+      "q_rank": 1,
+      "target_score": 0.6442,
+      "top_content_score": 0.7325,
+      "passes": false
+    },
+    {
+      "id": "LN07b",
+      "topic": "eval-spend-estimate",
+      "target_q_basename": "qa.2026-07-03.eval-spend-estimate.q",
+      "paraphrase": "Why is guessing eval cost from intuition unreliable and what measured inputs should replace the guess?",
+      "q_rank": 1,
+      "target_score": 0.4647,
+      "top_content_score": 0.4246,
+      "passes": true
+    },
+    {
+      "id": "LN07c",
+      "topic": "eval-spend-estimate",
+      "target_q_basename": "qa.2026-07-03.eval-spend-estimate.q",
+      "paraphrase": "How do you derive a realistic spend estimate by multiplying per-cell cost by fan-out before running a harness?",
+      "q_rank": 1,
+      "target_score": 0.5653,
+      "top_content_score": 0.6791,
+      "passes": false
+    },
+    {
+      "id": "LN08a",
+      "topic": "model-routing-recall",
+      "target_q_basename": "qa.2026-07-03.model-routing-recall.q",
+      "paraphrase": "What does the evidence say about routing memory-backed reasoning tasks to sonnet instead of opus?",
+      "q_rank": 1,
+      "target_score": 0.5885,
+      "top_content_score": 0.6949,
+      "passes": false
+    },
+    {
+      "id": "LN08b",
+      "topic": "model-routing-recall",
+      "target_q_basename": "qa.2026-07-03.model-routing-recall.q",
+      "paraphrase": "When does recalled engram memory allow a cheaper model tier to fully match a more expensive model on capability?",
+      "q_rank": 2,
+      "target_score": 0.7014,
+      "top_content_score": 0.6963,
+      "passes": false
+    },
+    {
+      "id": "LN08c",
+      "topic": "model-routing-recall",
+      "target_q_basename": "qa.2026-07-03.model-routing-recall.q",
+      "paraphrase": "How does engram recall change the cost-quality tradeoff between sonnet and opus for idiosyncratic reasoning tasks?",
+      "q_rank": 1,
+      "target_score": 0.7755,
+      "top_content_score": 0.7109,
+      "passes": true
+    },
+    {
+      "id": "LN09a",
+      "topic": "async-not-cost-reduction",
+      "target_q_basename": "qa.2026-07-03.async-not-cost-reduction.q",
+      "paraphrase": "Why is running engram learn in the background not a real token or dollar cost reduction?",
+      "q_rank": 1,
+      "target_score": 0.8142,
+      "top_content_score": 0.5567,
+      "passes": true
+    },
+    {
+      "id": "LN09b",
+      "topic": "async-not-cost-reduction",
+      "target_q_basename": "qa.2026-07-03.async-not-cost-reduction.q",
+      "paraphrase": "What is the difference between relocating a cost to run off the perceived critical path and actually reducing that cost?",
+      "q_rank": 4,
+      "target_score": 0.2611,
+      "top_content_score": 0.3913,
+      "passes": false
+    },
+    {
+      "id": "LN09c",
+      "topic": "async-not-cost-reduction",
+      "target_q_basename": "qa.2026-07-03.async-not-cost-reduction.q",
+      "paraphrase": "Why should async or deferred execution be excluded from an engram cost-reduction roadmap?",
+      "q_rank": 1,
+      "target_score": 0.6052,
+      "top_content_score": 0.517,
+      "passes": true
+    },
+    {
+      "id": "LN10a",
+      "topic": "retrieval-note-floor",
+      "target_q_basename": "qa.2026-07-03.retrieval-note-floor.q",
+      "paraphrase": "What evidence motivated adding a floor that prioritizes crystallized vault notes above raw transcript chunks in engram recall?",
+      "q_rank": 1,
+      "target_score": 0.815,
+      "top_content_score": 0.6384,
+      "passes": true
+    },
+    {
+      "id": "LN10b",
+      "topic": "retrieval-note-floor",
+      "target_q_basename": "qa.2026-07-03.retrieval-note-floor.q",
+      "paraphrase": "How does the matched-note floor change affect recall@5 in engram compared to pure cosine ranking?",
+      "q_rank": 1,
+      "target_score": 0.6271,
+      "top_content_score": 0.6986,
+      "passes": false
+    },
+    {
+      "id": "LN10c",
+      "topic": "retrieval-note-floor",
+      "target_q_basename": "qa.2026-07-03.retrieval-note-floor.q",
+      "paraphrase": "Why should crystallized vault notes receive a ranking floor above raw transcript chunks in engram's cosine retrieval?",
+      "q_rank": 1,
+      "target_score": 1.0,
+      "top_content_score": 0.6662,
+      "passes": true
+    }
+  ]
+}
