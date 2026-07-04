@@ -1,0 +1,15 @@
+**Coverage Judgment: ADEQUATE**
+
+The principle "parallel tests must not share mutable state — each subtest gets its own data; never remove `t.Parallel()` to fix" is already well-documented in Tier 1 (CLAUDE.md) under Critical Warnings with clear guidance and reasoning.
+
+**Action: DISMISS CANDIDATE and CONFIRM**
+
+The candidate note "12.2026-05-01.prefer-table-tests.md" is off-topic and redundant. The real principle—mutable state sharing causes flaky failures in parallel tests—is already captured at the highest tier of the memory system. No further encoding needed.
+
+**Verification Command:**
+
+```bash
+grep -n "Parallel tests must not share mutable state" /Users/joe/.claude/CLAUDE.md
+```
+
+This confirms the principle is discoverable and indexed at Tier 1.

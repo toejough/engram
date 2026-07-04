@@ -1,0 +1,13 @@
+Looking at the coverage judgment for this cluster:
+
+**Coverage Assessment:**
+- **Principle**: Parallel Go table tests must not share fixture maps — each subtest gets its own copy (failure evidence: flaky tests in 2+ sessions)
+- **Candidate L2**: Off-topic (addresses style preference, not the mutation/isolation issue)
+- **Coverage Status**: **NOT COVERED** — no existing memory captures the fixture-isolation principle
+
+**Action Directed:** Save as new feedback memory (the principle has multi-session evidence and prevents real flakiness).
+
+**Command:**
+```bash
+write-memory --type feedback --title "parallel-go-tests-fixture-isolation" --body "Each subtest must get its own fixture map copy; sharing causes flaky parallel failures. Why: caused flakiness in sessions a & b when subtest-N modified the shared map. How to apply: in table tests with t.Parallel(), initialize fixtures inside the loop, never outside: for _, tc := range cases { tc := tc; t.Run(tc.name, func(t *testing.T) { fixture := newFixture() // NOT shared })"
+```

@@ -1,0 +1,14 @@
+Refactor this function for readability. Reply with the refactored code only.
+
+func P(m map[string]int, k []string) int {
+    t := 0
+    for i := 0; i < len(k); i++ {
+        v, ok := m[k[i]]
+        if ok == true {
+            t = t + v
+        } else {
+            t = t + 0
+        }
+    }
+    return t
+}

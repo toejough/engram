@@ -1,0 +1,29 @@
+Looking at this coverage judgment:
+
+**Judgment:** The candidate note "prefer-table-tests.md" is off-topic (as flagged). It prescribes a style choice (use table-driven tests), but the cluster principle addresses a concrete failure mode: **shared mutable fixture maps cause flaky failures in parallel tests**.
+
+These are orthogonal concerns:
+- Candidate: stylistic preference (use table-driven when you use them)
+- Cluster: safety constraint (don't share state across parallel subtests, period)
+
+The cluster principle is stronger (2 incidents, actionable constraint) and already covered by CLAUDE.md's critical warning ("Parallel tests must not share mutable state"). 
+
+**Action:** Discard the candidate. Promote only the cluster principle as a new memory note.
+
+**Command I would run:**
+```bash
+cat > /Users/joe/.claude/projects/-private-tmp-oa-t1-baseline-2/memory/feedback_parallel_test_isolation.md <<'EOF'
+---
+name: parallel-test-isolation
+description: Parallel table tests must not share fixture data — each subtest needs its own copy
+metadata:
+  type: feedback
+---
+
+Parallel Go table tests must not share mutable fixture maps or state — each subtest gets its own copy of any data it modifies.
+
+**Why:** Shared fixtures across parallel subtests caused flaky test failures in prior sessions (sess-a#turn-3, sess-b#turn-7) due to race conditions and interference.
+
+**How to apply:** When writing table-driven tests with `t.Parallel()`, either: (1) copy fixture data before each subtest, (2) use immutable test data, or (3) remove `t.Parallel()` if sharing is unavoidable. Never fix flaky tests by deleting the `t.Parallel()` call alone — fix the shared state first.
+EOF
+```

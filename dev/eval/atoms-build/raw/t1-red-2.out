@@ -1,0 +1,15 @@
+**Coverage Judgment:** The candidate `12.2026-05-01.prefer-table-tests.md` does NOT adequately cover the cluster principle. It addresses *whether* to use table-driven tests (general best practice), while the cluster principle captures a specific *failure mode* in parallel table tests—shared fixture maps cause flaky failures when subtests execute concurrently. The candidate is off-topic because it lacks the critical constraint: **each subtest must get its own copy of fixture data in parallel contexts**.
+
+**Action:** Reject the candidate as a cover for this principle. Create a new, focused memory capturing the specific gotcha.
+
+**Command:**
+```bash
+/recall coverage-judgment \
+  --candidate "12.2026-05-01.prefer-table-tests.md" \
+  --cluster "parallel-table-test-fixture-isolation" \
+  --verdict "off-topic" \
+  --action "skip-merge" \
+  --create-memory "parallel-go-tests-fixture-isolation"
+```
+
+The candidate should remain as a standalone note about table test style, but a new memory must be created to anchor the lesson: **parallel Go tests with table fixtures must not share the map—each subtest needs its own copy to avoid flaky failures** (lessons from sess-a turn-3 and sess-b turn-7).

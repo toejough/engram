@@ -1,0 +1,24 @@
+I'll judge the coverage of the candidate note against the cluster principle.
+
+**Coverage Judgment:**
+
+The candidate note ("prefer table-driven tests") is **correctly marked off-topic**. 
+
+- **Cluster principle:** Parallel Go table tests must not share fixture maps — each subtest gets its own copy; sharing caused flaky failures twice.
+- **Candidate scope:** General guidance about using table-driven style for repeated test cases.
+
+These address different concerns:
+- The candidate teaches a *structural pattern* (organizing test cases in a table)
+- The cluster teaches a *concurrency bug* (fixture isolation in parallel subtests)
+
+Table-driven tests are a *container* for the pattern, but the critical lesson is specifically about preventing data races in `t.Parallel()` contexts. The candidate doesn't mention concurrency or fixture sharing, so it has low relevance to the cluster's core principle.
+
+**Action:** Exclude the candidate; keep the cluster focused on the parallel fixture-sharing gotcha. The candidate could exist as a separate, broader note about test style.
+
+**Command:**
+
+```bash
+/recall consolidate --action exclude --candidate "12.2026-05-01.prefer-table-tests" --principle "parallel-go-table-tests-no-shared-fixtures"
+```
+
+This directs the recall system to document that the candidate was evaluated and excluded from the cluster due to insufficient coverage of the concurrency-specific principle.

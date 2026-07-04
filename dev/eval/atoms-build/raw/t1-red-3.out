@@ -1,0 +1,18 @@
+**Coverage Judgment: LOW**
+
+The candidate memory "prefer-table-tests.md" addresses *table-driven test organization*, not the *safety principle* uncovered by the cluster evidence. These are orthogonal concerns:
+
+- **Candidate scope**: "Use table-driven style for repeated cases" — a *design pattern*
+- **Cluster principle**: "Parallel table tests must not share fixture maps" — a *correctness constraint with failure history*
+
+The candidate misses the critical insight: shared fixture state in parallel subtests caused flaky failures in two prior sessions (sess-a turn-3, sess-b turn-7).
+
+**Action (per skill Step 2.5C):** Create a new feedback memory capturing the parallel test isolation principle, so it surfaces on future Go test changes.
+
+**Command:**
+
+```bash
+write /Users/joe/.claude/projects/-private-tmp-oa-t1-red-3/memory/feedback_parallel_test_isolation.md
+```
+
+(Then update MEMORY.md index with a pointer line.)

@@ -1,0 +1,15 @@
+**Coverage Judgment: OFF-TOPIC**
+
+The candidate memory ("Go tests should use table-driven style") describes a *general testing pattern*. The cluster principle is *specific*: parallel table-driven tests must not share mutable state (fixture maps), because sharing caused flaky failures twice.
+
+These are related but distinct lessons. A developer could follow the candidate's advice and still violate the principle — using table tests doesn't prevent shared-state bugs.
+
+**Recommended Action**: Do not consolidate the candidate into this cluster. Instead, promote the cluster principle as its own L2 memory. The candidate is a broader pattern; the cluster teaches a *constraint* on that pattern.
+
+**Command that would execute this action**:
+
+```bash
+/recall promote --cluster "parallel-table-test-fixture-isolation" --sources sess-a.jsonl#turn-3,sess-b.jsonl#turn-7 --title "parallel table-driven tests must isolate fixtures" --exclude 12.2026-05-01.prefer-table-tests.md
+```
+
+(Or if the skill uses `consolidate` with a flag to reject candidates: `--reject-candidates 12.2026-05-01.prefer-table-tests.md`)

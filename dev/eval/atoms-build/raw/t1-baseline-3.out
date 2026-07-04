@@ -1,0 +1,12 @@
+Looking at this coverage judgment:
+
+**Verdict:** The candidate note is off-topic. The cluster's actual principle — "parallel Go table tests must not share mutable state; each subtest gets its own fixture copy" — is distinct from the candidate's claim about table-driven style preference.
+
+**Action:** Skip the candidate (it doesn't belong in this cluster). The principle is already captured in CLAUDE.md's critical warning: **"Parallel tests must not share mutable state — each subtest gets its own data. Never fix by removing t.Parallel() — fix the shared state."**
+
+No new memory write is needed; the lesson is already persistent and accessible at session-start via CLAUDE.md.
+
+**Command run (or would run):**
+```
+/recall consolidate --skip-candidate "12.2026-05-01.prefer-table-tests.md" --cluster-id parallel-test-safety --reason "candidate-off-topic" --verified-from sess-a.jsonl#turn-3,sess-b.jsonl#turn-7
+```

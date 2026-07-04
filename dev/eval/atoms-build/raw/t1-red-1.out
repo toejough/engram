@@ -1,0 +1,15 @@
+I'm judging coverage for the parallel test isolation principle against the candidate note on table-driven testing.
+
+**Coverage judgment:**
+
+The candidate note ("Go tests should use table-driven style for repeated cases") is **OFF-TOPIC** for this cluster. It addresses test *structure* (table-driven), but the principle is about test *isolation under parallelism* — a different concern entirely. A test can be table-driven AND have shared mutable state (the bug), or table-driven AND properly isolated (correct). The note doesn't encode the specific anti-pattern.
+
+**Action:** **File as standalone high-confidence feedback memory** — the principle is well-evidenced (two incident traces) and actionable, warranting capture in the feedback tier. Do not merge with the candidate.
+
+**Full command:**
+
+```bash
+write /Users/joe/.claude/projects/-private-tmp-oa-t1-red-1/memory/feedback_parallel_test_isolation.md
+```
+
+(This would persist the principle: "Parallel tests must not share mutable state — each subtest gets its own fixture/data copy. Sharing caused flaky failures in two prior sessions; fixing requires either sequentializing the test or deep-copying fixture data per subtest.")
