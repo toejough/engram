@@ -273,11 +273,12 @@ measured validation over accumulated pairs.
 - **[SHIPPED 2026-07-03] Q&A memory round-1 (capture):** `engram learn qa`, D5′ exclusion
   (`isQueryExcludedKind` at all four query-pipeline seam points), `stripMachineLines` QA markers,
   `qa pairs:` / `qa round-2 gate:` lines in `engram vocab stats`; recall Step 4 + learn Step 2.5
-  QA capture extensions. Round-2 check-back: ≥20 pairs or ~2026-07-17 (whichever first).
+  QA capture extensions. Round-2 gate: ≥20 pairs or ~2026-07-17 (whichever first).
 
 - **[DEFERRED — round 3, gated on round-2 validation]** The dedicated Q-channel (incoming ask
   matched against Q-note embeddings in q-space) and the `answered_by` ride-along (a surfaced Q
-  delivers its paired A). Gated on Arm V large-n reaching PASS (≥80% — Task 10's pre-registered
+  delivers its paired A). Gated on the Arm V large-n eval (the q-space channel premise check; see
+  `docs/design/2026-07-03-qa-memory-proposals.md`) reaching PASS (≥80% — its pre-registered
   bands; BORDERLINE does not license the build) and on P2′/P3′ post-ship validation over ≥20
   real pairs. Arm V large-n came in BORDERLINE 63% (19/30) — round 3 remains unlicensed pending
   a further check. NOT built in round 1.

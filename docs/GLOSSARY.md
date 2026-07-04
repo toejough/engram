@@ -354,11 +354,15 @@ Writes a QA pair: one `qa.<date>.<slug>.q.md` (question note) and one
 Optional: `--contributors` (repeatable, validated against vault),
 `--certainty high|medium|low` (default `medium`). Embed-on-write runs for
 both notes; auto-vocab assignment runs on the A-note only. Q-notes carry
-no `vocab:` key (D5′ — Q-note wording loses retrieval against content;
-excluded from main query set at all four seam points). On A-write failure
+no `vocab:` key (per D5′, below — Q-note wording loses retrieval against
+content; excluded from the main query set at all four query-pipeline seam
+points: the pre-clustering filter, the matched-set floor/cap, the
+tag-nomination gate, and the TermIndex builder). On A-write failure
 the Q-note is removed (best-effort) and a descriptive error is returned.
 
 ### qa-question (note type)
+
+Short form in running prose: **Q-note**.
 The question half of a QA pair, stored at `qa.<date>.<slug>.q.md` with
 frontmatter `type: qa-question`. Excluded from the main query set at all
 four seam points (`isQueryExcludedKind`, same exclusion as `vocab` and
@@ -370,6 +374,8 @@ Q-note body contains the verbatim question text and a machine-written
 q-space channel (round 3, gated on Arm V PASS + round-2 validation).
 
 ### qa-answer (note type)
+
+Short form in running prose: **A-note**.
 The answer half of a QA pair, stored at `qa.<date>.<slug>.a.md` with
 frontmatter `type: qa-answer`. Competes in the main query set as a
 synthesis note (D5′ asymmetric participation) — a relevant past answer
@@ -378,6 +384,16 @@ surfaces directly alongside fact/feedback notes. Carries auto-assigned
 body line. If contributors were supplied, also carries a `Contributors:`
 body line (see below). Both machine lines are excluded from
 `BodyText`/`ContentHash` (same pattern as `Vocab:` / `Supersedes:`).
+
+### D5′ (design decision — asymmetric QA participation)
+
+Settled by Joe 2026-07-03 (superseding the original full-exclusion D5):
+qa-answer notes COMPETE in the main matched set (they are synthesis notes —
+pre-reasoned conclusions with provenance); qa-question notes are EXCLUDED
+from the main set (question wording measurably loses retrieval against
+content — the qanchor finding) and become reachable via a dedicated q-space
+channel with an `answered_by` ride-along (round 3, gated). Decision record:
+`docs/design/2026-07-03-qa-memory-proposals.md`.
 
 ### contributors (QA frontmatter + body field)
 A frontmatter list (`contributors: [<basename>, ...]`) and a matching
