@@ -3,7 +3,7 @@
 **Date:** 2026-07-03
 **Decision source:** docs/design/2026-07-03-qa-memory-proposals.md (Joe, 2026-07-03), Joe green-lit 2026-07-03.
 **Precedent plan:** docs/superpowers/plans/2026-07-03-vocab-lifecycle-o2-build.md (format + safety)
-**Status:** ready for implementation
+**Status:** SHIPPED 2026-07-03 — all 11 tasks complete (Arm V large-n: BORDERLINE 63%; round 3 remains unlicensed).
 
 ---
 

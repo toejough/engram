@@ -370,7 +370,9 @@ four seam points (`isQueryExcludedKind`, same exclusion as `vocab` and
 write-time vocab assigner and the `engram vocab stats` note counter. The
 Q-note body contains the verbatim question text and a machine-written
 `Answered by: [[qa.<date>.<slug>.a]]` line (excluded from `BodyText`/
-`ContentHash` like `Vocab:` / `Supersedes:`). Reachable via a dedicated
+`ContentHash` like `Vocab:` / `Supersedes:`). The same reference is also
+written as `answered_by: <a-basename>` in frontmatter — the programmatic
+traversal handle for the Q→A edge. Reachable via a dedicated
 q-space channel (round 3, gated on Arm V PASS + round-2 validation).
 
 ### qa-answer (note type)
@@ -384,6 +386,10 @@ surfaces directly alongside fact/feedback notes. Carries auto-assigned
 body line. If contributors were supplied, also carries a `Contributors:`
 body line (see below). Both machine lines are excluded from
 `BodyText`/`ContentHash` (same pattern as `Vocab:` / `Supersedes:`).
+Frontmatter also carries `answers: <q-basename>` (the A→Q traversal
+handle, inverse of `answered_by`) and `certainty: high|medium|low` (frontmatter-only —
+no body-line counterpart; written from the `--certainty` flag, default
+`medium`).
 
 ### D5′ (design decision — asymmetric QA participation)
 
