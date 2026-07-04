@@ -1,0 +1,15 @@
+**Feedback note written:** `/tmp/oa-build-vault-w1-new-3/2.2026-07-04.fix-lint-not-suppress.md`
+
+---
+
+**Step 2.5 — Ad-hoc QA capture:** No substantive Q&A with `[[...]]` wikilinks or crystallized notes occurred this session.
+
+---
+
+**wlearn complete.** Summary:
+- Step 1: Index sweep done (`engram ingest --auto`, 3 chunks)
+- Step 1.5: Vocab OK, QA gate at 2/20 (not yet READY)
+- Step 2: One correction crystallized (lint suppression lesson)
+- Step 2.5: No ad-hoc QA to capture
+
+AI-Used: claude

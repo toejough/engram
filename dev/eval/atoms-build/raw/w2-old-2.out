@@ -1,0 +1,3 @@
+Recall Step 4 complete. The QA pair has been written to the vault, linking the question "Why did our eval runs lose data when the orchestrator died?" to your synthesis answer about per-trial JSONL checkpointing.
+
+All recall actions are now complete. The synthesis note you created is now discoverable via the question you asked, and future sessions will surface this lesson when facing similar data-loss scenarios in long-running orchestrations.

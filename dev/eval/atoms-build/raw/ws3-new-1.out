@@ -1,0 +1,8 @@
+Cluster 2 amend completed (note path returned). The `--activate` step emitted a warning: the sidecar `.vec.json` file for `47.2026-06-10.go-test-fixtures-per-subtest.md` does not exist, so recency metadata could not be bumped. The note itself was not modified (it was already covered). This is expected if the note has never been embedded — activation will work once the note is indexed.
+
+---
+
+**Step 2.5C summary:**
+
+- **Cluster 1** — Outcome: **Absent.** Candidate note (commit message imperative mood) did not address the evidenced principle. New feedback note written at `48.2026-07-04.go-parallel-tests-fixture-per-subtest.md`.
+- **Cluster 2** — Outcome: **Covered.** Candidate note `47.2026-06-10.go-test-fixtures-per-subtest.md` fully states the principle; amended with `--activate` (activate warned on missing sidecar — note unmodified, no new chunk sources).

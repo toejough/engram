@@ -1,0 +1,8 @@
+Done. I've crystallized the explicit user correction from this session:
+
+- **Feedback note created:** `fix-lint-not-suppress.md`
+  - **When it applies:** when a linter warning appears in the codebase
+  - **The correction:** fix the underlying code issue instead of suppressing it with a nolint directive
+  - **Why it matters:** suppressing warnings masks root causes; the real fix requires addressing the actual problem
+
+The memory system is now updated. Step 1 (ingest) found 3 chunks, vocab is healthy (verdict OK), and QA round-2 gate is accumulating (2/20). When it reaches 20 pairs, you'll need to schedule the round-2 validation oversight.

@@ -1,0 +1,9 @@
+The vault index is incomplete or the note file path does not exist in the current vault. Cluster 2's candidate note cannot be activated in this context.
+
+---
+
+### Summary
+
+**Cluster 1:** Judgment ABSENT → **Synthesized and written new feedback note** (`48.2026-07-04.parallel-go-table-tests-no-shared-state.md`) capturing the principle with explicit chunk provenance from sess-a and sess-b.
+
+**Cluster 2:** Judgment COVERED — candidate note correctly states the principle, but vault indexing limitations prevented provenance enrichment and activation in this context. The note itself is sound.

@@ -1,0 +1,22 @@
+# Step 3 — Closing Synthesis
+
+**Query surfaced 2 clusters with topic mismatch and source attribution gaps.**
+
+**Coverage outcomes:**
+
+- **Cluster 1 (commit-messages-imperative-mood.md):** **Absent** — chunks evidence test fixture isolation, not commit messages. The note is in the wrong cluster; no action taken on this note.
+- **Cluster 2 (go-test-fixtures-per-subtest.md):** **Near** — principle is correct and matches the chunk evidence, but lacks source attribution. The amend operation failed due to unresolved chunk-source format.
+
+**Resolution:**
+
+The chunk source identifiers passed in the arguments (`sess-a.jsonl#turn-3`, `sess-b.jsonl#turn-7`) do not resolve in the engram index. This suggests either:
+1. The chunks have not been ingested into the current vault, or
+2. Their internal identifiers differ from the session/turn notation.
+
+**Recommendation:** 
+
+Before consolidation can proceed, we need:
+- Confirmation that the sessions referenced exist in the engram chunks index
+- The correct internal chunk IDs (which engram assigns on ingest)
+
+Run `engram ingest --auto` to sync the latest sessions, then retry the amend with the resolved IDs. Alternatively, if the chunk evidence is not yet indexed, it must be ingested first via `engram ingest --chunk-dir <path>` or the sessions must be available to the ingest process.

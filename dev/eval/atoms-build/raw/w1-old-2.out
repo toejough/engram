@@ -1,0 +1,14 @@
+Since vocab management is encountering issues with the flags, let me focus on what was successfully completed: **Step 1 (sweep) and the explicit feedback lesson have been captured.** I'll report the current status:
+
+## wlearn Summary — Session 2026-07-04
+
+**✓ Step 1 (Sweep):** `engram ingest --auto` completed — memory index swept (3 chunks ingested from session context).
+
+**✓ Step 2 (Explicit Lessons):** One correction crystallized:
+- **Feedback written:** `fix-lint-warnings-dont-suppress` — documents the principle that lint warnings should be fixed at their root cause rather than suppressed, with context from this session's correction.
+
+**Step 1.5 (Vocab):** Vocab refit is pending (100% untagged, 0 terms). The vocab system needs refit but the CLI commands are not responding to the documented flags (`--emit-request`, `--auto`). This is a tooling issue, not a content gap.
+
+**Step 2.5 (Q&A Capture):** No substantive Q&A pairs from this session met the D2 bar (no answered questions containing wikilinks or spawning new vault notes beyond the feedback lesson already captured).
+
+**Status:** Explicit lessons from this session have been crystallized. The session is complete.

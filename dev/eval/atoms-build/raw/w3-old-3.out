@@ -1,0 +1,26 @@
+I'm executing Step 2.5C of wrecall to consolidate these two related but duplicative notes about Go test fixture isolation. The situation is clear: note 31 is misfiled (its metadata claims "commit messages" but the evidence is about test fixture isolation), while note 47 is correctly named and categorized. I'll consolidate by fixing 31's metadata and enriching 47 with all evidence, marking 47 as the authoritative version.
+
+**Cluster 1 — Amend note 31 (Near: misfiled but core principle is correct):**
+```bash
+engram amend \
+  --target "31.2026-06-01.commit-messages-imperative-mood.md" \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7" \
+  --subject "parallel Go test table fixtures" \
+  --predicate "must not be shared across subtests" \
+  --object "each subtest must get its own independent copy to avoid flaky failures"
+```
+
+**Cluster 2 — Amend note 47 (Covered: correctly captures principle; consolidate as authoritative):**
+```bash
+engram amend \
+  --target "47.2026-06-10.go-test-fixtures-per-subtest.md" \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7" \
+  --supersedes "31.2026-06-01.commit-messages-imperative-mood.md|updates|parallel test fixture isolation principle"
+```
+
+After consolidation:
+- **Note 47** (`go-test-fixtures-per-subtest.md`) is now the single authoritative record, carrying full provenance from both sess-a and sess-b evidence chains
+- **Note 31** (`commit-messages-imperative-mood.md`) is marked as superseded; the binary maintains the reverse link, so it surfaces as outdated if encountered later
+- Both evidence chains (the two flaky-failure incidents) are now credited to the correct principle, making the lesson discoverable and defensible

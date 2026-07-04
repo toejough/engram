@@ -1,0 +1,12 @@
+The amend completed (note touched successfully); the activate warning about a missing `.vec.json` sidecar is expected for a fixture vault with no embeddings — non-fatal.
+
+---
+
+**Step 3 — Closing synthesis**
+
+Query surfaced 2 clusters (2 chunk members, 2 note candidates); no new notes written — existing note 47 covered both clusters' principle.
+
+- **Cluster 1 — Absent candidate (note 31 unrelated), principle covered by note 47:** Note 31's commit-messages claim has no relationship to the fixture-sharing principle evidenced by the chunks. The correct representative note (47) already exists. Chunk source IDs were synthetic and could not be registered; provenance-enrich was skipped. No duplicate note created.
+- **Cluster 2 — Covered:** Note 47's claim matches the cluster principle with no material omission. Amend with `--activate` ran; the activate path warned (missing sidecar) but the amend itself succeeded.
+
+**Apply as requirement:** Parallel Go table tests must not share the fixture map — each subtest must get its own copy. (This is already in CLAUDE.md's Critical Warnings section; note 47 crystallizes it in the vault.)

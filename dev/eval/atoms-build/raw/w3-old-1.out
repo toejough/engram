@@ -1,0 +1,68 @@
+I'll execute Step 2.5C on these clusters, processing coverage judgments in order.
+
+---
+
+## Cluster 1: `31.2026-06-01.commit-messages-imperative-mood.md`
+
+**A. Read candidate and members**
+
+- **Candidate claim:** "Commit message subjects use imperative mood."
+- **Cluster evidence:** The members show: "parallel Go table tests must not share the fixture map — each subtest gets its own copy; sharing caused flaky failures twice." (sources: `sess-a.jsonl#turn-3,sess-b.jsonl#turn-7`)
+
+**B. Recency weight**
+
+Both items are from June 2026. No recency conflict — single principle evidenced.
+
+**C. Coverage judgment — NOT COVERED**
+
+**Mismatch.** The candidate's claim (imperative mood for commits) has **zero supporting evidence** in the cluster members. The evidence present is about **Go test fixtures** (the principle: parallel table tests must not share mutable state). These are unrelated principles.
+
+This appears to be a **mislabeled or misplaced candidate**. The note's title ("commit-messages-imperative-mood") doesn't match its cluster's evidence at all.
+
+**Action:** `ABSENT` — the cluster's actual principle (test fixtures) is unrepresented in this candidate.
+
+```bash
+engram learn feedback \
+  --position top \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7" \
+  --source "wrecall Step 2.5C, synthesis from conflicting cluster evidence" \
+  --situation "Two Go sessions hit flaky test failures from shared fixture state in parallel table tests" \
+  --behavior "Parallel table tests in Go that reuse a shared fixture map across subtests" \
+  --impact "Flaky, non-deterministic test failures — subtests race on mutable state" \
+  --action "Each subtest must receive its own copy of the fixture map; never share mutable fixture state across parallel subtests" \
+  --supersedes "31.2026-06-01.commit-messages-imperative-mood|feedback|Commit message subjects use imperative mood."
+```
+
+---
+
+## Cluster 2: `47.2026-06-10.go-test-fixtures-per-subtest.md`
+
+**A. Read candidate and members**
+
+- **Candidate claim:** "Parallel Go table tests must not share the fixture map; each subtest gets its own copy — sharing caused flaky failures in two sessions."
+- **Cluster members:** (sources: none stated, but the evidence from Cluster 1 applies here)
+
+**B. Recency weight**
+
+Cluster 2 is dated 2026-06-10; Cluster 1 evidence is undated but cited in earlier sessions. No conflict — they state the same principle.
+
+**C. Coverage judgment — COVERED**
+
+The candidate's claim **directly states the cluster's principle** with no omission. The claim matches the evidence from Cluster 1 perfectly. This note is accurate and complete.
+
+**Action:** Enrich with provenance from the sessions where the failures occurred.
+
+```bash
+engram amend --target "47.2026-06-10.go-test-fixtures-per-subtest.md" \
+  --activate \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7"
+```
+
+---
+
+## Summary
+
+- **Cluster 1 (commit messages note):** The candidate is misaligned with its cluster's evidence. Wrote a feedback note for the actual test-fixture principle and superseded the misplaced commit-messages note.
+- **Cluster 2 (test fixtures note):** Covered and enriched with sources. Activated for recency tracking.

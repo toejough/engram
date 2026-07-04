@@ -1,0 +1,3 @@
+Recall Step 4 complete. The QA pair capturing the question "Why did our eval runs lose data when the orchestrator died?" and its answer — "Per-trial JSONL checkpointing bounds data loss to at most one trial" — has been persisted to vault with high certainty and linked to the supporting note on eval checkpoint strategies.
+
+All remaining recall actions are now finished.
