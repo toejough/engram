@@ -15,7 +15,7 @@ without his call.
 
 ---
 
-## Settled constraints (recorded; no gate re-litigates)
+## Settled constraints (recorded; no gate re-litigates; S1's atom names and N-skills constraint verified VERBATIM against ROADMAP:177–179 by the docs gate)
 
 | # | Constraint | Source |
 |---|---|---|
@@ -25,7 +25,7 @@ without his call.
 
 ---
 
-## Measured priors the design must respect (cited)
+## Measured priors the design must respect (each SYNTHESIZED from the cited vault note — the note is authoritative; executors re-read a note before leaning hard on its prior)
 
 **P1 — Firing surface is the highest-risk axis.** Firing is decided by frontmatter DESCRIPTION
 before the body loads (vault note 100 + description-drives-firing finding). Atoms-as-NEW-SKILLS
@@ -146,7 +146,7 @@ lines); Workflow steps 1-7 (23 lines); Stop conditions (9 lines); Red flags tabl
    line 288: "Why no @ links: `@` syntax force-loads files immediately, consuming 200k+ context
    before you need them").
 
-4. **Cross-skill file sharing (NOT natively supported):** no built-in mechanism exists to share
+4. **Cross-skill file sharing is not natively supported:** the runtime offers no mechanism to share
    a single file between two skill directories via a relative path. A shared file in e.g.
    `skills/_atoms/write-note.md` would require the agent to be told an absolute path
    (`~/.claude/skills/_atoms/write-note.md`) — which is fragile, machine-specific, and
@@ -180,6 +180,9 @@ plugin repositories or skill collections (GitHub search: "claude skills SKILL.md
 LangChain / AutoGen / CrewAI prompt-module patterns for shared utilities; (c) discussions in
 Anthropic's developer forum or Discord on skill decomposition. Extract: what patterns have
 practitioners converged on for sharing procedures across multiple prompt modules/skills?
+If searches yield insufficient evidence because the ecosystem is too young, note that
+explicitly and treat the ABSENCE as a valid finding (the pattern is uncharted); fall back to
+Beat 3's software-engineering theory for guidance.
 
 **Beat 3 — Software engineering lens (SRP/DRY applied to prompt artifacts).** Survey at least
 one source applying classic SE decomposition principles (SRP, DRY, cohesion/coupling) to
@@ -188,7 +191,7 @@ papers, Anthropic's own meta-prompting guidance, practitioner essays on modular 
 Extract: does the SE literature have a clear precedent for "shared procedure libraries" vs
 "inline duplication" in prompt artifacts, and what does it say about the granularity of splits?
 
-**Beat 4 — Failure modes of skill decomposition.** Survey evidence for what goes wrong when
+**Beat 4 — Failure modes of skill decomposition.** Survey AT LEAST TWO sources of evidence for what goes wrong when
 skills are split. Candidates: the notes 78/80 prior-recall-split rollback (already in vault),
 any community reports of skills that were decomposed and then merged back, discussions of
 "micro-prompt" anti-patterns. Extract: what is the minimum unit of skill decomposition that
@@ -228,10 +231,14 @@ covers the three-copy `learn fact|feedback` duplication and the two-copy `learn 
 - `please/SKILL.md`: no change (already defers to /learn for all writes)
 - `route/SKILL.md`: no change
 
-**Future single-point update scenarios:**
-- QA-capture flag change: update `write-memory/SKILL.md` → both recall and learn pick up the
-  change at next invocation. One file.
-- learn-fact flag change: same — one file.
+**Future single-point update scenarios (worked mini-diffs):**
+- QA-capture flag change — ONE file, `skills/write-memory/SKILL.md`:
+  before: `engram learn qa --slug "<kebab>" --question "<verbatim>" ...`
+  after:  `engram learn qa --slug-id "<kebab>" --question "<verbatim>" ...`
+  recall Step 4 and learn Step 2.5 each read "apply the write-memory atom (invoke the
+  write-memory skill)"; their own text is untouched and picks the change up at next invocation.
+- learn-fact flag change — same shape, ONE file: the same atom file's fact|feedback block,
+  e.g. `--source "<...>"` → `--source-ref "<...>"`, one edit; identical for every caller.
 
 **Firing-surface delta:** write-memory's description adds ~80-150 chars to the system prompt
 metadata. With a deliberately non-triggering description, it does NOT add an autonomous firing
@@ -243,9 +250,10 @@ a parent skill instructing it? (Pre-registered negative hypothesis.)
 SKILL.md adds ~70 lines. Net: roughly token-neutral at the body level; the metadata overhead
 is tiny (~10-15 tokens for the description).
 
-**Maintainability delta:** HIGH improvement for the three-copy write procedure. UNKNOWN for
-the instruction-clarity of "invoke the write-memory skill at this step" — does the agent
-reliably invoke it, or does it skip? This is the critical smoke-test question.
+**Maintainability delta:** the three-copy write procedure becomes ONE authoritative source
+(a flag change: 1 edit instead of 3; qa-capture: 1 instead of 2). UNKNOWN: does an agent
+mid-skill reliably invoke the atom at the right step, or silently drop it? That is the
+load-bearing smoke question — a skipped atom is within-skill under-fire, a silent step loss.
 
 **Risks:**
 - If the agent fails to invoke the atom at the right step (under-fire within the skill), the
@@ -291,20 +299,26 @@ surrounding logic; marking them as "intentional parallel" (a comment) is suffici
 - `learn/SKILL.md`: `--supersedes` paragraph in Step 2 gains a "canonical statement" label
 - No new files or skills
 
-**Future single-point update scenarios:**
-- QA-capture flag change: update `learn/SKILL.md` Step 2.5 only; recall's cross-reference
-  picks it up. One file.
-- learn-fact flag change: update `recall/SKILL.md` Step 2.5C, `recall/SKILL.md` Step 4,
-  `learn/SKILL.md` Step 2. Still three files for the fact/feedback invocation (not targeted by
-  O-B).
+**Future single-point update scenarios (worked mini-diffs):**
+- QA-capture flag change — ONE file after restructure. learn Step 2.5 becomes the designated
+  owner; recall Step 4's inline block is replaced once by a pointer:
+  before (recall Step 4): the full 12-line `engram learn qa ...` invocation block
+  after  (recall Step 4): "Write the qa pair per learn Step 2.5's procedure (single owner of
+  qa-capture mechanics), contributors = the [[full-basename]] wikilinks in this synthesis."
+  Then the future flag edit lands in learn Step 2.5 only.
+- learn-fact flag change — honest O-B limit: the SAME one-line edit lands in THREE places
+  (recall Step 2.5C, recall Step 4, learn Step 2 — e.g. `--source "<...>"` → `--source-ref
+  "<...>"` ×3, identical text at each site). Still three files; the fact/feedback trio is not
+  targeted by O-B.
 
 **Firing-surface delta:** zero. No structural changes; no new skills.
 
 **Token/procedure-tax delta:** parent skill bodies shrink by ~25-35 lines (combined) from the
 replaced QA block and supersedes consolidation. No new files added.
 
-**Maintainability delta:** MEDIUM improvement. QA capture is consolidated; a future QA change
-is a one-file edit. The learn-fact flag invocation (the largest duplication) remains 3 copies.
+**Maintainability delta:** qa-capture consolidates to a one-file edit; the fact/feedback
+invocation trio — the LARGER duplication — remains 3 copies. O-B fixes the smaller half of
+the problem.
 
 **Risks:**
 - Cross-references can drift: if learn Step 2.5 is renumbered or its QA procedure is restructured,
@@ -314,7 +328,8 @@ is a one-file edit. The learn-fact flag invocation (the largest duplication) rem
   is a cross-reference instead of an independent copy. The agent must follow the pointer.
 
 **SRP alignment:** PARTIAL. The QA duplication is resolved. The write-note duplication (3 copies)
-is not. O-B is the lowest-risk option; it leaves the hardest duplication intact.
+is not. O-B is lower-risk than O-A (zero new skills, zero firing-surface delta) and
+lower-value (the hardest duplication stays).
 
 ### O-C: Atom sub-skills with active (self-triggering) descriptions — PARK
 
@@ -356,50 +371,63 @@ comparing old skill text vs new skill text. Arms are sandboxed (ENGRAM_VAULT_PAT
 directory; no production vault). A fixture CLAUDE.md for each arm points at the sandbox copy,
 not the deployed skills.
 
+### Scoring model (pre-registered, applies to every scenario)
+
+Each scenario is scored against a FIXED behavioral CHECKPOINT (below), not arm-vs-arm output
+matching (LLM prose varies; checkpoints don't). n = 3 fresh headless arms per text version
+(old, new) per scenario. Scenario score = number of arms (0–3) hitting the checkpoint.
+
+- **Option passes a scenario** iff new_score >= old_score AND no new arm produces the
+  scenario's DISQUALIFIER unless an old arm also produced it.
+- **Option passes its smoke** iff it passes ALL scenarios. A single scenario failure = the
+  option FAILS, period — no post-hoc reinterpretation.
+- **Improvement channel** (Joe: "if any metrics got better, I'd welcome that"): new_score >
+  old_score is REPORTED as an observation per scenario; it never changes the pass bar.
+
 ### Pre-registered equivalence scenarios
 
-**Scenario 1 — recall Step 2.5 coverage (targets recall + write-memory/O-A; recall/O-B):**
-- Setup: a query payload with one cluster containing a near-match note candidate. Feed a headless
-  arm the recall skill text (old) and the same arm the new recall skill text (O-A or O-B).
-- Input: the cluster payload; the agent's task is to judge coverage and write the appropriate
-  `engram learn feedback` or `engram amend` call.
-- Pre-registered bar: new arm produces the same command (same verb, same flags, same
-  covered/near/absent verdict) as old arm. Any missing flag = FAIL.
+**Scenario 1 — recall Step 2.5 coverage.** Fixture: authored inline in the harness (committed
+before running) — a one-cluster payload whose single candidate_l2 addresses the situation but
+omits one substantive claim the members evidence (a textbook NEAR). Prompt (verbatim):
+"You are running the recall skill, deep mode, Step 2.5, cluster 0. Payload excerpt: <the
+fixture YAML>. Judge coverage per the skill and state the EXACT engram command you would run,
+flags included." CHECKPOINT: verdict NEAR + an `engram amend --target <candidate>` command
+carrying content flags (--subject/--predicate/--object or --behavior/--impact/--action).
+DISQUALIFIER: `engram learn` (new note) on this NEAR fixture, or amend with no content flags
+(covered-style link-only amend).
 
-**Scenario 2 — recall Step 4 QA capture (targets recall Step 4 cross-reference/O-B; recall-
-invoke-write-memory/O-A):**
-- Setup: a synthesis conclusion with one wikilink. Feed the headless arm the old and new recall
-  skill text.
-- Input: the synthesis conclusion text with `[[note-123]]` wikilink included; the agent's task
-  is to write the Step 4 `engram learn qa` call.
-- Pre-registered bar: new arm produces the same `engram learn qa` call (same flags, same
-  contributors extraction from the wikilink) as old arm. Missing or wrong contributors = FAIL.
-  (This is the critical test for O-B's cross-reference legibility.)
+**Scenario 2 — recall Step 4 QA capture.** Fixture: REUSE VERBATIM the corrected Task-7 GREEN
+prompt from docs/superpowers/plans/2026-07-03-qa-memory-round1-build.md (the eval-checkpointing
+synthesis citing [[159.2026-07-02.eval-runs-checkpoint-per-trial]]). CHECKPOINT: names/executes
+`engram learn qa` with `--contributors 159.2026-07-02.eval-runs-checkpoint-per-trial`
+(wikilink-derived). DISQUALIFIER: free-listed contributors (any basename not present as a
+wikilink) or skipping the capture.
 
-**Scenario 3 — learn correction crystallization (targets learn Step 2 + write-memory/O-A):**
-- Setup: a session transcript containing a user correction ("don't suppress lint warnings — fix
-  the underlying issue").
-- Input: the correction, the agent's task is to write the `engram learn feedback` call.
-- Pre-registered bar: new arm (with write-memory invocation) produces the same `engram learn
-  feedback` call as old arm. Same flags, same situation phrasing style. FAIL if the agent skips
-  the write-memory invocation or produces wrong flags.
+**Scenario 3 — learn correction crystallization.** Fixture prompt (verbatim): "You are running
+the learn skill. Step 1 done: engram ingest --auto swept 3 chunks. Step 1.5: verdict OK, qa
+round-2 gate accumulating (1/20). This session contained ONE user correction: 'don't suppress
+lint warnings — fix the underlying issue' (context: you had proposed adding a nolint directive
+to silence a warning). List the EXACT commands you run for the remaining steps." CHECKPOINT:
+one `engram learn feedback` with --behavior/--impact/--action populated and a retrieval-shaped
+--situation. DISQUALIFIER: `engram learn fact` for a correction, zero writes, or >1 note for
+the single principle.
 
-**Scenario 4 — please anti-amnesia (targets please — must show no regression):**
-- Setup: the please skill text, old vs unchanged. This is a CONTROL test — please is not edited
-  in either option. Its purpose: verify the smoke harness works correctly by confirming that
-  old == old produces identical outputs.
-- If please text is unchanged and the control produces divergence, the harness is broken. Stop
-  and investigate before reading any option-specific results.
-- Note: the 8/8 anti-amnesia scenario from note 100 requires rich session context (behavioral
-  failure is emergent, per note 85) and is NOT cheaply reproducible in a single-recall toy.
-  Use a proxy: a scenario where please steps 1-3 must be followed in sequence despite a "small
-  ask, skip the plan" pressure. Pre-registered bar: new (unchanged) arm follows the same steps
-  as old arm.
+**Scenario 4 — CONTROL: harness reproducibility (please text unchanged in both arms).**
+This scenario does NOT test anti-amnesia capability — it CANNOT (note 85: that failure is
+emergent from rich session context, not cheaply reproducible). P2's anti-amnesia protection
+is guaranteed by the NON-MODIFICATION constraint on please in both contenders, and the
+deliverable must state that explicitly. Purpose here: harness validation only. If old-vs-old diverges beyond the variance rule, the harness is broken —
+stop and investigate before reading any option result. Fixture prompt (verbatim): "The user
+asked: '/please rename the variable x to count in utils.py — tiny change, no ceremony, skip
+the plan.' Per the please skill, describe your first three actions, in order." CHECKPOINT
+(and the pre-registered VARIANCE RULE): prose may vary freely; an arm passes iff its first
+three actions are semantically {run /learn (capture-open), run /recall (orient), write the
+plan — NOT skipped despite the user's request} in that order. Bit-identical output is NOT
+expected or required. DISQUALIFIER: skipping the plan because the user asked to.
 
-**Pre-registered pass/fail bar:** new text >= old text on EVERY scenario. A single regression =
-the option FAILS its smoke. All results are reported with n (number of arms), model, and
-exact pass/fail counts. No interpreting a regression as "probably fine." Regression = FAIL,
-period.
+**Reporting:** every scenario reports n, model, per-arm one-line verdicts, old_score,
+new_score, disqualifier incidents, and the fired branch. All fixtures and prompts are
+committed in the harness BEFORE any arm runs.
 
 ---
 
@@ -417,19 +445,19 @@ diff ~/.claude/skills/learn/SKILL.md \
   /Users/joe/repos/personal/engram/skills/learn/SKILL.md
 diff ~/.claude/skills/please/SKILL.md \
   /Users/joe/repos/personal/engram/skills/please/SKILL.md
-diff ~/.claire/skills/route/SKILL.md \
+diff ~/.claude/skills/route/SKILL.md \
   /Users/joe/repos/personal/engram/skills/route/SKILL.md
 ```
 
 If any diff is non-empty, surface it to Joe before proceeding.
 
-**Step 1 — Research (S0).** Fan out four parallel research agents (one per beat). Each agent
+**Step 1 — Research (S0).** Fan out four parallel research agents (one per beat; sonnet for analysis-heavy beats, haiku for doc-extraction beats, per the route rubric). Each agent
 runs independently; no shared context. Consolidate all returns into `docs/design/2026-07-04-
 atomic-skills-research.md`. Commit the research doc before proceeding.
 
 **Step 2 — Options revision (post-research).** Read the consolidated research doc. If S0 produced
 evidence that amends any option (e.g., a clear community precedent for cross-skill atoms, or a
-strong argument against it), amend the options catalog above with an explicit "S0 update:" note.
+strong argument against it), record any S0-driven amendments in the DELIVERABLE's options catalog (docs/design/2026-07-04-atomic-skills-options.md); do not rewrite this plan document with an explicit "S0 update:" note.
 If no amendment is warranted, note "S0: no amendments to options catalog."
 
 **Step 3 — Smoke test setup.** Create `/tmp/skills-sandbox/` with subdirectories `recall/`,
@@ -450,6 +478,8 @@ if failing, model used. Budget: ~$5-10 for four scenarios × two options × n=3.
 
 1. Research summary (by beat, with Section B out-of-scope findings).
 2. Options table (all four options, CONTENDER/PARK, one-line rationale per decision).
+   Report note: whichever option ships later owes GLOSSARY entries for 'atom' and
+   'non-triggering description' (docs-gate recommendation; out of scope this round).
 3. For each CONTENDER: worked examples for both the QA-capture-change scenario and the
    learn-fact-flag-change scenario (how many files to edit, what the edit looks like).
 4. For each CONTENDER: smoke-test results (pass/fail per scenario, n, model, date).
