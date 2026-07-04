@@ -89,13 +89,15 @@ At the start of execution, push all seven steps below to the task list via `Task
    Drive the plan from step 3 with a plan-execution skill if one is installed (otherwise work the plan task by task), and verify before declaring any unit done — via a verification skill if installed, otherwise by running the actual commands and reading their output before claiming success.
 5. **Document.** Update every piece of documentation the changes touch — `README.md`, `CLAUDE.md`, `docs/`, glossaries, skill references — so the docs match the new reality. The step completes only when **gate C** closes over every touched doc.
 6. **Complete.** If the work originated from an issue, close it. Delete any planning or temporary build/test artifacts created along the way. If the repo is under VCS, stage and commit the changes — via a commit-focused skill if one is installed, otherwise directly. Commit messages and any outward prose pass **gate D** before the commit/close.
-7. **Capture (close) — `/learn`.** Before invoking the closing `/learn`, run the **lessons audit** over the cycle's mechanical
-   corpus: enumerate (a) every pre-registered STOP that fired, (b) every gate FAIL verdict,
-   (c) every commit whose message contains CORRECTION, supersede/superseded, instrument-invalid,
-   or redraw/redrawn, (d) every mid-cycle escalation to the user. Map each item to the vault
-   note that captures its lesson, or write the one-line "no lesson: <why>". Unmapped items are
-   reversal handoffs for the closing learn (its Step-2 kind 3). The audit list (item →
-   note-or-no-lesson) appears in the cycle's closing report to the user. Run the `learn` skill again to preserve the lessons from this session. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.
+7. **Capture (close) — `/learn`.** Before invoking the closing `/learn`, run the **lessons audit** over the cycle's mechanical corpus:
+   - every pre-registered STOP that fired
+   - every gate FAIL verdict
+   - every commit whose message contains CORRECTION, supersede/superseded, instrument-invalid, or redraw/redrawn
+   - every mid-cycle escalation to the user
+
+   Map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>". Unmapped items are reversal handoffs for the closing learn (its Step-2 kind 3). The audit list (item → note-or-no-lesson) appears in the cycle's closing report to the user.
+
+   Then: Run the `learn` skill again to preserve the lessons from this session. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.
 
 ## Stop conditions
 
@@ -127,4 +129,4 @@ At the start of execution, push all seven steps below to the task list via `Task
 | You resolved a finding by silently dropping it | Every finding is fixed or rebutted to reviewer ACK; deadlock escalates via AskUserQuestion. |
 | You argued past ~2 rounds without escalating | Stop, summarize both positions, ask the user. |
 | You're closing the cycle without the step-7 lessons audit | Enumerate STOPs, gate FAILs, CORRECTION-class commits, escalations — map each to a note or a "no lesson: why" line |
-| A measured claim is about to reach the user without an evidence pointer + "verified how?" line | Escalation provenance — verify it, or label it an unverified hypothesis |
+| You're about to ship a measured claim without an evidence pointer + "verified how?" line | Escalation provenance — verify it, or label it an unverified hypothesis |
