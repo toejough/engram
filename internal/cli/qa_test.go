@@ -1,6 +1,8 @@
 package cli_test
 
 import (
+	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -158,6 +160,291 @@ func TestRenderQAQuestionNote_ContainsExpectedParts(t *testing.T) {
 	}
 
 	g.Expect(body[1]).To(ContainSubstring("Answered by:"))
+}
+
+func TestRunLearnQA_AWriteAndRemoveFailure_OrphanWarning(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	writeCount := 0
+	deps := cli.LearnQADeps{
+		Now:             func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		Getenv:          func(string) string { return "" },
+		StatDir:         func(string) error { return nil },
+		InitVault:       func(string) error { return nil },
+		ListMDFilenames: func(string) ([]string, error) { return nil, nil },
+		Lock:            func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, _ []byte) error {
+			writeCount++
+			if writeCount == 2 {
+				return errors.New("disk full")
+			}
+
+			return nil
+		},
+		RemoveFile: func(string) error { return errors.New("remove failed") },
+		ReadFile:   func(string) ([]byte, error) { return nil, nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
+		Slug: "slug", Question: "Q?", Answer: "body-a", Source: "src",
+	}, deps, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("orphan")))
+}
+
+func TestRunLearnQA_AWriteFailure_RemovesQAndErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var removed []string
+
+	writeCount := 0
+	deps := cli.LearnQADeps{
+		Now:             func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		Getenv:          func(string) string { return "" },
+		StatDir:         func(string) error { return nil },
+		InitVault:       func(string) error { return nil },
+		ListMDFilenames: func(string) ([]string, error) { return nil, nil },
+		Lock:            func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, _ []byte) error {
+			writeCount++
+			if writeCount == 2 {
+				return errors.New("disk full")
+			}
+
+			return nil
+		},
+		RemoveFile: func(path string) error { removed = append(removed, path); return nil },
+		ReadFile:   func(string) ([]byte, error) { return nil, nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
+		Slug: "slug", Question: "Q?", Answer: "body-a", Source: "src",
+	}, deps, &buf)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(removed).To(HaveLen(1), "Q note must be removed on A-write failure")
+
+	if len(removed) < 1 {
+		return
+	}
+
+	g.Expect(removed[0]).To(ContainSubstring(".q.md"))
+}
+
+func TestRunLearnQA_InitVaultFailure_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	initErr := errors.New("mkdir: read-only filesystem")
+	deps := cli.LearnQADeps{
+		Now:       time.Now,
+		Getenv:    func(string) string { return "" },
+		StatDir:   func(string) error { return os.ErrNotExist },
+		InitVault: func(string) error { return initErr },
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
+		Slug: "slug", Question: "Q?", Answer: "body-a", Source: "src",
+	}, deps, &buf)
+	g.Expect(err).To(MatchError(initErr))
+}
+
+// Coverage tests for RunLearnQA and writeQANotesUnderLock branches.
+
+func TestRunLearnQA_InvalidArgs_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Empty question fails validateLearnQAArgs — covers the validateErr != nil return.
+	deps := cli.LearnQADeps{
+		Now:    time.Now,
+		Getenv: func(string) string { return "" },
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
+		Slug:   "slug",
+		Answer: "body",
+		Source: "src",
+	}, deps, &buf)
+	g.Expect(err).To(MatchError(cli.ErrQAQuestionRequired))
+}
+
+func TestRunLearnQA_LockFailure_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lockErr := errors.New("flock: permission denied")
+	deps := cli.LearnQADeps{
+		Now:             func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		Getenv:          func(string) string { return "" },
+		StatDir:         func(string) error { return nil },
+		InitVault:       func(string) error { return nil },
+		ListMDFilenames: func(string) ([]string, error) { return nil, nil },
+		Lock:            func(string) (func(), error) { return nil, lockErr },
+		WriteNew:        func(string, []byte) error { return nil },
+		RemoveFile:      func(string) error { return nil },
+		ReadFile:        func(string) ([]byte, error) { return nil, nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
+		Slug: "slug", Question: "Q?", Answer: "body-a", Source: "src",
+	}, deps, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("acquiring lock")))
+}
+
+func TestRunLearnQA_MissingVault_Initialized(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	initCalled := 0
+	deps := cli.LearnQADeps{
+		Now:             func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		Getenv:          func(string) string { return "" },
+		StatDir:         func(string) error { return os.ErrNotExist },
+		InitVault:       func(string) error { initCalled++; return nil },
+		ListMDFilenames: func(string) ([]string, error) { return nil, nil },
+		Lock:            func(string) (func(), error) { return func() {}, nil },
+		WriteNew:        func(string, []byte) error { return nil },
+		RemoveFile:      func(string) error { return nil },
+		ReadFile:        func(string) ([]byte, error) { return nil, nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
+		Slug: "slug", Question: "Q?", Answer: "body-a", Source: "src",
+	}, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(initCalled).To(Equal(1), "missing vault must be initialized")
+}
+
+func TestRunLearnQA_StatDirFailure_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	statErr := errors.New("stat: permission denied")
+	deps := cli.LearnQADeps{
+		Now:     time.Now,
+		Getenv:  func(string) string { return "" },
+		StatDir: func(string) error { return statErr },
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
+		Slug: "slug", Question: "Q?", Answer: "body-a", Source: "src",
+	}, deps, &buf)
+	g.Expect(err).To(MatchError(statErr))
+}
+
+func TestRunLearnQA_UnknownContributor_ErrorBeforeWrite(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	writeCallCount := 0
+	deps := cli.LearnQADeps{
+		Now:             time.Now,
+		Getenv:          func(string) string { return "" },
+		StatDir:         func(string) error { return nil },
+		InitVault:       func(string) error { return nil },
+		ListMDFilenames: func(string) ([]string, error) { return []string{"100.note.md"}, nil },
+		Lock:            func(string) (func(), error) { return func() {}, nil },
+		WriteNew:        func(string, []byte) error { writeCallCount++; return nil },
+		RemoveFile:      func(string) error { return nil },
+		ReadFile:        func(string) ([]byte, error) { return nil, nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
+		Slug: "slug", Question: "Q?", Answer: "body-a", Source: "src",
+		Contributors: []string{"999.ghost"},
+	}, deps, &buf)
+	g.Expect(err).To(MatchError(ContainSubstring("contributor not found")))
+	g.Expect(writeCallCount).To(Equal(0), "no writes before validation error")
+}
+
+func TestRunLearnQA_WithAnswerFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var written []string
+
+	fileContent := []byte("Answer read from file.")
+	deps := cli.LearnQADeps{
+		Now:             func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		Getenv:          func(string) string { return "" },
+		StatDir:         func(string) error { return nil },
+		InitVault:       func(string) error { return nil },
+		ListMDFilenames: func(string) ([]string, error) { return nil, nil },
+		Lock:            func(string) (func(), error) { return func() {}, nil },
+		WriteNew:        func(path string, _ []byte) error { written = append(written, path); return nil },
+		RemoveFile:      func(string) error { return nil },
+		ReadFile:        func(string) ([]byte, error) { return fileContent, nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
+		Slug:       "slug",
+		Question:   "Q?",
+		AnswerFile: "/tmp/answer.md",
+		Source:     "src",
+	}, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(written).To(HaveLen(2))
+}
+
+func TestRunLearnQA_WritesQAndAFiles(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var written []string
+
+	deps := cli.LearnQADeps{
+		Now:             func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		Getenv:          func(string) string { return "" },
+		StatDir:         func(string) error { return nil },
+		InitVault:       func(string) error { return nil },
+		ListMDFilenames: func(string) ([]string, error) { return []string{"100.note.md"}, nil },
+		Lock:            func(string) (func(), error) { return func() {}, nil },
+		WriteNew:        func(path string, _ []byte) error { written = append(written, path); return nil },
+		RemoveFile:      func(string) error { return nil },
+		ReadFile:        func(string) ([]byte, error) { return nil, nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
+		Slug:     "test-qa",
+		Question: "What is X?",
+		Answer:   "X is Y.",
+		Source:   "test",
+	}, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(written).To(HaveLen(2))
+
+	if len(written) < 2 {
+		return
+	}
+
+	g.Expect(written[0]).To(ContainSubstring(".q.md"))
+	g.Expect(written[1]).To(ContainSubstring(".a.md"))
 }
 
 func TestScanNonVocabNotes_QAQuestionFilenameSkipped(t *testing.T) {

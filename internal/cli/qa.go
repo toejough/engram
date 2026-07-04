@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,10 +25,107 @@ type LearnQAArgs struct {
 	Source       string   `targ:"flag,name=source,required,desc=provenance string for the source field (required)"`
 }
 
+// LearnQADeps is the dependency set for RunLearnQA.
+type LearnQADeps struct {
+	Now             func() time.Time
+	Getenv          func(string) string
+	StatDir         func(string) error
+	InitVault       func(string) error
+	ListMDFilenames func(string) ([]string, error)
+	Lock            func(vault string) (release func(), err error)
+	WriteNew        func(path string, data []byte) error
+	RemoveFile      func(path string) error
+	ReadFile        func(path string) ([]byte, error)
+	// Embed-on-write pipeline (optional; nil skips silently).
+	Embedder     embed.Embedder
+	WriteSidecar func(path string, data []byte) error
+	LogWarning   func(format string, args ...any)
+	// Vocab assignment pipeline (optional; all three must be non-nil to activate).
+	LoadTermVectors func(vault string) ([]TermWithVector, error)
+	ReadSidecar     func(path string) ([]byte, error)
+	WriteNote       func(path string, data []byte) error
+}
+
+// RunLearnQA implements the engram learn qa subcommand.
+// Writes Q then A atomically-ish: on A-write failure, removes Q (best-effort)
+// and returns a descriptive error. The function calls the existing embed and
+// vocab assignment pipeline for both notes, in order.
+func RunLearnQA(ctx context.Context, args LearnQAArgs, deps LearnQADeps, stdout io.Writer) error {
+	validateErr := validateLearnQAArgs(args)
+	if validateErr != nil {
+		return validateErr
+	}
+
+	certainty := args.Certainty
+	if certainty == "" {
+		certainty = certMedium
+	}
+
+	vault := args.Vault
+
+	ensureErr := ensureQAVault(deps, vault)
+	if ensureErr != nil {
+		return ensureErr
+	}
+
+	// Resolve answer body.
+	answerBody := args.Answer
+	if args.AnswerFile != "" {
+		raw, readErr := deps.ReadFile(args.AnswerFile)
+		if readErr != nil {
+			return fmt.Errorf("learn qa: reading --answer-file %q: %w", args.AnswerFile, readErr)
+		}
+
+		answerBody = string(raw)
+	}
+
+	// Validate contributors before acquiring the lock.
+	mdNames, listErr := deps.ListMDFilenames(vault)
+	if listErr != nil {
+		return fmt.Errorf("learn qa: listing vault: %w", listErr)
+	}
+
+	validateContributorsErr := validateContributors(args.Contributors, mdNames)
+	if validateContributorsErr != nil {
+		return validateContributorsErr
+	}
+
+	when := deps.Now()
+	qPath := qaQuestionPath(vault, args.Slug, when)
+	aPath := qaAnswerPath(vault, args.Slug, when)
+
+	qContent := renderQAQuestionNote(args.Question, args.Slug, args.Source, when)
+	aContent := renderQAAnswerNote(answerBody, args.Slug, args.Source, certainty,
+		args.Contributors, when)
+
+	// Write both notes under the lock, then RELEASE before embed/vocab — the
+	// learn.go writeLearnUnderLock pattern (note 50: sidecar writes are atomic
+	// per-file and need no vault lock; holding it through embedding would block
+	// concurrent learns).
+	writeErr := writeQANotesUnderLock(deps, vault, qPath, aPath, qContent, aContent)
+	if writeErr != nil {
+		return writeErr
+	}
+
+	// Embed-on-write and vocab assignment for Q note (embed only; no vocab on Q).
+	autoEmbedNote(ctx, asLearnDepsForEmbed(deps), qPath, qContent)
+	// No vocab assignment for Q notes (D5′: Q notes carry no vocab).
+
+	// Embed-on-write and vocab assignment for A note.
+	autoEmbedNote(ctx, asLearnDepsForEmbed(deps), aPath, aContent)
+	applyVocabAssignmentAfterLearn(asLearnDepsForVocab(deps), vault, aPath, aContent)
+
+	_, _ = fmt.Fprintln(stdout, qPath)
+	_, _ = fmt.Fprintln(stdout, aPath)
+
+	return nil
+}
+
 // unexported constants.
 const (
 	answeredByBodyMarker   = embed.AnsweredByBodyMarker
 	answersBodyMarker      = embed.AnswersBodyMarker
+	certMedium             = "medium"
 	contributorsBodyMarker = embed.ContributorsBodyMarker
 	qaAnswerSuffix         = ".a.md"
 	qaNotePrefix           = "qa."
@@ -60,6 +161,27 @@ type qaQuestionFrontmatterDoc struct {
 	Source     string `yaml:"source"`
 }
 
+// asLearnDepsForEmbed builds the minimal LearnDeps needed by autoEmbedNote.
+func asLearnDepsForEmbed(d LearnQADeps) LearnDeps {
+	return LearnDeps{
+		Embedder:     d.Embedder,
+		WriteSidecar: d.WriteSidecar,
+		LogWarning:   d.LogWarning,
+	}
+}
+
+// asLearnDepsForVocab builds the minimal LearnDeps needed by applyVocabAssignmentAfterLearn.
+func asLearnDepsForVocab(d LearnQADeps) LearnDeps {
+	return LearnDeps{
+		Now:             d.Now,
+		LoadTermVectors: d.LoadTermVectors,
+		ReadSidecar:     d.ReadSidecar,
+		WriteNote:       d.WriteNote,
+		LogWarning:      d.LogWarning,
+		ListMD:          d.ListMDFilenames,
+	}
+}
+
 // countQAPairs counts vault files where both the .q.md and matching .a.md exist.
 // Pure read-time scan; no new state.
 func countQAPairs(names []string) int {
@@ -86,6 +208,26 @@ func countQAPairs(names []string) int {
 	return count
 }
 
+// ensureQAVault checks that vault exists, creating it if missing.
+// Returns an error for non-ErrNotExist stat failures or init failures.
+func ensureQAVault(deps LearnQADeps, vault string) error {
+	dirErr := deps.StatDir(vault)
+	if dirErr == nil {
+		return nil
+	}
+
+	if !errors.Is(dirErr, fs.ErrNotExist) {
+		return fmt.Errorf("learn qa: vault %s: %w", vault, dirErr)
+	}
+
+	initErr := deps.InitVault(vault)
+	if initErr != nil {
+		return fmt.Errorf("learn qa: %w", initErr)
+	}
+
+	return nil
+}
+
 // isQAQuestionFilename reports whether a filename is a QA question note
 // (prefix "qa." AND suffix ".q.md").
 func isQAQuestionFilename(name string) bool {
@@ -102,6 +244,16 @@ func isQAQuestionKind(content string) bool {
 // qa-answer COMPETES in the main set (D5′ — A notes are synthesis notes).
 func isQueryExcludedKind(content string) bool {
 	return isVocabKind(content) || isQAQuestionKind(content)
+}
+
+// qaAnswerPath returns the full filesystem path for a QA answer note.
+func qaAnswerPath(vault, slug string, when time.Time) string {
+	return filepath.Join(vault, qaSlug(slug, when)+qaAnswerSuffix)
+}
+
+// qaQuestionPath returns the full filesystem path for a QA question note.
+func qaQuestionPath(vault, slug string, when time.Time) string {
+	return filepath.Join(vault, qaSlug(slug, when)+qaQuestionSuffix)
 }
 
 // qaSlug returns the shared date+slug prefix: "qa.<YYYY-MM-DD>.<slug>".
@@ -217,13 +369,44 @@ func validateQAAnswerSource(answer, answerFile string) error {
 // validateQACertainty validates the certainty field (defaulting to "medium").
 func validateQACertainty(certainty string) error {
 	if certainty == "" {
-		certainty = "medium"
+		certainty = certMedium
 	}
 
 	switch certainty {
-	case "high", "medium", "low":
+	case "high", certMedium, "low":
 		return nil
 	default:
 		return fmt.Errorf("%w: got %q", errQACertaintyInvalid, certainty)
 	}
+}
+
+// writeQANotesUnderLock writes the Q then A note under the vault lock and
+// releases it on return. The lock prevents partial-write races with concurrent
+// learn operations; QA notes use date+slug names, not Luhmann IDs.
+// On A-write failure the Q note is removed (best-effort) so no orphan remains.
+func writeQANotesUnderLock(deps LearnQADeps, vault, qPath, aPath, qContent, aContent string) error {
+	release, lockErr := deps.Lock(vault)
+	if lockErr != nil {
+		return fmt.Errorf("learn qa: acquiring lock: %w", lockErr)
+	}
+
+	defer release()
+
+	qWriteErr := deps.WriteNew(qPath, []byte(qContent))
+	if qWriteErr != nil {
+		return fmt.Errorf("learn qa: writing Q note: %w", qWriteErr)
+	}
+
+	aWriteErr := deps.WriteNew(aPath, []byte(aContent))
+	if aWriteErr != nil {
+		removeErr := deps.RemoveFile(qPath)
+		if removeErr != nil {
+			return fmt.Errorf("learn qa: writing A note: %w (also failed to remove orphan Q note %q: %s)",
+				aWriteErr, qPath, removeErr.Error())
+		}
+
+		return fmt.Errorf("learn qa: writing A note (Q note removed): %w", aWriteErr)
+	}
+
+	return nil
 }
