@@ -1377,8 +1377,23 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 
 #### A. RED baseline — headless, fresh process
 
+**Fixture history (Gate-B-era amendment):** the original fixture leaked the expected answer —
+its synthesis note was literally about "engram learn qa must be called," so the first RED run
+scored 3/3 from PROMPT INFERENCE and correctly STOPPED per note 70. The actual premise was then
+verified independently: `grep -c "learn qa" skills/recall/SKILL.md` = 0 (the skill contains no
+such instruction). The fixture below is the corrected instrument: a neutral-domain synthesis
+(eval checkpointing, citing a real basename) whose prompt never names qa mechanics.
+
+**Arms sandboxing (mandatory — measured 2026-07-03):** headless arms with tool access EXECUTE
+commands they are asked to describe (a Task-8 GREEN arm wrote a real pair into the live vault
+via the default vault resolution). Every arm's environment MUST set
+`ENGRAM_VAULT_PATH="$FIXTURE_RED/sandbox-vault"` (mkdir it first) so any execution lands in the
+throwaway sandbox, never the live vault. Same for GREEN with `$FIXTURE_GREEN`.
+
 ```bash
 FIXTURE_RED=$(mktemp -d)
+mkdir -p "$FIXTURE_RED/sandbox-vault"
+export ENGRAM_VAULT_PATH="$FIXTURE_RED/sandbox-vault"
 cat > "$FIXTURE_RED/CLAUDE.md" <<'EOF'
 @/Users/joe/.claude/skills/recall/SKILL.md
 EOF
@@ -1386,22 +1401,19 @@ EOF
 cd "$FIXTURE_RED"
 for i in 1 2 3; do
   claude -p \
-    "You just finished a deep recall Step 4. You wrote this synthesis note:
+    "You just finished a deep recall Step 4. The user's question that prompted this recall was: 'Why did our eval runs lose data when the orchestrator died?' You wrote this synthesis note via engram learn fact:
 ---
 type: fact
-situation: running engram learn qa from a recall step 4
-subject: engram learn qa
-predicate: must be called
-object: after writing a synthesis note when the body cites a vault note
+situation: designing long-running eval harnesses
+subject: eval trial results
+predicate: must checkpoint per trial
+object: JSONL append after every trial so orchestrator death loses at most one trial
 ---
 
-Information learned: [[100.2026-06-01.note-basename]] must be called when writing synthesis.
+Information learned: per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]].
 
-Vocab: vocab.engram-binary-ops
-
-The synthesis body contains: [[100.2026-06-01.note-basename]].
-Question that prompted this recall: 'When must I call engram learn qa?'
-Describe ALL actions you take after writing that synthesis note." \
+The synthesis body contains the wikilink [[159.2026-07-02.eval-runs-checkpoint-per-trial]].
+Describe ALL remaining actions you take to finish the recall, in order." \
     2>&1 | tee "$FIXTURE_RED/run-$i.txt"
 done
 ```
@@ -1418,6 +1430,8 @@ After editing: run `engram update` to deploy to `~/.claude/skills/recall/SKILL.m
 
 ```bash
 FIXTURE_GREEN=$(mktemp -d)
+mkdir -p "$FIXTURE_GREEN/sandbox-vault"
+export ENGRAM_VAULT_PATH="$FIXTURE_GREEN/sandbox-vault"
 cat > "$FIXTURE_GREEN/CLAUDE.md" <<'EOF'
 @/Users/joe/.claude/skills/recall/SKILL.md
 EOF
@@ -1425,27 +1439,24 @@ EOF
 cd "$FIXTURE_GREEN"
 for i in 1 2 3; do
   claude -p \
-    "You just finished a deep recall Step 4. You wrote this synthesis note:
+    "You just finished a deep recall Step 4. The user's question that prompted this recall was: 'Why did our eval runs lose data when the orchestrator died?' You wrote this synthesis note via engram learn fact:
 ---
 type: fact
-situation: running engram learn qa from a recall step 4
-subject: engram learn qa
-predicate: must be called
-object: after writing a synthesis note when the body cites a vault note
+situation: designing long-running eval harnesses
+subject: eval trial results
+predicate: must checkpoint per trial
+object: JSONL append after every trial so orchestrator death loses at most one trial
 ---
 
-Information learned: [[100.2026-06-01.note-basename]] must be called when writing synthesis.
+Information learned: per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]].
 
-Vocab: vocab.engram-binary-ops
-
-The synthesis body contains: [[100.2026-06-01.note-basename]].
-Question that prompted this recall: 'When must I call engram learn qa?'
-Describe ALL actions you take after writing that synthesis note." \
+The synthesis body contains the wikilink [[159.2026-07-02.eval-runs-checkpoint-per-trial]].
+Describe ALL remaining actions you take to finish the recall, in order." \
     2>&1 | tee "$FIXTURE_GREEN/run-$i.txt"
 done
 ```
 
-**Pass criterion (pinned):** ≥2/3 runs describe running `engram learn qa` with `--contributors 100.2026-06-01.note-basename` (derived from the wikilink, not free-listed).
+**Pass criterion (pinned):** ≥2/3 runs describe (or execute in the sandbox) `engram learn qa` with `--contributors 159.2026-07-02.eval-runs-checkpoint-per-trial` (derived from the wikilink, not free-listed).
 
 #### D. Pressure test
 
