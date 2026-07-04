@@ -59,6 +59,33 @@ autonomous firing. Uncharted in official guidance and the ecosystem; validated
 here by non-fire arms (0 autonomous invocations across 6 generic and
 vault-adjacent prompts, in both the atom and worker rounds).
 
+### reversal (capture kind)
+A conclusion, design, or verdict that was presented (to the user, a review gate,
+or a committed plan) and later overturned — by the agent itself, a reviewer, or
+an instrument. The learn skill's third capture kind (Step 2, shipped 2026-07-04):
+each reversal crystallizes the ROOT CAUSE of the original error via a write-memory
+handoff. Self-discovered reversals qualify; a repo-doc CORRECTION section is not
+capture.
+
+### lessons audit
+The please skill's step-7 enumeration of a cycle's mechanical corpus — fired
+pre-registered STOPs, gate FAIL verdicts, commits whose messages carry
+CORRECTION/supersede/instrument-invalid/redraw markers, and mid-cycle escalations —
+each mapped to the vault note that captures its lesson or an explicit
+"no lesson: <why>" line. Unmapped items become reversal handoffs; the list appears
+in the cycle's closing report. Pre-registered upgrade: a wrong "no lesson" mapping
+triggers a fresh-context lessons reviewer (an externalized audit; upgrade path in the
+ROADMAP atoms-arc status block).
+
+### escalation provenance
+The please skill's rule that any measured claim (count, rate, cost, duration) in a
+mid-cycle escalation — an AskUserQuestion or STOP report — carries its evidence
+pointer (file/command) and a one-line validity statement ("verified how?");
+unverified claims ship only as explicitly-labeled hypotheses. Pre-registered
+upgrade: a shipped unverified number triggers an enforced escalation gate (a
+fresh ground-truth review per measured escalation; upgrade path in the ROADMAP
+atoms-arc status block).
+
 ### harness
 A coding-agent host that runs skills. Engram supports two: **Claude Code**
 and **OpenCode**. The plural is *harnesses*. When the same concept appears

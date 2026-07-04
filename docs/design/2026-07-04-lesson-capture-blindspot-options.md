@@ -11,6 +11,10 @@ decision. Both were crystallized only after Joe asked (now notes 166–168).
 failures), `docs/design/2026-07-01-memory-system-review.md` (system scorecard), ROADMAP "Deeper
 arc — rebuild the skills from behavioral atoms" (where any picked guard lives — see Placement).
 
+> **Since fixed (2026-07-04, same day):** the diagnosis below describes the taxonomy as it stood
+> when written; G1+G2+G6 shipped hours later (see the Decision record at the end). The learn
+> skill now scans three kinds; please step 7 audits; escalations carry provenance.
+
 ## The answer up front
 
 **Yes — there is a category error, and it is in the learn skill's Step-2 taxonomy.** The scan
@@ -93,3 +97,10 @@ workflow already has). No new track needed.
    it is exactly the kind of prose-only guard this analysis says under-fires).
 2. If picking: bless the build order (G1 first — smallest, fixes the category error; then G2+G6
    in one please-skill edit).
+
+---
+
+**Decision (Joe, 2026-07-04): "run through your recommendation" — G1+G2+G6 picked and SHIPPED
+the same day** (plan `docs/superpowers/plans/2026-07-04-capture-guards-build.md`; batteries
+all-PASS at e13c3c9f under marker validity gates; production commits 65327115 + bdc3f3dc).
+Staged upgrades G6→G5 and G2→G3 pre-registered in the ROADMAP atoms-arc status block; G4 parked.

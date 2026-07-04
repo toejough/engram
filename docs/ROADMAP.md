@@ -186,6 +186,13 @@ invoked as the next whole action, not a mid-procedure reference fetch); its depl
 see `dev/eval/atoms-build/results-2026-07-04.md` CORRECTION). read-memory deliberately NOT
 extracted: recall's read+judge+write pipeline is a cohesion seam worth keeping
 (`docs/design/2026-07-04-atomic-skills-options.md`).
+**Capture guards shipped 2026-07-04** (`docs/design/2026-07-04-lesson-capture-blindspot-options.md`,
+Joe's pick G1+G2+G6): learn Step 2 gains REVERSALS as a third capture kind; please step 7 gains the
+lessons audit over the cycle's mechanical corpus; please gains the escalation provenance rule.
+Pre-registered upgrades, triggers durable here: **G6→G5** (enforced escalation gating) fires if any
+future escalation ships a measured claim with an absent or dishonest validity line; **G2→G3**
+(fresh-context lessons reviewer) fires if a future audit's "no lesson" mapping is shown wrong.
+G4 (crystallize-on-discovery) stays parked.
 
 # Track B — Retrieval cost (the token/dollar/wall-time tax)
 
