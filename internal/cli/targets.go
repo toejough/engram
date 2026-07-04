@@ -204,6 +204,10 @@ func learnUpdateTargets(
 				a.Vault = resolveVault(a.Vault, home, os.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, stdout))
 			}).Name("fact").Description("Write a fact note to the vault"),
+			targ.Targ(func(ctx context.Context, a LearnQAArgs) {
+				a.Vault = resolveVault(a.Vault, home, os.Getenv)
+				errHandler(RunLearnQA(withLog(ctx), a, newOsLearnQADeps(), stdout))
+			}).Name("qa").Description("Write a QA pair (Q+A notes) to the vault"),
 		),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
 			errHandler(runUpdate(withLog(ctx), a, stdout))

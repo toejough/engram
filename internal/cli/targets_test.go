@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/onsi/gomega"
 	"github.com/toejough/targ"
@@ -236,6 +237,47 @@ func TestTargets(t *testing.T) {
 		_ = stderr
 	})
 
+	t.Run("invokes learn qa closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		vault := t.TempDir()
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
+
+		stderr := executeForTest(t, []string{
+			"engram", "learn", "qa",
+			"--slug", "test-qa",
+			"--vault", vault,
+			"--question", "What is X?",
+			"--answer", "X is Y.",
+			"--source", "targets test",
+		})
+		g.Expect(stderr).To(gomega.BeEmpty())
+
+		qPath := filepath.Join(vault, "qa."+timeNowDateForTest()+".test-qa.q.md")
+		aPath := filepath.Join(vault, "qa."+timeNowDateForTest()+".test-qa.a.md")
+
+		g.Expect(qPath).To(gomega.BeAnExistingFile())
+		g.Expect(aPath).To(gomega.BeAnExistingFile())
+	})
+
+	t.Run("learn qa errors when --question is missing", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		vault := t.TempDir()
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
+
+		stderr := executeForTest(t, []string{
+			"engram", "learn", "qa",
+			"--slug", "test-qa",
+			"--vault", vault,
+			"--answer", "X is Y.",
+			"--source", "targets test",
+		})
+		g.Expect(stderr).To(gomega.ContainSubstring("question"))
+	})
+
 	t.Run("learn feedback errors when --source is missing", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
@@ -402,4 +444,10 @@ func executeForTest(t *testing.T, args []string) string {
 	}
 
 	return stderr.String()
+}
+
+// timeNowDateForTest returns today's date in the vault filename format,
+// matching the production Now() wiring in newOsLearnQADeps.
+func timeNowDateForTest() string {
+	return time.Now().Format("2006-01-02")
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -244,6 +245,34 @@ func isQAQuestionKind(content string) bool {
 // qa-answer COMPETES in the main set (D5′ — A notes are synthesis notes).
 func isQueryExcludedKind(content string) bool {
 	return isVocabKind(content) || isQAQuestionKind(content)
+}
+
+// newOsLearnQADeps wires production I/O adapters for RunLearnQA.
+func newOsLearnQADeps() LearnQADeps {
+	osVault := &osVaultFS{}
+	vaultFS := &osLearnFS{}
+
+	return LearnQADeps{
+		Now:             time.Now,
+		Getenv:          os.Getenv,
+		StatDir:         vaultFS.StatDir,
+		InitVault:       func(path string) error { return initializeVault(vaultFS, path) },
+		ListMDFilenames: osVault.ListMD,
+		Lock:            vaultFS.Lock,
+		WriteNew:        vaultFS.WriteNew,
+		RemoveFile:      os.Remove,
+		ReadFile:        osVault.ReadFile,
+		Embedder:        sharedEmbedder,
+		WriteSidecar:    vaultFS.WriteSidecar,
+		LogWarning:      logWarningToStderrf,
+		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
+			return loadAssignmentTermVectors(vault, osVault.ListMD, osVault.ReadFile)
+		},
+		ReadSidecar: osVault.ReadFile,
+		WriteNote: func(path string, data []byte) error {
+			return atomicWriteFile(path, data, vocabNotePerm)
+		},
+	}
 }
 
 // qaAnswerPath returns the full filesystem path for a QA answer note.
