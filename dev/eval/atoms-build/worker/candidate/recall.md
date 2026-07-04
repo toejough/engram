@@ -232,9 +232,9 @@ Hand ONE synthesis note per conclusion to the **write-memory** skill (kind=fact 
   preserving inference is a hypothesis, not a fact.)
 - **Mark it as derived** in `--source`, e.g. `--source "synthesis (abduction) from recalled memory"`, so
   a human or a weaker model can tell it is a reasoned conclusion to review — not a primitive fact.
-- **If the synthesis conclusion CORRECTS, narrows, or refutes an existing surfaced note**, pass
-  `--supersedes "<basename>|<type>|<claim>"` (types: `updates|narrows|refutes`) on the `engram learn`
-  call — the binary maintains the inverse automatically. Otherwise no link ritual is needed; the
+- **If the synthesis conclusion CORRECTS, narrows, or refutes an existing surfaced note**, include
+  the superseded note's basename, type (`updates|narrows|refutes`), and claim in the write-memory
+  handoff — the binary maintains the inverse automatically. Otherwise no link ritual is needed; the
   binary's vocab-tag assignment connects the new note to related notes structurally. Do not
   hand-author wikilinks for structural linking.
 

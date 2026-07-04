@@ -94,8 +94,8 @@ basenames, certainty, source ("ad-hoc capture, learn session <date>").
 
 Contributors come ONLY from `[[full-basename]]` wikilinks in the written answer — never
 free-listed. Do NOT pre-validate whether contributors exist in the vault; extract the wikilink
-content verbatim and pass it to `engram learn qa --contributors`. Validation happens at write time.
-If `engram learn qa` rejects a contributor, report the rejection and the command you called.
+content verbatim and include the basenames in the write-memory handoff. Validation happens at
+write time; if write-memory reports a contributor rejection, surface it.
 If no `[[...]]` wikilinks appear in the answer and no note was crystallized, skip (D2 bar not met).
 
 **Gate — do not duplicate:** if a QA pair was already written (e.g. by recall's Step 4 during

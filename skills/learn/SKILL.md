@@ -55,24 +55,20 @@ autonomously — it requires Joe's oversight.
 Scan THIS session for exactly two kinds of moments:
 
 1. **Corrections** — the user corrected your approach or behavior ("don't suppress lint warnings —
-   fix the underlying issue", "never amend pushed commits"). Write feedback:
+   fix the underlying issue", "never amend pushed commits").
 
-```bash
-engram learn feedback --slug <kebab-slug> --position top \
-  --source "session <date>, context: <one-line what-was-happening>" \
-  --situation "<retrieval-shaped phrase: when does this apply>" \
-  --behavior "<what was done>" --impact "<why it was wrong/costly>" --action "<what to do instead>"
-```
+   **REQUIRED SUB-SKILL:** invoke the **write-memory** skill with this handoff — kind=feedback,
+   slug, source ("session <date>, context: <one-line what-was-happening>"), situation
+   (retrieval-shaped), behavior, impact, action; plus supersedes details if this correction
+   corrects an existing vault note. write-memory composes, executes, and reports the note path.
 
 2. **Explicit save-requests** — the user said "remember this/that X", "note for next time",
-   "write this down". Write a fact:
+   "write this down".
 
-```bash
-engram learn fact --slug <kebab-slug> --position top \
-  --source "session <date>, context: <one-line what-was-happening>" \
-  --situation "<retrieval-shaped phrase: when does this apply>" \
-  --subject "<the thing>" --predicate "<requires / must use / is>" --object "<the standard or value>"
-```
+   **REQUIRED SUB-SKILL:** invoke the **write-memory** skill with this handoff — kind=fact,
+   slug, source ("session <date>, context: <one-line what-was-happening>"), situation
+   (retrieval-shaped), subject, predicate, object; plus supersedes details if this fact
+   corrects an existing vault note. write-memory composes, executes, and reports the note path.
 
 Rules:
 - **State the general principle**, not the session-specific instance — future-you recalls by
@@ -81,10 +77,7 @@ Rules:
   described ("releasing a Go module", "writing eval harness metrics").
 - One note per distinct principle. An explicit save-request ALWAYS gets its note, immediately —
   "remember this" means stop and write before anything else.
-- **If the new lesson CORRECTS, narrows, or refutes an existing vault note**, add
-  `--supersedes "<basename>|<type>|<claim>"` (types: `updates|narrows|refutes`) to the `engram learn`
-  call. The binary maintains the inverse automatically.
-- **Vocab tags are assigned automatically** by the binary on every write — do not hand-author them.
+- If the new lesson CORRECTS, narrows, or refutes an existing vault note, include the superseded note's basename, type, and claim in the handoff.
 - **No moments of either kind → write nothing.** Routine work is already captured by Step 1;
   a session with no corrections and no save-requests is a two-command learn (sweep + report).
 
@@ -95,22 +88,14 @@ the answer body contains ≥1 `[[full-basename]]` wikilink OR if you crystallize
 new vault note (Step 2) as the answer. Both conditions make the answer traceable (D2 observable
 bar). Skip questions answered with generic advice or without `[[...]]` wikilinks.
 
-For each uncaptured substantive Q&A from this session, call `engram learn qa`:
-
-```bash
-engram learn qa \
-  --slug "<kebab summary of the question>" \
-  --question "<verbatim question>" \
-  --answer "<the answer body (copy; no re-derive)>" \
-  --contributors "<full-basename>" ... \
-  --certainty "<high|medium|low>" \
-  --source "ad-hoc capture, learn session <date>"
-```
+For each uncaptured substantive Q&A from this session, **invoke the write-memory skill** with
+this handoff — kind=qa, slug, verbatim question, answer body (copy; no re-derive), contributor
+basenames, certainty, source ("ad-hoc capture, learn session <date>").
 
 Contributors come ONLY from `[[full-basename]]` wikilinks in the written answer — never
 free-listed. Do NOT pre-validate whether contributors exist in the vault; extract the wikilink
-content verbatim and pass it to `engram learn qa --contributors`. Validation happens at write time.
-If `engram learn qa` rejects a contributor, report the rejection and the command you called.
+content verbatim and include the basenames in the write-memory handoff. Validation happens at
+write time; if write-memory reports a contributor rejection, surface it.
 If no `[[...]]` wikilinks appear in the answer and no note was crystallized, skip (D2 bar not met).
 
 **Gate — do not duplicate:** if a QA pair was already written (e.g. by recall's Step 4 during

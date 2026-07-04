@@ -170,7 +170,7 @@ because it lacks a recent instance.
 | --- | --- | --- |
 | **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend --target <candidate-path> --activate --chunk-source <new-chunk-ids>` — provenance-enrich only; **do not rewrite content**. If this note CORRECTS/narrows/refutes a surfaced note, also pass `--supersedes "<basename>\|<type>\|<claim>"` (types: `updates\|narrows\|refutes`). |
 | **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted. Add `--supersedes "<basename>\|<type>\|<claim>"` if this note corrects a surfaced note. |
-| **Absent** | No candidate addresses the situation | `engram learn fact\|feedback --position top --chunk-source <chunk-ids> --source "<descriptive>" --situation "..." --subject/--predicate/--object (or --behavior/--impact/--action)`. Add `--supersedes "<basename>\|<type>\|<claim>"` if the new note corrects a surfaced note. |
+| **Absent** | No candidate addresses the situation | Invoke the **write-memory** skill with this handoff — kind=fact or feedback (pick per the cluster's principle), situation + content fields, `--source "<descriptive>"`, the cluster's chunk-source IDs, plus supersedes details if the new note corrects a surfaced note. write-memory composes, executes, and reports the note path. |
 
 **One write per cluster; one representative note per cluster.** The representative is always a note
 (never a chunk). For `absent`, write exactly one note (fact *or* feedback) covering
@@ -224,7 +224,7 @@ something a future session (or a *less capable model* that can't re-derive it) w
 or a human may later **inspect or correct** — crystallize it. Reasoning that is never written down
 evaporates; this records the *outcome* and grows the web.
 
-Write ONE synthesis note for the conclusion with `engram learn fact|feedback`:
+Hand ONE synthesis note per conclusion to the **write-memory** skill (kind=fact or feedback, per the conclusion's shape):
 
 - **The note IS the conclusion** (the reasoned lesson), phrased as such — not a restatement of an input.
 - **Certainty by inference mode:** deduction → state it as following necessarily; **abduction / induction
@@ -232,9 +232,9 @@ Write ONE synthesis note for the conclusion with `engram learn fact|feedback`:
   preserving inference is a hypothesis, not a fact.)
 - **Mark it as derived** in `--source`, e.g. `--source "synthesis (abduction) from recalled memory"`, so
   a human or a weaker model can tell it is a reasoned conclusion to review — not a primitive fact.
-- **If the synthesis conclusion CORRECTS, narrows, or refutes an existing surfaced note**, pass
-  `--supersedes "<basename>|<type>|<claim>"` (types: `updates|narrows|refutes`) on the `engram learn`
-  call — the binary maintains the inverse automatically. Otherwise no link ritual is needed; the
+- **If the synthesis conclusion CORRECTS, narrows, or refutes an existing surfaced note**, include
+  the superseded note's basename, type (`updates|narrows|refutes`), and claim in the write-memory
+  handoff — the binary maintains the inverse automatically. Otherwise no link ritual is needed; the
   binary's vocab-tag assignment connects the new note to related notes structurally. Do not
   hand-author wikilinks for structural linking.
 
@@ -242,20 +242,10 @@ Write ONE synthesis note for the conclusion with `engram learn fact|feedback`:
 hunch, you'd hedge below "probable", or it merely re-aggregates one note, do NOT persist. One synthesis
 note per conclusion; link all of its inputs.
 
-**After writing the synthesis note: if the synthesis body contains ≥1 `[[full-basename]]` wikilink
-to a vault note, ALSO write a QA pair to record the question and this session's answer:**
-
-```bash
-engram learn qa \
-  --slug "<kebab summary of the question>" \
-  --question "<verbatim question that prompted this recall>" \
-  --answer "<the synthesis conclusion you just wrote as the note body>" \
-  --contributors "<full-basename-1>" \
-  --contributors "<full-basename-2>" \
-  ... (one --contributors per [[full-basename]] wikilink in the synthesis) \
-  --certainty "<high|medium|low — match the certainty label on the synthesis note>" \
-  --source "recall Step 4, session <date>"
-```
+**After the synthesis note: if the synthesis body contains ≥1 `[[full-basename]]` wikilink,
+ALSO invoke the write-memory skill** with kind=qa — verbatim question, the synthesis conclusion
+as the answer, certainty matching the synthesis note's label, contributors = the wikilink
+basenames, source "recall Step 4, session <date>".
 
 Contributors are auto-extracted from the `[[full-basename]]` wikilinks you already wrote in the
 synthesis body — do NOT free-list ("what notes did you use?"). If the synthesis body contains no
@@ -285,6 +275,7 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 | You activated recent-channel items | Chunks are never activated; recent-block items are not activation targets |
 | You skipped `engram activate` after drawing on notes | Call it after synthesis — used notes must stay warm or the recency-competition mechanism breaks |
 | You're about to write `--relation` or hand-author wikilinks for structural linking | The binary removed `--relation`; vocab tags are automatic; use `--supersedes` only when the note corrects/narrows/refutes a surfaced note |
+| You composed an engram learn command yourself at a write site | Write sites hand off to write-memory — parents judge, the worker writes |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
 | You're recommending a prerequisite or better test as the first step, not the asked task | That displacement IS relitigating the settled task — old reasoning isn't new evidence. Do the asked task; displace only on a NEW fact, stated as a reversal |
 | You ran the write side (2.5C/Step 4) while in `glance` mode | Glance is read-only w.r.t. vault knowledge — skip the write side; switch to `deep` if you need to crystallize |
