@@ -56,6 +56,14 @@ Reviewer protocol:
 5. Reviewers may apply an installed review-focused skill as their discipline source, but the gate itself — fresh per-angle reviewer, recall-first, argue-to-resolution — is not waivable by skill availability.
 6. An angle is N/A only when its subject is absent from the environment (no diagrams in the repo, no docs touched) — name the missing subject out loud. "The artifact is small" is never a skip; a small artifact is a cheap review.
 
+## Escalation provenance
+
+Any MEASURED claim (a count, rate, cost, duration) in a mid-cycle escalation — an
+`AskUserQuestion` or a STOP report — carries its evidence pointer (the file or command that
+produced it) and a one-line validity statement ("verified how?"). A claim whose honest
+validity line is "not verified" does not ship as a finding — verify it first, or present it
+explicitly as an unverified hypothesis. The user decides on escalations; they get provenance.
+
 ## Required argument
 
 `<ask>` is required. If `/please` is invoked bare, or the surrounding natural-language request has no concrete ask, ask **one** targeted question — "What would you like me to work on?" — via `AskUserQuestion` and wait. Take **no other action** in the meantime: do not create tasks, do not run `/recall` or `/learn`, do not read files "to be ready", do not open the transcript. The single question is the entire turn.
@@ -81,7 +89,15 @@ At the start of execution, push all seven steps below to the task list via `Task
    Drive the plan from step 3 with a plan-execution skill if one is installed (otherwise work the plan task by task), and verify before declaring any unit done — via a verification skill if installed, otherwise by running the actual commands and reading their output before claiming success.
 5. **Document.** Update every piece of documentation the changes touch — `README.md`, `CLAUDE.md`, `docs/`, glossaries, skill references — so the docs match the new reality. The step completes only when **gate C** closes over every touched doc.
 6. **Complete.** If the work originated from an issue, close it. Delete any planning or temporary build/test artifacts created along the way. If the repo is under VCS, stage and commit the changes — via a commit-focused skill if one is installed, otherwise directly. Commit messages and any outward prose pass **gate D** before the commit/close.
-7. **Capture (close) — `/learn`.** Run the `learn` skill again to preserve the lessons from this session. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.
+7. **Capture (close) — `/learn`.** Before invoking the closing `/learn`, run the **lessons audit** over the cycle's mechanical corpus:
+   - every pre-registered STOP that fired
+   - every gate FAIL verdict
+   - every commit whose message contains CORRECTION, supersede/superseded, instrument-invalid, or redraw/redrawn
+   - every mid-cycle escalation to the user
+
+   Map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>". Unmapped items are reversal handoffs for the closing learn (its Step-2 kind 3). The audit list (item → note-or-no-lesson) appears in the cycle's closing report to the user.
+
+   Then: Run the `learn` skill again to preserve the lessons from this session. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.
 
 ## Stop conditions
 
@@ -112,3 +128,5 @@ At the start of execution, push all seven steps below to the task list via `Task
 | You dispatched a reviewer without `/recall` as its first action | Reviewers recall first — vault lessons are part of the review. |
 | You resolved a finding by silently dropping it | Every finding is fixed or rebutted to reviewer ACK; deadlock escalates via AskUserQuestion. |
 | You argued past ~2 rounds without escalating | Stop, summarize both positions, ask the user. |
+| You're closing the cycle without the step-7 lessons audit | Enumerate STOPs, gate FAILs, CORRECTION-class commits, escalations — map each to a note or a "no lesson: why" line |
+| You're about to ship a measured claim without an evidence pointer + "verified how?" line | Escalation provenance — verify it, or label it an unverified hypothesis |
