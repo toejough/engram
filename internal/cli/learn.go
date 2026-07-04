@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -457,16 +456,9 @@ func runLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 
 	vault := args.Vault
 
-	dirErr := deps.StatDir(vault)
-	if dirErr != nil {
-		if !errors.Is(dirErr, fs.ErrNotExist) {
-			return fmt.Errorf("learn: vault %s: %w", vault, dirErr)
-		}
-
-		initErr := deps.InitVault(vault)
-		if initErr != nil {
-			return fmt.Errorf("learn: %w", initErr)
-		}
+	vaultErr := ensureVaultDir(deps.StatDir, deps.InitVault, vault, "learn")
+	if vaultErr != nil {
+		return vaultErr
 	}
 
 	path, writeErr := writeLearnUnderLock(ctx, args, deps, vault)

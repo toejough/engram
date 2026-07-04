@@ -1507,6 +1507,58 @@ func TestRunVocabRefit_ClearRemovals_BadYAML_ReturnsRaw(t *testing.T) {
 		"note with bad YAML frontmatter must not be rewritten (content unchanged)")
 }
 
+// ── Gate B: QA question notes skipped by vocab rewrite loops ─────────────────
+
+// TestRunVocabRefit_ClearRemovals_QAQuestionSkipped verifies that a qa-question
+// note is never rewritten by term-removal — even when it (invariantly-wrongly)
+// carries the removed term. The filename guard enforces the D5' invariant
+// rather than relying on it.
+func TestRunVocabRefit_ClearRemovals_QAQuestionSkipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	qNote := "---\ntype: qa-question\ndate: \"2026-07-03\"\nanswered_by: qa.2026-07-03.s.a\n" +
+		"source: test\nvocab: [orphan-term]\n---\n\nQuestion body.\n\nVocab: [[vocab.orphan-term]]\n"
+	planYAML := "removals:\n  - orphan-term\n"
+
+	files := map[string][]byte{
+		"/plan.yaml":                  []byte(planYAML),
+		"/vault/qa.2026-07-03.s.q.md": []byte(qNote),
+	}
+
+	var qWritten bool
+
+	deps := cli.VocabDeps{
+		Lock:   func(string) (func(), error) { return func() {}, nil },
+		ListMD: func(string) ([]string, error) { return []string{"qa.2026-07-03.s.q.md"}, nil },
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile: func(path string, _ []byte) error {
+			if strings.HasSuffix(path, ".q.md") {
+				qWritten = true
+			}
+
+			return nil
+		},
+		DeleteFile:   func(string) error { return nil },
+		WriteSidecar: func(_ string, _ []byte) error { return nil },
+		Now:          func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+	}
+
+	args := cli.VocabRefitArgs{Vault: "/vault", PlanFile: "/plan.yaml"}
+
+	var buf strings.Builder
+
+	g.Expect(cli.RunVocabRefit(t.Context(), args, deps, &buf)).To(Succeed())
+	g.Expect(qWritten).To(BeFalse(), "qa-question note must be skipped by removal rewrite")
+}
+
 // ── Coverage: clearRemovedTermsFromMembers write-error path ───────────────────
 
 // TestRunVocabRefit_ClearRemovals_WriteError_LogsWarning verifies that when
@@ -1987,6 +2039,56 @@ func TestRunVocabRefit_Rename_MemberWriteError_LogsWarning(t *testing.T) {
 	g.Expect(cli.RunVocabRefit(t.Context(), args, deps, &buf)).To(Succeed(),
 		"refit must succeed even when member write fails during rename")
 	g.Expect(warned).To(BeTrue(), "member write failure must trigger log warning")
+}
+
+// TestRunVocabRefit_TermRename_QAQuestionSkipped verifies the same guard on the
+// rename path: a qa-question note carrying the renamed term is never rewritten.
+func TestRunVocabRefit_TermRename_QAQuestionSkipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	qNote := "---\ntype: qa-question\ndate: \"2026-07-03\"\nanswered_by: qa.2026-07-03.s.a\n" +
+		"source: test\nvocab: [old-term]\n---\n\nQuestion body.\n\nVocab: [[vocab.old-term]]\n"
+	oldTermNote := "---\ntype: vocab\nterm: old-term\ndescription: d\nvocab_version: 1.0\ncreated: 2026-01-01\n---\n\nd\n"
+	planYAML := "renames:\n  - from: old-term\n    to: new-term\n"
+
+	files := map[string][]byte{
+		"/plan.yaml":                  []byte(planYAML),
+		"/vault/qa.2026-07-03.s.q.md": []byte(qNote),
+		"/vault/vocab.old-term.md":    []byte(oldTermNote),
+	}
+
+	var qWritten bool
+
+	deps := cli.VocabDeps{
+		Lock:   func(string) (func(), error) { return func() {}, nil },
+		ListMD: func(string) ([]string, error) { return []string{"qa.2026-07-03.s.q.md", "vocab.old-term.md"}, nil },
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile: func(path string, _ []byte) error {
+			if strings.HasSuffix(path, ".q.md") {
+				qWritten = true
+			}
+
+			return nil
+		},
+		DeleteFile:   func(string) error { return nil },
+		WriteSidecar: func(_ string, _ []byte) error { return nil },
+		Now:          func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+	}
+
+	args := cli.VocabRefitArgs{Vault: "/vault", PlanFile: "/plan.yaml"}
+
+	var buf strings.Builder
+
+	g.Expect(cli.RunVocabRefit(t.Context(), args, deps, &buf)).To(Succeed())
+	g.Expect(qWritten).To(BeFalse(), "qa-question note must be skipped by rename rewrite")
 }
 
 func TestRunVocabStats_CountsQAPairs(t *testing.T) {

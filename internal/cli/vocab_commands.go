@@ -588,7 +588,7 @@ func clearRemovedTermsFromMembers(deps VocabDeps, vault string, removals []strin
 	}
 
 	for _, name := range names {
-		if isVocabKindFilename(name) {
+		if isVocabRewriteExcluded(name) {
 			continue
 		}
 
@@ -846,10 +846,18 @@ func filterKeptTerms(vocab []string, removalSet map[string]bool) []string {
 	return kept
 }
 
-// isVocabKindFilename reports whether a filename is a vocab note of any kind
-// (term note OR index), so both are excluded from member assignment scans.
 func isVocabKindFilename(name string) bool {
 	return strings.HasPrefix(name, vocabNotePrefix)
+}
+
+// isVocabKindFilename reports whether a filename is a vocab note of any kind
+// (term note OR index), so both are excluded from member assignment scans.
+// isVocabRewriteExcluded reports whether a filename is skipped by the vocab
+// member-note rewrite loops (removal/rename): vocab-kind files, and QA question
+// notes — which carry no vocab by design (D5'); the guard enforces that
+// invariant rather than relying on it.
+func isVocabRewriteExcluded(name string) bool {
+	return isVocabKindFilename(name) || isQAQuestionFilename(name)
 }
 
 // isVocabTermFilename reports whether a filename is a vocab term note
@@ -1235,7 +1243,7 @@ func rewriteMemberTermRename(deps VocabDeps, vault, fromTerm, toTerm string) err
 	}
 
 	for _, name := range names {
-		if isVocabKindFilename(name) {
+		if isVocabRewriteExcluded(name) {
 			continue
 		}
 

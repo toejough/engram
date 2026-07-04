@@ -28,15 +28,15 @@ type LearnQAArgs struct {
 
 // LearnQADeps is the dependency set for RunLearnQA.
 type LearnQADeps struct {
-	Now             func() time.Time
-	Getenv          func(string) string
-	StatDir         func(string) error
-	InitVault       func(string) error
-	ListMDFilenames func(string) ([]string, error)
-	Lock            func(vault string) (release func(), err error)
-	WriteNew        func(path string, data []byte) error
-	RemoveFile      func(path string) error
-	ReadFile        func(path string) ([]byte, error)
+	Now        func() time.Time
+	Getenv     func(string) string
+	StatDir    func(string) error
+	InitVault  func(string) error
+	ListMD     func(string) ([]string, error)
+	Lock       func(vault string) (release func(), err error)
+	WriteNew   func(path string, data []byte) error
+	RemoveFile func(path string) error
+	ReadFile   func(path string) ([]byte, error)
 	// Embed-on-write pipeline (optional; nil skips silently).
 	Embedder     embed.Embedder
 	WriteSidecar func(path string, data []byte) error
@@ -81,7 +81,7 @@ func RunLearnQA(ctx context.Context, args LearnQAArgs, deps LearnQADeps, stdout 
 	}
 
 	// Validate contributors before acquiring the lock.
-	mdNames, listErr := deps.ListMDFilenames(vault)
+	mdNames, listErr := deps.ListMD(vault)
 	if listErr != nil {
 		return fmt.Errorf("learn qa: listing vault: %w", listErr)
 	}
@@ -181,7 +181,7 @@ func asLearnDepsForVocab(d LearnQADeps) LearnDeps {
 		ReadSidecar:     d.ReadSidecar,
 		WriteNote:       d.WriteNote,
 		LogWarning:      d.LogWarning,
-		ListMD:          d.ListMDFilenames,
+		ListMD:          d.ListMD,
 	}
 }
 
@@ -214,18 +214,24 @@ func countQAPairs(names []string) int {
 // ensureQAVault checks that vault exists, creating it if missing.
 // Returns an error for non-ErrNotExist stat failures or init failures.
 func ensureQAVault(deps LearnQADeps, vault string) error {
-	dirErr := deps.StatDir(vault)
+	return ensureVaultDir(deps.StatDir, deps.InitVault, vault, "learn qa")
+}
+
+// ensureVaultDir stats the vault dir and initializes it when absent — the
+// shared init path for every note-writing subcommand (learn, learn qa, ...).
+func ensureVaultDir(statDir, initVault func(string) error, vault, prefix string) error {
+	dirErr := statDir(vault)
 	if dirErr == nil {
 		return nil
 	}
 
 	if !errors.Is(dirErr, fs.ErrNotExist) {
-		return fmt.Errorf("learn qa: vault %s: %w", vault, dirErr)
+		return fmt.Errorf("%s: vault %s: %w", prefix, vault, dirErr)
 	}
 
-	initErr := deps.InitVault(vault)
+	initErr := initVault(vault)
 	if initErr != nil {
-		return fmt.Errorf("learn qa: %w", initErr)
+		return fmt.Errorf("%s: %w", prefix, initErr)
 	}
 
 	return nil
@@ -255,18 +261,18 @@ func newOsLearnQADeps() LearnQADeps {
 	vaultFS := &osLearnFS{}
 
 	return LearnQADeps{
-		Now:             time.Now,
-		Getenv:          os.Getenv,
-		StatDir:         vaultFS.StatDir,
-		InitVault:       func(path string) error { return initializeVault(vaultFS, path) },
-		ListMDFilenames: osVault.ListMD,
-		Lock:            vaultFS.Lock,
-		WriteNew:        vaultFS.WriteNew,
-		RemoveFile:      os.Remove,
-		ReadFile:        osVault.ReadFile,
-		Embedder:        sharedEmbedder,
-		WriteSidecar:    vaultFS.WriteSidecar,
-		LogWarning:      logWarningToStderrf,
+		Now:          time.Now,
+		Getenv:       os.Getenv,
+		StatDir:      vaultFS.StatDir,
+		InitVault:    func(path string) error { return initializeVault(vaultFS, path) },
+		ListMD:       osVault.ListMD,
+		Lock:         vaultFS.Lock,
+		WriteNew:     vaultFS.WriteNew,
+		RemoveFile:   os.Remove,
+		ReadFile:     osVault.ReadFile,
+		Embedder:     sharedEmbedder,
+		WriteSidecar: vaultFS.WriteSidecar,
+		LogWarning:   logWarningToStderrf,
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
 			return loadAssignmentTermVectors(vault, osVault.ListMD, osVault.ReadFile)
 		},
@@ -346,7 +352,7 @@ func renderQAQuestionNote(questionText, slug, source string, when time.Time) str
 }
 
 // validateContributors checks that each full basename exists in the vault.
-// vaultMDNames is the list of full .md filenames (from ListMDFilenames).
+// vaultMDNames is the list of full .md filenames (from ListMD).
 func validateContributors(contributors []string, vaultMDNames []string) error {
 	nameSet := make(map[string]struct{}, len(vaultMDNames))
 	for _, name := range vaultMDNames {
