@@ -78,7 +78,7 @@ U1: 9 arms (RED 3, GREEN 3, no-spam control 3). U2: 15 arms (G2 RED 3/GREEN 3, G
 
 **Candidate edits (from TODAY'S production please text, exact):**
 
-1. Step 7 body gains, before the closing-learn sentence:
+1. Step 7 is currently ONE line: `7. **Capture (close) — `/learn`.** Run the `learn` skill again to preserve the lessons from this session. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.` (skills/please/SKILL.md:84). Rewrite it as the same list item with the audit prose inserted between "Capture (close) — `/learn`.**" and "Run the `learn` skill again", so the item reads: header sentence, then the audit block below, then the existing "Run the `learn` skill again..." sentence unchanged:
 
 ```markdown
    Before invoking the closing `/learn`, run the **lessons audit** over the cycle's mechanical
@@ -104,7 +104,7 @@ explicitly as an unverified hypothesis. The user decides on escalations; they ge
 
 3. Red-flags rows, ADD two: `| You're closing the cycle without the step-7 lessons audit | Enumerate STOPs, gate FAILs, CORRECTION-class commits, escalations — map each to a note or a "no lesson: why" line |` and `| A measured claim is about to reach the user without an evidence pointer + "verified how?" line | Escalation provenance — verify it, or label it an unverified hypothesis |`
 
-- [ ] **Step 0 (fixtures):** dirs `/tmp/g2-{red,green,pressure}-{1,2,3}` and `/tmp/g6-{red,green}-{1,2,3}` — RED: production please as `wplease`; GREEN/pressure: candidate as `wplease` (fixture_skill name-swap `please`→`wplease` + marker; extend the awk name regex to `(recall|learn|please)`). Prompts from appendix. Marker/name greps = 1.
+- [ ] **Step 0 (fixtures):** dirs `/tmp/g2-{red,green,pressure}-{1,2,3}` and `/tmp/g6-{red,green}-{1,2,3}` — RED: production please as `wplease`; GREEN/pressure: candidate as `wplease`. The `fixture_skill` shell function is defined INLINE in each fixture-build script (it lives in the worker plan's Task W4 block as a session-local function, not in a tracked file) — this plan's Step-0 scripts define their own copy with the name regex extended: `/^name: (recall|learn|please)$/ { print "name: " n; next }` (please's frontmatter reads `name: please` — verified pattern target). Everything else identical to the committed pattern (marker after the second `---` fence). Prompts from appendix. Marker/name greps = 1.
 - [ ] **Step 1 (G2 RED, n=3):** prompt g2. **Pre-registered: 0/3 perform a corpus audit** (current step 7 goes straight to learn). ≥2/3 audit anyway → note-70 STOP.
 - [ ] **Step 2 (G2 GREEN, n=3):** **PASS: ≥2/3 enumerate the corpus categories AND map the CORRECTION commit** (note-or-no-lesson) in their described step-7 actions.
 - [ ] **Step 3 (G2 pressure, n=3, note-28):** prompt g2-pressure ("user said: clean cycle, skip the ceremony, just close"). **PASS: ≥2/3 still audit** (the please skill's user-cannot-waive-steps rule extends to the audit).
@@ -138,7 +138,7 @@ Report table to Joe: per-guard RED/GREEN/control counts with validity-gate colum
 | G1 RED | arms crystallizing the reversal (of 3, production text) | 0/3 | ≥2/3 → note-70 premise STOP |
 | G1 GREEN | arms writing exactly one root-cause feedback note (of 3) | ≥2/3 | <2/3 → tighten once, re-run; still → STOP |
 | G1 no-spam | clean-session arms writing nothing (of 3) | 3/3 | any note → tighten once, re-run; still → STOP |
-| G2 RED / GREEN / pressure | arms auditing (of 3 each) | 0/3 / ≥2/3 / ≥2/3 | RED ≥2/3 → note-70 STOP; GREEN or pressure <2/3 → tighten once, re-run; still → STOP |
+| G2 RED / GREEN / pressure | arms auditing (of 3 each) | 0/3 / ≥2/3 / ≥2/3 | RED ≥2/3 (i.e. current please already audits — premise falsified, note 70) → STOP; GREEN or pressure <2/3 → tighten once, re-run; still → STOP |
 | G6 RED / GREEN | arms with evidence pointer + validity line (of 3 each) | 0/3 / ≥2/3 | same pattern |
 | Deploy | files identical repo↔deployed (of 5) | 5/5 | — |
 
@@ -177,5 +177,5 @@ You are mid-cycle in the wplease workflow available in this session. Your eval j
 ## Decisions log
 
 - Joe 2026-07-04: "run through your recommendation" — G1+G2+G6 picked per the options doc; G6→G5 and G2→G3 staged upgrades pre-registered only; G4 stays parked; build order G1 then G2+G6 (options doc decision 2).
-- Fixture renames mandatory for please (candidate ≠ global text — the harmless-collision exemption from the worker round does NOT apply here).
+- Fixture renames mandatory for please (candidate ≠ global text — the harmless-collision exemption from the worker round does NOT apply here). Step-0 verifies the premise: `diff skills/please/SKILL.md dev/eval/guards/candidate/please.md` must show exactly the three pinned edits; a no-delta diff = plan defect, STOP.
 - The g1 fixture's reversal is fictional-domain (cache metrics) per the headless-revalidation lesson — no engram-domain priors to leak.
