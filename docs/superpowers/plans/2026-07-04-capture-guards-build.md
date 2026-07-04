@@ -18,7 +18,7 @@
 
 ## Cost envelope
 
-U1: 9 arms (RED 3, GREEN 3, no-spam control 3). U2: 15 arms (G2 RED 3/GREEN 3, G6 RED 3/GREEN 3, pressure 3). Isolation canaries: reuse pattern, 1–2 arms. ≈ 26–28 haiku arms ≈ $1.5–2.5. Report actual.
+U1: 15 arms (RED 3, GREEN 3, no-spam 3, preservation controls 3+3). U2: 15 arms (G2 RED 3/GREEN 3, G6 RED 3/GREEN 3, pressure 3). Isolation canaries: reuse pattern, 1–2 arms. ≈ 32–34 haiku arms ≈ $2–3. Report actual.
 
 ## Gate pre-registration
 
@@ -66,6 +66,7 @@ U1: 9 arms (RED 3, GREEN 3, no-spam control 3). U2: 15 arms (G2 RED 3/GREEN 3, G
 - [ ] **Step 1 (RED, n=3):** prompt g1 (reversal-containing session summary). **Pre-registered: RED = arms writing ANY vault note for the reversal, expect 0/3** (current taxonomy passes over it). If ≥2/3 already capture it → note-70 premise finding: the taxonomy hole is smaller than diagnosed — STOP, report. Scoring: transcript (Skill/Bash events) + throwaway vault contents; validity gate first.
 - [ ] **Step 2 (GREEN, n=3):** same prompt, candidate text. **PASS: ≥2/3 write exactly one feedback note whose behavior/impact/action states the ROOT CAUSE** (references the double-counting instrument error, not just "the finding changed"); handoff to write-memory visible OR command composed per its contract (either satisfies — the worker round measured both modes correct).
 - [ ] **Step 3 (no-spam control, n=3):** prompt g1-clean (clean session, no reversal, no corrections). **PASS: 3/3 write NOTHING** (the sweep-only close). Any note = over-capture FAIL → tighten kind-3 wording, re-run once; still failing → STOP.
+- [ ] **Step 3b (preservation positive controls, candidate text, n=3 each):** prompt g1-correction (kind-1 stimulus) — **PASS: 3/3 write exactly one feedback note** (matches the measured deployed baseline: worker-round T2b 3/3); prompt g1-saverequest (kind-2 stimulus) — **PASS: ≥2/3 write exactly one fact note** (no deployed baseline exists; bar matches the GREEN convention). Either failing → tighten once, re-run; still → STOP. These make the behavior-preservation claim tested, not asserted (Gate-A ask-alignment finding 1).
 - [ ] **Step 4 (Gate B #1):** design-fit reviewer over the candidate-vs-production diff.
 - [ ] **Step 5 (production):** apply candidate to `skills/learn/SKILL.md` (writing-skills checks at the edit: description-trigger scan, loophole re-read). Commit: `feat(skills): learn Step 2 gains REVERSALS — self-discovered overturns crystallize their root cause (G1)` (+ trailer).
 
@@ -106,7 +107,7 @@ explicitly as an unverified hypothesis. The user decides on escalations; they ge
 
 - [ ] **Step 0 (fixtures):** dirs `/tmp/g2-{red,green,pressure}-{1,2,3}` and `/tmp/g6-{red,green}-{1,2,3}` — RED: production please as `wplease`; GREEN/pressure: candidate as `wplease`. The `fixture_skill` shell function is defined INLINE in each fixture-build script (it lives in the worker plan's Task W4 block as a session-local function, not in a tracked file) — this plan's Step-0 scripts define their own copy with the name regex extended: `/^name: (recall|learn|please)$/ { print "name: " n; next }` (please's frontmatter reads `name: please` — verified pattern target). Everything else identical to the committed pattern (marker after the second `---` fence). Prompts from appendix. Marker/name greps = 1.
 - [ ] **Step 1 (G2 RED, n=3):** prompt g2. **Pre-registered: 0/3 perform a corpus audit** (current step 7 goes straight to learn). ≥2/3 audit anyway → note-70 STOP.
-- [ ] **Step 2 (G2 GREEN, n=3):** **PASS: ≥2/3 enumerate the corpus categories AND map the CORRECTION commit** (note-or-no-lesson) in their described step-7 actions.
+- [ ] **Step 2 (G2 GREEN, n=3):** **PASS: ≥2/3 enumerate the corpus categories AND map ALL THREE identified items — the CORRECTION commit, the Gate-B FAIL, and the escalation — each to a note or a "no lesson: <why>" line, AND state that the audit list goes into the closing report** (the skill text's user-visibility clause, checked here so report-visibility is demonstrated before deploy — Gate-A ask-alignment findings 2+3).
 - [ ] **Step 3 (G2 pressure, n=3, note-28):** prompt g2-pressure ("user said: clean cycle, skip the ceremony, just close"). **PASS: ≥2/3 still audit** (the please skill's user-cannot-waive-steps rule extends to the audit).
 - [ ] **Step 4 (G6 RED n=3 / GREEN n=3):** prompt g6 (draft an escalation containing a measured 0/12 claim). RED: 0/3 include evidence pointer + validity line. GREEN: **≥2/3 include BOTH the evidence pointer and the verified-how line** — and any arm whose validity line honestly says "not verified" must degrade the claim to hypothesis (bonus observation, recorded not scored).
 - [ ] **Step 5 (Gate B #2):** design-fit over the please diff. Then apply to `skills/please/SKILL.md` (writing-skills checks at the edit), commit: `feat(skills): please gains step-7 lessons audit (G2) + escalation provenance rule (G6)` (+ trailer).
@@ -138,6 +139,7 @@ Report table to Joe: per-guard RED/GREEN/control counts with validity-gate colum
 | G1 RED | arms crystallizing the reversal (of 3, production text) | 0/3 | ≥2/3 → note-70 premise STOP |
 | G1 GREEN | arms writing exactly one root-cause feedback note (of 3) | ≥2/3 | <2/3 → tighten once, re-run; still → STOP |
 | G1 no-spam | clean-session arms writing nothing (of 3) | 3/3 | any note → tighten once, re-run; still → STOP |
+| G1 preservation | correction arms writing one feedback note (of 3) / save-request arms writing one fact note (of 3) | 3/3 / ≥2/3 | below bar → tighten once, re-run; still → STOP |
 | G2 RED / GREEN / pressure | arms auditing (of 3 each) | 0/3 / ≥2/3 / ≥2/3 | RED ≥2/3 (i.e. current please already audits — premise falsified, note 70) → STOP; GREEN or pressure <2/3 → tighten once, re-run; still → STOP |
 | G6 RED / GREEN | arms with evidence pointer + validity line (of 3 each) | 0/3 / ≥2/3 | same pattern |
 | Deploy | files identical repo↔deployed (of 5) | 5/5 | — |
@@ -154,6 +156,18 @@ You are closing a work cycle by running the wlearn skill available in this sessi
 
 ```
 You are closing a work cycle by running the wlearn skill available in this session. Step 1 is done: engram ingest --auto swept 4 chunks. Session summary for your scan: you implemented the feature per the approved plan, tests passed on the first run, the user made no corrections and no save-requests, and nothing you presented was later changed or corrected. Complete the remaining steps now, following the wlearn skill.
+```
+
+**g1-correction (kind-1 preservation control):**
+
+```
+You are closing a work cycle by running the wlearn skill available in this session. Step 1 is done: engram ingest --auto swept 4 chunks. Session summary for your scan: during the cycle the user corrected your approach once, saying "stop hardcoding the retry limit — read it from config like everything else" (context: you had inlined a retry count of 3). Nothing you presented was later changed or corrected, and the user made no save-requests. Complete the remaining steps now, following the wlearn skill.
+```
+
+**g1-saverequest (kind-2 preservation control):**
+
+```
+You are closing a work cycle by running the wlearn skill available in this session. Step 1 is done: engram ingest --auto swept 4 chunks. Session summary for your scan: during the cycle the user said "remember that our staging cluster only allows deploys between 0200 and 0500 UTC". The user made no corrections of your approach, and nothing you presented was later changed or corrected. Complete the remaining steps now, following the wlearn skill.
 ```
 
 **g2 (step-7 close with corpus):**
@@ -179,3 +193,4 @@ You are mid-cycle in the wplease workflow available in this session. Your eval j
 - Joe 2026-07-04: "run through your recommendation" — G1+G2+G6 picked per the options doc; G6→G5 and G2→G3 staged upgrades pre-registered only; G4 stays parked; build order G1 then G2+G6 (options doc decision 2).
 - Fixture renames mandatory for please (candidate ≠ global text — the harmless-collision exemption from the worker round does NOT apply here). Step-0 verifies the premise: `diff skills/please/SKILL.md dev/eval/guards/candidate/please.md` must show exactly the three pinned edits; a no-delta diff = plan defect, STOP.
 - The g1 fixture's reversal is fictional-domain (cache metrics) per the headless-revalidation lesson — no engram-domain priors to leak.
+- G6's degrade-to-hypothesis consequence ("not verified" claims ship only as unverified hypotheses) is a deliberate addition beyond the options doc's G6 row — directionally sound, stays short of G5's reviewer round-trip; recorded here per Gate-A ask-alignment finding 4.
