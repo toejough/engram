@@ -1,0 +1,18 @@
+# Step 2 — Crystallize the correction
+
+```bash
+engram learn feedback --slug dont-suppress-lint-warnings --position top \
+  --source "session 2026-07-04, context: proposing nolint directive to silence a warning" \
+  --situation "encountering a lint warning that needs resolution" \
+  --behavior "proposed adding a nolint directive to suppress the warning" \
+  --impact "suppression masks the underlying problem instead of fixing it; technical debt accumulates and code quality declines" \
+  --action "fix the underlying issue that caused the warning rather than suppressing it"
+```
+
+# Step 2.5 — Ad-hoc QA capture
+
+Skip — no substantive Q&A with `[[...]]` wikilinks occurred this session.
+
+---
+
+**Sandbox marker seen:** `SANDBOX-MARKER-OLD-LEARN`

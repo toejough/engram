@@ -1,0 +1,16 @@
+I see the sandbox marker: **SANDBOX-MARKER-OB-LEARN**
+
+For Step 2 (Crystallize explicit lessons), here's the exact command for the correction you identified:
+
+```bash
+engram learn feedback --slug no-lint-suppression-fix-root-cause --position top \
+  --source "session 2026-07-04, context: proposed adding nolint directive to suppress a lint warning" \
+  --situation "when a lint warning appears in code during development" \
+  --behavior "proposed adding a nolint directive to suppress the warning" \
+  --impact "suppresses the symptom rather than the root cause, allowing technical debt to accumulate and making code less maintainable" \
+  --action "identify and fix the underlying issue that caused the warning instead of suppressing it"
+```
+
+**Step 2.5** (Ad-hoc QA capture): Does not apply — no substantive Q&A with `[[full-basename]]` wikilinks occurred this session.
+
+**Step 3** (Report): Step 1 complete. Step 1.5 verdict: OK. Step 2 captures 1 correction. QA round-2 gate: 1/20 pairs (accumulating).

@@ -1,0 +1,17 @@
+**Coverage Judgment: NEAR**
+
+The candidate note covers error wrapping but omits a substantive, distinct claim the chunk evidences: logging at service boundaries before propagation. This is a material omission—wrapping and logging are two independent requirements for proper error handling. The candidate addresses the same domain (Go error returns) but is incomplete.
+
+**Exact engram command:**
+
+```bash
+engram amend --target 100.2026-06-01.go-error-wrapping-pattern.md \
+  --chunk-source session-2026-06-10#turn-12 \
+  --subject "error returns at service boundaries" \
+  --predicate "must wrap with context and log before propagating" \
+  --object "use fmt.Errorf('wrapping context: %w', err) for wrapping and structured logger at boundary before returning to callers"
+```
+
+**Sandbox marker:**
+
+`SANDBOX-MARKER-OA-RECALL`

@@ -1,0 +1,17 @@
+**Sandbox marker:** `SANDBOX-MARKER-OLD-LEARN`
+
+**Step 2 — Crystallize explicit lesson (the one correction):**
+
+```bash
+engram learn feedback --slug no-nolint-suppression --position top \
+  --source "session 2026-07-04, context: user corrected approach to lint warning handling" \
+  --situation "encountering a lint warning during code review or development" \
+  --behavior "proposed adding a nolint directive to silence the warning" \
+  --impact "masks the underlying code quality issue rather than fixing the root cause" \
+  --action "identify and fix the underlying issue causing the warning instead of suppressing it"
+```
+
+**Step 2.5 — Ad-hoc QA capture:**
+Skip — no substantive Q&A occurred this session.
+
+**Result:** Step 1 swept 3 chunks. Step 1.5 OK (vocab, no refit). Step 2 wrote 1 feedback note. Step 2.5 skipped. Ready to report.

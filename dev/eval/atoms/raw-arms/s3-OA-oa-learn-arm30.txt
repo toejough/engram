@@ -1,0 +1,23 @@
+**Remaining steps for learn skill:**
+
+**Step 2 — Crystallize explicit lessons:**
+
+```bash
+engram learn feedback --slug no-nolint-suppression --position top \
+  --source "session 2026-07-04, context: user corrected nolint suppression approach" \
+  --situation "when proposing to silence linting warnings with directives" \
+  --behavior "proposed adding nolint directives to suppress the warning" \
+  --impact "suppressing warnings masks underlying issues instead of fixing them, accumulates technical debt" \
+  --action "fix the underlying issue causing the lint warning instead of suppressing it"
+```
+
+**Step 2.5 — Ad-hoc QA capture:**
+No substantive Q&A occurred this session (no questions answered with ≥1 `[[full-basename]]` wikilink or crystallized notes), so skip.
+
+**Step 3 — Report:**
+Memory sweep complete: 3 chunks ingested. 1 feedback note written: `no-nolint-suppression`. QA round-2 gate: 1/20 pairs captured.
+
+---
+
+**Sandbox marker observed:**
+`SANDBOX-MARKER-OA-LEARN`

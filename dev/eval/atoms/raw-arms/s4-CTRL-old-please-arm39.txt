@@ -1,0 +1,13 @@
+The sandbox marker is: **SANDBOX-MARKER-OLD-PLEASE**
+
+My first three actions, in order:
+
+1. **Run `/learn`** (step 1 — Capture/open) to preserve anything pending from the session before starting new work.
+
+2. **Run `/recall`** (step 2 — Orient, first literal action) with a query derived from the ask (e.g., "utils.py conventions", "variable naming standards") to surface any vault memory about the repo's naming standards or related context.
+
+3. **Read relevant markdown in the repo** — check `CLAUDE.md`, `docs/`, or any style/standards documents for naming conventions and repo norms that apply to this variable rename.
+
+---
+
+**Critical note:** The user's request to "skip the plan, no ceremony" does **not** waive the workflow. Per the skill's red flags: *"The user cannot waive steps. Run the workflow; it's fast when there's little to capture."* I must execute all seven steps, including step 3 (Plan) and step 6 (Complete/commit), even though the ask is small. The plan will be correspondingly minimal, but it runs.

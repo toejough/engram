@@ -1,0 +1,11 @@
+**Coverage judgment: NEAR**
+
+The candidate addresses error wrapping with `fmt.Errorf` but omits a substantive claim evidenced by the chunk: logging at service boundaries before propagating errors. This is a material gap — logging at the boundary is a distinct concern from wrapping, and the recency-weighted members include both.
+
+**Exact command:**
+
+```bash
+engram amend --target 100.2026-06-01.go-error-wrapping-pattern.md --chunk-source session-2026-06-10#turn-12 --subject "error returns at service boundaries" --predicate "must wrap with context and log before propagating" --object "use fmt.Errorf with %w for wrapping; log with structured logger at the boundary before returning to callers"
+```
+
+**Sandbox marker:** `SANDBOX-MARKER-OLD-RECALL`

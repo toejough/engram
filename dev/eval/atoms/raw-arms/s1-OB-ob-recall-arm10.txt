@@ -1,0 +1,15 @@
+**Coverage judgment: NEAR**
+
+The candidate note addresses error wrapping with `fmt.Errorf`, but the cluster members evidence two substantive claims:
+1. Error wrapping with context (covered by the candidate)
+2. **Logging at service boundaries before propagation** (evidenced by the chunk, omitted from the candidate)
+
+Since the candidate addresses the situation (Go error handling) but omits a material requirement the chunk evidences, this is **Near** coverage.
+
+**Exact engram command:**
+
+```bash
+engram amend --target 100.2026-06-01.go-error-wrapping-pattern.md --chunk-source session-2026-06-10#turn-12 --subject "error returns at service boundaries" --predicate "must wrap context and log before propagating" --object "use fmt.Errorf(\"context: %w\", err) and structured logging at boundary"
+```
+
+**Sandbox marker:** `SANDBOX-MARKER-OB-RECALL`

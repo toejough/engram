@@ -1,0 +1,15 @@
+**Coverage judgment: NEAR**
+
+The candidate addresses error wrapping with `fmt.Errorf` but omits a substantive claim the chunk member evidences: **logging requirement at service boundaries** (structured logger at boundary, not call site). This is a material omission — a separate, required practice distinct from wrapping patterns.
+
+**Exact engram command:**
+
+```bash
+engram amend --target 100.2026-06-01.go-error-wrapping-pattern.md \
+  --chunk-source session-2026-06-10#turn-12 \
+  --subject "error returns at service boundaries" \
+  --predicate "must be logged before propagating" \
+  --object "use structured logger at boundary, not call site"
+```
+
+**Sandbox marker:** SANDBOX-MARKER-OB-RECALL

@@ -1,0 +1,17 @@
+## Step 2.5C Coverage Judgment and Synthesis
+
+**Judgment: NEAR**
+
+The candidate note (2026-06-01) addresses error returns and wrapping but **omits a substantive claim** evidenced by the recency-weighted member: the logging requirement at service boundaries. The chunk (2026-06-10, newer) shows that error handling must include both wrapping *and* logging before propagating to callers. This is a material omission that needs synthesis.
+
+**EXACT engram command:**
+
+```bash
+engram amend --target 100.2026-06-01.go-error-wrapping-pattern.md \
+  --chunk-source session-2026-06-10#turn-12 \
+  --subject "error returns" \
+  --predicate "must wrap with context and log at service boundaries" \
+  --object "use fmt.Errorf for wrapping; use structured logger at boundary before propagating to callers"
+```
+
+**Sandbox marker:** `SANDBOX-MARKER-OB-RECALL`

@@ -1,0 +1,23 @@
+## Remaining Actions to Finish Recall
+
+**Step 4 continuation — QA pair capture:**
+
+Since the synthesis note body contains the wikilink `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`, I must write a QA pair to record this session's answer:
+
+```bash
+engram learn qa \
+  --slug "eval-runs-data-loss-checkpoint" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]]" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+After this call completes, Step 4 is finished and recall concludes.
+
+---
+
+**Sandbox marker:**
+
+`SANDBOX-MARKER-OLD-RECALL`

@@ -1,0 +1,21 @@
+I see the sandbox marker: `SANDBOX-MARKER-OLD-LEARN`
+
+**Remaining steps:**
+
+**Step 2 — Crystallize explicit lessons:**
+```bash
+engram learn feedback --slug no-nolint-suppress-lint --position top \
+  --source "session 2026-07-04, context: proposed using nolint directive to silence warning" \
+  --situation "encountering lint warnings during code review or implementation" \
+  --behavior "proposed adding a nolint directive to suppress the warning" \
+  --impact "suppressing the warning hides the underlying issue and prevents fixing the root cause, leading to technical debt" \
+  --action "fix the underlying lint issue instead of suppressing the warning with directives"
+```
+
+**Step 2.5 — Ad-hoc QA capture:**
+(Skipped — no substantive Q&A pairs captured this session with `[[...]]` wikilinks.)
+
+**Step 3 — Report:**
+After running the feedback command, I'll report the result tally.
+
+Ready to execute?

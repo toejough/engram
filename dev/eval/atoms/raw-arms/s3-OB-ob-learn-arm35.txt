@@ -1,0 +1,22 @@
+I see the sandbox marker: **SANDBOX-MARKER-OB-LEARN**
+
+Here are the exact commands for the remaining steps:
+
+**Step 2 — Crystallize the correction:**
+
+```bash
+engram learn feedback --slug dont-suppress-lint-warnings --position top \
+  --source "session 2026-07-04, context: proposed adding nolint directive to silence a lint warning" \
+  --situation "encountering a lint warning during development" \
+  --behavior "proposed suppressing the warning with a nolint directive" \
+  --impact "masks the underlying issue rather than solving it; leaves broken code in place" \
+  --action "fix the underlying issue instead of suppressing the warning"
+```
+
+**Step 2.5 — Ad-hoc QA check:**
+
+No substantive Q&A occurred this session (no answered questions with `[[...]]` wikilinks or crystallized notes as answers), so skip.
+
+**Step 3 — Report:**
+
+Memory index swept (3 chunks ingested). Vocab status OK. One correction crystallized: `dont-suppress-lint-warnings`. No QA pairs to capture.

@@ -1,0 +1,26 @@
+Sandbox marker confirmed: **SANDBOX-MARKER-OB-LEARN**
+
+## Step 1 (already done) ✓
+engram ingest --auto — swept 3 chunks
+
+## Step 1.5 (already done) ✓
+vocab verdict OK — no refit needed
+
+## Step 2 — Crystallize explicit lessons
+
+One correction to write:
+
+```bash
+engram learn feedback --slug fix-lint-not-suppress --position top \
+  --source "session 2026-07-04, context: proposed nolint directive to suppress warning" \
+  --situation "when proposing to suppress lint warnings with nolint" \
+  --behavior "added nolint directive to silence warning" \
+  --impact "suppresses the underlying issue instead of fixing root cause" \
+  --action "fix the underlying code issue instead of using nolint directive"
+```
+
+## Step 2.5 — Ad-hoc QA capture
+Skip — no substantive Q&As with `[[...]]` wikilinks or crystallized notes in this session.
+
+## Step 3 — Report
+Complete. One feedback note written (`fix-lint-not-suppress`). Vocab refit: not needed. QA gate: accumulating (1/20).

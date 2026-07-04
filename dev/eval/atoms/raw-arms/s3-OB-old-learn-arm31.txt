@@ -1,0 +1,23 @@
+I see the sandbox marker: **SANDBOX-MARKER-OLD-LEARN**
+
+For Step 2 (Crystallize explicit lessons), here's the exact command I'll run:
+
+```bash
+engram learn feedback --slug no-nolint-fix-root-cause --position top \
+  --source "session 2026-07-04, context: corrected proposal to suppress lint warning" \
+  --situation "addressing lint or static analysis warnings in code" \
+  --behavior "proposed adding nolint directive to silence the warning" \
+  --impact "masks the underlying issue; defers technical debt rather than fixing root cause" \
+  --action "fix the root cause of the warning instead of suppressing it"
+```
+
+**Step 2.5** — No substantive Q&A to capture (no [[wikilinks]] in answers, no new vault notes crystallized).
+
+**Step 2 complete** — One feedback note written.
+
+**Session learn complete:**
+- Step 1: engram ingest --auto (3 chunks swept)
+- Step 1.5: vocab verdict OK, no refit needed
+- Step 2: One correction crystallized
+- Step 2.5: No QA to capture
+- Report: Ready to submit

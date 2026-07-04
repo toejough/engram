@@ -1,0 +1,19 @@
+**Remaining action to finish the recall:**
+
+After writing the synthesis note, Step 4 of the recall procedure requires a second invocation since the synthesis body contains ≥1 wikilink (`[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`).
+
+**Invoke write-memory skill's QA capture procedure:**
+
+```bash
+engram learn qa \
+  --slug "eval-orchestrator-death-checkpoint-strategy" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "eval trial results must checkpoint per trial via JSONL append after every trial so orchestrator death loses at most one trial" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, synthesis from checkpointing analysis, 2026-07-04"
+```
+
+Then the recall is complete.
+
+**Sandbox marker:** `SANDBOX-MARKER-OA-WM` (the write-memory procedure invoked by the QA capture step).

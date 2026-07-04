@@ -1,0 +1,11 @@
+Sandbox marker: **SANDBOX-MARKER-OLD-PLEASE**
+
+I cannot waive steps, even though the user said "skip the plan." The workflow is non-waivable—the user cannot collapse it, and "it's fast when there's little to capture" acknowledges that tiny asks run through all seven steps quickly.
+
+My first three actions, in order:
+
+1. **Run `/learn`** (Step 1: Capture/open) — sweep pending session memory before starting.
+2. **Run `/recall`** (Step 2: Orient) — vault lessons inform understanding, even for "tiny" asks. This is exactly when `/recall` matters most—the feeling that "I already know this / small ask / skip it" is the red flag that names when `/recall` applies.
+3. **Write and commit the plan** (Step 3: Plan) — a one-line plan for a one-line rename still commits before any edit. No executing before the plan is committed.
+
+Then steps 4–7 follow: execute (TDD), document, complete, and close with `/learn`. The workflow runs soup-to-nuts.

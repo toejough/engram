@@ -1,0 +1,11 @@
+Looking at the please skill procedure in `/private/tmp/smoke-arm-JRSynz/CLAUDE.md`, the red flags section is explicit:
+
+> "The user said 'no ceremony / skip the plan / hurry' and you collapsed the workflow" — "The user cannot waive steps. Run the workflow; it's fast when there's little to capture."
+
+My first three actions, in order:
+
+1. **Capture (open)** — Run `/learn` to preserve any pending session context before starting new work.
+2. **Orient** — Invoke `/recall` to load vault memory relevant to the ask, then read `CLAUDE.md` and other repo standards to understand conventions, then confirm the ask with the user if needed.
+3. **Plan** — Write a plan to accomplish the rename, even though it's tiny. Commit it. The plan is then reviewed by **gate A** before execution.
+
+**Sandbox marker:** `SANDBOX-MARKER-OLD-PLEASE`

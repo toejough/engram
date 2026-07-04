@@ -1,0 +1,20 @@
+I see the sandbox markers: **SANDBOX-MARKER-OA-LEARN** and **SANDBOX-MARKER-OA-WM** (since I'm invoking write-memory).
+
+Here are the exact commands for the remaining steps:
+
+**Step 2 — Crystallize explicit lessons (the one correction):**
+
+```bash
+engram learn feedback --slug suppress-lint-warnings --position top \
+  --source "session 2026-07-04, context: user corrected approach of adding nolint directive" \
+  --situation "when facing a linting warning that needs to be addressed" \
+  --behavior "proposing to add a nolint directive to silence the warning" \
+  --impact "suppressing warnings masks underlying issues and breaks code quality oversight" \
+  --action "fix the underlying issue that caused the warning instead of suppressing it"
+```
+
+**Step 2.5 — Ad-hoc QA capture:**
+No substantive Q&A occurred this session (no answered questions with `[[full-basename]]` wikilinks, no new vault notes crystallized as answers). Skip.
+
+**Completion report:**
+Memory index ingested 3 chunks (Step 1), vocab verdict OK (Step 1.5), feedback note written on lint-suppression correction (Step 2). Learn complete.

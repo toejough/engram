@@ -1,0 +1,21 @@
+I see the sandbox marker: **SANDBOX-MARKER-OLD-RECALL**
+
+Remaining actions to finish the recall:
+
+**Step 4 (continued) — QA pair capture:**
+
+Since the synthesis body contains one `[[full-basename]]` wikilink (`[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`), I write a QA pair:
+
+```bash
+engram learn qa \
+  --slug "eval-orchestrator-data-loss-prevention" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]]" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+**Step 5 — Return to user task**
+
+Once the QA pair write completes, recall is finished. I return to whatever the user asked before invoking recall, resuming the work now informed by the surfaced memory.

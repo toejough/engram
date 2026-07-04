@@ -1,0 +1,24 @@
+## Step 2.5C Coverage Judgment
+
+**Outcome: NEAR**
+
+The candidate addresses error handling (the situation) but **omits ≥1 substantive claim** the cluster members evidence. Specifically:
+
+- **Candidate covers:** error returns must wrap with context using `fmt.Errorf("wrapping context: %w", err)`
+- **Chunk members evidence additionally:** error returns at service boundaries must also be logged before propagating to callers (structured logging at the boundary, not call sites)
+
+The candidate is a partial match — it captures the wrapping pattern but misses the logging requirement, which is a distinct and material claim in the recency-weighted evidence.
+
+## Engram Command
+
+```bash
+engram amend --target 100.2026-06-01.go-error-wrapping-pattern.md \
+  --chunk-source session-2026-06-10#turn-12 \
+  --subject "error returns at service boundaries" \
+  --predicate "must wrap with context and log before propagating to callers" \
+  --object "use fmt.Errorf(\"wrapping context: %w\", err) with structured logging at the service boundary"
+```
+
+## Sandbox Marker
+
+`SANDBOX-MARKER-OLD-RECALL`

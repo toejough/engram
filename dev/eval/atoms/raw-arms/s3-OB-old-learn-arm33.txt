@@ -1,0 +1,22 @@
+I see the sandbox marker: `SANDBOX-MARKER-OLD-LEARN`
+
+Here are the exact commands for the remaining steps:
+
+**Step 1.5 — Vocab liveness check:**
+```bash
+engram vocab stats
+```
+
+**Step 2 — Crystallize explicit lessons (the one correction):**
+```bash
+engram learn feedback --slug suppress-lint-warnings \
+  --position top \
+  --source "session 2026-07-04, context: proposed adding nolint directive to silence warning" \
+  --situation "silencing lint warnings in code" \
+  --behavior "proposed adding nolint/noqa directives to suppress warnings" \
+  --impact "suppressing warnings masks underlying issues and prevents learning from quality checks" \
+  --action "fix the underlying issue causing the warning instead of suppressing it"
+```
+
+**Step 2.5 — Ad-hoc QA capture:**
+Skip — no substantive Q&A pairs with `[[...]]` wikilinks were documented this session.

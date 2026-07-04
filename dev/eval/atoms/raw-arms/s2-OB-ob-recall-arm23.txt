@@ -1,0 +1,23 @@
+I see the sandbox marker: **SANDBOX-MARKER-OB-RECALL**
+
+## Remaining actions to finish recall Step 4
+
+The synthesis note I wrote contains the wikilink `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`, which triggers the QA pair capture requirement.
+
+**Step 4, final phase — write QA pair:**
+
+Since the synthesis body contains ≥1 wikilink citation, I must write a QA pair that connects the synthesis conclusion to its contributor. The QA pair captures the decision structure so future lookups can navigate from question → synthesis conclusion → cited evidence note.
+
+I will call:
+
+```bash
+engram learn qa \
+  --question "How do you bound data loss when an eval orchestrator dies mid-run?" \
+  --answer "Checkpoint per-trial results to JSONL append (one append per completed trial) so an orchestrator death loses at most one trial's results." \
+  --note "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --source "synthesis from OB-RECALL sandbox test"
+```
+
+The `--note` contributor is extracted from the `[[...]]` wikilink in the synthesis body (no free-listing). Once this QA pair is written, the recall procedure completes.
+
+**That is the only remaining action.** Recall finishes once the QA pair is persisted.

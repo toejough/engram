@@ -1,0 +1,21 @@
+I see the sandbox marker: **SANDBOX-MARKER-OB-RECALL**
+
+## Remaining actions to finish recall:
+
+**Step 4 (continued) — Write the QA pair:**
+
+Since the synthesis note body contains the wikilink `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`, I must write a QA pair using `engram learn` with this note as the contributor:
+
+```bash
+engram learn qa \
+  --source "synthesis (deduction) from recalled memory" \
+  --question "How should eval trial results be checkpointed in long-running eval harnesses?" \
+  --answer "JSONL append after every trial to bound data loss to at most one trial when the orchestrator dies" \
+  --contributor "159.2026-07-02.eval-runs-checkpoint-per-trial"
+```
+
+Contributors come strictly from the wikilinks in the synthesis body — no free-listing.
+
+**After QA pair is written: Recall is complete.**
+
+The procedure has finished: synthesis note written (Step 4), QA pair written (Step 4 continuation), vault is updated, recency metadata activated.

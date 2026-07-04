@@ -1,0 +1,21 @@
+Looking at the recall procedure in the project CLAUDE.md, the remaining actions after writing the synthesis note are:
+
+**Remaining Action — Write the QA Pair:**
+
+Since the synthesis body contains the wikilink `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`, I must write a QA pair:
+
+```bash
+engram learn qa \
+  --slug "eval-orchestrator-data-loss-checkpointing" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]]" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+This captures the question-answer pair from the recall, linking it to the contributing note, and completes the recall workflow.
+
+**Sandbox Marker Observed:**
+
+`SANDBOX-MARKER-OLD-RECALL`

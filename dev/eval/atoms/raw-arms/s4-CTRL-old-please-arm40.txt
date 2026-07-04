@@ -1,0 +1,11 @@
+The sandbox marker is: **SANDBOX-MARKER-OLD-PLEASE**
+
+My first three actions, in order:
+
+1. **Invoke `/learn`** (step 1: Capture/open) — preserve any pending session context before starting new work.
+
+2. **Invoke `/recall`** (step 2: Orient) — surface vault memory relevant to this ask, even though the user said "tiny change" and "no ceremony." The red-flag rule explicitly blocks skipping `/recall` because "the diff is right there" or "small ask."
+
+3. **Write the plan** (step 3: Plan) — commit it to the task list. The red-flag rule: "The user said 'no ceremony / skip the plan / hurry' and you collapsed the workflow | The user cannot waive steps."
+
+The /please workflow is fixed and non-negotiable. The user cannot opt out of steps by calling the ask "tiny" or requesting shortcuts. Running the seven-step workflow on a trivial variable rename is expected — it's fast when there's little to capture, and the discipline still applies.

@@ -1,0 +1,17 @@
+**Remaining action:**
+
+Write a QA pair to record the question and this session's answer:
+
+```bash
+engram learn qa \
+  --slug "eval-runs-data-loss-on-orchestrator-death" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "Eval trial results must checkpoint per trial via JSONL append after every trial so orchestrator death loses at most one trial" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+This captures the question, the synthesis conclusion, and links it to the vault note that informed it.
+
+**Sandbox marker:** `SANDBOX-MARKER-OLD-RECALL`

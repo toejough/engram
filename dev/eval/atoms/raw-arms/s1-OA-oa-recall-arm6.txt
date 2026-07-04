@@ -1,0 +1,15 @@
+**Coverage judgment: NEAR**
+
+The candidate addresses error handling (wrapping with context) but **omits a substantive claim** that the chunk evidences: errors at service boundaries must be **logged with a structured logger at the boundary before propagating**, not at the call site. This is a material omission — a complementary, load-bearing requirement alongside wrapping. The candidate does not contradict the chunk; it simply fails to capture the full principle.
+
+**Exact engram command:**
+
+```bash
+engram amend --target 100.2026-06-01.go-error-wrapping-pattern.md \
+  --chunk-source session-2026-06-10#turn-12 \
+  --subject "error returns at service boundaries" \
+  --predicate "must wrap with context and be logged before propagating" \
+  --object "use fmt.Errorf(\"wrapping context: %w\", err) to wrap at the point of error origin, and log with a structured logger at the service boundary before returning to callers—not at the call site"
+```
+
+**Sandbox marker:** `SANDBOX-MARKER-OA-RECALL`

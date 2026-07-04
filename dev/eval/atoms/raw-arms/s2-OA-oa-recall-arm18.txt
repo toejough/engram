@@ -1,0 +1,21 @@
+Looking at the recall procedure, I've completed Step 4 (writing the synthesis fact note). Since the synthesis body contains a wikilink `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`, I must now invoke the **write-memory** skill's QA capture procedure to finish.
+
+**Remaining action:**
+
+Invoke the QA pair capture:
+
+```bash
+engram learn qa \
+  --slug "eval-orchestrator-data-loss" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]]" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+This captures the question that triggered the recall, links it to the synthesis note, ties both to the contributed vault note, and registers the certainty so future recalls can weight this lesson appropriately.
+
+**Sandbox markers seen:**
+- `SANDBOX-MARKER-OA-RECALL` (in the recall skill procedure)
+- `SANDBOX-MARKER-OA-WM` (in the write-memory skill procedure)

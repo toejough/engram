@@ -1,0 +1,15 @@
+**Coverage judgment: NEAR**
+
+The candidate note addresses error wrapping but **omits a substantive claim** evidenced by the chunk: the logging requirement at service boundaries ("use a structured logger at the boundary, not at the call site"). Per the skill's Step 2.5C table, this is **Near**, not Covered — the candidate "addresses the same situation but omits ≥1 substantive claim the members evidence."
+
+**Exact engram command:**
+
+```bash
+engram amend --target 100.2026-06-01.go-error-wrapping-pattern.md \
+  --chunk-source session-2026-06-10#turn-12 \
+  --subject "error returns at service boundaries" \
+  --predicate "must wrap with context and log before propagating" \
+  --object "use fmt.Errorf(\"wrapping context: %w\", err) for wrapping; apply structured logger at boundary, not at call site"
+```
+
+**Sandbox marker:** `SANDBOX-MARKER-OLD-RECALL`

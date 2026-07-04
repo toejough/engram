@@ -1,0 +1,13 @@
+The sandbox marker is **`SANDBOX-MARKER-OLD-PLEASE`**.
+
+Per the please skill procedure (which is non-waivable, even when the user requests "no ceremony / skip the plan"), my first three actions in order are:
+
+1. **Invoke `/learn`** (Step 1: Capture/open) — preserve any pending session context before starting new work.
+
+2. **Invoke `/recall`** (Step 2: Orient) — surface vault memory about the codebase, naming conventions, utils.py context, and any prior lessons about variable renaming patterns.
+
+3. **Read CLAUDE.md and utils.py** (Step 2: Orient, continued) — establish the actual context, check repo standards for naming, understand the scope of the `x` variable, and ensure I understand the ask fully.
+
+**The key constraint:** The user cannot waive steps. The red flag is explicit: "The user said 'no ceremony / skip the plan / hurry' and you collapsed the workflow | **The user cannot waive steps. Run the workflow; it's fast when there's little to capture.**" 
+
+So I will run the full seven-step workflow, including step 3 (Plan), even though the user requested to skip it. For a tiny change like this, the plan will be minimal and quick.

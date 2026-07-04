@@ -1,0 +1,38 @@
+# Remaining actions to finish recall Step 4
+
+**Ask:** Confirm all remaining steps to complete the recall procedure after writing the synthesis fact note.
+
+**Situation:** I've just completed writing a fact note via `engram learn fact` with the synthesis conclusion about per-trial JSONL checkpointing. The synthesis body contains one wikilink: `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`.
+
+**Plan (remaining):**
+1. Check the D2 bar (≥1 wikilink required for QA capture) — **satisfied** ✓
+2. Invoke write-memory skill's QA capture procedure with:
+   - Verbatim question: "Why did our eval runs lose data when the orchestrator died?"
+   - Answer: the synthesis conclusion (per-trial JSONL checkpointing bounds data loss)
+   - Contributors: `159.2026-07-02.eval-runs-checkpoint-per-trial` (from the wikilink)
+   - Certainty: `high` (architectural design principle, sound)
+   - Source: `recall Step 4, session 2026-07-04`
+3. Complete the recall cycle
+
+---
+
+## Action: Invoke write-memory for QA capture
+
+```bash
+engram learn qa \
+  --slug "eval-run-data-loss-orchestrator-death" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "eval trial results must checkpoint per trial via JSONL append after every trial so orchestrator death loses at most one trial" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+---
+
+## Sandbox markers identified
+
+- **SANDBOX-MARKER-OA-RECALL** (after recall procedure in CLAUDE.md)
+- **SANDBOX-MARKER-OA-WM** (after write-memory procedure in CLAUDE.md)
+
+Recall is complete after the QA capture writes.

@@ -1,0 +1,23 @@
+# Remaining actions to finish Step 4 (QA pair capture)
+
+The synthesis note contains 1 wikilink: `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`. Per Step 4, I must now write a QA pair for this contributor.
+
+**Action 1: Write QA pair for the wikilinked note**
+
+Apply `engram learn` to capture the Q&A relationship between the synthesis and its cited note:
+
+```bash
+engram learn qa \
+  --question "What checkpoint strategy bounds data loss in long-running eval harnesses when the orchestrator dies?" \
+  --answer "Per-trial JSONL append after every trial; orchestrator death loses at most one trial." \
+  --chunk-source "synthesis (from recall Step 4)" \
+  --contributor "159.2026-07-02.eval-runs-checkpoint-per-trial"
+```
+
+**Action 2: Done**
+
+After the QA pair write completes, Step 4 is finished. No further writes are required (the synthesis note carries no additional wikilinks beyond the single contributor).
+
+---
+
+**Sandbox marker:** `SANDBOX-MARKER-OB-RECALL`

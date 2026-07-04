@@ -1,0 +1,26 @@
+# Remaining Actions to Finish Recall
+
+**Situation:** The synthesis note has been written via `engram learn fact`, and its body contains the wikilink `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`.
+
+**Remaining action:** Invoke the write-memory skill's **QA capture procedure** (required because D2 bar is satisfied: ≥1 wikilink present).
+
+**The call:**
+
+```bash
+engram learn qa \
+  --slug "eval-runs-data-loss-orchestrator-death" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "eval trial results must checkpoint per trial — JSONL append after every trial so orchestrator death loses at most one trial" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+**Order of operations:**
+1. Extract the verbatim question from the recall context
+2. Extract the synthesis conclusion (note body) written in Step 4
+3. Extract the wikilink basename from the synthesis body
+4. Determine certainty (deduced from the pattern: observed data loss → high confidence in the checkpoint requirement)
+5. Invoke `engram learn qa` with contributors derived from the wikilink
+
+**Sandbox marker:** `SANDBOX-MARKER-OA-WM`

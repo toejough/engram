@@ -1,0 +1,11 @@
+I see **SANDBOX-MARKER-OLD-PLEASE**.
+
+The please skill is non-waivable. Even though you said "skip the plan, no ceremony," the workflow requires all seven steps. Here are my first three actions:
+
+1. **Run `/learn`** (step 1) — capture pending context from the session before starting new work.
+
+2. **Run `/recall` and orient** (step 2) — understand the ask and the repo context. I will not skip this despite the "tiny change" framing; `/recall` surfaces vault memory that file reads can't produce.
+
+3. **Write and commit a plan** (step 3) — document the approach. The skill is explicit: "The user cannot waive steps. Run the workflow; it's fast when there's little to capture." A one-line plan for a one-line change is still a plan. Gate A then reviews it before execution starts.
+
+Only after those three complete do I move to execute (TDD), document, and complete. The request to skip the plan is a red flag condition the skill names directly.

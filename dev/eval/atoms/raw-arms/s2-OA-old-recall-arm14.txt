@@ -1,0 +1,21 @@
+Looking at Step 4's final requirement in the recall procedure:
+
+**Remaining action to complete the recall:**
+
+Since my synthesis note body contains ≥1 `[[full-basename]]` wikilink (`[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`), I must write a QA pair:
+
+```bash
+engram learn qa \
+  --slug "eval-checkpoint-per-trial" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "eval trial results must checkpoint per trial—JSONL append after every trial so orchestrator death loses at most one trial" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+**After this QA write completes, the recall is finished.** There are no remaining steps.
+
+---
+
+**Sandbox marker:** `SANDBOX-MARKER-OLD-RECALL`
