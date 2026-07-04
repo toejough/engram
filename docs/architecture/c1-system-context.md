@@ -97,11 +97,12 @@ rank. The harness then, **inline and blocking**, reads the cluster's members and
 omission, judged against the recency-weighted view) → `engram amend --activate --chunk-source <chunk ids>`
 (refresh recency + provenance, no content rewrite); **near** (same situation, ≥1 substantive claim omitted)
 → `engram amend --chunk-source … <re-synthesized content>` (update in place, recency-weighted, D6);
-**absent** (no candidate addresses the situation) → `engram learn fact|feedback --chunk-source …
+**absent** (no candidate addresses the situation) → hand off to the **write-memory skill**
+(2026-07-04), which composes and runs `engram learn fact|feedback --chunk-source …
 --source "<descriptive>"` (create the single representative note). An additional write path,
-`engram learn qa` (shipped round 1, 2026-07-03), captures Q&A pairs: the A-note competes in
-the main matched set (D5′); the Q-note is excluded from the main set and is reachable via a
-dedicated q-space channel (round 3, gated).
+`engram learn qa` (shipped round 1, 2026-07-03; since 2026-07-04 executed via the write-memory
+handoff), captures Q&A pairs: the A-note competes in the main matched set (D5′); the Q-note is
+excluded from the main set and is reachable via a dedicated q-space channel (round 3, gated).
 
 **Channel 2 — Recency (un-clustered):** after the matched+clustered set, the
 binary appends the **newest chunks by `IngestedAt`** (`recentFillChunks`, default **25**, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`),

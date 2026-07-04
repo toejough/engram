@@ -159,3 +159,24 @@ Rollback is trivial (revert two parent texts + delete one dir).
 3. The O-B confabulation finding stands on its own: pointer-style "apply X verbatim"
    references to out-of-context text are now a measured anti-pattern for these skills — worth
    remembering wherever we write skill prose, regardless of your pick.
+
+---
+
+## Postscript (2026-07-04, post-pick)
+
+Joe picked O-A; the build then superseded this report's recommended FORM twice, honestly
+recorded here:
+
+1. **The reference-card atom was redrawn as a WORKER skill** on Joe's boundary correction
+   ("you just drew the boundaries between skills at the wrong points"): parents keep every
+   judgment and hand off at the write seams; write-memory composes, EXECUTES, retries on CLI
+   errors, and reports — the whole-skill-as-next-action pattern please/superpowers already use,
+   not a mid-procedure reference fetch. Shipped 2026-07-04 (`skills/write-memory/SKILL.md`).
+2. **A deployed-round instrument caveat now attaches to this report's smoke table:** the inline
+   fixtures above remain valid, but every LATER deployed-context arm round (project-level
+   `.claude/skills` fixtures) was invalidated by a skill-shadowing artifact — same-named global
+   skills load instead of fixture copies, so candidate texts were never read. The widely-cited
+   interim "0/27 mid-procedure dereference" figure is instrument-invalid; the reference-card
+   form was never actually tested deployed. See `dev/eval/atoms-build/results-2026-07-04.md`
+   CORRECTION. The worker form was validated under a fixed, marker-gated harness: handoff fired
+   W1 3/3, W2 3/3, W3 2/3 (haiku and sonnet), boundary violations 0, non-fire 0/6.

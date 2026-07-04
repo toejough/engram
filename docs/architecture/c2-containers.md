@@ -14,7 +14,7 @@ flowchart TB
     classDef store     fill:#23a,   stroke:#127,   color:#fff
 
     agent([Agent · in the harness])
-    skills["C1 · Skills (learn / recall / please / route)<br/>markdown behavior specs"]
+    skills["C1 · Skills (learn / recall / please / route / write-memory)<br/>markdown behavior specs"]
     cli["C2 · engram CLI<br/>Go binary — ingest/learn/query/embed/update"]
     model["C3 · Embedded model<br/>MiniLM-L6 384d, go:embed in C2"]
     vault[("C4 · Vault<br/>flat root: *.md + *.vec.json + .luhmann.lock")]
@@ -37,7 +37,7 @@ flowchart TB
 ## Container catalog
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
-| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow. Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
+| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow; `/write-memory` is the vault-write worker (executes learn/recall handoffs — parents judge, the worker writes; 2026-07-04). Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
 | C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; the manifest read-modify-write is serialized under `.manifest.lock` across `ingest` + `prune`, #660), note write (embed-on-write, Luhmann id under lock, dual-channel vocab-tag assignment on every write, in-process vocab trigger check persisting `refit_pending` in `vocab.centroids.json` when thresholds trip — 2026-07-03), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster → `candidate_l2s` of within-cluster top-5 **plus tag-nominated notes** sharing a vocab term with top-3 delivered notes + superseded-note ride-alongs; recency channel = newest chunks un-clustered (`recentFillChunks`, default 25); optional `--lazy-chunks` renders matched+recent **chunk** items path/source-only (notes keep full content) for on-demand fetch via `show-chunk`), `vocab` subcommand family (bootstrap/propose/stats/refit), embed apply/status, update. | houses G0, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: swap silently empties recall (no guard) |
 | C4 | Vault | filesystem | `<luhmann>.<date>.<slug>.md` at the flat vault root + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
@@ -107,7 +107,8 @@ sequenceDiagram
         else near
             Sk->>E: shell engram amend --target <note> --chunk-source <content flags> (re-synthesize)
         else absent
-            Sk->>E: shell engram learn fact|feedback --chunk-source (create)
+            Note over Sk: hand off to write-memory skill (parents judge, worker writes)
+            Sk->>E: shell engram learn fact|feedback --chunk-source (create; via write-memory)
         end
         E->>V: write under flock (amend rewrites both copies + re-embeds; learn O_EXCL)
     end
@@ -133,7 +134,8 @@ sequenceDiagram
     E-->>Sk: stdout chunk identifiers + status line (scanned range, new chunk count)
     Note over Sk: identify candidates; classify locus; recall-mirror test
     loop per candidate (one parallel tool-use block)
-        Sk->>E: shell engram learn fact|feedback … (fresh process)
+        Note over Sk: hand off to write-memory skill (parents judge, worker writes)
+        Sk->>E: shell engram learn fact|feedback … (fresh process; via write-memory)
         E->>V: flock, next Luhmann id, write note (O_EXCL)
         E->>Md: embed body
         Md-->>E: vector

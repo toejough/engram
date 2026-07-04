@@ -178,6 +178,14 @@ The skills (recall, learn, please, route) overlap; the underlying *atoms* are di
 skills into atoms dedicated to each behavior and recompose, **without ending up with N skills that almost all do
 the same thing** (Joe's explicit constraint). The glance/deep read-vs-write split (#662) is a first, small
 instance of the seam this would generalize. Scope/sequence TBD — brainstorm before any build.
+**Status 2026-07-04:** write-memory SHIPPED as a WORKER at the write seams (parents judge and hand
+off; the worker composes/executes/reports — `skills/write-memory/SKILL.md`). The reference-card
+atom variant was built first and superseded by Joe's boundary redraw (a skill-share is a worker
+invoked as the next whole action, not a mid-procedure reference fetch); its deployed-arm
+"0/27 dereference" measurement was later found instrument-invalid (skill-shadowing artifact —
+see `dev/eval/atoms-build/results-2026-07-04.md` CORRECTION). read-memory deliberately NOT
+extracted: recall's read+judge+write pipeline is a cohesion seam worth keeping
+(`docs/design/2026-07-04-atomic-skills-options.md`).
 
 # Track B — Retrieval cost (the token/dollar/wall-time tax)
 

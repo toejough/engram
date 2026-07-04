@@ -27,9 +27,37 @@ Luhmann-ID lineage and Maps of Content for synthesis. Used as both noun
 
 ### skill
 A markdown file (`SKILL.md`) that defines an agent behavior, installed into
-each harness's skills directory by `engram update`. Engram ships four:
+each harness's skills directory by `engram update`. Engram ships five:
 [`recall`](#recall-skill), [`learn`](#learn-skill), `please` (end-to-end
-orchestration), and `route` (delegation doctrine — agent/model/effort selection).
+orchestration), `route` (delegation doctrine — agent/model/effort selection),
+and [`write-memory`](#write-memory-worker-skill) (vault-write execution on handoff).
+
+### atom
+The skill-decomposition concept from the ROADMAP charter: one behavior, one skill
+(read-memory, write-memory, route-a-task, orchestrate-a-workflow). Its
+reference-card form — mechanical procedures fetched from another skill
+mid-procedure — was explored first and superseded by the worker form
+(2026-07-04; see `docs/design/2026-07-04-atomic-skills-options.md` and its
+postscript for the deployed-measurement caveat).
+
+### write-memory (worker skill)
+The skill at `skills/write-memory/SKILL.md`. Executes a vault write handed off by
+recall or learn: composes the `engram learn fact|feedback|qa` command from the
+handoff fields, runs it, retries on CLI errors (max 2), and reports the written
+note path. Parents judge; the worker writes. Amends stay in recall (single-site).
+
+### handoff contract
+The field set a parent skill passes when invoking write-memory: **kind**
+(`fact|feedback|qa`), the kind's content fields, **source** (provenance string),
+optional **chunk-sources**, optional **supersedes** (`basename|type|claim`).
+The worker asks for missing required fields rather than inventing content.
+
+### non-triggering description
+A skill `description:` that names only parent-instructed invocation ("requires a
+handoff — do not fire on your own judgment") so the skill never competes for
+autonomous firing. Uncharted in official guidance and the ecosystem; validated
+here by non-fire arms (0 autonomous invocations across 6 generic and
+vault-adjacent prompts, in both the atom and worker rounds).
 
 ### harness
 A coding-agent host that runs skills. Engram supports two: **Claude Code**

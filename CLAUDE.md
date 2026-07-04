@@ -1,6 +1,6 @@
 # Engram
 
-Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand. A third skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other available skills around a user's `<ask>`, with adversarial review gates over the plan, refactors, docs, and outward prose. A fourth skill, `route`, encodes the delegate-everything doctrine: it guides subagent selection (agent type, model, effort) rather than doing object-level work itself. `please` consults it when assigning gate reviewers.
+Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand; at their write sites they hand off to a fifth skill, `write-memory`, which composes and executes the vault-write commands (parents judge, the worker writes). A third skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other available skills around a user's `<ask>`, with adversarial review gates over the plan, refactors, docs, and outward prose. A fourth skill, `route`, encodes the delegate-everything doctrine: it guides subagent selection (agent type, model, effort) rather than doing object-level work itself. `please` consults it when assigning gate reviewers.
 
 ## Core Principles
 
@@ -22,7 +22,7 @@ engram/
 │   ├── transcript/    # Claude Code session transcript reading
 │   ├── update/        # `engram update` subcommand
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
-├── skills/            # Source for the recall, learn, please, and route skills
+├── skills/            # Source for the recall, learn, write-memory, please, and route skills
 ├── commands/          # Source for OpenCode slash commands
 ├── guidance/          # Source for the deployable recall-firing guidance (activated via CLAUDE.md `@import`)
 ├── dev/               # Build tooling (targ definitions, linter configs)
@@ -33,7 +33,7 @@ engram/
 
 - `cmd/engram/main.go` — CLI entry point
 - `internal/cli/targets.go` — Subcommand wiring
-- `skills/{learn,recall,please,route}/SKILL.md` — Skill definitions
+- `skills/{learn,recall,write-memory,please,route}/SKILL.md` — Skill definitions
 - `dev/targs.go` — Build targets (targ definitions)
 - `docs/architecture/c1-system-context.md` — L1 C4 system context diagram + sequence diagrams for the four key flows (recall, learn, please, update)
 

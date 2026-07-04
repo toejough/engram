@@ -7,7 +7,7 @@
 
 ## Overview
 
-Engram gives Claude Code and OpenCode agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand. A third skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other skills around a user's `<ask>`, and a fourth, `route`, encodes the delegate-everything doctrine `please` draws on to staff its subagents. `recall` and `learn` shell out to the `engram` binary; `please` and `route` are pure meta-orchestration.
+Engram gives Claude Code and OpenCode agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand; at their write sites they hand off to `write-memory`, a worker skill that composes and executes the vault-write commands. A further skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other skills around a user's `<ask>`, and `route` encodes the delegate-everything doctrine `please` draws on to staff its subagents. `recall`, `learn`, and `write-memory` shell out to the `engram` binary; `please` and `route` are pure meta-orchestration.
 
 After a few months of use, the vault's wikilink graph looks like this in Obsidian — each dot is a note, each line a `[[wikilink]]`; the ~25 vocab term-notes form visible hubs (each `Vocab:` body line points member→term, so term nodes accumulate spokes), dense clusters are groups of related notes, and the connective tissue reflects thematic proximity:
 
