@@ -17,6 +17,7 @@
 - **Instrument rule (measured, this cycle):** arm prompts must NOT presuppose self-composition ("state the command you ran" is FORBIDDEN in worker-arm prompts — it biased T1R against handoff). Deliverable framing: "complete the step(s), following the <skill> available in this session." Scoring is TRANSCRIPT-based (jsonl tool events + throwaway-vault contents), not output-prose-based.
 - **Fixture rule (measured, this cycle):** the absent-case fixture must be judgment-UNAMBIGUOUS (the T1 candidate was bistable NEAR/ABSENT 8/4 — use an obviously unrelated candidate note).
 - Arms discipline unchanged (headless claude -p, ENGRAM_VAULT_PATH throwaway, no bypassPermissions, --allowedTools "Bash(engram *) Read Skill", git status contamination check per batch, prompts verbatim from this plan's appendix).
+- **Fixture-isolation rule (measured, worker-round W1 STOP + retro-verified across ALL prior deployed rounds):** project-level `.claude/skills/<name>` is SHADOWED by a same-named global `~/.claude/skills/<name>` — the init event lists both, global first, and `Skill(<name>)` loads the GLOBAL text. Fixture parents therefore deploy under collision-free names **`wrecall`/`wlearn`** (directory AND frontmatter `name:`), in BOTH conditions, each with a condition-tagged marker line `FIXTURE-COPY-MARKER: <name>-<old|new>` inserted immediately after the frontmatter. **Validity gate: an arm whose transcript does not contain its expected marker string after the parent-skill invocation is INVALID — rebuild/rerun, never scored.** `write-memory` keeps its name (no global collision; discovery verified). The W5 `please` fixture copy collides with the global `please` harmlessly (byte-identical production text — the shadow loads the same content); note it in results, don't rename it.
 - Pre-registered branches verbatim; any STOP → report to Joe (no auto-fallback — Joe chose pure worker over the fallback variant).
 - Commit trailer `AI-Used: [claude]`; no push without Joe's word.
 
@@ -225,15 +226,28 @@ Fixture dirs per arm, built exactly like this (shown in full — no cross-refere
 
 ```bash
 # per arm: cond=old|new, scenario dirs /tmp/w{N}-{cond}-{i}
-P="/tmp/w1-old-1"; mkdir -p "$P/.claude/skills/recall" "$P/.claude/skills/learn"
-cp skills/recall/SKILL.md "$P/.claude/skills/recall/SKILL.md"      # old arms: production texts
-cp skills/learn/SKILL.md  "$P/.claude/skills/learn/SKILL.md"
-# new arms instead copy the three candidates:
-#   cp dev/eval/atoms-build/worker/candidate/recall.md  "$P/.claude/skills/recall/SKILL.md"
-#   cp dev/eval/atoms-build/worker/candidate/learn.md   "$P/.claude/skills/learn/SKILL.md"
+# fixture parents deploy as wrecall/wlearn (fixture-isolation rule): rename frontmatter name,
+# insert the condition-tagged marker line right after the closing frontmatter fence.
+fixture_skill() { # fixture_skill <src-file> <dest-dir> <newname> <cond>
+  mkdir -p "$2/$3"
+  awk -v n="$3" -v c="$4" '
+    /^name: (recall|learn)$/ { print "name: " n; next }
+    { print }
+    /^---$/ && ++fence==2 { print "FIXTURE-COPY-MARKER: " n "-" c }
+  ' "$1" > "$2/$3/SKILL.md"
+}
+P="/tmp/w1-old-1"; mkdir -p "$P/.claude/skills"
+fixture_skill skills/recall/SKILL.md "$P/.claude/skills" wrecall old   # old arms: production texts
+fixture_skill skills/learn/SKILL.md  "$P/.claude/skills" wlearn  old
+# new arms instead:
+#   fixture_skill dev/eval/atoms-build/worker/candidate/recall.md "$P/.claude/skills" wrecall new
+#   fixture_skill dev/eval/atoms-build/worker/candidate/learn.md  "$P/.claude/skills" wlearn  new
 #   mkdir -p "$P/.claude/skills/write-memory" && cp dev/eval/atoms-build/worker/candidate/write-memory.md "$P/.claude/skills/write-memory/SKILL.md"
 printf 'Fixture. No other content.\n' > "$P/CLAUDE.md"
+# After building each dir: grep -c "FIXTURE-COPY-MARKER: wrecall" and "name: wrecall" must both be 1.
 ```
+
+**Isolation canary (W4 Step 0b, before any scored arm):** one arm in a spare new-condition W1-style dir, prompt: `Invoke the wlearn skill, then state verbatim the first non-frontmatter line of its body.` PASS = the transcript contains `FIXTURE-COPY-MARKER: wlearn-new`. FAIL after 3 attempts = the rename isolation does not work either — STOP, report (do not run the battery).
 
 Arms run via the committed runner (absolute prompt path — it cds into the project dir):
 
@@ -244,7 +258,7 @@ dev/eval/atoms-build/run-arm.sh <arm-id> <project-dir> "$PWD/dev/eval/atoms-buil
 
 Seed dirs: W2 arms pass `dev/eval/atoms-build/fixtures/vault-seed` (the 159 note); W3 arms pass `dev/eval/atoms-build/worker/fixtures/vault-seed-w3` (the 47 amend target); W1 unseeded. Arm IDs `w{1,2,3}-{old,new}-{1,2,3}` + `ws3-new-{1,2,3}` (sonnet W3).
 
-**Scoring (all scenarios, transcript-based):**
+**Scoring (all scenarios, transcript-based):** *Validity gate first:* the arm's transcript must contain its condition's `FIXTURE-COPY-MARKER` string (proof the fixture parent body loaded, not a shadowing global) — missing marker = INVALID arm, rebuild/rerun, never scored.
 - *handoff-fired* (new arms only): jsonl shows a `Skill` tool_use with skill=write-memory.
 - *write-correct* (learn writes — W1, W2, W3 cluster-A): jsonl Bash events show a well-formed `engram learn <kind>` (right kind; no fact/feedback flag mixing; required content flags present; chunk-sources/contributors when the scenario provides them) AND the throwaway vault contains the written note file(s) afterward.
 - *write-correct* (W3 cluster-B, the amend path — parent-side by design): jsonl Bash events show `engram amend --target` naming the 47.2026-06-10 candidate with `--activate`, the command exits 0 against the seeded vault, and NO write-memory invocation carries cluster-B content. An arm that routes cluster-B through write-memory scores 0 on this measure (and counts as a boundary violation below). Cluster-2 deliberately provides NO chunk-source IDs (`engram amend` — unlike `learn` — resolves chunk IDs against the real chunk index, so a fictional ID would force exit 1 on a faithful arm; verified live at Gate A). The sidecar-missing activate warning (`.vec.json: no such file or directory`) is an expected fixture artifact — exit code governs.
@@ -319,7 +333,7 @@ Honest bounds: n=3/cell haiku + n=3 sonnet on the risky site — direction, not 
 **w1 (learn correction — neutral deliverable):**
 
 ```
-You are running the learn skill. Step 1 done: engram ingest --auto swept 3 chunks. Step 1.5: verdict OK, qa round-2 gate accumulating (2/20). This session contained ONE user correction: 'don't suppress lint warnings — fix the underlying issue' (context: you had proposed adding a nolint directive to silence a warning). Complete the remaining steps now, following the learn skill available in this session.
+You are running the wlearn skill (the memory-capture skill in this session). Step 1 done: engram ingest --auto swept 3 chunks. Step 1.5: verdict OK, qa round-2 gate accumulating (2/20). This session contained ONE user correction: 'don't suppress lint warnings — fix the underlying issue' (context: you had proposed adding a nolint directive to silence a warning). Complete the remaining steps now, following the wlearn skill available in this session.
 ```
 
 **w2 (recall Step 4 qa — neutral deliverable, seeded vault):**
@@ -337,7 +351,7 @@ object: JSONL append after every trial so orchestrator death loses at most one t
 Information learned: per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]].
 
 The synthesis body contains the wikilink [[159.2026-07-02.eval-runs-checkpoint-per-trial]].
-Complete ALL remaining recall actions now, in order, following the recall skill available in this session.
+Complete ALL remaining recall actions now, in order, following the wrecall skill available in this session.
 ```
 
 (The block above IS `w2-new.txt`. `w2-old.txt` is byte-identical except the one line "You wrote this synthesis note via the write-memory handoff:" reads "You wrote this synthesis note via engram learn fact:" — matching each condition's own text. Two files, per Task W1.)
@@ -345,7 +359,7 @@ Complete ALL remaining recall actions now, in order, following the recall skill 
 **w3 (recall 2.5C two-cluster loop — neutral deliverable):**
 
 ```
-Execute recall Step 2.5C now for BOTH clusters below, in order, following the recall skill available in this session.
+Execute wrecall Step 2.5C now for BOTH clusters below, in order, following the wrecall skill available in this session.
 
 Cluster 1:
 - candidate_l2s: one note, "31.2026-06-01.commit-messages-imperative-mood.md" — claim: "Commit message subjects use imperative mood." 
