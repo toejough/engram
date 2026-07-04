@@ -1,0 +1,1 @@
+Got it. I've saved the CI lint requirement to project memory. From now on, before any push, I'll run `make lint` to ensure the code passes checks.
