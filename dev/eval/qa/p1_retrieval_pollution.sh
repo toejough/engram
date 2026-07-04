@@ -673,3 +673,567 @@ echo ""
 # Remind caller to check vault contamination
 echo "IMPORTANT: verify vault contamination check:"
 echo "  git -C '$LIVE_VAULT' status --porcelain"
+
+# ---------------------------------------------------------------------------
+# 12. Arm V LARGE-N: direct sidecar cosine (>=30 paraphrases, >=10 topics)
+#
+# Pre-registered bands (verbatim, non-negotiable):
+#   PASS       >= 80% paraphrases rank own Q note #1 among Q notes AND above every content note
+#   BORDERLINE 60-79%
+#   FAIL       < 60%
+#
+# Measurement: DIRECT SIDECAR COSINE — loads every .vec.json in the copy vault,
+# embeds each paraphrase via `engram embed apply` (probe embedder path, same as
+# seeding above), ranks raw body_vector cosines. NEVER through `engram query` —
+# after Task 2's D5' exclusion, the production binary excludes qa-question at all
+# four seam points; a query-pipeline probe would return 0/30 Q-note retrievals
+# and record a FALSE FAIL on the round-3 gate.
+#
+# Self-seeding: 10 real vault topics (new, not the 5 synthetic P1 topics).
+# Uses separate WORK_DIR_LN / COPY_VAULT_LN — never writes to live vault.
+# ---------------------------------------------------------------------------
+echo ""
+echo "=== ARM V LARGE-N: Direct sidecar cosine (>=30 paraphrases, >=10 topics) ==="
+
+SCRIPT_DIR="$(dirname "$0")"
+CORPUS_JSON="$SCRIPT_DIR/arm_v_large_n.json"
+WORK_DIR_LN=$(mktemp -d -t qa-large-n-XXXXXX)
+COPY_VAULT_LN="$WORK_DIR_LN/qa-large-n-vault"
+export WORK_DIR_LN COPY_VAULT_LN
+
+echo "CORPUS_JSON:  $CORPUS_JSON"
+echo "WORK_DIR_LN:  $WORK_DIR_LN"
+echo "COPY_VAULT_LN: $COPY_VAULT_LN"
+echo ""
+
+[ -f "$CORPUS_JSON" ] || { echo "ERROR: corpus not found: $CORPUS_JSON"; exit 1; }
+
+# Guard 1: JSON validity + >=30 entries / >=10 topics
+echo "--- Guard 1: corpus JSON validation ---"
+python3 - "$CORPUS_JSON" <<'PYEOF'
+import json, sys
+data = json.load(open(sys.argv[1]))
+n = len(data)
+topics = {e["topic"] for e in data}
+t = len(topics)
+if n < 30:
+    print(f"FAIL Guard 1: need >=30 entries, got {n}")
+    sys.exit(1)
+if t < 10:
+    print(f"FAIL Guard 1: need >=10 distinct topics, got {t}")
+    sys.exit(1)
+print(f"PASS Guard 1: {n} paraphrases across {t} topics")
+PYEOF
+
+# Capture live vault git status BEFORE large-n run
+echo "--- Live vault BEFORE large-n ---"
+LN_BEFORE_LINES=$(git -C "$LIVE_VAULT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+echo "Live vault --porcelain line count: $LN_BEFORE_LINES"
+
+# Safety: abort if copy vault already exists (guards against accidental re-run)
+[ ! -d "$COPY_VAULT_LN" ] || { echo "ABORT: COPY_VAULT_LN already exists: $COPY_VAULT_LN"; exit 1; }
+
+# Copy live vault (read-only source)
+cp -r "$LIVE_VAULT" "$COPY_VAULT_LN"
+[ -d "$COPY_VAULT_LN" ] || { echo "ERROR: COPY_VAULT_LN missing after copy"; exit 1; }
+echo "Copied vault: $(ls "$COPY_VAULT_LN"/*.md 2>/dev/null | wc -l | tr -d ' ') .md files"
+
+# ---------------------------------------------------------------------------
+# Self-seed: write QA pairs for 10 real vault topics
+# Topics derived from real vault notes 100,101,103,106,107,108,135,141,149,119.
+# Slugs must match target_q_basename values in arm_v_large_n.json exactly.
+# ---------------------------------------------------------------------------
+echo ""
+echo "--- Self-seeding 10 QA pairs (real vault topics) ---"
+
+# Pair 1: cost-same-lever (topic from note 100)
+cat > "$COPY_VAULT_LN/qa.2026-07-03.cost-same-lever.q.md" <<'QEOF'
+---
+type: qa-question
+date: "2026-07-03"
+answered_by: qa.2026-07-03.cost-same-lever.a
+---
+What is the relationship between making engram recall cheaper and enabling lighter prompts for more usage?
+
+Answered by: [[qa.2026-07-03.cost-same-lever.a]]
+QEOF
+
+cat > "$COPY_VAULT_LN/qa.2026-07-03.cost-same-lever.a.md" <<'AEOF'
+---
+type: qa-answer
+date: "2026-07-03"
+answers: qa.2026-07-03.cost-same-lever.q
+certainty: high
+contributors: [100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever]
+vocab: [cost-optimization, engram-binary-ops, token-budget]
+---
+The two directions are the same lever: both resolve to reducing the post-fire procedure tax (~186s). Lighter prompts do not add usage (the description fires before the body loads, so shortening the body buys zero extra fires). The only live dollar lever is pruning the recall payload out of build context after Step 3. Dead/refuted directions: payload-size cap for dollars, whole-op or split haiku, cutting query phrases.
+
+Answers: [[qa.2026-07-03.cost-same-lever.q]]
+Contributors: [[100.2026-06-26.cost-and-usage-are-the-same-procedure-tax-lever]]
+AEOF
+
+# Pair 2: binary-install (topic from note 106)
+cat > "$COPY_VAULT_LN/qa.2026-07-03.binary-install.q.md" <<'QEOF'
+---
+type: qa-question
+date: "2026-07-03"
+answered_by: qa.2026-07-03.binary-install.a
+---
+How should you install or rebuild the engram binary to test a code change with the real binary on PATH?
+
+Answered by: [[qa.2026-07-03.binary-install.a]]
+QEOF
+
+cat > "$COPY_VAULT_LN/qa.2026-07-03.binary-install.a.md" <<'AEOF'
+---
+type: qa-answer
+date: "2026-07-03"
+answers: qa.2026-07-03.binary-install.q
+certainty: high
+contributors: [106.2026-06-27.engram-binary-install-go-install-not-targ-build]
+vocab: [cli-verification, engram-binary-ops, go-code-conventions]
+---
+Use `go install ./cmd/engram` to install the binary. The `use targ not go` rule covers test/lint/check — not binary install, which targ does not provide. Running targ build errors with 'unknown command: build'. A stale binary on PATH can make measurements appear unchanged after a code edit; always reinstall then re-measure.
+
+Answers: [[qa.2026-07-03.binary-install.q]]
+Contributors: [[106.2026-06-27.engram-binary-install-go-install-not-targ-build]]
+AEOF
+
+# Pair 3: lazy-retrieval-validation (topic from note 107)
+cat > "$COPY_VAULT_LN/qa.2026-07-03.lazy-retrieval-validation.q.md" <<'QEOF'
+---
+type: qa-question
+date: "2026-07-03"
+answered_by: qa.2026-07-03.lazy-retrieval-validation.a
+---
+What measurements are required to validate that lazy on-demand retrieval is a net cost win over bulk payload delivery for an LLM agent?
+
+Answered by: [[qa.2026-07-03.lazy-retrieval-validation.a]]
+QEOF
+
+cat > "$COPY_VAULT_LN/qa.2026-07-03.lazy-retrieval-validation.a.md" <<'AEOF'
+---
+type: qa-answer
+date: "2026-07-03"
+answers: qa.2026-07-03.lazy-retrieval-validation.q
+certainty: high
+contributors: [107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior]
+vocab: [token-budget, cost-optimization, retrieval-design]
+---
+Two measurements must pass: (1) SPARING — the agent's uninstructed fetch count stays well below the break-even N where N*per-fetch-cost equals bytes saved; (2) CAPABLE — a sole-source fixture proves the agent fetches the right deferred item unprompted. A deterministic payload size cut alone does not establish a net win — if the agent over-fetches or cannot select the right item, lazy is a net loss.
+
+Answers: [[qa.2026-07-03.lazy-retrieval-validation.q]]
+Contributors: [[107.2026-06-27.validate-lazy-retrieval-by-measuring-fetch-behavior]]
+AEOF
+
+# Pair 4: crowded-vault-generalization (topic from note 103)
+cat > "$COPY_VAULT_LN/qa.2026-07-03.crowded-vault-generalization.q.md" <<'QEOF'
+---
+type: qa-question
+date: "2026-07-03"
+answered_by: qa.2026-07-03.crowded-vault-generalization.a
+---
+Do engram's verified memory capability wins hold when the vault contains many distractor notes beyond toy five-note settings?
+
+Answered by: [[qa.2026-07-03.crowded-vault-generalization.a]]
+QEOF
+
+cat > "$COPY_VAULT_LN/qa.2026-07-03.crowded-vault-generalization.a.md" <<'AEOF'
+---
+type: qa-answer
+date: "2026-07-03"
+answers: qa.2026-07-03.crowded-vault-generalization.q
+certainty: high
+contributors: [103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd]
+vocab: [memory-system-architecture, retrieval-design, eval-methodology]
+---
+The four verified capability wins (C3, C4i, C5, C6) generalize to a realistic crowded vault with zero degradation under a 200-note real-vault crowd plus links. Target rank is flat from 0 to 400 real-vault distractors (Tier-1 free). Idiosyncratic notes are semantically distinctive so a realistic crowd ranks strictly below them — retrieval is robust.
+
+Answers: [[qa.2026-07-03.crowded-vault-generalization.q]]
+Contributors: [[103.2026-06-26.crowded-vault-wins-generalize-realistic-crowd]]
+AEOF
+
+# Pair 5: payload-prune-cut (topic from note 149)
+cat > "$COPY_VAULT_LN/qa.2026-07-03.payload-prune-cut.q.md" <<'QEOF'
+---
+type: qa-question
+date: "2026-07-03"
+answered_by: qa.2026-07-03.payload-prune-cut.a
+---
+What is the measured cost saving from carrying only the Step-3 synthesis conclusion into a fresh build session instead of the full recall payload?
+
+Answered by: [[qa.2026-07-03.payload-prune-cut.a]]
+QEOF
+
+cat > "$COPY_VAULT_LN/qa.2026-07-03.payload-prune-cut.a.md" <<'AEOF'
+---
+type: qa-answer
+date: "2026-07-03"
+answers: qa.2026-07-03.payload-prune-cut.q
+certainty: high
+contributors: [149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut]
+vocab: [cost-optimization, token-budget, engram-binary-ops]
+---
+Carrying only the Step-3 synthesis into a fresh build session (subagent-isolated recall, payload-prune) cuts build cost ~40% (~1.6 USD/app) with zero capability regression — opus n=3 smoke validated. The warm-over-cold per-round premium is recoverable. Production form: subagent-isolated recall where only the synthesis conclusion is injected into the build agent's context.
+
+Answers: [[qa.2026-07-03.payload-prune-cut.q]]
+Contributors: [[149.2026-06-30.payload-prune-smoke-validated-40pct-build-cost-cut]]
+AEOF
+
+# Pair 6: glance-recall-rung (topic from note 141)
+cat > "$COPY_VAULT_LN/qa.2026-07-03.glance-recall-rung.q.md" <<'QEOF'
+---
+type: qa-question
+date: "2026-07-03"
+answered_by: qa.2026-07-03.glance-recall-rung.a
+---
+What is the cheap glance rung of the recall depth-dial and what capabilities does it deliver compared to full deep recall?
+
+Answered by: [[qa.2026-07-03.glance-recall-rung.a]]
+QEOF
+
+cat > "$COPY_VAULT_LN/qa.2026-07-03.glance-recall-rung.a.md" <<'AEOF'
+---
+type: qa-answer
+date: "2026-07-03"
+answers: qa.2026-07-03.glance-recall-rung.q
+certainty: high
+contributors: [141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke]
+vocab: [cost-optimization, retrieval-design, agentic-recall-triggers]
+---
+The glance rung is a read-only recall tier (retrieve + recency-resolve + apply; no crystallization writes) that is validated end-to-end — glance delivers 3/4 idiosyncratic axes, fails C5, and its cost win is real on a real-scale vault. The glance rung relaxes the over-fire ceiling proportionally to its lower per-fire cost but does NOT dissolve the value gate.
+
+Answers: [[qa.2026-07-03.glance-recall-rung.q]]
+Contributors: [[141.2026-06-29.glance-rung-viable-at-spend-gate-and-smoke]]
+AEOF
+
+# Pair 7: eval-spend-estimate (topic from note 101)
+cat > "$COPY_VAULT_LN/qa.2026-07-03.eval-spend-estimate.q.md" <<'QEOF'
+---
+type: qa-question
+date: "2026-07-03"
+answered_by: qa.2026-07-03.eval-spend-estimate.a
+---
+How should you estimate the dollar cost of an eval harness run before launching it?
+
+Answered by: [[qa.2026-07-03.eval-spend-estimate.a]]
+QEOF
+
+cat > "$COPY_VAULT_LN/qa.2026-07-03.eval-spend-estimate.a.md" <<'AEOF'
+---
+type: qa-answer
+date: "2026-07-03"
+answers: qa.2026-07-03.eval-spend-estimate.q
+certainty: high
+contributors: [101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost]
+vocab: [cost-optimization, eval-methodology, lever-tracking]
+---
+Derive the estimate from the harness's actual per-cell spend: read a prior run's result JSON or RESULTS.md for a real per-cell or per-trial cost, then multiply by the fan-out (regimes, arms, trials). Guessing from intuition is off by ~50x — a warm cumulative cell is a FULL app build (~7 USD) not ~0.40 USD. Always state the realistic total before launching.
+
+Answers: [[qa.2026-07-03.eval-spend-estimate.q]]
+Contributors: [[101.2026-06-26.eval-spend-estimate-from-actual-per-cell-cost]]
+AEOF
+
+# Pair 8: model-routing-recall (topic from note 135)
+cat > "$COPY_VAULT_LN/qa.2026-07-03.model-routing-recall.q.md" <<'QEOF'
+---
+type: qa-question
+date: "2026-07-03"
+answered_by: qa.2026-07-03.model-routing-recall.a
+---
+Can a cheaper model tier match opus performance on idiosyncratic reasoning tasks when engram memory is recalled?
+
+Answered by: [[qa.2026-07-03.model-routing-recall.a]]
+QEOF
+
+cat > "$COPY_VAULT_LN/qa.2026-07-03.model-routing-recall.a.md" <<'AEOF'
+---
+type: qa-answer
+date: "2026-07-03"
+answers: qa.2026-07-03.model-routing-recall.q
+certainty: high
+contributors: [135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong]
+vocab: [model-routing, cost-optimization, memory-system-architecture]
+---
+Yes — sonnet with recalled memory fully matches opus across 3 idiosyncratic capability types (C3 apply-conventions 15/15, C4i recency-supersession 3/3, C6 emergent-abduction 6/6). Sonnet WITHOUT memory fails (C4i/C6 cold 0/N). Engram recall democratizes reasoning: the same idiosyncratic content that requires opus cold can be served by sonnet warm.
+
+Answers: [[qa.2026-07-03.model-routing-recall.q]]
+Contributors: [[135.2026-06-28.memory-democratizes-reasoning-cheap-model-matches-strong]]
+AEOF
+
+# Pair 9: async-not-cost-reduction (topic from note 108)
+cat > "$COPY_VAULT_LN/qa.2026-07-03.async-not-cost-reduction.q.md" <<'QEOF'
+---
+type: qa-question
+date: "2026-07-03"
+answered_by: qa.2026-07-03.async-not-cost-reduction.a
+---
+Does making engram learn run asynchronously or non-blocking reduce its actual token or dollar cost?
+
+Answered by: [[qa.2026-07-03.async-not-cost-reduction.a]]
+QEOF
+
+cat > "$COPY_VAULT_LN/qa.2026-07-03.async-not-cost-reduction.a.md" <<'AEOF'
+---
+type: qa-answer
+date: "2026-07-03"
+answers: qa.2026-07-03.async-not-cost-reduction.q
+certainty: high
+contributors: [108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction]
+vocab: [cost-optimization, lever-tracking, token-budget]
+---
+No. Async/background execution relocates cost off the perceived critical path but spends the same tokens, the same dollars, and the same total wall-time. It is perceived-latency UX, not a cost reduction. For a tokens/cost/time goal, count only levers that reduce actual resource use on a named axis. Keep async ideas out of scope on a cost-reduction roadmap.
+
+Answers: [[qa.2026-07-03.async-not-cost-reduction.q]]
+Contributors: [[108.2026-06-27.relocation-off-critical-path-is-not-a-cost-reduction]]
+AEOF
+
+# Pair 10: retrieval-note-floor (topic from note 119)
+cat > "$COPY_VAULT_LN/qa.2026-07-03.retrieval-note-floor.q.md" <<'QEOF'
+---
+type: qa-question
+date: "2026-07-03"
+answered_by: qa.2026-07-03.retrieval-note-floor.a
+---
+Why should crystallized vault notes receive a ranking floor above raw transcript chunks in engram's cosine retrieval?
+
+Answered by: [[qa.2026-07-03.retrieval-note-floor.a]]
+QEOF
+
+cat > "$COPY_VAULT_LN/qa.2026-07-03.retrieval-note-floor.a.md" <<'AEOF'
+---
+type: qa-answer
+date: "2026-07-03"
+answers: qa.2026-07-03.retrieval-note-floor.q
+certainty: high
+contributors: [119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank]
+vocab: [retrieval-design, memory-system-architecture, eval-methodology]
+---
+Crystallized notes compress multi-turn reasoning into a single authoritative statement; raw chunks are noisy fragments from transcripts. A note floor ensures that when a relevant crystallized note exists, it outranks chunks covering the same topic. The matched-note floor (capWithNoteFloor) was shipped 2026-06-28 and improved real-path note recall@5 from 0.22 to 0.83 — up to the embedder ceiling.
+
+Answers: [[qa.2026-07-03.retrieval-note-floor.q]]
+Contributors: [[119.2026-06-28.evaluate-ranking-fix-by-knowledge-delivery-not-item-rank]]
+AEOF
+
+echo "Wrote 20 QA files (10 pairs) to $COPY_VAULT_LN"
+
+# Embed all files in the copy vault (QA pairs + existing notes)
+echo ""
+echo "--- Embedding copy vault (local model, \$0) ---"
+ENGRAM_VAULT_PATH="$COPY_VAULT_LN" engram embed apply 2>&1 | tee "$WORK_DIR_LN/embed_ln.log"
+echo "Embedding done."
+
+# Guard 2: every corpus target exists in seeded copy vault
+echo ""
+echo "--- Guard 2: corpus targets present in seeded vault ---"
+python3 - "$CORPUS_JSON" "$COPY_VAULT_LN" <<'PYEOF'
+import json, glob, os, sys
+corpus_json, vault = sys.argv[1:]
+data = json.load(open(corpus_json))
+have = {os.path.basename(f)[:-3] for f in glob.glob(os.path.join(vault, 'qa.*.md'))}
+missing = sorted({e['target_q_basename'] for e in data} - have)
+if missing:
+    print(f"FAIL Guard 2 — HARNESS BUG: corpus targets absent from seeded vault: {missing}")
+    sys.exit(1)
+targets = {e['target_q_basename'] for e in data}
+print(f"PASS Guard 2: all {len(targets)} corpus target_q_basenames exist in seeded vault")
+PYEOF
+
+# Write paraphrase probe notes (one per corpus entry) — named ln-para-{id}.md
+echo ""
+echo "--- Writing paraphrase probe notes ---"
+python3 - "$CORPUS_JSON" "$COPY_VAULT_LN" <<'PYEOF'
+import json, os, sys
+corpus_json, vault = sys.argv[1:]
+data = json.load(open(corpus_json))
+for entry in data:
+    probe_path = os.path.join(vault, f"ln-para-{entry['id']}.md")
+    content = (
+        f"---\ntype: fact\ndate: \"2026-07-03\"\n---\n\n"
+        f"{entry['paraphrase']}\n"
+    )
+    with open(probe_path, 'w') as fh:
+        fh.write(content)
+print(f"Wrote {len(data)} paraphrase probe notes (ln-para-*.md)")
+PYEOF
+
+# Embed paraphrase probe notes (only missing sidecars)
+echo "--- Embedding paraphrase probe notes ---"
+ENGRAM_VAULT_PATH="$COPY_VAULT_LN" engram embed apply 2>&1 | tail -5
+echo "Para note embedding done."
+
+# ---------------------------------------------------------------------------
+# Direct sidecar cosine scorer
+# Loads body_vector from every .vec.json; computes cosines.
+# Q notes: qa.*.q.vec.json
+# A notes: qa.*.a.vec.json (excluded from both comparison sets)
+# Para notes: ln-para-*.vec.json (the probe embeddings)
+# Content notes: everything else
+# PASS per paraphrase: target Q body_vector cosine is #1 among Q notes
+#                      AND above every content note body_vector cosine
+# ---------------------------------------------------------------------------
+ARMV_LN_JSON="$WORK_DIR_LN/arm_v_large_n_results.json"
+ARMV_LN_OUT_JSON="$RESULTS_DIR/arm_v_large_n_results.json"
+
+python3 - "$CORPUS_JSON" "$COPY_VAULT_LN" "$ARMV_LN_JSON" <<'PYEOF'
+import json, glob, os, re, sys, math
+
+corpus_json, vault, out_path = sys.argv[1:]
+data = json.load(open(corpus_json))
+
+QA_Q_PAT = re.compile(r'^qa\..*\.q$')
+QA_A_PAT = re.compile(r'^qa\..*\.a$')
+LN_PARA_PAT = re.compile(r'^ln-para-')
+
+def load_body_vec(path):
+    try:
+        with open(path) as fh:
+            d = json.load(fh)
+        return d.get('body_vector', [])
+    except Exception as e:
+        return []
+
+def cosine(a, b):
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    if na == 0.0 or nb == 0.0:
+        return 0.0
+    return dot / (na * nb)
+
+# Load all .vec.json sidecars
+sidecars = {}
+for vec_path in glob.glob(os.path.join(vault, '*.vec.json')):
+    key = os.path.basename(vec_path)[:-len('.vec.json')]
+    sidecars[key] = load_body_vec(vec_path)
+
+# Partition by type
+q_notes = {k: v for k, v in sidecars.items() if QA_Q_PAT.match(k)}
+a_notes = {k: v for k, v in sidecars.items() if QA_A_PAT.match(k)}
+para_notes = {k: v for k, v in sidecars.items() if LN_PARA_PAT.match(k)}
+content_notes = {k: v for k, v in sidecars.items()
+                 if not QA_Q_PAT.match(k) and not QA_A_PAT.match(k) and not LN_PARA_PAT.match(k)}
+
+print(f"Vault sidecars: {len(q_notes)} Q-notes, {len(a_notes)} A-notes, "
+      f"{len(para_notes)} para-notes, {len(content_notes)} content-notes")
+print()
+
+# Score each paraphrase
+results_by_topic = {}
+all_rows = []
+pass_count = 0
+total = 0
+
+print(f"{'ID':>8}  {'topic':>30}  {'q_rank':>6}  {'q_score':>8}  {'top_c':>8}  pass?")
+print("-" * 85)
+
+for entry in data:
+    entry_id = entry['id']
+    topic = entry['topic']
+    target_q = entry['target_q_basename']
+    para_key = f"ln-para-{entry_id}"
+
+    if para_key not in para_notes:
+        print(f"  WARN: para sidecar missing: {para_key}")
+        continue
+    if target_q not in q_notes:
+        print(f"  WARN: target Q sidecar missing: {target_q}")
+        continue
+
+    para_vec = para_notes[para_key]
+
+    # Cosine of paraphrase vs all Q notes
+    q_scores = {k: cosine(para_vec, v) for k, v in q_notes.items()}
+    q_sorted = sorted(q_scores.items(), key=lambda x: x[1], reverse=True)
+    target_score = q_scores.get(target_q, 0.0)
+    q_rank = next((i + 1 for i, (k, _) in enumerate(q_sorted) if k == target_q), None)
+
+    # Best content note cosine
+    top_content_score = max((cosine(para_vec, v) for v in content_notes.values()), default=0.0)
+
+    # PASS: target is #1 among Q notes AND above every content note
+    passes = (q_rank == 1 and target_score > top_content_score)
+    if passes:
+        pass_count += 1
+    total += 1
+
+    status = "PASS" if passes else "FAIL"
+    q_rank_str = str(q_rank) if q_rank is not None else "N/A"
+    print(f"{entry_id:>8}  {topic:>30}  {q_rank_str:>6}  {target_score:>8.4f}  {top_content_score:>8.4f}  {status}")
+
+    if topic not in results_by_topic:
+        results_by_topic[topic] = {'pass': 0, 'total': 0, 'rows': []}
+    results_by_topic[topic]['pass'] += int(passes)
+    results_by_topic[topic]['total'] += 1
+    results_by_topic[topic]['rows'].append({
+        'id': entry_id,
+        'q_rank': q_rank,
+        'target_score': round(target_score, 4),
+        'top_content_score': round(top_content_score, 4),
+        'passes': passes,
+    })
+    all_rows.append({
+        'id': entry_id,
+        'topic': topic,
+        'target_q_basename': target_q,
+        'paraphrase': entry['paraphrase'],
+        'q_rank': q_rank,
+        'target_score': round(target_score, 4),
+        'top_content_score': round(top_content_score, 4),
+        'passes': passes,
+    })
+
+print()
+rate = pass_count / total if total > 0 else 0.0
+print(f"Arm V large-n: {pass_count}/{total} paraphrases PASS ({rate:.0%})")
+print()
+
+if rate >= 0.80:
+    verdict = "PASS (>=80%)"
+elif rate >= 0.60:
+    verdict = "BORDERLINE (60-79%)"
+else:
+    verdict = "FAIL (<60%)"
+print(f"Arm V large-n pre-registered verdict: {verdict}")
+
+print()
+print("Per-topic breakdown:")
+print(f"  {'topic':>35}  {'pass/total':>10}")
+print("  " + "-" * 48)
+for t_name in sorted(results_by_topic.keys()):
+    tc = results_by_topic[t_name]
+    print(f"  {t_name:>35}  {tc['pass']}/{tc['total']:>9}")
+
+out = {
+    'pass_count': pass_count,
+    'total': total,
+    'rate': round(rate, 4),
+    'verdict': verdict,
+    'results_by_topic': {k: {'pass': v['pass'], 'total': v['total']}
+                         for k, v in results_by_topic.items()},
+    'rows': all_rows,
+}
+json.dump(out, open(out_path, 'w'), indent=2)
+print(f"\nResults written to {out_path}")
+PYEOF
+
+# Copy results to RESULTS_DIR
+cp "$ARMV_LN_JSON" "$ARMV_LN_OUT_JSON" 2>/dev/null || true
+
+# Capture live vault git status AFTER large-n run
+echo ""
+echo "--- Live vault AFTER large-n ---"
+LN_AFTER_LINES=$(git -C "$LIVE_VAULT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+echo "Live vault --porcelain line count: $LN_AFTER_LINES"
+if [ "$LN_BEFORE_LINES" = "$LN_AFTER_LINES" ]; then
+    echo "PASS contamination check: live vault unchanged (line count: $LN_BEFORE_LINES)"
+else
+    echo "WARN: live vault line count changed ($LN_BEFORE_LINES -> $LN_AFTER_LINES)"
+fi
+
+echo ""
+echo "=== ARM V LARGE-N complete ==="
+echo "WORK_DIR_LN preserved at: $WORK_DIR_LN (remove manually when done)"
