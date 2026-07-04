@@ -1,0 +1,94 @@
+## Step 0 — Upfront Judgement
+
+**Ask:** Should I crystallize a vault note capturing the principle that parallel Go table tests must isolate fixture state (each subtest gets its own copy, never share the map)?
+
+**Situation:** Cluster evidence from two past sessions (sess-a.jsonl#turn-3 and sess-b.jsonl#turn-7) records a specific Go testing pattern: shared fixture maps in parallel table-driven tests caused flaky failures twice. The surfaced candidate note ("prefer-table-tests.md") addresses table-driven style in general — whether to use tables for repeated cases — but is off-topic for the isolation principle; it does not capture the safety requirement.
+
+**Plan:**
+1. Run `engram ingest --auto` to bring the index current.
+2. Judge the candidate note against the cluster evidence (Step 2.5C).
+3. Since the candidate addresses tables generically but misses the parallel-isolation safety rule, classify it as **Absent** (no candidate states the principle).
+4. Write a vault note crystallizing the isolation rule from the chunk evidence.
+5. Activate the learned note.
+6. Synthesize the conclusion.
+
+---
+
+## Step 0.5 — Sweep
+
+```bash
+engram ingest --auto
+```
+
+---
+
+## Step 2.5C — Coverage Judgment and Action
+
+**A. Candidate and Members**
+
+- **Candidate:** `prefer-table-tests.md` — "Go tests should use table-driven style for repeated cases."
+- **Members:** 
+  - `sess-a.jsonl#turn-3` — evidence of shared fixture map causing flaky parallel test failure
+  - `sess-b.jsonl#turn-7` — second incident, same root cause (parallel tests, shared mutable state)
+
+**B. Recency weight**
+
+Both chunks are from past sessions; `sess-b` is more recent. Both evidence the same principle (fixture isolation in parallel table tests). No conflict; both sources are independently valid and mutually reinforcing.
+
+**C. Coverage judgment: ABSENT**
+
+The candidate note covers *whether* to use table-driven style (general advice), not *how* to structure them safely under parallelism. The cluster's substantive claim — "parallel table tests must not share the fixture map" — is absent from the candidate. The candidate does not address the safety requirement at all.
+
+**Action:** Write a new vault note crystallizing the parallel-isolation principle.
+
+```bash
+engram learn feedback \
+  --position top \
+  --chunk-source sess-a.jsonl#turn-3 \
+  --chunk-source sess-b.jsonl#turn-7 \
+  --source "synthesis from two parallel-test flaky-failure incidents (sess-a, sess-b)" \
+  --situation "Parallel table-driven Go tests (subtest with t.Parallel())" \
+  --behavior "Fixture map is shared across subtests (passed by reference)" \
+  --impact "Concurrent subtests mutate shared state → flaky failures; test isolation breaks" \
+  --action "Each subtest must receive its own copy of the fixture map. Make([]T, 0, capacity) / deep-copy per iteration. Never pass the same map reference to parallel subtests." \
+  --supersedes "prefer-table-tests|fact|Go tests should use table-driven style for repeated cases"
+```
+
+---
+
+## Step 2.7 — Activation
+
+The note was just created; no prior notes were drawn upon for judgment. No activation call needed (the write itself registers the note as active).
+
+---
+
+## Step 3 — Closing Synthesis
+
+Query surfaced 1 candidate note (off-topic); cluster evidence from 2 chunks; crystallized 1 new lesson.
+
+- **Plan Step 1–3:** Confirmed. The new note captures the parallel-isolation principle that the candidate missed. The synthesis corrects and supersedes the candidate's overly-general advice with the safety-critical requirement.
+
+**Apply as requirement:** When writing parallel table-driven tests in Go (`t.Parallel()` with subtests), ensure each subtest receives its own copy of the fixture map — never share a reference. This pattern caused flaky failures in sess-a and sess-b and is now documented as a load-bearing safety rule.
+
+---
+
+## Step 4 — Persist the reasoned conclusion
+
+The new vault note (written above in Step 2.5C) captures the conclusion. No additional synthesis note needed; the learned feedback note IS the persisted outcome.
+
+---
+
+## Command Executed
+
+```bash
+engram learn feedback \
+  --position top \
+  --chunk-source sess-a.jsonl#turn-3 \
+  --chunk-source sess-b.jsonl#turn-7 \
+  --source "synthesis from two parallel-test flaky-failure incidents (sess-a, sess-b)" \
+  --situation "Parallel table-driven Go tests (subtest with t.Parallel())" \
+  --behavior "Fixture map is shared across subtests (passed by reference)" \
+  --impact "Concurrent subtests mutate shared state → flaky failures; test isolation breaks" \
+  --action "Each subtest must receive its own copy of the fixture map. Make([]T, 0, capacity) / deep-copy per iteration. Never pass the same map reference to parallel subtests." \
+  --supersedes "prefer-table-tests|fact|Go tests should use table-driven style for repeated cases"
+```

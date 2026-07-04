@@ -168,9 +168,9 @@ because it lacks a recent instance.
 
 | Outcome | Criterion | Action |
 | --- | --- | --- |
-| **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend --target <candidate-path> --activate --chunk-source <new-chunk-ids>` — provenance-enrich only; **do not rewrite content**. If this note CORRECTS/narrows/refutes a surfaced note, consult the **write-memory** skill for the `--supersedes` syntax and add it to the amend call. |
-| **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted. If this note corrects a surfaced note, consult the **write-memory** skill for the `--supersedes` syntax and add it to the amend call. |
-| **Absent** | No candidate addresses the situation | Invoke the **write-memory** skill: absent case. Pass the chunk source IDs and the new note content (situation, subject/predicate/object or behavior/impact/action). The write-memory skill handles the `engram learn fact\|feedback` invocation and `--supersedes` if the new note corrects a surfaced note. |
+| **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend --target <candidate-path> --activate --chunk-source <new-chunk-ids>` — provenance-enrich only; **do not rewrite content**. If this note CORRECTS/narrows/refutes a surfaced note, consult the **write-memory** skill (Skill tool) for the `--supersedes` syntax — do not write it from memory and add it to the amend call. |
+| **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted. If this note corrects a surfaced note, consult the **write-memory** skill (Skill tool) for the `--supersedes` syntax — do not write it from memory and add it to the amend call. |
+| **Absent** | No candidate addresses the situation | **REQUIRED SUB-SKILL — invoke the `write-memory` skill (Skill tool) NOW: absent case.** Pass the chunk source IDs and the new note content (situation, subject/predicate/object or behavior/impact/action). Do NOT compose the `engram learn` command yourself — the flag procedure lives only in write-memory; it handles the `engram learn fact\|feedback` invocation and `--supersedes` if the new note corrects a surfaced note. |
 
 **One write per cluster; one representative note per cluster.** The representative is always a note
 (never a chunk). For `absent`, write exactly one note (fact *or* feedback) covering
@@ -224,7 +224,7 @@ something a future session (or a *less capable model* that can't re-derive it) w
 or a human may later **inspect or correct** — crystallize it. Reasoning that is never written down
 evaporates; this records the *outcome* and grows the web.
 
-Invoke the **write-memory** skill: synthesis note procedure.
+**REQUIRED SUB-SKILL — invoke the `write-memory` skill (Skill tool) NOW: synthesis note procedure.** Do NOT compose the `engram learn` command yourself — the flag procedure lives only in write-memory.
 
 - **The note IS the conclusion** (the reasoned lesson), phrased as such — not a restatement of an input.
 - **Certainty by inference mode:** deduction → state it as following necessarily; **abduction / induction
@@ -243,7 +243,7 @@ hunch, you'd hedge below "probable", or it merely re-aggregates one note, do NOT
 note per conclusion; link all of its inputs.
 
 **After writing the synthesis note: if the synthesis body contains ≥1 `[[full-basename]]` wikilink
-to a vault note, ALSO invoke the **write-memory** skill's QA capture procedure** — pass the verbatim
+to a vault note, ALSO invoke the **write-memory** skill (Skill tool — do NOT compose `engram learn qa` yourself)**: QA capture procedure — pass the verbatim
 question, the synthesis conclusion as the answer, the certainty label, and the wikilink-derived
 contributor basenames. If the synthesis body contains no wikilinks, skip (D2 bar: ≥1 citation required).
 

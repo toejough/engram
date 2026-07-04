@@ -1,0 +1,13 @@
+The synthesis body contains one wikilink — `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]` — which triggers the QA-capture rule at the end of Step 4. The single remaining action is:
+
+```bash
+engram learn qa \
+  --slug "eval-runs-lose-data-orchestrator-died" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]]." \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+After that call returns, the recall is complete. Nothing else follows — Step 4 is the last step, and the QA write is its only conditional tail action (one `--contributors` entry per `[[…]]` wikilink in the synthesis body, and there is exactly one here).

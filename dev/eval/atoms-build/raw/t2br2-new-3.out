@@ -1,0 +1,28 @@
+Based on the learn skill and your current state, here are the EXACT remaining commands:
+
+## Step 1.5 — Vocab liveness check
+
+```bash
+engram vocab stats
+```
+
+Since you report `verdict OK`, continue to Step 2. The `qa round-2 gate: accumulating (1/20)` means round-2 is NOT yet READY (needs ≥20 pairs), so no report needed.
+
+## Step 2 — Crystallize the explicit correction
+
+```bash
+engram learn feedback --slug dont-suppress-lint-warnings --position top \
+  --source "session 2026-07-04, context: proposed nolint directive" \
+  --situation "lint warning appears during code review" \
+  --behavior "proposed adding nolint/lint directive to silence the warning" \
+  --impact "masks the underlying violation instead of fixing the root cause; defers the real problem" \
+  --action "identify and fix the underlying linting violation, not suppress it"
+```
+
+## Step 2.5 — Ad-hoc QA capture
+
+Skip — no substantive Q&A from this session (Step 2 crystallized a correction, not an answered question).
+
+---
+
+**Then done.** Report the tally from Step 1 and the slug written in Step 2.

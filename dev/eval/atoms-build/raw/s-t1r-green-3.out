@@ -1,0 +1,18 @@
+Note written to `/tmp/oa-build-vault-s-t1r-green-3/1.2026-07-04.go-parallel-subtests-own-fixture-copy.md`.
+
+**Verbatim command run:**
+
+```
+engram learn feedback \
+  --slug "go-parallel-subtests-own-fixture-copy" \
+  --position top \
+  --chunk-source sess-a.jsonl#turn-3 \
+  --chunk-source sess-b.jsonl#turn-7 \
+  --source "sess-a.jsonl#turn-3, sess-b.jsonl#turn-7" \
+  --situation "Writing parallel Go table-driven tests" \
+  --behavior "Parallel subtests share a single fixture map across cases" \
+  --impact "Causes flaky failures from concurrent reads/writes to shared mutable state; observed twice across sessions" \
+  --action "Give each subtest its own copy of the fixture data — never share a mutable map or slice across parallel subtests"
+```
+
+**Rationale:** The sole candidate (`12.2026-05-01.prefer-table-tests.md`) is off-topic — it covers test *style* (table-driven form), not the *isolation invariant* (each parallel subtest needs its own fixture copy). Coverage outcome is **Absent**, so the correct action is `engram learn feedback` to create a new note, not `engram amend` on the off-topic candidate.

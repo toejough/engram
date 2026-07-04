@@ -1,0 +1,20 @@
+**Coverage judgment: Absent → wrote new `feedback` note.**
+
+The candidate `12.2026-05-01.prefer-table-tests.md` did not address the cluster principle (fixture-map isolation in parallel subtests), so the outcome was **Absent**. No supersession was needed — the candidate covers a different topic entirely.
+
+**Command run (verbatim):**
+
+```
+engram learn feedback \
+  --slug "parallel-go-table-tests-no-shared-fixture-map" \
+  --position top \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7" \
+  --source "sess-a.jsonl#turn-3, sess-b.jsonl#turn-7" \
+  --situation "writing parallel Go table-driven tests" \
+  --behavior "sharing a single fixture map across parallel subtests" \
+  --impact "causes flaky test failures — observed twice across two sessions" \
+  --action "give each subtest its own copy of the fixture map; never share mutable fixture state across t.Parallel() subtests"
+```
+
+Note written to `/tmp/oa-build-vault-s-t1r-green-1/1.2026-07-04.parallel-go-table-tests-no-shared-fixture-map.md`.

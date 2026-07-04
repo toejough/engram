@@ -1,0 +1,13 @@
+The synthesis note written in Step 4 contains one wikilink — `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]` — so the skill's D2 rule triggers: **one remaining action**, the QA capture.
+
+```bash
+engram learn qa \
+  --slug "eval-orchestrator-death-data-loss" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "Per-trial JSONL checkpointing bounds data loss; append results after every trial so orchestrator death loses at most one trial." \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+That's it. After this call completes, the recall is done — no further writes, no activation of the synthesis note itself (Step 2.7 activates only notes *drawn on* in Step 3, not the note just created in Step 4).

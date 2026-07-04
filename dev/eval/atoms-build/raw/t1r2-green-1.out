@@ -1,0 +1,48 @@
+### Step 0 — Upfront Judgement
+
+**Ask:** Execute Step 2.5C of the recall skill — judge whether the candidate note covers the cluster's principle and apply the appropriate coverage action (amend or learn).
+
+**Situation:** The cluster evidences a specific correctness principle from two prior sessions (sess-a.jsonl#turn-3, sess-b.jsonl#turn-7): parallel Go table tests failed twice due to shared fixture maps; the fix is to give each subtest its own copy. One candidate note exists: "12.2026-05-01.prefer-table-tests.md" claiming "Go tests should use table-driven style for repeated cases."
+
+**Plan:**
+1. Run `engram ingest --auto` sweep
+2. Judge whether the candidate covers the cluster principle
+3. Execute the appropriate Step 2.5C action (amend for Near, or learn for Absent)
+4. Report the full command executed
+
+---
+
+### Step 0.5 — Sweep
+
+```bash
+engram ingest --auto
+```
+
+---
+
+### Step 2.5A–C — Candidate & Coverage Judgment
+
+**Read candidate:** The note "12.2026-05-01.prefer-table-tests.md" claims *"Go tests should use table-driven style for repeated cases."* This is a general table-driven pattern recommendation.
+
+**Cluster principle (recency-weighted from chunks):** Parallel Go table tests must not share the fixture map — each subtest gets its own copy; sharing caused flaky failures twice.
+
+**Coverage verdict:** **Near.** The candidate addresses table-driven testing (same domain) but omits the substantive claim that parallel table tests need separate fixture copies per subtest to avoid flakiness. This is a critical correctness/anti-flakiness rule the chunks evidence — material omission.
+
+**Action:** Amend the candidate to incorporate the recency-weighted principle.
+
+```bash
+engram amend --target "12.2026-05-01.prefer-table-tests.md" \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7" \
+  --subject "parallel Go table tests" \
+  --predicate "must not share" \
+  --object "fixture map across subtests (each subtest must get its own copy to avoid flaky failures)"
+```
+
+---
+
+**Full command executed (verbatim):**
+
+```bash
+engram amend --target "12.2026-05-01.prefer-table-tests.md" --chunk-source "sess-a.jsonl#turn-3" --chunk-source "sess-b.jsonl#turn-7" --subject "parallel Go table tests" --predicate "must not share" --object "fixture map across subtests (each subtest must get its own copy to avoid flaky failures)"
+```

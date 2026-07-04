@@ -1,0 +1,15 @@
+The skill requires one more action after writing the synthesis note in Step 4: because the synthesis body contains at least one `[[full-basename]]` wikilink, a QA pair must be written.
+
+The remaining action is:
+
+```bash
+engram learn qa \
+  --slug "eval-runs-data-loss-orchestrator-death" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]]" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+The `--contributors` value is extracted directly from the `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]` wikilink in the synthesis body — one `--contributors` flag per wikilink. That is the only remaining action; the recall is complete after this call.

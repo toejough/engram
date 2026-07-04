@@ -1,0 +1,25 @@
+Looking at the recall skill procedure you've provided, you've completed the synthesis note write in Step 4, but there are two remaining actions to fully finish the recall:
+
+## Remaining Actions in Order
+
+**1. Step 2.7 — Activation**
+Run `engram activate` on the notes you actually drew on during synthesis. Since your synthesis note cited `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`, activate it:
+
+```bash
+engram activate --note "159.2026-07-02.eval-runs-checkpoint-per-trial"
+```
+
+**2. Step 4 — QA Pair (completion)**
+Since your synthesis body contains a wikilink (`[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`), you must also write a QA pair to record the question and this session's answer:
+
+```bash
+engram learn qa \
+  --slug "eval-orchestrator-checkpointing" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]]" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+These two commands (the activate + the QA pair) are the remaining blocking steps to finish the recall fully per the skill's procedure. After they complete, the recall is done.

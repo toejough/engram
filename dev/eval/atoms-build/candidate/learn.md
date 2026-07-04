@@ -55,13 +55,12 @@ autonomously — it requires Joe's oversight.
 Scan THIS session for exactly two kinds of moments:
 
 1. **Corrections** — the user corrected your approach or behavior ("don't suppress lint warnings —
-   fix the underlying issue", "never amend pushed commits"). Invoke the **write-memory** skill:
-   feedback case. Pass the slug, source, situation, behavior, impact, and action. If this correction
+   fix the underlying issue", "never amend pushed commits"). **REQUIRED SUB-SKILL — invoke the `write-memory` skill (Skill tool) NOW: feedback case.** Pass the slug, source, situation, behavior, impact, and action. Do NOT compose the `engram learn` command yourself — the flag procedure lives only in write-memory. If this correction
    supersedes an existing vault note, also pass the superseded note's details (the write-memory skill
    handles the `--supersedes` flag syntax).
 
 2. **Explicit save-requests** — the user said "remember this/that X", "note for next time",
-   "write this down". Invoke the **write-memory** skill: fact case. Pass the slug, source, situation,
+   "write this down". **REQUIRED SUB-SKILL — invoke the `write-memory` skill (Skill tool) NOW: fact case.** Pass the slug, source, situation,
    subject, predicate, and object. If this fact supersedes an existing vault note, also pass the
    superseded note's details.
 
@@ -82,8 +81,7 @@ the answer body contains ≥1 `[[full-basename]]` wikilink OR if you crystallize
 new vault note (Step 2) as the answer. Both conditions make the answer traceable (D2 observable
 bar). Skip questions answered with generic advice or without `[[...]]` wikilinks.
 
-For each uncaptured substantive Q&A from this session, invoke the **write-memory** skill: QA
-capture procedure. Pass the slug, verbatim question, answer body (copy; no re-derive), contributor
+For each uncaptured substantive Q&A from this session, **REQUIRED SUB-SKILL — invoke the `write-memory` skill (Skill tool) NOW: QA capture procedure.** Do NOT compose the `engram learn qa` command yourself — the flag procedure lives only in write-memory. Pass the slug, verbatim question, answer body (copy; no re-derive), contributor
 basenames (from `[[full-basename]]` wikilinks only — never free-listed), certainty, and source.
 If no `[[...]]` wikilinks appear in the answer and no note was crystallized, skip (D2 bar not met).
 

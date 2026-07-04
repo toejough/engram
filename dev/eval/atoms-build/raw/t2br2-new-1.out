@@ -1,0 +1,24 @@
+Remaining steps per the learn skill:
+
+**Step 2 — Crystallize explicit lessons**
+
+The one user correction maps to a feedback note:
+
+```bash
+engram learn feedback \
+  --slug no-nolint-suppress \
+  --position top \
+  --source "session 2026-07-04, context: proposed nolint directive to silence a linter warning" \
+  --situation "when reviewing lint warnings and considering suppression" \
+  --behavior "proposing to add a //nolint directive" \
+  --impact "suppresses symptoms without fixing root cause; allows problematic code patterns to pass static checks" \
+  --action "fix the underlying issue that triggered the lint warning instead of suppressing it"
+```
+
+**Step 2.5 — Ad-hoc QA capture**
+
+Not applicable. No substantive Q&A with `[[wikilink]]` references exists in this session — the correction is guidance, not an answered question. Skip.
+
+**Final report**
+
+Step 2 complete. Step 2.5 skipped (no QA pairs meet the D2 bar). Learn session closed.

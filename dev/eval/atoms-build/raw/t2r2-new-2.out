@@ -1,0 +1,19 @@
+Looking at the recall skill procedure, after completing Step 4 (writing the synthesis note), there is ONE remaining action to complete the deep recall:
+
+**Remaining action: Write a QA pair to record the question and answer.**
+
+Since the synthesis note body contains the wikilink `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]` (≥1 citation), I must capture the QA pair:
+
+```bash
+engram learn qa \
+  --slug "eval-checkpointing-bounds-loss-on-orchestrator-death" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "Eval trial results must checkpoint per trial with JSONL append after every trial so orchestrator death loses at most one trial" \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+This records the question that prompted the recall, the synthesis conclusion from Step 4, links it to the contributing vault note, and marks the certainty level (matching the fact note's certainty).
+
+**After this QA capture completes, the deep recall is finished.**

@@ -1,0 +1,9 @@
+Feedback note written. Step 2.5: no substantive Q&As with `[[wikilink]]` references occurred this session, so nothing to capture there.
+
+Done. Commands run:
+
+1. `engram ingest --auto` — (reported as complete, 3 chunks swept)
+2. `engram vocab stats` — (reported OK, QA round-2 gate at 1/20)
+3. `engram learn feedback --slug no-suppress-lint-warnings ...` — crystallized the lint suppression correction
+
+The lesson written: when encountering a lint warning, fix the underlying issue rather than suppressing it with `nolint` or equivalent directives.

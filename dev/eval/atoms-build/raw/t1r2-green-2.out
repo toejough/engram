@@ -1,0 +1,38 @@
+I'll start by printing Step 0 — my upfront judgment — then execute Step 2.5C.
+
+---
+
+### Step 0 — My Upfront Judgement
+
+**Ask:** Should the candidate note `12.2026-05-01.prefer-table-tests.md` be amended to incorporate the cluster's evidence about parallel table tests and shared fixture state?
+
+**Situation:** I have a candidate note claiming "Go tests should use table-driven style for repeated cases." The cluster members evidence a more specific principle: parallel Go table tests must not share the fixture map — each subtest gets its own copy, and sharing caused flaky failures twice (sources: sess-a.jsonl#turn-3, sess-b.jsonl#turn-7).
+
+**Plan:** 
+1. Judge this as a **Near** outcome — the candidate addresses table-driven testing but omits the substantive claim about shared mutable state causing flaky failures.
+2. Amend the candidate note to synthesize the recency-weighted cluster principle: parallel tests require fixture isolation, not just table-driven style.
+3. Call the amend command with the two chunk sources to provenance-track the evidence.
+
+---
+
+### Step 2.5C — Judge Coverage & Synthesize
+
+The candidate note states only the generic principle ("use table-driven style"), but the cluster members evidence a **specific, load-bearing constraint**: parallel table tests must isolate fixture state per subtest, because sharing causes flaky failures (empirical evidence from two sessions).
+
+**Judgment: Near.** The candidate addresses the same domain (table tests) but materially omits the constraint that failed in practice.
+
+**Action:** Amend the note to incorporate the omitted substantive claim.
+
+```bash
+engram amend --target 12.2026-05-01.prefer-table-tests.md \
+  --chunk-source sess-a.jsonl#turn-3 \
+  --chunk-source sess-b.jsonl#turn-7 \
+  --subject "parallel table-driven Go tests" \
+  --predicate "must isolate mutable fixture state per subtest" \
+  --object "shared fixture maps cause flaky test failures in parallel execution"
+```
+
+**Full command (verbatim):**
+```bash
+engram amend --target 12.2026-05-01.prefer-table-tests.md --chunk-source sess-a.jsonl#turn-3 --chunk-source sess-b.jsonl#turn-7 --subject "parallel table-driven Go tests" --predicate "must isolate mutable fixture state per subtest" --object "shared fixture maps cause flaky test failures in parallel execution"
+```

@@ -1,0 +1,58 @@
+I'll execute Step 2.5C for the cluster you've provided. First, let me print my upfront judgment (Step 0), then process the cluster.
+
+## Step 0 — Upfront Judgement
+
+**Ask:** Given a cluster evidencing the principle "parallel Go table tests must not share the fixture map — each subtest gets its own copy" (sources: sess-a.jsonl#turn-3 and sess-b.jsonl#turn-7), and a candidate note claiming "Go tests should use table-driven style for repeated cases" (off-topic), determine whether the candidate covers the cluster's principle and which engram write command (if any) to execute per Step 2.5C.
+
+**Situation:** The cluster evidence points to a specific bug pattern: two past sessions identified flaky test failures caused by parallel table tests sharing a mutable fixture map. The candidate note addresses table-driven style broadly but omits the critical constraint about fixture isolation in parallel contexts — it is off-topic to the cluster's principle.
+
+**Plan:** 
+1. Run `engram ingest --auto` (Step 0.5)
+2. Judge the candidate against the recency-weighted cluster evidence (Step 2.5B–C)
+3. Classify the outcome (Covered/Near/Absent)
+4. Execute the corresponding engram write command per the Step 2.5C table
+
+---
+
+## Step 0.5 — Sweep
+
+```bash
+engram ingest --auto
+```
+
+---
+
+## Step 2.5 — Cluster Synthesis
+
+**A. Read candidates and members**
+
+- **Candidate:** "prefer-table-tests.md" — "Go tests should use table-driven style for repeated cases."
+- **Cluster members (chunks):** sess-a.jsonl#turn-3, sess-b.jsonl#turn-7 (evidence: parallel table tests sharing fixture maps caused flaky failures twice).
+
+**B. Apply recency weight**
+
+No conflict between members; both describe the same observed failure mode and the same lesson. Recency weight: stable principle.
+
+**C. Judge coverage**
+
+The candidate addresses table-driven *style* but is **silent on fixture isolation in parallel contexts**. The cluster principle is **"don't share fixture maps across parallel subtests"** — a specific bug pattern, not present in the candidate. The candidate is **ABSENT** relative to the cluster's principle.
+
+**Outcome: ABSENT.** The cluster evidences a specific constraint (fixture per subtest in parallel tests) that no candidate note states. Write a new note.
+
+---
+
+## Step 2.5C Write Command
+
+```bash
+engram learn feedback --position top \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7" \
+  --source "synthesis from parallel Go table-test flaky failures" \
+  --situation "Writing parallel Go table-driven tests" \
+  --subject "fixture map" \
+  --predicate "must not be shared" \
+  --object "across parallel subtests" \
+  --behavior "each subtest receives its own copy of the fixture" \
+  --impact "prevents concurrent mutation and flaky test failures" \
+  --supersedes "prefer-table-tests|updates|parallel table tests require fixture isolation"
+```

@@ -1,0 +1,49 @@
+## Step 0 — Print upfront judgement
+
+**Ask:** Does the surfaced candidate note adequately capture the cluster's principle? If not, what action should I take per Step 2.5C?
+
+**Situation:** A cluster shows evidence from two sessions (sess-a.jsonl#turn-3, sess-b.jsonl#turn-7) demonstrating a specific failure pattern: parallel Go table tests that share a mutable fixture map experience flaky failures. The surfaced candidate note ("12.2026-05-01.prefer-table-tests.md") claims only that "Go tests should use table-driven style for repeated cases"—addressing the test style, but omitting the critical finding about fixture isolation and concurrent modification.
+
+**Plan:**
+1. Judge the candidate against the cluster's recency-weighted members (the evidence of flaky failures from shared fixture state).
+2. Apply Step 2.5C coverage judgment.
+3. Execute the indicated action.
+
+---
+
+## Step 0.5 — Sweep
+
+```bash
+engram ingest --auto
+```
+
+---
+
+## Step 2.5C — Coverage judgment
+
+**Reading the cluster members and candidate:**
+- **Candidate content:** "Go tests should use table-driven style for repeated cases" (table-driven pattern only)
+- **Cluster members evidence:** Parallel table tests with shared fixture map → concurrent modification → flaky failures (both sessions)
+- **Material omissions in candidate:** 
+  - No mention of parallel test execution (t.Parallel())
+  - No fixture/state isolation principle
+  - No mutable-state concurrency concern
+  - Missing the actionable guidance (each subtest gets its own copy)
+
+**Coverage outcome: NEAR**
+
+The candidate addresses Go testing patterns (same domain, related technique) but omits ≥1 substantive claim the members evidence—specifically, the requirement for fixture isolation in parallel contexts and the failure mode that motivated the lesson.
+
+**Step 2.5C action for NEAR coverage:**
+
+Re-synthesize the note from all members, recency-weighted:
+
+```bash
+engram amend \
+  --target "12.2026-05-01.prefer-table-tests.md" \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7" \
+  --subject "parallel Go table tests" \
+  --predicate "must not share mutable state" \
+  --impact "prevents flaky failures from concurrent modification during parallel execution"
+```

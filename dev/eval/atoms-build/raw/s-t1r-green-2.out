@@ -1,0 +1,18 @@
+Note written. The coverage verdict was **Absent** — the sole candidate addressed table-driven test *style*, not fixture isolation, so no existing note covered the cluster's principle.
+
+**Command run (verbatim):**
+
+```
+engram learn feedback \
+  --slug "go-parallel-subtests-no-shared-fixture" \
+  --position top \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7" \
+  --source "sess-a.jsonl#turn-3, sess-b.jsonl#turn-7" \
+  --situation "writing parallel Go table-driven tests" \
+  --behavior "parallel subtests share a fixture map or other mutable state" \
+  --impact "flaky test failures (observed twice across sessions)" \
+  --action "give each subtest its own copy of the fixture map; never share mutable state across parallel subtests — fix the shared state, never remove t.Parallel()"
+```
+
+New vault note created at `1.2026-07-04.go-parallel-subtests-no-shared-fixture.md`.

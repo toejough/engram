@@ -1,0 +1,14 @@
+The remaining steps are **Step 2** (one correction to crystallize) and **Step 2.5** (no substantive Q&A — no `[[...]]` wikilinks and no new vault note, so skipped).
+
+**Step 2 — exact command:**
+
+```bash
+engram learn feedback --slug no-lint-suppression --position top \
+  --source "session 2026-07-04, context: proposed adding a nolint directive to silence a lint warning" \
+  --situation "when a linter flags a warning during development or code review" \
+  --behavior "added a nolint directive to suppress the warning" \
+  --impact "hides the real issue; the underlying problem remains unfixed and becomes invisible" \
+  --action "fix the underlying code issue that triggered the lint warning instead of suppressing it"
+```
+
+**Step 2.5 — skipped.** No answers in this session contained `[[full-basename]]` wikilinks and no vault note was crystallized as a direct answer to a question. D2 bar not met.

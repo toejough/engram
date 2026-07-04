@@ -1,0 +1,20 @@
+Based on the learn skill, here are the EXACT commands for the remaining steps:
+
+## Step 2 — Crystallize the correction
+
+```bash
+engram learn feedback --slug no-nolint-directives --position top \
+  --source "session 2026-07-04, context: proposed adding nolint to suppress warning" \
+  --situation "code has lint warnings or quality issues" \
+  --behavior "proposed adding a nolint/suppress directive to silence the warning" \
+  --impact "hides the underlying issue instead of fixing it; warnings are signals that something needs repair" \
+  --action "fix the underlying issue that caused the warning instead of suppressing it"
+```
+
+## Step 2.5 — Ad-hoc QA capture
+
+Skipped — no substantive Q&A pairs in this session met the D2 bar (no `[[wikilinks]]` and no new vault note crystallized as the answer).
+
+## Status report
+
+QA round-2 gate is at 1/20 (not yet READY). No action needed; validation will trigger when ≥20 pairs are captured.

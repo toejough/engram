@@ -1,0 +1,46 @@
+I'll now execute Step 2.5C for this cluster following the recall procedure.
+
+## Step 0 — Upfront Judgement
+
+- **Ask:** Judge coverage of the provided candidate note against the cluster's principle and emit the appropriate synthesis command per the Step 2.5C coverage table.
+
+- **Situation:** The cluster evidences that parallel Go table tests must isolate fixture maps to prevent flakiness (two independent instances, sess-a and sess-b). A candidate note "prefer-table-tests.md" claims "Go tests should use table-driven style for repeated cases" — a style preference rather than a correctness constraint.
+
+- **Plan:**
+  1. Read the candidate claim (style-focused: prefer table-driven tests)
+  2. Read the cluster principle (correctness-focused: don't share fixtures in parallel tests)
+  3. Judge whether candidate covers, is near, or is absent relative to the cluster
+  4. Emit the appropriate `engram amend` or `engram learn` command
+  5. State the full command executed
+
+## Step 2.5A – Read Candidates and Members
+
+- **Candidate:** "12.2026-05-01.prefer-table-tests.md" — "Go tests should use table-driven style for repeated cases"
+- **Cluster members (chunks):** sess-a.jsonl#turn-3 and sess-b.jsonl#turn-7 both evidence: parallel Go table tests must not share the fixture map; each subtest gets its own copy; sharing caused flaky failures
+
+## Step 2.5B – Recency Weight
+
+No conflict present. Both chunks agree on the same principle (fixture isolation prevents flakiness). No reversal or negation. Stable pattern.
+
+## Step 2.5C – Coverage Judgment
+
+**Verdict: ABSENT**
+
+The candidate note addresses table-driven *style* (organizational preference), while the cluster members evidence a *correctness constraint* specific to parallel execution (fixture map isolation). The candidate is off-topic relative to the cluster's principle. No existing note states the cluster's principle.
+
+**Action:** Emit `engram learn feedback` to crystallize the lesson.
+
+---
+
+## Full Command
+
+```bash
+engram learn feedback \
+  --position top \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7" \
+  --source "parallel Go table test flakiness — fixture state sharing caused failures (observed 2x)" \
+  --situation "Table-driven tests using t.Parallel() with shared fixture state" \
+  --behavior "Each subtest accessing and mutating the same fixture map concurrently" \
+  --impact "Causes flaky test failures — fix: isolate fixture maps, each subtest gets its own copy"
+```

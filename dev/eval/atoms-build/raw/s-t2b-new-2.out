@@ -1,0 +1,20 @@
+Steps 1 and 1.5 are done. Here are the exact commands for the remaining steps:
+
+**Step 2 — Crystallize the correction:**
+
+```bash
+engram learn feedback \
+  --slug "no-lint-suppression-fix-underlying" \
+  --position top \
+  --source "session 2026-07-04, context: proposed adding a nolint directive to silence a lint warning" \
+  --situation "encountering a lint warning or static analysis finding during development" \
+  --behavior "added a nolint directive to suppress the warning" \
+  --impact "silences the signal without addressing the root cause; the underlying issue remains and is now invisible" \
+  --action "fix the underlying issue that the linter is flagging; never suppress lint warnings with directives"
+```
+
+**Step 2.5 — Ad-hoc QA capture:**
+
+No substantive Q&A this session meets the D2 bar (no `[[full-basename]]` wikilinks in any answer, no vault note crystallized as a direct answer to a question). Skip.
+
+That's all three remaining commands — one `engram learn feedback` write, no QA capture.

@@ -1,0 +1,19 @@
+Looking at the recall skill documentation and your synthesis note with its wikilink, there is **one remaining action** to complete Step 4:
+
+## Step 4 QA Capture
+
+Write a QA pair to record the question and this session's answer. Since the synthesis body contains the wikilink `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`, the QA capture is **required**:
+
+```bash
+engram learn qa \
+  --slug "eval-runs-data-loss-on-orchestrator-death" \
+  --question "Why did our eval runs lose data when the orchestrator died?" \
+  --answer "Per-trial JSONL checkpointing bounds data loss — append results to JSONL after every trial, so orchestrator death loses at most one trial's work." \
+  --contributors "159.2026-07-02.eval-runs-checkpoint-per-trial" \
+  --certainty "high" \
+  --source "recall Step 4, session 2026-07-04"
+```
+
+**Why this remains:** Step 4's rule states: *"After writing the synthesis note: if the synthesis body contains ≥1 `[[full-basename]]` wikilink to a vault note, ALSO write a QA pair."* Your synthesis cites `[[159.2026-07-02.eval-runs-checkpoint-per-trial]]`, so the QA capture is mandatory to record the question-answer pairing for future recall.
+
+**After this call completes, the recall is finished.** The QA pair links the original question back to the synthesized lesson and the contributing note, completing the feedback loop.

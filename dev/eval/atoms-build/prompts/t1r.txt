@@ -1,0 +1,6 @@
+First invoke the recall skill to load its procedure, then execute its Step 2.5C for the cluster below, taking the action the skill directs for your judgment.
+Cluster data:
+- candidate_l2s: one note, "12.2026-05-01.prefer-table-tests.md" — claim: "Go tests should use table-driven style for repeated cases." (Off-topic for the cluster principle below.)
+- Cluster chunk members evidence this principle: parallel Go table tests must not share the fixture map — each subtest gets its own copy; sharing caused flaky failures twice.
+- Chunk source IDs for provenance: sess-a.jsonl#turn-3 and sess-b.jsonl#turn-7
+Then state, verbatim, the full command you ran (or would run).

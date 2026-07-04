@@ -1,0 +1,50 @@
+**Step 0 — Upfront judgment**
+
+**Ask:** The candidate note "prefer-table-tests.md" claims table-driven style is good for repeated cases. The cluster members evidence a different load-bearing principle: parallel table tests fail when fixture maps are shared between subtests. Should the candidate be amended to capture this substantive correctness constraint?
+
+**Situation:** I'm evaluating a candidate note against cluster members that evidence a distinct principle about test correctness (fixture isolation), not style. The user flagged the candidate as off-topic. The cluster members come from two sessions where shared-fixture flakiness caused failures.
+
+**Plan:**
+1. Apply the Step 2.5C coverage judgment table
+2. Judge the candidate as Near (addresses table tests, omits the substantive isolation claim)
+3. Amend the candidate to include the fixture-isolation constraint
+4. State the command executed
+
+---
+
+**Step 0.5 — Sweep**
+
+```bash
+engram ingest --auto
+```
+
+(Cluster data provided; proceeding with amendment.)
+
+---
+
+**Step 2.5C — Coverage judgment**
+
+| Criterion | Finding |
+|-----------|---------|
+| **Candidate claim** | "Go tests should use table-driven style for repeated cases" |
+| **Cluster principle** | Parallel table-test fixtures must not be shared; each subtest requires its own copy; failure consequence: flaky tests |
+| **Verdict** | **NEAR** — addresses the same domain (table tests in Go) but omits the substantive correctness claim (fixture isolation in parallel tests). The candidate covers the style preference but misses the load-bearing constraint the cluster members evidence. |
+
+**Action:** Amend to re-synthesize content from all members, recency-weighted, incorporating the fixture-isolation requirement.
+
+---
+
+**Command executed:**
+
+```bash
+engram amend \
+  --target 12.2026-05-01.prefer-table-tests.md \
+  --chunk-source sess-a.jsonl#turn-3 \
+  --chunk-source sess-b.jsonl#turn-7 \
+  --subject "parallel Go table-driven tests" \
+  --predicate "must not share mutable state across subtests" \
+  --object "fixture maps; each subtest gets its own independent copy" \
+  --impact "shared fixtures cause flaky failures (evidenced in two prior sessions)"
+```
+
+This re-synthesizes the note to capture both the stylistic guidance (table-driven form) and the corrective lesson (fixture isolation as a correctness requirement, not optional).

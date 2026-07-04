@@ -1,0 +1,41 @@
+I'll follow the recall skill's Step 2.5C procedure for this cluster.
+
+**Step 0 — Upfront judgment**
+
+**Ask:** Should the existing table-test note be amended to include the parallel-safety constraint, or should a new note crystallize the specific failure pattern (shared mutable state in parallel tests)?
+
+**Situation:** The cluster surfaces evidence that parallel Go table tests failed flakily *twice* when sharing a fixture map across subtests. The candidate note in `candidate_l2s` documents table-driven style (a general pattern), but is marked as off-topic for the principle this cluster actually evidences.
+
+**Plan:**
+1. Read the candidate note content to confirm it does not address the parallel+shared-state constraint.
+2. Judge the coverage outcome (Covered / Near / Absent).
+3. Execute the Step 2.5C write action appropriate to that outcome.
+4. State the full `engram` command.
+
+---
+
+**Step 2.5C — Coverage judgment and write action**
+
+The candidate addresses Go table tests in general (the style/pattern), but the cluster members evidence a **specific failure pattern**: parallel subtests sharing mutable fixture state → flaky failures. The candidate is documented as off-topic, meaning it does not state the cluster's principle.
+
+**Outcome: Absent.** No existing note covers the recency-weighted principle.
+
+**Action:** Write a new feedback note synthesizing both chunks.
+
+---
+
+**Full command executed:**
+
+```bash
+engram learn feedback \
+  --position top \
+  --chunk-source "sess-a.jsonl#turn-3" \
+  --chunk-source "sess-b.jsonl#turn-7" \
+  --source "Two parallel test failures (sessions a and b)" \
+  --situation "Parallel Go table-driven tests" \
+  --behavior "Sharing fixture map across parallel test subtests" \
+  --impact "Causes flaky failures and race conditions" \
+  --action "Each subtest must receive its own copy of the fixture map"
+```
+
+This crystallizes the non-obvious constraint (not just "use table tests", but "isolate mutable state in parallel tests") and links it to the evidence of the twice-repeated failure.
