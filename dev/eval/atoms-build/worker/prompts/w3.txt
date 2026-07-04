@@ -1,4 +1,4 @@
-Execute recall Step 2.5C now for BOTH clusters below, in order, following the recall skill available in this session.
+Execute wrecall Step 2.5C now for BOTH clusters below, in order, following the wrecall skill available in this session.
 
 Cluster 1:
 - candidate_l2s: one note, "31.2026-06-01.commit-messages-imperative-mood.md" — claim: "Commit message subjects use imperative mood."

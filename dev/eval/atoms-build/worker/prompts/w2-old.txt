@@ -10,4 +10,4 @@ object: JSONL append after every trial so orchestrator death loses at most one t
 Information learned: per-trial JSONL checkpointing bounds data loss; see [[159.2026-07-02.eval-runs-checkpoint-per-trial]].
 
 The synthesis body contains the wikilink [[159.2026-07-02.eval-runs-checkpoint-per-trial]].
-Complete ALL remaining recall actions now, in order, following the recall skill available in this session.
+Complete ALL remaining recall actions now, in order, following the wrecall skill available in this session.
