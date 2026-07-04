@@ -3,14 +3,15 @@ name: learn
 description: >
   Use after completing any action we started with a recall call, or after any work that involved more than one tool
   call or more than quick shallow thinking. Also use immediately on explicit save-requests like "remember this",
-  "remember that X", "save that for later", "note for next time", "don't forget X", "write this down". This preserves
+  "remember that X", "save that for later", "note for next time", "don't forget X", "write this down". Also use at
+  session end when a conclusion, design, or finding you presented was later overturned or corrected. This preserves
   relevant memories that are VITAL to recall for a good user experience and a greater chance at first-pass success
   for similar work in the future.
 ---
 
 # Learn — Sweep Raw Memory, Crystallize Explicit Lessons
 
-Two jobs, in order: (1) mechanically true up the chunk index so every conversation and doc is searchable memory, and (2) write a vault note for anything the user explicitly taught or corrected this session. Nothing else.
+Two jobs, in order: (1) mechanically true up the chunk index so every conversation and doc is searchable memory, and (2) write a vault note for every explicit lesson this session — user corrections, explicit save-requests, and presented conclusions that were later overturned. Nothing else.
 
 > **Raw event memory is AUTOMATIC.** `engram ingest` chunks and embeds session transcripts and
 > markdown itself — no summaries, no episode notes, no arc detection. The agent's only writing
@@ -52,7 +53,7 @@ autonomously — it requires Joe's oversight.
 
 ## Step 2 — Crystallize explicit lessons (only when they exist)
 
-Scan THIS session for exactly two kinds of moments:
+Scan THIS session for exactly three kinds of moments:
 
 1. **Corrections** — the user corrected your approach or behavior ("don't suppress lint warnings —
    fix the underlying issue", "never amend pushed commits").
@@ -70,6 +71,19 @@ Scan THIS session for exactly two kinds of moments:
    (retrieval-shaped), subject, predicate, object; plus supersedes details if this fact
    corrects an existing vault note. write-memory composes, executes, and reports the note path.
 
+3. **Reversals** — a conclusion, design, or verdict that was PRESENTED (to the user, a review
+   gate, or a committed plan) and later OVERTURNED — by you, a reviewer, or an instrument
+   (a superseded design, a retro-invalidated finding, an instrument-invalid measurement, a
+   redrawn boundary). Nobody needs to have SAID the correction — self-discovered reversals
+   qualify, and a repo-doc CORRECTION section or postscript does NOT count as capture
+   (record-correction ≠ lesson-capture). For each reversal, **REQUIRED SUB-SKILL:** invoke the
+   **write-memory** skill with this handoff — kind=feedback, slug, source ("session <date>,
+   context: <one-line what-was-happening>"), situation (retrieval-shaped: when does this
+   failure mode apply), behavior = what the original reasoning did wrong, impact = what the
+   reversal cost, action = the guard that would have prevented it — the ROOT CAUSE, not a
+   narrative of the flip; plus supersedes details if the reversal corrects an existing vault
+   note.
+
 Rules:
 - **State the general principle**, not the session-specific instance — future-you recalls by
   situation similarity, not by remembering this session.
@@ -78,8 +92,8 @@ Rules:
 - One note per distinct principle. An explicit save-request ALWAYS gets its note, immediately —
   "remember this" means stop and write before anything else.
 - If the new lesson CORRECTS, narrows, or refutes an existing vault note, include the superseded note's basename, type, and claim in the handoff.
-- **No moments of either kind → write nothing.** Routine work is already captured by Step 1;
-  a session with no corrections and no save-requests is a two-command learn (sweep + report).
+- **No moments of any kind → write nothing.** Routine work is already captured by Step 1;
+  a session with no corrections, no save-requests, and no reversals is a two-command learn (sweep + report).
 
 ## Step 2.5 — Ad-hoc QA capture (only when a new substantive Q&A occurred this session)
 
@@ -107,6 +121,7 @@ this session), do not write it again here. One pair per distinct answered questi
 | --- | --- |
 | You ran `engram transcript` anything | Step 1's `engram ingest --auto` replaced the whole transcript workflow |
 | You're writing an episode or summarizing the session into a note | Don't — raw chunks already hold it |
-| You're writing facts for things nobody asked you to remember | Only corrections and explicit save-requests crystallize here |
+| You're writing facts for things nobody asked you to remember | Only corrections, save-requests, and reversals crystallize here |
 | You skipped the sweep because "nothing changed" | The sweep IS the check — it costs seconds when nothing changed |
 | `--tier` flags or L3/ADR writing | Tiers are not part of learn anymore |
+| You corrected a repo doc (CORRECTION/postscript) and skipped the vault note | Write the vault note for the reversal's root cause — record-correction is not capture |
