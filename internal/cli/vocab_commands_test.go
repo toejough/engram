@@ -171,6 +171,33 @@ func TestNoteContainsAnyRemoval_NoMatch(t *testing.T) {
 		To(BeFalse(), "must return false when no removal term is in content")
 }
 
+// ── QA round-1: qa pairs count + round-2 gate ────────────────────────────────
+
+func TestPrintStatsReport_QAGateReady(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buf strings.Builder
+
+	cli.ExportPrintStatsReport(&buf, nil, nil, 50, 0, "1.0", false, "", 20)
+
+	g.Expect(buf.String()).To(ContainSubstring("qa round-2 gate: READY (20>=20)"))
+}
+
+func TestPrintStatsReport_QAPairsLine(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buf strings.Builder
+
+	cli.ExportPrintStatsReport(&buf, nil, nil, 10, 0, "1.0", false, "", 5)
+
+	g.Expect(buf.String()).To(ContainSubstring("qa pairs: 5"))
+	g.Expect(buf.String()).To(ContainSubstring("qa round-2 gate: accumulating (5/20)"))
+}
+
 // ── Task 7: verdict line ──────────────────────────────────────────────────────
 
 func TestPrintStatsReport_VerdictOK(t *testing.T) {
@@ -180,7 +207,7 @@ func TestPrintStatsReport_VerdictOK(t *testing.T) {
 
 	var buf strings.Builder
 
-	cli.ExportPrintStatsReport(&buf, nil, nil, 10, 0, "1.0", false, "")
+	cli.ExportPrintStatsReport(&buf, nil, nil, 10, 0, "1.0", false, "", 0)
 
 	g.Expect(buf.String()).To(ContainSubstring("verdict: OK"))
 }
@@ -192,7 +219,7 @@ func TestPrintStatsReport_VerdictRefitPending(t *testing.T) {
 
 	var buf strings.Builder
 
-	cli.ExportPrintStatsReport(&buf, nil, nil, 10, 0, "1.0", true, "growth: 41 notes, 15 days")
+	cli.ExportPrintStatsReport(&buf, nil, nil, 10, 0, "1.0", true, "growth: 41 notes, 15 days", 0)
 
 	g.Expect(buf.String()).To(ContainSubstring("verdict: REFIT_PENDING (growth: 41 notes, 15 days)"))
 }
@@ -1960,6 +1987,29 @@ func TestRunVocabRefit_Rename_MemberWriteError_LogsWarning(t *testing.T) {
 	g.Expect(cli.RunVocabRefit(t.Context(), args, deps, &buf)).To(Succeed(),
 		"refit must succeed even when member write fails during rename")
 	g.Expect(warned).To(BeTrue(), "member write failure must trigger log warning")
+}
+
+func TestRunVocabStats_CountsQAPairs(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	names := []string{
+		"qa.2026-07-03.slug.q.md",   // complete pair with the next entry: 1
+		"qa.2026-07-03.slug.a.md",   // pair member
+		"qa.2026-07-03.orphan.q.md", // no matching .a.md: not counted
+		"100.note.md",
+	}
+
+	deps := cli.VocabStatsDeps{
+		ListMD:   func(string) ([]string, error) { return names, nil },
+		ReadFile: func(string) ([]byte, error) { return nil, os.ErrNotExist },
+	}
+
+	var buf strings.Builder
+
+	g.Expect(cli.RunVocabStats(cli.VocabStatsArgs{Vault: "/vault"}, deps, &buf)).To(Succeed())
+	g.Expect(buf.String()).To(ContainSubstring("qa pairs: 1"))
 }
 
 // ── Vocab commands: stats ─────────────────────────────────────────────────────

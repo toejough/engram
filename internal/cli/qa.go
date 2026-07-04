@@ -131,8 +131,10 @@ const (
 	qaAnswerSuffix         = ".a.md"
 	qaNotePrefix           = "qa."
 	qaQuestionSuffix       = ".q.md"
-	typeQAAnswer           = "qa-answer"
-	typeQAQuestion         = "qa-question"
+	// qaRound2MinPairs is the QA-pair count at which the round-2 gate reads READY.
+	qaRound2MinPairs = 20
+	typeQAAnswer     = "qa-answer"
+	typeQAQuestion   = "qa-question"
 )
 
 // unexported variables.

@@ -290,8 +290,10 @@ func RunVocabStats(args VocabStatsArgs, deps VocabStatsDeps, stdout io.Writer) e
 	}
 
 	sort.Strings(termNames)
+
+	qaPairs := countQAPairs(names)
 	printStatsReport(stdout, termNames, memberCounts, totalNotes, untaggedCount,
-		vocabVersion, refitPending, refitReason)
+		vocabVersion, refitPending, refitReason, qaPairs)
 
 	return nil
 }
@@ -1022,6 +1024,7 @@ func printStatsReport(
 	vocabVersion string,
 	refitPending bool,
 	refitReason string,
+	qaPairs int,
 ) {
 	_, _ = fmt.Fprintf(stdout, "vocab stats (version: %s)\n", vocabVersion)
 	_, _ = fmt.Fprintf(stdout, "terms: %d  member-notes: %d  untagged: %d\n",
@@ -1054,6 +1057,15 @@ func printStatsReport(
 		_, _ = fmt.Fprintf(stdout, "verdict: REFIT_PENDING (%s)\n", refitReason)
 	} else {
 		_, _ = fmt.Fprintln(stdout, "verdict: OK")
+	}
+
+	// QA stats: pair count + round-2 gate readiness.
+	_, _ = fmt.Fprintf(stdout, "qa pairs: %d\n", qaPairs)
+
+	if qaPairs >= qaRound2MinPairs {
+		_, _ = fmt.Fprintf(stdout, "qa round-2 gate: READY (%d>=%d)\n", qaPairs, qaRound2MinPairs)
+	} else {
+		_, _ = fmt.Fprintf(stdout, "qa round-2 gate: accumulating (%d/%d)\n", qaPairs, qaRound2MinPairs)
 	}
 }
 
