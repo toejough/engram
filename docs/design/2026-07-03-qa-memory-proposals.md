@@ -1,7 +1,7 @@
 # Q&A memory — proposals
 
-**Status:** exploration round complete (design + probes, ~$0.10 spent — estimated, P2 only; P1/P3 ran at $0 — of the ~$5–15 envelope) —
-proposals for Joe's decision, NO build this round.
+**Status:** round-1 SHIPPED 2026-07-03 — capture build complete. Round-2 gate: ≥20 pairs
+or ~2026-07-17.
 **Ask (Joe, 2026-07-03):** remember question+answer pairs; link Q→A and answer→contributing
 notes; use accumulated contribution links as a graded usage signal that outscales binary
 activation; crystallize answer-reasoning not already in a note; build a compounding knowledge

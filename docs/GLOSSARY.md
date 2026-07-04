@@ -347,6 +347,48 @@ on read-back) in frontmatter below `project:`. Free-form non-whitespace
 string — `636`, `#636`, `GH-636`, `PROJ-1234` are all valid. Recorded
 for provenance; no read-side filter.
 
+### `engram learn qa` (subcommand)
+Writes a QA pair: one `qa.<date>.<slug>.q.md` (question note) and one
+`qa.<date>.<slug>.a.md` (answer note) atomically-ish. Requires `--slug`,
+`--source`, `--question`, and exactly one of `--answer` / `--answer-file`.
+Optional: `--contributors` (repeatable, validated against vault),
+`--certainty high|medium|low` (default `medium`). Embed-on-write runs for
+both notes; auto-vocab assignment runs on the A-note only. Q-notes carry
+no `vocab:` key (D5′ — Q-note wording loses retrieval against content;
+excluded from main query set at all four seam points). On A-write failure
+the Q-note is removed (best-effort) and a descriptive error is returned.
+
+### qa-question (note type)
+The question half of a QA pair, stored at `qa.<date>.<slug>.q.md` with
+frontmatter `type: qa-question`. Excluded from the main query set at all
+four seam points (`isQueryExcludedKind`, same exclusion as `vocab` and
+`vocab-index`). Q-notes carry no `vocab:` key and are skipped by the
+write-time vocab assigner and the `engram vocab stats` note counter. The
+Q-note body contains the verbatim question text and a machine-written
+`Answered by: [[qa.<date>.<slug>.a]]` line (excluded from `BodyText`/
+`ContentHash` like `Vocab:` / `Supersedes:`). Reachable via a dedicated
+q-space channel (round 3, gated on Arm V PASS + round-2 validation).
+
+### qa-answer (note type)
+The answer half of a QA pair, stored at `qa.<date>.<slug>.a.md` with
+frontmatter `type: qa-answer`. Competes in the main query set as a
+synthesis note (D5′ asymmetric participation) — a relevant past answer
+surfaces directly alongside fact/feedback notes. Carries auto-assigned
+`vocab:` tags and a machine-written `Answers: [[qa.<date>.<slug>.q]]`
+body line. If contributors were supplied, also carries a `Contributors:`
+body line (see below). Both machine lines are excluded from
+`BodyText`/`ContentHash` (same pattern as `Vocab:` / `Supersedes:`).
+
+### contributors (QA frontmatter + body field)
+A frontmatter list (`contributors: [<basename>, ...]`) and a matching
+body line (`Contributors: [[<basename>]], ...`) on `qa-answer` notes.
+Lists full note basenames (no `.md`) cited in the answer text. Written by
+the binary at capture time from `--contributors` flags (validated against
+vault). Machine-written and excluded from `BodyText`/`ContentHash` so a
+contributors-only update leaves the embedding and content hash unchanged.
+Powers `vaultgraph.InDegreeIn` usage counting as a graded signal that
+scales with accumulated Q&A capture.
+
 ---
 
 ## Transcript

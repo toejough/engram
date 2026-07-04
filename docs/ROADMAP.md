@@ -264,6 +264,24 @@ Detaching the closing `/learn` (~61s) would move it off the *perceived* path but
 dollars, and total wall-time — it hides cost, it does not cut it. Does not move any real axis. Dropped
 2026-06-27 (Joe).
 
+# Track C — Q&A memory (capture + retrieval)
+
+Structured capture and retrieval of question-and-answer pairs. Round 1 ships the capture path
+and D5′ asymmetric participation (A-notes compete; Q-notes excluded). Later rounds gate on
+measured validation over accumulated pairs.
+
+- **[SHIPPED 2026-07-03] Q&A memory round-1 (capture):** `engram learn qa`, D5′ exclusion
+  (`isQueryExcludedKind` at all four query-pipeline seam points), `stripMachineLines` QA markers,
+  `qa pairs:` / `qa round-2 gate:` lines in `engram vocab stats`; recall Step 4 + learn Step 2.5
+  QA capture extensions. Round-2 check-back: ≥20 pairs or ~2026-07-17 (whichever first).
+
+- **[DEFERRED — round 3, gated on round-2 validation]** The dedicated Q-channel (incoming ask
+  matched against Q-note embeddings in q-space) and the `answered_by` ride-along (a surfaced Q
+  delivers its paired A). Gated on Arm V large-n reaching PASS (≥80% — Task 10's pre-registered
+  bands; BORDERLINE does not license the build) and on P2′/P3′ post-ship validation over ≥20
+  real pairs. Arm V large-n came in BORDERLINE 63% (19/30) — round 3 remains unlicensed pending
+  a further check. NOT built in round 1.
+
 ## Shipped — payload-size cuts  [TIME/paging wins; cache_read-cheap, so NOT dollar wins]
 - ✅ **Lazy-chunk content — 2026-06-27** (`--lazy-chunks` + `show-chunk`): payload **−33.7%** (146→97 KB),
   trap gate GREEN; validated **0** chunk fetches across 13 realistic uninstructed recalls + **2/2**
