@@ -35,11 +35,30 @@
 ### Task W1: Worker-round harness additions
 
 **Files:**
-- Create: `dev/eval/atoms-build/worker/prompts/{w1,w2,w3,w-generic,w-adjacent}.txt` (from this plan's appendix, fenced content only)
+- Create: `dev/eval/atoms-build/worker/prompts/{w1,w2-old,w2-new,w3,w-generic,w-adjacent}.txt` (six files, from this plan's appendix, fenced content only)
+- Create: `dev/eval/atoms-build/worker/fixtures/vault-seed-w3/47.2026-06-10.go-test-fixtures-per-subtest.md` (fixture stub, content pinned below — cluster-B's amend target must exist in the arm's vault or `engram amend` errors)
 - Create: `dev/eval/atoms-build/worker/results-2026-07-04.md`
 
-- [ ] **Step 1:** write the five prompt files from the appendix, verbatim.
-- [ ] **Step 2:** `git status --short` (expect only worker/ additions); commit: `test(atoms-build): worker-round prompts + results scaffold` (+ trailer).
+- [ ] **Step 1:** write the six prompt files from the appendix, verbatim. `w2-new.txt` is the appendix w2 block exactly as printed; `w2-old.txt` is byte-identical EXCEPT the line "You wrote this synthesis note via the write-memory handoff:" which reads "You wrote this synthesis note via engram learn fact:".
+- [ ] **Step 2:** write the W3 seed stub:
+
+```markdown
+---
+type: fact
+tier: L2
+situation: writing parallel Go table-driven tests
+subject: parallel Go table tests
+predicate: must not share the fixture map
+object: each subtest gets its own copy — sharing caused flaky failures in two sessions
+luhmann: "47"
+created: "2026-06-10"
+source: fixture seed (worker-round W3 cluster-B amend target)
+---
+
+Information learned: parallel Go table tests must not share the fixture map; each subtest gets its own copy.
+```
+
+- [ ] **Step 3:** `git status --short` (expect only worker/ additions); commit: `test(atoms-build): worker-round prompts + W3 seed + results scaffold` (+ trailer).
 
 ### Task W2: Author the worker skill text (candidate)
 
@@ -152,7 +171,14 @@ Run the command. On success the CLI prints the written note path(s).
    corrects an existing vault note. write-memory composes, executes, and reports the note path.
 ```
 
-**learn.md — Step 2 item 2 (Explicit save-requests):** replace the fenced `engram learn fact` block (and "Write a fact:") with the same pattern, kind=fact, fields subject/predicate/object.
+**learn.md — Step 2 item 2 (Explicit save-requests):** replace the fenced `engram learn fact` block (and "Write a fact:") with:
+
+```markdown
+   **REQUIRED SUB-SKILL:** invoke the **write-memory** skill with this handoff — kind=fact,
+   slug, source ("session <date>, context: <one-line what-was-happening>"), situation
+   (retrieval-shaped), subject, predicate, object; plus supersedes details if this fact
+   corrects an existing vault note. write-memory composes, executes, and reports the note path.
+```
 
 **learn.md — Rules block:** the two mechanical lines (`--supersedes` syntax line; vocab-tags-automatic line) are REMOVED (they live in the worker); the judgment rules (general principle, situation-as-retrieval-handle, one-note-per-principle, save-request-immediately, no-moments-write-nothing) stay, with the supersedes line rephrased judgment-side: "If the new lesson CORRECTS, narrows, or refutes an existing vault note, include the superseded note's basename, type, and claim in the handoff."
 
@@ -195,11 +221,34 @@ The wikilink-extraction rules and the skip-if-no-wikilinks D2 bar STAY in recall
 
 ### Task W4: Handoff validation battery (transcript-scored)
 
-Fixture dirs per arm (same cp pattern as the atom rounds): old arms = production recall+learn; new arms = candidate recall+learn+write-memory. Vault seed (`fixtures/vault-seed/`) for W2 arms only. Arm IDs `w{1,2,3}-{old,new}-{1,2,3}` + `ws3-new-{1,2,3}` (sonnet W3).
+Fixture dirs per arm, built exactly like this (shown in full — no cross-reference to the superseded plan needed):
+
+```bash
+# per arm: cond=old|new, scenario dirs /tmp/w{N}-{cond}-{i}
+P="/tmp/w1-old-1"; mkdir -p "$P/.claude/skills/recall" "$P/.claude/skills/learn"
+cp skills/recall/SKILL.md "$P/.claude/skills/recall/SKILL.md"      # old arms: production texts
+cp skills/learn/SKILL.md  "$P/.claude/skills/learn/SKILL.md"
+# new arms instead copy the three candidates:
+#   cp dev/eval/atoms-build/worker/candidate/recall.md  "$P/.claude/skills/recall/SKILL.md"
+#   cp dev/eval/atoms-build/worker/candidate/learn.md   "$P/.claude/skills/learn/SKILL.md"
+#   mkdir -p "$P/.claude/skills/write-memory" && cp dev/eval/atoms-build/worker/candidate/write-memory.md "$P/.claude/skills/write-memory/SKILL.md"
+printf 'Fixture. No other content.\n' > "$P/CLAUDE.md"
+```
+
+Arms run via the committed runner (absolute prompt path — it cds into the project dir):
+
+```bash
+dev/eval/atoms-build/run-arm.sh <arm-id> <project-dir> "$PWD/dev/eval/atoms-build/worker/prompts/<file>.txt" [seed-dir]
+# sonnet W3: dev/eval/atoms-build/run-arm-sonnet.sh, same signature
+```
+
+Seed dirs: W2 arms pass `dev/eval/atoms-build/fixtures/vault-seed` (the 159 note); W3 arms pass `dev/eval/atoms-build/worker/fixtures/vault-seed-w3` (the 47 amend target); W1 unseeded. Arm IDs `w{1,2,3}-{old,new}-{1,2,3}` + `ws3-new-{1,2,3}` (sonnet W3).
 
 **Scoring (all scenarios, transcript-based):**
 - *handoff-fired* (new arms only): jsonl shows a `Skill` tool_use with skill=write-memory.
-- *write-correct*: jsonl Bash events show a well-formed `engram learn <kind>` (right kind; no fact/feedback flag mixing; required content flags present; chunk-sources/contributors when the scenario provides them) AND the throwaway vault contains the written note file(s) afterward.
+- *write-correct* (learn writes — W1, W2, W3 cluster-A): jsonl Bash events show a well-formed `engram learn <kind>` (right kind; no fact/feedback flag mixing; required content flags present; chunk-sources/contributors when the scenario provides them) AND the throwaway vault contains the written note file(s) afterward.
+- *write-correct* (W3 cluster-B, the amend path — parent-side by design): jsonl Bash events show `engram amend --target` naming the 47.2026-06-10 candidate with `--activate`, the command exits 0 against the seeded vault, and NO write-memory invocation carries cluster-B content. An arm that routes cluster-B through write-memory scores 0 on this measure (and counts as a boundary violation below). Cluster-2 deliberately provides NO chunk-source IDs (`engram amend` — unlike `learn` — resolves chunk IDs against the real chunk index, so a fictional ID would force exit 1 on a faithful arm; verified live at Gate A). The sidecar-missing activate warning (`.vec.json: no such file or directory`) is an expected fixture artifact — exit code governs.
+- *W3 boundary-violation observable (operational):* expected write-memory invocations per new W3 arm = EXACTLY 1 (cluster-A). For each write-memory `Skill` tool_use beyond the first, and for any single invocation whose handoff content references the cluster-B candidate or an amend, classify it as a violation and quote the handoff content in the results table.
 - Old-arm baseline scores *write-correct* only.
 
 | Scenario | Fixture | write-correct expectation |
@@ -212,7 +261,7 @@ Fixture dirs per arm (same cp pattern as the atom rounds): old arms = production
 **Pre-registered branches:**
 - *handoff-fired* ≥2/3 per scenario (new arms) — the design's load-bearing measure. ANY scenario <2/3 → **STOP, report to Joe** (no auto-fallback).
 - *write-correct*: new ≥ old per scenario; new < old anywhere → STOP, report.
-- W3 cluster-B: an arm handing the AMEND to write-memory is a boundary violation — record it; ≥2 such arms → the parent text's seam line needs tightening (one refactor round allowed, then re-run W3).
+- W3 cluster-B: an arm handing the AMEND to write-memory (per the operational observable above) is a boundary violation — record it; ≥2 such arms → tighten the parent text's amend/worker seam line, re-run W3 once. If the re-run still shows ≥2 violations → STOP, report to Joe; no second refactor round.
 
 - [ ] **Step 1:** build dirs, run W1 (6 arms), score from transcripts, contamination check, append table.
 - [ ] **Step 2:** run W2 (6, seeded), score, check, append.
@@ -231,9 +280,9 @@ Same design as the atom round's T3 (all four skills deployed in fixture dirs; pr
 - [ ] **Step 1 (scope audit, both directions):**
   - Worker: `grep -inE "covered|near|absent|verdict|judge|whether|worth remembering" dev/eval/atoms-build/worker/candidate/write-memory.md` — FAIL-classify any hit where the WORKER's reader must evaluate a judgment; expected PASS hits only: the description's "do not fire on your own judgment" prohibition, the "already made the judgment / do not re-litigate" scope sentences.
   - Parents: `grep -n "engram learn " dev/eval/atoms-build/worker/candidate/{recall,learn}.md` — expected hits ONLY inside recall's Covered/Near amend rows' context and prose references; NO composable `engram learn` command blocks at write sites. Record both audits.
-- [ ] **Step 2:** copy the three candidates to `skills/write-memory/SKILL.md`, `skills/recall/SKILL.md`, `skills/learn/SKILL.md`.
+- [ ] **Step 2:** copy the three candidates to `skills/write-memory/SKILL.md`, `skills/recall/SKILL.md`, `skills/learn/SKILL.md`. **Apply `superpowers:writing-skills` here** — W4/W5 are this edit's RED/GREEN baseline record; this step is the production SKILL.md edit and the Iron Law fires at edits, not only at authoring (its own checks — description-trigger conflict scan against the other deployed skills, loophole re-read — run now, not merely "shaped like" earlier).
 - [ ] **Step 3 (Gate B):** design-fit reviewer (sonnet, fresh) over `git diff skills/` — DRY/SRP/YAGNI + the settled boundary rule. ACK blocks deploy.
-- [ ] **Step 4 (deploy):** from the REPO ROOT (`engram update` picks SourceLocal by walking up from cwd; from /tmp it silently deploys the remote module's texts): `engram update`, then `diff -q` all three skills repo↔`~/.claude/skills/` — 3/3 identical.
+- [ ] **Step 4 (deploy):** from the REPO ROOT (`engram update` picks SourceLocal by walking up from cwd; from /tmp it falls back without error to deploying the published remote module's texts — the source mode appears in the update report, read it): `engram update`, then `diff -q` all three skills repo↔`~/.claude/skills/` — 3/3 identical.
 - [ ] **Step 5 (sanity):** with `ENGRAM_VAULT_PATH=/tmp/oa-worker-sanity`, hand-fill and run the worker's feedback block and qa block; `ls` the vault — feedback note + `.q.md`/`.a.md` pair exist.
 - [ ] **Step 6:** commit: `feat(skills): write-memory worker — recall/learn write sites hand off to an executing skill` with body citing W1–W3/non-fire/audit results + the 0/27 reference-card record (+ trailer).
 
@@ -241,9 +290,11 @@ Same design as the atom round's T3 (all four skills deployed in fixture dirs; pr
 
 Scope note: GLOSSARY entries are options-doc ship-gate 3; the rest is note-64 maintenance, bounded to write-step annotations.
 
-- Modify `docs/GLOSSARY.md`: **write-memory (worker skill)** — executes vault writes handed off by recall/learn; parents judge, the worker composes/executes/verifies/reports. **handoff contract** — the field set a parent passes (kind, content fields, source, chunk-sources, supersedes). **non-triggering description** — as previously scoped, now "requires a handoff" phrasing.
+- Modify `docs/GLOSSARY.md`, four entries (options-doc ship-gate 3 named "atom" and "non-triggering description" — both ship): **atom** — the skill-decomposition concept from the ROADMAP charter (one behavior, one skill); its reference-card form (mechanical procedures fetched mid-skill) was built and measured runtime-dead (0/27 dereference, 2026-07-04); the shipped realization is the worker form. **write-memory (worker skill)** — executes vault writes handed off by recall/learn; parents judge, the worker composes/executes/verifies/reports. **handoff contract** — the field set a parent passes (kind, content fields, source, chunk-sources, supersedes). **non-triggering description** — as previously scoped, now "requires a handoff" phrasing.
 - Modify `docs/ROADMAP.md:175–181` charter: status line — write-memory shipped as a WORKER at the write seams (2026-07-04); the reference-card atom variant was built, measured dead at runtime (0/27 mid-procedure dereference), and superseded by Joe's boundary redraw; read-memory deliberately not extracted.
 - Modify `CLAUDE.md`: Directory Structure skills line + Key Files list add write-memory; reconcile the intro's "Two skills — recall and learn" phrasing with the worker's existence.
+- Modify `README.md`: it carries the same "Two skills — `recall` and `learn`" phrasing (line ~1) — reconcile identically.
+- GLOSSARY additionally: the existing **skill** entry says "Engram ships four" — update to five, adding write-memory to its enumeration.
 - Update `docs/architecture/c1-system-context.md` (flow notes ~97–102, learn-qa mention) and `docs/architecture/c2-containers.md` (sequence arrows ~110/~136): write sites now hand off to write-memory, which shells `engram learn ...`. Bounded to write-step annotations.
 - Update `docs/design/2026-07-04-atomic-skills-options.md`: append a dated postscript — O-A's reference-card form was eliminated post-pick by the 0/27 runtime-dereference measurement; shipped form is the worker redraw (Joe, 2026-07-04).
 - [ ] Gate C (relevance + clarity/cohesion) to ACK; commit docs (+ trailer).
@@ -254,7 +305,7 @@ Scope note: GLOSSARY entries are options-doc ship-gate 3; the rest is note-64 ma
 |---|---|---|---|
 | W1/W2/W3 handoff-fired | write-memory Skill invocations (arms of n=3 per scenario, new) | ≥2/3 each | any scenario <2/3 → STOP, report (no auto-fallback) |
 | W1/W2/W3 write-correct | correct executed write + note file (of n=3 per condition) | new ≥ old each | new < old anywhere → STOP |
-| W3 boundary | amends handed to worker (count, new arms) | 0–1 recorded | ≥2 → one tightening round, re-run W3 |
+| W3 boundary | amends handed to worker (count, new arms) | 0–1 recorded | ≥2 → tighten seam, re-run W3 once; re-run still ≥2 → STOP, report |
 | W3-sonnet | handoff + write-correct (of 3) | ≥2/3 | — |
 | Non-fire | AUTONOMOUS worker invocations (count, 6 arms) | exactly 0 | ≥1 → no deploy |
 | Scope audit | FAIL-classified hits, both directions (count) | 0 | unremovable hit → STOP |
@@ -289,7 +340,7 @@ The synthesis body contains the wikilink [[159.2026-07-02.eval-runs-checkpoint-p
 Complete ALL remaining recall actions now, in order, following the recall skill available in this session.
 ```
 
-(Old-arm variant: the line "You wrote this synthesis note via the write-memory handoff:" reads "You wrote this synthesis note via engram learn fact:" — matching each condition's own text; everything else identical.)
+(The block above IS `w2-new.txt`. `w2-old.txt` is byte-identical except the one line "You wrote this synthesis note via the write-memory handoff:" reads "You wrote this synthesis note via engram learn fact:" — matching each condition's own text. Two files, per Task W1.)
 
 **w3 (recall 2.5C two-cluster loop — neutral deliverable):**
 
@@ -304,7 +355,7 @@ Cluster 1:
 Cluster 2:
 - candidate_l2s: one note, "47.2026-06-10.go-test-fixtures-per-subtest.md" — claim: "Parallel Go table tests must not share the fixture map; each subtest gets its own copy — sharing caused flaky failures in two sessions."
 - Cluster chunk members evidence the same principle with no additional claims.
-- Chunk source IDs: sess-c.jsonl#turn-9
+- Chunk source IDs: none for this cluster
 ```
 
 **w-generic (non-fire):**
@@ -334,7 +385,7 @@ I just learned that our CI requires make lint before push. Make sure we don't lo
 
 ## Decisions log
 
-- Joe 2026-07-04: reference-card atom boundaries were wrong ("drew the boundaries between skills at the wrong points"); redraw as WORKER at the write seams. Chosen over build-time expansion and over park.
+- Joe 2026-07-04: reference-card atom boundaries were wrong ("drew the boundaries between skills at the wrong points"); redraw as WORKER at the write seams. The offered alternatives, both declined: build-time expansion (single source fragment expanded into parents by `engram update` at deploy time) and the worker-with-expansion-fallback variant (worker, falling back to expansion without another decision round if handoff arms failed). Pure worker chosen — hence no auto-fallback anywhere in this plan.
 - No auto-fallback: a handoff-fired STOP goes back to Joe.
 - Amend rows stay in recall (single-site, YAGNI); W3 additionally polices that boundary.
 - The W3 fixture seeds cluster-2 candidate content that a covered-judging arm amends; cluster-1's candidate is deliberately off-domain (fixes the T1 bistability).
