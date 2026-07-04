@@ -45,6 +45,11 @@ refit flow autonomously — do not defer to the user:
 
 If the verdict is `verdict: OK`, continue to Step 2 with no further vocab action.
 
+Also check the QA round-2 gate line. If the output includes `qa round-2 gate: READY (...)`, report to Joe:
+"QA round-2 validation is due (≥20 pairs captured). Please schedule `docs/design/2026-07-03-qa-memory-proposals.md`
+round-2 gates: P2′ attribution fidelity, P3′ distribution, Arm V larger-n." Do NOT run round-2 validation
+autonomously — it requires Joe's oversight.
+
 ## Step 2 — Crystallize explicit lessons (only when they exist)
 
 Scan THIS session for exactly two kinds of moments:
@@ -82,6 +87,34 @@ Rules:
 - **Vocab tags are assigned automatically** by the binary on every write — do not hand-author them.
 - **No moments of either kind → write nothing.** Routine work is already captured by Step 1;
   a session with no corrections and no save-requests is a two-command learn (sweep + report).
+
+## Step 2.5 — Ad-hoc QA capture (only when a new substantive Q&A occurred this session)
+
+Scan THIS session for substantive answered questions: a question was substantively answered if
+the answer body contains ≥1 `[[full-basename]]` wikilink OR if you crystallized a
+new vault note (Step 2) as the answer. Both conditions make the answer traceable (D2 observable
+bar). Skip questions answered with generic advice or without `[[...]]` wikilinks.
+
+For each uncaptured substantive Q&A from this session, call `engram learn qa`:
+
+```bash
+engram learn qa \
+  --slug "<kebab summary of the question>" \
+  --question "<verbatim question>" \
+  --answer "<the answer body (copy; no re-derive)>" \
+  --contributors "<full-basename>" ... \
+  --certainty "<high|medium|low>" \
+  --source "ad-hoc capture, learn session <date>"
+```
+
+Contributors come ONLY from `[[full-basename]]` wikilinks in the written answer — never
+free-listed. Do NOT pre-validate whether contributors exist in the vault; extract the wikilink
+content verbatim and pass it to `engram learn qa --contributors`. Validation happens at write time.
+If `engram learn qa` rejects a contributor, report the rejection and the command you called.
+If no `[[...]]` wikilinks appear in the answer and no note was crystallized, skip (D2 bar not met).
+
+**Gate — do not duplicate:** if a QA pair was already written (e.g. by recall's Step 4 during
+this session), do not write it again here. One pair per distinct answered question.
 
 ## Red flags — STOP and re-read
 
