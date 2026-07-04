@@ -5,8 +5,9 @@
 > `docs/design/2026-07-04-atomic-skills-options.md` + PRESENT TO JOE AND STOP.
 
 **Ask (Joe, 2026-07-04, condensed):** Rework the four engram skills (recall, learn, please, route)
-around atoms + SRP so a change lives in one place. QA capture currently appears in three skills;
-learn-fact invocations in two; ingest sweeps in two. Research good skill design broadly, produce
+around atoms + SRP so a change lives in one place. (Correction vs the ask's phrasing, per the
+verified F2 census: QA capture = 2 copies + 1 pointer; learn-fact|feedback = 3 copies — the
+inverse of the counts as spoken; F2 is the measurement of record; ingest sweeps appear in two skills.) Research good skill design broadly, produce
 a few design options, smoke test the leading options, report findings. Behavior preservation is
 the bar; readability/maintainability is the goal.
 
@@ -19,7 +20,7 @@ without his call.
 
 | # | Constraint | Source |
 |---|---|---|
-| S1 | Atoms = read-memory, write-memory, route-a-task, orchestrate-a-workflow (Joe's four-atom designations, ROADMAP:175 arc, 2026-06-29); design should not end with N skills that almost all do the same thing. | Joe, 2026-06-29 |
+| S1 | Atoms = read-memory, write-memory, route-a-task, orchestrate-a-workflow (Joe's four-atom designations, ROADMAP:175–181 arc, 2026-06-29); design should not end with N skills that almost all do the same thing. | Joe, 2026-06-29 |
 | S2 | Behavior preservation is the bar; readability/maintainability is the goal; metric improvements welcome but not the objective. | Joe, 2026-07-04 |
 | S3 | This round = research + census + options + smoke tests + report. NO production skill edits. | Joe, 2026-07-04 |
 
@@ -146,12 +147,14 @@ lines); Workflow steps 1-7 (23 lines); Stop conditions (9 lines); Red flags tabl
    line 288: "Why no @ links: `@` syntax force-loads files immediately, consuming 200k+ context
    before you need them").
 
-4. **Cross-skill file sharing is not natively supported:** the runtime offers no mechanism to share
-   a single file between two skill directories via a relative path. A shared file in e.g.
-   `skills/_atoms/write-note.md` would require the agent to be told an absolute path
-   (`~/.claude/skills/_atoms/write-note.md`) — which is fragile, machine-specific, and
-   non-standard. Verified: the runtime resolves `references/` relative to the skill's own
-   directory; there is no cross-skill filesystem namespace.
+4. **Cross-skill file sharing is not natively supported — but new skill DIRECTORIES deploy
+   automatically (Gate A correction, code-verified):** the runtime offers no mechanism to share
+   a single file between two skill directories via a relative path (`references/` resolves
+   within the owning skill only). HOWEVER, a proper new top-level directory under `skills/`
+   (e.g. `skills/write-memory/`) is deployed as a standard skill by `engram update`'s recursive
+   walker (internal/update/update.go: planSkillCopies → listFilesRecursive → topLevelDir) with
+   NO code change and no absolute paths — O-A's mechanism is the standard path, not a fragile
+   one. The fragility concern applies only to files placed OUTSIDE the skills/ tree.
 
 5. **All skill metadata (name + description) is pre-loaded at session start.** Only the SKILL.md
    body is on-demand. A new skill = new description in the system prompt = new firing surface
@@ -227,7 +230,7 @@ covers the three-copy `learn fact|feedback` duplication and the two-copy `learn 
   write-memory skill; follow its procedure for [absent/near/synthesis] cases"
 - `learn/SKILL.md` Steps 2 and 2.5: replace the write invocations with "invoke the write-memory
   skill; follow its procedure for [correction/fact/qa-capture] cases"
-- New `~/.claude/skills/write-memory/SKILL.md`: authoritative write-procedure text
+- New `skills/write-memory/SKILL.md (repo source; deployed by engram update)`: authoritative write-procedure text
 - `please/SKILL.md`: no change (already defers to /learn for all writes)
 - `route/SKILL.md`: no change
 
@@ -368,8 +371,14 @@ to organize each skill's remaining content — not a standalone solution.
 Test the leading two options (O-A, O-B). For each, build the refactored skill text in a SANDBOX
 COPY (at `/tmp/skills-sandbox/` or similar). Run headless equivalence batteries (`claude -p`)
 comparing old skill text vs new skill text. Arms are sandboxed (ENGRAM_VAULT_PATH to a throwaway
-directory; no production vault). A fixture CLAUDE.md for each arm points at the sandbox copy,
-not the deployed skills.
+directory; no production vault). Fixture mechanism (Gate A correction): each arm's CLAUDE.md
+INLINES the full skill text under test (old or new) verbatim — no @import of sandbox paths.
+Rationale: @imports of never-before-imported paths trigger a one-time interactive approval
+dialog (note 151) that a headless arm cannot answer; the import would fail SILENTLY, both arms
+would run against deployed skills, and the Scenario-4 control would falsely pass. Each inlined
+text also carries a unique sentinel line (`SANDBOX-MARKER-<option>-<arm>`), and every arm's
+prompt ends with "state the sandbox marker you see" — an arm that cannot echo its marker
+proves the text did not load, and that arm is INVALID (harness bug, not a behavioral result).
 
 ### Scoring model (pre-registered, applies to every scenario)
 
@@ -457,7 +466,7 @@ atomic-skills-research.md`. Commit the research doc before proceeding.
 
 **Step 2 — Options revision (post-research).** Read the consolidated research doc. If S0 produced
 evidence that amends any option (e.g., a clear community precedent for cross-skill atoms, or a
-strong argument against it), record any S0-driven amendments in the DELIVERABLE's options catalog (docs/design/2026-07-04-atomic-skills-options.md); do not rewrite this plan document with an explicit "S0 update:" note.
+strong argument against it), record any S0-driven amendments in the DELIVERABLE's options catalog (docs/design/2026-07-04-atomic-skills-options.md), each marked with an explicit "S0 update:" note; do not rewrite this plan document.
 If no amendment is warranted, note "S0: no amendments to options catalog."
 
 **Step 3 — Smoke test setup.** Create `/tmp/skills-sandbox/` with subdirectories `recall/`,
@@ -467,8 +476,10 @@ If no amendment is warranted, note "S0: no amendments to options catalog."
 - O-B sandbox: write the new recall SKILL.md (with cross-references) and the new learn SKILL.md
   (with canonical supersedes label). Old texts go to `recall-old/` and `learn-old/` for
   comparison.
-- Set ENGRAM_VAULT_PATH to a throwaway directory (`/tmp/smoke-vault/`) populated with 3-5
-  fixture notes sufficient for the equivalence scenarios.
+- Per-arm vault isolation (P8, Gate A correction — arms WRITE notes, so a shared vault would
+  leak state across arms): each arm gets its OWN throwaway vault at
+  `/tmp/smoke-vault-<scenario>-<option>-<arm>/`, seeded fresh from the same 3-5 fixture notes;
+  export ENGRAM_VAULT_PATH per arm. No vault is ever shared between arms.
 
 **Step 4 — Run equivalence batteries.** For each scenario (1-4), run headless arms old vs new.
 Minimum n=3 per arm per scenario. Record: pass/fail per scenario per option, exact failure mode
@@ -508,7 +519,7 @@ writing ~$0. Total ~$8-18.
 
 ## Unresolved questions (do not guess; surface to Joe if blocking)
 
-**UQ1 — S1 roadmap atom semantics.** ROADMAP:175's "atoms = read-memory, write-memory, route-a-
+**UQ1 — S1 roadmap atom semantics.** ROADMAP:175–181's "atoms = read-memory, write-memory, route-a-
 task, orchestrate-a-workflow" — does Joe mean these as NEW skill files with their own frontmatter,
 or as conceptual groupings that inform how existing skill bodies are organized? This matters for
 whether O-A (atom sub-skills) is faithful to S1 or whether O-B (prose refactor) is closer. The
