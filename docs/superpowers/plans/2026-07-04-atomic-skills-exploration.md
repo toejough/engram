@@ -31,7 +31,8 @@ without his call.
 **P1 — Firing surface is the highest-risk axis.** Firing is decided by frontmatter DESCRIPTION
 before the body loads (vault note 100 + description-drives-firing finding). Atoms-as-NEW-SKILLS
 with active descriptions add firing decisions. Over-fire history on one rejected proposal: 147×
-at one trigger point (vault note 144); under-fire is the standing risk for engram. Atoms-as-shared-
+at one trigger point (vault note 139; a Gate-C ground-truth review corrected the original
+note-144 citation); under-fire is the standing risk for engram. Atoms-as-shared-
 reference-files or atoms-as-non-triggering-skills keep the firing surface unchanged or minimally
 changed. The smoke tests must measure firing-surface delta explicitly.
 
@@ -345,7 +346,7 @@ with an active description that fires on "writing vault notes" would compete wit
 description for the same triggering condition. Joe's S1 constraint: "without ending up with N
 skills that almost all do the same thing." An autonomous write-memory skill that fires on the
 same conditions as learn is exactly that pattern. The over-fire history (147× at one trigger
-point, note 144) makes this unacceptable without a full equivalence evaluation — which is larger
+point, note 139) makes this unacceptable without a full equivalence evaluation — which is larger
 than the smoke test budget.
 
 **If the S0 research produces strong evidence that a self-triggering atom can be isolated to a
