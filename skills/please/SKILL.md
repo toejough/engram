@@ -81,7 +81,7 @@ At the start of execution, push all seven steps below to the task list via `Task
    Drive the plan from step 3 with a plan-execution skill if one is installed (otherwise work the plan task by task), and verify before declaring any unit done — via a verification skill if installed, otherwise by running the actual commands and reading their output before claiming success.
 5. **Document.** Update every piece of documentation the changes touch — `README.md`, `CLAUDE.md`, `docs/`, glossaries, skill references — so the docs match the new reality. The step completes only when **gate C** closes over every touched doc.
 6. **Complete.** If the work originated from an issue, close it. Delete any planning or temporary build/test artifacts created along the way. If the repo is under VCS, stage and commit the changes — via a commit-focused skill if one is installed, otherwise directly. Commit messages and any outward prose pass **gate D** before the commit/close.
-7. **Capture (close) — `/learn`.** Run the `learn` skill again to preserve the lessons from this session.
+7. **Capture (close) — `/learn`.** Run the `learn` skill again to preserve the lessons from this session. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.
 
 ## Stop conditions
 
