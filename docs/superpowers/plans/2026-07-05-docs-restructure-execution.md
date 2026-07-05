@@ -118,11 +118,11 @@ Deletion count check (derived mechanically, Gate-A-verified 2026-07-05): tracked
 
 ### Task 7: architecture unit — c1/c2/c3 fixes + relocations + E5
 
-**Files:** Modify: `docs/architecture/{c1-system-context,c2-containers,c3-components}.md`, `internal/embed/embedder.go:63`; git mv the three relocating specs (targets in Keep-list); Modify `docs/superpowers/specs/2026-06-04-memory-system-rigor.md:80` (its DESIGN-HISTORY §6 citation → git-history form) before its mv.
+**Files:** Modify: `docs/architecture/{c1-system-context,c2-containers,c3-components}.md`, `internal/embed/embedder.go:63`, `docs/superpowers/specs/2026-06-04-memory-system-rigor.md:80` (DESIGN-HISTORY §6 citation → git-history form, before its mv), `docs/superpowers/specs/2026-07-01-engram-recall-subprocess-design.md:4-6` (concurrency-plan citation → shipped-status form, before its mv); git mv the three relocating specs (targets in Keep-list).
 
 - [ ] **Step 1:** Apply §4 architecture rows: c1:123-124 + c3:182 `applyChunkRecency` → `recencyMultiplier`/`defaultRecencyParams`; c2:5-6 + c3:4 drop fixed as-built dates (re-verified-per-edit phrasing); c3:99 G5 → RETIRED; c3:100 → resolved, cite `TestInvariant_C1_ClusteringDeterminism`; c3:101 → resolved, cite `TestUpdater_Run_Local_Idempotent_Property`; c2:42 M4 cell → narrowed partial-migration wording (§4 fix text).
 - [ ] **Step 2:** E5: inline into `internal/embed/embedder.go:63` — replace `(see docs/DESIGN-HISTORY.md §2, the 2026-05-24 query spike)` with the rationale itself: `// MiniLM-L6-v2@384 is the shipped bundled model; the 2026-05-24 query spike froze the snake_case sidecar keys as a file format.` Run `targ check-full` → green.
-- [ ] **Step 3a:** BEFORE any mv: edit `docs/superpowers/specs/2026-06-04-memory-system-rigor.md:80` (`(see docs/DESIGN-HISTORY.md §6).` → git-history citation) and the subprocess spec's lines 4-6 (its citation of `docs/superpowers/plans/2026-07-01-concurrency-write-safety.md` → "Track 0 shipped 2026-07-01; plan in git history", per §6-S1).
+- [ ] **Step 3a:** BEFORE any mv: edit `docs/superpowers/specs/2026-06-04-memory-system-rigor.md:80` (`(see docs/DESIGN-HISTORY.md §6).` → git-history citation) and the subprocess spec's TWO stale citations (§6-S1 names both): lines 4-6 (`docs/superpowers/plans/2026-07-01-concurrency-write-safety.md` → "Track 0 shipped 2026-07-01; plan in git history") and line 11 (`docs/superpowers/specs/2026-06-30-payload-prune-mechanism-design.md` → `dev/eval/LEDGER.md#payload-prune-smoke` slug, or git-history form if the slug differs after Task 2).
 - [ ] **Step 3b:** `git mv` the three specs to their Keep-list targets (basenames unchanged).
 - [ ] **Step 3c:** Update citers: c2/c3/adr links to `memory-invariants.md`/`memory-system-rigor.md` become same-directory relative (`memory-invariants.md`, no `../superpowers/` prefix).
 - [ ] **Step 4:** Verify: `grep -rn "applyChunkRecency\|docs/DESIGN-HISTORY" docs/architecture/ internal/` → 0 hits (plain-text git-history citations like "DESIGN-HISTORY.md deleted 2026-07" carry no `docs/` prefix and are expected); `grep -rn "superpowers/specs" docs/architecture/` → 0. Design-fit check (sonnet).
@@ -164,11 +164,11 @@ Deletion count check (derived mechanically, Gate-A-verified 2026-07-05): tracked
 
 ### Task 12: deletions + reference scrub verification
 
-**Files:** Delete 107 tracked `*.md` (Keep-list complement).
+**Files:** Delete 106 tracked `*.md` (Keep-list complement minus META).
 
 - [ ] **Step 1:** Derive the deletion list mechanically: `git ls-files '*.md'` minus Keep-list (incl. relocated paths) minus NEW minus META. Count MUST equal 106 → else STOP and debug per the Keep-list section's checklist.
 - [ ] **Step 2:** `git rm` the derived list — **Step 1's derivation is authoritative; this prose is a cross-check**: `docs/DESIGN-HISTORY.md`, `docs/triage.md`, `questions.md`, `docs/validation-harness-restatement.md`, all `docs/design/2026-*` EXCEPT the relocated subprocess spec and the report (META), explicitly including `docs/design/artifacts/2026-07-02-retired-relation-rationales.md` (the DP5 ruling) and the two `docs/design/artifacts/2026-07-01-memory-review-*-survey.md` files, all `docs/superpowers/plans/*` except the two META plans, `docs/superpowers/specs/2026-06-26-*` + the payload-prune spec, `docs/research/*`, the dev/eval HIST-DEAD results docs, the 9 skills-tests results files. Remove now-empty dirs.
-- [ ] **Step 3:** Scrub verification over ALL live surfaces: `grep -rn --include='*.md' --include='*.go' -E 'docs/(design/|superpowers|research|DESIGN-HISTORY|triage|validation-harness)' README.md CLAUDE.md docs/ skills/ guidance/ commands/ internal/ cmd/ dev/ .claude/` — then judge each hit: ALLOWED = the three META files' own contents, references to the subprocess spec's new `docs/design/` home, and explicit git-history citation lines (e.g. in LEDGER.md raw-data column). Anything else = STOP, repoint the citer, re-run.
+- [ ] **Step 3:** Scrub verification over ALL live surfaces: `grep -rn --include='*.md' --include='*.go' -E 'docs/(design/|superpowers|research|DESIGN-HISTORY|triage|validation-harness)' README.md CLAUDE.md docs/ skills/ guidance/ commands/ internal/ cmd/ dev/ .claude/` — then judge each hit: ALLOWED = the three META files' own contents, references to the subprocess spec's new `docs/design/` home, explicit git-history citation lines (e.g. in LEDGER.md raw-data column), and contents of FIXTURE-glob files (frozen eval inputs — snapshotted skill texts and rubrics are NEVER edited; 7 such hits exist, Gate-A-verified). Anything else = STOP, repoint the citer, re-run.
 - [ ] **Step 4:** `targ check-full` → green. Commit: `docs(restructure): delete 106 historical docs — extracted, scrubbed, git-preserved`
 
 ### Task 13: close-out
@@ -178,7 +178,7 @@ Deletion count check (derived mechanically, Gate-A-verified 2026-07-05): tracked
 - [ ] **Step 1:** Gate C over the restructured set (relevance + clarity/cohesion, fresh reviewers): README, docs/README.md, FEATURES, ROADMAP, GLOSSARY, adr.md, c1-c3, LEDGER. Resolve findings.
 - [ ] **Step 2:** Gate D over `git log` for the cycle (reword local commits on findings).
 - [ ] **Step 3:** §8-9: `git rm` the three META files (their conclusions have graduated); verify `docs/superpowers/` is empty and remove it. `targ check-full` green; `engram update` final deploy; commit: `docs(restructure): retire the review artifacts — conclusions graduated (§8-9)`
-- [ ] **Step 4:** Verify end state by COUNTING THE LISTS, not arithmetic: expected = LIVE in-place (14) + relocated (3) + SOURCE (10) + FIXTURE (124) + NEW (6) = **157**; `git ls-files '*.md' | wc -l` must equal it, and re-running Task 12 Step 3's scrub grep must produce only ALLOWED-class hits (git-history citations; the META files are gone so their self-references no longer appear). Mismatch = STOP.
+- [ ] **Step 4:** Verify end state by COUNTING THE LISTS, not arithmetic: expected = LIVE in-place (14) + relocated (3) + SOURCE (10) + FIXTURE (124) + NEW (6) = **157**; `git ls-files '*.md' | wc -l` must equal it, and re-running Task 12 Step 3's scrub grep must produce only ALLOWED-class hits (git-history citations + FIXTURE-glob contents; the META files are gone so their self-references no longer appear). Mismatch = STOP.
 
 ## Execution order & parallelism
 
