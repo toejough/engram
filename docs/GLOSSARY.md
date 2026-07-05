@@ -2,15 +2,16 @@
 
 Standardized vocabulary for the engram project. Where a term has variants in
 the wild, the **canonical form** is named here; variants are listed for
-recognition. Inconsistencies that need a decision live in
-[`triage.md`](triage.md).
+recognition. Inconsistencies that need a decision are tracked in this file's
+trailing [Open Questions](#open-questions) section.
 
 ## Top-level concepts
 
 ### engram
 The project, the CLI binary, and the broader system of "skills + binary +
 vault" that gives LLM agents persistent memory. When ambiguity matters,
-disambiguate as *engram (project)*, *engram (binary)*, or *engram (CLI)*.
+disambiguate as *engram (project)*, *engram (binary)*, or *engram (CLI)*;
+in most prose, context already disambiguates and a bare *engram* is fine.
 
 ### vault
 The on-disk Obsidian directory that holds the agent's persistent memory.
@@ -31,14 +32,26 @@ each harness's skills directory by `engram update`. Engram ships five:
 [`recall`](#recall-skill), [`learn`](#learn-skill), `please` (end-to-end
 orchestration), `route` (delegation doctrine — agent/model/effort selection),
 and [`write-memory`](#write-memory-worker-skill) (vault-write execution on handoff).
+Distinct from **slash command** — the user-facing `/name` trigger that invokes
+a skill in a harness (Claude Code's term) — and **command** — an OpenCode-specific
+file under `commands/` that wraps a skill invocation for that harness.
 
 ### atom
 The skill-decomposition concept from the ROADMAP charter: one behavior, one skill
 (read-memory, write-memory, route-a-task, orchestrate-a-workflow). Its
 reference-card form — mechanical procedures fetched from another skill
 mid-procedure — was explored first and superseded by the worker form
-(2026-07-04; see `docs/design/2026-07-04-atomic-skills-options.md` and its
-postscript for the deployed-measurement caveat).
+(2026-07-04): parents keep every judgment and hand off at the write seams;
+write-memory composes, EXECUTES, retries on CLI errors, and reports — the
+whole-skill-as-next-action pattern please/superpowers already use, not a
+mid-procedure reference fetch.
+
+The interim "0/27 mid-procedure dereference" figure for the reference-card
+form is **instrument-invalid** (a skill-shadowing artifact — see
+`dev/eval/LEDGER.md#write-memory-atom-dereference-invalid`); the worker
+form's validated fire rates are
+`dev/eval/LEDGER.md#write-memory-worker-fire-rates`. The decision record is
+`docs/architecture/adr.md` ADR-0015.
 
 ### write-memory (worker skill)
 The skill at `skills/write-memory/SKILL.md`. Executes a vault write handed off by
@@ -57,7 +70,11 @@ A skill `description:` that names only parent-instructed invocation ("requires a
 handoff — do not fire on your own judgment") so the skill never competes for
 autonomous firing. Uncharted in official guidance and the ecosystem; validated
 here by non-fire arms (0 autonomous invocations across 6 generic and
-vault-adjacent prompts, in both the atom and worker rounds).
+vault-adjacent prompts, in both the atom and worker rounds). Related measured
+anti-pattern: pointer-style "apply X verbatim" references to out-of-context
+text (e.g. "see the postscript for details") are unreliable — the referenced
+content may not be read in the target's actual deployed context; prefer
+inlining the content a skill needs directly in its own prose.
 
 ### reversal (capture kind)
 A conclusion, design, or verdict that was presented (to the user, a review gate,
@@ -88,12 +105,12 @@ atoms-arc status block).
 
 ### harness
 A coding-agent host that runs skills. Engram supports two: **Claude Code**
-and **OpenCode**. The plural is *harnesses*. When the same concept appears
-in code, it is sometimes called a *source* (see triage).
+and **OpenCode**. The plural is *harnesses*. Session transcripts are read by
+`internal/transcript` (Claude Code JSONL; consumed by `engram ingest`).
 
 ### binary
-The compiled `engram` Go program. Subcommands: `learn`, `query`, `embed`,
-`ingest`, `prune`, `show`, `show-chunk`, `amend`, `activate`, `resituate`, `update`, and the `vocab` family
+The compiled `engram` Go program. Subcommands: `learn`, `query`, `query-chunks`, `embed`,
+`ingest`, `prune`, `show`, `show-chunk`, `check`, `amend`, `activate`, `resituate`, `update`, the `embed` pair (`apply`, `status`), and the `vocab` family
 (`vocab bootstrap`, `vocab propose`, `vocab stats`, `vocab refit`). The `--supersedes` flag on `learn`/`amend`
 writes typed supersession frontmatter. The binary handles all I/O (vault read/write, chunk indexing,
 file locking); skills handle behavior and prompting.
@@ -227,9 +244,14 @@ to a requirement (#661).
 
 ### Step 0 / Step 1 / …
 Numbered pipeline stages in the recall skill. Step 0 = print Ask/Situation/Plan;
-Step 1 = generate 10 phrases (one per fixed angle); Step 2 = run `engram query`;
-Step 2.5 = per-cluster coverage synthesis (inline, blocking);
-Step 3 = closing synthesis (how memories changed the plan).
+Step 0.5 = sweep (`engram ingest --auto`); Step 1 = generate phrases (10 in
+`deep` mode, ~3 in `glance`); Step 2 = run one unified `engram query`; Step 2.5
+= per-cluster synthesis — 2.5A reads candidates, 2.5B applies the recency
+weight, 2.5C judges coverage and writes (amend/write-memory — **skipped in
+`glance`**); Step 2.7 = `engram activate` on the notes actually drawn on;
+Step 3 = closing synthesis (how memories changed the plan); Step 4 = persist
+a sound synthesis conclusion via write-memory (**skipped in `glance`**). See
+**recall modes**, above, for the glance/deep split.
 
 ### surfaced notes
 Notes returned in the `items[]` payload from `engram query`. Includes both
@@ -245,6 +267,19 @@ floor (baseScore < 0.25) → hard cap at `matchSetCap`=300. Only the matched set
 enters clustering (D1 preserved). Recency-channel chunks are appended after
 clustering, deduped against the matched set, and never appear in any cluster's
 `members[]`.
+
+### matched-note floor
+The per-phrase reservation (`noteFloorK`=5, implemented by `capWithNoteFloor` in
+`internal/cli/query.go`) that guarantees up to 5 relevance-qualified notes
+(baseScore ≥ the relevance floor, below) survive each phrase's top-30
+(`matchPhraseLimit`) truncation, evicting the lowest-scoring chunks to make
+room. Exists because chunks vastly outnumber notes in the vault: without the
+reservation, a crystallized lesson the embedder itself ranks top among notes
+could still be evicted from the per-phrase ranking before ever reaching the
+union step across phrases. Only ever promotes notes that already clear the
+relevance floor, so it never surfaces an irrelevant note — it changes which
+items survive the per-phrase cut, not their relative order. Measured effect:
+`dev/eval/LEDGER.md#matched-note-floor`.
 
 ### relevance floor
 The minimum raw cosine (baseScore, pre-recency-decay) required for an item to
@@ -302,61 +337,34 @@ The skill at `skills/learn/SKILL.md`, invoked as `/learn` or fired after
 recall-flow work. Writes new notes to the vault.
 
 ### `engram learn` (subcommand)
-The binary subcommand. Two forms: `engram learn feedback` and
-`engram learn fact`. Both require `--source` and take body content via
-flags (stdin is ignored). The `moc` subcommand was retired after the F4
-migration (the 25 historical MOCs are archived for audit in
+The binary subcommand. Three forms: `engram learn feedback`, `engram learn
+fact` (both require `--source` and take body content via flags; stdin is
+ignored), and `engram learn qa` (see below). The `moc` subcommand was retired
+after the F4 migration (the 25 historical MOCs are archived for audit in
 `<vault>/_legacy/MOCs/`); the `episode` form was retired with the lazy-L2
 work (issue 649) — chunks in the chunk index are the episodic layer now.
 
 ### Feedback (note type)
 A note recording something to do differently next time — user corrections,
-dead-ends, failed approaches. Auto-generated opener: `Lesson learned: …`.
+dead-ends, failed approaches. Auto-generated opener: `Lesson learned: …`. The
+opener wording is intentionally distinct from the type name (not a parallel
+"Feedback noted: …") — it names the *nature* of the note (something learned
+the hard way), not the frontmatter `type:` value.
 
 ### Fact (note type)
 A note recording how something actually works — tool behaviors, idioms,
-conventions, gotchas. Auto-generated opener: `Information learned: …`.
+conventions, gotchas. Auto-generated opener: `Information learned: …`. Same
+non-parallel-by-design relationship to the type name as Feedback, above.
 
-### recall-mirror test
-The gate every candidate note must pass before being written: *"Would a
-future agent, querying for the same kind of work this candidate's scratch
-list targets, surface this note?"* Per-candidate, not
-session-global — current-locus candidates target this session's work,
-retro-locus candidates target the injecting agent's work. If no, rephrase.
-If still no, drop.
-
-### injection locus
-The work that *caused* a lesson, distinct from the work that *surfaced*
-it. **Current-locus** = the mistake or discovery originated in this
-session. **Retro-locus** = the cause is in a prior session, even though
-the candidate may have surfaced through current-session work (or come
-from prior-session chunk history surfaced by recall). Discriminated cheaply by `git blame` / `git log` on the offending line, prior-session transcript
-content, or behavioral inference for purely conceptual mistakes. Locus
-classification determines which framing path applies in §2.
-
-### scratch list
-The 5–15 short queryable phrases written internally for a candidate
-before scoring it. One scratch list per candidate (not one per session):
-in Path A copied from the recall whose Step 0/1 bracketed the candidate's
-segment of work; in Path B reconstructed from what a current-session agent
-doing that candidate's kind of work would have queried at the time; in
-Path C reconstructed from what the **injecting** agent (prior session)
-was doing — sourced from git blame, prior-session transcript, or
-behavioral inference.
-
-### Path A / Path B / Path C
-Per-candidate framing selection, chosen after classifying the candidate's
-injection locus. **Path A** = current-locus, a recall ran during *this
-candidate's* segment of work (lift its Step 1 phrases verbatim). **Path
-B** = current-locus, no recall bracketed this candidate (reconstruct what
-Step 1 would have been at the time). **Path C** = retro-locus —
-the lesson's cause is in a prior session, regardless of whether a
-current-session recall bracketed the discovery (reconstruct the scratch
-list from the injecting agent's situation via git blame / prior-session
-transcript / behavioral inference). Path C overrides Path A: a retro-locus
-candidate must not be framed against the current-session recall, even when
-that recall bracketed the discovery. Selection is per-candidate, not
-session-global.
+### Step 2 (learn's crystallization gate)
+The gate that decides whether `/learn` writes anything: a scan of the session
+for exactly three capture kinds — **corrections** (the user corrected an
+approach or behavior), **explicit save-requests** ("remember this/that X"),
+and **reversals** (see above) — each handed to **write-memory** (kind=`feedback`
+or `fact` per the kind). No qualifying moment → learn writes nothing (a
+two-command sweep-only run). Replaces the retired recall-mirror-test /
+injection-locus / scratch-list / Path-A-B-C apparatus, which was never
+implemented in the shipped skill.
 
 ### `--target` / `--position`
 Luhmann placement flags. `--position top` creates a new top-level note;
@@ -383,10 +391,10 @@ Optional kebab-case slug naming the project a note belongs to. Set on
 write via `engram learn {fact,feedback} --project <slug>` and
 rendered as `project: <slug>` in frontmatter below `source:`. Absent on
 notes that capture universal principles. Project name still does not
-belong in `--situation` — `--situation` stays retrieval-shaped per the
-recall-mirror test; `--project` is the metadata home for projectness so
-cross-project queries become answerable without polluting the situation
-phrase.
+belong in `--situation` — `--situation` stays retrieval-shaped (phrased the
+way a future task would query for it); `--project` is the metadata home for
+projectness so cross-project queries become answerable without polluting
+the situation phrase.
 
 ### `--project` (read side)
 Optional filter on `engram query`. When set, drops items whose
@@ -448,13 +456,12 @@ no body-line counterpart; written from the `--certainty` flag, default
 
 ### D5′ (design decision — asymmetric QA participation)
 
-Settled by Joe 2026-07-03 (superseding the original full-exclusion D5):
-qa-answer notes COMPETE in the main matched set (they are synthesis notes —
-pre-reasoned conclusions with provenance); qa-question notes are EXCLUDED
-from the main set (question wording measurably loses retrieval against
-content — the qanchor finding) and become reachable via a dedicated q-space
-channel with an `answered_by` ride-along (round 3, gated). Decision record:
-`docs/design/2026-07-03-qa-memory-proposals.md`.
+The rule governing which QA-pair halves compete in recall's main matched set:
+qa-answer notes COMPETE (they are synthesis notes — pre-reasoned conclusions
+with provenance); qa-question notes are EXCLUDED (reachable instead via a
+dedicated q-space channel with an `answered_by` ride-along, round 3, gated).
+Supersedes the original full-exclusion D5. Decision record and rationale:
+`docs/architecture/adr.md` ADR-0012.
 
 ### contributors (QA frontmatter + body field)
 A frontmatter list (`contributors: [<basename>, ...]`) and a matching
@@ -564,9 +571,12 @@ any I/O directly. All I/O goes through injected interfaces, wired at the
 CLI edges. Tests use `imptest`-generated mocks.
 
 ### targ
-The build tool wrapping `go test`/`go vet`/`go build`. **Always** invoke
-`targ build`, `targ test`, `targ check-full` — never the underlying Go
-commands.
+The build tool wrapping `go test`/`go vet` for testing, linting, and coverage
+checks — and also the CLI framework the `engram` binary itself is built on
+(`internal/cli/targets.go` wires its subcommands). **Always** invoke
+`targ test`, `targ check-full` — never the underlying Go commands directly.
+targ has no `build` target: it covers test/lint/check, not binary install.
+Install or refresh the compiled binary with `go install ./cmd/engram`.
 
 ---
 
@@ -574,16 +584,20 @@ commands.
 
 ### candidate (note)
 A potential note identified from completed work (transcript content
-surfaced by recall, or the current session's activity), before passing the
-recall-mirror test. Becomes a written note or is dropped with a reason.
+surfaced by recall, or the current session's activity), before it clears
+learn's Step 2 gate or recall's Step 2.5C coverage judgment. Becomes a
+written note or is dropped with a reason.
 
 ### subagent
-A parallel worker spawned by a skill to read or score notes without
-polluting parent context.
-
-### coordinator
-A serial pass after parallel writer subagents finish, whose job is
-cross-document references the parallel writers can't see.
+A fresh-context worker spawned via the Agent tool to do isolated object-level
+or review work without polluting the parent's context. Current uses:
+**please**'s gate reviewers (a fresh subagent per gate — plan, refactors,
+docs, outward prose) and any executor/planner a skill fans out to; agent
+type, model, and effort selection for a dispatch follow the **route** skill's
+doctrine. The retired parallel-writer architecture — subagents synthesizing
+notes in parallel, reconciled afterward by a serial coordinator pass — is
+gone: recall's Step 2.5 crystallizes inline from the query payload's own
+clusters, and learn's Step 2 hands off inline to write-memory.
 
 ### contradiction
 Two surfaced notes making incompatible claims about the same thing. The
@@ -601,3 +615,10 @@ vault preserves contradictions; recall surfaces both; the noting note passes
 | `continuation` | Luhmann position extending an existing note (e.g., `1` → `1a`) |
 | `sibling` | Luhmann position at the same level (e.g., `1a` → `1b`) |
 | `--dry-run` | Flag on `engram update` that previews without writing |
+
+---
+
+## Open Questions
+
+None currently — `triage.md`'s items were all resolved 2026-07-05 (folded into
+the entries above); the file deletes in the same restructure cycle.
