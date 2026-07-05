@@ -40,11 +40,12 @@ Requires Go 1.25+ on `PATH`.
 | Skill | What it does |
 |-------|--------------|
 | `recall` | Surfaces relevant notes and raw chunks via a single `engram query` call: a clustered **relevance** channel (recency-biased per-phrase cosine over notes+chunks → bounded matched set → one unified chunk+note clustering that builds `candidate_l2s` from within-cluster top-5 plus tag-nominated notes sharing a vocab term with the top-3 delivered notes) plus an un-clustered **recency** channel (the newest chunks, tagged `recent`). For each cluster it judges coverage inline (covered/near/absent) and crystallizes via `engram amend` (update an existing note) or `engram learn` (create one), activates only the notes it actually used, then reports whether the surfaced memory changed the agent's plan. |
-| `learn` | Captures lessons from completed work as permanent vault notes. Each candidate passes a recall-mirror test — "would a future recall, querying the same situation, surface this note?" — before writing. |
+| `learn` | Captures the session's explicit lessons — corrections, explicit save-requests, and self-discovered reversals — as permanent vault notes via `write-memory` handoffs. Along the way it mechanically sweeps every conversation and doc into the searchable chunk index (`engram ingest --auto`) and checks vocab liveness (`engram vocab stats`, auto-refitting when due), so raw event memory stays current even when no explicit lesson exists. |
+| `write-memory` | Executes a vault write handed off by `recall` or `learn`: composes the `engram learn`/`amend` command from the provided fields, runs it, verifies the result, and reports the written note path. Never fires on its own judgment — a handoff is required. |
 | `please` | Drives an ask end-to-end through a fixed seven-step workflow — capture, orient, plan, execute (TDD), document, complete, capture. Sequences `recall`, `learn`, and other available skills; tracks each step on the task list. Four adversarial review gates dispatch fresh per-angle reviewer subagents over the plan, each refactor, touched docs, and outward prose, blocking step completion until findings are resolved. Triggers on `/please <ask>` and natural-language phrasings of the same intent. |
 | `route` | Encodes the delegate-everything doctrine: guides subagent selection (agent type, model, effort) rather than doing object-level work. Easy work goes to a cheap model (not skipped), complex work is decomposed before dispatch, and every dispatched subagent recalls first. `please` consults it when staffing gate reviewers. |
 
-See `skills/recall/SKILL.md`, `skills/learn/SKILL.md`, `skills/please/SKILL.md`, and `skills/route/SKILL.md` for the full skill definitions.
+See `skills/recall/SKILL.md`, `skills/learn/SKILL.md`, `skills/write-memory/SKILL.md`, `skills/please/SKILL.md`, and `skills/route/SKILL.md` for the full skill definitions.
 
 ## Vault location
 
@@ -74,20 +75,21 @@ by the scanner):
 ```
 engram learn feedback --slug ... --source ... --situation ... --behavior ... --impact ... --action ... [--project <slug>] [--issue <id>]
 engram learn fact     --slug ... --source ... --situation ... --subject ... --predicate ... --object ... [--project <slug>] [--issue <id>]
+engram learn qa       --slug ... --source ... [--question <text>] [--answer <text>|--answer-file <path>] [--contributors <basename>...] [--certainty high|medium|low]   Write a QA pair (Q+A notes) to the vault. --slug and --source required; --answer and --answer-file are mutually exclusive; --contributors repeatable, validated against the vault; --certainty defaults to medium.
 engram embed apply [--all|--missing|--stale|--force|--dry-run]   (Re-)embed notes per selection (default: missing)
 engram embed status                    Report counts per state (total / with-embeddings / without / stale / incompatible / broken)
 engram query --phrase <p> [--phrase <p>...] [--limit N] [--project <slug>] [--chunks-dir <dir>] [--content-budget N] [--recent-fill N] [--lazy-chunks]   Semantic search over vault notes + chunk index; YAML output. Recency-weights chunks AND notes. Builds a bounded matched set (per-phrase top-30, union/dedup, relevance floor 0.25, cap ~300), clusters it in one pass (AutoK k-means), emits `candidate_l2s: [{path, cosine, content}]` per cluster — within-cluster top-5 notes plus tag-nominated notes sharing ≥1 vocab term with the top-3 delivered notes (budget: `tag_nominations_added`/`dropped`, pool cap 40/cluster) plus superseded-note ride-alongs at the next rank — and appends the newest chunks un-clustered (tagged `recent`; default 25, controlled by `--recent-fill`). `--content-budget` caps how many chunk items render with full content (default 15; later chunks get a snippet). `--lazy-chunks` renders matched chunk items path/score only — the agent fetches evidence on demand via `engram show-chunk`. Activation is agent-driven — the binary emits no `activated` flag. --project restricts items to notes whose frontmatter `project:` matches.
 engram query-chunks --phrase <p> [--phrase <p>...] [--limit N] [--chunks-dir <dir>]   Semantic search over the chunk index only (YAML output). Scores chunks by max cosine across phrases; clusters results with AutoK k-means. No vault notes, no recency channel — chunk-space search only.
-engram resituate --note <ref> [--dry-run]   Rewrite a note's situation field in sync: frontmatter, body opener, and sidecar situation_vector (D4/INV-S2)
+engram resituate --note <ref> --situation <text>   Rewrite a note's situation field in sync: frontmatter, body opener, and sidecar situation_vector (D4/INV-S2). Both flags required; no --dry-run.
 engram check   Run vault-invariant checks; exit non-zero and list FAIL items on violations
 engram ingest [--auto]   Merge-append session transcripts + markdown into the per-source chunk index (append-only — re-chunks/re-embeds only changed content, never deletes). `--auto` sweeps all known sources and skips session-log directories whose slugified project path starts with a non-persistent-workspace prefix (slugified forms of `/private/tmp`, `/tmp`, and macOS `$TMPDIR`), preventing eval/test runs from bloating the main index. Configurable via `.engram/sweep.json` (`non_persistent_prefixes` key); bypassed by explicit `--sweep`/`--transcript`/`--markdown` or an isolated index via `ENGRAM_CHUNKS_DIR`. Used by /learn and /recall.
 engram prune            Remove chunk index entries whose source file no longer exists (GC). Operator-run; reads the manifest and deletes stale per-source index files. Not part of the recall/learn/please flows.
-engram show <ref> [--ref <ref>...]   Print a note (frontmatter + body), read-only. (candidate_l2s carry content inline, so /recall no longer shows candidates.)
+engram show <ref>   Print a note (frontmatter + body) and its outbound wikilink targets, read-only. One required positional; no --ref flag. (candidate_l2s carry content inline, so /recall no longer shows candidates.)
 engram show-chunk <source#anchor> [--chunks-dir <dir>]   Print a chunk's text by its source#anchor id (read-only). Used by /recall with `--lazy-chunks` to fetch a specific chunk's evidence on demand.
 engram amend --target <ref> [--activate] [--supersedes "<basename>|<type>|<claim>"] [--chunk-source <source#anchor>...] [--situation/--subject/--predicate/--object | --behavior/--impact/--action ...]   Amend a note in place: merge chunk-source provenance (idempotent), overwrite only supplied content fields, re-embed only on a content change; `--activate` bumps `LastUsed`; `--supersedes` writes typed supersession frontmatter + inverse + body line. The /recall update path: covered link-enriches, near re-synthesizes content.
 engram activate --note <path> [--note <path>...]   Mark note(s) as recently used — bumps `LastUsed` in the sidecar so usefulness keeps useful notes fresh (called by /recall on only the notes the agent actually used). `--note` paths are vault-relative (resolved against the vault root / `ENGRAM_VAULT_PATH`); absolute paths are used as-is.
-engram vocab bootstrap [--dry-run]     Seed vocab term-notes from the validated term set; embed them; dual-channel tag all existing notes (body Vocab: line + vocab: frontmatter); regenerate vocab.index.md. Idempotent.
-engram vocab propose <term> --why <r>  LLM-gated: create a new term note if no existing term covers it and projected attachment ≤ 20% of vault (~$0.05/proposal).
+engram vocab bootstrap --seed <yaml> [--floor <f>]     Seed vocab term-notes from the validated term set (--seed, required); embed them; dual-channel tag all existing notes (body Vocab: line + vocab: frontmatter); regenerate vocab.index.md. --floor sets the minimum cosine similarity for vocab assignment (default 0.35). Idempotent.
+engram vocab propose --term <t> --description <d>  LLM-gated: create a new term note if no existing term covers it and projected attachment ≤ 20% of vault (~$0.05/proposal). Both flags required.
 engram vocab stats                     Per-term member counts, vault untagged-rate, hub terms (> 25% of vault), orphan terms (< 2 members), version staleness.
 engram vocab refit                     LLM-judged: merge orphans, split hubs, rename terms; rewrites member Vocab: lines + frontmatter; major version bump; index regen (~$2).
 engram update [--with-guidance]        Refresh binary and harness skills/commands ([--dry-run]); --with-guidance also deploys guidance/recall.md to ~/.claude/engram/recall.md (Claude Code; opt-in; OpenCode deferred)
@@ -141,7 +143,9 @@ Inputs longer than 1500 chars are truncated to fit MiniLM-L6's 512-token positio
 ```
 cmd/engram/          CLI entry point (thin wiring layer)
 internal/            Business logic (DI boundaries)
+  chunk/             Splits transcripts/markdown into embedding-sized chunks for the chunk index (pure string logic, no I/O)
   cli/               CLI command wiring (targ targets)
+  cluster/           k-means clustering with silhouette-based auto-K, for recall clustering
   context/           Transcript processing
   debuglog/          Structured debug logging
   embed/             Embedder interface + Hugot/GoMLX backend, sidecar I/O, state classification
@@ -149,20 +153,21 @@ internal/            Business logic (DI boundaries)
   transcript/        Session transcript reading (Claude Code JSONL), read by engram ingest
   update/            Self-refresh subcommand
   vaultgraph/        Vault traversal (wikilink graph, note scanning)
-skills/              Source for the recall, learn, please, and route skills
+skills/              Source for the recall, learn, write-memory, please, and route skills
 commands/            Source for OpenCode slash commands
 ```
 
 ## Development
 
-- `targ build` — build the `engram` binary
+- `go install ./cmd/engram` — install the binary (targ has no `build` target; it covers check/test/lint only)
 - `targ test` — run unit + integration tests
 - `targ check-full` — lint + coverage (use this to see ALL errors at once)
 - Never run `go test` / `go build` / `go vet` directly — use `targ`
 
 ## Design principles
 
-- **DI everywhere** — No function in `internal/` calls `os.*`, `http.*`, or any I/O directly. All I/O through injected interfaces, wired at CLI edges.
-- **Pure Go, no CGO** — external API for LLM operations only. The bundled embedder runs through GoMLX's pure-Go `simplego` backend.
-- **Skills for behavior, slim Go binary for computation.**
-- **Embed-on-write** — the vault is self-describing: a note plus its sidecar contain everything needed to participate in semantic search. No index file, no separate database; the vault remains a directory of markdown files.
+Design principles and their rationale live in `docs/architecture/adr.md` (ADR-0001..0003) — the authoritative source; this README covers orientation and the CLI reference only.
+
+## Documentation
+
+See `docs/README.md` for the full documentation index — glossary, roadmap, shipped features, architecture, and proven results, one obvious place to start.
