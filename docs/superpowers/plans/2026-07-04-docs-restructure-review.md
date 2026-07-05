@@ -39,6 +39,7 @@ Vault-note numbers below (e.g. "note 60") are provenance for Joe — the rule te
 - [ ] **Step 1: Write the inventory**
 
 ```bash
+SCRATCH=/private/tmp/claude-501/-Users-joe-repos-personal-engram/8399f498-0652-46e7-b4a3-792b7a4cc933/scratchpad
 cd /Users/joe/repos/personal/engram
 git ls-files '*.md' | while read f; do d=$(git log -1 --format=%as -- "$f"); l=$(wc -l < "$f" | tr -d ' '); echo "$d  $(printf %5s $l)  $f"; done | sort -r > $SCRATCH/inventory.md
 ```
@@ -48,6 +49,7 @@ git ls-files '*.md' | while read f; do d=$(git log -1 --format=%as -- "$f"); l=$
 Grep each corpus for citations of repo doc paths — including bare `README`, `CLAUDE.md`, `questions.md`, and `dev/eval` doc mentions, not only `docs/...` paths:
 
 ```bash
+SCRATCH=/private/tmp/claude-501/-Users-joe-repos-personal-engram/8399f498-0652-46e7-b4a3-792b7a4cc933/scratchpad
 cd /Users/joe/repos/personal/engram
 grep -rn --include='*.md' --include='*.go' --include='*.py' -E '(docs/(design|research|architecture|superpowers|GLOSSARY|ROADMAP|DESIGN-HISTORY|triage|validation-harness|images)[^ )`"]*|README(\.md)?|CLAUDE\.md|questions\.md|dev/eval/[a-zA-Z0-9_/.-]+\.md)' . | grep -v '^\.git' > $SCRATCH/refs-repo.txt
 grep -rn -E '(docs/[a-zA-Z0-9_/.-]+\.md|engram/docs/|README\.md|CLAUDE\.md|dev/eval/[a-zA-Z0-9_/.-]+\.md)' ~/.local/share/engram/vault/*.md > $SCRATCH/refs-vault.txt
@@ -138,7 +140,7 @@ If any fails, re-dispatch the gap (not the whole angle).
 - [ ] **Step 2: Run the pre-registered report acceptance checks**
 
 1. Ask-coverage: every element (a)–(g) has ≥1 section addressing it — the end-of-report mapping table proves it.
-2. Disposition completeness: `git ls-files '*.md' | wc -l` = (non-FIXTURE rows) + (sum of FIXTURE subtree file counts).
+2. Disposition completeness: `git ls-files '*.md' | wc -l` = (rows without a file count) + (sum of file counts on rows carrying one).
 3. Anchor rule: every proposed edit quotes its target verbatim with file:line.
 4. Provenance rule: every number/claim has an evidence pointer; anything unverified is labeled.
 If a check fails, fix the report before gating.
