@@ -97,7 +97,7 @@ M7 marker-monotonicity, M8 luhmann-uniqueness.)
 
 | id | invariant | sev | status |
 |---|---|---|---|
-| **M4 (embed model homogeneity)** | all sidecars share one `embedding_model_id`; `loadCompatibleSidecars` (`query.go:803-833`) **silently drops** mismatches → a model swap silently empties recall with no error. | **FAIL** | clean now (171× `minilm-l6-v2@384`), **unguarded** |
+| **M4 (embed model homogeneity)** | all sidecars share one `embedding_model_id`; `loadCompatibleSidecars` **silently drops** off-model sidecars → silent only under PARTIAL migration (a full-vault mismatch is guarded: `errQueryNoEmbeddings` when notes exist but no sidecar loads, plus a stderr model-mismatch warning). | **FAIL** | clean now (171× `minilm-l6-v2@384`); partial-mismatch case unguarded |
 | **M5 (situation on facts/feedback)** | every fact/feedback has non-empty `situation` (R1 depends on it). **[Note: the claim "CLI marks it required only for episodes" is RETIRED — no episode kind; but the `situation` optionality for fact/feedback remains an unguarded gap.]** | **FAIL** | clean now, unguarded |
 | **M6 (learn idempotency)** | re-running `/learn` over the same window does not spawn duplicate/near-duplicate notes (marker is the only dedup; arcs may overlap). | WARN | untested |
 | **M7 (marker monotonicity)** | per source, `marker_after ≥ marker_before` across runs (never regress → never silently re-emit history). | **FAIL** | untested (companion to the M1–M3 transcript invariants) |

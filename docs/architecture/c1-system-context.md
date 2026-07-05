@@ -419,7 +419,8 @@ embedding-API external, no daemon, no network dependency. The embedder
 is therefore a container of S2 (C3 in the [L2](c2-containers.md) container
 view), not a separate L1 element. The legacy tiered-memory design that
 proposed an external Voyage API was superseded by the 2026-05-22 research
-log and the v2 implementation (see [DESIGN-HISTORY](../DESIGN-HISTORY.md)).
+log and the v2 implementation (narrative in DESIGN-HISTORY.md, removed by the
+2026-07 docs restructure — `git log` recovers it).
 
 The `route` skill is **not** a new L1 element. It adds no system boundary, no
 external, and no R-edge: it is skill-level guidance the orchestrator applies
