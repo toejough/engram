@@ -109,7 +109,7 @@ and **OpenCode**. The plural is *harnesses*. Session transcripts are read by
 `internal/transcript` (Claude Code JSONL; consumed by `engram ingest`).
 
 ### binary
-The compiled `engram` Go program. Subcommands: `learn`, `query`, `query-chunks`, `embed`,
+The compiled `engram` Go program. Subcommands: `learn`, `query`, `query-chunks`,
 `ingest`, `prune`, `show`, `show-chunk`, `check`, `amend`, `activate`, `resituate`, `update`, the `embed` pair (`apply`, `status`), and the `vocab` family
 (`vocab bootstrap`, `vocab propose`, `vocab stats`, `vocab refit`). The `--supersedes` flag on `learn`/`amend`
 writes typed supersession frontmatter. The binary handles all I/O (vault read/write, chunk indexing,
