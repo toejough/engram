@@ -624,4 +624,4 @@ paths (in ROADMAP's atoms-arc block): **G3** fresh-context lessons reviewer (upg
 ## Open Questions
 
 None currently — `triage.md`'s items were all resolved 2026-07-05 (folded into
-the entries above); the file deletes in the same restructure cycle.
+the entries above); `docs/triage.md` was deleted 2026-07, git log recovers it.

@@ -407,8 +407,7 @@ flowchart TD
 
 #### Companion: who reviews at `/please` gates A–D
 
-The flowchart above shows *when* gates A–D fire; this sequence diagram is the swimlane companion
-(docs-restructure report §5 proposal 3) showing *who* reviews. It elides the `engram query`/`learn`
+The flowchart above shows *when* gates A–D fire; this sequence diagram is the swimlane companion showing *who* reviews. It elides the `engram query`/`learn`
 call mechanics already diagrammed in Flow: recall and Flow: learn above, and focuses on the
 fan-out to fresh per-angle reviewer subagents and the argue-to-ACK loop. As in the Flow: please
 diagram, the orchestrator's consult of the `route` skill for reviewer staffing (agent/model/effort)

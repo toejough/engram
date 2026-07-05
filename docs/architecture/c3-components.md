@@ -4,7 +4,7 @@ Decomposes **C2 · engram CLI** (from [L2](c2-containers.md)) into its Go packag
 components and the data they exchange. Reflects the current system; ⚠ = a
 verified defect, re-verified each time this doc is edited (see
 [memory-invariants](memory-invariants.md)). These component IDs are the
-vocabulary the [L3 sequence/flow diagrams](#) reuse.
+vocabulary the [L3 sequence/flow diagrams](#key-flows-l3--component-internal-sequences) reuse.
 
 **Crucial: K1/K4/K6 are SEPARATE PROCESS invocations, not in-process collaborators.**
 Each `engram <subcommand>` is its own process. The **C1·Skills orchestrator** (off-binary)

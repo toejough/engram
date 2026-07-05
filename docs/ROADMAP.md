@@ -28,7 +28,7 @@ A new edge type (typed links, graph expansion) must clear the same bar the shipp
 already meets: don't add one without demonstrating its own retrieval value first — currently an informal
 practice, now a standing rule.
 
-# Track A — Recall timing & coverage
+## Track A — Recall timing & coverage
 
 Ranking quality is settled; the open lever is *timing and application* — does the right knowledge surface
 at the right moment, and does it get acted on.
@@ -139,7 +139,7 @@ research survey raised (`docs/design/2026-07-02-research-followups.md`, deleted 
   dilution / incomplete extraction) and surgically repair just that edge, instead of tag nomination's
   blanket mechanism. Revisit if a systematic (not one-off) missed-edge pattern is diagnosed.
 
-### From the 2026-07-01 system review
+### From the 2026-07-01 system review — recall-timing items
 
 The system review (`docs/design/2026-07-01-memory-system-review.md`, deleted 2026-07, git log) ranked
 several still-open explorations; its fully-resolved items are omitted here (they already landed in
@@ -157,7 +157,7 @@ several still-open explorations; its fully-resolved items are omitted here (they
   recommendation) and its regression harness (#654: a C7 "lever-recheck" anti-amnesia eval) are both filed
   and open — schedule the filed work, don't re-derive the design.
 
-# Track B — Retrieval cost
+## Track B — Retrieval cost
 
 The token/dollar/wall-time tax memory costs. Operating premise (from the 2026-06 cost-axis analysis;
 see `dev/eval/LEDGER.md#payload-prune-smoke` and git history for the cost-reanchor docs): payload *size*
@@ -193,7 +193,7 @@ recall paging time becomes the complaint after the shipped cuts.
 
 Recall and learn each run `engram ingest --auto`; collapse the redundant pass. Mechanical, unscheduled.
 
-### From the 2026-07-01 system review
+### From the 2026-07-01 system review — cost items
 
 - **Harder-builds eval.** The easy-build regime measured memory as a net tax
   (`dev/eval/LEDGER.md#c1-c2-warm-op-negatives`); the regime where multi-round convergence should dominate
@@ -207,7 +207,7 @@ Recall and learn each run `engram ingest --auto`; collapse the redundant pass. M
   regression + `$METER`. Treat as reopening a settled park — requires demonstrating that new fact first, not
   just proposing the pass.
 
-# Track C — Q&A memory, rounds 2/3
+## Track C — Q&A memory, rounds 2/3
 
 Round 1 (capture) shipped (`docs/FEATURES.md` — Q&A memory round-1); round 2/3 gate on real accumulated
 pairs, per `docs/architecture/adr.md` ADR-0012.
@@ -255,7 +255,7 @@ larger-n gate applies the same proportions — PASS ≥80%, BORDERLINE 60–70%,
   delivery, not item rank; falsified if delivery does not improve ≥2σ while collateral stays 0. Exists so a
   future ranking ambition has a pre-registered bar, not a fresh one.
 
-# Infrastructure — prune must preserve memory across source deletion (#659)
+## Infrastructure — prune must preserve memory across source deletion (#659)
 
 `engram prune` currently orphan-deletes chunks whose source file is gone — but the embedded chunk is the
 asset, not the source `.jsonl`. This blocks reclaiming ~1.3 GiB of restored cross-repo transcripts in
@@ -264,7 +264,7 @@ Open: decouple chunk lifetime from source-file existence — never GC valuable c
 vanished (detach/archive vs delete; explicit-purge-only). Once fixed, delete the restore dir to reclaim the
 space.
 
-# Dead ends / not pursuing (measured or pre-registered — do not relitigate)
+## Dead ends / not pursuing (measured or pre-registered — do not relitigate)
 
 - Whole-op or split **haiku** recall+build: `dev/eval/LEDGER.md#haiku-whole-op-dead-end`,
   `dev/eval/LEDGER.md#haiku-split-dead-end`.

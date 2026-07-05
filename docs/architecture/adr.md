@@ -76,7 +76,7 @@ id→write critical section — enforced in code, untested as a property.
 
 ## ADR-0004 — Three tiers; blended-default retrieval; tier is a frontmatter field
 
-**Status:** Accepted · supersedes the "top-tier-only default" design prose (Decision 3)
+**Status:** Accepted · supersedes the "top-tier-only default" design prose (`docs/DESIGN-HISTORY.md` Decision 3 — deleted 2026-07; git log recovers it)
 
 **Context.** Memory has three useful grains: raw episodes (L1), specific facts/feedback (L2), and
 distilled standards (L3). Retrieval must pick the right grain. Early prose proposed defaulting to
@@ -210,7 +210,7 @@ no longer reachable.
 them as per-session `.jsonl` files; OpenCode stores them in a SQLite database. The marker,
 byte-budget, noise-strip, and emit logic must not care which backend a session came from.
 
-**Decision.** Define `Finder` (locate sessions) and `Reader` (read rows) interfaces. Provide two backends — `JSONLReader` + `SessionFinder` (Claude) and `OpencodeTranscriptReader` + `OpencodeSessionFinder` (OpenCode SQLite) — plus a `CompositeSessionFinder` / `CompositeTranscriptReader` that wrap a list and dispatch to the **first backend that succeeds** (`opencode.go`, first-success dispatch). `engram ingest` wires the composite over both backends; the `SegmentsFrom`/`SegmentsReader` path and the `--segments` flag retired with the episode surface (ADR-0008/ADR-0009).
+**Decision.** Define `Finder` (locate sessions) and `Reader` (read rows) interfaces. Provide two backends — `JSONLReader` + `SessionFinder` (Claude) and `OpencodeTranscriptReader` + `OpencodeSessionFinder` (OpenCode SQLite) — plus a `CompositeSessionFinder` / `CompositeTranscriptReader` that wrap a list and dispatch to the **first backend that succeeds** (as originally implemented in the now-removed `opencode.go`, first-success dispatch). `engram ingest` wires the composite over both backends; the `SegmentsFrom`/`SegmentsReader` path and the `--segments` flag retired with the episode surface (ADR-0008/ADR-0009).
 
 **Consequences.** Marker forward-progress (ADR-0009), stripping, and emit are backend-agnostic —
 they run on the composite, never on a concrete backend. Session-id **scheme** dispatch (bare UUID →
