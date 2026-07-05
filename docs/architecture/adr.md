@@ -2,13 +2,17 @@
 
 Retrospective ADRs. The decisions below were mostly made implicitly across the system's
 evolution; this log records them so they can be challenged, and ties each to the **verified
-defects it produced** (the `⚠ KNOWN` lines), which feed Phase 6 (built-vs-docs) and Phase 7
-(fix plan) of the [memory-system rigor effort](../superpowers/specs/2026-06-04-memory-system-rigor.md).
+defects it produced** (the `⚠ KNOWN` lines). Rigor cross-reference: the
+[memory-system rigor effort](memory-system-rigor.md).
+
+History: the founding design narrative (tiered-memory research, embedder choice, lazy-L2
+synthesis, and the decisions superseded along the way) lived in `docs/DESIGN-HISTORY.md`,
+deleted 2026-07 — `git log` recovers it.
 
 Status legend: **Accepted** · **Accepted (known defect)** — sound decision, buggy as-built ·
 **Superseded**. Evidence: commit hashes, `file:line`, and the C4 set
 ([L1](c1-system-context.md) / [L2](c2-containers.md) / [L3](c3-components.md)) +
-[invariants](../superpowers/specs/2026-06-04-memory-invariants.md).
+[invariants](memory-invariants.md).
 
 ---
 
@@ -46,7 +50,7 @@ cost, latency, and sending vault content off-box.
 system is the LLM that runs the agent itself — never embeddings.
 
 **Consequences.** Deterministic, offline, zero per-embed cost; the embedder is a *container of S2*,
-not an L1 external. A single `embedding_model_id` is stamped into every sidecar. ⚠ KNOWN (M8):
+not an L1 external. A single `embedding_model_id` is stamped into every sidecar. ⚠ KNOWN (M4):
 `loadCompatibleSidecars` (`query.go`) silently drops sidecars whose `model_id ≠` the active
 model — a model swap silently empties recall unless `engram embed apply --force` re-embeds first.
 No guard except the all-empty error path.
@@ -93,7 +97,7 @@ is a feature, so tier↔kind is asymmetric (T2).
 
 ## ADR-0005 — L3 ADRs are scenario-discoverable, synthesized from L2 clusters by centroid cosine
 
-**Status:** Superseded by the 2026-06-09 lazy-L2 synthesis design ([docs/DESIGN-HISTORY.md](../DESIGN-HISTORY.md)) — L3-ADR-synthesis-at-learn-time is retired; crystallization is now recall-time, agent-judged lazy-L2 (covered/near/absent) via engram amend/learn.
+**Status:** Superseded by the 2026-06-09 lazy-L2 synthesis design (`docs/DESIGN-HISTORY.md` §7 — deleted 2026-07; git log recovers it) — L3-ADR-synthesis-at-learn-time is retired; crystallization is now recall-time, agent-judged lazy-L2 (covered/near/absent) via engram amend/learn.
 
 **Context.** An L2 fact only surfaces if you query its keywords — but the agent who needs it does
 not know it exists. Standards must be discoverable from the **situation** the agent is in.
@@ -211,6 +215,127 @@ byte-budget, noise-strip, and emit logic must not care which backend a session c
 they run on the composite, never on a concrete backend. Session-id **scheme** dispatch (bare UUID →
 Claude `.jsonl`; `opencode://…` → SQLite) is part of the same seam. Adding a third harness is an
 interface implementation, not a change to the read pipeline.
+
+---
+
+## ADR-0011 — Controlled-vocab tag nomination over graph traversal
+
+**Status:** Accepted (2026-07-02/03) · supersedes graph-traversal (PPR / spreading-activation) as
+the relational-retrieval mechanism
+
+**Context.** The wikilink graph (ADR-0007) is authored and walked by the binary, but resolves by
+basename against bare-Luhmann-id links — most edges never resolve (⚠ KNOWN G0/G5) — and even a
+healthy graph leaves open how a relational miss (a note topically related to the matched set but
+never phrase-matched) should be recovered at query time. Two mechanisms were evaluated head to
+head: ranking-side graph traversal (PPR / spreading-activation / one-hop expansion) vs.
+candidate-side nomination through a controlled vocabulary.
+
+**Decision.** Reject graph traversal as the retrieval mechanism. Ship controlled-vocabulary tag
+nomination: a fixed term set (`vocab.<term>.md`), dual-channel term assignment at every
+learn/amend/resituate write, and at query time a note sharing a vocab term with the top-3
+delivered notes in a cluster is nominated into that cluster's `candidate_l2s` alongside the
+within-cluster top-5 (budget fields `tag_nominations_added`/`dropped` report pool size). A typed
+`--supersedes` flag (`updates`/`narrows`/`refutes`) lets a note carry an explicit edge to an older
+one, surfaced as a ride-along at the next candidate rank.
+
+**Consequences.** PPR/spreading-activation is ⛔ KILLED on this vault — it drops non-activated
+baseline notes and produced 32–36 collateral regressions in the evaluation matrix
+(`dev/eval/LEDGER.md#ppr-killed`, vintage 2026-07-02); one-hop expansion reproduced the same
+settled null. Tag nomination recovered 54% of verified retrieval misses with zero collateral,
+moving blind delivery +17.3pp overall / +50pp on cross-domain bridges, both above 2σ
+(`dev/eval/LEDGER.md#vocab-tag-nomination-l6xtag`, vintage 2026-07-02) — link/tag
+value pays where vocabulary is remote from task phrasing (bridges), not on single-hop misses.
+Migration classified the pre-existing 84 "Related to:" edges against pinned criteria: 7 true
+supersessions, 77 dropped as a non-supersession link *type* (76 thematic/cross-reference/sibling,
+1 dangling) — full disposition table in `docs/design/artifacts/2026-07-02-retired-relation-rationales.md`,
+deleted 2026-07 with the docs restructure; `git log` recovers it.
+Typed supersession ride-along is mechanism-proven but fabric-starved (few edges qualify as true
+supersessions). The wikilink graph itself is unaffected: it remains authored-and-walked only by
+`check`/`amend` (ADR-0007), never by the query path.
+
+---
+
+## ADR-0012 — D5′ asymmetric QA participation
+
+**Status:** Accepted (2026-07-03) · supersedes D5 (full QA exclusion)
+
+**Context.** An earlier design (D5) proposed excluding all QA-derived notes from the main matched
+set, treating captured question/answer pairs as a channel apart from facts/feedback. That
+treats a qa-answer and a qa-question identically, but they are not: a qa-answer is a synthesized,
+pre-reasoned conclusion with provenance, while a qa-question is situational wording that
+measurably loses retrieval against content-bearing notes (the question-anchored-crystallization
+finding — no delivery benefit and 10/10 retrieval lost when notes were re-anchored to their
+question; `dev/eval/LEDGER.md#qanchor-park`, vintage 2026-07-01, ⛔ PARKED).
+
+**Decision.** qa-answer notes COMPETE in the main matched set on the same standing as any other
+fact/feedback note. qa-question notes are EXCLUDED from the main set at all four
+query-pipeline seam points (`isQueryExcludedKind`) and are reachable only via a dedicated q-space
+channel with an `answered_by` ride-along — deferred to round 3, gated. Decision record:
+`docs/design/2026-07-03-qa-memory-proposals.md` (deleted 2026-07 with the docs restructure —
+`git log` recovers it).
+
+**Consequences.** Round-1 (capture) shipped 2026-07-03: `engram learn qa`, D5′ exclusion,
+`stripMachineLines` QA markers, `qa pairs:` / `qa round-2 gate:` lines in `engram vocab stats`.
+**Caveat carried forward to round-2/3 gating:** D5′'s asymmetry rests on n=5 synthetic pairs
+(source: the decision record above, vintage 2026-07-03), not yet re-validated at corpus scale —
+round-2 gates on ≥20 real captured pairs (or ~2026-07-17, whichever comes first) against
+pre-registered bands (PASS ≥8, BORDERLINE 6–7, FAIL <6; P2′/P3′ definitions, docs/ROADMAP.md
+Track C). The dedicated q-space channel needs its own premise check (Arm V) to reach PASS (≥80%)
+before round-3 is licensed; Arm V large-n came in BORDERLINE 63% (19/30)
+(`dev/eval/LEDGER.md#qa-arm-v-borderline`, vintage 2026-07-03), so round-3 remains unlicensed
+pending a further check.
+
+---
+
+## ADR-0013 — Vault flock + atomic-rename write safety
+
+**Status:** Accepted (shipped 2026-07-01, commit `f7f6b389`; closed #660 + #666)
+
+**Context.** The planned payload-prune production build spawns many parallel sub-recalls that
+write the vault and chunk index concurrently. Before this fix, only `learn`'s Luhmann-ID
+sequencing was flock-protected (`writeLearnUnderLock`, `learn.go:571`); `ingest`/`prune`'s manifest
+read-modify-write, `amend`/`resituate`'s vault-note read-modify-write, and `activate`'s sidecar
+rewrite were all unlocked, non-atomic writes (`os.WriteFile` assumed atomic — it is not). Any two
+concurrent `engram ingest`/`amend` runs corrupted state, independent of retrieval quality or cost —
+and this bit in production.
+
+**Decision.** Extend the existing vault flock (`internal/cli/cli.go`) to every read-modify-write
+writer: `.manifest.lock` guards `ingest`+`prune`'s manifest RMW; `.luhmann.lock` guards
+`amend`+`resituate`+`activate`'s vault-note/sidecar RMW. Locks are acquired only at `Run*` entry
+points; shared write helpers (`bumpLastUsed`, `writeManifestFile`, `reEmbedAndActivate`) stay
+lock-free, to be called only by a `Run*` that already holds the lock (avoids self-deadlock). Every
+writer's edge also gets one shared atomic-temp-rename helper, replacing bare `os.WriteFile`.
+
+**Consequences.** `targ check-full` green plus a concurrent-writers regression test gate the fix
+(no eval-ledger row — correctness is locked by the regression test, commit `f7f6b389`, 2026-07-01). Payload-prune production is
+unblocked — the concurrency correctness ADR-0003 flagged as untested (⚠ KNOWN K1, "enforced in
+code, untested as a property") is now enforced for every RMW writer, not just note+sidecar
+creation. Deadlock-avoidance is a convention (lock at `Run*` entry points only), not a checked
+invariant — a future writer that acquires the lock inside a shared helper reintroduces the risk.
+
+---
+
+## ADR-0014 — Memory-backed tier discount (route)
+
+**Status:** Accepted (shipped 2026-06-28, commit `2bf959f4`; vault note 135)
+
+**Context.** The `route` skill encodes engram's delegate-everything doctrine, including which
+model tier to dispatch a unit of work to. Measured: sonnet+memory fully matched opus+memory across
+C3 apply-conventions (15/15), C4i recency-supersession (3/3), and C6 abduction (6/6), while
+sonnet *cold* failed the same axes — memory democratizes reasoning across model tiers rather than
+only amplifying the strongest model.
+
+**Decision.** Route by capability *tier*, not model name (the roster backing each tier can
+change), and drop one tier for memory-backed units — a unit where the model applies recalled
+knowledge rather than derives it from scratch is routed one tier cheaper than the same unit cold.
+
+**Consequences.** RED/GREEN showed the router had been over-provisioning 4/6 memory-backed units
+to mid-tier before this rule; the discount corrects that (`dev/eval/LEDGER.md#tier-routing-parity`,
+vintage 2026-06-28) and is the single largest whole-task-cost lever found to date — bigger than
+any payload-byte-level cut (`dev/eval/LEDGER.md#payload-prune-smoke`). Bound: measured at the
+deep→mid tier boundary only; other tier boundaries are inferred, not separately measured — the
+existing upgrade-if-cheaper-fails rule is the safety net for a wrong discount. The C5
+(recency-standard-honoring) axis flaked in this measurement round and was not re-run.
 
 ## Decisions deliberately NOT made into ADRs
 
