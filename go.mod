@@ -8,7 +8,6 @@ require (
 	github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e
 	github.com/toejough/targ v0.0.0-20260402141037-105fb05f62e1
 	go.yaml.in/yaml/v3 v3.0.4
-	modernc.org/sqlite v1.50.0
 	pgregory.net/rapid v1.2.0
 )
 
@@ -42,9 +41,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.21 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
-	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/toejough/go-reorder v0.0.0-20260323214627-2c2148c725b2 // indirect
 	github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61 // indirect
@@ -64,7 +61,4 @@ require (
 	golang.org/x/tools v0.45.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
-	modernc.org/libc v1.72.0 // indirect
-	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.11.0 // indirect
 )
