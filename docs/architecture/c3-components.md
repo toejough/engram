@@ -1,9 +1,10 @@
 # L3 — Component view (inside C2 · engram CLI)
 
 Decomposes **C2 · engram CLI** (from [L2](c2-containers.md)) into its Go packages/
-components and the data they exchange. As-built on 2026-06-04; ⚠ = a verified defect
-(see [memory-invariants](../superpowers/specs/2026-06-04-memory-invariants.md)). These
-component IDs are the vocabulary the [L3 sequence/flow diagrams](#) reuse.
+components and the data they exchange. Reflects the current system; ⚠ = a
+verified defect, re-verified each time this doc is edited (see
+[memory-invariants](memory-invariants.md)). These component IDs are the
+vocabulary the [L3 sequence/flow diagrams](#) reuse.
 
 **Crucial: K1/K4/K6 are SEPARATE PROCESS invocations, not in-process collaborators.**
 Each `engram <subcommand>` is its own process. The **C1·Skills orchestrator** (off-binary)
@@ -96,9 +97,9 @@ flowchart TB
 | K4 | `cli/learn.go` | `writeLearnUnderLock`, `autoEmbedNote`; calls `nextLuhmannID` (in `cli/luhmann.go`) | Write fact or feedback — no tier assignment (tier/L1/L2/L3 removed in recall-v2; `--tier` flag removed); compute next Luhmann id and write the note + sidecar atomically (temp-file + rename) under `flock(.luhmann.lock)` + `O_EXCL`. The same `.luhmann.lock` is held by **every** vault writer — `amend`, `resituate`, and `activate` acquire it at their command entry too. | **K1-lock invariant** untested |
 | K5 | `internal/embed` | `Text`, `ContentHash`, `Sidecar`, embedder (Hugot/GoMLX simplego) | Embed situation and body text; write/read dual-vector `.vec.json` (`situation_vector` + `body_vector` + `embedding_model_id` + `content_hash` + `last_used`). `bestVector` selects the axis with the higher query cosine at recall time. | **M4** (model homogeneity) |
 | K6 | `cli/query.go` | `RunQuery`, `runQuery`, `buildMatchedSetFromPhrases`, `buildRecentFillItems`, `capWithNoteFloor`, payload assembly | Single query path: per phrase embed → top-30 (notes+chunks, recency-biased cosine), reserving up to `noteFloorK=5` of those slots for relevance-qualified notes (`capWithNoteFloor`) so higher-cosine chunks cannot fully evict a note that cleared the floor; union across 10 phrases, dedup max score, relevance floor (baseScore < 0.25), cap matched set at ~300 (`matchSetCap`); ONE AutoK cluster over matched set (D1 preserved); `candidate_l2s` = within-cluster top-5 from matched note members **plus tag-nominated notes** sharing ≥1 vocab term with the top-3 delivered notes (budget: `tag_nominations_added`/`dropped`, pool cap 40/cluster) plus superseded-note ride-alongs; Channel 2 appends the newest chunks by IngestedAt (`recentFillChunks`, default 25, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`), deduped, tagged `recent`, not in any cluster. All notes cluster as normal notes. Optional `--lazy-chunks` renders chunk items path/source-only (notes keep content), fetched on demand via the `show-chunk` subcommand (`cli/show_chunk.go`). | — |
-| K7 | `internal/vaultgraph` | `ParseWikilinks`, `ParseBasename`, `BuildGraph`, `ScanVault`, `UnresolvedTargets` | Build the directed wikilink graph (node=basename); scan vault notes for query; identify unresolved links for `engram check`. | **G0** (basename-only resolution), **G5** (verbatim `[[x]]` strings in chunk bodies (raw transcript content) become false edges) |
-| K8 | `internal/cluster` | `KMeans`, `Silhouette`, `AutoK`, `CosineDistance` | Pick k by silhouette; cluster the matched set. Silhouette is O(n²) per k swept, so clustering inputs are bounded: the matched set is hard-capped at `matchSetCap`=300 (10 phrases × top-30 per phrase) before clustering; recency-channel chunks (`recentFillChunks`, default 25; `--recent-fill`) are appended un-clustered and never enter K8. | C1/L3-1 determinism untested |
-| K9 | `internal/update` | `Run`, `SourceLocal/Remote` | `go install` the binary; copy refreshed skills/commands per harness; `--with-guidance` deploys `guidance/recall.md` to `~/.claude/engram/recall.md` (Claude Code only; opt-in; OpenCode deferred); sentinels `ErrGoNotFound`/`ErrNoHarness`/`ErrSkillsSrcMissing`. | **U1** idempotence uncaptured |
+| K7 | `internal/vaultgraph` | `ParseWikilinks`, `ParseBasename`, `BuildGraph`, `ScanVault`, `UnresolvedTargets` | Build the directed wikilink graph (node=basename); scan vault notes for query; identify unresolved links for `engram check`. | **G0** (basename-only resolution); G5 **RETIRED** (episode kind removed; `[[x]]` in chunk bodies no longer parsed as vault edges) |
+| K8 | `internal/cluster` | `KMeans`, `Silhouette`, `AutoK`, `CosineDistance` | Pick k by silhouette; cluster the matched set. Silhouette is O(n²) per k swept, so clustering inputs are bounded: the matched set is hard-capped at `matchSetCap`=300 (10 phrases × top-30 per phrase) before clustering; recency-channel chunks (`recentFillChunks`, default 25; `--recent-fill`) are appended un-clustered and never enter K8. | C1 resolved — `TestInvariant_C1_ClusteringDeterminism`, `TestKMeans_DeterministicAcrossRuns`; L3-1 RETIRED (L3 note kind removed) |
+| K9 | `internal/update` | `Run`, `SourceLocal/Remote` | `go install` the binary; copy refreshed skills/commands per harness; `--with-guidance` deploys `guidance/recall.md` to `~/.claude/engram/recall.md` (Claude Code only; opt-in; OpenCode deferred); sentinels `ErrGoNotFound`/`ErrNoHarness`/`ErrSkillsSrcMissing`. | **U1** resolved — `TestUpdater_Run_Local_Idempotent_Property` |
 | K10 | `internal/luhmann` | `ParseID`, `LetterLess`, sort/tie-break | Parse and order Luhmann ids; **shared kernel** consumed by K4 (`cli/learn.go`, `cli/luhmann.go`) AND K7 (`vaultgraph/{selector,scanner}.go`). | — |
 | K11 | `internal/debuglog` | tail-friendly sink | Cross-cutting debug log threaded through every CLI target (`targets.go`, `cli/signal.go`); L1 deferred it to here. | — |
 | K5b | `cli/embed.go` | `RunEmbedApply`, `RunEmbedStatus`, `selectStates` | The `engram embed apply/status` subcommand (separate process, operator-run for model migration): re-embeds notes whose sidecar is missing/stale/incompatible via the shared K5 package; `apply` writes sidecars, `status` reports counts. Wired in `targets.go` (grep `Name("embed")`). | drives **M4** remediation |
@@ -170,7 +171,7 @@ sequenceDiagram
 
     Note over Q: RunQuery — one process; args from the skill, output to stdout
     Q->>Vg: Scan = vaultgraph.ScanVault
-    Vg->>V: read note files; ParseWikilinks → Outgoing at scan time [G5]
+    Vg->>V: read note files; ParseWikilinks → Outgoing at scan time
     Vg-->>Q: notes (+ parsed wikilinks)
     Q->>V: loadCompatibleSidecars — read sidecars, drop off-model [M4]
     Q->>V: loadClusterChunkRecords — read chunk index
@@ -179,7 +180,7 @@ sequenceDiagram
         Em->>Md: encode
         Md-->>Em: vector
         Em-->>Q: query vector
-        Note over Q: score notes (rankCandidates, recency-biased) + chunks (per-phrase scorer, applyChunkRecency); merge into one list; take top-30 (capWithNoteFloor reserves up to noteFloorK=5 slots for floor-qualified notes)
+        Note over Q: score notes (rankCandidates, recency-biased) + chunks (per-phrase scorer, recencyMultiplier); merge into one list; take top-30 (capWithNoteFloor reserves up to noteFloorK=5 slots for floor-qualified notes)
     end
     Note over Q: union across phrases, dedup keeping max score; drop baseScore < 0.25; cap at matchSetCap=300 → matched set
     Note over Q: matched set holds both note and chunk members (unified ranking)

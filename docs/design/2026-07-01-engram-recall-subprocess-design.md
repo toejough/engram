@@ -1,14 +1,13 @@
 # `engram recall` — subprocess-isolated recall (payload-prune production form)
 
-**Status: DEFERRED behind Track 0 (concurrency & write-safety).** This spec captures the design reached with
-Joe on 2026-06-30/07-01 so the orientation isn't lost. It is **not** cleared to build: it spawns parallel
-sub-recalls that write the vault/manifest concurrently, so the Track 0 fixes
-(`docs/superpowers/plans/2026-07-01-concurrency-write-safety.md`) must land first.
+**Status: this spec captures the design reached with Joe on 2026-06-30/07-01 so the orientation isn't lost.**
+It spawns parallel sub-recalls that write the vault/manifest concurrently; Track 0 shipped 2026-07-01
+(plan in git history) — the flock/atomic-write safety that concurrency needs.
 
 ## Why (premise, validated)
 
 The payload-prune lever is smoke-validated (note 149;
-`docs/superpowers/specs/2026-06-30-payload-prune-mechanism-design.md`): carrying only the Step-3 synthesis into
+`dev/eval/LEDGER.md#payload-prune-smoke`): carrying only the Step-3 synthesis into
 the build — not the raw ~97 KB `engram query` payload — cut build_cost ~40% with zero capability loss, on
 opus, n=3. The saving is mechanistic (the payload re-reads as `cache_read` every turn). The smoke proved the
 *isolation premise* via a harness proxy; this is the production form.

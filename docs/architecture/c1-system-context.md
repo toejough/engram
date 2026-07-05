@@ -121,10 +121,10 @@ mechanism. Chunks are never activated.
 
 Source: `internal/cli/query.go` (`RunQuery`, `runQuery`,
 `buildMatchedSetFromPhrases`, `buildRecentFillItems`), the recency/decay in
-`internal/cli/recency.go` (`applyChunkRecency`, `newestChunkItems`), `engram
-activate` in `internal/cli/activate.go`, `engram amend` in
-`internal/cli/amend.go`, and the `internal/cluster/` package (`kmeans.go`,
-`silhouette.go`, `autok.go`).
+`internal/cli/recency.go` (`recencyMultiplier`, `defaultRecencyParams`,
+`newestChunkItems`), `engram activate` in `internal/cli/activate.go`, `engram
+amend` in `internal/cli/amend.go`, and the `internal/cluster/` package
+(`kmeans.go`, `silhouette.go`, `autok.go`).
 
 > Three deliberate evolutions of earlier decisions, all driven by recency and
 > retrieval precision: (1) recency applies to **both notes and chunks** — per-chunk

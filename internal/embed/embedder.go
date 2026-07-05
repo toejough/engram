@@ -59,9 +59,10 @@ type Embedder interface {
 
 // Sidecar is the on-disk shape of a per-note .vec.json file. Field order
 // here is the JSON key order. Snake-case keys match the spike spec's
-// sidecar contract verbatim and are part of the on-disk file format
-// (see docs/DESIGN-HISTORY.md §2, the 2026-05-24 query spike). Each
-// note carries two vectors — one for its situation: frontmatter field and
+// sidecar contract verbatim and are part of the on-disk file format:
+// MiniLM-L6-v2@384 is the shipped bundled model, and the 2026-05-24 query
+// spike froze the snake_case sidecar keys as a file format. Each note
+// carries two vectors — one for its situation: frontmatter field and
 // one for its body — so retrieval can match by max(situation, body).
 //
 //nolint:tagliatelle // sidecar JSON keys are spec contract

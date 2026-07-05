@@ -10,7 +10,7 @@ This document is the durable plan + the trust mechanism. Do not drop a phase.
 ## 0. The trust break (what went wrong, honestly)
 
 Confirmed broken (survived the Phase-0 antagonist round):
-- **L1↔L2 linking** **[RETIRED — L1 episode kind removed; `--chunk-source` frontmatter provenance is now the L1 evidence link, not wikilinks to episode notes.]** ~~87/106 L2 facts/feedback cite no resolved L1 episode.~~ The G0 link-form bug (bare-id vs basename) still affects `BuildGraph` and is relevant to `check`/`amend`. Canonical census: [memory-invariants](2026-06-04-memory-invariants.md) KEYSTONE.
+- **L1↔L2 linking** **[RETIRED — L1 episode kind removed; `--chunk-source` frontmatter provenance is now the L1 evidence link, not wikilinks to episode notes.]** ~~87/106 L2 facts/feedback cite no resolved L1 episode.~~ The G0 link-form bug (bare-id vs basename) still affects `BuildGraph` and is relevant to `check`/`amend`. Canonical census: [memory-invariants](memory-invariants.md) KEYSTONE.
 - **L2→L3 synthesis** **[RETIRED — L3 note kind and `tier: L3` removed in recall-v2.]** ~~1 real `tier: L3` ADR from 106 L2 facts.~~
 - **INV-E4 episode freshness hash** **[RETIRED — episode kind removed; no disjoint situation-vs-body hash issue for fact/feedback (both embed and hash body).]** ~~situation edits invisible to staleness check across all 64 L1 notes.~~
 - **M2-segments path marker over-advance** (NEW, antagonist-found, code-verified):
@@ -77,7 +77,7 @@ Every documented defect was re-confirmed by **running checks against the REAL va
 
 **Finding: the documents faithfully describe the built system.** No doc claim was contradicted by
 the live vault — the gap is real defects, not doc drift. Fix plan: the 2026-06-04 memory-fixes plan
-(see `docs/DESIGN-HISTORY.md` §6).
+(`DESIGN-HISTORY.md` deleted 2026-07; git log recovers §6's narrative).
 
 ## 1. Property-based invariants (the contract the system MUST satisfy)
 
@@ -172,8 +172,8 @@ which is the process working:
 - Phase 2: a fabricated in-process `query→learn` edge, then a *recurrence* nesting `embed` inside
   the learn process box with a cross-process `query→embed` arrow. Both found and fixed.
 
-C4 set authored and agreed: [L1](../../architecture/c1-system-context.md) /
-[L2](../../architecture/c2-containers.md) / [L3](../../architecture/c3-components.md).
+C4 set authored and agreed: [L1](c1-system-context.md) /
+[L2](c2-containers.md) / [L3](c3-components.md).
 
 **Phases 0–3 COMPLETE.** Phase 3 antagonist caught 4 component-attribution errors in the L3
 sequence diagrams (e.g. wikilink reads drawn inside vaultgraph that actually happen at scan time;
@@ -181,7 +181,7 @@ sequence diagrams (e.g. wikilink reads drawn inside vaultgraph that actually hap
 round-2 antagonist agreed. Sequence + flow diagrams now exist at L1 (c1), L2 (c2 skills↔binary
 boundary), and L3 (c3 component internals), for recall / learn / **[RETIRED: §6b L3-synthesis — L3 kind removed]** / marker. Two
 new findings surfaced and recorded for Phase 6 (INV-S1 skill→vault direct access; INV-S2 duplicated
-fact `situation`). **Phase 4 (ADRs) COMPLETE** — [10 ADRs](../../architecture/adr.md); the antagonist
+fact `situation`). **Phase 4 (ADRs) COMPLETE** — [10 ADRs](adr.md); the antagonist
 added the dual-source-reader ADR (ADR-0010) and got INV-S1/S2 promoted into the canonical invariants.
 **Phases 0–5 COMPLETE — AT CHECKPOINT 1 (stop & talk).** The Phase-5 holistic antagonist found
 2 Critical cross-doc ID collisions (I had reused M3/M4 for both marker invariants and the Phase-1
