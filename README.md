@@ -9,6 +9,8 @@
 
 Engram gives Claude Code and OpenCode agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand; at their write sites they hand off to `write-memory`, a worker skill that composes and executes the vault-write commands. A further skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other skills around a user's `<ask>`, and `route` encodes the delegate-everything doctrine `please` draws on to staff its subagents. `recall`, `learn`, and `write-memory` shell out to the `engram` binary; `please` and `route` are pure meta-orchestration.
 
+**Harness support is asymmetric.** `engram update` installs the skills into both Claude Code and OpenCode (plus the slash commands for OpenCode), and the vault is harness-agnostic — so `recall` and `learn` work the same on each. The gap is on the ingest side: automatic sweeping of raw session transcripts into the chunk index currently reads Claude Code JSONL only. OpenCode stores its sessions in a SQLite database that the file-based sweep can't see, so an OpenCode agent's own conversation history is not yet auto-ingested (tracked in [#644](https://github.com/toejough/engram/issues/644)).
+
 After a few months of use, the vault's wikilink graph looks like this in Obsidian — each dot is a note, each line a `[[wikilink]]`; the ~25 vocab term-notes form visible hubs (each `Vocab:` body line points member→term, so term nodes accumulate spokes), dense clusters are groups of related notes, and the connective tissue reflects thematic proximity:
 
 ![Obsidian graph view of an engram vault](docs/images/vault-graph.png)
