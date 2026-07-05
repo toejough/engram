@@ -15,9 +15,11 @@ here (`dev/eval/LEDGER.md#<slug>`); they never restate a figure inline.
 | `unmeasured` | not yet validly measured (inconclusive, borderline, or the attempt was instrument-invalid) |
 | `superseded` | a later measurement of the same claim replaced this figure — see `superseded-by` |
 
-**Raw data:** a live path where the source survives on disk, otherwise the
-`『<path> deleted 2026-07; git log』` form — the underlying doc was deleted in the 2026-07
-docs restructure, but its content and history remain recoverable via `git log`.
+**Raw data:** a live path where the source survives on disk; the
+`『<path> deleted 2026-07; git log』` form when the underlying doc was deleted in the 2026-07
+docs restructure (content recoverable via `git log`); or the
+`『<path> pre-<change> history; git log』` form when the file survives but the cited figure was
+edited out of it (e.g. the pre-restructure ROADMAP) — recover the earlier content via `git log`.
 
 ---
 
@@ -52,7 +54,7 @@ docs restructure, but its content and history remain recoverable via `git log`.
 | <a id="payload-cut-recent-fill"></a>**`--recent-fill` (200→25) cuts recall payload size** | proven | payload −28% (230→165 KB), trap gate GREEN, `targ check-full` clean; cumulative with lazy-chunks ~−58% (230→97 KB) (2026-06-27) | — | 『docs/superpowers/plans/2026-06-27-recall-payload-recent-fill.md deleted 2026-07; git log』 |
 | <a id="haiku-whole-op-dead-end"></a>**Running the whole recall+build op on haiku holds quality** | refuted | whole-op haiku probe, n=5: FAILED the pre-registered verdict rule — C3 build-applied 18/25 (wanted ≥23/25), C6 reasoning 3/10 (wanted ≥4/5); failure diagnostically located in the BUILD half — haiku's recall *curation* held (C3 surfaced 25/25, C5 5/5, 0 C4 mis-rankings) (2026-06-24) | — | 『docs/design/2026-06-24-engram-cost-round2-build-loop.md deleted 2026-07; git log』 |
 | <a id="haiku-split-dead-end"></a>**Splitting recall (haiku) from build (opus) is worth the complexity** | refuted | built + measured via TDD: quality HELD (C4 5/5, C5 5/5 = whole-opus) but op-cost cut only −14% (recall is a cost sub-share, so even ~5× cheaper recall barely moves the op); rolled back — not worth two skills + dispatch + contract + crystallization-quality risk (2026-06-24) | — | 『docs/design/2026-06-24-engram-cost-round2-build-loop.md deleted 2026-07; git log』 |
-| <a id="glance-delivers-c3-c4i-c6"></a>**`/recall glance` delivers the C3/C4i/C6 capability wins at the verified bars** | proven | glance DELIVERS C3/C4i/C6 at the verified bars; smoke trap gate GREEN across C3/C4i/C5/C6 regression check (2026-06-29, #661/#662) | — | 『docs/design/2026-06-29-glance-delivery-661.md deleted 2026-07; git log』 |
+| <a id="glance-delivers-c3-c4i-c6"></a>**`/recall glance` delivers the C3/C4i/C6 capability wins at the verified bars** | proven | glance DELIVERS C3/C4i/C6 at the verified bars; smoke trap gate GREEN across C3/C4i/C5/C6 as a non-regression check (the C5 leg confirms no regression against C5's known non-delivering baseline — glance does NOT deliver C5, see the next row) (2026-06-29, #661/#662) | — | 『docs/design/2026-06-29-glance-delivery-661.md deleted 2026-07; git log』 |
 | <a id="glance-fails-c5-delivery"></a>**`/recall glance` delivers the C5 recency-channel-standard win** | refuted | glance applies the C5 standard 0/5 vs deep's 4/5 — surfaces the recency item but doesn't apply it (retrieval ≠ delivery); mitigation: C5-type cues now escalate to `deep` (2026-06-29) | — | 『docs/design/2026-06-29-glance-delivery-661.md deleted 2026-07; git log』 |
 | <a id="glance-cost-tinyvault"></a>**`/recall glance` per-fire cost/speed win (tiny-vault measurement)** | superseded | 1.2× faster per fire (tiny-vault) (#661, 2026-06-29) | [glance-cost-realvault](#glance-cost-realvault) | 『docs/design/2026-06-29-realvault-glance-cost-662.md deleted 2026-07; git log』 |
 | <a id="glance-cost-realvault"></a>**`/recall glance` per-fire cost/speed win (real-scale vault)** | proven | 2.23× faster / 46% cheaper per fire on a real-scale vault; the tiny-vault 1.2× figure above was a misleading artifact of vault size (2026-06-29) | — | 『docs/design/2026-06-29-realvault-glance-cost-662.md deleted 2026-07; git log』 |

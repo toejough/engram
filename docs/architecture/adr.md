@@ -80,7 +80,8 @@ id→write critical section — enforced in code, untested as a property.
 
 **Context.** Memory has three useful grains: raw episodes (L1), specific facts/feedback (L2), and
 distilled standards (L3). Retrieval must pick the right grain. Early prose proposed defaulting to
-the top tier only; empirically, **blended** retrieval scored better (note 160).
+the top tier only; empirically, **blended** retrieval scored better (2026-05 tier-retrieval eval; the
+tiered model was itself removed in the 2026-06-20 deep clean, so this decision is now largely historical).
 
 **Decision.** Default retrieval is **blended / kind-agnostic**. `--tier X` was an **optional cap** —
 this flag was removed in the 2026-06-20 deep clean; unified clustering is now the sole
@@ -138,7 +139,7 @@ situation-presence invariant's architectural home.
 
 ## ADR-0007 — The wikilink graph is authored and walked by the binary; dangling links dropped
 
-**Status:** Accepted (known defect: G0/G5)
+**Status:** Accepted (known defect: G0; G5 RETIRED — episode kind removed, `[[x]]` in chunk bodies no longer parsed as vault edges, per memory-invariants.md)
 
 **Context.** Navigation should live in **authored relations** (wikilinks in note bodies), not a
 separate graph store that can drift. Recall expands a subgraph from direct hits to find clusters
@@ -153,8 +154,8 @@ targets are silently dropped at build.
 **Consequences.** The graph is derived and always fresh. ⚠ KNOWN (G0): `learn` writes relations as
 **bare Luhmann ids** (`[[105]]`) but `BuildGraph` resolves by **basename** — 155/183 link-instances
 unresolved (151 of them bare-id), 138/171 notes orphaned, mean out-degree 0.16, so recall's graph expansion runs on a
-near-empty graph. ⚠ KNOWN (G5): verbatim `[[x]]` strings inside chunk bodies (raw transcript content) become
-false edges (no special-casing of raw transcript content at scan).
+near-empty graph. (G5 — verbatim `[[x]]` strings inside chunk bodies becoming false edges — is **RETIRED**:
+the episode kind was removed and chunk bodies are no longer parsed as vault edges.)
 
 ---
 
@@ -192,16 +193,16 @@ timestamp, else to the session Mtime; **never advance past the earliest row not 
 sources advance independently.
 
 **Consequences.** Resumable, multi-source-safe forward progress; intra-session splitting lets an
-oversized session be consumed across runs. ⚠ KNOWN (M2-segments): the `emitSegments` path
-(`engram transcript --segments`) advances the marker to Mtime **unconditionally** — `SegmentsFrom`
-carries no `Partial` flag — so it over-advances on truncation. Latent today (the skill runs
-`--segments` without `--mark`) but real.
+oversized session be consumed across runs. The former M2-segments defect (the `emitSegments` /
+`engram transcript --segments` path over-advanced the marker on truncation) is **retired** — the
+`--segments` path was removed with the episode/transcript surface in the 2026-06-19 cleanup, so it is
+no longer reachable.
 
 ---
 
 ## ADR-0010 — Sessions are read behind reader/finder interfaces; a composite dispatches across backends
 
-**Status:** Accepted · `internal/transcript/opencode.go`; previously wired via `newTranscriptDeps` (removed in 2026-06-19 cleanup; wiring now lives in `engram ingest`)
+**Status:** Superseded (partial) · the OpenCode SQLite backend (`internal/transcript/opencode.go`) was deleted in the 2026-06-20 deep clean — `git log` recovers it; only the JSONL reader (`internal/transcript/transcript.go`) survives, wired by `engram ingest`
 
 **Superseded (partial):** The OpenCode SQLite backend (`OpencodeTranscriptReader`, `OpencodeSessionFinder`, `CompositeSessionFinder`, `CompositeTranscriptReader`) was never wired into production ingest and was removed in the 2026-06-20 deep clean. Engram reads JSONL only (`~/.claude/projects/<slug>/*.jsonl`). The `JSONLReader`/`Finder` interfaces remain as the sole production path.
 
@@ -239,11 +240,10 @@ within-cluster top-5 (budget fields `tag_nominations_added`/`dropped` report poo
 one, surfaced as a ride-along at the next candidate rank.
 
 **Consequences.** PPR/spreading-activation is ⛔ KILLED on this vault — it drops non-activated
-baseline notes and produced 32–36 collateral regressions in the evaluation matrix
-(`dev/eval/LEDGER.md#ppr-killed`, vintage 2026-07-02); one-hop expansion reproduced the same
-settled null. Tag nomination recovered 54% of verified retrieval misses with zero collateral,
-moving blind delivery +17.3pp overall / +50pp on cross-domain bridges, both above 2σ
-(`dev/eval/LEDGER.md#vocab-tag-nomination-l6xtag`, vintage 2026-07-02) — link/tag
+baseline notes and regressed collateral notes; one-hop expansion reproduced the same settled null
+(`dev/eval/LEDGER.md#ppr-killed`). Tag nomination recovered a majority of verified retrieval misses
+with zero collateral and moved blind delivery above the noise floor, most on cross-domain bridges
+(`dev/eval/LEDGER.md#vocab-tag-nomination-l6xtag` owns the figures) — link/tag
 value pays where vocabulary is remote from task phrasing (bridges), not on single-hop misses.
 Migration classified the pre-existing 84 "Related to:" edges against pinned criteria: 7 true
 supersessions, 77 dropped as a non-supersession link *type* (76 thematic/cross-reference/sibling,
@@ -329,9 +329,9 @@ only amplifying the strongest model.
 change), and drop one tier for memory-backed units — a unit where the model applies recalled
 knowledge rather than derives it from scratch is routed one tier cheaper than the same unit cold.
 
-**Consequences.** RED/GREEN showed the router had been over-provisioning 4/6 memory-backed units
-to mid-tier before this rule; the discount corrects that (`dev/eval/LEDGER.md#tier-routing-parity`,
-vintage 2026-06-28) and is the single largest whole-task-cost lever found to date — bigger than
+**Consequences.** RED/GREEN showed the router had been over-provisioning memory-backed units to
+mid-tier before this rule; the discount corrects that (`dev/eval/LEDGER.md#tier-routing-parity` owns
+the figures) and is the single largest whole-task-cost lever found to date — bigger than
 any payload-byte-level cut (`dev/eval/LEDGER.md#payload-prune-smoke`). Bound: measured at the
 deep→mid tier boundary only; other tier boundaries are inferred, not separately measured — the
 existing upgrade-if-cheaper-fails rule is the safety net for a wrong discount. The C5
@@ -358,6 +358,25 @@ shares. The interim reference-card variant's "0/27 mid-procedure dereference" me
 instrument-invalid and binds nothing (`dev/eval/LEDGER.md#write-memory-atom-dereference-invalid`,
 vintage 2026-07-04); the worker form's fire-rate validation is
 `dev/eval/LEDGER.md#write-memory-worker-fire-rates` (vintage 2026-07-04).
+
+---
+
+## ADR-0016 — Architecture diagrams are hand-authored mermaid, verified against code
+
+**Status:** Accepted (2026-07-05)
+
+**Context.** A deployed user-level `c4` skill exists for generating C4 diagrams, but its mechanism is
+JSON source specs under `architecture/c4/` rendered/audited by a `targ c4-audit` target — none of
+which has any footprint in this repo (no JSON specs, no such targ target).
+
+**Decision.** Keep the C4 diagrams (`c1`/`c2`/`c3`) and the feature flow diagrams as hand-authored
+mermaid living in `docs/architecture/`, each verified directly against the current code. Do NOT adopt
+the `c4` skill's JSON-spec pipeline here: a path-only move to `architecture/c4/` would satisfy only the
+skill's directory convention while leaving its audit half unmet, faking compatibility.
+
+**Consequences.** Diagram currency is maintained by direct code review at edit time (as this
+restructure did), not by a generator. Adopting the skill later would be a deliberate migration
+(JSON re-derivation of every diagram + a new targ target), not a file move.
 
 ## Decisions deliberately NOT made into ADRs
 

@@ -253,38 +253,15 @@ stats verdict rendering), `internal/cli/vocab.go` (`AssignVocabTerms`, `WriteVoc
 `applyVocabAssignmentCore`), `internal/cli/query.go` (`RefitPending` payload field),
 `skills/learn/SKILL.md` Step 1.5.
 
-### Flow: recall-time lazy-L2 synthesis — skill-orchestrated, blocking, NOT a binary loop
+### Recall-time lazy-L2 synthesis — skill-orchestrated, blocking, NOT a binary loop
 
 Synthesis now happens at **recall**, **inline and blocking** — not at learn time and not via
-fire-and-forget subagents. There is **no `engram synthesize`**. The recall skill drives the loop,
-calling `engram query` / `engram show` / `engram show-chunk` / `engram amend` / `engram learn` as **separate processes**
-and making every coverage decision itself. Cosine only *nominates* candidate notes; the agent decides
-covered/near/absent. The binary never sees "the synthesis loop."
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Sk as C1 recall skill
-    participant E as C2 engram CLI
-    participant V as C4 vault
-
-    Sk->>E: shell engram query --lazy-chunks (fresh process)
-    E->>V: scan + build matched set (recency-biased cosine per phrase, bounded ~300) + cluster (D1) + recency channel
-    E-->>Sk: payload incl. items[matched+recent], clusters[].candidate_l2s {path, cosine, content} (top-5 within-cluster notes)
-    loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only
-        Note over Sk: read candidate_l2s + note members' content inline (no engram show)
-        Note over Sk: apply recency weight (recent wins on conflict; old-uncontradicted retained); judge coverage
-        alt covered (one representative note already says it)
-            Sk->>E: shell engram amend --target <note> --activate --chunk-source <chunk-ids> (link-enrich, no content rewrite)
-        else near (close, needs re-synthesis)
-            Sk->>E: shell engram amend --target <note> --chunk-source … <content flags> (re-synthesize content)
-        else absent (no representative)
-            Sk->>E: shell engram learn fact|feedback --chunk-source … (create)
-        end
-        E->>V: write under flock (amend rewrites both copies + re-embeds; learn O_EXCL)
-    end
-    Note over Sk: agent calls engram activate on notes actually USED — binary emits no activated flag
-```
+fire-and-forget subagents. There is **no `engram synthesize`**. The recall skill drives the loop —
+shown in full sequence form under "Flow: recall" above — calling `engram query` / `engram show-chunk`
+/ `engram amend` / `engram learn` as **separate processes** and making every coverage decision itself.
+Cosine only *nominates* candidate notes; the agent decides covered/near/absent. The binary never sees
+"the synthesis loop." The covered/near/absent decision (the `alt` block in Flow: recall) is shown
+standalone below.
 
 ### Flowchart: lazy-L2 coverage decision (C1)
 

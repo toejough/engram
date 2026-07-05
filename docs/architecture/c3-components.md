@@ -31,7 +31,7 @@ flowchart TB
     end
     subgraph PQ[engram query — process]
       query["K6 · query orchestrator"]
-      vg["K7 · vaultgraph<br/>ParseWikilinks · BuildGraph · BFSWithCap"]
+      vg["K7 · vaultgraph<br/>ScanVault (note scan) — query uses ScanVault only"]
       cl["K8 · cluster<br/>KMeans · Silhouette · AutoK · BestMatch"]
     end
     subgraph PE[engram embed — process]
@@ -42,6 +42,9 @@ flowchart TB
     end
     subgraph PU[engram update — process]
       upd["K9 · update<br/>go install + copy skills/commands; --with-guidance adds guidance (Claude Code)"]
+    end
+    subgraph PW[engram amend / resituate / activate — write-modifier processes]
+      wm["K4w · amend · resituate · activate<br/>read-modify-write a note/sidecar under .luhmann.lock; share K4/K5/K10 kernels"]
     end
 
     %% shared kernels: compiled into multiple subcommand processes; never call across them
@@ -59,6 +62,7 @@ flowchart TB
     skills -->|"shell engram query --phrase"| query
     skills -->|"shell engram update"| upd
     skills -->|"shell engram embed apply (rare)"| eb
+    skills -->|"shell engram amend / resituate / activate"| wm
 
     prune -->|"delete stale per-source index files"| sessions
 
@@ -118,17 +122,13 @@ sidecars are dropped, silent only under *partial* migration (when all hits filte
 *does* raise `errQueryNoEmbeddings`). So M4 = "version-gate drops off-model sidecars; guarded only in
 the all-empty case," a separate finding.
 
-## Missing components (Phase-2 antagonist findings) — added
-- **K10 · `internal/luhmann`** — id parse/sort/tie-break (`ParseID`, `LetterLess`). Shared kernel:
-  consumed by **K4** (`cli/learn.go`, `cli/luhmann.go`) AND **K7** (`vaultgraph/{selector,scanner,vaultgraph}.go`).
-- **K11 · `internal/debuglog`** — tail-friendly debug sink; cross-cutting, threaded through every CLI
-  target (`targets.go`, `cli/signal.go`). L1 explicitly deferred it to L2; carried here.
-
-## Dead/test-only surface (Phase-2 antagonist m-1 → flag for Phase 6)
-`internal/vaultgraph`'s MOC-navigation half — `StartingPoints`, `SelectStartingPoints`, `Components`,
-`Follow`, `Recent` — has **zero production consumers** (no `vault`/`graph`/`follow` subcommand; only
-`BuildGraph`, `BFSWithCap`, `InDegreeIn` are live). K7 bundles a dead subsystem; Phase 6 should
-confirm + propose deletion.
+## Dead/test-only surface
+`internal/vaultgraph`'s graph-expansion half — `BuildGraph`, `BFSWithCap`, `InDegreeIn` (and the
+MOC-navigation helpers) — has **zero production consumers** (the 3-hop-subgraph recall path was
+removed in recall-v2; no `vault`/`graph`/`follow` subcommand). Only `ScanVault`, `ParseWikilinks`,
+`ParseBasename`, and `UnresolvedTargets` are live — consumed by `query` (note scan), `check`
+(unresolved-link report), and `amend`/`resituate`/`show`/`embed`. K7 still bundles the dead
+graph-expansion subsystem; a future cleanup should confirm and propose its deletion.
 
 ## Data contracts (what crosses component edges) — corrected
 - **ingest → skill → learn (NOT in-process):** `engram ingest --auto` scans chunk sources, re-chunks

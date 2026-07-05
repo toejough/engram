@@ -38,20 +38,11 @@ file under `commands/` that wraps a skill invocation for that harness.
 
 ### atom
 The skill-decomposition concept from the ROADMAP charter: one behavior, one skill
-(read-memory, write-memory, route-a-task, orchestrate-a-workflow). Its
-reference-card form — mechanical procedures fetched from another skill
-mid-procedure — was explored first and superseded by the worker form
-(2026-07-04): parents keep every judgment and hand off at the write seams;
-write-memory composes, EXECUTES, retries on CLI errors, and reports — the
-whole-skill-as-next-action pattern please/superpowers already use, not a
-mid-procedure reference fetch.
-
-The interim "0/27 mid-procedure dereference" figure for the reference-card
-form is **instrument-invalid** (a skill-shadowing artifact — see
-`dev/eval/LEDGER.md#write-memory-atom-dereference-invalid`); the worker
-form's validated fire rates are
-`dev/eval/LEDGER.md#write-memory-worker-fire-rates`. The decision record is
-`docs/architecture/adr.md` ADR-0015.
+(read-memory, write-memory, route-a-task, orchestrate-a-workflow). Only `write-memory`
+was extracted — as a worker invoked at the write seams, not a mid-procedure reference
+fetch. The full design history (the superseded reference-card form, the decision to stop
+at the write seam) is recorded in `docs/architecture/adr.md` ADR-0015, with its validation
+in `dev/eval/LEDGER.md`.
 
 ### write-memory (worker skill)
 The skill at `skills/write-memory/SKILL.md`. Executes a vault write handed off by
@@ -69,8 +60,8 @@ The worker asks for missing required fields rather than inventing content.
 A skill `description:` that names only parent-instructed invocation ("requires a
 handoff — do not fire on your own judgment") so the skill never competes for
 autonomous firing. Uncharted in official guidance and the ecosystem; validated
-here by non-fire arms (0 autonomous invocations across 6 generic and
-vault-adjacent prompts, in both the atom and worker rounds). Related measured
+here by non-fire arms (see `dev/eval/LEDGER.md#write-memory-worker-fire-rates`,
+which records the zero-spurious-fire result). Related measured
 anti-pattern: pointer-style "apply X verbatim" references to out-of-context
 text (e.g. "see the postscript for details") are unreliable — the referenced
 content may not be read in the target's actual deployed context; prefer
@@ -109,11 +100,9 @@ and **OpenCode**. The plural is *harnesses*. Session transcripts are read by
 `internal/transcript` (Claude Code JSONL; consumed by `engram ingest`).
 
 ### binary
-The compiled `engram` Go program. Subcommands: `learn`, `query`, `query-chunks`,
-`ingest`, `prune`, `show`, `show-chunk`, `check`, `amend`, `activate`, `resituate`, `update`, the `embed` pair (`apply`, `status`), and the `vocab` family
-(`vocab bootstrap`, `vocab propose`, `vocab stats`, `vocab refit`). The `--supersedes` flag on `learn`/`amend`
-writes typed supersession frontmatter. The binary handles all I/O (vault read/write, chunk indexing,
-file locking); skills handle behavior and prompting.
+The compiled `engram` Go program. It handles all I/O (vault read/write, chunk indexing,
+file locking); skills handle behavior and prompting. The full subcommand and flag
+reference lives in `README.md` (Binary commands).
 
 ---
 
@@ -122,7 +111,7 @@ file locking); skills handle behavior and prompting.
 ### Permanent (note)
 An atomic, principle-stated note — *one coherent topic with its full
 load-bearing detail and complete sets*, not one micro-fact (over-fragmenting a
-topic across notes harms retrieval; see `learn/SKILL.md`). Notes originally
+topic across notes harms retrieval; see `skills/learn/SKILL.md`). Notes originally
 lived in `<vault>/Permanent/`, retired 2026-06-12 in the flat-vault migration:
 they now live flat at the vault root, and the old folder's notes are archived
 under `<vault>/_legacy/` (ignored by the scanner). Filenames follow
@@ -604,6 +593,20 @@ Two surfaced notes making incompatible claims about the same thing. The
 vault preserves contradictions; recall surfaces both; the noting note passes
 `--supersedes "<basename>|refutes|<claim>"` on the `engram learn`/`amend` call
 (typed supersession — no body ritual). Never smoothed.
+
+### capability axes (C1–C7)
+The memory-value claims the eval suite measures, referenced by code across ROADMAP and
+`dev/eval/LEDGER.md`: **C1** faster · **C2** cheaper · **C3** apply-conventions (fewer human
+re-statements) · **C4** learn-from-changes-over-time (**C4i** = the recency-supersession
+sub-variant) · **C5** remember-recent-history · **C6** compounding / emergent synthesis (A+B→C).
+**C7** is not a capability but the lever-recheck regression gate (does a shipped lever stay shipped).
+
+### capture guards (G1–G6)
+The six proposed guards against the lesson-capture blind spot (a presented conclusion later
+overturned going uncaptured). Shipped 2026-07-04: **G1** reversals as a learn capture kind ·
+**G2** please step-7 lessons audit · **G6** escalation-provenance rule. Pre-registered upgrade
+paths (in ROADMAP's atoms-arc block): **G3** fresh-context lessons reviewer (upgrade of G2) ·
+**G5** enforced escalation gating (upgrade of G6); **G4** crystallize-on-discovery stays parked.
 
 ---
 

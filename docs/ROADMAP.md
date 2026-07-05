@@ -13,6 +13,9 @@ rounds. A lever counts only if it moves a real axis — quality by the retrieval
 gate; cost by actual tokens/dollars/wall-time, never by relocating work off the perceived path (vault note
 100). Do one at a time, ship each gated, measure, then take the next.
 
+> Shorthand codes used below — the capability axes **C1–C7** and the capture guards **G1–G6** — are
+> defined in `docs/GLOSSARY.md` (see "capability axes" and "capture guards").
+
 ## Standing constraint (non-negotiable)
 
 Every recall/learn skill change ships gated by the trap regression harness (`dev/eval/traps/gate.py`, run
@@ -156,9 +159,10 @@ several still-open explorations; its fully-resolved items are omitted here (they
 
 # Track B — Retrieval cost
 
-The token/dollar/wall-time tax memory costs. Per vault note 100: payload *size* is cache_read-cheap (it
-moves time/paging, not dollars); the only verified dollar lever is pruning the payload out of build context
-after Step 3.
+The token/dollar/wall-time tax memory costs. Operating premise (from the 2026-06 cost-axis analysis;
+see `dev/eval/LEDGER.md#payload-prune-smoke` and git history for the cost-reanchor docs): payload *size*
+is cache_read-cheap (it moves time/paging, not dollars); the dollar lever is pruning the payload out of
+build context after Step 3, smoke-validated but not yet productionized.
 
 ### Payload-prune production build ← NEXT
 
@@ -265,9 +269,10 @@ space.
 - Whole-op or split **haiku** recall+build: `dev/eval/LEDGER.md#haiku-whole-op-dead-end`,
   `dev/eval/LEDGER.md#haiku-split-dead-end`.
 - Payload-size caps *for dollars*, cutting the 10 query phrases, and lightening the skill *body* to raise
-  firing rate — all settled: bytes are cache_read-cheap (the dollar tax is carrying the payload, not its
-  size); breadth in the query phrases surfaces the un-guessable notes; firing rate is set by the skill
-  `description`, not its body.
+  firing rate — all settled (2026-06/07 cost-axis + recall-trigger analysis, in git history): bytes are
+  cache_read-cheap (the dollar tax is carrying the payload, not its size — same premise as Track B above,
+  `dev/eval/LEDGER.md#payload-prune-smoke`); breadth in the query phrases surfaces the un-guessable notes;
+  firing rate is set by the skill `description`, not its body.
 - **Link-prediction (TransE/RotatE)** for the vault graph — an explicit pre-registered guard from the
   2026-07-02 research survey (`docs/design/2026-07-02-research-followups.md`, deleted 2026-07, git log): do
   not invest in an LP-predicted edge-fabric variant without a downstream retrieval benchmark demonstrating

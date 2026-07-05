@@ -95,48 +95,18 @@ engram vocab refit                     LLM-judged: merge orphans, split hubs, re
 engram update [--with-guidance]        Refresh binary and harness skills/commands ([--dry-run]); --with-guidance also deploys guidance/recall.md to ~/.claude/engram/recall.md (Claude Code; opt-in; OpenCode deferred)
 ```
 
-## Semantic search (`engram query`) and the embed-on-write pipeline
+## Semantic search & the embed-on-write pipeline
 
-Engram bundles an embedding model (`sentence-transformers/all-MiniLM-L6-v2`, 384 dims) inside the binary via `go:embed`. Inference runs in pure Go through [Hugot](https://github.com/knights-analytics/hugot) + [GoMLX](https://github.com/gomlx/gomlx)'s `simplego` backend — no CGO, no daemon, no API key.
+Engram bundles `all-MiniLM-L6-v2` (384-d) inside the binary via `go:embed`; inference is pure Go through [Hugot](https://github.com/knights-analytics/hugot) + [GoMLX](https://github.com/gomlx/gomlx)'s `simplego` backend — no CGO, no daemon, no API key. Every note (`<id>.<date>.<slug>.md`) gets a sibling `.vec.json` sidecar written on `engram learn`.
 
-Each note (`<id>.<date>.<slug>.md`) has a sibling `.vec.json` sidecar at the vault root (flat layout):
+For the sidecar shape and the dual-vector / recency-decay / `content_hash` mechanics, see `docs/GLOSSARY.md` (the *sidecar* entry) and `docs/architecture/adr.md` (ADR-0002, ADR-0003). For the `engram query` matched-set + clustering pipeline, see the `engram query` line under [Binary commands](#binary-commands) above (and the recall-pipeline flowchart in `docs/architecture/c2-containers.md`) — the algorithm is not restated here.
 
-```
-132.2026-05-23.foo.md
-132.2026-05-23.foo.vec.json
-```
+`engram embed` CLI reference:
 
-Sidecar shape (dual-vector):
+- `engram embed status` — per-state counts: `ok` / `missing` / `stale` / `incompatible` / `broken`.
+- `engram embed apply [--missing|--stale|--force|--all|--dry-run]` — (re-)embed notes per selection: `--missing` (default) only notes without sidecars; `--stale` also body-changed + broken sidecars; `--force` also model_id mismatches; `--all` every note; `--dry-run` reports without writing.
 
-```json
-{
-  "schema_version": 1,
-  "embedding_model_id": "minilm-l6-v2@384",
-  "dims": 384,
-  "situation_vector": [-0.044, -0.043, ...],
-  "body_vector": [-0.012, 0.031, ...],
-  "content_hash": "sha256:...",
-  "last_used": "2026-06-20"
-}
-```
-
-Each note carries **two vectors**: `situation_vector` (embedding of the `situation:` frontmatter field, or body if absent) and `body_vector` (embedding of the markdown body). At query time, `bestVector` picks the axis — whichever of situation or body cosines higher against the query phrase — so both angles compete. `last_used` is updated by `engram activate` and drives ACT-R-style recency decay: frequently-retrieved notes rank higher; never-retrieved notes fade.
-
-`content_hash` is sha256 over the note's situation + body text so adding a machine-written `Vocab:` line or `Supersedes:` line doesn't trigger re-embed.
-
-Pipeline behavior:
-
-- `engram learn` auto-embeds the new note before returning. Embedder failure is a warning, not an error — the Luhmann write is atomic, and `engram embed apply --missing` will fill the gap later.
-- `engram embed status` reports per-state counts: `ok` / `missing` (no sidecar) / `stale` (body changed) / `incompatible` (different model_id) / `broken` (malformed JSON or dims mismatch).
-- `engram embed apply` modes:
-  - `--missing` (default): only notes without sidecars
-  - `--stale`: also re-embed notes whose body hash changed (and broken sidecars)
-  - `--force`: also re-embed sidecars whose model_id differs from the bundled model
-  - `--all`: every note, regardless of state
-  - `--dry-run`: report what would change without writing
-- `engram query` embeds each `--phrase`, takes the top-30 hits (notes + chunks, recency-biased cosine) per phrase, unions across all phrases (dedup keeping max score), drops items below a relevance floor (baseScore < 0.25), and caps the matched set at ~300. AutoK k-means (k=2..7, silhouette-selected) clusters the matched set once; each cluster carries `candidate_l2s: [{path, cosine, content}]` — within-cluster top-5 notes plus tag-nominated notes sharing a vocab term with the top-3 delivered notes (budget: `tag_nominations_added`/`dropped`, cap 40/cluster) plus superseded-note ride-alongs at next rank. The 25 newest chunks by ingest time (default; configurable via `--recent-fill`) are appended un-clustered (tagged `recent`). Empty vault → `items: []` exit 0. Vault with notes but no sidecars → error with the `engram embed apply --all` recovery hint.
-
-Inputs longer than 1500 chars are truncated to fit MiniLM-L6's 512-token positional limit. For engram's 200–500-word notes this is a non-issue; long notes lose tail context but still embed cleanly.
+Inputs longer than 1500 chars are truncated to MiniLM-L6's 512-token limit — a non-issue for engram's 200–500-word notes.
 
 ## Project structure
 
@@ -166,7 +136,7 @@ commands/            Source for OpenCode slash commands
 
 ## Design principles
 
-Design principles and their rationale live in `docs/architecture/adr.md` (ADR-0001..0003) — the authoritative source; this README covers orientation and the CLI reference only.
+Design principles and their rationale live in `docs/architecture/adr.md` — the authoritative source; this README covers orientation and the CLI reference only.
 
 ## Documentation
 

@@ -40,8 +40,8 @@ The gate scores **only the warm arm** per axis — the cold/baseline arms are no
 ## When
 
 Run **before and after** any edit to a recall/learn/please skill body, and before merging
-cost/usage changes. Pair with the recall-cost meter (see `../cumulative/README.md`, the "Recall cost
-meter" metric) so a change is checked on both axes: capability (this gate) and dollars (the meter). Pure verdict logic lives in
+cost/usage changes. Pair with the recall-cost meter (from the cumulative harness, retired in the
+2026-07 docs restructure — `git log` recovers it) so a change is checked on both axes: capability (this gate) and dollars (the meter). Pure verdict logic lives in
 `gate_verdict.py` (unit-tested in `test_gate.py`); `gate.py` is the I/O orchestrator.
 
 ## Crowded-vault eval (`crowded_gate.py`)

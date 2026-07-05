@@ -113,7 +113,7 @@ separate, un-clustered recency channel (the newest raw activity). An agent re-or
 after context loss gets both "what's relevant" and "what just happened" in a single pass.
 
 why: `docs/architecture/adr.md` — ADR-0004
-validation: `dev/eval/LEDGER.md#matched-note-floor`
+validation: unmeasured as a channel-split capability; the relevance channel's ranking is validated by `dev/eval/LEDGER.md#matched-note-floor`, the recency channel's delivery is not separately eval'd
 
 ## Ingest auto-sweep with non-persistent-workspace skip
 
@@ -125,12 +125,13 @@ index.
 why: `docs/architecture/adr.md` — ADR-0010
 validation: unmeasured as a capability — behavior is locked by `internal/cli` ingest/sweep unit tests, not an eval row
 
-## Validated goals
+## Validated goals (mission rollup — not a capability)
 
-A self-contained summary of the founding-mission goals an adversarial review found fully
-achieved (the review's source document is retired; the remaining open goals live in
-`docs/ROADMAP.md`). Engram's mission: a correction given once should be applied
-thereafter, without the user repeating it or the agent re-deriving it.
+This closing section is a cross-cutting summary, not a shipped capability: it records which
+founding-mission goals an adversarial review found fully achieved, drawing on the capability
+entries above and their `dev/eval/LEDGER.md` rows (the review's source document is retired; the
+still-open goals live in `docs/ROADMAP.md`). Engram's mission: a correction given once should be
+applied thereafter, without the user repeating it or the agent re-deriving it.
 
 - **Say-once, capability half** — memory carries conventions and facts a cold model
   cannot derive on its own, and this holds even under a large, realistic mix of unrelated
