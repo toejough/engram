@@ -1,0 +1,23 @@
+# Documentation Index
+
+One obvious place to go for each question. Start here; the answer to "where do I look/update X?" is one hop away.
+
+| I want to… | go to |
+|---|---|
+| understand a term | [GLOSSARY.md](GLOSSARY.md) |
+| see what's planned or parked | [ROADMAP.md](ROADMAP.md) |
+| see what's shipped | [FEATURES.md](FEATURES.md) |
+| understand why it's built this way | [architecture/adr.md](architecture/adr.md) |
+| understand how it's structured | [architecture/c1-system-context.md](architecture/c1-system-context.md) → [c2-containers.md](architecture/c2-containers.md) → [c3-components.md](architecture/c3-components.md) |
+| see what's proven or refuted | [../dev/eval/LEDGER.md](../dev/eval/LEDGER.md) |
+| read or edit a skill's behavior | [../skills/](../skills/)`<skill>/SKILL.md` — edits require `superpowers:writing-skills` TDD; each skill's baseline scenarios are indexed in its `tests/README.md` |
+| install, or look up a CLI flag | [../README.md](../README.md) (Installing + Binary commands) |
+| see the OpenCode slash-command wrappers | [../commands/](../commands/) |
+
+## Subdirectories
+
+**`architecture/`** — the diagrams and the decisions doc: `adr.md` (the one standards/decisions record — Accepted/Superseded ADRs) plus the C4 diagrams (`c1-system-context.md` → `c2-containers.md` → `c3-components.md`) and the two living invariants/rigor catalogs (`memory-invariants.md`, `memory-system-rigor.md`) that those diagrams cite. The diagrams are hand-authored mermaid, verified against code — this repo deliberately does not use the deployed `c4` skill's JSON-spec pipeline here (DP7): that skill's mechanism (JSON specs + a `targ c4-audit` target) has no footprint in this repo, and a path-only move would fake compatibility without its audit half.
+
+**`design/`** and **`research/`** are workspaces for in-flight, undecided work only. The rule: a doc's conclusions graduate into FEATURES/ROADMAP/ADR and the file is deleted the same cycle it resolves — steady-state near-empty. Neither directory should hold settled conclusions for long; a doc found here is either mid-flight or overdue for extraction.
+
+**`images/`** — assets (diagrams, screenshots) referenced by the docs above.

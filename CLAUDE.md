@@ -26,7 +26,7 @@ engram/
 ├── commands/          # Source for OpenCode slash commands
 ├── guidance/          # Source for the deployable recall-firing guidance (activated via CLAUDE.md `@import`)
 ├── dev/               # Build tooling (targ definitions, linter configs)
-└── docs/              # Active design docs, research prompts, and C4 architecture diagrams
+└── docs/              # Organized by charter — see docs/README.md
 ```
 
 ## Key Files
@@ -36,8 +36,11 @@ engram/
 - `skills/{learn,recall,write-memory,please,route}/SKILL.md` — Skill definitions
 - `dev/targs.go` — Build targets (targ definitions)
 - `docs/architecture/c1-system-context.md` — L1 C4 system context diagram + sequence diagrams for the four key flows (recall, learn, please, update)
+- `docs/README.md` — documentation index
 
 ## Design Principles
+
+Authority: `docs/architecture/adr.md` (ADR-0001..0003) — the bullets below are the agent-facing summary.
 
 - **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges.
 - **Pure Go, no CGO.** External API only for LLM operations. Embedder runs through GoMLX's `simplego` backend (CGO not required).
