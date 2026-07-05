@@ -1,9 +1,0 @@
-C6-clean cold: cases=['abduction-diag', 'abduction-badge'] n=3 = 6 trials
-  [abduction-diag   cold #1] hit=False $0.10
-  [abduction-diag   cold #0] hit=False $0.10
-  [abduction-diag   cold #2] hit=False $0.10
-  [abduction-badge  cold #0] hit=False $0.11
-  [abduction-badge  cold #2] hit=False $0.10
-  [abduction-badge  cold #1] hit=False $0.12
-  abduction-diag   cold: 0/3
-  abduction-badge  cold: 0/3

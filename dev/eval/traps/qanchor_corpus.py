@@ -1,5 +1,5 @@
 """Corpus for the question-anchored distillation delivery eval (design:
-docs/design/2026-07-01-question-anchored-distillation.md).
+docs/design/2026-07-01-question-anchored-distillation.md, deleted 2026-07; git log).
 
 Each entry is a PAIR: an INVESTIGATION (a symptom-framed question + the evidence a real recall would
 surface) and a FUTURE question in a *sibling* subsystem where the SAME idiosyncratic rule applies.

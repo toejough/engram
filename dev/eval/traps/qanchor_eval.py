@@ -1,5 +1,5 @@
 """Question-anchored distillation — delivery eval (design:
-docs/design/2026-07-01-question-anchored-distillation.md).
+docs/design/2026-07-01-question-anchored-distillation.md, deleted 2026-07; git log).
 
 The claim under test: a note anchored to the QUESTION the agent was investigating (arm B) is
 retrieved+applied better on a FUTURE related question than a note anchored to the evidence's content

@@ -12,7 +12,7 @@ baseline trigger.
 UNREPLAYABLE: untagged/hub axes — tags backfilled at migration 2026-07-03.
 These axes have NO real history and CANNOT be replayed. See outputs below.
 
-Author: generated 2026-07-03 for docs/superpowers/plans/2026-07-03-vocab-lifecycle-liveness.md
+Author: generated 2026-07-03 for docs/superpowers/plans/2026-07-03-vocab-lifecycle-liveness.md (deleted 2026-07; git log)
 """
 
 import os
@@ -31,7 +31,7 @@ GROWTH_THRESHOLDS = [30, 40, 50]  # absolute note-count growth since last refit
 MIN_INTERVALS_DAYS = [7, 14, 30]  # minimum days between refits
 RELATIVE_GROWTH_PCT = 0.30        # shipped (c) trigger: 30% of vault size
 
-# These are the shipped trigger set from docs/superpowers/plans/2026-07-02-vocab-notes-and-linking-replacement.md:86
+# These are the shipped trigger set from docs/superpowers/plans/2026-07-02-vocab-notes-and-linking-replacement.md:86 (deleted 2026-07; git log)
 # (a) untagged-rate >10% of last 25 writes  — UNREPLAYABLE
 # (b) any term >25% of vault               — would need historical term stats, UNREPLAYABLE
 # (c) vault grew >30% since last refit      — replayed here as baseline

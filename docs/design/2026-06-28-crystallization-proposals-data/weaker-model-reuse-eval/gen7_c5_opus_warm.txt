@@ -1,9 +1,0 @@
-C5 recency: ['warm'] × n=3 = 3 opus trials (marker=ZÖRBAX)
-  [warm  #2] built=True surfaced=True honored=False $0.37 turns=9
-  [warm  #1] built=True surfaced=True honored=False $0.44 turns=11
-  [warm  #0] built=True surfaced=True honored=False $0.45 turns=12
-
-=== C5 RESULTS (n=3) ===
-  warm  valid=3/3  C5a surfaced=3/3  C5b honored=0/3
-
-total spend: $1.26

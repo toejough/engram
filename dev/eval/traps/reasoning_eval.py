@@ -1,5 +1,5 @@
 """Reasoning-mode tests — idiosyncratic instantiations of the literature forms in
-docs/research/2026-06-23-reasoning-modes.md (deduction / induction / abduction).
+docs/research/2026-06-23-reasoning-modes.md, deleted 2026-07; git log (deduction / induction / abduction).
 
 Each case gives the premises in-prompt (pure reasoning capability; no memory yet) and asks for the
 conclusion + how certain it can be. An independent sonnet judge checks BOTH:

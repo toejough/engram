@@ -1,9 +1,0 @@
-C6-clean warm: cases=['abduction-diag', 'abduction-badge'] n=3 = 6 trials
-  [abduction-badge  warm #0] hit=True $0.40
-  [abduction-diag   warm #0] hit=True $0.38
-  [abduction-diag   warm #1] hit=True $0.38
-  [abduction-diag   warm #2] hit=True $0.46
-  [abduction-badge  warm #1] hit=True $0.34
-  [abduction-badge  warm #2] hit=True $0.37
-  abduction-diag   warm: 3/3
-  abduction-badge  warm: 3/3

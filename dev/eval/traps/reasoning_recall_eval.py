@@ -6,7 +6,7 @@ to reason/compose). Two arms differ ONLY in the recall SKILL:
   reason : recall + an appended 'Step 2.8 — reason over what you recalled' instruction.
 
 If `reason` reaches the correct reasoned conclusion more than `asis`, recall should prompt reasoning.
-Built on the vetted reasoning forms (docs/research/2026-06-23-reasoning-modes.md). Independent sonnet
+Built on the vetted reasoning forms (docs/research/2026-06-23-reasoning-modes.md, deleted 2026-07; git log). Independent sonnet
 judge. Full answers saved for manual transcript reading at small n.
 
 Usage: python3 reasoning_recall_eval.py [--case abduction-diag] [--n 4] [--workers 4]

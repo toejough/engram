@@ -1,9 +1,0 @@
-C4-idio supersession: ['warm-XXp'] × n=3 = 3 opus trials (X=E7: X'=ERR-CFG/)
-  [warm-XXp  #2] supersession_correct  $0.39 turns=10
-  [warm-XXp  #0] supersession_correct  $0.46 turns=12
-  [warm-XXp  #1] supersession_correct  $0.43 turns=11
-
-=== C4-idio RESULTS (n=3) ===
-  warm-XXp  valid=3/3  follows_x=0  supersession_correct=3  neither=0  both=0
-
-total spend: $1.29
