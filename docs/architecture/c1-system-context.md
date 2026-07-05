@@ -291,7 +291,7 @@ sequenceDiagram
     end
 
     rect rgb(245,245,255)
-        Note over H: Step 7 — closing /learn
+        Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"), then closing /learn
         H->>E: engram ingest --auto
         E-->>H: per-source chunk tally
         loop per explicit lesson
@@ -300,7 +300,7 @@ sequenceDiagram
         end
     end
 
-    H-->>Op: terminal report (commits made, paths written, follow-ups offered)
+    H-->>Op: terminal report (commits made, paths written, gate audit, follow-ups offered)
 ```
 
 ### Flow: update
@@ -402,6 +402,109 @@ flowchart TD
     S6 --> GD{gate D — clarity/standards review of outward prose}
     GD -->|findings resolved| S7[7 · closing /learn — capture lessons]
     S7 --> Z[terminal report]
+```
+
+#### Companion: who reviews at `/please` gates A–D
+
+The flowchart above shows *when* gates A–D fire; this sequence diagram is the swimlane companion
+(docs-restructure report §5 proposal 3) showing *who* reviews. It elides the `engram query`/`learn`
+call mechanics already diagrammed in Flow: recall and Flow: learn above, and focuses on the
+fan-out to fresh per-angle reviewer subagents and the argue-to-ACK loop. As in the Flow: please
+diagram, the orchestrator's consult of the `route` skill for reviewer staffing (agent/model/effort)
+is in-context guidance, not an L1 edge — shown here as a `Note`, never a message or a participant
+(route is not an L1 element; see Out of scope at L1). Gate table
+(fires-at, artifact, angles, default model) verified against `skills/please/SKILL.md`'s Adversarial
+review gates table.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Op as S1 Operator
+    participant H as S3 Harness
+    participant GR as fresh per-angle Gate reviewer
+
+    Op->>H: /please ASK
+    Note over H: load please skill, push 7 tasks to the list
+    Note over GR: one lifeline stands in for many mutually-isolated FRESH reviewer instances — no reviewer persists across angles or gates (SKILL.md: one fresh-context reviewer per angle)
+
+    Note over H: Steps 1–2 run with no gate — see Flow: please above
+
+    rect rgb(245,245,255)
+        Note over H: Step 3 — write the plan, commit it
+        Note over H: gate A fires — end of step 3, before any execution; artifact = the committed plan/spec
+        Note over H: consult route for each angle's reviewer staffing (agent/model/effort) — default sonnet (ask, code), haiku (docs, clarity)
+        Note over GR: every reviewer recalls first (route's recall-first rule), then refutes — not blesses — the artifact
+        par ask-alignment (sonnet)
+            H->>GR: fresh reviewer — trace every ask element to a plan item and back; gaps and scope creep are findings
+            GR-->>H: findings, or clean-pass naming what was checked
+        and code-alignment (sonnet)
+            H->>GR: fresh reviewer — verify the plan against the working tree, not the plan's own claims
+            GR-->>H: findings or clean-pass
+        and docs/diagrams-alignment (haiku)
+            H->>GR: fresh reviewer — check the plan against architecture diagrams, design docs, glossaries
+            GR-->>H: findings or clean-pass
+        and clarity/standards (haiku)
+            H->>GR: fresh reviewer — check prose clarity against repo writing standards
+            GR-->>H: findings or clean-pass
+        end
+        loop every finding — argue to ACK (~2 rounds)
+            H->>GR: fix the finding, or rebut with reasons
+            GR-->>H: ACK, or counter
+        end
+        alt unresolved after ~2 rounds
+            H->>Op: AskUserQuestion — summarize both positions (measured claims carry an evidence pointer + "verified how?")
+            Op-->>H: decision
+        end
+    end
+
+    rect rgb(245,245,255)
+        Note over H: Step 4 — execute under TDD (red, green, refactor) per unit
+        loop after EVERY refactor phase
+            Note over H: gate B fires — artifact = the refactored unit's diff
+            Note over H: consult route — default staffing sonnet (design-fit)
+            H->>GR: fresh reviewer — design-fit: DRY, SRP-respecting, YAGNI-compliant; built-in from the start, or layered on?
+            GR-->>H: findings or clean-pass
+            opt findings raised
+                H->>GR: fix or rebut (argue to ACK, ~2 rounds, else escalate to Op as above)
+                GR-->>H: ACK or counter
+            end
+        end
+    end
+
+    rect rgb(245,245,255)
+        Note over H: Step 5 — update every doc the change touched
+        Note over H: gate C fires — end of step 5; artifact = every touched doc file
+        Note over H: consult route — default staffing haiku (relevance, clarity/cohesion)
+        par relevance (haiku)
+            H->>GR: fresh reviewer — does this doc still need the change? is any OTHER doc now stale because of it?
+            GR-->>H: findings or clean-pass
+        and clarity/cohesion (haiku)
+            H->>GR: fresh reviewer — is the change clear, concise, and cohesive with the surrounding doc?
+            GR-->>H: findings or clean-pass
+        end
+        loop per touched doc — argue to ACK (~2 rounds, else escalate to Op as above)
+            H->>GR: fix or rebut
+            GR-->>H: ACK or counter
+        end
+    end
+
+    rect rgb(245,245,255)
+        Note over H: Step 6 — commit via /commit, delete planning artifacts
+        Note over H: gate D fires — before commit/close; artifact = commit messages, issue text, any outward prose
+        Note over H: consult route — default staffing haiku (clarity/standards)
+        H->>GR: fresh reviewer — clarity/standards over commit messages and outward prose
+        GR-->>H: findings or clean-pass
+        opt findings raised
+            H->>GR: fix or rebut (argue to ACK, ~2 rounds, else escalate to Op as above)
+            GR-->>H: ACK or counter
+        end
+    end
+
+    rect rgb(245,245,255)
+        Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"), then closing /learn
+    end
+
+    H-->>Op: terminal report (commits made, paths written, gate audit, follow-ups offered)
 ```
 
 ## Out of scope at L1

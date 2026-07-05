@@ -53,6 +53,29 @@ flowchart TB
 | C2 → S5 | `engram ingest --auto` reads Claude `.jsonl`; re-chunks and re-embeds only sources whose mtime/size/hash changed vs the `manifest.json` written to `$XDG_DATA_HOME/engram/chunks`; strips harness noise; byte-capped with continuation signalling. `--auto` additionally skips session-log directories whose slugified project path starts with a non-persistent-workspace prefix (`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-` — slugified forms of `/private/tmp`, `/tmp`, and macOS `$TMPDIR`), preventing eval/test runs from bloating the main chunk index (configurable via the `non_persistent_prefixes` key in `.engram/sweep.json`). Two opt-in levers bypass the skip for deliberate test ingestion: explicit `--sweep <dir>` / `--transcript <file>` / `--markdown <file>` — manual sweep roots carry no prefix exclusion — or an isolated index + vault via `ENGRAM_CHUNKS_DIR` / `ENGRAM_VAULT_PATH`. |
 | C2 → S6 | `engram update` runs `go install`, then copies refreshed skills/commands into each harness root; `--with-guidance` also deploys `guidance/recall.md` to `~/.claude/engram/recall.md` (Claude Code only; opt-in; OpenCode deferred). |
 
+### Flowchart: ingest/chunking (C2→S5)
+
+```mermaid
+flowchart TD
+    A["engram ingest --auto"] --> B["resolve default roots: repo markdown + ancestor .claude dirs + session logs (.engram/sweep.json)"]
+    B --> C{"session source path starts with a non-persistent-workspace prefix? (-private-tmp-, -tmp-, -var-folders-, -private-var-folders-)"}
+    C -->|"yes, no explicit override"| SK["skip source (keeps eval/test runs out of the main chunk index)"]
+    C -->|"no, or explicit --sweep/--transcript/--markdown/isolated-env override"| D["stat source: mtime + size + hash vs manifest.json"]
+    D --> E{"changed vs the manifest entry?"}
+    E -->|no| SK2["skip: cheap mtime+size match, no read"]
+    E -->|yes| F["strip harness noise (context.Strip)"]
+    F --> G["chunk (chunk.Transcript / chunk.Markdown, byte-budget capped)"]
+    G --> H["embed each new-hash chunk (existing hashes reused, never re-embedded)"]
+    H --> I["merge-append chunk records + manifest entry under flock(.manifest.lock)"]
+    I --> J["chunk index: per-source record file + manifest.json (mtime/size/hash)"]
+
+    P["engram prune (separate operator-run GC)"] -.->|"acquires the same flock(.manifest.lock)"| I
+    P --> Q["delete per-source index files whose source file no longer exists"]
+```
+
+Source: `internal/cli/ingest.go` (`RunIngest`, the manifest staleness check, `Lock`),
+`internal/cli/sweepspec.go` (`NonPersistentPrefixes` default list), `internal/cli/prune.go` (`RunPrune`).
+
 **Cross-level note (L1↔L2 reclassification).** At [L1](c1-system-context.md) the vault is **S4 — an external system** (operator-configurable, on the operator's filesystem, possibly human-edited in Obsidian); on decomposition it reappears here as **C4**, an internal store, because from engram's runtime view it is the data store engram owns and writes. This is an intentional decomposition choice, noted so the L1→L2 mapping is explicit rather than silent. Staleness tracking (`manifest.json` — mtime/size/hash per source) lives in the chunk index directory (`$XDG_DATA_HOME/engram/chunks`), which is part of C2's operational state rather than a separate container.
 
 ## The skills↔binary split (the load-bearing boundary)
@@ -92,9 +115,7 @@ sequenceDiagram
     V-->>E: notes, chunks, and vectors
     E->>Md: embed each phrase
     Md-->>E: query vectors
-    Note over E: per phrase: top-30 (notes+chunks, recency-biased cosine); union, dedup max score, drop baseScore < 0.25, cap matched set ~300
-    Note over E: Channel 1 (Relevance): ONE AutoK cluster over matched notes+chunks (D1 preserved); candidate_l2s = top-5 from within-cluster notes
-    Note over E: Channel 2 (Recency): append newest chunks by IngestedAt (recentFillChunks, default 25), deduped vs matched set, tagged recent — NOT in any cluster
+    Note over E: build the two-channel matched set + clusters (full stage order and constants in the "recall query pipeline" flowchart below)
     E-->>Sk: stdout YAML — items[matched+recent], clusters[].candidate_l2s {path, cosine, content} (top-5 within-cluster), budget (lazy_chunks: true → chunk items path/source-only; notes keep full content)
     loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only
         Note over Sk: read candidate_l2s + note members' content inline (no engram show)
@@ -117,6 +138,33 @@ sequenceDiagram
     Note over Sk: Step 3 — synthesize impact on the Step 0 plan
 ```
 
+### Flowchart: recall query pipeline (C2)
+
+Companion to the sequence diagram above — the same `RunQuery` pipeline (component-level view:
+[L3](c3-components.md) `engram query` internals) rendered as a linear stage pipeline, matching the
+current constants in `internal/cli/query.go` and `internal/cli/query_nominations.go`.
+
+```mermaid
+flowchart TD
+    A["embed each phrase (10 deep / ~3 glance)"] --> B["per-phrase top-30: notes+chunks, recency-biased cosine"]
+    B --> C["capWithNoteFloor: reserve up to noteFloorK=5 slots for floor-qualified notes"]
+    C --> D["union across all phrases, dedup keeping max score"]
+    D --> E{"baseScore >= matchRelevanceFloor (0.25)?"}
+    E -->|no| DROP["drop"]
+    E -->|yes| F["cap matched set at matchSetCap=300"]
+    F --> G["ONE AutoK cluster over matched notes+chunks (D1)"]
+    G --> H["per cluster: candidate_l2s = within-cluster top-5 notes (candidateNoteK)"]
+    H --> I["+ tag-nominated notes sharing a vocab term with the top-3 delivered notes (nominationCapPerCluster=40)"]
+    I --> J["+ supersession ride-alongs inserted after the superseded note"]
+    F -.-> CH2["Channel 2: append newest chunks by IngestedAt (defaultRecentFill=25), deduped vs matched set, tagged recent — NOT clustered"]
+    J --> PAYLOAD["single YAML payload: items[matched+recent], clusters[].candidate_l2s, budget"]
+    CH2 --> PAYLOAD
+```
+
+Source: `internal/cli/query.go` (`matchRelevanceFloor`, `matchSetCap`, `noteFloorK`, `capWithNoteFloor`,
+`candidateNoteK`, `defaultRecentFill`, `applyFloorAndCap`), `internal/cli/query_nominations.go`
+(`nominationCapPerCluster`, `topNForNomination`, `applyTagNominationAndRideAlong`).
+
 ### Flow: learn
 
 ```mermaid
@@ -133,8 +181,8 @@ sequenceDiagram
     Tr-->>E: session entries (changed sources)
     Note over E: strip harness noise (context.Strip); write updated manifest.json to chunk index dir
     E-->>Sk: stdout chunk identifiers + status line (scanned range, new chunk count)
-    Note over Sk: identify candidates; classify locus; recall-mirror test
-    loop per candidate (one parallel tool-use block)
+    Note over Sk: scan for the three explicit lesson kinds (corrections, save-requests, reversals); hand each to write-memory
+    loop per explicit lesson (one parallel tool-use block)
         Note over Sk: hand off to write-memory skill (parents judge, worker writes)
         Sk->>E: shell engram learn fact|feedback … (fresh process; via write-memory)
         E->>V: flock, next Luhmann id, write note (O_EXCL)
@@ -144,6 +192,66 @@ sequenceDiagram
         E-->>Sk: stdout written path
     end
 ```
+
+### Flowchart: learn capture kinds (C1)
+
+Companion to the sequence diagram above — the four capture kinds `skills/learn/SKILL.md` Steps 2/2.5
+scan for, each handed off to the **write-memory** skill, converging on the same vault-write mechanics.
+
+```mermaid
+flowchart TD
+    S["Step 1: engram ingest --auto (sweep, always first)"] --> S2{"Step 2: scan for explicit lessons"}
+    S --> S25{"Step 2.5: scan for substantive Q&A (independent scan; criterion is traceability, not 'is it a lesson')"}
+    S2 -->|correction| CORR["Correction: user corrected approach/behavior"]
+    S2 -->|save-request| SAVE["Explicit save-request: 'remember this/that X'"]
+    S2 -->|reversal| REV["Reversal: a presented conclusion later overturned"]
+    S25 -->|"answer has >=1 [[wikilink]] or crystallized a new note"| QAK["QA pair worth capturing"]
+    P7["please Step 7 lessons audit: STOPs, gate FAILs, CORRECTION-commits, escalations"] -.->|"unmapped item"| REV
+
+    CORR --> WM["write-memory skill: composes + executes the handoff"]
+    SAVE --> WM
+    REV --> WM
+    QAK --> WMQ["write-memory skill (kind=qa)"]
+
+    WM --> L["engram learn feedback|fact --chunk-source ..."]
+    WMQ --> LQ["engram learn qa (writes Q-note + A-note together)"]
+
+    L --> CV["flock + Luhmann id (O_EXCL) + embed-on-write + dual-channel vocab assignment"]
+    LQ --> CA["A-note: flock + embed-on-write + vocab assignment — competes in the main set (D5')"]
+    LQ --> CQ["Q-note: flock + embed-on-write, NO vocab assignment (D5' asymmetry) — excluded from the main set"]
+```
+
+Source: `skills/learn/SKILL.md` (Step 1, Step 2, Step 2.5), `skills/please/SKILL.md` (Step 7 lessons
+audit), `internal/cli/qa.go` (`isQueryExcludedKind`, `writeQANotesUnderLock`, the D5′ comments),
+`internal/cli/learn.go` (`writeLearnUnderLock`, `applyVocabAssignmentCore`).
+
+### Flowchart: vocab lifecycle (C2)
+
+```mermaid
+flowchart TD
+    W["note write: engram learn / amend / resituate"] --> D["dual-channel vocab assignment (AssignVocabTerms — cosine >= 0.35 floor, top-3): writes body [[vocab.<term>]] wikilinks + frontmatter vocab: list"]
+    D --> TR["in-process trigger check (checkAndPersistVocabRefitTrigger, token-free)"]
+    TR --> G{"growth >= 40 notes AND >= 14 days since last refit?"}
+    TR --> U{"vault-wide untagged rate > 8%?"}
+    TR --> H{"any term tags > 25% of vault (hub)?"}
+    G -->|yes| RP["persist refit_pending + reason in vocab.centroids.json"]
+    U -->|yes| RP
+    H -->|yes| RP
+    G -->|no| OK["no trigger fires — verdict OK"]
+    U -->|no| OK
+    H -->|no| OK
+    RP --> ST["engram vocab stats: verdict REFIT_PENDING (reason)"]
+    RP --> PF["engram query payload: refit_pending flag"]
+    ST --> L15["learn skill Step 1.5: run the refit autonomously"]
+    L15 --> ER["engram vocab refit --emit-request, derive plan, engram vocab refit --plan"]
+    ER --> VB["vocab version bump + vocab.index.md regen"]
+```
+
+Source: `internal/cli/vocab_trigger.go` (`refitGrowthMinNotes`, `refitGrowthMinDays`,
+`refitUntaggedRateMax`, `evaluateVocabTriggers`), `internal/cli/vocab_commands.go` (`hubThreshold`,
+stats verdict rendering), `internal/cli/vocab.go` (`AssignVocabTerms`, `WriteVocabAssignment`,
+`applyVocabAssignmentCore`), `internal/cli/query.go` (`RefitPending` payload field),
+`skills/learn/SKILL.md` Step 1.5.
 
 ### Flow: recall-time lazy-L2 synthesis — skill-orchestrated, blocking, NOT a binary loop
 
