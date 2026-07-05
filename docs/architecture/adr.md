@@ -337,6 +337,28 @@ deep→mid tier boundary only; other tier boundaries are inferred, not separatel
 existing upgrade-if-cheaper-fails rule is the safety net for a wrong discount. The C5
 (recency-standard-honoring) axis flaked in this measurement round and was not re-run.
 
+## ADR-0015 — Skill decomposition stops at the write seam
+
+**Status:** Accepted (2026-07-04)
+
+**Context.** The atomic-skills exploration evaluated decomposing the five skills (recall, learn,
+write-memory, please, route) into shared behavioral atoms — read-memory, write-memory, route-a-task,
+orchestrate — to remove overlap without producing N skills that all do the same thing.
+
+**Decision.** Extract exactly one atom: `write-memory`, a worker invoked at the write seams (recall
+and learn hand off; the worker composes, executes, verifies, reports). Do NOT extract read-memory —
+recall's read+judge+write pipeline is sequential cohesion worth keeping. Leave `please` and `route`
+untouched (route already maps 1:1 to its atom). A skill-share is a worker invoked as the next whole
+action, never a mid-procedure reference fetch. Decision record:
+`docs/design/2026-07-04-atomic-skills-options.md` (deleted 2026-07 with the docs restructure —
+`git log` recovers it).
+
+**Consequences.** Five skills remain; the worker pattern is the sanctioned shape for future skill
+shares. The interim reference-card variant's "0/27 mid-procedure dereference" measurement is
+instrument-invalid and binds nothing (`dev/eval/LEDGER.md#write-memory-atom-dereference-invalid`,
+vintage 2026-07-04); the worker form's fire-rate validation is
+`dev/eval/LEDGER.md#write-memory-worker-fire-rates` (vintage 2026-07-04).
+
 ## Decisions deliberately NOT made into ADRs
 
 - **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an
