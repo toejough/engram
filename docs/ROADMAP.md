@@ -1,336 +1,274 @@
-# Engram roadmap — retrieval quality & cost
+# Engram Roadmap
 
-**Retrieval *ranking* quality is largely solved (2026-06-28).** The note-floor fixed the drowning (notes were
-nearly invisible in real recall; they now surface at the embedder's ceiling), and the follow-on probes found
-diagnostic surfacing healthy (recall@5 0.99) and crystallization-quality a smaller lever than the audit
-implied. So the *"is the right note retrievable"* question is answered — yes. The **two live frontiers** are
-now: **Track A — recall *timing / coverage*** (fire recall at the *right moments*, so the surfaced knowledge is
-actually present when a decision is made) and **Track B — cost** (run memory-backed reasoning on *cheaper
-tiers* — the biggest $ lever found). A lever counts only if it moves a real axis (quality by the retrieval
-probe + value test + trap gate; cost by actual tokens/dollars/wall-time — relocating work off the *perceived*
-path is not a reduction, note 100). **Do one at a time, ship each gated, measure, then take the next.**
-**Track 0 (concurrency & write-safety) is foundational — it fixes live correctness bugs and blocks the
-payload-prune production build, so it comes before both frontiers (split out + prioritized 2026-07-01).**
-
-> **Full-system review (2026-07-01):** goals scorecard (4 ACHIEVED / 3 PARTIAL / 3 REFUTED /
-> 3 UNMEASURED), external landscape, and the ranked exploration list live in
-> `docs/design/2026-07-01-memory-system-review.md`.
+Shipped work: `docs/FEATURES.md` · results: `dev/eval/LEDGER.md` · decisions: `docs/architecture/adr.md`
 
 ## Where we are
 
-- **Retrieval quality was the real bug (fixed 2026-06-28).** A probe found engram's embedder is fine
-  (nuanced note recall@5 0.81 in isolation) but the unified ranking **drowned notes under chunks**
-  (real-path 0.19). The **matched-note floor** (`capWithNoteFloor`, commit `33821e64`) closed the gap to
-  **0.83** (the embedder's ceiling), trap gate GREEN. See `docs/design/2026-06-28-retrieval-probe-results.md`.
-- Memory's value is **validated and generalizes**: the 4 capability wins (apply-conventions,
-  recency-supersession, honor-standard, abduction) hold with zero degradation under a realistic
-  200-note crowded vault (2026-06-26). Value is real on idiosyncratic content; cost/speed is the tax.
-- **Recall is the tax** (measured): ~150–190s/op, of which **~half (~80–120s at the original ~200 KB) is the agent paging the
-  `engram query` payload** (~8 reads; trimmed to ~97 KB by the shipped payload cuts, so paging cost scales down); the binary itself is only ~3s. Recall is ~20% of op $
-  and ~25% of op time. **Decompose by axis (notes 100/92):** the TIME tax is the procedure + paging; the
-  DOLLAR tax is *carrying* the payload in build context across turns (not its size — bytes are cheap
-  cache_read), so the only verified $ lever is pruning it after Step 3.
+Retrieval ranking quality is settled — the matched-note floor closed the note-vs-chunk drowning gap
+(`docs/FEATURES.md` — Matched-note floor) and diagnostic symptom→cause surfacing checks out separately
+healthy (`dev/eval/LEDGER.md#diagnostic-surfacing-probe`). Two live frontiers remain: **Track A** — recall
+fires at the right moments, and what surfaces actually gets applied — and **Track B** — the token/dollar/
+wall-time tax memory costs. **Track C** (Q&A memory) is a newer, separate capture axis with its own gated
+rounds. A lever counts only if it moves a real axis — quality by the retrieval probe + value test + trap
+gate; cost by actual tokens/dollars/wall-time, never by relocating work off the perceived path (vault note
+100). Do one at a time, ship each gated, measure, then take the next.
 
 ## Standing constraint (non-negotiable)
 
-Every recall/learn skill change ships **gated by the trap regression harness**
-(`dev/eval/traps/gate.py`, run before+after) and **measured by the `recall_cost` `$METER`** (cumulative
-harness, schema v5). **Never touch the win-nucleus:** Step-3 conventions-as-requirements directive,
-Step-2.5B recency-weight, Step-2 matched-note retrieval, the frontmatter `description` field. (The 2026-06-28
-matched-note floor is a *deliberate, gated* change to matched-note retrieval — it RESTORES the nucleus the
-drowning was eroding, trap gate GREEN; see the exception rationale in
-`docs/superpowers/plans/2026-06-28-note-vs-chunk-ranking.md`.)
+Every recall/learn skill change ships gated by the trap regression harness (`dev/eval/traps/gate.py`, run
+before+after) and measured by the `recall_cost` `$METER` (cumulative harness, schema v5). Never touch the
+win-nucleus: the Step-3 conventions-as-requirements directive, Step-2.5B recency-weight, Step-2 matched-note
+retrieval, and the frontmatter `description` field. The 2026-06-28 matched-note floor is the one deliberate,
+gated exception — it restores the nucleus the drowning was eroding (`dev/eval/LEDGER.md#matched-note-floor`;
+exception rationale: `docs/superpowers/plans/2026-06-28-note-vs-chunk-ranking.md`, deleted 2026-07, git log).
+A new edge type (typed links, graph expansion) must clear the same bar the shipped supersession-only design
+already meets: don't add one without demonstrating its own retrieval value first — currently an informal
+practice, now a standing rule.
 
-# Track 0 — Concurrency & write-safety  ✅ SHIPPED 2026-07-01 (commit `f7f6b389`; #660 + #666 closed)
+# Track A — Recall timing & coverage
 
-Split out + prioritized 2026-07-01, then **built and shipped the same day**. Correctness bugs, independent of
-retrieval quality/cost, that **blocked** the payload-prune production build (the `engram recall` prune spawns
-many parallel sub-recalls that write the vault + chunk index concurrently) and bit **today** — any two
-concurrent `engram ingest`/`amend` runs corrupted state. **Fixed:** the existing **vault flock**
-(`internal/cli/cli.go`, previously guarding only Luhmann-ID sequencing in `learn`) was extended to every
-read-modify-write writer — manifest (`ingest`+`prune`, `.manifest.lock`) and vault notes/sidecars
-(`amend`+`resituate`+`activate`, `.luhmann.lock`), acquired only at `Run*` entry points — plus **atomic
-temp-rename** writes at all edges (one shared helper). `targ check-full` green; the bug inventory below is the
-shipped fix list. **Payload-prune production is now unblocked.**
+Ranking quality is settled; the open lever is *timing and application* — does the right knowledge surface
+at the right moment, and does it get acted on.
 
-The complete RMW-writer surface (Step-2 code map + Gate-A code-alignment, which caught `prune` + `resituate`):
+### Residuals
 
-- **#660 — manifest lost-update + torn write (`ingest` AND `prune`).** Both `RunIngest`
-  (`ingest.go:82`→`:108`) and `RunPrune` (`prune.go:31`→`:73`) read `chunks/manifest.json`, mutate it, and
-  write it whole back via non-atomic `os.WriteFile`, with no lock. Two concurrent runs lose each other's
-  entries; a torn write corrupts the file. FIX: flock the manifest RMW (`.manifest.lock`) + atomic temp-rename.
-- **Vault-note lost-update (`amend` AND `resituate`, #666).** `RunAmend` (`amend.go:80/95/100`) and
-  `RunResituate` (`resituate.go:55/65/70`) do an unlocked note read-modify-write; two concurrent writers on the
-  same note lose one. FIX: extend the vault flock (`.luhmann.lock`) to both.
-- **`activate` sidecar vector-clobber + torn write (#666).** `bumpLastUsed` (`activate.go:66-67`) rewrites
-  the WHOLE `.vec.json` sidecar unlocked (assuming `os.WriteFile` is atomic — it is not), so it can clobber a
-  concurrent amend/resituate re-embed's vectors with stale ones. FIX: flock `RunActivate` on the vault lock +
-  atomic temp-rename.
-- `learn` is **already** flock-safe (`writeLearnUnderLock`, `learn.go:571`) — the precedent to follow.
-- **Deadlock-avoidance:** flock only at `Run*` entry points; shared write helpers (`bumpLastUsed`,
-  `writeManifestFile`, `reEmbedAndActivate`) stay lock-free (amend already holds the lock when it calls them).
+- **#665 — value-gate over-fire (closed, not-planned 2026-06-30).** The wording-based value gate meant to
+  scope decision-moment recall firing to idiosyncratic content does not hold on opus — it fires on routine
+  work regardless of phrasing. Joe closed this as an accepted cost, not a problem: over-firing the cheap
+  `glance` rung is fine; under-firing is the real risk. **Reopen condition:** only if cheap over-fire is
+  later shown to be a measured problem (e.g. `glance` itself stops being cheap, or over-fire is shown to
+  displace something load-bearing).
+- **C5 recency-apply follow-up.** `/recall glance` surfaces a recently-updated standard but does not
+  reliably apply it (`dev/eval/LEDGER.md#glance-fails-c5-delivery`); C5-type cues currently escalate to
+  `deep` as the mitigation. Lifting both rungs' apply rate above deep's own is a separate, unscheduled
+  follow-up.
+- **Ranking follow-ups — only if the matched-note floor proves too blunt.** If the shipped floor
+  (`docs/FEATURES.md` — Matched-note floor) later caps a relevant note or promotes a marginal one, the
+  principled successors are per-population score normalization (z/rank-normalize notes vs chunks before
+  merge) and a two-channel notes/chunks split (separate budgets, never compete). **Chunk-down-weight**
+  (damping low-density chunk types like turn-1 dispatch prompts) is separately parked — the floor made its
+  original drowning rationale moot, and it has a real downside (a dispatch prompt is sometimes the right
+  recall) with no gauge for its intended benefit yet (vault note 121). **Write-time importance scoring**
+  (rate a note's likely future value at write time, Generative-Agents-style) is parked on the same trigger.
+  **Revisit condition (all three):** only once a chunk/note-quality gauge exists and shows a real drowning
+  case — none of the three acts until then.
+- **Question-anchored crystallization — parked (no delivery benefit, clear retrieval loss).** Anchoring
+  notes to the prompting question instead of the topic was evaluated and parked
+  (`dev/eval/LEDGER.md#qanchor-park`). One untested sub-lever survives as a hint, not a result:
+  question-anchoring may help transferable-**pattern** lessons specifically while hurting concrete-API
+  lessons (`dev/eval/LEDGER.md#qanchor-pattern-type-sublever`, n=3, not independently validated).
+  **Revisit condition:** only if crystallization quality resurfaces as a bottleneck — every crystallization
+  lever tried so far (handle-wording, question-anchoring, synthesis persistence, graph expansion) has nulled
+  on delivery.
 
-Plan: `docs/superpowers/plans/2026-07-01-concurrency-write-safety.md` (this `/please`). Gated by `targ check-full`
-+ a concurrent-writers regression test.
+### Atoms-arc residual triggers
 
-# Track A — Recall timing / coverage (is the knowledge present when the decision is made?)
+The skills-from-atoms decomposition (write-memory worker, capture guards G1/G2/G6) shipped
+(`docs/FEATURES.md` — Write-memory worker + capture guards; the stop-at-the-write-seam disposition is
+`docs/architecture/adr.md` ADR-0015). Three pre-registered upgrade triggers remain live:
 
-Ranking quality is settled (the floor surfaces the right note; diagnostic surfacing 0.99). The open lever is
-*timing* — recall fires at coarse moments (task-init, subagent recall-first, the parent brief), but failures
-cluster at mid-task decision cues recall never reaches. Fire recall at the *right moment* so
-the knowledge is present when it's needed.
+- **G6→G5** (enforced escalation gating) fires if any future escalation ships a measured claim with an
+  absent or dishonest validity line.
+- **G2→G3** (a fresh-context lessons reviewer) fires if a future capture-blindspot audit's "no lesson"
+  mapping is shown wrong.
+- **G4** (crystallize-on-discovery) stays parked — no trigger defined; revisit only if a future
+  capture-blindspot review calls for real-time write-on-discovery over the current end-of-cycle audit.
 
-### ✅ SHIPPED — recall at the decision moments (CLAUDE.md guidance, not hooks)
-The failure-mining (`docs/design/2026-06-28-failure-eval-material.md`) found **77% of failures at mid-task
-moments current recall never reaches** (top: before-declaring-done ~26%, after-tool-failure-before-retry,
-before-writing-code/first-edit on a new approach). Addressed **2026-06-29 via global CLAUDE.md guidance** —
-*not* hooks (Joe: hooks are harness-specific + a mechanical "recall before X" over-fires ~147×–380×, fatal at
-~190s/fire; guidance lets the agent choose contextually, harness-agnostic). Three cues — **before declaring
-done**, **after a failure you can't explain** (once, before guessing), **before building a new approach** —
-each *originally* gated by a cost-filter ("fire only when you expect a vault-specific gotcha"), scoping firing to
-idiosyncratic unloaded content (note 99) — **superseded by the #663 update below** (cues now fire the cheap
-glance rung + encourage firing; the value gate was measured not to hold on opus). Key wording: *recalling
-is the action, not a substitute self-check*.
+### Capture-quality residuals (unexplored)
 
-**Gate-A cost/over-fire review hardened it.** The first draft also carried "before a final verdict" (**cut** —
-double-recalls with the please/route reviewers that already recall-first at task-init) and an unscoped "after a
-tool fails / before retrying" (**tightened** to a failure you *can't explain*, *once* — a debug loop would
-otherwise re-fire it per retry). The guidance knowingly trades the mechanical-hook over-fire for an
-agent-judgment bet; the "use a free Stop-hook instead" alternative is out of scope (Joe: no hooks).
+None of these are scheduled; each needs its own shown problem, not a hypothetical one, before it's worth a
+design pass (source: a 2026-07-02 research survey diffed against this roadmap — `docs/design/2026-07-02-research-followups.md`,
+deleted 2026-07, git log):
 
-**Re-validation: clean RED 0/5 → GREEN 4/5** (headless `claude -p` — fresh process, fictional domains; the
-in-session *subagent* method was invalid, control inherited the treatment — see `…revalidation-data/results.md`).
-The single GREEN non-recall is the cost-filter correctly staying silent on an obvious-infra failure
-(connection-refused → env check) while the *puzzling* failure recalled — the after-failure cue **discriminates,
-not over-fires**. Data: `docs/design/2026-06-29-recall-moments-revalidation-data/`. Bound: small proxy; the
-failures split ~56% *application*-class (lesson present, unapplied — the cue's target) and, on a separate cut,
-~60% *behavioral* (needs a rich-context harness, out of reach of cheap evals). Direction note:
-`docs/design/2026-06-28-failure-eval-material.md`.
+- **Two-track note structure** — split bug-track (what-didn't-work + prevention) from knowledge-track
+  (when-to-apply + examples) note schemas, instead of one undifferentiated format. Revisit if note triage
+  shows the two purposes actively fighting each other in one schema.
+- **Write-time overlap detection** — a dedup check at `engram learn` write time (problem/root-cause/
+  approach/files/prevention) to prompt update-vs-create; tag nomination only helps at retrieval time today.
+  Revisit if duplicate/near-duplicate notes are shown to cost retrieval quality or triage effort.
+- **Post-write discoverability check** — after a note write, verify CLAUDE.md/AGENTS.md still surfaces the
+  relevant guidance. Revisit if a shipped guidance change is later found to have silently stopped
+  surfacing.
+- **Structured staleness sweep (`engram refresh`)** — a periodic Keep/Update/Consolidate/Replace/Delete pass
+  over aging note *content*, distinct from the shipped vocab-refit lifecycle (which re-fits tags/centroids
+  on drift triggers, not per-note content staleness). Revisit once vault scale or note age makes content
+  staleness a visible problem.
+- **Scratch-artifact pattern for learn** (a subagent writes full output to a scratch file; the orchestrator
+  reads path-only, to prevent summary-collapse) — likely moot: recall/learn already moved to inline
+  single-skill judgment with a write-memory worker, not fan-out synthesis subagents. Revisit only if a
+  future design reintroduces subagent fan-out into capture.
+- **Success-phrase implicit auto-capture** — fire a capture automatically on conversational success-phrases
+  ("that worked", "fixed"), distinct from `please`'s fixed-step learn call and `learn`'s explicit trigger.
+  Revisit if the existing explicit/step-gated capture moments are shown to miss a meaningful share of
+  substantive answers.
+- **Vault isolation-rate benchmark + an "L7" episode/provenance tier** — a Luhmann-style isolated-notes
+  health floor; no such check exists today. Revisit if isolated notes are suspected to indicate a
+  crystallization or linking-quality problem.
+- **Deferred/periodic linking-review pass** — a batch review linking recent notes to older content,
+  distinct from write-time-only tagging. Revisit if tag nomination's write-time-only linking is shown to
+  miss links recoverable in hindsight.
+- **Note-splitting/atomicity pass** — split composite multi-lesson notes so each ranks independently;
+  write-memory already writes one representative note per cluster but never audits/splits existing
+  composite notes. Revisit if composite notes are shown to rank worse than atomic ones.
+- **Periodic MOC-generation pass** — an LLM pass generating curated hub notes for recurring topics, the
+  practitioner-validated alternative to the shipped automated tag-hub (vocab tag nomination). Revisit if
+  tag nomination is shown insufficient as the bridging mechanism.
+- **A positive-reinforcement (confirmed-approach) capture kind for `learn` Step 2** — issue #668, open,
+  unscheduled.
 
-**#663 update (2026-06-30) — cues fire the cheap `/recall glance` rung; encourage-firing reframe.** The three
-cues now invoke `/recall glance` (the read-only depth-dial rung, #662), not bare `/recall`. Glance is cheap, so
-the guidance *encourages* firing — **under-recalling is the bigger risk; over-firing is fine and cheap**
-(Joe's framing call). The default `/recall` stays `deep` and **still crystallizes**; only the decision-moment
-cues use glance. **This item was re-measured on opus-4.8[1m] — the real model that runs this guidance; the
-"0/5→4/5" above was a *different* model/run, which is why the numbers differ.** Result: cue-firing 2-3/5 (≥ the
-un-guided 2/5, not regressed), all cue-fires use glance. Two honest findings: (1) the **after-failure cue never
-fired** (0/2 on its two scenarios CF3/CF4, across every variant — opus reaches for direct diagnostics there; a
-cue-*framing* lever, **rejected 2026-06-30** — plausibly-correct infra-discrimination, not a miss); (2) the old cost-filter's **value gate does NOT hold on opus** — it fires
-recall on routine work too (3-5/5 regardless of wording: opus over-classifies trivial work as idiosyncratic, and
-naming routine examples in the guidance made it *worse*, not better). Accepted because over-firing the cheap
-glance rung is low-cost; the deeper value-gate problem is tracked as **#665**. Depth-dial arc (#661→#662→#663)
-complete.
+### Deeper arc — relational synthesis (unexplored extensions)
 
-### Residual — question-anchored distillation  [QUALITY — ⛔ PARKED 2026-07-01: no delivery benefit + clear retrieval loss]
-The **crystallization audit** (`docs/design/2026-06-28-crystallization-audit.md`) found ~half of
-**cluster-driven** notes (recall Step 2.5) are not question-useful (40% vs 79%). That is a **note-wording audit**
-(haiku judging whether a note *reads* question-shaped), NOT a delivery test. Its prescriptive tail — *"derive the
-handle from the question, not the cluster topic"* — was the un-measured lever: recall clusters by content centroid
-and discards the query phrases at the union, so notes distill the *topic*, not the *question* investigated. Designed
-+ prototyped + **eval'd** 2026-07-01 (`docs/design/2026-07-01-question-anchored-distillation.md`).
-**Verdict: PARK** — question-anchoring beats topic-anchoring on **neither** channel. **Application** (note
-injected) topic-anchored 62% vs question-anchored 52% — B−A = −10pp, **inside the 2σ floor (±22pp) → no detectable
-benefit** (a gap below noise is "can't distinguish," not a win). **Retrieval** (cosine of a concrete future
-question to each note) topic-anchored won **10/10** (mean 0.52 vs 0.35) — **a clear loss** for question-anchoring.
-Root cause: the **concrete idiosyncratic token is load-bearing on both channels** — keeping it
-(topic-anchoring) embeds nearer a concrete future question *and* lets a downstream agent confidently apply it to the
-named system; question-abstraction strips the token and loses both ways. The 40-vs-79 wording gap is real but
-**delivery-inert** (note 119's "proxy moves, outcome doesn't"). The handle-**wording** prose rule stays
-settled-rejected; binary re-clustering **not built** (the phrase-provenance plumbing prototype is reverted, backed
-up at `docs/design/artifacts/2026-07-01-phrase-provenance-plumbing.patch`). Harness: `dev/eval/traps/qanchor_*.py`.
-The first wave's real win (#7, weaker-model reuse) shipped as Track B tier-routing.
+The retrieval half of this arc resolved 2026-07-02 — controlled-vocab tag nomination beat graph traversal
+outright (`docs/architecture/adr.md` ADR-0011). These are further, unbuilt extensions the same 2026-07-02
+research survey raised (`docs/design/2026-07-02-research-followups.md`, deleted 2026-07, git log):
 
-**Untested sub-lever (recorded, NOT to act on yet):** the eval hinted anchoring interacts with lesson **type** —
-question-anchoring/abstraction *helped* transferable-**pattern** lessons (B 83% vs A 58%) but *hurt* concrete-**API**
-lessons (A 64% vs B 39%). So a narrower lever — *question-anchor pattern-type lessons only, keep the token for
-concrete-API lessons* — is untested as an isolated intervention. **Honest bound: n=3 pattern pairs, within the same
-eval, not independently validated** — a hint, not a result. Parked; revisit only if crystallization quality resurfaces
-as a bottleneck.
+- **Write-time link enrichment** (A-Mem-style "memory evolution") — retroactively update *neighboring*
+  existing notes' tags/keywords when a new related note is written; the shipped vocab system tags only the
+  new note. Revisit if vocab tags are shown to go stale between refit cycles specifically because of new
+  neighboring notes (distinct from the refit lifecycle's global drift trigger).
+- **Bi-temporal supersession edges** (4-field: t_valid/t_invalid/created_at/expired_at) — the shipped
+  `--supersedes` is binary (type + claim), not time-windowed. Revisit if a query anchored to a specific past
+  time is shown to need the superseded note surfaced on purpose.
+- **Co-retrieval logging / association-scorer (AAR)** — log which notes get retrieved together for the same
+  task and approximate an association scorer, a zero-curation alternative to tag nomination. Revisit if tag
+  nomination is shown to miss notes that co-occur in practice but share no vocabulary term.
+- **GRAFT-style targeted edge repair** — diagnose *why* a specific retrieval missed a note (no edge / hub
+  dilution / incomplete extraction) and surgically repair just that edge, instead of tag nomination's
+  blanket mechanism. Revisit if a systematic (not one-off) missed-edge pattern is diagnosed.
 
-### Ranking follow-ups — only if the floor proves too blunt  [QUALITY]
-The note-floor (shipped, see Done) reserves up to `noteFloorK=5` per-phrase slots. If it proves blunt (caps
-relevant notes, or promotes a marginal one), the principled successors are **per-population score
-normalization** (z/rank-normalize notes vs chunks before merge) and a **two-channel** split (notes and chunks
-get separate budgets, never compete). **Parked — chunk-down-weight:** down-weighting low-density chunk types
-(turn-1 dispatch prompts) was the original "damp the noise" lever; the floor made its *drowning* rationale
-moot, and it carries a real downside (a dispatch prompt is sometimes the right recall) with no gauge for its
-intended benefit — needs its own chunk-quality gauge before shipping (vault note 121).
+### From the 2026-07-01 system review
 
-### Deeper arc — relational synthesis (note 68)
-Engram does *aggregation* (cosine similarity), not *emergent synthesis* (compositional-join / transitive-chain
-/ analogical-transfer). The substrate for the real thing is the unused `internal/vaultgraph` wikilink graph,
-via graph-expanded retrieval (spreading activation / GraphRAG local search). Long arc, not next.
-**Link-value exploration RESOLVED the retrieval half of this arc (2026-07-02,
-`docs/design/2026-07-02-link-value-exploration.md`):** spreading activation/PPR is ⛔ KILLED on this vault
-(drops non-activated baseline notes; 32–36 collateral regressions); the WINNER is **controlled-vocab tag
-NOMINATION (L6×TAG)** — 54% retrieval recovery of verified misses, delivery +17.3pp overall / +50pp on
-cross-domain bridges, both above 2σ, zero collateral. Supersession edges (L5×T5) proven as mechanism,
-underpowered on delivery. **✅ WRITE-SIDE SHIPPED 2026-07-03:** vocab term-notes (25-term set, `vocab.<term>.md`,
-dual-channel assignment at every `learn`/`amend` write), tag-match nomination in `candidate_l2s`, supersession
-ride-along, typed `--supersedes` flag, live vault migrated (vocab bootstrap + 6 supersessions classified; retired
-relation edges archived in `docs/design/artifacts/2026-07-02-retired-relation-rationales.md`).
-See `docs/design/2026-07-03-vocab-notes-build-results.md`. Obsidian acceptance (graph hub visibility): ✅ signed off by Joe 2026-07-03.
-**✅ REFIT LIFECYCLE LIVE 2026-07-03:** in-process trigger check at all three write sites (learn, amend, resituate) → `refit_pending` in `vocab.centroids.json` → `engram vocab stats` verdict line (`verdict: OK` / `verdict: REFIT_PENDING (<reason>)`) + query payload flag → learn skill Step 1.5 autonomous refit; recalibrated triggers (independent — ANY one trips the flag): growth ≥40 notes AND ≥14d since last refit; vault-wide untagged >8%; any term >25% of vault. Measured per-refit cost ≈$0.09 (2026-07-03 validation run).
+The system review (`docs/design/2026-07-01-memory-system-review.md`, deleted 2026-07, git log) ranked
+several still-open explorations; its fully-resolved items are omitted here (they already landed in
+`docs/FEATURES.md`/`docs/architecture/adr.md`).
 
-### Deeper arc — rebuild the skills from behavioral atoms  [ARCHITECTURE — Joe 2026-06-29]
-The skills (recall, learn, please, route) overlap; the underlying *atoms* are distinct behaviors —
-**read-memory, write-memory, route-a-task, orchestrate-a-workflow (reason + adversarial-check)**. Decompose the
-skills into atoms dedicated to each behavior and recompose, **without ending up with N skills that almost all do
-the same thing** (Joe's explicit constraint). The glance/deep read-vs-write split (#662) is a first, small
-instance of the seam this would generalize. Scope/sequence TBD — brainstorm before any build.
-**Status 2026-07-04:** write-memory SHIPPED as a WORKER at the write seams (parents judge and hand
-off; the worker composes/executes/reports — `skills/write-memory/SKILL.md`). The reference-card
-atom variant was built first and superseded by Joe's boundary redraw (a skill-share is a worker
-invoked as the next whole action, not a mid-procedure reference fetch); its deployed-arm
-"0/27 dereference" measurement was later found instrument-invalid (skill-shadowing artifact —
-see `dev/eval/atoms-build/results-2026-07-04.md` CORRECTION). read-memory deliberately NOT
-extracted: recall's read+judge+write pipeline is a cohesion seam worth keeping
-(`docs/design/2026-07-04-atomic-skills-options.md`).
-**Capture guards shipped 2026-07-04** (`docs/design/2026-07-04-lesson-capture-blindspot-options.md`,
-Joe's pick G1+G2+G6): learn Step 2 gains REVERSALS as a third capture kind; please step 7 gains the
-lessons audit over the cycle's mechanical corpus; please gains the escalation provenance rule.
-Pre-registered upgrades, triggers durable here: **G6→G5** (enforced escalation gating) fires if any
-future escalation ships a measured claim with an absent or dishonest validity line; **G2→G3**
-(fresh-context lessons reviewer) fires if a future audit's "no lesson" mapping is shown wrong.
-G4 (crystallize-on-discovery) stays parked.
+- **Open question — decision-moment recall as a deterministic hook.** Distinct from the already-rejected
+  blanket "recall before every tool call" hook, refuted as a fatal over-firer
+  (`dev/eval/LEDGER.md#recall-overfire-hook-rejected`): a *narrower* hook scoped to the two highest-value
+  moments (before-declaring-done, after-a-tool-failure) was flagged as unfiled and unexplored by the review.
+  Not yet decided by Joe — the shipped CLAUDE.md guidance already covers these moments non-mechanically.
+  Revisit only if the guidance-based cues are shown insufficient at scale.
+- **Filed — recall-before-recommend re-entry (#654, #655).** Recall fires once, keyed to the incoming ask;
+  a lever invented mid-synthesis is never re-checked against the vault, so a previously-killed direction can
+  resurface as if new. The fix (#655: a second, lever-keyed `engram query` mid-synthesis before shipping a
+  recommendation) and its regression harness (#654: a C7 "lever-recheck" anti-amnesia eval) are both filed
+  and open — schedule the filed work, don't re-derive the design.
 
-# Track B — Retrieval cost (the token/dollar/wall-time tax)
+# Track B — Retrieval cost
 
-The original efficiency work. Per note 100: payload **size** is cache_read-cheap (it moves TIME/paging, not
-dollars); the only verified **dollar** lever is pruning the payload out of build context after Step 3; the
-**token+time** lever is shrinking the procedure itself.
+The token/dollar/wall-time tax memory costs. Per vault note 100: payload *size* is cache_read-cheap (it
+moves time/paging, not dollars); the only verified dollar lever is pruning the payload out of build context
+after Step 3.
 
-### ✅ SHIPPED — tier-routing: memory discounts the model tier  [DOLLARS — the biggest $ lever found]
-**Validated + shipped 2026-06-28** (route skill, commit `2bf959f4`; vault note 135;
-`docs/design/2026-06-28-question-shaped-crystallization-proposals.md`). The finding — *memory democratizes
-reasoning across model tiers*: sonnet+memory fully matched opus+memory across C3 (15/15), C4i (3/3), C6 (6/6)
-while sonnet *cold* failed — is wired into `route/SKILL.md` **model-agnostically**: route by *tier* (not model
-name; the roster re-fills the tiers), and **drop one tier for memory-backed units** (the model applies recalled
-knowledge vs derives it). RED/GREEN: the router over-provisioned 4/6 memory-backed units to mid; the rule
-discounts. Bound: measured at the deep→mid boundary; other boundaries inferred (the upgrade-if-cheaper-fails
-rule is the safety net); C5 axis flaked (re-run). Whole-task downgrade — far bigger than the payload-$ lever.
+### Payload-prune production build ← NEXT
 
-### payload-prune-after-Step-3  [DOLLARS — verified $ lever] · premise ✅ SMOKE-VALIDATED 2026-06-30 · production build ← NEXT (Track 0 shipped — unblocked 2026-07-01)
-Drop the raw ~97 KB query payload out of the build's *ongoing* context once Step 3 has synthesized the
-requirements list. The real warm-over-cold dollar premium is *carrying* the payload across every
-subsequent build turn — not its size (the bytes are cheap to cache-read once — note 100). The synthesized
-requirements survive in context; only the raw payload is dropped.
+The smoke-validated isolation premise (`dev/eval/LEDGER.md#payload-prune-smoke`) is unblocked — concurrency
+and write-safety shipped (`docs/architecture/adr.md` ADR-0013) — but not yet built as a product. Design:
+`docs/design/2026-07-01-engram-recall-subprocess-design.md` — a new `engram recall` command that shells to
+`claude -p` so the raw query payload never enters the caller's context at any nesting depth (an Agent-tool
+subagent can't reach a leaf's own first-step recall, hence the subprocess). Open forks recorded in the spec:
+glance-inline vs subprocess, sub-recall model/tier, return-path fidelity. Also touches recall's inline
+crystallization (Steps 2.5C/2.6/Step-4).
 
-**Smoke (synthesis-injection proxy, `dev/eval/cumulative/smoke_prune.py`, `claude-opus-4-8`, n=3 apps —
-`docs/superpowers/specs/2026-06-30-payload-prune-mechanism-design.md`):** carrying **only the synthesis** cut
-**build_cost ~40% (~$1.6/app; feeds −45%, links −23%, notes −51%)** with **zero capability loss** — identical
-rounds (2/2/2), success (3/3), final convergence + arch 10/10 on every app. The saving shows in *every* build
-round (mechanistic — the payload re-reading as `cache_read`), so the ~$1/op premise (note 95) held, if anything
-an underestimate. **Honest bound:** n=1/app, no same-arm noise floor measured → large-consistent-mechanism, not
-noise-floor-proven; a replicate would make it conclusive (not required to proceed).
+### #657 remaining cuts (L3a/O1)
 
-**⛔ Production mechanism — DEFERRED behind Track 0.** The smoke validated the *isolation premise* via a proxy;
-it did **not** ship a product. Design captured 2026-07-01 in
-`docs/superpowers/specs/2026-07-01-engram-recall-subprocess-design.md`: a new **`engram recall`** Go command
-that shells to **`claude -p`** — the caller generates the queries in-context and passes only those; the isolated
-sub-recall runs `engram query` + cluster-judgment + crystallization + Step-3 synthesis behind the subprocess
-boundary and returns **only the synthesis**, so the ~97 KB payload never enters the caller's context, at any
-nesting depth (an Agent-tool subagent can't reach a leaf's own first-step recall — hence the subprocess). It is
-**blocked by Track 0**: the sub-recalls write the vault/manifest in parallel, so concurrency-safety must land
-first. Open forks recorded in the spec (glance inline vs subprocess; sub-recall model/tier; return-path
-fidelity). It also touches recall's inline crystallization (Steps 2.5C/2.6/Step-4).
+Two of #657's four procedure-time cuts remain open — O2 (inline `candidate_l2s` content, commit
+`e79d8b37`) and L2 (empty-cluster skip, already in the skill) shipped per #657's comment thread. **L3a**
+(batch the learn-ingest sweep once per session, without deferring crystallization) and **O1** (tighten the
+chunk content-budget without starving Step 2.5's full-content read) are still open, each C7-gated. Blocked
+by #654 (the C7 harness itself).
 
-### Recall depth dial (was: shrink the recall procedure)  [WALL-TIME tax]  ← #661 DONE · #662 ✅ SHIPPED 2026-06-29 (glance/deep modes; 2.23× faster per fire; deep default; C5→deep escalation; trap gate GREEN)
-The "two-speed" split is now designed: **`docs/design/2026-06-29-recall-depth-dial-design.md`** — a 2-rung
-**glance/deep** dial via a read-vs-write split (glance = retrieve + recency-resolve + apply, no crystallization writes;
-deep = adds crystallization). It attacks **per-fire-cost** (note 109), so frequent firing becomes affordable —
-*relaxing* the over-fire ceiling, not dissolving it (cheap ≠ free), with the **value** gate still holding
-(memory net-negative on non-idiosyncratic work — note 99 / commit f0213f6d). **3 gated items, measure → build → ship:** (1, #661 ✅ DONE) `glance` DELIVERS C3/C4i/C6 at the verified
-bars but FAILS C5 (it surfaces the recency item but applies it 0/5 vs deep 4/5 — retrieval ≠ delivery); cost
-de-risked on a **real-scale vault** (glance **2.23× faster / 46% cheaper** per fire; #661's tiny-vault 1.2× was
-a misleading artifact — `2026-06-29-realvault-glance-cost-662.md`). (2, #662 ✅ SHIPPED 2026-06-29) glance/deep
-modes built (commit `bdb8b0dc`; **deep stays default**, glance is opt-in/read-only/~3-phrases, no crystallization
-writes; #657 O2/L2 confirmed already landed; **C5-type recency cues escalate to deep**) — smoke trap gate GREEN
-(C3/C4i/C5/C6). The deeper C5 recency-*apply* fix (lift both rungs above deep's 4/5) is a separate follow-up.
-(3, #663) ✅ SHIPPED 2026-06-30 — cues fire the cheap `/recall glance` rung; **encourage-firing reframe**
-(under-firing is the bigger risk); deep default still crystallizes. The cost-bar/value-gate premise was
-falsified on re-measurement (→ #665); details in the Track-A #663 update. **Honest caveats:** the win
-is shaving the per-fire tax, not beating a cold build; and the skill's *auto-trigger* rate stays
-description-driven and unchanged (note 100) — the deliberate rise in *cue-firing* is Item 3's guidance change,
-affordable because each `glance` fire is cheap. Gate hard: the read-side win-nucleus (incl. Step-2.5B
-recency-resolution) must not regress.
+### Parked — matched-set clusters-first / lazy-content payload restructure
 
-**Trigger analysis (2026-06-27) — when should recall fire, cheaply?** See
-`docs/design/2026-06-27-recall-trigger-patterns-and-proposals.md`. Verdict: **not** "recall before tool
-calls" (~147× over-fire) — the wins are a narrow task-type trigger + a **two-speed quick-probe** (the
-execution-cost half of this lever), a free note-negation **re-rank** (#655), and a please **reconcile gate**
-(#656); ~28% of corrections are a write-side/capture ceiling no trigger
-reaches. (The analysis also proposed deterministic hooks — since dropped; Joe chose CLAUDE.md guidance over
-harness-specific hooks.) Proposals to evaluate (corpus is engram-only — does not auto-generalize).
+The recent-fill and lazy-chunks cuts were the safe payload reducers; they do NOT close the structural
+clusters-first / lazy-content restructure of the matched set — an estimated ~40–80s further time/paging
+win (estimate, never measured; smaller than the tier-discount lever). **Revisit condition:** only if
+recall paging time becomes the complaint after the shipped cuts.
 
-### dedupe the double ingest sweep  [small compute/time]
-Recall and learn each run `engram ingest --auto`; collapse the redundant pass. Mechanical.
+### Dedupe the double ingest sweep
 
-### ✅ SHIPPED — inline `candidate_l2` content (O2, #657)  [latency/clarity, not a $ lever]
-Landed 2026-06-29 (commit `e79d8b37`): `candidate_l2s` carry `content` inline so recall Step 2.5 needs no
-per-candidate `engram show`. **Honest scope:** a behavioral check showed the well-behaved agent already
-cross-referenced `items[]` content (no redundant shows), so the real win is **clarity/robustness** — it removes
-the skill's contradictory "show every candidate" instruction + the cross-reference burden + a latent loophole —
-not a measured round-trip cut. Bytes are cache_read-cheap → no $ win (note 100). #657's L2 was already done;
-**L3a (batch ingest sweep — overlaps the "dedupe the double ingest sweep" item below) + O1 (chunk content-budget) remain open under #657.**
+Recall and learn each run `engram ingest --auto`; collapse the redundant pass. Mechanical, unscheduled.
 
-### Removed — async / non-blocking `learn`  [relocation, not a reduction]
-Detaching the closing `/learn` (~61s) would move it off the *perceived* path but spends the same tokens,
-dollars, and total wall-time — it hides cost, it does not cut it. Does not move any real axis. Dropped
-2026-06-27 (Joe).
+### From the 2026-07-01 system review
 
-# Track C — Q&A memory (capture + retrieval)
+- **Harder-builds eval.** The easy-build regime measured memory as a net tax
+  (`dev/eval/LEDGER.md#c1-c2-warm-op-negatives`); the regime where multi-round convergence should dominate
+  the tax was designed but never run (Joe specified a cross-repo corpus — spaced-repetition, file-sync,
+  spec-review histories — 2026-06-25). Open candidate: 2–3 hard multi-round builds, warm vs cold, metered.
+- **Between-session consolidation pass (gated).** A batched dedup/contradiction-sweep/decay pass over the
+  vault, sleep-time-compute-shaped — a field-wide pattern this system doesn't have. Joe rejected async-learn
+  as relocation-not-reduction (moving cost off the perceived path isn't cutting it); this pass is the same
+  trap unless it clears a stricter bar: it must *reduce* total spend (e.g. replace N per-session
+  crystallizations with one cheaper batch) or measurably shrink recall payloads, gated by the trap
+  regression + `$METER`. Treat as reopening a settled park — requires demonstrating that new fact first, not
+  just proposing the pass.
 
-Structured capture and retrieval of question-and-answer pairs. Round 1 ships the capture path
-and D5′ asymmetric participation (A-notes compete; Q-notes excluded). Later rounds gate on
-measured validation over accumulated pairs.
+# Track C — Q&A memory, rounds 2/3
 
-- **[SHIPPED 2026-07-03] Q&A memory round-1 (capture):** `engram learn qa`, D5′ exclusion
-  (`isQueryExcludedKind` at all four query-pipeline seam points), `stripMachineLines` QA markers,
-  `qa pairs:` / `qa round-2 gate:` lines in `engram vocab stats`; recall Step 4 + learn Step 2.5
-  QA capture extensions. Round-2 gate: ≥20 pairs or ~2026-07-17 (whichever first).
+Round 1 (capture) shipped (`docs/FEATURES.md` — Q&A memory round-1); round 2/3 gate on real accumulated
+pairs, per `docs/architecture/adr.md` ADR-0012.
 
-- **[DEFERRED — round 3, gated on round-2 validation]** The dedicated Q-channel (incoming ask
-  matched against Q-note embeddings in q-space) and the `answered_by` ride-along (a surfaced Q
-  delivers its paired A). Gated on the Arm V large-n eval (the q-space channel premise check; see
-  `docs/design/2026-07-03-qa-memory-proposals.md`) reaching PASS (≥80% — its pre-registered
-  bands; BORDERLINE does not license the build) and on P2′/P3′ post-ship validation over ≥20
-  real pairs. Arm V large-n came in BORDERLINE 63% (19/30) — round 3 remains unlicensed pending
-  a further check. NOT built in round 1.
+### Round-2 gate — validate the capture instrument
 
-## Shipped — payload-size cuts  [TIME/paging wins; cache_read-cheap, so NOT dollar wins]
-- ✅ **Lazy-chunk content — 2026-06-27** (`--lazy-chunks` + `show-chunk`): payload **−33.7%** (146→97 KB),
-  trap gate GREEN; validated **0** chunk fetches across 13 realistic uninstructed recalls + **2/2**
-  sole-source capability (no evidence drop). Agent fetches deferred chunk text on demand via `show-chunk`.
-- ✅ **Recent-fill cut — 2026-06-27** (`--recent-fill`, 200→25): payload **−28%** (230→165 KB), trap gate
-  GREEN, `targ check-full` clean. Cumulative with lazy-chunks: ~230→97 KB (**~−58%**).
+Gates open at ≥20 captured pairs or ~2026-07-17, whichever comes first. Two pre-registered checks re-run on
+real data, same branch sets as round 1's probes (source: `docs/superpowers/plans/2026-07-03-qa-memory-exploration.md`
+and `docs/design/2026-07-03-qa-memory-proposals.md`, both deleted 2026-07, git log):
 
-> **Note:** the recent-fill cut was the *safe biggest single* payload reducer, done first. It does NOT close
-> the **matched-set clusters-first / lazy-content payload restructure** — a remaining structural *time/paging*
-> cost win (~40-80s) if the −28% slice isn't enough. Smaller than the tier-routing $ lever above; pursue only
-> if paging time becomes the complaint.
+**P2′ — attribution fidelity** (does cite-derived attribution — the `[[basename]]` links actually written
+in an answer — beat free-listed attribution?):
 
-## Dead ends (measured — do not revisit)
-Payload-size cap *for dollars* (payload is cheap cache_read); whole-op or split **haiku** (−14%, broke
-the build half, rolled back); cutting the 10 query phrases (breadth surfaces the un-guessable notes);
-lightening the skill *body* to increase firing (firing is set by the `description`, not the body).
+- PASS: cite-derived confabulation rate < 20% AND free-list confabulation rate > 30% AND separation ≥ 15pp
+  → cite-derived is the channel.
+- BOTH > 30%: even cite-derived confabulates → revise the capture bar before any further build.
+- BOTH < 20%: cite-derived is validated-accurate → adopt it; free-list is not refuted this run, label
+  inconclusive/tier-specific.
+- ANY OTHER RESULT: BORDERLINE — report both rates; adopt cite-derived only if its rate is < 20%, with the
+  caveat recorded (weak separation, middle-band free-list, or inverted ordering as applicable).
+- RECALL-BORDERLINE (separate axis): cite-derived recall (coverage of actually-used notes) < 50% → the
+  "cites ≥1 vault note" capture bar misses too many contributors; consider an enrichment step.
 
-## Done
-- **Matched-note floor** (2026-06-28) [QUALITY] — fixed note-vs-chunk drowning: real-path note recall@5
-  0.22→0.83 (the embedder's isolation ceiling), trap gate GREEN. `capWithNoteFloor` reserves up to
-  `noteFloorK=5` per-phrase slots for floor-qualified notes. Probe + value test:
-  `docs/design/2026-06-28-retrieval-probe-results.md` (the probe `score_probe.py` is now a reusable
-  retrieval-regression harness).
-- **Crowded-vault capability eval** (2026-06-26) — the 4 wins generalize to a realistic crowded vault
-  (zero degradation @ 200 notes). Bound: *same-domain competing* notes still untested. See
-  `dev/eval/traps/{RESULTS.md, README.md}`.
-- **Instruments** (2026-06-26) — the `recall_cost` `$METER` (schema v5) + the C3/C4i/C5/C6 trap
-  regression gate. These make every lever above safe (regression-caught) and measurable.
+**P3′ — usage-distribution spread** (would the contribution in-degree signal discriminate for triage?):
 
-## Infrastructure — prune must preserve memory across source deletion (#659)
-`engram prune` currently orphan-deletes chunks whose **source file is gone** — but the embedded chunk is
-the asset, not the source `.jsonl`. This blocks reclaiming the ~1.3 GiB of restored cross-repo transcripts
-in `~/restic-restore-claude/` (deleting them would lose the recovered imptest/glowsync/targ/traced memory).
-Brainstorm a prune that **decouples chunk lifetime from source-file existence** — never GC valuable chunks
-just because the source vanished (detach/archive vs delete; explicit-purge-only). See **#659**. Once
-fixed, delete the restore dir to reclaim the space.
+- PASS: top-10% of notes by in-degree receive ≥3× the median → the signal has spread; build the
+  retention/triage consumer.
+- FAIL: distribution is flat (CV < 0.5) → the signal is uninformative; defer the consumer until more Q&A
+  nodes exist naturally.
+- INFORMATIVE-NULL: fewer than 20 Q&A-eligible exchanges found → underpowered; note the floor and defer.
+
+**Arm V (q-space channel premise) at larger n** (≥30 paraphrases, to settle the round-1 BORDERLINE result —
+`dev/eval/LEDGER.md#qa-arm-v-borderline`). Original pre-registered bands (n=10): **PASS ≥8, BORDERLINE 6–7,
+FAIL <6** (paraphrases ranking their own Q-note first among Q-notes and above every content note); the
+larger-n gate applies the same proportions — PASS ≥80%, BORDERLINE 60–70%, FAIL <60%.
+
+### Round-3 scope — gated on round-2 licensing
+
+- **`engram usage report`** (sorted per-note contribution in-degree, for retention/triage) builds only if
+  P3′ shows spread (PASS above).
+- **The dedicated Q-channel + `answered_by` ride-along** builds only if Arm V's larger-n check reaches its
+  PASS bar.
+- **Ranking A/B falsifier (deferred, sketch only, not scheduled):** arms = warm recall vs warm recall +
+  usage-count boost in ranking; population = the 48-case miss set + trap suites; metric = knowledge
+  delivery, not item rank; falsified if delivery does not improve ≥2σ while collateral stays 0. Exists so a
+  future ranking ambition has a pre-registered bar, not a fresh one.
+
+# Infrastructure — prune must preserve memory across source deletion (#659)
+
+`engram prune` currently orphan-deletes chunks whose source file is gone — but the embedded chunk is the
+asset, not the source `.jsonl`. This blocks reclaiming ~1.3 GiB of restored cross-repo transcripts in
+`~/restic-restore-claude/` (deleting them would lose the recovered imptest/glowsync/targ/traced memory).
+Open: decouple chunk lifetime from source-file existence — never GC valuable chunks just because the source
+vanished (detach/archive vs delete; explicit-purge-only). Once fixed, delete the restore dir to reclaim the
+space.
+
+# Dead ends / not pursuing (measured or pre-registered — do not relitigate)
+
+- Whole-op or split **haiku** recall+build: `dev/eval/LEDGER.md#haiku-whole-op-dead-end`,
+  `dev/eval/LEDGER.md#haiku-split-dead-end`.
+- Payload-size caps *for dollars*, cutting the 10 query phrases, and lightening the skill *body* to raise
+  firing rate — all settled: bytes are cache_read-cheap (the dollar tax is carrying the payload, not its
+  size); breadth in the query phrases surfaces the un-guessable notes; firing rate is set by the skill
+  `description`, not its body.
+- **Link-prediction (TransE/RotatE)** for the vault graph — an explicit pre-registered guard from the
+  2026-07-02 research survey (`docs/design/2026-07-02-research-followups.md`, deleted 2026-07, git log): do
+  not invest in an LP-predicted edge-fabric variant without a downstream retrieval benchmark demonstrating
+  headroom first. No such benchmark exists; nothing to revisit until one does.
