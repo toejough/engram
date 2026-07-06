@@ -84,11 +84,15 @@ reuses prior dispatches' evidence.
 | **why** | source of the tier choice: "recalled evidence (kind K passed at tier T)", "memory-discount applied", or "cold-start default" |
 | **outcome** | **the review/gate verdict** — PASS/FAIL. Never the subagent's self-report (it confabulates — vault notes 148, 162). |
 | **escalation** | if it failed and escalated, the tier it finally passed at |
-| **duration** | observed wall-clock, best-effort |
-| **cost** | only if the harness exposes it; mark "n/a" otherwise — never invent it |
+| **duration** | the harness's reported wall-clock if it exposes one (see *Current harness* below); else best-effort observed |
+| **cost** | the harness's usage signal if it exposes one (see *Current harness* below). Record the **unit explicitly** — never a bare number under a column named cost: e.g. `45,231 tok (~$0.68 @ opus)` or `45,231 tok (no rate on hand)`. Tokens→$ needs a real per-model rate and is a blended estimate, not a bill; mark "n/a" only when genuinely unexposed; never invent a number |
 
 Produce this record per-dispatch and collect the rows into a compact table in your user-facing
 report (the mini-report). The table is the audit trail for route's own tier guidance over time.
+
+**Current harness:** Claude Code exposes both signals in every subagent's Task-completion `<usage>`
+block — `duration_ms` and `subagent_tokens` (the cost basis). A new harness re-exposes them under
+other names without changing this table.
 
 ## The loop that improves the rubric
 

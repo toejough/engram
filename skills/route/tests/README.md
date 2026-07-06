@@ -13,6 +13,7 @@ recall/learn indexes; the difference is what carries the baseline:
 - **Cheapest-first default** — every unit starts at the cheapest tier on a cold start, including work that *feels* hard (no "looks-hard"/"genuinely-hard" exception).
 - **Spec-first escalation** — first fail rewrites the spec + retries the same tier; second fail escalates one tier.
 - **Dispatch record** — every dispatch records work-kind/tier/model/why/outcome, with OUTCOME sourced from a review verdict, never the subagent's self-report.
+- **Usage capture** — on Claude Code, the record's duration/cost come from the subagent's Task-completion `<usage>` block (`duration_ms`, `subagent_tokens`), unit-labeled, not `n/a`.
 - **Evidence loop** — records auto-ingest as recallable memory and crystallize via `/learn`.
 - **Memory-tier-discount** — a memory-backed unit routes one tier cheaper, floored at cheap.
 
