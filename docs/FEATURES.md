@@ -44,14 +44,16 @@ task start.
 why: `docs/architecture/adr.md` — ADR-0001
 validation: `dev/eval/LEDGER.md#recall-moments-opus48-remeasure` (current-model measurement; supersedes the earlier headless flip)
 
-## Memory tier discount (route)
+## Evidence-based route rubric
 
-The `route` skill drops a model tier for work the recalled memory already carries the
-answer to: a cheaper model applying known conventions matches a pricier model deriving
-them cold, so the expensive tier gets reserved for work memory isn't doing the heavy
-lifting on.
+The `route` skill picks a subagent's model tier from memory, not a fixed table: every unit
+of work starts at the cheapest tier, and only recalled evidence — or a failed review —
+raises it. Each dispatch is recorded (work-kind, tier, concrete model, review-sourced
+outcome); those records become recallable memory, so the effective rubric improves over
+time without editing the skill. The memory tier discount — routing recallable-answer work
+one tier cheaper — is its sole evidence-backed cold-start prior.
 
-why: `docs/architecture/adr.md` — ADR-0014
+why: `docs/architecture/adr.md` — ADR-0017 (extends ADR-0014)
 validation: `dev/eval/LEDGER.md#tier-routing-parity`
 
 ## Vocab lifecycle (term notes, dual-channel tagging, tag nomination, supersession ride-along, autonomous refit)

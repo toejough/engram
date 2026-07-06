@@ -378,6 +378,42 @@ skill's directory convention while leaving its audit half unmet, faking compatib
 restructure did), not by a generator. Adopting the skill later would be a deliberate migration
 (JSON re-derivation of every diagram + a new targ target), not a file move.
 
+---
+
+## ADR-0017 — Evidence-based route rubric
+
+**Status:** Accepted (2026-07-06). Extends ADR-0014.
+
+**Context.** ADR-0014 established route-by-tier plus the memory tier discount, measured only at the
+deep→mid boundary; the remaining tier assignments lived in a hard-coded task-character table
+(mechanical→cheap, moderate→mid, complex→deep) that was asserted, never measured. A RED baseline
+confirmed the cost: reading the old skill, an agent over-provisioned 5/6 generic units to mid/deep by
+surface look, and a no-guidance control did the same — the table encoded the model's untested "this
+looks hard → strong model" instinct.
+
+**Decision.** Make the rubric memory-based, not a fixed table. Every unit starts at the cheapest
+tier; only recalled evidence — or a failed review — raises it. Perceived difficulty is not evidence
+("genuinely hard" and "looks hard" are the same hunch), so there is no cold-start exception for
+hard-looking work. Failures escalate spec-first: the first fail rewrites the handoff and retries the
+same tier, a second fail escalates one tier. Every dispatch is recorded (work-kind, tier, concrete
+model, why, review-sourced outcome); records auto-ingest as recallable memory and crystallize via
+`/learn`, so the effective rubric improves through the record→learn→recall loop rather than by
+editing the skill. The memory tier discount (ADR-0014) survives as the one evidence-backed entry of
+the cold-start priors.
+
+**Consequences.** An initial draft failed: it merely said "don't upgrade on a looks-hard hunch" but
+still routed perceived difficulty to the deep tier. Adding an explicit "genuinely-hard ≠ evidence"
+test closed the loophole, and writing-skills TDD then flipped 5/6 over-provision to 0/6 (everything
+cheap). Cold-start cost rises for genuinely-hard work (up to two failed escalations before it reaches
+the tier it needs), an accepted bootstrap; the evidence loop recovers this overhead by improving the
+rubric for future similar work. Harness-agnostic: the dispatch record is built from what the
+orchestrator already knows plus the review verdict, needing no per-subagent cost/token telemetry. The
+pure-confirmation signal ("cheap sufficed for K", overturning nothing) has no dedicated `/learn`
+moment-kind yet — captured as a raw transcript chunk today; issue #668 (positive-reinforcement
+capture kind) is the cleaner home. **Deferred:** structured routing-evidence ledger (#669), periodic
+rubric-refit (#670), parallel-builders (#671), cost/duration telemetry (#672). RED/GREEN evidence is
+transient (`git log`); the memory-discount figures remain at `dev/eval/LEDGER.md#tier-routing-parity`.
+
 ## Decisions deliberately NOT made into ADRs
 
 - **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an
