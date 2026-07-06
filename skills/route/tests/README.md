@@ -6,9 +6,10 @@ recall/learn indexes; the difference is what carries the baseline:
 
 | baseline | locks which behavior | re-run before editing |
 |---|---|---|
-| *(none — author a fresh RED scenario at edit time)* | The memory-tier-discount rule (a memory-backed unit routes one tier cheaper than its surface-look tier, floored at cheap) is locked by the skill text itself, not by a reusable fixture. | Whole skill |
+| *(none — author a fresh RED scenario at edit time)* | **Cheapest-first default** — every unit starts at the cheapest tier on a cold start, including work that *feels* hard (no "looks-hard"/"genuinely-hard" exception). **Spec-first escalation** — first fail rewrites the spec + retries same tier; second fail escalates one tier. **Dispatch record** — every dispatch records work-kind/tier/model/why/outcome, with OUTCOME sourced from a review verdict, never the subagent's self-report. **Evidence loop** — records auto-ingest as recallable memory and crystallize via `/learn`. **Memory-tier-discount** — a memory-backed unit routes one tier cheaper, floored at cheap. All locked by the skill text itself, not by a reusable fixture. | Whole skill |
 
-The rule's original RED/GREEN evidence record (`memory-discount-RED-GREEN.md`, showing the
-router over-provisioning 4/6 memory-backed units before the rule) was deleted in the 2026-07
-docs restructure — `git log` recovers it; the measured claim lives at
+RED/GREEN evidence records are **transient** (like the deleted `memory-discount-RED-GREEN.md`):
+`git log` recovers them. The 2026-07-06 evidence-based-rubric cycle's record
+(`evidence-rubric-RED-GREEN.md`) showed the old table over-provisioning 5/6 units → 0/6 after the
+rewrite; it deletes at cycle close. The measured memory-discount claim lives at
 `dev/eval/LEDGER.md#tier-routing-parity`.
