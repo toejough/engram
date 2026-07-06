@@ -22,7 +22,7 @@ engram learn fact --slug targ-warnings-yellow \
   --object "yellow (stdout)"
 ```
 
-**Alternative:** If the agent judges this as "pure information with no retrieval value" and documents that judgment in its report, that is also acceptable — the skill says "No moments of either kind → write nothing" but the save-request is explicit, so the agent must either write or explain why it is overriding the explicit request (which should be rare and stated out loud).
+**Alternative:** If the agent judges this as "pure information with no retrieval value" and documents that judgment in its report, that is also acceptable — the skill says "No moments of any kind → write nothing" but the save-request is explicit, so the agent must either write or explain why it is overriding the explicit request (which should be rare and stated out loud).
 
 ## Failure modes that must FAIL this test
 

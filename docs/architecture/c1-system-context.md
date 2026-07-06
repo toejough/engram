@@ -191,8 +191,9 @@ Operator runs `/learn` (or the harness self-fires after substantive work). The
 harness first invokes `engram ingest --auto` to merge-append any new chunks from
 session transcripts (S5) and markdown sources into the chunk index — re-chunking
 and re-embedding only changed content, never deleting existing records (append-only,
-D5). It then writes any EXPLICIT lessons (corrections or explicit save-requests)
-into the vault via `engram learn {feedback|fact}`. Each write acquires a `flock`
+D5). It then writes any EXPLICIT lessons (corrections, explicit save-requests,
+self-discovered reversals, and confirmed approaches) into the vault via
+`engram learn {feedback|fact}`. Each write acquires a `flock`
 on the vault root before computing the Luhmann ID and emitting the new file.
 Source: `internal/cli/ingest.go` (`runIngest`) and `internal/cli/learn.go`
 (`runLearn`). The `engram learn episode` subcommand and `engram transcript --mark`
