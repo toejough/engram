@@ -23,7 +23,7 @@
 
 - **`skills/route/SKILL.md`** (modify — the deliverable): rewrite the doctrine to cheapest-first + evidence-based, add spec-handoff and dispatch-record sections, refine the escalation rule, demote the rubric table to cold-start priors, add the evidence-loop section, update red flags.
 - **`skills/route/tests/README.md`** (modify): update the baseline index to name the new locked behaviors (cheapest-first default, escalation ladder, dispatch record, evidence loop) and how each is RED-tested.
-- **`skills/route/tests/RED-GREEN-evidence-rubric.md`** (create): the fresh RED/GREEN evidence record for this cycle (writing-skills artifact), kept as the durable proof the edit changed behavior.
+- **`skills/route/tests/evidence-rubric-RED-GREEN.md`** (create, **ephemeral**): the fresh RED/GREEN evidence for this cycle (writing-skills artifact). Per route's own `tests/README.md` convention, RED/GREEN files are transient — the durable lock is the **skill text itself** plus the tests index; `git log` recovers this file after cleanup (exactly as the deleted `memory-discount-RED-GREEN.md` is). No LEDGER row: this is a behavioral skill change, not a measured eval claim.
 - **`docs/FEATURES.md`** (modify): update the "Memory tier discount (route)" section to describe the broader evidence-based-rubric behavior; fix/point the ADR + validation references.
 - **`docs/architecture/adr.md`** (modify): add an ADR recording the decision to make the route rubric evidence-based/cheapest-first (FEATURES.md already references ADR-000x for routing; keep the chain honest).
 - **`CLAUDE.md`** (modify only if it describes route's doctrine — verify first; likely just the one-line skill summary, which may need a touch).
@@ -34,7 +34,7 @@
 ## Task 1: RED baseline — capture the old hard-coded-rubric behavior
 
 **Files:**
-- Create: `skills/route/tests/RED-GREEN-evidence-rubric.md`
+- Create: `skills/route/tests/evidence-rubric-RED-GREEN.md`
 - Reference (read only): `skills/route/SKILL.md`
 
 **Interfaces:**
@@ -47,12 +47,12 @@
   - (b) it has no step that *records* the dispatch outcome as evidence;
   - (c) it treats the table's tiers as prescriptions, not as overwritable priors.
 
-- [ ] **Step 3: Run the RED baseline** by having a fresh-context agent route the ~6 units using ONLY the current `skills/route/SKILL.md`. Capture its tier picks and reasoning verbatim into `RED-GREEN-evidence-rubric.md` under a `## RED (old text)` heading.
+- [ ] **Step 3: Run the RED baseline** by having a fresh-context agent route the ~6 units using ONLY the current `skills/route/SKILL.md`. Capture its tier picks and reasoning verbatim into `evidence-rubric-RED-GREEN.md` under a `## RED (old text)` heading.
   Expected: the agent over-provisions (picks mid/deep for surface-hard units) and never records outcome-evidence — the documented failure mode.
 
 - [ ] **Step 4: Commit the RED artifact.**
 ```bash
-git add skills/route/tests/RED-GREEN-evidence-rubric.md
+git add skills/route/tests/evidence-rubric-RED-GREEN.md
 git commit -m "test(route): RED baseline — old table over-provisions, no evidence loop"
 ```
 
@@ -66,7 +66,7 @@ git commit -m "test(route): RED baseline — old table over-provisions, no evide
 **Interfaces:**
 - Produces: the exact replacement prose for each section, ready for Task 3 to write. The canonical target content is specified below so the executor types it verbatim (adjusting only to match final voice).
 
-The new `skills/route/SKILL.md` has these sections. **Keep** the frontmatter and the "Orchestration work vs object-level work" section unchanged (they are correct and orthogonal). Replace the doctrine, rubric, and rules with the following.
+The new `skills/route/SKILL.md` has these sections. **Keep** the frontmatter, the "Orchestration work vs object-level work" section, AND the "Two rules every dispatch obeys" section (2g) unchanged (they are correct and orthogonal). Replace the doctrine and the rubric table with the following.
 
 ### 2a — Opening doctrine (replace the intro paragraph)
 
@@ -124,21 +124,24 @@ The new `skills/route/SKILL.md` has these sections. **Keep** the frontmatter and
 > ## Record every dispatch (the evidence)
 >
 > After each dispatch resolves, record one line of evidence. Build it from what you already know as
-> orchestrator plus the review's verdict — no privileged telemetry needed, which is what keeps this
-> harness-agnostic:
+> orchestrator plus the review's verdict. No privileged telemetry needed — this keeps the loop
+> harness-agnostic. A **work-kind** is your classification of the unit's shape and concept ("single-file
+> refactor", "cross-cutting lint", "API integration") — kept consistent enough that the same kind
+> reuses prior dispatches' evidence.
 >
 > | field | source |
 > | --- | --- |
-> | **work-kind** | your classification of the unit (e.g. "structured single-file edit", "cross-cutting refactor") |
-> | **tier used** | your routing decision (cheap/mid/deep) |
-> | **why** | recalled evidence, memory-discount, or "cold-start default (cheapest)" |
+> | **work-kind** | your classification of the unit (see above) |
+> | **tier used** | your routing decision (cheap / mid / deep) |
+> | **model (roster @ dispatch)** | the concrete model the tier resolved to *at dispatch time* (e.g. `cheap (haiku)`). Provenance, not a routing rule — it lets a later audit ask "did swapping the cheap model change the failure rate on this work-kind?" |
+> | **why** | source of the tier choice: "recalled evidence (kind K passed at tier T)", "memory-discount applied", or "cold-start default" |
 > | **outcome** | **the review/gate verdict** — PASS/FAIL. Never the subagent's self-report (it confabulates — vault notes 148, 162). |
 > | **escalation** | if it failed and escalated, the tier it finally passed at |
 > | **duration** | observed wall-clock, best-effort |
-> | **cost** | only if the harness exposes it; omit otherwise — mark "n/a", never invent it |
+> | **cost** | only if the harness exposes it; mark "n/a" otherwise — never invent it |
 >
-> Surface these records in your user-facing report as a compact table (the mini-report). They are the
-> audit trail for route's own tier guidance over time.
+> Produce this record per-dispatch and collect the rows into a compact table in your user-facing
+> report (the mini-report). The table is the audit trail for route's own tier guidance over time.
 
 ### 2e — The evidence loop (NEW section)
 
@@ -152,26 +155,28 @@ The new `skills/route/SKILL.md` has these sections. **Keep** the frontmatter and
 > 4. **`/recall`** surfaces that lesson next time similar work is routed.
 > 5. The **starting tier** now reflects evidence — the rubric improved without editing this file.
 >
-> Periodic consolidation: when strong, repeated evidence accrues for a work-kind, fold it into the
-> cold-start priors below (via `superpowers:writing-skills` TDD) so a cold session starts warm too.
-> Until then, recall does the improving.
+> Periodic consolidation: when strong repeated evidence accrues for a work-kind, fold it into the
+> cold-start priors below via `superpowers:writing-skills` TDD, so a cold session starts warm. Until
+> then, recall does the improving.
 
 ### 2f — Cold-start priors (REPLACE the prescriptive rubric table)
 
 > ## Cold-start priors (unproven — evidence overwrites these)
 >
 > Absent recalled evidence, these are the *starting* tiers. Every entry is a hypothesis the dispatch
-> record is meant to confirm or overturn — not a prescription. The default posture is **cheapest for
-> everything**; an entry above cheap must earn its place with recorded evidence.
+> record is meant to confirm or overturn — not a prescription. The posture is **cheapest for
+> everything**; the only entry that starts above cheap must earn it with recorded evidence, and none
+> does yet. There is **no cold-start exception for "looks hard"** — a surface-look guess is exactly
+> what the loop replaces; genuinely deep work reaches the deep tier via two failed escalations, and
+> the evidence loop then learns to start it there.
 >
 > | Work character | Cold-start tier | Status |
 > | --- | --- | --- |
 > | Everything, by default | cheap | the posture |
-> | Memory-backed unit (answer is recallable) | cheap (one tier down from its intrinsic look) | **evidence-backed** (note 135) |
-> | Genuinely irreducible deep judgment with no recallable premises | deep, fresh context | prior — record outcomes to test it |
+> | Memory-backed unit (answer is recallable) | one tier down, floored at cheap | **evidence-backed** (note 135) |
 >
-> Model names for the current roster: cheap = haiku, mid = sonnet, deep = opus. A new model re-fills a
-> tier; it does not change this table.
+> Current roster: cheap = haiku, mid = sonnet, deep = opus. A new model re-fills a tier without
+> changing this table.
 
 ### 2g — Two rules every dispatch obeys (KEEP, unchanged: recall-first + decompose-before-dispatch)
 
@@ -196,18 +201,18 @@ The new `skills/route/SKILL.md` has these sections. **Keep** the frontmatter and
 
 **Files:**
 - Modify: `skills/route/SKILL.md` (replace sections per Task 2; keep frontmatter + orchestration-vs-object-level section)
-- Modify: `skills/route/tests/RED-GREEN-evidence-rubric.md` (append `## GREEN (new text)` results)
+- Modify: `skills/route/tests/evidence-rubric-RED-GREEN.md` (append `## GREEN (new text)` results)
 
 - [ ] **Step 1:** Apply the Task 2 replacement content to `skills/route/SKILL.md`, preserving the untouched sections. Keep every line < 120 chars.
 
 - [ ] **Step 2: Run the GREEN check** — a fresh-context agent routes the SAME ~6 units from Task 1 using the NEW text. Capture picks + reasoning under `## GREEN (new text)`.
   Expected: it defaults each unit to cheapest, names recalled-evidence (or "cold-start default") as the reason, states the spec-first escalation ladder, and includes a dispatch-record step. The over-provisioning from RED is gone.
 
-- [ ] **Step 3: Confirm the behavioral flip** in `RED-GREEN-evidence-rubric.md` with a one-paragraph diff (RED over-provisioned M/6 units + no record → GREEN defaults cheapest + records). This is the writing-skills proof.
+- [ ] **Step 3: Confirm the behavioral flip** in `evidence-rubric-RED-GREEN.md` with a one-paragraph diff (RED over-provisioned M/6 units + no record → GREEN defaults cheapest + records). This is the writing-skills proof.
 
 - [ ] **Step 4: Commit.**
 ```bash
-git add skills/route/SKILL.md skills/route/tests/RED-GREEN-evidence-rubric.md
+git add skills/route/SKILL.md skills/route/tests/evidence-rubric-RED-GREEN.md
 git commit -m "feat(route): memory-based rubric — cheapest-first, escalate-on-evidence, record dispatches"
 ```
 
@@ -216,7 +221,7 @@ git commit -m "feat(route): memory-based rubric — cheapest-first, escalate-on-
 ## Task 4: Pressure tests — close rationalization loopholes
 
 **Files:**
-- Modify: `skills/route/tests/RED-GREEN-evidence-rubric.md` (append `## Pressure tests`)
+- Modify: `skills/route/tests/evidence-rubric-RED-GREEN.md` (append `## Pressure tests`)
 - Modify: `skills/route/SKILL.md` (only if a pressure test finds a loophole)
 
 - [ ] **Step 1:** Run fresh-context agents against pressure scenarios designed to make them abandon the doctrine:
@@ -229,7 +234,7 @@ git commit -m "feat(route): memory-based rubric — cheapest-first, escalate-on-
 
 - [ ] **Step 3: Commit** any hardening.
 ```bash
-git add skills/route/SKILL.md skills/route/tests/RED-GREEN-evidence-rubric.md
+git add skills/route/SKILL.md skills/route/tests/evidence-rubric-RED-GREEN.md
 git commit -m "test(route): pressure-test the evidence rubric against authority/deadline/self-report loopholes"
 ```
 
@@ -240,7 +245,7 @@ git commit -m "test(route): pressure-test the evidence rubric against authority/
 **Files:**
 - Modify: `skills/route/tests/README.md`
 
-- [ ] **Step 1:** Update the baseline table to name the newly-locked behaviors: cheapest-first default, spec-first escalation ladder, dispatch record (review-sourced outcome), evidence loop. Point at `RED-GREEN-evidence-rubric.md` as this cycle's durable proof and at `dev/eval/LEDGER.md#tier-routing-parity` for the measured memory-discount claim.
+- [ ] **Step 1:** Update the baseline table to name the newly-locked behaviors: cheapest-first default, spec-first escalation ladder, dispatch record (review-sourced outcome), evidence loop. Follow route's existing convention (the behaviors are **locked by the skill text itself**, not by a reusable fixture) — extend the current single-row table. State that this cycle's `evidence-rubric-RED-GREEN.md` is transient (recovered via `git log` after cleanup, like the deleted `memory-discount-RED-GREEN.md`); point the measured memory-discount claim at `dev/eval/LEDGER.md#tier-routing-parity`. Do NOT call the RED/GREEN file "durable."
 
 - [ ] **Step 2: Commit.**
 ```bash
@@ -259,7 +264,7 @@ git commit -m "docs(route): index the evidence-rubric baseline behaviors"
 
 - [ ] **Step 1:** In `docs/FEATURES.md`, broaden the route section (currently titled "Memory tier discount (route)", `why: ADR-0014`, `validation: dev/eval/LEDGER.md#tier-routing-parity`) from "memory tier discount" to "evidence-based rubric": default cheapest, escalate on failure, record dispatches, memory sets the tier. Point `why:` at the new `ADR-0017` (Step 2) and keep `validation:` on `#tier-routing-parity`.
 
-- [ ] **Step 2:** Add **ADR-0017 — Evidence-based route rubric** to `docs/architecture/adr.md` (next number after ADR-0016), marked as **extending/superseding ADR-0014** (Memory-backed tier discount is now the one evidence-backed entry of a broader evidence-based rubric): *decision* — the route rubric is memory-based (cheapest-first + escalate-on-evidence + dispatch record) rather than a hard-coded task-character table; *why* — the old mid/deep tiers were asserted, not measured (only the deep→mid memory-discount boundary was measured — LEDGER `#tier-routing-parity`); the record→learn→recall loop makes routing self-correcting and harness-agnostic; *consequences* — needs a dispatch record and the learn/recall loop; deferred infra tracked in issues. Follow the exact ADR heading/format of ADR-0014..0016 in that file.
+- [ ] **Step 2:** Add **ADR-0017 — Evidence-based route rubric** to `docs/architecture/adr.md` (next number after ADR-0016), marked as **extending ADR-0014** — NOT superseding it. ADR-0014's measured memory-discount + roster-agnosticism stays valid as the one evidence-backed entry of a broader rubric; leave ADR-0014's Status line untouched (the repo reserves "Superseded" for replaced/deleted decisions, and this doesn't replace 0014). ADR-0017 text: state "Extends ADR-0014 (memory-backed tier discount + roster-agnosticism) by embedding it in a broader evidence-based framework." *decision* — the route rubric is memory-based (cheapest-first + escalate-on-evidence + dispatch record) rather than a hard-coded task-character table; *why* — the old mid/deep tiers were asserted, not measured (only the deep→mid memory-discount boundary was measured — LEDGER `#tier-routing-parity`); the record→learn→recall loop makes routing self-correcting and harness-agnostic; *consequences* — needs a dispatch record and the learn/recall loop; deferred infra tracked in issues. Follow the exact ADR heading/format of ADR-0014..0016 in that file.
 
 - [ ] **Step 3:** Grep `CLAUDE.md` and `docs/README.md` for route descriptions; update only if they now misstate the doctrine. Read first, edit minimally.
 
@@ -302,4 +307,11 @@ git commit -m "docs: route rubric is evidence-based (ADR + FEATURES + skill summ
 
 **Consistency:** "cold-start prior", "dispatch record", "evidence loop", "cheapest-first", "spec-first escalation" used consistently across tasks and the target text.
 
-**Open decision for Gate A / user:** whether the ADR is warranted now vs deferred (I judged: warranted — FEATURES.md references an ADR for the routing behavior, so evolving the behavior should evolve the ADR chain). Flagged rather than assumed.
+**Gate A resolutions folded in (2026-07-06):**
+- *ask-alignment F1* — added a `model (roster @ dispatch)` provenance field to the dispatch record (2d), so longitudinal audits can attribute outcomes to concrete models even after a roster remap. It records a fact, not a routing rule — harness-agnosticism preserved.
+- *ask-alignment F2* — **deleted the "irreducible deep judgment → deep" cold-start row** (2f). It was a hard-coded non-cheap default wearing a "prior" label, contradicting "everything defaults to cheapest" and the plan's own red flag. Cheapest-first + escalate + the evidence loop reach and learn the deep tier without it.
+- *docs- & code-alignment* — ADR-0017 **extends** (not supersedes) ADR-0014; ADR-0014 Status untouched (Task 6 Step 2).
+- *code-alignment F2/F3* — RED/GREEN file renamed `evidence-rubric-RED-GREEN.md` and treated as **transient** (locked-by-skill-text convention, git-recoverable), not "durable"; no LEDGER row (behavioral change, not a measured claim).
+- *clarity/standards* — line-length fixes (2d/2e/2f), `why`-field relabel, `work-kind` defined in 2d, cold-start row-2 made self-contained.
+
+**Confirmed clean by Gate A (stated so it isn't relitigated):** C parked correctly (not creep); no named roles; all file paths/anchors verified against the working tree (ADR-0016 is last, ADR-0017 correct; FEATURES/LEDGER anchors real; commit `2bf959f4` real); CLAUDE.md + GLOSSARY.md + docs/README.md survive unchanged (route one-liner still accurate).
