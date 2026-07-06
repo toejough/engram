@@ -408,9 +408,9 @@ cheap). Cold-start cost rises for genuinely-hard work (up to two failed escalati
 the tier it needs), an accepted bootstrap; the evidence loop recovers this overhead by improving the
 rubric for future similar work. Harness-agnostic: the dispatch record is built from what the
 orchestrator already knows plus the review verdict, needing no per-subagent cost/token telemetry. The
-pure-confirmation signal ("cheap sufficed for K", overturning nothing) has no dedicated `/learn`
-moment-kind yet — captured as a raw transcript chunk today; issue #668 (positive-reinforcement
-capture kind) is the cleaner home. **Deferred:** structured routing-evidence ledger (#669), periodic
+pure-confirmation signal ("cheap sufficed for K", overturning nothing) is captured by `/learn`'s
+kind-4 confirmed-approaches moment (positive reinforcement, shipped 2026-07-06 via #668): a tier
+that passed for a work-kind crystallizes as a confirmed approach, a tier that failed as a reversal. **Deferred:** structured routing-evidence ledger (#669), periodic
 rubric-refit (#670), parallel-builders (#671), cost/duration telemetry (#672). RED/GREEN evidence is
 transient (`git log`); the memory-discount figures remain at `dev/eval/LEDGER.md#tier-routing-parity`.
 

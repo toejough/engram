@@ -75,13 +75,24 @@ each reversal crystallizes the ROOT CAUSE of the original error via a write-memo
 handoff. Self-discovered reversals qualify; a repo-doc CORRECTION section is not
 capture.
 
+### confirmed approach (capture kind)
+A specific, generalizable approach validated as good — the positive mirror of the
+correction and reversal kinds. The learn skill's fourth capture kind (Step 2, shipped
+2026-07-06 via #668): it fires when the user praises a specific behavior (4a) or when a
+genuine guess the agent acted on is confirmed by an observable outcome (4b), and
+crystallizes via a write-memory handoff. Generic pleasantries, routine successes, and
+unconfirmed guesses do not qualify — the signal is a resolved uncertainty or an explicit
+confirmation, never "it worked".
+
 ### lessons audit
 The please skill's step-7 enumeration of a cycle's mechanical corpus — fired
 pre-registered STOPs, gate FAIL verdicts, commits whose messages carry
 CORRECTION/supersede/instrument-invalid/redraw markers, and mid-cycle escalations —
 each mapped to the vault note that captures its lesson or an explicit
 "no lesson: <why>" line. Unmapped items become reversal handoffs; the list appears
-in the cycle's closing report. Pre-registered upgrade: a wrong "no lesson" mapping
+in the cycle's closing report. The audit is failure-shaped by design; positive
+reinforcement (the confirmed-approach kind) has no mechanical marker and is captured
+by the closing `/learn`'s Step-2 scan, not here. Pre-registered upgrade: a wrong "no lesson" mapping
 triggers a fresh-context lessons reviewer (an externalized audit; upgrade path in the
 ROADMAP atoms-arc status block).
 
@@ -347,10 +358,11 @@ non-parallel-by-design relationship to the type name as Feedback, above.
 
 ### Step 2 (learn's crystallization gate)
 The gate that decides whether `/learn` writes anything: a scan of the session
-for exactly three capture kinds — **corrections** (the user corrected an
+for exactly four capture kinds — **corrections** (the user corrected an
 approach or behavior), **explicit save-requests** ("remember this/that X"),
-and **reversals** (see above) — each handed to **write-memory** (kind=`feedback`
-or `fact` per the kind). No qualifying moment → learn writes nothing (a
+**reversals** (see above), and **confirmed approaches** (see above — positive
+reinforcement, user-praised or self-validated) — each handed to **write-memory**
+(kind=`feedback` or `fact` per the kind). No qualifying moment → learn writes nothing (a
 two-command sweep-only run). Replaces the retired recall-mirror-test /
 injection-locus / scratch-list / Path-A-B-C apparatus, which was never
 implemented in the shipped skill.

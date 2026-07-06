@@ -90,7 +90,8 @@ validation: concurrent-writers regression test + `targ check-full` (commit `f7f6
 
 A dedicated worker skill executes the actual vault-write commands on behalf of recall and
 learn, so the judgment of what to capture stays separate from the mechanics of writing
-it. Learn also captures self-discovered reversals as their own lesson kind, and `please`
+it. Learn also captures self-discovered reversals and confirmed approaches (positive
+reinforcement, user-praised or self-validated) as their own lesson kinds, and `please`
 audits each cycle's mechanical corpus — failed gates, corrections, escalations — against
 the vault to catch lessons that went uncaptured.
 

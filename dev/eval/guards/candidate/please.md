@@ -95,7 +95,7 @@ At the start of execution, push all seven steps below to the task list via `Task
    - every commit whose message contains CORRECTION, supersede/superseded, instrument-invalid, or redraw/redrawn
    - every mid-cycle escalation to the user
 
-   Map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>". Unmapped items are reversal handoffs for the closing learn (its Step-2 kind 3). The audit list (item → note-or-no-lesson) appears in the cycle's closing report to the user.
+   Map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>". Unmapped items are reversal handoffs for the closing learn (its Step-2 kind 3). The audit list (item → note-or-no-lesson) appears in the cycle's closing report to the user. The audit is failure-shaped by design; positive reinforcement (confirmed approaches, self-validated bets) has no mechanical marker and is captured by the closing `/learn`'s Step-2 kind-4 scan, not here.
 
    Then: Run the `learn` skill again to preserve the lessons from this session. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.
 

@@ -116,8 +116,6 @@ deleted 2026-07, git log):
 - **Periodic MOC-generation pass** — an LLM pass generating curated hub notes for recurring topics, the
   practitioner-validated alternative to the shipped automated tag-hub (vocab tag nomination). Revisit if
   tag nomination is shown insufficient as the bridging mechanism.
-- **A positive-reinforcement (confirmed-approach) capture kind for `learn` Step 2** — issue #668, open,
-  unscheduled.
 
 ### Deeper arc — relational synthesis (unexplored extensions)
 

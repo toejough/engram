@@ -101,8 +101,8 @@ other names without changing this table.
 3. The record lands in your session transcript, which **`/learn`**'s sweep auto-ingests as
    recallable memory — so even uncrystallized, a tier outcome is retrievable next time. When a
    finding is strong and general ("cheap failed N× on work-kind K — needs mid"), crystallize it via
-   `/learn`: a save-request to yourself, or a reversal if it overturns a prior tier assumption. (A
-   dedicated confirmed-approach capture kind — issue #668 — would be its cleaner home.)
+   `/learn`: a **confirmed approach** (kind 4) when a tier's outcome confirms the routing
+   (e.g. "cheap sufficed for work-kind K"), or a **reversal** if it overturns a prior tier assumption.
 4. **`/recall`** surfaces that evidence next time similar work is routed.
 5. The **starting tier** now reflects evidence — the rubric improved without editing this file.
 

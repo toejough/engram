@@ -222,7 +222,7 @@ sequenceDiagram
     V-->>E: written chunk count
     E-->>H: per-source chunk tally (or "memory index up to date")
 
-    Note over H: scan THIS session for exactly three kinds: corrections, explicit save-requests, reversals (presented-then-overturned)
+    Note over H: scan THIS session for exactly four kinds: corrections, explicit save-requests, reversals (presented-then-overturned), confirmed approaches (positive reinforcement)
 
     loop per explicit lesson (one parallel tool-use block)
         H->>E: engram learn feedback|fact --slug ... --source ... --situation ...

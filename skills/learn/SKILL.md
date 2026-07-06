@@ -4,14 +4,15 @@ description: >
   Use after completing any action we started with a recall call, or after any work that involved more than one tool
   call or more than quick shallow thinking. Also use immediately on explicit save-requests like "remember this",
   "remember that X", "save that for later", "note for next time", "don't forget X", "write this down". Also use at
-  session end when a conclusion, design, or finding you presented was later overturned or corrected. This preserves
-  relevant memories that are VITAL to recall for a good user experience and a greater chance at first-pass success
-  for similar work in the future.
+  session end when a conclusion, design, or finding you presented was later overturned or corrected. Also use when a
+  specific approach was confirmed to work — the user explicitly praised a specific behavior, or a genuine guess or
+  uncertain call you acted on turned out right. This preserves relevant memories that are VITAL to recall for a good
+  user experience and a greater chance at first-pass success for similar work in the future.
 ---
 
 # Learn — Sweep Raw Memory, Crystallize Explicit Lessons
 
-Two jobs, in order: (1) mechanically true up the chunk index so every conversation and doc is searchable memory, and (2) write a vault note for every explicit lesson this session — user corrections, explicit save-requests, and presented conclusions that were later overturned. Nothing else.
+Two jobs, in order: (1) mechanically true up the chunk index so every conversation and doc is searchable memory, and (2) write a vault note for every explicit lesson this session — user corrections, explicit save-requests, presented conclusions that were later overturned, and confirmed approaches (user-praised or self-validated). Nothing else.
 
 > **Raw event memory is AUTOMATIC.** `engram ingest` chunks and embeds session transcripts and
 > markdown itself — no summaries, no episode notes, no arc detection. The agent's only writing
@@ -53,7 +54,7 @@ autonomously — it requires Joe's oversight.
 
 ## Step 2 — Crystallize explicit lessons (only when they exist)
 
-Scan THIS session for exactly three kinds of moments:
+Scan THIS session for exactly four kinds of moments:
 
 1. **Corrections** — the user corrected your approach or behavior ("don't suppress lint warnings —
    fix the underlying issue", "never amend pushed commits").
@@ -84,6 +85,31 @@ Scan THIS session for exactly three kinds of moments:
    narrative of the flip; plus supersedes details if the reversal corrects an existing vault
    note.
 
+4. **Confirmed approaches (positive reinforcement)** — a specific, generalizable approach was
+   validated as good, either by the user or by the outcome. The positive mirror of kinds 1 and 3;
+   it fires on EITHER trigger:
+   - **4a — user-confirmed:** the user explicitly praised or thanked a SPECIFIC behavior you could
+     restate as a reusable tactic ("thanks for attaching the file — easier to read from my phone" →
+     "attach deliverable files instead of inlining them"). A bare pleasantry naming no behavior
+     ("thanks!", "great work") does NOT qualify. (If the user also instructs "do that going
+     forward", that is additionally a save-request — kind 2.)
+   - **4b — self-validated bet:** you made a genuine guess, or were uncertain about a plan, concept,
+     or idea, ACTED on it (embodied it in the work — a chosen approach, an implementation, a plan
+     step, a command run), and an OBSERVABLE, session-recorded outcome then confirmed it worked (a
+     test passed, the user confirmed it, an artifact functioned, a blocker cleared). The exact
+     positive mirror of a reversal: a bet that succeeded instead of failing.
+
+   The action is capturing what WORKED — NOT logging every success. A bare pleasantry, a routine
+   success with no bet behind it, or an unconfirmed guess is never the signal — just as a repo-doc
+   CORRECTION does not count as reversal-capture, a routine success does not count as
+   reinforcement-capture; the signal is a resolved uncertainty or an explicit specific
+   confirmation, never "it worked". For each confirmed approach, **REQUIRED SUB-SKILL:** invoke the
+   **write-memory** skill with this handoff — kind=feedback, slug, source ("session <date>,
+   context: <one-line what-was-happening>"), situation (retrieval-shaped: when would this approach
+   apply again), behavior = what worked, impact = the confirming evidence (the user's quote for 4a,
+   or the observed outcome that resolved the uncertainty for 4b), action = keep doing it + its
+   trigger conditions; plus supersedes details if this confirmation corrects an existing vault note.
+
 Rules:
 - **State the general principle**, not the session-specific instance — future-you recalls by
   situation similarity, not by remembering this session.
@@ -93,7 +119,7 @@ Rules:
   "remember this" means stop and write before anything else.
 - If the new lesson CORRECTS, narrows, or refutes an existing vault note, include the superseded note's basename, type, and claim in the handoff.
 - **No moments of any kind → write nothing.** Routine work is already captured by Step 1;
-  a session with no corrections, no save-requests, and no reversals is a two-command learn (sweep + report).
+  a session with no corrections, no save-requests, no reversals, and no confirmed approaches is a two-command learn (sweep + report).
 
 ## Step 2.5 — Ad-hoc QA capture (only when a new substantive Q&A occurred this session)
 
@@ -121,7 +147,8 @@ this session), do not write it again here. One pair per distinct answered questi
 | --- | --- |
 | You ran `engram transcript` anything | Step 1's `engram ingest --auto` replaced the whole transcript workflow |
 | You're writing an episode or summarizing the session into a note | Don't — raw chunks already hold it |
-| You're writing facts for things nobody asked you to remember | Only corrections, save-requests, and reversals crystallize here |
+| You're writing facts for things nobody asked you to remember | Only corrections, save-requests, reversals, and confirmed approaches crystallize here |
+| You're writing a confirmed-approach note for a routine success or a bare "thanks!" | Kind 4 needs a genuine bet with observable confirmation, or explicit praise of a SPECIFIC behavior — never mere success |
 | You skipped the sweep because "nothing changed" | The sweep IS the check — it costs seconds when nothing changed |
 | `--tier` flags or L3/ADR writing | Tiers are not part of learn anymore |
 | You corrected a repo doc (CORRECTION/postscript) and skipped the vault note | Write the vault note for the reversal's root cause — record-correction is not capture |

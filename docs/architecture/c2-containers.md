@@ -181,7 +181,7 @@ sequenceDiagram
     Tr-->>E: session entries (changed sources)
     Note over E: strip harness noise (context.Strip); write updated manifest.json to chunk index dir
     E-->>Sk: stdout chunk identifiers + status line (scanned range, new chunk count)
-    Note over Sk: scan for the three explicit lesson kinds (corrections, save-requests, reversals); hand each to write-memory
+    Note over Sk: scan for the four explicit lesson kinds (corrections, save-requests, reversals, confirmed approaches); hand each to write-memory
     loop per explicit lesson (one parallel tool-use block)
         Note over Sk: hand off to write-memory skill (parents judge, worker writes)
         Sk->>E: shell engram learn fact|feedback … (fresh process; via write-memory)
@@ -195,8 +195,9 @@ sequenceDiagram
 
 ### Flowchart: learn capture kinds (C1)
 
-Companion to the sequence diagram above — the four capture kinds `skills/learn/SKILL.md` Steps 2/2.5
-scan for, each handed off to the **write-memory** skill, converging on the same vault-write mechanics.
+Companion to the sequence diagram above — the four Step-2 capture kinds plus the Step-2.5 QA-pair kind
+(`skills/learn/SKILL.md` Steps 2/2.5), each handed off to the **write-memory** skill, converging on the
+same vault-write mechanics.
 
 ```mermaid
 flowchart TD
@@ -205,12 +206,14 @@ flowchart TD
     S2 -->|correction| CORR["Correction: user corrected approach/behavior"]
     S2 -->|save-request| SAVE["Explicit save-request: 'remember this/that X'"]
     S2 -->|reversal| REV["Reversal: a presented conclusion later overturned"]
+    S2 -->|confirmed approach| CONF["Confirmed approach: praised behavior or self-validated bet"]
     S25 -->|"answer has >=1 [[wikilink]] or crystallized a new note"| QAK["QA pair worth capturing"]
     P7["please Step 7 lessons audit: STOPs, gate FAILs, CORRECTION-commits, escalations"] -.->|"unmapped item"| REV
 
     CORR --> WM["write-memory skill: composes + executes the handoff"]
     SAVE --> WM
     REV --> WM
+    CONF --> WM
     QAK --> WMQ["write-memory skill (kind=qa)"]
 
     WM --> L["engram learn feedback|fact --chunk-source ..."]
