@@ -269,7 +269,7 @@ func writeGuidanceHints(buffer *bytes.Buffer, report update.Report) {
 
 	if !report.WithGuidance && !report.GuidanceImported {
 		fmt.Fprintf(buffer,
-			"engram ships recall-firing guidance; run 'engram update --with-guidance' to deploy it\n",
+			"engram ships recall- and delegation-firing guidance; run 'engram update --with-guidance' to deploy it\n",
 		)
 	}
 }

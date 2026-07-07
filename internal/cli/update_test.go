@@ -462,7 +462,7 @@ func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 			guidanceImports:  nil,
 			guidanceImported: false,
 			withGuidance:     false,
-			wantContains:     []string{"engram ships recall-firing guidance"},
+			wantContains:     []string{"engram ships recall- and delegation-firing guidance"},
 		},
 		{
 			name:             "plain-update-already-imported",
