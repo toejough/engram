@@ -44,6 +44,19 @@ task start.
 why: `docs/architecture/adr.md` — ADR-0001
 validation: `dev/eval/LEDGER.md#recall-moments-opus48-remeasure` (current-model measurement; supersedes the earlier headless flip)
 
+## Delegate-object-level-work guidance (@import)
+
+A standing instruction, imported into CLAUDE.md, fires the "you are an orchestrator" reflex at the
+delegation decision moment — plan the unit, hand it to a subagent, review what returns, report the
+outcome — instead of doing object-level work solo out of habit. Sibling to the recall-firing
+guidance; it points at the `route` skill (the *how* of one dispatch) and `/please` (the full gated
+procedure) rather than restating them. The floor is evidence, not a guess: go inline only when
+recalled memory shows a task-kind runs reliably below the routing overhead — never on an
+in-the-moment "it's trivial" guess.
+
+why: mirrors the recall-firing guidance (@import) pattern; doctrine in `guidance/delegate.md`, `skills/route/SKILL.md`, `skills/please/SKILL.md`
+validation: `dev/eval/LEDGER.md#delegate-guidance-flip` (headless RED→GREEN: solo→subagent-dispatch, including the trivial-rename case)
+
 ## Evidence-based route rubric
 
 The `route` skill picks a subagent's model tier from memory, not a fixed table: every unit
