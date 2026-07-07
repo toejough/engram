@@ -159,17 +159,24 @@ memory leaks in.
 - [ ] **Step 1: Invoke `superpowers:writing-skills`.** Mandatory for guidance edits (repo CLAUDE.md
   + the doc's own header contract). It owns the RED → GREEN → REFACTOR loop below.
 
-- [ ] **Step 2: RED baseline (headless, guidance absent).** Fictional multi-step task, minimal
-  project `CLAUDE.md`, **no** `@~/.claude/engram/delegate.md` import. Prompt (verbatim):
+- [ ] **Step 2: RED baseline (headless, guidance absent).** Two fictional tasks, minimal project
+  `CLAUDE.md`, **no** `@~/.claude/engram/delegate.md` import. Run on the **production model**
+  (`claude-opus-4-8[1m]` or current equivalent — matching recall.md's validation, LEDGER row 41).
+  Minimal `CLAUDE.md` = the single line `# scratch` with no imports, so the guidance `@import` is
+  the only variable between arms. Prompts (verbatim):
 
-  > "Add a `--preview` flag to the `zib` CLI that lists which `.glorp` files the `transmute`
-  > command would rewrite, without rewriting them — touching the glorp parser, the transmuter, and
-  > the CLI wiring, with tests. Go ahead."
+  - **Large unit:** "Add a `--preview` flag to the `zib` CLI that lists which `.glorp` files the
+    `transmute` command would rewrite, without rewriting them — touching the glorp parser, the
+    transmuter, and the CLI wiring, with tests. Go ahead."
+  - **Small-looking unit** (tests the overhead-vs-difficulty boundary — Gate-A finding): "Rename the
+    `frob` field to `frobnicate` across the two files `widget.zib` and `gadget.zib`. Go ahead."
 
-  Run 5 reps: `claude -p "<prompt>" --append-system-prompt "<minimal CLAUDE.md>"` (fresh cwd, no
-  delegate import). Score each rep: did the agent's first substantive move **delegate** (plan +
-  dispatch a subagent + plan to review) or **do it solo** (start reading/editing files itself)?
-  Expected RED: ~0/5 delegate-posture (solo default).
+  Run 5 reps per prompt: `claude -p "<prompt>" --append-system-prompt "<minimal CLAUDE.md>"` (fresh
+  cwd, no delegate import). **Scoring rubric (per rep):** score **delegate** iff the agent's first
+  substantive act is one of — (a) writing a plan before touching code, (b) invoking `/route` or
+  `/please`, or (c) explicitly naming/dispatching a subagent; score **solo** if it opens a file and
+  begins editing/writing code without any of (a)–(c). Expected RED: ~0/5 delegate on **both**
+  prompts (solo default — the small-looking unit especially).
 
 - [ ] **Step 3: Write `guidance/delegate.md`.** Exact content:
 
@@ -179,43 +186,40 @@ memory leaks in.
   ## Delegate object-level work — plan it, route it, review it, report it
 
   You are an orchestrator. The default shape for **any** unit of work is **plan it → hand it to a
-  subagent → review what comes back → report the result** — you do not write the code, run the build,
-  or judge the artifact yourself. Doing object-level work solo out of habit is the failure this
-  counters; under-delegating costs more than the routing overhead it saves.
+  subagent → review what returns (fresh context, never the builder's own "done") → report the
+  outcome** (route's evidence table, please's gate verdicts). You don't write the code, run the
+  build, or judge the artifact yourself — doing it solo out of habit costs more than the routing
+  overhead it saves.
 
   Fire at the moments you'd otherwise just-do-it-yourself:
 
-  - **Before you open a file to write code or prose** — draft the plan and route the unit; don't start typing.
-  - **Before a multi-step change** — decompose into units and hand each to a subagent (`route` picks the
-    tier, writes the exact handoff, and records the evidence).
+  - **Before you open a file to write code or prose** — draft the plan and route the unit, don't start typing.
+  - **Before a multi-step change** — decompose into units, hand each to a subagent (`route` sets the tier, handoff, and evidence).
   - **When a unit is too big for one focused pass** — decompose first, then dispatch the pieces.
 
-  Then **review** what returns with a fresh-context reviewer (never the builder's own "done" claim), and
-  **report** the outcome — route's dispatch-evidence table, or please's gate verdicts.
+  **The floor is evidence, not a guess.** Default to route-measure-remember; go inline **only** when
+  recalled memory shows this kind of task runs reliably below the routing overhead — a measured track
+  record. "It's easy" and "the overhead would exceed the work" are the same forbidden forecast; only
+  the record earns the escape. No record → route it, even if it feels trivial. Don't guess it's a
+  quick fix — **know** it.
 
-  **The floor is evidence, not a guess.** Default to route-measure-remember: every dispatch is measured
-  and crystallized, so the next similar unit starts from evidence. Do a unit inline **only** when
-  recalled memory shows tasks of its kind are reliably below the routing overhead — a measured track
-  record, never an in-the-moment "this is quick." No such evidence → route it, even if it feels trivial;
-  the measurement you record is what earns the inline escape next time. Don't guess it's a quick fix —
-  **know** it.
-
-  For the *how* of a single dispatch, use `route`; for a full end-to-end ask, `/please` runs the whole
-  gated procedure. This doc is the always-on reflex that points you at them — it fires even when neither
-  skill has triggered.
-
-  These catch the *solo-by-habit* gap — the delegation was doctrine you'd already adopted, just unreached
-  at the decision moment.
+  For one dispatch's *how* use `route`; for a full end-to-end ask, `/please`. This fires even when
+  neither has triggered — it catches the solo-by-habit gap.
   ```
 
-- [ ] **Step 4: GREEN (headless, guidance present).** Same 5 reps, now with
-  `@~/.claude/engram/delegate.md` imported (place the file and add the import line to the arm's
-  CLAUDE.md). Expected GREEN: ≥4/5 delegate-posture. If < 4/5, REFACTOR the wording (writing-skills)
-  and re-run — do not ship a doc that doesn't flip the reflex.
+- [ ] **Step 4: GREEN (headless, guidance present).** Same 5 reps **per prompt**, now with
+  `@~/.claude/engram/delegate.md` imported (place the file, add the import line to the arm's
+  CLAUDE.md), same model and rubric. Expected GREEN: ≥4/5 delegate on the large unit **and** the
+  small-looking unit — the small unit is the real test that the floor routes despite the "it's just
+  a rename" temptation. If either is < 4/5, REFACTOR the wording (writing-skills) and re-run — do
+  not ship a doc that doesn't flip the reflex at the small-edit boundary.
 
-- [ ] **Step 5: Record + commit.** Append a one-row RED/GREEN entry to `dev/eval/LEDGER.md`
-  (arms, N, scores, the flip). Commit:
-  `feat(guidance): delegation-firing guidance doc (delegate.md)`.
+- [ ] **Step 5: Record + commit.** Append a row to `dev/eval/LEDGER.md` in the existing table format
+  (`claim | verdict | figure | superseded-by | raw data`), e.g.:
+
+  `| **delegate.md flips the delegation reflex** | proven | RED 0/5 → GREEN ≥4/5 on both large + small-edit prompts (headless claude -p, fresh process, fictional domain, n=5/arm, opus-4.8[1m]) (2026-07-07) | — | scores in commit body |`
+
+  Commit: `feat(guidance): delegation-firing guidance doc (delegate.md)`.
 
 ---
 
@@ -236,6 +240,10 @@ already copies all `.md` — no change there.
   imported engram-guidance basenames.
 - `Report.GuidanceImports map[string]bool` — same set on the report; `Report.GuidanceImported bool`
   stays, redefined as `len(GuidanceImports) > 0` (any file imported).
+
+**Test doubles (existing — reuse, do NOT redefine):** `newMemFS()` / `memFS` (fields `.files`,
+`.dirs`, `.written`) are in `internal/update/update_test.go`; `fakeCmd` / `fakeEnv` are in
+`internal/update/runner_test.go`. Every test below reuses these.
 
 - [ ] **Step 1: RED — detection returns a per-file set.** Add to `internal/update/update_test.go`:
 
@@ -313,8 +321,15 @@ already copies all `.md` — no change there.
   }
   ```
 
-- [ ] **Step 3: Run RED, verify failure.** `targ test` → both new tests FAIL (`GuidanceImports`
-  undefined; refresh not triggered by delegate-only import).
+- [ ] **Step 2b: RED — `guidanceImportBase` exclusion branches.** Add three rows to the EXISTING
+  `TestGuidanceImportDetection` table (each asserts `GuidanceImported` stays **false**, covering the
+  new reject branches so `targ check-full` coverage passes): `content: "@~/.claude/engram/sub/recall.md\n"`
+  (nested path), `content: "@~/.claude/engram/recall.txt\n"` (non-`.md`), `content: "@~/.claude/engram/\n"`
+  (bare prefix, no basename) — all `wantBool: false`.
+
+- [ ] **Step 3: Run RED, verify failure.** `targ test` → the new per-file / refresh tests FAIL
+  (`GuidanceImports` undefined; refresh not triggered by delegate-only import). The three exclusion
+  rows pass only once Step 4 adds `guidanceImportBase`.
 
 - [ ] **Step 4: GREEN — generalize detection in `internal/update/update.go`.** Add the field to
   `Report` (next to `GuidanceImported`):
@@ -440,26 +455,27 @@ already copies all `.md` — no change there.
   }
   ```
 
-- [ ] **Step 6: Update the CLI hint test contract.** In `internal/cli/update_test.go`
-  `TestWriteUpdateReport_GuidanceActivationHint`: add a `guidanceImports map[string]bool` column,
-  set `GuidanceImports: tc.guidanceImports` on the constructed `report`, populate it for existing
-  rows (`{"recall.md": true}` for the imported row, `nil`/empty for the not-imported row), and add a
-  mixed multi-file row:
+- [ ] **Step 6: Update the CLI hint test contract (assert per-file behavior — Gate-A finding: the
+  original mixed row asserted nothing delegate-specific and passed even with the delegate hint
+  deleted).** In `internal/cli/update_test.go` `TestWriteUpdateReport_GuidanceActivationHint`,
+  replace the fixed `wantActivation` / `wantPlainHint` booleans with generic `wantContains []string`
+  / `wantNotContains []string` columns, and assert each generically
+  (`for _, s := range tc.wantContains { g.Expect(out).To(ContainSubstring(s)) }`, likewise `NotTo`
+  for `wantNotContains`). Set `GuidanceImports: tc.guidanceImports` on the constructed `report`. Rows:
 
-  ```go
-  		{
-  			name:             "mixed-recall-imported-delegate-not",
-  			guidanceFiles:    []string{"recall.md", "delegate.md"},
-  			guidanceImports:  map[string]bool{"recall.md": true},
-  			guidanceImported: true,
-  			withGuidance:     false,
-  			// recall.md → "refreshed"; delegate.md → activation hint naming delegate.md
-  		},
-  ```
+  - "deployed-not-imported": `guidanceImports: nil`, `wantContains: ["@~/.claude/engram/recall.md"]`.
+  - "deployed-and-imported": `guidanceImports: {"recall.md": true}`,
+    `wantContains: ["guidance refreshed: ~/.claude/engram/recall.md"]`,
+    `wantNotContains: ["add '@~/.claude/engram/recall.md'"]`.
+  - "plain-update-not-imported": `wantContains: ["engram ships recall-firing guidance"]`.
+  - "plain-update-already-imported": `wantNotContains: ["engram ships", "activate it"]`.
+  - **new "mixed-recall-imported-delegate-not":** `guidanceFiles: ["recall.md", "delegate.md"]`,
+    `guidanceImports: {"recall.md": true}`, `guidanceImported: true`, `withGuidance: false`,
+    `wantContains: ["guidance refreshed: ~/.claude/engram/recall.md", "@~/.claude/engram/delegate.md"]`,
+    `wantNotContains: ["add '@~/.claude/engram/recall.md'"]`.
 
-  Assert on this row: output contains `@~/.claude/engram/delegate.md` (delegate activation) and
-  `guidance refreshed: ~/.claude/engram/recall.md`, and does **not** contain
-  `@~/.claude/engram/recall.md` as an activation line.
+  **Adversarial check (Gate-A required):** after GREEN, temporarily delete the delegate.md activation
+  branch in `writeGuidanceHints` and re-run — the mixed row MUST now fail. Restore, confirm green.
 
 - [ ] **Step 7: Run `targ check-full`.** All tests + lint + coverage green. Fix any output-snapshot
   drift in neighboring `TestWriteUpdateReport_*` cases caused by the new per-file wording.
@@ -474,30 +490,42 @@ already copies all `.md` — no change there.
 - Modify: repo `CLAUDE.md` — the `guidance/` structure line.
 - Modify (sweep, update where the singular framing is now inaccurate): `docs/GLOSSARY.md`,
   `docs/architecture/c1-system-context.md`, `docs/architecture/c2-containers.md`,
-  `docs/architecture/c3-components.md`, `README.md`.
-- Activation (outside the repo — not a commit): install + deploy + add the global `@import`.
+  `docs/architecture/c3-components.md`, `docs/ROADMAP.md`, `README.md`.
+- Activation + Quick-Fix reconciliation (outside the repo — Joe's global `~/.claude/CLAUDE.md`; not
+  a repo commit; **confirm with Joe first** — it's his personal doctrine).
 
 - [ ] **Step 1: Find every guidance reference.** Run
-  `grep -rn "recall-firing guidance\|engram/recall.md\|with-guidance\|guidance" CLAUDE.md docs/ README.md`.
-  Read each hit; the addition of `delegate.md` makes any "the guidance is recall.md" / "recall-firing
-  guidance" framing incomplete.
+  `grep -rn "recall-firing\|engram/recall.md\|with-guidance\|guidance" CLAUDE.md docs/ README.md`.
+  Read each hit; adding `delegate.md` makes any "the guidance is recall.md" / "recall-firing
+  guidance" framing incomplete. Known hit (Gate-A): `docs/ROADMAP.md:150` ("the shipped CLAUDE.md
+  guidance already covers these moments") → qualify as "the shipped CLAUDE.md **recall-firing**
+  guidance (recall.md)".
 
 - [ ] **Step 2: Update repo `CLAUDE.md`.** Change the `guidance/` line from "Source for the
   deployable recall-firing guidance (activated via CLAUDE.md `@import`)" to name both docs, e.g.
   "Source for the deployable ambient guidance docs — recall-firing (`recall.md`) and
   delegation-firing (`delegate.md`) — activated via CLAUDE.md `@import`."
 
-- [ ] **Step 3: Update docs where inaccurate.** For each doc from Step 1 that presents the guidance
-  mechanism as recall-only, generalize it to "guidance docs (recall.md, delegate.md)" — respecting
-  each doc's altitude (GLOSSARY term, C4 component note, README install step). Where a doc legitimately
-  discusses only recall, leave it. Name the mechanism, not just recall.
+- [ ] **Step 3: Update docs where inaccurate (Gate-A: objective criterion).** **Generalize** any doc
+  that presents the guidance mechanism as a *feature/transport* (CLAUDE.md, README, the C1–C3
+  broad-stroke descriptions, the GLOSSARY term, the ROADMAP line) to name the mechanism —
+  "guidance docs: recall.md, delegate.md". **Leave** docs that discuss recall's *behavior* or
+  *validation results* in depth. When uncertain, update the broad-stroke description, not the deep
+  dive.
 
 - [ ] **Step 4: Commit.** `docs: name delegation guidance across CLAUDE.md, C4, glossary, README`.
 
-- [ ] **Step 5: Activate (outside the repo, after merge).** `go install ./cmd/engram/` →
-  `engram update` (deploys `delegate.md` to `~/.claude/engram/` — the CLI hint now names it) → add
-  `@~/.claude/engram/delegate.md` to `~/.claude/CLAUDE.md` and approve the import. Verify:
-  `engram update` reports `guidance refreshed: ~/.claude/engram/delegate.md`.
+- [ ] **Step 5: Activate + reconcile the Quick-Fix tier (Gate-A finding B — CONFIRM WITH JOE).**
+  After merge: `go install ./cmd/engram/` → `engram update` (deploys `delegate.md`; the CLI hint now
+  names it) → add `@~/.claude/engram/delegate.md` to `~/.claude/CLAUDE.md` and approve the import.
+  Then reconcile the contradiction the design section names: Joe's global `~/.claude/CLAUDE.md`
+  "Producing Artifacts" table still says **Quick Fix | exact files/lines known, single commit | just
+  do it** — a difficulty/scope guess, exactly what `delegate.md`'s floor forbids. Propose amending
+  that row to gate the inline escape on recalled sub-overhead evidence (e.g. "exact files known
+  **and** recalled evidence this task-kind is reliably sub-overhead — see delegate.md"), so the two
+  always-loaded instructions stop disagreeing. This edits Joe's personal doctrine file — present the
+  exact change and get his nod; do not rewrite it unilaterally. Verify: `engram update` reports
+  `guidance refreshed: ~/.claude/engram/delegate.md`.
 
 ---
 
@@ -510,3 +538,9 @@ already copies all `.md` — no change there.
 - **Placeholders:** none — full doc body, full Go code, exact test bodies, exact commands.
 - **Out-of-scope held:** no route/please skill-body edits; no counterfactual meter; no
   `planGuidanceCopies` change.
+- **Gate A (4 angles) resolved 2026-07-07:** delegate.md now carries the overhead-vs-difficulty
+  reframe and is compressed to recall.md altitude; the mixed CLI test asserts delegate-specific
+  behavior + an adversarial regression check (code-alignment applied the diff in a live worktree —
+  compiles, tests pass, golangci-lint + nilaway clean); `guidanceImportBase` branch coverage,
+  ROADMAP scrub, the RED/GREEN rubric + LEDGER format + production model, a small-edit eval prompt,
+  and the Quick-Fix reconciliation (Joe's call) all added.
