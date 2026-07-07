@@ -24,7 +24,7 @@ engram/
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
 ├── skills/            # Source for the recall, learn, write-memory, please, and route skills
 ├── commands/          # Source for OpenCode slash commands
-├── guidance/          # Source for the deployable recall-firing guidance (activated via CLAUDE.md `@import`)
+├── guidance/          # Source for the deployable ambient guidance docs — recall-firing (`recall.md`) and delegation-firing (`delegate.md`) — activated via CLAUDE.md `@import`
 ├── dev/               # Build tooling (targ definitions, linter configs)
 └── docs/              # Organized by charter — see docs/README.md
 ```

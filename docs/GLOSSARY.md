@@ -546,20 +546,21 @@ separate executables.
 ### `engram update`
 Installs/refreshes skills and commands into every detected harness, and
 reinstalls the binary via `go install`. `--dry-run` shows the diff
-without writing. `--with-guidance` additionally deploys the recall-firing
-guidance file to `~/.claude/engram/recall.md` (Claude Code only; opt-in).
-OpenCode is deferred — its `AGENTS.md` import support is unverified. Plain
-`engram update` hints about `--with-guidance` until the guidance is imported,
-then keeps it refreshed on every run.
+without writing. `--with-guidance` additionally deploys the guidance docs
+(`recall.md`, `delegate.md`) to `~/.claude/engram/` (Claude Code only;
+opt-in). OpenCode is deferred — its `AGENTS.md` import support is
+unverified. Plain `engram update` hints about `--with-guidance` until a
+guidance file is imported, then keeps it refreshed on every run.
 
 ### guidance file
-`guidance/recall.md` in the engram repo — engram's always-loaded
-recall-firing guidance, deployed to `~/.claude/engram/recall.md` by
-`engram update --with-guidance`. Activated by adding
-`@~/.claude/engram/recall.md` to `~/.claude/CLAUDE.md` (Claude Code
-`@import`; always loaded). `--with-guidance` is a one-time opt-in — once
-CLAUDE.md imports the file, plain `engram update` keeps it current (like
-skills). Claude Code only; OpenCode deferred.
+An always-loaded ambient doc under `guidance/` in the engram repo, deployed
+to `~/.claude/engram/<name>.md` by `engram update --with-guidance`. Two ship
+today: `recall.md` (recall-firing) and `delegate.md` (delegation-firing).
+Each is activated independently by adding its own
+`@~/.claude/engram/<name>.md` line to `~/.claude/CLAUDE.md` (Claude Code
+`@import`; always loaded). `--with-guidance` is a one-time opt-in per file —
+once CLAUDE.md imports a guidance file, plain `engram update` keeps it
+current (like skills). Claude Code only; OpenCode deferred.
 
 ### XDG paths
 Engram follows XDG basedir conventions:

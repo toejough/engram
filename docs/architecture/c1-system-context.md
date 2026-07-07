@@ -58,7 +58,7 @@ flowchart LR
 | <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes plus their `.vec.json` embedding sidecars under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code `~/.claude/projects/<slug>/*.jsonl`) for changed sources only |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go list -m -json` and `go install` to self-update |
-| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, copies refreshed `skills/` and `commands/` files into each detected harness's install root (`~/.claude/`, `~/.config/opencode/`); `--with-guidance` additionally deploys `guidance/recall.md` to `~/.claude/engram/recall.md` (Claude Code only; opt-in; OpenCode deferred) |
+| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, copies refreshed `skills/` and `commands/` files into each detected harness's install root (`~/.claude/`, `~/.config/opencode/`); `--with-guidance` additionally deploys the guidance docs under `guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` (Claude Code only; opt-in; OpenCode deferred) |
 
 ## Key flows
 
@@ -347,10 +347,10 @@ sequenceDiagram
         Note over E: write into the harness install root (~/.claude/skills, ~/.claude/commands, OpenCode equivalents)
     end
     opt --with-guidance (opt-in; Claude Code only)
-        Note over E: write guidance/recall.md → ~/.claude/engram/recall.md
+        Note over E: write each guidance/*.md (recall.md, delegate.md) → ~/.claude/engram/
     end
 
-    E-->>H: per-harness report (skill paths, command paths, guidance path if --with-guidance)
+    E-->>H: per-harness report (skill paths, command paths, guidance paths if --with-guidance)
     H-->>Op: rendered report
 ```
 

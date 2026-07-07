@@ -147,7 +147,7 @@ several still-open explorations; its fully-resolved items are omitted here (they
   blanket "recall before every tool call" hook, refuted as a fatal over-firer
   (`dev/eval/LEDGER.md#recall-overfire-hook-rejected`): a *narrower* hook scoped to the two highest-value
   moments (before-declaring-done, after-a-tool-failure) was flagged as unfiled and unexplored by the review.
-  Not yet decided by Joe — the shipped CLAUDE.md guidance already covers these moments non-mechanically.
+  Not yet decided by Joe — the shipped CLAUDE.md **recall-firing** guidance (`recall.md`) already covers these moments non-mechanically.
   Revisit only if the guidance-based cues are shown insufficient at scale.
 - **Filed — recall-before-recommend re-entry (#654, #655).** Recall fires once, keyed to the incoming ask;
   a lever invented mid-synthesis is never re-checked against the vault, so a previously-killed direction can

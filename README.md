@@ -31,11 +31,11 @@ Requires Go 1.25+ on `PATH`.
 
    ```bash
    engram update                 # install / refresh
-   engram update --with-guidance # also deploy recall-firing guidance to ~/.claude/engram/recall.md (Claude Code; opt-in)
+   engram update --with-guidance # also deploy guidance docs (recall.md, delegate.md) to ~/.claude/engram/ (Claude Code; opt-in)
    engram update --dry-run       # show what would change
    ```
 
-   `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys `guidance/recall.md` to `~/.claude/engram/recall.md` for CLAUDE.md `@import` (Claude Code; opt-in). It's a **one-time opt-in** — once your CLAUDE.md imports the file, plain `engram update` keeps it current (like skills). Until then, plain `engram update` prints a one-line hint.
+   `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys the guidance docs under `guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` for CLAUDE.md `@import` (Claude Code; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md imports a guidance file, plain `engram update` keeps it current (like skills). Until then, plain `engram update` prints a one-line hint.
 
 ## Skills
 
@@ -94,7 +94,7 @@ engram vocab bootstrap --seed <yaml> [--floor <f>]     Seed vocab term-notes fro
 engram vocab propose --term <t> --description <d>  LLM-gated: create a new term note if no existing term covers it and projected attachment ≤ 20% of vault (~$0.05/proposal). Both flags required.
 engram vocab stats                     Per-term member counts, vault untagged-rate, hub terms (> 25% of vault), orphan terms (< 2 members), version staleness.
 engram vocab refit                     LLM-judged: merge orphans, split hubs, rename terms; rewrites member Vocab: lines + frontmatter; major version bump; index regen (~$2).
-engram update [--with-guidance]        Refresh binary and harness skills/commands ([--dry-run]); --with-guidance also deploys guidance/recall.md to ~/.claude/engram/recall.md (Claude Code; opt-in; OpenCode deferred)
+engram update [--with-guidance]        Refresh binary and harness skills/commands ([--dry-run]); --with-guidance also deploys guidance/*.md (recall.md, delegate.md) to ~/.claude/engram/ (Claude Code; opt-in; OpenCode deferred)
 ```
 
 ## Semantic search & the embed-on-write pipeline
