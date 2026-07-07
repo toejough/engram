@@ -133,10 +133,11 @@ type Report struct {
 	WithGuidance     bool   // whether --with-guidance was requested
 	Home             string // user home (so the CLI can tildify paths)
 	Source           SourceInfo
-	GoInstall        string // command line invoked (or planned)
-	BinaryPath       string // resolved install location, e.g. /Users/joe/go/bin/engram
-	BinaryVersion    string // resolved engram version, empty when unknown
-	GuidanceImported bool   // true when ~/.claude/CLAUDE.md imports the guidance file
+	GoInstall        string          // command line invoked (or planned)
+	BinaryPath       string          // resolved install location, e.g. /Users/joe/go/bin/engram
+	BinaryVersion    string          // resolved engram version, empty when unknown
+	GuidanceImported bool            // true when ~/.claude/CLAUDE.md imports ANY engram guidance file
+	GuidanceImports  map[string]bool // set of imported engram-guidance basenames (for per-file hints)
 	Harnesses        []HarnessReport
 }
 
@@ -206,7 +207,8 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	}
 
 	claudeMDPath := filepath.Join(home, ".claude", "CLAUDE.md")
-	report.GuidanceImported = detectGuidanceImport(claudeMDPath, home, u.FS)
+	report.GuidanceImports = detectGuidanceImports(claudeMDPath, home, u.FS)
+	report.GuidanceImported = len(report.GuidanceImports) > 0
 
 	var guidanceOps []CopyOp
 
@@ -563,18 +565,22 @@ func describeGoInstall(source SourceInfo) string {
 	return "git clone " + repoCloneURL + " && go install ./cmd/engram/ (LFS-safe; #645)"
 }
 
-// detectGuidanceImport returns true when the Claude Code CLAUDE.md file at
-// claudeMDPath contains an active @import line for the guidance file (either
-// the tilde form or the expanded-home form). Lines inside fenced code blocks
-// are ignored per the @import rules. A missing CLAUDE.md yields false, no error.
-func detectGuidanceImport(claudeMDPath, home string, fileSystem Filesystem) bool {
+// detectGuidanceImports scans the Claude Code CLAUDE.md at claudeMDPath for
+// active @import lines pointing at engram guidance files under
+// ~/.claude/engram/, returning the set of imported guidance basenames. Both
+// the tilde form (@~/.claude/engram/foo.md) and the expanded-home form
+// (@<home>/.claude/engram/foo.md) are recognized. Lines inside fenced code
+// blocks are ignored. A missing CLAUDE.md yields an empty set, no error.
+func detectGuidanceImports(claudeMDPath, home string, fileSystem Filesystem) map[string]bool {
+	imported := map[string]bool{}
+
 	data, readErr := fileSystem.ReadFile(claudeMDPath)
 	if readErr != nil {
-		return false
+		return imported
 	}
 
-	tildeLine := "@~/.claude/engram/recall.md"
-	expandedLine := "@" + filepath.Join(home, ".claude", "engram", "recall.md")
+	tildePrefix := "@~/.claude/engram/"
+	expandedPrefix := "@" + filepath.Join(home, ".claude", "engram") + string(filepath.Separator)
 
 	inFence := false
 
@@ -590,12 +596,12 @@ func detectGuidanceImport(claudeMDPath, home string, fileSystem Filesystem) bool
 			continue
 		}
 
-		if trimmed == tildeLine || trimmed == expandedLine {
-			return true
+		if base, ok := guidanceImportBase(trimmed, tildePrefix, expandedPrefix); ok {
+			imported[base] = true
 		}
 	}
 
-	return false
+	return imported
 }
 
 // detectHarnesses returns the supported harnesses whose probe path exists
@@ -644,6 +650,27 @@ func firstModuleLineMatches(goModData []byte, want string) bool {
 	}
 
 	return false
+}
+
+// guidanceImportBase returns the guidance basename imported by an exact
+// @import line (either prefix form) and whether the line is such an import.
+// The remainder after the prefix must be a single .md basename — no nested
+// path segment, no trailing content.
+func guidanceImportBase(trimmed, tildePrefix, expandedPrefix string) (string, bool) {
+	for _, prefix := range []string{tildePrefix, expandedPrefix} {
+		rest, ok := strings.CutPrefix(trimmed, prefix)
+		if !ok {
+			continue
+		}
+
+		if rest == "" || strings.Contains(rest, "/") || !strings.HasSuffix(rest, ".md") {
+			continue
+		}
+
+		return rest, true
+	}
+
+	return "", false
 }
 
 // isNotExist reports whether err signals a missing file. Tests inject

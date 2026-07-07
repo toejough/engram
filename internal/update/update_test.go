@@ -85,6 +85,21 @@ func TestGuidanceImportDetection(t *testing.T) {
 			content:  "```\n@~/.claude/engram/recall.md\n```\n",
 			wantBool: false,
 		},
+		{
+			name:     "nested-path-rejected",
+			content:  "@~/.claude/engram/sub/recall.md\n",
+			wantBool: false,
+		},
+		{
+			name:     "non-md-suffix-rejected",
+			content:  "@~/.claude/engram/recall.txt\n",
+			wantBool: false,
+		},
+		{
+			name:     "bare-prefix-no-basename-rejected",
+			content:  "@~/.claude/engram/\n",
+			wantBool: false,
+		},
 	}
 
 	for _, tc := range table {
@@ -137,6 +152,39 @@ func TestGuidanceImportDetection_MissingClaudeMD(t *testing.T) {
 	report, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(report.GuidanceImported).To(BeFalse())
+}
+
+func TestGuidanceImportDetection_PerFileSet(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte(
+		"# joe\n\n@~/.claude/engram/recall.md\n@~/.claude/engram/delegate.md\n",
+	)
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs[home+"/.claude"] = true
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report.GuidanceImported).To(BeTrue())
+	g.Expect(report.GuidanceImports).To(HaveKeyWithValue("recall.md", true))
+	g.Expect(report.GuidanceImports).To(HaveKeyWithValue("delegate.md", true))
 }
 
 func TestPlanGuidanceCopies_FilesUnderHome(t *testing.T) {
@@ -257,6 +305,41 @@ func TestPlanSkillCopies_MissingSrc(t *testing.T) {
 	_, err := update.ExportPlanSkillCopies("/nonexistent", "/home/joe", harnesses, fileSystem)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, update.ErrSkillsSrcMissing)).To(BeTrue())
+}
+
+func TestRun_PlainUpdate_DelegateOnlyImport_RefreshesAll(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/guidance/recall.md"] = []byte("recall guidance")
+	fileSystem.files["/repo/guidance/delegate.md"] = []byte("delegate guidance")
+	// Only delegate.md is imported — recall.md is not.
+	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte("# joe\n\n@~/.claude/engram/delegate.md\n")
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report.GuidanceImported).To(BeTrue())
+	g.Expect(report.Harnesses[0].GuidanceFiles).To(ConsistOf("recall.md", "delegate.md"))
+	g.Expect(fileSystem.written[home+"/.claude/engram/delegate.md"]).NotTo(BeNil())
+	g.Expect(fileSystem.written[home+"/.claude/engram/recall.md"]).NotTo(BeNil())
 }
 
 func TestRun_PlainUpdate_WhenImported_RefreshesGuidance(t *testing.T) {

@@ -433,42 +433,56 @@ func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 	table := []struct {
 		name             string
 		guidanceFiles    []string
+		guidanceImports  map[string]bool
 		guidanceImported bool
 		withGuidance     bool
-		wantActivation   bool
-		wantPlainHint    bool
+		wantContains     []string
+		wantNotContains  []string
 	}{
 		{
-			name:             "deployed-not-imported-shows-activation-hint",
+			name:             "deployed-not-imported",
 			guidanceFiles:    []string{"recall.md"},
+			guidanceImports:  nil,
 			guidanceImported: false,
 			withGuidance:     true,
-			wantActivation:   true,
-			wantPlainHint:    false,
+			wantContains:     []string{"@~/.claude/engram/recall.md"},
 		},
 		{
-			name:             "deployed-and-imported-no-hints",
+			name:             "deployed-and-imported",
 			guidanceFiles:    []string{"recall.md"},
+			guidanceImports:  map[string]bool{"recall.md": true},
 			guidanceImported: true,
 			withGuidance:     true,
-			wantActivation:   false,
-			wantPlainHint:    false,
+			wantContains:     []string{"guidance refreshed: ~/.claude/engram/recall.md"},
+			wantNotContains:  []string{"add '@~/.claude/engram/recall.md'"},
 		},
 		{
-			name:             "plain-update-not-imported-shows-plain-hint",
+			name:             "plain-update-not-imported",
 			guidanceFiles:    nil,
+			guidanceImports:  nil,
 			guidanceImported: false,
 			withGuidance:     false,
-			wantActivation:   false,
-			wantPlainHint:    true,
+			wantContains:     []string{"engram ships recall-firing guidance"},
 		},
 		{
-			name:             "plain-update-already-imported-no-hint",
+			name:             "plain-update-already-imported",
 			guidanceFiles:    nil,
+			guidanceImports:  nil,
 			guidanceImported: true,
 			withGuidance:     false,
-			wantActivation:   false,
-			wantPlainHint:    false,
+			wantNotContains:  []string{"engram ships", "activate it"},
+		},
+		{
+			name:             "mixed-recall-imported-delegate-not",
+			guidanceFiles:    []string{"recall.md", "delegate.md"},
+			guidanceImports:  map[string]bool{"recall.md": true},
+			guidanceImported: true,
+			withGuidance:     false,
+			wantContains: []string{
+				"guidance refreshed: ~/.claude/engram/recall.md",
+				"@~/.claude/engram/delegate.md",
+			},
+			wantNotContains: []string{"add '@~/.claude/engram/recall.md'"},
 		},
 	}
 
@@ -482,6 +496,7 @@ func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 				DryRun:           false,
 				WithGuidance:     tc.withGuidance,
 				GuidanceImported: tc.guidanceImported,
+				GuidanceImports:  tc.guidanceImports,
 				Home:             "/home/joe",
 				Source:           update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
 				GoInstall:        "go install ./cmd/engram/",
@@ -502,20 +517,12 @@ func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 
 			out := buffer.String()
 
-			const activationHint = "@~/.claude/engram/recall.md"
-
-			const plainHint = "engram ships recall-firing guidance"
-
-			if tc.wantActivation {
-				g.Expect(out).To(ContainSubstring(activationHint))
-			} else {
-				g.Expect(out).NotTo(ContainSubstring(activationHint))
+			for _, s := range tc.wantContains {
+				g.Expect(out).To(ContainSubstring(s))
 			}
 
-			if tc.wantPlainHint {
-				g.Expect(out).To(ContainSubstring(plainHint))
-			} else {
-				g.Expect(out).NotTo(ContainSubstring(plainHint))
+			for _, s := range tc.wantNotContains {
+				g.Expect(out).NotTo(ContainSubstring(s))
 			}
 		})
 	}

@@ -145,6 +145,18 @@ func anyHarnessFailed(report update.Report) bool {
 	return slices.ContainsFunc(report.Harnesses, harnessFailed)
 }
 
+// claudeGuidanceFiles returns the guidance basenames deployed to Claude Code
+// this run (empty if none / harness absent).
+func claudeGuidanceFiles(report update.Report) []string {
+	for _, harness := range report.Harnesses {
+		if harness.Name == update.HarnessClaude {
+			return harness.GuidanceFiles
+		}
+	}
+
+	return nil
+}
+
 func describeBinary(report update.Report) string {
 	if report.DryRun {
 		return report.GoInstall
@@ -235,29 +247,22 @@ func writeCommandRows(buffer *bytes.Buffer, harness update.HarnessReport, home s
 }
 
 func writeGuidanceHints(buffer *bytes.Buffer, report update.Report) {
-	// Derive "deployed" from whether any guidance files were deployed to Claude Code.
-	guidanceDeployed := false
+	deployed := claudeGuidanceFiles(report)
 
-	for _, harness := range report.Harnesses {
-		if harness.Name == update.HarnessClaude && len(harness.GuidanceFiles) > 0 {
-			guidanceDeployed = true
+	if len(deployed) > 0 {
+		for _, name := range deployed {
+			if report.GuidanceImports[name] {
+				fmt.Fprintf(buffer, "guidance refreshed: ~/.claude/engram/%s\n", name)
 
-			break
+				continue
+			}
+
+			fmt.Fprintf(buffer,
+				"guidance deployed to ~/.claude/engram/%s — add '@~/.claude/engram/%s'"+
+					" to ~/.claude/CLAUDE.md to activate it (Claude Code will ask you to"+
+					" approve the import once)\n", name, name,
+			)
 		}
-	}
-
-	if guidanceDeployed {
-		if report.GuidanceImported {
-			fmt.Fprintf(buffer, "guidance refreshed: ~/.claude/engram/recall.md\n")
-
-			return
-		}
-
-		fmt.Fprintf(buffer,
-			"guidance deployed to ~/.claude/engram/recall.md — add"+
-				" '@~/.claude/engram/recall.md' to ~/.claude/CLAUDE.md to activate it"+
-				" (Claude Code will ask you to approve the import once)\n",
-		)
 
 		return
 	}
