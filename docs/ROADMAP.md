@@ -13,6 +13,31 @@ rounds. A lever counts only if it moves a real axis — quality by the retrieval
 gate; cost by actual tokens/dollars/wall-time, never by relocating work off the perceived path (vault note
 100). Do one at a time, ship each gated, measure, then take the next.
 
+## Current priorities (2026-07-07 triage)
+
+A snapshot of what's actionable vs. blocked, from a full issue+roadmap triage. The tracks below hold the
+detail; this is the ordering.
+
+**Next (roadmap-flagged):** the Track-B **payload-prune production build** (`engram recall` subprocess).
+
+**In progress:** **#659** — prune must preserve memory across source deletion (being tackled now).
+
+**Actionable now (unblocked, fleshed out):**
+
+- **#643** (S) — non-interactive `learn` seed for headless vaults. Keystone: unblocks the eval-value chain #642 → #646 → #648.
+- **#657** (M) — remaining recall cuts L3a + O1 (O2/L2 shipped; gated by the `gate.py --tier` smoke harness, not #654).
+- **#669** (L) — structured routing-evidence ledger + `engram query` (foundation of the route track; #670 depends on it).
+- **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
+- **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
+- **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
+- **#647** (S) — README/command-surface drift (core shipped `5fd24c9d`; verify + close).
+
+**Eval-value chain (one keystone):** #643 → #642 (cold-vs-warm harness) → #646 (e2e recency value-proof) → #648 (tune activation constants). #643 first unlocks the rest.
+
+**Gated (data/date/validation):** Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (blocked by #654) · #654 ↔ #655 recall-before-recommend (synthesis fix shipped; retrieval half + the two-phase RED fixture remain) · #652 recency centroid (gated on an over-surfacing eval).
+
+**Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs #669 first) · #637 `--field` query flags (awaiting a forcing function) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
+
 > Shorthand codes used below — the capability axes **C1–C7** and the capture guards **G1–G6** — are
 > defined in `docs/GLOSSARY.md` (see "capability axes" and "capture guards").
 
@@ -177,8 +202,7 @@ crystallization (Steps 2.5C/2.6/Step-4).
 Two of #657's four procedure-time cuts remain open — O2 (inline `candidate_l2s` content, commit
 `e79d8b37`) and L2 (empty-cluster skip, already in the skill) shipped per #657's comment thread. **L3a**
 (batch the learn-ingest sweep once per session, without deferring crystallization) and **O1** (tighten the
-chunk content-budget without starving Step 2.5's full-content read) are still open, each C7-gated. Blocked
-by #654 (the C7 harness itself).
+chunk content-budget without starving Step 2.5's full-content read) are still open, each gated by the existing `gate.py --tier` smoke harness (per #657's comment thread — not blocked by #654, as an earlier note claimed).
 
 ### Parked — matched-set clusters-first / lazy-content payload restructure
 
