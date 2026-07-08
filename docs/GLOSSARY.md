@@ -517,10 +517,12 @@ heading anchors containing spaces/punctuation resolve. Errors `chunk not found:
 <ref>` (exit 1) on a miss. Never writes.
 
 ### `engram prune` (subcommand)
-Operator-run GC subcommand. Reads the chunk-index manifest and, for every
-source whose file no longer exists, deletes that source's per-source index
-file and drops its manifest entry. Not part of the recall/learn/please flows —
-run manually to reclaim space after removing or moving ingested source files.
+Operator-run maintenance subcommand. Reads the chunk-index manifest and, for
+every source whose file no longer exists, drops the stale manifest entry but
+KEEPS that source's per-source index file — the embedded chunks stay searchable
+(chunk search scans index files directly, not the manifest). Not part of the
+recall/learn/please flows — run manually after removing or moving ingested
+source files to clear dead manifest entries without losing the embedded memory.
 
 ### non-persistent workspace
 A project directory located under a throwaway filesystem root

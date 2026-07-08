@@ -348,7 +348,7 @@ func TestManifest_ConcurrentWritersDoNotLoseEntries(t *testing.T) {
 		return
 	}
 
-	// Place the dead source's index file so Remove doesn't fail.
+	// Place the dead source's index file so the detach path has a real file to leave untouched.
 	deadIndexPath := chunksDir + "/" + cli.ExportIndexFileName(deadSource)
 
 	writeIdx := os.WriteFile(deadIndexPath, []byte("[]"), 0o600)
