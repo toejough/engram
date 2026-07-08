@@ -13,27 +13,30 @@ rounds. A lever counts only if it moves a real axis — quality by the retrieval
 gate; cost by actual tokens/dollars/wall-time, never by relocating work off the perceived path (vault note
 100). Do one at a time, ship each gated, measure, then take the next.
 
-## Current priorities (2026-07-07 triage)
+## Current priorities (2026-07-08 triage)
 
 A snapshot of what's actionable vs. blocked, from a full issue+roadmap triage. The tracks below hold the
 detail; this is the ordering.
 
 **Next (roadmap-flagged):** the Track-B **payload-prune production build** (`engram recall` subprocess).
 
-**Just shipped:** **#659** — prune now *detaches* (preserves) chunks on source deletion instead of GC-ing them; the `~/restic-restore-claude/` reclaim is now safe (`docs/FEATURES.md` — Prune preserves memory).
+**Just shipped:** **`engram count`** (ADR-0018) — a read-only counting surface over the vault, separate from `query`'s similarity recall: `--group-by <attr>` (+ `--filter`) over frontmatter and `--backlinks-of <basename>` wikilink in-degree (`docs/FEATURES.md` — Count / backlinks aggregation).
+
+**Also recently shipped:** **#659** — prune now *detaches* (preserves) chunks on source deletion instead of GC-ing them (`docs/FEATURES.md` — Prune preserves memory).
 
 **Actionable now (unblocked, fleshed out):**
 
 - **#657** (M) — remaining recall cuts L3a + O1 (O2/L2 shipped; gated by the `gate.py --tier` smoke harness, not #654).
-- **#669** (L) — structured routing-evidence ledger + `engram query` (foundation of the route track; #670 depends on it).
+- **#669** (L) — structured routing-evidence ledger + `engram query` (foundation of the route track; #670 depends on it). Reconcile the overlap with #674 before building the bespoke store — `engram count` may subsume the store.
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
-- **#647** (S) — README/command-surface drift (core shipped `5fd24c9d`; verify + close).
+- **#674** (M) — record route dispatches as countable fact-notes + reconcile the #669↔`count` overlap (decide count-based vs bespoke store first).
+- **#676** (M) — generalize count's write side: mint `attr/<k>/<v>` nodes + dual-write so new record types are countable by both `--group-by` and `--backlinks-of` (enables #674's Obsidian-verifiable side).
 
 **Eval-value chain:** #642 (cold-vs-warm harness) → #646 (e2e recency value-proof) → #648 (tune activation constants). The headless-learn blocker (#643) that fronted this chain is **resolved/closed** — learn Step 1 is now non-interactive `engram ingest --auto` (empty-vault headless run verified 2026-07-07); #642 is the real front.
 
-**Gated (data/date/validation):** Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (blocked by #654) · #654 ↔ #655 recall-before-recommend (synthesis fix shipped; retrieval half + the two-phase RED fixture remain) · #652 recency centroid (gated on an over-surfacing eval).
+**Gated (data/date/validation):** Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (blocked by #654) · #654 ↔ #655 recall-before-recommend (synthesis fix shipped; retrieval half + the two-phase RED fixture remain) · #652 recency centroid (gated on an over-surfacing eval) · #675 (Track C round-3 usage report; gated on P3′ spread PASS).
 
 **Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs #669 first) · #637 `--field` query flags (awaiting a forcing function) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
 
@@ -267,7 +270,8 @@ larger-n gate applies the same proportions — PASS ≥80%, BORDERLINE 60–70%,
 
 ### Round-3 scope — gated on round-2 licensing
 
-- **`engram usage report`** (sorted per-note contribution in-degree, for retention/triage) builds only if
+- **`engram usage report`** (**#675** — sorted per-note contribution in-degree, for retention/triage;
+  the `count --backlinks-of` primitive now ships the in-degree building block) builds only if
   P3′ shows spread (PASS above).
 - **The dedicated Q-channel + `answered_by` ride-along** builds only if Arm V's larger-n check reaches its
   PASS bar.
