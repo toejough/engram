@@ -24,7 +24,6 @@ detail; this is the ordering.
 
 **Actionable now (unblocked, fleshed out):**
 
-- **#643** (S) — non-interactive `learn` seed for headless vaults. Keystone: unblocks the eval-value chain #642 → #646 → #648.
 - **#657** (M) — remaining recall cuts L3a + O1 (O2/L2 shipped; gated by the `gate.py --tier` smoke harness, not #654).
 - **#669** (L) — structured routing-evidence ledger + `engram query` (foundation of the route track; #670 depends on it).
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
@@ -32,7 +31,7 @@ detail; this is the ordering.
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
 - **#647** (S) — README/command-surface drift (core shipped `5fd24c9d`; verify + close).
 
-**Eval-value chain (one keystone):** #643 → #642 (cold-vs-warm harness) → #646 (e2e recency value-proof) → #648 (tune activation constants). #643 first unlocks the rest.
+**Eval-value chain:** #642 (cold-vs-warm harness) → #646 (e2e recency value-proof) → #648 (tune activation constants). The headless-learn blocker (#643) that fronted this chain is **resolved/closed** — learn Step 1 is now non-interactive `engram ingest --auto` (empty-vault headless run verified 2026-07-07); #642 is the real front.
 
 **Gated (data/date/validation):** Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (blocked by #654) · #654 ↔ #655 recall-before-recommend (synthesis fix shipped; retrieval half + the two-phase RED fixture remain) · #652 recency centroid (gated on an over-surfacing eval).
 
