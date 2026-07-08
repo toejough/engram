@@ -171,6 +171,11 @@ func ingestQueryTargets(
 			a.Vault = resolveVault(a.Vault, home, os.Getenv)
 			errHandler(RunActivate(a, newOsActivateDeps()))
 		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
+		targ.Targ(func(_ context.Context, a CountArgs) {
+			a.Vault = resolveVault(a.Vault, home, os.Getenv)
+			errHandler(RunCount(a, newOsCountDeps(), stdout))
+		}).Name("count").Description(
+			"Count notes by a frontmatter attribute or a note's wikilink in-degree (read-only)"),
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
 			a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
 			errHandler(RunShow(withLog(ctx), a, newOsShowDeps(), stdout))

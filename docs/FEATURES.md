@@ -152,6 +152,25 @@ restored-transcript dir) reclaims disk without losing the recovered memory.
 why: `docs/GLOSSARY.md` — `engram prune` (subcommand); issue #659
 validation: `internal/cli/prune_test.go` (`TestPruneDetachesDeadSources`) + `prune_integration_test.go` (real-fs detach); verified end-to-end (ingest → delete source → prune → query still finds the chunk)
 
+## Count / backlinks aggregation (engram count)
+
+A read-only counting surface over the vault, separate from `query`'s similarity recall.
+`--group-by <attr>` counts distinct note membership per frontmatter-attribute value (a list attr
+counts one per distinct element; a value listed twice in one note still counts once), optionally
+restricted by repeatable AND-ed `--filter attr=value` predicates. `--backlinks-of <basename>`
+prints a vault-graph node's wikilink in-degree plus its sorted linkers. The two modes are each
+independently checkable by hand in Obsidian against their own view — group-by against a
+property/tag filter, backlinks-of against the backlinks panel — but they are **not** equal to each
+other: backlinks-of counts every linker while group-by counts only frontmatter members, so the two
+diverge by the number of non-member linkers (e.g. `vocab.index.md`, which links every vocab term
+without frontmatter-listing them).
+
+why: `docs/architecture/adr.md` — ADR-0018
+validation: `internal/cli/count_test.go` (`TestRunCount_GroupByBacklinksAgreement` — clean-case
+agreement; `TestRunCount_BacklinksExceedGroupByForNonMemberLinkers` — divergence) + real-binary
+vocab-stats parity on the live vault (`--group-by vocab` counts 33 for `retrieval-design`;
+`--backlinks-of vocab.retrieval-design` reports in-degree 34, the +1 being `vocab.index.md`)
+
 ## Validated goals (mission rollup — not a capability)
 
 This closing section is a cross-cutting summary, not a shipped capability: it records which

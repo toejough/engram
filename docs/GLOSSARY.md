@@ -554,6 +554,22 @@ opt-in). OpenCode is deferred — its `AGENTS.md` import support is
 unverified. Plain `engram update` hints about `--with-guidance` until a
 guidance file is imported, then keeps it refreshed on every run.
 
+### `engram count` (subcommand)
+Read-only aggregation over the vault, deliberately off the query/similarity path
+(`internal/cli/count.go`). Two mutually exclusive modes: `--group-by <attr>` counts DISTINCT note
+membership per frontmatter-attribute value (a list attr contributes one per distinct element; a
+note listing a value twice counts once), optionally restricted by repeatable AND-ed
+`--filter attr=value` predicates (scalar equality or list-contains) — output is `value<TAB>count`
+lines sorted count-desc then value-asc, an `(attr absent): N` bucket when any in-set note lacks the
+attribute, then `total: N` (an empty result prints nothing). `--backlinks-of <basename>` prints the
+wikilink in-degree of a vault-graph node (ADR-0007) plus its sorted linkers. Each mode is
+independently **Obsidian-verifiable** against its own view — `--group-by` against a
+frontmatter/property/tag filter (or Dataview), `--backlinks-of` against the note's backlinks panel
+— but the two are **not** equal to each other: `--backlinks-of` counts every linker while
+`--group-by` counts only frontmatter members, so they diverge by the number of *non-member
+linkers* (e.g. `vocab.index.md` links every `[[vocab.<term>]]` without frontmatter-listing them).
+See ADR-0018.
+
 ### guidance file
 An always-loaded ambient doc under `guidance/` in the engram repo, deployed
 to `~/.claude/engram/<name>.md` by `engram update --with-guidance`. Two ship

@@ -414,6 +414,43 @@ that passed for a work-kind crystallizes as a confirmed approach, a tier that fa
 rubric-refit (#670), parallel-builders (#671), cost/duration telemetry (#672). RED/GREEN evidence is
 transient (`git log`); the memory-discount figures remain at `dev/eval/LEDGER.md#tier-routing-parity`.
 
+---
+
+## ADR-0018 — Counting/aggregation is a surface distinct from similarity recall
+
+**Status:** Accepted (shipped 2026-07-08)
+
+**Context.** `engram query` answers "what's relevant to this phrase" via recency-biased cosine
+similarity over a bounded, truncated matched set (ADR-0004) — by design a fuzzy-ranked *sample*,
+not a complete enumeration. A question like "how many notes carry `vocab: retrieval-design`" or
+"how many notes link to `[[foo.alpha]]`" needs an exact, typed count over the *whole* vault, not a
+top-N approximation — riding it on the recall path would silently return a truncated, similarity-
+ordered subset with no signal that it isn't the real count.
+
+**Decision.** Ship `engram count` (`internal/cli/count.go`) as a read-only counting/aggregation
+surface, deliberately off the recall/similarity path — it never embeds, never scores cosine, never
+clusters. Two mutually exclusive modes: `--group-by <attr>` counts DISTINCT note membership per
+frontmatter-attribute value (a scalar attr contributes its one value; a list attr contributes one
+per distinct element — a note listing a value twice still counts once), optionally restricted by
+repeatable AND-ed `--filter attr=value` predicates (scalar equality or list-contains).
+`--backlinks-of <basename>` prints the wikilink in-degree (plus sorted linkers) of a vault-graph
+node via `vaultgraph.ScanVault`/`BuildGraph` (ADR-0007). The design goal is **per-mode
+Obsidian-verifiability**: each mode is independently hand-checkable against its own Obsidian view —
+`--group-by` against a frontmatter/property/tag filter (or Dataview), `--backlinks-of` against the
+note's backlinks panel.
+
+**Consequences.** The two modes are **not** interchangeable — they measure different things and
+legitimately diverge by the count of *non-member linkers*: an index/MOC page (e.g.
+`vocab.index.md`) links `[[vocab.<term>]]` for every term without carrying that term in its own
+`vocab:` frontmatter, so it counts toward `--backlinks-of` but not `--group-by`. The relationship:
+`backlinks-of(node) == group-by(attr) count for that value + (# non-member linkers)`. Verified on
+the live vault: `--group-by vocab` counts 33 members for the value `retrieval-design`;
+`--backlinks-of vocab.retrieval-design` reports in-degree 34 — the +1 is `vocab.index.md`. Do not
+report count parity as unqualified "count == Obsidian backlinks"; state per-mode verifiability plus
+the divergence relationship, or the two modes read as redundant when they are complementary.
+`TestRunCount_GroupByBacklinksAgreement` locks the clean-fixture case (no non-member linkers, so the
+two agree); `TestRunCount_BacklinksExceedGroupByForNonMemberLinkers` locks the divergence case.
+
 ## Decisions deliberately NOT made into ADRs
 
 - **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an

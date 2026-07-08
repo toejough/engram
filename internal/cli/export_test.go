@@ -22,6 +22,9 @@ const (
 // Exported variables.
 var (
 	ErrCheckFailedForTest                  = errCheckFailed
+	ErrCountBadFilterForTest               = errCountBadFilter
+	ErrCountBothModesForTest               = errCountBothModes
+	ErrCountNoModeForTest                  = errCountNoMode
 	ErrLearnBadTierForTest                 = errLearnBadTier
 	ErrQAAnswerSourceRequired              = errQAAnswerSourceRequired
 	ErrQACertaintyInvalid                  = errQACertaintyInvalid
@@ -64,6 +67,7 @@ var (
 	ExportNewOsActivateDeps                = newOsActivateDeps
 	ExportNewOsAmendDeps                   = newOsAmendDeps
 	ExportNewOsCheckDeps                   = newOsCheckDeps
+	ExportNewOsCountDeps                   = newOsCountDeps
 	ExportNewOsPruneDeps                   = newOsPruneDeps
 	ExportNewOsShowDeps                    = newOsShowDeps
 	ExportNewOsVocabDeps                   = newOsVocabDeps
