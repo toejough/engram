@@ -141,6 +141,17 @@ index.
 why: `docs/architecture/adr.md` — ADR-0010
 validation: unmeasured as a capability — behavior is locked by `internal/cli` ingest/sweep unit tests, not an eval row
 
+## Prune preserves memory (detach on source deletion)
+
+`engram prune` no longer garbage-collects chunks whose source file is gone — the embedded chunk (with
+its vector) is the asset; the source `.jsonl` is only provenance. Prune now **detaches**: it drops the
+stale manifest entry but keeps the per-source index file, which chunk search discovers by directory scan
+(never via the manifest), so the memory stays fully searchable. Deleting ingested source files (e.g. a
+restored-transcript dir) reclaims disk without losing the recovered memory.
+
+why: `docs/GLOSSARY.md` — `engram prune` (subcommand); issue #659
+validation: `internal/cli/prune_test.go` (`TestPruneDetachesDeadSources`) + `prune_integration_test.go` (real-fs detach); verified end-to-end (ingest → delete source → prune → query still finds the chunk)
+
 ## Validated goals (mission rollup — not a capability)
 
 This closing section is a cross-cutting summary, not a shipped capability: it records which

@@ -20,7 +20,7 @@ detail; this is the ordering.
 
 **Next (roadmap-flagged):** the Track-B **payload-prune production build** (`engram recall` subprocess).
 
-**In progress:** **#659** — prune must preserve memory across source deletion (being tackled now).
+**Just shipped:** **#659** — prune now *detaches* (preserves) chunks on source deletion instead of GC-ing them; the `~/restic-restore-claude/` reclaim is now safe (`docs/FEATURES.md` — Prune preserves memory).
 
 **Actionable now (unblocked, fleshed out):**
 
@@ -276,15 +276,6 @@ larger-n gate applies the same proportions — PASS ≥80%, BORDERLINE 60–70%,
   usage-count boost in ranking; population = the 48-case miss set + trap suites; metric = knowledge
   delivery, not item rank; falsified if delivery does not improve ≥2σ while collateral stays 0. Exists so a
   future ranking ambition has a pre-registered bar, not a fresh one.
-
-## Infrastructure — prune must preserve memory across source deletion (#659)
-
-`engram prune` currently orphan-deletes chunks whose source file is gone — but the embedded chunk is the
-asset, not the source `.jsonl`. This blocks reclaiming ~1.3 GiB of restored cross-repo transcripts in
-`~/restic-restore-claude/` (deleting them would lose the recovered imptest/glowsync/targ/traced memory).
-Open: decouple chunk lifetime from source-file existence — never GC valuable chunks just because the source
-vanished (detach/archive vs delete; explicit-purge-only). Once fixed, delete the restore dir to reclaim the
-space.
 
 ## Dead ends / not pursuing (measured or pre-registered — do not relitigate)
 
