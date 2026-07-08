@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,11 +13,13 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestOsPruneRemovesDeadSource drives the production os wiring (Stat/Remove/
-// Read/Write) end-to-end through a temp dir: a manifest references one live
-// source (file present) and one dead source (file absent); prune deletes the
-// dead source's index file and manifest entry while keeping the live one.
-func TestOsPruneRemovesDeadSource(t *testing.T) {
+// TestOsPruneDetachesDeadSource drives the production os wiring (Stat/Read/
+// Write) end-to-end through a temp dir: a manifest references one live
+// source (file present) and one dead source (file absent); prune drops the
+// dead source's manifest entry but leaves its index file on disk, since
+// chunk search discovers .jsonl files by directory scan and never consults
+// the manifest — detached chunks stay fully searchable.
+func TestOsPruneDetachesDeadSource(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -49,11 +52,20 @@ func TestOsPruneRemovesDeadSource(t *testing.T) {
 		return
 	}
 
-	g.Expect(out.String()).To(gomega.ContainSubstring("removed 1 dead source"))
+	g.Expect(out.String()).To(gomega.ContainSubstring("detached 1 source"))
+	g.Expect(out.String()).To(gomega.ContainSubstring("preserved"))
 
 	_, statErr := os.Stat(deadIndex)
-	g.Expect(os.IsNotExist(statErr)).To(gomega.BeTrue(), "dead source index file removed")
+	g.Expect(statErr).NotTo(gomega.HaveOccurred(), "dead source index file preserved on disk (still searchable)")
 
 	_, statErr = os.Stat(liveIndex)
 	g.Expect(statErr).NotTo(gomega.HaveOccurred(), "live source index file kept")
+
+	manifestData, readErr := os.ReadFile(filepath.Join(chunksDir, "manifest.json"))
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	var rewritten map[string]any
+	g.Expect(json.Unmarshal(manifestData, &rewritten)).To(gomega.Succeed())
+	g.Expect(rewritten).NotTo(gomega.HaveKey(dead), "dead source dropped from manifest")
+	g.Expect(rewritten).To(gomega.HaveKey(live), "live source kept in manifest")
 }

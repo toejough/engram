@@ -409,7 +409,6 @@ func TestManifest_ConcurrentWritersDoNotLoseEntries(t *testing.T) {
 				return fs.write(chunksDir, path, data)
 			},
 			Exists: func(path string) bool { return path != deadSource }, // only deadSource is gone
-			Remove: os.Remove,
 		}
 		pruneDone <- cli.RunPrune(context.Background(), cli.PruneArgs{ChunksDir: chunksDir}, deps, io.Discard)
 	}()

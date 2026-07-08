@@ -38,7 +38,7 @@ flowchart TB
       eb["K5b · cli/embed (operator-run migration)<br/>RunEmbedApply · RunEmbedStatus"]
     end
     subgraph PP[engram prune — process]
-      prune["K12 · prune (operator-run GC)<br/>RunPrune · read manifest · delete stale per-source index files"]
+      prune["K12 · prune (operator-run GC)<br/>RunPrune · read manifest · drop stale per-source manifest entries (index files preserved)"]
     end
     subgraph PU[engram update — process]
       upd["K9 · update<br/>go install + copy skills/commands; --with-guidance adds guidance (Claude Code)"]
@@ -64,7 +64,7 @@ flowchart TB
     skills -->|"shell engram embed apply (rare)"| eb
     skills -->|"shell engram amend / resituate / activate"| wm
 
-    prune -->|"delete stale per-source index files"| sessions
+    prune -->|"check whether each source still exists"| sessions
 
     ing --- sessions
     ing -->|stdout chunk identifiers| skills
@@ -107,7 +107,7 @@ flowchart TB
 | K10 | `internal/luhmann` | `ParseID`, `LetterLess`, sort/tie-break | Parse and order Luhmann ids; **shared kernel** consumed by K4 (`cli/learn.go`, `cli/luhmann.go`) AND K7 (`vaultgraph/{selector,scanner}.go`). | — |
 | K11 | `internal/debuglog` | tail-friendly sink | Cross-cutting debug log threaded through every CLI target (`targets.go`, `cli/signal.go`); L1 deferred it to here. | — |
 | K5b | `cli/embed.go` | `RunEmbedApply`, `RunEmbedStatus`, `selectStates` | The `engram embed apply/status` subcommand (separate process, operator-run for model migration): re-embeds notes whose sidecar is missing/stale/incompatible via the shared K5 package; `apply` writes sidecars, `status` reports counts. Wired in `targets.go` (grep `Name("embed")`). | drives **M4** remediation |
-| K12 | `cli/prune.go` | `RunPrune` | The `engram prune` subcommand (operator-run GC): reads the chunk-index manifest and, for every source whose file no longer exists, deletes that source's per-source index file and drops its manifest entry. Acquires `flock(.manifest.lock)` around the manifest read-modify-write (shared with `ingest`) so a concurrent ingest/prune cannot lose updates — #660. Not part of the recall/learn/please flows — manual cleanup only. Wired in `targets.go` (grep `Name("prune")`) alongside ingest/query. | — |
+| K12 | `cli/prune.go` | `RunPrune` | The `engram prune` subcommand (operator-run GC): reads the chunk-index manifest and, for every source whose file no longer exists, drops its manifest entry — the per-source index file (embedded chunk vectors) is left on disk, since chunk search discovers `.jsonl` files by directory scan and never consults the manifest, so detached chunks stay fully searchable (#659). Acquires `flock(.manifest.lock)` around the manifest read-modify-write (shared with `ingest`) so a concurrent ingest/prune cannot lose updates — #660. Not part of the recall/learn/please flows — manual cleanup only. Wired in `targets.go` (grep `Name("prune")`) alongside ingest/query. | — |
 
 ## The recurring defect shape (feeds the Phase-4 ADR) — corrected per Phase-2 antagonist
 The canonical example of the silent-mismatch bug class:

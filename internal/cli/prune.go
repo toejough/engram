@@ -23,12 +23,14 @@ type PruneDeps struct {
 	ReadFile  func(path string) ([]byte, error)
 	WriteFile func(path string, data []byte) error
 	Exists    func(path string) bool
-	Remove    func(path string) error
 }
 
-// RunPrune garbage-collects the chunk index: every manifest source whose file
-// no longer exists has its per-source index file deleted and its manifest entry
-// dropped. Append-only history is preserved for live sources. Zero-LLM.
+// RunPrune detaches dead sources from the chunk index: every manifest source
+// whose file no longer exists has its manifest entry dropped, but its
+// per-source .jsonl index file (the embedded chunk vectors) is left on disk.
+// Chunk search discovers .jsonl files by directory scan and never consults
+// the manifest, so detached chunks remain fully searchable — this lets a
+// user delete source files without losing the recovered memory. Zero-LLM.
 func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Writer) error {
 	// Acquire the manifest lock before any read-modify-write on manifest.json
 	// so concurrent ingest/prune runs cannot produce lost updates (#660).
@@ -53,26 +55,19 @@ func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Write
 		return fmt.Errorf("prune: reading manifest: %w", err)
 	}
 
-	pruned := 0
+	detached := 0
 
 	for source := range manifest {
 		if deps.Exists(source) {
 			continue
 		}
 
-		indexPath := filepath.Join(args.ChunksDir, sourceSlug(source)+jsonlExt)
-
-		err = deps.Remove(indexPath)
-		if err != nil {
-			return fmt.Errorf("prune: removing index %s: %w", indexPath, err)
-		}
-
 		delete(manifest, source)
 
-		pruned++
+		detached++
 	}
 
-	if pruned == 0 {
+	if detached == 0 {
 		_, _ = fmt.Fprintln(stdout, "prune: no dead sources")
 
 		return nil
@@ -88,7 +83,7 @@ func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Write
 		return fmt.Errorf("prune: writing manifest: %w", err)
 	}
 
-	_, _ = fmt.Fprintf(stdout, "prune: removed %d dead source(s)\n", pruned)
+	_, _ = fmt.Fprintf(stdout, "prune: detached %d source(s) — embedded chunks preserved (still searchable)\n", detached)
 
 	return nil
 }
@@ -106,6 +101,5 @@ func newOsPruneDeps() PruneDeps {
 
 			return statErr == nil
 		},
-		Remove: os.Remove,
 	}
 }

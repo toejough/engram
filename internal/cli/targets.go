@@ -160,7 +160,9 @@ func ingestQueryTargets(
 		targ.Targ(func(ctx context.Context, a PruneArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
 			errHandler(RunPrune(withLog(ctx), a, newOsPruneDeps(), stdout))
-		}).Name("prune").Description("Remove chunk index entries whose source file no longer exists (GC)"),
+		}).Name("prune").Description(
+			"Detach chunk entries whose source file is gone: drop the stale manifest entry, " +
+				"keep the embedded chunks (still searchable)"),
 		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
 			errHandler(RunChunkQuery(withLog(ctx), a, newOsChunkQueryDeps(), stdout))
