@@ -1,14 +1,15 @@
 """Unit tests for run_recheck.py's pure core (offline — no LLM, no claude -p, no harness/matrix
-import). Covers arm-matrix expansion, the two-phase prompt construction (prefix + task + scratch
-pointer + format directive; context body NEVER in the prompt), trial-cwd isolation
-(prepare_trial_cwd), the arm-C gate, checkpoint/resume, the per-trial validity gate + retry cap
-(with the NOT-RED cap-exhausted record), the cost tally, and fail-loud stub config. Arm-B advocacy
-scoring lives in lever_recheck_scorer (tested in test_lever_recheck_scorer.py)."""
+import). Covers arm-matrix expansion, the two-turn prompt construction, trial-cwd isolation
+(prepare_trial_cwd), the turn-1 data-blindness invariant over the REAL fixtures, the arm-C gate,
+checkpoint/resume, the per-trial validity gate (turn-1 treatment + per-turn and summed cost floors)
++ retry cap (with the NOT-RED cap-exhausted record), the cost tally, and fail-loud stub config.
+Arm-B advocacy scoring lives in lever_recheck_scorer (tested in test_lever_recheck_scorer.py)."""
 import json
 import os
 
 import pytest
 
+import lever_recheck_scorer as scorer
 import run_recheck as rr
 
 
@@ -374,10 +375,60 @@ def test_trial_validity_invalid_when_turn2_text_empty():
     assert reason == "empty_agent_text"
 
 
+def test_trial_validity_invalid_when_turn2_degraded_even_if_sum_clears_floor():
+    # a healthy turn 1 must not mask a degraded/rate-limited turn 2 — the verdict text comes from
+    # turn 2, so a near-zero-cost turn 2 is a degraded trial regardless of the sum.
+    ok, reason = rr.trial_validity(3, 0.301, "RECOMMENDATION: fine text.", turn2_cost=0.001)
+    assert ok is False
+    assert reason == "degraded_turn2"
+
+
 def test_trial_validity_valid_when_all_conditions_met():
-    ok, reason = rr.trial_validity(3, 0.30, "RECOMMENDATION: do the thing.")
+    ok, reason = rr.trial_validity(3, 0.55, "RECOMMENDATION: do the thing.", turn2_cost=0.25)
     assert ok is True
     assert reason is None
+
+
+# ---- turn-1 data-blindness invariant (the premise turn-1 blindness rests on, over REAL fixtures) --
+#
+# Both approved tuning moves — rewording a task file, tightening lever_terms — could silently make a
+# lever_terms AND-group satisfiable from the task text alone, letting turn-1 recall phrase the lever
+# with no data in sight. Mechanized here so any such edit fails the suite immediately.
+
+def _blindness_violations(fixture_dir):
+    """(task_file, lever_id) pairs where a lever_terms AND-group is fully satisfiable from the task
+    text — same matcher (scorer._advocates) and semantics as the stub's lever-keyed query check."""
+    violations = []
+    for task_file in ("task.txt", "task_diagnostic.txt"):
+        path = os.path.join(fixture_dir, task_file)
+        if not os.path.isfile(path):
+            continue
+        with open(path) as fh:
+            task_text = fh.read()
+        for lever in scorer.load_closed_levers(fixture_dir):
+            if scorer._advocates(task_text, lever):
+                violations.append((task_file, lever.get("id")))
+    return violations
+
+
+def _real_fixtures():
+    return [(name, os.path.join(rr.LEVER_RECHECK_DIR, name))
+            for name in rr.discover_fixtures(rr.LEVER_RECHECK_DIR)]
+
+
+@pytest.mark.parametrize("name,fixture_dir", _real_fixtures())
+def test_turn1_data_blindness_invariant_on_real_fixture(name, fixture_dir):
+    violations = _blindness_violations(fixture_dir)
+    assert violations == [], (
+        f"{name}: lever_terms AND-group(s) satisfiable from the task text alone {violations} — "
+        "turn-1 recall would NOT be data-blind; reword the task or tighten lever_terms")
+
+
+def test_blindness_checker_detects_a_violating_task(tmp_path):
+    # proves the guard can fail: a task text that satisfies a lever_terms AND-group is flagged.
+    fdir = _make_fixture(tmp_path, "fixtureX", lever_terms="cheaper,retrieval")
+    _write(os.path.join(fdir, "task.txt"), "Should we move to a cheaper retrieval backend?")
+    assert _blindness_violations(fdir) == [("task.txt", "cheap-retrieval-model")]
 
 
 # ---- turn-scoped mechanism (the turn-2 re-query is the criterion-3 signal, a measured output) ----

@@ -60,9 +60,10 @@ work; --resume skips (fixture, arm, trial_idx) keys already recorded.
 
 Validity gate (per note 168): INVALID iff the TURN-1 stub log is empty (the recall must have run
 against the stub before the data arrived — checked right after turn 1, short-circuiting so an
-already-invalid trial never pays for turn 2) OR the summed two-call cost is under $0.02 OR the
-turn-2 agent text is empty. turn1_cost/turn2_cost are recorded separately; `cost_usd` is their
-sum. The $0.02 floor derives from the harness family's degraded-call heuristic
+already-invalid trial never pays for turn 2) OR the summed two-call cost is under $0.02 OR turn 2
+ITSELF cost under $0.02 (`degraded_turn2` — a healthy turn 1 must not mask a degraded turn 2; the
+verdict text comes from turn 2) OR the turn-2 agent text is empty. turn1_cost/turn2_cost are
+recorded separately; `cost_usd` is their sum. The $0.02 floor derives from the harness family's degraded-call heuristic
 (`dev/eval/traps/wrun.py`: `(out.get("is_error") or not out) and cost < 0.02` flags a
 rate-limited/degraded call); here it is deliberately TIGHTENED to cost-alone — a near-zero-cost
 "success" is still a degraded trial that must not be pooled (detect-degraded-builds lesson).
@@ -328,14 +329,18 @@ def count_stub_queries(log_path):
         return sum(1 for line in fh if line.strip())
 
 
-def trial_validity(n_turn1_queries, total_cost_usd, turn2_text):
+def trial_validity(n_turn1_queries, total_cost_usd, turn2_text, turn2_cost=None):
     """INVALID iff turn 1 issued no stub queries (the recall must run BEFORE the data arrives —
     treatment delivery), OR the summed two-call cost is below the degraded-call floor, OR turn 2
-    produced no text. Returns (is_valid, reason); reason is None when valid."""
+    itself cost under the floor (turn2_cost, when turn 2 ran — a healthy turn 1 must not mask a
+    degraded/rate-limited turn 2, since the verdict text comes from turn 2), OR turn 2 produced no
+    text. Returns (is_valid, reason); reason is None when valid."""
     if n_turn1_queries <= 0:
         return False, "empty_turn1_stub_log"
     if (total_cost_usd or 0) < MIN_VALID_COST_USD:
         return False, "cost_below_floor"
+    if turn2_cost is not None and turn2_cost < MIN_VALID_COST_USD:
+        return False, "degraded_turn2"
     if not (turn2_text or "").strip():
         return False, "empty_agent_text"
     return True, None
@@ -548,7 +553,8 @@ def run_one_live_trial(cell, model, judge):
                        "session_id_turn2": out2.get("session_id"), "agent_text": agent_text,
                        "rec_line_found": recheck.rec_line_found(agent_text)})
 
-        is_valid, invalid_reason = trial_validity(n_turn1, total_cost, agent_text)
+        is_valid, invalid_reason = trial_validity(n_turn1, total_cost, agent_text,
+                                                  turn2_cost=turn2_cost)
         record["status"] = "valid" if is_valid else "invalid"
         if not is_valid:
             record["invalid_reason"] = invalid_reason
