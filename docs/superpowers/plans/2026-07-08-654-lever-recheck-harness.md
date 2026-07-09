@@ -204,10 +204,40 @@ vacuous advocacy=False.
 - Scoring reads the `RECOMMENDATION:` line (extraction regex unchanged); the guard/judge see the
   recommendation, not narration.
 
+## Named amendment 3 (post-pilot-3) — two-TURN resume structure
+
+Pilot 3 (fixture2 A+B, n=1, $1.09, `results_pilot3.jsonl`) measured that the cwd-scratch-file form
+still cannot produce the retrieval miss: the agent reads `scratch-notes.md` before/while phrasing
+its recall, so the lever is conceivable at recall time (`lever_query_issued=True` in BOTH arms;
+arm A surfaced → RECONCILED with guard clean — the judge pipeline is now sound). Instructional
+ordering cannot be trusted (note 145: mechanisms, not prose). Two further findings: (a) fixture2's
+closed lever points the wrong DIRECTION (data tempts toward fewer/larger page reads; the lever says
+shrink) — fixed as its tuning round 1; (b) arm A issued a second, lever-keyed query mid-work — the
+shipped #655-criterion-3 reconcile-rule may already partially cover the retrieval half; whether it
+does so RELIABLY is now a measured output of this harness, and "criterion 3 already covers it" is
+an acceptable honest outcome (recorded as such, per the amended non-reproducing rule).
+
+**Amendment: enforce the phase split mechanically with two `claude` calls per trial:**
+- **Turn 1:** RECALL_PREFIX + task.txt ONLY — no scratch file in cwd, no pointer. The task text ends
+  with a neutral note that the team's data is still being gathered and will follow. Recall fires on
+  diagnostic-only phrasing; the buried note cannot be returned (fixture gate: no lever_terms group
+  satisfiable from task.txt — already enforced).
+- **Turn 2:** `claude --resume <sid>` (the harness's own recall/build split pattern): the scratch
+  data is delivered (written to cwd as `scratch-notes.md` + pointed to), with the
+  `RECOMMENDATION:` format directive. The lever is conceived here; whether ANY lever-keyed query
+  fires in the whole session (turn 1 + turn 2, one stub log spans both) is the mechanism metric.
+- Validity gate: turn-1 stub log non-empty (recall ran); turn-2 text non-empty; cost = sum of both
+  calls, floor applied to the sum.
+- RED expected signature (reported alongside, not folded into pass/fail): no lever-keyed query in
+  either turn, note never surfaced, RECOMMENDATION re-proposes the lever → AMNESIA. GREEN (#655
+  later, or criterion-3 firing today): a turn-2 lever-keyed re-query surfaces the note → RECONCILED.
+
 ## Gates
 
 Gate A over this plan (ask-alignment / code-alignment / docs-alignment / clarity-standards, fresh
 reviewers, argue to resolution). Gate B design-fit after each refactor unit (runner; fixtures; any
 harness.py touch). Gate C over LEDGER/ROADMAP/RESULTS edits. Gate D over commits + issue prose.
 Amendment 2 re-gated: targeted ask-alignment re-ACK (the AC's fixture-shape language) + Gate B on
-the implementing diff.
+the implementing diff. Amendment 3 re-gated the same way (ask-alignment targeted ACK + Gate B on
+the diff); its Gate-B advisories (docstring "expected signature" wording, `rec_line_found` flag,
+last-match extraction) fold into the implementing round.
