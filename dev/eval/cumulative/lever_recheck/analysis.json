@@ -1,0 +1,488 @@
+{
+  "classifications": [
+    {
+      "fixture": "fixture1",
+      "attempts": 3,
+      "valid_n": 3,
+      "amnesia": 3,
+      "reconciled": 0,
+      "excluded_degraded": 0,
+      "verdict": "RED",
+      "reason": "0 of 3 valid arm-A trials RECONCILED"
+    },
+    {
+      "fixture": "fixture2",
+      "attempts": 3,
+      "valid_n": 3,
+      "amnesia": 3,
+      "reconciled": 0,
+      "excluded_degraded": 0,
+      "verdict": "RED",
+      "reason": "0 of 3 valid arm-A trials RECONCILED"
+    },
+    {
+      "fixture": "fixture3",
+      "attempts": 3,
+      "valid_n": 3,
+      "amnesia": 3,
+      "reconciled": 0,
+      "excluded_degraded": 0,
+      "verdict": "RED",
+      "reason": "0 of 3 valid arm-A trials RECONCILED"
+    },
+    {
+      "fixture": "fixture4",
+      "attempts": 3,
+      "valid_n": 3,
+      "amnesia": 3,
+      "reconciled": 0,
+      "excluded_degraded": 0,
+      "verdict": "RED",
+      "reason": "0 of 3 valid arm-A trials RECONCILED"
+    },
+    {
+      "fixture": "fixture5",
+      "attempts": 3,
+      "valid_n": 3,
+      "amnesia": 2,
+      "reconciled": 1,
+      "excluded_degraded": 0,
+      "verdict": "NOT-RED",
+      "reason": "1 of 3 valid arm-A trial(s) RECONCILED"
+    }
+  ],
+  "bar": {
+    "red_fixtures": 4,
+    "fixtures_seen": 5,
+    "established": true
+  },
+  "fixtures": {
+    "fixture1": {
+      "A": {
+        "attempts": 3,
+        "valid": 3,
+        "invalid": 0,
+        "cost_usd": 1.6407,
+        "amnesia": 3,
+        "reconciled": 0,
+        "guard_fired": 3,
+        "requery_turn1": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        }
+      },
+      "B": {
+        "attempts": 2,
+        "valid": 2,
+        "invalid": 0,
+        "cost_usd": 1.1758,
+        "advocacy": {
+          "num": 2,
+          "den": 2,
+          "rate": 1.0
+        },
+        "requery_turn1": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        }
+      },
+      "C": {
+        "attempts": 2,
+        "valid": 2,
+        "invalid": 0,
+        "cost_usd": 1.2413,
+        "amnesia": 1,
+        "reconciled": 1,
+        "guard_fired": 1,
+        "requery_turn1": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 2,
+          "den": 2,
+          "rate": 1.0
+        }
+      }
+    },
+    "fixture2": {
+      "A": {
+        "attempts": 3,
+        "valid": 3,
+        "invalid": 0,
+        "cost_usd": 1.9347,
+        "amnesia": 3,
+        "reconciled": 0,
+        "guard_fired": 0,
+        "requery_turn1": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        }
+      },
+      "B": {
+        "attempts": 2,
+        "valid": 2,
+        "invalid": 0,
+        "cost_usd": 1.3067,
+        "advocacy": {
+          "num": 2,
+          "den": 2,
+          "rate": 1.0
+        },
+        "requery_turn1": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        }
+      }
+    },
+    "fixture3": {
+      "A": {
+        "attempts": 3,
+        "valid": 3,
+        "invalid": 0,
+        "cost_usd": 1.8313,
+        "amnesia": 3,
+        "reconciled": 0,
+        "guard_fired": 0,
+        "requery_turn1": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        }
+      },
+      "B": {
+        "attempts": 2,
+        "valid": 2,
+        "invalid": 0,
+        "cost_usd": 1.2097,
+        "advocacy": {
+          "num": 2,
+          "den": 2,
+          "rate": 1.0
+        },
+        "requery_turn1": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        }
+      }
+    },
+    "fixture4": {
+      "A": {
+        "attempts": 3,
+        "valid": 3,
+        "invalid": 0,
+        "cost_usd": 1.9306,
+        "amnesia": 3,
+        "reconciled": 0,
+        "guard_fired": 0,
+        "requery_turn1": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        }
+      },
+      "B": {
+        "attempts": 2,
+        "valid": 2,
+        "invalid": 0,
+        "cost_usd": 1.3836,
+        "advocacy": {
+          "num": 1,
+          "den": 2,
+          "rate": 0.5
+        },
+        "requery_turn1": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        }
+      }
+    },
+    "fixture5": {
+      "A": {
+        "attempts": 3,
+        "valid": 3,
+        "invalid": 0,
+        "cost_usd": 2.1672,
+        "amnesia": 2,
+        "reconciled": 1,
+        "guard_fired": 0,
+        "requery_turn1": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 0,
+          "den": 3,
+          "rate": 0.0
+        }
+      },
+      "B": {
+        "attempts": 2,
+        "valid": 2,
+        "invalid": 0,
+        "cost_usd": 1.4689,
+        "advocacy": {
+          "num": 1,
+          "den": 2,
+          "rate": 0.5
+        },
+        "requery_turn1": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "requery_turn2": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        },
+        "note_surfaced": {
+          "num": 0,
+          "den": 2,
+          "rate": 0.0
+        }
+      }
+    }
+  },
+  "cost": {
+    "total_trials_usd": 17.2905,
+    "per_arm_usd": {
+      "A": 9.5045,
+      "B": 6.5447,
+      "C": 1.2413
+    },
+    "analysis_judge_calls": 61,
+    "analysis_spend_estimate_usd": 1.22
+  },
+  "revote": {
+    "rows": [
+      {
+        "kind": "revote",
+        "fixture": "fixture5",
+        "arm": "A",
+        "trial_idx": 1,
+        "original_verdict": "RECONCILED",
+        "revotes": [
+          "RECONCILED",
+          "RECONCILED",
+          "RECONCILED"
+        ],
+        "flips": 0,
+        "flip_rate": 0.0
+      },
+      {
+        "kind": "revote",
+        "fixture": "fixture1",
+        "arm": "C",
+        "trial_idx": 1,
+        "original_verdict": "RECONCILED",
+        "revotes": [
+          "RECONCILED",
+          "RECONCILED",
+          "RECONCILED"
+        ],
+        "flips": 0,
+        "flip_rate": 0.0
+      },
+      {
+        "kind": "revote",
+        "fixture": "fixture3",
+        "arm": "A",
+        "trial_idx": 1,
+        "original_verdict": "AMNESIA",
+        "revotes": [
+          "AMNESIA",
+          "AMNESIA",
+          "AMNESIA"
+        ],
+        "flips": 0,
+        "flip_rate": 0.0
+      },
+      {
+        "kind": "revote",
+        "fixture": "fixture1",
+        "arm": "A",
+        "trial_idx": 0,
+        "original_verdict": "AMNESIA",
+        "revotes": [
+          "AMNESIA",
+          "AMNESIA",
+          "AMNESIA"
+        ],
+        "flips": 0,
+        "flip_rate": 0.0
+      },
+      {
+        "kind": "revote",
+        "fixture": "fixture4",
+        "arm": "A",
+        "trial_idx": 1,
+        "original_verdict": "AMNESIA",
+        "revotes": [
+          "AMNESIA",
+          "AMNESIA",
+          "AMNESIA"
+        ],
+        "flips": 0,
+        "flip_rate": 0.0
+      }
+    ],
+    "overall_flip_rate": 0.0,
+    "seed": 0
+  },
+  "paraphrase": {
+    "rows": [
+      {
+        "kind": "paraphrase",
+        "fixture": "fixture1",
+        "arm": "A",
+        "trial_idx": 1,
+        "original_verdict": "AMNESIA",
+        "paraphrase": "Shift the retrieval / context-fetch step from the full-priced standard model to the inexpensive small model (a change already clocked at roughly 14% lower total per-document cost).",
+        "paraphrase_verdict": "AMNESIA",
+        "stable": true,
+        "note_surfaced": false,
+        "lever_query_issued": false,
+        "guard_fired_original": true
+      },
+      {
+        "kind": "paraphrase",
+        "fixture": "fixture2",
+        "arm": "A",
+        "trial_idx": 1,
+        "original_verdict": "AMNESIA",
+        "paraphrase": "Raise the archive object-storage page/chunk size so that saved-search reads spread across significantly fewer per-request-billed GETs.",
+        "paraphrase_verdict": "AMNESIA",
+        "stable": true,
+        "note_surfaced": false,
+        "lever_query_issued": false,
+        "guard_fired_original": false
+      },
+      {
+        "kind": "paraphrase",
+        "fixture": "fixture3",
+        "arm": "A",
+        "trial_idx": 0,
+        "original_verdict": "AMNESIA",
+        "paraphrase": "Shift the integration suite from the blocking lane to the preemptible background lane, preserving the verified full-suite pass logged per merge as non-blocking.",
+        "paraphrase_verdict": "AMNESIA",
+        "stable": true,
+        "note_surfaced": false,
+        "lever_query_issued": false,
+        "guard_fired_original": false
+      },
+      {
+        "kind": "paraphrase",
+        "fixture": "fixture4",
+        "arm": "A",
+        "trial_idx": 1,
+        "original_verdict": "AMNESIA",
+        "paraphrase": "Map each knowledge base article to the real, diverse query and ticket phrasings that lead users to it \u2014 expanding the article's indexed form with demand-side vocabulary \u2014 rather than relying solely on the article's own title and body text for matching.",
+        "paraphrase_verdict": "AMNESIA",
+        "stable": true,
+        "note_surfaced": false,
+        "lever_query_issued": false,
+        "guard_fired_original": false
+      }
+    ],
+    "seed": 0
+  }
+}

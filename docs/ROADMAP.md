@@ -34,10 +34,11 @@ complexity; revisit only on a viable subagent route — see Track B). Pick from 
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
 - **#674** (M) — record route dispatches as countable fact-notes + reconcile the #669↔`count` overlap (decide count-based vs bespoke store first).
 - **#676** (M) — generalize count's write side: mint `attr/<k>/<v>` nodes + dual-write so new record types are countable by both `--group-by` and `--backlinks-of` (enables #674's Obsidian-verifiable side).
+- **#655** (M) — recall-before-recommend re-entry, criterion 1 (the retrieval half): a second, lever-keyed `engram query` mid-synthesis before shipping a recommendation. Now actionable — the C7 regression gate is in place (`dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`, 2026-07-08); the already-shipped criteria 2/3 don't reliably cover it (mechanism measured 0/15 re-query).
 
 **Eval-value chain:** #642 (cold-vs-warm harness) → #646 (e2e recency value-proof) → #648 (tune activation constants). The headless-learn blocker (#643) that fronted this chain is **resolved/closed** — learn Step 1 is now non-interactive `engram ingest --auto` (empty-vault headless run verified 2026-07-07); #642 is the real front.
 
-**Gated (data/date/validation):** Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (blocked by #654) · #654 ↔ #655 recall-before-recommend (synthesis fix shipped; retrieval half + the two-phase RED fixture remain) · #652 recency centroid (gated on an over-surfacing eval) · #675 (Track C round-3 usage report; gated on P3′ spread PASS).
+**Gated (data/date/validation):** Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (its stated blocker — #654's harness — is resolved: the harness now exists with a RED baseline established 2026-07-08, `dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`; still gated, now on a narrower gap — #656's AC calls for verification against a `/please`-orchestration variant of the harness, which this cycle's recall-only trials didn't build) · #652 recency centroid (gated on an over-surfacing eval) · #675 (Track C round-3 usage report; gated on P3′ spread PASS).
 
 **Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs #669 first) · #637 `--field` query flags (awaiting a forcing function) · payload-prune production build (rejected 2026-07-08 — revisit only on a viable subagent route; see Track B) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
 
@@ -177,11 +178,15 @@ several still-open explorations; its fully-resolved items are omitted here (they
   moments (before-declaring-done, after-a-tool-failure) was flagged as unfiled and unexplored by the review.
   Not yet decided by Joe — the shipped CLAUDE.md **recall-firing** guidance (`recall.md`) already covers these moments non-mechanically.
   Revisit only if the guidance-based cues are shown insufficient at scale.
-- **Filed — recall-before-recommend re-entry (#654, #655).** Recall fires once, keyed to the incoming ask;
-  a lever invented mid-synthesis is never re-checked against the vault, so a previously-killed direction can
-  resurface as if new. The fix (#655: a second, lever-keyed `engram query` mid-synthesis before shipping a
-  recommendation) and its regression harness (#654: a C7 "lever-recheck" anti-amnesia eval) are both filed
-  and open — schedule the filed work, don't re-derive the design.
+- **Built — recall-before-recommend re-entry gate (#654); actionable — the retrieval fix (#655).** Recall
+  fires once, keyed to the incoming ask; a lever invented mid-synthesis is never re-checked against the
+  vault, so a previously-killed direction can resurface as if new. #654's C7 "lever-recheck" anti-amnesia
+  harness shipped 2026-07-08 with a RED baseline established — 4/5 fixtures reproduce the miss
+  (`dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`). Mechanism: the shipped #655-criterion-3
+  reconcile-rule does not reliably fire a vault re-query in the two-turn structure (0/15 re-query, both
+  turns, all 15 official arm-A trials) — the recommendation still ships unreconciled. #655's remaining
+  scope narrows to criterion 1, the re-entry query itself: a second, lever-keyed `engram query`
+  mid-synthesis before shipping a recommendation.
 
 ## Track B — Retrieval cost
 
