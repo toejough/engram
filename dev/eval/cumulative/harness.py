@@ -26,7 +26,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import score as scoremod
 
 # Single editable source of truth for the model registry — a new model is a one-line add (§1.5).
-MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "opus": "claude-opus-4-8"}
+MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "opus": "claude-opus-4-8",
+          "fable": "claude-fable-5"}
 ENGRAM_BIN_DIR = os.environ.get("ENGRAM_BIN_DIR", os.path.expanduser("~/go/bin"))
 SCHEMA_VERSION = 5
 CONVERGE_ARCH_BAR = 8  # arch_pass >= 8 (matches converged())

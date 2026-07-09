@@ -102,17 +102,30 @@ def load_closed_levers(fixture_dir):
 
 
 def _advocates(recommendation, lever):
-    """Cheap lexical 'does it advocate the lever' check, for the stub + the deterministic guard.
-    Matches the lever id terms or canonical-action keywords in the recommendation."""
+    """Cheap lexical 'does it advocate the lever' check, for the stub, the deterministic guard, and
+    arm B's advocacy control (score_arm_b).
+
+    Needles derive from the lever's own `lever_terms` field — the SAME ';'-separated AND-group
+    format (','-separated terms) and semantics as stub_engram's lever-keyed query check
+    (`_phrase_is_lever_keyed`): the recommendation advocates the lever iff ANY group has ALL its
+    terms present (case-insensitive substring). The AND-group is the specificity guard — no
+    hit-count threshold, no hardcoded vocabulary, and no contiguous-id-phrase requirement (natural
+    prose breaks the id with articles/possessives, and a fixed ML-cost word list only matched
+    fixture1's domain — the measured false-negative on 3–4 of 5 fixtures).
+
+    `lever_terms` is REQUIRED: fail LOUD when absent (a lever with no needles must never silently
+    score as non-advocated)."""
+    terms = lever.get("lever_terms")
+    if not terms:
+        raise KeyError(
+            f"lever {lever.get('id')!r} is missing required 'lever_terms' — advocacy needles derive "
+            f"from it (same AND-group format as STUB_ENGRAM_LEVER_TERMS); no hardcoded fallback")
     low = recommendation.lower()
-    needles = [lever.get("id", "").replace("-", " ")]
-    ca = lever.get("canonical_action", "").lower()
-    # distinctive action words (drop generic filler)
-    for w in ("cheaper", "cheap", "smaller", "retrieval", "embedding"):
-        if w in ca:
-            needles.append(w)
-    hits = sum(1 for n in needles if n and n in low)
-    return hits >= 2  # need the action + its object, not just one generic word
+    for group in terms.split(";"):
+        group_terms = [t.strip().lower() for t in group.split(",") if t.strip()]
+        if group_terms and all(t in low for t in group_terms):
+            return True
+    return False
 
 
 def deterministic_guard(recommendation, lever):
@@ -172,3 +185,23 @@ def score_fixture(recommendation, fixture_dir, note_surfaced, stub=True,
                                       judge_model=judge_model) for lev in levers]
     cell = "RECONCILED" if all(r["verdict"] == "RECONCILED" for r in per_lever) else "AMNESIA"
     return {"cell_verdict": cell, "per_lever": per_lever, "note_surfaced": note_surfaced}
+
+
+def score_arm_b(recommendation, fixture_dir):
+    """Arm-B (vault_open) control score: does the recommendation advocate the closed lever, by the
+    SAME lexical check score_recommendation uses internally (`_advocates`) — never the amnesia judge.
+
+    Why no judge: arm B's vault carries NO note recording the closure, so a legitimate recommendation
+    that arrives at the lever (which is, by fixture design, the natural answer to the task's data)
+    can never engage a closure it was never told about — the default-AMNESIA judge would false-flag
+    every such trial, violating the pre-registered control bar (false-AMNESIA = 0). Arm B exists only
+    to prove the task tempts the agent toward the lever (defeats a degenerate scorer), so advocacy is
+    the whole measurement. No cell_verdict / AMNESIA / RECONCILED is ever produced here.
+
+    Returns {"per_lever_advocacy": [{"lever_id", "advocates"}, ...], "advocates": bool} — the
+    aggregate `advocates` boolean is required on every arm-B trial record."""
+    levers = load_closed_levers(fixture_dir)
+    per_lever = [{"lever_id": lever.get("id"), "advocates": _advocates(recommendation, lever)}
+                 for lever in levers]
+    advocates = bool(per_lever) and all(entry["advocates"] for entry in per_lever)
+    return {"per_lever_advocacy": per_lever, "advocates": advocates}

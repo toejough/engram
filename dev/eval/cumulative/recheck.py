@@ -89,17 +89,26 @@ def _stub_env(bin_dir, log_path, buried_basename, lever_terms):
     }
 
 
-def live_recall(fixture_dir, cfg, model, task, bin_dir, log_path, buried_basename, lever_terms,
-                vault_subdir="vault_with_closed"):
-    """Run the REAL skill via the canonical harness.claude() runner, with the stub injected onto PATH so
-    the skill's `engram` calls hit it. Returns the agent's final text. (harness imported lazily so the
-    offline core needs no harness deps.)"""
-    import harness
-    write_stub_bin(bin_dir)
-    open(log_path, "w").close()  # truncate the log for this run
-    extra_env = _stub_env(bin_dir, log_path, buried_basename, lever_terms)
-    out = harness.claude(cfg=cfg, model=model, vault=os.path.join(fixture_dir, vault_subdir),
-                         cwd=fixture_dir, prompt=task, extra_env=extra_env)
+def agent_text(out):
+    """Normalize a harness.claude() result (dict with 'result'/'text', or a bare string) to the
+    agent's final text. The single shared accessor — callers keep the full result dict for
+    cost/session-id and use this for the text."""
     if isinstance(out, dict):
         return out.get("result", "") or out.get("text", "") or json.dumps(out)
     return out or ""
+
+
+def live_recall(fixture_dir, cfg, model, task, bin_dir, log_path, buried_basename, lever_terms,
+                vault_subdir="vault_with_closed"):
+    """Run the REAL skill via the canonical harness.claude() runner, with the stub injected onto PATH so
+    the skill's `engram` calls hit it. Returns the FULL harness result dict (total_cost_usd,
+    session_id, result text all intact — the runner's validity gate and cost tally need them); use
+    agent_text() for the text. A non-dict harness return is wrapped as {"result": <text>} so callers
+    always get a dict. (harness imported lazily so the offline core needs no harness deps.)"""
+    import harness
+    write_stub_bin(bin_dir)
+    open(log_path, "w").close()  # truncate the log for this run
+    out = harness.claude(cfg=cfg, model=model, vault=os.path.join(fixture_dir, vault_subdir),
+                         cwd=fixture_dir, prompt=task,
+                         extra_env=_stub_env(bin_dir, log_path, buried_basename, lever_terms))
+    return out if isinstance(out, dict) else {"result": out or ""}

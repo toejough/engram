@@ -62,3 +62,44 @@ def test_recheck_result_reconciled_when_note_surfaced_and_lever_avoided(tmp_path
     out = recheck.recheck_result(FIXTURE1, agent_text, log, stub=True)
     assert out["cell_verdict"] == "RECONCILED"
     assert out["note_surfaced"] is True          # surfaced and respected
+
+
+def test_agent_text_normalizes_harness_result_shapes():
+    assert recheck.agent_text({"result": "hi"}) == "hi"
+    assert recheck.agent_text({"text": "yo"}) == "yo"
+    assert recheck.agent_text("plain") == "plain"
+    assert recheck.agent_text(None) == ""
+
+
+def test_live_recall_returns_full_harness_result_dict(tmp_path, monkeypatch):
+    """live_recall must return the FULL harness result (cost + session_id intact), not just the
+    agent text — the runner's validity gate and cost tally read those fields. harness is faked via
+    sys.modules (live_recall imports it lazily), so this stays a pure offline test."""
+    import sys
+    import types
+
+    seen = {}
+
+    def fake_claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None, extra_env=None):
+        seen["extra_env"] = extra_env
+        seen["vault"] = vault
+        seen["prompt"] = prompt
+        return {"result": "RECOMMENDATION: batch the generation calls.",
+                "total_cost_usd": 0.42, "session_id": "sid-1"}
+
+    fake_harness = types.ModuleType("harness")
+    fake_harness.claude = fake_claude
+    monkeypatch.setitem(sys.modules, "harness", fake_harness)
+
+    out = recheck.live_recall(
+        str(tmp_path), cfg="/dev/null", model="opus", task="diagnose the cost regression",
+        bin_dir=str(tmp_path / "bin"), log_path=str(tmp_path / "stub_log.jsonl"),
+        buried_basename="8.note", lever_terms="a,b")
+    assert out["total_cost_usd"] == 0.42
+    assert out["session_id"] == "sid-1"
+    assert recheck.agent_text(out) == "RECOMMENDATION: batch the generation calls."
+    # the stub shim + env wiring still happen inside live_recall
+    assert os.path.isfile(str(tmp_path / "bin" / "engram"))
+    assert seen["extra_env"]["STUB_ENGRAM_BURIED"] == "8.note"
+    assert seen["extra_env"]["STUB_ENGRAM_LEVER_TERMS"] == "a,b"
+    assert seen["vault"].endswith("vault_with_closed")

@@ -14,6 +14,7 @@ LEVER = {
     "canonical_action": "run the retrieval / context-fetch step on a cheaper or smaller model to cut cost",
     "closure_reason": "retrieval is a small share of per-document cost, so cheapening it barely moves the total",
     "measured_outcome": "only ~-14% total cost when tried; rolled back",
+    "lever_terms": "cheap,retrieval,model;retrieval,small,model",  # fixture1's real AND-groups
 }
 
 
@@ -77,3 +78,96 @@ def test_score_fixture_reconciled_when_lever_avoided():
     rec = "RECOMMENDATION: trim the generation prompt/context length."
     out = s.score_fixture(rec, FIXTURE1, note_surfaced=True, stub=True)
     assert out["cell_verdict"] == "RECONCILED"
+
+
+# ---- advocacy needles derive from lever_terms AND-groups (never a hardcoded vocabulary) ----
+#
+# Natural-language probes per fixture domain (the Gate-B reviewer's style): prose breaks the lever id
+# with articles/possessives and uses non-ML-cost vocabulary, so needles must come from the fixture's
+# own lever_terms — semantics identical to stub_engram._phrase_is_lever_keyed (ANY ';'-group with ALL
+# its ','-terms present, case-insensitive substring).
+
+def _lever(lever_id, terms):
+    return {"id": lever_id, "canonical_action": "", "closure_reason": "", "measured_outcome": "",
+            "lever_terms": terms}
+
+
+def test_advocates_fixture2_domain_natural_prose():
+    lever = _lever("shrink-archive-page-size", "archive,page,size;shrink,page")
+    rec = "I recommend shrinking the archive's page size to cut storage-read cost."
+    assert s._advocates(rec, lever) is True
+
+
+def test_advocates_fixture3_domain_natural_prose():
+    lever = _lever("move-flaky-suite-to-background", "flaky,suite,background;suite,async,queue")
+    rec = "Move the flaky integration suite off the blocking pipeline into a background queue."
+    assert s._advocates(rec, lever) is True
+
+
+def test_advocates_fixture4_domain_natural_prose():
+    lever = _lever("index-by-ticket-question", "index,ticket,question;key,article,originating")
+    rec = "Re-index the KB articles keyed by the original ticket question phrasing."
+    assert s._advocates(rec, lever) is True
+
+
+def test_advocates_fixture5_domain_natural_prose():
+    lever = _lever("per-shard-subprocess-isolation", "subprocess,isolation,shard;spawn,process,shard")
+    rec = "Spawn each shard's sync in its own subprocess so the OS reclaims memory on exit."
+    assert s._advocates(rec, lever) is True
+
+
+def test_advocates_false_when_recommendation_avoids_the_lever_domain():
+    lever = _lever("shrink-archive-page-size", "archive,page,size;shrink,page")
+    rec = "Batch adjacent reads and cache hot chunks to amortize the metered cost."
+    assert s._advocates(rec, lever) is False
+
+
+def test_advocates_requires_all_terms_of_a_group_not_just_some():
+    lever = _lever("move-flaky-suite-to-background", "flaky,suite,background;suite,async,queue")
+    rec = "Quarantine the three worst tests in the suite and stabilize their retries."  # suite alone
+    assert s._advocates(rec, lever) is False
+
+
+def test_advocates_fails_loud_when_lever_terms_missing():
+    lever = {"id": "x", "canonical_action": "do x", "closure_reason": "", "measured_outcome": ""}
+    with pytest.raises(KeyError):
+        s._advocates("any recommendation", lever)
+
+
+def test_score_recommendation_fails_loud_when_lever_terms_missing():
+    lever = {"id": "x", "canonical_action": "do x", "closure_reason": "", "measured_outcome": ""}
+    with pytest.raises(KeyError):
+        s.score_recommendation("any recommendation", lever, note_surfaced=False, stub=True)
+
+
+def test_guard_still_catches_vocabulary_reconciliation_on_derived_needles():
+    # fixture3-domain adversarial paraphrase: cites the closure marker, still advocates the lever.
+    lever = _lever("move-flaky-suite-to-background", "flaky,suite,background;suite,async,queue")
+    rec = ("Move the flaky suite to a background queue. We tried something like this before and "
+           "rolled back, but it is still the best cut.")
+    assert s.deterministic_guard(rec, lever) == "AMNESIA"
+
+
+# ---- arm-B advocacy-only control scoring (score_arm_b) ----
+
+def test_score_arm_b_true_when_recommendation_advocates_the_lever():
+    rec = "RECOMMENDATION: run the retrieval step on a cheaper, smaller model to cut per-doc cost."
+    out = s.score_arm_b(rec, FIXTURE1)
+    assert out["advocates"] is True
+    assert out["per_lever_advocacy"][0]["advocates"] is True
+    assert out["per_lever_advocacy"][0]["lever_id"] == "cheap-retrieval-model"
+
+
+def test_score_arm_b_false_when_recommendation_avoids_the_lever():
+    rec = "RECOMMENDATION: trim the generation step's prompt/context length."
+    out = s.score_arm_b(rec, FIXTURE1)
+    assert out["advocates"] is False
+
+
+def test_score_arm_b_never_produces_a_cell_verdict():
+    # arm B (vault_open — NO closure info anywhere) must never run the amnesia judge: default-AMNESIA
+    # would false-flag every legitimate advocacy, violating the control bar (false-AMNESIA = 0).
+    rec = "RECOMMENDATION: run the retrieval step on a cheaper, smaller model to cut per-doc cost."
+    out = s.score_arm_b(rec, FIXTURE1)
+    assert "cell_verdict" not in out
+    assert "verdict" not in out
