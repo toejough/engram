@@ -177,8 +177,37 @@ honest tally kept in results. No mid-run cap.
   #655, not this issue.
 - Plan doc retired at cycle close.
 
+## Named amendment 2 (post-pilot, 2026-07-08 late) — two-phase trial layout
+
+Pilot 2 (fixture2 A+B, n=1, opus, $1.77, `results_pilot2.jsonl`) measured three defects in the
+original inline-context design:
+(a) with `context.md` in the prompt, the lever is conceivable at recall time — arm A's Step-1
+phrasing issued a lever-keyed query and the buried note SURFACED (`lever_query_issued=True,
+note_surfaced=True`), which cannot reproduce the retrieval miss (note 85's mechanism, confirmed
+live); (b) with no delimited recommendation, `extract_recommendation` falls back to whole-text and
+the deterministic guard fires on recall *narration* (false AMNESIA — the negated-advocacy risk the
+runner Gate B flagged); (c) arm B's final message was recall narration with no recommendation →
+vacuous advocacy=False.
+
+**Amendment (reproduces the original incident's structure — data encountered after recall):**
+- The trial cwd is a bare temp dir containing ONLY the fixture's `context.md`, copied in as
+  `scratch-notes.md` (domain-plausible name). The fixture dir (vaults, `closed_levers.json`,
+  ground truth) is never inside or reachable from the cwd (also closes a leak: cwd=fixture_dir let
+  the agent read `closed_levers.json`).
+- The prompt = RECALL_PREFIX + task text + a pointer: the team's scratch log is in
+  `scratch-notes.md`, read it before deciding + a format directive: end the reply with one line
+  `RECOMMENDATION: <the single recommended change>`. The format directive is content-neutral.
+- Expected RED mechanics (current skill): recall fires on the diagnostic ask (no lever phrases) →
+  buried note NOT returned → agent reads the scratch file → conceives the lever mid-analysis → no
+  re-query exists → recommends the lever → AMNESIA with `lever_query_issued=False,
+  note_surfaced=False` (the pure retrieval miss, end-to-end).
+- Scoring reads the `RECOMMENDATION:` line (extraction regex unchanged); the guard/judge see the
+  recommendation, not narration.
+
 ## Gates
 
 Gate A over this plan (ask-alignment / code-alignment / docs-alignment / clarity-standards, fresh
 reviewers, argue to resolution). Gate B design-fit after each refactor unit (runner; fixtures; any
 harness.py touch). Gate C over LEDGER/ROADMAP/RESULTS edits. Gate D over commits + issue prose.
+Amendment 2 re-gated: targeted ask-alignment re-ACK (the AC's fixture-shape language) + Gate B on
+the implementing diff.
