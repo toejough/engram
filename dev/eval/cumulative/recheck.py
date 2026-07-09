@@ -41,11 +41,21 @@ def read_stub_log(log_path):
 _REC_RE = re.compile(r"RECOMMENDATION:\s*(.+)", re.IGNORECASE)
 
 
+def rec_line_found(agent_text):
+    """Whether the text carries an explicit RECOMMENDATION: line (False = extract_recommendation
+    fell back to the whole text). Recorded on every trial row so a fallback-scored verdict is
+    always distinguishable from a directive-compliant one."""
+    return bool(_REC_RE.search(agent_text or ""))
+
+
 def extract_recommendation(agent_text):
-    """Pull the recommendation out of the agent's final text. Falls back to the whole text so the
-    scorer still sees the advocacy (fail-open on parsing, not on inputs)."""
-    m = _REC_RE.search(agent_text or "")
-    return m.group(1).strip() if m else (agent_text or "").strip()
+    """Pull the recommendation out of the agent's final text: the LAST RECOMMENDATION: match — the
+    format directive says END the reply with the line, and earlier matches can be quotes of
+    surfaced notes or mid-analysis drafts, not the answer. Falls back to the whole text so the
+    scorer still sees the advocacy (fail-open on parsing, not on inputs); rec_line_found() flags
+    which case a row was."""
+    matches = _REC_RE.findall(agent_text or "")
+    return matches[-1].strip() if matches else (agent_text or "").strip()
 
 
 def recheck_result(fixture_dir, agent_text, stub_log_path, stub=True, judge_model=None):
@@ -60,6 +70,7 @@ def recheck_result(fixture_dir, agent_text, stub_log_path, stub=True, judge_mode
     return {
         "fixture": os.path.basename(fixture_dir.rstrip("/")),
         "recommendation": rec,
+        "rec_line_found": rec_line_found(agent_text),
         "cell_verdict": scored["cell_verdict"],
         "per_lever": scored["per_lever"],
         # mechanism diagnostics — never folded into the pass/fail
@@ -99,16 +110,28 @@ def agent_text(out):
 
 
 def live_recall(fixture_dir, cfg, model, task, bin_dir, log_path, buried_basename, lever_terms,
-                vault_subdir="vault_with_closed"):
+                vault_subdir="vault_with_closed", cwd=None, resume_sid=None, truncate_log=True):
     """Run the REAL skill via the canonical harness.claude() runner, with the stub injected onto PATH so
     the skill's `engram` calls hit it. Returns the FULL harness result dict (total_cost_usd,
     session_id, result text all intact — the runner's validity gate and cost tally need them); use
     agent_text() for the text. A non-dict harness return is wrapped as {"result": <text>} so callers
-    always get a dict. (harness imported lazily so the offline core needs no harness deps.)"""
+    always get a dict.
+
+    cwd: the agent's working directory; defaults to fixture_dir (back-compat). The two-phase trial
+    layout passes an ISOLATED temp dir so the fixture's ground truth (closed_levers.json, vaults) is
+    never reachable from the agent's cwd — the vault stays keyed off fixture_dir via
+    ENGRAM_VAULT_PATH regardless.
+
+    resume_sid / truncate_log: the two-turn structure (amendment 3) calls this twice per trial —
+    turn 1 fresh (truncate_log=True wipes stale rows), turn 2 with resume_sid=<turn-1 sid> and
+    truncate_log=False so ONE stub log spans both turns (the same STUB_ENGRAM_LOG env is rebuilt
+    identically on each call; the mechanism metric is session-wide). (harness imported lazily so
+    the offline core needs no harness deps.)"""
     import harness
     write_stub_bin(bin_dir)
-    open(log_path, "w").close()  # truncate the log for this run
+    if truncate_log:
+        open(log_path, "w").close()  # fresh session starts with a clean log
     out = harness.claude(cfg=cfg, model=model, vault=os.path.join(fixture_dir, vault_subdir),
-                         cwd=fixture_dir, prompt=task,
+                         cwd=cwd or fixture_dir, prompt=task, resume_sid=resume_sid,
                          extra_env=_stub_env(bin_dir, log_path, buried_basename, lever_terms))
     return out if isinstance(out, dict) else {"result": out or ""}

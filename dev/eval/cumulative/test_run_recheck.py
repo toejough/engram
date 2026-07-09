@@ -1,8 +1,9 @@
 """Unit tests for run_recheck.py's pure core (offline — no LLM, no claude -p, no harness/matrix
-import). Covers arm-matrix expansion, fixture-prompt construction (context.md + task), the arm-C
-gate, checkpoint/resume, the per-trial validity gate + retry cap (with the NOT-RED cap-exhausted
-record), the cost tally, and fail-loud stub config. Arm-B advocacy scoring lives in
-lever_recheck_scorer (tested in test_lever_recheck_scorer.py)."""
+import). Covers arm-matrix expansion, the two-phase prompt construction (prefix + task + scratch
+pointer + format directive; context body NEVER in the prompt), trial-cwd isolation
+(prepare_trial_cwd), the arm-C gate, checkpoint/resume, the per-trial validity gate + retry cap
+(with the NOT-RED cap-exhausted record), the cost tally, and fail-loud stub config. Arm-B advocacy
+scoring lives in lever_recheck_scorer (tested in test_lever_recheck_scorer.py)."""
 import json
 import os
 
@@ -122,43 +123,86 @@ def test_resolve_fixtures_comma_list(tmp_path):
     assert [n for n, _ in out] == ["fixture2", "fixture1"]
 
 
-# ---- fixture prompt construction (context.md is load-bearing; fail loud when absent) ----
+# ---- two-turn prompt construction (amendment 3: the phase split is MECHANICAL, not prose) ----
 
-def test_read_fixture_prompt_orders_prefix_then_context_then_task(tmp_path):
+def test_turn1_prompt_has_no_scratch_pointer_directive_or_context(tmp_path):
     fdir = _make_fixture(tmp_path, "fixture1", diagnostic=True)
     _write(os.path.join(fdir, "context.md"), "# scratch data\nretrieval slice is small")
     prompt = rr.read_fixture_prompt(fdir, "task_diagnostic.txt")
     assert prompt.startswith(rr.RECALL_PREFIX)  # identical for ALL arms, ahead of everything
-    assert "retrieval slice is small" in prompt
     assert "neutral diagnose-and-recommend framing task" in prompt
-    assert (prompt.index(rr.RECALL_PREFIX)
-            < prompt.index("retrieval slice is small")
-            < prompt.index("neutral diagnose"))
+    assert prompt.endswith(rr.TURN1_SUFFIX)     # data-will-follow note; recall runs data-blind
+    assert "READY" in prompt
+    # NOTHING that could leak phase-2 material into the recall phrasing:
+    assert rr.SCRATCH_NOTES_NAME not in prompt  # no pointer (turn 2 delivers it)
+    assert "RECOMMENDATION:" not in prompt      # no format directive yet
+    assert "retrieval slice is small" not in prompt  # no context body
 
 
-def test_recall_prefix_forces_the_skill_but_stays_content_neutral():
-    # note-138 discipline: the prefix may force the /recall invocation and generic apply-what-
-    # surfaces, but must never hint at lever-checking or prior attempts (that would spotlight the
-    # moment the RED cell exists to leave unspotlighted).
+def test_turn2_message_delivers_context_inline_plus_directive(tmp_path):
+    fdir = _make_fixture(tmp_path, "fixture1", diagnostic=True)
+    _write(os.path.join(fdir, "context.md"), "# scratch data\nretrieval slice is small")
+    msg = rr.build_turn2_message(fdir)
+    assert "retrieval slice is small" in msg        # inline delivery (belt)
+    assert rr.SCRATCH_NOTES_NAME in msg             # file pointer (braces)
+    assert "RECOMMENDATION:" in msg                 # format directive arrives with the data
+    assert msg.index("retrieval slice is small") < msg.index("RECOMMENDATION:")
+
+
+def test_build_turn2_message_fails_loud_when_context_missing(tmp_path):
+    fdir = _make_fixture(tmp_path, "fixture1")  # no context.md
+    with pytest.raises(FileNotFoundError):
+        rr.build_turn2_message(fdir)
+
+
+def test_prompt_scaffold_forces_the_skill_but_stays_content_neutral():
+    # note-138 discipline: the static scaffold (both turns) may force the /recall invocation, defer
+    # the data, point at the scratch log, and fix the reply format — but must never hint at
+    # lever-checking or prior attempts (that would spotlight the moment the RED cell exists to
+    # leave unspotlighted).
     assert "/recall" in rr.RECALL_PREFIX
     assert "engram" in rr.RECALL_PREFIX  # forbids hand-running the binary in the skill's place
-    low = rr.RECALL_PREFIX.lower()
+    scaffold = (rr.RECALL_PREFIX + rr.TURN1_SUFFIX + rr.TURN2_TEMPLATE).lower()
     for hint in ("lever", "prior attempt", "already tried", "rolled back", "closed", "history"):
-        assert hint not in low
-    assert rr.RECALL_PREFIX.endswith("\n\n")  # clean seam ahead of context.md
-
-
-def test_read_fixture_prompt_fails_loud_when_context_missing(tmp_path):
-    fdir = _make_fixture(tmp_path, "fixture1")
-    with pytest.raises(FileNotFoundError):
-        rr.read_fixture_prompt(fdir, "task.txt")
+        assert hint not in scaffold
+    assert rr.RECALL_PREFIX.endswith("\n\n")  # clean seam ahead of the task text
 
 
 def test_read_fixture_prompt_fails_loud_when_task_file_missing(tmp_path):
     fdir = _make_fixture(tmp_path, "fixture1")
-    _write(os.path.join(fdir, "context.md"), "data")
     with pytest.raises(FileNotFoundError):
         rr.read_fixture_prompt(fdir, "task_diagnostic.txt")
+
+
+# ---- trial cwd isolation (two-phase layout: scratch-notes.md only, no ground truth reachable) ----
+
+def test_prepare_trial_cwd_contains_exactly_scratch_notes(tmp_path):
+    fdir = _make_fixture(tmp_path, "fixture1", diagnostic=True)
+    _write(os.path.join(fdir, "context.md"), "# scratch data\nnumbers here")
+    os.makedirs(os.path.join(fdir, "vault_with_closed"))
+    cwd = rr.prepare_trial_cwd(fdir, str(tmp_path / "trial-cwd"))
+    assert os.listdir(cwd) == [rr.SCRATCH_NOTES_NAME]
+    with open(os.path.join(cwd, rr.SCRATCH_NOTES_NAME)) as fh:
+        assert "numbers here" in fh.read()
+
+
+def test_prepare_trial_cwd_fixture_ground_truth_not_reachable(tmp_path):
+    fdir = _make_fixture(tmp_path, "fixture1", diagnostic=True)
+    _write(os.path.join(fdir, "context.md"), "data")
+    os.makedirs(os.path.join(fdir, "vault_with_closed"))
+    cwd = rr.prepare_trial_cwd(fdir, str(tmp_path / "trial-cwd"))
+    # the leak this closes: cwd=fixture_dir exposed closed_levers.json + the vaults to the agent
+    assert not os.path.exists(os.path.join(cwd, "closed_levers.json"))
+    assert not os.path.exists(os.path.join(cwd, "vault_with_closed"))
+    cwd_real, fixture_real = os.path.realpath(cwd), os.path.realpath(fdir)
+    assert not fixture_real.startswith(cwd_real + os.sep)  # fixture dir not inside the cwd
+    assert not cwd_real.startswith(fixture_real + os.sep)  # cwd not inside the fixture dir
+
+
+def test_prepare_trial_cwd_fails_loud_when_context_missing(tmp_path):
+    fdir = _make_fixture(tmp_path, "fixture1")  # no context.md
+    with pytest.raises(FileNotFoundError):
+        rr.prepare_trial_cwd(fdir, str(tmp_path / "trial-cwd"))
 
 
 # ---- arm-C gate: only meaningful where a DISTINCT consult-memory task exists ----
@@ -296,44 +340,175 @@ def test_run_fixture_arm_resume_skips_already_done_keys(tmp_path):
     assert rows[0]["trial_idx"] == 2
 
 
-# ---- validity gate + retry cap ----
+# ---- validity gate + retry cap (two-turn: turn-1 recall ran; turn-2 answered; summed cost) ----
 
-def test_trial_validity_invalid_when_log_missing(tmp_path):
-    ok, reason = rr.trial_validity(str(tmp_path / "nope.jsonl"), 0.05, "some text")
-    assert ok is False
-    assert reason == "empty_or_missing_stub_log"
-
-
-def test_trial_validity_invalid_when_log_empty(tmp_path):
+def test_count_stub_queries_zero_when_log_missing_or_empty(tmp_path):
+    assert rr.count_stub_queries(str(tmp_path / "nope.jsonl")) == 0
     log = tmp_path / "log.jsonl"
     log.write_text("")
-    ok, reason = rr.trial_validity(str(log), 0.05, "some text")
-    assert ok is False
-    assert reason == "empty_or_missing_stub_log"
+    assert rr.count_stub_queries(str(log)) == 0
 
 
-def test_trial_validity_invalid_when_cost_below_floor(tmp_path):
+def test_count_stub_queries_counts_nonempty_lines(tmp_path):
     log = tmp_path / "log.jsonl"
-    log.write_text('{"phrases": ["x"], "lever_keyed": false, "returned_buried": false}\n')
-    ok, reason = rr.trial_validity(str(log), 0.01, "some text")
+    log.write_text('{"phrases": ["a"], "lever_keyed": false}\n\n{"phrases": ["b"], "lever_keyed": true}\n')
+    assert rr.count_stub_queries(str(log)) == 2
+
+
+def test_trial_validity_invalid_when_turn1_ran_no_queries():
+    # the recall must have run against the stub IN TURN 1 (treatment delivery, note 168)
+    ok, reason = rr.trial_validity(0, 0.50, "RECOMMENDATION: fine text")
+    assert ok is False
+    assert reason == "empty_turn1_stub_log"
+
+
+def test_trial_validity_invalid_when_summed_cost_below_floor():
+    ok, reason = rr.trial_validity(3, 0.01, "some text")
     assert ok is False
     assert reason == "cost_below_floor"
 
 
-def test_trial_validity_invalid_when_agent_text_empty(tmp_path):
-    log = tmp_path / "log.jsonl"
-    log.write_text('{"phrases": ["x"], "lever_keyed": false, "returned_buried": false}\n')
-    ok, reason = rr.trial_validity(str(log), 0.05, "   ")
+def test_trial_validity_invalid_when_turn2_text_empty():
+    ok, reason = rr.trial_validity(3, 0.50, "   ")
     assert ok is False
     assert reason == "empty_agent_text"
 
 
-def test_trial_validity_valid_when_all_conditions_met(tmp_path):
-    log = tmp_path / "log.jsonl"
-    log.write_text('{"phrases": ["x"], "lever_keyed": false, "returned_buried": false}\n')
-    ok, reason = rr.trial_validity(str(log), 0.30, "RECOMMENDATION: do the thing.")
+def test_trial_validity_valid_when_all_conditions_met():
+    ok, reason = rr.trial_validity(3, 0.30, "RECOMMENDATION: do the thing.")
     assert ok is True
     assert reason is None
+
+
+# ---- turn-scoped mechanism (the turn-2 re-query is the criterion-3 signal, a measured output) ----
+
+def test_turn_scoped_mechanism_splits_rows_at_the_turn_boundary():
+    rows = [
+        {"phrases": ["diagnostic ask"], "lever_keyed": False, "returned_buried": False},   # turn 1
+        {"phrases": ["another angle"], "lever_keyed": False, "returned_buried": False},    # turn 1
+        {"phrases": ["the lever, keyed"], "lever_keyed": True, "returned_buried": True},   # turn 2
+    ]
+    scoped = rr.turn_scoped_mechanism(rows, n_turn1=2)
+    assert scoped["lever_query_issued_turn1"] is False
+    assert scoped["lever_query_issued_turn2"] is True
+    assert scoped["note_surfaced_turn1"] is False
+    assert scoped["note_surfaced_turn2"] is True
+    assert scoped["n_queries_turn1"] == 2
+    assert scoped["n_queries_turn2"] == 1
+
+
+def test_turn_scoped_mechanism_when_turn2_ran_no_queries():
+    rows = [{"phrases": ["only turn-1"], "lever_keyed": False, "returned_buried": False}]
+    scoped = rr.turn_scoped_mechanism(rows, n_turn1=1)
+    assert scoped["lever_query_issued_turn2"] is False
+    assert scoped["n_queries_turn2"] == 0
+
+
+# ---- two-call trial flow (fake harness + matrix: resume threaded, one shared log, summed cost) ----
+
+def _install_two_turn_fakes(monkeypatch, calls, turn2_text):
+    """Fake matrix + harness modules for run_one_live_trial: records every claude() call (prompt,
+    resume_sid, cwd listing at call time, stub-log env) and simulates the stub appending one query
+    row per turn to the SHARED log."""
+    import sys
+    import types
+
+    fake_matrix = types.ModuleType("matrix")
+    fake_matrix.build_cfg_template = lambda dst, warm: os.makedirs(dst, exist_ok=True)
+    fake_matrix.refresh_creds = lambda cfg: None
+    monkeypatch.setitem(sys.modules, "matrix", fake_matrix)
+
+    def fake_claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None, extra_env=None):
+        turn = len(calls) + 1
+        log_path = extra_env["STUB_ENGRAM_LOG"]
+        with open(log_path, "a") as fh:
+            fh.write(json.dumps({"phrases": [f"turn-{turn} query"], "lever_keyed": False,
+                                 "returned_buried": False}) + "\n")
+        calls.append({"prompt": prompt, "resume_sid": resume_sid, "cwd": cwd,
+                      "cwd_listing": sorted(os.listdir(cwd)), "log_path": log_path})
+        if turn == 1:
+            return {"result": "READY", "total_cost_usd": 0.30, "session_id": "sid-1"}
+        return {"result": turn2_text, "total_cost_usd": 0.25, "session_id": "sid-1"}
+
+    fake_harness = types.ModuleType("harness")
+    fake_harness.claude = fake_claude
+    monkeypatch.setitem(sys.modules, "harness", fake_harness)
+
+
+def test_run_one_live_trial_two_turns_resume_shared_log_summed_cost(tmp_path, monkeypatch):
+    fdir = _make_fixture(tmp_path, "fixture1", diagnostic=True)
+    _write(os.path.join(fdir, "context.md"), "# scratch\nthe dedup pass dominates the bill")
+    calls = []
+    turn2_text = ("Analysis of the scratch log...\n"
+                  "RECOMMENDATION: batch the generation calls to amortize overhead.")
+    _install_two_turn_fakes(monkeypatch, calls, turn2_text)
+
+    cell = {"fixture": "fixture1", "fixture_dir": fdir, "arm": "A",
+            "vault_subdir": "vault_with_closed", "task_file": "task_diagnostic.txt"}
+    record = rr.run_one_live_trial(cell, "opus", "stub")
+
+    # two calls; turn 2 resumed turn 1's session; one shared stub log
+    assert len(calls) == 2
+    assert calls[0]["resume_sid"] is None
+    assert calls[1]["resume_sid"] == "sid-1"
+    assert calls[0]["log_path"] == calls[1]["log_path"]
+    # phase split is mechanical: no scratch file at turn 1; present at turn 2; same isolated cwd
+    assert calls[0]["cwd_listing"] == []
+    assert calls[1]["cwd_listing"] == [rr.SCRATCH_NOTES_NAME]
+    assert calls[0]["cwd"] == calls[1]["cwd"]
+    # turn-1 prompt data-blind; turn-2 message carries the data + directive
+    assert "the dedup pass dominates the bill" not in calls[0]["prompt"]
+    assert calls[0]["prompt"].endswith(rr.TURN1_SUFFIX)
+    assert "the dedup pass dominates the bill" in calls[1]["prompt"]
+    assert "RECOMMENDATION:" in calls[1]["prompt"]
+    # per-turn costs recorded separately; gate applied to the sum
+    assert record["turn1_cost"] == 0.30
+    assert record["turn2_cost"] == 0.25
+    assert record["cost_usd"] == 0.55
+    assert record["status"] == "valid"
+    # verdict from the turn-2 RECOMMENDATION line; rec_line_found on the row
+    assert record["rec_line_found"] is True
+    assert record["cell_verdict"] == "RECONCILED"  # rec avoids the lever
+    assert record["recommendation"] == "batch the generation calls to amortize overhead."
+    # session-wide mechanism + turn-scoped variants
+    assert record["lever_query_issued"] is False
+    assert record["n_queries"] == 2
+    assert record["lever_query_issued_turn1"] is False
+    assert record["lever_query_issued_turn2"] is False
+    assert record["n_queries_turn1"] == 1
+    assert record["n_queries_turn2"] == 1
+
+
+def test_run_one_live_trial_invalid_when_turn1_recall_never_ran(tmp_path, monkeypatch):
+    fdir = _make_fixture(tmp_path, "fixture1", diagnostic=True)
+    _write(os.path.join(fdir, "context.md"), "# scratch\ndata")
+    import sys
+    import types
+
+    fake_matrix = types.ModuleType("matrix")
+    fake_matrix.build_cfg_template = lambda dst, warm: os.makedirs(dst, exist_ok=True)
+    fake_matrix.refresh_creds = lambda cfg: None
+    monkeypatch.setitem(sys.modules, "matrix", fake_matrix)
+
+    calls = []
+
+    def fake_claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None, extra_env=None):
+        calls.append(prompt)  # answers directly, never touches engram: log stays empty
+        return {"result": "READY" if len(calls) == 1 else "RECOMMENDATION: something.",
+                "total_cost_usd": 0.30, "session_id": "sid-1"}
+
+    fake_harness = types.ModuleType("harness")
+    fake_harness.claude = fake_claude
+    monkeypatch.setitem(sys.modules, "harness", fake_harness)
+
+    cell = {"fixture": "fixture1", "fixture_dir": fdir, "arm": "A",
+            "vault_subdir": "vault_with_closed", "task_file": "task_diagnostic.txt"}
+    record = rr.run_one_live_trial(cell, "opus", "stub")
+    assert record["status"] == "invalid"
+    assert record["invalid_reason"] == "empty_turn1_stub_log"
+    assert "cell_verdict" not in record  # invalid trials are never scored
+    assert len(calls) == 1  # short-circuit: never pay for turn 2 on an already-invalid trial
+    assert record["turn2_cost"] == 0.0
 
 
 def test_run_fixture_arm_retries_invalid_up_to_cap_and_records_not_red(tmp_path):

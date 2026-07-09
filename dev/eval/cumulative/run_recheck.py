@@ -15,33 +15,63 @@ Drives the REAL /recall+/learn skill (via `harness.claude()`, never stubbed — 
      present and different from task.txt — today: fixture1). Requesting C on a fixture without one
      appends an explicit `status: skipped` record — never a silent duplicate of arm A.
 
-The live prompt per trial = RECALL_PREFIX + the fixture's `context.md` (the analysis data that
-makes the closed lever emerge mid-analysis — load-bearing, fail-loud if missing) + the arm's task
-file. RECALL_PREFIX forces the real /recall skill to fire: a bare headless `claude -p` answers
-directly and never touches engram (the fixture2 pilot measured 100% `empty_or_missing_stub_log`
-INVALID without it); family precedent is dev/eval/traps/wrun.py's RECALL_PREFIX. The prefix is
-identical for ALL arms and content-NEUTRAL per note 138 — it forces the skill invocation and
-generic apply-what-surfaces, never hinting at lever-checking or prior attempts.
+Two-TURN trial structure (plan amendment 3, from pilot-3 evidence): the phase split — recall
+first, analysis data after — is enforced MECHANICALLY with two `claude` calls per trial, because
+instructional ordering cannot be trusted (note 145): pilot 3 measured the agent reading the cwd
+scratch file before phrasing its recall (lever_query_issued=True in both arms), and pilot 2
+measured the same with inline context.
+
+- Turn 1 (fresh session): RECALL_PREFIX + the arm's task text + TURN1_SUFFIX (a neutral note that
+  the team's supporting data is still being gathered and will follow; reply READY). NO scratch
+  file in the cwd, NO pointer, NO format directive — the recall runs data-blind and can only
+  phrase the diagnostic ask (fixture gate: no lever_terms group is satisfiable from the task text
+  alone). RECALL_PREFIX forces the real /recall skill to fire (a bare headless `claude -p` answers
+  directly, never touching engram — pilot 1: 100% empty stub log; family precedent
+  dev/eval/traps/wrun.py).
+- Turn 2 (`--resume <turn-1 sid>`; harness.claude threads resume_sid and still passes the same
+  isolated cwd): the scratch data is delivered inline in the message AND written to the trial cwd
+  as scratch-notes.md (belt and braces — resume cwd handling verified but not load-bearing),
+  together with the format directive: end the reply with one `RECOMMENDATION: <...>` line. The
+  lever is conceived HERE, after turn 1's recall. ONE stub log spans both turns (turn 2 does not
+  truncate), so the mechanism metric is session-wide; turn-scoped variants are recorded alongside.
+- The trial cwd is a bare temp dir (empty at turn 1; scratch-notes.md only at turn 2) — the
+  fixture's ground truth (closed_levers.json, vaults) is never inside or reachable from it.
+- The format directive pins extract_recommendation to the LAST RECOMMENDATION: line, and every row
+  records `rec_line_found` so a whole-text-fallback verdict is always distinguishable (pilot 2's
+  fallback let the deterministic guard fire on recall *narration*). Prefix/suffixes are identical
+  for ALL arms and content-NEUTRAL per note 138 — they force the invocation, defer the data, and
+  fix the reply shape, never hinting at lever-checking or prior attempts.
+
+Expected RED SIGNATURE (arm A, current skill) — a description of the anticipated failure shape,
+reported alongside the verdict, never a definitional pass/fail conjunction: turn-1 recall fires on
+the diagnostic ask → buried note not returned → the agent meets the data in turn 2 → conceives the
+lever mid-analysis → no lever-keyed re-query in either turn → the RECOMMENDATION line re-proposes
+the lever → AMNESIA. The GREEN shape is a turn-2 lever-keyed re-query that surfaces the note and
+yields RECONCILED (#655's gate — or the shipped criterion-3 reconcile-rule already firing today,
+an acceptable honest outcome; `lever_query_issued_turn2` exists to measure exactly that).
 
 Each trial is a fully isolated live run: a throwaway CLAUDE_CONFIG_DIR (`matrix.build_cfg_template`,
-warm=True — both /recall and /learn skills; creds injected via `matrix.refresh_creds`), then the
-plan's prescribed chain — `recheck.live_recall()` (writes the stub_engram shim, truncates the query
-log, and calls `harness.claude()` once with the stub on PATH; returns the FULL harness result dict,
-whose `total_cost_usd`/`session_id` the validity gate and cost tally need — text via
-`recheck.agent_text`) → per-trial validity gate → scoring (valid trials only). Every completed
-attempt is appended to the --out JSONL immediately (flushed) so a killed/resumed batch never loses
-or re-pays for finished work; --resume skips (fixture, arm, trial_idx) keys already recorded.
+warm=True — both /recall and /learn skills; creds injected via `matrix.refresh_creds`), then two
+`recheck.live_recall()` calls (turn 1 fresh + truncating the stub log; turn 2 resume_sid-threaded +
+log-preserving; each returns the FULL harness result dict — text via `recheck.agent_text`) →
+per-trial validity gate → scoring (valid trials only). Every completed attempt is appended to the
+--out JSONL immediately (flushed) so a killed/resumed batch never loses or re-pays for finished
+work; --resume skips (fixture, arm, trial_idx) keys already recorded.
 
-Validity gate (per note 168): INVALID iff the stub log is empty/missing OR the call cost is under
-$0.02 OR the agent text is empty. The $0.02 floor derives from the harness family's degraded-call
-heuristic (`dev/eval/traps/wrun.py`: `(out.get("is_error") or not out) and cost < 0.02` flags a
+Validity gate (per note 168): INVALID iff the TURN-1 stub log is empty (the recall must have run
+against the stub before the data arrived — checked right after turn 1, short-circuiting so an
+already-invalid trial never pays for turn 2) OR the summed two-call cost is under $0.02 OR the
+turn-2 agent text is empty. turn1_cost/turn2_cost are recorded separately; `cost_usd` is their
+sum. The $0.02 floor derives from the harness family's degraded-call heuristic
+(`dev/eval/traps/wrun.py`: `(out.get("is_error") or not out) and cost < 0.02` flags a
 rate-limited/degraded call); here it is deliberately TIGHTENED to cost-alone — a near-zero-cost
-"success" is still a degraded trial that must not be pooled (detect-degraded-builds lesson). INVALID
-trials are recorded (excluded from verdicts) and retried, capped at n × RETRY_CAP_MULTIPLIER total
-attempts per (fixture, arm) — the plan's "≤6 total attempts" at the default n=3. A (fixture, arm)
-that exhausts the cap with < n valid trials gets an explicit `kind: cap_exhausted` record; for arm A
-its classification is "NOT-RED" (the pre-registered decision procedure: a fixture that cannot reach
-3 valid trials fails toward the bar, never rescues it).
+"success" is still a degraded trial that must not be pooled (detect-degraded-builds lesson).
+INVALID trials are recorded (excluded from verdicts) and retried, capped at n ×
+RETRY_CAP_MULTIPLIER total attempts per (fixture, arm) — the plan's "≤6 total attempts" at the
+default n=3. A (fixture, arm) that exhausts the cap with < n valid trials gets an explicit
+`kind: cap_exhausted` record; for arm A its classification is "NOT-RED" (the pre-registered
+decision procedure: a fixture that cannot reach 3 valid trials fails toward the bar, never
+rescues it).
 
 Arm-B scoring semantics (resolved by reading lever_recheck_scorer.py; Gate-B reviewed):
 
@@ -94,13 +124,31 @@ CAP_CLASSIFICATION = {"A": "NOT-RED"}
 CAP_CLASSIFICATION_DEFAULT = "insufficient_valid_trials"
 
 # Forces the real /recall skill to fire (a bare headless `claude -p` answers directly, never touching
-# engram — pilot: 100% empty_or_missing_stub_log INVALID). Adapted from dev/eval/traps/wrun.py's
+# engram — pilot 1: 100% empty_or_missing_stub_log INVALID). Adapted from dev/eval/traps/wrun.py's
 # RECALL_PREFIX for a recommend-task. Identical for ALL arms; content-NEUTRAL per note 138 (forces
 # the invocation + generic apply-what-surfaces only — never hints at levers or prior attempts).
 RECALL_PREFIX = (
     "Before answering, consult your memory: actually INVOKE YOUR /recall skill (do not skip it, do "
     "not hand-run engram yourself in its place). Read what it surfaces and apply anything relevant "
     "as a hard requirement. Then complete this task:\n\n")
+
+# The domain-plausible name the fixture's context.md lands under in the trial cwd (turn 2 only).
+SCRATCH_NOTES_NAME = "scratch-notes.md"
+
+# Turn-1 tail (identical for ALL arms, content-neutral): defers the data so the recall runs
+# data-blind — the MECHANICAL phase split (amendment 3). No pointer, no format directive here.
+TURN1_SUFFIX = (
+    "\n\nThe team's supporting data is still being gathered and will be sent to you next — after "
+    "your recall pass, reply READY.")
+
+# Turn-2 delivery (resumed session): the scratch data arrives inline AND as a cwd file (belt and
+# braces), with the format directive so extract_recommendation gets a real RECOMMENDATION line
+# (pilot 2's whole-text fallback let the guard fire on recall narration and left arm B with no
+# recommendation at all).
+TURN2_TEMPLATE = (
+    "Here is the team's scratch log (also written to " + SCRATCH_NOTES_NAME + " in your working "
+    "directory):\n\n{context}\n\nNow complete the task. End your reply with exactly one line: "
+    "RECOMMENDATION: <the single recommended change>.")
 
 
 # ----- arm-matrix expansion -----
@@ -168,25 +216,48 @@ def resolve_fixtures(fixtures_arg, lever_recheck_root):
     return [(name, os.path.join(lever_recheck_root, name)) for name in names]
 
 
-# ----- fixture prompt (context.md + task file; both load-bearing, both fail-loud) -----
+# ----- two-turn prompt construction + trial cwd (amendment 3) -----
 
 def read_fixture_prompt(fixture_dir, task_file):
-    """Build the live prompt: RECALL_PREFIX (identical for all arms — forces the /recall skill to
-    actually fire), then context.md (the analysis data that makes the closed lever emerge
-    mid-analysis), then the arm's task ask — the order the materials read naturally in (fixture1:
-    the scratch cost log, then "recommend the highest-leverage change"). Mirrors
-    contradiction_recheck's read_cell_prompt. Fails LOUD when either file is missing — a fixture
-    without its context is a broken cell, not a leaner prompt."""
-    ctx_path = os.path.join(fixture_dir, "context.md")
+    """Build the TURN-1 prompt: RECALL_PREFIX (identical for all arms — forces the /recall skill to
+    actually fire) + the arm's task ask + TURN1_SUFFIX (data-will-follow note). No context body, no
+    scratch pointer, no format directive — turn 1 is data-blind by construction; the data arrives
+    in turn 2 (build_turn2_message). Fails LOUD when the task file is missing."""
     task_path = os.path.join(fixture_dir, task_file)
-    for path in (ctx_path, task_path):
-        if not os.path.isfile(path):
-            raise FileNotFoundError(f"fixture prompt input missing: {path!r}")
-    with open(ctx_path) as fh:
-        context = fh.read().strip()
+    if not os.path.isfile(task_path):
+        raise FileNotFoundError(f"fixture prompt input missing: {task_path!r}")
     with open(task_path) as fh:
         task = fh.read().strip()
-    return f"{RECALL_PREFIX}{context}\n\n{task}"
+    return f"{RECALL_PREFIX}{task}{TURN1_SUFFIX}"
+
+
+def read_fixture_context(fixture_dir):
+    """The fixture's context.md body (the analysis data). Fails LOUD when missing — a fixture
+    without its context is a broken cell, not a leaner trial."""
+    ctx_path = os.path.join(fixture_dir, "context.md")
+    if not os.path.isfile(ctx_path):
+        raise FileNotFoundError(f"fixture context missing: {ctx_path!r}")
+    with open(ctx_path) as fh:
+        return fh.read().strip()
+
+
+def build_turn2_message(fixture_dir):
+    """The TURN-2 resumed-session message: the scratch data inline (belt) + the pointer to its cwd
+    copy (braces) + the RECOMMENDATION format directive. Fails LOUD when context.md is missing."""
+    return TURN2_TEMPLATE.format(context=read_fixture_context(fixture_dir))
+
+
+def prepare_trial_cwd(fixture_dir, dst_dir):
+    """Write the fixture's context.md into the trial cwd as scratch-notes.md — called BETWEEN turn 1
+    and turn 2, so the file does not exist while the recall runs (the mechanical phase split). The
+    fixture dir itself — closed_levers.json ground truth, both vaults — is never inside or reachable
+    from the cwd (closes the leak where cwd=fixture_dir exposed the ground truth to the agent).
+    Fails LOUD when context.md is missing. Returns dst_dir."""
+    content = read_fixture_context(fixture_dir)
+    os.makedirs(dst_dir, exist_ok=True)
+    with open(os.path.join(dst_dir, SCRATCH_NOTES_NAME), "w") as fh:
+        fh.write(content + "\n")
+    return dst_dir
 
 
 # ----- arm-C gate: only where a DISTINCT consult-memory task exists -----
@@ -246,18 +317,46 @@ def load_completed(out_path):
     return completed
 
 
-# ----- per-trial validity gate -----
+# ----- per-trial validity gate (two-turn) -----
 
-def trial_validity(stub_log_path, cost_usd, agent_text):
-    """INVALID iff the stub log is empty/missing, OR cost is below the degraded-call floor, OR the
-    agent produced no text. Returns (is_valid, reason); reason is None when valid."""
-    if not os.path.isfile(stub_log_path) or os.path.getsize(stub_log_path) == 0:
-        return False, "empty_or_missing_stub_log"
-    if (cost_usd or 0) < MIN_VALID_COST_USD:
+def count_stub_queries(log_path):
+    """Number of query rows in the stub log right now (0 when missing/empty). Read after turn 1 it
+    is both the treatment-delivery check AND the turn boundary for turn_scoped_mechanism."""
+    if not os.path.isfile(log_path):
+        return 0
+    with open(log_path) as fh:
+        return sum(1 for line in fh if line.strip())
+
+
+def trial_validity(n_turn1_queries, total_cost_usd, turn2_text):
+    """INVALID iff turn 1 issued no stub queries (the recall must run BEFORE the data arrives —
+    treatment delivery), OR the summed two-call cost is below the degraded-call floor, OR turn 2
+    produced no text. Returns (is_valid, reason); reason is None when valid."""
+    if n_turn1_queries <= 0:
+        return False, "empty_turn1_stub_log"
+    if (total_cost_usd or 0) < MIN_VALID_COST_USD:
         return False, "cost_below_floor"
-    if not (agent_text or "").strip():
+    if not (turn2_text or "").strip():
         return False, "empty_agent_text"
     return True, None
+
+
+# ----- turn-scoped mechanism (the turn-2 re-query is the criterion-3 signal — a measured output) ---
+
+def turn_scoped_mechanism(log_rows, n_turn1):
+    """Split the session-wide stub-log rows at the turn boundary (n_turn1 = rows present when turn 1
+    finished) and report the mechanism signals per turn. The session-wide fields keep their meaning
+    (recheck.read_stub_log over the whole log); these variants answer WHICH turn did it — a turn-2
+    lever-keyed re-query is the shipped criterion-3 rule firing, the plan's named measured output."""
+    turn1, turn2 = log_rows[:n_turn1], log_rows[n_turn1:]
+    return {
+        "lever_query_issued_turn1": any(q.get("lever_keyed") for q in turn1),
+        "lever_query_issued_turn2": any(q.get("lever_keyed") for q in turn2),
+        "note_surfaced_turn1": any(q.get("returned_buried") for q in turn1),
+        "note_surfaced_turn2": any(q.get("returned_buried") for q in turn2),
+        "n_queries_turn1": len(turn1),
+        "n_queries_turn2": len(turn2),
+    }
 
 
 # ----- retry-capped driver for one (fixture, arm) pair -----
@@ -379,20 +478,31 @@ def stub_config(fixture_dir):
 
 # ----- live execution (I/O + paid LLM; never unit-tested, exercised only by the CLI) -----
 
+def _call_cost(out):
+    return round(float((out.get("total_cost_usd") if isinstance(out, dict) else 0.0) or 0.0), 4)
+
+
 def run_one_live_trial(cell, model, judge):
-    """Execute ONE live attempt for a planned (fixture, arm) cell. Builds a throwaway scratch dir
-    (fresh CLAUDE_CONFIG_DIR via matrix.build_cfg_template + matrix.refresh_creds), then runs the
-    plan's prescribed chain — recheck.live_recall (writes the stub_engram shim, truncates the query
-    log, calls harness.claude once with the stub on PATH, returns the full result dict) → validity
-    gate → scoring (recheck.recheck_result for arms A/C; scorer.score_arm_b's advocacy-only check
-    for arm B). Returns a result dict WITHOUT fixture/arm/trial_idx (run_fixture_arm stamps those)."""
+    """Execute ONE live attempt for a planned (fixture, arm) cell — TWO claude calls (amendment 3).
+
+    Turn 1: fresh session, data-blind prompt (read_fixture_prompt), empty isolated cwd; the recall
+    runs against the stub. The turn-1 stub-log count is the treatment-delivery gate — an empty log
+    short-circuits the trial as INVALID before paying for turn 2 — and the turn boundary for the
+    turn-scoped mechanism fields. Turn 2: scratch-notes.md written into the SAME cwd
+    (prepare_trial_cwd), then recheck.live_recall with resume_sid=<turn-1 sid> and
+    truncate_log=False (one log spans both turns), delivering the data inline + the format
+    directive (build_turn2_message). Scoring (valid trials only): recheck.recheck_result for arms
+    A/C; scorer.score_arm_b on the extracted RECOMMENDATION line for arm B. Verdicts come from the
+    turn-2 text. Returns a result dict WITHOUT fixture/arm/trial_idx (run_fixture_arm stamps
+    those)."""
     import shutil
     import tempfile
 
     import matrix  # lazy: imports harness at ITS top level; not needed by the pure test suite
 
     fixture_dir = cell["fixture_dir"]
-    prompt = read_fixture_prompt(fixture_dir, cell["task_file"])
+    turn1_prompt = read_fixture_prompt(fixture_dir, cell["task_file"])
+    turn2_message = build_turn2_message(fixture_dir)
     buried_basename, lever_terms = stub_config(fixture_dir)
 
     scratch = tempfile.mkdtemp(prefix="c7-recheck-")
@@ -402,26 +512,56 @@ def run_one_live_trial(cell, model, judge):
         matrix.refresh_creds(cfg)  # the cfg template carries no creds; every harness cell injects them
         bin_dir = os.path.join(scratch, "bin")
         log_path = os.path.join(scratch, "stub_log.jsonl")
+        trial_cwd = os.path.join(scratch, "cwd")
+        os.makedirs(trial_cwd)  # EMPTY at turn 1 — the scratch file arrives between turns
 
-        out = recheck.live_recall(fixture_dir, cfg, model, prompt, bin_dir, log_path,
-                                  buried_basename, lever_terms, vault_subdir=cell["vault_subdir"])
-        agent_text = recheck.agent_text(out)
-        cost_usd = round(float(out.get("total_cost_usd") or 0.0), 4)
+        # --- turn 1: data-blind recall ---
+        out1 = recheck.live_recall(fixture_dir, cfg, model, turn1_prompt, bin_dir, log_path,
+                                   buried_basename, lever_terms, vault_subdir=cell["vault_subdir"],
+                                   cwd=trial_cwd)
+        turn1_cost = _call_cost(out1)
+        session_id = out1.get("session_id")
+        n_turn1 = count_stub_queries(log_path)
 
-        is_valid, invalid_reason = trial_validity(log_path, cost_usd, agent_text)
         record = {
             "vault_subdir": cell["vault_subdir"], "task_file": cell["task_file"],
-            "model": model, "judge": judge, "cost_usd": cost_usd,
-            "session_id": out.get("session_id"), "agent_text": agent_text,
-            "status": "valid" if is_valid else "invalid",
+            "model": model, "judge": judge, "session_id": session_id,
+            "turn1_cost": turn1_cost, "turn2_cost": 0.0, "cost_usd": turn1_cost,
+            "n_queries_turn1": n_turn1,
         }
+
+        if n_turn1 <= 0:
+            # recall never touched the stub — invalid; never pay for turn 2 (short-circuit)
+            record.update({"status": "invalid", "invalid_reason": "empty_turn1_stub_log",
+                           "agent_text": recheck.agent_text(out1), "rec_line_found": False})
+            return record
+
+        # --- turn 2: deliver the data (cwd file + inline) on the resumed session ---
+        prepare_trial_cwd(fixture_dir, trial_cwd)
+        out2 = recheck.live_recall(fixture_dir, cfg, model, turn2_message, bin_dir, log_path,
+                                   buried_basename, lever_terms, vault_subdir=cell["vault_subdir"],
+                                   cwd=trial_cwd, resume_sid=session_id, truncate_log=False)
+        turn2_cost = _call_cost(out2)
+        agent_text = recheck.agent_text(out2)
+        total_cost = round(turn1_cost + turn2_cost, 4)
+        record.update({"turn2_cost": turn2_cost, "cost_usd": total_cost,
+                       "session_id_turn2": out2.get("session_id"), "agent_text": agent_text,
+                       "rec_line_found": recheck.rec_line_found(agent_text)})
+
+        is_valid, invalid_reason = trial_validity(n_turn1, total_cost, agent_text)
+        record["status"] = "valid" if is_valid else "invalid"
         if not is_valid:
             record["invalid_reason"] = invalid_reason
             return record  # excluded from scoring/verdicts
 
+        mech = recheck.read_stub_log(log_path)  # session-wide (one log spans both turns)
+        record.update(turn_scoped_mechanism(mech["queries"], n_turn1))
         if cell["arm"] == "B":
-            record.update(scorer.score_arm_b(agent_text, fixture_dir))
-            mech = recheck.read_stub_log(log_path)
+            # advocacy on the extracted RECOMMENDATION line, not the whole text — narration echoes
+            # surfaced distractor notes and could false-positive the check (pilot-2 (b)/(c)).
+            rec = recheck.extract_recommendation(agent_text)
+            record["recommendation"] = rec
+            record.update(scorer.score_arm_b(rec, fixture_dir))
             record.update({"note_surfaced": mech["note_surfaced"],
                            "lever_query_issued": mech["lever_query_issued"],
                            "n_queries": mech["n_queries"]})
@@ -429,6 +569,7 @@ def run_one_live_trial(cell, model, judge):
             scored = recheck.recheck_result(fixture_dir, agent_text, log_path, stub=(judge == "stub"))
             record.update({"cell_verdict": scored["cell_verdict"], "per_lever": scored["per_lever"],
                            "recommendation": scored["recommendation"],
+                           "rec_line_found": scored["rec_line_found"],
                            "note_surfaced": scored["note_surfaced"],
                            "lever_query_issued": scored["lever_query_issued"],
                            "n_queries": scored["n_queries"]})
