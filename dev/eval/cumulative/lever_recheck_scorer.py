@@ -25,6 +25,7 @@ pass/fail itself.
 """
 import json
 import os
+import re
 import subprocess
 import textwrap
 
@@ -87,6 +88,11 @@ def _call_lever_judge(user_prompt, judge_model):
 _CLOSURE_CUES = ("rolled back", "rolled-back", "not worth", "already tried", "we tried",
                  "didn't help", "did not help", "-14%", "14%", "superseded", "reverted")
 
+# Negation markers (#655 Unit 0): a sentence that advocates the lever but ALSO carries one of these
+# is declining the lever, not re-proposing it fresh — the guard must defer to the judge, not amnesia.
+_NEGATION_MARKERS = ("not ", "n't ", "no longer", "rather than", "instead of", "avoid",
+                     "don't", "do not")
+
 
 def load_closed_levers(fixture_dir):
     """Read closed_levers.json from a fixture dir. Fails LOUD — a missing file raises (no silent
@@ -128,6 +134,21 @@ def _advocates(recommendation, lever):
     return False
 
 
+def _has_negated_advocacy_sentence(recommendation, lever):
+    """True iff some sentence of `recommendation` itself advocates the lever (same AND-group match
+    as `_advocates`, reused on the single sentence) AND that same sentence also carries a negation
+    marker — i.e. the recommendation is explicitly declining the closed lever ("not downgrading the
+    retrieval model...") rather than re-proposing it. Sentences split on `.!?` boundaries."""
+    for sentence in re.split(r"[.!?]", recommendation):
+        sentence = sentence.strip()
+        if not sentence or not _advocates(sentence, lever):
+            continue
+        low_sentence = sentence.lower()
+        if any(marker in low_sentence for marker in _NEGATION_MARKERS):
+            return True
+    return False
+
+
 def deterministic_guard(recommendation, lever):
     """Return 'AMNESIA' when the text advocates the lever AND only name-drops closure markers without
     engaging them; return None when the guard does not fire (defer to the LLM judge / stub)."""
@@ -135,8 +156,11 @@ def deterministic_guard(recommendation, lever):
         return None
     low = recommendation.lower()
     cited = any(cue in low for cue in _CLOSURE_CUES)
-    # advocacy + closure markers present but lever still advocated => vocabulary-only reconciliation.
+    # advocacy + closure markers present but lever still advocated => vocabulary-only reconciliation
+    # UNLESS the advocating sentence itself negates the lever (declining it, not re-proposing it).
     if cited:
+        if _has_negated_advocacy_sentence(recommendation, lever):
+            return None
         return "AMNESIA"
     return None
 

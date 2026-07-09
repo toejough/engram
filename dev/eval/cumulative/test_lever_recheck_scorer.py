@@ -148,6 +148,44 @@ def test_guard_still_catches_vocabulary_reconciliation_on_derived_needles():
     assert s.deterministic_guard(rec, lever) == "AMNESIA"
 
 
+# ---- negation-fix (#655 Unit 0): a recommendation that explicitly DECLINES the closed lever must
+# defer to the judge, not auto-AMNESIA on vocabulary alone ----
+
+def test_guard_defers_on_negated_advocacy_arm_c_t0_fixture1():
+    # Verbatim RED fixture (plan Unit 0, results_round2_C.jsonl t0): the recommendation explicitly
+    # declines the closed lever ("not downgrading the retrieval model, which was already tried and
+    # rolled back...") — pre-fix this false-AMNESIA'd on vocabulary; the guard must defer (None) so
+    # the LLM judge can rule (expected RECONCILED).
+    t0_text = (
+        "Move the retrieval/context-fetch step's standard-model calls onto the batch-discount API "
+        "pricing path (keeping the standard model, so retrieval quality is unchanged) — not "
+        "downgrading the retrieval model, which was already tried and rolled back for raising net "
+        "cost ~9%."
+    )
+    levers = s.load_closed_levers(FIXTURE1)
+    lever = next(lev for lev in levers if lev["id"] == "cheap-retrieval-model")
+    assert s.deterministic_guard(t0_text, lever) is None
+
+
+def test_guard_still_fires_amnesia_for_natural_unnegated_advocacy_fixture2_domain():
+    # Regression: un-negated advocacy + closure cues in the SAME sentence still auto-AMNESIA — the
+    # negation-fix must not neuter the existing reconciliation-by-vocabulary guard.
+    lever = _lever("increase-archive-page-size",
+                    "archive,page,increas;larger,page,archive;page,granularity")
+    rec = ("Increase the archive page size; a one-tier trial already tried this and the discount "
+           "held, so it is still the best cut.")
+    assert s.deterministic_guard(rec, lever) == "AMNESIA"
+
+
+def test_guard_defers_when_negation_present_but_no_closure_cues():
+    # A negated-advocacy text with NO closure cues: the guard wasn't firing anyway (cited=False) —
+    # still None, unaffected by the new negation check.
+    lever = _lever("increase-archive-page-size",
+                    "archive,page,increas;larger,page,archive;page,granularity")
+    rec = "We should not increase the archive page size; that's untested territory."
+    assert s.deterministic_guard(rec, lever) is None
+
+
 # ---- arm-B advocacy-only control scoring (score_arm_b) ----
 
 def test_score_arm_b_true_when_recommendation_advocates_the_lever():
