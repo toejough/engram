@@ -32,6 +32,10 @@ import json
 import os
 import sys
 
+# Rank-1 score for the buried note on a lever-keyed query — above the distractor ladder's 0.80 top
+# (the matched-note floor puts the exact-match note clearly first).
+BURIED_TOP_SCORE = 0.92
+
 
 def _vault_notes(vault):
     """Return {basename: (frontmatter_situation, body)} for every .md in the flat vault."""
@@ -102,10 +106,18 @@ def _cmd_query(argv):
 
     lever_keyed = any(_phrase_is_lever_keyed(p, term_groups) for p in phrases)
     surfaced = []
+    if lever_keyed and buried in notes:
+        # Measured reality (the matched-note floor — note 80, cited in the module docstring): a
+        # lever-keyed query ranks the closure note #1, ABOVE every distractor. Emitting it
+        # last/lowest (the old filename-ordered ladder put note 8 at the bottom at 0.38) made
+        # agents honestly miss the bottom-ranked disproof — an instrument artifact, not a
+        # synthesis failure.
+        surfaced.append({"path": buried + ".md", "kind": "fact", "score": BURIED_TOP_SCORE,
+                         "content": notes[buried]})
     score = 0.80
     for base, content in notes.items():
-        if base == buried and not lever_keyed:
-            continue  # the measured retrieval miss: buried for non-lever queries
+        if base == buried:
+            continue  # keyed: already ranked #1 above; non-keyed: the measured retrieval miss
         surfaced.append({"path": base + ".md", "kind": "fact", "score": round(score, 3),
                          "content": content})
         score = max(0.30, score - 0.06)
