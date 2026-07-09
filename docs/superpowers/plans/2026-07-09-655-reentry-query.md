@@ -168,3 +168,17 @@ data (the batch's surfaced-but-ignored cases are synthesis-binding failures, not
 ranking premise — the note WAS delivered; the ranking premise remains dead on current evidence).
 Spend note: cycle ≈ $16 before the iteration; iteration ≈ +$12 → lands at the $35 soft signal
 (reported to Joe at amendment time, proceeding per the autonomous-iterate discipline).
+
+### Amendment 1 addendum — instrument-invalid attribution (2026-07-09, post-v2-pilot)
+
+The v2 pilot STOPped (surfaced → still AMNESIA), and diagnosis found an INSTRUMENT bug: the stub
+returned the buried closure note LAST and LOWEST-SCORED (filename-order iteration, 0.38 after seven
+distractors) on lever-keyed queries — the opposite of measured reality (lever-keyed closure notes
+rank #1 under the matched-note floor; the stub's own docstring cites this). The v2-pilot agent's
+"Clean" verdict accurately described the TOP of the payload — not confabulation. Re-attribution:
+the v1 batch's surfaced-but-ignored verdicts and the v2 pilot verdict are **instrument-invalid**
+(do not pool — degraded-instrument rule); the FIRE-RATE finding (re-query fired 7/15 vs baseline
+0/15) is order-independent and STANDS. `note_surfaced` measured "in payload", not "prominently
+readable" (note 94's metric-name lesson). Fix: stub ranks the buried note first/top-score when
+lever-keyed (TDD); then re-pilot v2 and re-run the same pre-registered batch bar. The criterion-2
+"live case" reading of surfaced-but-ignored also evaporates with the artifact.
