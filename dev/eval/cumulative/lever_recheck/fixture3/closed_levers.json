@@ -1,10 +1,10 @@
 [
   {
     "id": "move-flaky-suite-to-background",
-    "canonical_action": "move the flaky integration suite off the visible, blocking pipeline into a background/async queue, expecting a cheaper visible CI bill",
-    "closure_reason": "the suite still runs the same compute total — relocating it off the visible path just moves where the spend is counted, it doesn't reduce total compute consumed by its retries",
-    "measured_outcome": "the visible CI bill fell about 20% but total compute-minutes across visible+background stayed flat; closed as a relocation, not a reduction",
+    "canonical_action": "move the flaky integration suite off the blocking lane to the preemptible/spot background lane (billed at ~40% of the blocking rate), expecting the discount to cut its compute cost",
+    "closure_reason": "preemptions interrupt the suite mid-run and re-trigger its automatic retries, so attempts per run balloon and consume the rate discount",
+    "measured_outcome": "tried on one repo for two weeks: average attempts rose from 2.6 to 7.1 as preemptions re-triggered the flaky retries, wiping the ~60% discount; total spend on the suite rose ~8%; the move was reverted",
     "note_basename": "8.2026-06-20.move-flaky-suite-to-background-rejected",
-    "lever_terms": "flaky,suite,background;suite,async,queue"
+    "lever_terms": "preempt;background,lane;spot,capacity"
   }
 ]

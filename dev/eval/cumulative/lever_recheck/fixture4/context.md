@@ -10,5 +10,6 @@ Search quality metrics, sampled over the last month:
 - for incoming tickets phrased differently from any article's originating ticket, precision@3
   on that subset is ~0.34 — and this subset is the majority of current ticket volume
 - the KB's search index currently matches on each article's own title/body content
-- expanding the synonym list to cover more paraphrase variants: not yet tried
+- a synonym/paraphrase expansion pass shipped last quarter to widen phrasing coverage;
+  deflection kept sliding through it (the metrics above are post-rollout)
 - re-weighting recency (surfacing recently-edited articles higher): not yet tried
