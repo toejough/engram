@@ -1,10 +1,10 @@
 [
   {
-    "id": "shrink-archive-page-size",
-    "canonical_action": "shrink the archive's page size (the chunk size written to object storage) to a smaller granularity, to cut the metered read cost",
-    "closure_reason": "archive reads are served through a cache layer billed at a flat per-request rate regardless of page size, so a smaller page granularity does not reduce the metered read cost at all",
-    "measured_outcome": "total pipeline cost changed by well under 1% when tried on a staging archive for two weeks; closed as not worth the migration churn",
-    "note_basename": "8.2026-06-20.shrink-archive-page-size-rolled-back",
-    "lever_terms": "archive,page,size;shrink,page"
+    "id": "increase-archive-page-size",
+    "canonical_action": "increase the archive's page/chunk size so saved-search reads issue fewer object-storage requests, expecting a lower bill",
+    "closure_reason": "requests are billed at a flat committed rate on this plan — request count doesn't move the bill; the read line item is an accounting artifact",
+    "measured_outcome": "tried on one archive tier: read-request count fell ~60% but the monthly bill was unchanged; closed as not-worth-it",
+    "note_basename": "8.2026-06-20.increase-archive-page-size-rejected",
+    "lever_terms": "archive,page,increas;larger,page,archive;page,granularity"
   }
 ]
