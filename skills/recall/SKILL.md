@@ -19,6 +19,8 @@ Memory has two layers retrieved in ONE call: raw chunks (every past conversation
 3. **Crystallize** — when several near-match chunks evidence the same principle and no note states it yet, write the vault note now.
 4. **Tag-nominate and ride-along** — the binary nominates notes sharing a vocab term with the top-3 delivered notes and inserts superseded-note supersessors at the next rank; the agent judges the surfaced candidates, never links.
 5. **Synthesize impact on the plan** — confirm / adjust / contradict / silent, per planned action.
+6. **Re-enter for emergent recommendations** — a recommendation conceived mid-work gets its own
+   lever-keyed query before it ships (Step 3.5).
 
 The binary resolves the vault and chunk index automatically (`$XDG_DATA_HOME/engram/...`;
 `ENGRAM_VAULT_PATH` / `ENGRAM_CHUNKS_DIR` override). **Do not pass `--vault` or `--chunks-dir`.**
@@ -32,10 +34,10 @@ Recall runs in one of two **modes**, selected by the caller (the mode word is th
   Use it when the decision is weighty or irreversible, when you want recall to also learn, or when in doubt.
 - **`glance` (opt-in, cheap — for firing often).** A pass that is **read-only with respect to vault knowledge**
   (Step 2.7 `activate` still bumps the used-notes recency metadata — that is kept, not a knowledge write). Run
-  Steps 0–3 with **~3 phrases** (not 10) and **keep the read side** — Step 2.5A (read candidates), **Step 2.5B
-  (apply the recency weight)**, Step 2.7 (activate used notes), and the Step 3 synthesis — but **skip the write
-  side**: Step 2.5C (coverage amend/learn), Step 4 (synthesis-persist). Glance
-  *applies* memory to this decision; it does **not** grow the vault's knowledge.
+  Steps 0–3.5 with **~3 phrases** (not 10) and **keep the read side** — Step 2.5A (read candidates), **Step 2.5B
+  (apply the recency weight)**, Step 2.7 (activate used notes), the Step 3 synthesis, and Step 3.5 (the
+  re-entry query, when triggered) — but **skip the write side**: Step 2.5C (coverage amend/learn), Step 4
+  (synthesis-persist). Glance *applies* memory to this decision; it does **not** grow the vault's knowledge.
 
 **Escalate `glance` → `deep` for recency-channel standards (C5).** Glance reliably *surfaces* a recent-activity
 (Channel 2) item but does **not** elevate it to a requirement — measured: glance honors a recent-channel
@@ -210,10 +212,32 @@ The user sees this. Rules:
 - **Open with the count.** One sentence: "Query surfaced N items (K chunks, M notes); crystallized J lessons."
 - **Walk the plan from Step 0 in order.** Per numbered action: **confirmed**, **adjusted** (and how), **contradicted**, or **silent**. One short bullet each.
 - **Frame load-bearing conventions as requirements.** Lead with "Apply these as requirements:" and list them — drawn from lessons and chunk evidence alike. A plan step memory confirms still inherits the convention's concrete specifics as requirements.
-- **Reconcile every recommendation you produce — not just the Step-0 plan (anti-displacement).** Before stating any option, lever, or recommendation the work generated, reconcile it against the ASKED TASK and decisions already in context. Substituting a prerequisite, a better test, or a "more rigorous foundation" as the thing to do *first* FEELS like diligence but IS relitigating the settled task. Reasoning already in context is not new evidence — reconcile against prior OUTCOMES, not mere mentions. Default to the asked task; deviate only by (a) naming a genuinely NEW fact and (b) stating you are reversing direction.
+- **Reconcile every recommendation you produce — not just the Step-0 plan (anti-displacement).** Before stating any option, lever, or recommendation the work generated, reconcile it against the ASKED TASK and decisions already in context. Substituting a prerequisite, a better test, or a "more rigorous foundation" as the thing to do *first* FEELS like diligence but IS relitigating the settled task. Reasoning already in context is not new evidence — reconcile against prior OUTCOMES, not mere mentions. Default to the asked task; deviate only by (a) naming a genuinely NEW fact and (b) stating you are reversing direction. If a recommendation here is new (not in the Step-0 plan), STOP — complete Step 3.5 before this reply is shown to the user.
 - **Surface contradictions inline** where they affect the action, as prose.
 - **No payload dumps** — never re-emit YAML, paste whole chunks, or list raw scores/paths.
 - **Length:** as long as honesty about the plan requires; if memory was silent on everything, one sentence.
+
+### Step 3.5 — Re-entry: a recommendation not in the Step-0 plan
+
+Before the Step 3 synthesis is shown to the user: if it is about to ship a recommendation, lever, or
+approach — named as the thing to do — that does **not** appear in the Step-0 plan (it was conceived
+during the work), run ONE more query first, keyed to the recommendation itself, not the original ask:
+
+```bash
+engram query --lazy-chunks \
+  --phrase "<the recommendation, in its own words>" \
+  --phrase "<the recommendation> rolled back rejected not worth it superseded" \
+  --phrase "<the recommendation> tried measured outcome"
+```
+
+Apply Step 2.5B's recency weight to what returns. A note asserting this approach was
+closed/rolled-back/rejected/superseded is a **contradiction to surface and honor**: acknowledge the
+prior attempt and its outcome, then drop the recommendation or justify revisiting it against NEW
+evidence. This is a new vault query, not the in-context reconcile in Step 3 — that bullet checks
+reasoning already in your context; this step checks the vault for evidence outside it. If you cite
+a note this query surfaced, include it in the Step 2.7 `engram activate` call (run it again if 2.7
+already ran). Runs in both modes (a query is a read; glance keeps it). Skipping the re-entry when
+the trigger fires is forbidden.
 
 ### Step 4 — Persist the reasoned conclusion (linked to the inputs that produced it)
 
@@ -278,5 +302,6 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 | You composed an engram learn command yourself at a write site | Write sites hand off to write-memory — parents judge, the worker writes |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
 | You're recommending a prerequisite or better test as the first step, not the asked task | That displacement IS relitigating the settled task — old reasoning isn't new evidence. Do the asked task; displace only on a NEW fact, stated as a reversal |
+| You're shipping a recommendation that wasn't in your Step-0 plan, without a lever-keyed re-query | Step 3.5: one query keyed to the recommendation + outcome terms, before it ships |
 | You ran the write side (2.5C/Step 4) while in `glance` mode | Glance is read-only w.r.t. vault knowledge — skip the write side; switch to `deep` if you need to crystallize |
 | A recency-channel (Channel 2) standard is load-bearing and you stayed in `glance` | Escalate to `deep` — glance surfaces the recent item but won't elevate it to a requirement (C5, #661) |
