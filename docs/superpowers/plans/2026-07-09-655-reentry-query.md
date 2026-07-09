@@ -145,3 +145,26 @@ Gate A (closed at rev 2: ask PASS, code PASS, docs + clarity findings folded). G
 unit (Unit 0 scorer diff; Unit 1 skill diff via writing-skills discipline + design-fit review).
 Gate C over GLOSSARY/LEDGER/ROADMAP/RESULTS/issue text (incl. the criterion-2 comment check).
 Gate D over commits + closing prose.
+
+## Named amendment 1 (post-batch, 2026-07-09) — forced output contract
+
+The GREEN batch (15 valid arm-A trials, final wording) FAILED the bar: 0/4 fixtures at 1.0, 3/15
+RECONCILED. Mechanism data: re-query fired 7/15 (vs 0/15 baseline — the trigger binds ~half the
+time); of 7 surfaced notes, ~1 honored — agents re-proposed the lever with the closure IN HAND and
+no acknowledgment (note 88's synthesis failure, at the point note 145 predicts: worded rules don't
+bind). The pilots (2/2 RECONCILED) were a favorable sample; the pre-registered bar caught it.
+
+**Amendment — Step 3.5 v2 (one iteration, then report regardless of outcome):** keep the trigger +
+query mechanics; replace the worded honor-rule with a FORCED OUTPUT CONTRACT (note 145's mechanism
+prescription — a concrete-referent self-check): the synthesis MUST end with one line per emergent
+recommendation —
+`Re-entry: <recommendation> — clean` or
+`Re-entry: <recommendation> — CLOSED (<note>): <one-line outcome> → drop | revisit because <named NEW evidence>`.
+A recommendation may not ship without its Re-entry line. Writing "CLOSED → ship anyway" without new
+evidence is self-refuting in a way silent omission is not; the line is mechanically checkable by
+future harness asserts. Same gates: writing-skills TDD, Gate B on the diff, pilot gate (fixture2
+n=1), then the same pre-registered batch bar. Criterion-2 disposition DEFERRED to this iteration's
+data (the batch's surfaced-but-ignored cases are synthesis-binding failures, not the criterion's
+ranking premise — the note WAS delivered; the ranking premise remains dead on current evidence).
+Spend note: cycle ≈ $16 before the iteration; iteration ≈ +$12 → lands at the $35 soft signal
+(reported to Joe at amendment time, proceeding per the autonomous-iterate discipline).
