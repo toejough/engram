@@ -232,6 +232,12 @@ an acceptable honest outcome (recorded as such, per the amended non-reproducing 
   either turn, note never surfaced, RECOMMENDATION re-proposes the lever → AMNESIA. GREEN (#655
   later, or criterion-3 firing today): a turn-2 lever-keyed re-query surfaces the note → RECONCILED.
 
+**Amendment 3 addendum — arm C form:** under the two-turn structure, arm C (consult framing) collapses
+into a duplicate of arm A (with no data in turn 1, the consult task cannot phrase the lever either).
+Arm C therefore runs the SINGLE-CALL form pilot 3 validated (scratch file present from the start +
+pointer + directive), which produced the clean surfaced→RECONCILED positive-class trial. Expected: the
+lever is conceivable at recall → note surfaces → RECONCILED.
+
 ## Gates
 
 Gate A over this plan (ask-alignment / code-alignment / docs-alignment / clarity-standards, fresh

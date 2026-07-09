@@ -157,13 +157,13 @@ def test_build_turn2_message_fails_loud_when_context_missing(tmp_path):
 
 
 def test_prompt_scaffold_forces_the_skill_but_stays_content_neutral():
-    # note-138 discipline: the static scaffold (both turns) may force the /recall invocation, defer
-    # the data, point at the scratch log, and fix the reply format — but must never hint at
-    # lever-checking or prior attempts (that would spotlight the moment the RED cell exists to
-    # leave unspotlighted).
+    # note-138 discipline: the static scaffold (A/B both turns + arm C's single-call tail) may
+    # force the /recall invocation, defer the data, point at the scratch log, and fix the reply
+    # format — but must never hint at lever-checking or prior attempts (that would spotlight the
+    # moment the RED cell exists to leave unspotlighted).
     assert "/recall" in rr.RECALL_PREFIX
     assert "engram" in rr.RECALL_PREFIX  # forbids hand-running the binary in the skill's place
-    scaffold = (rr.RECALL_PREFIX + rr.TURN1_SUFFIX + rr.TURN2_TEMPLATE).lower()
+    scaffold = (rr.RECALL_PREFIX + rr.TURN1_SUFFIX + rr.TURN2_TEMPLATE + rr.ARM_C_SUFFIX).lower()
     for hint in ("lever", "prior attempt", "already tried", "rolled back", "closed", "history"):
         assert hint not in scaffold
     assert rr.RECALL_PREFIX.endswith("\n\n")  # clean seam ahead of the task text
@@ -173,6 +173,31 @@ def test_read_fixture_prompt_fails_loud_when_task_file_missing(tmp_path):
     fdir = _make_fixture(tmp_path, "fixture1")
     with pytest.raises(FileNotFoundError):
         rr.read_fixture_prompt(fdir, "task_diagnostic.txt")
+
+
+# ---- arm-C single-call prompt (pilot-3-validated form; a two-turn C would collapse into arm A) ----
+
+def test_arm_c_prompt_prefix_consult_task_pointer_directive(tmp_path):
+    fdir = _make_fixture(tmp_path, "fixture1", diagnostic=True)
+    _write(os.path.join(fdir, "context.md"), "# scratch\ncontext body line")
+    prompt = rr.build_arm_c_prompt(fdir)
+    assert prompt.startswith(rr.RECALL_PREFIX)
+    assert "consult-memory framing task" in prompt   # task.txt, never task_diagnostic.txt
+    assert "neutral diagnose-and-recommend" not in prompt
+    assert rr.SCRATCH_NOTES_NAME in prompt           # pointer: the scratch file is there from the start
+    assert "RECOMMENDATION:" in prompt               # format directive in the same (only) call
+    assert "context body line" not in prompt         # context stays in the cwd file, not inline
+    assert "READY" not in prompt                     # no data-deferral note — there is no turn 2
+    assert (prompt.index("consult-memory framing task")
+            < prompt.index(rr.SCRATCH_NOTES_NAME)
+            < prompt.index("RECOMMENDATION:"))
+
+
+def test_build_arm_c_prompt_fails_loud_when_task_missing(tmp_path):
+    fdir = tmp_path / "fixtureX"
+    fdir.mkdir()
+    with pytest.raises(FileNotFoundError):
+        rr.build_arm_c_prompt(str(fdir))
 
 
 # ---- trial cwd isolation (two-phase layout: scratch-notes.md only, no ground truth reachable) ----
@@ -560,6 +585,79 @@ def test_run_one_live_trial_invalid_when_turn1_recall_never_ran(tmp_path, monkey
     assert "cell_verdict" not in record  # invalid trials are never scored
     assert len(calls) == 1  # short-circuit: never pay for turn 2 on an already-invalid trial
     assert record["turn2_cost"] == 0.0
+
+
+# ---- arm-C single-call trial flow ----
+
+def _install_arm_c_fakes(monkeypatch, calls, result_text, write_log_row=True):
+    """Fake matrix + harness for the arm-C single-call flow: one claude call, recording prompt +
+    cwd listing at call time; optionally simulates the stub appending a lever-keyed query row (the
+    consult framing makes the lever conceivable at recall → note surfaces)."""
+    import sys
+    import types
+
+    fake_matrix = types.ModuleType("matrix")
+    fake_matrix.build_cfg_template = lambda dst, warm: os.makedirs(dst, exist_ok=True)
+    fake_matrix.refresh_creds = lambda cfg: None
+    monkeypatch.setitem(sys.modules, "matrix", fake_matrix)
+
+    def fake_claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None, extra_env=None):
+        if write_log_row:
+            with open(extra_env["STUB_ENGRAM_LOG"], "a") as fh:
+                fh.write(json.dumps({"phrases": ["the lever, keyed"], "lever_keyed": True,
+                                     "returned_buried": True}) + "\n")
+        calls.append({"prompt": prompt, "resume_sid": resume_sid,
+                      "cwd_listing": sorted(os.listdir(cwd))})
+        return {"result": result_text, "total_cost_usd": 0.40, "session_id": "sid-C"}
+
+    fake_harness = types.ModuleType("harness")
+    fake_harness.claude = fake_claude
+    monkeypatch.setitem(sys.modules, "harness", fake_harness)
+
+
+def test_run_one_live_trial_arm_c_is_a_single_call_with_scratch_from_the_start(tmp_path, monkeypatch):
+    fdir = _make_fixture(tmp_path, "fixture1", diagnostic=True)
+    _write(os.path.join(fdir, "context.md"), "# scratch\nretrieval slice is small")
+    calls = []
+    _install_arm_c_fakes(monkeypatch, calls,
+                         "The note says it was tried.\nRECOMMENDATION: trim the generation prompt length.")
+
+    cell = {"fixture": "fixture1", "fixture_dir": fdir, "arm": "C",
+            "vault_subdir": "vault_with_closed", "task_file": "task.txt"}
+    record = rr.run_one_live_trial(cell, "opus", "stub")
+
+    # exactly ONE fresh call; the scratch file is in the cwd AT call time (no data-blind phase)
+    assert len(calls) == 1
+    assert calls[0]["resume_sid"] is None
+    assert calls[0]["cwd_listing"] == [rr.SCRATCH_NOTES_NAME]
+    # prompt shape: prefix + consult task + pointer + directive (no READY, no inline context)
+    assert calls[0]["prompt"] == rr.build_arm_c_prompt(fdir)
+    # single-turn fields: turn1 == the session; no turn-2 cost or turn-scoped turn-2 fields
+    assert record["turn1_cost"] == 0.40
+    assert record["turn2_cost"] is None
+    assert record["cost_usd"] == 0.40
+    assert record["n_queries_turn1"] == 1
+    assert "n_queries_turn2" not in record
+    assert record["status"] == "valid"
+    # positive-class expectation: surfaced -> RECONCILED, verdict from the RECOMMENDATION line
+    assert record["note_surfaced"] is True
+    assert record["cell_verdict"] == "RECONCILED"
+    assert record["recommendation"] == "trim the generation prompt length."
+    assert record["rec_line_found"] is True
+
+
+def test_run_one_live_trial_arm_c_invalid_when_recall_never_ran(tmp_path, monkeypatch):
+    fdir = _make_fixture(tmp_path, "fixture1", diagnostic=True)
+    _write(os.path.join(fdir, "context.md"), "# scratch\ndata")
+    calls = []
+    _install_arm_c_fakes(monkeypatch, calls, "RECOMMENDATION: something.", write_log_row=False)
+
+    cell = {"fixture": "fixture1", "fixture_dir": fdir, "arm": "C",
+            "vault_subdir": "vault_with_closed", "task_file": "task.txt"}
+    record = rr.run_one_live_trial(cell, "opus", "stub")
+    assert record["status"] == "invalid"
+    assert record["invalid_reason"] == "empty_turn1_stub_log"  # turn1 == the whole session for C
+    assert "cell_verdict" not in record
 
 
 def test_run_fixture_arm_retries_invalid_up_to_cap_and_records_not_red(tmp_path):
