@@ -18,7 +18,8 @@ gate; cost by actual tokens/dollars/wall-time, never by relocating work off the 
 A snapshot of what's actionable vs. blocked, from a full issue+roadmap triage. The tracks below hold the
 detail; this is the ordering.
 
-**Next (roadmap-flagged):** the Track-B **payload-prune production build** (`engram recall` subprocess).
+**Next:** unassigned — the payload-prune production build was **rejected 2026-07-08** (subprocess
+complexity; revisit only on a viable subagent route — see Track B). Pick from Actionable.
 
 **Just shipped:** **`engram count`** (ADR-0018) — a read-only counting surface over the vault, separate from `query`'s similarity recall: `--group-by <attr>` (+ `--filter`) over frontmatter and `--backlinks-of <basename>` wikilink in-degree (`docs/FEATURES.md` — Count / backlinks aggregation).
 
@@ -38,7 +39,7 @@ detail; this is the ordering.
 
 **Gated (data/date/validation):** Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (blocked by #654) · #654 ↔ #655 recall-before-recommend (synthesis fix shipped; retrieval half + the two-phase RED fixture remain) · #652 recency centroid (gated on an over-surfacing eval) · #675 (Track C round-3 usage report; gated on P3′ spread PASS).
 
-**Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs #669 first) · #637 `--field` query flags (awaiting a forcing function) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
+**Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs #669 first) · #637 `--field` query flags (awaiting a forcing function) · payload-prune production build (rejected 2026-07-08 — revisit only on a viable subagent route; see Track B) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
 
 > Shorthand codes used below — the capability axes **C1–C7** and the capture guards **G1–G6** — are
 > defined in `docs/GLOSSARY.md` (see "capability axes" and "capture guards").
@@ -187,17 +188,21 @@ several still-open explorations; its fully-resolved items are omitted here (they
 The token/dollar/wall-time tax memory costs. Operating premise (from the 2026-06 cost-axis analysis;
 see `dev/eval/LEDGER.md#payload-prune-smoke` and git history for the cost-reanchor docs): payload *size*
 is cache_read-cheap (it moves time/paging, not dollars); the dollar lever is pruning the payload out of
-build context after Step 3, smoke-validated but not yet productionized.
+build context after Step 3 — smoke-validated, but the production build was rejected 2026-07-08 (below).
 
-### Payload-prune production build ← NEXT
+### Payload-prune production build — ⛔ REJECTED 2026-07-08 (revisit only on a viable subagent route)
 
-The smoke-validated isolation premise (`dev/eval/LEDGER.md#payload-prune-smoke`) is unblocked — concurrency
-and write-safety shipped (`docs/architecture/adr.md` ADR-0013) — but not yet built as a product. Design:
-`docs/design/2026-07-01-engram-recall-subprocess-design.md` — a new `engram recall` command that shells to
-`claude -p` so the raw query payload never enters the caller's context at any nesting depth (an Agent-tool
-subagent can't reach a leaf's own first-step recall, hence the subprocess). Open forks recorded in the spec:
-glance-inline vs subprocess, sub-recall model/tier, return-path fidelity. Also touches recall's inline
-crystallization (Steps 2.5C/2.6/Step-4).
+Rejected by Joe 2026-07-08: the production design got too complicated, and isolation at all nesting
+depths forces launching the agent **from engram** (`engram recall` shelling to `claude -p`) rather than
+running as a plain Agent-tool subagent — a subagent can't reach a leaf's own first-step recall, the
+recursion identified 2026-07-01, which is what forced the subprocess form. The isolation *premise* stays
+smoke-validated and is not relitigated (`dev/eval/LEDGER.md#payload-prune-smoke`: build_cost −40%, n=3,
+synthesis-injection proxy; honest bounds in the row). **Reopen condition:** a viable subagent route —
+isolation achieved via normal subagent dispatch (or an accepted depth-limited form) without engram
+launching `claude -p`. Design record: `docs/design/2026-07-01-engram-recall-subprocess-design.md`
+(status header marks the rejection). Note: the flag history on this item is a lesson — its "← NEXT" flag
+was assistant-maintained and never user-ratified; this rejection is the first recorded user decision on
+the build.
 
 ### #657 remaining cuts (L3a/O1)
 

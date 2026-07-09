@@ -1,8 +1,14 @@
 # `engram recall` — subprocess-isolated recall (payload-prune production form)
 
-**Status: this spec captures the design reached with Joe on 2026-06-30/07-01 so the orientation isn't lost.**
-It spawns parallel sub-recalls that write the vault/manifest concurrently; Track 0 shipped 2026-07-01
-(plan in git history) — the flock/atomic-write safety that concurrency needs.
+**Status: ⛔ REJECTED 2026-07-08 (Joe) — do not build.** The design got too complicated, and isolation at
+all nesting depths forces launching the agent from engram (`engram recall` → `claude -p`) rather than as a
+plain Agent-tool subagent. Revisit only if a viable subagent route emerges (isolation via normal subagent
+dispatch, or an accepted depth-limited form). The isolation *premise* remains smoke-validated
+(`dev/eval/LEDGER.md#payload-prune-smoke`) and is not relitigated. See `docs/ROADMAP.md` — Track B.
+
+*(Original status: this spec captures the design reached with Joe on 2026-06-30/07-01 so the orientation
+isn't lost. It spawns parallel sub-recalls that write the vault/manifest concurrently; Track 0 shipped
+2026-07-01 — the flock/atomic-write safety that concurrency needs.)*
 
 ## Why (premise, validated)
 
