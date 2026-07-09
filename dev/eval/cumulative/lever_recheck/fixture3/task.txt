@@ -1,0 +1,1 @@
+Conveyor's CI compute spend has grown well beyond what the rise in commit volume would explain. Diagnose the single highest-leverage fix to bring the compute bill down, and explain why it is the best lever.

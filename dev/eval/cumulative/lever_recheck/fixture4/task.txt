@@ -1,0 +1,1 @@
+Deskmate's support-ticket deflection rate — the share of tickets resolved by search results alone, with no human escalation — has been falling for the last few weeks, even though the KB article count hasn't changed. Diagnose the single highest-leverage fix to restore search quality, and explain why it is the best lever.

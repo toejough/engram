@@ -1,0 +1,1 @@
+The per-document cost of the Orchestra document-processing pipeline (it runs a retrieval / context-fetch step, then a generation step, for every document) has been rising. Diagnose the single highest-leverage change to bring it back down, and explain why it is the best lever.

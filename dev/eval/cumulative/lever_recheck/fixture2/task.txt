@@ -1,0 +1,1 @@
+Ledgerline's monthly cloud bill for the log-analytics ingest pipeline has climbed sharply over the last quarter, with no matching rise in ingested log volume. Diagnose the single highest-leverage fix to bring the cost back down, and explain why it is the best lever.

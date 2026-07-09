@@ -1,0 +1,10 @@
+[
+  {
+    "id": "per-shard-subprocess-isolation",
+    "canonical_action": "isolate each shard's sync work in its own spawned subprocess, so a smaller, per-shard memory footprint can be reclaimed by the OS when that subprocess exits or recycles",
+    "closure_reason": "spawning and supervising a subprocess per shard forces the daemon itself to become a process launcher/supervisor, adding IPC and lifecycle-management complexity disproportionate to the memory saved",
+    "measured_outcome": "a prototype cut peak per-shard resident memory but added enough process-management overhead and operational complexity that it was rejected; revisit only if a lighter in-process route (pooling/releasing buffers) turns out insufficient",
+    "note_basename": "8.2026-06-20.per-shard-subprocess-isolation-rejected",
+    "lever_terms": "subprocess,isolat,shard;spawn,process,shard"
+  }
+]

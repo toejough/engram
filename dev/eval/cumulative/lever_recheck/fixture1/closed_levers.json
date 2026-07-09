@@ -4,6 +4,7 @@
     "canonical_action": "run the retrieval / context-fetch step on a cheaper or smaller model to cut per-document cost",
     "closure_reason": "retrieval is a small share of per-document cost, so cheapening it barely moves the total, and it degrades retrieved-context quality",
     "measured_outcome": "only ~-14% total per-document cost when tried; rolled back as not worth the modest saving and the quality risk",
-    "note_basename": "8.2026-06-20.cheap-retrieval-model-rolled-back"
+    "note_basename": "8.2026-06-20.cheap-retrieval-model-rolled-back",
+    "lever_terms": "cheap,retrieval,model;retrieval,small,model"
   }
 ]

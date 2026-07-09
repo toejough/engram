@@ -1,0 +1,10 @@
+[
+  {
+    "id": "move-flaky-suite-to-background",
+    "canonical_action": "move the flaky integration suite off the visible, blocking pipeline into a background/async queue, expecting a cheaper visible CI bill",
+    "closure_reason": "the suite still runs the same compute total — relocating it off the visible path just moves where the spend is counted, it doesn't reduce total compute consumed by its retries",
+    "measured_outcome": "the visible CI bill fell about 20% but total compute-minutes across visible+background stayed flat; closed as a relocation, not a reduction",
+    "note_basename": "8.2026-06-20.move-flaky-suite-to-background-rejected",
+    "lever_terms": "flaky,suite,background;suite,async,queue"
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "id": "index-by-ticket-question",
+    "canonical_action": "re-index KB articles keyed by the phrasing of the support ticket whose question originally prompted the article's creation, instead of the article's own title/body content, to speed up retrieval matches",
+    "closure_reason": "keying by the originating ticket's phrasing only matches future tickets that echo that same wording; it made no difference (or worse) for the majority of tickets, which are paraphrased differently, so overall retrieval quality measurably dropped",
+    "measured_outcome": "precision@3 rose to ~0.95 on the narrow echo-phrasing subset but fell well below baseline on the majority paraphrased subset, dropping overall precision@3 further; parked",
+    "note_basename": "8.2026-06-20.index-by-ticket-question-parked",
+    "lever_terms": "index,ticket,question;key,article,originating"
+  }
+]

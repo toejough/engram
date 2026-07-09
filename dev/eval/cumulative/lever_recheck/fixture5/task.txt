@@ -1,0 +1,1 @@
+Relay's sync daemon has been hitting its memory limit and getting killed by the orchestrator more often over the last month, even though the number of shards it manages hasn't grown. Diagnose the single highest-leverage fix to bring memory usage back under the limit, and explain why it is the best lever.
