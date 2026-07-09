@@ -15,8 +15,13 @@ Drives the REAL /recall+/learn skill (via `harness.claude()`, never stubbed — 
      present and different from task.txt — today: fixture1). Requesting C on a fixture without one
      appends an explicit `status: skipped` record — never a silent duplicate of arm A.
 
-The live prompt per trial = the fixture's `context.md` (the analysis data that makes the closed
-lever emerge mid-analysis — load-bearing, fail-loud if missing) followed by the arm's task file.
+The live prompt per trial = RECALL_PREFIX + the fixture's `context.md` (the analysis data that
+makes the closed lever emerge mid-analysis — load-bearing, fail-loud if missing) + the arm's task
+file. RECALL_PREFIX forces the real /recall skill to fire: a bare headless `claude -p` answers
+directly and never touches engram (the fixture2 pilot measured 100% `empty_or_missing_stub_log`
+INVALID without it); family precedent is dev/eval/traps/wrun.py's RECALL_PREFIX. The prefix is
+identical for ALL arms and content-NEUTRAL per note 138 — it forces the skill invocation and
+generic apply-what-surfaces, never hinting at lever-checking or prior attempts.
 
 Each trial is a fully isolated live run: a throwaway CLAUDE_CONFIG_DIR (`matrix.build_cfg_template`,
 warm=True — both /recall and /learn skills; creds injected via `matrix.refresh_creds`), then the
@@ -88,6 +93,15 @@ RETRY_CAP_MULTIPLIER = 2
 CAP_CLASSIFICATION = {"A": "NOT-RED"}
 CAP_CLASSIFICATION_DEFAULT = "insufficient_valid_trials"
 
+# Forces the real /recall skill to fire (a bare headless `claude -p` answers directly, never touching
+# engram — pilot: 100% empty_or_missing_stub_log INVALID). Adapted from dev/eval/traps/wrun.py's
+# RECALL_PREFIX for a recommend-task. Identical for ALL arms; content-NEUTRAL per note 138 (forces
+# the invocation + generic apply-what-surfaces only — never hints at levers or prior attempts).
+RECALL_PREFIX = (
+    "Before answering, consult your memory: actually INVOKE YOUR /recall skill (do not skip it, do "
+    "not hand-run engram yourself in its place). Read what it surfaces and apply anything relevant "
+    "as a hard requirement. Then complete this task:\n\n")
+
 
 # ----- arm-matrix expansion -----
 
@@ -157,9 +171,10 @@ def resolve_fixtures(fixtures_arg, lever_recheck_root):
 # ----- fixture prompt (context.md + task file; both load-bearing, both fail-loud) -----
 
 def read_fixture_prompt(fixture_dir, task_file):
-    """Build the live prompt: context.md (the analysis data that makes the closed lever emerge
-    mid-analysis) FIRST, then the arm's task ask — the order the materials read naturally in
-    (fixture1: the scratch cost log, then "recommend the highest-leverage change"). Mirrors
+    """Build the live prompt: RECALL_PREFIX (identical for all arms — forces the /recall skill to
+    actually fire), then context.md (the analysis data that makes the closed lever emerge
+    mid-analysis), then the arm's task ask — the order the materials read naturally in (fixture1:
+    the scratch cost log, then "recommend the highest-leverage change"). Mirrors
     contradiction_recheck's read_cell_prompt. Fails LOUD when either file is missing — a fixture
     without its context is a broken cell, not a leaner prompt."""
     ctx_path = os.path.join(fixture_dir, "context.md")
@@ -171,7 +186,7 @@ def read_fixture_prompt(fixture_dir, task_file):
         context = fh.read().strip()
     with open(task_path) as fh:
         task = fh.read().strip()
-    return f"{context}\n\n{task}"
+    return f"{RECALL_PREFIX}{context}\n\n{task}"
 
 
 # ----- arm-C gate: only where a DISTINCT consult-memory task exists -----

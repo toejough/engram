@@ -124,13 +124,28 @@ def test_resolve_fixtures_comma_list(tmp_path):
 
 # ---- fixture prompt construction (context.md is load-bearing; fail loud when absent) ----
 
-def test_read_fixture_prompt_places_context_before_task(tmp_path):
+def test_read_fixture_prompt_orders_prefix_then_context_then_task(tmp_path):
     fdir = _make_fixture(tmp_path, "fixture1", diagnostic=True)
     _write(os.path.join(fdir, "context.md"), "# scratch data\nretrieval slice is small")
     prompt = rr.read_fixture_prompt(fdir, "task_diagnostic.txt")
+    assert prompt.startswith(rr.RECALL_PREFIX)  # identical for ALL arms, ahead of everything
     assert "retrieval slice is small" in prompt
     assert "neutral diagnose-and-recommend framing task" in prompt
-    assert prompt.index("retrieval slice is small") < prompt.index("neutral diagnose")
+    assert (prompt.index(rr.RECALL_PREFIX)
+            < prompt.index("retrieval slice is small")
+            < prompt.index("neutral diagnose"))
+
+
+def test_recall_prefix_forces_the_skill_but_stays_content_neutral():
+    # note-138 discipline: the prefix may force the /recall invocation and generic apply-what-
+    # surfaces, but must never hint at lever-checking or prior attempts (that would spotlight the
+    # moment the RED cell exists to leave unspotlighted).
+    assert "/recall" in rr.RECALL_PREFIX
+    assert "engram" in rr.RECALL_PREFIX  # forbids hand-running the binary in the skill's place
+    low = rr.RECALL_PREFIX.lower()
+    for hint in ("lever", "prior attempt", "already tried", "rolled back", "closed", "history"):
+        assert hint not in low
+    assert rr.RECALL_PREFIX.endswith("\n\n")  # clean seam ahead of context.md
 
 
 def test_read_fixture_prompt_fails_loud_when_context_missing(tmp_path):
