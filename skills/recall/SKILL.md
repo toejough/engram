@@ -20,7 +20,7 @@ Memory has two layers retrieved in ONE call: raw chunks (every past conversation
 4. **Tag-nominate and ride-along** — the binary nominates notes sharing a vocab term with the top-3 delivered notes and inserts superseded-note supersessors at the next rank; the agent judges the surfaced candidates, never links.
 5. **Synthesize impact on the plan** — confirm / adjust / contradict / silent, per planned action.
 6. **Re-enter for emergent recommendations** — a recommendation conceived mid-work gets its own
-   lever-keyed query before it ships (Step 3.5).
+   lever-keyed query and a closing `Re-entry:` line before it ships (Step 3.5).
 
 The binary resolves the vault and chunk index automatically (`$XDG_DATA_HOME/engram/...`;
 `ENGRAM_VAULT_PATH` / `ENGRAM_CHUNKS_DIR` override). **Do not pass `--vault` or `--chunks-dir`.**
@@ -230,12 +230,23 @@ engram query --lazy-chunks \
   --phrase "<the recommendation> tried measured outcome"
 ```
 
-Apply Step 2.5B's recency weight to what returns. A note asserting this approach was
-closed/rolled-back/rejected/superseded is a **contradiction to surface and honor**: acknowledge the
-prior attempt and its outcome, then drop the recommendation or justify revisiting it against NEW
-evidence. This is a new vault query, not the in-context reconcile in Step 3 — that bullet checks
-reasoning already in your context; this step checks the vault for evidence outside it. If you cite
-a note this query surfaced, include it in the Step 2.7 `engram activate` call (run it again if 2.7
+Apply Step 2.5B's recency weight to what returns. The synthesis MUST end with one `Re-entry:` line
+per emergent recommendation — the line is the proof the check ran:
+
+```
+Re-entry: <recommendation> — clean (top hit: <best-match basename, or "no items">)
+Re-entry: <recommendation> — CLOSED (<note basename>): <one-line prior outcome> → drop
+Re-entry: <recommendation> — CLOSED (<note basename>): <one-line prior outcome> → revisit because <named NEW evidence>
+```
+
+A recommendation may not ship without its Re-entry line. `CLOSED → drop` means the recommendation
+is withdrawn and the synthesis says what replaces it. `revisit` is valid ONLY with named NEW
+evidence — evidence that did not exist when the note was written; re-weighing the note's own
+tradeoffs is not new evidence.
+
+This is a new vault query, not the in-context reconcile in Step 3 — that bullet checks reasoning
+already in your context; this step checks the vault for evidence outside it. If you cite a note
+this query surfaced, include it in the Step 2.7 `engram activate` call (run it again if 2.7
 already ran). Runs in both modes (a query is a read; glance keeps it). Skipping the re-entry when
 the trigger fires is forbidden.
 
@@ -302,6 +313,6 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 | You composed an engram learn command yourself at a write site | Write sites hand off to write-memory — parents judge, the worker writes |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
 | You're recommending a prerequisite or better test as the first step, not the asked task | That displacement IS relitigating the settled task — old reasoning isn't new evidence. Do the asked task; displace only on a NEW fact, stated as a reversal |
-| You're shipping a recommendation that wasn't in your Step-0 plan, without a lever-keyed re-query | Step 3.5: one query keyed to the recommendation + outcome terms, before it ships |
+| You're shipping a recommendation without its `Re-entry:` line | Step 3.5 — run the query, write the line |
 | You ran the write side (2.5C/Step 4) while in `glance` mode | Glance is read-only w.r.t. vault knowledge — skip the write side; switch to `deep` if you need to crystallize |
 | A recency-channel (Channel 2) standard is load-bearing and you stayed in `glance` | Escalate to `deep` — glance surfaces the recent item but won't elevate it to a requirement (C5, #661) |
