@@ -182,3 +182,15 @@ the v1 batch's surfaced-but-ignored verdicts and the v2 pilot verdict are **inst
 readable" (note 94's metric-name lesson). Fix: stub ranks the buried note first/top-score when
 lever-keyed (TDD); then re-pilot v2 and re-run the same pre-registered batch bar. The criterion-2
 "live case" reading of surfaced-but-ignored also evaporates with the artifact.
+
+## Named amendment 2 (2026-07-09) — v3: couple the contract to the recommendation line (Joe-authorized third iteration)
+
+Definitive batch (honest instrument): 14/15 RECONCILED, 10/10 honored-when-fired, fire-rate 10/15 —
+strictly NOT GREEN by one non-fired trial (fixture2 t0). Joe chose "iterate again on the trigger."
+Diagnosis: non-firing is a turn-2 procedural-memory gap (the skill's step ran in turn 1's context;
+turn 2 answers directly) — but `rec_line_found` is 15/15: the RECOMMENDATION output act never gets
+skipped. v3 therefore couples the contract to that act: **the Re-entry line(s) must appear directly
+above the RECOMMENDATION line** — same-output-act adjacency instead of a separate procedural step.
+Keep all v2 content (trigger, phrases, verdict forms, clean-referent); add the adjacency rule to
+Step 3.5 + the red-flags row. Same gates: Gate B, pilot gate (fixture2 n=1), the same pre-registered
+batch bar. Spend: authorized past the $35 signal by Joe's iterate decision (~$12-15 more).
