@@ -113,6 +113,7 @@ func WriteVocabAssignment(content string, terms []string) string {
 	// position. When tags: is absent, insertAt is the vocab: index (or -1 if
 	// vocab: is also absent, yielding append-at-end behavior).
 	var insertAt int
+
 	if yamlKeyLineIndex(frontmatter, "tags") >= 0 {
 		frontmatter = removeYAMLKey(frontmatter, "vocab") // may shift tags up; that's fine
 		insertAt = yamlKeyLineIndex(frontmatter, "tags")  // recompute on the vocab-free text

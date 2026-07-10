@@ -662,57 +662,16 @@ func TestWriteVocabAssignment_TagsRoundtripFidelity(t *testing.T) {
 		legacyVocabPos := rapid.IntRange(0, 2).Draw(rt, "legacyVocabPos") // 0=before, 1=after, 2=absent
 		legacyVocabTerms := rapid.SliceOfN(termGen, 0, 2).Draw(rt, "legacyVocabTerms")
 
-		// Build frontmatter with optional legacy vocab at random position.
-		var fmBuilder strings.Builder
-		fmBuilder.WriteString("type: fact\n")
-
-		if legacyVocabPos == 0 && len(legacyVocabTerms) > 0 {
-			fmBuilder.WriteString("vocab: [" + strings.Join(legacyVocabTerms, ", ") + "]\n")
-		}
-
-		if len(tags) > 0 {
-			fmBuilder.WriteString("tags:\n")
-			for _, tag := range tags {
-				fmBuilder.WriteString("    - " + tag + "\n")
-			}
-		}
-
-		if legacyVocabPos == 1 && len(legacyVocabTerms) > 0 {
-			fmBuilder.WriteString("vocab: [" + strings.Join(legacyVocabTerms, ", ") + "]\n")
-		}
-
-		content := "---\n" + fmBuilder.String() + "---\n\nBody.\n"
+		frontmatterStr := buildTestFrontmatterWithLegacyVocab(rt, tagGen, termGen, legacyVocabPos, legacyVocabTerms, tags)
+		content := "---\n" + frontmatterStr + "---\n\nBody.\n"
 		got := cli.WriteVocabAssignment(content, terms)
 
-		const delim = "---\n"
-		afterDelim := strings.TrimPrefix(got, delim)
-		frontmatter, _, found := strings.Cut(afterDelim, "\n"+delim)
-		if !found {
-			rt.Fatalf("no closing delimiter in %q", got)
-		}
-
-		// Expected tags after assignment: original tags + vocab/-prefixed terms.
-		want := make([]string, 0, len(tags)+len(terms))
-		want = append(want, tags...)
-		for _, term := range terms {
-			want = append(want, "vocab/"+term)
-		}
-
+		frontmatter := parseAndVerifyFrontmatterDelimiters(rt, got)
+		want := buildExpectedTagsForVocabAssignment(tags, terms)
 		gotTags := cli.ExportParseTagsFromFrontmatter(frontmatter)
 
-		if len(want) == 0 && len(gotTags) != 0 {
-			rt.Fatalf("want no tags, got %v", gotTags)
-		}
-
-		if len(want) > 0 && !slices.Equal(gotTags, want) {
-			rt.Fatalf("tags: got %v want %v\nfull:\n%s", gotTags, want, got)
-		}
-
-		// Idempotency: second application with same terms is byte-identical.
-		twice := cli.WriteVocabAssignment(got, terms)
-		if twice != got {
-			rt.Fatalf("second application not idempotent:\nfirst:\n%q\nsecond:\n%q", got, twice)
-		}
+		verifyTagsMatch(rt, gotTags, want)
+		verifyIdempotency(rt, got, terms)
 	})
 }
 
@@ -743,4 +702,81 @@ func (f *fakeStateFS) ReadFile(path string) ([]byte, error) {
 	}
 
 	return nil, &testNotFoundError{path: path}
+}
+
+// buildExpectedTagsForVocabAssignment constructs the expected tag list after assignment.
+func buildExpectedTagsForVocabAssignment(tags []string, terms []string) []string {
+	want := make([]string, 0, len(tags)+len(terms))
+	want = append(want, tags...)
+
+	for _, term := range terms {
+		want = append(want, "vocab/"+term)
+	}
+
+	return want
+}
+
+// buildTestFrontmatterWithLegacyVocab constructs test frontmatter with optional legacy vocab
+// at a random position. Returns the frontmatter string (without YAML delimiters).
+func buildTestFrontmatterWithLegacyVocab(
+	_ *rapid.T,
+	_ *rapid.Generator[string],
+	_ *rapid.Generator[string],
+	legacyVocabPos int,
+	legacyVocabTerms []string,
+	tags []string,
+) string {
+	var fmBuilder strings.Builder
+	fmBuilder.WriteString("type: fact\n")
+
+	if legacyVocabPos == 0 && len(legacyVocabTerms) > 0 {
+		fmBuilder.WriteString("vocab: [" + strings.Join(legacyVocabTerms, ", ") + "]\n")
+	}
+
+	if len(tags) > 0 {
+		fmBuilder.WriteString("tags:\n")
+
+		for _, tag := range tags {
+			fmBuilder.WriteString("    - " + tag + "\n")
+		}
+	}
+
+	if legacyVocabPos == 1 && len(legacyVocabTerms) > 0 {
+		fmBuilder.WriteString("vocab: [" + strings.Join(legacyVocabTerms, ", ") + "]\n")
+	}
+
+	return fmBuilder.String()
+}
+
+// parseAndVerifyFrontmatterDelimiters extracts frontmatter from the output and verifies delimiters.
+func parseAndVerifyFrontmatterDelimiters(rt *rapid.T, got string) string {
+	const delim = "---\n"
+
+	afterDelim := strings.TrimPrefix(got, delim)
+
+	frontmatter, _, found := strings.Cut(afterDelim, "\n"+delim)
+	if !found {
+		rt.Fatalf("no closing delimiter in %q", got)
+	}
+
+	return frontmatter
+}
+
+// verifyIdempotency checks that a second application with the same terms is byte-identical.
+func verifyIdempotency(rt *rapid.T, got string, terms []string) {
+	twice := cli.WriteVocabAssignment(got, terms)
+	if twice != got {
+		rt.Fatalf("second application not idempotent:\nfirst:\n%q\nsecond:\n%q", got, twice)
+	}
+}
+
+// verifyTagsMatch asserts that the parsed tags match the expected tags.
+func verifyTagsMatch(rt *rapid.T, gotTags []string, want []string) {
+	if len(want) == 0 && len(gotTags) != 0 {
+		rt.Fatalf("want no tags, got %v", gotTags)
+	}
+
+	if len(want) > 0 && !slices.Equal(gotTags, want) {
+		rt.Fatalf("tags: got %v want %v", gotTags, want)
+	}
 }
