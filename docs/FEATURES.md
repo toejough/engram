@@ -164,12 +164,33 @@ property/tag filter, backlinks-of against the backlinks panel — but they are *
 other: backlinks-of counts every linker while group-by counts only frontmatter members, so the two
 diverge by the number of non-member linkers (e.g. `vocab.index.md`, which links every vocab term
 without frontmatter-listing them).
+With #674, count is also the audit surface for route's dispatch evidence:
+`--group-by tags --filter tags=tier/<t> [--filter tags=outcome/pass]` recomputes true
+tier×work-kind tallies from evidence-note tags to verify/repair the LLM-maintained aggregate
+notes — never on the routing read path (plain recall reads the aggregates).
 
 why: `docs/architecture/adr.md` — ADR-0018
 validation: `internal/cli/count_test.go` (`TestRunCount_GroupByBacklinksAgreement` — clean-case
 agreement; `TestRunCount_BacklinksExceedGroupByForNonMemberLinkers` — divergence) + real-binary
 vocab-stats parity on the live vault (`--group-by vocab` counts 33 for `retrieval-design`;
 `--backlinks-of vocab.retrieval-design` reports in-degree 34, the +1 being `vocab.index.md`)
+
+## Route dispatch evidence + aggregates (tags-based)
+
+Every route dispatch is recorded as an ordinary recallable fact note tagged with three
+categoricals (`work-kind/<k>`, `tier/<t>`, `outcome/<o>` in frontmatter `tags:`, written by the
+repeatable `engram learn --tag` flag), and each work-kind keeps one aggregate fact note
+(`route-evidence-<work-kind>`) whose object text holds the running tier tallies plus wikilinks to
+every evidence note. Route reads evidence by plain recall — aggregates surface as normal
+memories; `engram count` recomputes tallies from tags as the drift audit. Family definition notes
+(bare-tag convention) document the three tag families in the vault itself.
+
+why: `docs/architecture/adr.md` — ADR-0019 (the 2026-07-10 decision on #669); issue #674
+validation: `internal/cli/learn_test.go` (`TestLearnFact_Tags_WrittenToFrontmatter`,
+`TestLearnFact_InvalidTag_RejectedBeforeWrite`, `TestRenderFactFrontmatter_TagsRoundtripFidelity`)
++ `internal/cli/amend_test.go` (`TestRunAmend_PreservesTagsFrontmatter`); scratch-vault drowning
+gauge PASS at 20 sibling evidence notes + count recompute parity (2026-07-10 — this plan's
+execution log, retired to git history at cycle close)
 
 ## Validated goals (mission rollup — not a capability)
 

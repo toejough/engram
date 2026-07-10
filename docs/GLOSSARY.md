@@ -392,6 +392,13 @@ Obsidian visibility. Repeatable. The `--relation` flag (which added `Related to:
 **removed 2026-07-03** — use `--supersedes` only when a note corrects, narrows, or refutes another;
 structural linking is done automatically by the binary's vocab-tag assigner.
 
+### `--tag`
+Repeatable categorical-tag flag on `engram learn fact` / `engram learn feedback` (not qa, not
+amend — amend nonetheless round-trips an existing `tags:` list unchanged). Each value must match
+`[a-z0-9-]+` (bare family) or `[a-z0-9-]+/[a-z0-9-]+` (family/value); anything else is rejected
+before any write. Writes the frontmatter `tags:` string list — the sole categorical
+representation (ADR-0019). Distinct from the binary-assigned `vocab:` channel.
+
 ### `--source`
 Required provenance field on every `engram learn` invocation. Format:
 `session log <project>, <YYYY-MM-DD HH:MM UTC>, context: <short
@@ -483,6 +490,31 @@ vault). Machine-written and excluded from `BodyText`/`ContentHash` so a
 contributors-only update leaves the embedding and content hash unchanged.
 Powers `vaultgraph.InDegreeIn` usage counting as a graded signal that
 scales with accumulated Q&A capture.
+
+---
+
+## Route evidence
+
+### evidence note (route)
+An ordinary fact note recording one route dispatch, written via write-memory when the dispatch
+resolves. Carries frontmatter `tags: [work-kind/<k>, tier/<t>, outcome/<o>]` — the three
+low-cardinality categoricals; duration/cost live in the object prose with explicit units, never
+in tags. Fully recallable (no query exclusion, no new note type) — the structured replacement for
+route's old free-text transcript record. Slug convention: `route-dispatch-<work-kind>`.
+
+### aggregate note (route)
+One fact note per work-kind, slug `route-evidence-<work-kind>`, whose object text states the
+current tier tallies ("cheap 14/16, mid 2/2 as of <date>") and wikilinks every evidence note it
+summarizes (append-only trail). Amended (`engram amend --object`) as each dispatch lands; created
+untagged. Route READS it via plain recall — it surfaces as a normal memory; `engram count` over
+the evidence notes' tags is the audit that verifies/repairs its tallies (ADR-0019).
+
+### family definition note / bare-tag convention
+A fact note documenting a tag family — its meaning, allowed values, and counting pattern —
+carrying the BARE family tag (e.g. `tags: [work-kind]`). Convention: a bare family tag marks the
+family's definition note; a nested `family/value` tag marks a member. Three ship with #674:
+`work-kind` (open kebab-case set), `tier` (cheap|mid|deep), `outcome` (pass|fail) — slugs
+`work-kind-definition`, `tier-definition`, `outcome-definition`. Vault data, not repo files.
 
 ---
 
@@ -578,7 +610,9 @@ frontmatter/property/tag filter (or Dataview), `--backlinks-of` against the note
 — but the two are **not** equal to each other: `--backlinks-of` counts every linker while
 `--group-by` counts only frontmatter members, so they diverge by the number of *non-member
 linkers* (e.g. `vocab.index.md` links every `[[vocab.<term>]]` without frontmatter-listing them).
-See ADR-0018.
+See ADR-0018. Since #674 it is also the audit surface for route's dispatch-evidence tallies —
+`--group-by tags --filter tags=...` recomputes ground truth from evidence-note tags (see
+"aggregate note (route)" and ADR-0019); audit only, never the routing read path.
 
 ### guidance file
 An always-loaded ambient doc under `guidance/` in the engram repo, deployed

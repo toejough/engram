@@ -453,6 +453,47 @@ the divergence relationship, or the two modes read as redundant when they are co
 `TestRunCount_GroupByBacklinksAgreement` locks the clean-fixture case (no non-member linkers, so the
 two agree); `TestRunCount_BacklinksExceedGroupByForNonMemberLinkers` locks the divergence case.
 
+---
+
+## ADR-0019 — Tags are the sole categorical representation; recall reads, count audits
+
+**Status:** Accepted (2026-07-10 — Joe's decision recorded on #669; shipped via #674)
+
+**Context.** Route's dispatch records were free transcript text — recallable as fuzzy chunks but
+not aggregable (ADR-0017's deferred ledger, #669). ADR-0018 shipped `engram count` as a general
+aggregation surface. The overlap needed one representation for low-cardinality categoricals
+(work-kind, tier, outcome) that recall, counting, and Obsidian can all read without a bespoke
+store.
+
+**Decision.** Frontmatter `tags:` — a plain YAML string list written by the repeatable
+`engram learn --tag <family>[/<value>]` flag (fact/feedback only; not qa, not amend, though amend
+round-trips an existing list) — is the **sole** categorical mechanism: no attr nodes, no
+categorical wikilinks, no bespoke tables (#676 closed moot; #669 closed subsumed). Three note
+roles ride on it: **evidence notes** (one per route dispatch, tagged `work-kind/<k>`, `tier/<t>`,
+`outcome/<o>`; ordinary recallable facts — no query exclusion); **aggregate notes** (one per
+work-kind, slug `route-evidence-<work-kind>`, object text = tier tallies + wikilinks to every
+summarized evidence note; amended per dispatch; untagged); **family definition notes** (bare
+family tag = definition, nested `family/value` = member; tier: cheap|mid|deep, outcome:
+pass|fail, work-kind: open kebab-case set). Route's read path is **plain recall** — aggregates
+surface as normal memories. `engram count --group-by tags --filter tags=...` is the **audit**
+surface: it recomputes true tallies from evidence tags to verify/repair the LLM-maintained
+aggregates, and is never on the read path. (`--group-by work-kind` does not apply — work-kind is
+a tag value, not a frontmatter attribute.)
+
+**Consequences.** LLM-maintained tallies WILL drift; count makes them falsifiable (audit commands
+live in `skills/route/SKILL.md`). Evidence notes stay in recall — excluding them would regress on
+the already-recallable free-text records they replace. The aggregate-drowning risk (many
+near-identical evidence notes outranking their aggregate on the read query) is gauged, not
+pre-engineered: a scratch-vault gauge (20 sibling evidence notes + 1 aggregate; PASS = the
+aggregate's path appears in the read query's items or candidate_l2s) passed 2026-07-10, and the
+same check is documented in the route skill as a standing drowning audit. **Pre-registered
+follow-up** if drowning is ever measured on the real vault: (a) a "summarizes" ride-along edge
+(supersession-shaped insertion of the aggregate when its evidence surfaces) or (b) demoting
+evidence notes to the chunk-population ranking tier — choose with the measured case in hand, per
+the standing rule that a new edge type must first demonstrate retrieval value (ADR-0011; the
+ROADMAP standing constraint; vault note 73). Vocab's hub-note channel migrates to this tags
+convention under #678.
+
 ## Decisions deliberately NOT made into ADRs
 
 - **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an

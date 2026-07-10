@@ -25,14 +25,19 @@ complexity; revisit only on a viable subagent route — see Track B). Pick from 
 
 **Also recently shipped:** **`engram count`** (ADR-0018) — a read-only counting surface over the vault, separate from `query`'s similarity recall: `--group-by <attr>` (+ `--filter`) over frontmatter and `--backlinks-of <basename>` wikilink in-degree (`docs/FEATURES.md` — Count / backlinks aggregation).
 
+**Also shipped 2026-07-10:** **#674** — route dispatch evidence, tags-based: each dispatch lands
+as an ordinary recallable evidence note (`tags: [work-kind/<k>, tier/<t>, outcome/<o>]` via the
+new repeatable `engram learn --tag` flag) plus an amended per-work-kind aggregate fact note
+(`route-evidence-<work-kind>`, tier tallies + evidence wikilinks) surfaced by **plain recall**;
+`engram count` is the tally/drowning **audit** surface only (ADR-0019). The scratch-vault
+drowning gauge passed at 20 sibling evidence notes; if drowning is ever measured on the real
+vault, the pre-registered remedies are (a) a "summarizes" ride-along edge or (b) demoting
+evidence notes to the chunk-population ranking tier — chosen with the measured case in hand, per
+the standing new-edge rule (ADR-0019 records both).
+
 **Actionable now (unblocked, fleshed out):**
 
 - **#657** (M) — remaining recall cuts L3a + O1 (O2/L2 shipped; gated by the `gate.py --tier` smoke harness, not #654).
-- **#674** (M) — route evidence, re-scoped by the **2026-07-10 decision (Joe, recorded on #669)**: dispatch
-  evidence notes (ordinary recallable fact notes, `tags: [work-kind/<k>, tier/<t>, outcome/<o>]`) +
-  evidence-linked aggregate fact notes per work-kind, amended per dispatch and surfaced by **plain recall**;
-  `engram count` repositioned as the audit/recompute surface (never on the recall path). #669 (bespoke store)
-  closed subsumed; #676 (attr-node dual-write) closed moot — tags are the single categorical representation.
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
@@ -43,7 +48,8 @@ complexity; revisit only on a viable subagent route — see Track B). Pick from 
 notes, hub notes/index/wikilinks retired; sequenced after #674's evidence/aggregate notes ship the
 tags convention) · Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (its stated blocker — #654's harness — is resolved: the harness now exists with a RED baseline established 2026-07-08, `dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`; still gated, now on a narrower gap — #656's AC calls for verification against a `/please`-orchestration variant of the harness, which this cycle's recall-only trials didn't build) · #652 recency centroid (gated on an over-surfacing eval) · #675 (Track C round-3 usage report; gated on P3′ spread PASS).
 
-**Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs accrued dispatch evidence from #674; #669 closed subsumed) · #637 `--field` query flags (awaiting a forcing function) · payload-prune production build (rejected 2026-07-08 — revisit only on a viable subagent route; see Track B) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
+**Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs accrued evidence — #674 shipped the evidence/aggregate notes
+  2026-07-10; #669 closed subsumed) · #637 `--field` query flags (awaiting a forcing function) · payload-prune production build (rejected 2026-07-08 — revisit only on a viable subagent route; see Track B) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
 
 > Shorthand codes used below — the capability axes **C1–C7** and the capture guards **G1–G6** — are
 > defined in `docs/GLOSSARY.md` (see "capability axes" and "capture guards").
