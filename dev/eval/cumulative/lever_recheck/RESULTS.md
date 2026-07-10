@@ -313,7 +313,8 @@ evidence.
   coupled to an output act) has a ceiling; reaching a reliable every-trial guarantee needs an
   out-of-text enforcement layer (harness-level assert, lint, or hook) rather than another wording
   iteration. Filed as **#677** (mechanical enforcement layer for the Step 3.5 Re-entry contract,
-  93%→100%) rather than a fourth prose iteration.
+  93%→100%) rather than a fourth prose iteration — then closed won't-do 2026-07-10 (Joe): 93% is
+  the accepted operating point.
 - **Judge flip-rate context.** The RED baseline's judge-variance measurement (flip-rate 0.0, 5 rows × 3
   re-votes) is the noise floor this result is compared against. 93% (14/15) is far outside that noise
   band — the one non-fire (fixture4 t1) is a real, stochastic miss, not judge jitter.

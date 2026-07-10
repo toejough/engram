@@ -21,7 +21,7 @@ detail; this is the ordering.
 **Next:** unassigned — the payload-prune production build was **rejected 2026-07-08** (subprocess
 complexity; revisit only on a viable subagent route — see Track B). Pick from Actionable.
 
-**Just shipped:** **#655** — recall Step 3.5, the re-entry query (criterion 1): a lever conceived mid-synthesis gets its own lever-keyed `engram query` before it ships, with a forced `Re-entry:` line riding directly above the recommendation. Three iterations to a fired-path result: fire-rate 93% (14/15), honored-when-fired 14/14; the strict every-trial bar is explicitly unmet (asymptote — a prose+structure mechanism tops out below 100%), so Joe closed at 93% and filed the residual as a mechanical-enforcement follow-up (**#677**). Criterion 2 disposed SUPERSEDED on the same data (`dev/eval/LEDGER.md#c7-reentry-query-green`).
+**Just shipped:** **#655** — recall Step 3.5, the re-entry query (criterion 1): a lever conceived mid-synthesis gets its own lever-keyed `engram query` before it ships, with a forced `Re-entry:` line riding directly above the recommendation. Three iterations to a fired-path result: fire-rate 93% (14/15), honored-when-fired 14/14; the strict every-trial bar is explicitly unmet (asymptote — a prose+structure mechanism tops out below 100%), so Joe closed at 93% and filed the residual as a mechanical-enforcement follow-up (**#677** — closed won't-do 2026-07-10; 93% stands as the accepted operating point). Criterion 2 disposed SUPERSEDED on the same data (`dev/eval/LEDGER.md#c7-reentry-query-green`).
 
 **Also recently shipped:** **`engram count`** (ADR-0018) — a read-only counting surface over the vault, separate from `query`'s similarity recall: `--group-by <attr>` (+ `--filter`) over frontmatter and `--backlinks-of <basename>` wikilink in-degree (`docs/FEATURES.md` — Count / backlinks aggregation).
 
@@ -188,7 +188,9 @@ several still-open explorations; its fully-resolved items are omitted here (they
   RECONCILED, all 4 fixtures at 1.0) is **not met** — one stochastic non-fire (fixture4 t1) — and an
   asymptote analysis shows a prose+structure mechanism can't reliably clear an every-trial bar (P(12/12
   fires) ≈ 42% at 93% per-trial). Joe closed #655 at 93% and filed the residual as a mechanical-enforcement
-  follow-up: **#677** (recall: mechanical enforcement layer for the Step 3.5 Re-entry contract, 93%→100%).
+  follow-up: **#677** (recall: mechanical enforcement layer for the Step 3.5 Re-entry contract, 93%→100%)
+  — **closed won't-do 2026-07-10 (Joe)**: 93% is the accepted operating point; no enforcement layer.
+  Reopen only if a missed re-entry ships a closed-lever recommendation in real work (not the harness).
   Criterion 2's premise (negation-carrying notes outranked by chunks) is disposed **superseded** — it
   predates the matched-note floor, and 0 surfaced-but-ignored cases appear across 24 honest-instrument
   fired trials.
