@@ -73,14 +73,15 @@ yaml.v3 frontmatter, gomega asserts + rapid properties + DI struct-of-funcs mock
    Queries in Task 5 also pin `--chunks-dir "$GAUGE_ROOT/chunks"` so the production chunk index is
    never read.
 
-## One pinned spec correction (implementation detail, not design)
+## Two pinned spec corrections (implementation detail, not design)
 
-The design shorthand "numerator `engram count --group-by work-kind --filter tags=tier/<t> --filter
-tags=outcome/pass`" predates the tags representation: under ratified tags-based notes, `work-kind`
-is a **tag value**, not a frontmatter attribute, and `--group-by <attr>` groups by frontmatter
-attribute only (`internal/cli/count.go` — `runCountGroupBy` line 237, `attrValues` line 78). The
-literal `--group-by work-kind` would put every note in the `(work-kind absent)` bucket. The
-working realization of the same pattern (used everywhere below):
+**Correction 1 — count shorthand.** The design shorthand "numerator `engram count --group-by
+work-kind --filter tags=tier/<t> --filter tags=outcome/pass`" predates the tags representation:
+under ratified tags-based notes, `work-kind` is a **tag value**, not a frontmatter attribute, and
+`--group-by <attr>` groups by frontmatter attribute only (`internal/cli/count.go` —
+`runCountGroupBy` line 237, `attrValues` line 78). The literal `--group-by work-kind` would put
+every note in the `(work-kind absent)` bucket. The working realization of the same pattern (used
+everywhere below):
 
 - **Numerators (per-kind passes at tier t):**
   `engram count --group-by tags --filter tags=tier/<t> --filter tags=outcome/pass` → read the
@@ -89,6 +90,18 @@ working realization of the same pattern (used everywhere below):
 - **Single-kind spot check:** add `--filter tags=work-kind/<k>`, read the `total:` line.
 
 Two executors cannot disagree: the audit commands in Tasks 3–6 are spelled exactly this way.
+
+**Correction 2 — definition-note identifiers.** The re-scope comment names the family definition
+notes `work-kind.definition` / `tier.definition` / `outcome.definition`. Those dot forms are prose
+shorthand, not literal slugs: `slugPattern = ^[a-z0-9-]+$` (`internal/cli/learn.go` line 111,
+unchanged by this plan) rejects dots. Task 4 realizes them as the kebab-case slugs
+`work-kind-definition` / `tier-definition` / `outcome-definition` — the only spelling the binary
+accepts.
+
+**Validation-scope note (deliberate, not an oversight):** `validateTags` is grammar-only
+(`^[a-z0-9-]+(/[a-z0-9-]+)?$`). Closed-set membership (tier ∈ cheap|mid|deep, outcome ∈ pass|fail)
+is convention documented in the family definition notes, NOT binary-enforced — work-kind is an
+open set, and the cardinality guard died with #676. Do not add enum validation.
 
 ---
 
@@ -285,14 +298,26 @@ Two executors cannot disagree: the audit commands in Tasks 3–6 are spelled exa
   	}
   }
 
-  // TestValidateTags exercises the validator directly (mirrors TestValidateProjectSlug style).
-  func TestValidateTags(t *testing.T) {
+  // TestValidateTags_* exercise the validator directly, split per behavior
+  // (repo convention — cf. TestValidateProjectSlug_AcceptsEmpty /
+  // _AcceptsKebabCase / _RejectsBadShape, learn_test.go:903-917).
+  func TestValidateTags_AcceptsEmpty(t *testing.T) {
   	t.Parallel()
   	g := NewWithT(t)
   	g.Expect(cli.ExportValidateTags(nil)).To(Succeed())
+  }
+
+  func TestValidateTags_AcceptsValidShapes(t *testing.T) {
+  	t.Parallel()
+  	g := NewWithT(t)
   	g.Expect(cli.ExportValidateTags([]string{"work-kind"})).To(Succeed())
   	g.Expect(cli.ExportValidateTags([]string{"work-kind/rename", "tier/cheap", "outcome/pass"})).To(Succeed())
   	g.Expect(cli.ExportValidateTags([]string{"a1-b2/c3-d4"})).To(Succeed())
+  }
+
+  func TestValidateTags_RejectsBadShape(t *testing.T) {
+  	t.Parallel()
+  	g := NewWithT(t)
   	g.Expect(cli.ExportValidateTags([]string{"outcome/pass", "BAD"})).To(HaveOccurred())
   }
 
@@ -500,7 +525,8 @@ Two executors cannot disagree: the audit commands in Tasks 3–6 are spelled exa
     --subject "tags flag" --predicate "writes" --object "tags frontmatter" \
     --tag work-kind/smoke --tag tier/cheap --tag outcome/pass
   ```
-  Expected: prints exactly one line — the absolute note path `$TMPV/vault/1.<today>.tag-smoke.md`.
+  Expected: prints exactly one line matching the regex
+  `/vault/1\.[0-9]{4}-[0-9]{2}-[0-9]{2}\.tag-smoke\.md$` (the date is today's — do not hard-pin it).
   ```bash
   engram count --vault "$TMPV/vault" --group-by tags
   ```
@@ -576,7 +602,9 @@ Invoke `superpowers:writing-skills` for this task (CLAUDE.md: mandatory for any 
   baseline as "improvised-pass" rather than RED.
 
 - [ ] **2.3 GREEN — the edit.** Four verbatim changes to
-  `/Users/joe/repos/personal/engram/skills/write-memory/SKILL.md`:
+  `/Users/joe/repos/personal/engram/skills/write-memory/SKILL.md`. **Uniqueness pre-check:** each
+  quoted anchor below must appear exactly once — `grep -cF '<anchor text>'` on the file prints `1`
+  per anchor; any other count → STOP (the file drifted; re-derive the anchor before editing).
 
   (a) In "The handoff contract" list, after the line
   `- optional **chunk-sources** — \`<source#anchor>\` chunk IDs (provenance)`
@@ -586,7 +614,8 @@ Invoke `superpowers:writing-skills` for this task (CLAUDE.md: mandatory for any 
     fact/feedback only), e.g. `work-kind/rename`, `tier/cheap`, `outcome/pass`
   ```
 
-  (b) kind=fact compose block — replace its last line
+  (b) kind=fact compose block (the fenced bash block directly under the line `kind=fact:`) —
+  replace its last line
   `  --subject "<the thing>" --predicate "<requires / must use / is>" --object "<the standard or value>"`
   with:
   ```
@@ -594,7 +623,8 @@ Invoke `superpowers:writing-skills` for this task (CLAUDE.md: mandatory for any 
     [--tag <family>/<value> ...]
   ```
 
-  (c) kind=feedback compose block — replace its last line
+  (c) kind=feedback compose block (the fenced bash block directly under the line
+  `kind=feedback:`) — replace its last line
   `  --behavior "<what was done>" --impact "<why it was wrong/costly>" --action "<what to do instead>"`
   with:
   ```
@@ -617,13 +647,17 @@ Invoke `superpowers:writing-skills` for this task (CLAUDE.md: mandatory for any 
   ```
 
 - [ ] **2.4 GREEN check + pressure test.** Re-run the 2.2 scenario with the EDITED skill text
-  (fresh subagent). **PASS iff** the composed command contains exactly these three flags, values
-  exact, and no other `--tag`: `--tag work-kind/gauge-red`, `--tag tier/cheap`,
-  `--tag outcome/pass`. Then the adversarial trial: same setup, but a `kind: qa` handoff (any
-  question/answer content) carrying `tags: [work-kind/x]`. **PASS iff** the composed `engram learn
-  qa` command contains zero `--tag` occurrences AND the agent's report mentions dropping the tags.
-  Any FAIL → tighten the edited wording, re-run that trial; max 3 iterations, then STOP and report.
-  n=1 per cell (smoke-scale; the deterministic string checks leave no judge ambiguity).
+  (fresh subagent). Save the subagent's full reply to a file (e.g. `$CLAUDE_JOB_DIR/tmp/wm_green.txt`)
+  and decide by grep, not by reading impressionistically. **PASS iff all four greps hold:**
+  `grep -c 'tag ' <file>` counts exactly 3 `--tag` occurrences, and each of
+  `grep -cF -- '--tag work-kind/gauge-red' <file>`, `grep -cF -- '--tag tier/cheap' <file>`,
+  `grep -cF -- '--tag outcome/pass' <file>` prints exactly `1`. Then the adversarial trial: same
+  setup, but a `kind: qa` handoff (any question/answer content) carrying `tags: [work-kind/x]`,
+  reply saved to a file. **PASS iff** `grep -cF -- '--tag' <file>` prints `0` for the composed
+  `engram learn qa` command AND `grep -icE 'tag(s)?.*(drop|omit|not (supported|applicable|passed))'
+  <file>` prints `≥1` (the report acknowledges dropping them). Any FAIL → tighten the edited
+  wording, re-run that trial; max 3 iterations, then STOP and report. n=1 per cell (smoke-scale;
+  the deterministic string checks leave no judge ambiguity).
 
 - [ ] **2.5 Commit.**
   ```bash
@@ -663,7 +697,10 @@ cheapest…"), and the "Cold-start priors" section lines 113–126 must appear i
   the transcript.
 
 - [ ] **3.2 GREEN — the edits.** Five verbatim changes to
-  `/Users/joe/repos/personal/engram/skills/route/SKILL.md`:
+  `/Users/joe/repos/personal/engram/skills/route/SKILL.md`. **Uniqueness pre-check:** each quoted
+  anchor below must appear exactly once — `grep -cF '<anchor text>'` prints `1` per anchor; any
+  other count → STOP and re-derive. (Line numbers cited below are locators as of f2fedb8b; the
+  verbatim quoted text is the binding anchor.)
 
   **(E1) Read side** — replace (current lines 36–38):
   ```markdown
@@ -718,9 +755,10 @@ cheapest…"), and the "Cold-start priors" section lines 113–126 must appear i
   engram query --lazy-chunks --phrase "route evidence <work-kind> tier tally"
   ```
 
-  Deterministic check: does any returned `path:` (items or any cluster's candidate_l2s) end in
-  `.route-evidence-<work-kind>.md` — i.e. the basename's slug segment EQUALS
-  `route-evidence-<work-kind>`? Prefix/fuzzy matches do not count.
+  Deterministic check: for each returned `path:` (items or any cluster's candidate_l2s), take the
+  basename (text after the last `/`), strip `.md`, and split on `.` — the final segment is the
+  slug. A match iff that slug EQUALS `route-evidence-<work-kind>` exactly. Prefix/fuzzy matches do
+  not count.
 
   - **Match** → recompute the tally from the aggregate's current object text (already in the query
     payload — notes render full content under --lazy-chunks) plus this dispatch, then:
@@ -771,7 +809,7 @@ cheapest…"), and the "Cold-start priors" section lines 113–126 must appear i
   patching ad hoc; the two candidate remedies are named in `docs/architecture/adr.md` (ADR-0019).
   ````
 
-  **(E4) The loop, step 3** — replace (current lines 103–104 first sentence):
+  **(E4) The loop, step 3** — replace (current lines 101–102 first sentence):
   ```markdown
   3. The record lands in your session transcript, which **`/learn`**'s sweep auto-ingests as
      recallable memory — so even uncrystallized, a tier outcome is retrievable next time. When a
@@ -792,23 +830,29 @@ cheapest…"), and the "Cold-start priors" section lines 113–126 must appear i
   ```bash
   git diff -U0 skills/route/SKILL.md
   ```
-  **Decision procedure:** every hunk header must fall inside one of: step-1 paragraph (E1), the
-  Record-section intro line (E2), the insertion after the Current-harness paragraph (E3), loop
-  step 3 (E4), the red-flags table (E5). Any hunk touching the lines quoted in Global Constraint 5
-  (the doctrine: "starts at the cheapest / fastest available tier", "Absent evidence, default to
-  the cheapest", the Cold-start priors table, "no entry starts above cheap without recorded
-  evidence") → revert that hunk before proceeding. Zero tolerance.
+  **Decision procedure (content-based, not line-based):** every hunk's changed lines must lie
+  within one of the five edit regions, each identified by its verbatim anchor from 3.2 — E1 (the
+  "Recall first" paragraph), E2 (the "After each dispatch resolves" sentence), E3 (the new section
+  inserted after the paragraph ending "...changing this table."), E4 (the loop step-3 sentence),
+  E5 (the new red-flags row). Then grep each of the four protected quotes — "starts at the
+  cheapest", "Absent evidence, default to the cheapest", "Cold-start priors", "no entry starts
+  above cheap without recorded evidence" — confirm each still appears exactly once (`grep -cF`
+  prints 1) AND none appears inside any diff hunk (`git diff skills/route/SKILL.md | grep -cF
+  '<quote>'` prints 0). Any violation → revert that hunk before proceeding. Zero tolerance.
 
 - [ ] **3.4 GREEN check + pressure test.** Fresh subagent, EDITED skill text, the 3.1 scenario
-  verbatim. **PASS iff ALL FOUR hold:** (1) output contains a write-memory handoff with kind=fact
-  and exactly the tags `work-kind/doc-edit`, `tier/cheap`, `outcome/pass`; (2) output contains the
-  command `engram query --lazy-chunks --phrase "route evidence doc-edit tier tally"`; (3) output
-  states both branches with the deterministic slug-equality check — amend on match, `engram learn
-  fact --slug route-evidence-doc-edit` (no tags) on none; (4) the mini-report table row is still
-  produced. Second pressure trial (no-match branch): same scenario plus "the query returned no note
-  whose slug segment equals route-evidence-doc-edit" — **PASS iff** the agent composes the create
-  command with slug `route-evidence-doc-edit` and NO `--tag` flags. Any FAIL → tighten wording,
-  re-run the failed trial; max 3 iterations, then STOP and report. n=1 per cell.
+  verbatim. Save the reply to a file and decide by grep. **PASS iff ALL FOUR hold:** (1)
+  `grep -ci 'write-memory' <file>` ≥1 AND `grep -cF 'kind' <file>` ≥1 with fact named, AND each of
+  `grep -cF 'work-kind/doc-edit' <file>`, `grep -cF 'tier/cheap' <file>`,
+  `grep -cF 'outcome/pass' <file>` ≥1; (2) `grep -cF 'engram query --lazy-chunks --phrase "route
+  evidence doc-edit tier tally"' <file>` ≥1; (3) `grep -cF 'engram amend' <file>` ≥1 AND
+  `grep -cF 'route-evidence-doc-edit' <file>` ≥1 (both branches stated, slug exact); (4)
+  `grep -c '|' <file>` ≥2 (the mini-report table row still produced). Second pressure trial
+  (no-match branch): same scenario plus "the query returned no note whose slug segment equals
+  route-evidence-doc-edit", reply saved to a file — **PASS iff** `grep -cF 'engram learn fact'
+  <file>` ≥1 AND `grep -cF -- '--slug route-evidence-doc-edit' <file>` ≥1 AND `grep -cF -- '--tag'
+  <file>` prints 0 for that create command. Any FAIL → tighten wording, re-run the failed trial;
+  max 3 iterations, then STOP and report. n=1 per cell.
 
 - [ ] **3.5 Trap-gate AFTER** (Global Constraint 3):
   ```bash
@@ -840,7 +884,8 @@ cheapest…"), and the "Cold-start priors" section lines 113–126 must appear i
 
 No repo files change here except the plan's Execution Log. These three commands write the
 **production vault** (default resolution — no `--vault` flag) via the Task-1 binary
-(`go install` already run in step 1.4).
+(`go install` already run in step 1.4). The `--issue` flag is pre-existing
+(`internal/cli/targets.go:25`), not added by Task 1.
 
 ### Steps
 
@@ -889,6 +934,15 @@ No repo files change here except the plan's Execution Log. These three commands 
   **PASS condition, each command:** output is exactly two lines — `<family>	1` then `total: 1`.
   Anything else (0 rows, count > 1, extra rows) → a write failed or an unexpected bare-tagged note
   exists: STOP this task, inspect with `engram show <basename>`, fix, re-verify.
+
+- [ ] **4.2b Obsidian hand-verification (AC item; user-verifiable, non-blocking for the executor).**
+  The AC requires the count numbers be hand-verifiable in Obsidian's tag pane. The executor cannot
+  drive a GUI; the step is: record in the Execution Log the exact check for Joe — "open the vault
+  (`~/.local/share/engram/vault`) in Obsidian → tag pane → expand `work-kind` / `tier` / `outcome`:
+  each bare family tag shows exactly 1 note (the definition note); after evidence notes accrue,
+  each `family/value` tag's pane count must equal the corresponding `engram count --group-by tags
+  --filter tags=<family>/<value>` total." Log status: DOCUMENTED-FOR-JOE (plus the expected values
+  as of this run). Joe's confirmation is welcome but does not block execution.
 
 - [ ] **4.3 Recallability check (non-blocking, pre-registered as WARN-only — retrieval ranking on
   the live vault is not this task's contract):**
@@ -964,7 +1018,7 @@ retrieval value — ADR-0011, ROADMAP standing constraint, vault note 73).
   ```bash
   engram query --vault "$GAUGE_ROOT/vault" --chunks-dir "$GAUGE_ROOT/chunks" --lazy-chunks \
     --phrase "route evidence gauge-test tier tally" > "$GAUGE_ROOT/query-out.yaml"
-  grep -E 'path: .*\.route-evidence-gauge-test\.md' "$GAUGE_ROOT/query-out.yaml" \
+  grep -E 'path: .*\.route-evidence-gauge-test\.md$' "$GAUGE_ROOT/query-out.yaml" \
     && echo GAUGE-PASS || echo GAUGE-FAIL
   ```
   **Executable decision procedure:** the grep covers both surfaces — top-level `items:` and every
@@ -1092,6 +1146,18 @@ retrieval value — ADR-0011, ROADMAP standing constraint, vault note 73).
 
   ```
 
+- [ ] **6.2c README — CLI reference gains `--tag`.** In `README.md` (lines 78–79), replace the two
+  learn signature lines:
+  ```
+  engram learn feedback --slug ... --source ... --situation ... --behavior ... --impact ... --action ... [--project <slug>] [--issue <id>]
+  engram learn fact     --slug ... --source ... --situation ... --subject ... --predicate ... --object ... [--project <slug>] [--issue <id>]
+  ```
+  with:
+  ```
+  engram learn feedback --slug ... --source ... --situation ... --behavior ... --impact ... --action ... [--tag <family>[/<value>] ...] [--project <slug>] [--issue <id>]
+  engram learn fact     --slug ... --source ... --situation ... --subject ... --predicate ... --object ... [--tag <family>[/<value>] ...] [--project <slug>] [--issue <id>]
+  ```
+
 - [ ] **6.3 ROADMAP — three edits.**
 
   (a) Insert a new paragraph immediately AFTER the paragraph beginning
@@ -1179,7 +1245,7 @@ retrieval value — ADR-0011, ROADMAP standing constraint, vault note 73).
   ```
   Expected: ≥ 5 (all four docs cross-reference the new ADR).
   ```bash
-  git add docs/GLOSSARY.md docs/FEATURES.md docs/ROADMAP.md docs/architecture/adr.md
+  git add docs/GLOSSARY.md docs/FEATURES.md docs/ROADMAP.md docs/architecture/adr.md README.md
   git commit -m "docs: route evidence notes, tags convention, count-as-audit — ADR-0019 (#674)
 
   GLOSSARY: --tag entry + Route evidence section (evidence/aggregate/definition
@@ -1203,6 +1269,7 @@ retrieval value — ADR-0011, ROADMAP standing constraint, vault note 73).
 - Task 3.5 trap gate AFTER: _verdict_
 - Task 4.1 definition-note paths: _three absolute paths_
 - Task 4.2 count outputs: _three verbatim outputs_
+- Task 4.2b Obsidian hand-check: _DOCUMENTED-FOR-JOE + expected values_
 - Task 4.3 recallability: _PASS / WARN_
 - Task 5.2 count parity: _verbatim output_
 - Task 5.3 GAUGE: _GAUGE-PASS / GAUGE-FAIL (+ preserved $GAUGE_ROOT path on FAIL)_
