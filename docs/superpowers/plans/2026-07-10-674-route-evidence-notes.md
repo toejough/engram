@@ -1301,5 +1301,5 @@ retrieval value — ADR-0011, ROADMAP standing constraint, vault note 73).
   - `engram count --group-by tags --filter tags=outcome`: outcome	1 / total: 1
 - Task 4.2b Obsidian hand-check: DOCUMENTED-FOR-JOE. As of this run (2026-07-10): open vault (~/.local/share/engram/vault) in Obsidian → tag pane → expand work-kind / tier / outcome: each bare family tag shows exactly 1 note (the definition note written above). After evidence notes accrue, each family/value tag's pane count must equal the corresponding `engram count --group-by tags --filter tags=<family>/<value>` total. Caution: Obsidian tag pane aggregates nested counts into parent row (bare-family pane will read 1+N once family/value evidence exists), audit figures are family/value rows only.
 - Task 4.3 recallability: PASS (grep returned 3)
-- Task 5.2 count parity: _verbatim output_
-- Task 5.3 GAUGE: _GAUGE-PASS / GAUGE-FAIL (+ preserved $GAUGE_ROOT path on FAIL)_
+- Task 5.2 count parity: outcome/pass	20 / tier/cheap	20 / work-kind/gauge-test	20 / total: 20
+- Task 5.3 GAUGE: GAUGE-PASS (aggregate path 21.2026-07-10.route-evidence-gauge-test.md surfaced in query items + candidate_l2s; cleanup completed)
