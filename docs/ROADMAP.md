@@ -28,18 +28,22 @@ complexity; revisit only on a viable subagent route — see Track B). Pick from 
 **Actionable now (unblocked, fleshed out):**
 
 - **#657** (M) — remaining recall cuts L3a + O1 (O2/L2 shipped; gated by the `gate.py --tier` smoke harness, not #654).
-- **#669** (L) — structured routing-evidence ledger + `engram query` (foundation of the route track; #670 depends on it). Reconcile the overlap with #674 before building the bespoke store — `engram count` may subsume the store.
+- **#674** (M) — route evidence, re-scoped by the **2026-07-10 decision (Joe, recorded on #669)**: dispatch
+  evidence notes (ordinary recallable fact notes, `tags: [work-kind/<k>, tier/<t>, outcome/<o>]`) +
+  evidence-linked aggregate fact notes per work-kind, amended per dispatch and surfaced by **plain recall**;
+  `engram count` repositioned as the audit/recompute surface (never on the recall path). #669 (bespoke store)
+  closed subsumed; #676 (attr-node dual-write) closed moot — tags are the single categorical representation.
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
-- **#674** (M) — record route dispatches as countable fact-notes + reconcile the #669↔`count` overlap (decide count-based vs bespoke store first).
-- **#676** (M) — generalize count's write side: mint `attr/<k>/<v>` nodes + dual-write so new record types are countable by both `--group-by` and `--backlinks-of` (enables #674's Obsidian-verifiable side).
 
 **Eval-value chain:** #642 (cold-vs-warm harness) → #646 (e2e recency value-proof) → #648 (tune activation constants). The headless-learn blocker (#643) that fronted this chain is **resolved/closed** — learn Step 1 is now non-interactive `engram ingest --auto` (empty-vault headless run verified 2026-07-07); #642 is the real front.
 
-**Gated (data/date/validation):** Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (its stated blocker — #654's harness — is resolved: the harness now exists with a RED baseline established 2026-07-08, `dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`; still gated, now on a narrower gap — #656's AC calls for verification against a `/please`-orchestration variant of the harness, which this cycle's recall-only trials didn't build) · #652 recency centroid (gated on an over-surfacing eval) · #675 (Track C round-3 usage report; gated on P3′ spread PASS).
+**Gated (data/date/validation):** #678 vocab→tags migration (definitions become parent-tagged fact
+notes, hub notes/index/wikilinks retired; sequenced after #674's evidence/aggregate notes ship the
+tags convention) · Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (its stated blocker — #654's harness — is resolved: the harness now exists with a RED baseline established 2026-07-08, `dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`; still gated, now on a narrower gap — #656's AC calls for verification against a `/please`-orchestration variant of the harness, which this cycle's recall-only trials didn't build) · #652 recency centroid (gated on an over-surfacing eval) · #675 (Track C round-3 usage report; gated on P3′ spread PASS).
 
-**Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs #669 first) · #637 `--field` query flags (awaiting a forcing function) · payload-prune production build (rejected 2026-07-08 — revisit only on a viable subagent route; see Track B) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
+**Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs accrued dispatch evidence from #674; #669 closed subsumed) · #637 `--field` query flags (awaiting a forcing function) · payload-prune production build (rejected 2026-07-08 — revisit only on a viable subagent route; see Track B) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
 
 > Shorthand codes used below — the capability axes **C1–C7** and the capture guards **G1–G6** — are
 > defined in `docs/GLOSSARY.md` (see "capability axes" and "capture guards").
