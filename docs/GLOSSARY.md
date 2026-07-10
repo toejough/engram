@@ -249,9 +249,19 @@ Step 0.5 = sweep (`engram ingest --auto`); Step 1 = generate phrases (10 in
 = per-cluster synthesis — 2.5A reads candidates, 2.5B applies the recency
 weight, 2.5C judges coverage and writes (amend/write-memory — **skipped in
 `glance`**); Step 2.7 = `engram activate` on the notes actually drawn on;
-Step 3 = closing synthesis (how memories changed the plan); Step 4 = persist
-a sound synthesis conclusion via write-memory (**skipped in `glance`**). See
+Step 3 = closing synthesis (how memories changed the plan); Step 3.5 = re-entry
+query — a recommendation not in the Step-0 plan (conceived mid-work) gets its own
+lever-keyed `engram query` before it ships, with a forced `Re-entry:` line
+directly above the final recommendation (#655); Step 4 = persist a sound synthesis
+conclusion via write-memory (**skipped in `glance`**). See
 **recall modes**, above, for the glance/deep split.
+
+### honored-when-fired
+C7 GREEN-validation metric: of the trials where the Step 3.5 re-entry query fired and returned the
+closure note, the fraction whose recommendation then honored it (acknowledged the prior attempt and
+dropped the lever, or justified revisiting on named new evidence — i.e. scored RECONCILED).
+Separates "the query ran" (fire-rate) from "the result was applied." Measured 24/24 across the #655
+v2+v3 batches (`dev/eval/LEDGER.md#c7-reentry-query-green`).
 
 ### surfaced notes
 Notes returned in the `items[]` payload from `engram query`. Includes both

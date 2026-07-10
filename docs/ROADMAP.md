@@ -21,9 +21,9 @@ detail; this is the ordering.
 **Next:** unassigned — the payload-prune production build was **rejected 2026-07-08** (subprocess
 complexity; revisit only on a viable subagent route — see Track B). Pick from Actionable.
 
-**Just shipped:** **`engram count`** (ADR-0018) — a read-only counting surface over the vault, separate from `query`'s similarity recall: `--group-by <attr>` (+ `--filter`) over frontmatter and `--backlinks-of <basename>` wikilink in-degree (`docs/FEATURES.md` — Count / backlinks aggregation).
+**Just shipped:** **#655** — recall Step 3.5, the re-entry query (criterion 1): a lever conceived mid-synthesis gets its own lever-keyed `engram query` before it ships, with a forced `Re-entry:` line riding directly above the recommendation. Three iterations to a fired-path result: fire-rate 93% (14/15), honored-when-fired 14/14; the strict every-trial bar is explicitly unmet (asymptote — a prose+structure mechanism tops out below 100%), so Joe closed at 93% and filed the residual as a mechanical-enforcement follow-up (**#677**). Criterion 2 disposed SUPERSEDED on the same data (`dev/eval/LEDGER.md#c7-reentry-query-green`).
 
-**Also recently shipped:** **#659** — prune now *detaches* (preserves) chunks on source deletion instead of GC-ing them (`docs/FEATURES.md` — Prune preserves memory).
+**Also recently shipped:** **`engram count`** (ADR-0018) — a read-only counting surface over the vault, separate from `query`'s similarity recall: `--group-by <attr>` (+ `--filter`) over frontmatter and `--backlinks-of <basename>` wikilink in-degree (`docs/FEATURES.md` — Count / backlinks aggregation).
 
 **Actionable now (unblocked, fleshed out):**
 
@@ -34,7 +34,6 @@ complexity; revisit only on a viable subagent route — see Track B). Pick from 
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
 - **#674** (M) — record route dispatches as countable fact-notes + reconcile the #669↔`count` overlap (decide count-based vs bespoke store first).
 - **#676** (M) — generalize count's write side: mint `attr/<k>/<v>` nodes + dual-write so new record types are countable by both `--group-by` and `--backlinks-of` (enables #674's Obsidian-verifiable side).
-- **#655** (M) — recall-before-recommend re-entry, criterion 1 (the retrieval half): a second, lever-keyed `engram query` mid-synthesis before shipping a recommendation. Now actionable — the C7 regression gate is in place (`dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`, 2026-07-08); the already-shipped criteria 2/3 don't reliably cover it (mechanism measured 0/15 re-query).
 
 **Eval-value chain:** #642 (cold-vs-warm harness) → #646 (e2e recency value-proof) → #648 (tune activation constants). The headless-learn blocker (#643) that fronted this chain is **resolved/closed** — learn Step 1 is now non-interactive `engram ingest --auto` (empty-vault headless run verified 2026-07-07); #642 is the real front.
 
@@ -178,15 +177,21 @@ several still-open explorations; its fully-resolved items are omitted here (they
   moments (before-declaring-done, after-a-tool-failure) was flagged as unfiled and unexplored by the review.
   Not yet decided by Joe — the shipped CLAUDE.md **recall-firing** guidance (`recall.md`) already covers these moments non-mechanically.
   Revisit only if the guidance-based cues are shown insufficient at scale.
-- **Built — recall-before-recommend re-entry gate (#654); actionable — the retrieval fix (#655).** Recall
-  fires once, keyed to the incoming ask; a lever invented mid-synthesis is never re-checked against the
-  vault, so a previously-killed direction can resurface as if new. #654's C7 "lever-recheck" anti-amnesia
-  harness shipped 2026-07-08 with a RED baseline established — 4/5 fixtures reproduce the miss
-  (`dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`). Mechanism: the shipped #655-criterion-3
-  reconcile-rule does not reliably fire a vault re-query in the two-turn structure (0/15 re-query, both
-  turns, all 15 official arm-A trials) — the recommendation still ships unreconciled. #655's remaining
-  scope narrows to criterion 1, the re-entry query itself: a second, lever-keyed `engram query`
-  mid-synthesis before shipping a recommendation.
+- **Shipped — recall-before-recommend re-entry (#654 RED harness; #655 criterion 1, Step 3.5).** Recall
+  fired once, keyed to the incoming ask; a lever invented mid-synthesis was never re-checked against the
+  vault, so a previously-killed direction could resurface as if new. #654's C7 "lever-recheck" anti-amnesia
+  harness shipped 2026-07-08 with a RED baseline established — 4/5 fixtures reproduce the miss, 0/15
+  re-query either turn (`dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`). #655 closed criterion 1 in
+  three iterations (worded honor-rule → forced output contract → contract coupled to the RECOMMENDATION
+  line's adjacency): the v3 GREEN batch measures fire-rate 93% (14/15), honored-when-fired 14/14
+  (`dev/eval/LEDGER.md#c7-reentry-query-green`). The strict pre-registered bar (every valid arm-A trial
+  RECONCILED, all 4 fixtures at 1.0) is **not met** — one stochastic non-fire (fixture4 t1) — and an
+  asymptote analysis shows a prose+structure mechanism can't reliably clear an every-trial bar (P(12/12
+  fires) ≈ 42% at 93% per-trial). Joe closed #655 at 93% and filed the residual as a mechanical-enforcement
+  follow-up: **#677** (recall: mechanical enforcement layer for the Step 3.5 Re-entry contract, 93%→100%).
+  Criterion 2's premise (negation-carrying notes outranked by chunks) is disposed **superseded** — it
+  predates the matched-note floor, and 0 surfaced-but-ignored cases appear across 24 honest-instrument
+  fired trials.
 
 ## Track B — Retrieval cost
 

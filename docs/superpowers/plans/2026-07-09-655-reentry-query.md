@@ -194,3 +194,15 @@ above the RECOMMENDATION line** — same-output-act adjacency instead of a separ
 Keep all v2 content (trigger, phrases, verdict forms, clean-referent); add the adjacency rule to
 Step 3.5 + the red-flags row. Same gates: Gate B, pilot gate (fixture2 n=1), the same pre-registered
 batch bar. Spend: authorized past the $35 signal by Joe's iterate decision (~$12-15 more).
+
+## Named amendment 3 (2026-07-09) — accept at 93%, file the enforcement follow-up (Joe's decision)
+
+The v3 batch measured fire 14/15 (93%), honored-when-fired 14/14, RECONCILED 14/15 — the strict
+pre-registered bar (fixtures 1–4 all at 1.0) again unmet by a single stochastic non-fire (fixture4
+t1). Asymptote analysis: at 93% per-trial adherence, P(all 12 bar-trials fire) ≈ 0.93^12 ≈ 42% — a
+prose+structure mechanism cannot reliably clear an every-trial bar. Presented to Joe with three
+options (close at 93% + enforcement follow-up [recommended]; build the enforcement layer now; keep
+iterating wording); **Joe chose: close at 93% + file the follow-up** (AskUserQuestion,
+2026-07-09). #677 filed as the mechanical-enforcement path to 100%. Criterion 1 therefore closes as
+fired-path-proven with the strict bar recorded unmet; the plan's original GREEN definition is
+amended by this decision, mirroring the amendment discipline of the two prior iterations.

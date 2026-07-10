@@ -212,3 +212,144 @@ python3 dev/eval/cumulative/analyze_recheck.py \
   --revote --paraphrase --seed 0 \
   --out dev/eval/cumulative/lever_recheck/analysis.json
 ```
+
+## GREEN validation (#655)
+
+Plan: `docs/superpowers/plans/2026-07-09-655-reentry-query.md` (incl. two named amendments + addendum).
+Ledger row: `dev/eval/LEDGER.md#c7-reentry-query-green`. Scope: criterion 1 (the re-entry query itself)
+— a second, lever-keyed `engram query` mid-synthesis, issued before an emergent recommendation ships.
+Criteria 2 and 3 are dispositioned/shipped, not re-built (see below).
+
+### Iteration arc
+
+Same harness, same 5 fixtures, arm A only (the RED cell — closure note buried; data arrives only after
+recall), n=3 valid trials/fixture (15/batch), opus, live judge. Bar (pre-registered): fixtures 1–4 only
+(fixture 5 informational, never counted toward or against the bar) — **GREEN iff all 4 fixtures are 3/3
+RECONCILED.**
+
+| batch | edit | fire-rate (turn-2 re-query) | honored-when-fired | RECONCILED | bar verdict |
+|---|---|---|---|---|---|
+| baseline (pre-#655) | none — shipped criterion-3 reconcile-rule only | 0/15 | n/a (0 fired) | 1/15 (0 bar-relevant; the 1 is a vacuous-RECONCILED on informational fixture5) | NOT MET — 0/4 fixtures GREEN (RED, see `c7-lever-recheck-red-baseline`) |
+| v1 (worded honor-rule) | Step 3.5 added: re-entry query + a worded "acknowledge and drop/justify" rule | 7/15 | ~1/7 | 3/15 | NOT MET — 0/4 fixtures GREEN |
+| v2 (forced output contract) | worded rule replaced by a forced per-recommendation `Re-entry:` line (note 145's concrete-referent mechanism) | 10/15 | 10/10 | 14/15 | NOT MET — fixture2 t0 the sole non-fired trial, scored AMNESIA |
+| **v3 (recommendation-line adjacency)** | Re-entry line(s) required directly above the `RECOMMENDATION:` line — coupled to the one output act measured 15/15 across all batches | **14/15 (93%)** | **14/14** | 14/15 | NOT MET — fixture4 t1 the sole non-fired trial, scored AMNESIA (fixtures 1/2/3, the bar's remaining population, each 3/3; fixture5, informational-only, also 3/3) |
+
+Raw data: `results_655_pilot{,2}.jsonl` (v1 pilots), `results_655_green_A12.jsonl` + `results_655_green_A345.jsonl`
+(v1 batch); `results_655v2_pilot{,2}.jsonl` (v2 pilots, first STOPped on the instrument bug below),
+`results_655v2_green_A12.jsonl` + `results_655v2_green_A345.jsonl` (v2 batch); `results_655v3_pilot.jsonl`
+(v3 pilot), `results_655v3_green_A12.jsonl` + `results_655v3_green_A345.jsonl` (v3 batch, the definitive
+result).
+
+### Instrument-invalid episode + stub fix
+
+The v2 pilot re-run STOPped: the note surfaced but the trial still scored AMNESIA. Diagnosis
+(`ca782a1d`) found the bug was in the harness, not the skill: `stub_engram.py` emitted the buried
+closure note **last and lowest-scored** (filename-order iteration, ~0.38 after seven distractors) on
+lever-keyed queries — the opposite of the shipped matched-note floor's real, measured behavior
+(lever-keyed closure notes rank #1; the stub's own docstring cites this). The v2-pilot agent's "clean"
+verdict honestly described the *top* of the payload it was actually given — not a synthesis failure.
+
+Re-attribution: the v1 batch's surfaced-but-ignored verdicts and the v2 pilot's verdict are
+**instrument-invalid** (excluded from the pooled result, per the degraded-instrument rule — do not
+pool). The fire-rate finding (re-query fired 7/15 in v1 vs 0/15 baseline) is order-independent and
+**stands** regardless of the ranking bug — it measures whether the query was issued, not what it
+returned. `note_surfaced` was shown to mean "present in payload," not "prominently readable"; the two
+are conflated names for different facts.
+
+Fix (`9353e8da`, TDD — 2 RED tests reproduced the bug first): the stub now ranks the buried note
+first/top-score (0.92) specifically on lever-keyed queries; the distractor ladder, non-keyed exclusion,
+and `returned_buried` logging are unchanged. 149 tests green. The v2 batch above is the **post-fix,
+honest** result — every "note surfaced" row in v2/v3 reflects the note actually being prominent, not
+merely present.
+
+### Guard negation-fix
+
+Prerequisite (`48153a3f`, Unit 0, ahead of any GREEN trial): the deterministic scorer guard
+(`lever_recheck_scorer.py`) fired AMNESIA on any recommendation containing advocacy + closure-cue
+vocabulary, with no negation check — so a recommendation that **rejects** the lever by name (e.g. "…not
+downgrading the retrieval model, which was already tried and rolled back…") could still auto-score
+AMNESIA. RED fixture: the verbatim arm-C fixture1 t0 text from `results_round2_C.jsonl` (the RED
+baseline's known false-AMNESIA). Fix: split the recommendation into sentences; if an advocacy-satisfying
+sentence also carries a negation marker from a pinned set (`not `, `n't `, `no longer`, `rather than`,
+`instead of`, `avoid`, `don't`, `do not`), the guard defers (`return None`) to the LLM judge instead of
+auto-scoring; un-negated advocacy + closure cues still auto-AMNESIA (regression-tested). 4 new stub
+tests + 3 guard tests; suite green throughout (145 after Unit 0, 149 after the stub fix). Known residual,
+recorded and accepted: cross-sentence negation still guard-fires — the paraphrase hard gate (RED
+baseline) covers this class.
+
+### Zero-stub live smoke
+
+One real end-to-end trial with the stub removed entirely: the real `skills/recall/SKILL.md`, a real
+`engram` binary, and a real 212-note vault copy (not the fixture harness); result archived: `smoke_655_e2e.json` + `smoke_655_e2e_ask.txt`, session cost $0.67. Full chain PASS:
+the agent conceived the payload-prune lever on its own (unprompted by the fixture apparatus), Step 3.5
+fired, `engram query` returned note 191 (the buried closure note) top-ranked, and the agent wrote both
+Re-entry contract lines verbatim — `CLOSED(191): <prior outcome> → drop` with the reopen condition for
+the payload-prune lever, and a clean-with-referent line for its second, non-emergent recommendation —
+then recommended the already-shipped tier-routing lever instead. This is the one trial in the whole
+cycle not mediated by `stub_engram.py`; it corroborates the v3 batch result against the real production
+path, not just the harness.
+
+### Criterion-2 disposition — SUPERSEDED
+
+Premise (verbatim, #655 body, dated 2026-06-24): "a note that carries negation ('X was rolled back') is
+outranked by raw chunks and gets no priority." This predates the matched-note floor (shipped
+2026-06-28, `dev/eval/LEDGER.md#matched-note-floor` — per-phrase note slots reserved so notes are not
+drowned by chunks) by four days. Per the plan's Unit 2 decision rule: the live test IS the GREEN run
+itself — across 24 fired trials with the honest (post-stub-fix) instrument (10 in v2 + 14 in v3), **0**
+show `note_surfaced=True` with verdict AMNESIA (a surfaced-but-out-argued-by-chunks case). The earlier
+apparent live cases (arm-C fixture1, pre-fix) evaporate with the instrument bug — they were the buried
+note ranking last, not chunks outranking a surfaced note. Disposition: **criterion 2's premise is
+superseded**, recorded on #655 per the plan's close condition; no override unit is warranted on current
+evidence.
+
+### Honest bounds
+
+- **Strict bar: unmet.** The pre-registered GREEN bar (fixtures 1–4 each 3/3 RECONCILED) was not
+  achieved by any batch, including the final v3. Report the fired-path result (93% fire, 14/14 honor)
+  as what it is — not a claim that Step 3.5 fires every time.
+- **Asymptote, not a bug to chase.** At a stable ~93% measured per-trial fire-rate, the probability of
+  12 consecutive fires (roughly one "session" of emergent-recommendation moments) is
+  0.93^12 ≈ 42% — well under even-odds. A single-mechanism, prose-plus-structure step (however tightly
+  coupled to an output act) has a ceiling; reaching a reliable every-trial guarantee needs an
+  out-of-text enforcement layer (harness-level assert, lint, or hook) rather than another wording
+  iteration. Filed as **#677** (mechanical enforcement layer for the Step 3.5 Re-entry contract,
+  93%→100%) rather than a fourth prose iteration.
+- **Judge flip-rate context.** The RED baseline's judge-variance measurement (flip-rate 0.0, 5 rows × 3
+  re-votes) is the noise floor this result is compared against. 93% (14/15) is far outside that noise
+  band — the one non-fire (fixture4 t1) is a real, stochastic miss, not judge jitter.
+- **Guard bias direction unchanged.** The negation-fix only widens which cases the guard defers to the
+  judge; it never auto-reconciles. Any residual guard-fire bias still pushes toward AMNESIA (conservative),
+  the same safe direction documented in the RED baseline's Known limitations.
+- **Scope.** This validates criterion 1 only (the retrieval-side re-entry query). Criterion 3 was
+  already shipped and validated separately (100%→0%, per the #655 issue body); criterion 2 is
+  dispositioned above, not built.
+
+### Spend (#655 cycle; raw sums from the JSONL summary rows)
+
+| item | cost |
+|---|---|
+| v1 GREEN batch (instrument-invalid for surfaced-case verdicts) | $12.22 |
+| v2 GREEN batch | $15.18 |
+| v3 GREEN batch (the shipped result) | $15.04 |
+| pilots (v1 ×2, v2 ×2, v3 ×1) | $4.10 |
+| zero-stub live smoke (`smoke_655_e2e.json`) | $0.67 |
+| trap gate smoke ×2 (before/after) | ~$6 (estimate from per-axis trial costs) |
+| live judge calls (sonnet ×3/lever/trial, unmetered) | ~$3–5 (estimate) |
+| **total** | **~$56–58** |
+
+Raw agent-turn costs are exact (summed from the batch summary rows); judge and gate figures are
+labeled estimates (those calls are not per-trial metered).
+
+### How to re-run
+
+```
+# v3 batch (the shipped, definitive edit)
+python3 dev/eval/cumulative/run_recheck.py \
+  --fixtures fixture1,fixture2,fixture3,fixture4,fixture5 \
+  --arm A --n 3 --model opus --judge live \
+  --out dev/eval/cumulative/lever_recheck/results_655v3_green_A12.jsonl --resume
+
+python3 dev/eval/cumulative/analyze_recheck.py \
+  --in dev/eval/cumulative/lever_recheck/results_655v3_green_A12.jsonl,dev/eval/cumulative/lever_recheck/results_655v3_green_A345.jsonl \
+  --out dev/eval/cumulative/lever_recheck/analysis_655v3.json
+```
