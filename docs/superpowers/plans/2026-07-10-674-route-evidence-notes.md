@@ -649,12 +649,14 @@ Invoke `superpowers:writing-skills` for this task (CLAUDE.md: mandatory for any 
 - [ ] **2.4 GREEN check + pressure test.** Re-run the 2.2 scenario with the EDITED skill text
   (fresh subagent). Save the subagent's full reply to a file (e.g. `$CLAUDE_JOB_DIR/tmp/wm_green.txt`)
   and decide by grep, not by reading impressionistically. **PASS iff all four greps hold:**
-  `grep -c 'tag ' <file>` counts exactly 3 `--tag` occurrences, and each of
+  `grep -oF -- '--tag ' <file> | wc -l` prints exactly `3` (occurrence count — layout-independent,
+  works whether the flags share a line or not), and each of
   `grep -cF -- '--tag work-kind/gauge-red' <file>`, `grep -cF -- '--tag tier/cheap' <file>`,
   `grep -cF -- '--tag outcome/pass' <file>` prints exactly `1`. Then the adversarial trial: same
   setup, but a `kind: qa` handoff (any question/answer content) carrying `tags: [work-kind/x]`,
   reply saved to a file. **PASS iff** `grep -cF -- '--tag' <file>` prints `0` for the composed
-  `engram learn qa` command AND `grep -icE 'tag(s)?.*(drop|omit|not (supported|applicable|passed))'
+  `engram learn qa` command AND
+  `grep -icE 'tag(s)?.*(drop|omit|ignor|discard|not (supported|applicable|passed))'
   <file>` prints `≥1` (the report acknowledges dropping them). Any FAIL → tighten the edited
   wording, re-run that trial; max 3 iterations, then STOP and report. n=1 per cell (smoke-scale;
   the deterministic string checks leave no judge ambiguity).
@@ -853,7 +855,8 @@ cheapest…"), and the "Cold-start priors" section lines 113–126 must appear i
 
 - [ ] **3.4 GREEN check + pressure test.** Fresh subagent, EDITED skill text, the 3.1 scenario
   verbatim. Save the reply to a file and decide by grep. **PASS iff ALL FOUR hold:** (1)
-  `grep -ci 'write-memory' <file>` ≥1 AND `grep -cF 'kind' <file>` ≥1 with fact named, AND each of
+  `grep -ci 'write-memory' <file>` ≥1 AND `grep -cE 'kind[:=][[:space:]]*fact' <file>` ≥1 (the
+  handoff names kind=fact, either separator spelling), AND each of
   `grep -cF 'work-kind/doc-edit' <file>`, `grep -cF 'tier/cheap' <file>`,
   `grep -cF 'outcome/pass' <file>` ≥1; (2) `grep -cF 'engram query --lazy-chunks --phrase "route
   evidence doc-edit tier tally"' <file>` ≥1; (3) `grep -cF 'engram amend' <file>` ≥1 AND
@@ -861,8 +864,12 @@ cheapest…"), and the "Cold-start priors" section lines 113–126 must appear i
   `grep -c '|' <file>` ≥2 (the mini-report table row still produced). Second pressure trial
   (no-match branch): same scenario plus "the query returned no note whose slug segment equals
   route-evidence-doc-edit", reply saved to a file — **PASS iff** `grep -cF 'engram learn fact'
-  <file>` ≥1 AND `grep -cF -- '--slug route-evidence-doc-edit' <file>` ≥1 AND `grep -cF -- '--tag'
-  <file>` prints 0 for that create command. Any FAIL → tighten wording, re-run the failed trial;
+  <file>` ≥1 AND `grep -cF -- '--slug route-evidence-doc-edit' <file>` ≥1 AND the create command's
+  own text carries no tag flags, scoped by a pinned window (the create template is ≤10 lines):
+  `grep -B2 -A12 -- '--slug route-evidence-doc-edit' <file> | grep -cF -- '--tag'` prints `0`.
+  (The window, not the whole reply, is the scope — the same reply legitimately contains the
+  evidence-note handoff, whose tags ride as handoff fields, not `--tag` flags.)
+  Any FAIL → tighten wording, re-run the failed trial;
   max 3 iterations, then STOP and report. n=1 per cell.
 
 - [ ] **3.5 Trap-gate AFTER** (Global Constraint 3):
