@@ -21,6 +21,8 @@ The parent provides:
 - **content fields** — by kind, per the blocks below
 - **source** — human-readable provenance string
 - optional **chunk-sources** — `<source#anchor>` chunk IDs (provenance)
+- optional **tags** — categorical `<family>` or `<family>/<value>` strings (kebab-case;
+  fact/feedback only), e.g. `work-kind/rename`, `tier/cheap`, `outcome/pass`
 - optional **supersedes** — `<basename>|<type>|<claim>` (types: `updates|narrows|refutes`),
   when the parent determined this write corrects a surfaced note
 
@@ -35,7 +37,8 @@ kind=feedback:
 engram learn feedback --slug <kebab-slug> --position top \
   --source "<source>" \
   --situation "<retrieval-shaped phrase: when does this apply>" \
-  --behavior "<what was done>" --impact "<why it was wrong/costly>" --action "<what to do instead>"
+  --behavior "<what was done>" --impact "<why it was wrong/costly>" --action "<what to do instead>" \
+  [--tag <family>/<value> ...]
 ```
 
 kind=fact:
@@ -44,7 +47,8 @@ kind=fact:
 engram learn fact --slug <kebab-slug> --position top \
   --source "<source>" \
   --situation "<retrieval-shaped phrase: when does this apply>" \
-  --subject "<the thing>" --predicate "<requires / must use / is>" --object "<the standard or value>"
+  --subject "<the thing>" --predicate "<requires / must use / is>" --object "<the standard or value>" \
+  [--tag <family>/<value> ...]
 ```
 
 kind=qa:
@@ -62,6 +66,9 @@ engram learn qa \
 Append to any kind:
 
 - one `--chunk-source <source#anchor>` per provided chunk ID
+- one `--tag <t>` per provided tag (fact/feedback only — `engram learn qa` and `engram amend`
+  take no `--tag`; a qa handoff carrying tags → drop them and say so: append the exact line
+  `tags dropped: qa takes no tag flags` to whatever you output, even command-only output)
 - `--supersedes "<basename>|<type>|<claim>"` if provided (repeatable)
 - for qa: one `--contributors <full-basename>` per basename the parent provided
 
@@ -69,7 +76,8 @@ Rules:
 
 - Never mix fact flags (`--subject/--predicate/--object`) with feedback flags
   (`--behavior/--impact/--action`) in one command.
-- Never hand-author vocab tags or wikilinks — the binary assigns vocab automatically.
+- Never hand-author vocab tags or wikilinks — the binary assigns vocab automatically. Handed-off
+  `--tag` categoricals are NOT vocab: pass them through exactly as provided; never invent tags.
 
 ## Execute, verify, report
 
