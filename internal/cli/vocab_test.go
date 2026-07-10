@@ -524,6 +524,30 @@ func TestWriteVocabAssignment_LearnRendererRoundtripFidelity(t *testing.T) {
 	}))
 }
 
+// TestWriteVocabAssignment_LegacyVocabAfterTagsKeepsTagsPosition ensures
+// tags block lands at the original tags: key position when legacy vocab: key
+// follows it—the anchor-finding regression case where the anchor line IS the
+// vocab: key itself, whose removal destroys the anchor. With ordered removals
+// + arithmetic index, the tags position is computed before any removals shift
+// indices (fixes #678 regression).
+func TestWriteVocabAssignment_LegacyVocabAfterTagsKeepsTagsPosition(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Main case: vocab: key immediately after tags block.
+	input := "---\ntype: fact\ntags:\n    - work-kind/rename\nvocab: [a]\nsource: test\n---\n\nBody.\n"
+	expected := "---\ntype: fact\ntags:\n    - work-kind/rename\n    - vocab/a\nsource: test\n---\n\nBody.\n"
+
+	got := cli.WriteVocabAssignment(input, []string{"a"})
+	g.Expect(got).To(Equal(expected))
+
+	// Subcase: blank line between tags block and vocab: key.
+	inputWithBlank := "---\ntype: fact\ntags:\n    - work-kind/rename\n\nvocab: [a]\nsource: test\n---\n\nBody.\n"
+	gotWithBlank := cli.WriteVocabAssignment(inputWithBlank, []string{"a"})
+	g.Expect(gotWithBlank).To(Equal(expected))
+}
+
 // TestWriteVocabAssignment_LegacyVocabBeforeTagsKeepsTagsPosition ensures
 // tags block lands at the original tags: key position when legacy vocab: key
 // precedes it (fixes #678 index-shift bug).
@@ -620,6 +644,9 @@ func TestWriteVocabAssignment_StripsLegacyChannels(t *testing.T) {
 // random non-vocab tag lists and term lists, parseTagsFromFrontmatter of the
 // writer's output equals tags ++ map("vocab/"+_, terms), and a second
 // application with the same terms is byte-identical (idempotency).
+// Additionally, draws an optional legacy vocab: key at random position
+// (before/after/absent relative to tags:), verifying that tags: is
+// preserved at its original position and idempotency holds.
 func TestWriteVocabAssignment_TagsRoundtripFidelity(t *testing.T) {
 	t.Parallel()
 
@@ -632,45 +659,56 @@ func TestWriteVocabAssignment_TagsRoundtripFidelity(t *testing.T) {
 
 		tags := rapid.SliceOfN(tagGen, 0, maxGenLen).Draw(rt, "tags")
 		terms := rapid.SliceOfN(termGen, 0, maxGenLen).Draw(rt, "terms")
+		legacyVocabPos := rapid.IntRange(0, 2).Draw(rt, "legacyVocabPos") // 0=before, 1=after, 2=absent
+		legacyVocabTerms := rapid.SliceOfN(termGen, 0, 2).Draw(rt, "legacyVocabTerms")
 
-		var tagsBlock strings.Builder
+		// Build frontmatter with optional legacy vocab at random position.
+		var fmBuilder strings.Builder
+		fmBuilder.WriteString("type: fact\n")
+
+		if legacyVocabPos == 0 && len(legacyVocabTerms) > 0 {
+			fmBuilder.WriteString("vocab: [" + strings.Join(legacyVocabTerms, ", ") + "]\n")
+		}
+
 		if len(tags) > 0 {
-			tagsBlock.WriteString("tags:\n")
-
+			fmBuilder.WriteString("tags:\n")
 			for _, tag := range tags {
-				tagsBlock.WriteString("    - " + tag + "\n")
+				fmBuilder.WriteString("    - " + tag + "\n")
 			}
 		}
 
-		content := "---\ntype: fact\nsituation: s\n" + tagsBlock.String() + "---\n\nBody.\n"
+		if legacyVocabPos == 1 && len(legacyVocabTerms) > 0 {
+			fmBuilder.WriteString("vocab: [" + strings.Join(legacyVocabTerms, ", ") + "]\n")
+		}
 
+		content := "---\n" + fmBuilder.String() + "---\n\nBody.\n"
 		got := cli.WriteVocabAssignment(content, terms)
 
 		const delim = "---\n"
-
 		afterDelim := strings.TrimPrefix(got, delim)
-
 		frontmatter, _, found := strings.Cut(afterDelim, "\n"+delim)
 		if !found {
 			rt.Fatalf("no closing delimiter in %q", got)
 		}
 
+		// Expected tags after assignment: original tags + vocab/-prefixed terms.
 		want := make([]string, 0, len(tags)+len(terms))
 		want = append(want, tags...)
-
 		for _, term := range terms {
 			want = append(want, "vocab/"+term)
 		}
 
 		gotTags := cli.ExportParseTagsFromFrontmatter(frontmatter)
 
-		switch {
-		case len(want) == 0 && len(gotTags) != 0:
+		if len(want) == 0 && len(gotTags) != 0 {
 			rt.Fatalf("want no tags, got %v", gotTags)
-		case len(want) > 0 && !slices.Equal(gotTags, want):
+		}
+
+		if len(want) > 0 && !slices.Equal(gotTags, want) {
 			rt.Fatalf("tags: got %v want %v\nfull:\n%s", gotTags, want, got)
 		}
 
+		// Idempotency: second application with same terms is byte-identical.
 		twice := cli.WriteVocabAssignment(got, terms)
 		if twice != got {
 			rt.Fatalf("second application not idempotent:\nfirst:\n%q\nsecond:\n%q", got, twice)
