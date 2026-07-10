@@ -260,7 +260,7 @@ func TestCollectTriggerVaultStats_WithVocabTagsAndNoFrontmatter(t *testing.T) {
 	readFile := func(path string) ([]byte, error) {
 		switch path {
 		case "/vault/tagged.md":
-			return []byte("---\ntype: fact\nvocab:\n  - my-term\n---\nbody\n"), nil
+			return []byte("---\ntype: fact\ntags:\n    - vocab/my-term\n---\nbody\n"), nil
 		case "/vault/untagged.md":
 			return []byte("---\ntype: fact\n---\nbody\n"), nil
 		case "/vault/no-fm.md":

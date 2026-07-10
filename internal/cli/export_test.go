@@ -55,6 +55,7 @@ var (
 	ExportExtractLuhmannFromFilename       = extractLuhmannFromFilename
 	ExportFillRecencyBand                  = fillRecencyBand
 	ExportFinishUpdate                     = finishUpdate
+	ExportIDAndDateFromNoteFilename        = idAndDateFromNoteFilename
 	ExportInitializeVault                  = initializeVault
 	ExportIsQAQuestionFilename             = isQAQuestionFilename
 	ExportIsQueryExcludedKind              = isQueryExcludedKind

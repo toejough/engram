@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"time"
-
-	"go.yaml.in/yaml/v3"
 )
 
 // unexported constants.
@@ -92,8 +90,9 @@ func collectTriggerVaultStats(
 // (e.g. emitRefitRequest) — avoids a second directory pass. A bare-vocab
 // DEFINITION note (isVocabDefinitionNote) contributes to neither totalNotes
 // nor untaggedCount — it is not a member note at all. Member terms are read
-// from both the legacy `vocab:` frontmatter key AND the tags: vocab/<term>
-// namespace, so notes already migrated to the tags convention still count.
+// SOLELY from the tags: vocab/<term> namespace (#678 Task 5: the union with
+// the legacy `vocab:` frontmatter key is retired — a single read source
+// means a term can never be double-counted from the same note).
 func collectTriggerVaultStatsFromNames(
 	vault string,
 	names []string,
@@ -122,22 +121,11 @@ func collectTriggerVaultStatsFromNames(
 			return
 		}
 
-		var doc noteMiniDoc
-
-		if yaml.Unmarshal(frontmatterBytes, &doc) != nil {
-			untaggedCount++
-			return
-		}
-
 		tagTerms := vocabTermsFromTags(parseTagsFromFrontmatter(string(frontmatterBytes)))
 
-		if len(doc.Vocab) == 0 && len(tagTerms) == 0 {
+		if len(tagTerms) == 0 {
 			untaggedCount++
 			return
-		}
-
-		for _, term := range doc.Vocab {
-			memberCounts[term]++
 		}
 
 		for _, term := range tagTerms {
@@ -207,8 +195,7 @@ func evaluateVocabTriggers(
 
 // scanNonVocabNotes calls visit for each non-vocab filename in names.
 // visit receives (name, raw bytes, readErr); raw is nil when readErr is non-nil.
-// Shared primitive used by collectTriggerVaultStats (untaggedCount) and
-// countMembersFromNotes (vocab_commands.go) to avoid duplicating the loop.
+// Shared primitive used by collectTriggerVaultStats (untaggedCount).
 func scanNonVocabNotes(
 	vault string,
 	names []string,

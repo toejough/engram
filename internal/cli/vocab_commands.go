@@ -28,8 +28,8 @@ type RefitPlan struct {
 
 // SeedTerm is one entry in the bootstrap seed YAML file:
 // [{term, description, exemplars}]. Exemplars are situation lines from
-// representative member notes; they are rendered into the term-note body,
-// which IS the term's embedding text (description alone under-feeds the
+// representative member notes; they are rendered into the definition note's
+// body, which IS the term's embedding text (description alone under-feeds the
 // embedding — measured r@5 45.5% vs the 64.6% member-centroid baseline).
 type SeedTerm struct {
 	Term        string   `yaml:"term"`
@@ -61,7 +61,8 @@ type VocabDeps struct {
 	ReadFile func(path string) ([]byte, error)
 	// WriteFile atomically writes data to path (create or overwrite).
 	WriteFile func(path string, data []byte) error
-	// DeleteFile removes a file by path. Used by refit to delete removed term notes.
+	// DeleteFile removes a file by path. Used by refit to delete removed/renamed
+	// definition notes and their sidecars.
 	DeleteFile func(path string) error
 	// WriteSidecar writes an embedding sidecar atomically.
 	WriteSidecar func(path string, data []byte) error
@@ -75,7 +76,7 @@ type VocabDeps struct {
 
 // VocabProposeArgs holds parsed flags for `engram vocab propose`.
 // The LLM gate runs agent-side before calling this command; `engram vocab propose`
-// performs only the mechanical part (create term note, embed, regen index, minor version bump).
+// performs only the mechanical part (create the definition note, embed, minor version bump).
 type VocabProposeArgs struct {
 	Vault       string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll // unbreakable env+desc struct-tag string
 	Term        string `targ:"flag,name=term,required,desc=kebab-case term name (required)"`
@@ -102,9 +103,12 @@ type VocabStatsDeps struct {
 	ReadFile func(path string) ([]byte, error)
 }
 
-// RunVocabBootstrap seeds term notes from a YAML seed file, embeds them,
-// mechanically assigns vocab terms to ALL existing non-vocab notes, and
-// generates vocab.index.md. Idempotent: re-running refreshes assignments.
+// RunVocabBootstrap mints a bare-vocab-tagged definition fact note per seed
+// term (idempotent: a term that already has a definition note is left
+// untouched), mints the vocab-definition family note when absent, embeds
+// every minted note, and mechanically assigns vocab terms to ALL existing
+// non-vocab notes. No vocab.index.md is ever written — the index is retired
+// (#678).
 func RunVocabBootstrap(ctx context.Context, args VocabBootstrapArgs, deps VocabDeps, stdout io.Writer) error {
 	if args.SeedFile == "" {
 		return errVocabBootstrapMissingSeed
@@ -136,7 +140,10 @@ func RunVocabBootstrap(ctx context.Context, args VocabBootstrapArgs, deps VocabD
 
 	when := deps.Now()
 
-	writeAndEmbedSeedTerms(ctx, deps, args.Vault, seed, initialVocabVersion, when)
+	names, _ := deps.ListMD(args.Vault)
+
+	ensureVocabFamilyNote(ctx, deps, args.Vault, &names, initialVocabVersion, when, "bootstrap")
+	writeAndEmbedSeedTerms(ctx, deps, args.Vault, &names, seed, when)
 
 	// Load term vectors from the just-written sidecars.
 	terms, termsErr := loadTermVectors(args.Vault, deps.ListMD, deps.ReadFile)
@@ -150,19 +157,7 @@ func RunVocabBootstrap(ctx context.Context, args VocabBootstrapArgs, deps VocabD
 	memberCounts := make(map[string]int)
 
 	if len(terms) > 0 {
-		names, _ := deps.ListMD(args.Vault)
 		memberCounts = retagAllNotesTwoPass(deps, args.Vault, terms, floor, buildLastRefitDoc(names, when))
-	}
-
-	entries := buildIndexEntries(seed, memberCounts)
-
-	// Write vocab.index.md.
-	indexContent := renderVocabIndexContent(entries, initialVocabVersion, when)
-	indexPath := filepath.Join(args.Vault, vocabIndexFilename)
-
-	writeErr := deps.WriteFile(indexPath, []byte(indexContent))
-	if writeErr != nil {
-		return fmt.Errorf("vocab bootstrap: writing index: %w", writeErr)
 	}
 
 	_, _ = fmt.Fprintf(stdout, "vocab bootstrap: %d terms, %d notes assigned\n", len(seed), sumCounts(memberCounts))
@@ -170,9 +165,10 @@ func RunVocabBootstrap(ctx context.Context, args VocabBootstrapArgs, deps VocabD
 	return nil
 }
 
-// RunVocabPropose creates a new term note, embeds it, regenerates vocab.index.md,
-// and bumps the minor version. The LLM gate (check: no existing term covers it,
-// projected attachment ≤ 20% of vault) runs AGENT-SIDE before calling this command.
+// RunVocabPropose mints a new term's definition note, embeds it, and bumps
+// the minor version (persisted onto the vocab-definition family note). The
+// LLM gate (check: no existing term covers it, projected attachment ≤ 20% of
+// vault) runs AGENT-SIDE before calling this command.
 func RunVocabPropose(ctx context.Context, args VocabProposeArgs, deps VocabDeps, stdout io.Writer) error {
 	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
 	if lockErr != nil {
@@ -187,16 +183,14 @@ func RunVocabPropose(ctx context.Context, args VocabProposeArgs, deps VocabDeps,
 	// it, and persist the bump onto that same family note.
 	newVersion := bumpAndPersistVocabVersion(deps, args.Vault, bumpMinorVersion, "vocab propose")
 
-	// Write and embed the new term note.
-	embedErr := writeAndEmbedTermNote(ctx, deps, args.Vault, args.Term, args.Description, nil, newVersion, when)
-	if embedErr != nil && deps.LogWarning != nil {
-		deps.LogWarning("vocab propose: embedding %s failed: %v", args.Term, embedErr)
-	}
+	names, _ := deps.ListMD(args.Vault)
 
-	// Regenerate the index with all current term notes.
-	indexErr := regenVocabIndex(deps, args.Vault, newVersion, when)
-	if indexErr != nil {
-		return fmt.Errorf("vocab propose: regenerating index: %w", indexErr)
+	f := definitionNoteFactFields(args.Term, args.Description, vocabLifecycleSource("propose", newVersion))
+	slug := definitionNoteSlug(args.Term)
+
+	mintErr := mintDefinitionNote(ctx, deps, args.Vault, &names, slug, f, "", nil, when)
+	if mintErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("vocab propose: embedding %s failed: %v", args.Term, mintErr)
 	}
 
 	_, _ = fmt.Fprintf(stdout, "vocab propose: created %s (version → %s)\n", args.Term, newVersion)
@@ -206,9 +200,9 @@ func RunVocabPropose(ctx context.Context, args VocabProposeArgs, deps VocabDeps,
 
 // RunVocabRefit applies a refit plan to the vocab set. When --emit-request is
 // set, prints the JSON payload to feed the LLM and exits. Otherwise, the plan
-// file drives: new term creation, renames (term note + member rewrites),
-// removals (term note deletion + member clearing), re-tag of all members,
-// major version bump, and index regen.
+// file drives: new term creation, renames (definition note re-minted in
+// place + member rewrites), removals (definition note + sidecar deletion +
+// member clearing), re-tag of all members, and a major version bump.
 func RunVocabRefit(ctx context.Context, args VocabRefitArgs, deps VocabDeps, stdout io.Writer) error {
 	if args.EmitRequest {
 		return emitRefitRequest(args.Vault, deps, stdout)
@@ -238,7 +232,9 @@ func RunVocabRefit(ctx context.Context, args VocabRefitArgs, deps VocabDeps, std
 
 	applyRefitRemovals(deps, args.Vault, plan.Removals)
 	applyRefitRenames(ctx, deps, args.Vault, plan.Renames, newVersion, when)
-	applyRefitNewTerms(ctx, deps, args.Vault, plan.NewTerms, newVersion, when)
+
+	names, _ := deps.ListMD(args.Vault)
+	applyRefitNewTerms(ctx, deps, args.Vault, &names, plan.NewTerms, newVersion, when)
 
 	// Clear removed terms from all member notes.
 	if len(plan.Removals) > 0 {
@@ -253,14 +249,8 @@ func RunVocabRefit(ctx context.Context, args VocabRefitArgs, deps VocabDeps, std
 	terms, _ := loadTermVectors(args.Vault, deps.ListMD, deps.ReadFile)
 
 	if len(terms) > 0 {
-		names, _ := deps.ListMD(args.Vault)
-		_ = retagAllNotesTwoPass(deps, args.Vault, terms, DefaultVocabFloor, buildLastRefitDoc(names, when))
-	}
-
-	// Regenerate index.
-	indexErr := regenVocabIndex(deps, args.Vault, newVersion, when)
-	if indexErr != nil {
-		return fmt.Errorf("vocab refit: regenerating index: %w", indexErr)
+		refitNames, _ := deps.ListMD(args.Vault)
+		_ = retagAllNotesTwoPass(deps, args.Vault, terms, DefaultVocabFloor, buildLastRefitDoc(refitNames, when))
 	}
 
 	_, _ = fmt.Fprintf(stdout, "vocab refit applied: version → %s\n", newVersion)
@@ -327,11 +317,16 @@ const (
 	// the vault-wide vocab_version (the bare-vocab-tagged note whose slug is
 	// NOT a term definition).
 	vocabFamilySlug = "vocab-definition"
-	// vocabIndexFilename is the filename of the machine-generated vocab MOC.
+	// vocabIndexFilename is the filename of the (retired) machine-generated
+	// vocab MOC. Kept only for the defensive stats-scan skip and for
+	// vocab_centroids.go's old-shape sidecar-metadata scan; #678 Task 7's
+	// migration reader is the last place that still needs to recognize it.
 	vocabIndexFilename = "vocab.index.md"
 	// vocabNotePerm is the file permission used for vocab note writes.
 	vocabNotePerm = fs.FileMode(0o600)
-	// vocabNotePrefix is the filename prefix shared by all vocab term notes.
+	// vocabNotePrefix is the filename prefix shared by all old-shape vocab
+	// term notes (pre-#678; retained for isVocabKindFilename/isVocabTermFilename,
+	// which vocab_centroids.go's old-shape metadata scan still depends on).
 	vocabNotePrefix = "vocab."
 )
 
@@ -353,11 +348,11 @@ type definitionNoteFields struct {
 	VocabVersion string `yaml:"vocab_version,omitempty"`
 }
 
-// noteMiniDoc is used to parse only the vocab: key from an arbitrary note's
-// frontmatter — the minimal surface needed by stats and assignment scanning.
+// noteMiniDoc is used to parse only the type: key from an arbitrary note's
+// frontmatter — the minimal surface needed by extractNoteVocabTags to
+// exclude vocab/vocab-index-typed notes from member scanning.
 type noteMiniDoc struct {
-	Type  string   `yaml:"type"`
-	Vocab []string `yaml:"vocab,omitempty"`
+	Type string `yaml:"type"`
 }
 
 // refitTermEntry is the JSON shape of a term entry in the refit-request payload.
@@ -366,54 +361,59 @@ type refitTermEntry struct {
 	Description string `json:"description"`
 }
 
-// vocabIndexEntry is one entry in the generated vocab.index.md body.
-type vocabIndexEntry struct {
-	Term        string
-	Description string
-	MemberCount int
-}
-
-// vocabIndexFrontmatterDoc is the YAML shape of vocab.index.md frontmatter.
-type vocabIndexFrontmatterDoc struct {
-	Type         string `yaml:"type"`
-	VocabVersion string `yaml:"vocab_version"`
-	Created      string `yaml:"created"`
-}
-
-// applyRefitNewTerms creates new term notes for each new term in the plan.
+// applyRefitNewTerms mints a fresh definition note for each new term in the
+// refit plan (mintDefinitionNote — same fresh-Luhmann-id mint bootstrap/propose
+// use). names is updated in place so ids allocated in this loop cannot collide.
 func applyRefitNewTerms(
 	ctx context.Context,
 	deps VocabDeps,
 	vault string,
+	names *[]string,
 	newTerms []SeedTerm,
 	newVersion string,
 	when time.Time,
 ) {
 	for _, term := range newTerms {
-		newErr := writeAndEmbedTermNote(ctx, deps, vault, term.Term, term.Description, term.Exemplars, newVersion, when)
-		if newErr != nil && deps.LogWarning != nil {
-			deps.LogWarning("vocab refit: creating new term %s: %v", term.Term, newErr)
+		f := definitionNoteFactFields(term.Term, term.Description, vocabLifecycleSource("refit", newVersion))
+		slug := definitionNoteSlug(term.Term)
+
+		mintErr := mintDefinitionNote(ctx, deps, vault, names, slug, f, "", term.Exemplars, when)
+		if mintErr != nil && deps.LogWarning != nil {
+			deps.LogWarning("vocab refit: creating new term %s: %v", term.Term, mintErr)
 		}
 	}
 }
 
-// applyRefitRemovals deletes term notes for all removed terms.
+// applyRefitRemovals deletes the definition note AND its embedding sidecar
+// for each removed term, located by scanning the vault for a definition note
+// whose slug parses to that term (termFromDefinitionSlug).
 func applyRefitRemovals(deps VocabDeps, vault string, removals []string) {
 	if deps.DeleteFile == nil {
 		return
 	}
 
-	for _, term := range removals {
-		termPath := termNotePath(vault, term)
-
-		delErr := deps.DeleteFile(termPath)
-		if delErr != nil && deps.LogWarning != nil {
-			deps.LogWarning("vocab refit: deleting %s: %v", termPath, delErr)
+	names, listErr := deps.ListMD(vault)
+	if listErr != nil {
+		if deps.LogWarning != nil {
+			deps.LogWarning("vocab refit: listing vault for removals: %v", listErr)
 		}
+
+		return
+	}
+
+	for _, term := range removals {
+		path, ok := findDefinitionNotePathForTerm(vault, names, term, deps.ReadFile)
+		if !ok {
+			continue
+		}
+
+		deleteDefinitionNoteAndSidecar(deps, path)
 	}
 }
 
-// applyRefitRenames deletes old term notes, creates new ones, and rewrites members.
+// applyRefitRenames re-mints each renamed term's definition note (same
+// Luhmann id + date, new slug + re-embedded body — see renameDefinitionNote)
+// and substitutes vocab/<from> → vocab/<to> in every member note's tags.
 func applyRefitRenames(
 	ctx context.Context,
 	deps VocabDeps,
@@ -422,28 +422,18 @@ func applyRefitRenames(
 	newVersion string,
 	when time.Time,
 ) {
+	names, listErr := deps.ListMD(vault)
+	if listErr != nil {
+		if deps.LogWarning != nil {
+			deps.LogWarning("vocab refit: listing vault for renames: %v", listErr)
+		}
+
+		return
+	}
+
 	for _, rename := range renames {
-		// Delete old term note.
-		if deps.DeleteFile != nil {
-			oldPath := termNotePath(vault, rename.From)
+		renameDefinitionNote(ctx, deps, vault, names, rename, newVersion, when)
 
-			delErr := deps.DeleteFile(oldPath)
-			if delErr != nil && deps.LogWarning != nil {
-				deps.LogWarning("vocab refit: deleting old term %s: %v", oldPath, delErr)
-			}
-		}
-
-		// Create new term note (description carried from old term note if available).
-		desc := loadTermDescription(vault, rename.From, deps.ReadFile)
-
-		// Exemplars are refit-maintained; a rename carries only the description
-		// forward (the refit plan's re-tag pass regenerates exemplar context).
-		embedErr := writeAndEmbedTermNote(ctx, deps, vault, rename.To, desc, nil, newVersion, when)
-		if embedErr != nil && deps.LogWarning != nil {
-			deps.LogWarning("vocab refit: creating renamed term %s: %v", rename.To, embedErr)
-		}
-
-		// Rewrite member notes: replace old term with new term in both channels.
 		rewriteErr := rewriteMemberTermRename(deps, vault, rename.From, rename.To)
 		if rewriteErr != nil && deps.LogWarning != nil {
 			deps.LogWarning("vocab refit: rewriting members for rename %s→%s: %v",
@@ -526,21 +516,6 @@ func assignVocabToNote(deps VocabDeps, vault, name string, terms []TermWithVecto
 	return assigned
 }
 
-// buildIndexEntries maps seed terms to member counts to produce index entries.
-func buildIndexEntries(seed []SeedTerm, memberCounts map[string]int) []vocabIndexEntry {
-	entries := make([]vocabIndexEntry, 0, len(seed))
-
-	for _, term := range seed {
-		entries = append(entries, vocabIndexEntry{
-			Term:        term.Term,
-			Description: term.Description,
-			MemberCount: memberCounts[term.Term],
-		})
-	}
-
-	return entries
-}
-
 // buildLastRefitDoc builds a vocabLastRefitDoc stamped with the current note
 // count and date. Pure: callers pass the names they already listed. Used by
 // bootstrap and refit to seed last_refit so the trigger checker has a baseline
@@ -555,10 +530,9 @@ func buildLastRefitDoc(names []string, now time.Time) *vocabLastRefitDoc {
 // bumpAndPersistVocabVersion reads the current vocab_version from the
 // vocab-definition family note, applies bump (bumpMinorVersion for propose,
 // bumpMajorVersion for refit), and persists the result onto that same family
-// note in place. A missing family note (pre-migration vaults; bootstrap does
-// not yet mint one — Task 5) is logged via site and skipped, not fatal to the
-// rest of the command. Returns the new version for the caller to pass to
-// writeAndEmbedTermNote / regenVocabIndex.
+// note in place. A missing family note (pre-bootstrap vaults) is logged via
+// site and skipped, not fatal to the rest of the command. Returns the new
+// version for the caller to pass to mintDefinitionNote / applyRefitNewTerms.
 func bumpAndPersistVocabVersion(deps VocabDeps, vault string, bump func(string) string, site string) string {
 	currentVersion := loadCurrentVocabVersion(vault, deps.ListMD, deps.ReadFile)
 	newVersion := bump(currentVersion)
@@ -601,28 +575,23 @@ func bumpMinorVersion(ver string) string {
 	return parts[0] + "." + strconv.Itoa(minor+1)
 }
 
-// clearRemovalsFromNoteContent filters out removed terms from a note's vocab channels.
-// Returns the original content unchanged if no removals apply or the frontmatter is unreadable.
+// clearRemovalsFromNoteContent filters out removed terms from a note's
+// vocab/<term> tags. Returns the original content unchanged if no removals
+// apply or the frontmatter is unreadable.
 func clearRemovalsFromNoteContent(raw []byte, removalSet map[string]bool) string {
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
 		return string(raw)
 	}
 
-	var doc noteMiniDoc
-
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil {
-		return string(raw)
-	}
-
-	kept := filterKeptTerms(doc.Vocab, removalSet)
+	currentTerms := vocabTermsFromTags(parseTagsFromFrontmatter(string(frontmatter)))
+	kept := filterKeptTerms(currentTerms, removalSet)
 
 	return WriteVocabAssignment(string(raw), kept)
 }
 
 // clearRemovedTermsFromMembers removes the given terms from all member notes'
-// vocab: frontmatter list and Vocab: body line.
+// vocab/<term> tags.
 func clearRemovedTermsFromMembers(deps VocabDeps, vault string, removals []string) error {
 	names, listErr := deps.ListMD(vault)
 	if listErr != nil {
@@ -675,22 +644,16 @@ func clearRemovedTermsFromNote(deps VocabDeps, notePath string, removals []strin
 }
 
 // collectCurrentTermEntries scans names for term identity and returns a list
-// of {term, description} entries for the refit-request payload. Both note
-// shapes are read during the tags migration: the old vocab.<term>.md term
-// note (VocabFrontmatter, minted by the not-yet-migrated bootstrap/propose/
-// refit writers — see #678 Task 4 transition note) and the new bare-vocab-
-// tagged definition fact note (term from termFromDefinitionSlug, description
-// from the object: field). The family note (slug vocab-definition) never
-// contributes an entry — termFromDefinitionSlug returns false for it.
+// of {term, description} entries for the refit-request payload. Term identity
+// is read SOLELY from the bare-vocab-tagged definition fact note (#678
+// Task 5: the union with the old-shape vocab.<term>.md term note is retired —
+// a single read source means a term can never appear twice in this list). The
+// family note (slug vocab-definition) never contributes an entry —
+// termFromDefinitionSlug returns false for it.
 func collectCurrentTermEntries(names []string, vault string, deps VocabDeps) []refitTermEntry {
 	currentTerms := make([]refitTermEntry, 0)
 
 	for _, name := range names {
-		if entry, ok := oldShapeTermEntry(vault, name, deps.ReadFile); ok {
-			currentTerms = append(currentTerms, entry)
-			continue
-		}
-
 		if entry, ok := definitionNoteTermEntry(vault, name, deps.ReadFile); ok {
 			currentTerms = append(currentTerms, entry)
 		}
@@ -701,10 +664,9 @@ func collectCurrentTermEntries(names []string, vault string, deps VocabDeps) []r
 
 // collectVaultStats scans vault names and returns per-term member counts,
 // term names, total note count, and untagged note count. Term identity is
-// read from both note shapes during the tags migration: the old
-// vocab.<term>.md filename (isVocabTermFilename) and the new bare-vocab-
-// tagged definition note (definitionNoteTerm) — see collectCurrentTermEntries
-// for the same dual-read rationale.
+// read SOLELY from the bare-vocab-tagged definition note (definitionNoteTerm)
+// — #678 Task 5: the union with the old-shape vocab.<term>.md filename scan is
+// retired, matching collectCurrentTermEntries's single-read-source rationale.
 func collectVaultStats(
 	names []string,
 	deps VocabStatsDeps,
@@ -715,12 +677,6 @@ func collectVaultStats(
 
 	for _, name := range names {
 		if name == vocabIndexFilename {
-			continue
-		}
-
-		if isVocabTermFilename(name) {
-			termNames = append(termNames, termNameFromFilename(name))
-
 			continue
 		}
 
@@ -755,43 +711,85 @@ func collectVaultStats(
 	return termNames, memberCounts, totalNotes, untaggedCount
 }
 
-// countMembersFromNotes scans all non-vocab notes and counts per-term members
-// by parsing the vocab: frontmatter key. Uses scanNonVocabNotes (vocab_trigger.go)
-// to share the loop with collectTriggerVaultStats.
-func countMembersFromNotes(
-	listMD func(string) ([]string, error),
-	readFile func(string) ([]byte, error),
+// definitionNoteExistsForTerm reports whether a bare-vocab-tagged definition
+// note already exists for term — bootstrap's idempotency check (a second run
+// with the same seed mints nothing for a term that already has one).
+func definitionNoteExistsForTerm(
 	vault string,
-) (map[string]int, error) {
-	names, listErr := listMD(vault)
-	if listErr != nil {
-		return nil, fmt.Errorf("listing vault: %w", listErr)
+	names []string,
+	term string,
+	readFile func(string) ([]byte, error),
+) bool {
+	_, ok := findDefinitionNotePathForTerm(vault, names, term, readFile)
+
+	return ok
+}
+
+// definitionNoteFactFields builds the situation/subject/predicate/object
+// factFields for a term's definition note (the brief's concrete shape:
+// situation "recalling what the <term> vocab term covers, or assigning vocab
+// terms", subject "the <term> vocab term", predicate "covers", object the
+// caller-supplied description). Tagged bare "vocab" only — never vocab/<term>
+// (a definition must never assign its own term). Luhmann is left unset:
+// callers (mintDefinitionNote for a fresh mint, renameDefinitionNote for a
+// rename) set it once the note's id is known.
+func definitionNoteFactFields(term, description, source string) factFields {
+	return factFields{
+		Situation: fmt.Sprintf("recalling what the %s vocab term covers, or assigning vocab terms", term),
+		Subject:   fmt.Sprintf("the %s vocab term", term),
+		Predicate: "covers",
+		Object:    description,
+		Source:    source,
+		Tier:      tierL2,
+		Tags:      []string{typeVocab},
+	}
+}
+
+// definitionNoteLocation scans names for the definition note whose slug
+// (termFromDefinitionSlug) matches term, returning its basename, Luhmann id +
+// date (idAndDateFromNoteFilename — preserved across a rename), and its
+// object-field description. ok=false when no matching, readable, well-formed
+// definition note is found.
+func definitionNoteLocation(
+	vault string,
+	names []string,
+	term string,
+	readFile func(string) ([]byte, error),
+) (name, id, date, description string, ok bool) {
+	for _, candidate := range names {
+		t, raw, matchOK := readVocabDefinitionNote(vault, candidate, readFile)
+		if !matchOK || t != term {
+			continue
+		}
+
+		luhmannID, dateStr, idOK := idAndDateFromNoteFilename(candidate)
+		if !idOK {
+			continue
+		}
+
+		fields, fieldsOK := readDefinitionNoteFields(raw)
+		if !fieldsOK {
+			continue
+		}
+
+		return candidate, luhmannID, dateStr, fields.Object, true
 	}
 
-	counts := make(map[string]int)
+	return "", "", "", "", false
+}
 
-	scanNonVocabNotes(vault, names, readFile, func(_ string, raw []byte, readErr error) {
-		if readErr != nil || len(raw) == 0 {
-			return
-		}
+// definitionNotePath joins vault, id, date, and slug into a note filename of
+// the form "<id>.<date>.<slug>.md" — the same shape learnPath renders, but
+// taking a raw date STRING (a rename preserves the OLD note's exact date
+// text rather than re-deriving one from a time.Time).
+func definitionNotePath(vault, id, date, slug string) string {
+	return filepath.Join(vault, fmt.Sprintf("%s.%s.%s.md", id, date, slug))
+}
 
-		frontmatter, ok := splitFrontmatter(raw)
-		if !ok {
-			return
-		}
-
-		var doc noteMiniDoc
-
-		if yaml.Unmarshal(frontmatter, &doc) != nil {
-			return
-		}
-
-		for _, term := range doc.Vocab {
-			counts[term]++
-		}
-	})
-
-	return counts, nil
+// definitionNoteSlug builds a term-definition note's slug:
+// "vocab-<term>-definition".
+func definitionNoteSlug(term string) string {
+	return vocabDefinitionPrefix + term + vocabDefinitionSuffix
 }
 
 // definitionNoteTerm returns the term parsed from a bare-vocab-tagged
@@ -822,9 +820,27 @@ func definitionNoteTermEntry(vault, name string, readFile func(string) ([]byte, 
 	return refitTermEntry{Term: term, Description: fields.Object}, true
 }
 
-// embedTermNote embeds a term note and writes its sidecar. Failures are
-// warned-and-skipped: a missing sidecar is recoverable via `engram embed apply`.
-func embedTermNote(ctx context.Context, deps VocabDeps, notePath, content string) {
+// deleteDefinitionNoteAndSidecar deletes notePath and its embedding sidecar,
+// logging (not failing) either error. Shared by applyRefitRemovals and
+// renameDefinitionNote's old-note cleanup.
+func deleteDefinitionNoteAndSidecar(deps VocabDeps, notePath string) {
+	delErr := deps.DeleteFile(notePath)
+	if delErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("vocab refit: deleting %s: %v", notePath, delErr)
+	}
+
+	sidecarPath := embed.SidecarPath(notePath)
+
+	sidecarDelErr := deps.DeleteFile(sidecarPath)
+	if sidecarDelErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("vocab refit: deleting %s: %v", sidecarPath, sidecarDelErr)
+	}
+}
+
+// embedDefinitionNote embeds a definition note and writes its sidecar.
+// Failures are warned-and-skipped: a missing sidecar is recoverable via
+// `engram embed apply`.
+func embedDefinitionNote(ctx context.Context, deps VocabDeps, notePath, content string) {
 	if deps.Embedder == nil || deps.WriteSidecar == nil {
 		return
 	}
@@ -888,13 +904,40 @@ func emitRefitRequest(vault string, deps VocabDeps, stdout io.Writer) error {
 	return nil
 }
 
+// ensureVocabFamilyNote mints the vocab-definition family note when absent
+// (findVocabFamilyNote returns errVocabFamilyNoteMissing); a no-op when
+// already present — bootstrap's idempotency requirement. The minted note
+// documents the tags: convention WITHOUT enumerating any term (a maintained
+// term list is the stale-index problem reborn — see
+// TestVocabFamilyNote_NeverEnumeratesTerms).
+func ensureVocabFamilyNote(
+	ctx context.Context,
+	deps VocabDeps,
+	vault string,
+	names *[]string,
+	vocabVersion string,
+	when time.Time,
+	site string,
+) {
+	_, _, findErr := findVocabFamilyNote(vault, *names, deps.ReadFile)
+	if findErr == nil {
+		return // already present — idempotent no-op
+	}
+
+	f := familyDefinitionFactFields(vocabLifecycleSource(site, vocabVersion))
+
+	mintErr := mintDefinitionNote(ctx, deps, vault, names, vocabFamilySlug, f, vocabVersion, nil, when)
+	if mintErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("vocab %s: minting family note: %v", site, mintErr)
+	}
+}
+
 // extractNoteVocabTags reads a non-vocab note and returns its member terms,
-// read from both the legacy `vocab:` frontmatter key AND the `tags:`
-// vocab/<term> namespace (vocabTermsFromTags) — the same dual-read convention
-// as collectTriggerVaultStatsFromNames (vocab_trigger.go), so notes already
-// migrated to tags: still count. Returns nil, false when the note is
-// unreadable, has no parseable frontmatter, has unparseable YAML, is a
-// vocab/vocab-index type note, or is a bare-vocab DEFINITION note (excluded).
+// read SOLELY from the tags: vocab/<term> namespace (#678 Task 5: the union
+// with the legacy `vocab:` frontmatter key is retired). Returns nil, false
+// when the note is unreadable, has no parseable frontmatter, has unparseable
+// YAML, is a vocab/vocab-index type note, or is a bare-vocab DEFINITION note
+// (excluded).
 func extractNoteVocabTags(deps VocabStatsDeps, vault, name string) ([]string, bool) {
 	notePath := filepath.Join(vault, name)
 
@@ -923,9 +966,27 @@ func extractNoteVocabTags(deps VocabStatsDeps, vault, name string) ([]string, bo
 		return nil, false
 	}
 
-	tagTerms := vocabTermsFromTags(parseTagsFromFrontmatter(string(frontmatter)))
+	return vocabTermsFromTags(parseTagsFromFrontmatter(string(frontmatter))), true
+}
 
-	return append(append([]string{}, doc.Vocab...), tagTerms...), true
+// familyDefinitionFactFields builds the factFields for the vocab-definition
+// family note: subject "the vocab tag family", object documents the tags:
+// convention WITHOUT enumerating any term name — a maintained term list in
+// this note is the stale-index problem reborn (issue #678's most explicit
+// warning; see TestVocabFamilyNote_NeverEnumeratesTerms). Luhmann is left
+// unset — mintDefinitionNote sets it once allocated.
+func familyDefinitionFactFields(source string) factFields {
+	return factFields{
+		Situation: "recalling how the vocab tag family works, or checking the vault-wide vocab_version",
+		Subject:   "the vocab tag family",
+		Predicate: "covers",
+		Object: "the tags: convention for vocab terms: a definition note carries a bare vocab tag " +
+			"documenting one term's meaning, and a member note carries vocab/<term> tags assigning it " +
+			"to that term; this note's frontmatter carries the vault-wide vocab_version",
+		Source: source,
+		Tier:   tierL2,
+		Tags:   []string{typeVocab},
+	}
 }
 
 // filterKeptTerms returns vocab terms that are not in the removal set.
@@ -939,6 +1000,26 @@ func filterKeptTerms(vocab []string, removalSet map[string]bool) []string {
 	}
 
 	return kept
+}
+
+// findDefinitionNotePathForTerm scans names for the bare-vocab-tagged
+// definition note whose slug (termFromDefinitionSlug) matches term, and
+// returns its full path. Shared by applyRefitRemovals (delete) and
+// definitionNoteExistsForTerm (bootstrap's idempotency check).
+func findDefinitionNotePathForTerm(
+	vault string,
+	names []string,
+	term string,
+	readFile func(string) ([]byte, error),
+) (string, bool) {
+	for _, name := range names {
+		t, ok := definitionNoteTerm(vault, name, readFile)
+		if ok && t == term {
+			return filepath.Join(vault, name), true
+		}
+	}
+
+	return "", false
 }
 
 // findVocabFamilyNote scans names for the bare-vocab-tagged family definition
@@ -972,8 +1053,32 @@ func findVocabFamilyNote(
 	return "", nil, errVocabFamilyNoteMissing
 }
 
+// idAndDateFromNoteFilename extracts the leading "<id>.<date>" segments from
+// a note filename of the form "<id>.<date>.<slug>.md", reusing
+// extractLuhmannFromFilename for the id (the same extractor learn's ListIDs
+// uses). Returns ok=false when the filename has no valid leading Luhmann id
+// or fewer than three dot-separated segments (mirrors slugFromNoteFilename's
+// shape check).
+func idAndDateFromNoteFilename(name string) (id, date string, ok bool) {
+	luhmannID, idOK := extractLuhmannFromFilename(name)
+	if !idOK {
+		return "", "", false
+	}
+
+	const mdExt = ".md"
+
+	parts := strings.SplitN(strings.TrimSuffix(name, mdExt), ".", definitionNoteSlugSegments)
+	if len(parts) != definitionNoteSlugSegments {
+		return "", "", false
+	}
+
+	return luhmannID, parts[1], true
+}
+
 // isVocabKindFilename reports whether a filename is a vocab note of any kind
-// (term note OR index), so both are excluded from member assignment scans.
+// (old-shape term note OR index), so both are excluded from member
+// assignment scans (a new-shape definition note is excluded by content —
+// isVocabDefinitionNote — inside assignVocabToNote instead).
 func isVocabKindFilename(name string) bool {
 	return strings.HasPrefix(name, vocabNotePrefix)
 }
@@ -986,15 +1091,16 @@ func isVocabRewriteExcluded(name string) bool {
 	return isVocabKindFilename(name) || isQAQuestionFilename(name)
 }
 
-// isVocabTermFilename reports whether a filename is a vocab term note
-// (prefix "vocab." and not "vocab.index.md").
+// isVocabTermFilename reports whether a filename is an old-shape vocab term
+// note (prefix "vocab." and not "vocab.index.md"). Retained for
+// vocab_centroids.go's old-shape sidecar-metadata scan (firstTermSidecarMeta).
 func isVocabTermFilename(name string) bool {
 	return strings.HasPrefix(name, vocabNotePrefix) && name != vocabIndexFilename
 }
 
 // loadCurrentVocabVersion reads the vocab_version field from the
 // vocab-definition family note (bare "vocab" tag, slug "vocab-definition") —
-// the version's new home per #678 Task 4. Returns initialVocabVersion ("1.0")
+// the version's home per #678 Task 4. Returns initialVocabVersion ("1.0")
 // — the same migration-safe default the prior vocab.index.md-based read
 // used — when the vault cannot be listed, the family note is absent or
 // unreadable, or its vocab_version key is empty/unparseable.
@@ -1045,42 +1151,17 @@ func loadRefitPlan(planFile string, readFile func(string) ([]byte, error)) (Refi
 	return plan, nil
 }
 
-// loadTermDescription reads the description field from a term note's frontmatter.
-// Returns "" when the note is absent or unreadable.
-func loadTermDescription(vault, term string, readFile func(string) ([]byte, error)) string {
-	notePath := termNotePath(vault, term)
-
-	raw, err := readFile(notePath)
-	if err != nil {
-		return ""
-	}
-
-	frontmatter, ok := splitFrontmatter(raw)
-	if !ok {
-		return ""
-	}
-
-	var doc VocabFrontmatter
-
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil {
-		return ""
-	}
-
-	return doc.Description
-}
-
-// loadTermVectors scans vault for term notes and returns the term name +
-// body vector from each note's sidecar. Term identity is read from both note
-// shapes during the tags migration (see vocabTermNoteIdentity): the old
-// vocab.<term>.md filename and the new bare-vocab-tagged definition note.
-// The old-shape branch is retained because loadTermVectors is a round-trip
-// dependency of the not-yet-migrated RunVocabBootstrap/RunVocabRefit writers
-// — those mint old-shape term notes and then call loadTermVectors in the same
-// pass to drive centroid two-pass assignment; a read-only flip to new-shape
-// would silently zero out that assignment until Task 5 migrates the minters
-// (see #678 Task 4 report, "Deviations").
-// Returns nil when no term notes exist (no-op path for backward compat).
+// loadTermVectors scans vault for bare-vocab-tagged definition notes and
+// returns each term's name + body vector from its sidecar (#678 Task 5: the
+// union with the old-shape vocab.<term>.md term note is retired — a single
+// read source means a term can never be double-counted). names are visited
+// in the order listMD returns them (filename-sorted for the real OS-backed
+// implementation — os.ReadDir sorts by name); the FIRST definition note seen
+// per term wins and any later duplicate is skipped — a cheap dedup guard
+// against a hand-edited vault carrying two definition notes for the same
+// term (structurally impossible via this package's own writers, but not
+// enforced at the filesystem level). The family note is excluded via
+// termFromDefinitionSlug. Returns nil when no definition notes exist.
 func loadTermVectors(
 	vault string,
 	listMD func(string) ([]string, error),
@@ -1091,13 +1172,16 @@ func loadTermVectors(
 		return nil, fmt.Errorf("loading term vectors: listing vault: %w", err)
 	}
 
+	seen := make(map[string]bool, len(names))
 	result := make([]TermWithVector, 0, len(names))
 
 	for _, name := range names {
-		term, ok := vocabTermNoteIdentity(vault, name, readFile)
-		if !ok {
+		term, ok := definitionNoteTerm(vault, name, readFile)
+		if !ok || seen[term] {
 			continue
 		}
+
+		seen[term] = true
 
 		notePath := filepath.Join(vault, name)
 
@@ -1115,6 +1199,43 @@ func loadTermVectors(
 	}
 
 	return result, nil
+}
+
+// mintDefinitionNote allocates a fresh top-level Luhmann id
+// (nextDefinitionLuhmannID, reusing the same allocator learn's
+// writeLearnUnderLock uses) and writes + embeds a brand-new definition note
+// (writeAndEmbedDefinitionNote). names is updated in place with the minted
+// filename so a subsequent mint in the same lock-held loop cannot collide on
+// the id. Callers mint-and-forget the path (idempotency and lookup both go
+// through the vault scan, not the return value), so only the error is
+// returned.
+func mintDefinitionNote(
+	ctx context.Context,
+	deps VocabDeps,
+	vault string,
+	names *[]string,
+	slug string,
+	f factFields,
+	vocabVersion string,
+	exemplars []string,
+	when time.Time,
+) error {
+	id, idErr := nextDefinitionLuhmannID(*names)
+	if idErr != nil {
+		return fmt.Errorf("allocating luhmann id: %w", idErr)
+	}
+
+	f.Luhmann = id
+	path := learnPath(vault, id, slug, when)
+
+	writeErr := writeAndEmbedDefinitionNote(ctx, deps, path, f, vocabVersion, exemplars, when)
+	if writeErr != nil {
+		return writeErr
+	}
+
+	*names = append(*names, filepath.Base(path))
+
+	return nil
 }
 
 // newOsVocabDeps wires VocabDeps to the real filesystem + bundled embedder.
@@ -1151,6 +1272,28 @@ func newOsVocabStatsDeps() VocabStatsDeps {
 	}
 }
 
+// nextDefinitionLuhmannID computes the next top-level Luhmann id from names,
+// reusing extractLuhmannFromFilename (the same id extractor learn's ListIDs
+// uses) and nextLuhmannID (the same allocator writeLearnUnderLock uses for
+// learn, learn.go:647/luhmann.go:126) — a single source of truth for id
+// assignment across learn and vocab minting.
+func nextDefinitionLuhmannID(names []string) (string, error) {
+	existing := make([]string, 0, len(names))
+
+	for _, name := range names {
+		if id, ok := extractLuhmannFromFilename(name); ok {
+			existing = append(existing, id)
+		}
+	}
+
+	id, idErr := nextLuhmannID(existing, "", positionTop)
+	if idErr != nil {
+		return "", fmt.Errorf("next luhmann id: %w", idErr)
+	}
+
+	return id, nil
+}
+
 // noteContainsAnyRemoval reports whether the note content string contains
 // any of the removal term names.
 func noteContainsAnyRemoval(content string, removals []string) bool {
@@ -1161,37 +1304,6 @@ func noteContainsAnyRemoval(content string, removals []string) bool {
 	}
 
 	return false
-}
-
-// oldShapeTermEntry returns a refitTermEntry for an old-shape vocab.<term>.md
-// term note (VocabFrontmatter), or ok=false when name does not match that
-// shape or its frontmatter is unreadable/unparseable. See loadTermVectors for
-// why the old shape is still read alongside the new definition-note shape.
-func oldShapeTermEntry(vault, name string, readFile func(string) ([]byte, error)) (refitTermEntry, bool) {
-	if name == vocabIndexFilename || !isVocabTermFilename(name) {
-		return refitTermEntry{}, false
-	}
-
-	notePath := filepath.Join(vault, name)
-
-	raw, readErr := readFile(notePath)
-	if readErr != nil {
-		return refitTermEntry{}, false
-	}
-
-	frontmatter, ok := splitFrontmatter(raw)
-	if !ok {
-		return refitTermEntry{}, false
-	}
-
-	var doc VocabFrontmatter
-
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil {
-		return refitTermEntry{}, false
-	}
-
-	return refitTermEntry{Term: doc.Term, Description: doc.Description}, true
 }
 
 // printStatsReport writes the formatted vocab stats report to stdout.
@@ -1287,92 +1399,70 @@ func readVocabDefinitionNote(vault, name string, readFile func(string) ([]byte, 
 	return term, raw, true
 }
 
-// regenVocabIndex regenerates vocab.index.md from the current term notes in vault.
-func regenVocabIndex(deps VocabDeps, vault, vocabVersion string, when time.Time) error {
-	names, listErr := deps.ListMD(vault)
-	if listErr != nil {
-		return fmt.Errorf("listing vault: %w", listErr)
+// renameDefinitionNote locates term rename.From's definition note, re-renders
+// it under rename.To (new slug, SAME Luhmann id + date — preserved from the
+// old filename via definitionNoteLocation), re-embeds it
+// (writeAndEmbedDefinitionNote — the body text embeds the term name, so a
+// rename changes ContentHash; the sidecar must be regenerated, never copied),
+// then deletes the old .md + .vec.json. A rename carries the description
+// forward but not exemplars — refit's re-tag pass regenerates member
+// exemplar context, so a rename mints no exemplar section (matches the prior
+// behavior of the old-shape writer this replaces).
+func renameDefinitionNote(
+	ctx context.Context,
+	deps VocabDeps,
+	vault string,
+	names []string,
+	rename TermRename,
+	newVersion string,
+	when time.Time,
+) {
+	oldName, id, dateStr, description, ok := definitionNoteLocation(vault, names, rename.From, deps.ReadFile)
+	if !ok {
+		if deps.LogWarning != nil {
+			deps.LogWarning("vocab refit: rename %s→%s: no definition note found", rename.From, rename.To)
+		}
+
+		return
 	}
 
-	// Collect term descriptions from term notes.
-	termDescriptions := make(map[string]string)
-	termNames := make([]string, 0)
+	f := definitionNoteFactFields(rename.To, description, vocabLifecycleSource("refit", newVersion))
+	f.Luhmann = id
 
-	for _, name := range names {
-		if name == vocabIndexFilename || !isVocabTermFilename(name) {
-			continue
-		}
+	newPath := definitionNotePath(vault, id, dateStr, definitionNoteSlug(rename.To))
 
-		notePath := filepath.Join(vault, name)
-
-		raw, readErr := deps.ReadFile(notePath)
-		if readErr != nil {
-			continue
-		}
-
-		frontmatter, ok := splitFrontmatter(raw)
-		if !ok {
-			continue
-		}
-
-		var doc VocabFrontmatter
-
-		unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-		if unmarshalErr != nil {
-			continue
-		}
-
-		termNames = append(termNames, doc.Term)
-		termDescriptions[doc.Term] = doc.Description
-	}
-
-	sort.Strings(termNames)
-
-	// Count members per term by scanning non-vocab notes.
-	memberCounts, _ := countMembersFromNotes(deps.ListMD, deps.ReadFile, vault)
-
-	entries := make([]vocabIndexEntry, 0, len(termNames))
-
-	for _, term := range termNames {
-		entries = append(entries, vocabIndexEntry{
-			Term:        term,
-			Description: termDescriptions[term],
-			MemberCount: memberCounts[term],
-		})
-	}
-
-	indexContent := renderVocabIndexContent(entries, vocabVersion, when)
-	indexPath := filepath.Join(vault, vocabIndexFilename)
-
-	writeErr := deps.WriteFile(indexPath, []byte(indexContent))
+	writeErr := writeAndEmbedDefinitionNote(ctx, deps, newPath, f, "", nil, when)
 	if writeErr != nil {
-		return fmt.Errorf("writing vocab.index.md: %w", writeErr)
+		if deps.LogWarning != nil {
+			deps.LogWarning("vocab refit: renaming %s→%s: %v", rename.From, rename.To, writeErr)
+		}
+
+		return
 	}
 
-	return nil
+	if deps.DeleteFile == nil {
+		return
+	}
+
+	deleteDefinitionNoteAndSidecar(deps, filepath.Join(vault, oldName))
 }
 
-// renameTermInVocabList parses the note's current vocab: frontmatter list
-// (noteMiniDoc pattern, mirroring clearRemovalsFromNoteContent) and returns
-// the list with fromTerm substituted by toTerm. changed=false when the note
-// has no parseable frontmatter or its list does not contain fromTerm.
+// renameTermInVocabList parses the note's current vocab/<term> tags (tags:
+// frontmatter, vocabTermsFromTags) and returns the list with fromTerm
+// substituted by toTerm. changed=false when the note has no parseable
+// frontmatter or its vocab tags do not contain fromTerm.
 func renameTermInVocabList(raw []byte, fromTerm, toTerm string) ([]string, bool) {
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
 		return nil, false
 	}
 
-	var doc noteMiniDoc
+	currentTerms := vocabTermsFromTags(parseTagsFromFrontmatter(string(frontmatter)))
 
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil {
-		return nil, false
-	}
-
-	renamed := make([]string, len(doc.Vocab))
+	renamed := make([]string, len(currentTerms))
 	changed := false
 
-	for i, term := range doc.Vocab {
+	for i, term := range currentTerms {
 		if term == fromTerm {
 			renamed[i] = toTerm
 			changed = true
@@ -1386,59 +1476,32 @@ func renameTermInVocabList(raw []byte, fromTerm, toTerm string) ([]string, bool)
 	return renamed, changed
 }
 
-// renderTermNoteContent produces the content of a vocab term note. The body
-// (description + exemplar list) IS the term's embedding text: exemplars are
-// situation lines from representative members, and including them moves the
-// term vector toward its members' vector neighborhood.
-func renderTermNoteContent(
-	term, description string,
-	exemplars []string,
-	vocabVersion string,
-	when time.Time,
-) string {
+// renderDefinitionNoteContent renders a definition note's content: the
+// standard fact frontmatter — marshaled through factFrontmatterDoc, never
+// hand-rendered, so its declared field order is the render order — plus the
+// standard fact body formula (renderFactBody) and a verbatim Exemplars:
+// section when exemplars are supplied. The body IS the note's embedding
+// text: exemplars move the term's vector toward its members' neighborhood
+// (see AssignVocabTerms). vocabVersion is "" for a term definition (only the
+// family note carries the vault-wide version).
+func renderDefinitionNoteContent(f factFields, vocabVersion string, exemplars []string, when time.Time) string {
+	f.VocabVersion = vocabVersion
+
+	content := renderFactFrontmatter(f, when) + renderFactBody(f)
+
+	if len(exemplars) == 0 {
+		return content
+	}
+
 	var body strings.Builder
 
-	body.WriteString(description)
-	body.WriteString("\n")
+	body.WriteString("Exemplars:\n")
 
-	if len(exemplars) > 0 {
-		body.WriteString("\nExemplars:\n")
-
-		for _, exemplar := range exemplars {
-			body.WriteString("- " + exemplar + "\n")
-		}
+	for _, exemplar := range exemplars {
+		body.WriteString("- " + exemplar + "\n")
 	}
 
-	return marshalFrontmatter(VocabFrontmatter{
-		Type:         typeVocab,
-		Term:         term,
-		Description:  description,
-		VocabVersion: vocabVersion,
-		Created:      when.Format(dateFormat),
-	}) + body.String()
-}
-
-// renderVocabIndexContent produces the content of vocab.index.md.
-func renderVocabIndexContent(entries []vocabIndexEntry, vocabVersion string, when time.Time) string {
-	frontmatter := marshalFrontmatter(vocabIndexFrontmatterDoc{
-		Type:         typeVocabIndex,
-		VocabVersion: vocabVersion,
-		Created:      when.Format(dateFormat),
-	})
-
-	lines := make([]string, 0, len(entries))
-
-	for _, entry := range entries {
-		lines = append(lines, fmt.Sprintf("[[vocab.%s]] — %s — %d members",
-			entry.Term, entry.Description, entry.MemberCount))
-	}
-
-	body := strings.Join(lines, "\n")
-	if body != "" {
-		body += "\n"
-	}
-
-	return frontmatter + body
+	return content + body.String()
 }
 
 // renderVocabVersionLine renders a standalone "vocab_version: ..." YAML line
@@ -1570,71 +1633,67 @@ func termFromDefinitionSlug(slug string) (string, bool) {
 	return term, true
 }
 
-// termNameFromFilename extracts the term name from a vocab term filename.
-// "vocab.eval-methodology.md" → "eval-methodology".
-func termNameFromFilename(name string) string {
-	return strings.TrimPrefix(strings.TrimSuffix(name, ".md"), vocabNotePrefix)
+// vocabLifecycleSource renders the source: field for a lifecycle-minted
+// definition note: "vocab lifecycle (<site> v<version>)" — e.g. "vocab
+// lifecycle (refit v7.0)" (the #678 Task 5 brief's concrete example).
+func vocabLifecycleSource(site, version string) string {
+	return fmt.Sprintf("vocab lifecycle (%s v%s)", site, version)
 }
 
-// termNotePath returns the full path of the term note for the given term name.
-func termNotePath(vault, term string) string {
-	return filepath.Join(vault, vocabNotePrefix+term+".md")
-}
+// writeAndEmbedDefinitionNote renders (renderDefinitionNoteContent — through
+// factFrontmatterDoc, never hand-rendered), writes, and embeds a definition
+// note at path. Shared by a fresh mint (mintDefinitionNote) and a rename
+// (renameDefinitionNote): a rename's body text embeds the NEW term name, so
+// its sidecar must be regenerated from the re-rendered body here — never
+// copied from the old note's sidecar, which would carry a stale vector +
+// ContentHash.
+func writeAndEmbedDefinitionNote(
+	ctx context.Context,
+	deps VocabDeps,
+	path string,
+	f factFields,
+	vocabVersion string,
+	exemplars []string,
+	when time.Time,
+) error {
+	content := renderDefinitionNoteContent(f, vocabVersion, exemplars, when)
 
-// vocabTermNoteIdentity returns the term name for a vault filename that is
-// EITHER an old-shape term note (vocab.<term>.md, pre-migration) OR a
-// new-shape bare-vocab-tagged definition note (<id>.<date>.vocab-<term>-
-// definition.md). Both shapes coexist during the tags migration. Returns
-// ("", false) for vocab.index.md, the family note, and any non-term filename.
-func vocabTermNoteIdentity(vault, name string, readFile func(string) ([]byte, error)) (string, bool) {
-	if name != vocabIndexFilename && isVocabTermFilename(name) {
-		return termNameFromFilename(name), true
+	writeErr := deps.WriteFile(path, []byte(content))
+	if writeErr != nil {
+		return fmt.Errorf("writing definition note %s: %w", path, writeErr)
 	}
 
-	term, _, ok := readVocabDefinitionNote(vault, name, readFile)
+	embedDefinitionNote(ctx, deps, path, content)
 
-	return term, ok
+	return nil
 }
 
-// writeAndEmbedSeedTerms writes and embeds all seed terms. Failures are
-// logged-and-skipped so a single bad embed doesn't abort bootstrap.
+// writeAndEmbedSeedTerms mints a definition note for each seed term that does
+// not already have one in the vault (definitionNoteExistsForTerm) —
+// bootstrap's idempotency contract: a second run with the same seed mints
+// nothing. names is updated in place so Luhmann id allocation cannot collide
+// within the same lock-held loop.
 func writeAndEmbedSeedTerms(
 	ctx context.Context,
 	deps VocabDeps,
 	vault string,
+	names *[]string,
 	seed []SeedTerm,
-	version string,
 	when time.Time,
 ) {
 	for _, term := range seed {
-		embedErr := writeAndEmbedTermNote(ctx, deps, vault, term.Term, term.Description, term.Exemplars, version, when)
-		if embedErr != nil && deps.LogWarning != nil {
-			deps.LogWarning("vocab bootstrap: embedding %s failed: %v", term.Term, embedErr)
+		if definitionNoteExistsForTerm(vault, *names, term.Term, deps.ReadFile) {
+			continue
+		}
+
+		f := definitionNoteFactFields(term.Term, term.Description, vocabLifecycleSource("bootstrap", initialVocabVersion))
+		slug := definitionNoteSlug(term.Term)
+
+		mintErr := mintDefinitionNote(ctx, deps, vault, names, slug, f, "", term.Exemplars, when)
+		if mintErr != nil && deps.LogWarning != nil {
+			deps.LogWarning("vocab bootstrap: embedding %s failed: %v", term.Term, mintErr)
 		}
 	}
-}
-
-// writeAndEmbedTermNote creates or overwrites a vocab term note with the given
-// name, description, exemplars, and version, then writes its embedding sidecar.
-func writeAndEmbedTermNote(
-	ctx context.Context,
-	deps VocabDeps,
-	vault, term, description string,
-	exemplars []string,
-	vocabVersion string,
-	when time.Time,
-) error {
-	content := renderTermNoteContent(term, description, exemplars, vocabVersion, when)
-	notePath := termNotePath(vault, term)
-
-	writeErr := deps.WriteFile(notePath, []byte(content))
-	if writeErr != nil {
-		return fmt.Errorf("writing term note %s: %w", term, writeErr)
-	}
-
-	embedTermNote(ctx, deps, notePath, content)
-
-	return nil
 }
 
 // writeVocabVersionToFamilyNote rewrites the vocab_version frontmatter key on
@@ -1642,7 +1701,7 @@ func writeAndEmbedTermNote(
 // key and the body untouched. Returns errVocabFamilyNoteMissing when no
 // family note exists in vault — callers log-and-continue (propose/refit are
 // mechanical mints; a missing family note is not fatal to the rest of the
-// command during the #678 transition, since bootstrap does not yet mint one).
+// command for a pre-bootstrap vault).
 func writeVocabVersionToFamilyNote(
 	vault, newVersion string,
 	listMD func(string) ([]string, error),

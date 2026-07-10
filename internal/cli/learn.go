@@ -132,6 +132,10 @@ type factFields struct {
 	ChunkSources []string
 	Tags         []string
 	Supersedes   []supersedesEntry
+	// VocabVersion is set only by vocab lifecycle writers (bootstrap's family
+	// note) — learn/amend never populate it, so factFrontmatterDoc's
+	// omitempty keeps it absent from ordinary fact notes.
+	VocabVersion string
 }
 
 // factFrontmatterDoc is the YAML shape of a fact's frontmatter. Field order
@@ -386,20 +390,21 @@ func renderFactBody(f factFields) string {
 
 func renderFactFrontmatter(f factFields, when time.Time) string {
 	return marshalFrontmatter(factFrontmatterDoc{
-		Type:       typeFact,
-		Tier:       f.Tier,
-		Situation:  f.Situation,
-		Subject:    f.Subject,
-		Predicate:  f.Predicate,
-		Object:     f.Object,
-		Luhmann:    quotedString(f.Luhmann),
-		Created:    when.Format(dateFormat),
-		Source:     f.Source,
-		Project:    f.Project,
-		Issue:      quotedString(f.Issue),
-		Sources:    f.ChunkSources,
-		Tags:       f.Tags,
-		Supersedes: f.Supersedes,
+		Type:         typeFact,
+		Tier:         f.Tier,
+		Situation:    f.Situation,
+		Subject:      f.Subject,
+		Predicate:    f.Predicate,
+		Object:       f.Object,
+		Luhmann:      quotedString(f.Luhmann),
+		Created:      when.Format(dateFormat),
+		Source:       f.Source,
+		Project:      f.Project,
+		Issue:        quotedString(f.Issue),
+		Sources:      f.ChunkSources,
+		VocabVersion: f.VocabVersion,
+		Tags:         f.Tags,
+		Supersedes:   f.Supersedes,
 	})
 }
 
