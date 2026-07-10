@@ -106,15 +106,13 @@ func WriteVocabAssignment(content string, terms []string) string {
 		merged = append(merged, vocabTagPrefix+term)
 	}
 
-	insertAt := yamlKeyLineIndex(frontmatter, "tags")
-	if insertAt < 0 {
-		insertAt = yamlKeyLineIndex(frontmatter, "vocab")
-	}
+	anchorLine := findLineAfterTagsOrVocab(frontmatter)
 
 	frontmatter = removeYAMLKey(frontmatter, "tags")
 	frontmatter = removeYAMLKey(frontmatter, "vocab")
 
 	if len(merged) > 0 {
+		insertAt := locateInsertionPointPostRemoval(frontmatter, anchorLine)
 		frontmatter = insertYAMLBlock(frontmatter, renderTagsBlock(merged), insertAt)
 	}
 
@@ -186,6 +184,41 @@ func applyVocabAssignmentCore(
 	}
 }
 
+// findLineAfterTagsOrVocab finds the line that comes after the tags: or
+// vocab: key block, if either exists. Used as an anchor to re-locate the
+// insertion point after removals shift line indices. Returns empty string if
+// no anchor line exists or no such key is found.
+func findLineAfterTagsOrVocab(frontmatter string) string {
+	insertAt := yamlKeyLineIndex(frontmatter, "tags")
+	if insertAt < 0 {
+		insertAt = yamlKeyLineIndex(frontmatter, "vocab")
+	}
+
+	if insertAt < 0 {
+		return ""
+	}
+
+	lines := strings.Split(frontmatter, "\n")
+	blockEnd := insertAt + 1
+
+	for blockEnd < len(lines) {
+		line := lines[blockEnd]
+		if strings.TrimSpace(line) == "" ||
+			strings.HasPrefix(line, " ") ||
+			strings.HasPrefix(line, "\t") {
+			blockEnd++
+		} else {
+			break
+		}
+	}
+
+	if blockEnd < len(lines) {
+		return lines[blockEnd]
+	}
+
+	return ""
+}
+
 // insertYAMLBlock inserts block at the given line index (append at end when
 // index is -1 or out of range).
 func insertYAMLBlock(frontmatter, block string, atLine int) string {
@@ -226,6 +259,25 @@ func loadBodyVectorForNote(readFn func(string) ([]byte, error), notePath string)
 	}
 
 	return sidecar.BodyVector, true
+}
+
+// locateInsertionPointPostRemoval finds where the anchor line ended up after
+// removals and returns the index at which to insert (before that line).
+// Returns -1 if the anchor is empty or not found (append at end).
+func locateInsertionPointPostRemoval(frontmatter, anchorLine string) int {
+	if anchorLine == "" {
+		return -1
+	}
+
+	lines := strings.Split(frontmatter, "\n")
+
+	for i, line := range lines {
+		if line == anchorLine {
+			return i
+		}
+	}
+
+	return -1
 }
 
 // nonVocabTags filters out entries in the vocab namespace (vocab/<term>)

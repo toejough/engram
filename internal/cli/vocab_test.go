@@ -405,6 +405,21 @@ func TestVocabTermsFromTags_FiltersAndStripsPrefix(t *testing.T) {
 	g.Expect(got).To(Equal([]string{"retrieval-design", "token-budget"}))
 }
 
+// TestWriteVocabAssignment_BlockStyleLegacyVocabRemoved ensures block-style
+// legacy vocab: key is removed, along with Vocab: body line, when present.
+func TestWriteVocabAssignment_BlockStyleLegacyVocabRemoved(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	input := "---\ntype: fact\nvocab:\n  - old-a\n  - old-b\n---\n\nBody.\n\nVocab: [[vocab.old-a]], [[vocab.old-b]]\n"
+	got := cli.WriteVocabAssignment(input, []string{"old-a", "old-b"})
+
+	g.Expect(got).NotTo(ContainSubstring("vocab:"))
+	g.Expect(got).NotTo(ContainSubstring("Vocab:"))
+	g.Expect(got).To(ContainSubstring("tags:\n    - vocab/old-a\n    - vocab/old-b\n"))
+}
+
 // TestWriteVocabAssignment_EmptyTermsNoOtherTagsRemovesTagsKey proves that
 // when the vocab/ namespace was the ONLY content of tags:, an empty terms
 // list removes the tags: key entirely rather than leaving an empty list.
@@ -507,6 +522,21 @@ func TestWriteVocabAssignment_LearnRendererRoundtripFidelity(t *testing.T) {
 	g.Expect(doc.Tags).To(Equal([]string{
 		"work-kind/rename", "vocab/retrieval-design", "vocab/token-budget",
 	}))
+}
+
+// TestWriteVocabAssignment_LegacyVocabBeforeTagsKeepsTagsPosition ensures
+// tags block lands at the original tags: key position when legacy vocab: key
+// precedes it (fixes #678 index-shift bug).
+func TestWriteVocabAssignment_LegacyVocabBeforeTagsKeepsTagsPosition(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	input := "---\ntype: fact\nvocab: [a]\ntags:\n    - work-kind/rename\nsource: test\n---\n\nBody.\n"
+	expected := "---\ntype: fact\ntags:\n    - work-kind/rename\n    - vocab/a\nsource: test\n---\n\nBody.\n"
+
+	got := cli.WriteVocabAssignment(input, []string{"a"})
+	g.Expect(got).To(Equal(expected))
 }
 
 // TestWriteVocabAssignment_NoFrontmatterUnchanged proves that content with no
