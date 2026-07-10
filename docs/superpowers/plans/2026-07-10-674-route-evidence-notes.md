@@ -1291,9 +1291,15 @@ retrieval value — ADR-0011, ROADMAP standing constraint, vault note 73).
 - Task 3.1 RED baseline: _verdict_
 - Task 3.4 GREEN + no-match pressure: _verdicts_
 - Task 3.5 trap gate AFTER: _verdict_
-- Task 4.1 definition-note paths: _three absolute paths_
-- Task 4.2 count outputs: _three verbatim outputs_
-- Task 4.2b Obsidian hand-check: _DOCUMENTED-FOR-JOE + expected values_
-- Task 4.3 recallability: _PASS / WARN_
+- Task 4.1 definition-note paths:
+  - /Users/joe/.local/share/engram/vault/204.2026-07-10.work-kind-definition.md
+  - /Users/joe/.local/share/engram/vault/205.2026-07-10.tier-definition.md
+  - /Users/joe/.local/share/engram/vault/206.2026-07-10.outcome-definition.md
+- Task 4.2 count outputs:
+  - `engram count --group-by tags --filter tags=work-kind`: work-kind	1 / total: 1
+  - `engram count --group-by tags --filter tags=tier`: tier	1 / total: 1
+  - `engram count --group-by tags --filter tags=outcome`: outcome	1 / total: 1
+- Task 4.2b Obsidian hand-check: DOCUMENTED-FOR-JOE. As of this run (2026-07-10): open vault (~/.local/share/engram/vault) in Obsidian → tag pane → expand work-kind / tier / outcome: each bare family tag shows exactly 1 note (the definition note written above). After evidence notes accrue, each family/value tag's pane count must equal the corresponding `engram count --group-by tags --filter tags=<family>/<value>` total. Caution: Obsidian tag pane aggregates nested counts into parent row (bare-family pane will read 1+N once family/value evidence exists), audit figures are family/value rows only.
+- Task 4.3 recallability: PASS (grep returned 3)
 - Task 5.2 count parity: _verbatim output_
 - Task 5.3 GAUGE: _GAUGE-PASS / GAUGE-FAIL (+ preserved $GAUGE_ROOT path on FAIL)_
