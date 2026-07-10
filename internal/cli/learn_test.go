@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -101,6 +102,57 @@ func TestExtractLuhmannFromFilename_RejectsNonMd(t *testing.T) {
 	g := NewWithT(t)
 	_, ok := cli.ExportExtractLuhmannFromFilename("1a3.2026-05-09.subagent-recovery.txt")
 	g.Expect(ok).To(BeFalse())
+}
+
+// TestFactAmend_VocabVersionRoundTrip verifies that a fact note's
+// vocab_version frontmatter key — the vocab-definition family note's version
+// marker (#678 Task 4) — survives an amend that changes an unrelated field.
+// factFrontmatterDoc must carry VocabVersion (added between Sources and Tags)
+// so applyTypedAmend's unmarshal→render cycle (amend.go) never silently
+// drops it.
+func TestFactAmend_VocabVersionRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	notePath := filepath.Join(dir, "210.2026-07-10.vocab-definition.md")
+
+	original := "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\n" +
+		"luhmann: \"210\"\ncreated: 2026-07-10\nsource: src\nvocab_version: \"6.0\"\ntags:\n    - vocab\n" +
+		"---\n\nWhen s, per b: c.\n"
+
+	writeErr := os.WriteFile(notePath, []byte(original), 0o600)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	deps := cli.ExportNewOsAmendDeps()
+	deps.Now = func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) }
+
+	args := cli.AmendArgs{Vault: dir, Target: "210", Object: "updated description"}
+
+	var buf strings.Builder
+
+	amendErr := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(amendErr).NotTo(HaveOccurred())
+
+	if amendErr != nil {
+		return
+	}
+
+	final, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(final)).To(ContainSubstring(`vocab_version: "6.0"`),
+		"vocab_version must survive amend's unmarshal-render cycle")
+	g.Expect(string(final)).To(ContainSubstring("object: updated description"))
 }
 
 func TestLearnFact_ChunkSources_WrittenToFrontmatter(t *testing.T) {

@@ -32,6 +32,7 @@ var (
 	ErrQAQuestionRequired                  = errQAQuestionRequired
 	ErrQASourceRequired                    = errQASourceRequired
 	ErrResituateNoteNotFoundForTest        = errResituateNoteNotFound
+	ErrVocabFamilyNoteMissing              = errVocabFamilyNoteMissing
 	ExportAnyHarnessFailed                 = anyHarnessFailed
 	ExportApplyProjectFilter               = applyProjectFilter
 	ExportApplySupersedesRideAlong         = applySupersedesRideAlong
@@ -45,6 +46,7 @@ var (
 	ExportBumpMinorVersion                 = bumpMinorVersion
 	ExportCheckAndPersistVocabRefitTrigger = checkAndPersistVocabRefitTrigger
 	ExportClearRemovedTermsFromMembers     = clearRemovedTermsFromMembers
+	ExportCollectCurrentTermEntries        = collectCurrentTermEntries
 	ExportCollectTriggerVaultStats         = collectTriggerVaultStats
 	ExportCountNonVocabNoteFiles           = countNonVocabNoteFiles
 	ExportCountQAPairs                     = countQAPairs
@@ -62,6 +64,8 @@ var (
 	ExportLearnPath                        = learnPath
 	ExportLoadAllVaultNotesMeta            = loadAllVaultNotesMeta
 	ExportLoadAssignmentTermVectors        = loadAssignmentTermVectors
+	ExportLoadCurrentVocabVersion          = loadCurrentVocabVersion
+	ExportLoadTermVectors                  = loadTermVectors
 	ExportLogWarningToStderr               = logWarningToStderrf
 	ExportMarshalFrontmatter               = marshalFrontmatter
 	ExportMaxTurnBySource                  = maxTurnBySource
@@ -104,19 +108,22 @@ var (
 	ExportShouldEmbed                      = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
-	ExportShouldSkipDir        = shouldSkipDir
-	ExportTildify              = tildify
-	ExportTopDeliveredNotes    = topDeliveredNotes
-	ExportValidateContributors = validateContributors
-	ExportValidateIssueID      = validateIssueID
-	ExportValidateLearnQAArgs  = validateLearnQAArgs
-	ExportValidateProjectSlug  = validateProjectSlug
-	ExportValidateSlug         = validateSlug
-	ExportValidateTags         = validateTags
-	ExportVocabTermsFromTags   = vocabTermsFromTags
-	ExportWriteCentroidsDocRaw = writeCentroidsDocRaw
-	ExportWriteUpdateReport    = writeUpdateReport
-	ExportWriteVocabAssignment = WriteVocabAssignment
+	ExportShouldSkipDir                 = shouldSkipDir
+	ExportSlugFromNoteFilename          = slugFromNoteFilename
+	ExportTermFromDefinitionSlug        = termFromDefinitionSlug
+	ExportTildify                       = tildify
+	ExportTopDeliveredNotes             = topDeliveredNotes
+	ExportValidateContributors          = validateContributors
+	ExportValidateIssueID               = validateIssueID
+	ExportValidateLearnQAArgs           = validateLearnQAArgs
+	ExportValidateProjectSlug           = validateProjectSlug
+	ExportValidateSlug                  = validateSlug
+	ExportValidateTags                  = validateTags
+	ExportVocabTermsFromTags            = vocabTermsFromTags
+	ExportWriteCentroidsDocRaw          = writeCentroidsDocRaw
+	ExportWriteUpdateReport             = writeUpdateReport
+	ExportWriteVocabAssignment          = WriteVocabAssignment
+	ExportWriteVocabVersionToFamilyNote = writeVocabVersionToFamilyNote
 )
 
 // ExportAllVaultNotesMeta aliases AllVaultNotesMeta for cli_test fixtures.
@@ -149,6 +156,10 @@ type ExportNominationEntry = NominationEntry
 type ExportQueriedCandidateNote = queryCandidateNote
 
 type ExportRecencyParams = recencyParams
+
+// ExportRefitTermEntry aliases the unexported refitTermEntry so cli_test can
+// assert collectCurrentTermEntries results.
+type ExportRefitTermEntry = refitTermEntry
 
 // ExportResolvedItem aliases the unexported resolvedItem so cli_test can
 // construct test fixtures via ExportNewResolvedItem.
@@ -807,6 +818,15 @@ func ExportResolvedItemProvenances(item resolvedItem) []string { return item.pro
 
 // ExportResolvedItemScore exposes the unexported score field for assertions.
 func ExportResolvedItemScore(item ExportResolvedItem) float32 { return item.score }
+
+// ExportRewriteVocabVersionKey exposes rewriteVocabVersionKey for direct unit
+// testing. Its no-parseable-frontmatter branch is unreachable via
+// writeVocabVersionToFamilyNote's production call path — findVocabFamilyNote
+// already validates frontmatter (isVocabDefinitionNote) before a note is
+// selected as the family note — so cli_test exercises it directly here.
+func ExportRewriteVocabVersionKey(content, newVersion string) string {
+	return rewriteVocabVersionKey(content, newVersion)
+}
 
 // ExportRunLearnFromFactArgs invokes the unexported runLearnFromFactArgs for testing.
 func ExportRunLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer) error {

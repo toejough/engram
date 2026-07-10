@@ -137,21 +137,22 @@ type factFields struct {
 // factFrontmatterDoc is the YAML shape of a fact's frontmatter. Field order
 // here determines key order in the rendered document.
 type factFrontmatterDoc struct {
-	Type       string            `yaml:"type"`
-	Tier       string            `yaml:"tier,omitempty"`
-	Situation  string            `yaml:"situation"`
-	Subject    string            `yaml:"subject"`
-	Predicate  string            `yaml:"predicate"`
-	Object     string            `yaml:"object"`
-	Luhmann    quotedString      `yaml:"luhmann"`
-	Created    string            `yaml:"created"`
-	Source     string            `yaml:"source"`
-	Project    string            `yaml:"project,omitempty"`
-	Issue      quotedString      `yaml:"issue,omitempty"`
-	Sources    []string          `yaml:"sources,omitempty"`
-	Tags       []string          `yaml:"tags,omitempty"`
-	Vocab      []string          `yaml:"vocab,omitempty"`
-	Supersedes []supersedesEntry `yaml:"supersedes,omitempty"`
+	Type         string            `yaml:"type"`
+	Tier         string            `yaml:"tier,omitempty"`
+	Situation    string            `yaml:"situation"`
+	Subject      string            `yaml:"subject"`
+	Predicate    string            `yaml:"predicate"`
+	Object       string            `yaml:"object"`
+	Luhmann      quotedString      `yaml:"luhmann"`
+	Created      string            `yaml:"created"`
+	Source       string            `yaml:"source"`
+	Project      string            `yaml:"project,omitempty"`
+	Issue        quotedString      `yaml:"issue,omitempty"`
+	Sources      []string          `yaml:"sources,omitempty"`
+	VocabVersion string            `yaml:"vocab_version,omitempty"`
+	Tags         []string          `yaml:"tags,omitempty"`
+	Vocab        []string          `yaml:"vocab,omitempty"`
+	Supersedes   []supersedesEntry `yaml:"supersedes,omitempty"`
 }
 
 type feedbackFields struct {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,6 +80,135 @@ func TestClearRemovedTermsFromMembers_SkipsDefinitionNotes(t *testing.T) {
 	g.Expect(definitionWasWritten).To(BeFalse(), "a definition note must never be rewritten by term removal")
 
 	g.Expect(written).To(HaveKey(memberPath), "member note must still have old-term cleared")
+}
+
+// TestCollectCurrentTermEntries_DefinitionNotesCarryDescriptions verifies
+// that both #678 Task 4 term-definition notes appear in the refit-request
+// term list, with descriptions read from the object: field, and the family
+// note contributes no entry.
+func TestCollectCurrentTermEntries_DefinitionNotesCarryDescriptions(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := buildTask4DefinitionFixture(t)
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	names, listErr := osFS.ListMD(vault)
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	if listErr != nil {
+		return
+	}
+
+	deps := cli.VocabDeps{ReadFile: osFS.ReadFile}
+	entries := cli.ExportCollectCurrentTermEntries(names, vault, deps)
+
+	g.Expect(entries).To(ConsistOf(
+		cli.ExportRefitTermEntry{
+			Term: "retrieval-design", Description: "keeps queries scoped to task-relevant vault slices",
+		},
+		cli.ExportRefitTermEntry{
+			Term: "token-budget", Description: "tracks payload size against context limits",
+		},
+	))
+}
+
+// TestCollectCurrentTermEntries_MalformedDefinitionNote_Skipped verifies that
+// a bare-vocab definition note whose frontmatter fails to unmarshal into
+// definitionNoteFields (object: holds a sequence, not a scalar) is skipped
+// rather than producing a zero-value entry.
+func TestCollectCurrentTermEntries_MalformedDefinitionNote_Skipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeNote(t, vault, "1.2026-07-10.vocab-broken-definition.md",
+		"---\ntags:\n    - vocab\nobject:\n    - not-a-string\n---\n\nBroken frontmatter.\n")
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	names, listErr := osFS.ListMD(vault)
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	if listErr != nil {
+		return
+	}
+
+	deps := cli.VocabDeps{ReadFile: osFS.ReadFile}
+	entries := cli.ExportCollectCurrentTermEntries(names, vault, deps)
+
+	g.Expect(entries).To(BeEmpty())
+}
+
+// TestCollectCurrentTermEntries_OldShapeReadFailures_Skipped covers
+// oldShapeTermEntry's read/parse failure branches: an unreadable term note,
+// one with no parseable frontmatter, and one with malformed YAML each skip
+// silently rather than producing a zero-value entry.
+func TestCollectCurrentTermEntries_OldShapeReadFailures_Skipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	names := []string{
+		"vocab.unreadable.md",
+		"vocab.no-frontmatter.md",
+		"vocab.bad-yaml.md",
+		"vocab.index.md",
+	}
+
+	files := map[string][]byte{
+		"/vault/vocab.no-frontmatter.md": []byte("no frontmatter here\n"),
+		"/vault/vocab.bad-yaml.md":       []byte("---\nterm: [unterminated\n---\n\nbroken\n"),
+	}
+
+	deps := cli.VocabDeps{
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+	}
+
+	entries := cli.ExportCollectCurrentTermEntries(names, "/vault", deps)
+
+	g.Expect(entries).To(BeEmpty())
+}
+
+// TestCollectVaultStats_DefinitionNoteTermsWithMemberCounts verifies stats
+// term enumeration reads bare-vocab-tagged definition notes (term from
+// termFromDefinitionSlug) and tallies members from tags: vocab/<term> — the
+// #678 Task 4 fixture: 2 terms, 2 members for retrieval-design, 1 for
+// token-budget. The family note (slug vocab-definition) contributes neither
+// a term nor a member/untagged tally.
+func TestCollectVaultStats_DefinitionNoteTermsWithMemberCounts(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := buildTask4DefinitionFixture(t)
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	names, listErr := osFS.ListMD(vault)
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	if listErr != nil {
+		return
+	}
+
+	statsDeps := cli.VocabStatsDeps{ListMD: osFS.ListMD, ReadFile: osFS.ReadFile}
+	termNames, memberCounts, totalNotes, untaggedCount := cli.ExportCollectVaultStats(names, statsDeps, vault)
+
+	g.Expect(termNames).To(ConsistOf("retrieval-design", "token-budget"))
+	g.Expect(memberCounts["retrieval-design"]).To(Equal(2))
+	g.Expect(memberCounts["token-budget"]).To(Equal(1))
+	g.Expect(totalNotes).To(Equal(3), "only the 3 member notes are member-scanned")
+	g.Expect(untaggedCount).To(Equal(0))
 }
 
 // TestCollectVaultStats_DefinitionNotesExcluded verifies that a bare-vocab
@@ -208,6 +338,55 @@ func TestLoadAssignmentTermVectors_PrefersCentroids(t *testing.T) {
 		"a malformed centroids file must be ignored")
 }
 
+// TestLoadCurrentVocabVersion_ListMDError_DefaultsInitial covers the
+// listMD-error branch.
+func TestLoadCurrentVocabVersion_ListMDError_DefaultsInitial(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	got := cli.ExportLoadCurrentVocabVersion(
+		"/vault",
+		func(string) ([]string, error) { return nil, errors.New("list error") },
+		func(string) ([]byte, error) { return nil, errors.New("unused") },
+	)
+
+	g.Expect(got).To(Equal("1.0"))
+}
+
+// TestLoadCurrentVocabVersion_NoFamilyNote_DefaultsInitial verifies the
+// migration-safe default (initialVocabVersion, "1.0") when no family note
+// exists in the vault.
+func TestLoadCurrentVocabVersion_NoFamilyNote_DefaultsInitial(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeNote(t, vault, "1.2026-07-10.other.md", "---\ntype: fact\n---\n\nBody.\n")
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	got := cli.ExportLoadCurrentVocabVersion(vault, osFS.ListMD, osFS.ReadFile)
+	g.Expect(got).To(Equal("1.0"))
+}
+
+// TestLoadCurrentVocabVersion_ReadsFamilyNote verifies loadCurrentVocabVersion
+// reads vocab_version from the vocab-definition family note rather than
+// vocab.index.md.
+func TestLoadCurrentVocabVersion_ReadsFamilyNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := buildTask4DefinitionFixture(t)
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	got := cli.ExportLoadCurrentVocabVersion(vault, osFS.ListMD, osFS.ReadFile)
+	g.Expect(got).To(Equal("6.0"))
+}
+
 // ── Task 2: bare-vocab definition exemption ──────────────────────────────────
 
 // TestLoadMemberNoteVectors_ExcludesDefinitionNotes verifies the
@@ -230,6 +409,37 @@ func TestLoadMemberNoteVectors_ExcludesDefinitionNotes(t *testing.T) {
 
 	g.Expect(vectors).To(HaveLen(1))
 	g.Expect(vectors).To(HaveKey("1.2026-07-10.member.md"))
+}
+
+// TestLoadTermVectors_ReadsDefinitionNoteSidecars verifies the non-centroids
+// fallback reads term vectors from bare-vocab-tagged definition note
+// sidecars, keyed by term (termFromDefinitionSlug), and skips the family note.
+func TestLoadTermVectors_ReadsDefinitionNoteSidecars(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeNoteAndSidecar(t, vault, "211.2026-07-10.vocab-retrieval-design-definition.md",
+		"---\ntype: fact\nobject: desc\ntags:\n    - vocab\n---\n\nDefines retrieval-design.\n",
+		[]float32{1, 0})
+	writeNoteAndSidecar(t, vault, "212.2026-07-10.vocab-token-budget-definition.md",
+		"---\ntype: fact\nobject: desc\ntags:\n    - vocab\n---\n\nDefines token-budget.\n",
+		[]float32{0, 1})
+	writeNote(t, vault, "210.2026-07-10.vocab-definition.md",
+		"---\ntype: fact\nvocab_version: \"6.0\"\ntags:\n    - vocab\n---\n\nFamily root.\n")
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	terms, err := cli.ExportLoadTermVectors(vault, osFS.ListMD, osFS.ReadFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	names := make([]string, 0, len(terms))
+	for _, term := range terms {
+		names = append(names, term.Term)
+	}
+
+	g.Expect(names).To(ConsistOf("retrieval-design", "token-budget"))
 }
 
 // ── Coverage: newOsVocabDeps closures ────────────────────────────────────────
@@ -399,6 +609,19 @@ func TestRetagAllNotesTwoPass_SkipsDefinitionNotes(t *testing.T) {
 
 	g.Expect(string(gotBytes)).To(Equal(definitionContent),
 		"the definition file's bytes must be unchanged after a full retag over a scratch vault")
+}
+
+// TestRewriteVocabVersionKey_NoFrontmatter_ReturnsUnchanged covers the
+// no-parseable-frontmatter guard — unreachable via
+// writeVocabVersionToFamilyNote's production call path (findVocabFamilyNote
+// already validates frontmatter via isVocabDefinitionNote before a note is
+// selected as the family note), so exercised directly here.
+func TestRewriteVocabVersionKey_NoFrontmatter_ReturnsUnchanged(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportRewriteVocabVersionKey("no frontmatter here", "1.1")).To(Equal("no frontmatter here"))
 }
 
 // ── Coverage: assigner error paths ───────────────────────────────────────────
@@ -1357,21 +1580,31 @@ func TestRunVocabBootstrap_WithMockEmbedder(t *testing.T) {
 }
 
 // TestRunVocabPropose_BumpsMinorVersion verifies that propose increments the
-// minor component of the current vocab_version in vocab.index.md.
+// minor component of the current vocab_version — read from the
+// vocab-definition family note (#678 Task 4) — and rewrites the bump onto
+// that same family note. vocab.index.md's own vocab_version key is also
+// still bumped (regenVocabIndex, the not-yet-migrated old-shape writer path —
+// see the Task 4 report's "Deviations" section), so both are asserted.
 func TestRunVocabPropose_BumpsMinorVersion(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
+	const familyNotePath = "/vault/210.2026-07-02.vocab-definition.md"
+
 	existingIndex := "---\ntype: vocab-index\nvocab_version: 1.3\ncreated: 2026-07-02\n---\n\n"
+	familyNote := "---\ntype: fact\nvocab_version: \"1.3\"\ntags:\n    - vocab\n---\n\nVocab family root.\n"
 	files := map[string][]byte{
 		"/vault/vocab.index.md": []byte(existingIndex),
+		familyNotePath:          []byte(familyNote),
 	}
 	written := map[string][]byte{}
 
 	deps := cli.VocabDeps{
-		Lock:         func(string) (func(), error) { return func() {}, nil },
-		ListMD:       func(string) ([]string, error) { return []string{"vocab.index.md"}, nil },
+		Lock: func(string) (func(), error) { return func() {}, nil },
+		ListMD: func(string) ([]string, error) {
+			return []string{"vocab.index.md", "210.2026-07-02.vocab-definition.md"}, nil
+		},
 		ReadFile:     func(path string) ([]byte, error) { return files[path], nil },
 		WriteFile:    func(path string, data []byte) error { written[path] = data; return nil },
 		WriteSidecar: func(path string, data []byte) error { written[path] = data; return nil },
@@ -1387,6 +1620,10 @@ func TestRunVocabPropose_BumpsMinorVersion(t *testing.T) {
 
 	indexContent := string(written["/vault/vocab.index.md"])
 	g.Expect(indexContent).To(ContainSubstring("1.4"), "minor version must be bumped from 1.3 → 1.4")
+
+	familyContent := string(written[familyNotePath])
+	g.Expect(familyContent).To(ContainSubstring(`vocab_version: "1.4"`),
+		"the family note must carry the bumped version too")
 }
 
 // ── Vocab commands: propose ───────────────────────────────────────────────────
@@ -1434,6 +1671,76 @@ func TestRunVocabPropose_CreatesTermNote(t *testing.T) {
 	g.Expect(string(written[termPath])).To(ContainSubstring("new-insight"), "term note must carry term name")
 	g.Expect(string(written[termPath])).To(ContainSubstring("tracking novel insights"),
 		"term note must carry description")
+}
+
+// TestRunVocabPropose_RegenIndexError_Propagates verifies that a
+// regenVocabIndex failure propagates as a RunVocabPropose error (covers the
+// indexErr branch).
+func TestRunVocabPropose_RegenIndexError_Propagates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.VocabDeps{
+		Lock:         func(string) (func(), error) { return func() {}, nil },
+		ListMD:       func(string) ([]string, error) { return nil, errors.New("list error") },
+		ReadFile:     func(string) ([]byte, error) { return nil, &testNotFoundError{path: "missing"} },
+		WriteFile:    func(string, []byte) error { return nil },
+		WriteSidecar: func(string, []byte) error { return nil },
+		LogWarning:   func(string, ...any) {},
+		Now:          func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
+	}
+
+	args := cli.VocabProposeArgs{Vault: "/vault", Term: "new-term", Description: "desc"}
+
+	var buf strings.Builder
+
+	proposeErr := cli.RunVocabPropose(t.Context(), args, deps, &buf)
+	g.Expect(proposeErr).To(HaveOccurred())
+
+	if proposeErr == nil {
+		return
+	}
+
+	g.Expect(proposeErr.Error()).To(ContainSubstring("regenerating index"))
+}
+
+// TestRunVocabPropose_TermNoteWriteError_LogsWarning verifies that when
+// WriteFile fails for the new term note, RunVocabPropose logs a warning and
+// still succeeds (covers the embedErr branch — writeAndEmbedTermNote's error
+// path — left uncovered once bumpAndPersistVocabVersion's extraction reduced
+// RunVocabPropose's statement count).
+func TestRunVocabPropose_TermNoteWriteError_LogsWarning(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var loggedMsg string
+
+	deps := cli.VocabDeps{
+		Lock:     func(string) (func(), error) { return func() {}, nil },
+		ListMD:   func(string) ([]string, error) { return nil, nil },
+		ReadFile: func(string) ([]byte, error) { return nil, &testNotFoundError{path: "missing"} },
+		WriteFile: func(path string, _ []byte) error {
+			if path == "/vault/vocab.new-term.md" {
+				return errors.New("disk full")
+			}
+
+			return nil
+		},
+		WriteSidecar: func(string, []byte) error { return nil },
+		LogWarning:   func(format string, args ...any) { loggedMsg = fmt.Sprintf(format, args...) },
+		Now:          func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
+	}
+
+	args := cli.VocabProposeArgs{Vault: "/vault", Term: "new-term", Description: "desc"}
+
+	var buf strings.Builder
+
+	proposeErr := cli.RunVocabPropose(t.Context(), args, deps, &buf)
+	g.Expect(proposeErr).NotTo(HaveOccurred(), "propose still succeeds; the failed term-note write is only logged")
+
+	g.Expect(loggedMsg).To(ContainSubstring("embedding new-term failed"))
 }
 
 // TestRunVocabRefit_AppliesRemovals verifies that refit deletes the removed
@@ -1862,24 +2169,34 @@ func TestRunVocabRefit_EmitRequest_PrintsPayload(t *testing.T) {
 }
 
 // TestRunVocabRefit_MajorVersionBump verifies that refit increments the major
-// version in vocab.index.md.
+// component of the current vocab_version — read from the vocab-definition
+// family note (#678 Task 4) — and rewrites the bump onto that same family
+// note. vocab.index.md's own vocab_version key is also still bumped
+// (regenVocabIndex, the not-yet-migrated old-shape writer path — see the
+// Task 4 report's "Deviations" section), so both are asserted.
 func TestRunVocabRefit_MajorVersionBump(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
+	const familyNotePath = "/vault/210.2026-07-02.vocab-definition.md"
+
 	indexNote := "---\ntype: vocab-index\nvocab_version: 1.4\ncreated: 2026-07-02\n---\n\n"
+	familyNote := "---\ntype: fact\nvocab_version: \"1.4\"\ntags:\n    - vocab\n---\n\nVocab family root.\n"
 	planContent := "new_terms:\n  - term: extra-term\n    description: extra\n"
 
 	files := map[string][]byte{
 		"/vault/vocab.index.md": []byte(indexNote),
+		familyNotePath:          []byte(familyNote),
 		"/plan.yaml":            []byte(planContent),
 	}
 	written := map[string][]byte{}
 
 	deps := cli.VocabDeps{
-		Lock:         func(string) (func(), error) { return func() {}, nil },
-		ListMD:       func(string) ([]string, error) { return []string{"vocab.index.md"}, nil },
+		Lock: func(string) (func(), error) { return func() {}, nil },
+		ListMD: func(string) ([]string, error) {
+			return []string{"vocab.index.md", "210.2026-07-02.vocab-definition.md"}, nil
+		},
 		ReadFile:     func(path string) ([]byte, error) { return files[path], nil },
 		WriteFile:    func(path string, data []byte) error { written[path] = data; return nil },
 		DeleteFile:   func(string) error { return nil },
@@ -1896,6 +2213,10 @@ func TestRunVocabRefit_MajorVersionBump(t *testing.T) {
 
 	indexContent := string(written["/vault/vocab.index.md"])
 	g.Expect(indexContent).To(ContainSubstring("2.0"), "major version must be bumped from 1.4 → 2.0")
+
+	familyContent := string(written[familyNotePath])
+	g.Expect(familyContent).To(ContainSubstring(`vocab_version: "2.0"`),
+		"the family note must carry the bumped version too")
 }
 
 // ── Coverage: applyRefitNewTerms warning path ─────────────────────────────────
@@ -2448,6 +2769,36 @@ func TestRunVocabStats_VocabTypeNoteExcluded(t *testing.T) {
 		"vocab-type note must not count as a term")
 }
 
+// TestSlugFromNoteFilename table-tests the "<id>.<date>.<slug>.md" parser.
+func TestSlugFromNoteFilename(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		filename string
+		want     string
+	}{
+		{name: "family note", filename: "210.2026-07-10.vocab-definition.md", want: "vocab-definition"},
+		{
+			name:     "term definition with dashes",
+			filename: "211.2026-07-10.vocab-retrieval-design-definition.md",
+			want:     "vocab-retrieval-design-definition",
+		},
+		{name: "non-md extension", filename: "210.2026-07-10.vocab-definition.txt", want: ""},
+		{name: "too few segments", filename: "210.md", want: ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			g.Expect(cli.ExportSlugFromNoteFilename(tc.filename)).To(Equal(tc.want))
+		})
+	}
+}
+
 // ── Coverage: vocabTargets bootstrap closure ──────────────────────────────────
 
 // TestTargets_VocabBootstrapNonExistentSeed exercises the vocab bootstrap
@@ -2548,6 +2899,42 @@ func TestTargets_VocabStatsEmpty(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring("terms: 0"), "empty vault must report zero terms")
 }
 
+// TestTermFromDefinitionSlug table-tests the "vocab-<term>-definition" slug
+// parser: the family slug and non-matching slugs return false; a term may
+// itself contain dashes.
+func TestTermFromDefinitionSlug(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		slug     string
+		wantTerm string
+		wantOK   bool
+	}{
+		{name: "family slug is not a term", slug: "vocab-definition", wantTerm: "", wantOK: false},
+		{name: "simple term", slug: "vocab-retrieval-design-definition", wantTerm: "retrieval-design", wantOK: true},
+		{name: "unrelated slug", slug: "some-other-note-slug", wantTerm: "", wantOK: false},
+		{
+			name:     "term containing dashes",
+			slug:     "vocab-skill-and-guidance-design-definition",
+			wantTerm: "skill-and-guidance-design", wantOK: true,
+		},
+		{name: "empty term between prefix and suffix", slug: "vocab--definition", wantTerm: "", wantOK: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			gotTerm, gotOK := cli.ExportTermFromDefinitionSlug(tc.slug)
+			g.Expect(gotOK).To(Equal(tc.wantOK))
+			g.Expect(gotTerm).To(Equal(tc.wantTerm))
+		})
+	}
+}
+
 // ── Task 1: vocabCentroidsDoc new fields round-trip ──────────────────────────
 
 func TestVocabCentroidsDoc_NewFieldsRoundTrip(t *testing.T) {
@@ -2609,6 +2996,72 @@ func TestVocabCentroidsDoc_ZeroValueOmitted(t *testing.T) {
 	g.Expect(jsonStr).NotTo(ContainSubstring("last_refit"))
 }
 
+// TestWriteVocabVersionToFamilyNote_ListMDError_ReturnsWrappedError covers the
+// listMD-error branch.
+func TestWriteVocabVersionToFamilyNote_ListMDError_ReturnsWrappedError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	writeErr := cli.ExportWriteVocabVersionToFamilyNote(
+		"/vault", "1.1",
+		func(string) ([]string, error) { return nil, errors.New("list error") },
+		func(string) ([]byte, error) { return nil, errors.New("unused") },
+		func(string, []byte) error { return nil },
+	)
+
+	g.Expect(writeErr).To(HaveOccurred())
+	g.Expect(writeErr.Error()).To(ContainSubstring("listing vault"))
+}
+
+// TestWriteVocabVersionToFamilyNote_MissingFamilyNote_ReturnsSentinel verifies
+// the sentinel error when no family note exists.
+func TestWriteVocabVersionToFamilyNote_MissingFamilyNote_ReturnsSentinel(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeNote(t, vault, "1.2026-07-10.other.md", "---\ntype: fact\n---\n\nBody.\n")
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	writeErr := cli.ExportWriteVocabVersionToFamilyNote(vault, "1.1", osFS.ListMD, osFS.ReadFile,
+		func(string, []byte) error { return nil })
+
+	g.Expect(writeErr).To(MatchError(cli.ErrVocabFamilyNoteMissing))
+}
+
+// TestWriteVocabVersionToFamilyNote_RewritesOnlyFamilyNote verifies the
+// version-bump write site rewrites vocab_version in place on the family note
+// ONLY — the term-definition notes in the same vault are never touched.
+func TestWriteVocabVersionToFamilyNote_RewritesOnlyFamilyNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := buildTask4DefinitionFixture(t)
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	written := make(map[string][]byte)
+	writeFile := func(path string, data []byte) error {
+		written[path] = data
+		return nil
+	}
+
+	writeErr := cli.ExportWriteVocabVersionToFamilyNote(vault, "6.1", osFS.ListMD, osFS.ReadFile, writeFile)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	g.Expect(written).To(HaveLen(1), "only the family note may be rewritten")
+
+	familyPath := filepath.Join(vault, "210.2026-07-10.vocab-definition.md")
+	g.Expect(written).To(HaveKey(familyPath))
+	g.Expect(string(written[familyPath])).To(ContainSubstring(`vocab_version: "6.1"`))
+	g.Expect(string(written[familyPath])).To(ContainSubstring("Vocab family root."),
+		"the body must survive the rewrite untouched")
+}
+
 // errEmbedder is a test-only embed.Embedder that always returns an error on Embed.
 type errEmbedder struct{}
 
@@ -2640,6 +3093,35 @@ func (e *testNotFoundError) Error() string { return "not found: " + e.path }
 
 func (e *testNotFoundError) Is(target error) bool {
 	return target.Error() == "file does not exist" || strings.Contains(target.Error(), "not exist")
+}
+
+// ── Task 4: definition-note read path + vocab_version home ───────────────────
+
+// buildTask4DefinitionFixture builds the shared #678 Task 4 scratch vault: a
+// family note (vocab_version "6.0"), two term-definition notes (retrieval-
+// design, token-budget) with object: descriptions, and three member notes
+// tagged into the vocab/<term> namespace (2 retrieval-design, 1 token-budget).
+func buildTask4DefinitionFixture(t *testing.T) string {
+	t.Helper()
+
+	vault := t.TempDir()
+
+	writeNote(t, vault, "210.2026-07-10.vocab-definition.md",
+		"---\ntype: fact\nvocab_version: \"6.0\"\ntags:\n    - vocab\n---\n\nVocab family root.\n")
+	writeNote(t, vault, "211.2026-07-10.vocab-retrieval-design-definition.md",
+		"---\ntype: fact\nobject: keeps queries scoped to task-relevant vault slices\n"+
+			"tags:\n    - vocab\n---\n\nDefines retrieval-design.\n")
+	writeNote(t, vault, "212.2026-07-10.vocab-token-budget-definition.md",
+		"---\ntype: fact\nobject: tracks payload size against context limits\n"+
+			"tags:\n    - vocab\n---\n\nDefines token-budget.\n")
+	writeNote(t, vault, "220.2026-07-10.member-a.md",
+		"---\ntype: fact\ntags:\n    - vocab/retrieval-design\n---\n\nMember A.\n")
+	writeNote(t, vault, "221.2026-07-10.member-b.md",
+		"---\ntype: fact\ntags:\n    - vocab/retrieval-design\n---\n\nMember B.\n")
+	writeNote(t, vault, "222.2026-07-10.member-c.md",
+		"---\ntype: fact\ntags:\n    - vocab/token-budget\n---\n\nMember C.\n")
+
+	return vault
 }
 
 // centroidTwoPassDeps wires VocabDeps over the fixture files, capturing writes.
