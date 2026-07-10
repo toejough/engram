@@ -223,6 +223,33 @@ func TestCheckAndPersistVocabRefitTrigger_WriteError_LogsWarning(t *testing.T) {
 	g.Expect(loggedMsg).To(ContainSubstring("seeding last_refit"))
 }
 
+// ── Task 2: bare-vocab definition exemption ──────────────────────────────────
+
+// TestCollectTriggerVaultStats_DefinitionsAreNeitherMembersNorUntagged
+// verifies that a bare-vocab definition note contributes to neither the
+// member tally nor the untagged tally — it is excluded from vault stats
+// entirely, unlike a regular non-vocab-tagged note (which does count as
+// untagged). The tagged-member fixture uses the tags: vocab/<term>
+// convention, proving member detection also reads the new namespace.
+func TestCollectTriggerVaultStats_DefinitionsAreNeitherMembersNorUntagged(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeNote(t, vault, "1.2026-07-10.tagged-member.md",
+		"---\ntype: fact\ntags:\n    - vocab/retrieval-design\n---\n\nBody.\n")
+	writeNote(t, vault, "2.2026-07-10.untagged-member.md", "---\ntype: fact\n---\n\nBody.\n")
+	writeNote(t, vault, "3.2026-07-10.vocab-retrieval-design-definition.md",
+		"---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines.\n")
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	totalNotes, untaggedCount, _ := cli.ExportCollectTriggerVaultStats(vault, osFS.ListMD, osFS.ReadFile)
+
+	g.Expect(totalNotes).To(Equal(2))
+	g.Expect(untaggedCount).To(Equal(1))
+}
+
 func TestCollectTriggerVaultStats_WithVocabTagsAndNoFrontmatter(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

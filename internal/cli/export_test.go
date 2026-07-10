@@ -37,12 +37,14 @@ var (
 	ExportApplySupersedesRideAlong         = applySupersedesRideAlong
 	ExportApplyVocabAssignmentAfterAmend   = applyVocabAssignmentAfterAmend
 	ExportApplyVocabAssignmentAfterLearn   = applyVocabAssignmentAfterLearn
+	ExportApplyVocabAssignmentCore         = applyVocabAssignmentCore
 	ExportAutoEmbedNote                    = autoEmbedNote
 	ExportBuildSupersedesInverse           = BuildSupersedesInverse
 	ExportBumpLastUsed                     = bumpLastUsed
 	ExportBumpMajorVersion                 = bumpMajorVersion
 	ExportBumpMinorVersion                 = bumpMinorVersion
 	ExportCheckAndPersistVocabRefitTrigger = checkAndPersistVocabRefitTrigger
+	ExportClearRemovedTermsFromMembers     = clearRemovedTermsFromMembers
 	ExportCollectTriggerVaultStats         = collectTriggerVaultStats
 	ExportCountNonVocabNoteFiles           = countNonVocabNoteFiles
 	ExportCountQAPairs                     = countQAPairs
@@ -54,6 +56,7 @@ var (
 	ExportInitializeVault                  = initializeVault
 	ExportIsQAQuestionFilename             = isQAQuestionFilename
 	ExportIsQueryExcludedKind              = isQueryExcludedKind
+	ExportIsVocabDefinitionNote            = isVocabDefinitionNote
 	ExportIsVocabKind                      = isVocabKind
 	ExportKindFromContent                  = kindFromContent
 	ExportLearnPath                        = learnPath
@@ -334,6 +337,14 @@ func ExportFlockPath(lockPath string) (func(), error) {
 // ExportIndexFileName exposes sourceSlug-based index naming so tests can
 // locate a source's chunk index file.
 func ExportIndexFileName(source string) string { return sourceSlug(source) + ".jsonl" }
+
+// ExportLoadMemberNoteVectors drives loadMemberNoteVectors with real
+// OS-backed VocabDeps (newOsVocabDeps), so tests can exercise it against a
+// real t.TempDir() vault fixture (see writeNoteAndSidecar). The real function
+// returns only a map (no error) — adapted per the Task 2 brief's note.
+func ExportLoadMemberNoteVectors(vault string) map[string][]float32 {
+	return loadMemberNoteVectors(newOsVocabDeps(), vault)
+}
 
 // ExportLoadPriorRecords exposes loadPriorRecords for ingest unit tests.
 func ExportLoadPriorRecords(indexPath string, deps IngestDeps) map[string]chunk.Record {

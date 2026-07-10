@@ -35,6 +35,82 @@ func TestBumpVersion_InvalidInput(t *testing.T) {
 		"bumpMinorVersion must return input unchanged for a non-semver string")
 }
 
+// TestClearRemovedTermsFromMembers_SkipsDefinitionNotes verifies that a
+// bare-vocab definition note is never rewritten by term-removal clearing,
+// even when its body text contains the removed term's name (which would
+// otherwise trigger noteContainsAnyRemoval).
+func TestClearRemovedTermsFromMembers_SkipsDefinitionNotes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const definitionPath = "/vault/2.2026-07-10.vocab-old-term-definition.md"
+
+	const memberPath = "/vault/1.2026-07-10.member.md"
+
+	definitionContent := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines old-term.\n"
+	memberContent := "---\ntype: fact\ntags:\n    - vocab/old-term\n---\n\nMember mentions old-term.\n"
+
+	files := map[string][]byte{
+		definitionPath: []byte(definitionContent),
+		memberPath:     []byte(memberContent),
+	}
+	written := map[string][]byte{}
+
+	deps := cli.VocabDeps{
+		ListMD: func(string) ([]string, error) {
+			return []string{"2.2026-07-10.vocab-old-term-definition.md", "1.2026-07-10.member.md"}, nil
+		},
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile:  func(path string, data []byte) error { written[path] = data; return nil },
+		LogWarning: func(string, ...any) {},
+	}
+
+	err := cli.ExportClearRemovedTermsFromMembers(deps, "/vault", []string{"old-term"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	_, definitionWasWritten := written[definitionPath]
+	g.Expect(definitionWasWritten).To(BeFalse(), "a definition note must never be rewritten by term removal")
+
+	g.Expect(written).To(HaveKey(memberPath), "member note must still have old-term cleared")
+}
+
+// TestCollectVaultStats_DefinitionNotesExcluded verifies that a bare-vocab
+// definition note is excluded from collectVaultStats' totals — neither
+// counted as a member note nor as untagged (the extractNoteVocabTags site).
+func TestCollectVaultStats_DefinitionNotesExcluded(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeNote(t, vault, "1.2026-07-10.member.md",
+		"---\ntype: fact\nvocab:\n  - retrieval-design\n---\n\nBody.\n")
+	writeNote(t, vault, "2.2026-07-10.vocab-retrieval-design-definition.md",
+		"---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines.\n")
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	names, listErr := osFS.ListMD(vault)
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	if listErr != nil {
+		return
+	}
+
+	statsDeps := cli.VocabStatsDeps{ListMD: osFS.ListMD, ReadFile: osFS.ReadFile}
+	_, _, totalNotes, untaggedCount := cli.ExportCollectVaultStats(names, statsDeps, vault)
+
+	g.Expect(totalNotes).To(Equal(1), "the definition note must not be counted as a member note")
+	g.Expect(untaggedCount).To(Equal(0), "the member note IS tagged (legacy vocab:), so it isn't untagged")
+}
+
 // TestLoadAssignmentTermVectors_PrefersCentroids verifies write-time assignment
 // vectors: terms present in vocab.centroids.json use the stored centroid; absent
 // terms fall back to the term sidecar (description) embedding; a model-id
@@ -130,6 +206,30 @@ func TestLoadAssignmentTermVectors_PrefersCentroids(t *testing.T) {
 
 	g.Expect(malformedByName["x"]).To(Equal([]float32{1, 0}),
 		"a malformed centroids file must be ignored")
+}
+
+// ── Task 2: bare-vocab definition exemption ──────────────────────────────────
+
+// TestLoadMemberNoteVectors_ExcludesDefinitionNotes verifies the
+// centroid-purity fix: loadMemberNoteVectors must read each note's content
+// and skip bare-vocab definition notes before including their vectors — a
+// definition's vector must never reach pass-1 assignment or
+// computeTermCentroids (AC4).
+func TestLoadMemberNoteVectors_ExcludesDefinitionNotes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeNoteAndSidecar(t, vault, "1.2026-07-10.member.md",
+		"---\ntype: fact\ntags:\n    - vocab/retrieval-design\n---\n\nMember body.\n", []float32{1, 0, 0})
+	writeNoteAndSidecar(t, vault, "2.2026-07-10.vocab-retrieval-design-definition.md",
+		"---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines the term.\n", []float32{0, 1, 0})
+
+	vectors := cli.ExportLoadMemberNoteVectors(vault)
+
+	g.Expect(vectors).To(HaveLen(1))
+	g.Expect(vectors).To(HaveKey("1.2026-07-10.member.md"))
 }
 
 // ── Coverage: newOsVocabDeps closures ────────────────────────────────────────
@@ -263,6 +363,42 @@ func TestRetagAllNotesTwoPass_SeedsLastRefit(t *testing.T) {
 	}
 
 	g.Expect(doc.LastRefit.NoteCount).To(Equal(50))
+}
+
+// TestRetagAllNotesTwoPass_SkipsDefinitionNotes is the fixture assertion for
+// both retagAllNotesTwoPass (pass 1, via loadMemberNoteVectors) and
+// assignTermsToAllNotes (pass 2, via assignVocabToNote): over a scratch vault
+// containing one bare-vocab definition note plus one member note, a full
+// retag must leave the definition file's bytes byte-for-byte unchanged.
+func TestRetagAllNotesTwoPass_SkipsDefinitionNotes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	const definitionBasename = "2.2026-07-10.vocab-retrieval-design-definition.md"
+
+	definitionContent := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines the retrieval-design term.\n"
+	writeNoteAndSidecar(t, vault, definitionBasename, definitionContent, []float32{0, 1, 0})
+
+	memberContent := "---\ntype: fact\ntags:\n    - vocab/retrieval-design\n---\n\nMember body.\n"
+	writeNoteAndSidecar(t, vault, "1.2026-07-10.member.md", memberContent, []float32{1, 0, 0})
+
+	deps := cli.ExportNewOsVocabDeps()
+	terms := []cli.TermWithVector{{Term: "retrieval-design", Vector: []float32{1, 0, 0}}}
+
+	cli.ExportRetagAllNotesTwoPass(deps, vault, terms, 0.35, nil)
+
+	gotBytes, readErr := os.ReadFile(filepath.Join(vault, definitionBasename))
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(gotBytes)).To(Equal(definitionContent),
+		"the definition file's bytes must be unchanged after a full retag over a scratch vault")
 }
 
 // ── Coverage: assigner error paths ───────────────────────────────────────────
@@ -2585,8 +2721,6 @@ func centroidTwoPassFiles(g Gomega) map[string][]byte {
 	}
 }
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-
 // makeUnitVec builds a unit-ish 2D vector with component 0 set to value
 // and component 1 inferred as sqrt(1 - value²) for a proper unit vector.
 // Used in tests to produce cosine similarities equal to value (cosine with [1,0]).
@@ -2619,6 +2753,23 @@ func makeUnitVec(value float32) []float32 {
 	return vec
 }
 
+// ── helpers ───────────────────────────────────────────────────────────────────
+
+// mustMarshalSidecarWithBodyVector builds a marshaled sidecar carrying the
+// given body vector (SituationVector dims-matched so UnmarshalSidecar accepts
+// it), for tests that only care about the body vector.
+func mustMarshalSidecarWithBodyVector(t *testing.T, vec []float32) []byte {
+	t.Helper()
+
+	return embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "test",
+		Dims:             len(vec),
+		SituationVector:  vec,
+		BodyVector:       vec,
+	})
+}
+
 // sqrtFloat32 returns an approximate square root of squaredValue (Newton's method, 5 iterations).
 func sqrtFloat32(squaredValue float32) float32 {
 	if squaredValue <= 0 {
@@ -2632,4 +2783,26 @@ func sqrtFloat32(squaredValue float32) float32 {
 	}
 
 	return guess
+}
+
+// writeNote writes a note's raw content to vault/basename on the real
+// filesystem, for tests exercising real OS-backed VocabDeps against a
+// t.TempDir() vault.
+func writeNote(t *testing.T, vault, basename, content string) {
+	t.Helper()
+
+	g := NewWithT(t)
+	g.Expect(os.WriteFile(filepath.Join(vault, basename), []byte(content), 0o600)).To(Succeed())
+}
+
+// writeNoteAndSidecar writes a note plus its embedding sidecar (body vector
+// only) to vault/basename, for real-FS centroid/member-scan tests.
+func writeNoteAndSidecar(t *testing.T, vault, basename, content string, vec []float32) {
+	t.Helper()
+
+	writeNote(t, vault, basename, content)
+
+	g := NewWithT(t)
+	sidecarPath := embed.SidecarPath(filepath.Join(vault, basename))
+	g.Expect(os.WriteFile(sidecarPath, mustMarshalSidecarWithBodyVector(t, vec), 0o600)).To(Succeed())
 }

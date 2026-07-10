@@ -71,6 +71,33 @@ func TestAmendRoundTrip_VocabKey_PreservedAfterField(t *testing.T) {
 		"vocab: frontmatter key must survive a round-trip through amend")
 }
 
+// ── Task 2: bare-vocab definition exemption ──────────────────────────────────
+
+// TestApplyVocabAssignmentCore_SkipsDefinitionNotes verifies that
+// applyVocabAssignmentCore never writes a term assignment to a note whose
+// content is itself a bare-vocab DEFINITION note — a definition must never
+// acquire its own term tag, even when its body vector would otherwise
+// qualify under the floor.
+func TestApplyVocabAssignmentCore_SkipsDefinitionNotes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	definition := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines the retrieval-design term.\n"
+	sidecar := mustMarshalSidecarWithBodyVector(t, []float32{1, 0, 0})
+	loadTerms := func(string) ([]cli.TermWithVector, error) {
+		return []cli.TermWithVector{{Term: "retrieval-design", Vector: []float32{1, 0, 0}}}, nil
+	}
+	read := func(string) ([]byte, error) { return sidecar, nil }
+
+	wrote := false
+	write := func(string, []byte) error { wrote = true; return nil }
+
+	cli.ExportApplyVocabAssignmentCore(loadTerms, read, write, nil, "/v", "/v/n.md", definition, "test")
+
+	g.Expect(wrote).To(BeFalse(), "a definition must never acquire its own term tag")
+}
+
 func TestAssignVocabTerms_BelowFloor_NilResult(t *testing.T) {
 	t.Parallel()
 
@@ -202,6 +229,23 @@ func TestAssignVocabTerms_TwoQualifyingOneBelowFloor_TakesTwo(t *testing.T) {
 	got := cli.AssignVocabTerms(bodyVec, terms, 0.30)
 
 	g.Expect(got).To(HaveLen(2), "only floor-passing terms are selected")
+}
+
+// TestIsVocabDefinitionNote verifies the bare-vocab definition marker:
+// a note tagged bare "vocab" is a definition; a note tagged vocab/<term>
+// (a member) or an unrelated bare family tag (work-kind) is not.
+func TestIsVocabDefinitionNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	definition := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines a term.\n"
+	member := "---\ntype: fact\ntags:\n    - vocab/retrieval-design\n---\n\nA member.\n"
+	otherFamily := "---\ntype: fact\ntags:\n    - work-kind\n---\n\nRoute family definition.\n"
+
+	g.Expect(cli.ExportIsVocabDefinitionNote(definition)).To(BeTrue())
+	g.Expect(cli.ExportIsVocabDefinitionNote(member)).To(BeFalse())
+	g.Expect(cli.ExportIsVocabDefinitionNote(otherFamily)).To(BeFalse())
 }
 
 func TestIsVocabKind_TypeFact_False(t *testing.T) {

@@ -89,7 +89,11 @@ func collectTriggerVaultStats(
 
 // collectTriggerVaultStatsFromNames is the names-in-hand form of
 // collectTriggerVaultStats, for callers that already listed the vault
-// (e.g. emitRefitRequest) — avoids a second directory pass.
+// (e.g. emitRefitRequest) — avoids a second directory pass. A bare-vocab
+// DEFINITION note (isVocabDefinitionNote) contributes to neither totalNotes
+// nor untaggedCount — it is not a member note at all. Member terms are read
+// from both the legacy `vocab:` frontmatter key AND the tags: vocab/<term>
+// namespace, so notes already migrated to the tags convention still count.
 func collectTriggerVaultStatsFromNames(
 	vault string,
 	names []string,
@@ -99,12 +103,18 @@ func collectTriggerVaultStatsFromNames(
 	totalNotes, untaggedCount := 0, 0
 
 	scanNonVocabNotes(vault, names, readFile, func(_ string, raw []byte, readErr error) {
-		totalNotes++
-
 		if readErr != nil {
+			totalNotes++
 			untaggedCount++
+
 			return
 		}
+
+		if isVocabDefinitionNote(string(raw)) {
+			return // a definition note is neither a member nor untagged
+		}
+
+		totalNotes++
 
 		frontmatterBytes, ok := splitFrontmatter(raw)
 		if !ok {
@@ -114,12 +124,23 @@ func collectTriggerVaultStatsFromNames(
 
 		var doc noteMiniDoc
 
-		if yaml.Unmarshal(frontmatterBytes, &doc) != nil || len(doc.Vocab) == 0 {
+		if yaml.Unmarshal(frontmatterBytes, &doc) != nil {
+			untaggedCount++
+			return
+		}
+
+		tagTerms := vocabTermsFromTags(parseTagsFromFrontmatter(string(frontmatterBytes)))
+
+		if len(doc.Vocab) == 0 && len(tagTerms) == 0 {
 			untaggedCount++
 			return
 		}
 
 		for _, term := range doc.Vocab {
+			memberCounts[term]++
+		}
+
+		for _, term := range tagTerms {
 			memberCounts[term]++
 		}
 	})

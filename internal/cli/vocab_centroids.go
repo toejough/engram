@@ -168,7 +168,12 @@ func loadAssignmentTermVectors(
 
 // loadMemberNoteVectors returns basename→body-vector for every non-vocab note
 // with a readable sidecar. Notes without sidecars are skipped, mirroring
-// assignVocabToNote's skip semantics.
+// assignVocabToNote's skip semantics. Centroid-purity spec (AC4): a bare-vocab
+// DEFINITION note's body IS the term's own description, so its vector must
+// never reach pass-1 assignment or computeTermCentroids — otherwise every
+// term's centroid on every bootstrap/refit skews toward its own definition.
+// This requires a content read (isVocabDefinitionNote) alongside the sidecar
+// read, since post-migration no filename marks a definition note.
 func loadMemberNoteVectors(deps VocabDeps, vault string) map[string][]float32 {
 	names, listErr := deps.ListMD(vault)
 	if listErr != nil {
@@ -182,7 +187,14 @@ func loadMemberNoteVectors(deps VocabDeps, vault string) map[string][]float32 {
 			continue
 		}
 
-		sidecarData, readErr := deps.ReadFile(embed.SidecarPath(filepath.Join(vault, name)))
+		notePath := filepath.Join(vault, name)
+
+		content, contentErr := deps.ReadFile(notePath)
+		if contentErr != nil || isVocabDefinitionNote(string(content)) {
+			continue
+		}
+
+		sidecarData, readErr := deps.ReadFile(embed.SidecarPath(notePath))
 		if readErr != nil {
 			continue
 		}

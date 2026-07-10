@@ -484,6 +484,10 @@ func assignVocabToNote(deps VocabDeps, vault, name string, terms []TermWithVecto
 		return assigned
 	}
 
+	if isVocabDefinitionNote(string(noteData)) {
+		return nil // a definition note must never acquire its own term tag
+	}
+
 	updated := WriteVocabAssignment(string(noteData), assigned)
 	if updated == string(noteData) {
 		return assigned
@@ -592,29 +596,38 @@ func clearRemovedTermsFromMembers(deps VocabDeps, vault string, removals []strin
 			continue
 		}
 
-		notePath := filepath.Join(vault, name)
-
-		raw, readErr := deps.ReadFile(notePath)
-		if readErr != nil {
-			continue
-		}
-
-		if !noteContainsAnyRemoval(string(raw), removals) {
-			continue
-		}
-
-		updated := clearRemovalsFromNoteContent(raw, removalSet)
-		if updated == string(raw) {
-			continue
-		}
-
-		writeErr := deps.WriteFile(notePath, []byte(updated))
-		if writeErr != nil && deps.LogWarning != nil {
-			deps.LogWarning("vocab refit: clearing removed terms in %s: %v", notePath, writeErr)
-		}
+		clearRemovedTermsFromNote(deps, filepath.Join(vault, name), removals, removalSet)
 	}
 
 	return nil
+}
+
+// clearRemovedTermsFromNote clears removed terms from a single member note's
+// vocab channels. Skips bare-vocab DEFINITION notes (which must never be
+// rewritten by term removal) and notes that mention no removed term.
+func clearRemovedTermsFromNote(deps VocabDeps, notePath string, removals []string, removalSet map[string]bool) {
+	raw, readErr := deps.ReadFile(notePath)
+	if readErr != nil {
+		return
+	}
+
+	if isVocabDefinitionNote(string(raw)) {
+		return
+	}
+
+	if !noteContainsAnyRemoval(string(raw), removals) {
+		return
+	}
+
+	updated := clearRemovalsFromNoteContent(raw, removalSet)
+	if updated == string(raw) {
+		return
+	}
+
+	writeErr := deps.WriteFile(notePath, []byte(updated))
+	if writeErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("vocab refit: clearing removed terms in %s: %v", notePath, writeErr)
+	}
 }
 
 // collectCurrentTermEntries scans names for vocab term notes and returns
@@ -811,6 +824,10 @@ func extractNoteVocabTags(deps VocabStatsDeps, vault, name string) ([]string, bo
 
 	raw, readErr := deps.ReadFile(notePath)
 	if readErr != nil || len(raw) == 0 {
+		return nil, false
+	}
+
+	if isVocabDefinitionNote(string(raw)) {
 		return nil, false
 	}
 

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -177,7 +178,7 @@ func applyVocabAssignmentCore(
 		return
 	}
 
-	bodyVec, ok := loadBodyVectorForNote(read, notePath)
+	bodyVec, ok := loadVocabAssignmentBodyVector(read, notePath, content)
 	if !ok {
 		return
 	}
@@ -212,6 +213,21 @@ func insertYAMLBlock(frontmatter, block string, atLine int) string {
 	return strings.Join(result, "\n")
 }
 
+// isVocabDefinitionNote reports whether content's tags: frontmatter list
+// contains the bare "vocab" marker — the tag that marks a note as a vocab
+// term's own DEFINITION (its body IS the term's description), exempting it
+// from term auto-assignment and every member-scan site. A definition's own
+// vector must never reach pass-1 assignment or computeTermCentroids: see the
+// vocab_centroids.go centroid-purity spec (loadMemberNoteVectors).
+func isVocabDefinitionNote(content string) bool {
+	frontmatter, _, ok := splitFrontmatterAndBody(content)
+	if !ok {
+		return false
+	}
+
+	return slices.Contains(parseTagsFromFrontmatter(frontmatter), typeVocab)
+}
+
 // isVocabKind reports whether the note content's type field marks it as a vocab
 // or vocab-index note. These are filtered from the matched set, note-floor
 // reservation, and clustering so they do not surface in recall results.
@@ -235,6 +251,19 @@ func loadBodyVectorForNote(readFn func(string) ([]byte, error), notePath string)
 	}
 
 	return sidecar.BodyVector, true
+}
+
+// loadVocabAssignmentBodyVector loads the note's body vector for write-time
+// assignment, folding in the bare-vocab DEFINITION exemption: ok=false when
+// the sidecar is unreadable OR the note is itself a definition (which must
+// never acquire its own term tag).
+func loadVocabAssignmentBodyVector(read func(string) ([]byte, error), notePath, content string) ([]float32, bool) {
+	bodyVec, ok := loadBodyVectorForNote(read, notePath)
+	if !ok || isVocabDefinitionNote(content) {
+		return nil, false
+	}
+
+	return bodyVec, true
 }
 
 // nonVocabTags filters out entries in the vocab namespace (vocab/<term>)
