@@ -379,8 +379,10 @@ func TestCollectTriggerVaultStats_DefinitionsAreNeitherMembersNorUntagged(t *tes
 ```
 
 (Adapt helper names — `writeNote`/`writeNoteAndSidecar`/`mustMarshalSidecarWithBodyVector`, the exact deps
-struct shapes, and the stats field names — to the existing test-suite idioms in `vocab_trigger_test.go` /
-`vocab_commands_test.go`; the ASSERTIONS above are the contract. Add matching `export_test.go` shims.)
+struct shapes, the stats field names, AND return arities — to the existing suite idioms: the real
+`loadMemberNoteVectors(deps, vault)` returns only a map (no error), and `collectTriggerVaultStats` already
+has a shim at export_test.go:46 taking `(vault, listMD, readFile)` and returning three bare values. The
+ASSERTIONS above are the contract — the vector-map/member/untagged expectations — not the error plumbing.)
 
 Plus: `retagAllNotesTwoPass` and `assignTermsToAllNotes` skip definition notes — fixture assertion: the definition file's bytes are unchanged after a full retag over a scratch vault containing it plus one member.
 
@@ -452,7 +454,7 @@ type noteQueryFrontmatter struct {
 - Test: `internal/cli/vocab_commands_test.go` (bootstrap/propose/refit suites)
 
 **Interfaces:**
-- Consumes: Task 4's naming helpers + version home; Task 1's writer for member rewrites; the flock-guarded luhmann sequencing learn uses (`writeLearnUnderLock` and the next-ID helper in `internal/cli/learn.go` — reuse, do not duplicate).
+- Consumes: Task 4's naming helpers + version home; Task 1's writer for member rewrites; the flock-guarded luhmann sequencing learn uses (`writeLearnUnderLock`, learn.go:647, and `nextLuhmannID`, luhmann.go:126 — reuse, do not duplicate).
 - Produces: definition notes as ordinary fact notes. Concrete shape (the source of the description + exemplars is today's `vocab.<term>.md`: its `description:` frontmatter key duplicates the body's first paragraph, and the body's `Exemplars:` bullet section carries the exemplar list — carry that section over verbatim):
 
 ```markdown
@@ -462,10 +464,10 @@ tier: L2
 situation: recalling what the retrieval-design vocab term covers, or assigning vocab terms
 subject: the retrieval-design vocab term
 predicate: covers
+object: 'Design principles for memory retrieval — ranking, filtering, payload shaping, ...'
 luhmann: "211"
 created: "2026-07-10"
 source: 'vocab lifecycle (refit v7.0)'   # or 'migrated from vocab.retrieval-design.md under #678' in Task 7
-object: 'Design principles for memory retrieval — ranking, filtering, payload shaping, ...'
 tags:
     - vocab
 ---
@@ -479,11 +481,11 @@ Exemplars:
 - (remaining bullets verbatim from the old term note)
 ```
 
-  The body is the embedding text, as today. Family note minted by bootstrap when absent (subject `the vocab tag family`, `object` documents the convention WITHOUT enumerating terms — see the invariant test in Step 1 — plus `vocab_version` in frontmatter).
+  Key order above IS the `factFrontmatterDoc` render order (object before luhmann/created/source — matches the real 204 note); `renderDefinitionNoteContent` marshals through `factFrontmatterDoc` so keys survive amend re-render without reshuffling. The body is the embedding text, as today. Family note minted by bootstrap when absent (subject `the vocab tag family`, `object` documents the convention WITHOUT enumerating terms — see the invariant test in Step 1 — plus `vocab_version` in frontmatter).
 
 **Steps:**
 
-- [ ] **Step 1: Failing tests.** Rewrite the bootstrap/propose/refit suites: bootstrap mints N definition notes + the family note (idempotent — second run mints nothing), no `vocab.index.md` anywhere; propose mints one definition + minor-bumps the family note; refit removals delete the definition note + its sidecar and clear `vocab/<term>` from member tags; renames are a concrete file rename preserving the luhmann ID and date — given `<id>.<date>.vocab-<old>-definition.md` and sidecar `<id>.<date>.vocab-<old>-definition.vec.json`, rename both to `<id>.<date>.vocab-<new>-definition.md` / `.vec.json` (content's slug-bearing fields updated in the same pass) — and substitute `vocab/<old>` → `vocab/<new>` in member tags; refit major-bumps the family note; `retagAllNotesTwoPass` still re-assigns members via `WriteVocabAssignment` (tags now — assert one member's tags list).
+- [ ] **Step 1: Failing tests.** Rewrite the bootstrap/propose/refit suites: bootstrap mints N definition notes + the family note (idempotent — second run mints nothing), no `vocab.index.md` anywhere; propose mints one definition + minor-bumps the family note; refit removals delete the definition note + its sidecar and clear `vocab/<term>` from member tags; renames are a concrete file rename preserving the luhmann ID and date — given `<id>.<date>.vocab-<old>-definition.md`, write `<id>.<date>.vocab-<new>-definition.md` with the content's slug-bearing fields updated, and **re-embed**: the body text embeds the term name, so ContentHash changes — the new sidecar is REGENERATED from the updated body via `writeAndEmbedDefinitionNote`, never renamed (a renamed sidecar carries a stale vector + hash); delete the old `.md` + `.vec.json`; the rename test asserts sidecar freshness (sidecar ContentHash == `embed.ContentHash` of the new file bytes) — and substitute `vocab/<old>` → `vocab/<new>` in member tags; refit major-bumps the family note; `retagAllNotesTwoPass` still re-assigns members via `WriteVocabAssignment` (tags now — assert one member's tags list).
 
   Two invariant tests this suite MUST also carry (Gate A ask-alignment findings):
 
@@ -553,7 +555,7 @@ func TestComputeTermCentroids_ExcludesDefinitionVectors(t *testing.T) {
   (a) mixed-shape (the real 204 pattern): block-style `tags:\n    - work-kind` PLUS inline `vocab: [lever-tracking, cost-optimization]` PLUS a `Vocab: [[vocab.lever-tracking]], [[vocab.cost-optimization]]` body line — post-migration its tags must read `[work-kind, vocab/lever-tracking, vocab/cost-optimization]` in that order;
   (b) a qa answer note (`qa.` filename prefix, `type: qa-answer`) with `vocab: [retrieval-design]`;
   (c) a plain fact note with `vocab: [retrieval-design]` and a `Vocab:` body line;
-  plus (d) a synthetic channel-inconsistency note carrying a `Vocab:` body line but NO `vocab:` key (zero real instances exist — this branch is defensive; the fixture is deliberately synthetic);
+  plus (d) a synthetic channel-inconsistency note carrying a `Vocab:` body line but NO `vocab:` key (zero real instances exist — this branch is defensive; the fixture is deliberately synthetic; expected post-state: no vocab tags, no `Vocab:` line — the body-line terms are DISCARDED per behavior-spec step 4, never parsed as assignment);
   2 term notes with exemplars, `vocab.index.md` with `vocab_version: "6.0"`, 1 orphan sidecar. Assert post-state: member tags merged correctly (categorical preserved, vocab/ namespace exact), no `vocab:` keys, no `Vocab:` lines, definitions minted with correct slugs/fields/tags/body exemplars, family note carries "6.0", hubs + sidecars gone, ContentHash of each surviving member unchanged (compute `embed.ContentHash` before/after), counts output exact, second run all-zeros and byte-identical vault.
 - [ ] **Step 2: Verify failure.** `targ test`.
 - [ ] **Step 3: Implement** with the deps-struct DI pattern of the sibling vocab commands.
@@ -596,13 +598,13 @@ ls $V/*.vocab-*-definition.md | wc -l             # 26
 ls $V/*.vocab-definition.md | wc -l               # 1
 ls $V | wc -l                                     # 451 (225 md + 225 vec.json + centroids.json)
 ```
-- [ ] **Step 5: Assignment-preservation diff** (byte-level; the representational rewrite re-scored nothing):
+- [ ] **Step 5: Assignment-preservation diff** (byte-level; the representational rewrite re-scored nothing). Output shape measured 2026-07-10: `count --group-by` emits TAB-separated `value<TAB>count` lines plus trailing `(vocab absent): N` and `total: N` summary lines — both summaries must be filtered from BOTH sides or the diff false-STOPs on a pristine migration:
 ```bash
+grep -v '^(vocab absent)' /tmp/678-pre-vocab-counts.txt | grep -v '^total:' | sort > /tmp/678-pre-sorted.txt
 engram count --group-by tags | grep '^vocab/' | sed 's|^vocab/||' | sort > /tmp/678-post-vocab-counts.txt
-sort /tmp/678-pre-vocab-counts.txt | grep -v '^$' > /tmp/678-pre-sorted.txt
-diff /tmp/678-pre-sorted.txt /tmp/678-post-vocab-counts.txt   # expect: empty (identical per-term member counts)
+diff /tmp/678-pre-sorted.txt /tmp/678-post-vocab-counts.txt   # expect: empty (identical term<TAB>count pairs)
 ```
-  (Adjust the sed/sort to the actual `count` output shape — pin the shape by running the pre-capture in Step 1 and reading it; the BAR is: identical term→count pairs pre vs post.)
+  (The `sed 's|^vocab/||'` strips only the namespace prefix and is tab-safe. The post side has no `(vocab absent)` analogue after the `grep '^vocab/'`; the `total:` line is likewise excluded by it. BAR: identical term→count pairs pre vs post.)
 - [ ] **Step 6: Sidecar invariance + re-embed true-up:**
 ```bash
 (cd $V && shasum *.vec.json | sort > /tmp/678-sidecars-post.txt)
@@ -616,7 +618,7 @@ engram ingest --auto   # expect: chunk-index true-up only; NO note re-embeds bey
 engram vocab stats            # output includes the line `verdict: OK` (format measured 2026-07-10); 26 terms listed with member counts
 engram query --lazy-chunks --phrase "vocabulary crystallization" | grep tag_nominations_added
                               # budget YAML field `tag_nominations_added: N` with N > 0 (nomination alive on tags)
-engram count --group-by type --filter tags=vocab   # expect `fact: 27` (the emergent index: 26 terms + family)
+engram count --group-by type --filter tags=vocab   # expect `fact<TAB>27` + `total: 27` (emergent index: 26 terms + family; format measured 2026-07-10 — count emits TAB-separated value/count lines, NOT colon form)
 engram vocab migrate-tags     # idempotency: second run prints all-zero counts / `family note: present`
 ```
 - [ ] **Step 8: Trap gate AFTER** (new binary + migrated vault): `python3 dev/eval/traps/gate.py --tier smoke`. Expected GREEN (note 209 rule applies). Record.
@@ -640,7 +642,7 @@ engram vocab migrate-tags     # idempotency: second run prints all-zero counts /
 **write-memory SKILL.md target text (lines 79-80), verbatim replacement under writing-skills TDD:**
 > `- Never hand-author vocab tags or wikilinks — the binary assigns vocab terms automatically as` `vocab/<term>` `entries in the` `tags:` `list. Handed-off --tag categoricals ride the same list but are NOT vocab: pass them through exactly as provided; never invent tags and never write the` `vocab/` `namespace yourself.`
 
-**The grep contract (vault note 207/186 — the scrub surface is ENUMERATED, not recalled; measured 2026-07-10 pre-scrub):** `grep -rni 'vocab' <file> | grep -viE 'vocab/[a-z]'` hit counts: GLOSSARY.md 41, c2-containers.md 17, c3-components.md 11, README.md 8, FEATURES.md 6, c1-system-context.md 4, write-memory/SKILL.md 2 — 89 hits total; plus `grep -n '678' docs/architecture/adr.md` (lines 415, 495) and `docs/ROADMAP.md` (line 47, the Gated entry). The executor re-runs both greps post-scrub and reconciles EVERY remaining hit in the execution log as one of: (a) updated, (b) justified-historical (ADR/decision-log context), or (c) still-accurate (e.g. "sharing a vocab term" in nomination descriptions — the term concept survives; only the representation changed). A hit with no recorded disposition = the task is not done.
+**The grep contract (vault note 207/186 — the scrub surface is ENUMERATED, not recalled; measured 2026-07-10 pre-scrub):** `grep -rni 'vocab' <file> | grep -viE 'vocab/[a-z]'` hit counts: GLOSSARY.md 41, c2-containers.md 17, c3-components.md 11, README.md 8, FEATURES.md 6, c1-system-context.md 4, write-memory/SKILL.md 2 — 89 hits total; plus `grep -n '678' docs/architecture/adr.md` (lines 415, 495) and `docs/ROADMAP.md` (line 47, the Gated entry). Also surveyed 2026-07-10 (Gate A docs-alignment): `skills/learn/SKILL.md` 8 hits and `skills/recall/SKILL.md` 7 hits — all command-surface (`engram vocab stats`/`refit`) or concept-level ("sharing a vocab term"), still-accurate class; these two files are fenced from edits this cycle (win-nucleus constraint). One borderline: recall/SKILL.md:278 "vocab-tag assignment connects the new note ... structurally" — post-migration the connection is query-time nomination, not graph structure; flag it to the close-out follow-up list alongside the `isMachineLine` cleanup and the migrate-tags retirement decision. The executor re-runs both greps post-scrub and reconciles EVERY remaining hit in the execution log as one of: (a) updated, (b) justified-historical (ADR/decision-log context), or (c) still-accurate (e.g. "sharing a vocab term" in nomination descriptions — the term concept survives; only the representation changed). A hit with no recorded disposition = the task is not done.
 
 **Steps:**
 
