@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -175,6 +176,170 @@ func TestLearnFact_EmptyChunkSources_NoSourcesKey(t *testing.T) {
 	g.Expect(string(written)).NotTo(ContainSubstring("sources:"))
 }
 
+// TestLearnFact_EmptyTags_NoTagsKey: no --tag flags → no tags: key (omitempty).
+func TestLearnFact_EmptyTags_NoTagsKey(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "untagged", Vault: t.TempDir(), Position: "top",
+		Source: "test", Situation: "no tags", Subject: "A", Predicate: "has", Object: "B",
+	}
+	deps := cli.LearnDeps{
+		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		StatDir:       func(string) error { return nil },
+		InitVault:     func(string) error { return nil },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).NotTo(ContainSubstring("tags:"))
+}
+
+// TestLearnFact_InvalidTag_RejectedBeforeWrite: every malformed tag shape is
+// rejected with the sentinel error, before any file write.
+func TestLearnFact_InvalidTag_RejectedBeforeWrite(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	invalidTags := []string{
+		"Work-Kind/Rename", // uppercase
+		"a/b/c",            // two slashes
+		"work kind/rename", // space
+		"/rename",          // empty family
+		"work-kind/",       // empty value
+		"tier=cheap",       // wrong separator
+		"",                 // empty
+	}
+
+	for _, tag := range invalidTags {
+		var wrote bool
+
+		args := cli.LearnArgs{
+			Type: "fact", Slug: "bad-tag", Vault: t.TempDir(), Position: "top",
+			Source: "test", Situation: "s", Subject: "a", Predicate: "b", Object: "c",
+			Tags: []string{"work-kind/ok-sibling", tag},
+		}
+		deps := cli.LearnDeps{
+			Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
+			Getenv:        func(string) string { return "" },
+			StatDir:       func(string) error { return nil },
+			InitVault:     func(string) error { return nil },
+			ListIDs:       func(string) ([]string, error) { return nil, nil },
+			ListBasenames: func(string) ([]string, error) { return nil, nil },
+			Lock:          func(string) (func(), error) { return func() {}, nil },
+			WriteNew:      func(string, []byte) error { wrote = true; return nil },
+		}
+
+		var buf strings.Builder
+
+		err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+		g.Expect(err).To(MatchError(ContainSubstring("tag must be")), "tag %q must be rejected", tag)
+		g.Expect(wrote).To(BeFalse(), "tag %q must be rejected before any write", tag)
+	}
+}
+
+// TestLearnFact_Tags_WrittenToFrontmatter locks the --tag surface (#674): tags
+// on LearnArgs land in the frontmatter tags: list, preserving order.
+func TestLearnFact_Tags_WrittenToFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "fact", Slug: "route-dispatch-rename", Vault: t.TempDir(), Position: "top",
+		Source: "test", Situation: "routing rename work",
+		Subject: "rename dispatch at cheap (haiku)", Predicate: "resolved as", Object: "pass",
+		Tags: []string{"work-kind/rename", "tier/cheap", "outcome/pass"},
+	}
+	deps := cli.LearnDeps{
+		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		StatDir:       func(string) error { return nil },
+		InitVault:     func(string) error { return nil },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	note := string(written)
+	g.Expect(note).To(ContainSubstring("tags:"))
+	g.Expect(note).To(ContainSubstring("work-kind/rename"))
+	g.Expect(note).To(ContainSubstring("tier/cheap"))
+	g.Expect(note).To(ContainSubstring("outcome/pass"))
+	g.Expect(strings.Index(note, "work-kind/rename")).
+		To(BeNumerically("<", strings.Index(note, "tier/cheap")), "tag order must be preserved")
+	g.Expect(strings.Index(note, "tier/cheap")).
+		To(BeNumerically("<", strings.Index(note, "outcome/pass")), "tag order must be preserved")
+}
+
+// TestLearnFeedback_Tags_WrittenToFrontmatter: the feedback form carries tags too.
+func TestLearnFeedback_Tags_WrittenToFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var written []byte
+
+	args := cli.LearnArgs{
+		Type: "feedback", Slug: "tagged-feedback", Vault: t.TempDir(), Position: "top",
+		Source: "test", Situation: "routing rename work",
+		Behavior: "b", Impact: "i", Action: "a",
+		Tags: []string{"work-kind/rename", "outcome/fail"},
+	}
+	deps := cli.LearnDeps{
+		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
+		Getenv:        func(string) string { return "" },
+		StatDir:       func(string) error { return nil },
+		InitVault:     func(string) error { return nil },
+		ListIDs:       func(string) ([]string, error) { return nil, nil },
+		ListBasenames: func(string) ([]string, error) { return nil, nil },
+		Lock:          func(string) (func(), error) { return func() {}, nil },
+		WriteNew:      func(_ string, data []byte) error { written = data; return nil },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).To(ContainSubstring("tags:"))
+	g.Expect(string(written)).To(ContainSubstring("work-kind/rename"))
+	g.Expect(string(written)).To(ContainSubstring("outcome/fail"))
+}
+
 func TestLearnPath_Permanent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -297,6 +462,50 @@ func TestRenderFactFrontmatter_SafelyEncodesTrickyValues(t *testing.T) {
 	g.Expect(parsed["subject"]).To(Equal(fields.Subject))
 	g.Expect(parsed["predicate"]).To(Equal(fields.Predicate))
 	g.Expect(parsed["object"]).To(Equal(fields.Object))
+}
+
+// TestRenderFactFrontmatter_TagsRoundtripFidelity is a property test: any tag
+// list drawn from the valid grammar passes validateTags AND survives the
+// render→parse YAML roundtrip identically (order and values). Mirrors
+// TestRenderFeedbackFrontmatter_RoundtripFidelity.
+func TestRenderFactFrontmatter_TagsRoundtripFidelity(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		tagGen := rapid.StringMatching(`[a-z0-9-]{1,12}(/[a-z0-9-]{1,12})?`)
+		tags := rapid.SliceOfN(tagGen, 1, 4).Draw(rt, "tags")
+
+		if err := cli.ExportValidateTags(tags); err != nil {
+			rt.Fatalf("grammar-valid tags rejected: %v", err)
+		}
+
+		fields := cli.ExportFactFields{
+			Situation: "s", Subject: "a", Predicate: "b", Object: "c",
+			Luhmann: "1", Source: "src", Tags: tags,
+		}
+		when := time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC)
+		got := cli.ExportRenderFactFrontmatter(fields, when)
+
+		const delim = "---\n"
+
+		body := strings.TrimPrefix(got, delim)
+		end := strings.Index(body, "\n"+delim)
+
+		if end < 0 {
+			rt.Fatalf("no closing delimiter in %q", got)
+		}
+
+		var doc struct {
+			Tags []string `yaml:"tags"`
+		}
+
+		if err := yaml.Unmarshal([]byte(body[:end+1]), &doc); err != nil {
+			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
+		}
+
+		if !slices.Equal(doc.Tags, tags) {
+			rt.Fatalf("tags: got %v want %v\nfull:\n%s", doc.Tags, tags, got)
+		}
+	})
 }
 
 // TestRenderFeedbackBody_StripsLeadingWhenFromSituation guards against the
@@ -920,6 +1129,29 @@ func TestValidateProjectSlug_RejectsBadShape(t *testing.T) {
 	g.Expect(cli.ExportValidateProjectSlug("Engram")).To(HaveOccurred())
 	g.Expect(cli.ExportValidateProjectSlug("with spaces")).To(HaveOccurred())
 	g.Expect(cli.ExportValidateProjectSlug("punct!")).To(HaveOccurred())
+}
+
+// TestValidateTags_* exercise the validator directly, split per behavior
+// (repo convention — cf. TestValidateProjectSlug_AcceptsEmpty /
+// _AcceptsKebabCase / _RejectsBadShape, learn_test.go:903-917).
+func TestValidateTags_AcceptsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateTags(nil)).To(Succeed())
+}
+
+func TestValidateTags_AcceptsValidShapes(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateTags([]string{"work-kind"})).To(Succeed())
+	g.Expect(cli.ExportValidateTags([]string{"work-kind/rename", "tier/cheap", "outcome/pass"})).To(Succeed())
+	g.Expect(cli.ExportValidateTags([]string{"a1-b2/c3-d4"})).To(Succeed())
+}
+
+func TestValidateTags_RejectsBadShape(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	g.Expect(cli.ExportValidateTags([]string{"outcome/pass", "BAD"})).To(HaveOccurred())
 }
 
 // parseFrontmatter strips the "---" delimiters from a rendered frontmatter

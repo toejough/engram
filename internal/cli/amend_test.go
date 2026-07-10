@@ -573,6 +573,55 @@ func TestRunAmend_NoteNotFound(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("note not found")))
 }
 
+// TestRunAmend_PreservesTagsFrontmatter (#674): amending a content field of a
+// tagged fact note must not drop tags: — factFrontmatterDoc.Tags carries the
+// list through amend's decode→override→render cycle. No --tag flag exists on
+// amend by design; preservation is the whole contract.
+func TestRunAmend_PreservesTagsFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-07-10.route-dispatch-rename.md"
+
+	noteContent := []byte(
+		"---\ntype: fact\nsituation: routing rename work\nsubject: rename dispatch\n" +
+			"predicate: resolved as\nobject: pass\nluhmann: \"1aa\"\ncreated: 2026-07-10\n" +
+			"source: test\ntags:\n    - work-kind/rename\n    - tier/cheap\n    - outcome/pass\n" +
+			"---\n\nbody\n",
+	)
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Object: "fail per review verdict"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).To(ContainSubstring("tags:"))
+	g.Expect(string(written)).To(ContainSubstring("work-kind/rename"))
+	g.Expect(string(written)).To(ContainSubstring("tier/cheap"))
+	g.Expect(string(written)).To(ContainSubstring("outcome/pass"))
+	g.Expect(string(written)).To(ContainSubstring("object: fail per review verdict"))
+}
+
 func TestRunAmend_ProvMerge_ChunkSources_Written(t *testing.T) {
 	t.Parallel()
 

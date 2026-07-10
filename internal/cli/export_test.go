@@ -108,6 +108,7 @@ var (
 	ExportValidateLearnQAArgs  = validateLearnQAArgs
 	ExportValidateProjectSlug  = validateProjectSlug
 	ExportValidateSlug         = validateSlug
+	ExportValidateTags         = validateTags
 	ExportWriteCentroidsDocRaw = writeCentroidsDocRaw
 	ExportWriteUpdateReport    = writeUpdateReport
 	ExportWriteVocabAssignment = WriteVocabAssignment

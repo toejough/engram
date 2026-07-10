@@ -41,6 +41,12 @@ type LearnArgs struct {
 	// --chunk-source ids against the index because it runs after ingestion.)
 	ChunkSources []string
 
+	// Tags carries repeatable `--tag` categorical tags: a bare family
+	// ([a-z0-9-]+ — by convention marks a family definition note) or a
+	// family/value pair ([a-z0-9-]+/[a-z0-9-]+ — marks a member). Written to
+	// the frontmatter tags: list; validated by validateTags before any write.
+	Tags []string
+
 	// feedback / fact share these
 	Situation string
 	// feedback only
@@ -108,7 +114,9 @@ var (
 	errProjectSlugInvalid        = errors.New("project slug must match [a-z0-9-]+")
 	errSlugEmpty                 = errors.New("slug is required")
 	errSlugInvalid               = errors.New("slug must match [a-z0-9-]+")
+	errTagInvalid                = errors.New("tag must be <family> or <family>/<value>, each segment matching [a-z0-9-]+")
 	slugPattern                  = regexp.MustCompile(`^[a-z0-9-]+$`)
+	tagPattern                   = regexp.MustCompile(`^[a-z0-9-]+(/[a-z0-9-]+)?$`)
 )
 
 type factFields struct {
@@ -122,6 +130,7 @@ type factFields struct {
 	Issue        string
 	Tier         string
 	ChunkSources []string
+	Tags         []string
 	Supersedes   []supersedesEntry
 }
 
@@ -140,6 +149,7 @@ type factFrontmatterDoc struct {
 	Project    string            `yaml:"project,omitempty"`
 	Issue      quotedString      `yaml:"issue,omitempty"`
 	Sources    []string          `yaml:"sources,omitempty"`
+	Tags       []string          `yaml:"tags,omitempty"`
 	Vocab      []string          `yaml:"vocab,omitempty"`
 	Supersedes []supersedesEntry `yaml:"supersedes,omitempty"`
 }
@@ -155,6 +165,7 @@ type feedbackFields struct {
 	Issue        string
 	Tier         string
 	ChunkSources []string
+	Tags         []string
 	Supersedes   []supersedesEntry
 }
 
@@ -172,6 +183,7 @@ type feedbackFrontmatterDoc struct {
 	Project    string            `yaml:"project,omitempty"`
 	Issue      quotedString      `yaml:"issue,omitempty"`
 	Sources    []string          `yaml:"sources,omitempty"`
+	Tags       []string          `yaml:"tags,omitempty"`
 	Vocab      []string          `yaml:"vocab,omitempty"`
 	Supersedes []supersedesEntry `yaml:"supersedes,omitempty"`
 }
@@ -247,7 +259,7 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 			Situation: args.Situation, Behavior: args.Behavior, Impact: args.Impact,
 			Action: args.Action, Luhmann: luhmann, Source: args.Source,
 			Project: args.Project, Issue: args.Issue, Tier: tierOrDefault(args.Tier),
-			ChunkSources: args.ChunkSources, Supersedes: parsedSupersedes,
+			ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
 		}
 
 		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f), nil
@@ -260,7 +272,7 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 			Situation: args.Situation, Subject: args.Subject, Predicate: args.Predicate,
 			Object: args.Object, Luhmann: luhmann, Source: args.Source,
 			Project: args.Project, Issue: args.Issue, Tier: tierOrDefault(args.Tier),
-			ChunkSources: args.ChunkSources, Supersedes: parsedSupersedes,
+			ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
 		}
 
 		return renderFactFrontmatter(f, when) + renderFactBody(f), nil
@@ -385,6 +397,7 @@ func renderFactFrontmatter(f factFields, when time.Time) string {
 		Project:    f.Project,
 		Issue:      quotedString(f.Issue),
 		Sources:    f.ChunkSources,
+		Tags:       f.Tags,
 		Supersedes: f.Supersedes,
 	})
 }
@@ -412,6 +425,7 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 		Project:    f.Project,
 		Issue:      quotedString(f.Issue),
 		Sources:    f.ChunkSources,
+		Tags:       f.Tags,
 		Supersedes: f.Supersedes,
 	})
 }
@@ -454,6 +468,11 @@ func runLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 		return fmt.Errorf("learn: %w", issueErr)
 	}
 
+	tagErr := validateTags(args.Tags)
+	if tagErr != nil {
+		return fmt.Errorf("learn: %w", tagErr)
+	}
+
 	vault := args.Vault
 
 	vaultErr := ensureVaultDir(deps.StatDir, deps.InitVault, vault, "learn")
@@ -486,6 +505,7 @@ func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer
 		Tier:         a.Tier,
 		Supersedes:   a.Supersedes,
 		ChunkSources: a.ChunkSources,
+		Tags:         a.Tags,
 		Situation:    a.Situation,
 		Subject:      a.Subject,
 		Predicate:    a.Predicate,
@@ -508,6 +528,7 @@ func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout i
 		Tier:         a.Tier,
 		Supersedes:   a.Supersedes,
 		ChunkSources: a.ChunkSources,
+		Tags:         a.Tags,
 		Situation:    a.Situation,
 		Behavior:     a.Behavior,
 		Impact:       a.Impact,
@@ -583,6 +604,21 @@ func validateSlug(slug string) error {
 
 	if !slugPattern.MatchString(slug) {
 		return fmt.Errorf("%w: got %q", errSlugInvalid, slug)
+	}
+
+	return nil
+}
+
+// validateTags rejects any --tag entry that is not a bare family or a
+// family/value pair (kebab-case segments). Empty list is allowed: tags are
+// optional categorical metadata. Convention (#674): a bare family tag marks a
+// family definition note; family/value marks a member. Low-cardinality
+// categoricals only — quantities like duration/cost belong in content fields.
+func validateTags(tags []string) error {
+	for _, tag := range tags {
+		if !tagPattern.MatchString(tag) {
+			return fmt.Errorf("%w: got %q", errTagInvalid, tag)
+		}
 	}
 
 	return nil

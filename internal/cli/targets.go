@@ -26,6 +26,7 @@ type CommonLearnArgs struct {
 	Tier       string   `targ:"flag,name=tier,desc=tier: L2 (active/default) or L1|L3 (legacy); default derived from type"`
 
 	ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk id (source#anchor) recorded as provenance (repeatable)"`
+	Tags         []string `targ:"flag,name=tag,desc=categorical tag: <family> or <family>/<value> (kebab-case; repeatable)"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // LearnFactArgs holds parsed flags for the learn fact subcommand.
