@@ -398,10 +398,12 @@ func TestRunAmend_VocabAssignment_WritesVocabWhenTermsPresent(t *testing.T) {
 		return
 	}
 
-	g.Expect(string(written)).To(ContainSubstring("vocab:"),
-		"vocab: frontmatter must be present after amend when terms are assigned")
-	g.Expect(string(written)).To(ContainSubstring("Vocab:"),
-		"Vocab: body line must be present after amend when terms are assigned")
+	g.Expect(string(written)).To(ContainSubstring("tags:\n    - vocab/eval-methodology"),
+		"the vocab/ namespace of tags: must be present after amend when terms are assigned")
+	g.Expect(string(written)).NotTo(ContainSubstring("\nvocab:"),
+		"legacy vocab: frontmatter key must not be written")
+	g.Expect(string(written)).NotTo(ContainSubstring("Vocab:"),
+		"legacy Vocab: body line must not be written")
 }
 
 // TestRunLearn_VocabAssignment_SkipsWhenDepsNotWired verifies backward compat:
@@ -596,10 +598,12 @@ func TestRunLearn_VocabAssignment_WritesVocabWhenTermsPresent(t *testing.T) {
 	}
 
 	g.Expect(updatedContent).NotTo(BeNil(), "WriteNote must be called when terms are assigned")
-	g.Expect(string(updatedContent)).To(ContainSubstring("vocab:"),
-		"vocab: frontmatter key must be present in updated note")
-	g.Expect(string(updatedContent)).To(ContainSubstring("Vocab:"),
-		"Vocab: body line must be present in updated note")
+	g.Expect(string(updatedContent)).To(ContainSubstring("tags:\n    - vocab/eval-methodology"),
+		"the vocab/ namespace of tags: must be present in updated note")
+	g.Expect(string(updatedContent)).NotTo(ContainSubstring("\nvocab:"),
+		"legacy vocab: frontmatter key must not be written")
+	g.Expect(string(updatedContent)).NotTo(ContainSubstring("Vocab:"),
+		"legacy Vocab: body line must not be written")
 }
 
 // ── Coverage: assignVocabToNote sidecar-error and note-read-error paths ───────
@@ -766,9 +770,10 @@ func TestRunVocabBootstrap_AssignsTermsToExistingNote(t *testing.T) {
 	notePath := "/vault/1aa.2026-01-01.test.md"
 	g.Expect(written).To(HaveKey(notePath), "existing note must be updated with vocab assignment")
 	updatedContent := string(written[notePath])
-	g.Expect(updatedContent).To(ContainSubstring("vocab:"), "vocab: frontmatter key must be written")
-	g.Expect(updatedContent).To(ContainSubstring("Vocab:"), "Vocab: body line must be written")
-	g.Expect(updatedContent).To(ContainSubstring("eval-methodology"), "term must be assigned")
+	g.Expect(updatedContent).To(ContainSubstring("tags:\n    - vocab/eval-methodology"),
+		"the vocab/ namespace of tags: must be written")
+	g.Expect(updatedContent).NotTo(ContainSubstring("\nvocab:"), "legacy vocab: frontmatter key must not be written")
+	g.Expect(updatedContent).NotTo(ContainSubstring("Vocab:"), "legacy Vocab: body line must not be written")
 }
 
 // TestRunVocabBootstrap_CentroidTwoPass_SecondPassAssignsNote verifies the
@@ -1920,9 +1925,9 @@ func TestRunVocabRefit_Rename_DeleteError_LogsWarning(t *testing.T) {
 }
 
 // TestRunVocabRefit_Rename_LeavesProseIntact verifies a rename rewrites ONLY
-// the two vocab channels (frontmatter list + Vocab: body line): prose that
-// contains the old term name as a substring — in the situation field or the
-// body — must survive byte-identical. Guards against a whole-note ReplaceAll.
+// the vocab/ namespace of the tags: channel: prose that contains the old
+// term name as a substring — in the situation field or the body — must
+// survive byte-identical. Guards against a whole-note ReplaceAll.
 func TestRunVocabRefit_Rename_LeavesProseIntact(t *testing.T) {
 	t.Parallel()
 
@@ -1981,10 +1986,10 @@ func TestRunVocabRefit_Rename_LeavesProseIntact(t *testing.T) {
 		"prose in the situation field must survive a rename untouched")
 	g.Expect(updated).To(ContainSubstring("the eval-methodology review found the gap"),
 		"prose in the body must survive a rename untouched")
-	g.Expect(updated).To(ContainSubstring("vocab: [evaluation-practice]"),
-		"the frontmatter channel must carry the new term")
-	g.Expect(updated).To(ContainSubstring("Vocab: [[vocab.evaluation-practice]]"),
-		"the body channel must carry the new term")
+	g.Expect(updated).To(ContainSubstring("tags:\n    - vocab/evaluation-practice"),
+		"the tags: channel must carry the new term in the vocab/ namespace")
+	g.Expect(updated).NotTo(ContainSubstring("\nvocab:"), "legacy vocab: frontmatter key must not be written")
+	g.Expect(updated).NotTo(ContainSubstring("Vocab:"), "legacy Vocab: body line must not be written")
 	g.Expect(updated).NotTo(ContainSubstring("evaluation-practice review"),
 		"the new term must not leak into prose")
 }

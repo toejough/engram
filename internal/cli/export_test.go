@@ -77,6 +77,7 @@ var (
 	ExportParseCreatedFromNote             = parseCreatedFromNote
 	ExportParseNoteQueryFrontmatter        = parseNoteQueryFrontmatter
 	ExportParseSupersedesFlag              = parseSupersedesFlag
+	ExportParseTagsFromFrontmatter         = parseTagsFromFrontmatter
 	ExportParseTurnN                       = parseTurnN
 	ExportPluralFile                       = pluralFile
 	ExportPrintLinkExamples                = printLinkExamples
@@ -109,6 +110,7 @@ var (
 	ExportValidateProjectSlug  = validateProjectSlug
 	ExportValidateSlug         = validateSlug
 	ExportValidateTags         = validateTags
+	ExportVocabTermsFromTags   = vocabTermsFromTags
 	ExportWriteCentroidsDocRaw = writeCentroidsDocRaw
 	ExportWriteUpdateReport    = writeUpdateReport
 	ExportWriteVocabAssignment = WriteVocabAssignment

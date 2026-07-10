@@ -85,18 +85,40 @@ func ParseVocabFrontmatter(frontmatterBytes []byte) (VocabFrontmatter, error) {
 	return doc, nil
 }
 
-// WriteVocabAssignment replaces the `Vocab:` body line and the `vocab:` YAML
-// frontmatter list in content with the supplied term names. Idempotency rule:
-// the full line and full list are replaced on every call — never appended.
-// When terms is empty, both channels are removed entirely.
-//
-// This is the single writer for both the body-graph channel
-// ([[vocab.<term>]] wikilinks) and the Dataview/search channel (frontmatter list).
+// WriteVocabAssignment rewrites the vocab/<term> namespace of the note's
+// tags: frontmatter list to exactly terms, preserving all non-vocab tags and
+// their order. It also strips the legacy vocab: frontmatter key and Vocab:
+// body line when present (migration-by-touch). Idempotency rule: the vocab
+// namespace is replaced on every call — never appended. When terms is empty,
+// the vocab namespace is removed; an emptied tags: key is removed entirely.
 func WriteVocabAssignment(content string, terms []string) string {
-	content = replaceVocabFrontmatterList(content, terms)
-	content = replaceVocabBodyLine(content, terms)
+	frontmatter, rest, ok := splitFrontmatterAndBody(content)
+	if !ok {
+		return content
+	}
 
-	return content
+	kept := nonVocabTags(parseTagsFromFrontmatter(frontmatter))
+
+	merged := make([]string, 0, len(kept)+len(terms))
+	merged = append(merged, kept...)
+
+	for _, term := range terms {
+		merged = append(merged, vocabTagPrefix+term)
+	}
+
+	insertAt := yamlKeyLineIndex(frontmatter, "tags")
+	if insertAt < 0 {
+		insertAt = yamlKeyLineIndex(frontmatter, "vocab")
+	}
+
+	frontmatter = removeYAMLKey(frontmatter, "tags")
+	frontmatter = removeYAMLKey(frontmatter, "vocab")
+
+	if len(merged) > 0 {
+		frontmatter = insertYAMLBlock(frontmatter, renderTagsBlock(merged), insertAt)
+	}
+
+	return fmStart + frontmatter + fmEnd + removeVocabBodyLine(rest)
 }
 
 // unexported constants.
@@ -113,6 +135,11 @@ const (
 	// note. Aliased to the embed marker so the writer's line matching and the
 	// BodyText/ContentHash exclusion can never drift apart.
 	vocabBodyMarker = embed.VocabBodyMarker
+	// vocabTagBlockIndent is the 4-space "- " block-sequence item prefix,
+	// byte-identical to yaml.v3's default indent (matches the #674 learn
+	// renderer's tags: output; see renderTagsBlock).
+	vocabTagBlockIndent = "    - "
+	vocabTagPrefix      = "vocab/"
 )
 
 // termScore is the internal working type for scoring terms against a note vector.
@@ -159,6 +186,23 @@ func applyVocabAssignmentCore(
 	}
 }
 
+// insertYAMLBlock inserts block at the given line index (append at end when
+// index is -1 or out of range).
+func insertYAMLBlock(frontmatter, block string, atLine int) string {
+	lines := strings.Split(frontmatter, "\n")
+
+	if atLine < 0 || atLine > len(lines) {
+		atLine = len(lines)
+	}
+
+	result := make([]string, 0, len(lines)+1)
+	result = append(result, lines[:atLine]...)
+	result = append(result, block)
+	result = append(result, lines[atLine:]...)
+
+	return strings.Join(result, "\n")
+}
+
 // isVocabKind reports whether the note content's type field marks it as a vocab
 // or vocab-index note. These are filtered from the matched set, note-floor
 // reservation, and clustering so they do not surface in recall results.
@@ -182,6 +226,70 @@ func loadBodyVectorForNote(readFn func(string) ([]byte, error), notePath string)
 	}
 
 	return sidecar.BodyVector, true
+}
+
+// nonVocabTags filters out entries in the vocab namespace (vocab/<term>)
+// AND the bare "vocab" definition marker, preserving order.
+func nonVocabTags(tags []string) []string {
+	kept := make([]string, 0, len(tags))
+
+	for _, tag := range tags {
+		if tag == typeVocab || strings.HasPrefix(tag, vocabTagPrefix) {
+			continue
+		}
+
+		kept = append(kept, tag)
+	}
+
+	return kept
+}
+
+// parseTagsFromFrontmatter returns the tags: list values, handling both
+// block style ("tags:\n    - a") and inline style ("tags: [a, b]").
+// Absent key or empty list returns nil.
+func parseTagsFromFrontmatter(frontmatter string) []string {
+	var doc struct {
+		Tags []string `yaml:"tags"`
+	}
+
+	unmarshalErr := yaml.Unmarshal([]byte(frontmatter), &doc)
+	if unmarshalErr != nil || len(doc.Tags) == 0 {
+		return nil
+	}
+
+	return doc.Tags
+}
+
+// removeVocabBodyLine strips the Vocab: machine line (and one preceding
+// blank line) from the body; unchanged when absent.
+func removeVocabBodyLine(body string) string {
+	lines := strings.Split(body, "\n")
+
+	idx := -1
+
+	for i, line := range lines {
+		if strings.HasPrefix(line, vocabBodyMarker) {
+			idx = i
+
+			break
+		}
+	}
+
+	if idx < 0 {
+		return body
+	}
+
+	out := make([]string, 0, len(lines)-1)
+	out = append(out, lines[:idx]...)
+
+	// Drop exactly one preceding blank line, if present.
+	if len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
+	}
+
+	out = append(out, lines[idx+1:]...)
+
+	return strings.Join(out, "\n")
 }
 
 // removeYAMLKey removes a top-level YAML key and its value (scalar or
@@ -228,100 +336,17 @@ func removeYAMLKey(frontmatter, key string) string {
 	return strings.Join(result, "\n")
 }
 
-// renderVocabBodyLine produces the `Vocab: [[vocab.term-a]], [[vocab.term-b]]`
-// body line for the graph/Obsidian channel.
-func renderVocabBodyLine(terms []string) string {
-	links := make([]string, len(terms))
+// renderTagsBlock renders the block-style list, 4-space indent:
+// "tags:\n    - a\n    - b" (no trailing newline).
+func renderTagsBlock(tags []string) string {
+	lines := make([]string, 0, len(tags)+1)
+	lines = append(lines, "tags:")
 
-	for i, term := range terms {
-		links[i] = "[[vocab." + term + "]]"
+	for _, tag := range tags {
+		lines = append(lines, vocabTagBlockIndent+tag)
 	}
 
-	return "Vocab: " + strings.Join(links, ", ")
-}
-
-// renderVocabYAMLList produces the inline-list form `vocab: [term-a, term-b]`
-// for the frontmatter channel.
-func renderVocabYAMLList(terms []string) string {
-	return "vocab: [" + strings.Join(terms, ", ") + "]"
-}
-
-// replaceVocabBodyLine replaces (or removes) the `Vocab: [[...]]` line in the
-// note body. Operates only in the body section (after the frontmatter delimiters).
-func replaceVocabBodyLine(content string, terms []string) string {
-	if !strings.HasPrefix(content, fmStart) {
-		return replaceVocabBodyLineInSection(content, terms)
-	}
-
-	rest := content[len(fmStart):]
-
-	endIdx := strings.Index(rest, fmEnd)
-	if endIdx < 0 {
-		return content
-	}
-
-	bodyStart := len(fmStart) + endIdx + len(fmEnd)
-	head := content[:bodyStart]
-	body := content[bodyStart:]
-
-	return head + replaceVocabBodyLineInSection(body, terms)
-}
-
-// replaceVocabBodyLineInSection removes existing `Vocab:` lines from section
-// and, when terms is non-empty, appends the new `Vocab:` line.
-func replaceVocabBodyLineInSection(section string, terms []string) string {
-	lines := strings.Split(section, "\n")
-	out := make([]string, 0, len(lines))
-
-	for _, line := range lines {
-		if strings.HasPrefix(line, vocabBodyMarker) {
-			continue
-		}
-
-		out = append(out, line)
-	}
-
-	// Trim trailing blank lines before re-adding the Vocab line.
-	for len(out) > 0 && strings.TrimSpace(out[len(out)-1]) == "" {
-		out = out[:len(out)-1]
-	}
-
-	if len(terms) > 0 {
-		out = append(out, "", renderVocabBodyLine(terms))
-	}
-
-	// Preserve trailing newline.
-	result := strings.Join(out, "\n")
-	if !strings.HasSuffix(result, "\n") {
-		result += "\n"
-	}
-
-	return result
-}
-
-// replaceVocabFrontmatterList locates the `vocab:` key in the YAML frontmatter
-// block and replaces its value with the supplied terms. When terms is empty
-// the key is removed. Operates only inside the `---` delimiters so any
-// `vocab:` text in the body is unaffected.
-func replaceVocabFrontmatterList(content string, terms []string) string {
-	if !strings.HasPrefix(content, fmStart) {
-		return content
-	}
-
-	rest := content[len(fmStart):]
-
-	frontmatter, after, found := strings.Cut(rest, fmEnd)
-	if !found {
-		return content
-	}
-
-	frontmatter = removeYAMLKey(frontmatter, "vocab")
-
-	if len(terms) > 0 {
-		frontmatter = strings.TrimRight(frontmatter, "\n") + "\n" + renderVocabYAMLList(terms)
-	}
-
-	return fmStart + frontmatter + fmEnd + after
+	return strings.Join(lines, "\n")
 }
 
 // sortTermScores sorts a termScore slice descending by score, with term name
@@ -340,4 +365,50 @@ func sortTermScores(candidates []termScore) {
 			candidates[j-1], candidates[j] = candidates[j], candidates[j-1]
 		}
 	}
+}
+
+// splitFrontmatterAndBody cuts content into (frontmatter-without-delims,
+// body-after-closing-delim, ok). ok is false when content has no leading
+// frontmatter block.
+func splitFrontmatterAndBody(content string) (string, string, bool) {
+	if !strings.HasPrefix(content, fmStart) {
+		return "", "", false
+	}
+
+	frontmatter, body, found := strings.Cut(content[len(fmStart):], fmEnd)
+	if !found {
+		return "", "", false
+	}
+
+	return frontmatter, body, true
+}
+
+// vocabTermsFromTags returns the terms of the vocab namespace entries
+// (prefix stripped), preserving order. The bare "vocab" tag is not a term.
+func vocabTermsFromTags(tags []string) []string {
+	terms := make([]string, 0, len(tags))
+
+	for _, tag := range tags {
+		term, ok := strings.CutPrefix(tag, vocabTagPrefix)
+		if !ok {
+			continue
+		}
+
+		terms = append(terms, term)
+	}
+
+	return terms
+}
+
+// yamlKeyLineIndex returns the line index of a top-level key, or -1.
+func yamlKeyLineIndex(frontmatter, key string) int {
+	keyPrefix := key + ":"
+
+	for i, line := range strings.Split(frontmatter, "\n") {
+		if strings.HasPrefix(line, keyPrefix) {
+			return i
+		}
+	}
+
+	return -1
 }
