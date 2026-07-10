@@ -207,8 +207,8 @@ func TestBuildTagNominations_AlreadyInResults_NotNominated(t *testing.T) {
 
 	g := NewWithT(t)
 
-	top3Content := "---\ntype: fact\nsituation: ctx\nvocab: [eval-methodology]\n---\n\nbody A\n"
-	alreadyContent := "---\ntype: fact\nsituation: x\nvocab: [eval-methodology]\n---\n\nbody B\n"
+	top3Content := "---\ntype: fact\nsituation: ctx\ntags:\n    - vocab/eval-methodology\n---\n\nbody A\n"
+	alreadyContent := "---\ntype: fact\nsituation: x\ntags:\n    - vocab/eval-methodology\n---\n\nbody B\n"
 
 	// Both notes in resolved (already-present is a direct hit).
 	resolved := []cli.ExportResolvedItem{
@@ -258,7 +258,7 @@ func TestBuildTagNominations_CapExceeded_ReportsAddedAndDropped(t *testing.T) {
 
 	const entryCount = expectedAdded + expectedDropped
 
-	top3Content := "---\ntype: fact\nsituation: ctx\nvocab: [eval-methodology]\n---\n\nbody A\n"
+	top3Content := "---\ntype: fact\nsituation: ctx\ntags:\n    - vocab/eval-methodology\n---\n\nbody A\n"
 	resolved := []cli.ExportResolvedItem{
 		cli.ExportNewNoteResolvedItemWithContentAndProvenances(
 			"1aa.top-note.md", top3Content, 0.9, []string{"direct"},
@@ -315,8 +315,8 @@ func TestBuildTagNominations_MultiCluster_NomineesKeyedByTriggeringCluster(t *te
 
 	g := NewWithT(t)
 
-	noteAContent := "---\ntype: fact\nsituation: ctx\nvocab: [term-a]\n---\n\nbody A\n"
-	noteBContent := "---\ntype: fact\nsituation: ctx\nvocab: [term-b]\n---\n\nbody B\n"
+	noteAContent := "---\ntype: fact\nsituation: ctx\ntags:\n    - vocab/term-a\n---\n\nbody A\n"
+	noteBContent := "---\ntype: fact\nsituation: ctx\ntags:\n    - vocab/term-b\n---\n\nbody B\n"
 
 	resolved := []cli.ExportResolvedItem{
 		cli.ExportNewNoteResolvedItemWithContentAndProvenances(
@@ -388,16 +388,16 @@ func TestBuildTagNominations_TagSharedNote_AppearsInNominations(t *testing.T) {
 
 	g := NewWithT(t)
 
-	// Top-3 delivered note with vocab: [eval-methodology].
-	top3Content := "---\ntype: fact\nsituation: ctx\nvocab: [eval-methodology]\n---\n\nbody A\n"
+	// Top-3 delivered note with tags: [vocab/eval-methodology].
+	top3Content := "---\ntype: fact\nsituation: ctx\ntags:\n    - vocab/eval-methodology\n---\n\nbody A\n"
 	resolved := []cli.ExportResolvedItem{
 		cli.ExportNewNoteResolvedItemWithContentAndProvenances(
 			"1aa.top-note.md", top3Content, 0.9, []string{"direct"},
 		),
 	}
 
-	// nominee.md also has vocab: [eval-methodology] but is NOT in resolved.
-	nomineeContent := "---\ntype: feedback\nsituation: x\nvocab: [eval-methodology]\n---\n\nbody nominee\n"
+	// nominee.md also has tags: [vocab/eval-methodology] but is NOT in resolved.
+	nomineeContent := "---\ntype: feedback\nsituation: x\ntags:\n    - vocab/eval-methodology\n---\n\nbody nominee\n"
 	meta := cli.ExportNewVaultNotesMetaWithTerms(map[string][]cli.ExportNominationEntry{
 		"eval-methodology": {{NotePath: "nominee.md", Content: nomineeContent}},
 	})
@@ -427,7 +427,7 @@ func TestBuildTagNominations_VocabNoteExcluded(t *testing.T) {
 
 	g := NewWithT(t)
 
-	top3Content := "---\ntype: fact\nsituation: ctx\nvocab: [eval-methodology]\n---\n\nbody A\n"
+	top3Content := "---\ntype: fact\nsituation: ctx\ntags:\n    - vocab/eval-methodology\n---\n\nbody A\n"
 	resolved := []cli.ExportResolvedItem{
 		cli.ExportNewNoteResolvedItemWithContentAndProvenances(
 			"1aa.top-note.md", top3Content, 0.9, []string{"direct"},
@@ -454,6 +454,61 @@ func TestBuildTagNominations_VocabNoteExcluded(t *testing.T) {
 		"vocab notes must never be nominated")
 }
 
+// TestLoadAllVaultNotesMeta_BareVocabTag_ContributesNoTerms verifies that a note
+// tagged with bare "vocab" definition marker contributes NO terms to TermIndex
+// but is still nominatable (appears in ContentByBasename, not filtered out by
+// this task's code).
+func TestLoadAllVaultNotesMeta_BareVocabTag_ContributesNoTerms(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Vocab definition note with bare "vocab" tag (not vocab/<term>).
+	vocabDefContent := "---\ntype: vocab\ntags:\n    - vocab\n---\n\nvocab term definition\n"
+
+	const basename = "vocab.definition"
+
+	const modelID = "test-model"
+
+	sidecarBytes := embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion: 1, EmbeddingModelID: modelID, Dims: 2,
+		SituationVector: []float32{1, 0}, BodyVector: []float32{1, 0},
+	})
+
+	sidecarStruct, unmarshalErr := embed.UnmarshalSidecar(sidecarBytes)
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+
+	if unmarshalErr != nil {
+		return
+	}
+
+	hits := cli.ExportNewCompatibleSidecars(
+		[]vaultgraph.Note{{Basename: basename}},
+		[]embed.Sidecar{sidecarStruct},
+	)
+
+	fs := map[string][]byte{
+		"/vault/" + basename + ".md": []byte(vocabDefContent),
+	}
+
+	readFn := func(path string) ([]byte, error) {
+		if data, ok := fs[path]; ok {
+			return data, nil
+		}
+
+		return nil, &testNotFoundError{path: path}
+	}
+
+	meta := cli.ExportLoadAllVaultNotesMeta(hits, "/vault", readFn)
+
+	g.Expect(meta.TermIndex).To(BeEmpty(),
+		"bare 'vocab' tag is not a term; TermIndex must be empty")
+
+	// Content must still be populated (nominatable, not filtered).
+	g.Expect(meta.ContentByBasename).To(HaveKey(basename),
+		"bare vocab definition must still be nominatable")
+}
+
 // ── Integration: loadAllVaultNotesMeta ───────────────────────────────────────
 
 // TestLoadAllVaultNotesMeta_BuildsTermIndexAndInverse verifies that a single scan
@@ -463,10 +518,10 @@ func TestLoadAllVaultNotesMeta_BuildsTermIndexAndInverse(t *testing.T) {
 
 	g := NewWithT(t)
 
-	// Note-A: has vocab [eval-methodology] and supersedes 9a.old.
-	noteAContent := "---\ntype: fact\nsituation: ctx\nvocab: [eval-methodology]\n" +
+	// Note-A: has tags: [vocab/eval-methodology] and supersedes 9a.old.
+	noteAContent := "---\ntype: fact\nsituation: ctx\ntags:\n    - vocab/eval-methodology\n" +
 		"supersedes:\n  - note: 9a.old\n    type: updates\n    claim: old was wrong\n---\n\nbody A\n"
-	// Note-B: plain note, no vocab or supersedes.
+	// Note-B: plain note, no tags or supersedes.
 	noteBContent := "---\ntype: feedback\nsituation: x\n---\n\nbody B\n"
 
 	const basenameA = "1aa.note-a"
@@ -531,6 +586,62 @@ func TestLoadAllVaultNotesMeta_BuildsTermIndexAndInverse(t *testing.T) {
 	g.Expect(meta.ContentByBasename).To(HaveKey(basenameA))
 }
 
+// TestLoadAllVaultNotesMeta_MixedTags_OnlyVocabTermsIndexed verifies that a note
+// with mixed categorical and vocab tags contributes only vocab terms to the
+// TermIndex.
+func TestLoadAllVaultNotesMeta_MixedTags_OnlyVocabTermsIndexed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Note with work-kind/rename (categorical) and vocab/go-conventions (vocab).
+	// Only go-conventions should appear in TermIndex.
+	mixedContent := "---\ntype: fact\nsituation: ctx\ntags:\n" +
+		"    - work-kind/rename\n    - vocab/go-conventions\n---\n\nbody\n"
+
+	const basename = "1aa.mixed-note"
+
+	const modelID = "test-model"
+
+	sidecarBytes := embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion: 1, EmbeddingModelID: modelID, Dims: 2,
+		SituationVector: []float32{1, 0}, BodyVector: []float32{1, 0},
+	})
+
+	sidecarStruct, unmarshalErr := embed.UnmarshalSidecar(sidecarBytes)
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+
+	if unmarshalErr != nil {
+		return
+	}
+
+	hits := cli.ExportNewCompatibleSidecars(
+		[]vaultgraph.Note{{Basename: basename}},
+		[]embed.Sidecar{sidecarStruct},
+	)
+
+	fs := map[string][]byte{
+		"/vault/" + basename + ".md": []byte(mixedContent),
+	}
+
+	readFn := func(path string) ([]byte, error) {
+		if data, ok := fs[path]; ok {
+			return data, nil
+		}
+
+		return nil, &testNotFoundError{path: path}
+	}
+
+	meta := cli.ExportLoadAllVaultNotesMeta(hits, "/vault", readFn)
+
+	g.Expect(meta.TermIndex).To(HaveKey("go-conventions"),
+		"TermIndex must include vocab term (prefix stripped)")
+	g.Expect(meta.TermIndex).NotTo(HaveKey("work-kind/rename"),
+		"TermIndex must NOT include non-vocab tags")
+	g.Expect(meta.TermIndex).NotTo(HaveKey("rename"),
+		"TermIndex must NOT include stripped non-vocab tags")
+}
+
 // TestLoadAllVaultNotesMeta_NoVocabOrSupersedes_EmptyMaps verifies that on a vault
 // with no vocab or supersedes data, both maps are empty (backward compat no-op).
 func TestLoadAllVaultNotesMeta_NoVocabOrSupersedes_EmptyMaps(t *testing.T) {
@@ -575,8 +686,10 @@ func TestLoadAllVaultNotesMeta_NoVocabOrSupersedes_EmptyMaps(t *testing.T) {
 
 	meta := cli.ExportLoadAllVaultNotesMeta(hits, "/vault", readFn)
 
-	g.Expect(meta.TermIndex).To(BeEmpty(), "TermIndex must be empty when no notes have vocab: frontmatter")
-	g.Expect(meta.SupersedesInverse).To(BeEmpty(), "SupersedesInverse must be empty when no notes have supersedes:")
+	g.Expect(meta.TermIndex).To(BeEmpty(),
+		"TermIndex must be empty when no notes have tags: with vocab/ entries")
+	g.Expect(meta.SupersedesInverse).To(BeEmpty(),
+		"SupersedesInverse must be empty when no notes have supersedes:")
 
 	// Content by basename must still be populated.
 	g.Expect(meta.ContentByBasename).To(HaveKey(basename))
@@ -636,6 +749,34 @@ func TestNoteClusterIDForPath_NoteNotInMembers_ReturnsZero(t *testing.T) {
 	g.Expect(got).To(Equal(0), "fallback to cluster 0 when note is absent from matched set")
 }
 
+// TestParseNoteQueryFrontmatter_BareVocabTag_IsNotTerm verifies that the bare
+// "vocab" definition marker tag is included in the parsed Tags but does NOT
+// contribute a term (no prefix to strip).
+func TestParseNoteQueryFrontmatter_BareVocabTag_IsNotTerm(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: vocab\ntags:\n    - vocab\n---\n\nthis is a vocab definition\n"
+	doc := cli.ExportParseNoteQueryFrontmatter(content)
+
+	g.Expect(doc.Tags).To(Equal([]string{"vocab"}))
+}
+
+// TestParseNoteQueryFrontmatter_MixedTags_OnlyVocabExtracted verifies that when
+// a note has mixed categorical and vocab tags, only vocab/ entries are
+// extracted as terms.
+func TestParseNoteQueryFrontmatter_MixedTags_OnlyVocabExtracted(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	content := "---\ntype: fact\nsituation: ctx\ntags:\n    - work-kind/rename\n    - vocab/go-conventions\n---\n\nbody\n"
+	doc := cli.ExportParseNoteQueryFrontmatter(content)
+
+	g.Expect(doc.Tags).To(ConsistOf("work-kind/rename", "vocab/go-conventions"))
+}
+
 // NOTE: testNotFoundError is defined in testhelpers_test.go and is reused here.
 // The cli_test package shares one testNotFoundError implementation across files.
 
@@ -651,7 +792,7 @@ func TestParseNoteQueryFrontmatter_NoFrontmatter_Empty(t *testing.T) {
 	content := "just body text, no frontmatter\n"
 	doc := cli.ExportParseNoteQueryFrontmatter(content)
 
-	g.Expect(doc.Vocab).To(BeNil())
+	g.Expect(doc.Tags).To(BeNil())
 	g.Expect(doc.Supersedes).To(BeNil())
 }
 
@@ -677,17 +818,21 @@ func TestParseNoteQueryFrontmatter_SupersedesList_Parsed(t *testing.T) {
 	g.Expect(doc.Supersedes[0].Claim).To(Equal("old was wrong"))
 }
 
-// TestParseNoteQueryFrontmatter_VocabList_Parsed verifies that a note's vocab:
-// frontmatter list is correctly extracted.
-func TestParseNoteQueryFrontmatter_VocabList_Parsed(t *testing.T) {
+// TestParseNoteQueryFrontmatter_TagsBlockStyle_ParsesToTerms verifies that a
+// note's tags: frontmatter with vocab/ entries is correctly parsed and
+// converted to vocab term names (prefix stripped).
+func TestParseNoteQueryFrontmatter_TagsBlockStyle_ParsesToTerms(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	content := "---\ntype: fact\nsituation: ctx\nvocab: [eval-methodology, scope-discipline]\n---\n\nbody\n"
+	content := "---\ntype: fact\nsituation: ctx\ntags:\n" +
+		"    - vocab/eval-methodology\n    - vocab/scope-discipline\n---\n\nbody\n"
 	doc := cli.ExportParseNoteQueryFrontmatter(content)
 
-	g.Expect(doc.Vocab).To(Equal([]string{"eval-methodology", "scope-discipline"}))
+	// The parsed doc should have Tags with vocab entries; terms
+	// (prefix stripped) are derived by vocabTermsFromTags.
+	g.Expect(doc.Tags).To(ConsistOf("vocab/eval-methodology", "vocab/scope-discipline"))
 }
 
 // ── Unit: renderClusters (tag-nomination merge path) ─────────────────────────

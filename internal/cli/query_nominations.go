@@ -62,10 +62,10 @@ const (
 )
 
 // noteQueryFrontmatter is the minimal parsed shape of a note's frontmatter for
-// query-integration purposes (vocab terms + supersedes entries). Parsed once per
+// query-integration purposes (vocab tags + supersedes entries). Parsed once per
 // note in loadAllVaultNotesMeta and not re-parsed later.
 type noteQueryFrontmatter struct {
-	Vocab      []string          `yaml:"vocab"`
+	Tags       []string          `yaml:"tags"`
 	Supersedes []supersedesEntry `yaml:"supersedes"`
 }
 
@@ -266,7 +266,9 @@ func buildTagNominations(
 	nominated := make(map[string]bool)
 
 	for _, top := range top3 {
-		terms := parseNoteQueryFrontmatter(top.content).Vocab
+		parsed := parseNoteQueryFrontmatter(top.content)
+
+		terms := vocabTermsFromTags(parsed.Tags)
 		if len(terms) == 0 {
 			continue
 		}
@@ -332,12 +334,13 @@ func loadAllVaultNotesMeta(
 		result.ContentByBasename[basename] = content
 
 		meta := parseNoteQueryFrontmatter(content)
+		terms := vocabTermsFromTags(meta.Tags)
 
 		// Populate TermIndex — excluded kinds (vocab/vocab-index/qa-question) are never nominated.
-		if !isQueryExcludedKind(content) && len(meta.Vocab) > 0 {
+		if !isQueryExcludedKind(content) && len(terms) > 0 {
 			entry := NominationEntry{NotePath: notePath, Content: content}
 
-			for _, term := range meta.Vocab {
+			for _, term := range terms {
 				result.TermIndex[term] = append(result.TermIndex[term], entry)
 			}
 		}
