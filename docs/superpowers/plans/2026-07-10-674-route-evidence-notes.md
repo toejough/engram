@@ -697,10 +697,18 @@ cheapest…"), and the "Cold-start priors" section lines 113–126 must appear i
   the transcript.
 
 - [ ] **3.2 GREEN — the edits.** Five verbatim changes to
-  `/Users/joe/repos/personal/engram/skills/route/SKILL.md`. **Uniqueness pre-check:** each quoted
-  anchor below must appear exactly once — `grep -cF '<anchor text>'` prints `1` per anchor; any
-  other count → STOP and re-derive. (Line numbers cited below are locators as of f2fedb8b; the
-  verbatim quoted text is the binding anchor.)
+  `/Users/joe/repos/personal/engram/skills/route/SKILL.md`. **Uniqueness pre-check (grep is
+  line-based — multi-line quotes cannot be grepped whole; use these pinned SINGLE-LINE anchors,
+  each measured `grep -cF` = 1 against the file at plan-write time):**
+  - E1 → `Y — needs mid"). Recalled evidence sets the starting tier.`
+  - E2 → `After each dispatch resolves, record one line of evidence.`
+  - E3 → `other names without changing this table.`
+  - E4 → `3. The record lands in your session transcript`
+  - E5 → `| You skipped recording the dispatch outcome`
+
+  Run `grep -cF '<anchor>' skills/route/SKILL.md` for each before editing; any count ≠ 1 → STOP
+  and re-derive. (Line numbers cited below are locators as of f2fedb8b; the verbatim quoted text
+  is the binding anchor.)
 
   **(E1) Read side** — replace (current lines 36–38):
   ```markdown
@@ -831,14 +839,17 @@ cheapest…"), and the "Cold-start priors" section lines 113–126 must appear i
   git diff -U0 skills/route/SKILL.md
   ```
   **Decision procedure (content-based, not line-based):** every hunk's changed lines must lie
-  within one of the five edit regions, each identified by its verbatim anchor from 3.2 — E1 (the
-  "Recall first" paragraph), E2 (the "After each dispatch resolves" sentence), E3 (the new section
-  inserted after the paragraph ending "...changing this table."), E4 (the loop step-3 sentence),
-  E5 (the new red-flags row). Then grep each of the four protected quotes — "starts at the
-  cheapest", "Absent evidence, default to the cheapest", "Cold-start priors", "no entry starts
-  above cheap without recorded evidence" — confirm each still appears exactly once (`grep -cF`
-  prints 1) AND none appears inside any diff hunk (`git diff skills/route/SKILL.md | grep -cF
-  '<quote>'` prints 0). Any violation → revert that hunk before proceeding. Zero tolerance.
+  within one of the five edit regions, each identified by its pinned single-line anchor from
+  3.2's pre-check list. Then run BOTH checks over the five protected single-line fragments —
+  `starts at the cheapest` · `Absent evidence, default to the cheapest` · `Cold-start priors` ·
+  `no entry starts above` · `cheap without recorded evidence` (the last two jointly cover the
+  doctrine sentence, which wraps across two file lines and cannot be grepped whole; each fragment
+  measured `grep -cF` = 1 at plan-write time):
+  1. In-file: `grep -cF '<fragment>' skills/route/SKILL.md` prints exactly `1` for each.
+  2. In-diff: `git diff -U0 skills/route/SKILL.md | grep -cF '<fragment>'` prints exactly `0` for
+     each (`-U0` is load-bearing — default context windows pull adjacent protected lines into
+     hunks and false-fail this check).
+  Any violation → revert that hunk before proceeding. Zero tolerance.
 
 - [ ] **3.4 GREEN check + pressure test.** Fresh subagent, EDITED skill text, the 3.1 scenario
   verbatim. Save the reply to a file and decide by grep. **PASS iff ALL FOUR hold:** (1)
@@ -941,8 +952,12 @@ No repo files change here except the plan's Execution Log. These three commands 
   (`~/.local/share/engram/vault`) in Obsidian → tag pane → expand `work-kind` / `tier` / `outcome`:
   each bare family tag shows exactly 1 note (the definition note); after evidence notes accrue,
   each `family/value` tag's pane count must equal the corresponding `engram count --group-by tags
-  --filter tags=<family>/<value>` total." Log status: DOCUMENTED-FOR-JOE (plus the expected values
-  as of this run). Joe's confirmation is welcome but does not block execution.
+  --filter tags=<family>/<value>` total." Caution for the reader: Obsidian's tag pane aggregates
+  nested-child counts into the parent row, so once `family/value` evidence accrues the bare-family
+  pane number reads 1+N while `engram count --filter tags=<family>` (exact match) stays 1 — the
+  audit figures are the `family/value` rows, never the parent row. Log status: DOCUMENTED-FOR-JOE
+  (plus the expected values as of this run). Joe's confirmation is welcome but does not block
+  execution.
 
 - [ ] **4.3 Recallability check (non-blocking, pre-registered as WARN-only — retrieval ranking on
   the live vault is not this task's contract):**
@@ -1055,6 +1070,7 @@ retrieval value — ADR-0011, ROADMAP standing constraint, vault note 73).
 - `/Users/joe/repos/personal/engram/docs/FEATURES.md`
 - `/Users/joe/repos/personal/engram/docs/ROADMAP.md`
 - `/Users/joe/repos/personal/engram/docs/architecture/adr.md`
+- `/Users/joe/repos/personal/engram/README.md` (CLI reference — 6.2c)
 
 ### Steps
 
@@ -1251,8 +1267,9 @@ retrieval value — ADR-0011, ROADMAP standing constraint, vault note 73).
   GLOSSARY: --tag entry + Route evidence section (evidence/aggregate/definition
   notes, bare-tag convention). FEATURES: count audit note + new capability
   entry. ROADMAP: #674 shipped wording, #670 dependency now 'accrued evidence'.
-  ADR-0019 records tags-as-sole-categorical + count-as-audit + the
-  pre-registered drowning remedies (references ADR-0011/0017/0018).
+  README: learn signatures gain --tag. ADR-0019 records
+  tags-as-sole-categorical + count-as-audit + the pre-registered drowning
+  remedies (references ADR-0011/0017/0018).
 
   AI-Used: [claude]"
   ```
