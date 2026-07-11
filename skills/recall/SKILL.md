@@ -275,8 +275,8 @@ Hand ONE synthesis note per conclusion to the **write-memory** skill (kind=fact 
 - **If the synthesis conclusion CORRECTS, narrows, or refutes an existing surfaced note**, include
   the superseded note's basename, type (`updates|narrows|refutes`), and claim in the write-memory
   handoff — the binary maintains the inverse automatically. Otherwise no link ritual is needed; the
-  binary's vocab-tag assignment connects the new note to related notes structurally. Do not
-  hand-author wikilinks for structural linking.
+  binary auto-assigns vocab tags at write time, and recall surfaces tag-sharing notes at query time
+  (tag nomination). Do not hand-author wikilinks to connect notes.
 
 **Gate — do not rot the vault (notes 68/69):** persist ONLY conclusions you judge sound. If it is a
 hunch, you'd hedge below "probable", or it merely re-aggregates one note, do NOT persist. One synthesis
