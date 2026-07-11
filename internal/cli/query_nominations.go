@@ -59,8 +59,9 @@ const (
 	// (the first-processed cluster wins most slots; subsequent clusters see fewer
 	// un-nominated notes due to the shared nominated map).
 	nominationCapPerCluster = 40
-	// topNForNomination is the number of top-ranked delivered notes whose vocab:
-	// frontmatter terms seed the tag-match nomination pool.
+	// topNForNomination is the number of top-ranked delivered notes whose tags:
+	// frontmatter list (vocab/ namespace entries) seed the tag-match nomination
+	// pool.
 	topNForNomination = 3
 )
 
@@ -193,11 +194,11 @@ func applySupersedesRideAlong(resolved []resolvedItem, meta AllVaultNotesMeta) [
 }
 
 // applyTagNominationAndRideAlong runs the Slice-3 query integration: one
-// metadata scan over all vault hits (vocab: + supersedes: frontmatter), the
-// supersession ride-along insertion into the ranked items, and tag-match
-// nomination for the per-cluster candidate_l2s. Returns the (possibly
-// extended) items, the per-cluster nominations, and the nomination tally
-// emitted in the payload budget (no-silent-caps rule).
+// metadata scan over all vault hits (tags: frontmatter list + supersedes:
+// frontmatter), the supersession ride-along insertion into the ranked items,
+// and tag-match nomination for the per-cluster candidate_l2s. Returns the
+// (possibly extended) items, the per-cluster nominations, and the nomination
+// tally emitted in the payload budget (no-silent-caps rule).
 func applyTagNominationAndRideAlong(
 	resolved []resolvedItem,
 	hits []compatibleSidecar,
@@ -307,9 +308,10 @@ func buildTagNominations(
 	return nominations, tally
 }
 
-// loadAllVaultNotesMeta reads every note in hits once, parsing their vocab: and
-// supersedes: frontmatter fields. The results feed both tag-match nomination
-// (TermIndex) and supersession ride-along (SupersedesInverse + ContentByBasename).
+// loadAllVaultNotesMeta reads every note in hits once, parsing their tags:
+// frontmatter list (vocab/ namespace entries) and supersedes: fields. The
+// results feed both tag-match nomination (TermIndex) and supersession
+// ride-along (SupersedesInverse + ContentByBasename).
 //
 // This is a no-op on vaults with no vocab or supersedes data: it always returns
 // an AllVaultNotesMeta with initialised (but possibly empty) maps.
@@ -399,8 +401,9 @@ func noteClusterIDForPath(notePath string, matchSet matchedSet, report clusterRe
 	return 0
 }
 
-// parseNoteQueryFrontmatter extracts the vocab: and supersedes: fields from note
-// content's YAML frontmatter. Returns zero-value fields on any parse failure.
+// parseNoteQueryFrontmatter extracts the tags: frontmatter list (vocab/
+// namespace entries) and supersedes: fields from note content's YAML
+// frontmatter. Returns zero-value fields on any parse failure.
 func parseNoteQueryFrontmatter(content string) noteQueryFrontmatter {
 	if !strings.HasPrefix(content, fmStart) {
 		return noteQueryFrontmatter{}
@@ -424,8 +427,8 @@ func parseNoteQueryFrontmatter(content string) noteQueryFrontmatter {
 }
 
 // topDeliveredNotes returns the first n non-chunk, non-recent, non-ride_along
-// items from resolved. These are the delivered notes whose vocab: frontmatter
-// terms seed the tag-match nomination pool.
+// items from resolved. These are the delivered notes whose tags: frontmatter
+// list (vocab/ namespace entries) seed the tag-match nomination pool.
 func topDeliveredNotes(resolved []resolvedItem, n int) []resolvedItem {
 	out := make([]resolvedItem, 0, n)
 
