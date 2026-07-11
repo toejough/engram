@@ -86,7 +86,7 @@ type LearnDeps struct {
 	// newly-written note's body vector for vocab assignment.
 	ReadSidecar func(path string) ([]byte, error)
 	// WriteNote atomically rewrites an existing note file. Used only when
-	// vocab assignment produces tags to write both channels.
+	// vocab assignment produces tags to write into the note's tags: list.
 	WriteNote func(path string, data []byte) error
 	// ListMD lists full .md filenames in the vault for the vocab trigger scan.
 	// Optional: nil skips the trigger check (backward compat).

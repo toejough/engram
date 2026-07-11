@@ -162,7 +162,8 @@ func RunVocabBootstrap(ctx context.Context, args VocabBootstrapArgs, deps VocabD
 	memberCounts := make(map[string]int)
 
 	if len(terms) > 0 {
-		memberCounts = retagAllNotesTwoPass(deps, args.Vault, terms, floor, buildLastRefitDoc(names, when))
+		memberCounts = retagAllNotesTwoPass(deps, args.Vault, terms, floor,
+			buildLastRefitDoc(args.Vault, names, deps.ReadFile, when))
 	}
 
 	_, _ = fmt.Fprintf(stdout, "vocab bootstrap: %d terms, %d notes assigned\n", len(seed), sumCounts(memberCounts))
@@ -255,7 +256,8 @@ func RunVocabRefit(ctx context.Context, args VocabRefitArgs, deps VocabDeps, std
 
 	if len(terms) > 0 {
 		refitNames, _ := deps.ListMD(args.Vault)
-		_ = retagAllNotesTwoPass(deps, args.Vault, terms, DefaultVocabFloor, buildLastRefitDoc(refitNames, when))
+		_ = retagAllNotesTwoPass(deps, args.Vault, terms, DefaultVocabFloor,
+			buildLastRefitDoc(args.Vault, refitNames, deps.ReadFile, when))
 	}
 
 	_, _ = fmt.Fprintf(stdout, "vocab refit applied: version → %s\n", newVersion)
@@ -448,8 +450,8 @@ func applyRefitRenames(
 }
 
 // assignTermsToAllNotes scans all non-vocab notes in vault, loads their sidecar
-// body vectors, assigns terms, and rewrites both vocab channels. Returns the
-// per-term member count and any scan-level error.
+// body vectors, assigns terms, and rewrites each note's tags: vocab/<term>
+// entries. Returns the per-term member count and any scan-level error.
 func assignTermsToAllNotes(
 	deps VocabDeps,
 	vault string,
@@ -522,12 +524,23 @@ func assignVocabToNote(deps VocabDeps, vault, name string, terms []TermWithVecto
 }
 
 // buildLastRefitDoc builds a vocabLastRefitDoc stamped with the current note
-// count and date. Pure: callers pass the names they already listed. Used by
-// bootstrap and refit to seed last_refit so the trigger checker has a baseline
-// from the moment the vocab set is (re)initialised.
-func buildLastRefitDoc(names []string, now time.Time) *vocabLastRefitDoc {
+// count and date. Callers pass the names they already listed and the vault's
+// ReadFile; the count is derived from collectTriggerVaultStatsFromNames — the
+// SAME content-based measure (bare-vocab definition notes and QA questions
+// excluded) the trigger check itself uses, so the seed and the check can
+// never diverge in units. Used by bootstrap and refit to seed last_refit so
+// the trigger checker has a baseline from the moment the vocab set is
+// (re)initialised.
+func buildLastRefitDoc(
+	vault string,
+	names []string,
+	readFile func(string) ([]byte, error),
+	now time.Time,
+) *vocabLastRefitDoc {
+	totalNotes, _, _ := collectTriggerVaultStatsFromNames(vault, names, readFile)
+
 	return &vocabLastRefitDoc{
-		NoteCount: countNonVocabNoteFiles(names),
+		NoteCount: totalNotes,
 		Date:      now.Format(dateFormat),
 	}
 }
@@ -621,8 +634,8 @@ func clearRemovedTermsFromMembers(deps VocabDeps, vault string, removals []strin
 }
 
 // clearRemovedTermsFromNote clears removed terms from a single member note's
-// vocab channels. Skips bare-vocab DEFINITION notes (which must never be
-// rewritten by term removal) and notes that mention no removed term.
+// tags: vocab/<term> entries. Skips bare-vocab DEFINITION notes (which must
+// never be rewritten by term removal) and notes that mention no removed term.
 func clearRemovedTermsFromNote(deps VocabDeps, notePath string, removals []string, removalSet map[string]bool) {
 	raw, readErr := deps.ReadFile(notePath)
 	if readErr != nil {
@@ -1549,8 +1562,8 @@ func renderVocabVersionLine(newVersion string) string {
 }
 
 // rewriteMemberTermRename scans all member notes and substitutes fromTerm →
-// toTerm in the two vocab channels ONLY (the vocab: frontmatter list, then
-// both channels rewritten via the single writer). Prose that merely contains
+// toTerm in the note's tags: vocab/<term> list ONLY (renameTermInVocabList
+// reads and rewrites that single representation). Prose that merely contains
 // the term name as a substring is never touched — a whole-note ReplaceAll
 // would corrupt situation/body text mentioning the term.
 func rewriteMemberTermRename(deps VocabDeps, vault, fromTerm, toTerm string) error {

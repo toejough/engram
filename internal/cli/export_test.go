@@ -48,7 +48,6 @@ var (
 	ExportClearRemovedTermsFromMembers     = clearRemovedTermsFromMembers
 	ExportCollectCurrentTermEntries        = collectCurrentTermEntries
 	ExportCollectTriggerVaultStats         = collectTriggerVaultStats
-	ExportCountNonVocabNoteFiles           = countNonVocabNoteFiles
 	ExportCountQAPairs                     = countQAPairs
 	ExportDefaultRecencyParams             = defaultRecencyParams
 	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote

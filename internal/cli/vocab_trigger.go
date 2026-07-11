@@ -87,12 +87,15 @@ func collectTriggerVaultStats(
 
 // collectTriggerVaultStatsFromNames is the names-in-hand form of
 // collectTriggerVaultStats, for callers that already listed the vault
-// (e.g. emitRefitRequest) — avoids a second directory pass. A bare-vocab
-// DEFINITION note (isVocabDefinitionNote) contributes to neither totalNotes
-// nor untaggedCount — it is not a member note at all. Member terms are read
-// SOLELY from the tags: vocab/<term> namespace (#678 Task 5: the union with
-// the legacy `vocab:` frontmatter key is retired — a single read source
-// means a term can never be double-counted from the same note).
+// (e.g. emitRefitRequest, buildLastRefitDoc) — avoids a second directory
+// pass. A bare-vocab DEFINITION note (isVocabDefinitionNote) contributes to
+// neither totalNotes nor untaggedCount — it is not a member note at all.
+// Member terms are read SOLELY from the tags: vocab/<term> namespace (#678
+// Task 5: the union with the legacy `vocab:` frontmatter key is retired — a
+// single read source means a term can never be double-counted from the same
+// note). This is the ONE content-based note-count measure shared by both the
+// refit-baseline seed (buildLastRefitDoc) and the trigger check itself
+// (checkAndPersistVocabRefitTrigger) — they must never diverge in units.
 func collectTriggerVaultStatsFromNames(
 	vault string,
 	names []string,
@@ -134,20 +137,6 @@ func collectTriggerVaultStatsFromNames(
 	})
 
 	return totalNotes, untaggedCount, memberCounts
-}
-
-// countNonVocabNoteFiles counts basenames that are not vocab-kind files.
-// A pure helper reused by bootstrap/refit seeding and the trigger check.
-func countNonVocabNoteFiles(names []string) int {
-	count := 0
-
-	for _, name := range names {
-		if !isVocabKindFilename(name) && !isQAQuestionFilename(name) {
-			count++
-		}
-	}
-
-	return count
 }
 
 // evaluateVocabTriggers returns (fired, reason) for the in-process threshold checks.

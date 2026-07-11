@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/toejough/engram/internal/cli"
 )
@@ -286,15 +288,6 @@ func TestCollectTriggerVaultStats_WithVocabTagsAndNoFrontmatter(t *testing.T) {
 
 // ── Coverage helpers ──────────────────────────────────────────────────────────
 
-func TestCountNonVocabNoteFiles_FiltersVocabKindFiles(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	names := []string{"1.note.md", "vocab.x.md", "vocab.index.md", "2.note.md"}
-
-	g.Expect(cli.ExportCountNonVocabNoteFiles(names)).To(Equal(2))
-}
-
 func TestEvaluateVocabTriggers_GrowthBelowDaysFloor(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -363,6 +356,92 @@ func TestEvaluateVocabTriggers_UntaggedRateFires(t *testing.T) {
 
 	g.Expect(fired).To(BeTrue())
 	g.Expect(reason).To(ContainSubstring("untagged"))
+}
+
+// TestVocabRefitSeed_MatchesTriggerCheckUnits is the final-review blocking-fix
+// regression: RunVocabBootstrap seeds last_refit.NoteCount using the SAME
+// content-based measure the trigger check itself uses
+// (collectTriggerVaultStats) — both a bare-vocab DEFINITION note and a QA
+// question note must be excluded from both sides identically. Before the fix,
+// the seed used a filename-only count (countNonVocabNoteFiles) that included
+// bare-vocab definition notes (their filenames carry no vocab-kind prefix —
+// only isVocabDefinitionNote's CONTENT check excludes them), so the seed and
+// the check diverged by exactly the definition-note count.
+func TestVocabRefitSeed_MatchesTriggerCheckUnits(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	// Member notes: one tagged, one untagged — both count toward totalNotes
+	// on both sides.
+	writeNote(t, vault, "1.2026-07-09.tagged-member.md",
+		"---\ntype: fact\ntags:\n    - vocab/existing-topic\n---\n\nTagged body.\n")
+	writeNote(t, vault, "2.2026-07-09.untagged-member.md",
+		"---\ntype: fact\n---\n\nUntagged body.\n")
+
+	// A pre-existing bare-vocab DEFINITION note: content-based scans exclude
+	// it entirely (isVocabDefinitionNote); the old filename-only seed counted
+	// it as a plain note, since its filename has no vocab-kind prefix.
+	writeNote(t, vault, "3.2026-07-09.vocab-legacy-term-definition.md",
+		"---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines legacy-term.\n")
+
+	// A QA question note — excluded by filename from both scans.
+	writeNote(t, vault, "qa.1.q.md", "---\ntype: qa-question\n---\n\nWhat is X?\n")
+
+	seed := []cli.SeedTerm{{Term: "eval-methodology", Description: "how we evaluate"}}
+	seedYAML, marshalErr := yaml.Marshal(seed)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	seedPath := filepath.Join(vault, "seed.yaml")
+	g.Expect(os.WriteFile(seedPath, seedYAML, 0o600)).To(Succeed())
+
+	deps := cli.ExportNewOsVocabDeps()
+	deps.Embedder = &fakeEmbedder{} // deterministic, no bundled-model cost
+
+	args := cli.VocabBootstrapArgs{Vault: vault, SeedFile: seedPath, Floor: 0.30}
+
+	var stdout strings.Builder
+
+	// Bootstrap mints its own family note + the seed term's definition note
+	// (both bare-vocab-tagged) INTO the vault before seeding last_refit — the
+	// seed count must still exclude them, matching the trigger check.
+	g.Expect(cli.RunVocabBootstrap(t.Context(), args, deps, &stdout)).To(Succeed())
+
+	centroidsRaw, readErr := os.ReadFile(filepath.Join(vault, "vocab.centroids.json"))
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	var doc cli.ExportVocabCentroidsDoc
+
+	g.Expect(json.Unmarshal(centroidsRaw, &doc)).To(Succeed())
+	g.Expect(doc.LastRefit).NotTo(BeNil())
+
+	if doc.LastRefit == nil {
+		return
+	}
+
+	// The trigger check's own content-based measure, run fresh against the
+	// vault's final on-disk state (seed-minted definition notes included).
+	osFS := cli.ExportNewOsVaultFS()
+	wantTotal, _, _ := cli.ExportCollectTriggerVaultStats(vault, osFS.ListMD, osFS.ReadFile)
+
+	g.Expect(doc.LastRefit.NoteCount).To(Equal(wantTotal),
+		"seeded last_refit.NoteCount must match the trigger check's content-based totalNotes exactly")
+
+	// Sanity: only the two member notes count — every definition note
+	// (pre-existing + the family note + the seed-minted term note) and the QA
+	// question note must be excluded from the seed.
+	g.Expect(doc.LastRefit.NoteCount).To(Equal(2),
+		"seeded count must exclude definition notes (pre-existing + minted) and the QA question note")
 }
 
 func TestWriteCentroidsDocRaw_MarshalError_ReturnsWrappedError(t *testing.T) {
