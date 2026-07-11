@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# HISTORICAL INSTRUMENT (pre-#678): fixtures below write the retired `vocab: [...]` frontmatter representation. The 2026-07-10 vocab→tags migration (#678) moved vocab membership to `tags: [vocab/<term>]`; do NOT re-run against a post-#678 vault without porting the fixtures — results in the LEDGER are vintage of the old representation.
+#
 # P1 — Retrieval-pollution probe (four arms, ~$0 local)
 #
 # Claim: EMBEDDED synthetic QA nodes WITHOUT the qa-kind exclusion pollute the

@@ -146,14 +146,11 @@ the agent. Canonical capitalization: **Luhmann ID** in prose,
 
 ### wikilink
 A bracketed reference of the form `[[<luhmann-id>.<date>.<slug>]]` or a
-shorter `[[<slug>]]` form. Two roles in a note today: (1) **prose links** — running-text references
+shorter `[[<slug>]]` form. Three roles historically; two live today: (1) **prose links** — running-text references
 with human-readable context for the connection (no per-link rationale required by `--relation` —
 that flag was removed 2026-07-03); (2) **`Supersedes:` body line** —
 `Supersedes: [[<note>]] — <type>: <claim>`, written by the binary when `--supersedes` is passed.
-A third, retired role — **`Vocab:` member→term links** (`Vocab: [[vocab.<term>]], ...`, written by the
-binary's write-time vocab assigner as a dual-channel body line + `vocab:` frontmatter list) — was
-migrated to the tags convention 2026-07-10 (#678): vocab membership is now a `vocab/<term>` entry in
-the shared `tags:` list, never a wikilink. See **vocab definition note**, below.
+(3) **`Vocab:` member→term links** (retired 2026-07-10, #678) — was a `Vocab: [[vocab.<term>]], ...` body line + `vocab:` frontmatter list written by the binary's write-time vocab assigner, and has been migrated to the tags convention: vocab membership is now a `vocab/<term>` entry in the shared `tags:` list, never a wikilink. See **vocab definition note**, below.
 Structural linking is done by the binary, not by hand.
 
 ### slug
@@ -215,14 +212,13 @@ exclusion was deleted with the migration). A member note's own vocab terms live 
 `vocab/<term>` entries (see `--tag`, below); a definition note never carries its own term tag. Plural:
 **vocab definition notes**.
 
+*The entries below are the retired pre-#678 vocab representations (migrated to the tags convention 2026-07-10). Current form: **vocab definition note**, above.*
+
 ### vocab term-note (retired)
-Retired 2026-07-10, #678 — see **vocab definition note**, above. Was a `vocab.<term>.md` file (no
-Luhmann number) with frontmatter `type: vocab`; migrated to a per-term bare-`vocab`-tagged fact note.
+Was a `vocab.<term>.md` file (no Luhmann number) with frontmatter `type: vocab`; migrated to a per-term bare-`vocab`-tagged fact note.
 
 ### vocab-index (retired)
-Retired 2026-07-10, #678 — see **vocab definition note**, above. Was `vocab.index.md`, a
-binary-generated Map of Content listing every term; superseded by the emergent index
-(`engram count --group-by type --filter tags=vocab`) — no maintained enumeration file.
+Was `vocab.index.md`, a binary-generated Map of Content listing every term; superseded by the emergent index (`engram count --group-by type --filter tags=vocab`) — no maintained enumeration file.
 
 ### vocab nomination
 The tag-match extension to `candidate_l2s` (shipped 2026-07-03): notes sharing ≥1 vocab term with the
@@ -233,11 +229,7 @@ note may cross cluster boundaries. Mechanism unchanged by the 2026-07-10 tags mi
 term-membership representation moved, from `vocab:` frontmatter to `tags: [vocab/<term>]`.
 
 ### `Vocab:` line (retired)
-Retired 2026-07-10, #678. Was a body line on a member note (`Vocab: [[vocab.<term>]], [[vocab.<term2>]],
-...`) plus a parallel `vocab: [<term>, <term2>]` frontmatter key, both written by the binary's write-time
-vocab assigner. Migrated to a `vocab/<term>` entry per term in the shared `tags:` list — see `--tag`,
-below, and **vocab definition note**, above. Notes with no qualifying term get no `vocab/` tag (absence =
-untagged; counted by `engram vocab stats`).
+Was a body line on a member note (`Vocab: [[vocab.<term>]], [[vocab.<term2>]], ...`) plus a parallel `vocab: [<term>, <term2>]` frontmatter key, both written by the binary's write-time vocab assigner. Migrated to a `vocab/<term>` entry per term in the shared `tags:` list (see `--tag`, below).
 
 ---
 

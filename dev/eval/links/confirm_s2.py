@@ -1,4 +1,6 @@
-"""confirm_s2.py — real-binary confirmation of the swept vocab config.
+"""HISTORICAL INSTRUMENT (pre-#678): parses the retired `vocab:` frontmatter key, which no longer exists post the 2026-07-10 vocab→tags migration — matches will be zero on a current vault. Port to `tags: [vocab/<term>]` before any re-run; LEDGER results are vintage.
+
+confirm_s2.py — real-binary confirmation of the swept vocab config.
 
 Parses the ACTUAL `vocab:` frontmatter lists written by `engram vocab
 bootstrap` (the shipped centroid two-pass at the binary's defaults) from a

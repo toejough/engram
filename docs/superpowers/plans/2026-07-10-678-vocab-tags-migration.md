@@ -714,6 +714,7 @@ Task 9 report, `.superpowers/sdd/task-9-report.md`):**
 | c2-containers.md | 42 | updated | "dual-channel" → "vocab-tag assignment ... vocab/<term> entries in the shared tags: list (#678)"; added migrate-tags to the subcommand list. |
 | c2-containers.md | 157, 223-224, 236, 240, 246, 249, 253-256 | still-accurate | Mechanism/function names (`AssignVocabTerms`, `WriteVocabAssignment`, `applyVocabAssignmentCore`, `evaluateVocabTriggers`, `hubThreshold`, `RefitPending`) verified still present in code; no stale representation claim. |
 | c2-containers.md | 222 | updated | "dual-channel vocab assignment" → "vocab-tag assignment". |
+| c2-containers.md | 229 | still-accurate | source citation (writeLearnUnderLock, applyVocabAssignmentCore) — verified present in code; no representation claim |
 | c2-containers.md | 231 | still-accurate | Section heading, not representation-specific. |
 | c2-containers.md | 235 (flowchart node) | updated | `writes body [[vocab.<term>]] wikilinks + frontmatter vocab: list` → `WriteVocabAssignment writes vocab/term entries into the note's shared tags: list (#678)`. |
 | c2-containers.md | 250 (flowchart node) | updated | `vocab version bump + vocab.index.md regen` → `vocab version bump on the vocab-definition family note (no index to regenerate — the index is emergent, #678)`. |

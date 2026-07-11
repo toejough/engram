@@ -232,7 +232,7 @@ audit), `internal/cli/qa.go` (`isQueryExcludedKind`, `writeQANotesUnderLock`, th
 
 ```mermaid
 flowchart TD
-    W["note write: engram learn / amend / resituate"] --> D["vocab-tag assignment (AssignVocabTerms — cosine >= 0.35 floor, top-3): WriteVocabAssignment writes vocab/term entries into the note's shared tags: list (#678, 2026-07-10)"]
+    W["note write: engram learn / amend / resituate"] --> D["vocab-tag assignment (AssignVocabTerms, cosine >= 0.35 floor, top-3) — writes vocab/<term> entries into the note's shared tags: list"]
     D --> TR["in-process trigger check (checkAndPersistVocabRefitTrigger, token-free)"]
     TR --> G{"growth >= 40 notes AND >= 14 days since last refit?"}
     TR --> U{"vault-wide untagged rate > 8%?"}

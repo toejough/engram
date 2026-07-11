@@ -222,10 +222,9 @@ interface implementation, not a change to the read pipeline.
 ## ADR-0011 — Controlled-vocab tag nomination over graph traversal
 
 **Status:** Accepted (2026-07-02/03) · supersedes graph-traversal (PPR / spreading-activation) as
-the relational-retrieval mechanism · Representation superseded 2026-07-10 (#678, per ADR-0019):
-the fixed term set now lives as bare-`vocab`-tagged definition fact notes
-(`vocab-<term>-definition`) and member terms as `tags: [vocab/<term>]` — the centroid-assignment
-and query-nomination MECHANISM is unchanged.
+the relational-retrieval mechanism.
+
+**Representation update (2026-07-10, #678, per ADR-0019):** the fixed term set now lives as bare-`vocab`-tagged definition fact notes (`vocab-<term>-definition`) and member terms as `tags: [vocab/<term>]`. The centroid-assignment and query-nomination mechanism is unchanged.
 
 **Context.** The wikilink graph (ADR-0007) is authored and walked by the binary, but resolves by
 basename against bare-Luhmann-id links — most edges never resolve (⚠ KNOWN G0/G5) — and even a

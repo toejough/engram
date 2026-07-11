@@ -11,9 +11,11 @@ Engram gives Claude Code and OpenCode agents persistent memory via a zettelkaste
 
 **Harness support is asymmetric.** `engram update` installs the skills into both Claude Code and OpenCode (plus the slash commands for OpenCode), and the vault is harness-agnostic — so `recall` and `learn` work the same on each. The gap is on the ingest side: automatic sweeping of raw session transcripts into the chunk index currently reads Claude Code JSONL only. OpenCode stores its sessions in a SQLite database that the file-based sweep can't see, so an OpenCode agent's own conversation history is not yet auto-ingested (tracked in [#644](https://github.com/toejough/engram/issues/644)).
 
-After a few months of use, the vault's wikilink graph looks like this in Obsidian — each dot is a note, each line a `[[wikilink]]`; dense clusters are groups of related notes, and the connective tissue reflects thematic proximity. (Historical note: this screenshot predates the 2026-07-10 vocab→tags migration, #678 — the ~25 vocab term-notes visible as hubs here, each `Vocab:` body line pointing member→term, no longer exist; vocab membership now rides `tags: [vocab/<term>]`, not wikilinks, so a fresh graph view no longer shows these hubs.)
+After a few months of use, the vault's wikilink graph looks like this in Obsidian — each dot is a note, each line a `[[wikilink]]`; dense clusters are groups of related notes, and the connective tissue reflects thematic proximity:
 
 ![Obsidian graph view of an engram vault](docs/images/vault-graph.png)
+
+*Screenshot pre-dates the 2026-07-10 vocab→tags migration (#678): the ~25 vocab term-note hubs visible here no longer exist — vocab membership now rides `tags: [vocab/<term>]`, not wikilinks, so a fresh graph view no longer shows these hubs.*
 
 ## Installing
 
