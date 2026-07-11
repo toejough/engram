@@ -341,13 +341,6 @@ type definitionNoteFields struct {
 	VocabVersion string `yaml:"vocab_version,omitempty"`
 }
 
-// noteMiniDoc is used to parse only the type: key from an arbitrary note's
-// frontmatter — the minimal surface needed by extractNoteVocabTags to
-// exclude vocab/vocab-index-typed notes from member scanning.
-type noteMiniDoc struct {
-	Type string `yaml:"type"`
-}
-
 // refitTermEntry is the JSON shape of a term entry in the refit-request payload.
 type refitTermEntry struct {
 	Term        string `json:"term"`
@@ -737,7 +730,7 @@ func definitionNoteFactFields(term, description, source string) factFields {
 		Object:    description,
 		Source:    source,
 		Tier:      tierL2,
-		Tags:      []string{typeVocab},
+		Tags:      []string{vocabDefinitionTag},
 	}
 }
 
@@ -944,9 +937,8 @@ func ensureVocabFamilyNote(
 // extractNoteVocabTags reads a non-vocab note and returns its member terms,
 // read SOLELY from the tags: vocab/<term> namespace (#678 Task 5: the union
 // with the legacy `vocab:` frontmatter key is retired). Returns nil, false
-// when the note is unreadable, has no parseable frontmatter, has unparseable
-// YAML, is a vocab/vocab-index type note, or is a bare-vocab DEFINITION note
-// (excluded).
+// when the note is unreadable, has no parseable frontmatter, or is a
+// bare-vocab DEFINITION note (excluded).
 func extractNoteVocabTags(deps VocabStatsDeps, vault, name string) ([]string, bool) {
 	notePath := filepath.Join(vault, name)
 
@@ -961,17 +953,6 @@ func extractNoteVocabTags(deps VocabStatsDeps, vault, name string) ([]string, bo
 
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
-		return nil, false
-	}
-
-	var doc noteMiniDoc
-
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil {
-		return nil, false
-	}
-
-	if doc.Type == typeVocab || doc.Type == typeVocabIndex {
 		return nil, false
 	}
 
@@ -994,7 +975,7 @@ func familyDefinitionFactFields(source string) factFields {
 			"to that term; this note's frontmatter carries the vault-wide vocab_version",
 		Source: source,
 		Tier:   tierL2,
-		Tags:   []string{typeVocab},
+		Tags:   []string{vocabDefinitionTag},
 	}
 }
 

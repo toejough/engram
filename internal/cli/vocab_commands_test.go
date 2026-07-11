@@ -335,6 +335,34 @@ func TestEnsureVocabFamilyNote_MintFailureReturnsFalse(t *testing.T) {
 	g.Expect(minted).To(BeFalse(), "a failed family note mint must report false, never a false 'minted'")
 }
 
+// TestExtractNoteVocabTags_TypeFieldIsIrrelevant verifies that a note with
+// type: vocab in its frontmatter but ordinary tags: [vocab/foo] IS extracted
+// as a member note — extractNoteVocabTags no longer sniffs the legacy type:
+// field (#681); membership is decided solely by the tags: vocab/<term> namespace.
+func TestExtractNoteVocabTags_TypeFieldIsIrrelevant(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	names := []string{"1aa.2026-01-01.test.md"}
+	deps := cli.VocabStatsDeps{
+		ListMD: func(string) ([]string, error) {
+			return names, nil
+		},
+		ReadFile: func(_ string) ([]byte, error) {
+			return []byte("---\ntype: vocab\ntags:\n    - vocab/foo\n---\nFoo body.\n"), nil
+		},
+	}
+
+	_, memberCounts, totalNotes, untaggedCount := cli.ExportCollectVaultStats(names, deps, "/vault")
+
+	g.Expect(totalNotes).To(Equal(1),
+		"a type: vocab note with ordinary vocab/<term> tags must still count as a member note")
+	g.Expect(untaggedCount).To(Equal(0))
+	g.Expect(memberCounts["foo"]).To(Equal(1),
+		"the note's vocab/foo tag must be extracted despite the legacy type: vocab field")
+}
+
 // TestIdAndDateFromNoteFilename table-tests the "<id>.<date>" prefix parser:
 // a filename with no valid leading Luhmann id, and one with fewer than three
 // dot-separated segments, both return ok=false — direct unit coverage since
@@ -3495,33 +3523,6 @@ func TestRunVocabStats_ReportsHubAndOrphan(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("orphan"), "orphan term must be flagged")
 	g.Expect(output).To(ContainSubstring("eval-methodology"), "hub term name must appear")
 	g.Expect(output).To(ContainSubstring("scope-discipline"), "orphan term name must appear")
-}
-
-// TestRunVocabStats_VocabTypeNoteExcluded verifies that a note with
-// type: vocab is excluded from the member count (extractNoteVocabTags → false).
-func TestRunVocabStats_VocabTypeNoteExcluded(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	deps := cli.VocabStatsDeps{
-		ListMD: func(string) ([]string, error) {
-			// Filename carries no vocab significance — the frontmatter says
-			// type: vocab, and extractNoteVocabTags must filter it by that.
-			return []string{"1aa.2026-01-01.test.md"}, nil
-		},
-		ReadFile: func(_ string) ([]byte, error) {
-			return []byte("---\ntype: vocab\nterm: foo\n---\nFoo is a term.\n"), nil
-		},
-	}
-
-	args := cli.VocabStatsArgs{Vault: "/vault"}
-
-	var stdout strings.Builder
-
-	g.Expect(cli.RunVocabStats(args, deps, &stdout)).To(Succeed())
-	g.Expect(stdout.String()).To(ContainSubstring("terms: 0"),
-		"vocab-type note must not count as a term")
 }
 
 // TestSlugFromNoteFilename table-tests the "<id>.<date>.<slug>.md" parser.

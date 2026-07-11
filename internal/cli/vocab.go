@@ -114,23 +114,13 @@ const (
 	// topVocabTermCount is the maximum number of top-ranked terms selected
 	// (plain top-3 — the sweep-chosen K; see AssignVocabTerms).
 	topVocabTermCount = 3
-	// typeVocab is the bare-vocab DEFINITION marker value: as a tags: entry it
-	// identifies a definition note (isVocabDefinitionNote, nonVocabTags); as a
-	// legacy type: field value it identifies an old-shape vocab.<term>.md term
-	// note, still sniffed by vocab_commands.go's extractNoteVocabTags for a
-	// not-yet-migrated vault (#678 Task 7 owns the migration; Task 6 does not
-	// touch that sniff — see the vocab_commands.go kept-items disclosure).
-	// query-pipeline recall exclusion keyed on this value (isVocabKind) was
-	// retired in #678 Task 6 — definitions are ordinary recallable notes.
-	typeVocab = "vocab"
-	// typeVocabIndex is the legacy type: field value of the retired
-	// vocab.index.md MOC, still sniffed by extractNoteVocabTags for the same
-	// not-yet-migrated-vault reason as typeVocab above.
-	typeVocabIndex = "vocab-index"
 	// vocabBodyMarker is the line-start prefix of a Vocab body line on a member
 	// note. Aliased to the embed marker so the writer's line matching and the
 	// BodyText/ContentHash exclusion can never drift apart.
 	vocabBodyMarker = embed.VocabBodyMarker
+	// vocabDefinitionTag is the bare-vocab DEFINITION marker: as a tags: entry
+	// it identifies a definition note (isVocabDefinitionNote, nonVocabTags).
+	vocabDefinitionTag = "vocab"
 	// vocabTagBlockIndent is the 4-space "- " block-sequence item prefix,
 	// byte-identical to yaml.v3's default indent (matches the #674 learn
 	// renderer's tags: output; see renderTagsBlock).
@@ -211,7 +201,7 @@ func isVocabDefinitionNote(content string) bool {
 		return false
 	}
 
-	return slices.Contains(parseTagsFromFrontmatter(frontmatter), typeVocab)
+	return slices.Contains(parseTagsFromFrontmatter(frontmatter), vocabDefinitionTag)
 }
 
 // loadBodyVectorForNote reads the sidecar of notePath via readFn and returns
@@ -250,7 +240,7 @@ func nonVocabTags(tags []string) []string {
 	kept := make([]string, 0, len(tags))
 
 	for _, tag := range tags {
-		if tag == typeVocab || strings.HasPrefix(tag, vocabTagPrefix) {
+		if tag == vocabDefinitionTag || strings.HasPrefix(tag, vocabTagPrefix) {
 			continue
 		}
 
