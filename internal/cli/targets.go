@@ -264,7 +264,7 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 }
 
 // vocabTargets returns the vocab group subcommands (bootstrap, stats,
-// propose, refit, migrate-tags).
+// propose, refit).
 func vocabTargets(
 	stdout io.Writer,
 	withLog func(context.Context) context.Context,
@@ -289,11 +289,6 @@ func vocabTargets(
 				a.Vault = resolveVault(a.Vault, home, os.Getenv)
 				errHandler(RunVocabRefit(withLog(ctx), a, newOsVocabDeps(), stdout))
 			}).Name("refit").Description("Apply a refit plan: renames, removals, additions, re-tag, major version bump"),
-			targ.Targ(func(ctx context.Context, a VocabMigrateArgs) {
-				a.Vault = resolveVault(a.Vault, home, os.Getenv)
-				errHandler(RunVocabMigrateTags(withLog(ctx), a, newOsVocabDeps(), stdout))
-			}).Name("migrate-tags").Description(
-				"One-shot idempotent migration: legacy vocab:/Vocab:/hub-file representation → tags: convention (#678)"),
 		),
 	}
 }

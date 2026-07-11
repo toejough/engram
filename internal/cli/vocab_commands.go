@@ -64,11 +64,6 @@ type VocabDeps struct {
 	// DeleteFile removes a file by path. Used by refit to delete removed/renamed
 	// definition notes and their sidecars.
 	DeleteFile func(path string) error
-	// ListVecJSON returns the .vec.json filenames in vault — used by
-	// migrate-tags to sweep hub sidecars, including any orphan with no
-	// surviving .md counterpart, found by listing directly rather than
-	// deriving paths from the .md listing. Optional; nil skips the sweep.
-	ListVecJSON func(vault string) ([]string, error)
 	// WriteSidecar writes an embedding sidecar atomically.
 	WriteSidecar func(path string, data []byte) error
 	// Embedder embeds text into a vector. Optional; nil skips embedding.
@@ -326,8 +321,9 @@ const (
 	vocabFamilySlug = "vocab-definition"
 	// vocabIndexFilename is the filename of the (retired) machine-generated
 	// vocab MOC. Kept only for the defensive stats-scan skip and for
-	// vocab_centroids.go's old-shape sidecar-metadata scan; #678 Task 7's
-	// migration reader is the last place that still needs to recognize it.
+	// vocab_centroids.go's old-shape sidecar-metadata scan (the vocab
+	// migrate-tags command, the other caller that recognized it, was
+	// retired in #681; git log recovers it).
 	vocabIndexFilename = "vocab.index.md"
 	// vocabNotePerm is the file permission used for vocab note writes.
 	vocabNotePerm = fs.FileMode(0o600)
@@ -924,17 +920,17 @@ func emitRefitRequest(vault string, deps VocabDeps, stdout io.Writer) error {
 
 // ensureVocabFamilyNote mints the vocab-definition family note when absent
 // (findVocabFamilyNote returns errVocabFamilyNoteMissing); a no-op when
-// already present — bootstrap's (and migrate-tags') idempotency requirement.
+// already present — bootstrap's idempotency requirement.
 // The minted note documents the tags: convention WITHOUT enumerating any term
 // (a maintained term list is the stale-index problem reborn — see
 // TestVocabFamilyNote_NeverEnumeratesTerms). Returns true only when a mint
 // was attempted AND succeeded (mintErr == nil); false both when one already
 // existed (no mint attempted — the idempotent no-op) and when a mint was
 // attempted but failed (#678 Task 7 FIX 2 — the prior unconditional `true`
-// after an attempt let migrate-tags' counts summary report "minted" for a
-// family note that was never actually written; callers needing to
-// distinguish "already present" from "mint failed" re-check existence via
-// findVocabFamilyNote, e.g. RunVocabMigrateTags's familyOK gate).
+// after an attempt let the (since-retired, #681) migrate-tags command's
+// counts summary report "minted" for a family note that was never actually
+// written; callers needing to distinguish "already present" from "mint
+// failed" re-check existence via findVocabFamilyNote).
 func ensureVocabFamilyNote(
 	ctx context.Context,
 	deps VocabDeps,
@@ -1288,7 +1284,6 @@ func newOsVocabDeps() VocabDeps {
 
 			return nil
 		},
-		ListVecJSON:  (&osVaultFS{}).ListVecJSON,
 		WriteSidecar: (&osEmbedFS{}).Write,
 		Embedder:     sharedEmbedder,
 		LogWarning:   logWarningToStderrf,

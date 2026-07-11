@@ -331,7 +331,7 @@ func TestEnsureVocabFamilyNote_MintFailureReturnsFalse(t *testing.T) {
 
 	when := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	minted := cli.ExportEnsureVocabFamilyNote(t.Context(), deps, vault, &names, "1.0", when, "migrate-tags")
+	minted := cli.ExportEnsureVocabFamilyNote(t.Context(), deps, vault, &names, "1.0", when, "bootstrap")
 	g.Expect(minted).To(BeFalse(), "a failed family note mint must report false, never a false 'minted'")
 }
 

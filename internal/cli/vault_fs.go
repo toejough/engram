@@ -18,14 +18,6 @@ func (*osVaultFS) ListMD(dir string) ([]string, error) {
 	return listDirBySuffix(dir, ".md")
 }
 
-// ListVecJSON returns the .vec.json filenames in dir. Missing dir → empty,
-// nil. Used by vocab migrate-tags to sweep hub sidecars — including any
-// orphan with no surviving .md counterpart — found by listing directly
-// rather than deriving paths from the .md listing.
-func (*osVaultFS) ListVecJSON(dir string) ([]string, error) {
-	return listDirBySuffix(dir, ".vec.json")
-}
-
 // ReadFile reads the file at path.
 func (*osVaultFS) ReadFile(path string) ([]byte, error) {
 	data, err := os.ReadFile(filepath.Clean(path))
@@ -37,8 +29,8 @@ func (*osVaultFS) ReadFile(path string) ([]byte, error) {
 }
 
 // listDirBySuffix returns the filenames directly inside dir whose name has
-// the given suffix. Missing dir → empty, nil. Shared by ListMD and
-// ListVecJSON — the only difference between the two is the suffix filtered.
+// the given suffix. Missing dir → empty, nil. Used by ListMD to filter to
+// ".md" files.
 func listDirBySuffix(dir, suffix string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
