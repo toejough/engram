@@ -206,7 +206,7 @@ whose body carries the refit-maintained exemplar list (the body IS the term's em
 `.vec.json` sidecar is written on embed like any fact note); and one **family note**
 (`vocab-definition`) carrying `vocab_version` in frontmatter, whose object documents the tagging
 convention WITHOUT enumerating terms (an enumerated term list is the stale-index problem the migration
-retired). Minted by `engram vocab bootstrap`/`propose`/`refit`/`migrate-tags`. Unlike the retired vocab
+retired). Minted by `engram vocab bootstrap`/`propose`/`refit`. Unlike the retired vocab
 term-note, a definition note is an ordinary recallable fact — no query exclusion (the vocab-kind
 exclusion was deleted with the migration). A member note's own vocab terms live in its `tags:` list as
 `vocab/<term>` entries (see `--tag`, below); a definition note never carries its own term tag. A member note with no qualifying term carries no `vocab/` tag — absence = untagged, counted by `engram vocab stats`. Plural:

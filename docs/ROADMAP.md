@@ -43,7 +43,7 @@ a maintained `vocab.index.md` to the #674 tags convention — member notes carry
 (`engram count --group-by type --filter tags=vocab`). Assignment was preserved (not re-scored) via
 the one-shot idempotent `engram vocab migrate-tags` subcommand; the real-vault migration verified
 all eleven mechanical bars exact, zero re-embeds beyond the 27 minted definitions, and trap-gate
-GREEN both before and after (`docs/architecture/adr.md` ADR-0011/ADR-0019). Accepted consequence:
+GREEN both before and after (`docs/architecture/adr.md` ADR-0011/ADR-0019; command retired 2026-07-11, #681). Accepted consequence:
 `count --backlinks-of vocab.<term>` now reads 0 (the vocab wikilink channel is retired) — the
 ADR-0018 divergence example is annotated historical.
 
