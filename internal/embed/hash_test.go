@@ -35,21 +35,6 @@ func TestBodyText_ExcludesSupersedesLines(t *testing.T) {
 	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
 }
 
-func TestBodyText_ExcludesVocabLine(t *testing.T) {
-	t.Parallel()
-
-	// The machine-written `Vocab:` body line is replace-whole channel content
-	// (written by WriteVocabAssignment after embedding) — it must not feed the
-	// body vector or the staleness hash. An inline mid-line mention is prose
-	// and survives (prefix match only, mirroring the writer).
-	g := NewWithT(t)
-	raw := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
-		"Information learned: the Vocab: line is machine-written.\n\n" +
-		"Vocab: [[vocab.eval-methodology]], [[vocab.retrieval-design]]\n")
-	want := "Information learned: the Vocab: line is machine-written.\n"
-	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
-}
-
 func TestBodyText_InlineRelatedToProseIsNotStripped(t *testing.T) {
 	t.Parallel()
 
@@ -108,19 +93,18 @@ func TestBodyText_StripsFrontmatter(t *testing.T) {
 	g.Expect(string(embed.BodyText(raw))).To(Equal("the body\n"))
 }
 
-func TestContentHash_AssignmentOnTrailingBlankBody(t *testing.T) {
+func TestBodyText_VocabLineIsOrdinaryBody(t *testing.T) {
 	t.Parallel()
 
-	// The REAL production shape that staled 97/133 notes: a learn-rendered
-	// body ending "\n\n" is embedded, then vocab assignment trims the trailing
-	// blank and appends the Vocab: line. The hash must round-trip.
+	// The Vocab: body line is ordinary user prose now (the writer no longer
+	// strips it, migration-by-touch is retired) — BodyText must include it,
+	// not treat it as a machine-written channel line.
 	g := NewWithT(t)
-	pre := []byte("---\ntype: fact\nsituation: s\nluhmann: \"5\"\n---\n\n" +
-		"Information learned: when in s, P O.\n\n")
-	post := []byte("---\ntype: fact\nsituation: s\nluhmann: \"5\"\nvocab: [eval-methodology]\n---\n\n" +
-		"Information learned: when in s, P O.\n\n" +
+	raw := []byte("---\ntype: fact\nluhmann: \"1\"\n---\n\n" +
+		"Information learned: when in X, S P O.\n\n" +
 		"Vocab: [[vocab.eval-methodology]]\n")
-	g.Expect(embed.ContentHash(post)).To(Equal(embed.ContentHash(pre)))
+	want := "Information learned: when in X, S P O.\n\nVocab: [[vocab.eval-methodology]]\n"
+	g.Expect(string(embed.BodyText(raw))).To(Equal(want))
 }
 
 func TestContentHash_ChangesWhenEitherSourceChanges(t *testing.T) {
@@ -181,23 +165,6 @@ func TestContentHash_IgnoresRelatedToLinkEdits(t *testing.T) {
 
 	g.Expect(embed.ContentHash(noBlock)).To(Equal(embed.ContentHash(withBlock)))
 	g.Expect(embed.ContentHash(withBlock)).To(Equal(embed.ContentHash(diffLinks)))
-}
-
-func TestContentHash_IgnoresVocabLineAfterRelatedBlock(t *testing.T) {
-	t.Parallel()
-
-	// The production shape after bootstrap on an unmigrated note: body, a
-	// trailing "Related to:" block, then the appended Vocab: line. Both are
-	// excluded, so the hash matches the pre-assignment embedding.
-	g := NewWithT(t)
-	pre := []byte("---\ntype: fact\nluhmann: \"3\"\n---\n\n" +
-		"Information learned: when in X, S P O.\n\n" +
-		"Related to:\n- [[2.note]] — because.\n")
-	post := []byte("---\ntype: fact\nluhmann: \"3\"\n---\n\n" +
-		"Information learned: when in X, S P O.\n\n" +
-		"Related to:\n- [[2.note]] — because.\n\n" +
-		"Vocab: [[vocab.eval-methodology]]\n")
-	g.Expect(embed.ContentHash(post)).To(Equal(embed.ContentHash(pre)))
 }
 
 func TestContentHash_IsSha256OfSituationAndBody(t *testing.T) {

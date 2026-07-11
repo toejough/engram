@@ -10,10 +10,10 @@ import (
 // Exported constants.
 const (
 	// AnsweredByBodyMarker prefixes the machine-written `Answered by: [[…]]` body
-	// line on QA question notes. Same exclusion rationale as VocabBodyMarker.
+	// line on QA question notes. Same exclusion rationale as SupersedesBodyMarker.
 	AnsweredByBodyMarker = "Answered by:"
 	// AnswersBodyMarker prefixes the machine-written `Answers: [[…]]` body line on
-	// QA answer notes. Same exclusion rationale as VocabBodyMarker.
+	// QA answer notes. Same exclusion rationale as SupersedesBodyMarker.
 	AnswersBodyMarker = "Answers:"
 	// ContributorsBodyMarker prefixes the machine-written `Contributors: [[…]], …`
 	// body line on QA answer notes. Excluded from BodyText/ContentHash so a
@@ -26,24 +26,19 @@ const (
 	RelatedSectionMarker = "Related to:"
 	// SupersedesBodyMarker prefixes the machine-written `Supersedes: [[…]] —
 	// type: claim` body lines (replace-whole channel, written by learn/amend).
-	// Excluded from BodyText/ContentHash for the same reason as VocabBodyMarker.
-	// The cli writer's line matching aliases this constant — keep them in sync.
+	// Excluded from BodyText/ContentHash because a channel-only write must not
+	// stale the sidecar. The cli writer's line matching aliases this constant —
+	// keep them in sync.
 	SupersedesBodyMarker = "Supersedes:"
-	// VocabBodyMarker prefixes the machine-written `Vocab: [[vocab.…]]` body
-	// line (replace-whole channel, written by WriteVocabAssignment AFTER a
-	// note is embedded). Excluding it from BodyText/ContentHash keeps a
-	// vocab-assigning write from staling the sidecar and keeps [[vocab.…]]
-	// wikilink noise out of body vectors on re-embed. The cli writer's line
-	// matching aliases this constant — keep them in sync.
-	VocabBodyMarker = "Vocab:"
 )
 
 // BodyText returns the note body (frontmatter stripped) with all
-// machine-written channel content removed: `Vocab:` and `Supersedes:` body
-// lines (replace-whole channels) and any trailing "Related to:" section.
-// It is the body-vector source for every note type. Dropping channel content
-// means a channel-only edit (vocab assignment, supersession write, link edit)
-// leaves the body vector and ContentHash unchanged (D3).
+// machine-written channel content removed: `Supersedes:`, `Contributors:`,
+// `Answered by:`, and `Answers:` body lines (replace-whole channels) and any
+// trailing "Related to:" section. It is the body-vector source for every
+// note type. Dropping channel content means a channel-only edit (supersession
+// write, contributor/answer linking, link edit) leaves the body vector and
+// ContentHash unchanged (D3).
 //
 // Machine lines are stripped BEFORE the Related-to pass: the writers append
 // their lines after an unmigrated note's trailing "Related to:" block, and a
@@ -146,11 +141,10 @@ func extractFrontmatterField(frontmatter []byte, key string) string {
 
 // isMachineLine reports whether a body line (CRLF-stripped) is a
 // machine-written channel line that should be excluded from BodyText and
-// ContentHash. Recognised prefixes: Vocab:, Supersedes:, Contributors:,
-// Answered by:, and Answers:.
+// ContentHash. Recognised prefixes: Supersedes:, Contributors:, Answered by:,
+// and Answers:.
 func isMachineLine(trimmed []byte) bool {
-	return bytes.HasPrefix(trimmed, []byte(VocabBodyMarker)) ||
-		bytes.HasPrefix(trimmed, []byte(SupersedesBodyMarker)) ||
+	return bytes.HasPrefix(trimmed, []byte(SupersedesBodyMarker)) ||
 		bytes.HasPrefix(trimmed, []byte(ContributorsBodyMarker)) ||
 		bytes.HasPrefix(trimmed, []byte(AnsweredByBodyMarker)) ||
 		bytes.HasPrefix(trimmed, []byte(AnswersBodyMarker))
@@ -210,13 +204,13 @@ func normalizeTrailingBlanks(body []byte) []byte {
 	return append(result, '\n')
 }
 
-// stripMachineLines removes machine-written channel lines (`Vocab:`,
-// `Supersedes:`, `Contributors:`, `Answered by:`, and `Answers:` prefixes —
-// exactly the writers' replace-whole line matching) from body. When any line
-// is removed, trailing blank lines are trimmed and a single trailing newline
-// restored, mirroring the writers' append form ("body\n" →
-// "body\n\nVocab: …\n" must strip back to "body\n"). A body with no machine
-// lines is returned byte-identical so pre-channel hashes never churn.
+// stripMachineLines removes machine-written channel lines (`Supersedes:`,
+// `Contributors:`, `Answered by:`, and `Answers:` prefixes — exactly the
+// writers' replace-whole line matching) from body. When any line is removed,
+// trailing blank lines are trimmed and a single trailing newline restored,
+// mirroring the writers' append form ("body\n" →
+// "body\n\nSupersedes: …\n" must strip back to "body\n"). A body with no
+// machine lines is returned byte-identical so pre-channel hashes never churn.
 func stripMachineLines(body []byte) []byte {
 	lines := bytes.Split(body, []byte("\n"))
 	kept := make([][]byte, 0, len(lines))

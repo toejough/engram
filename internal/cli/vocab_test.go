@@ -209,10 +209,10 @@ func TestParseTagsFromFrontmatter_EdgeCases(t *testing.T) {
 
 // TestVocabAssignment_KeepsSidecarStateOK is the write→embed→assign→state
 // round-trip: a note embedded BEFORE vocab assignment must still classify
-// StateOK afterwards — the machine-written Vocab: line and vocab: frontmatter
-// key are channel content, not body text, so the assignment write must not
-// stale the sidecar (otherwise `embed apply --stale` re-embeds every assigned
-// note with [[vocab.…]] wikilink noise baked into its body vector).
+// StateOK afterwards — the assigned terms land in the tags: frontmatter
+// field, which is neither the situation: field nor the body, so the
+// assignment write must not stale the sidecar (otherwise `embed apply
+// --stale` re-embeds every assigned note for no reason).
 func TestVocabAssignment_KeepsSidecarStateOK(t *testing.T) {
 	t.Parallel()
 
@@ -236,7 +236,7 @@ func TestVocabAssignment_KeepsSidecarStateOK(t *testing.T) {
 
 	// Assign vocab AFTER embedding — the write-time assignment path.
 	postAssign := cli.WriteVocabAssignment(preAssign, []string{"eval-methodology", "retrieval-design"})
-	g.Expect(postAssign).NotTo(Equal(preAssign), "assignment must have written both channels")
+	g.Expect(postAssign).NotTo(Equal(preAssign), "assignment must have written the tags")
 
 	filesystem := &fakeStateFS{files: map[string][]byte{
 		"/vault/1aa.note.md":       []byte(postAssign),
@@ -339,19 +339,20 @@ func TestVocabTermsFromTags_FiltersAndStripsPrefix(t *testing.T) {
 	g.Expect(got).To(Equal([]string{"retrieval-design", "token-budget"}))
 }
 
-// TestWriteVocabAssignment_BlockStyleLegacyVocabRemoved ensures block-style
-// legacy vocab: key is removed, along with Vocab: body line, when present.
-func TestWriteVocabAssignment_BlockStyleLegacyVocabRemoved(t *testing.T) {
+// TestWriteVocabAssignment_BodyIsOpaque proves that a body line starting
+// `Vocab: [[vocab.old-term]]` is user prose now — WriteVocabAssignment must
+// not parse or strip it; it survives byte-identical through the rewrite.
+func TestWriteVocabAssignment_BodyIsOpaque(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	input := "---\ntype: fact\nvocab:\n  - old-a\n  - old-b\n---\n\nBody.\n\nVocab: [[vocab.old-a]], [[vocab.old-b]]\n"
-	got := cli.WriteVocabAssignment(input, []string{"old-a", "old-b"})
+	body := "Body.\n\nVocab: [[vocab.old-term]]\n"
+	content := "---\ntype: fact\n---\n\n" + body
+	got := cli.WriteVocabAssignment(content, []string{"old-term"})
 
-	g.Expect(got).NotTo(ContainSubstring("vocab:"))
-	g.Expect(got).NotTo(ContainSubstring("Vocab:"))
-	g.Expect(got).To(ContainSubstring("tags:\n    - vocab/old-a\n    - vocab/old-b\n"))
+	g.Expect(strings.HasSuffix(got, body)).To(BeTrue(),
+		"the Vocab: body line is user prose now — WriteVocabAssignment must not strip it")
 }
 
 // TestWriteVocabAssignment_EmptyTermsNoOtherTagsRemovesTagsKey proves that
@@ -458,45 +459,6 @@ func TestWriteVocabAssignment_LearnRendererRoundtripFidelity(t *testing.T) {
 	}))
 }
 
-// TestWriteVocabAssignment_LegacyVocabAfterTagsKeepsTagsPosition ensures
-// tags block lands at the original tags: key position when legacy vocab: key
-// follows it—the anchor-finding regression case where the anchor line IS the
-// vocab: key itself, whose removal destroys the anchor. With ordered removals
-// + arithmetic index, the tags position is computed before any removals shift
-// indices (fixes #678 regression).
-func TestWriteVocabAssignment_LegacyVocabAfterTagsKeepsTagsPosition(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Main case: vocab: key immediately after tags block.
-	input := "---\ntype: fact\ntags:\n    - work-kind/rename\nvocab: [a]\nsource: test\n---\n\nBody.\n"
-	expected := "---\ntype: fact\ntags:\n    - work-kind/rename\n    - vocab/a\nsource: test\n---\n\nBody.\n"
-
-	got := cli.WriteVocabAssignment(input, []string{"a"})
-	g.Expect(got).To(Equal(expected))
-
-	// Subcase: blank line between tags block and vocab: key.
-	inputWithBlank := "---\ntype: fact\ntags:\n    - work-kind/rename\n\nvocab: [a]\nsource: test\n---\n\nBody.\n"
-	gotWithBlank := cli.WriteVocabAssignment(inputWithBlank, []string{"a"})
-	g.Expect(gotWithBlank).To(Equal(expected))
-}
-
-// TestWriteVocabAssignment_LegacyVocabBeforeTagsKeepsTagsPosition ensures
-// tags block lands at the original tags: key position when legacy vocab: key
-// precedes it (fixes #678 index-shift bug).
-func TestWriteVocabAssignment_LegacyVocabBeforeTagsKeepsTagsPosition(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	input := "---\ntype: fact\nvocab: [a]\ntags:\n    - work-kind/rename\nsource: test\n---\n\nBody.\n"
-	expected := "---\ntype: fact\ntags:\n    - work-kind/rename\n    - vocab/a\nsource: test\n---\n\nBody.\n"
-
-	got := cli.WriteVocabAssignment(input, []string{"a"})
-	g.Expect(got).To(Equal(expected))
-}
-
 // TestWriteVocabAssignment_NoFrontmatterUnchanged proves that content with no
 // leading frontmatter block is returned unchanged.
 func TestWriteVocabAssignment_NoFrontmatterUnchanged(t *testing.T) {
@@ -557,30 +519,10 @@ func TestWriteVocabAssignment_StripsBareVocabMarkerTag(t *testing.T) {
 	g.Expect(got).NotTo(ContainSubstring("    - vocab\n"))
 }
 
-// TestWriteVocabAssignment_StripsLegacyChannels proves migration-by-touch:
-// the legacy vocab: frontmatter key and Vocab: body line are always stripped,
-// even when the assigned terms are the SAME ones the legacy channels carried.
-func TestWriteVocabAssignment_StripsLegacyChannels(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\nvocab: [old-a, old-b]\n---\n\nBody.\n\nVocab: [[vocab.old-a]], [[vocab.old-b]]\n"
-	got := cli.WriteVocabAssignment(content, []string{"old-a", "old-b"})
-
-	g.Expect(got).To(ContainSubstring("tags:\n    - vocab/old-a\n    - vocab/old-b\n"))
-	g.Expect(got).NotTo(ContainSubstring("\nvocab: ["))
-	g.Expect(got).NotTo(ContainSubstring("Vocab: [["))
-	g.Expect(strings.HasSuffix(got, "Body.\n")).To(BeTrue())
-}
-
 // TestWriteVocabAssignment_TagsRoundtripFidelity is a property test: for
 // random non-vocab tag lists and term lists, parseTagsFromFrontmatter of the
 // writer's output equals tags ++ map("vocab/"+_, terms), and a second
 // application with the same terms is byte-identical (idempotency).
-// Additionally, draws an optional legacy vocab: key at random position
-// (before/after/absent relative to tags:), verifying that tags: is
-// preserved at its original position and idempotency holds.
 func TestWriteVocabAssignment_TagsRoundtripFidelity(t *testing.T) {
 	t.Parallel()
 
@@ -593,10 +535,8 @@ func TestWriteVocabAssignment_TagsRoundtripFidelity(t *testing.T) {
 
 		tags := rapid.SliceOfN(tagGen, 0, maxGenLen).Draw(rt, "tags")
 		terms := rapid.SliceOfN(termGen, 0, maxGenLen).Draw(rt, "terms")
-		legacyVocabPos := rapid.IntRange(0, 2).Draw(rt, "legacyVocabPos") // 0=before, 1=after, 2=absent
-		legacyVocabTerms := rapid.SliceOfN(termGen, 0, 2).Draw(rt, "legacyVocabTerms")
 
-		frontmatterStr := buildTestFrontmatterWithLegacyVocab(rt, tagGen, termGen, legacyVocabPos, legacyVocabTerms, tags)
+		frontmatterStr := buildTestFrontmatter(tags)
 		content := "---\n" + frontmatterStr + "---\n\nBody.\n"
 		got := cli.WriteVocabAssignment(content, terms)
 
@@ -650,22 +590,11 @@ func buildExpectedTagsForVocabAssignment(tags []string, terms []string) []string
 	return want
 }
 
-// buildTestFrontmatterWithLegacyVocab constructs test frontmatter with optional legacy vocab
-// at a random position. Returns the frontmatter string (without YAML delimiters).
-func buildTestFrontmatterWithLegacyVocab(
-	_ *rapid.T,
-	_ *rapid.Generator[string],
-	_ *rapid.Generator[string],
-	legacyVocabPos int,
-	legacyVocabTerms []string,
-	tags []string,
-) string {
+// buildTestFrontmatter constructs test frontmatter carrying the given tags:
+// list. Returns the frontmatter string (without YAML delimiters).
+func buildTestFrontmatter(tags []string) string {
 	var fmBuilder strings.Builder
 	fmBuilder.WriteString("type: fact\n")
-
-	if legacyVocabPos == 0 && len(legacyVocabTerms) > 0 {
-		fmBuilder.WriteString("vocab: [" + strings.Join(legacyVocabTerms, ", ") + "]\n")
-	}
 
 	if len(tags) > 0 {
 		fmBuilder.WriteString("tags:\n")
@@ -673,10 +602,6 @@ func buildTestFrontmatterWithLegacyVocab(
 		for _, tag := range tags {
 			fmBuilder.WriteString("    - " + tag + "\n")
 		}
-	}
-
-	if legacyVocabPos == 1 && len(legacyVocabTerms) > 0 {
-		fmBuilder.WriteString("vocab: [" + strings.Join(legacyVocabTerms, ", ") + "]\n")
 	}
 
 	return fmBuilder.String()

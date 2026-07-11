@@ -63,10 +63,9 @@ func AssignVocabTerms(bodyVec []float32, terms []TermWithVector, floor float32) 
 
 // WriteVocabAssignment rewrites the vocab/<term> namespace of the note's
 // tags: frontmatter list to exactly terms, preserving all non-vocab tags and
-// their order. It also strips the legacy vocab: frontmatter key and Vocab:
-// body line when present (migration-by-touch). Idempotency rule: the vocab
-// namespace is replaced on every call — never appended. When terms is empty,
-// the vocab namespace is removed; an emptied tags: key is removed entirely.
+// their order. Idempotency rule: the vocab namespace is replaced on every
+// call — never appended. When terms is empty, the vocab namespace is
+// removed; an emptied tags: key is removed entirely.
 func WriteVocabAssignment(content string, terms []string) string {
 	frontmatter, rest, ok := splitFrontmatterAndBody(content)
 	if !ok {
@@ -82,28 +81,17 @@ func WriteVocabAssignment(content string, terms []string) string {
 		merged = append(merged, vocabTagPrefix+term)
 	}
 
-	// Compute insertion index before removals shift line positions. When tags:
-	// exists, we'll remove vocab: first (shifting tags: up if needed), then
-	// recompute the tags: index on the vocab-free text, then remove tags: at
-	// that index; removal at insertAt places insertYAMLBlock at exactly that
-	// position. When tags: is absent, insertAt is the vocab: index (or -1 if
-	// vocab: is also absent, yielding append-at-end behavior).
-	var insertAt int
-
-	if yamlKeyLineIndex(frontmatter, "tags") >= 0 {
-		frontmatter = removeYAMLKey(frontmatter, "vocab") // may shift tags up; that's fine
-		insertAt = yamlKeyLineIndex(frontmatter, "tags")  // recompute on the vocab-free text
-		frontmatter = removeYAMLKey(frontmatter, "tags")  // removal at insertAt shifts followers into insertAt
-	} else {
-		insertAt = yamlKeyLineIndex(frontmatter, "vocab") // -1 when absent → append
-		frontmatter = removeYAMLKey(frontmatter, "vocab")
-	}
+	// Compute insertion index before removal shifts line positions: removal at
+	// insertAt places insertYAMLBlock at exactly the original tags: position
+	// (or appends at the end when tags: is absent).
+	insertAt := yamlKeyLineIndex(frontmatter, "tags") // -1 when absent → append
+	frontmatter = removeYAMLKey(frontmatter, "tags")  // removal at insertAt shifts followers into insertAt
 
 	if len(merged) > 0 {
 		frontmatter = insertYAMLBlock(frontmatter, renderTagsBlock(merged), insertAt)
 	}
 
-	return fmStart + frontmatter + fmEnd + removeVocabBodyLine(rest)
+	return fmStart + frontmatter + fmEnd + rest
 }
 
 // unexported constants.
@@ -114,10 +102,6 @@ const (
 	// topVocabTermCount is the maximum number of top-ranked terms selected
 	// (plain top-3 — the sweep-chosen K; see AssignVocabTerms).
 	topVocabTermCount = 3
-	// vocabBodyMarker is the line-start prefix of a Vocab body line on a member
-	// note. Aliased to the embed marker so the writer's line matching and the
-	// BodyText/ContentHash exclusion can never drift apart.
-	vocabBodyMarker = embed.VocabBodyMarker
 	// vocabDefinitionTag is the bare-vocab DEFINITION marker: as a tags: entry
 	// it identifies a definition note (isVocabDefinitionNote, nonVocabTags).
 	vocabDefinitionTag = "vocab"
@@ -264,38 +248,6 @@ func parseTagsFromFrontmatter(frontmatter string) []string {
 	}
 
 	return doc.Tags
-}
-
-// removeVocabBodyLine strips the Vocab: machine line (and one preceding
-// blank line) from the body; unchanged when absent.
-func removeVocabBodyLine(body string) string {
-	lines := strings.Split(body, "\n")
-
-	idx := -1
-
-	for i, line := range lines {
-		if strings.HasPrefix(line, vocabBodyMarker) {
-			idx = i
-
-			break
-		}
-	}
-
-	if idx < 0 {
-		return body
-	}
-
-	out := make([]string, 0, len(lines)-1)
-	out = append(out, lines[:idx]...)
-
-	// Drop exactly one preceding blank line, if present.
-	if len(out) > 0 && out[len(out)-1] == "" {
-		out = out[:len(out)-1]
-	}
-
-	out = append(out, lines[idx+1:]...)
-
-	return strings.Join(out, "\n")
 }
 
 // removeYAMLKey removes a top-level YAML key and its value (scalar or

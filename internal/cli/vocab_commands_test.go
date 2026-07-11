@@ -1114,7 +1114,7 @@ func TestRunAmend_VocabAssignment_SkipsWhenSidecarMissing(t *testing.T) {
 // ── Assigner wiring: amend ────────────────────────────────────────────────────
 
 // TestRunAmend_VocabAssignment_WritesVocabWhenTermsPresent verifies that after
-// an amend, if terms are present, the note gets vocab channels written.
+// an amend, if terms are present, the note gets vocab/<term> tags written.
 func TestRunAmend_VocabAssignment_WritesVocabWhenTermsPresent(t *testing.T) {
 	t.Parallel()
 
@@ -1479,7 +1479,7 @@ func TestRunVocabBootstrap_AssignErrors_SkipBothNotes(t *testing.T) {
 }
 
 // TestRunVocabBootstrap_AssignsTermsToExistingNote verifies that an existing
-// member note (with a valid sidecar) gets both vocab channels written.
+// member note (with a valid sidecar) gets vocab/<term> tags written.
 func TestRunVocabBootstrap_AssignsTermsToExistingNote(t *testing.T) {
 	t.Parallel()
 
@@ -2533,7 +2533,7 @@ func TestRunVocabRefit_ClearRemovals_QAQuestionSkipped(t *testing.T) {
 	g := NewWithT(t)
 
 	qNote := "---\ntype: qa-question\ndate: \"2026-07-03\"\nanswered_by: qa.2026-07-03.s.a\n" +
-		"source: test\nvocab: [orphan-term]\n---\n\nQuestion body.\n\nVocab: [[vocab.orphan-term]]\n"
+		"source: test\ntags:\n    - vocab/orphan-term\n---\n\nQuestion body.\n"
 	planYAML := "removals:\n  - orphan-term\n"
 
 	files := map[string][]byte{
@@ -2584,8 +2584,8 @@ func TestRunVocabRefit_ClearRemovals_WriteError_LogsWarning(t *testing.T) {
 	g := NewWithT(t)
 
 	memberNote := "---\ntype: feedback\nsituation: ctx\nbehavior: b\nimpact: i\naction: a\n" +
-		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nvocab: [orphan-term]\n---\n\n" +
-		"Lesson learned: when ctx, a.\n\nVocab: [[vocab.orphan-term]]\n"
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\ntags:\n    - vocab/orphan-term\n---\n\n" +
+		"Lesson learned: when ctx, a.\n"
 	planYAML := "removals:\n  - orphan-term\n"
 
 	files := map[string][]byte{
@@ -3101,7 +3101,7 @@ func TestRunVocabRefit_Rename_MemberWriteError_LogsWarning(t *testing.T) {
 
 	g := NewWithT(t)
 
-	memberNote := "---\ntype: feedback\nvocab: [old-term]\n---\n\nVocab: [[vocab.old-term]]\n"
+	memberNote := "---\ntype: feedback\ntags:\n    - vocab/old-term\n---\n\nBody.\n"
 	planYAML := "renames:\n  - from: old-term\n    to: new-term\n"
 
 	files := map[string][]byte{
@@ -3298,7 +3298,7 @@ func TestRunVocabRefit_TermRename_QAQuestionSkipped(t *testing.T) {
 	g := NewWithT(t)
 
 	qNote := "---\ntype: qa-question\ndate: \"2026-07-03\"\nanswered_by: qa.2026-07-03.s.a\n" +
-		"source: test\nvocab: [old-term]\n---\n\nQuestion body.\n\nVocab: [[vocab.old-term]]\n"
+		"source: test\ntags:\n    - vocab/old-term\n---\n\nQuestion body.\n"
 	oldTermNote := "---\ntype: vocab\nterm: old-term\ndescription: d\nvocab_version: 1.0\ncreated: 2026-01-01\n---\n\nd\n"
 	planYAML := "renames:\n  - from: old-term\n    to: new-term\n"
 
