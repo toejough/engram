@@ -212,14 +212,6 @@ exclusion was deleted with the migration). A member note's own vocab terms live 
 `vocab/<term>` entries (see `--tag`, below); a definition note never carries its own term tag. A member note with no qualifying term carries no `vocab/` tag — absence = untagged, counted by `engram vocab stats`. Plural:
 **vocab definition notes**.
 
-*The (retired)-marked entries below are the retired pre-#678 vocab representations (migrated to the tags convention 2026-07-10). Current form: **vocab definition note**, above.*
-
-### vocab term-note (retired)
-Was a `vocab.<term>.md` file (no Luhmann number) with frontmatter `type: vocab`; migrated to a per-term bare-`vocab`-tagged fact note.
-
-### vocab-index (retired)
-Was `vocab.index.md`, a binary-generated Map of Content listing every term; superseded by the emergent index (`engram count --group-by type --filter tags=vocab`) — no maintained enumeration file.
-
 ### vocab nomination
 The tag-match extension to `candidate_l2s` (shipped 2026-07-03): notes sharing ≥1 vocab term with the
 top-3 delivered notes are **nominated** into each cluster's candidate pool regardless of their cosine to
@@ -227,6 +219,14 @@ the cluster centroid. Budget fields `tag_nominations_added` / `dropped` in the q
 count (pool cap 40/cluster). Zero collateral: notes with no shared vocab term are unaffected. A nominated
 note may cross cluster boundaries. Mechanism unchanged by the 2026-07-10 tags migration (#678) — only the
 term-membership representation moved, from `vocab:` frontmatter to `tags: [vocab/<term>]`.
+
+*The (retired)-marked entries below are the retired pre-#678 vocab representations (migrated to the tags convention 2026-07-10). Current form: **vocab definition note**, above.*
+
+### vocab term-note (retired)
+Was a `vocab.<term>.md` file (no Luhmann number) with frontmatter `type: vocab`; migrated to a per-term bare-`vocab`-tagged fact note.
+
+### vocab-index (retired)
+Was `vocab.index.md`, a binary-generated Map of Content listing every term; superseded by the emergent index (`engram count --group-by type --filter tags=vocab`) — no maintained enumeration file.
 
 ### `Vocab:` line (retired)
 Was a body line on a member note (`Vocab: [[vocab.<term>]], [[vocab.<term2>]], ...`) plus a parallel `vocab: [<term>, <term2>]` frontmatter key, both written by the binary's write-time vocab assigner. Migrated to a `vocab/<term>` entry per term in the shared `tags:` list (see `--tag`, below).
