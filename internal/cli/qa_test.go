@@ -98,8 +98,8 @@ func TestIsQueryExcludedKind(t *testing.T) {
 		content string
 		want    bool
 	}{
-		{"vocab_excluded", "---\ntype: vocab\n---\n", true},
-		{"vocab_index_excluded", "---\ntype: vocab-index\n---\n", true},
+		{"vocab_no_longer_excluded", "---\ntype: vocab\n---\n", false},
+		{"vocab_index_no_longer_excluded", "---\ntype: vocab-index\n---\n", false},
 		{"qa_question_excluded", "---\ntype: qa-question\n---\n", true},
 		{"qa_answer_competes", "---\ntype: qa-answer\n---\n", false},
 		{"fact_competes", "---\ntype: fact\n---\n", false},

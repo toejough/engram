@@ -249,10 +249,12 @@ func isQAQuestionKind(content string) bool {
 }
 
 // isQueryExcludedKind reports whether a note should be excluded from the
-// query pipeline's main matched set. Excludes vocab kinds AND qa-question.
-// qa-answer COMPETES in the main set (D5′ — A notes are synthesis notes).
+// query pipeline's main matched set. Excludes qa-question only — vocab
+// definition and member notes are ordinary recallable notes (#678 Task 6
+// retired the vocab type-based exclusion). qa-answer COMPETES in the main
+// set (D5′ — A notes are synthesis notes).
 func isQueryExcludedKind(content string) bool {
-	return isVocabKind(content) || isQAQuestionKind(content)
+	return isQAQuestionKind(content)
 }
 
 // newOsLearnQADeps wires production I/O adapters for RunLearnQA.

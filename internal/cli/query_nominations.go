@@ -21,8 +21,11 @@ const (
 // notes, for use by tag-match nomination and supersession ride-along.
 // Fields use exported names for testability via the exported type alias.
 type AllVaultNotesMeta struct {
-	// TermIndex maps a vocab term name to the notes carrying that term. Vocab and
-	// vocab-index notes are excluded from this map — they are never nominated.
+	// TermIndex maps a vocab term name to the notes carrying that term
+	// (vocab/<term> tags). A bare-vocab-tagged definition note never carries a
+	// vocab/<term> tag on itself (loadVocabAssignmentBodyVector's exemption), so
+	// it is naturally absent from this map; qa-question notes are additionally
+	// excluded via isQueryExcludedKind.
 	TermIndex map[string][]NominationEntry
 	// SupersedesInverse maps a superseded-note basename to the superseder entries,
 	// built from every note's supersedes: frontmatter block.
@@ -79,7 +82,7 @@ type tagNominationTally struct {
 }
 
 // addNominationsForTerm appends candidate notes from entries to nominations[clusterID],
-// skipping notes already in results or already nominated, and vocab-kind notes.
+// skipping notes already in results or already nominated, and qa-question notes.
 // It updates nominated in-place so cross-term dedup is maintained by the caller.
 func addNominationsForTerm(
 	entries []NominationEntry,
@@ -93,8 +96,10 @@ func addNominationsForTerm(
 		}
 
 		if isQueryExcludedKind(entry.Content) {
-			// Safety guard: the TermIndex builder excludes vocab/qa-question notes,
-			// but double-check here so nomination is always safe to call.
+			// Safety guard: the TermIndex builder excludes qa-question notes (a
+			// bare-vocab-tagged definition note is naturally absent — it never
+			// carries a vocab/<term> tag on itself), but double-check here so
+			// nomination is always safe to call.
 			continue
 		}
 
@@ -234,7 +239,8 @@ func applyTagNominationAndRideAlong(
 //     Truncation is not silent — the returned tally reports kept and dropped
 //     counts, emitted in the payload budget.
 //
-//   - Vocab/vocab-index notes are excluded upstream in AllVaultNotesMeta.TermIndex.
+//   - A bare-vocab-tagged definition note is absent upstream from
+//     AllVaultNotesMeta.TermIndex (it carries no vocab/<term> tag on itself).
 //
 // Returns (nil, zero tally) when there is no vocab data (TermIndex is empty) or
 // no top-3 delivered notes — the no-op path for backward compatibility.
@@ -336,7 +342,8 @@ func loadAllVaultNotesMeta(
 		meta := parseNoteQueryFrontmatter(content)
 		terms := vocabTermsFromTags(meta.Tags)
 
-		// Populate TermIndex — excluded kinds (vocab/vocab-index/qa-question) are never nominated.
+		// Populate TermIndex — qa-question notes are excluded via isQueryExcludedKind;
+		// a bare-vocab-tagged definition note is naturally absent (no vocab/<term> tag).
 		if !isQueryExcludedKind(content) && len(terms) > 0 {
 			entry := NominationEntry{NotePath: notePath, Content: content}
 

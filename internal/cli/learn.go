@@ -155,7 +155,6 @@ type factFrontmatterDoc struct {
 	Sources      []string          `yaml:"sources,omitempty"`
 	VocabVersion string            `yaml:"vocab_version,omitempty"`
 	Tags         []string          `yaml:"tags,omitempty"`
-	Vocab        []string          `yaml:"vocab,omitempty"`
 	Supersedes   []supersedesEntry `yaml:"supersedes,omitempty"`
 }
 
@@ -189,7 +188,6 @@ type feedbackFrontmatterDoc struct {
 	Issue      quotedString      `yaml:"issue,omitempty"`
 	Sources    []string          `yaml:"sources,omitempty"`
 	Tags       []string          `yaml:"tags,omitempty"`
-	Vocab      []string          `yaml:"vocab,omitempty"`
 	Supersedes []supersedesEntry `yaml:"supersedes,omitempty"`
 }
 

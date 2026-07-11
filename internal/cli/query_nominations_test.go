@@ -419,10 +419,15 @@ func TestBuildTagNominations_TagSharedNote_AppearsInNominations(t *testing.T) {
 		"a note sharing a vocab term with a top-3 note must appear in nominations")
 }
 
-// TestBuildTagNominations_VocabNoteExcluded verifies that vocab/vocab-index notes
-// are never nominated even if they share a term with a top-3 note.
-// This is the RED test for "vocab term notes must NOT" appear in candidate_l2s.
-func TestBuildTagNominations_VocabNoteExcluded(t *testing.T) {
+// TestBuildTagNominations_VocabDefinitionNoteNotExcluded verifies that a
+// bare-vocab-tagged definition note manually present in the term index (the
+// natural gate never puts one there — a definition never carries a
+// vocab/<term> tag on itself — this test drives addNominationsForTerm's own
+// isQueryExcludedKind safety-net check directly) is no longer filtered out.
+// Inverse of the retired TestBuildTagNominations_VocabNoteExcluded (#678 Task
+// 6: the vocab type-based query exclusion is retired; definitions are
+// ordinary recallable notes).
+func TestBuildTagNominations_VocabDefinitionNoteNotExcluded(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -434,10 +439,11 @@ func TestBuildTagNominations_VocabNoteExcluded(t *testing.T) {
 		),
 	}
 
-	// vocab note with the same term — must NOT be nominated.
-	vocabNoteContent := "---\ntype: vocab\nterm: eval-methodology\n---\n\nhow we evaluate.\n"
+	const definitionPath = "211.2026-07-10.vocab-eval-methodology-definition.md"
+
+	definitionContent := "---\ntype: fact\ntags:\n    - vocab\n---\n\nhow we evaluate.\n"
 	meta := cli.ExportNewVaultNotesMetaWithTerms(map[string][]cli.ExportNominationEntry{
-		"eval-methodology": {{NotePath: "vocab.eval-methodology.md", Content: vocabNoteContent}},
+		"eval-methodology": {{NotePath: definitionPath, Content: definitionContent}},
 	})
 
 	noms := cli.ExportBuildTagNominationsUnit(resolved, meta)
@@ -450,8 +456,8 @@ func TestBuildTagNominations_VocabNoteExcluded(t *testing.T) {
 		}
 	}
 
-	g.Expect(foundPaths).NotTo(ContainElement("vocab.eval-methodology.md"),
-		"vocab notes must never be nominated")
+	g.Expect(foundPaths).To(ContainElement(definitionPath),
+		"a bare-vocab-tagged definition note is no longer excluded from nomination")
 }
 
 // TestLoadAllVaultNotesMeta_BareVocabTag_ContributesNoTerms verifies that a note

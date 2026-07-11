@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 
@@ -24,17 +23,6 @@ const (
 type TermWithVector struct {
 	Term   string
 	Vector []float32
-}
-
-// VocabFrontmatter is the parsed frontmatter of a vocab term note
-// (type: vocab). Vocab notes are written by `engram vocab bootstrap`
-// (slice 2), not by learn/amend.
-type VocabFrontmatter struct {
-	Type         string `yaml:"type"`
-	Term         string `yaml:"term"`
-	Description  string `yaml:"description"`
-	VocabVersion string `yaml:"vocab_version,omitempty"`
-	Created      string `yaml:"created,omitempty"`
 }
 
 // AssignVocabTerms computes cosine similarity between bodyVec and each term's
@@ -71,19 +59,6 @@ func AssignVocabTerms(bodyVec []float32, terms []TermWithVector, floor float32) 
 	}
 
 	return result
-}
-
-// ParseVocabFrontmatter unmarshals the YAML frontmatter block bytes of a vocab
-// note. The caller extracts the frontmatter bytes before calling this.
-func ParseVocabFrontmatter(frontmatterBytes []byte) (VocabFrontmatter, error) {
-	var doc VocabFrontmatter
-
-	err := yaml.Unmarshal(frontmatterBytes, &doc)
-	if err != nil {
-		return VocabFrontmatter{}, fmt.Errorf("parsing vocab frontmatter: %w", err)
-	}
-
-	return doc, nil
 }
 
 // WriteVocabAssignment rewrites the vocab/<term> namespace of the note's
@@ -139,8 +114,19 @@ const (
 	// topVocabTermCount is the maximum number of top-ranked terms selected
 	// (plain top-3 — the sweep-chosen K; see AssignVocabTerms).
 	topVocabTermCount = 3
-	typeVocab         = "vocab"
-	typeVocabIndex    = "vocab-index"
+	// typeVocab is the bare-vocab DEFINITION marker value: as a tags: entry it
+	// identifies a definition note (isVocabDefinitionNote, nonVocabTags); as a
+	// legacy type: field value it identifies an old-shape vocab.<term>.md term
+	// note, still sniffed by vocab_commands.go's extractNoteVocabTags for a
+	// not-yet-migrated vault (#678 Task 7 owns the migration; Task 6 does not
+	// touch that sniff — see the vocab_commands.go kept-items disclosure).
+	// query-pipeline recall exclusion keyed on this value (isVocabKind) was
+	// retired in #678 Task 6 — definitions are ordinary recallable notes.
+	typeVocab = "vocab"
+	// typeVocabIndex is the legacy type: field value of the retired
+	// vocab.index.md MOC, still sniffed by extractNoteVocabTags for the same
+	// not-yet-migrated-vault reason as typeVocab above.
+	typeVocabIndex = "vocab-index"
 	// vocabBodyMarker is the line-start prefix of a Vocab body line on a member
 	// note. Aliased to the embed marker so the writer's line matching and the
 	// BodyText/ContentHash exclusion can never drift apart.
@@ -226,14 +212,6 @@ func isVocabDefinitionNote(content string) bool {
 	}
 
 	return slices.Contains(parseTagsFromFrontmatter(frontmatter), typeVocab)
-}
-
-// isVocabKind reports whether the note content's type field marks it as a vocab
-// or vocab-index note. These are filtered from the matched set, note-floor
-// reservation, and clustering so they do not surface in recall results.
-func isVocabKind(content string) bool {
-	kind := kindFromContent(content)
-	return kind == typeVocab || kind == typeVocabIndex
 }
 
 // loadBodyVectorForNote reads the sidecar of notePath via readFn and returns

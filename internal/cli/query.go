@@ -841,7 +841,9 @@ func floorQualifyingNotes(items []matchedSetItem) []matchedSetItem {
 
 // isFloorQualifyingNote reports whether a matched-set item is a note that cleared
 // the relevance floor and is therefore eligible for the note-floor reservation.
-// Vocab notes are excluded: they are never promoted into recall results.
+// Only qa-question notes are excluded (isQueryExcludedKind) — vocab
+// definition/member notes are ordinary notes and are promoted like any other
+// (#678 Task 6: the vocab type-based exclusion is retired).
 func isFloorQualifyingNote(item matchedSetItem) bool {
 	return !item.isChunk && item.baseScore >= matchRelevanceFloor && !isQueryExcludedKind(item.note.content)
 }
@@ -1080,7 +1082,8 @@ func mergePhraseIntoUnion(
 	perPhrase = capWithNoteFloor(perPhrase, matchPhraseLimit, noteFloorK)
 
 	for _, item := range perPhrase {
-		// Vocab notes are excluded from the matched set entirely.
+		// Only qa-question notes are excluded from the matched set (#678 Task 6:
+		// vocab definition/member notes are ordinary recallable notes).
 		if !item.isChunk && isQueryExcludedKind(item.note.content) {
 			continue
 		}

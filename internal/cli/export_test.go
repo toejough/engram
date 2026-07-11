@@ -60,7 +60,6 @@ var (
 	ExportIsQAQuestionFilename             = isQAQuestionFilename
 	ExportIsQueryExcludedKind              = isQueryExcludedKind
 	ExportIsVocabDefinitionNote            = isVocabDefinitionNote
-	ExportIsVocabKind                      = isVocabKind
 	ExportKindFromContent                  = kindFromContent
 	ExportLearnPath                        = learnPath
 	ExportLoadAllVaultNotesMeta            = loadAllVaultNotesMeta
@@ -597,7 +596,9 @@ func ExportNewScoredCandidate(notePath string, score, baseScore float32) scoredC
 }
 
 // ExportNewScoredCandidateWithContent builds a scoredCandidate with the content
-// field set so vocab-exclusion tests can drive isVocabKind inside the pipeline.
+// field set so recallability tests can drive isQueryExcludedKind inside the
+// pipeline — including the inverted #678 Task 6 tests proving a bare-vocab-tagged
+// definition note is no longer excluded.
 func ExportNewScoredCandidateWithContent(
 	notePath string,
 	score, baseScore float32,

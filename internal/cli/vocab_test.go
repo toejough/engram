@@ -15,61 +15,7 @@ import (
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/embed"
-	"github.com/toejough/engram/internal/vaultgraph"
 )
-
-// ── Unit 4: dual-channel writer (WriteVocabAssignment) ───────────────────────
-
-// TestAmendRoundTrip_VocabKey_PreservedAfterField is the RED→GREEN test for
-// adding the `vocab` field to the typed frontmatter structs. Before the field
-// is added, `amend` silently drops `vocab:` from the frontmatter. After it is
-// added, the key round-trips.
-func TestAmendRoundTrip_VocabKey_PreservedAfterField(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := []byte(
-		"---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: B\n" +
-			"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nvocab: [eval-methodology, scope-discipline]\n---\n\n" +
-			"Information learned: when in ctx, A has B.\n\n" +
-			"Vocab: [[vocab.eval-methodology]], [[vocab.scope-discipline]]\n",
-	)
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(_ string, data []byte) error { written = data; return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{"fake-source#turn-1": true}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
-	}
-
-	args := cli.AmendArgs{
-		Vault:        "/vault",
-		Target:       "1aa",
-		ChunkSources: []string{"fake-source#turn-1"},
-	}
-
-	var buf strings.Builder
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(written)).To(ContainSubstring("vocab:"),
-		"vocab: frontmatter key must survive a round-trip through amend")
-}
 
 // ── Task 2: bare-vocab definition exemption ──────────────────────────────────
 
@@ -248,44 +194,6 @@ func TestIsVocabDefinitionNote(t *testing.T) {
 	g.Expect(cli.ExportIsVocabDefinitionNote(otherFamily)).To(BeFalse())
 }
 
-func TestIsVocabKind_TypeFact_False(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: fact\nsituation: testing\n---\n\nbody\n"
-	g.Expect(cli.ExportIsVocabKind(content)).To(BeFalse())
-}
-
-func TestIsVocabKind_TypeFeedback_False(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: feedback\nsituation: testing\n---\n\nbody\n"
-	g.Expect(cli.ExportIsVocabKind(content)).To(BeFalse())
-}
-
-func TestIsVocabKind_TypeVocabIndex_True(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: vocab-index\nvocab_version: 1.0\n---\n\n[[vocab.foo]] — foo — 3 members\n"
-	g.Expect(cli.ExportIsVocabKind(content)).To(BeTrue())
-}
-
-// ── Unit 1: term-note model (isVocabKind) ─────────────────────────────────────
-
-func TestIsVocabKind_TypeVocab_True(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	content := "---\ntype: vocab\nterm: eval-methodology\ndescription: how we evaluate.\n---\n\nhow we evaluate.\n"
-	g.Expect(cli.ExportIsVocabKind(content)).To(BeTrue())
-}
-
 // TestParseTagsFromFrontmatter_EdgeCases pins nil-without-panic semantics for
 // an absent key, a key with no value, an empty inline list, and malformed YAML.
 func TestParseTagsFromFrontmatter_EdgeCases(t *testing.T) {
@@ -297,40 +205,6 @@ func TestParseTagsFromFrontmatter_EdgeCases(t *testing.T) {
 	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact\ntags:")).To(BeNil())
 	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact\ntags: []")).To(BeNil())
 	g.Expect(cli.ExportParseTagsFromFrontmatter("type: fact\ntags: [")).To(BeNil())
-}
-
-func TestParseVocabFrontmatter_InvalidYAML_Errors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Tabs in YAML frontmatter are illegal per the YAML spec.
-	input := []byte("type: vocab\n\tterm: broken-indent\n")
-
-	_, err := cli.ParseVocabFrontmatter(input)
-
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("parsing vocab frontmatter"))
-}
-
-func TestParseVocabFrontmatter_Valid(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	input := []byte("type: vocab\nterm: eval-methodology\ndescription: how we evaluate.\n")
-
-	doc, err := cli.ParseVocabFrontmatter(input)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(doc.Type).To(Equal("vocab"))
-	g.Expect(doc.Term).To(Equal("eval-methodology"))
-	g.Expect(doc.Description).To(Equal("how we evaluate."))
 }
 
 // TestVocabAssignment_KeepsSidecarStateOK is the write→embed→assign→state
@@ -374,25 +248,33 @@ func TestVocabAssignment_KeepsSidecarStateOK(t *testing.T) {
 			"vocab assignment must not stale the sidecar (Vocab: line excluded from body hash)")
 }
 
-// ── Unit 2: exclusion seam ────────────────────────────────────────────────────
+// ── Unit 2: recallability seam (definitions are ordinary notes, #678 Task 6) ─
 
-// TestVocabNote_ExcludedFromFloorPromotion proves that a vocab note is NOT
-// promoted by the note-floor reservation even when it scores above the floor.
-// This is the RED test for the isFloorQualifyingNote exclusion site.
-func TestVocabNote_ExcludedFromFloorPromotion(t *testing.T) {
+// TestVocabDefinitionNote_FloorPromoted proves that a bare-vocab-tagged
+// definition note (an ordinary fact-shaped note carrying the bare "vocab" tag)
+// IS promoted by the note-floor reservation when it scores above the floor —
+// the accepted #678 Task 6 behavior change: definitions are ordinary
+// recallable notes, no longer excluded via isQueryExcludedKind. Inverse of
+// the retired TestVocabNote_ExcludedFromFloorPromotion (isFloorQualifyingNote
+// exclusion site).
+func TestVocabDefinitionNote_FloorPromoted(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	const vocabPath = "vault/vocab.eval-methodology.md"
+	const definitionPath = "vault/211.2026-07-10.vocab-eval-methodology-definition.md"
 
 	const normalPath = "vault/1aa.2026-01-01.note.md"
 
-	vocabContent := "---\ntype: vocab\nterm: eval-methodology\n---\n\nevaluation methodology content\n"
+	definitionContent := "---\ntype: fact\nsituation: recalling what the eval-methodology vocab term covers\n" +
+		"subject: the eval-methodology vocab term\npredicate: covers\nobject: how we evaluate.\n" +
+		"tags:\n    - vocab\n---\n\n" +
+		"Information learned: when in recalling what the eval-methodology vocab term covers, " +
+		"the eval-methodology vocab term covers how we evaluate.\n"
 	normalContent := "---\ntype: feedback\nsituation: ctx\nbehavior: b\nimpact: i\naction: a\n---\n\n" +
 		"Lesson learned: when ctx, a.\n\n"
 
-	vocabNote := cli.ExportNewScoredCandidateWithContent(vocabPath, 0.45, 0.45, vocabContent)
+	definitionNote := cli.ExportNewScoredCandidateWithContent(definitionPath, 0.45, 0.45, definitionContent)
 	normalNote := cli.ExportNewScoredCandidateWithContent(normalPath, 0.30, 0.30, normalContent)
 
 	// 30 chunks scoring above both notes — enough to fill matchPhraseLimit entirely,
@@ -404,34 +286,42 @@ func TestVocabNote_ExcludedFromFloorPromotion(t *testing.T) {
 	}
 
 	keys := cli.ExportMergePhraseIntoUnion(
-		[]cli.ExportScoredCandidate{vocabNote, normalNote},
+		[]cli.ExportScoredCandidate{definitionNote, normalNote},
 		chunks,
 	)
 
-	// The vocab note must NOT survive — it must not occupy a floor slot.
-	// The normal note (with the floor active) should survive.
-	g.Expect(keys).NotTo(ContainElement(vocabPath), "vocab note must not be promoted by the note floor")
+	// The definition note MUST survive — it is entitled to a floor slot
+	// exactly like the normal note.
+	g.Expect(keys).To(ContainElement(definitionPath),
+		"a bare-vocab-tagged definition note is promoted by the note floor like any other note")
 }
 
-// TestVocabNote_ExcludedWhenOnlyItem proves that a vocab note is excluded even
-// when it would be the only item in the matched set (applyFloorAndCap site).
-func TestVocabNote_ExcludedWhenOnlyItem(t *testing.T) {
+// TestVocabDefinitionNote_ReturnedWhenOnlyItem proves that a bare-vocab-tagged
+// definition note is returned even when it is the only item in the matched
+// set (mergePhraseIntoUnion's own exclusion site). Inverse of the retired
+// TestVocabNote_ExcludedWhenOnlyItem.
+func TestVocabDefinitionNote_ReturnedWhenOnlyItem(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	const vocabPath = "vault/vocab.eval-methodology.md"
+	const definitionPath = "vault/211.2026-07-10.vocab-eval-methodology-definition.md"
 
-	vocabContent := "---\ntype: vocab\nterm: eval-methodology\n---\n\nevaluation methodology content\n"
+	definitionContent := "---\ntype: fact\nsituation: recalling what the eval-methodology vocab term covers\n" +
+		"subject: the eval-methodology vocab term\npredicate: covers\nobject: how we evaluate.\n" +
+		"tags:\n    - vocab\n---\n\n" +
+		"Information learned: when in recalling what the eval-methodology vocab term covers, " +
+		"the eval-methodology vocab term covers how we evaluate.\n"
 
-	vocabNote := cli.ExportNewScoredCandidateWithContent(vocabPath, 0.80, 0.80, vocabContent)
+	definitionNote := cli.ExportNewScoredCandidateWithContent(definitionPath, 0.80, 0.80, definitionContent)
 
 	keys := cli.ExportMergePhraseIntoUnion(
-		[]cli.ExportScoredCandidate{vocabNote},
+		[]cli.ExportScoredCandidate{definitionNote},
 		nil,
 	)
 
-	g.Expect(keys).NotTo(ContainElement(vocabPath), "vocab note must not enter the matched set even as sole item")
+	g.Expect(keys).To(ContainElement(definitionPath),
+		"a bare-vocab-tagged definition note enters the matched set even as the sole item")
 }
 
 // TestVocabTermsFromTags_FiltersAndStripsPrefix locks vocabTermsFromTags'
