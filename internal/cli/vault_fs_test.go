@@ -58,6 +58,42 @@ func TestOsVaultFS_ListMD_NonExistError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestOsVaultFS_ListVecJSON_FiltersToVecJSON(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(dir, "subdir"), 0o750)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "note.md"), []byte("x"), 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "note.vec.json"), []byte("y"), 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "orphan.vec.json"), []byte("z"), 0o600)).To(Succeed())
+
+	fs := cli.ExportNewOsVaultFS()
+	names, err := fs.ListVecJSON(dir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(names).To(ConsistOf("note.vec.json", "orphan.vec.json"))
+}
+
+func TestOsVaultFS_ListVecJSON_MissingDirReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := cli.ExportNewOsVaultFS()
+	names, err := fs.ListVecJSON("/nonexistent/vault/dir")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(names).To(BeEmpty())
+}
+
 func TestOsVaultFS_ReadFile_MissingPathError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

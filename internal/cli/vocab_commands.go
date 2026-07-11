@@ -64,6 +64,11 @@ type VocabDeps struct {
 	// DeleteFile removes a file by path. Used by refit to delete removed/renamed
 	// definition notes and their sidecars.
 	DeleteFile func(path string) error
+	// ListVecJSON returns the .vec.json filenames in vault — used by
+	// migrate-tags to sweep hub sidecars, including any orphan with no
+	// surviving .md counterpart, found by listing directly rather than
+	// deriving paths from the .md listing. Optional; nil skips the sweep.
+	ListVecJSON func(vault string) ([]string, error)
 	// WriteSidecar writes an embedding sidecar atomically.
 	WriteSidecar func(path string, data []byte) error
 	// Embedder embeds text into a vector. Optional; nil skips embedding.
@@ -906,10 +911,12 @@ func emitRefitRequest(vault string, deps VocabDeps, stdout io.Writer) error {
 
 // ensureVocabFamilyNote mints the vocab-definition family note when absent
 // (findVocabFamilyNote returns errVocabFamilyNoteMissing); a no-op when
-// already present — bootstrap's idempotency requirement. The minted note
-// documents the tags: convention WITHOUT enumerating any term (a maintained
-// term list is the stale-index problem reborn — see
-// TestVocabFamilyNote_NeverEnumeratesTerms).
+// already present — bootstrap's (and migrate-tags') idempotency requirement.
+// The minted note documents the tags: convention WITHOUT enumerating any term
+// (a maintained term list is the stale-index problem reborn — see
+// TestVocabFamilyNote_NeverEnumeratesTerms). Returns true when a note was
+// minted, false when one already existed — migrate-tags' counts summary
+// reports "minted"/"present" from this.
 func ensureVocabFamilyNote(
 	ctx context.Context,
 	deps VocabDeps,
@@ -918,10 +925,10 @@ func ensureVocabFamilyNote(
 	vocabVersion string,
 	when time.Time,
 	site string,
-) {
+) bool {
 	_, _, findErr := findVocabFamilyNote(vault, *names, deps.ReadFile)
 	if findErr == nil {
-		return // already present — idempotent no-op
+		return false // already present — idempotent no-op
 	}
 
 	f := familyDefinitionFactFields(vocabLifecycleSource(site, vocabVersion))
@@ -930,6 +937,8 @@ func ensureVocabFamilyNote(
 	if mintErr != nil && deps.LogWarning != nil {
 		deps.LogWarning("vocab %s: minting family note: %v", site, mintErr)
 	}
+
+	return true
 }
 
 // extractNoteVocabTags reads a non-vocab note and returns its member terms,
@@ -1257,6 +1266,7 @@ func newOsVocabDeps() VocabDeps {
 
 			return nil
 		},
+		ListVecJSON:  (&osVaultFS{}).ListVecJSON,
 		WriteSidecar: (&osEmbedFS{}).Write,
 		Embedder:     sharedEmbedder,
 		LogWarning:   logWarningToStderrf,

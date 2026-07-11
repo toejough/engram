@@ -569,6 +569,7 @@ func ExportNewOsUpdateFS() *osUpdateFS { return &osUpdateFS{} }
 // ExportNewOsVaultFS returns the production osVaultFS adapter for testing.
 func ExportNewOsVaultFS() interface {
 	ListMD(dir string) ([]string, error)
+	ListVecJSON(dir string) ([]string, error)
 	ReadFile(path string) ([]byte, error)
 } {
 	return &osVaultFS{}
