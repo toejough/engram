@@ -310,6 +310,31 @@ func TestComputeTermCentroids_ExcludesDefinitionVectors(t *testing.T) {
 	g.Expect(entry.MemberCount).To(Equal(2), "the definition note's vector must not enter the member count")
 }
 
+// TestEnsureVocabFamilyNote_MintFailureReturnsFalse is TEST (b) from #678
+// Task 7's fix brief (FIX 2): a forced WriteFile failure during the family
+// note's mint must make ensureVocabFamilyNote report false — not the prior
+// unconditional true after an attempt — so a caller's counts summary never
+// claims "family note: minted" for a note that was never actually written.
+func TestEnsureVocabFamilyNote_MintFailureReturnsFalse(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := "/vault"
+	names := []string{}
+
+	deps := cli.VocabDeps{
+		ReadFile:   func(path string) ([]byte, error) { return nil, &testNotFoundError{path: path} },
+		WriteFile:  func(string, []byte) error { return errors.New("disk full") },
+		LogWarning: func(string, ...any) {},
+	}
+
+	when := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	minted := cli.ExportEnsureVocabFamilyNote(t.Context(), deps, vault, &names, "1.0", when, "migrate-tags")
+	g.Expect(minted).To(BeFalse(), "a failed family note mint must report false, never a false 'minted'")
+}
+
 // TestIdAndDateFromNoteFilename table-tests the "<id>.<date>" prefix parser:
 // a filename with no valid leading Luhmann id, and one with fewer than three
 // dot-separated segments, both return ok=false — direct unit coverage since
@@ -698,6 +723,37 @@ func TestPrintStatsReport_VerdictRefitPending(t *testing.T) {
 	cli.ExportPrintStatsReport(&buf, nil, nil, 10, 0, "1.0", true, "growth: 41 notes, 15 days", 0)
 
 	g.Expect(buf.String()).To(ContainSubstring("verdict: REFIT_PENDING (growth: 41 notes, 15 days)"))
+}
+
+// TestRenderDefinitionNoteContent_NoDoublePeriod is TEST (c) from #678 Task
+// 7's fix brief (FIX 3): a description that already ends in a period must
+// not double-punctuate the rendered "... covers <description>." body
+// sentence (real production example: cost-optimization's stored description
+// ends in a period, which used to render "...capability loss..").
+func TestRenderDefinitionNoteContent_NoDoublePeriod(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	f := cli.ExportFactFields{
+		Situation: "recalling what the cost-optimization vocab term covers",
+		Subject:   "the cost-optimization vocab term",
+		Predicate: "covers",
+		Object:    "Reducing LLM and computation costs without capability loss.",
+	}
+
+	when := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	got := cli.ExportRenderDefinitionNoteContent(f, "", nil, when)
+
+	g.Expect(got).NotTo(ContainSubstring(".."),
+		"a description already ending in a period must not double-punctuate the body sentence")
+	g.Expect(got).To(ContainSubstring(
+		"covers Reducing LLM and computation costs without capability loss.\n"),
+		"exactly one trailing period on the rendered body sentence")
+	g.Expect(got).To(ContainSubstring(
+		"object: Reducing LLM and computation costs without capability loss."),
+		"the frontmatter object: field must still carry the description's own trailing period verbatim")
 }
 
 // TestRetagAllNotesTwoPass_ListMDError_LogsWarning covers loadMemberNoteVectors'

@@ -914,9 +914,14 @@ func emitRefitRequest(vault string, deps VocabDeps, stdout io.Writer) error {
 // already present — bootstrap's (and migrate-tags') idempotency requirement.
 // The minted note documents the tags: convention WITHOUT enumerating any term
 // (a maintained term list is the stale-index problem reborn — see
-// TestVocabFamilyNote_NeverEnumeratesTerms). Returns true when a note was
-// minted, false when one already existed — migrate-tags' counts summary
-// reports "minted"/"present" from this.
+// TestVocabFamilyNote_NeverEnumeratesTerms). Returns true only when a mint
+// was attempted AND succeeded (mintErr == nil); false both when one already
+// existed (no mint attempted — the idempotent no-op) and when a mint was
+// attempted but failed (#678 Task 7 FIX 2 — the prior unconditional `true`
+// after an attempt let migrate-tags' counts summary report "minted" for a
+// family note that was never actually written; callers needing to
+// distinguish "already present" from "mint failed" re-check existence via
+// findVocabFamilyNote, e.g. RunVocabMigrateTags's familyOK gate).
 func ensureVocabFamilyNote(
 	ctx context.Context,
 	deps VocabDeps,
@@ -934,8 +939,12 @@ func ensureVocabFamilyNote(
 	f := familyDefinitionFactFields(vocabLifecycleSource(site, vocabVersion))
 
 	mintErr := mintDefinitionNote(ctx, deps, vault, names, vocabFamilySlug, f, vocabVersion, nil, when)
-	if mintErr != nil && deps.LogWarning != nil {
-		deps.LogWarning("vocab %s: minting family note: %v", site, mintErr)
+	if mintErr != nil {
+		if deps.LogWarning != nil {
+			deps.LogWarning("vocab %s: minting family note: %v", site, mintErr)
+		}
+
+		return false
 	}
 
 	return true
@@ -1494,10 +1503,25 @@ func renameTermInVocabList(raw []byte, fromTerm, toTerm string) ([]string, bool)
 // text: exemplars move the term's vector toward its members' neighborhood
 // (see AssignVocabTerms). vocabVersion is "" for a term definition (only the
 // family note carries the vault-wide version).
+//
+// renderFactBody's formula always appends its own trailing period after
+// f.Object ("... covers <object>."); when the caller-supplied description
+// already ends in "." (a real vault shape — e.g. cost-optimization's stored
+// description) that formula would double-punctuate ("...loss..") (#678
+// Task 7 FIX 3). Fixed source-side: the body call gets a COPY of f with one
+// trailing period trimmed off Object, so the rendered sentence never
+// double-punctuates; the frontmatter render above already ran against the
+// original f, so the note's object: field still carries the description
+// verbatim, trailing period included.
 func renderDefinitionNoteContent(f factFields, vocabVersion string, exemplars []string, when time.Time) string {
 	f.VocabVersion = vocabVersion
 
-	content := renderFactFrontmatter(f, when) + renderFactBody(f)
+	frontmatter := renderFactFrontmatter(f, when)
+
+	bodyFields := f
+	bodyFields.Object = strings.TrimSuffix(f.Object, ".")
+
+	content := frontmatter + renderFactBody(bodyFields)
 
 	if len(exemplars) == 0 {
 		return content

@@ -58,6 +58,52 @@ func TestRunVocabMigrateTags_DeleteHubFileError_LogsWarningAndExcludesFromCount(
 	g.Expect(strings.Join(warnings, "\n")).To(ContainSubstring("deleting " + brokenDeletePath))
 }
 
+// TestRunVocabMigrateTags_FamilyNoteMintFailure_PreservesIndexAndFailsRun is
+// an extra integration test (beyond the fix brief's minimum set) covering
+// the FIX 2 gate as wired into RunVocabMigrateTags: when the family note's
+// own mint fails, vocab.index.md (the hub it is meant to replace) must
+// survive, the counts line must say "family note: failed" rather than a
+// false "minted", and the run must exit non-zero.
+func TestRunVocabMigrateTags_FamilyNoteMintFailure_PreservesIndexAndFailsRun(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := "/vault"
+	files := map[string][]byte{
+		vault + "/vocab.index.md": []byte(
+			"---\ntype: vocab-index\nvocab_version: \"1.0\"\ncreated: \"2026-07-01\"\n---\n\nBody.\n"),
+	}
+
+	var warnings []string
+
+	when := time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC)
+	deps := newInMemoryVocabDeps(files, &warnings, when)
+
+	baseWrite := deps.WriteFile
+	deps.WriteFile = func(path string, data []byte) error {
+		if strings.Contains(path, "vocab-definition") {
+			return errors.New("disk full")
+		}
+
+		return baseWrite(path, data)
+	}
+
+	var stdout strings.Builder
+
+	err := cli.RunVocabMigrateTags(t.Context(), cli.VocabMigrateArgs{Vault: vault}, deps, &stdout)
+
+	g.Expect(err).To(HaveOccurred(), "a failed family note mint must fail the run")
+	g.Expect(err).To(MatchError(ContainSubstring("family note")))
+	g.Expect(stdout.String()).To(ContainSubstring("family note: failed"))
+	g.Expect(stdout.String()).To(ContainSubstring("hub files deleted: 0"),
+		"vocab.index.md has no minted family note to replace it, so it must never be deleted")
+	g.Expect(files).To(HaveKey(vault+"/vocab.index.md"), "vocab.index.md must survive a failed family note mint")
+
+	joined := strings.Join(warnings, "\n")
+	g.Expect(joined).To(ContainSubstring("minting family note"))
+}
+
 // TestRunVocabMigrateTags_FullMigration_ThenIdempotentSecondRun is the
 // end-to-end #678 Task 7 fixture: it exercises every behavior-spec step (1-6)
 // over a single scratch vault, then re-runs the migration and asserts the
@@ -378,10 +424,14 @@ func TestRunVocabMigrateTags_MemberEdgeCases_SkippedOrWarned(t *testing.T) {
 	g.Expect(strings.Join(warnings, "\n")).To(ContainSubstring("rewriting " + brokenWritePath))
 }
 
-// TestRunVocabMigrateTags_MintDefinitionWriteError_LogsWarningAndContinues
-// covers migrateTermDefinitions' mintErr branch: the definition note's
-// WriteFile call fails.
-func TestRunVocabMigrateTags_MintDefinitionWriteError_LogsWarningAndContinues(t *testing.T) {
+// TestRunVocabMigrateTags_MintDefinitionWriteError_PreservesHubAndFailsRun
+// covers migrateTermDefinitions' mintErr branch under #678 Task 7 FIX 1: the
+// definition note's WriteFile call fails, so broken-mint's hub file must
+// survive (there is no minted definition to replace it) and the whole run
+// must exit non-zero naming the failed term — a silent exit-0 here would let
+// an operator believe the migration finished cleanly right before the next
+// step deleted broken-mint's only copy of its description.
+func TestRunVocabMigrateTags_MintDefinitionWriteError_PreservesHubAndFailsRun(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -401,9 +451,85 @@ func TestRunVocabMigrateTags_MintDefinitionWriteError_LogsWarningAndContinues(t 
 	var stdout strings.Builder
 
 	err := cli.RunVocabMigrateTags(t.Context(), cli.VocabMigrateArgs{Vault: vault}, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(err).To(HaveOccurred(), "a failed definition mint must fail the run, not exit 0")
+	g.Expect(err).To(MatchError(ContainSubstring("broken-mint")), "the error must name the failed term")
 	g.Expect(stdout.String()).To(ContainSubstring("definitions minted: 0"))
+	g.Expect(stdout.String()).To(ContainSubstring("hub files deleted: 0"),
+		"broken-mint's hub file has no minted replacement, so it must never be deleted")
+	g.Expect(files).To(HaveKey(vault+"/vocab.broken-mint.md"), "the hub note must survive a failed mint")
 	g.Expect(strings.Join(warnings, "\n")).To(ContainSubstring("minting definition for broken-mint"))
+}
+
+// TestRunVocabMigrateTags_MintFailurePreservesHubNote is TEST (a) from #678
+// Task 7's fix brief: a two-term fixture where term-a's mint fails (a
+// WriteFile wired to error only for term-a's definition path, following this
+// file's existing scoped-failure idiom) and term-b's mint succeeds. Asserts
+// the per-term (not all-or-nothing) gating contract: term-a's hub .md AND
+// .vec.json both survive, term-b's mint+hub-deletion+sidecar-deletion
+// proceed normally, the counts line reflects exactly that split, and the run
+// returns a non-nil error naming term-a.
+func TestRunVocabMigrateTags_MintFailurePreservesHubNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := "/vault"
+
+	files := map[string][]byte{
+		vault + "/vocab.term-a.md": []byte(
+			"---\ntype: vocab\nterm: term-a\ndescription: describes term a\nvocab_version: \"1.0\"\n" +
+				"created: \"2026-07-10\"\n---\n\ndescribes term a\n"),
+		vault + "/vocab.term-a.vec.json": mustMarshalSidecarWithBodyVector(t, []float32{0.1, 0.2}),
+		vault + "/vocab.term-b.md": []byte(
+			"---\ntype: vocab\nterm: term-b\ndescription: describes term b\nvocab_version: \"1.0\"\n" +
+				"created: \"2026-07-10\"\n---\n\ndescribes term b\n"),
+		vault + "/vocab.term-b.vec.json": mustMarshalSidecarWithBodyVector(t, []float32{0.3, 0.4}),
+	}
+
+	var warnings []string
+
+	when := time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC)
+	deps := newInMemoryVocabDeps(files, &warnings, when)
+
+	baseWrite := deps.WriteFile
+	deps.WriteFile = func(path string, data []byte) error {
+		if strings.Contains(path, "vocab-term-a-definition") {
+			return errors.New("disk full")
+		}
+
+		return baseWrite(path, data)
+	}
+
+	var stdout strings.Builder
+
+	err := cli.RunVocabMigrateTags(t.Context(), cli.VocabMigrateArgs{Vault: vault}, deps, &stdout)
+
+	g.Expect(err).To(HaveOccurred(), "a term whose definition mint fails must fail the run")
+	g.Expect(err).To(MatchError(ContainSubstring("term-a")), "the error must name the failed term")
+
+	g.Expect(files).To(HaveKey(vault+"/vocab.term-a.md"), "term-a's hub note must survive a failed mint")
+	g.Expect(files).To(HaveKey(vault+"/vocab.term-a.vec.json"), "term-a's hub sidecar must survive a failed mint")
+
+	g.Expect(files).NotTo(HaveKey(vault+"/vocab.term-b.md"),
+		"term-b's mint succeeded, so its hub note must be swept as usual")
+	g.Expect(files).NotTo(HaveKey(vault+"/vocab.term-b.vec.json"),
+		"term-b's mint succeeded, so its hub sidecar must be swept as usual")
+
+	_, termBMinted := findNoteBySlug(files, vault, "vocab-term-b-definition")
+	g.Expect(termBMinted).To(BeTrue(), "term-b's definition note must be minted despite term-a's failure")
+
+	_, termAMinted := findNoteBySlug(files, vault, "vocab-term-a-definition")
+	g.Expect(termAMinted).To(BeFalse(), "term-a's definition note must not exist after a failed mint")
+
+	g.Expect(stdout.String()).To(ContainSubstring("definitions minted: 1"),
+		"the counts line must reflect only the successful mint")
+	g.Expect(stdout.String()).To(ContainSubstring("hub files deleted: 1"),
+		"only term-b's hub file was safe to delete")
+	g.Expect(stdout.String()).To(ContainSubstring("sidecars deleted: 1"),
+		"only term-b's hub sidecar was safe to delete")
+
+	joined := strings.Join(warnings, "\n")
+	g.Expect(joined).To(ContainSubstring("minting definition for term-a"))
 }
 
 // TestRunVocabMigrateTags_NilDeleteFile verifies that a nil DeleteFile skips
@@ -522,12 +648,14 @@ func TestRunVocabMigrateTags_TermNoteWithExistingDefinition_SkippedNotReMinted(t
 		"the existing definition note must be left untouched, not re-minted")
 }
 
-// TestRunVocabMigrateTags_UnreadableAndMalformedTermNotes_SkippedWithWarning
-// covers migrateTermDefinitions' two skip branches: a term note ReadFile
-// fails on (simulated permission error) and a term note with malformed
-// frontmatter (no term: key). Neither mints a definition, both are logged,
-// and both are still swept as hub files in step 5.
-func TestRunVocabMigrateTags_UnreadableAndMalformedTermNotes_SkippedWithWarning(t *testing.T) {
+// TestRunVocabMigrateTags_UnreadableAndMalformedTermNotes_PreservedAndFailRun
+// covers migrateTermDefinitions' two skip branches under #678 Task 7 FIX 1: a
+// term note ReadFile fails on (simulated permission error) and a term note
+// with malformed frontmatter (no term: key). Neither mints a definition —
+// there is no term identity to even name, let alone a definition to replace
+// the hub — so BOTH hub files must survive and the run must exit non-zero
+// naming them (by filename, since no term string could be parsed).
+func TestRunVocabMigrateTags_UnreadableAndMalformedTermNotes_PreservedAndFailRun(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -558,9 +686,15 @@ func TestRunVocabMigrateTags_UnreadableAndMalformedTermNotes_SkippedWithWarning(
 	var stdout strings.Builder
 
 	err := cli.RunVocabMigrateTags(t.Context(), cli.VocabMigrateArgs{Vault: vault}, deps, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(err).To(HaveOccurred(), "an unparseable/unreadable term note must fail the run, not exit 0")
+	g.Expect(err).To(MatchError(ContainSubstring("vocab.broken-read.md")))
+	g.Expect(err).To(MatchError(ContainSubstring("vocab.no-term-key.md")))
 	g.Expect(stdout.String()).To(ContainSubstring("definitions minted: 0"))
-	g.Expect(stdout.String()).To(ContainSubstring("hub files deleted: 2"))
+	g.Expect(stdout.String()).To(ContainSubstring("hub files deleted: 0"),
+		"neither broken term note has a minted definition to replace it — neither may be deleted")
+
+	g.Expect(files).To(HaveKey(brokenReadPath), "the unreadable hub note must survive")
+	g.Expect(files).To(HaveKey(vault+"/vocab.no-term-key.md"), "the malformed hub note must survive")
 
 	joined := strings.Join(warnings, "\n")
 	g.Expect(joined).To(ContainSubstring("skipping unreadable term note vocab.broken-read.md"))

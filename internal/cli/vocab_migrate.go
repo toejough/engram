@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/toejough/engram/internal/embed"
 )
 
 // VocabMigrateArgs holds parsed flags for `engram vocab migrate-tags`.
@@ -23,6 +26,16 @@ type VocabMigrateArgs struct {
 // run mints nothing, rewrites nothing, and deletes nothing (all-zero counts,
 // family note "present"). Assignment is PRESERVED, never re-scored: each
 // member's existing vocab: term list maps verbatim onto tags: vocab/<term>.
+//
+// Data-safety gate (FIX 1/2): a hub file is deleted ONLY when its minted
+// replacement actually exists post-mint — a term whose definition mint
+// failed (or whose note was too broken to even identify a term) keeps its
+// vocab.<term>.md + sidecar; vocab.index.md keeps its sidecar too unless the
+// vocab-definition family note actually exists afterward. Any such failure
+// is printed in the (still-accurate) counts line AND fails the run
+// (non-zero exit, wrapped error naming what failed) so the operator stops
+// and investigates rather than trusting a silent exit-0 that quietly lost a
+// term's description+exemplars for good.
 func RunVocabMigrateTags(ctx context.Context, args VocabMigrateArgs, deps VocabDeps, stdout io.Writer) error {
 	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
 	if lockErr != nil {
@@ -40,25 +53,41 @@ func RunVocabMigrateTags(ctx context.Context, args VocabMigrateArgs, deps VocabD
 
 	vocabVersion := migrationVocabVersion(args.Vault, names, deps.ReadFile, stdout)
 
-	definitionsMinted := migrateTermDefinitions(ctx, deps, args.Vault, &names, when)
+	definitionsMinted, defFailures := migrateTermDefinitions(ctx, deps, args.Vault, &names, when)
 	familyMinted := ensureVocabFamilyNote(ctx, deps, args.Vault, &names, vocabVersion, when, "migrate-tags")
+	familyOK := familyNoteExists(args.Vault, names, deps.ReadFile)
 
 	membersRewritten := migrateMembers(deps, args.Vault, names)
 
-	hubFilesDeleted := deleteHubNotes(deps, args.Vault, names)
-	sidecarsDeleted := deleteHubSidecars(deps, args.Vault)
+	skipHubFiles := hubFileSkipSet(defFailures, familyOK)
+
+	hubFilesDeleted := deleteHubNotes(deps, args.Vault, names, skipHubFiles)
+	sidecarsDeleted := deleteHubSidecars(deps, args.Vault, hubSidecarSkipSet(skipHubFiles))
 
 	familyStatus := "present"
-	if familyMinted {
+
+	switch {
+	case familyMinted:
 		familyStatus = "minted"
+	case !familyOK:
+		familyStatus = "failed"
 	}
 
 	_, _ = fmt.Fprintf(stdout,
 		"members rewritten: %d, definitions minted: %d, family note: %s, hub files deleted: %d, sidecars deleted: %d\n",
 		membersRewritten, definitionsMinted, familyStatus, hubFilesDeleted, sidecarsDeleted)
 
+	if len(defFailures) > 0 || !familyOK {
+		return migrationFailureError(defFailures, familyOK)
+	}
+
 	return nil
 }
+
+// unexported variables.
+var (
+	errVocabMigrateDefinitionMintFailed = errors.New("vocab migrate-tags: definition mint failed")
+)
 
 // legacyVocabMemberFrontmatter is the raw frontmatter shape of a not-yet-
 // migrated member note's legacy vocab: key (inline list, e.g. "vocab: [a,
@@ -77,14 +106,33 @@ type legacyVocabTermFrontmatter struct {
 	Description string `yaml:"description"`
 }
 
+// migrateTermFailure records one old-shape vocab.<term>.md hub note whose
+// migration did not complete: either the note itself was too broken to even
+// identify a term (unreadable, no parseable frontmatter, or no term: key —
+// Term is "" in that case) or a parseable term's definition mint errored
+// (Term is set). Either way hubFile's .md + sidecar must survive the run
+// (#678 Task 7 FIX 1 — see deleteHubNotes/deleteHubSidecars' skip parameter)
+// and the run must exit non-zero (migrationFailureError) naming Term when
+// known, else hubFile.
+type migrateTermFailure struct {
+	hubFile string
+	term    string
+}
+
 // deleteHubNotes deletes every vocab.*.md hub file (old-shape term notes plus
-// the retired vocab.index.md) found in names. Returns the count actually
-// deleted.
-func deleteHubNotes(deps VocabDeps, vault string, names []string) int {
+// the retired vocab.index.md) found in names, except any name present in
+// skip — #678 Task 7 FIX 1/2's data-safety gate: never delete a hub whose
+// replacement definition (or, for vocab.index.md, the family note) failed to
+// mint. Returns the count actually deleted.
+func deleteHubNotes(deps VocabDeps, vault string, names []string, skip map[string]bool) int {
 	deleted := 0
 
 	for _, name := range names {
 		if !isVocabKindFilename(name) {
+			continue
+		}
+
+		if skip[name] {
 			continue
 		}
 
@@ -99,9 +147,12 @@ func deleteHubNotes(deps VocabDeps, vault string, names []string) int {
 // deleteHubSidecars deletes every vocab.*.vec.json sidecar in vault — hub
 // term/index sidecars AND any orphan with no surviving .md counterpart —
 // found by listing .vec.json files directly (deps.ListVecJSON) rather than
-// deriving paths from the .md listing, which would miss the orphan. Returns
-// the count actually deleted; 0 when ListVecJSON is not wired.
-func deleteHubSidecars(deps VocabDeps, vault string) int {
+// deriving paths from the .md listing, which would miss the orphan. skip
+// carries SIDECAR filenames (hubSidecarSkipSet's output — the
+// embed.SidecarPath of each name deleteHubNotes is also skipping): a hub
+// whose .md survives must keep its sidecar too. Returns the count actually
+// deleted; 0 when ListVecJSON is not wired.
+func deleteHubSidecars(deps VocabDeps, vault string, skip map[string]bool) int {
 	if deps.ListVecJSON == nil {
 		return 0
 	}
@@ -119,6 +170,10 @@ func deleteHubSidecars(deps VocabDeps, vault string) int {
 
 	for _, name := range names {
 		if !strings.HasPrefix(name, vocabNotePrefix) {
+			continue
+		}
+
+		if skip[name] {
 			continue
 		}
 
@@ -148,6 +203,47 @@ func deleteVaultFile(deps VocabDeps, path string) bool {
 	}
 
 	return true
+}
+
+// familyNoteExists reports whether the vocab-definition family note is
+// present in vault, post-mint — #678 Task 7 FIX 1/2's gate for
+// vocab.index.md: the retired index hub (and its sidecar) must never be
+// deleted unless its replacement family note actually exists.
+func familyNoteExists(vault string, names []string, readFile func(string) ([]byte, error)) bool {
+	_, _, findErr := findVocabFamilyNote(vault, names, readFile)
+
+	return findErr == nil
+}
+
+// hubFileSkipSet builds RunVocabMigrateTags' skip set for deleteHubNotes: the
+// hub filename of every failed term (migrateTermDefinitions' defFailures),
+// plus vocab.index.md when the family note it's being replaced by does not
+// exist (familyOK false) — #678 Task 7 FIX 1/2.
+func hubFileSkipSet(failures []migrateTermFailure, familyOK bool) map[string]bool {
+	skip := make(map[string]bool, len(failures)+1)
+
+	for _, failure := range failures {
+		skip[failure.hubFile] = true
+	}
+
+	if !familyOK {
+		skip[vocabIndexFilename] = true
+	}
+
+	return skip
+}
+
+// hubSidecarSkipSet converts a deleteHubNotes skip set (hub .md filenames)
+// into the equivalent deleteHubSidecars skip set (sidecar filenames, via
+// embed.SidecarPath) — a hub note that survives must keep its sidecar too.
+func hubSidecarSkipSet(skipHubFiles map[string]bool) map[string]bool {
+	skip := make(map[string]bool, len(skipHubFiles))
+
+	for name := range skipHubFiles {
+		skip[embed.SidecarPath(name)] = true
+	}
+
+	return skip
 }
 
 // legacyMemberTerms determines a member note's migration term list from its
@@ -221,9 +317,19 @@ func migrateMembers(deps VocabDeps, vault string, names []string) int {
 // shape) for every old-shape vocab.<term>.md term note that has no
 // definition note yet (definitionNoteExistsForTerm — idempotent). names is
 // updated in place so a mint in this loop cannot collide with a later one on
-// the Luhmann id. Returns the count of definitions actually minted.
-func migrateTermDefinitions(ctx context.Context, deps VocabDeps, vault string, names *[]string, when time.Time) int {
-	minted := 0
+// the Luhmann id. Returns the count of definitions actually minted, plus one
+// migrateTermFailure per term hub note that was unparseable/unreadable OR
+// whose mint errored (#678 Task 7 FIX 1) — the caller (RunVocabMigrateTags)
+// uses this list to keep each failed term's hub file (and sidecar) out of
+// this run's deletion sweep and to fail the run non-zero.
+func migrateTermDefinitions(
+	ctx context.Context,
+	deps VocabDeps,
+	vault string,
+	names *[]string,
+	when time.Time,
+) (minted int, failures []migrateTermFailure) {
+	failures = make([]migrateTermFailure, 0)
 
 	for _, name := range *names {
 		if !isVocabTermFilename(name) {
@@ -235,6 +341,8 @@ func migrateTermDefinitions(ctx context.Context, deps VocabDeps, vault string, n
 			if deps.LogWarning != nil {
 				deps.LogWarning("vocab migrate-tags: skipping unreadable term note %s", name)
 			}
+
+			failures = append(failures, migrateTermFailure{hubFile: name})
 
 			continue
 		}
@@ -251,13 +359,40 @@ func migrateTermDefinitions(ctx context.Context, deps VocabDeps, vault string, n
 				deps.LogWarning("vocab migrate-tags: minting definition for %s: %v", term, mintErr)
 			}
 
+			failures = append(failures, migrateTermFailure{hubFile: name, term: term})
+
 			continue
 		}
 
 		minted++
 	}
 
-	return minted
+	return minted, failures
+}
+
+// migrationFailureError builds RunVocabMigrateTags' non-zero-exit error for
+// #678 Task 7 FIX 1/2: one wrapped error naming every term whose definition
+// mint failed (migrateTermFailure.term when the note was parseable, else
+// .hubFile for a note too broken to identify a term) plus the family note
+// when its own mint failed (familyOK false). The counts line is already
+// printed by the caller before this error is returned, so the operator sees
+// exactly what succeeded before being told to stop and fix the rest.
+func migrationFailureError(failures []migrateTermFailure, familyOK bool) error {
+	labels := make([]string, 0, len(failures)+1)
+
+	for _, failure := range failures {
+		if failure.term != "" {
+			labels = append(labels, failure.term)
+		} else {
+			labels = append(labels, failure.hubFile)
+		}
+	}
+
+	if !familyOK {
+		labels = append(labels, "vocab-definition (family note)")
+	}
+
+	return fmt.Errorf("%w: %s", errVocabMigrateDefinitionMintFailed, strings.Join(labels, ", "))
 }
 
 // migrationVocabVersion resolves the vault-wide vocab_version the migration

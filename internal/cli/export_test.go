@@ -51,6 +51,7 @@ var (
 	ExportCountNonVocabNoteFiles           = countNonVocabNoteFiles
 	ExportCountQAPairs                     = countQAPairs
 	ExportDefaultRecencyParams             = defaultRecencyParams
+	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
 	ExportExtractLuhmannFromFilename       = extractLuhmannFromFilename
 	ExportFillRecencyBand                  = fillRecencyBand
@@ -91,6 +92,7 @@ var (
 	ExportPrintNoteExamples                = printNoteExamples
 	ExportPrintStatsReport                 = printStatsReport
 	ExportRecencyMultiplier                = recencyMultiplier
+	ExportRenderDefinitionNoteContent      = renderDefinitionNoteContent
 	ExportRenderFactBody                   = renderFactBody
 	ExportRenderFactFrontmatter            = renderFactFrontmatter
 	ExportRenderFeedbackBody               = renderFeedbackBody
