@@ -102,8 +102,7 @@ func computeTermCentroids(
 
 // firstTermSidecarMeta returns the embedding model id and dims from the first
 // readable term-note sidecar among names, or zero values when none is
-// readable. Recognizes BOTH the old-shape vocab.<term>.md filename
-// (isVocabTermFilename) and the new bare-vocab-tagged definition note
+// readable. Recognizes the bare-vocab-tagged definition note
 // (definitionNoteTerm) — #678 Task 5: post-migration, every mint is
 // new-shape, so this must recognize it or the centroids file's
 // embedding_model_id/dims stamp would stay empty forever, silently
@@ -114,12 +113,7 @@ func firstTermSidecarMeta(
 	readFile func(path string) ([]byte, error),
 ) (string, int) {
 	for _, name := range names {
-		if name == vocabIndexFilename {
-			continue
-		}
-
-		_, isNewShape := definitionNoteTerm(vault, name, readFile)
-		if !isVocabTermFilename(name) && !isNewShape {
+		if _, isNewShape := definitionNoteTerm(vault, name, readFile); !isNewShape {
 			continue
 		}
 
@@ -194,10 +188,6 @@ func loadMemberNoteVectors(deps VocabDeps, vault string) map[string][]float32 {
 	result := make(map[string][]float32, len(names))
 
 	for _, name := range names {
-		if isVocabKindFilename(name) {
-			continue
-		}
-
 		notePath := filepath.Join(vault, name)
 
 		content, contentErr := deps.ReadFile(notePath)

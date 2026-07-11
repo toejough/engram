@@ -192,7 +192,7 @@ func scanNonVocabNotes(
 	visit func(name string, raw []byte, readErr error),
 ) {
 	for _, name := range names {
-		if isVocabKindFilename(name) || isQAQuestionFilename(name) {
+		if isQAQuestionFilename(name) {
 			continue
 		}
 

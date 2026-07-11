@@ -455,7 +455,7 @@ func TestScanNonVocabNotes_QAQuestionFilenameSkipped(t *testing.T) {
 		"qa.2026-07-03.slug.q.md", // should be skipped
 		"qa.2026-07-03.slug.a.md", // should be visited
 		"100.2026-07-01.note.md",  // should be visited
-		"vocab.some-term.md",      // should be skipped
+		"vocab.some-term.md",      // should be visited — filename is no longer special (#681)
 	}
 
 	var visited []string
@@ -465,7 +465,8 @@ func TestScanNonVocabNotes_QAQuestionFilenameSkipped(t *testing.T) {
 		func(name string, _ []byte, _ error) { visited = append(visited, name) },
 	)
 
-	g.Expect(visited).To(ConsistOf("qa.2026-07-03.slug.a.md", "100.2026-07-01.note.md"))
+	g.Expect(visited).To(ConsistOf(
+		"qa.2026-07-03.slug.a.md", "100.2026-07-01.note.md", "vocab.some-term.md"))
 }
 
 func TestValidateContributors_KnownBasename_OK(t *testing.T) {

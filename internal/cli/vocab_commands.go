@@ -319,18 +319,8 @@ const (
 	// the vault-wide vocab_version (the bare-vocab-tagged note whose slug is
 	// NOT a term definition).
 	vocabFamilySlug = "vocab-definition"
-	// vocabIndexFilename is the filename of the (retired) machine-generated
-	// vocab MOC. Kept only for the defensive stats-scan skip and for
-	// vocab_centroids.go's old-shape sidecar-metadata scan (the vocab
-	// migrate-tags command, the other caller that recognized it, was
-	// retired in #681; git log recovers it).
-	vocabIndexFilename = "vocab.index.md"
 	// vocabNotePerm is the file permission used for vocab note writes.
 	vocabNotePerm = fs.FileMode(0o600)
-	// vocabNotePrefix is the filename prefix shared by all old-shape vocab
-	// term notes (pre-#678; retained for isVocabKindFilename/isVocabTermFilename,
-	// which vocab_centroids.go's old-shape metadata scan still depends on).
-	vocabNotePrefix = "vocab."
 )
 
 // unexported variables.
@@ -462,10 +452,6 @@ func assignTermsToAllNotes(
 	memberCounts := make(map[string]int)
 
 	for _, name := range names {
-		if isVocabKindFilename(name) {
-			continue
-		}
-
 		if isQAQuestionFilename(name) {
 			continue
 		}
@@ -619,7 +605,7 @@ func clearRemovedTermsFromMembers(deps VocabDeps, vault string, removals []strin
 	}
 
 	for _, name := range names {
-		if isVocabRewriteExcluded(name) {
+		if isQAQuestionFilename(name) {
 			continue
 		}
 
@@ -690,10 +676,6 @@ func collectVaultStats(
 	memberCounts = make(map[string]int)
 
 	for _, name := range names {
-		if name == vocabIndexFilename {
-			continue
-		}
-
 		if isQAQuestionFilename(name) {
 			continue
 		}
@@ -1100,29 +1082,6 @@ func idAndDateFromNoteFilename(name string) (id, date string, ok bool) {
 	}
 
 	return luhmannID, parts[1], true
-}
-
-// isVocabKindFilename reports whether a filename is a vocab note of any kind
-// (old-shape term note OR index), so both are excluded from member
-// assignment scans (a new-shape definition note is excluded by content —
-// isVocabDefinitionNote — inside assignVocabToNote instead).
-func isVocabKindFilename(name string) bool {
-	return strings.HasPrefix(name, vocabNotePrefix)
-}
-
-// isVocabRewriteExcluded reports whether a filename is skipped by the vocab
-// member-note rewrite loops (removal/rename): vocab-kind files, and QA question
-// notes — which carry no vocab by design (D5'); the guard enforces that
-// invariant rather than relying on it.
-func isVocabRewriteExcluded(name string) bool {
-	return isVocabKindFilename(name) || isQAQuestionFilename(name)
-}
-
-// isVocabTermFilename reports whether a filename is an old-shape vocab term
-// note (prefix "vocab." and not "vocab.index.md"). Retained for
-// vocab_centroids.go's old-shape sidecar-metadata scan (firstTermSidecarMeta).
-func isVocabTermFilename(name string) bool {
-	return strings.HasPrefix(name, vocabNotePrefix) && name != vocabIndexFilename
 }
 
 // loadCurrentVocabVersion reads the vocab_version field from the
@@ -1568,7 +1527,7 @@ func rewriteMemberTermRename(deps VocabDeps, vault, fromTerm, toTerm string) err
 	}
 
 	for _, name := range names {
-		if isVocabRewriteExcluded(name) {
+		if isQAQuestionFilename(name) {
 			continue
 		}
 

@@ -148,8 +148,9 @@ func TestCheckAndPersistVocabRefitTrigger_MissingCentroids_SeedsBaseline(t *test
 	g := NewWithT(t)
 
 	// No centroids file → seeds last_refit, no trigger fires.
-	names := []string{"1.2026-01-01.note.md", "vocab.x.md"}
+	names := []string{"1.2026-01-01.note.md", "2.2026-01-01.vocab-x-definition.md"}
 	noteContent := "---\ntype: fact\ntierL2\nsituation: x\n---\n"
+	definitionContent := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines x.\n"
 
 	var writtenData []byte
 
@@ -157,11 +158,14 @@ func TestCheckAndPersistVocabRefitTrigger_MissingCentroids_SeedsBaseline(t *test
 		"/vault",
 		func(string) ([]string, error) { return names, nil },
 		func(path string) ([]byte, error) {
-			if path == "/vault/1.2026-01-01.note.md" {
+			switch path {
+			case "/vault/1.2026-01-01.note.md":
 				return []byte(noteContent), nil
+			case "/vault/2.2026-01-01.vocab-x-definition.md":
+				return []byte(definitionContent), nil
+			default:
+				return nil, os.ErrNotExist
 			}
-
-			return nil, os.ErrNotExist
 		},
 		func(_ string, data []byte) error { writtenData = data; return nil },
 		nil,
@@ -185,7 +189,7 @@ func TestCheckAndPersistVocabRefitTrigger_MissingCentroids_SeedsBaseline(t *test
 		return
 	}
 
-	g.Expect(doc.LastRefit.NoteCount).To(Equal(1)) // only the non-vocab note
+	g.Expect(doc.LastRefit.NoteCount).To(Equal(1)) // definition note excluded by content, not filename
 }
 
 // ── Task 3: checkAndPersistVocabRefitTrigger ─────────────────────────────────
@@ -256,8 +260,8 @@ func TestCollectTriggerVaultStats_WithVocabTagsAndNoFrontmatter(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// Mix: tagged note, untagged note, no-frontmatter note.
-	names := []string{"tagged.md", "untagged.md", "no-fm.md", "vocab.x.md"}
+	// Mix: tagged note, untagged note, no-frontmatter note, bare-vocab definition note.
+	names := []string{"tagged.md", "untagged.md", "no-fm.md", "def.vocab-x-definition.md"}
 
 	readFile := func(path string) ([]byte, error) {
 		switch path {
@@ -267,6 +271,8 @@ func TestCollectTriggerVaultStats_WithVocabTagsAndNoFrontmatter(t *testing.T) {
 			return []byte("---\ntype: fact\n---\nbody\n"), nil
 		case "/vault/no-fm.md":
 			return []byte("no frontmatter at all"), nil
+		case "/vault/def.vocab-x-definition.md":
+			return []byte("---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines x.\n"), nil
 		default:
 			return nil, os.ErrNotExist
 		}
@@ -278,7 +284,8 @@ func TestCollectTriggerVaultStats_WithVocabTagsAndNoFrontmatter(t *testing.T) {
 		readFile,
 	)
 
-	g.Expect(totalNotes).To(Equal(3))    // vocab.x.md is excluded
+	// def.vocab-x-definition.md is excluded by CONTENT (bare vocab tag), not filename.
+	g.Expect(totalNotes).To(Equal(3))
 	g.Expect(untaggedCount).To(Equal(2)) // untagged.md + no-fm.md
 
 	counts := memberCounts

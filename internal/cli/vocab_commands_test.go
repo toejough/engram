@@ -633,6 +633,68 @@ func TestLoadTermVectors_ReadsDefinitionNoteSidecars(t *testing.T) {
 	g.Expect(names).To(ConsistOf("retrieval-design", "token-budget"))
 }
 
+// ── Task 2 (#681): legacy filename-sniff retirement ──────────────────────────
+
+// TestMemberScan_FilenamePrefixNoLongerSpecial proves the LIVE exclusions
+// survive the legacy filename-sniff removal: a bare-vocab definition note
+// stays excluded by CONTENT (isVocabDefinitionNote, inside assignVocabToNote)
+// even though its sidecar vector matches the term, a qa.*.q.md question note
+// stays excluded by isQAQuestionFilename, and an ordinary note whose filename
+// happens to start with "vocab." (no such file exists in a migrated vault,
+// but the name must no longer be special) IS scanned and assigned. Before the
+// #681 edit, the (now-removed) filename-prefix skip excludes the ordinary
+// note too, so memberCounts["x"] == 0 and this test FAILS; after the edit it
+// is 1.
+func TestMemberScan_FilenamePrefixNoLongerSpecial(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	definitionNote := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines x.\n"
+	qaQuestionNote := "---\ntype: qa-question\ndate: \"2026-07-03\"\nanswered_by: qa.2026-07-03.slug.a\n---\n\n" +
+		"Question body.\n"
+	ordinaryNote := "---\ntype: fact\n---\n\nAn ordinary note whose filename happens to start with vocab.\n"
+
+	matchingVec := []float32{1, 0}
+	sidecar := mustMarshalSidecarWithBodyVector(t, matchingVec)
+
+	files := map[string][]byte{
+		"/vault/10.2026-07-03.vocab-x-definition.md":       []byte(definitionNote),
+		"/vault/10.2026-07-03.vocab-x-definition.vec.json": sidecar,
+		"/vault/qa.2026-07-03.slug.q.md":                   []byte(qaQuestionNote),
+		"/vault/vocab.ordinary.md":                         []byte(ordinaryNote),
+		"/vault/vocab.ordinary.vec.json":                   sidecar,
+	}
+
+	deps := cli.VocabDeps{
+		ListMD: func(string) ([]string, error) {
+			return []string{
+				"10.2026-07-03.vocab-x-definition.md",
+				"qa.2026-07-03.slug.q.md",
+				"vocab.ordinary.md",
+			}, nil
+		},
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile:  func(string, []byte) error { return nil },
+		LogWarning: func(string, ...any) {},
+	}
+
+	terms := []cli.TermWithVector{{Term: "x", Vector: matchingVec}}
+
+	memberCounts := cli.ExportRetagAllNotesTwoPass(deps, "/vault", terms, 0.5, nil)
+
+	g.Expect(memberCounts["x"]).To(Equal(1),
+		"only the ordinary vocab.-prefixed note may count; the definition note stays excluded by "+
+			"content (isVocabDefinitionNote) and the qa question note stays excluded by filename "+
+			"(isQAQuestionFilename)")
+}
+
 // ── Coverage: newOsVocabDeps closures ────────────────────────────────────────
 
 // TestNewOsVocabDeps_ClosuresCalled verifies that the ListMD, WriteFile, and
@@ -790,14 +852,14 @@ func TestRetagAllNotesTwoPass_ListMDError_LogsWarning(t *testing.T) {
 	g.Expect(found).To(BeTrue(), "assignTermsToAllNotes' listMD error must be logged")
 }
 
-// TestRetagAllNotesTwoPass_LoadMemberNoteVectors_SkipsOldShapeAndUnreadable
-// covers loadMemberNoteVectors' remaining branches: an old-shape
-// vocab.<term>.md filename is skipped by isVocabKindFilename before any
-// read; a note with no sidecar is skipped after a readable-content check; a
-// note with a malformed sidecar is skipped after a successful sidecar read.
-// Only the one fully-readable member note becomes a pass-1 member, so the
-// derived centroid's member_count must be exactly 1.
-func TestRetagAllNotesTwoPass_LoadMemberNoteVectors_SkipsOldShapeAndUnreadable(t *testing.T) {
+// TestRetagAllNotesTwoPass_LoadMemberNoteVectors_SkipsDefinitionAndUnreadable
+// covers loadMemberNoteVectors' remaining branches: a bare-vocab DEFINITION
+// note is skipped by CONTENT (isVocabDefinitionNote) even though it carries a
+// fully valid, matching sidecar; a note with no sidecar is skipped after a
+// readable-content check; a note with a malformed sidecar is skipped after a
+// successful sidecar read. Only the one fully-readable member note becomes a
+// pass-1 member, so the derived centroid's member_count must be exactly 1.
+func TestRetagAllNotesTwoPass_LoadMemberNoteVectors_SkipsDefinitionAndUnreadable(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -805,6 +867,7 @@ func TestRetagAllNotesTwoPass_LoadMemberNoteVectors_SkipsOldShapeAndUnreadable(t
 	memberValid := "---\ntype: fact\ntags:\n    - vocab/x\n---\n\nvalid member.\n"
 	memberNoSidecar := "---\ntype: fact\ntags:\n    - vocab/x\n---\n\nno sidecar.\n"
 	memberBadSidecar := "---\ntype: fact\ntags:\n    - vocab/x\n---\n\nbad sidecar.\n"
+	definitionNote := "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines x.\n"
 
 	zeroVec := make([]float32, 2)
 	validSidecar := embed.MarshalSidecar(embed.Sidecar{
@@ -818,13 +881,15 @@ func TestRetagAllNotesTwoPass_LoadMemberNoteVectors_SkipsOldShapeAndUnreadable(t
 		"/vault/2.no-sidecar.md":        []byte(memberNoSidecar),
 		"/vault/3.bad-sidecar.md":       []byte(memberBadSidecar),
 		"/vault/3.bad-sidecar.vec.json": []byte("{not json"),
+		"/vault/0.def.md":               []byte(definitionNote),
+		"/vault/0.def.vec.json":         validSidecar,
 	}
 
 	written := map[string][]byte{}
 
 	deps := cli.VocabDeps{
 		ListMD: func(string) ([]string, error) {
-			return []string{"vocab.x.md", "1.valid.md", "2.no-sidecar.md", "3.bad-sidecar.md"}, nil
+			return []string{"0.def.md", "1.valid.md", "2.no-sidecar.md", "3.bad-sidecar.md"}, nil
 		},
 		ReadFile: func(path string) ([]byte, error) {
 			if data, ok := files[path]; ok {
@@ -3441,8 +3506,8 @@ func TestRunVocabStats_VocabTypeNoteExcluded(t *testing.T) {
 
 	deps := cli.VocabStatsDeps{
 		ListMD: func(string) ([]string, error) {
-			// Not a vocab.* filename (so isVocabTermFilename returns false), but
-			// the frontmatter says type: vocab — extractNoteVocabTags must filter it.
+			// Filename carries no vocab significance — the frontmatter says
+			// type: vocab, and extractNoteVocabTags must filter it by that.
 			return []string{"1aa.2026-01-01.test.md"}, nil
 		},
 		ReadFile: func(_ string) ([]byte, error) {
