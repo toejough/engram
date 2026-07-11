@@ -533,6 +533,50 @@ func TestLoadMemberNoteVectors_ExcludesDefinitionNotes(t *testing.T) {
 	g.Expect(vectors).To(HaveKey("1.2026-07-10.member.md"))
 }
 
+// TestLoadTermVectors_DuplicateDefinitionNotes_FirstWins verifies the
+// seen-map deduplication in loadTermVectors: when two definition notes
+// resolve to the SAME term slug (different files with the same term in
+// their filename), only the FIRST one in filename-sorted order contributes
+// its vector to the result; the second is skipped by the seen check.
+func TestLoadTermVectors_DuplicateDefinitionNotes_FirstWins(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	firstVec := []float32{1, 0}
+	secondVec := []float32{0, 1}
+
+	// Two definition notes for the same term "dup-term", sorted by filename.
+	// 210 sorts before 211, so firstVec should win.
+	writeNoteAndSidecar(t, vault, "210.2026-07-10.vocab-dup-term-definition.md",
+		"---\ntype: fact\nobject: desc\ntags:\n    - vocab\n---\n\nDefines dup-term (first).\n",
+		firstVec)
+	writeNoteAndSidecar(t, vault, "211.2026-07-10.vocab-dup-term-definition.md",
+		"---\ntype: fact\nobject: desc\ntags:\n    - vocab\n---\n\nDefines dup-term (second).\n",
+		secondVec)
+
+	osFS := cli.ExportNewOsVaultFS()
+
+	terms, err := cli.ExportLoadTermVectors(vault, osFS.ListMD, osFS.ReadFile)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(terms).To(HaveLen(1), "exactly one TermWithVector for dup-term")
+
+	if len(terms) != 1 {
+		return
+	}
+
+	g.Expect(terms[0].Term).To(Equal("dup-term"))
+	g.Expect(terms[0].Vector).To(Equal(firstVec),
+		"the first definition note's vector (210...) must win over the second (211...)")
+}
+
 // TestLoadTermVectors_ReadsDefinitionNoteSidecars verifies the non-centroids
 // fallback reads term vectors from bare-vocab-tagged definition note
 // sidecars, keyed by term (termFromDefinitionSlug), and skips the family note.
@@ -2701,6 +2745,86 @@ func TestRunVocabRefit_ReadPlanError(t *testing.T) {
 
 	err := cli.RunVocabRefit(t.Context(), args, deps, &stdout)
 	g.Expect(err).To(HaveOccurred(), "RunVocabRefit must fail when plan file is missing")
+}
+
+// TestRunVocabRefit_RemovalPreservesOtherVocabTags verifies that when
+// clearRemovalsFromNoteContent removes one vocab tag from a note carrying
+// multiple vocab tags, only the removed tag is stripped; other vocab tags
+// and non-vocab tags remain intact. This discriminates the fix — the old bug
+// stripped ALL vocab tags on any removal.
+func TestRunVocabRefit_RemovalPreservesOtherVocabTags(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const definitionPath = "/vault/5.2026-07-02.vocab-orphan-term-definition.md"
+
+	const otherDefinitionPath = "/vault/6.2026-07-02.vocab-other-term-definition.md"
+
+	definitionNote := "---\ntype: fact\ntier: L2\nsituation: s\nsubject: subj\npredicate: covers\n" +
+		"object: desc\nluhmann: \"5\"\ncreated: \"2026-07-02\"\nsource: test\ntags:\n    - vocab\n" +
+		"---\n\nInformation learned: ...\n"
+	otherDefinitionNote := "---\ntype: fact\ntier: L2\nsituation: s\nsubject: subj\npredicate: covers\n" +
+		"object: desc\nluhmann: \"6\"\ncreated: \"2026-07-02\"\nsource: test\ntags:\n    - vocab\n" +
+		"---\n\nInformation learned: ...\n"
+	memberNote := "---\ntype: feedback\nsituation: ctx\nbehavior: b\nimpact: i\naction: a\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\ntags:\n" +
+		"    - vocab/orphan-term\n    - vocab/other-term\n    - important\n---\n\n" +
+		"Lesson learned: when ctx, a.\n\n"
+
+	planContent := "removals:\n  - orphan-term\n"
+
+	files := map[string][]byte{
+		definitionPath:             []byte(definitionNote),
+		otherDefinitionPath:        []byte(otherDefinitionNote),
+		"/vault/1aa.2026-01-01.md": []byte(memberNote),
+		"/plan.yaml":               []byte(planContent),
+	}
+
+	written := map[string][]byte{}
+	deleted := map[string]bool{}
+
+	deps := cli.VocabDeps{
+		Lock: func(string) (func(), error) { return func() {}, nil },
+		ListMD: func(string) ([]string, error) {
+			return []string{
+				"5.2026-07-02.vocab-orphan-term-definition.md",
+				"6.2026-07-02.vocab-other-term-definition.md",
+				"1aa.2026-01-01.md",
+			}, nil
+		},
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile:    func(path string, data []byte) error { written[path] = data; return nil },
+		DeleteFile:   func(path string) error { deleted[path] = true; return nil },
+		WriteSidecar: func(string, []byte) error { return nil },
+		LogWarning:   func(string, ...any) {},
+		Now:          func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
+	}
+
+	args := cli.VocabRefitArgs{Vault: "/vault", PlanFile: "/plan.yaml"}
+
+	var buf strings.Builder
+
+	refitErr := cli.RunVocabRefit(t.Context(), args, deps, &buf)
+	g.Expect(refitErr).NotTo(HaveOccurred())
+
+	if refitErr != nil {
+		return
+	}
+
+	updatedMember := string(written["/vault/1aa.2026-01-01.md"])
+	g.Expect(updatedMember).NotTo(ContainSubstring("vocab/orphan-term"),
+		"removed term must be cleared from member")
+	g.Expect(updatedMember).To(ContainSubstring("vocab/other-term"),
+		"other vocab tag must be preserved when only one term is removed")
+	g.Expect(updatedMember).To(ContainSubstring("important"),
+		"non-vocab tags must be preserved during term removal")
 }
 
 // TestRunVocabRefit_Rename_DeleteError_LogsWarning verifies that when DeleteFile
