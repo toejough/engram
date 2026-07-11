@@ -35,6 +35,18 @@ vault, the pre-registered remedies are (a) a "summarizes" ride-along edge or (b)
 evidence notes to the chunk-population ranking tier — chosen with the measured case in hand, per
 the standing new-edge rule (ADR-0019 records both).
 
+**Also shipped 2026-07-10:** **#678** — vocab→tags migration: the vocab layer moved from
+`vocab.<term>.md` term-note files + `Vocab:` body-line/`vocab:` frontmatter dual-channel tagging +
+a maintained `vocab.index.md` to the #674 tags convention — member notes carry
+`tags: [vocab/<term>]`, term/family definitions are bare-`vocab`-tagged recallable fact notes
+(`vocab-<term>-definition`, `vocab-definition`), and the index is emergent
+(`engram count --group-by type --filter tags=vocab`). Assignment was preserved (not re-scored) via
+the one-shot idempotent `engram vocab migrate-tags` subcommand; the real-vault migration verified
+all eleven mechanical bars exact, zero re-embeds beyond the 27 minted definitions, and trap-gate
+GREEN both before and after (`docs/architecture/adr.md` ADR-0011/ADR-0019). Accepted consequence:
+`count --backlinks-of vocab.<term>` now reads 0 (the vocab wikilink channel is retired) — the
+ADR-0018 divergence example is annotated historical.
+
 **Actionable now (unblocked, fleshed out):**
 
 - **#657** (M) — remaining recall cuts L3a + O1 (O2/L2 shipped; gated by the `gate.py --tier` smoke harness, not #654).
@@ -44,9 +56,7 @@ the standing new-edge rule (ADR-0019 records both).
 
 **Eval-value chain:** #642 (cold-vs-warm harness) → #646 (e2e recency value-proof) → #648 (tune activation constants). The headless-learn blocker (#643) that fronted this chain is **resolved/closed** — learn Step 1 is now non-interactive `engram ingest --auto` (empty-vault headless run verified 2026-07-07); #642 is the real front.
 
-**Gated (data/date/validation):** #678 vocab→tags migration (definitions become parent-tagged fact
-notes, hub notes/index/wikilinks retired; sequenced after #674's evidence/aggregate notes ship the
-tags convention) · Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (its stated blocker — #654's harness — is resolved: the harness now exists with a RED baseline established 2026-07-08, `dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`; still gated, now on a narrower gap — #656's AC calls for verification against a `/please`-orchestration variant of the harness, which this cycle's recall-only trials didn't build) · #652 recency centroid (gated on an over-surfacing eval) · #675 (Track C round-3 usage report; gated on P3′ spread PASS).
+**Gated (data/date/validation):** Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (its stated blocker — #654's harness — is resolved: the harness now exists with a RED baseline established 2026-07-08, `dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`; still gated, now on a narrower gap — #656's AC calls for verification against a `/please`-orchestration variant of the harness, which this cycle's recall-only trials didn't build) · #652 recency centroid (gated on an over-surfacing eval) · #675 (Track C round-3 usage report; gated on P3′ spread PASS).
 
 **Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs accrued evidence — #674 shipped the evidence/aggregate notes
   2026-07-10; #669 closed subsumed) · #637 `--field` query flags (awaiting a forcing function) · payload-prune production build (rejected 2026-07-08 — revisit only on a viable subagent route; see Track B) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.

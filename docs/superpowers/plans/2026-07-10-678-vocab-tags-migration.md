@@ -657,4 +657,94 @@ engram vocab migrate-tags     # idempotency: second run prints all-zero counts /
 
 ## Execution Log
 
-(filled during execution — gate verdicts, migration outputs, grep dispositions, deviations)
+**Tasks 1-7 (code, commits 0a89e052..2ac6c133):** all nine SDD reviews closed-approved. Notable mid-execution decisions: Task 4 shipped a union-read transition (old ∪ new shapes) whose dedup-gap class was closed structurally in Task 5 by the full flip (legacy read branches deleted; tags/definition notes the sole source); Task 6's amend-drops-legacy-key risk accepted with the install+migrate-as-one-step mitigation; Task 7's review reproduced a Critical (hub deletion ungated on mint success) LIVE on a vault copy — fixed with per-term failed-set gating + non-zero exit (2ac6c133), then re-verified live and authorized unconditionally. The Task 7 reviewer's live verification installed the new binary globally mid-cycle; the trap-gate BEFORE baseline was recovered by rebuilding the old binary from main (worktree at 3aa02142).
+
+**Task 8 (real migration, 2026-07-10, binary at 2ac6c133):**
+- Trap gate BEFORE (old binary + old vault): **GREEN** all axes first try (C3 5/5, C4i 1/1, C5 1/1, C6 2/2), $≈4 spend — log: session tmp 678-gate-before.log.
+- Pre-state: 187/187/27/28/225/452 — matched every pinned bar; backup `vault.bak-2026-07-10-pre678` = 452 entries, listing identical, spot-check hash equal.
+- Pre-flight dry-run on fresh copy (reviewer precondition): EXACT counts, zero warnings, exit 0.
+- Real run (`engram vocab migrate-tags` from /tmp): `members rewritten: 187, definitions minted: 26, family note: minted, hub files deleted: 27, sidecars deleted: 28`, exit 0.
+- Mechanical verification: 0 vocab: keys / 0 Vocab: lines / 0 hub md / 0 hub vec / 225 md / 187 vocab-tagged / 27 bare-vocab / 26 term-definitions / 1 family / 451 entries / 214 tags: keys — **all eleven bars exact**.
+- Assignment preservation: per-term member counts identical pre vs post (26 terms, diff empty).
+- Sidecar invariance: diff = exactly 28 vocab.* removals + 27 definition additions, ZERO changed survivor hashes (ContentHash invariance held in production).
+- Smoke: `vocab stats` verdict OK (26 terms, counts intact); emergent index `fact	27`; `tag_nominations_added: 40` (nomination alive on tags); idempotent second run all-zero/present, exit 0.
+- No amend/learn ran between binary install and verification (Task-6 mitigation honored).
+- Trap gate AFTER (new binary + migrated vault): **GREEN** all axes first try (C3 5/5, C4i 1/1, C5 1/1, C6 2/2) — log: session tmp 678-gate-after.log. BEFORE/AFTER contrast clean; no C5 re-run needed either side.
+
+**Task 9 (docs scrub, ADR annotations, write-memory skill, 2026-07-10):**
+
+ADR-0011/ADR-0018/ADR-0019 annotations applied per the brief's specs; adr.md:415 ("vocab migration
+#678") reconciled to "vocab migration #678 shipped 2026-07-10". `docs/ROADMAP.md`:47's Gated entry
+for #678 removed and replaced with an "Also shipped 2026-07-10: #678" paragraph (mirroring #674's
+existing shipped entry).
+
+write-memory SKILL.md edit under `superpowers:writing-skills` TDD:
+- **RED** (behavior probe against current text): grepped `WriteVocabAssignment`/`removeVocabBodyLine`
+  in `internal/cli/vocab.go` — the code actively **strips** any legacy `Vocab:` body line/`vocab:`
+  frontmatter key on every write and writes vocab membership as `vocab/<term>` entries into the
+  shared `tags:` list; the pre-edit skill text ("the binary assigns vocab automatically" via "vocab
+  tags or wikilinks") asserted wikilinks as a still-live channel and never mentioned the `tags:` list
+  or explicitly forbade hand-writing a `vocab/` entry into a `--tag` handoff — stale against the
+  current mechanism.
+- **GREEN**: applied the brief's verbatim replacement text (SKILL.md:79-82). Confirmed byte-identical
+  to the brief's target.
+- **Pressure test**: dispatched a fresh subagent (no other context) as the write-memory worker, with
+  the full post-edit skill text plus an adversarial handoff whose `tags` field includes a
+  `vocab/retrieval-design` entry (a parent skill mistakenly proposing a vocab-namespace tag). The
+  agent composed the `engram learn fact` command **dropping** `vocab/retrieval-design` and kept only
+  the categorical `work-kind/docs` tag, citing the rule "never write the `vocab/` namespace yourself"
+  as unconditional (not scoped only to self-invented tags). Verdict: **rule holds** — no loophole
+  found, no REFACTOR iteration needed.
+- `engram update` run from within the repo clone (`~/repos/personal/engram`) — running it from `/tmp`
+  first pulled the remote `main` skill instead of the local branch edit (`engram update`'s local-clone
+  detection walks up from cwd; `/tmp` is outside any clone, so it fell back to the remote-install path
+  — a real gotcha, corrected by re-running from inside the repo). `diff skills/write-memory/SKILL.md
+  ~/.claude/skills/write-memory/SKILL.md` → **identical**.
+
+**Grep contract — pre-scrub counts (pinned, all matched exactly):** GLOSSARY.md 41, c2-containers.md
+17, c3-components.md 11, README.md 8, FEATURES.md 6, c1-system-context.md 4, write-memory/SKILL.md 2
+(89 total) — plus `grep -n '678'` adr.md:415,495 and ROADMAP.md:47.
+
+**Grep contract — post-scrub dispositions (every remaining hit reconciled; full table also in the
+Task 9 report, `.superpowers/sdd/task-9-report.md`):**
+
+| File | Line(s) | Disposition | Note |
+|---|---|---|---|
+| c1-system-context.md | 93, 203-204, 207 | still-accurate | Trigger-check/nomination mechanism, `vocab.centroids.json`, `engram vocab stats` — unchanged by the migration; no representation claim. |
+| c2-containers.md | 42 | updated | "dual-channel" → "vocab-tag assignment ... vocab/<term> entries in the shared tags: list (#678)"; added migrate-tags to the subcommand list. |
+| c2-containers.md | 157, 223-224, 236, 240, 246, 249, 253-256 | still-accurate | Mechanism/function names (`AssignVocabTerms`, `WriteVocabAssignment`, `applyVocabAssignmentCore`, `evaluateVocabTriggers`, `hubThreshold`, `RefitPending`) verified still present in code; no stale representation claim. |
+| c2-containers.md | 222 | updated | "dual-channel vocab assignment" → "vocab-tag assignment". |
+| c2-containers.md | 231 | still-accurate | Section heading, not representation-specific. |
+| c2-containers.md | 235 (flowchart node) | updated | `writes body [[vocab.<term>]] wikilinks + frontmatter vocab: list` → `WriteVocabAssignment writes vocab/term entries into the note's shared tags: list (#678)`. |
+| c2-containers.md | 250 (flowchart node) | updated | `vocab version bump + vocab.index.md regen` → `vocab version bump on the vocab-definition family note (no index to regenerate — the index is emergent, #678)`. |
+| c3-components.md | 7 | still-accurate | Unrelated English word ("vocabulary" in "L3 sequence/flow diagrams"). |
+| c3-components.md | 103, 139 | still-accurate | `candidate_l2s`/tag-nomination mechanism description; no representation claim. |
+| c3-components.md | 229, 234-235, 257, 259-260, 268, 272 | still-accurate | `applyVocabAssignmentAfterLearn` etc. verified present in code; sequence-diagram notes already phrased generically ("no vocab", "vocab tags assigned") with no stale representation claim. |
+| GLOSSARY.md | 3, 667 | still-accurate | Unrelated English word "vocabulary" (section prose/heading). |
+| GLOSSARY.md | 151-156 (wikilink entry) | updated | Retired the `Vocab:` member→term wikilink role; two roles remain (prose links, `Supersedes:`); added a dated pointer to the new **vocab definition note** entry. |
+| GLOSSARY.md | 183-196 (`vocab.centroids.json lifecycle fields`) | still-accurate | Unchanged — file, fields, and triggers untouched by the migration (plan constraint: centroids file is derived state, not a term registry). |
+| GLOSSARY.md | 199-227 (`vocab term-note`, `vocab-index`, `Vocab:` line) | updated | All three RETIRED to dated pointers ("Retired 2026-07-10, #678 — see vocab definition note"); new `### vocab definition note` entry added (family + per-term shapes, dash naming, tags:[vocab], no query exclusion) verified against the real vault (`236.2026-07-10.vocab-definition.md`, 26 `*-definition.md` files). |
+| GLOSSARY.md | 214-219→227-233 (`vocab nomination`) | still-accurate + noted | Mechanism unchanged; added one sentence noting the representation move (frontmatter → tags) for completeness. |
+| GLOSSARY.md | 320/325→334/339 (`candidate_l2s` entry) | still-accurate | Nomination-channel description; no representation claim. |
+| GLOSSARY.md | 393→407-408 (`--supersedes` entry) | updated | "structural linking is done automatically by the binary's vocab-tag assigner" → explicit: rides `tags: [vocab/<term>]`, nominated at query time, not authored wikilinks. |
+| GLOSSARY.md | 400→415-418 (`--tag` entry) | updated | "Distinct from the binary-assigned `vocab:` channel" (now false — vocab shares the same `tags:` list) → explicit `vocab/` namespace-sharing rule with the same "never hand-author" prohibition. |
+| GLOSSARY.md | 437-438→455-456, 449-451→468-470 (`engram learn qa`, `qa-question`) | updated | "no `vocab:` key" → "no `vocab/` tag"; the FALSE claim "excluded ... same exclusion as `vocab` and `vocab-index`" corrected to name `isQueryExcludedKind` as the sole remaining (qa-question-only) exclusion since #678 retired the vocab-kind exclusion (Task 6 review carry-forward item, explicitly required by the brief). |
+| GLOSSARY.md | 453-454, 469→485 (`qa-answer`/machine-line comparisons) | updated | Dropped the stale "(same pattern as `Vocab:` / `Supersedes:`)" comparison (Vocab: retired) — now compares to `Supersedes:` alone; "`vocab:` tags" → "`vocab/` tags". |
+| GLOSSARY.md | 612→632 (`engram count` worked example) | updated | `vocab.index.md`-specific example generalized to "a hand-authored MOC/hub page that links every note on a topic without frontmatter-listing them"; `vocab.index.md` named as a retired machine-generated instance of the pattern. |
+| README.md | 14 | updated | Vault-graph screenshot description marked historical (predates #678); vocab-hub visual claim qualified as no-longer-current. |
+| README.md | 44, 45, 83 | still-accurate | Skill-table / `engram query` mechanism descriptions; no representation claim. |
+| README.md | 94, 95, 97 | updated | Bootstrap/propose/refit command descriptions rewritten for the real behavior (definition notes minted, no index regen, `tags:` rewritten) per the brief's explicit instruction. |
+| README.md | 96 | still-accurate | `engram vocab stats` description — unaffected. |
+| README.md | 98 (new) | added | `engram vocab migrate-tags` was undocumented in README; added for completeness (the subcommand is live and wired — deviation noted in the Task 9 report). |
+| FEATURES.md | 72, 74-76 | updated | Heading ("dual-channel tagging" → "tags-based term assignment"); body names the 2026-07-10 migration and the `tags: [vocab/<term>]` representation. |
+| FEATURES.md | 81→82 | still-accurate | `dev/eval/LEDGER.md` validation anchors — historical measurement references, unaffected by representation change. |
+| FEATURES.md | 165-166→(generalized) | updated | Count-section worked example generalized (divergence = non-member linkers), `vocab.index.md` example dropped in favor of a hand-authored-MOC example. |
+| FEATURES.md | 172-176→176-179 | updated | vocab-stats parity validation marked "historical (pre-#678, measured 2026-07-08)"; noted `--backlinks-of vocab.<term>` now reads 0 and that the divergence PROPERTY itself is proven by the two still-live unit tests, not this stale example. |
+| write-memory/SKILL.md | 79-82 | updated | Verbatim brief replacement, under writing-skills TDD (RED/GREEN/pressure above). |
+
+**ADDITIONS-from-review items closed:** GLOSSARY:449 area FALSE exclusion claim — corrected (see
+`qa-question` row above). ROADMAP #678 Gated entry — moved to shipped (see ROADMAP paragraph above).
+adr.md:415 past-tense reconcile — done (see ADR annotations paragraph above).
+
+`targ check-full`: green (7/8 targets PASS; `check-uncommitted` FAILs only because Task 9's own edits
+are, at time of this log entry, not yet committed — resolved by Step 6's commit).

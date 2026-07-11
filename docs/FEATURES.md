@@ -69,13 +69,14 @@ one tier cheaper — is its sole evidence-backed cold-start prior.
 why: `docs/architecture/adr.md` — ADR-0017 (extends ADR-0014)
 validation: `dev/eval/LEDGER.md#tier-routing-parity`
 
-## Vocab lifecycle (term notes, dual-channel tagging, tag nomination, supersession ride-along, autonomous refit)
+## Vocab lifecycle (definition notes, tags-based term assignment, tag nomination, supersession ride-along, autonomous refit)
 
-A controlled vocabulary of term-notes tags every written note on a shared axis, letting
-recall nominate cross-cluster notes that share a tag with its top matches and letting a
-superseding note ride along right behind the note it replaces. The vault also checks its
-own tag health (growth, concentration, untagged rate) and prompts its own re-fit instead
-of drifting stale.
+A controlled vocabulary of bare-`vocab`-tagged definition notes (shipped as ordinary tags-based fact
+notes 2026-07-10, #678, superseding the earlier dual-channel `vocab.<term>.md` term-note form) tags
+every written note on a shared axis via `tags: [vocab/<term>]`, letting recall nominate cross-cluster
+notes that share a tag with its top matches and letting a superseding note ride along right behind the
+note it replaces. The vault also checks its own tag health (growth, concentration, untagged rate) and
+prompts its own re-fit instead of drifting stale.
 
 why: `docs/architecture/adr.md` — ADR-0011
 validation: `dev/eval/LEDGER.md#vocab-tag-nomination-l6xtag` (nomination); `dev/eval/LEDGER.md#vocab-refit-cost` (refit)
@@ -162,8 +163,8 @@ prints a vault-graph node's wikilink in-degree plus its sorted linkers. The two 
 independently checkable by hand in Obsidian against their own view — group-by against a
 property/tag filter, backlinks-of against the backlinks panel — but they are **not** equal to each
 other: backlinks-of counts every linker while group-by counts only frontmatter members, so the two
-diverge by the number of non-member linkers (e.g. `vocab.index.md`, which links every vocab term
-without frontmatter-listing them).
+diverge by the number of non-member linkers (e.g. a hand-authored MOC/hub page that links every note
+on a topic without itself carrying that topic in frontmatter).
 With #674, count is also the audit surface for route's dispatch evidence:
 `--group-by tags --filter tags=tier/<t> [--filter tags=outcome/pass]` recomputes true
 tier×work-kind tallies from evidence-note tags to verify/repair the LLM-maintained aggregate
@@ -172,8 +173,12 @@ notes — never on the routing read path (plain recall reads the aggregates).
 why: `docs/architecture/adr.md` — ADR-0018
 validation: `internal/cli/count_test.go` (`TestRunCount_GroupByBacklinksAgreement` — clean-case
 agreement; `TestRunCount_BacklinksExceedGroupByForNonMemberLinkers` — divergence) + real-binary
-vocab-stats parity on the live vault (`--group-by vocab` counts 33 for `retrieval-design`;
-`--backlinks-of vocab.retrieval-design` reports in-degree 34, the +1 being `vocab.index.md`)
+vocab-stats parity on the live vault, historical (pre-#678, measured 2026-07-08): `--group-by vocab`
+counted 33 for `retrieval-design`; `--backlinks-of vocab.retrieval-design` reported in-degree 34, the
++1 being `vocab.index.md`. The vocab wikilink channel and `vocab.index.md` were retired 2026-07-10
+under #678, so `--backlinks-of vocab.<term>` now reads 0 for every term — the group-by/backlinks-of
+divergence property itself is unaffected (proven by the two unit tests above, not by this stale
+worked example)
 
 ## Route dispatch evidence + aggregates (tags-based)
 

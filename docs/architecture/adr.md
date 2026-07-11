@@ -222,7 +222,10 @@ interface implementation, not a change to the read pipeline.
 ## ADR-0011 — Controlled-vocab tag nomination over graph traversal
 
 **Status:** Accepted (2026-07-02/03) · supersedes graph-traversal (PPR / spreading-activation) as
-the relational-retrieval mechanism
+the relational-retrieval mechanism · Representation superseded 2026-07-10 (#678, per ADR-0019):
+the fixed term set now lives as bare-`vocab`-tagged definition fact notes
+(`vocab-<term>-definition`) and member terms as `tags: [vocab/<term>]` — the centroid-assignment
+and query-nomination MECHANISM is unchanged.
 
 **Context.** The wikilink graph (ADR-0007) is authored and walked by the binary, but resolves by
 basename against bare-Luhmann-id links — most edges never resolve (⚠ KNOWN G0/G5) — and even a
@@ -232,8 +235,9 @@ head: ranking-side graph traversal (PPR / spreading-activation / one-hop expansi
 candidate-side nomination through a controlled vocabulary.
 
 **Decision.** Reject graph traversal as the retrieval mechanism. Ship controlled-vocabulary tag
-nomination: a fixed term set (`vocab.<term>.md`), dual-channel term assignment at every
-learn/amend/resituate write, and at query time a note sharing a vocab term with the top-3
+nomination: a fixed term set (`vocab.<term>.md` — representation as of 2026-07; see #678), dual-channel
+term assignment at every learn/amend/resituate write (representation as of 2026-07; see #678), and at
+query time a note sharing a vocab term with the top-3
 delivered notes in a cluster is nominated into that cluster's `candidate_l2s` alongside the
 within-cluster top-5 (budget fields `tag_nominations_added`/`dropped` report pool size). A typed
 `--supersedes` flag (`updates`/`narrows`/`refutes`) lets a note carry an explicit edge to an older
@@ -412,7 +416,7 @@ pure-confirmation signal ("cheap sufficed for K", overturning nothing) is captur
 kind-4 confirmed-approaches moment (positive reinforcement, shipped 2026-07-06 via #668): a tier
 that passed for a work-kind crystallizes as a confirmed approach, a tier that failed as a reversal. **Deferred:** structured routing-evidence ledger (#669 — resolved 2026-07-10: bespoke store subsumed by
 tags-based evidence notes + evidence-linked aggregate fact notes read via plain recall, with `engram
-count` as the audit surface; build re-scoped into #674, vocab migration #678), periodic
+count` as the audit surface; build re-scoped into #674, vocab migration #678 shipped 2026-07-10), periodic
 rubric-refit (#670), parallel-builders (#671), cost/duration telemetry (#672). RED/GREEN evidence is
 transient (`git log`); the memory-discount figures remain at `dev/eval/LEDGER.md#tier-routing-parity`.
 
@@ -447,7 +451,10 @@ legitimately diverge by the count of *non-member linkers*: an index/MOC page (e.
 `vocab:` frontmatter, so it counts toward `--backlinks-of` but not `--group-by`. The relationship:
 `backlinks-of(node) == group-by(attr) count for that value + (# non-member linkers)`. Verified on
 the live vault: `--group-by vocab` counts 33 members for the value `retrieval-design`;
-`--backlinks-of vocab.retrieval-design` reports in-degree 34 — the +1 is `vocab.index.md`. Do not
+`--backlinks-of vocab.retrieval-design` reports in-degree 34 — the +1 is `vocab.index.md`
+(example vintage 2026-07-08; `vocab.index.md` retired 2026-07-10 under #678 — vocab terms no longer
+produce wikilink edges, so `--backlinks-of vocab.<term>` reads 0; the divergence relationship itself
+remains valid for any non-member linker). Do not
 report count parity as unqualified "count == Obsidian backlinks"; state per-mode verifiability plus
 the divergence relationship, or the two modes read as redundant when they are complementary.
 `TestRunCount_GroupByBacklinksAgreement` locks the clean-fixture case (no non-member linkers, so the
@@ -491,8 +498,9 @@ follow-up** if drowning is ever measured on the real vault: (a) a "summarizes" r
 (supersession-shaped insertion of the aggregate when its evidence surfaces) or (b) demoting
 evidence notes to the chunk-population ranking tier — choose with the measured case in hand, per
 the standing rule that a new edge type must first demonstrate retrieval value (ADR-0011; the
-ROADMAP standing constraint; vault note 73). Vocab's hub-note channel migrates to this tags
-convention under #678.
+ROADMAP standing constraint; vault note 73). Vocab's hub-note channel migrated to this tags
+convention 2026-07-10 (#678): definitions are recallable bare-`vocab`-tagged fact notes,
+`vocab_version` lives on `vocab-definition`, and the vocab query exclusions are deleted.
 
 ## Decisions deliberately NOT made into ADRs
 

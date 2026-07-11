@@ -76,8 +76,10 @@ Rules:
 
 - Never mix fact flags (`--subject/--predicate/--object`) with feedback flags
   (`--behavior/--impact/--action`) in one command.
-- Never hand-author vocab tags or wikilinks — the binary assigns vocab automatically. Handed-off
-  `--tag` categoricals are NOT vocab: pass them through exactly as provided; never invent tags.
+- Never hand-author vocab tags or wikilinks — the binary assigns vocab terms automatically as
+  `vocab/<term>` entries in the `tags:` list. Handed-off --tag categoricals ride the same list but
+  are NOT vocab: pass them through exactly as provided; never invent tags and never write the
+  `vocab/` namespace yourself.
 
 ## Execute, verify, report
 

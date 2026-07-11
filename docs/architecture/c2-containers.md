@@ -39,7 +39,7 @@ flowchart TB
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
 | C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow; `/write-memory` is the vault-write worker (executes learn/recall handoffs — parents judge, the worker writes; 2026-07-04). Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
-| C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; the manifest read-modify-write is serialized under `.manifest.lock` across `ingest` + `prune`, #660), note write (embed-on-write, Luhmann id under lock, dual-channel vocab-tag assignment on every write, in-process vocab trigger check persisting `refit_pending` in `vocab.centroids.json` when thresholds trip — 2026-07-03), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster → `candidate_l2s` of within-cluster top-5 **plus tag-nominated notes** sharing a vocab term with top-3 delivered notes + superseded-note ride-alongs; recency channel = newest chunks un-clustered (`recentFillChunks`, default 25); optional `--lazy-chunks` renders matched+recent **chunk** items path/source-only (notes keep full content) for on-demand fetch via `show-chunk`), `vocab` subcommand family (bootstrap/propose/stats/refit), embed apply/status, update; read-only operator/audit surfaces — `check` (vault-invariant checks), `show`/`show-chunk` (note/chunk lookup), `prune` (chunk-index GC), `count` (frontmatter `--group-by`/`--filter` membership counts and `--backlinks-of` wikilink in-degree, ADR-0018) — all side-effect-free and off the query/similarity path. | houses G0, M4 |
+| C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; the manifest read-modify-write is serialized under `.manifest.lock` across `ingest` + `prune`, #660), note write (embed-on-write, Luhmann id under lock, vocab-tag assignment on every write — `vocab/<term>` entries in the shared `tags:` list since the 2026-07-10 tags migration, #678 — in-process vocab trigger check persisting `refit_pending` in `vocab.centroids.json` when thresholds trip — 2026-07-03), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster → `candidate_l2s` of within-cluster top-5 **plus tag-nominated notes** sharing a vocab term with top-3 delivered notes + superseded-note ride-alongs; recency channel = newest chunks un-clustered (`recentFillChunks`, default 25); optional `--lazy-chunks` renders matched+recent **chunk** items path/source-only (notes keep full content) for on-demand fetch via `show-chunk`), `vocab` subcommand family (bootstrap/propose/stats/refit/migrate-tags), embed apply/status, update; read-only operator/audit surfaces — `check` (vault-invariant checks), `show`/`show-chunk` (note/chunk lookup), `prune` (chunk-index GC), `count` (frontmatter `--group-by`/`--filter` membership counts and `--backlinks-of` wikilink in-degree, ADR-0018) — all side-effect-free and off the query/similarity path. | houses G0, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: off-model sidecars dropped with only a non-fatal stderr advisory under partial migration (`warnModelMismatch` — results thin silently on stdout, no error); a full-vault mismatch errors (`errQueryNoEmbeddings`) |
 | C4 | Vault | filesystem | `<luhmann>.<date>.<slug>.md` at the flat vault root + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
 
@@ -219,7 +219,7 @@ flowchart TD
     WM --> L["engram learn feedback|fact --chunk-source ..."]
     WMQ --> LQ["engram learn qa (writes Q-note + A-note together)"]
 
-    L --> CV["flock + Luhmann id (O_EXCL) + embed-on-write + dual-channel vocab assignment"]
+    L --> CV["flock + Luhmann id (O_EXCL) + embed-on-write + vocab-tag assignment"]
     LQ --> CA["A-note: flock + embed-on-write + vocab assignment — competes in the main set (D5')"]
     LQ --> CQ["Q-note: flock + embed-on-write, NO vocab assignment (D5' asymmetry) — excluded from the main set"]
 ```
@@ -232,7 +232,7 @@ audit), `internal/cli/qa.go` (`isQueryExcludedKind`, `writeQANotesUnderLock`, th
 
 ```mermaid
 flowchart TD
-    W["note write: engram learn / amend / resituate"] --> D["dual-channel vocab assignment (AssignVocabTerms — cosine >= 0.35 floor, top-3): writes body [[vocab.<term>]] wikilinks + frontmatter vocab: list"]
+    W["note write: engram learn / amend / resituate"] --> D["vocab-tag assignment (AssignVocabTerms — cosine >= 0.35 floor, top-3): WriteVocabAssignment writes vocab/term entries into the note's shared tags: list (#678, 2026-07-10)"]
     D --> TR["in-process trigger check (checkAndPersistVocabRefitTrigger, token-free)"]
     TR --> G{"growth >= 40 notes AND >= 14 days since last refit?"}
     TR --> U{"vault-wide untagged rate > 8%?"}
@@ -247,7 +247,7 @@ flowchart TD
     RP --> PF["engram query payload: refit_pending flag"]
     ST --> L15["learn skill Step 1.5: run the refit autonomously"]
     L15 --> ER["engram vocab refit --emit-request, derive plan, engram vocab refit --plan"]
-    ER --> VB["vocab version bump + vocab.index.md regen"]
+    ER --> VB["vocab version bump on the vocab-definition family note (no index to regenerate — the index is emergent, #678)"]
 ```
 
 Source: `internal/cli/vocab_trigger.go` (`refitGrowthMinNotes`, `refitGrowthMinDays`,
