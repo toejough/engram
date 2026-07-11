@@ -209,9 +209,11 @@ func peekNoteType(frontmatter []byte) string {
 	return probe.Type
 }
 
-// relatedTail returns the related-to section of a fact/feedback body: the body
-// is `formula-line\n` followed by `\nRelated to:\n...`. Cutting the first line
-// and the single blank line after it yields the tail in the exact shape
+// relatedTail returns the trailing section of a fact/feedback body after the
+// formula line: the body is `formula-line\n` followed by `\n<tail>`, where
+// tail is any trailing block (e.g. a machine-line block like `Supersedes:`)
+// resituate treats as opaque payload to preserve untouched. Cutting the first
+// line and the single blank line after it yields the tail in the exact shape
 // renderFactBody / renderFeedbackBody re-prepend, so an empty tail round-trips
 // to `formula\n\n` and a populated tail round-trips byte-identically.
 func relatedTail(body []byte) string {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"slices"
 )
 
 // Exported constants.
@@ -19,11 +18,6 @@ const (
 	// body line on QA answer notes. Excluded from BodyText/ContentHash so a
 	// contributors-only write leaves the body vector and hash unchanged.
 	ContributorsBodyMarker = "Contributors:"
-	// RelatedSectionMarker is retained for backward compatibility: unmigrated
-	// vault bodies still carry "Related to:" sections (the ritual was removed
-	// 2026-07-02; bodies are stripped by the vocab migration). Hash exclusion
-	// must keep working for them until that migration lands, then this can go.
-	RelatedSectionMarker = "Related to:"
 	// SupersedesBodyMarker prefixes the machine-written `Supersedes: [[…]] —
 	// type: claim` body lines (replace-whole channel, written by learn/amend).
 	// Excluded from BodyText/ContentHash because a channel-only write must not
@@ -34,22 +28,17 @@ const (
 
 // BodyText returns the note body (frontmatter stripped) with all
 // machine-written channel content removed: `Supersedes:`, `Contributors:`,
-// `Answered by:`, and `Answers:` body lines (replace-whole channels) and any
-// trailing "Related to:" section. It is the body-vector source for every
-// note type. Dropping channel content means a channel-only edit (supersession
-// write, contributor/answer linking, link edit) leaves the body vector and
-// ContentHash unchanged (D3).
-//
-// Machine lines are stripped BEFORE the Related-to pass: the writers append
-// their lines after an unmigrated note's trailing "Related to:" block, and a
-// non-bullet line after the block would otherwise disqualify it.
+// `Answered by:`, and `Answers:` body lines (replace-whole channels). It is
+// the body-vector source for every note type. Dropping channel content means
+// a channel-only edit (supersession write, contributor/answer linking) leaves
+// the body vector and ContentHash unchanged (D3).
 //
 // Trailing blank lines are normalized to a single newline LAST: the learn
 // renderers end bodies with "\n\n" while the channel writers trim trailing
 // blanks before appending their line — the original count is unrecoverable
 // after a write, so the hash must be insensitive to it on both sides.
 func BodyText(raw []byte) []byte {
-	return normalizeTrailingBlanks(stripRelatedToSection(stripMachineLines(ExtractBody(raw))))
+	return normalizeTrailingBlanks(stripMachineLines(ExtractBody(raw)))
 }
 
 // ContentHash returns a sha256: prefixed hex digest covering BOTH embed
@@ -117,10 +106,6 @@ func SituationText(raw []byte) []byte {
 // unexported constants.
 const (
 	frontmatterDelim = "---\n"
-	// relatedSectionBulletPfx is the prefix of every rendered relation bullet
-	// ("- [[target]] — rationale."). A "Related to:" marker line counts as a
-	// block only when every following non-blank line starts with this prefix.
-	relatedSectionBulletPfx = "- [["
 )
 
 // extractFrontmatterField scans the frontmatter block (content between
@@ -148,30 +133,6 @@ func isMachineLine(trimmed []byte) bool {
 		bytes.HasPrefix(trimmed, []byte(ContributorsBodyMarker)) ||
 		bytes.HasPrefix(trimmed, []byte(AnsweredByBodyMarker)) ||
 		bytes.HasPrefix(trimmed, []byte(AnswersBodyMarker))
-}
-
-// isRelatedToBlock reports whether the lines that follow a "Related to:"
-// marker form a relation block: every non-blank line must start with
-// relatedSectionBulletPfx, and at least one bullet must be present. A line
-// that is neither blank nor a bullet (prose) disqualifies the block, so an
-// inline "Related to:" mention is not stripped.
-func isRelatedToBlock(after [][]byte) bool {
-	sawBullet := false
-
-	for _, line := range after {
-		trimmed := bytes.TrimRight(line, "\r")
-		if len(bytes.TrimSpace(trimmed)) == 0 {
-			continue
-		}
-
-		if !bytes.HasPrefix(trimmed, []byte(relatedSectionBulletPfx)) {
-			return false
-		}
-
-		sawBullet = true
-	}
-
-	return sawBullet
 }
 
 // normalizeTrailingBlanks trims trailing BLANK LINES from body, restoring a
@@ -241,45 +202,4 @@ func stripMachineLines(body []byte) []byte {
 	}
 
 	return result
-}
-
-// stripRelatedToSection removes a trailing "Related to:" relation block from
-// body, returning body unchanged when no such block is present. The block is
-// recognised conservatively (see isRelatedToBlock): a "Related to:" marker
-// line whose following non-blank lines are all relation bullets. Recognising
-// only the LAST marker, and only when the lines after it qualify, leaves prose
-// that mentions "Related to:" inline untouched.
-//
-// Implementation note: bytes.Split(body, "\n") on a newline-terminated body
-// produces a trailing empty element. Lines[:i] for i pointing at the marker
-// therefore ends with the blank line(s) before the marker — joining with "\n"
-// faithfully restores the body up to and including its final trailing newline.
-// Do NOT bytes.TrimRight the result: that would remove the single trailing
-// newline that is part of the body (CA-15 fix).
-func stripRelatedToSection(body []byte) []byte {
-	lines := bytes.Split(body, []byte("\n"))
-	// bytes.Split never returns nil in practice, but nilaway cannot prove that
-	// and flags the lines[i+1:] / lines[:i] indexing below; the guard satisfies
-	// it without a //nolint suppression (project rule: fix, don't suppress).
-	if lines == nil {
-		return body
-	}
-
-	for i, line := range slices.Backward(lines) {
-		if bytes.Equal(bytes.TrimRight(line, "\r"), []byte(RelatedSectionMarker)) {
-			if isRelatedToBlock(lines[i+1:]) {
-				result := bytes.Join(lines[:i], []byte("\n"))
-				// Restore the trailing newline when no blank line preceded the
-				// marker (lines[:i] joined without a trailing empty element
-				// would otherwise drop the newline that ended the last body line).
-				if len(result) > 0 && result[len(result)-1] != '\n' {
-					result = append(result, '\n')
-				}
-
-				return result
-			}
-		}
-	}
-
-	return body
 }

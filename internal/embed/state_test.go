@@ -96,38 +96,6 @@ func TestComputeState_OK(t *testing.T) {
 	g.Expect(state).To(Equal(embed.StateOK))
 }
 
-func TestComputeState_OK_AfterLinkOnlyEdit(t *testing.T) {
-	t.Parallel()
-
-	// A note whose body-only change was adding a "Related to:" section must
-	// remain StateOK — the ContentHash excludes that section (D3), so no
-	// re-embed is triggered.
-	g := NewWithT(t)
-
-	baseNote := []byte("---\ntype: fact\nluhmann: \"1\"\n---\nbody content here.\n")
-	noteWithLinks := []byte(
-		"---\ntype: fact\nluhmann: \"1\"\n---\nbody content here.\n" +
-			"Related to:\n- [[105.2024-01-01.some-note]] — context.\n",
-	)
-
-	sidecar := embed.Sidecar{
-		SchemaVersion:    embed.SidecarSchemaVersion,
-		EmbeddingModelID: "model@384",
-		Dims:             1,
-		SituationVector:  []float32{0.1},
-		BodyVector:       []float32{0.1},
-		ContentHash:      embed.ContentHash(baseNote),
-	}
-
-	filesystem := fakeFS{
-		"n.md":       noteWithLinks,
-		"n.vec.json": mustSidecar(t, sidecar),
-	}
-
-	state := embed.ComputeState(filesystem, "n.md", "model@384")
-	g.Expect(state).To(Equal(embed.StateOK))
-}
-
 func TestComputeState_OldSchemaSidecar_IsIncompatible(t *testing.T) {
 	t.Parallel()
 
@@ -163,6 +131,38 @@ func TestComputeState_Stale(t *testing.T) {
 	}
 
 	state := embed.ComputeState(filesystem, "x.md", "model@384")
+	g.Expect(state).To(Equal(embed.StateStale))
+}
+
+func TestComputeState_Stale_AfterAddingRelatedToSection(t *testing.T) {
+	t.Parallel()
+
+	// A note whose body-only change was adding a "Related to:" section must
+	// be Stale — the section is ordinary body text now, so it feeds
+	// ContentHash and a link-only edit re-embeds like any other body edit.
+	g := NewWithT(t)
+
+	baseNote := []byte("---\ntype: fact\nluhmann: \"1\"\n---\nbody content here.\n")
+	noteWithLinks := []byte(
+		"---\ntype: fact\nluhmann: \"1\"\n---\nbody content here.\n" +
+			"Related to:\n- [[105.2024-01-01.some-note]] — context.\n",
+	)
+
+	sidecar := embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "model@384",
+		Dims:             1,
+		SituationVector:  []float32{0.1},
+		BodyVector:       []float32{0.1},
+		ContentHash:      embed.ContentHash(baseNote),
+	}
+
+	filesystem := fakeFS{
+		"n.md":       noteWithLinks,
+		"n.vec.json": mustSidecar(t, sidecar),
+	}
+
+	state := embed.ComputeState(filesystem, "n.md", "model@384")
 	g.Expect(state).To(Equal(embed.StateStale))
 }
 
