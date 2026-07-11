@@ -245,7 +245,7 @@ func TestVocabAssignment_KeepsSidecarStateOK(t *testing.T) {
 
 	g.Expect(embed.ComputeState(filesystem, "/vault/1aa.note.md", modelID)).
 		To(Equal(embed.StateOK),
-			"vocab assignment must not stale the sidecar (Vocab: line excluded from body hash)")
+			"vocab assignment must not stale the sidecar (tags live in frontmatter, not body hash)")
 }
 
 // ── Unit 2: recallability seam (definitions are ordinary notes, #678 Task 6) ─

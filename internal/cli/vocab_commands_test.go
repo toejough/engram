@@ -1321,7 +1321,8 @@ func TestRunLearn_VocabAssignment_SkipsWhenSidecarMissing(t *testing.T) {
 
 // TestRunLearn_VocabAssignment_WritesVocabWhenTermsPresent verifies that when
 // LoadTermVectors returns a non-empty set and ReadSidecar returns a valid sidecar,
-// WriteNote is called with both the vocab: frontmatter key and Vocab: body line.
+// WriteNote is called with vocab/<term> tags only — neither the legacy vocab:
+// frontmatter key nor a Vocab: body line is written.
 func TestRunLearn_VocabAssignment_WritesVocabWhenTermsPresent(t *testing.T) {
 	t.Parallel()
 

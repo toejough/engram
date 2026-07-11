@@ -13,7 +13,7 @@ import (
 func TestBodyText_ExcludesSupersedesLines(t *testing.T) {
 	t.Parallel()
 
-	// Same machine-written category as the Vocab: line: `Supersedes:` body
+	// Same machine-written category as the Supersedes:/Contributors: lines: `Supersedes:` body
 	// lines are replace-whole channel content and must not feed the vector/hash.
 	g := NewWithT(t)
 	raw := []byte("---\ntype: fact\nluhmann: \"2\"\n---\n\n" +

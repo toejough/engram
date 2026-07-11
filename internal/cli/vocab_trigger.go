@@ -182,9 +182,10 @@ func evaluateVocabTriggers(
 	return false, ""
 }
 
-// scanNonVocabNotes calls visit for each non-vocab filename in names.
+// scanNonVocabNotes calls visit for each .md file except QA question notes.
 // visit receives (name, raw bytes, readErr); raw is nil when readErr is non-nil.
-// Shared primitive used by collectTriggerVaultStats (untaggedCount).
+// Definition-note exclusion happens content-based in callers. Shared primitive
+// used by collectTriggerVaultStats (untaggedCount).
 func scanNonVocabNotes(
 	vault string,
 	names []string,
