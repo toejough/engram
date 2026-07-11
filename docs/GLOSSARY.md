@@ -209,10 +209,10 @@ convention WITHOUT enumerating terms (an enumerated term list is the stale-index
 retired). Minted by `engram vocab bootstrap`/`propose`/`refit`/`migrate-tags`. Unlike the retired vocab
 term-note, a definition note is an ordinary recallable fact — no query exclusion (the vocab-kind
 exclusion was deleted with the migration). A member note's own vocab terms live in its `tags:` list as
-`vocab/<term>` entries (see `--tag`, below); a definition note never carries its own term tag. Plural:
+`vocab/<term>` entries (see `--tag`, below); a definition note never carries its own term tag. A member note with no qualifying term carries no `vocab/` tag — absence = untagged, counted by `engram vocab stats`. Plural:
 **vocab definition notes**.
 
-*The entries below are the retired pre-#678 vocab representations (migrated to the tags convention 2026-07-10). Current form: **vocab definition note**, above.*
+*The (retired)-marked entries below are the retired pre-#678 vocab representations (migrated to the tags convention 2026-07-10). Current form: **vocab definition note**, above.*
 
 ### vocab term-note (retired)
 Was a `vocab.<term>.md` file (no Luhmann number) with frontmatter `type: vocab`; migrated to a per-term bare-`vocab`-tagged fact note.
