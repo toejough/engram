@@ -427,7 +427,7 @@ transient (`git log`); the memory-discount figures remain at `dev/eval/LEDGER.md
 
 **Context.** `engram query` answers "what's relevant to this phrase" via recency-biased cosine
 similarity over a bounded, truncated matched set (ADR-0004) — by design a fuzzy-ranked *sample*,
-not a complete enumeration. A question like "how many notes carry `vocab: retrieval-design`" or
+not a complete enumeration. A question like "how many notes carry the `vocab/retrieval-design` tag" or
 "how many notes link to `[[foo.alpha]]`" needs an exact, typed count over the *whole* vault, not a
 top-N approximation — riding it on the recall path would silently return a truncated, similarity-
 ordered subset with no signal that it isn't the real count.
