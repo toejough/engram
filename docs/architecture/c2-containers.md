@@ -201,7 +201,7 @@ same vault-write mechanics.
 
 ```mermaid
 flowchart TD
-    S["Step 1: engram ingest --auto (sweep, always first)"] --> S2{"Step 2: scan for explicit lessons"}
+    S["Step 1: engram ingest --auto (sweep, first; skipped if one ran this session — closing learn always sweeps)"] --> S2{"Step 2: scan for explicit lessons"}
     S --> S25{"Step 2.5: scan for substantive Q&A (independent scan; criterion is traceability, not 'is it a lesson')"}
     S2 -->|correction| CORR["Correction: user corrected approach/behavior"]
     S2 -->|save-request| SAVE["Explicit save-request: 'remember this/that X'"]
