@@ -50,7 +50,7 @@ ADR-0018 divergence example is annotated historical.
 
 **Actionable now (unblocked, fleshed out):**
 
-- **#657** (M) — remaining recall cuts L3a + O1 (O2/L2 shipped; gated by the `gate.py --tier` smoke harness, not #654).
+- **#657** (M) — cuts complete this cycle: L3a shipped (`35ba791c`), O1 disposed subsumed, recall-only wall-time re-measured at median 51.9 s (`dev/eval/LEDGER.md#recall-time-remeasure`); the mapping **recommends close** — awaiting Joe's disposition (Track B outcome record).
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
@@ -237,12 +237,32 @@ launching `claude -p`. Design record: `docs/design/2026-07-01-engram-recall-subp
 was assistant-maintained and never user-ratified; this rejection is the first recorded user decision on
 the build.
 
-### #657 remaining cuts (L3a/O1)
+### #657 remaining cuts (L3a/O1) — outcome record (2026-07-12; recommended close, pending Joe's ack)
 
-Two of #657's four procedure-time cuts remain open — O2 (inline `candidate_l2s` content, commit
-`e79d8b37`) and L2 (empty-cluster skip, already in the skill) shipped per #657's comment thread. **L3a**
-(batch the learn-ingest sweep once per session, without deferring crystallization) and **O1** (tighten the
-chunk content-budget without starving Step 2.5's full-content read) are still open, each gated by the existing `gate.py --tier` smoke harness (per #657's comment thread — not blocked by #654, as an earlier note claimed).
+All four of #657's procedure-time cuts are now disposed. O2 (inline `candidate_l2s` content, commit
+`e79d8b37`) and L2 (empty-cluster skip, already in the skill) shipped earlier per #657's comment
+thread. This cycle closed out the rest:
+
+- **L3a — SHIPPED** (`35ba791c`, both skills deployed; trap gate GREEN before+after): the ingest
+  sweep runs once per session — recall Step 0.5 and non-closing learns skip the sweep when one
+  already ran this session; the closing learn always sweeps (carve-out), with an explicit
+  counter-clause against the "something might have changed outside this session" re-sweep
+  rationalization (a headless pressure probe caved on exactly that; held 3/3 after the fix).
+  Honest cadence: a full please-cycle now sweeps **twice** (opening recall + closing learn), down
+  from 2–4× before. This also retires the former "Dedupe the double ingest sweep" Track B item —
+  **SHIPPED (L3a, #657)**; L3a is that collapse.
+- **O1 — DISPOSED SUBSUMED**: tightening the chunk content-budget is moot — under `--lazy-chunks`
+  (recall's default invocation) `internal/cli/query.go:1430` bypasses the chunk-content path
+  (`capChunkContent`/`ContentBudget`) entirely; and the prior measurement (vault note 79) had
+  already shown the content budget is not the cost bottleneck.
+- **Re-measure**: recall-only wall-time is now median 51.9 s, range 39.3–63.6 s (real-vault copy,
+  n=3, directional — the ~73% drop vs the ~190 s pre-cuts prior is directional, not a controlled
+  A/B; the trial prompt differs from the prior's task), small-fixture floor 39.7 s
+  (`dev/eval/LEDGER.md#recall-time-remeasure`). Band-edge conservatism (the range straddles the
+  60 s boundary) lands the disposition in the 60–120 s band: the pre-registered mapping
+  **recommends closing #657**, with the parked clusters-first/lazy-content restructure (next
+  section) named as the remaining lever — its revisit-condition stands unchanged. Recommended
+  disposition only; final recorded after Joe's ack.
 
 ### Parked — matched-set clusters-first / lazy-content payload restructure
 
@@ -250,10 +270,6 @@ The recent-fill and lazy-chunks cuts were the safe payload reducers; they do NOT
 clusters-first / lazy-content restructure of the matched set — an estimated ~40–80s further time/paging
 win (estimate, never measured; smaller than the tier-discount lever). **Revisit condition:** only if
 recall paging time becomes the complaint after the shipped cuts.
-
-### Dedupe the double ingest sweep
-
-Recall and learn each run `engram ingest --auto`; collapse the redundant pass. Mechanical, unscheduled.
 
 ### From the 2026-07-01 system review — cost items
 
