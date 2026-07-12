@@ -20,9 +20,18 @@ stop during sleep, so a napping host silently inflates the span. Each trial ther
 under `caffeinate -is`, and a trial whose span exceeds its monotonic wall time (+2 s tolerance)
 is marked sleep-contaminated and NOT pooled (span > awake-process wall is physically impossible).
 
+Vault modes (Task 1b): the default fixture seeds 5 seed_c3 notes — a small-payload floor that
+never exercises the paging regime the ~190 s prior ran against (real-vault copy, ~141–237 KB
+payloads, ~370–410 chunks; method: git show 51ca6723:docs/design/2026-06-25-recall-cost-isolation.md).
+`--vault-copy` instead COPIES the real vault + chunk index into each per-trial sandbox and points
+ENGRAM_VAULT_PATH/ENGRAM_CHUNKS_DIR at the copies — the production paths are read-only sources;
+every write (learn/activate/ingest) lands in the sandbox. Vault-copy rows live under the
+artifact's `vault_copy` key, summarized separately — the two modes are never pooled.
+
 Usage:
   python3 recall_time.py --mode pilot [--model opus]          # n=1, validate the instrument
   python3 recall_time.py --mode batch --n 3 --out <artifact>  # fresh sandbox per trial
+  python3 recall_time.py --mode batch --n 3 --vault-copy --out <artifact>  # production-scale
 """
 import argparse
 import datetime
@@ -42,7 +51,15 @@ from run import MODELS
 from wrun import RECALL_PREFIX, _slug, build_warm_cfg
 
 ROOT = os.environ.get("RECALL_TIME_ROOT", "/tmp/recall-time-657")
-END_PRIMARY = re.compile(r"Query surfaced [0-9]+ items")
+_XDG_DATA = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+REAL_VAULT = os.path.join(_XDG_DATA, "engram", "vault")  # read-only copy SOURCE, never written
+REAL_CHUNKS = os.path.join(_XDG_DATA, "engram", "chunks")  # read-only copy SOURCE, never written
+# Count token is tolerant (`6`, `8+`, `~20+`): on the real vault the agent hedges the count
+# ("Query surfaced ~20+ items"); the strict [0-9]+ form STOP-failed 2/2 vault-copy trials on
+# 2026-07-12 (transcripts preserved) while the END-record identity — the recall-synthesis
+# opener — was unambiguous in both. Skill-body template text ("Query surfaced N items") never
+# matches: N is not a digit, and templates ride user/attachment records, not assistant ones.
+END_PRIMARY = re.compile(r"Query surfaced ~?[0-9]+\+? items")
 END_FALLBACK = "Re-entry:"
 # Small fixture task (post-recall work stays trivial); its convention is one of the seeded notes.
 FIXTURE = T.TRAPS["nocolor"]["prompt"]
@@ -126,18 +143,25 @@ def find_transcript(cfg, session_id):
     return None
 
 
-def run_trial(idx, model):
-    """One warm trial in a fresh sandbox (fresh cfg + vault + workdir + chunks dir)."""
-    base = os.path.join(ROOT, f"trial-{idx}")
+def run_trial(idx, model, vault_copy=False):
+    """One warm trial in a fresh sandbox (fresh cfg + vault + workdir + chunks dir).
+
+    vault_copy=True: production-scale contrast — copy the REAL vault + chunk index into the
+    sandbox (sources read-only; all trial writes stay inside the copies). Otherwise seed_c3."""
+    base = os.path.join(ROOT, f"trial-vc-{idx}" if vault_copy else f"trial-{idx}")
     shutil.rmtree(base, ignore_errors=True)
     wd = os.path.join(base, "ws")
     vault = os.path.join(base, "vault")
     chunks = os.path.join(base, "chunks")
     cfg = os.path.join(base, "cfg")
-    for d in (wd, chunks):
-        os.makedirs(d, exist_ok=True)
+    os.makedirs(wd, exist_ok=True)
     build_warm_cfg(cfg)
-    seed_c3.seed(vault)
+    if vault_copy:
+        shutil.copytree(REAL_VAULT, vault)
+        shutil.copytree(REAL_CHUNKS, chunks)
+    else:
+        os.makedirs(chunks, exist_ok=True)
+        seed_c3.seed(vault)
 
     env = dict(os.environ)
     env["CLAUDE_CONFIG_DIR"] = cfg
@@ -211,13 +235,16 @@ def main():
     ap.add_argument("--model", default="opus")
     ap.add_argument("--n", type=int, default=3)
     ap.add_argument("--out", default=None, help="artifact JSON path (batch mode)")
+    ap.add_argument("--vault-copy", action="store_true",
+                    help="production-scale mode: sandbox copies of the real vault + chunk index")
     a = ap.parse_args()
 
     os.makedirs(ROOT, exist_ok=True)
+    vault_desc = "real-vault copy" if a.vault_copy else "seed_c3 (5 notes)"
 
     if a.mode == "pilot":
-        print(f"PILOT n=1 model={a.model} fixture=nocolor root={ROOT}")
-        row = run_trial("pilot", a.model)
+        print(f"PILOT n=1 model={a.model} fixture=nocolor vault={vault_desc} root={ROOT}")
+        row = run_trial("pilot", a.model, a.vault_copy)
         print(json.dumps(row, indent=1))
         if not row["ok"]:
             print("\nPILOT FAILED — delimiters did not resolve (or the trial errored).")
@@ -231,16 +258,16 @@ def main():
 
     if not a.out:
         ap.error("--out is required in batch mode")
-    print(f"BATCH n={a.n} model={a.model} fixture=nocolor root={ROOT}")
+    print(f"BATCH n={a.n} model={a.model} fixture=nocolor vault={vault_desc} root={ROOT}")
     rows = []
     for i in range(a.n):
-        row = run_trial(i, a.model)
+        row = run_trial(i, a.model, a.vault_copy)
         rows.append(row)
         print(f"  [trial {i}] ok={row['ok']} span={row['recall_span_s']}s "
               f"total={row['total_duration_s']}s ${row['cost_usd']:.2f} turns={row['turns']}"
               + (f" ERROR: {row['error']}" if row["error"] else ""))
         if not row["ok"]:  # one full re-trial per slot (fresh sandbox); the failed row stays reported
-            row = run_trial(f"{i}r", a.model)
+            row = run_trial(f"{i}r", a.model, a.vault_copy)
             rows.append(row)
             print(f"  [trial {i}r] (retry) ok={row['ok']} span={row['recall_span_s']}s "
                   f"total={row['total_duration_s']}s ${row['cost_usd']:.2f} turns={row['turns']}"
@@ -256,18 +283,24 @@ def main():
         "low_cost_flagged_trials": flagged,
         "note": "n=3 directional by design; failed trials are reported, never pooled",
     }
-    artifact = {
-        "meta": {
-            "purpose": "#657 recall-only wall-time re-measure (post lazy-chunks/recent-fill/O2/L2)",
-            "prior": "LEDGER recall-time-isolated: ~190 s, n=2 directional, pre-cuts vintage",
-            "model": MODELS[a.model], "fixture": "nocolor trap prompt (traps.py) + RECALL_PREFIX",
-            "delimiters": "START=first timestamped record; END=backward assistant scan for "
-                          "'Query surfaced N items', fallback 'Re-entry:'",
-            "date": datetime.date.today().isoformat(),
-        },
-        "trials": rows,
-        "summary": summary,
-    }
+    # Vault-copy rows append under their own key in an existing artifact; the seed_c3 rows and
+    # the vault-copy rows are summarized separately and NEVER pooled.
+    artifact = {}
+    if os.path.exists(a.out):
+        with open(a.out) as fh:
+            artifact = json.load(fh)
+    artifact.setdefault("meta", {}).update({
+        "purpose": "#657 recall-only wall-time re-measure (post lazy-chunks/recent-fill/O2/L2)",
+        "prior": "LEDGER recall-time-isolated: ~190 s, n=2 directional, pre-cuts vintage",
+        "model": MODELS[a.model], "fixture": "nocolor trap prompt (traps.py) + RECALL_PREFIX",
+        "delimiters": "START=first timestamped record; END=backward assistant scan for "
+                      "'Query surfaced N items', fallback 'Re-entry:'",
+        "date": datetime.date.today().isoformat(),
+    })
+    if a.vault_copy:
+        artifact["vault_copy"] = {"vault": vault_desc, "trials": rows, "summary": summary}
+    else:
+        artifact.update({"trials": rows, "summary": summary})
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, "w") as fh:
         json.dump(artifact, fh, indent=1)
