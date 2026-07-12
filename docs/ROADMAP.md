@@ -50,7 +50,7 @@ ADR-0018 divergence example is annotated historical.
 
 **Actionable now (unblocked, fleshed out):**
 
-- **#657** (M) — cuts complete this cycle: L3a shipped (`35ba791c`), O1 disposed subsumed, recall-only wall-time re-measured at median 51.9 s (`dev/eval/LEDGER.md#recall-time-remeasure`); the mapping **recommends close** — awaiting Joe's disposition (Track B outcome record).
+- **#684** (M) — clusters-first / lazy-content payload restructure, **measure first** (~52 s baseline; un-parked by Joe 2026-07-12 at #657's close — "the time reduction was the whole point"; see Track B).
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
@@ -237,7 +237,7 @@ launching `claude -p`. Design record: `docs/design/2026-07-01-engram-recall-subp
 was assistant-maintained and never user-ratified; this rejection is the first recorded user decision on
 the build.
 
-### #657 remaining cuts (L3a/O1) — outcome record (2026-07-12; recommended close, pending Joe's ack)
+### #657 remaining cuts (L3a/O1) — outcome record (2026-07-12; CLOSED by Joe, time axis continues at #684)
 
 All four of #657's procedure-time cuts are now disposed. O2 (inline `candidate_l2s` content, commit
 `e79d8b37`) and L2 (empty-cluster skip, already in the skill) shipped earlier per #657's comment
@@ -264,12 +264,13 @@ thread. This cycle closed out the rest:
   section) named as the remaining lever — its revisit-condition stands unchanged. Recommended
   disposition only; final recorded after Joe's ack.
 
-### Parked — matched-set clusters-first / lazy-content payload restructure
+### UN-PARKED → #684 — matched-set clusters-first / lazy-content payload restructure
 
-The recent-fill and lazy-chunks cuts were the safe payload reducers; they do NOT close the structural
-clusters-first / lazy-content restructure of the matched set — an estimated ~40–80s further time/paging
-win (estimate, never measured; smaller than the tier-discount lever). **Revisit condition:** only if
-recall paging time becomes the complaint after the shipped cuts.
+Un-parked by Joe 2026-07-12 at #657's close ("the time reduction was the whole point. Let's try this
+out.") — the revisit condition (recall time still the complaint after the shipped cuts) was met by
+Joe's own statement. Now tracked as **#684**, measure-first: the old ~40–80s estimate predates the
+shipped cuts and was never measured; the realizable win against the current ~52 s baseline is
+unknown — the `recall_time.py --vault-copy` gauge establishes it before any build.
 
 ### From the 2026-07-01 system review — cost items
 
