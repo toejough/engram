@@ -1,0 +1,161 @@
+{
+ "meta": {
+  "purpose": "#657 recall-only wall-time re-measure (post lazy-chunks/recent-fill/O2/L2)",
+  "prior": "LEDGER recall-time-isolated: ~190 s, n=2 directional, pre-cuts vintage",
+  "model": "claude-opus-4-8",
+  "fixture": "nocolor trap prompt (traps.py) + RECALL_PREFIX",
+  "delimiters": "START=first timestamped record; END=backward assistant scan for 'Query surfaced N items', fallback 'Re-entry:'",
+  "date": "2026-07-12"
+ },
+ "trials": [
+  {
+   "idx": 0,
+   "ok": true,
+   "retried": false,
+   "session_id": "cdbb478b-3dda-4978-ba68-d5cbbd24106b",
+   "transcript_path": "/tmp/recall-time-657/trial-0/cfg/projects/-private-tmp-recall-time-657-trial-0-ws/cdbb478b-3dda-4978-ba68-d5cbbd24106b.jsonl",
+   "recall_span_s": 39.7,
+   "total_duration_s": 59.5,
+   "wall_s": 60.2,
+   "cost_usd": 0.4157,
+   "turns": 10,
+   "is_error": false,
+   "error": null,
+   "start_ts": "2026-07-12T11:51:11.984Z",
+   "start_record_type": "queue-operation",
+   "end_ts": "2026-07-12T11:51:51.705Z",
+   "end_rule": "query-surfaced",
+   "end_match": "Query surfaced 6 items",
+   "low_cost_flag": false
+  },
+  {
+   "idx": 1,
+   "ok": true,
+   "retried": false,
+   "session_id": "eac7524b-fda8-4b98-b6b8-5cc3eef89c2a",
+   "transcript_path": "/tmp/recall-time-657/trial-1/cfg/projects/-private-tmp-recall-time-657-trial-1-ws/eac7524b-fda8-4b98-b6b8-5cc3eef89c2a.jsonl",
+   "recall_span_s": 31.3,
+   "total_duration_s": 105.0,
+   "wall_s": 105.7,
+   "cost_usd": 0.696,
+   "turns": 18,
+   "is_error": false,
+   "error": null,
+   "start_ts": "2026-07-12T11:52:13.618Z",
+   "start_record_type": "queue-operation",
+   "end_ts": "2026-07-12T11:52:44.926Z",
+   "end_rule": "query-surfaced",
+   "end_match": "Query surfaced 6 items",
+   "low_cost_flag": false
+  },
+  {
+   "idx": 2,
+   "ok": true,
+   "retried": false,
+   "session_id": "90b382da-41b8-4977-80c3-d6968f5197a8",
+   "transcript_path": "/tmp/recall-time-657/trial-2/cfg/projects/-private-tmp-recall-time-657-trial-2-ws/90b382da-41b8-4977-80c3-d6968f5197a8.jsonl",
+   "recall_span_s": 41.4,
+   "total_duration_s": 54.3,
+   "wall_s": 55.1,
+   "cost_usd": 0.4308,
+   "turns": 10,
+   "is_error": false,
+   "error": null,
+   "start_ts": "2026-07-12T11:54:00.838Z",
+   "start_record_type": "queue-operation",
+   "end_ts": "2026-07-12T11:54:42.277Z",
+   "end_rule": "query-surfaced",
+   "end_match": "Query surfaced 6 items",
+   "low_cost_flag": false
+  }
+ ],
+ "summary": {
+  "n_requested": 3,
+  "n_ok": 3,
+  "median_recall_span_s": 39.7,
+  "range_recall_span_s": [
+   31.3,
+   41.4
+  ],
+  "total_cost_usd": 1.5425,
+  "low_cost_flagged_trials": [],
+  "note": "n=3 directional by design; failed trials are reported, never pooled"
+ },
+ "vault_copy": {
+  "vault": "real-vault copy",
+  "trials": [
+   {
+    "idx": 0,
+    "ok": true,
+    "retried": false,
+    "session_id": "d990f920-6e98-4761-9fac-51dbb1a1e23a",
+    "transcript_path": "/tmp/recall-time-657/trial-vc-0/cfg/projects/-private-tmp-recall-time-657-trial-vc-0-ws/d990f920-6e98-4761-9fac-51dbb1a1e23a.jsonl",
+    "recall_span_s": 39.3,
+    "total_duration_s": 49.9,
+    "wall_s": 50.9,
+    "cost_usd": 0.3503,
+    "turns": 8,
+    "is_error": false,
+    "error": null,
+    "start_ts": "2026-07-12T12:31:15.112Z",
+    "start_record_type": "queue-operation",
+    "end_ts": "2026-07-12T12:31:54.405Z",
+    "end_rule": "query-surfaced",
+    "end_match": "Query surfaced ~8 items",
+    "low_cost_flag": false
+   },
+   {
+    "idx": 1,
+    "ok": true,
+    "retried": false,
+    "session_id": "5a868201-3445-4a10-8653-534e8ad0c553",
+    "transcript_path": "/tmp/recall-time-657/trial-vc-1/cfg/projects/-private-tmp-recall-time-657-trial-vc-1-ws/5a868201-3445-4a10-8653-534e8ad0c553.jsonl",
+    "recall_span_s": 63.6,
+    "total_duration_s": 75.7,
+    "wall_s": 76.4,
+    "cost_usd": 0.5139,
+    "turns": 10,
+    "is_error": false,
+    "error": null,
+    "start_ts": "2026-07-12T12:32:07.401Z",
+    "start_record_type": "queue-operation",
+    "end_ts": "2026-07-12T12:33:10.983Z",
+    "end_rule": "query-surfaced",
+    "end_match": "Query surfaced ~30 items",
+    "low_cost_flag": false
+   },
+   {
+    "idx": 2,
+    "ok": true,
+    "retried": false,
+    "session_id": "16fa793f-2479-4c5d-9239-ab5c1211235a",
+    "transcript_path": "/tmp/recall-time-657/trial-vc-2/cfg/projects/-private-tmp-recall-time-657-trial-vc-2-ws/16fa793f-2479-4c5d-9239-ab5c1211235a.jsonl",
+    "recall_span_s": 51.9,
+    "total_duration_s": 70.7,
+    "wall_s": 71.4,
+    "cost_usd": 0.5,
+    "turns": 10,
+    "is_error": false,
+    "error": null,
+    "start_ts": "2026-07-12T12:33:25.129Z",
+    "start_record_type": "queue-operation",
+    "end_ts": "2026-07-12T12:34:17.032Z",
+    "end_rule": "query-surfaced",
+    "end_match": "Query surfaced ~40 items",
+    "low_cost_flag": false
+   }
+  ],
+  "summary": {
+   "n_requested": 3,
+   "n_ok": 3,
+   "median_recall_span_s": 51.9,
+   "range_recall_span_s": [
+    39.3,
+    63.6
+   ],
+   "total_cost_usd": 1.3642,
+   "low_cost_flagged_trials": [],
+   "note": "n=3 directional by design; failed trials are reported, never pooled"
+  }
+ }
+}

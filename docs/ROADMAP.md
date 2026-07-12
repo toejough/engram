@@ -248,7 +248,7 @@ thread. This cycle closed out the rest:
   already ran this session; the closing learn always sweeps (carve-out), with an explicit
   counter-clause against the "something might have changed outside this session" re-sweep
   rationalization (a headless pressure probe caved on exactly that; held 3/3 after the fix).
-  Honest cadence: a full please-cycle now sweeps **twice** (opening recall + closing learn), down
+  Honest cadence: a full please-cycle now sweeps **twice** (the opening learn + the closing learn; recall's Step 0.5 skips when a sweep already ran), down
   from 2–4× before. This also retires the former "Dedupe the double ingest sweep" Track B item —
   **SHIPPED (L3a, #657)**; L3a is that collapse.
 - **O1 — DISPOSED SUBSUMED**: tightening the chunk content-budget is moot — under `--lazy-chunks`
