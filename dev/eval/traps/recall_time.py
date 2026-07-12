@@ -28,6 +28,23 @@ ENGRAM_VAULT_PATH/ENGRAM_CHUNKS_DIR at the copies — the production paths are r
 every write (learn/activate/ingest) lands in the sandbox. Vault-copy rows live under the
 artifact's `vault_copy` key, summarized separately — the two modes are never pooled.
 
+Phase segmentation + payload census (#684, `--segment`): splits the recall_span into four
+mechanical phases from the SAME transcript — (a) pre_query: START to the first `engram query`
+tool_use; (b) query_call: SUM of each query call's own tool_use->tool_result span; (c)
+payload_consumption: first query tool_result -> the Step-2.5-start marker, minus any subsequent
+query calls' in-flight spans inside that window; (d) remainder: marker -> END. The marker is
+min(Arm 1: first post-query `engram amend`/`activate`/`learn` tool_use, Arm 2: first assistant
+record matching END_PRIMARY) — see compute_phases(). A per-trial validity gate requires every
+phase >= 0 and the four phases to sum to the START->END span (+-1s); gate failures are reported,
+never pooled (same discard-never-pool contract as the sleep gate). The payload census (see
+compute_census()) bytes-profiles the trial's own `engram query` output — items vs clusters
+sections, note-content vs YAML markup, and content duplicated between items[] and candidate_l2s
+— sliced from the RAW captured YAML (never re-dumped structs, which would carry different
+markup bytes) via `yq` (no PyYAML dependency in this environment). Batch mode ALSO copies each
+trial's transcript (and, under --segment, its captured query payload) into a durable
+`<out>-transcripts/` directory next to the artifact, fixing the ephemerality of the sandbox
+paths recorded in `transcript_path` (ROOT gets rmtree'd by the NEXT invocation's first trial).
+
 Usage:
   python3 recall_time.py --mode pilot [--model opus]          # n=1, validate the instrument
   python3 recall_time.py --mode batch --n 3 --out <artifact>  # fresh sandbox per trial
@@ -38,6 +55,7 @@ import datetime
 import json
 import os
 import re
+import shlex
 import shutil
 import statistics
 import subprocess
@@ -85,8 +103,9 @@ def record_text(rec):
     return "\n".join(parts)
 
 
-def find_span(transcript_path):
-    """Apply the pinned delimiter procedure. Returns (span_dict, None) or (None, shape_report)."""
+def load_records(transcript_path):
+    """Parse a transcript's JSONL records (shared by find_span and the phase/census logic
+    below, so a trial's transcript is read from disk exactly once)."""
     records = []
     with open(transcript_path, errors="ignore") as fh:
         for line in fh:
@@ -97,7 +116,11 @@ def find_span(transcript_path):
                 records.append(json.loads(line))
             except json.JSONDecodeError:
                 continue
+    return records
 
+
+def find_span(records):
+    """Apply the pinned delimiter procedure. Returns (span_dict, None) or (None, shape_report)."""
     start_rec = next((r for r in records if r.get("timestamp")), None)
     end_rec, end_rule, end_match = None, None, None
     assistants = [r for r in records if r.get("type") == "assistant"]
@@ -143,7 +166,309 @@ def find_transcript(cfg, session_id):
     return None
 
 
-def run_trial(idx, model, vault_copy=False):
+# ---------------------------------------------------------------------------------------
+# #684 phase segmentation: pinned phase model (plan Global Constraints — not redesigned
+# here, only implemented). Verified against the preserved #657 vault-copy transcripts
+# (vc-0, vc-2) before being wired into the batch — see task-1-report.md Step 1.
+# ---------------------------------------------------------------------------------------
+WRITE_MARKERS = ("engram amend", "engram activate", "engram learn")
+
+
+def _tool_use_blocks(records):
+    """Yield (record_index, record, block) for every assistant tool_use content block."""
+    for i, rec in enumerate(records):
+        if rec.get("type") != "assistant":
+            continue
+        content = (rec.get("message") or {}).get("content")
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "tool_use":
+                yield i, rec, block
+
+
+def _bash_command(block):
+    return (block.get("input") or {}).get("command") or ""
+
+
+def _tool_result_text(block):
+    content = (block or {}).get("content")
+    if isinstance(content, str):
+        return content
+    parts = []
+    if isinstance(content, list):
+        for b in content:
+            if isinstance(b, dict) and isinstance(b.get("text"), str):
+                parts.append(b["text"])
+    return "\n".join(parts)
+
+
+def _find_tool_result(records, tool_use_id, after_index):
+    """First tool_result (any record type) carrying tool_use_id, scanning forward."""
+    for rec in records[after_index:]:
+        content = (rec.get("message") or {}).get("content")
+        if not isinstance(content, list):
+            continue
+        for block in content:
+            if (isinstance(block, dict) and block.get("type") == "tool_result"
+                    and block.get("tool_use_id") == tool_use_id):
+                return rec.get("timestamp"), block
+    return None, None
+
+
+def find_query_calls(records):
+    """Every `engram query` Bash tool_use -> tool_result span, in transcript order. A
+    compound piped call (`engram query ... | head -200`, observed on every preserved #657
+    query call) is still ONE call and counts wholly under the per-call-span rule — never
+    split, per the plan's compound-call caveat."""
+    calls = []
+    for i, rec, block in _tool_use_blocks(records):
+        if block.get("name") != "Bash" or "engram query" not in _bash_command(block):
+            continue
+        use_ts = rec.get("timestamp")
+        result_ts, result_block = _find_tool_result(records, block.get("id"), i + 1)
+        if not use_ts or not result_ts:
+            continue
+        calls.append({
+            "tool_use_ts": use_ts, "tool_result_ts": result_ts,
+            "command": _bash_command(block), "result_text": _tool_result_text(result_block),
+        })
+    return calls
+
+
+def find_write_marker(records, after_ts):
+    """Arm 1: first assistant Bash tool_use invoking engram amend/activate/learn whose OWN
+    timestamp is after `after_ts` (the first query tool_result)."""
+    after = parse_ts(after_ts)
+    for _, rec, block in _tool_use_blocks(records):
+        if block.get("name") != "Bash":
+            continue
+        ts = rec.get("timestamp")
+        if not ts or parse_ts(ts) <= after:
+            continue
+        if any(marker in _bash_command(block) for marker in WRITE_MARKERS):
+            return ts
+    return None
+
+
+def find_synthesis_marker(records):
+    """Arm 2: FORWARD scan — first assistant record matching END_PRIMARY (contrast with
+    find_span's END, which is a BACKWARD scan for the LAST match; the two coincide exactly
+    when a transcript has exactly one END_PRIMARY match, the observed shape on 4/4
+    preserved fixtures)."""
+    for rec in records:
+        if rec.get("type") != "assistant":
+            continue
+        if END_PRIMARY.search(record_text(rec)):
+            return rec.get("timestamp")
+    return None
+
+
+def compute_phases(records, start_ts, end_ts):
+    """Segment [start_ts, end_ts] into the four #684 phases. Returns (phases_dict, None) on
+    success or (None, reason) if a query call or BOTH marker arms cannot be located
+    mechanically — STOP, never estimated (plan Global Constraints)."""
+    query_calls = find_query_calls(records)
+    if not query_calls:
+        return None, "no `engram query` tool_use found — cannot segment"
+
+    first_use_ts = query_calls[0]["tool_use_ts"]
+    first_result_ts = query_calls[0]["tool_result_ts"]
+    arm1_ts = find_write_marker(records, first_result_ts)
+    arm2_ts = find_synthesis_marker(records)
+    candidates = [t for t in (arm1_ts, arm2_ts) if t]
+    if not candidates:
+        return None, "neither Arm 1 (write call) nor Arm 2 (synthesis text) found — cannot mark Step 2.5"
+    marker_ts = min(candidates, key=parse_ts)
+    marker_arm = ("arm1-write" if marker_ts == arm1_ts and marker_ts != arm2_ts else
+                  "arm2-synthesis" if marker_ts == arm2_ts and marker_ts != arm1_ts else "arm1-arm2-tie")
+
+    start_dt, end_dt, marker_dt = parse_ts(start_ts), parse_ts(end_ts), parse_ts(marker_ts)
+    first_use_dt, first_result_dt = parse_ts(first_use_ts), parse_ts(first_result_ts)
+
+    pre_query_s = (first_use_dt - start_dt).total_seconds()
+    query_call_s = sum(
+        (parse_ts(c["tool_result_ts"]) - parse_ts(c["tool_use_ts"])).total_seconds() for c in query_calls)
+    subsequent_in_window_s = sum(
+        (parse_ts(c["tool_result_ts"]) - parse_ts(c["tool_use_ts"])).total_seconds()
+        for c in query_calls[1:]
+        if first_result_dt <= parse_ts(c["tool_use_ts"]) and parse_ts(c["tool_result_ts"]) <= marker_dt)
+    payload_consumption_s = (marker_dt - first_result_dt).total_seconds() - subsequent_in_window_s
+    remainder_s = (end_dt - marker_dt).total_seconds()
+
+    phases = {
+        "pre_query_s": round(pre_query_s, 1), "query_call_s": round(query_call_s, 1),
+        "payload_consumption_s": round(payload_consumption_s, 1), "remainder_s": round(remainder_s, 1),
+        "marker_ts": marker_ts, "marker_arm": marker_arm,
+        "arm1_write_ts": arm1_ts, "arm2_synthesis_ts": arm2_ts, "n_query_calls": len(query_calls),
+    }
+    span_s = round((end_dt - start_dt).total_seconds(), 1)
+    total_s = (phases["pre_query_s"] + phases["query_call_s"]
+               + phases["payload_consumption_s"] + phases["remainder_s"])
+    all_nonneg = all(phases[k] >= 0 for k in
+                      ("pre_query_s", "query_call_s", "payload_consumption_s", "remainder_s"))
+    sum_ok = abs(total_s - span_s) <= 1.0
+    phases["gate_ok"] = bool(all_nonneg and sum_ok)
+    phases["gate_detail"] = ("PASS" if phases["gate_ok"] else
+                              f"FAIL: all_nonneg={all_nonneg} phase_sum={total_s} span={span_s}")
+    return phases, None
+
+
+# ---------------------------------------------------------------------------------------
+# #684 payload census: byte-profile the trial's own `engram query` output (plan Step 2
+# formulas — not redesigned here, only implemented). No PyYAML in this environment (pip is
+# broken locally); `yq` (kislyuk python-yq, wrapping PyYAML, confirmed on PATH) parses the
+# payload into JSON for content-field access, while section/item BYTE spans are always
+# sliced from the RAW captured text per the plan's explicit "slice, don't re-dump" method.
+# ---------------------------------------------------------------------------------------
+_TOP_LEVEL_KEYS = ("version", "phrases", "items", "clusters", "budget", "refit_pending")
+_TOP_LEVEL_RE = re.compile(r"^(" + "|".join(_TOP_LEVEL_KEYS) + r"):", re.MULTILINE)
+_ITEM_START_RE = re.compile(r"^  - path: ", re.MULTILINE)
+
+
+def _yq_flavor():
+    try:
+        out = subprocess.run(["yq", "--version"], capture_output=True, text=True, timeout=10).stdout
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    return "go" if "mikefarah" in out.lower() else "python"
+
+
+def yaml_to_json(raw_text):
+    """Shell out to `yq` to parse the payload YAML into JSON. Fails LOUD (raises) if `yq`
+    is missing or the parse fails — a payload census is never silently approximated."""
+    flavor = _yq_flavor()
+    if flavor is None:
+        raise RuntimeError("`yq` not found on PATH — required to parse the query payload for census")
+    args = ["yq", "-o=json", "eval", "."] if flavor == "go" else ["yq", "."]
+    proc = subprocess.run(args, input=raw_text, capture_output=True, text=True, timeout=30)
+    if proc.returncode != 0:
+        raise RuntimeError(f"yq failed to parse payload YAML: {proc.stderr.strip()[:300]}")
+    return json.loads(proc.stdout)
+
+
+def slice_top_level_sections(raw_text):
+    """Byte-exact spans of each top-level payload key (its line to the next top-level
+    key's line, or EOF), sliced from the RAW text — never re-dumped structs, whose markup
+    bytes differ from what the binary actually emitted."""
+    matches = list(_TOP_LEVEL_RE.finditer(raw_text))
+    sections = {}
+    for idx, m in enumerate(matches):
+        start = m.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(raw_text)
+        sections[m.group(1)] = raw_text[start:end]
+    return sections
+
+
+def payload_is_complete(raw_text):
+    """A capture is complete iff it parses AND carries all 5 top-level keys — `budget` is
+    the LAST-rendered struct field (query.go's queryPayload field order), so its presence
+    proves the capture wasn't cut off by an agent's own `| head` / `| sed` pipe (observed
+    on every preserved #657 query call — see task-1-report.md)."""
+    try:
+        doc = yaml_to_json(raw_text)
+    except (RuntimeError, json.JSONDecodeError):
+        return False
+    return isinstance(doc, dict) and all(k in doc for k in ("version", "phrases", "items", "clusters", "budget"))
+
+
+def compute_census(raw_text):
+    """Payload byte census per the plan's pinned formulas (Step 2). Raises RuntimeError
+    (yq) or ValueError (shape mismatch) if the payload can't be measured — never
+    estimated."""
+    doc = yaml_to_json(raw_text)
+    if not isinstance(doc, dict):
+        raise ValueError("payload did not parse to a YAML mapping")
+    sections = slice_top_level_sections(raw_text)
+    items = doc.get("items") or []
+    clusters = doc.get("clusters") or []
+
+    items_section = sections.get("items", "")
+    starts = [m.start() for m in _ITEM_START_RE.finditer(items_section)]
+    item_blocks = [items_section[s:(starts[i + 1] if i + 1 < len(starts) else len(items_section))]
+                   for i, s in enumerate(starts)]
+    if len(item_blocks) != len(items):
+        raise ValueError(
+            f"item block count mismatch: {len(item_blocks)} raw blocks vs {len(items)} parsed items "
+            "— the 2-space '- path:' boundary assumption broke; escalate rather than guess")
+
+    def content_bytes(entry):
+        return len((entry.get("content") or "").encode("utf-8"))
+
+    items_bytes = len(items_section.encode("utf-8"))
+    clusters_bytes = len(sections.get("clusters", "").encode("utf-8"))
+    items_all_content_bytes = sum(content_bytes(it) for it in items)
+    items_notes_content_bytes = sum(content_bytes(it) for it in items if it.get("kind") != "chunk")
+    items_meta_bytes = items_bytes - items_all_content_bytes
+
+    candidate_content_bytes = 0
+    candidate_paths = set()
+    for cluster in clusters:
+        for cand in cluster.get("candidate_l2s") or []:
+            candidate_content_bytes += content_bytes(cand)
+            candidate_paths.add(cand.get("path"))
+    clusters_meta_bytes = clusters_bytes - candidate_content_bytes
+
+    # item_blocks[i] is item[i]'s RAW block by construction (both in document order); zip
+    # positionally rather than by path — items[] carries genuine path duplicates (the same
+    # note surfacing via >1 provenance channel), which would silently collide in a dict.
+    recent_bytes = sum(len(block.encode("utf-8")) for it, block in zip(items, item_blocks)
+                       if "recent" in (it.get("provenances") or []))
+
+    duplicated_note_content_bytes = sum(
+        content_bytes(it) for it in items
+        if it.get("kind") != "chunk" and it.get("path") in candidate_paths)
+
+    return {
+        "total_bytes": len(raw_text.encode("utf-8")),
+        "items_notes_content_bytes": items_notes_content_bytes,
+        "items_meta_bytes": items_meta_bytes,
+        "clusters_candidate_content_bytes": candidate_content_bytes,
+        "clusters_meta_bytes": clusters_meta_bytes,
+        "recent_bytes": recent_bytes,
+        "duplicated_note_content_bytes": duplicated_note_content_bytes,
+    }
+
+
+def _clean_query_command(cmd):
+    """Reduce a captured Bash command to the bare `engram query ...` argv, dropping any
+    redirection/pipe suffix an agent added (e.g. `2>&1 | head -200`) — those pipes are why
+    a transcript-captured payload can be truncated — and un-escaping the `\\\\\\n` line
+    continuations agents wrap long --phrase chains in. Returns an argv list (never a shell
+    string): the reissue then runs shell=False, so no shell-metacharacter risk."""
+    if " 2>&1" in cmd:
+        cmd = cmd.split(" 2>&1", 1)[0]
+    elif " | " in cmd:
+        cmd = cmd.split(" | ", 1)[0]
+    cmd = cmd.replace("\\\n", " ")
+    return shlex.split(cmd)
+
+
+def capture_query_payload(query_calls, env, wd):
+    """The trial's raw query payload YAML for the census: prefers the transcript's own
+    first-query-call capture (what the agent actually saw); if that capture was truncated
+    by the agent's own pipe, reissues the SAME query (pipe stripped) directly against the
+    trial's own sandbox (still on disk — sandboxes are rmtree'd at the START of the NEXT
+    run_trial call, not on exit) so the census still measures a complete payload. Returns
+    (raw_text, source_label) or (None, failure_reason)."""
+    first = query_calls[0]
+    raw = first["result_text"]
+    if payload_is_complete(raw):
+        return raw, "transcript (first query tool_result)"
+
+    clean_argv = _clean_query_command(first["command"])
+    try:
+        proc = subprocess.run(clean_argv, cwd=wd, env=env, capture_output=True, text=True, timeout=120)
+    except subprocess.TimeoutExpired:
+        return None, "reissue timed out"
+    except FileNotFoundError as exc:
+        return None, f"reissue command not found: {exc}"
+    if payload_is_complete(proc.stdout):
+        return proc.stdout, "reissued (transcript capture truncated by agent's own pipe)"
+    return None, f"reissued capture also incomplete (rc={proc.returncode}): {proc.stderr[:200]}"
+
+
+def run_trial(idx, model, vault_copy=False, segment=False):
     """One warm trial in a fresh sandbox (fresh cfg + vault + workdir + chunks dir).
 
     vault_copy=True: production-scale contrast — copy the REAL vault + chunk index into the
@@ -206,7 +531,8 @@ def run_trial(idx, model, vault_copy=False):
     if not tx:
         row["error"] = f"no {row['session_id']}.jsonl under {cfg}/projects"
         return row
-    span, shape = find_span(tx)
+    records = load_records(tx)
+    span, shape = find_span(records)
     if span is None:
         row["error"] = "delimiters unresolved; transcript shape: " + json.dumps(shape)
         return row
@@ -216,6 +542,27 @@ def run_trial(idx, model, vault_copy=False):
                         f"{row['wall_s']}s — the host slept mid-trial; not poolable")
         return row
     row["ok"] = True
+
+    if segment:
+        row["phases"], row["phase_error"] = compute_phases(records, span["start_ts"], span["end_ts"])
+        query_calls = find_query_calls(records)
+        row["census"], row["census_error"], row["census_source"], row["payload_path"] = None, None, None, None
+        if not query_calls:
+            row["census_error"] = "no `engram query` tool_use found — cannot capture payload"
+        else:
+            payload_text, note = capture_query_payload(query_calls, env, wd)
+            if payload_text is None:
+                row["census_error"] = note
+            else:
+                row["census_source"] = note
+                payload_path = os.path.join(base, "query_payload.yaml")
+                with open(payload_path, "w") as fh:
+                    fh.write(payload_text)
+                row["payload_path"] = payload_path
+                try:
+                    row["census"] = compute_census(payload_text)
+                except (RuntimeError, ValueError) as exc:
+                    row["census_error"] = str(exc)
     return row
 
 
@@ -229,6 +576,64 @@ def flag_degraded(rows):
     return [r["idx"] for r in ok if r.get("low_cost_flag")]
 
 
+PHASE_FIELDS = ("pre_query_s", "query_call_s", "payload_consumption_s", "remainder_s")
+CENSUS_FIELDS = ("total_bytes", "items_notes_content_bytes", "items_meta_bytes",
+                  "clusters_candidate_content_bytes", "clusters_meta_bytes",
+                  "recent_bytes", "duplicated_note_content_bytes")
+
+
+def summarize_phases(rows):
+    """Median + range per phase across gate-PASS trials only — a validity-gate failure is
+    reported (gate_failed_idx) but never pooled, same discard-never-pool contract as the
+    sleep gate."""
+    poolable = [r for r in rows if r.get("ok") and r.get("phases") and r["phases"]["gate_ok"]]
+    summary = {
+        "n_ok": sum(1 for r in rows if r.get("ok")), "n_gate_pass": len(poolable),
+        "gate_failed_idx": [r["idx"] for r in rows if r.get("phases") and not r["phases"]["gate_ok"]],
+        "phase_error_idx": [r["idx"] for r in rows if r.get("ok") and r.get("phase_error")],
+        "note": "medians/ranges pool ONLY phase-validity-gate-PASS trials; discard-never-pool",
+    }
+    for field in PHASE_FIELDS:
+        vals = sorted(r["phases"][field] for r in poolable)
+        summary[field] = {"median": statistics.median(vals) if vals else None,
+                          "range": [vals[0], vals[-1]] if vals else None}
+    return summary
+
+
+def summarize_census(rows):
+    """Median + range per census field across trials with a successfully measured census."""
+    withcensus = [r for r in rows if r.get("census")]
+    summary = {
+        "n_ok": sum(1 for r in rows if r.get("ok")), "n_census": len(withcensus),
+        "census_error_idx": [r["idx"] for r in rows if r.get("ok") and r.get("census_error")],
+    }
+    for field in CENSUS_FIELDS:
+        vals = sorted(r["census"][field] for r in withcensus)
+        summary[field] = {"median": statistics.median(vals) if vals else None,
+                          "range": [vals[0], vals[-1]] if vals else None}
+    return summary
+
+
+def copy_durable_artifacts(rows, out_path):
+    """Copy each trial's transcript (and, if segmented, its captured query payload) into a
+    durable `<out>-transcripts/` dir next to the artifact — the sandbox paths recorded in
+    `transcript_path`/`payload_path` get rmtree'd by the NEXT invocation's first trial."""
+    transcripts_dir = os.path.splitext(out_path)[0] + "-transcripts"
+    os.makedirs(transcripts_dir, exist_ok=True)
+    for row in rows:
+        tx = row.get("transcript_path")
+        if tx and os.path.exists(tx):
+            dest = os.path.join(transcripts_dir, f"trial-{row['idx']}.jsonl")
+            shutil.copy2(tx, dest)
+            row["transcript_copy_path"] = dest
+        payload = row.get("payload_path")
+        if payload and os.path.exists(payload):
+            dest = os.path.join(transcripts_dir, f"trial-{row['idx']}-payload.yaml")
+            shutil.copy2(payload, dest)
+            row["payload_copy_path"] = dest
+    return transcripts_dir
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", choices=("pilot", "batch"), required=True)
@@ -237,6 +642,8 @@ def main():
     ap.add_argument("--out", default=None, help="artifact JSON path (batch mode)")
     ap.add_argument("--vault-copy", action="store_true",
                     help="production-scale mode: sandbox copies of the real vault + chunk index")
+    ap.add_argument("--segment", action="store_true",
+                    help="#684: also compute per-trial phase segmentation + payload census")
     a = ap.parse_args()
 
     os.makedirs(ROOT, exist_ok=True)
@@ -244,7 +651,7 @@ def main():
 
     if a.mode == "pilot":
         print(f"PILOT n=1 model={a.model} fixture=nocolor vault={vault_desc} root={ROOT}")
-        row = run_trial("pilot", a.model, a.vault_copy)
+        row = run_trial("pilot", a.model, a.vault_copy, a.segment)
         print(json.dumps(row, indent=1))
         if not row["ok"]:
             print("\nPILOT FAILED — delimiters did not resolve (or the trial errored).")
@@ -254,20 +661,27 @@ def main():
         print(f"END   = {row['end_ts']}  (rule={row['end_rule']}, match={row['end_match']!r})")
         print(f"SPAN  = {row['recall_span_s']} s  (trial total {row['total_duration_s']} s, "
               f"${row['cost_usd']:.2f}, turns={row['turns']})")
+        if a.segment:
+            print(f"PHASES = {row.get('phases')}  phase_error={row.get('phase_error')}")
+            print(f"CENSUS = {row.get('census')}  census_error={row.get('census_error')} "
+                  f"source={row.get('census_source')}")
         return
 
     if not a.out:
         ap.error("--out is required in batch mode")
-    print(f"BATCH n={a.n} model={a.model} fixture=nocolor vault={vault_desc} root={ROOT}")
+    print(f"BATCH n={a.n} model={a.model} fixture=nocolor vault={vault_desc} root={ROOT} segment={a.segment}")
     rows = []
     for i in range(a.n):
-        row = run_trial(i, a.model, a.vault_copy)
+        row = run_trial(i, a.model, a.vault_copy, a.segment)
         rows.append(row)
         print(f"  [trial {i}] ok={row['ok']} span={row['recall_span_s']}s "
               f"total={row['total_duration_s']}s ${row['cost_usd']:.2f} turns={row['turns']}"
-              + (f" ERROR: {row['error']}" if row["error"] else ""))
+              + (f" ERROR: {row['error']}" if row["error"] else "")
+              + (f" phases={row['phases']}" if a.segment and row.get("phases") else "")
+              + (f" PHASE-ERROR: {row['phase_error']}" if a.segment and row.get("phase_error") else "")
+              + (f" census_error={row['census_error']}" if a.segment and row.get("census_error") else ""))
         if not row["ok"]:  # one full re-trial per slot (fresh sandbox); the failed row stays reported
-            row = run_trial(f"{i}r", a.model, a.vault_copy)
+            row = run_trial(f"{i}r", a.model, a.vault_copy, a.segment)
             rows.append(row)
             print(f"  [trial {i}r] (retry) ok={row['ok']} span={row['recall_span_s']}s "
                   f"total={row['total_duration_s']}s ${row['cost_usd']:.2f} turns={row['turns']}"
@@ -283,6 +697,10 @@ def main():
         "low_cost_flagged_trials": flagged,
         "note": "n=3 directional by design; failed trials are reported, never pooled",
     }
+    phase_summary = summarize_phases(rows) if a.segment else None
+    census_summary = summarize_census(rows) if a.segment else None
+    transcripts_dir = copy_durable_artifacts(rows, a.out) if a.out else None
+
     # Vault-copy rows append under their own key in an existing artifact; the seed_c3 rows and
     # the vault-copy rows are summarized separately and NEVER pooled.
     artifact = {}
@@ -296,17 +714,25 @@ def main():
         "delimiters": "START=first timestamped record; END=backward assistant scan for "
                       "'Query surfaced N items', fallback 'Re-entry:'",
         "date": datetime.date.today().isoformat(),
+        "transcripts_dir": transcripts_dir,
     })
     if a.vault_copy:
         artifact["vault_copy"] = {"vault": vault_desc, "trials": rows, "summary": summary}
     else:
         artifact.update({"trials": rows, "summary": summary})
+    if a.segment:
+        segmented_block = {"trials": rows, "phase_summary": phase_summary, "census_summary": census_summary}
+        artifact.setdefault("segmented", {})[
+            "vault_copy" if a.vault_copy else "trials_fixture"] = segmented_block
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, "w") as fh:
         json.dump(artifact, fh, indent=1)
     print(f"\nmedian={summary['median_recall_span_s']}s range={summary['range_recall_span_s']} "
           f"n_ok={summary['n_ok']}/{a.n} spend=${summary['total_cost_usd']:.2f} "
           f"low_cost_flags={flagged}")
+    if a.segment:
+        print(f"PHASE SUMMARY: {json.dumps(phase_summary, indent=1)}")
+        print(f"CENSUS SUMMARY: {json.dumps(census_summary, indent=1)}")
     print(f"wrote {a.out}")
 
 
