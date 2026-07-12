@@ -68,6 +68,11 @@ engram ingest --auto
 
 Seconds when nothing changed; guarantees the index includes the latest sessions and doc edits.
 If it errors, say so and continue — retrieval over a slightly-stale index beats no retrieval.
+If a sweep (`engram ingest --auto`) already ran earlier in THIS session, skip it — intra-session
+re-sweeps index turns already in your context; the closing learn's sweep preserves freshness for
+future sessions. This holds even under a "something might have changed outside this session
+(another terminal, another agent)" worry — that gets picked up by the next sweep (yours or
+theirs), not by re-sweeping now on suspicion.
 
 ### Step 1 — Phrase queries from your plan and situation
 
@@ -296,7 +301,7 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 | Sign you're off-script | What you should be doing |
 | --- | --- |
 | You never printed Step 0 | Back up — the skill is a no-op without it |
-| You skipped the Step 0.5 sweep | It costs seconds and keeps memory current |
+| You skipped the Step 0.5 sweep with no prior sweep this session | It costs seconds and keeps memory current |
 | `--vault` or `--chunks-dir` on the query | `engram query --phrase ...` only — the binary always runs the unified D1 clustering and emits `candidate_l2s` |
 | Separate query calls per phrase | One call, repeatable `--phrase` flags |
 | You quoted chunks wholesale into the reply | Extract the principle a chunk evidences; paraphrase |

@@ -19,7 +19,7 @@ Two jobs, in order: (1) mechanically true up the chunk index so every conversati
 > job is crystallizing EXPLICIT lessons. Do not reconstruct the old episode workflow
 > (`engram transcript`, `engram learn episode`) — it is gone.
 
-## Step 1 — Sweep (always, first)
+## Step 1 — Sweep (first; the closing learn always sweeps)
 
 ```bash
 engram ingest --auto
@@ -31,6 +31,12 @@ corpus → returns in seconds. Report the one-line tally it prints (or "memory i
 
 If the command fails, surface the error and continue to Step 2 — explicit lessons must not be
 lost to an ingest hiccup.
+
+Skip the sweep if one already ran earlier in THIS session, UNLESS this is the closing learn of a
+work cycle — the closing learn ALWAYS sweeps (it captures the session's tail for future sessions).
+This holds even under a "something might have changed outside this session (another terminal,
+another agent)" worry — that gets picked up by the next sweep (yours or theirs), not by
+re-sweeping now on suspicion.
 
 ## Step 1.5 — Vocab liveness check
 
@@ -149,6 +155,6 @@ this session), do not write it again here. One pair per distinct answered questi
 | You're writing an episode or summarizing the session into a note | Don't — raw chunks already hold it |
 | You're writing facts for things nobody asked you to remember | Only corrections, save-requests, reversals, and confirmed approaches crystallize here |
 | You're writing a confirmed-approach note for a routine success or a bare "thanks!" | Kind 4 needs a genuine bet with observable confirmation, or explicit praise of a SPECIFIC behavior — never mere success |
-| You skipped the sweep because "nothing changed" | The sweep IS the check — it costs seconds when nothing changed |
+| You skipped the sweep because "nothing changed" | The sweep IS the check — it costs seconds when nothing changed — skipping because a sweep already ran this session is the prescribed exception |
 | `--tier` flags or L3/ADR writing | Tiers are not part of learn anymore |
 | You corrected a repo doc (CORRECTION/postscript) and skipped the vault note | Write the vault note for the reversal's root cause — record-correction is not capture |
