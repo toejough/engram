@@ -22,6 +22,13 @@ type UpdateArgs struct {
 	WithGuidance bool `targ:"flag,name=with-guidance,desc=deploy guidance to .claude/engram/ for CLAUDE.md @import"`
 }
 
+// unexported constants.
+const (
+	oldVocabFilePrefix   = "vocab."
+	oldVocabFileSuffix   = ".md"
+	vocabMigrationNotice = "old-format vocab files found — see the Upgrading section in README.md for migration steps\n"
+)
+
 // unexported variables.
 var (
 	_                      update.Filesystem = (*osUpdateFS)(nil)
@@ -202,6 +209,33 @@ func finishUpdate(stdout io.Writer, report update.Report, runErr error) error {
 
 func harnessFailed(harness update.HarnessReport) bool { return harness.Err != nil }
 
+// oldVocabFilesPresent reports whether vaultPath still holds pre-tags vocab
+// files (vocab.<term>.md term notes, vocab.index.md) — the signal that a
+// vault predates the 2026-07-10 vocab→tags migration (#678). A missing or
+// unreadable vault directory is treated as false (self-silencing for fresh
+// installs); the underlying ReadDir error is never surfaced.
+// The ".md" suffix guard is load-bearing: vocab.centroids.json is a current,
+// always-present vault file sharing the "vocab." prefix — it must NOT match.
+func oldVocabFilesPresent(vaultPath string, fileSystem update.Filesystem) bool {
+	entries, readErr := fileSystem.ReadDir(vaultPath)
+	if readErr != nil {
+		return false
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		if strings.HasPrefix(name, oldVocabFilePrefix) && strings.HasSuffix(name, oldVocabFileSuffix) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func pluralFile(n int) string {
 	if n == 1 {
 		return "file"
@@ -222,6 +256,10 @@ func runUpdate(ctx context.Context, args UpdateArgs, stdout io.Writer) error {
 		DryRun:       args.DryRun,
 		WithGuidance: args.WithGuidance,
 	})
+	if runErr == nil {
+		vaultPath := resolveVault("", report.Home, updater.Env.Getenv)
+		report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, updater.FS)
+	}
 
 	return finishUpdate(stdout, report, runErr)
 }
@@ -333,6 +371,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	}
 
 	writeGuidanceHints(&buffer, report)
+	writeVocabMigrationHint(&buffer, report)
 
 	_, err := out.Write(buffer.Bytes())
 	if err != nil {
@@ -340,4 +379,13 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	}
 
 	return nil
+}
+
+// writeVocabMigrationHint prints a one-line pointer to the README
+// "Upgrading" section when the vault still holds pre-tags vocab files.
+// Silent otherwise — a vault that never had the old format never sees it.
+func writeVocabMigrationHint(buffer *bytes.Buffer, report update.Report) {
+	if report.VaultHasOldVocabFiles {
+		buffer.WriteString(vocabMigrationNotice)
+	}
 }

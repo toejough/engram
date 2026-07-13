@@ -138,7 +138,13 @@ type Report struct {
 	BinaryVersion    string          // resolved engram version, empty when unknown
 	GuidanceImported bool            // true when ~/.claude/CLAUDE.md imports ANY engram guidance file
 	GuidanceImports  map[string]bool // set of imported engram-guidance basenames (for per-file hints)
-	Harnesses        []HarnessReport
+	// VaultHasOldVocabFiles is true when the vault still holds pre-tags
+	// vocab.*.md files. Set by the cli package after Run returns (via
+	// oldVocabFilesPresent) — Updater.Run itself never touches vault paths;
+	// this field is opaque data.
+	VaultHasOldVocabFiles bool
+
+	Harnesses []HarnessReport
 }
 
 // SkillDirCount records how many files were copied into one skill dir.

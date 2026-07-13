@@ -81,6 +81,7 @@ var (
 	ExportNextLuhmannID                    = nextLuhmannID
 	ExportNoteAgeDays                      = noteAgeDays
 	ExportNoteContainsAnyRemoval           = noteContainsAnyRemoval
+	ExportOldVocabFilesPresent             = oldVocabFilesPresent
 	ExportParseCreatedFromNote             = parseCreatedFromNote
 	ExportParseNoteQueryFrontmatter        = parseNoteQueryFrontmatter
 	ExportParseSupersedesFlag              = parseSupersedesFlag

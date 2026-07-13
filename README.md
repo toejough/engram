@@ -39,6 +39,12 @@ Requires Go 1.25+ on `PATH`.
 
    `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys the guidance docs under `guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` for CLAUDE.md `@import` (Claude Code; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md imports a guidance file, plain `engram update` keeps it current (like skills). Until then, plain `engram update` prints a one-line hint.
 
+## Upgrading
+
+**If your vault predates the vocab→tags migration (2026-07-10, #678), its old vocab notes are silently unrecognized** — no read path reads them, and no error is raised. Vocab membership now lives in a single `tags: [vocab/<term>]` frontmatter entry; the old `vocab.<term>.md` term-note files, `Vocab:` body-lines, `vocab:` frontmatter, and `vocab.index.md` index are retired. `engram update` prints a one-line notice pointing here when it detects old-format files in your vault.
+
+Migration is not automated; an LLM should be able to migrate the vault easily. To recover the retired one-shot converter, `git log` restores the `engram vocab migrate-tags` command (removed in commit `d1995030`, #681).
+
 ## Skills
 
 | Skill | What it does |

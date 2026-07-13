@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,6 +151,51 @@ func TestFinishUpdate_PropagatesRunError(t *testing.T) {
 	err := cli.ExportFinishUpdate(&buffer, update.Report{}, runErr)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, runErr)).To(BeTrue())
+}
+
+func TestOldVocabFilesPresent(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name  string
+		files map[string][]byte
+		want  bool
+	}{
+		{
+			name:  "vocab-index-present",
+			files: map[string][]byte{"/vault/vocab.index.md": []byte("index")},
+			want:  true,
+		},
+		{
+			name:  "vocab-term-note-present",
+			files: map[string][]byte{"/vault/vocab.recall.md": []byte("term note")},
+			want:  true,
+		},
+		{
+			name:  "no-old-vocab-files",
+			files: map[string][]byte{"/vault/1.2026-07-01.some-note.md": []byte("note")},
+			want:  false,
+		},
+		{
+			name:  "missing-vault-dir",
+			files: map[string][]byte{},
+			want:  false,
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newU1FS()
+			maps.Copy(fileSystem.files, tc.files)
+
+			got := cli.ExportOldVocabFilesPresent("/vault", fileSystem)
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
 }
 
 func TestOsCommander_ReportsFailure(t *testing.T) {
@@ -664,4 +710,67 @@ func TestWriteUpdateReport_RemoteHarnessFailure(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("source: remote module github.com/toejough/engram v0.2.0"))
 	g.Expect(out).To(ContainSubstring("error: disk full"))
 	g.Expect(out).NotTo(ContainSubstring("installed:"))
+}
+
+func TestWriteUpdateReport_VocabMigrationHint(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name            string
+		hasOldVocab     bool
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name:         "old-vocab-present",
+			hasOldVocab:  true,
+			wantContains: []string{"Upgrading", "README.md"},
+		},
+		{
+			name:            "no-old-vocab",
+			hasOldVocab:     false,
+			wantNotContains: []string{"Upgrading"},
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			report := update.Report{
+				Home:                  "/home/joe",
+				Source:                update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
+				GoInstall:             "go install ./cmd/engram/",
+				VaultHasOldVocabFiles: tc.hasOldVocab,
+				Harnesses: []update.HarnessReport{
+					{
+						Name:       update.HarnessClaude,
+						ProbeRoot:  ".claude",
+						SkillsRoot: "/home/joe/.claude/skills",
+					},
+				},
+			}
+
+			var buffer bytes.Buffer
+
+			writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+			g.Expect(writeErr).NotTo(HaveOccurred())
+
+			if writeErr != nil {
+				return
+			}
+
+			out := buffer.String()
+
+			for _, s := range tc.wantContains {
+				g.Expect(out).To(ContainSubstring(s))
+			}
+
+			for _, s := range tc.wantNotContains {
+				g.Expect(out).NotTo(ContainSubstring(s))
+			}
+		})
+	}
 }

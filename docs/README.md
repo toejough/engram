@@ -11,7 +11,7 @@ One obvious place to go for each question. Start here; the answer to "where do I
 | understand how it's structured | [architecture/c1-system-context.md](architecture/c1-system-context.md) → [c2-containers.md](architecture/c2-containers.md) → [c3-components.md](architecture/c3-components.md) |
 | see what's proven or refuted | [../dev/eval/LEDGER.md](../dev/eval/LEDGER.md) |
 | read or edit a skill's behavior | [../skills/](../skills/)`<skill>/SKILL.md` — edits require `superpowers:writing-skills` TDD; each skill's baseline scenarios are indexed in its `tests/README.md` |
-| install, or look up a CLI flag | [../README.md](../README.md) (Installing + Binary commands) |
+| install, upgrade, or look up a CLI flag | [../README.md](../README.md) (Installing + Upgrading + Binary commands) |
 | see the OpenCode slash-command wrappers | [../commands/](../commands/) |
 
 ## Subdirectories
