@@ -279,10 +279,6 @@ type queryBudget struct {
 	TagNominationsAdded   int  `yaml:"tag_nominations_added,omitempty"`
 	TagNominationsDropped int  `yaml:"tag_nominations_dropped,omitempty"`
 	LazyChunks            bool `yaml:"lazy_chunks,omitempty"`
-	// ItemsContentDeduped counts items[] note entries whose content was
-	// cleared because the same note already carries its content in a
-	// cluster's candidate_l2s (Variant-A dedupe) — see clearDedupedNoteContent.
-	ItemsContentDeduped int `yaml:"items_content_deduped,omitempty"`
 }
 
 // queryCandidateNote is one candidate note for a cluster. The binary emits
@@ -324,14 +320,12 @@ type queryItem struct {
 	Content     string   `yaml:"content,omitempty"`
 }
 
-// queryPayload is the top-level YAML document. Clusters render before Items
-// (Variant-A: clusters-first) — yaml.v3 renders fields in declared order, so
-// this struct's field order IS the wire order.
+// queryPayload is the top-level YAML document.
 type queryPayload struct {
 	Version      int            `yaml:"version"`
 	Phrases      []string       `yaml:"phrases"`
-	Clusters     []queryCluster `yaml:"clusters"`
 	Items        []queryItem    `yaml:"items"`
+	Clusters     []queryCluster `yaml:"clusters"`
 	Budget       queryBudget    `yaml:"budget"`
 	RefitPending bool           `yaml:"refit_pending,omitempty"`
 }
@@ -696,46 +690,6 @@ func clearChunkContent(items []queryItem) []queryItem {
 	}
 
 	return items
-}
-
-// clearDedupedNoteContent zeroes the Content of items[] note entries
-// (Kind != chunkItemKind) whose Path string-equals a path already present in
-// some cluster's candidate_l2s — that note's content already rides along in
-// candidate_l2s, so items[] doesn't need a second inline copy (Variant-A
-// dedupe). Chunk items are never affected (chunk members are skipped when
-// building candidate notes — clusterNoteIndexFromMembers — so a chunk's path
-// never collides with a candidate path in practice; the Kind guard here makes
-// that explicit rather than incidental). Kind is never touched — it was
-// already derived from content in renderItems before this post-process runs.
-// Returns the (mutated) items and the count of items actually cleared.
-func clearDedupedNoteContent(items []queryItem, clusters []queryCluster) ([]queryItem, int) {
-	candidatePaths := make(map[string]bool)
-
-	for _, qc := range clusters {
-		for _, candidate := range qc.CandidateL2s {
-			candidatePaths[candidate.Path] = true
-		}
-	}
-
-	cleared := 0
-
-	for i := range items {
-		if items[i].Kind == chunkItemKind {
-			continue
-		}
-
-		if !candidatePaths[items[i].Path] {
-			continue
-		}
-
-		if items[i].Content != "" {
-			cleared++
-		}
-
-		items[i].Content = ""
-	}
-
-	return items, cleared
 }
 
 // clusterMatchedSet clusters the matched set exactly once. On
@@ -1467,7 +1421,20 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems)
 	clusters := renderClusters(merged.phraseClusters)
 
-	items, snipped, deduped, contentful := resolveItemContent(items, clusters, merged)
+	// Lazy-chunk mode (opt-in): empty chunk content so the agent pages a
+	// chunk's evidence on-demand via `engram show-chunk`. Notes are untouched.
+	// When lazy, capChunkContent is skipped entirely (ChunksSnippeted reports 0)
+	// rather than run on the already-cleared chunks.
+	var snipped int
+
+	if merged.lazyChunks {
+		items = clearChunkContent(items)
+	} else {
+		items, snipped = capChunkContent(items, resolveContentBudget(merged.contentBudget))
+	}
+	// Full content = items still carrying their complete text — snippeted
+	// chunks retain (truncated) content, so exclude them from the count.
+	contentful := countItemsWithContent(items) - snipped
 
 	directCount := 0
 
@@ -1496,7 +1463,6 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 			TagNominationsAdded:   merged.tagNomsAdded,
 			TagNominationsDropped: merged.tagNomsDropped,
 			LazyChunks:            merged.lazyChunks,
-			ItemsContentDeduped:   deduped,
 		},
 	}
 
@@ -1532,37 +1498,6 @@ func resolveContentBudget(raw int) int {
 	}
 
 	return raw
-}
-
-// resolveItemContent applies the lazy/cap chunk-content policy, then the
-// Variant-A note-content dedupe, in that order — dedupe runs last so
-// ItemsWithFullContent (contentful) reflects post-dedupe reality. Returns the
-// (possibly mutated) items alongside the snipped/deduped tallies and the
-// full-content count the budget block needs.
-func resolveItemContent(
-	items []queryItem,
-	clusters []queryCluster,
-	merged aggregatedSummary,
-) (resolved []queryItem, snipped, deduped, contentful int) {
-	// Lazy-chunk mode (opt-in): empty chunk content so the agent pages a
-	// chunk's evidence on-demand via `engram show-chunk`. Notes are untouched.
-	// When lazy, capChunkContent is skipped entirely (ChunksSnippeted reports 0)
-	// rather than run on the already-cleared chunks.
-	if merged.lazyChunks {
-		items = clearChunkContent(items)
-	} else {
-		items, snipped = capChunkContent(items, resolveContentBudget(merged.contentBudget))
-	}
-
-	// Variant-A dedupe: a note already carrying its content in some cluster's
-	// candidate_l2s doesn't need a second inline copy in items[].
-	items, deduped = clearDedupedNoteContent(items, clusters)
-
-	// Full content = items still carrying their complete text — snippeted
-	// chunks retain (truncated) content, so exclude them from the count.
-	contentful = countItemsWithContent(items) - snipped
-
-	return items, snipped, deduped, contentful
 }
 
 // resolveRecentFill maps the raw --recent-fill flag/env value to the effective

@@ -124,9 +124,8 @@ type queryParsed struct {
 			IsRepresentative bool    `yaml:"is_representative"`
 		} `yaml:"members"`
 		CandidateL2s []struct {
-			Path    string  `yaml:"path"`
-			Cosine  float32 `yaml:"cosine"`
-			Content string  `yaml:"content"`
+			Path   string  `yaml:"path"`
+			Cosine float32 `yaml:"cosine"`
 		} `yaml:"candidate_l2s"`
 	} `yaml:"clusters"`
 	Budget struct {
@@ -137,45 +136,7 @@ type queryParsed struct {
 		DirectHitsReturned   int `yaml:"direct_hits_returned"`
 		ItemsWithFullContent int `yaml:"items_with_full_content"`
 		Limit                int `yaml:"limit"`
-		ItemsContentDeduped  int `yaml:"items_content_deduped"`
 	} `yaml:"budget"`
-}
-
-// findCandidateByPath returns the candidate_l2s entry across all clusters
-// whose Path matches, and whether one was found — for Variant-A dedupe
-// assertions (a deduped items[] note's content lives here instead).
-func findCandidateByPath(parsed queryParsed, path string) (content string, found bool) {
-	for _, cluster := range parsed.Clusters {
-		for _, candidate := range cluster.CandidateL2s {
-			if candidate.Path == path {
-				return candidate.Content, true
-			}
-		}
-	}
-
-	return "", false
-}
-
-// findItemByPath returns the items[] entry whose Path matches, and whether
-// one was found — for Variant-A dedupe assertions that need both Kind and
-// Content off the same item.
-func findItemByPath(parsed queryParsed, path string) (item struct {
-	Path        string   `yaml:"path"`
-	Kind        string   `yaml:"kind"`
-	Score       float32  `yaml:"score"`
-	Provenances []string `yaml:"provenances"`
-	ClusterID   *int     `yaml:"cluster_id,omitempty"`
-	InDegree    *int     `yaml:"in_degree,omitempty"`
-	Content     string   `yaml:"content"`
-}, found bool,
-) {
-	for _, candidate := range parsed.Items {
-		if candidate.Path == path {
-			return candidate, true
-		}
-	}
-
-	return item, false
 }
 
 // plantDualVector writes a note with distinct situation and body vectors so

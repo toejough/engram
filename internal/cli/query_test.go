@@ -458,7 +458,21 @@ func TestQuery_RanksByDescendingCosine(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 
-	var parsed queryParsed
+	var parsed struct {
+		Items []struct {
+			Path        string   `yaml:"path"`
+			Kind        string   `yaml:"kind"`
+			Score       float32  `yaml:"score"`
+			Provenances []string `yaml:"provenances"`
+			Content     string   `yaml:"content"`
+		} `yaml:"items"`
+		Budget struct {
+			TotalNotes         int `yaml:"total_notes"`
+			WithEmbeddings     int `yaml:"with_embeddings"`
+			DirectHitsReturned int `yaml:"direct_hits_returned"`
+			Limit              int `yaml:"limit"`
+		} `yaml:"budget"`
+	}
 
 	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
 	g.Expect(parsed.Items).To(HaveLen(2))
@@ -466,15 +480,7 @@ func TestQuery_RanksByDescendingCosine(t *testing.T) {
 	g.Expect(parsed.Items[0].Score).To(BeNumerically(">", parsed.Items[1].Score))
 	g.Expect(parsed.Items[0].Provenances).To(Equal([]string{"direct"}))
 	g.Expect(parsed.Items[0].Kind).To(Equal("fact"))
-	// Variant-A: with only 2 notes (< candidateNoteK), both are cluster
-	// candidates, so the top item's items[] content is deduped away — its
-	// content lives in the matching cluster candidate instead.
-	g.Expect(parsed.Items[0].Content).To(Equal(""), "candidate note content is deduped out of items[]")
-
-	candidateContent, found := findCandidateByPath(parsed, "1.match.md")
-	g.Expect(found).To(BeTrue(), "the deduped note must have a surviving candidate_l2s copy")
-	g.Expect(candidateContent).To(ContainSubstring("the query string body"))
-
+	g.Expect(parsed.Items[0].Content).To(ContainSubstring("the query string body"))
 	g.Expect(parsed.Budget.TotalNotes).To(Equal(2))
 	g.Expect(parsed.Budget.WithEmbeddings).To(Equal(2))
 	g.Expect(parsed.Budget.DirectHitsReturned).To(Equal(2))
@@ -572,21 +578,18 @@ func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 
-	var parsed queryParsed
+	var parsed struct {
+		Items []struct {
+			Content string `yaml:"content"`
+		} `yaml:"items"`
+	}
 
 	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
 	g.Expect(parsed.Items).To(HaveLen(1))
-	// Variant-A: the sole note is its own cluster's candidate, so items[]
-	// content is deduped away — the wikilink-stripped content lives in
-	// candidate_l2s instead.
-	g.Expect(parsed.Items[0].Content).To(Equal(""), "candidate note content is deduped out of items[]")
-
-	candidateContent, found := findCandidateByPath(parsed, "1.foo.md")
-	g.Expect(found).To(BeTrue(), "the deduped note must have a surviving candidate_l2s copy")
 	// Both wikilink shapes are stripped; display/target text remains.
-	g.Expect(candidateContent).NotTo(ContainSubstring("[["))
-	g.Expect(candidateContent).NotTo(ContainSubstring("]]"))
-	g.Expect(candidateContent).
+	g.Expect(parsed.Items[0].Content).NotTo(ContainSubstring("[["))
+	g.Expect(parsed.Items[0].Content).NotTo(ContainSubstring("]]"))
+	g.Expect(parsed.Items[0].Content).
 		To(ContainSubstring("See 1a.foo and the bar note for context."))
 }
 

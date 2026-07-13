@@ -36,12 +36,6 @@ import sys
 # (the matched-note floor puts the exact-match note clearly first).
 BURIED_TOP_SCORE = 0.92
 
-# CANDIDATE_NOTE_K mirrors the real engram binary's candidateNoteK (internal/cli/query.go):
-# the top-N surfaced notes by score become the cluster's candidate_l2s and carry their content
-# there; when fewer than N notes are surfaced, all of them are candidates. Everything else stays
-# a plain items[] entry with its content inline.
-CANDIDATE_NOTE_K = 5
-
 
 def _vault_notes(vault):
     """Return {basename: (frontmatter_situation, body)} for every .md in the flat vault."""
@@ -78,58 +72,24 @@ def _parse_phrases(argv):
 
 
 def _emit_payload(items):
-    """Emit a minimal but valid engram-query YAML payload the /recall skill can read —
-    Variant-A shape: clusters render before items[]; the top CANDIDATE_NOTE_K surfaced notes (by
-    score) are the single cluster's candidate_l2s and carry their content ONLY there (items[]
-    renders those paths content-free, deduped); every other surfaced note keeps its inline
-    items[] content untouched (it never appears in candidate_l2s). budget.items_content_deduped
-    reports exactly how many items[] entries were cleared.
-    """
-    ranked = sorted(items, key=lambda it: it["score"], reverse=True)
-    candidates = ranked[:CANDIDATE_NOTE_K]
-    candidate_paths = {c["path"] for c in candidates}
-    deduped = sum(1 for it in items if it["path"] in candidate_paths and it["content"])
-
-    lines = ["version: 1"]
-
-    # Clusters first (Variant-A: clusters-first).
-    lines.append("clusters:")
-    lines.append("  - id: 0")
-    lines.append(f"    size: {len(items)}")
-    if candidates:
-        lines.append("    candidate_l2s:")
-        for c in candidates:
-            lines.append(f"      - path: {c['path']}")
-            lines.append(f"        cosine: {c['score']}")
-            lines.append("        content: |-")
-            for cl in c["content"].splitlines():
-                lines.append(f"          {cl}")
-    else:
-        lines.append("    candidate_l2s: []")
-    if items:
-        lines.append("    members:")
-        for it in items:
-            lines.append(f"      - path: {it['path']}")
-            lines.append(f"        score: {it['score']}")
-    else:
-        lines.append("    members: []")
-
-    lines.append("items:")
+    """Emit a minimal but valid engram-query YAML payload the /recall skill can read."""
+    lines = ["version: 1", "items:"]
     for it in items:
         lines.append(f"  - path: {it['path']}")
         lines.append(f"    kind: {it['kind']}")
         lines.append(f"    score: {it['score']}")
-        if it["path"] in candidate_paths:
-            # Deduped: this note's content already rides along in candidate_l2s above.
-            lines.append('    content: ""')
-        else:
-            lines.append("    content: |-")
-            for cl in it["content"].splitlines():
-                lines.append(f"      {cl}")
-
-    lines.append("budget:")
-    lines.append(f"  items_content_deduped: {deduped}")
-
+        lines.append("    content: |-")
+        for cl in it["content"].splitlines():
+            lines.append(f"      {cl}")
+    # one cluster over the surfaced members; no candidate_l2s (nothing to crystallize)
+    lines.append("clusters:")
+    lines.append("  - id: 0")
+    lines.append(f"    size: {len(items)}")
+    lines.append("    candidate_l2s: []")
+    lines.append("    members:")
+    for it in items:
+        lines.append(f"      - path: {it['path']}")
+        lines.append(f"        score: {it['score']}")
     return "\n".join(lines) + "\n"
 
 

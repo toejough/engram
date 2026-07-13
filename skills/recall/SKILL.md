@@ -115,20 +115,15 @@ The payload has **two channels**:
 
 **Channel 1 — Relevance (clustered matched items):** Items matched by your 10 phrases, bounded
 to ~300 (top-30 per phrase, unioned, relevance-floor applied). These are clustered and carry
-`candidate_l2s` per cluster (see Step 2.5) — the binary renders `clusters` before `items` in the
-payload, and that is the reading order: process each cluster's `candidate_l2s` for candidate-note
-content and coverage judgment first, then scan `items` as the flat match index. The payload's
-`items` mix:
+`candidate_l2s` per cluster (see Step 2.5). Read this channel to surface applicable lessons and
+judge coverage. The payload's `items` mix:
 
 - `kind: chunk` — raw transcript/doc fragments with source + anchor. These are EVIDENCE:
   extract the convention, decision, or correction they show (a reviewer correcting code, a
   stated standard); never quote them wholesale. **Under `--lazy-chunks` (recall's default
   invocation — confirm via `budget.lazy_chunks: true`) chunk items carry path + source/anchor
   but NO `content` field: `engram show-chunk <source#anchor>` to read a chunk's evidence on-demand.**
-- `kind: fact` / `feedback` — crystallized lessons. A note that is one of a cluster's
-  `candidate_l2s` (Step 2.5) carries its content ONLY there — its `items[]` entry is deduped
-  (empty `content`). A matched note that is NOT a candidate for any cluster keeps its content
-  here in `items[]` — apply directly.
+- `kind: fact` / `feedback` — crystallized lessons; apply directly (notes always carry full content inline).
 
 **Channel 2 — Recent activity (un-clustered):** Items tagged `provenance: recent` — the newest
 chunks by ingest time, appended after the matched set, NOT cluster members. Read this block
@@ -161,13 +156,10 @@ members yields an empty `candidate_l2s` list; skip to the next cluster when that
 **A. Read candidates and members**
 
 `candidate_l2s` entries carry their `content` inline — read it directly; **no `engram show` calls for
-candidates.** That content lives ONLY in `candidate_l2s` — a candidate note's matching `items[]`
-entry has its `content` deduped away (`budget.items_content_deduped` reports the count); do not
-expect it there. A matched note that is NOT a candidate for any cluster keeps its content in
-`items[]` — read it there. For chunk members, the content is NOT in the payload (chunks carry
-path/source only under `--lazy-chunks`; the cluster's `members` list never carries content) —
-`engram show-chunk <source#anchor>` to read the evidence on-demand. Do not judge coverage before
-you have read the candidate content.
+candidates** (the same content is also on the matching `items[]` note member). For chunk
+members, the content is NOT in the payload (chunks carry path/source only under `--lazy-chunks`;
+the cluster's `members` list never carries content) — `engram show-chunk <source#anchor>` to read the
+evidence on-demand. Do not judge coverage before you have read the candidate content.
 
 **B. Apply the recency weight to resolve conflicts**
 
@@ -320,7 +312,7 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 | You wrote two notes (a fact AND a feedback) for one cluster | One representative note per cluster — pick the right kind |
 | You called `engram learn --target` to update a note in place | Updates use `engram amend`; `engram learn` is create-only |
 | A `≥0.95` cluster → you activated without reading the candidates | Read first; high cosine nominates, it does not decide |
-| You called `engram show` on a note already surfaced by the query | A CANDIDATE note's content is in its cluster's `candidate_l2s` — read it there (its `items[]` copy is deduped). A NON-candidate note in `items[]` still carries `content` directly — use it. CHUNK items carry no content under `--lazy-chunks` (`budget.lazy_chunks: true`) — `engram show-chunk <source#anchor>` to read their evidence. |
+| You called `engram show` on a note already in `items[]` | NOTE members in `items[]` carry `content` — use it directly. CHUNK items carry no content under `--lazy-chunks` (`budget.lazy_chunks: true`) — `engram show-chunk <source#anchor>` to read their evidence. |
 | You assumed a chunk's content is inline and skipped its evidence | Under `--lazy-chunks` chunks carry path/source only — `engram show-chunk <source#anchor>` on-demand before judging coverage |
 | You grouped chunks by eye instead of using the payload's clusters | The binary's k-means grouping is the ground truth; read every cluster |
 | You skipped Step 2.5 or read chunk-only results as "nothing surfaces" | Processing every cluster IS the step; "nothing surfaces" means an EMPTY payload — clusters present means Step 2.5 runs |

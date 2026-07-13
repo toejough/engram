@@ -321,35 +321,6 @@ func ExportClearChunkContent(kinds, contents []string) []string {
 	return out
 }
 
-// ExportClearDedupedNoteContent builds queryItems from parallel path/kind/
-// content slices plus a synthetic cluster whose candidate_l2s are built from
-// candidatePaths, applies clearDedupedNoteContent (Variant-A dedupe), and
-// returns the resulting contents plus the cleared count — mirrors
-// ExportClearChunkContent for whitebox testing of the pure post-process.
-func ExportClearDedupedNoteContent(
-	paths, kinds, contents []string,
-	candidatePaths []string,
-) ([]string, int) {
-	items := make([]queryItem, len(paths))
-	for i := range paths {
-		items[i] = queryItem{Path: paths[i], Kind: kinds[i], Content: contents[i]}
-	}
-
-	candidates := make([]queryCandidateNote, len(candidatePaths))
-	for i, path := range candidatePaths {
-		candidates[i] = queryCandidateNote{Path: path}
-	}
-
-	cleared, count := clearDedupedNoteContent(items, []queryCluster{{CandidateL2s: candidates}})
-
-	out := make([]string, len(cleared))
-	for i := range cleared {
-		out[i] = cleared[i].Content
-	}
-
-	return out, count
-}
-
 // ExportCollectVaultStats exposes collectVaultStats for cli_test fixtures.
 func ExportCollectVaultStats(names []string, deps VocabStatsDeps, vault string) ([]string, map[string]int, int, int) {
 	return collectVaultStats(names, deps, vault)
@@ -809,62 +780,6 @@ func ExportRenderQueryPayloadTagNominationBudget(added, dropped int) (string, er
 	err := renderQueryPayload(&buf, aggregatedSummary{
 		tagNomsAdded:   added,
 		tagNomsDropped: dropped,
-	})
-
-	return buf.String(), err
-}
-
-// ExportRenderQueryPayloadWithCandidates renders a full YAML payload from
-// parallel item path/kind/content slices plus an explicit set of
-// candidate-note paths merged into a single synthetic cluster's candidate_l2s
-// (via the tag-nomination path — mirrors ExportRenderClustersTagNominations'
-// single-member/K=1 fixture), so cli_test can assert the Variant-A end-to-end
-// shape: clusters-first ordering, candidate-note items rendering content-free
-// with Kind unaffected, non-candidate items keeping content, and the budget
-// carrying items_content_deduped.
-func ExportRenderQueryPayloadWithCandidates(
-	paths, kinds, contents []string,
-	candidatePaths []string,
-) (string, error) {
-	resolved := make([]resolvedItem, len(paths))
-	for i := range paths {
-		resolved[i] = resolvedItem{notePath: paths[i], kind: kinds[i], content: contents[i]}
-	}
-
-	vec := []float32{1, 0}
-	member := matchedMember{
-		notePath: "cluster-member.md",
-		vector:   vec,
-		sitVec:   vec,
-		bodyVec:  vec,
-		score:    0.9,
-		content:  "cluster member body",
-	}
-	matched := matchedSet{members: []matchedMember{member}}
-	report := clusterReport{
-		autoK:           cluster.AutoKResult{K: 1, Centroids: [][]float32{vec}},
-		memberIDs:       [][]int{{0}},
-		representatives: []int{0},
-		silhouettesByID: []float64{0},
-	}
-
-	noms := make([]queryCandidateNote, len(candidatePaths))
-	for i, path := range candidatePaths {
-		noms[i] = queryCandidateNote{Path: path, Cosine: 0.5}
-	}
-
-	pc := phrasedCluster{
-		phrase:         "test phrase",
-		report:         report,
-		matched:        matched,
-		tagNominations: map[int][]queryCandidateNote{0: noms},
-	}
-
-	var buf bytes.Buffer
-
-	err := renderQueryPayload(&buf, aggregatedSummary{
-		resolvedItems:  resolved,
-		phraseClusters: []phrasedCluster{pc},
 	})
 
 	return buf.String(), err
