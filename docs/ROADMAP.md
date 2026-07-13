@@ -50,7 +50,6 @@ ADR-0018 divergence example is annotated historical.
 
 **Actionable now (unblocked, fleshed out):**
 
-- **#684** (M) — clusters-first / lazy-content payload restructure, **measure first** (~52 s baseline; un-parked by Joe 2026-07-12 at #657's close — "the time reduction was the whole point"; see Track B).
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
@@ -264,13 +263,49 @@ thread. This cycle closed out the rest:
   section) named as the remaining lever — its revisit-condition stands unchanged. Recommended
   disposition only; final recorded after Joe's ack.
 
-### UN-PARKED → #684 — matched-set clusters-first / lazy-content payload restructure
+### #684 payload restructure — BUILT, MEASURED, REFUTED, REVERTED (outcome record, 2026-07-13)
 
 Un-parked by Joe 2026-07-12 at #657's close ("the time reduction was the whole point. Let's try this
-out.") — the revisit condition (recall time still the complaint after the shipped cuts) was met by
-Joe's own statement. Now tracked as **#684**, measure-first: the old ~40–80s estimate predates the
-shipped cuts and was never measured; the realizable win against the current ~52 s baseline is
-unknown — the `recall_time.py --vault-copy` gauge establishes it before any build.
+out."), then closed by Joe 2026-07-13 after two adverse re-measurements. Full arc:
+
+- **Measure first (Task 1):** segmented the ~52 s baseline (`dev/eval/LEDGER.md#recall-time-split`)
+  into pre-query (~17.5 s median), query in-flight (~12.2 s median), payload consumption — the
+  addressable slice — (24.6 s median [24.4–30.0]), and remainder (~0 s). Census: 125.3 KB median
+  payload, 12.3 KB duplicated candidate-note content, ~58 KB of `items[]` ahead of the first
+  candidate. Cleared the pre-registered ≥15 s build bar.
+- **Checkpoint 1 (Joe, 2026-07-12):** chose to **build Variant B** — true-lazy matched-set (all
+  matched-note content in `items[]` goes path-only; content fetched on demand via `engram show`) —
+  over the cheaper dedupe-only Variant A or closing measured-out.
+- **Built (Tasks 2–3):** clusters-first payload ordering + withheld matched-note content shipped in
+  the binary and the recall skill's consumption contract; trap gate GREEN before and after.
+- **Round-1 re-measure (Task 4):** contradicted the bet. Bytes down (payload total −23.3%, disjoint
+  ranges) but phase-c **up** 24.6→35.3s [30.0–49.4] and total span up (overlapping ranges).
+  Mechanism: 2 of 3 after-trials ran `engram query` unpiped, colliding with Claude Code's ~90 KB
+  persisted-output truncation, forcing the agent to page the payload back out of its own session
+  transcript via grep/sed/Read.
+- **Checkpoint 2 (Joe, 2026-07-12):** chose to **keep Variant B and fix the skill** (iterate) rather
+  than revert immediately — accepted one more round's risk.
+- **Task 3b:** added a mandatory single-capture query discipline to the recall skill — redirect
+  `engram query` output to a session-tmp file (never unpiped through Bash stdout), then sliced Reads.
+- **Round-2 re-measure (Task 4b), the deciding run:** phase-c got **worse**, not better — median
+  **58.0 s [37.5–62.0]**, the entire range above the pre-registered 26 s keep/revert bar. Mechanism:
+  the capture discipline converts what was in-context reading into a 5–10-round-trip grep+Read
+  fetch loop over the redirected capture file (~5–9 s/round-trip); pre-build's inline items-first
+  payload let the agent read and judge directly from the query tool_result with zero fetch turns —
+  the −21% byte cut (true census) could not buy back that round-trip latency. No `engram show`
+  fetch ever fired in either round — nothing was missing, so the regression is pure round-trip
+  overhead, not fetch cost.
+- **Checkpoint 3 (Joe, 2026-07-13):** **revert**, per the pre-registered rule (phase-c median > 26 s).
+- **Reverted:** commit `0ae98779` restores the pre-build payload shape across `internal/cli`,
+  `skills/recall/SKILL.md`, and the three downstream eval consumers touched by the build —
+  diff-empty vs the last pre-build commit (`055a07f5`); trap gate GREEN.
+
+**Standing conclusion:** payload-shape restructuring (clusters-first ordering, deduped/withheld
+matched-note content) is a dead lever at current scale — inline items-first reading is the measured
+fast path, and byte cuts do not buy back the API round-trips a fetch-mediated or file-mediated
+reading pattern imposes. The segmented baseline (`dev/eval/LEDGER.md#recall-time-split`) is now the
+reference measurement for any future recall-time lever; revisiting this specific lever needs a new
+fact, not a retry (`dev/eval/LEDGER.md#payload-restructure-refuted`).
 
 ### From the 2026-07-01 system review — cost items
 
