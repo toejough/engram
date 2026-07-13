@@ -96,14 +96,34 @@ query. Drop only obvious dross (a bare noun like "coding"). **Query by task, not
 "implementing Claude Code hooks", not "common mistakes when writing hooks". The binary caps
 results to the top-30 matches per phrase.
 
-### Step 2 — Run ONE unified `engram query` with all phrases
+### Step 2 — Run ONE unified `engram query`, captured to a file
 
 ```bash
 engram query --lazy-chunks \
   --phrase "<phrase 1>" \
-  --phrase "<phrase 2>"
+  --phrase "<phrase 2>" \
+  > /tmp/recall-payload.yaml
   # ... one --phrase per Step 1 phrase (deep: 10; glance: ~3)
 ```
+
+**Single-capture discipline.** The payload routinely exceeds Claude Code's ~90KB persisted-output
+cap — unpiped stdout is silently truncated in the transcript and cannot be re-read, and re-running
+the query to "see more" pays the binary again for bytes you already had. The invocation is:
+
+- **ONE binary run per phrase-set, stdout redirected to a durable session-tmp file**
+  (`> /tmp/recall-payload.yaml`; any scratch path works — keep it stable for the session). The
+  redirect is part of the command: never let the payload ride unpiped stdout, and never pipe it
+  through `head`/`tail` in place of capturing it.
+- **Then read the FILE in slices with the Read tool** — Read paginates natively (offset/limit);
+  grep the file for targeted lookups (a path, a basename, a top-level key). Never `cat` the whole
+  file back into the transcript.
+- **The budget section is the tail of the file and carries the counts**
+  (`items_content_withheld`, `tag_nominations_added`, `lazy_chunks`) — give it an early targeted
+  read (`grep -n "^budget:" /tmp/recall-payload.yaml`, then Read from that line) before walking
+  the clusters.
+- **Never re-run the query for pagination.** The capture file holds the COMPLETE payload; more
+  Reads of the same file are free, a re-run is not. The only reason to invoke `engram query`
+  again is a genuinely NEW phrase-set (e.g. the Step 3.5 re-entry), captured to its own file.
 
 One call; the binary merges ranking server-side. `engram query` always runs the unified D1
 clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path, cosine, content}]`
@@ -241,8 +261,12 @@ during the work), run ONE more query first, keyed to the recommendation itself, 
 engram query --lazy-chunks \
   --phrase "<the recommendation, in its own words>" \
   --phrase "<the recommendation> rolled back rejected not worth it superseded" \
-  --phrase "<the recommendation> tried measured outcome"
+  --phrase "<the recommendation> tried measured outcome" \
+  > /tmp/recall-reentry.yaml
 ```
+
+This is a genuinely new phrase-set, so it is a new query under Step 2's single-capture
+discipline — captured to its own file, read in slices.
 
 Apply Step 2.5B's recency weight to what returns. The synthesis MUST carry one `Re-entry:` line
 per emergent recommendation — the line is the proof the check ran (placement rule below):
@@ -313,6 +337,8 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 | You skipped the Step 0.5 sweep with no prior sweep this session | It costs seconds and keeps memory current |
 | `--vault` or `--chunks-dir` on the query | `engram query --phrase ...` only — the binary always runs the unified D1 clustering and emits `candidate_l2s` |
 | Separate query calls per phrase | One call, repeatable `--phrase` flags |
+| `engram query` ran unpiped to stdout (no `>` redirect) | Single-capture discipline: redirect to a session-tmp file, then Read the file in slices — unpiped output truncates at ~90KB and cannot be recovered |
+| You re-ran the same `engram query` to see more of the payload | The capture file already holds the COMPLETE payload — Read further slices or grep it; a second query is only for a genuinely NEW phrase-set (Step 3.5) |
 | You quoted chunks wholesale into the reply | Extract the principle a chunk evidences; paraphrase |
 | You dispatched cluster-synthesis subagents | Gone — Step 2.5 crystallizes inline from the payload's clusters |
 | You judged coverage before reading the candidate content (now inline in `candidate_l2s`) | Read first — cosine alone cannot decide coverage |
