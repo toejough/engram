@@ -102,7 +102,7 @@ results to the top-30 matches per phrase.
 engram query --lazy-chunks \
   --phrase "<phrase 1>" \
   --phrase "<phrase 2>" \
-  > /tmp/recall-payload.yaml
+  > /tmp/recall-payload-$$.yaml && echo "captured: /tmp/recall-payload-$$.yaml"
   # ... one --phrase per Step 1 phrase (deep: 10; glance: ~3)
 ```
 
@@ -111,16 +111,26 @@ cap — unpiped stdout is silently truncated in the transcript and cannot be re-
 the query to "see more" pays the binary again for bytes you already had. The invocation is:
 
 - **ONE binary run per phrase-set, stdout redirected to a durable session-tmp file**
-  (`> /tmp/recall-payload.yaml`; any scratch path works — keep it stable for the session). The
-  redirect is part of the command: never let the payload ride unpiped stdout, and never pipe it
-  through `head`/`tail` in place of capturing it.
-- **Then read the FILE in slices with the Read tool** — Read paginates natively (offset/limit);
-  grep the file for targeted lookups (a path, a basename, a top-level key). Never `cat` the whole
-  file back into the transcript.
-- **The budget section is the tail of the file and carries the counts**
-  (`items_content_withheld`, `tag_nominations_added`, `lazy_chunks`) — give it an early targeted
-  read (`grep -n "^budget:" /tmp/recall-payload.yaml`, then Read from that line) before walking
-  the clusters.
+  (`> /tmp/recall-payload-$$.yaml`; `$$` is this shell's PID, so the example stays
+  session-unique even when copied verbatim across concurrent sessions on the same host — a
+  fixed name like `/tmp/recall-payload.yaml` collides. The trailing `echo` prints the exact
+  resolved filename; copy THAT literal path — never the `$$` template itself — into every
+  later grep or Read of this capture. Any scratch path works, as long as the resolved name
+  stays stable for the rest of the session). The redirect is part of the command: never let
+  the payload ride unpiped stdout, and never pipe it through `head`/`tail` in place of
+  capturing it.
+- **Then read the FILE in slices with the Read tool** — Read paginates natively (offset/limit).
+  At real payload sizes (~267KB+) even a large slice (e.g. `limit=3596`, or sometimes
+  `limit=700` near dense candidate content) can exceed Claude Code's ~25k-token Read cap and
+  error — **read in slices of ~200–300 lines; if a Read errors as too large, halve the limit
+  and retry.** Never abandon the file for re-queries or transcript-grepping when a Read
+  errors — grep the same file for targeted lookups (a path, a basename, a top-level key)
+  instead. Never `cat` the whole file back into the transcript.
+- **The budget section sits near the tail of the file and carries the counts**
+  (`items_content_withheld`, `tag_nominations_added`, `lazy_chunks`) — `refit_pending`, when
+  set, can render after it, so don't assume `budget:` is the literal last line. Locate it
+  with a targeted grep (`grep -n "^budget:" <your captured path>`), then Read from that line,
+  before walking the clusters.
 - **Never re-run the query for pagination.** The capture file holds the COMPLETE payload; more
   Reads of the same file are free, a re-run is not. The only reason to invoke `engram query`
   again is a genuinely NEW phrase-set (e.g. the Step 3.5 re-entry), captured to its own file.
@@ -262,11 +272,12 @@ engram query --lazy-chunks \
   --phrase "<the recommendation, in its own words>" \
   --phrase "<the recommendation> rolled back rejected not worth it superseded" \
   --phrase "<the recommendation> tried measured outcome" \
-  > /tmp/recall-reentry.yaml
+  > /tmp/recall-reentry-$$.yaml && echo "captured: /tmp/recall-reentry-$$.yaml"
 ```
 
 This is a genuinely new phrase-set, so it is a new query under Step 2's single-capture
-discipline — captured to its own file, read in slices.
+discipline — captured to its own file (same session-unique-path + printed-echo pattern),
+read in slices.
 
 Apply Step 2.5B's recency weight to what returns. The synthesis MUST carry one `Re-entry:` line
 per emergent recommendation — the line is the proof the check ran (placement rule below):
