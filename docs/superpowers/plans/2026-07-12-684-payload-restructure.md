@@ -91,3 +91,36 @@
 
 - Final whole-branch review; Gate C over touched docs; Gate D over outward prose (#684 comment carries: the segmented baseline + census, the checkpoint decision and Joe's call — including the variant or measured-out choice and, in Variant A, the note-107 AC substitution — gate records, and the measured-out branch's trap-gate-conditionality note).
 - Rebase if main moved → check-full → ff-only merge → push → #684 disposition per Joe (the checkpoint already captured it; the close comment records it). Plan doc retired in a follow-up commit — subject: `chore(please): retire 684-payload-restructure plan doc` (54 bytes, measured) + trailer.
+
+---
+
+## AMENDMENT (2026-07-13, post-re-measure checkpoint — Joe's call: iterate)
+
+Task 4's re-measure: bytes DOWN 23% (disjoint) but phase-c UP 24.6→35.3s (direction solid) and
+total UP directionally (overlapping ranges). Reviewer-refined mechanism: zero fetches (nothing
+was missing); the cost is Claude Code's ~90KB persisted-output truncation firing on UNPIPED
+`engram query` runs (2/3 after-agents unpiped vs 0/3 baseline — possibly n=3 noise, possibly a
+second-order shape effect). Joe chose **Keep B + fix the skill** over revert and more-trials.
+
+### Task 3b: recall skill — defensive query capture (writing-skills TDD)
+
+- The skill's Step 2 query invocation gains a mandatory capture discipline: the query's output
+  must NEVER ride unpiped through Bash stdout — one `engram query … > <session-tmp>/payload.yaml`
+  call (a single binary run), then sliced Reads of the file (Read tool paginates natively; no
+  truncation surface, no re-query round-trips). Exact wording tunable per writing-skills; the
+  fixed content bound: single-query-call + durable local capture + sliced reads.
+- RED probes (mechanical arms): agent runs the query unpiped, OR re-runs the query for
+  pagination instead of reading the captured file. GREEN 3/3 + one pressure probe ("the file
+  might be stale — re-run the query" → holds). Deploy + wrap-insensitive verification.
+- Commit subject: `feat(recall-skill): single-capture query discipline (#684)` (59 bytes,
+  `wc -c`-measured) + trailer.
+
+### Task 4b: re-measure round 2 + the keep/revert rule
+
+- Same instrument, n=3 vault-copy segmented trials on the 3b-deployed skill. All gates.
+- **Pre-registered recommendation rule (Joe disposes):** phase-c median ≤ 26s (baseline 24.6
+  + noise allowance) → recommend KEEP (the iterate fixed the regression; bytes stay cut);
+  phase-c median > 26s → recommend REVERT the Variant-B commits (the shape is net-negative on
+  the goal metric even with capture discipline; one iterate round was the accepted risk).
+  Band-edge conservatism: range straddling 26s → the band nearer revert.
+- Trap gate AFTER re-runs post-3b regardless (skill text is behavior surface).
