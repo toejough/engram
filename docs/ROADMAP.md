@@ -50,6 +50,9 @@ ADR-0018 divergence example is annotated historical.
 
 **Actionable now (unblocked, fleshed out):**
 
+- **#689** (S) — Variant A probe: clusters-first + dedupe, all inline; measure-first with a pre-registered class-closing bar (Track B, from #684's undisposed checkpoint option; Joe-directed 2026-07-13).
+- **#690** (M) — pre-query phase (~15–21 s): measure the composition split, then cut behind a coverage gate (Track B, the segmented baseline's largest phase).
+- **#691** (S) — instrument the query in-flight split (embed/scan/cluster/render timers; measurement only) (Track B).
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
@@ -300,12 +303,18 @@ out."), then closed by Joe 2026-07-13 after two adverse re-measurements. Full ar
   `skills/recall/SKILL.md`, and the three downstream eval consumers touched by the build —
   diff-empty vs the last pre-build commit (`055a07f5`); trap gate GREEN.
 
-**Standing conclusion:** payload-shape restructuring (clusters-first ordering, deduped/withheld
-matched-note content) is a dead lever at current scale — inline items-first reading is the measured
-fast path, and byte cuts do not buy back the API round-trips a fetch-mediated or file-mediated
-reading pattern imposes. The segmented baseline (`dev/eval/LEDGER.md#recall-time-split`) is now the
-reference measurement for any future recall-time lever; revisiting this specific lever needs a new
-fact, not a retry (`dev/eval/LEDGER.md#payload-restructure-refuted`).
+**Standing conclusion (scoped to what was measured):** fetch-mediated and file-mediated payload
+reading (Variant B — withheld matched-note content, fetch-on-demand, capture-then-read) is a dead
+lever at current scale — inline in-context reading is the measured fast path, and byte cuts do not
+buy back API round-trips (`dev/eval/LEDGER.md#payload-restructure-refuted`; revisiting THAT lever
+needs a new fact, not a retry). **Variant A** (clusters-first + dedupe-only, everything stays
+inline — zero new round-trips) was skipped at checkpoint 1 and remains undisposed: now **#689**,
+a measure-first probe with a pre-registered class-closing bar (≥3 s median phase-c improvement,
+no range overlap → keep; less → revert and close the payload-shape class entirely). The segmented
+baseline (`dev/eval/LEDGER.md#recall-time-split`) is the reference measurement for any recall-time
+lever; its two other phases are now their own items: **#690** (pre-query ~15–21 s, the largest
+single phase — measure the composition split, then cut behind a coverage gate) and **#691**
+(query in-flight ~12.2 s — instrument the binary's internal split, measurement only).
 
 ### From the 2026-07-01 system review — cost items
 
