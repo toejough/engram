@@ -279,7 +279,7 @@ out."), then closed by Joe 2026-07-13 after two adverse re-measurements. Full ar
 - **Built (Tasks 2–3):** clusters-first payload ordering + withheld matched-note content shipped in
   the binary and the recall skill's consumption contract; trap gate GREEN before and after.
 - **Round-1 re-measure (Task 4):** contradicted the bet. Bytes down (payload total −23.3%, disjoint
-  ranges) but phase-c **up** 24.6→35.3s [30.0–49.4] and total span up (overlapping ranges).
+  ranges) but phase-c **up** 24.6→35.3 s [30.0–49.4] and total span up (overlapping ranges).
   Mechanism: 2 of 3 after-trials ran `engram query` unpiped, colliding with Claude Code's ~90 KB
   persisted-output truncation, forcing the agent to page the payload back out of its own session
   transcript via grep/sed/Read.
