@@ -315,6 +315,121 @@ def compute_phases(records, start_ts, end_ts):
 
 
 # ---------------------------------------------------------------------------------------
+# #690 Task 1: pre-query inner-split instrument — PURELY ADDITIVE over the frozen phase
+# model above (compute_phases / the #684 pinned 4-phase model are never touched). Splits
+# the existing pre_query_s outer span into four mechanically-identifiable sub-phases from
+# the SAME transcript records. All boundaries are tool_use timestamps EXCEPT sweep_s, which
+# ends at its Bash tool_use's own tool_result — deliberate, to avoid the ack-vs-meta
+# skill-result ambiguity documented in find_span's END delimiter. Mechanical-or-STOP: a
+# missing marker returns (None, reason), never estimated (mirrors compute_phases).
+# ---------------------------------------------------------------------------------------
+PRE_QUERY_SUBFIELDS = ("ttft_invoke_s", "skill_read_step0_s", "sweep_s", "compose_s", "unattributed_s")
+
+
+def _find_recall_skill_use(records, before_ts):
+    """First `Skill` tool_use invoking `recall`, before `before_ts` (first_query_use_ts)."""
+    before = parse_ts(before_ts)
+    for _, rec, block in _tool_use_blocks(records):
+        if block.get("name") != "Skill":
+            continue
+        if (block.get("input") or {}).get("skill") != "recall":
+            continue
+        ts = rec.get("timestamp")
+        if ts and parse_ts(ts) < before:
+            return ts
+    return None
+
+
+def _find_ingest_sweep(records, before_ts):
+    """First `engram ingest` Bash tool_use -> tool_result span, before `before_ts`
+    (first_query_use_ts). Returns (use_ts, result_ts) or (None, None)."""
+    before = parse_ts(before_ts)
+    for i, rec, block in _tool_use_blocks(records):
+        if block.get("name") != "Bash" or "engram ingest" not in _bash_command(block):
+            continue
+        use_ts = rec.get("timestamp")
+        if not use_ts or parse_ts(use_ts) >= before:
+            continue
+        result_ts, _result_block = _find_tool_result(records, block.get("id"), i + 1)
+        if result_ts:
+            return use_ts, result_ts
+    return None, None
+
+
+def compute_pre_query_split(records, start_ts, first_query_use_ts):
+    """Split [start_ts, first_query_use_ts] (the existing pre_query_s span) into four
+    mechanical sub-phases. Returns (split_dict, None) on success or (None, reason) if a
+    required marker cannot be located — STOP, never estimated (plan Global Constraints).
+
+    Boundaries (all tool_use timestamps except the sweep's own tool_result):
+      ttft_invoke_s      start_ts             -> recall Skill tool_use
+      skill_read_step0_s recall Skill tool_use -> engram-ingest sweep tool_use
+      sweep_s            engram-ingest sweep tool_use -> its own tool_result
+      compose_s          engram-ingest sweep tool_result -> first_query_use_ts
+      unattributed_s     pre_query_s - sum of the four above (expected ~= 0)
+    """
+    skill_use_ts = _find_recall_skill_use(records, first_query_use_ts)
+    if skill_use_ts is None:
+        return None, "no recall Skill tool_use — cannot split pre-query"
+
+    sweep_use_ts, sweep_result_ts = _find_ingest_sweep(records, first_query_use_ts)
+    if sweep_use_ts is None:
+        return None, "no engram ingest sweep before query — cannot separate step0 from compose"
+
+    if not find_query_calls(records):
+        return None, "no engram query tool_use found — cannot split pre-query"
+
+    start_dt = parse_ts(start_ts)
+    skill_use_dt = parse_ts(skill_use_ts)
+    sweep_use_dt = parse_ts(sweep_use_ts)
+    sweep_result_dt = parse_ts(sweep_result_ts)
+    first_query_dt = parse_ts(first_query_use_ts)
+
+    ttft_invoke_s = (skill_use_dt - start_dt).total_seconds()
+    skill_read_step0_s = (sweep_use_dt - skill_use_dt).total_seconds()
+    sweep_s = (sweep_result_dt - sweep_use_dt).total_seconds()
+    compose_s = (first_query_dt - sweep_result_dt).total_seconds()
+    pre_query_s = (first_query_dt - start_dt).total_seconds()
+    unattributed_s = pre_query_s - (ttft_invoke_s + skill_read_step0_s + sweep_s + compose_s)
+
+    split = {
+        "ttft_invoke_s": round(ttft_invoke_s, 1),
+        "skill_read_step0_s": round(skill_read_step0_s, 1),
+        "sweep_s": round(sweep_s, 1),
+        "compose_s": round(compose_s, 1),
+        "unattributed_s": round(unattributed_s, 1),
+        "skill_use_ts": skill_use_ts, "sweep_use_ts": sweep_use_ts, "sweep_result_ts": sweep_result_ts,
+        "step0_text_ts": skill_use_ts,
+    }
+    total_s = sum(split[k] for k in PRE_QUERY_SUBFIELDS)
+    all_nonneg = all(split[k] >= 0 for k in PRE_QUERY_SUBFIELDS)
+    sum_ok = abs(total_s - round(pre_query_s, 1)) <= 1.0
+    split["split_gate_ok"] = bool(all_nonneg and sum_ok)
+    split["split_gate_detail"] = ("PASS" if split["split_gate_ok"] else
+                                  f"FAIL: all_nonneg={all_nonneg} sub_sum={total_s} pre_query_s={round(pre_query_s, 1)}")
+    return split, None
+
+
+def summarize_pre_query_split(rows):
+    """Median + range per sub-phase across split_gate-PASS trials only — discard-never-pool,
+    mirroring summarize_phases. `rows` are the batch's per-trial dicts, each carrying a
+    `pre_query_split` key (set by main() below) holding this function's per-trial output."""
+    poolable = [r for r in rows if r.get("pre_query_split") and r["pre_query_split"]["split_gate_ok"]]
+    summary = {
+        "n_ok": sum(1 for r in rows if r.get("ok")), "n_split_gate_pass": len(poolable),
+        "split_gate_failed_idx": [r["idx"] for r in rows
+                                  if r.get("pre_query_split") and not r["pre_query_split"]["split_gate_ok"]],
+        "split_error_idx": [r["idx"] for r in rows if r.get("ok") and r.get("pre_query_split_error")],
+        "note": "medians/ranges pool ONLY split-gate-PASS trials; discard-never-pool",
+    }
+    for field in PRE_QUERY_SUBFIELDS:
+        vals = sorted(r["pre_query_split"][field] for r in poolable)
+        summary[field] = {"median": statistics.median(vals) if vals else None,
+                          "range": [vals[0], vals[-1]] if vals else None}
+    return summary
+
+
+# ---------------------------------------------------------------------------------------
 # #684 payload census: byte-profile the trial's own `engram query` output (plan Step 2
 # formulas — not redesigned here, only implemented). No PyYAML in this environment (pip is
 # broken locally); `yq` (kislyuk python-yq, wrapping PyYAML, confirmed on PATH) parses the
@@ -546,6 +661,12 @@ def run_trial(idx, model, vault_copy=False, segment=False):
     if segment:
         row["phases"], row["phase_error"] = compute_phases(records, span["start_ts"], span["end_ts"])
         query_calls = find_query_calls(records)
+        row["pre_query_split"], row["pre_query_split_error"] = None, None
+        if query_calls:
+            row["pre_query_split"], row["pre_query_split_error"] = compute_pre_query_split(
+                records, span["start_ts"], query_calls[0]["tool_use_ts"])
+        else:
+            row["pre_query_split_error"] = "no `engram query` tool_use found — cannot split pre-query"
         row["census"], row["census_error"], row["census_source"], row["payload_path"] = None, None, None, None
         if not query_calls:
             row["census_error"] = "no `engram query` tool_use found — cannot capture payload"
@@ -663,6 +784,8 @@ def main():
               f"${row['cost_usd']:.2f}, turns={row['turns']})")
         if a.segment:
             print(f"PHASES = {row.get('phases')}  phase_error={row.get('phase_error')}")
+            print(f"PRE_QUERY_SPLIT = {row.get('pre_query_split')}  "
+                  f"pre_query_split_error={row.get('pre_query_split_error')}")
             print(f"CENSUS = {row.get('census')}  census_error={row.get('census_error')} "
                   f"source={row.get('census_source')}")
         return
@@ -679,6 +802,9 @@ def main():
               + (f" ERROR: {row['error']}" if row["error"] else "")
               + (f" phases={row['phases']}" if a.segment and row.get("phases") else "")
               + (f" PHASE-ERROR: {row['phase_error']}" if a.segment and row.get("phase_error") else "")
+              + (f" pre_query_split={row['pre_query_split']}" if a.segment and row.get("pre_query_split") else "")
+              + (f" PRE-QUERY-SPLIT-ERROR: {row['pre_query_split_error']}"
+                 if a.segment and row.get("pre_query_split_error") else "")
               + (f" census_error={row['census_error']}" if a.segment and row.get("census_error") else ""))
         if not row["ok"]:  # one full re-trial per slot (fresh sandbox); the failed row stays reported
             row = run_trial(f"{i}r", a.model, a.vault_copy, a.segment)
@@ -698,6 +824,7 @@ def main():
         "note": "n=3 directional by design; failed trials are reported, never pooled",
     }
     phase_summary = summarize_phases(rows) if a.segment else None
+    pre_query_split_summary = summarize_pre_query_split(rows) if a.segment else None
     census_summary = summarize_census(rows) if a.segment else None
     transcripts_dir = copy_durable_artifacts(rows, a.out) if a.out else None
 
@@ -721,7 +848,8 @@ def main():
     else:
         artifact.update({"trials": rows, "summary": summary})
     if a.segment:
-        segmented_block = {"trials": rows, "phase_summary": phase_summary, "census_summary": census_summary}
+        segmented_block = {"trials": rows, "phase_summary": phase_summary,
+                           "pre_query_split": pre_query_split_summary, "census_summary": census_summary}
         artifact.setdefault("segmented", {})[
             "vault_copy" if a.vault_copy else "trials_fixture"] = segmented_block
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
@@ -732,6 +860,7 @@ def main():
           f"low_cost_flags={flagged}")
     if a.segment:
         print(f"PHASE SUMMARY: {json.dumps(phase_summary, indent=1)}")
+        print(f"PRE_QUERY_SPLIT SUMMARY: {json.dumps(pre_query_split_summary, indent=1)}")
         print(f"CENSUS SUMMARY: {json.dumps(census_summary, indent=1)}")
     print(f"wrote {a.out}")
 
