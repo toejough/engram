@@ -324,6 +324,9 @@ def compute_phases(records, start_ts, end_ts):
 # missing marker returns (None, reason), never estimated (mirrors compute_phases).
 # ---------------------------------------------------------------------------------------
 PRE_QUERY_SUBFIELDS = ("ttft_invoke_s", "skill_read_step0_s", "sweep_s", "compose_s", "unattributed_s")
+# The four MECHANICALLY MEASURED spans (excludes unattributed_s, a residual — see
+# _pre_query_split_gate below for why it is gated on bounds, not non-negativity).
+PRE_QUERY_MEASURED_SUBFIELDS = ("ttft_invoke_s", "skill_read_step0_s", "sweep_s", "compose_s")
 
 
 def _find_recall_skill_use(records, before_ts):
@@ -354,6 +357,20 @@ def _find_ingest_sweep(records, before_ts):
         if result_ts:
             return use_ts, result_ts
     return None, None
+
+
+def _pre_query_split_gate(split):
+    """Gate the four MEASURED spans on non-negativity (a negative one means markers out of
+    order — a genuine failure); gate unattributed_s — a residual (pre_query_s minus the sum
+    of the four measured spans) — on bounded magnitude instead, since independent per-field
+    rounding of the four measured spans can legitimately push the residual slightly negative
+    (e.g. -0.1s) without indicating a real problem. Returns (gate_ok, detail)."""
+    all_nonneg = all(split[k] >= 0 for k in PRE_QUERY_MEASURED_SUBFIELDS)
+    residual_ok = abs(split["unattributed_s"]) <= 1.0
+    gate_ok = bool(all_nonneg and residual_ok)
+    detail = ("PASS" if gate_ok else
+              f"FAIL: all_nonneg={all_nonneg} unattributed_s={split['unattributed_s']}")
+    return gate_ok, detail
 
 
 def compute_pre_query_split(records, start_ts, first_query_use_ts):
@@ -401,12 +418,7 @@ def compute_pre_query_split(records, start_ts, first_query_use_ts):
         "skill_use_ts": skill_use_ts, "sweep_use_ts": sweep_use_ts, "sweep_result_ts": sweep_result_ts,
         "step0_text_ts": skill_use_ts,
     }
-    total_s = sum(split[k] for k in PRE_QUERY_SUBFIELDS)
-    all_nonneg = all(split[k] >= 0 for k in PRE_QUERY_SUBFIELDS)
-    sum_ok = abs(total_s - round(pre_query_s, 1)) <= 1.0
-    split["split_gate_ok"] = bool(all_nonneg and sum_ok)
-    split["split_gate_detail"] = ("PASS" if split["split_gate_ok"] else
-                                  f"FAIL: all_nonneg={all_nonneg} sub_sum={total_s} pre_query_s={round(pre_query_s, 1)}")
+    split["split_gate_ok"], split["split_gate_detail"] = _pre_query_split_gate(split)
     return split, None
 
 
