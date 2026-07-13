@@ -270,6 +270,9 @@ run_arm () {
     echo "  Running $arm_label ($("${binary}" version 2>/dev/null || echo 'current') against $vault)"
 
     python3 - "$vault" "$binary" "$arm_label" "$cases_json" "$out_json" <<'PYEOF'
+# HISTORICAL (post-#684, 2026-07-12): the inline items->clusters end-sentinel below is stale — the
+# clusters-first/lazy-note-content payload restructure moved clusters before items and note items no
+# longer carry content in items[]; frozen per this file's HISTORICAL status, not ported.
 import json, os, re, subprocess, sys
 
 vault, binary, arm_label, cases_path, out_path = sys.argv[1:]

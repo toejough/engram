@@ -480,7 +480,8 @@ func TestQuery_RanksByDescendingCosine(t *testing.T) {
 	g.Expect(parsed.Items[0].Score).To(BeNumerically(">", parsed.Items[1].Score))
 	g.Expect(parsed.Items[0].Provenances).To(Equal([]string{"direct"}))
 	g.Expect(parsed.Items[0].Kind).To(Equal("fact"))
-	g.Expect(parsed.Items[0].Content).To(ContainSubstring("the query string body"))
+	g.Expect(parsed.Items[0].Content).To(BeEmpty(),
+		"note items render path-only under Variant B (#684); content rides in candidate_l2s")
 	g.Expect(parsed.Budget.TotalNotes).To(Equal(2))
 	g.Expect(parsed.Budget.WithEmbeddings).To(Equal(2))
 	g.Expect(parsed.Budget.DirectHitsReturned).To(Equal(2))
@@ -557,41 +558,11 @@ func TestQuery_ScoresByMaxWhenBodyWins(t *testing.T) {
 		"max() must report the winning (body) axis score")
 }
 
-func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-
-	body := "---\ntype: fact\n---\n" +
-		"See [[1a.foo]] and [[2b.bar|the bar note]] for context.\n"
-
-	plantNoteWithSidecar(t, memFS, vault, "1.foo.md", body)
-
-	var out bytes.Buffer
-
-	err := cli.RunQuery(context.Background(),
-		cli.QueryArgs{Phrases: []string{"context"}, VaultPath: vault, Limit: 1},
-		newQueryDeps(memFS), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var parsed struct {
-		Items []struct {
-			Content string `yaml:"content"`
-		} `yaml:"items"`
-	}
-
-	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
-	g.Expect(parsed.Items).To(HaveLen(1))
-	// Both wikilink shapes are stripped; display/target text remains.
-	g.Expect(parsed.Items[0].Content).NotTo(ContainSubstring("[["))
-	g.Expect(parsed.Items[0].Content).NotTo(ContainSubstring("]]"))
-	g.Expect(parsed.Items[0].Content).
-		To(ContainSubstring("See 1a.foo and the bar note for context."))
-}
+// TestQuery_StripsWikilinksFromItemsContent has been superseded by
+// TestRunQuery_NoteItemContentFreeCandidateL2sIntact (query_lazy_notes_test.go),
+// which uses the identical fixture and additionally proves the (now sole)
+// content location — candidate_l2s — is wikilink-stripped (#684 Variant B:
+// note items[] render path-only, so there is no items[] content left to strip).
 
 func TestRunQuery_ModelMismatchEmitsWarning(t *testing.T) {
 	t.Parallel()

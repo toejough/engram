@@ -72,24 +72,36 @@ def _parse_phrases(argv):
 
 
 def _emit_payload(items):
-    """Emit a minimal but valid engram-query YAML payload the /recall skill can read."""
-    lines = ["version: 1", "items:"]
-    for it in items:
-        lines.append(f"  - path: {it['path']}")
-        lines.append(f"    kind: {it['kind']}")
-        lines.append(f"    score: {it['score']}")
-        lines.append("    content: |-")
-        for cl in it["content"].splitlines():
-            lines.append(f"      {cl}")
-    # one cluster over the surfaced members; no candidate_l2s (nothing to crystallize)
-    lines.append("clusters:")
+    """Emit a minimal but valid engram-query YAML payload the /recall skill can read.
+
+    #684 (2026-07-12) Variant B — clusters-first / lazy matched-note content: the real
+    binary now renders `clusters:` before `items:`, and EVERY note item in items[] is
+    path/kind/score only (no content) regardless of --lazy-chunks; a note's content, if
+    kept anywhere, rides inline in the cluster's candidate_l2s that nominated it. This
+    stub mirrors that shape: the single synthetic cluster nominates every surfaced item
+    into candidate_l2s (content included), and items[] carries path/kind/score only —
+    matching production's contract for the skill under test (Step 3 must now read
+    candidate_l2s, or fetch via `engram show`, not items[].content).
+    """
+    lines = ["version: 1", "clusters:"]
     lines.append("  - id: 0")
     lines.append(f"    size: {len(items)}")
-    lines.append("    candidate_l2s: []")
+    lines.append("    candidate_l2s:")
+    for it in items:
+        lines.append(f"      - path: {it['path']}")
+        lines.append(f"        cosine: {it['score']}")
+        lines.append("        content: |-")
+        for cl in it["content"].splitlines():
+            lines.append(f"          {cl}")
     lines.append("    members:")
     for it in items:
         lines.append(f"      - path: {it['path']}")
         lines.append(f"        score: {it['score']}")
+    lines.append("items:")
+    for it in items:
+        lines.append(f"  - path: {it['path']}")
+        lines.append(f"    kind: {it['kind']}")
+        lines.append(f"    score: {it['score']}")
     return "\n".join(lines) + "\n"
 
 
