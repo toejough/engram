@@ -126,6 +126,8 @@ github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e h1:30DvtIHP1qxp8i
 github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e/go.mod h1:x4rLasfjuQKaImCrhpmhQGQEINF7ShZkd9Yt6GBMnzk=
 github.com/toejough/targ v0.0.0-20260711173918-19f42285312a h1:SW6/38nEWphGMG7x180W/F1HJPmUq84P/jC22C4icgs=
 github.com/toejough/targ v0.0.0-20260711173918-19f42285312a/go.mod h1:h3cq/qiVlpn0mOdgBYYIevb+L/G+pK3UC7kbH3dZ+b4=
+github.com/toejough/targ v0.0.0-20260711174829-4e73887c16a2 h1:uK9F59PAdH/bBXRaXItj4gTV8N2zKMKz1rVeNGSrCds=
+github.com/toejough/targ v0.0.0-20260711174829-4e73887c16a2/go.mod h1:h3cq/qiVlpn0mOdgBYYIevb+L/G+pK3UC7kbH3dZ+b4=
 github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61 h1:q2kh5K7BzSky2Fw0ZnsGYG6YBJzvQA8uaWBkfILkCh8=
 github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61/go.mod h1:BJ1ra8Pt6ouZE4yvgRt1j9HkH+yzusi0jlNrNTmZY6M=
 github.com/viant/afs v1.30.0 h1:dbgVVSCPwGHUgpgkWJ5gdjKBqssT7OV7Z2M81CjwZEY=

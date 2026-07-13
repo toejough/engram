@@ -278,12 +278,12 @@ type queryBudget struct {
 	Limit                int `yaml:"limit"`
 	ContentBudget        int `yaml:"content_budget"`
 	ChunksSnippeted      int `yaml:"chunks_snippeted"`
-	// ItemsContentDeduped surfaces the count of note items[] whose content was
+	// ItemsContentWithheld surfaces the count of note items[] whose content was
 	// withheld (#684 Variant B, no-silent-caps rule — TagNominationsAdded
 	// precedent): every note item renders path-only; its content, if kept
 	// anywhere, rides in a cluster's candidate_l2s instead. omitempty: zero
 	// when no notes matched.
-	ItemsContentDeduped int `yaml:"items_content_deduped,omitempty"`
+	ItemsContentWithheld int `yaml:"items_content_withheld,omitempty"`
 	// TagNominationsAdded/Dropped surface the tag-match nomination tally
 	// (no-silent-caps rule): added = nominations OFFERED post-cap (render-time
 	// path-dedup may skip ones already present as candidates); dropped =
@@ -1519,7 +1519,7 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 			Limit:                 merged.limit,
 			ContentBudget:         resolveContentBudget(merged.contentBudget),
 			ChunksSnippeted:       snipped,
-			ItemsContentDeduped:   itemsContentDeduped,
+			ItemsContentWithheld:  itemsContentDeduped,
 			TagNominationsAdded:   merged.tagNomsAdded,
 			TagNominationsDropped: merged.tagNomsDropped,
 			LazyChunks:            merged.lazyChunks,

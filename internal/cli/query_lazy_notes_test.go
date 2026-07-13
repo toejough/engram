@@ -77,10 +77,10 @@ func TestClearNoteContent_TableDriven(t *testing.T) {
 	}
 }
 
-// TestRenderQueryPayloadBudget_ItemsContentDedupedCounts is the RED test for
+// TestRenderQueryPayloadBudget_ItemsContentWithheldCounts is the RED test for
 // the budget half of the no-silent-caps rule (TagNominationsAdded precedent):
 // the payload budget must report how many note items' content was withheld.
-func TestRenderQueryPayloadBudget_ItemsContentDedupedCounts(t *testing.T) {
+func TestRenderQueryPayloadBudget_ItemsContentWithheldCounts(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -95,13 +95,13 @@ func TestRenderQueryPayloadBudget_ItemsContentDedupedCounts(t *testing.T) {
 		return
 	}
 
-	g.Expect(out).To(ContainSubstring("items_content_deduped: 2"),
+	g.Expect(out).To(ContainSubstring("items_content_withheld: 2"),
 		"budget must report how many note items' content was withheld")
 }
 
-// TestRenderQueryPayloadBudget_ItemsContentDedupedOmittedWhenZero verifies the
+// TestRenderQueryPayloadBudget_ItemsContentWithheldOmittedWhenZero verifies the
 // omitempty contract: no matched notes → the field is omitted entirely.
-func TestRenderQueryPayloadBudget_ItemsContentDedupedOmittedWhenZero(t *testing.T) {
+func TestRenderQueryPayloadBudget_ItemsContentWithheldOmittedWhenZero(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -113,7 +113,7 @@ func TestRenderQueryPayloadBudget_ItemsContentDedupedOmittedWhenZero(t *testing.
 		return
 	}
 
-	g.Expect(out).NotTo(ContainSubstring("items_content_deduped"),
+	g.Expect(out).NotTo(ContainSubstring("items_content_withheld"),
 		"omitempty: zero notes matched, so the field must not render")
 }
 
@@ -220,7 +220,7 @@ func TestRunQuery_NoteItemContentFreeCandidateL2sIntact(t *testing.T) {
 			} `yaml:"candidate_l2s"`
 		} `yaml:"clusters"`
 		Budget struct {
-			ItemsContentDeduped int `yaml:"items_content_deduped"`
+			ItemsContentWithheld int `yaml:"items_content_withheld"`
 		} `yaml:"budget"`
 	}
 
@@ -246,6 +246,6 @@ func TestRunQuery_NoteItemContentFreeCandidateL2sIntact(t *testing.T) {
 	g.Expect(candidateContent).NotTo(ContainSubstring("]]"))
 	g.Expect(candidateContent).To(ContainSubstring("See 1a.foo and the bar note for context."))
 
-	g.Expect(parsed.Budget.ItemsContentDeduped).To(Equal(1),
+	g.Expect(parsed.Budget.ItemsContentWithheld).To(Equal(1),
 		"budget must count the one note item whose content was withheld")
 }
