@@ -50,8 +50,7 @@ ADR-0018 divergence example is annotated historical.
 
 **Actionable now (unblocked, fleshed out):**
 
-- **#690** (M) — pre-query phase (~15–21 s): measure the composition split, then cut behind a coverage gate (Track B, the segmented baseline's largest phase).
-- **#691** (S) — instrument the query in-flight split (embed/scan/cluster/render timers; measurement only) (Track B).
+- **#691** (S) — instrument the query in-flight split (embed/scan/cluster/render timers; measurement only) (Track B — the last open recall-time phase; pre-query #690 closed measured-no-cut 2026-07-13).
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
@@ -315,10 +314,17 @@ class-closing bar, ≥3.0s improvement AND after_max<baseline_min, failed both c
 confirming recall consumption is round-trip-dominated, not byte-dominated
 (`dev/eval/LEDGER.md#variant-a-probe`). The **payload-shape lever class is now CLOSED** — Variant B
 refuted as #684, Variant A refuted as #689 — both byte-shape levers dead. The segmented baseline
-(`dev/eval/LEDGER.md#recall-time-split`) is the reference measurement for any recall-time lever;
-its two remaining phases are their own items: **#690** (pre-query ~15–21 s, the largest single
-phase — measure the composition split, then cut behind a coverage gate) and **#691** (query
-in-flight ~12.2 s — instrument the binary's internal split, measurement only).
+(`dev/eval/LEDGER.md#recall-time-split`) is the reference measurement for any recall-time lever.
+**#690 (pre-query, refined to ~18.6 s (n=8) from the ~15–21 s n=3 estimate — the largest single
+phase) is now measured and CLOSED measured-no-cut** (`dev/eval/LEDGER.md#prequery-composition`,
+2026-07-13): the inner split is ~73% irreducible model reasoning (skill-read+Step-0 7.15 s +
+phrase-composition 6.5 s), the one clean mechanical slice (the `engram ingest` sweep) is only
+0.7 s — far below the 3.0 s bar — and Gate A found the recall skill is ALREADY a `--phrase`
+template, so the compose lever's delta was near-empty; Joe chose to close it rather than spend on
+the experiment. No recall behavior change; the pre-query span is
+model-reasoning-bound, not mechanically cuttable — the same conclusion as consumption. **The remaining Track-B item
+is #691** (query in-flight ~12.2 s — instrument the binary's internal embed/scan/cluster/render
+split, measurement only).
 
 ### From the 2026-07-01 system review — cost items
 
