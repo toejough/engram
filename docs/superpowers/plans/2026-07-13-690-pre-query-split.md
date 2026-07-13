@@ -1,4 +1,4 @@
-# #690 Pre-Query Phase Composition — Measure-First Plan (rev 2)
+# #690 Pre-Query Phase Composition — Measure-First Plan (rev 3)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -47,7 +47,7 @@
   - `sweep_s` — the `engram ingest` tool_use → its tool_result (the `engram ingest --auto` Bash call). The one genuinely-mechanical, cleanly-cuttable slice.
   - `compose_s` — the `engram ingest` tool_result → `first_query_use_ts` (writing the 10 phrases + assembling the query call).
   - `unattributed_s` — `pre_query_s` minus the sum of the four above (expected ≈ 0).
-  - `split_gate_ok` (bool: all five ≥ 0 AND their sum == `pre_query_s` ± 1.0 s), `split_gate_detail` (str), and the raw marker timestamps used.
+  - `split_gate_ok` (bool: the four MEASURED spans — `ttft_invoke_s`, `skill_read_step0_s`, `sweep_s`, `compose_s` — each ≥ 0 AND `|unattributed_s| ≤ 1.0`. The residual `unattributed_s` is BOUNDED, not required ≥ 0: timestamp rounding of the four spans can leave a legitimately small negative residual (e.g. −0.1 s) that is still within tolerance; requiring it ≥ 0 would spuriously fail valid trials and shrink the Task-2 pool). `split_gate_detail` (str), and the raw marker timestamps used.
 - STOP rules (return `(None, reason)`, never estimate):
   - No `Skill` tool_use with `input.skill=="recall"` before `first_query_use_ts` → `"no recall Skill tool_use — cannot split pre-query"`.
   - No `engram ingest` Bash tool_use→result before `first_query_use_ts` → `"no engram ingest sweep before query — cannot separate step0 from compose"`. (Sweep-absent is a STOP, not a silent fold: without the sweep anchor, `skill_read_step0_s` and `compose_s` cannot be separated. All 8 fixtures contain the sweep, so this branch is defensive; it must never estimate.)
@@ -143,19 +143,35 @@ Present, in the refined six-part form (part 2 = relevant artifacts + their relat
 
 ---
 
-## Task 3 (CONDITIONAL — only if Joe disposes a cut): the cut, gated
+## Task 3: Template-assisted phrase composition (Joe disposed 2026-07-13 — build it)
 
-> This task is a FRAMEWORK. The concrete cut (target file, mechanism, exact steps, and — for a phrase-count cut — the specific retrieval-coverage gate designed at Gate A) is added as a plan amendment at the Task-2 checkpoint once Joe names the disposition, mirroring the #689 revision pattern. It is not pre-written because the measurement has not yet named a cuttable slice.
+**Disposition (Joe, at the Task-2 checkpoint):** try template-assisted composition — attack the `compose` slice (~6.5 s median). Recorded dissent + sharpened prediction (see below); Joe chose to try, so this builds and measures against the pre-registered bar.
 
-**Pre-registered keep/revert bar (RULE fixed now; threshold instantiated from the Task-2 baseline):**
-- **KEEP** iff: median `pre_query_s` improvement ≥ `T` s (where `T` = the greater of 3.0 s or the Task-2 baseline `pre_query_s` inter-quartile spread — set numerically at the checkpoint) AND the trap gate smoke stays GREEN (C3/C4i/C5/C6, before+after) AND the retrieval-delivery/coverage check for the specific change holds (designed at Gate A; MANDATORY and hardest for a fewer-phrases cut).
-- **REVERT** otherwise — including a mechanism that works but buys < `T` s (note 257).
+**Design-scout evidence (from the 8 #689 transcripts, recorded before building):**
+- Agents do NOT double-write phrases — trial-0 goes straight from the sweep result to the `engram query` command with phrases inline; there is no separate prose phrase-list to collapse. So the compose time is the model *deciding the 10 phrase contents*, not formatting/re-writing overhead.
+- Sweep-vs-Step-0 ordering VARIES across trials (trial-0: Step-0 before sweep → Step-0 falls in `skill_read_step0`; trial-4: sweep before Step-0 → Step-0 falls in `compose`). So `skill_read_step0_s` and `compose_s` are entangled; the reliable improvement signal is on **`pre_query_s` total**, which the bar already uses.
+- **Sharpened prediction (recorded dissent):** because compose is content-generation (choosing 10 good phrases), not formatting, a template that changes only the *form* is unlikely to cut ≥3.0 s. This is a likely REVERT; we run it because Joe disposed it and the measure-first bar settles it honestly (mirrors #689's "mechanism works ≠ time bought", note 257).
 
-- [ ] RED: a repeatable test capturing the cut's intended behavior change (writing-skills TDD if a SKILL.md edit; Go TDD if a binary change).
-- [ ] GREEN minimal; REFACTOR; Gate B (design-fit).
-- [ ] Trap gate smoke BEFORE (pre-cut tree) + AFTER (cut tree); `$METER` recall-only segment before/after; the coverage check for the specific change.
-- [ ] Re-measure the pre-query split (Task-1 analyzer) on fresh post-cut trials; apply the pre-registered bar.
-- [ ] Checkpoint: present the measured result (labeled table, units); Joe disposes KEEP/REVERT.
+**The template mechanism (what to build):** in `skills/recall/SKILL.md`, restructure Step 1 + Step 2 so the agent fills a **pre-labeled `engram query` command skeleton in one pass** instead of free-composing. The skeleton carries all 10 fixed angles as inline-labeled `--phrase` slots, e.g.:
+```
+engram query --lazy-chunks \
+  --phrase "<situation/setting>" \
+  --phrase "<user intent/goal>" \
+  ... (all 10 angles, pre-labeled) \
+```
+The agent replaces each `<angle>` with the concrete phrase. **Coverage-preserving by construction:** all 10 angles remain (breadth intact → notes 100/72 satisfied), so the retrieval-coverage risk is minimal — this is NOT a phrase-count cut. The hypothesis under test is purely a time saving from reduced composition ceremony. Do NOT touch Step 0 (the judgement — nucleus: make-plan-visible), Step 2.5B, Step 3, or the frontmatter description.
+
+**Pre-registered keep/revert bar (fixed; threshold instantiated from the Task-2 baseline):**
+- Baseline: `pre_query_s` median **18.6 s**, range [17.4, 19.9]; IQR ≈ 1.55 s → `T` = max(3.0, 1.55) = **3.0 s**.
+- **KEEP** iff: median `pre_query_s` improvement ≥ 3.0 s (after-median ≤ 15.6 s) AND trap gate smoke GREEN (C3/C4i/C5/C6, before+after) AND retrieval coverage not regressed (the skill still emits all 10 phrases — verified mechanically from the after-transcripts: every after-trial's `engram query` carries 10 `--phrase` flags).
+- **REVERT** otherwise — including a template that works but buys < 3.0 s (note 257).
+
+- [ ] **RED (writing-skills TDD):** using the `superpowers:writing-skills` skill, write a baseline behavioral test capturing current free-form Step-1/2 composition; establish the RED baseline. (Skill edits REQUIRE writing-skills TDD — no exceptions, per CLAUDE.md.)
+- [ ] **GREEN:** edit `skills/recall/SKILL.md` Step 1 + Step 2 to the pre-labeled fill-in skeleton; verify the behavioral change. REFACTOR for cohesion; Gate B (design-fit) on the skill diff.
+- [ ] **Pressure tests:** run the writing-skills pressure tests (does the skeleton reliably produce all 10 phrases; does it not leak the angle labels into the query; does it not regress Step 0 / Step 2.5 / Step 3).
+- [ ] **Trap gate smoke BEFORE** (on the pre-edit tree) **+ AFTER** (on the edited tree): `dev/eval/traps/gate.py --tier smoke` — GREEN required both (C3/C4i/C5/C6).
+- [ ] **After-measure:** deploy the edited skill, run fresh `recall_time.py --mode batch --segment` trials (n ≥ 6 gate-PASS; this DOES cost API spend, unlike Task 2), and run the Task-1 pre-query split analyzer on them. Confirm 10-phrase coverage on every after-trial.
+- [ ] **Apply the bar** and CHECKPOINT: present the measured before/after (labeled table, units) in the corrected **seven-part** briefing (1 Problem · 2 Systems+relationships · 3 Artifacts+relationships · 4 Current states · 5 Solution · 6 Before/after · 7 How it solves), inside the AskUserQuestion box; Joe disposes KEEP/REVERT.
 
 ---
 
@@ -171,6 +187,8 @@ Present, in the refined six-part form (part 2 = relevant artifacts + their relat
 
 **Provenance:** Task-1 golden values are measured from `dev/eval/traps/testdata/prequery_trial0.jsonl` (the committed trial-0 copy); the `pre_query_s` set is from `689-after.json`. Both are cited inline.
 
-**Placeholder scan:** Task 3 is intentionally a conditional framework (the cut is unknown pre-measurement) with a concrete keep/revert RULE — not a TBD. Tasks 1–2 carry complete code, commands, and expected output.
+**Placeholder scan:** Tasks 1–2 carry complete code, commands, and expected output. Task 3 was a conditional framework pre-measurement; it is now INSTANTIATED (rev 3, 2026-07-13) with Joe's disposed choice (template-assisted composition), a concrete mechanism, the numeric bar (3.0 s off the 18.6 s baseline), and the recorded sharpened-prediction dissent — no TBDs.
+
+**Recorded dissent (challenge-once-then-commit):** at the Task-2 checkpoint I flagged, and the design-scout then sharpened, that template-assist is unlikely to clear 3.0 s because compose is content-generation, not formatting overhead. Joe chose to try it; per the anti-sycophantic resolution rule this is built wholeheartedly and settled by the pre-registered measure, not relitigated.
 
 **Type consistency:** `compute_pre_query_split` signature and the five sub-phase field names (`ttft_invoke_s`, `skill_read_step0_s`, `sweep_s`, `compose_s`, `unattributed_s`) are used identically across Tasks 1–2 and the tests.
