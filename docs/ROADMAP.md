@@ -94,6 +94,14 @@ at the right moment, and does it get acted on.
   reliably apply it (`dev/eval/LEDGER.md#glance-fails-c5-delivery`); C5-type cues currently escalate to
   `deep` as the mitigation. Lifting both rungs' apply rate above deep's own is a separate, unscheduled
   follow-up.
+- **Artifacts/file-keyed retrieval angle — PARKED (no headroom, 2026-07-13).** A free warm-vs-warm
+  probe of adding a file-keyed angle to recall's 10 topic angles refuted it: ≤2/6 fixtures gained an
+  actionable note the topic angles missed, below the ≥4/6 bar (`dev/eval/LEDGER.md#b-artifacts-angle-headroom`).
+  Lessons are keyed by situation/principle, not filename, so a file-keyed angle re-finds what the topic
+  angles already surface (corroborates note 73). **Reopen condition:** a real recall miss where a
+  file-keyed angle would have surfaced a note the topic angles missed. Companion: the issue-briefing
+  convention gained an independent systems/artifacts split + a prior-work/failure element the same
+  cycle (memory-only; no repo change).
 - **Ranking follow-ups — only if the matched-note floor proves too blunt.** If the shipped floor
   (`docs/FEATURES.md` — Matched-note floor) later caps a relevant note or promotes a marginal one, the
   principled successors are per-population score normalization (z/rank-normalize notes vs chunks before
