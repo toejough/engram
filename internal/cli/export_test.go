@@ -321,28 +321,6 @@ func ExportClearChunkContent(kinds, contents []string) []string {
 	return out
 }
 
-// ExportClearNoteContent builds queryItems from parallel kind/content slices,
-// applies clearNoteContent (Variant B, #684: ALL note items render path-only,
-// regardless of --lazy-chunks), and returns the resulting contents plus the
-// items_content_withheld tally. clearNoteContent takes no provenance input, so
-// this also demonstrates the rule is provenance-agnostic — a "recent"-tagged
-// note item is cleared exactly like a "direct" one.
-func ExportClearNoteContent(kinds, contents []string) ([]string, int) {
-	items := make([]queryItem, len(kinds))
-	for i := range kinds {
-		items[i] = queryItem{Kind: kinds[i], Content: contents[i]}
-	}
-
-	cleared, deduped := clearNoteContent(items)
-
-	out := make([]string, len(cleared))
-	for i := range cleared {
-		out[i] = cleared[i].Content
-	}
-
-	return out, deduped
-}
-
 // ExportCollectVaultStats exposes collectVaultStats for cli_test fixtures.
 func ExportCollectVaultStats(names []string, deps VocabStatsDeps, vault string) ([]string, map[string]int, int, int) {
 	return collectVaultStats(names, deps, vault)

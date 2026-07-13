@@ -96,10 +96,6 @@ func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 	g.Expect(parsed.Items).NotTo(BeEmpty())
 	// The new payload sections always render (clusters may be empty).
 	g.Expect(strings.Contains(stdout.String(), "clusters:")).To(BeTrue())
-	// #684 Variant B: clusters render before items in the real binary's output.
-	g.Expect(strings.Index(stdout.String(), "\nclusters:")).To(
-		BeNumerically("<", strings.Index(stdout.String(), "\nitems:")),
-		"clusters must render before items")
 }
 
 // unexported constants.

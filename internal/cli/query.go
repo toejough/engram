@@ -30,22 +30,16 @@ type QueryArgs struct {
 	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
 	// ContentBudget caps how many chunk items (in rank order) render with full
 	// content; later chunks get a one-line snippet. 0 = baked default (15);
-	// negative = unlimited. Notes are never capped — they are unconditionally
-	// path-only in items[] (#684 Variant B; see clearNoteContent), so this
-	// budget governs chunks only. env= lets the recall sweep inject the cap
-	// without a skill edit.
+	// negative = unlimited. Notes are never capped. env= lets the recall sweep
+	// inject the cap without a skill edit.
 	ContentBudget int `targ:"flag,name=content-budget,env=ENGRAM_CONTENT_BUDGET,desc=max chunk items with full content (0=default 15; negative=unlimited); later chunks get a snippet"` //nolint:lll // single unbreakable struct-tag string
 	// RecentFill caps how many newest-by-ingest chunks fill the recency channel
 	// (Channel 2). 0 = baked default (25); negative = channel off. env= lets the
 	// recall sweep shrink the payload without a skill edit.
 	RecentFill int `targ:"flag,name=recent-fill,env=ENGRAM_RECENT_FILL,desc=newest-by-ingest chunks in the recency channel (0=default 25; negative=off); reduces recall payload"` //nolint:lll // single unbreakable struct-tag string
 	// LazyChunks renders matched chunk items path/score only (no content);
-	// the agent fetches a chunk's evidence on-demand via `engram show-chunk`.
-	// Note items are ALWAYS path/score only in items[] regardless of this flag
-	// (#684 Variant B — the clusters-first/lazy-content restructure is the
-	// payload's shape, not a --lazy-chunks opt-in); a note's content rides
-	// inline in a cluster's candidate_l2s when it is nominated there, otherwise
-	// the agent fetches it via `engram show`. Opt-in (recall sets it); env=
+	// the agent fetches a chunk's evidence on-demand via `engram show-chunk`. Notes
+	// (fact/feedback) always keep full content. Opt-in (recall sets it); env=
 	// lets the recall sweep enable it without a skill edit.
 	LazyChunks bool `targ:"flag,name=lazy-chunks,env=ENGRAM_LAZY_CHUNKS,desc=render matched chunk items path/score only (no content); the agent fetches a chunk's evidence on-demand via engram show-chunk — shrinks the recall payload"` //nolint:lll // single unbreakable struct-tag string
 }
@@ -278,12 +272,6 @@ type queryBudget struct {
 	Limit                int `yaml:"limit"`
 	ContentBudget        int `yaml:"content_budget"`
 	ChunksSnippeted      int `yaml:"chunks_snippeted"`
-	// ItemsContentWithheld surfaces the count of note items[] whose content was
-	// withheld (#684 Variant B, no-silent-caps rule — TagNominationsAdded
-	// precedent): every note item renders path-only; its content, if kept
-	// anywhere, rides in a cluster's candidate_l2s instead. omitempty: zero
-	// when no notes matched.
-	ItemsContentWithheld int `yaml:"items_content_withheld,omitempty"`
 	// TagNominationsAdded/Dropped surface the tag-match nomination tally
 	// (no-silent-caps rule): added = nominations OFFERED post-cap (render-time
 	// path-dedup may skip ones already present as candidates); dropped =
@@ -332,15 +320,12 @@ type queryItem struct {
 	Content     string   `yaml:"content,omitempty"`
 }
 
-// queryPayload is the top-level YAML document. Clusters render BEFORE Items
-// (#684 Variant B, Gate A: yaml.v3 renders struct fields in declared order) —
-// cluster synthesis is the intended first read; items[] is the raw ranked
-// list the agent consults second, and (for notes) path-only at that.
+// queryPayload is the top-level YAML document.
 type queryPayload struct {
 	Version      int            `yaml:"version"`
 	Phrases      []string       `yaml:"phrases"`
-	Clusters     []queryCluster `yaml:"clusters"`
 	Items        []queryItem    `yaml:"items"`
+	Clusters     []queryCluster `yaml:"clusters"`
 	Budget       queryBudget    `yaml:"budget"`
 	RefitPending bool           `yaml:"refit_pending,omitempty"`
 }
@@ -694,9 +679,8 @@ func chunksConfigured(args QueryArgs, deps QueryDeps) bool {
 }
 
 // clearChunkContent zeroes the Content of chunk items (Kind == chunkItemKind)
-// for lazy-chunk mode, leaving note items untouched (clearNoteContent handles
-// notes separately, unconditionally — see below). The agent fetches a cleared
-// chunk's evidence on-demand via `engram show-chunk`. Returns the (mutated)
+// for lazy-chunk mode, leaving note items untouched. The agent fetches a
+// cleared chunk's evidence on-demand via `engram show-chunk`. Returns the (mutated)
 // items.
 func clearChunkContent(items []queryItem) []queryItem {
 	for i := range items {
@@ -706,35 +690,6 @@ func clearChunkContent(items []queryItem) []queryItem {
 	}
 
 	return items
-}
-
-// clearNoteContent zeroes the Content of every note item (Kind != chunkItemKind)
-// in items[] — #684 Variant B extends the lazy-chunks pattern to notes: ALL
-// matched-note content is path-only in items[], regardless of --lazy-chunks
-// (this is the payload's shape, not an opt-in flag). A note's content, if kept
-// anywhere in the payload, rides inline in the cluster candidate_l2s that
-// nominated it (Step 2.5, payload-local — unaffected by this function); a note
-// absent from every candidate_l2s is fetched via `engram show`. Takes no
-// provenance input, so the rule is provenance-agnostic — a "recent"-tagged note
-// item is cleared exactly like a "direct" one. Returns the (mutated) items and
-// the count of items whose content was actually withheld (no-silent-caps rule,
-// TagNominationsAdded precedent) — items already empty are not double-counted.
-func clearNoteContent(items []queryItem) ([]queryItem, int) {
-	deduped := 0
-
-	for i := range items {
-		if items[i].Kind == chunkItemKind {
-			continue
-		}
-
-		if items[i].Content != "" {
-			deduped++
-		}
-
-		items[i].Content = ""
-	}
-
-	return items, deduped
 }
 
 // clusterMatchedSet clusters the matched set exactly once. On
@@ -843,20 +798,6 @@ func collectClusterMembers(
 	}
 
 	return members
-}
-
-// countDirectHits reports how many rendered items carry the direct
-// provenance role. Used to populate `direct_hits_returned`.
-func countDirectHits(items []queryItem) int {
-	count := 0
-
-	for _, item := range items {
-		if slices.Contains(item.Provenances, provenanceDirect) {
-			count++
-		}
-	}
-
-	return count
 }
 
 // countItemsWithContent reports how many rendered items carry a
@@ -1480,14 +1421,8 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems)
 	clusters := renderClusters(merged.phraseClusters)
 
-	// #684 Variant B: EVERY note item is path-only in items[], unconditionally
-	// (both --lazy-chunks and non-lazy) — a note's content, if kept anywhere,
-	// rides in the cluster candidate_l2s that nominated it (payload-local,
-	// untouched by this call). itemsContentDeduped is the no-silent-caps tally.
-	items, itemsContentDeduped := clearNoteContent(items)
-
 	// Lazy-chunk mode (opt-in): empty chunk content so the agent pages a
-	// chunk's evidence on-demand via `engram show-chunk`.
+	// chunk's evidence on-demand via `engram show-chunk`. Notes are untouched.
 	// When lazy, capChunkContent is skipped entirely (ChunksSnippeted reports 0)
 	// rather than run on the already-cleared chunks.
 	var snipped int
@@ -1498,16 +1433,22 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 		items, snipped = capChunkContent(items, resolveContentBudget(merged.contentBudget))
 	}
 	// Full content = items still carrying their complete text — snippeted
-	// chunks retain (truncated) content, so exclude them from the count. Notes
-	// never contribute here post-#684 (clearNoteContent already zeroed them).
+	// chunks retain (truncated) content, so exclude them from the count.
 	contentful := countItemsWithContent(items) - snipped
-	directCount := countDirectHits(items)
+
+	directCount := 0
+
+	for _, item := range items {
+		if slices.Contains(item.Provenances, provenanceDirect) {
+			directCount++
+		}
+	}
 
 	payload := queryPayload{
 		Version:      1,
 		Phrases:      merged.phrases,
-		Clusters:     clusters,
 		Items:        items,
+		Clusters:     clusters,
 		RefitPending: merged.refitPending,
 		Budget: queryBudget{
 			PhrasesQueried:        len(merged.phrases),
@@ -1519,7 +1460,6 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 			Limit:                 merged.limit,
 			ContentBudget:         resolveContentBudget(merged.contentBudget),
 			ChunksSnippeted:       snipped,
-			ItemsContentWithheld:  itemsContentDeduped,
 			TagNominationsAdded:   merged.tagNomsAdded,
 			TagNominationsDropped: merged.tagNomsDropped,
 			LazyChunks:            merged.lazyChunks,

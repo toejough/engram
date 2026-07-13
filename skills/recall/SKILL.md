@@ -96,44 +96,14 @@ query. Drop only obvious dross (a bare noun like "coding"). **Query by task, not
 "implementing Claude Code hooks", not "common mistakes when writing hooks". The binary caps
 results to the top-30 matches per phrase.
 
-### Step 2 — Run ONE unified `engram query`, captured to a file
+### Step 2 — Run ONE unified `engram query` with all phrases
 
 ```bash
 engram query --lazy-chunks \
   --phrase "<phrase 1>" \
-  --phrase "<phrase 2>" \
-  > /tmp/recall-payload-$$.yaml && echo "captured: /tmp/recall-payload-$$.yaml"
+  --phrase "<phrase 2>"
   # ... one --phrase per Step 1 phrase (deep: 10; glance: ~3)
 ```
-
-**Single-capture discipline.** The payload routinely exceeds Claude Code's ~90KB persisted-output
-cap — unpiped stdout is silently truncated in the transcript and cannot be re-read, and re-running
-the query to "see more" pays the binary again for bytes you already had. The invocation is:
-
-- **ONE binary run per phrase-set, stdout redirected to a durable session-tmp file**
-  (`> /tmp/recall-payload-$$.yaml`; `$$` is this shell's PID, so the example stays
-  session-unique even when copied verbatim across concurrent sessions on the same host — a
-  fixed name like `/tmp/recall-payload.yaml` collides. The trailing `echo` prints the exact
-  resolved filename; copy THAT literal path — never the `$$` template itself — into every
-  later grep or Read of this capture. Any scratch path works, as long as the resolved name
-  stays stable for the rest of the session). The redirect is part of the command: never let
-  the payload ride unpiped stdout, and never pipe it through `head`/`tail` in place of
-  capturing it.
-- **Then read the FILE in slices with the Read tool** — Read paginates natively (offset/limit).
-  At real payload sizes (~267KB+) even a large slice (e.g. `limit=3596`, or sometimes
-  `limit=700` near dense candidate content) can exceed Claude Code's ~25k-token Read cap and
-  error — **read in slices of ~200–300 lines; if a Read errors as too large, halve the limit
-  and retry.** Never abandon the file for re-queries or transcript-grepping when a Read
-  errors — grep the same file for targeted lookups (a path, a basename, a top-level key)
-  instead. Never `cat` the whole file back into the transcript.
-- **The budget section sits near the tail of the file and carries the counts**
-  (`items_content_withheld`, `tag_nominations_added`, `lazy_chunks`) — `refit_pending`, when
-  set, can render after it, so don't assume `budget:` is the literal last line. Locate it
-  with a targeted grep (`grep -n "^budget:" <your captured path>`), then Read from that line,
-  before walking the clusters.
-- **Never re-run the query for pagination.** The capture file holds the COMPLETE payload; more
-  Reads of the same file are free, a re-run is not. The only reason to invoke `engram query`
-  again is a genuinely NEW phrase-set (e.g. the Step 3.5 re-entry), captured to its own file.
 
 One call; the binary merges ranking server-side. `engram query` always runs the unified D1
 clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path, cosine, content}]`
@@ -141,34 +111,27 @@ per cluster. The candidate pool includes the within-cluster top-5 **plus tag-nom
 sharing a vocab term with the top-3 delivered notes (budget fields `tag_nominations_added`/`dropped`
 report the pool size). Do NOT collapse phrases, do NOT run per-phrase calls.
 
-The payload renders `clusters` first, then `items`, then `budget`. **The clusters are the
-reading entry point** — start at `clusters` and process them (Step 2.5); `items[]` is a
-path/score match-overview you consult after, never a content source for notes. Two channels:
+The payload has **two channels**:
 
-**Channel 1 — Relevance (clusters + matched items):** Items matched by your 10 phrases, bounded
-to ~300 (top-30 per phrase, unioned, relevance-floor applied). Their clustering leads the
-payload and carries `candidate_l2s` per cluster (see Step 2.5) — **candidate note content lives
-ONLY there; read it there.** The `items[]` list that follows is the match overview; it mixes:
+**Channel 1 — Relevance (clustered matched items):** Items matched by your 10 phrases, bounded
+to ~300 (top-30 per phrase, unioned, relevance-floor applied). These are clustered and carry
+`candidate_l2s` per cluster (see Step 2.5). Read this channel to surface applicable lessons and
+judge coverage. The payload's `items` mix:
 
 - `kind: chunk` — raw transcript/doc fragments with source + anchor. These are EVIDENCE:
   extract the convention, decision, or correction they show (a reviewer correcting code, a
   stated standard); never quote them wholesale. **Under `--lazy-chunks` (recall's default
   invocation — confirm via `budget.lazy_chunks: true`) chunk items carry path + source/anchor
   but NO `content` field: `engram show-chunk <source#anchor>` to read a chunk's evidence on-demand.**
-- `kind: fact` / `feedback` — crystallized lessons. Note items carry NO `content` in `items[]`
-  (the budget's `items_content_withheld` reports how many were withheld): a candidate note's
-  content is inline in its cluster's `candidate_l2s`. For a matched note that appears in NO
-  cluster's `candidate_l2s`, fetch its content via `engram show <basename>` ONLY when your
-  coverage judgment genuinely needs it.
+- `kind: fact` / `feedback` — crystallized lessons; apply directly (notes always carry full content inline).
 
 **Channel 2 — Recent activity (un-clustered):** Items tagged `provenance: recent` — the newest
-chunks by ingest time, appended after the matched set inside `items[]`, NOT cluster members.
-Skim this block when you reach `items[]` for situational continuity — it re-immerses you in
-recent work; the clusters remain the entry point. These items are NOT used for coverage or
-synthesis judgment. Do not treat them as matched results; they have no cluster membership and
-no `candidate_l2s`. Under `--lazy-chunks` recent items also carry path/source only (no content)
-— the paths show where your recent activity was; `engram show-chunk <source#anchor>` for detail
-if a specific one matters.
+chunks by ingest time, appended after the matched set, NOT cluster members. Read this block
+first for situational continuity — re-immerse in recent work before diving into the clustered
+results. These items are NOT used for coverage or synthesis judgment. Do not treat them as
+matched results; they have no cluster membership and no `candidate_l2s`. Under `--lazy-chunks`
+recent items also carry path/source only (no content) — the paths show where your recent activity
+was; `engram show-chunk <source#anchor>` for detail if a specific one matters.
 
 - **Recent items are your own recent activity.** Chunks from a recent source with `turn-N`
   anchors are first-person `ASSISTANT:` narration you produced in a just-prior or
@@ -193,9 +156,7 @@ members yields an empty `candidate_l2s` list; skip to the next cluster when that
 **A. Read candidates and members**
 
 `candidate_l2s` entries carry their `content` inline — read it directly; **no `engram show` calls for
-candidates** (`candidate_l2s` is the ONLY place a note's content rides in the payload; `items[]`
-note members carry none). For a matched note that is in NO cluster's `candidate_l2s`, `engram show
-<basename>` fetches its content — ONLY when the coverage judgment genuinely needs it. For chunk
+candidates** (the same content is also on the matching `items[]` note member). For chunk
 members, the content is NOT in the payload (chunks carry path/source only under `--lazy-chunks`;
 the cluster's `members` list never carries content) — `engram show-chunk <source#anchor>` to read the
 evidence on-demand. Do not judge coverage before you have read the candidate content.
@@ -271,13 +232,8 @@ during the work), run ONE more query first, keyed to the recommendation itself, 
 engram query --lazy-chunks \
   --phrase "<the recommendation, in its own words>" \
   --phrase "<the recommendation> rolled back rejected not worth it superseded" \
-  --phrase "<the recommendation> tried measured outcome" \
-  > /tmp/recall-reentry-$$.yaml && echo "captured: /tmp/recall-reentry-$$.yaml"
+  --phrase "<the recommendation> tried measured outcome"
 ```
-
-This is a genuinely new phrase-set, so it is a new query under Step 2's single-capture
-discipline — captured to its own file (same session-unique-path + printed-echo pattern),
-read in slices.
 
 Apply Step 2.5B's recency weight to what returns. The synthesis MUST carry one `Re-entry:` line
 per emergent recommendation — the line is the proof the check ran (placement rule below):
@@ -348,8 +304,6 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 | You skipped the Step 0.5 sweep with no prior sweep this session | It costs seconds and keeps memory current |
 | `--vault` or `--chunks-dir` on the query | `engram query --phrase ...` only — the binary always runs the unified D1 clustering and emits `candidate_l2s` |
 | Separate query calls per phrase | One call, repeatable `--phrase` flags |
-| `engram query` ran unpiped to stdout (no `>` redirect) | Single-capture discipline: redirect to a session-tmp file, then Read the file in slices — unpiped output truncates at ~90KB and cannot be recovered |
-| You re-ran the same `engram query` to see more of the payload | The capture file already holds the COMPLETE payload — Read further slices or grep it; a second query is only for a genuinely NEW phrase-set (Step 3.5) |
 | You quoted chunks wholesale into the reply | Extract the principle a chunk evidences; paraphrase |
 | You dispatched cluster-synthesis subagents | Gone — Step 2.5 crystallizes inline from the payload's clusters |
 | You judged coverage before reading the candidate content (now inline in `candidate_l2s`) | Read first — cosine alone cannot decide coverage |
@@ -358,8 +312,7 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 | You wrote two notes (a fact AND a feedback) for one cluster | One representative note per cluster — pick the right kind |
 | You called `engram learn --target` to update a note in place | Updates use `engram amend`; `engram learn` is create-only |
 | A `≥0.95` cluster → you activated without reading the candidates | Read first; high cosine nominates, it does not decide |
-| You called `engram show` on a note whose content is inline in a cluster's `candidate_l2s` | Read it there — `candidate_l2s` is the only note-content channel; `items[]` note members carry none (`budget.items_content_withheld` counts them). `engram show <basename>` is for a matched note in NO cluster's `candidate_l2s`, only when the coverage judgment genuinely needs it. CHUNK items carry no content under `--lazy-chunks` (`budget.lazy_chunks: true`) — `engram show-chunk <source#anchor>` to read their evidence. |
-| `items[]` looks thin so you're fetching every note's content "to be thorough" | `items[]` is a path/score match-overview by design — candidate content is already inline in `candidate_l2s`; fetch a non-candidate note only when the coverage judgment genuinely needs it |
+| You called `engram show` on a note already in `items[]` | NOTE members in `items[]` carry `content` — use it directly. CHUNK items carry no content under `--lazy-chunks` (`budget.lazy_chunks: true`) — `engram show-chunk <source#anchor>` to read their evidence. |
 | You assumed a chunk's content is inline and skipped its evidence | Under `--lazy-chunks` chunks carry path/source only — `engram show-chunk <source#anchor>` on-demand before judging coverage |
 | You grouped chunks by eye instead of using the payload's clusters | The binary's k-means grouping is the ground truth; read every cluster |
 | You skipped Step 2.5 or read chunk-only results as "nothing surfaces" | Processing every cluster IS the step; "nothing surfaces" means an EMPTY payload — clusters present means Step 2.5 runs |

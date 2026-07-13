@@ -1,14 +1,4 @@
-"""HISTORICAL INSTRUMENT (pre-#684): this script belongs to the closed S1-S3 link-value
-exploration (final verdicts 2026-07-02, `dev/eval/LEDGER.md#vocab-tag-nomination-l6xtag` /
-`#ppr-killed` / `#supersession-edges-mechanism`; plan doc deleted 2026-07-05) and is not a live
-consumer (no targ target/CI invokes it; judge_misses.py only reads its cached replays.json,
-manually). The 2026-07-12 clusters-first/lazy-note-content payload restructure (#684) moved notes'
-content out of items[] into candidate_l2s and reordered clusters before items — parse_items'
-items->clusters end-sentinel is now unreachable in the new struct order (items[] is followed by
-budget:, not clusters:) and note items never carry content in items[] anymore. Do NOT re-run
-without porting this parser to the new shape; results here are vintage of the pre-#684 payload.
-
-Replay each query set from queries.json against the live vault.
+"""Replay each query set from queries.json against the live vault.
 
 For each query set, runs `engram query --lazy-chunks` twice:
   - n=3 (first 3 phrases, simulates glance's positional-rule floor)
