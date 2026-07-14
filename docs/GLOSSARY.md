@@ -37,7 +37,7 @@ a skill in a harness (Claude Code's term) — and **command** — an OpenCode-sp
 file under `commands/` that wraps a skill invocation for that harness.
 
 ### atom
-The skill-decomposition concept from the ROADMAP charter: one behavior, one skill
+The skill-decomposition concept from the roadmap's guiding framing: one behavior, one skill
 (read-memory, write-memory, route-a-task, orchestrate-a-workflow). Only `write-memory`
 was extracted — as a worker invoked at the write seams, not a mid-procedure reference
 fetch. The full design history (the superseded reference-card form, the decision to stop
@@ -93,8 +93,8 @@ each mapped to the vault note that captures its lesson or an explicit
 in the cycle's closing report. The audit is failure-shaped by design; positive
 reinforcement (the confirmed-approach kind) has no mechanical marker and is captured
 by the closing `/learn`'s Step-2 scan, not here. Pre-registered upgrade: a wrong "no lesson" mapping
-triggers a fresh-context lessons reviewer (an externalized audit; upgrade path in the
-ROADMAP atoms-arc status block).
+triggers a fresh-context lessons reviewer (an externalized audit; upgrade path in
+`docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row).
 
 ### escalation provenance
 The please skill's rule that any measured claim (count, rate, cost, duration) in a
@@ -102,8 +102,8 @@ mid-cycle escalation — an AskUserQuestion or STOP report — carries its evide
 pointer (file/command) and a one-line validity statement ("verified how?");
 unverified claims ship only as explicitly-labeled hypotheses. Pre-registered
 upgrade: a shipped unverified number triggers an enforced escalation gate (a
-fresh ground-truth review per measured escalation; upgrade path in the ROADMAP
-atoms-arc status block).
+fresh ground-truth review per measured escalation; upgrade path in
+`docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row).
 
 ### harness
 A coding-agent host that runs skills. Engram supports two: **Claude Code**
@@ -699,7 +699,7 @@ sub-variant) · **C5** remember-recent-history · **C6** compounding / emergent 
 The six proposed guards against the lesson-capture blind spot (a presented conclusion later
 overturned going uncaptured). Shipped 2026-07-04: **G1** reversals as a learn capture kind ·
 **G2** please step-7 lessons audit · **G6** escalation-provenance rule. Pre-registered upgrade
-paths (in ROADMAP's atoms-arc block): **G3** fresh-context lessons reviewer (upgrade of G2) ·
+paths (in `docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row): **G3** fresh-context lessons reviewer (upgrade of G2) ·
 **G5** enforced escalation gating (upgrade of G6); **G4** crystallize-on-discovery stays parked.
 
 ---

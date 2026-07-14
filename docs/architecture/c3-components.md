@@ -270,6 +270,6 @@ sequenceDiagram
     end
     Note over L,V: at later, SEPARATE `engram query` (K6) processes (see the query flow above) — A-note competes in the main matched set like any fact/feedback note, Q-note EXCLUDED at all four query-pipeline seam points (isQueryExcludedKind) — applyFloorAndCap, isFloorQualifyingNote (capWithNoteFloor reservation), mergePhraseIntoUnion (per-phrase union), tag-nomination (TermIndex build + addNominationsForTerm guard)
     Note over L,V: at later, SEPARATE `engram vocab stats` processes — Q-note excluded from the totalNotes/untagged counter (collectVaultStats skips isQAQuestionFilename), A-note counts normally
-    Note over L,V: deferred, NOT built — a dedicated q-space channel + answered_by ride-along (round 3) requires Arm V's larger-n premise check to reach PASS (≥80%); the larger-n run already came back BORDERLINE (63%, 19/30), so round-3 remains unlicensed pending a further check (ADR-0012; ROADMAP Track C)
+    Note over L,V: deferred, NOT built — a dedicated q-space channel + answered_by ride-along (round 3) requires Arm V's larger-n premise check to reach PASS (≥80%); the larger-n run already came back BORDERLINE (63%, 19/30), so round-3 remains unlicensed pending a further check (ADR-0012; `docs/ROADMAP.md` → GATED — Q&A memory round-2/3)
 ```
 

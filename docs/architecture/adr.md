@@ -282,8 +282,8 @@ channel with an `answered_by` ride-along — deferred to round 3, gated. Decisio
 **Caveat carried forward to round-2/3 gating:** D5′'s asymmetry rests on n=5 synthetic pairs
 (source: the decision record above, vintage 2026-07-03), not yet re-validated at corpus scale —
 round-2 gates on ≥20 real captured pairs (or ~2026-07-17, whichever comes first) against
-pre-registered bands (PASS ≥8, BORDERLINE 6–7, FAIL <6; P2′/P3′ definitions, docs/ROADMAP.md
-Track C). The dedicated q-space channel needs its own premise check (Arm V) to reach PASS (≥80%)
+pre-registered bands (PASS ≥8, BORDERLINE 6–7, FAIL <6; P2′/P3′ definitions, `docs/ROADMAP.md` →
+GATED — Q&A memory round-2/3). The dedicated q-space channel needs its own premise check (Arm V) to reach PASS (≥80%)
 before round-3 is licensed; Arm V large-n came in BORDERLINE 63% (19/30)
 (`dev/eval/LEDGER.md#qa-arm-v-borderline`, vintage 2026-07-03), so round-3 remains unlicensed
 pending a further check.

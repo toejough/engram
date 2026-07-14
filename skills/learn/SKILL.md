@@ -55,7 +55,7 @@ If the verdict is `verdict: OK`, continue to Step 2 with no further vocab action
 
 Also check the QA round-2 gate line. If the output includes `qa round-2 gate: READY (...)`, report to Joe:
 "QA round-2 validation is due (≥20 pairs captured). Please schedule the round-2 gates recorded in
-docs/ROADMAP.md (Track C): P2′ attribution fidelity, P3′ distribution, Arm V larger-n." Do NOT run round-2 validation
+docs/ROADMAP.md (The roadmap → GATED → Q&A memory round-2): P2′ attribution fidelity, P3′ distribution, Arm V larger-n." Do NOT run round-2 validation
 autonomously — it requires Joe's oversight.
 
 ## Step 2 — Crystallize explicit lessons (only when they exist)
