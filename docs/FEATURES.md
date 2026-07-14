@@ -149,10 +149,13 @@ validation: unmeasured as a channel-split capability; the relevance channel's ra
 `engram ingest --auto` keeps the chunk index current by mechanically sweeping every known
 session and markdown source, while skipping session logs whose project path lives under
 a throwaway filesystem root — so running evals or tests doesn't bloat the real vault's
-index.
+index. A source that yields zero chunk records no longer leaves a 0-byte `.jsonl`
+chunk-index file behind — the read path previously had to open and enumerate one such file
+every query; `engram prune --empty` (+ `--dry-run`) additionally sweeps up any pre-existing
+empties, ranking-neutral (empty files hold zero records).
 
 why: `docs/architecture/adr.md` — ADR-0010
-validation: unmeasured as a capability — behavior is locked by `internal/cli` ingest/sweep unit tests, not an eval row
+validation: unmeasured as a capability — behavior is locked by `internal/cli` ingest/sweep unit tests, not an eval row; the 0-byte guard is `TestRunIngestSkipsEmptyIndexFile` (`internal/cli/ingest_test.go`), `prune --empty` is `TestRunPruneEmptyRemovesOnlyEmptyFiles`/`TestRunPruneEmptyDryRunDeletesNothing` (`internal/cli/prune_test.go`); real-scale copy-verified scan recovery: `dev/eval/LEDGER.md#chunk-empty-file-prune`
 
 ## Prune preserves memory (detach on source deletion)
 

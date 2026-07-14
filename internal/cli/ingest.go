@@ -560,6 +560,15 @@ func rebuildIndex(
 		return 0, 0, 0, err
 	}
 
+	// A source that yields zero records (fully-deduped or non-embeddable
+	// segment) would otherwise write a 0-byte .jsonl that the read path must
+	// still open and enumerate every query. Skip the empty write; manifest and
+	// dedup state are recorded independently in ingestSource, so nothing
+	// downstream needs the file.
+	if len(merged) == 0 {
+		return 0, 0, 0, nil
+	}
+
 	data, err := chunk.EncodeRecords(merged)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("ingest: encoding index %s: %w", indexPath, err)

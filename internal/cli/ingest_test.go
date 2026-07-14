@@ -717,6 +717,43 @@ func TestMergeAppendPreservesIngestedAtOnReIngest(t *testing.T) {
 		"IngestedAt must be preserved from first ingest, not overwritten on re-ingest of identical chunk")
 }
 
+func TestRunIngestSkipsEmptyIndexFile(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+
+	// A source that yields zero chunk records (empty/non-embeddable segment)
+	// must NOT leave a 0-byte .jsonl the read path opens every query. Manifest
+	// state is still recorded so the source is not re-ingested next sweep.
+	fs := &memFS{files: map[string][]byte{"/sessions/empty.jsonl": []byte("")}}
+	deps := cli.IngestDeps{
+		ReadFile:       fs.read,
+		WriteFile:      fs.write,
+		ReadTranscript: transcriptReader(""),
+		Embedder:       fakeIngestEmbedder{},
+	}
+
+	err := cli.RunIngest(context.Background(), cli.IngestArgs{
+		Transcripts: []string{"/sessions/empty.jsonl"},
+		ChunksDir:   "/chunks",
+	}, deps, io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	indexPath := "/chunks/" + cli.ExportIndexFileName("/sessions/empty.jsonl")
+	_, indexWritten := fs.files[indexPath]
+	g.Expect(indexWritten).To(gomega.BeFalse(),
+		"a zero-record source must not write a 0-byte index file")
+
+	// Safety: the guard must not skip manifest persistence (dedup state).
+	_, manifestWritten := fs.files["/chunks/manifest.json"]
+	g.Expect(manifestWritten).To(gomega.BeTrue(),
+		"manifest must still be written for the ingested source")
+}
+
 // TestRunIngest_LocksManifestAroundReadModifyWrite asserts that RunIngest
 // acquires the manifest lock BEFORE reading the manifest and releases it
 // AFTER writing it — preventing concurrent lost updates (#660).

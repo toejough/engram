@@ -50,7 +50,7 @@ ADR-0018 divergence example is annotated historical.
 
 **Actionable now (unblocked, fleshed out):**
 
-- **#694** (Track B — small, actionable) — empty-file hygiene: guard `rebuildIndex` so ingest stops writing 0-byte chunk-index files + prune the ~35k existing empties (recovers ~16% of scan + disk; the prune is destructive-on-real-data → Joe-authorized). Split from #693 (`dev/eval/LEDGER.md#chunk-scan-vector-read-attribution`). **#693 itself (the vector-read/decode cache cut) is DEFERRED** — measured, cache ceiling ~87% scan but only ~7% of the whole recall op; see Parked.
+- **#694 — SHIPPED + closed 2026-07-14** — empty-file hygiene: `rebuildIndex` guard (no more 0-byte writes) + `engram prune --empty` (+ `--dry-run`); the real `~/.local/share/engram/chunks` was pruned (47,990 empties removed, 54,618→6,628, 0 remaining); scan-stage −21% (5149→4061 ms), ranking-neutral — `dev/eval/LEDGER.md#chunk-empty-file-prune`. **#693 (vector-read/decode cache) remains DEFERRED** — see Parked.
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
@@ -343,8 +343,13 @@ parsed vectors), not the empty-file count. The "skip the 85%-empty files" candid
 the ~4 s scan is **~95% JSON float-decode** (consolidation refuted at ~3%); a binary parsed-record cache
 ceiling is ~87% / ~3.5 s but only **~7% of the ~52 s recall op**, so **Joe DEFERRED the cache subsystem**
 at the Ratification Gate (a 4-angle-Gate-A'd plan existed) — revisit when the decode grows to dominate a
-larger share of the op. **Track B's remaining actionable item is #694** (empty-file hygiene); embed's
-41k-vector match → ANN stays a separate lever.
+larger share of the op. **Track B's #694 (empty-file hygiene) shipped 2026-07-14**; embed's
+41k-vector match → ANN stays a separate lever. **#694 done (2026-07-14):** the
+ingest-guard (`rebuildIndex` skips 0-byte writes) and `engram prune --empty` (+ `--dry-run`)
+are built, tested, and committed; verified on a full copy of the real chunk index — 54,618→6,628
+files, `scan_ms` 5149→4061 (−21% of the scan stage), ranking-neutral (`dev/eval/LEDGER.md#chunk-empty-file-prune`).
+The empty count grew +12,711 in the days since the #693 measurement, confirming the guard's
+unbounded-growth-cap value. The real `~/.local/share/engram/chunks` was pruned 2026-07-14 (Joe-authorized): 47,990 empties removed (54,618→6,628, 0 remaining).
 #691 shipped the `engram query --timings` instrument (measurement only; DI clock, default payload
 unchanged). Note: the 7.1 s binary wall is less than the 12.2 s in-session tool-span (`recall-time-split`)
 — the ~5 s gap is Claude-Code/Bash harness overhead outside the binary.

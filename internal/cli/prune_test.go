@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/onsi/gomega"
@@ -103,6 +105,65 @@ func TestPruneNoManifestIsNoOp(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 }
 
+func TestRunPruneEmptyDryRunDeletesNothing(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+
+	fs := newPruneFS()
+	fs.files["/chunks/empty.jsonl"] = []byte("")
+	fs.files["/chunks/full.jsonl"] = []byte("x\n")
+
+	out := &strings.Builder{}
+	err := cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks", Empty: true, DryRun: true}, fs.pruneDeps(), out)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	_, emptyExists := fs.files["/chunks/empty.jsonl"]
+	g.Expect(emptyExists).To(gomega.BeTrue(), "dry-run must not delete")
+	g.Expect(out.String()).To(gomega.ContainSubstring("[dry-run]"))
+	g.Expect(out.String()).To(gomega.ContainSubstring("removed 1"))
+	g.Expect(out.String()).To(gomega.ContainSubstring("of 2 scanned"))
+}
+
+func TestRunPruneEmptyRemovesOnlyEmptyFiles(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+
+	fs := newPruneFS()
+	fs.files["/chunks/empty-a.jsonl"] = []byte("")
+	fs.files["/chunks/empty-b.jsonl"] = []byte("")
+	fs.files["/chunks/full.jsonl"] = []byte(`{"source":"s","text":"t"}` + "\n")
+	fs.files["/chunks/manifest.json"] = []byte("{}")
+
+	err := cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks", Empty: true}, fs.pruneDeps(), io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	_, aExists := fs.files["/chunks/empty-a.jsonl"]
+	_, bExists := fs.files["/chunks/empty-b.jsonl"]
+	full, fullExists := fs.files["/chunks/full.jsonl"]
+
+	g.Expect(aExists).To(gomega.BeFalse())
+	g.Expect(bExists).To(gomega.BeFalse())
+	g.Expect(fullExists).To(gomega.BeTrue())
+	g.Expect(full).To(gomega.Equal([]byte(`{"source":"s","text":"t"}`+"\n")),
+		"non-empty index file must be byte-identical (ranking-neutral)")
+
+	_, manifestExists := fs.files["/chunks/manifest.json"]
+	g.Expect(manifestExists).To(gomega.BeTrue(),
+		"prune --empty must never touch manifest.json")
+}
+
 // TestRunPrune_LocksManifestAroundReadModifyWrite asserts that RunPrune
 // acquires the manifest lock BEFORE reading the manifest and releases it
 // AFTER writing it, preventing concurrent lost updates alongside ingest (#660).
@@ -198,6 +259,23 @@ func (p *pruneFS) pruneDeps() cli.PruneDeps {
 		ReadFile:  func(path string) ([]byte, error) { return p.read(path) },
 		WriteFile: func(path string, data []byte) error { p.files[path] = data; return nil },
 		Exists:    func(path string) bool { return p.exists[path] },
+		ListIndexes: func(dir string) ([]string, error) {
+			var paths []string
+
+			for path := range p.files {
+				if strings.HasPrefix(path, dir+"/") && strings.HasSuffix(path, ".jsonl") {
+					paths = append(paths, path)
+				}
+			}
+
+			sort.Strings(paths)
+
+			return paths, nil
+		},
+		Remove: func(path string) error {
+			delete(p.files, path)
+			return nil
+		},
 	}
 }
 

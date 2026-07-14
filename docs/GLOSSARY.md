@@ -576,6 +576,10 @@ KEEPS that source's per-source index file — the embedded chunks stay searchabl
 (chunk search scans index files directly, not the manifest). Not part of the
 recall/learn/please flows — run manually after removing or moving ingested
 source files to clear dead manifest entries without losing the embedded memory.
+A separate `--empty` mode (with `--dry-run`) instead removes existing 0-byte
+chunk-index files left behind by a source that yielded zero records —
+ranking-neutral (empty files hold zero records), re-reading each file at
+delete time rather than deleting off a frozen enumeration.
 
 ### non-persistent workspace
 A project directory located under a throwaway filesystem root

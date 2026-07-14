@@ -70,7 +70,8 @@ flowchart TD
     I --> J["chunk index: per-source record file + manifest.json (mtime/size/hash)"]
 
     P["engram prune (separate operator-run GC)"] -.->|"acquires the same flock(.manifest.lock)"| I
-    P --> Q["delete per-source index files whose source file no longer exists"]
+    P --> Q["default: drop the stale per-source manifest entry, keeping the .jsonl on disk (still searchable)"]
+    P --> Qe["--empty: remove 0-byte .jsonl index files left by zero-record sources (#694; ranking-neutral)"]
 ```
 
 Source: `internal/cli/ingest.go` (`RunIngest`, the manifest staleness check, `Lock`),
