@@ -41,6 +41,8 @@ Requires Go 1.25+ on `PATH`.
 
 ## Upgrading
 
+**If your chunk index predates the 0-byte-write guard (2026-07-14, #694), it has a backlog of empty `.jsonl` index files** — older versions wrote a 0-byte file for every source that yielded zero records, and they accreted on every ingest (a real index measured 47,990 empty of 54,618). The guard stops new ones but does not clear the backlog. Run **`engram prune --empty`** once to remove them (preview first with `engram prune --empty --dry-run`) — it's ranking-neutral (empty files hold zero records, so nothing searchable is lost) and safe (the index is regenerable). `engram update` prints a one-line notice pointing here when it detects leftover empty `.jsonl` index files.
+
 **If your vault predates the vocab→tags migration (2026-07-10, #678), its old vocab notes are silently unrecognized** — no read path reads them, and no error is raised. Vocab membership now lives in a single `tags: [vocab/<term>]` frontmatter entry; the old `vocab.<term>.md` term-note files, `Vocab:` body-lines, `vocab:` frontmatter, and `vocab.index.md` index are retired. `engram update` prints a one-line notice pointing here when it detects old-format files in your vault.
 
 Migration is not automated; an LLM should be able to migrate the vault easily. To recover the retired one-shot converter, `git log` restores the `engram vocab migrate-tags` command (removed in commit `d1995030`, #681).

@@ -24,6 +24,8 @@ type UpdateArgs struct {
 
 // unexported constants.
 const (
+	emptyChunkFilesNotice = "empty chunk-index files found — run `engram prune --empty` to clear them; " +
+		"see the Upgrading section in README.md\n"
 	oldVocabFilePrefix   = "vocab."
 	oldVocabFileSuffix   = ".md"
 	vocabMigrationNotice = "old-format vocab files found — see the Upgrading section in README.md for migration steps\n"
@@ -152,6 +154,32 @@ func anyHarnessFailed(report update.Report) bool {
 	return slices.ContainsFunc(report.Harnesses, harnessFailed)
 }
 
+// chunkIndexHasEmptyFiles reports whether the chunk index holds any 0-byte
+// .jsonl file (the backlog older versions accreted before the rebuildIndex
+// guard — #694). It scans through the injected filesystem seam and returns
+// false for a missing/unreadable dir, so fresh or already-pruned indexes stay
+// silent. Empties are detected by len==0 (the seam exposes no file size),
+// early-returning on the first one found.
+func chunkIndexHasEmptyFiles(chunksDir string, fileSystem update.Filesystem) bool {
+	entries, readErr := fileSystem.ReadDir(chunksDir)
+	if readErr != nil {
+		return false
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), jsonlExt) {
+			continue
+		}
+
+		data, fileErr := fileSystem.ReadFile(filepath.Join(chunksDir, entry.Name()))
+		if fileErr == nil && len(data) == 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
 // claudeGuidanceFiles returns the guidance basenames deployed to Claude Code
 // this run (empty if none / harness absent).
 func claudeGuidanceFiles(report update.Report) []string {
@@ -259,6 +287,8 @@ func runUpdate(ctx context.Context, args UpdateArgs, stdout io.Writer) error {
 	if runErr == nil {
 		vaultPath := resolveVault("", report.Home, updater.Env.Getenv)
 		report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, updater.FS)
+		chunksDir := ResolveChunksDir("", report.Home, updater.Env.Getenv)
+		report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, updater.FS)
 	}
 
 	return finishUpdate(stdout, report, runErr)
@@ -281,6 +311,15 @@ func writeCommandRows(buffer *bytes.Buffer, harness update.HarnessReport, home s
 	for _, name := range harness.CommandFiles {
 		dst := filepath.Join(harness.CommandsRoot, name)
 		fmt.Fprintf(buffer, "    commands/%s → %s\n", name, tildify(dst, home))
+	}
+}
+
+// writeEmptyChunkHint prints a one-line pointer to the README "Upgrading"
+// section when the chunk index still holds 0-byte .jsonl files. Silent
+// otherwise — a vault whose index was already pruned never sees it.
+func writeEmptyChunkHint(buffer *bytes.Buffer, report update.Report) {
+	if report.ChunkIndexHasEmptyFiles {
+		buffer.WriteString(emptyChunkFilesNotice)
 	}
 }
 
@@ -372,6 +411,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 
 	writeGuidanceHints(&buffer, report)
 	writeVocabMigrationHint(&buffer, report)
+	writeEmptyChunkHint(&buffer, report)
 
 	_, err := out.Write(buffer.Bytes())
 	if err != nil {

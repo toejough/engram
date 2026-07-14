@@ -143,6 +143,9 @@ type Report struct {
 	// oldVocabFilesPresent) — Updater.Run itself never touches vault paths;
 	// this field is opaque data.
 	VaultHasOldVocabFiles bool
+	// ChunkIndexHasEmptyFiles is set by the cli package after Run returns
+	// (Updater.Run never touches chunk paths; this field is opaque data).
+	ChunkIndexHasEmptyFiles bool
 
 	Harnesses []HarnessReport
 }

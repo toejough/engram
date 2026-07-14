@@ -34,6 +34,40 @@ func TestAnyHarnessFailed(t *testing.T) {
 	})).To(BeTrue())
 }
 
+func TestChunkIndexHasEmptyFiles(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		files map[string][]byte
+		want  bool
+	}{
+		{"one empty jsonl", map[string][]byte{"/chunks/a.jsonl": {}}, true},
+		{"empty among nonempty", map[string][]byte{
+			"/chunks/a.jsonl": []byte("x\n"), "/chunks/b.jsonl": {}}, true},
+		{"all nonempty", map[string][]byte{"/chunks/a.jsonl": []byte("x\n")}, false},
+		{"empty non-jsonl ignored", map[string][]byte{"/chunks/manifest.json": {}}, false},
+		{"missing dir", map[string][]byte{}, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t) // update_test.go dot-imports gomega — unqualified
+
+			fileSystem := newU1FS()
+			maps.Copy(fileSystem.files, tc.files)
+			// Do NOT set dirs["/chunks"]: u1FS.hasChildren synthesizes the dir
+			// from seeded /chunks/*.jsonl paths (mirror TestOldVocabFilesPresent),
+			// so the "missing dir" case (empty maps) genuinely hits the
+			// ReadDir-error (self-silencing) branch.
+
+			g.Expect(cli.ExportChunkIndexHasEmptyFiles("/chunks", fileSystem)).To(Equal(tc.want))
+		})
+	}
+}
+
 func TestDescribeSource_UnknownMode(t *testing.T) {
 	t.Parallel()
 
@@ -471,6 +505,36 @@ func TestTildify(t *testing.T) {
 	g.Expect(cli.ExportTildify("/home/joe/x", "/home/joe")).To(Equal("~/x"))
 	g.Expect(cli.ExportTildify("/other/x", "/home/joe")).To(Equal("/other/x"))
 	g.Expect(cli.ExportTildify("/home/joe/x", "")).To(Equal("/home/joe/x"))
+}
+
+func TestWriteUpdateReport_EmptyChunkHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{ChunkIndexHasEmptyFiles: true})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("Upgrading"))
+	g.Expect(buffer.String()).To(ContainSubstring("README.md"))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{ChunkIndexHasEmptyFiles: false})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("empty chunk-index"))
+
+	// Both notices coexist when both conditions hold.
+	var both bytes.Buffer
+
+	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
+		VaultHasOldVocabFiles:   true,
+		ChunkIndexHasEmptyFiles: true,
+	})
+	g.Expect(bothErr).NotTo(HaveOccurred())
+	g.Expect(both.String()).To(ContainSubstring("empty chunk-index"))
+	g.Expect(both.String()).To(ContainSubstring("old-format vocab"))
 }
 
 func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
