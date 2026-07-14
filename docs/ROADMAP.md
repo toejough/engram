@@ -50,7 +50,7 @@ ADR-0018 divergence example is annotated historical.
 
 **Actionable now (unblocked, fleshed out):**
 
-- **#693** (Track B — the open front, **re-scoped 2026-07-14**) — cut recall's chunk-index **scan** cost. #693 measured the within-`scan` attribution (`dev/eval/LEDGER.md#chunk-scan-vector-read-attribution`, n=3): the ~4.8 s scan is **~83% reading+decoding the 6,355 non-empty vector files (364 MB)**, only ~16% the 35k empty-file opens, ~1% vault+sidecar. So the lever is the **vector read** — consolidate files / binary-encode vectors (JSON float-array decode of ~2.4M floats dominates) / cache parsed vectors — measured-first before building. The candidate "skip the 85%-empty files" was measured and **rejected** (16% cut < the pre-registered 40% bar; the empties are a *disk-hygiene* issue, filed separately as #694 — ingest-guard + prune). (Distinct quantities: **scan ~67%** of binary wall; **within-scan vector-read ~83%**; **empty-file count ~85%** of *files* — NOT time.)
+- **#694** (Track B — small, actionable) — empty-file hygiene: guard `rebuildIndex` so ingest stops writing 0-byte chunk-index files + prune the ~35k existing empties (recovers ~16% of scan + disk; the prune is destructive-on-real-data → Joe-authorized). Split from #693 (`dev/eval/LEDGER.md#chunk-scan-vector-read-attribution`). **#693 itself (the vector-read/decode cache cut) is DEFERRED** — measured, cache ceiling ~87% scan but only ~7% of the whole recall op; see Parked.
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
@@ -60,7 +60,7 @@ ADR-0018 divergence example is annotated historical.
 **Gated (data/date/validation):** Track C round-2 opens at ≥20 pairs or 2026-07-17 · #667 deploy guidance to OpenCode (now includes `delegate.md`; gated on AGENTS.md `@import` validation) · #656 (its stated blocker — #654's harness — is resolved: the harness now exists with a RED baseline established 2026-07-08, `dev/eval/LEDGER.md#c7-lever-recheck-red-baseline`; still gated, now on a narrower gap — #656's AC calls for verification against a `/please`-orchestration variant of the harness, which this cycle's recall-only trials didn't build) · #652 recency centroid (gated on an over-surfacing eval) · #675 (Track C round-3 usage report; gated on P3′ spread PASS).
 
 **Parked (revisit on trigger):** #671 parallel-builders (ADR-0017 chose the escalate-ladder) · #670 rubric-refit (needs accrued evidence — #674 shipped the evidence/aggregate notes
-  2026-07-10; #669 closed subsumed) · #637 `--field` query flags (awaiting a forcing function) · payload-prune production build (rejected 2026-07-08 — revisit only on a viable subagent route; see Track B) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
+  2026-07-10; #669 closed subsumed) · #637 `--field` query flags (awaiting a forcing function) · payload-prune production build (rejected 2026-07-08 — revisit only on a viable subagent route; see Track B) · **#693** vector-read/decode cache (DEFERRED 2026-07-14 at the Ratification Gate — a Gate-A'd binary-cache plan exists; cache ceiling ~87% scan but only ~7% of the ~52 s recall op; revisit when decode dominates a larger share of the op; `dev/eval/LEDGER.md#chunk-scan-decode-cache-deferred`) · the "capture-quality residuals" and "deeper-arc synthesis" lists below.
 
 > Shorthand codes used below — the capability axes **C1–C7** and the capture guards **G1–G6** — are
 > defined in `docs/GLOSSARY.md` (see "capability axes" and "capture guards").
@@ -339,8 +339,12 @@ reading+decoding the 6,355 non-empty vector files (364 MB)**, only ~16% the 35k 
 vault+sidecar — so the lever is the **vector read** (consolidate files / binary-encode vectors / cache
 parsed vectors), not the empty-file count. The "skip the 85%-empty files" candidate was measured and
 **rejected** (16% < the pre-registered 40% bar); the empties are a *disk-hygiene* issue (#694).
-**Track B is therefore NOT closed;** the vector-read cut is the open front, **#693 re-scoped** (measure
-the ceiling before building, per the #684/#690 moral; embed's 41k-vector match → ANN remains a separate lever).
+**#693 then measured the finer split (`dev/eval/LEDGER.md#chunk-scan-decode-cache-deferred`, 2026-07-14):**
+the ~4 s scan is **~95% JSON float-decode** (consolidation refuted at ~3%); a binary parsed-record cache
+ceiling is ~87% / ~3.5 s but only **~7% of the ~52 s recall op**, so **Joe DEFERRED the cache subsystem**
+at the Ratification Gate (a 4-angle-Gate-A'd plan existed) — revisit when the decode grows to dominate a
+larger share of the op. **Track B's remaining actionable item is #694** (empty-file hygiene); embed's
+41k-vector match → ANN stays a separate lever.
 #691 shipped the `engram query --timings` instrument (measurement only; DI clock, default payload
 unchanged). Note: the 7.1 s binary wall is less than the 12.2 s in-session tool-span (`recall-time-split`)
 — the ~5 s gap is Claude-Code/Bash harness overhead outside the binary.
