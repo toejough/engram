@@ -50,7 +50,7 @@ ADR-0018 divergence example is annotated historical.
 
 **Actionable now (unblocked, fleshed out):**
 
-- **#693** (Track B — the open front) — cut the chunk-index load/match that #691 measured as ~85% of query in-flight time (consolidate/cache/mmap the 41k-file/364 MB index; ANN-index the brute-force match). #691 shipped the `--timings` instrument + the measured split (`dev/eval/LEDGER.md#query-inflight-split`, 2026-07-13); measure the cut's ceiling before building.
+- **#693** (Track B — the open front, **re-scoped 2026-07-14**) — cut recall's chunk-index **scan** cost. #693 measured the within-`scan` attribution (`dev/eval/LEDGER.md#chunk-scan-vector-read-attribution`, n=3): the ~4.8 s scan is **~83% reading+decoding the 6,355 non-empty vector files (364 MB)**, only ~16% the 35k empty-file opens, ~1% vault+sidecar. So the lever is the **vector read** — consolidate files / binary-encode vectors (JSON float-array decode of ~2.4M floats dominates) / cache parsed vectors — measured-first before building. The candidate "skip the 85%-empty files" was measured and **rejected** (16% cut < the pre-registered 40% bar; the empties are a *disk-hygiene* issue, filed separately as #694 — ingest-guard + prune). (Distinct quantities: **scan ~67%** of binary wall; **within-scan vector-read ~83%**; **empty-file count ~85%** of *files* — NOT time.)
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
@@ -333,9 +333,14 @@ the experiment. No recall behavior change; the pre-query span is
 model-reasoning-bound, not mechanically cuttable — the same conclusion as consumption. **#691 (query
 in-flight) is now measured (`dev/eval/LEDGER.md#query-inflight-split`, 2026-07-13) and BREAKS the
 pattern:** the chunk-index I/O load (scan) dominates at ~67% of the ~7.1 s binary wall — NOT the
-embedder — a real mechanically-cuttable lever (the 41,367-file / 364 MB index → consolidate/cache/mmap;
-the 41k-vector brute-force match → ANN index). **Track B is therefore NOT closed;** the chunk-index cut
-is the open front, filed as **#693** (measure the ceiling before building, per the #684/#690 moral).
+embedder — a real mechanically-cuttable lever. **#693 then measured the within-`scan` attribution
+(`dev/eval/LEDGER.md#chunk-scan-vector-read-attribution`, 2026-07-14):** the ~4.8 s scan is **~83%
+reading+decoding the 6,355 non-empty vector files (364 MB)**, only ~16% the 35k empty-file opens, ~1%
+vault+sidecar — so the lever is the **vector read** (consolidate files / binary-encode vectors / cache
+parsed vectors), not the empty-file count. The "skip the 85%-empty files" candidate was measured and
+**rejected** (16% < the pre-registered 40% bar); the empties are a *disk-hygiene* issue (#694).
+**Track B is therefore NOT closed;** the vector-read cut is the open front, **#693 re-scoped** (measure
+the ceiling before building, per the #684/#690 moral; embed's 41k-vector match → ANN remains a separate lever).
 #691 shipped the `engram query --timings` instrument (measurement only; DI clock, default payload
 unchanged). Note: the 7.1 s binary wall is less than the 12.2 s in-session tool-span (`recall-time-split`)
 — the ~5 s gap is Claude-Code/Bash harness overhead outside the binary.
