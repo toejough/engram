@@ -496,8 +496,8 @@ same check is documented in the route skill as a standing drowning audit. **Pre-
 follow-up** if drowning is ever measured on the real vault: (a) a "summarizes" ride-along edge
 (supersession-shaped insertion of the aggregate when its evidence surfaces) or (b) demoting
 evidence notes to the chunk-population ranking tier — choose with the measured case in hand, per
-the standing rule that a new edge type must first demonstrate retrieval value (ADR-0011; the
-ROADMAP standing constraint; vault note 73). Vocab's hub-note channel migrated to this tags
+the standing rule that a new edge type must first demonstrate retrieval value (ADR-0011;
+`docs/ROADMAP.md` → Standing constraint; vault note 73). Vocab's hub-note channel migrated to this tags
 convention 2026-07-10 (#678): definitions are recallable bare-`vocab`-tagged fact notes,
 `vocab_version` lives on `vocab-definition`, and the vocab query exclusions are deleted.
 
