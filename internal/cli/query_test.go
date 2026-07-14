@@ -738,6 +738,36 @@ func TestRunQuery_NoActivatedFlagInPayload(t *testing.T) {
 	g.Expect(sawHigh).To(BeTrue(), "high-cosine note must appear in payload")
 }
 
+func TestRunQuery_NoTimingsByDefault(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-07-13.alpha.md", "---\ntype: fact\n---\nalpha body")
+
+	deps := newQueryDeps(memFS)
+	deps.Now = func() time.Time { return time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC) }
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(), cli.QueryArgs{
+		Phrases:   []string{"alpha"},
+		VaultPath: vault,
+		Timings:   false,
+	}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Structural byte-stability guarantee is omitempty-on-nil; here we assert
+	// the block is simply absent. The rest of the payload is guarded by the
+	// existing query regression suite (Step 9).
+	g.Expect(out.String()).NotTo(ContainSubstring("timings:"))
+}
+
 // TestRunQuery_NoteRecencyDecayRanksFreshLastUsedFirst verifies that rankCandidates
 // applies a recency multiplier when deps.Now is set: two notes with identical base
 // cosine scores are re-ranked so the one with a recent LastUsed appears first (higher
@@ -1031,6 +1061,66 @@ func TestRunQuery_RefitPendingFromCentroids(t *testing.T) {
 	}
 
 	g.Expect(out.String()).To(ContainSubstring("refit_pending: true"))
+}
+
+func TestRunQuery_TimingsFlag(t *testing.T) {
+	t.Parallel()
+
+	// scriptedClock returns times[0], times[1], ... one per call. The final
+	// value repeats so a stray trailing call cannot panic. Exactly 6 reads
+	// occur under --timings (newPhaseTimer + 5 marks); recency reuses the scan
+	// boundary (Step 6) and adds no read.
+	newScriptedClock := func(times []time.Time) func() time.Time {
+		idx := 0
+
+		return func() time.Time {
+			now := times[idx]
+			if idx < len(times)-1 {
+				idx++
+			}
+
+			return now
+		}
+	}
+
+	base := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
+	times := []time.Time{
+		base,                              // [0] newPhaseTimer: last = now()
+		base.Add(500 * time.Millisecond),  // [1] mark(scan)     -> scan = 500ms
+		base.Add(1500 * time.Millisecond), // [2] mark(embed)    -> embed = 1000ms
+		base.Add(1600 * time.Millisecond), // [3] mark(cluster)  -> cluster = 100ms
+		base.Add(1700 * time.Millisecond), // [4] mark(nominate) -> nominate = 100ms
+		base.Add(1720 * time.Millisecond), // [5] mark(render)   -> render = 20ms
+	}
+
+	g := NewWithT(t)
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-07-13.alpha.md", "---\ntype: fact\n---\nalpha body")
+
+	deps := newQueryDeps(memFS)
+	deps.Now = newScriptedClock(times)
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(), cli.QueryArgs{
+		Phrases:   []string{"alpha"},
+		VaultPath: vault,
+		Timings:   true,
+	}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got := out.String()
+	g.Expect(got).To(ContainSubstring("timings:"))
+	g.Expect(got).To(ContainSubstring("scan_ms: 500"))
+	g.Expect(got).To(ContainSubstring("embed_ms: 1000"))
+	g.Expect(got).To(ContainSubstring("cluster_ms: 100"))
+	g.Expect(got).To(ContainSubstring("nominate_ms: 100"))
+	g.Expect(got).To(ContainSubstring("render_ms: 20"))
 }
 
 type errorEmbedder struct{}

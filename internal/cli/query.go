@@ -42,6 +42,10 @@ type QueryArgs struct {
 	// (fact/feedback) always keep full content. Opt-in (recall sets it); env=
 	// lets the recall sweep enable it without a skill edit.
 	LazyChunks bool `targ:"flag,name=lazy-chunks,env=ENGRAM_LAZY_CHUNKS,desc=render matched chunk items path/score only (no content); the agent fetches a chunk's evidence on-demand via engram show-chunk — shrinks the recall payload"` //nolint:lll // single unbreakable struct-tag string
+	// Timings, when set, emits a `timings:` block (per-stage wall-clock
+	// durations for the query in-flight phase) on the payload. Measurement
+	// only (#691); default off keeps the recall-consumer payload byte-identical.
+	Timings bool `targ:"flag,name=timings,desc=emit a per-stage timing block (scan/embed/cluster/nominate/render) for the query in-flight phase; measurement only"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // QueryDeps holds injected dependencies for the query command.
@@ -70,6 +74,8 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return validationErr
 	}
 
+	timer := newPhaseTimer(deps.Now, args.Timings)
+
 	limit := args.Limit
 	if limit == 0 {
 		limit = defaultQueryLimit
@@ -91,7 +97,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return errQueryNoEmbeddings
 	}
 
-	return runQuery(ctx, args, notes, hits, limit, deps, stdout)
+	return runQuery(ctx, args, notes, hits, limit, deps, timer, stdout)
 }
 
 // unexported constants.
@@ -152,6 +158,11 @@ const (
 	// cluster, so zero stands in.
 	singletonClusterSilhouette = 0.0
 	snippetMaxRunes            = 160
+	stageCluster               = "cluster"
+	stageEmbed                 = "embed"
+	stageNominate              = "nominate"
+	stageRender                = "render"
+	stageScan                  = "scan"
 	unknownKind                = "unknown"
 )
 
@@ -188,6 +199,9 @@ type aggregatedSummary struct {
 	tagNomsAdded   int
 	tagNomsDropped int
 	refitPending   bool
+	// timer is nil-safe (#691 --timings instrumentation); nil when timing is
+	// disabled, in which case every phaseTimer method is a no-op.
+	timer *phaseTimer
 }
 
 // candidateNoteIndex holds the note paths and BOTH sidecar vectors for the
@@ -250,6 +264,56 @@ type matchedSetItem struct {
 	isChunk   bool
 	note      scoredCandidate
 	chunk     scoredChunk
+}
+
+// phaseTimer accumulates per-stage durations using the injected clock. A nil
+// timer (deps.Now == nil, or --timings off) is a no-op: every method is safe
+// on the nil receiver and timings() returns nil, so the omitempty payload
+// field is omitted. (#691 in-flight timing instrumentation, measurement only.)
+type phaseTimer struct {
+	now  func() time.Time
+	last time.Time
+	dur  map[string]time.Duration
+}
+
+// boundary returns the timestamp of the most recent mark (or construction).
+// runQuery reuses the scan boundary as recency's "now" so timing adds no extra
+// clock read. Zero value on a nil receiver.
+func (p *phaseTimer) boundary() time.Time {
+	if p == nil {
+		return time.Time{}
+	}
+
+	return p.last
+}
+
+// mark records the duration of the stage ending now under the given name and
+// advances the boundary. Safe on a nil receiver.
+func (p *phaseTimer) mark(stage string) {
+	if p == nil {
+		return
+	}
+
+	current := p.now()
+	p.dur[stage] = current.Sub(p.last)
+	p.last = current
+}
+
+// timings returns the accumulated per-stage durations, or nil when disabled.
+func (p *phaseTimer) timings() *queryTimings {
+	if p == nil {
+		return nil
+	}
+
+	msOf := func(stage string) int64 { return p.dur[stage].Milliseconds() }
+
+	return &queryTimings{
+		ScanMS:     msOf(stageScan),
+		EmbedMS:    msOf(stageEmbed),
+		ClusterMS:  msOf(stageCluster),
+		NominateMS: msOf(stageNominate),
+		RenderMS:   msOf(stageRender),
+	}
 }
 
 // phrasedCluster pairs a cluster report with the phrase that produced it,
@@ -328,6 +392,25 @@ type queryPayload struct {
 	Clusters     []queryCluster `yaml:"clusters"`
 	Budget       queryBudget    `yaml:"budget"`
 	RefitPending bool           `yaml:"refit_pending,omitempty"`
+	Timings      *queryTimings  `yaml:"timings,omitempty"`
+}
+
+// queryTimings holds per-stage wall-clock durations (milliseconds) for the
+// query in-flight phase, emitted only under --timings.
+//   - scan_ms covers vault scan + sidecar load + chunk-index load (all I/O).
+//   - embed_ms covers phrase embedding + matching only (no chunk-index load).
+//   - nominate_ms covers tag nomination AND the post-cluster result assembly
+//     (chunk append + Channel-2 recency fill + aggregatedSummary build).
+//   - render_ms covers renderItems+renderClusters+content-capping+payload
+//     assembly; the final YAML encode is excluded (it cannot self-include its
+//     own duration and is a negligible serialization cost; Task 2 reports the
+//     tool-span residual instead).
+type queryTimings struct {
+	ScanMS     int64 `yaml:"scan_ms"`
+	EmbedMS    int64 `yaml:"embed_ms"`
+	ClusterMS  int64 `yaml:"cluster_ms"`
+	NominateMS int64 `yaml:"nominate_ms"`
+	RenderMS   int64 `yaml:"render_ms"`
 }
 
 // resolvedItem is the working shape for the items[] section before
@@ -472,6 +555,46 @@ func applyProjectFilter(items []resolvedItem, project string) []resolvedItem {
 	}
 
 	return out
+}
+
+// assembleResolvedItems runs the nominate-stage post-cluster assembly: tag
+// nomination + supersession ride-along (Slice 3), the matched-chunk append,
+// and the Channel-2 recency fill. Split out of runQuery so the "nominate"
+// phaseTimer stage (see stage boundaries, #691) maps onto a single named
+// unit of work rather than an inline block.
+func assembleResolvedItems(
+	noteUnion []scoredCandidate,
+	chunkUnion []scoredChunk,
+	chunkItems []resolvedItem,
+	chunkRecords []chunk.Record,
+	hits []compatibleSidecar,
+	matchSet matchedSet,
+	report clusterReport,
+	args QueryArgs,
+	deps QueryDeps,
+) ([]resolvedItem, map[int][]queryCandidateNote, tagNominationTally) {
+	// mergeProvenances receives an empty matchedSet{} deliberately:
+	// mergeClusterReps must not promote cluster reps into items[] because
+	// the representative is agent-decided, not binary-computed (spec §2 step 4).
+	// Direct-hit items come from the note union; chunk items are appended below.
+	resolved := mergeProvenances(noteUnion, matchedSet{}, clusterReport{})
+	resolved = applyProjectFilter(resolved, args.Project)
+
+	// Slice 3 — tag nomination + supersession ride-along (tally → budget).
+	resolved, tagNominations, tagTally := applyTagNominationAndRideAlong(
+		resolved, hits, args.VaultPath, deps.Read, matchSet, report,
+	)
+
+	resolved = append(resolved, chunkItems...)
+
+	// Channel 2 — Recency (Phase 2): append the newest chunks by IngestedAt
+	// (count resolved from --recent-fill, default 25), deduped against the
+	// matched set, tagged provenanceRecent. These are NOT added to the matched
+	// set and therefore do NOT appear in any cluster's members[].
+	recentItems := buildRecentFillItems(chunkRecords, chunkUnion, resolveRecentFill(args.RecentFill))
+	resolved = append(resolved, recentItems...)
+
+	return resolved, tagNominations, tagTally
 }
 
 // basenameFromNotePath strips the directory and ".md" extension from a
@@ -1174,6 +1297,16 @@ func newOsQueryDeps() QueryDeps {
 	}
 }
 
+// newPhaseTimer returns nil when timing is disabled (now == nil or !enabled),
+// so every mark()/boundary()/timings() call is a no-op on the nil receiver.
+func newPhaseTimer(now func() time.Time, enabled bool) *phaseTimer {
+	if now == nil || !enabled {
+		return nil
+	}
+
+	return &phaseTimer{now: now, last: now(), dur: map[string]time.Duration{}}
+}
+
 // perClusterMeanSilhouette returns one mean silhouette score per cluster
 // by recomputing the per-point silhouettes and averaging within cluster.
 // Mirrors standard silhouette analysis tooling.
@@ -1261,6 +1394,19 @@ func provenanceRankFor(role string) int {
 	default:
 		return 0
 	}
+}
+
+// queryRecencyNow returns recency's "now": the timer's scan-boundary timestamp
+// when timing is on (reused so timing adds no extra clock read), else a fresh
+// deps.Now(). boundary() is called unconditionally (it is nil-safe) so its
+// nil-receiver branch is exercised when timing is off — required for coverage.
+func queryRecencyNow(timer *phaseTimer, deps QueryDeps) time.Time {
+	nowL2 := timer.boundary()
+	if timer == nil && deps.Now != nil {
+		nowL2 = deps.Now()
+	}
+
+	return nowL2
 }
 
 // rankCandidates scores each pre-filtered hit against queryVec, reads the
@@ -1466,6 +1612,8 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 		},
 	}
 
+	payload.Timings = renderTimings(merged.timer)
+
 	const yamlIndent = 2
 
 	encoder := yaml.NewEncoder(stdout)
@@ -1482,6 +1630,16 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	}
 
 	return nil
+}
+
+// renderTimings marks the render stage complete and returns the accumulated
+// per-stage timings (nil when disabled). Marking here — at the point
+// render-prep is fully assembled but before payload.Timings is set and the
+// document is encoded — keeps render_ms scoped to render-prep alone.
+func renderTimings(timer *phaseTimer) *queryTimings {
+	timer.mark(stageRender)
+
+	return timer.timings()
 }
 
 // capChunkContent keeps the first `budget` chunk items (in rank order) at full
@@ -1545,17 +1703,17 @@ func runQuery(
 	hits []compatibleSidecar,
 	limit int,
 	deps QueryDeps,
+	timer *phaseTimer,
 	stdout io.Writer,
 ) error {
-	var nowL2 time.Time
-	if deps.Now != nil {
-		nowL2 = deps.Now()
-	}
-
 	chunkRecords, loadErr := loadClusterChunkRecords(args, deps)
 	if loadErr != nil {
 		return loadErr
 	}
+
+	timer.mark(stageScan)
+
+	nowL2 := queryRecencyNow(timer, deps)
 
 	noteUnion, chunkUnion, matchErr := buildMatchedSetFromPhrases(
 		ctx, args.Phrases, hits, chunkRecords,
@@ -1565,6 +1723,8 @@ func runQuery(
 		return matchErr
 	}
 
+	timer.mark(stageEmbed)
+
 	// D1: build the matched set from the note union, then extend with matched chunks
 	// so one AutoK pass clusters notes and chunks together.
 	matchSet := buildMatchedSet(noteUnion)
@@ -1572,26 +1732,11 @@ func runQuery(
 
 	report := clusterMatchedSet(matchSet, strings.Join(args.Phrases, "\n"))
 
-	// mergeProvenances receives an empty matchedSet{} deliberately:
-	// mergeClusterReps must not promote cluster reps into items[] because
-	// the representative is agent-decided, not binary-computed (spec §2 step 4).
-	// Direct-hit items come from the note union; chunk items are appended below.
-	resolved := mergeProvenances(noteUnion, matchedSet{}, clusterReport{})
-	resolved = applyProjectFilter(resolved, args.Project)
+	timer.mark(stageCluster)
 
-	// Slice 3 — tag nomination + supersession ride-along (tally → budget).
-	resolved, tagNominations, tagTally := applyTagNominationAndRideAlong(
-		resolved, hits, args.VaultPath, deps.Read, matchSet, report,
+	resolved, tagNominations, tagTally := assembleResolvedItems(
+		noteUnion, chunkUnion, chunkItems, chunkRecords, hits, matchSet, report, args, deps,
 	)
-
-	resolved = append(resolved, chunkItems...)
-
-	// Channel 2 — Recency (Phase 2): append the newest chunks by IngestedAt
-	// (count resolved from --recent-fill, default 25), deduped against the
-	// matched set, tagged provenanceRecent. These are NOT added to the matched
-	// set and therefore do NOT appear in any cluster's members[].
-	recentItems := buildRecentFillItems(chunkRecords, chunkUnion, resolveRecentFill(args.RecentFill))
-	resolved = append(resolved, recentItems...)
 
 	merged := aggregatedSummary{
 		phrases:       args.Phrases,
@@ -1607,7 +1752,13 @@ func runQuery(
 		tagNomsAdded:   tagTally.added,
 		tagNomsDropped: tagTally.dropped,
 		refitPending:   readRefitPending(args.VaultPath, deps.Read),
+		timer:          timer,
 	}
+
+	// nominate mark fires AFTER the full post-cluster assembly (tag nomination
+	// + chunk append + Channel-2 fill + summary build), so render_ms measures
+	// only renderQueryPayload's render-prep.
+	timer.mark(stageNominate)
 
 	return renderQueryPayload(stdout, merged)
 }

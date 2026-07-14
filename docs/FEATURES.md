@@ -24,6 +24,18 @@ content only when it turns out to matter.
 why: `docs/architecture/adr.md` — ADR-0004
 validation: `dev/eval/LEDGER.md#payload-cut-lazy-chunks`; `dev/eval/LEDGER.md#payload-cut-recent-fill`
 
+## Query timing instrument (--timings)
+
+`engram query --timings` emits a per-stage wall-clock timing block (scan / embed / cluster /
+nominate / render) for the query in-flight phase, computed through the injected clock and gated
+so the default recall payload stays byte-identical. It is a measurement-only diagnostic — the
+split it surfaces is how the chunk-index I/O load was shown to dominate recall's query in-flight
+time (not the embedder).
+
+why: #691 — decompose the query in-flight span to find the dominant stage before optimizing
+(measurement-first; DI clock, additive, default payload unchanged)
+validation: `dev/eval/LEDGER.md#query-inflight-split`
+
 ## Glance/deep recall dial
 
 Recall runs at two depths: a cheap, read-only rung for firing often at everyday decision

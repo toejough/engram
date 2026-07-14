@@ -50,7 +50,7 @@ ADR-0018 divergence example is annotated historical.
 
 **Actionable now (unblocked, fleshed out):**
 
-- **#691** (S) — instrument the query in-flight split (embed/scan/cluster/render timers; measurement only) (Track B — the last open recall-time phase; pre-query #690 closed measured-no-cut 2026-07-13).
+- **#693** (Track B — the open front) — cut the chunk-index load/match that #691 measured as ~85% of query in-flight time (consolidate/cache/mmap the 41k-file/364 MB index; ANN-index the brute-force match). #691 shipped the `--timings` instrument + the measured split (`dev/eval/LEDGER.md#query-inflight-split`, 2026-07-13); measure the cut's ceiling before building.
 - **#658** (L) — unbundle recall's $ from `build_cost` (per-phase $ metering).
 - **#644** (M) — OpenCode SQLite session ingest (restore + rewire the removed backend).
 - **#672** (M) — route price table + one non-Claude-Code harness cost source (residual after the Claude Code capture).
@@ -330,9 +330,15 @@ phrase-composition 6.5 s), the one clean mechanical slice (the `engram ingest` s
 0.7 s — far below the 3.0 s bar — and Gate A found the recall skill is ALREADY a `--phrase`
 template, so the compose lever's delta was near-empty; Joe chose to close it rather than spend on
 the experiment. No recall behavior change; the pre-query span is
-model-reasoning-bound, not mechanically cuttable — the same conclusion as consumption. **The remaining Track-B item
-is #691** (query in-flight ~12.2 s — instrument the binary's internal embed/scan/cluster/render
-split, measurement only).
+model-reasoning-bound, not mechanically cuttable — the same conclusion as consumption. **#691 (query
+in-flight) is now measured (`dev/eval/LEDGER.md#query-inflight-split`, 2026-07-13) and BREAKS the
+pattern:** the chunk-index I/O load (scan) dominates at ~67% of the ~7.1 s binary wall — NOT the
+embedder — a real mechanically-cuttable lever (the 41,367-file / 364 MB index → consolidate/cache/mmap;
+the 41k-vector brute-force match → ANN index). **Track B is therefore NOT closed;** the chunk-index cut
+is the open front, filed as **#693** (measure the ceiling before building, per the #684/#690 moral).
+#691 shipped the `engram query --timings` instrument (measurement only; DI clock, default payload
+unchanged). Note: the 7.1 s binary wall is less than the 12.2 s in-session tool-span (`recall-time-split`)
+— the ~5 s gap is Claude-Code/Bash harness overhead outside the binary.
 
 ### From the 2026-07-01 system review — cost items
 
