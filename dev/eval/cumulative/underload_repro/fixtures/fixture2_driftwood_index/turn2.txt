@@ -1,0 +1,14 @@
+Thanks. Separate thing — we're building a decisions archive for the onboarding docs. Can you
+write a short changelog-style entry (3-4 short paragraphs) summarizing these raw notes from
+last quarter, faithfully — no need to draw new conclusions or make any recommendation, just
+write it up:
+
+- Added a synonym-expansion step to query parsing after user complaints about exact-match-only
+  search missing obvious matches; measurably improved recall on the internal eval set.
+- Moved the query-latency dashboard from a shared Grafana folder to a dedicated
+  driftwood-index folder, with per-shard breakdowns; no behavior change, just visibility.
+- Indexing now runs as a separate batch job from query serving, so indexing regressions no
+  longer directly affect live query latency.
+
+Write it as if for a wiki page — plain, factual, past tense. Save it to
+docs/decisions-archive.md in the current directory.

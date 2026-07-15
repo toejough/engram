@@ -1,0 +1,8 @@
+One more thing — can you help me triage the driftwood-index backlog? Two open proposals, quick
+priority call on each, one line of reasoning per item:
+
+(a) Add a query-latency budget circuit-breaker that returns partial results if a shard is slow,
+    instead of blocking.
+(b) Add per-tenant query-rate limiting.
+
+Which first, and why?

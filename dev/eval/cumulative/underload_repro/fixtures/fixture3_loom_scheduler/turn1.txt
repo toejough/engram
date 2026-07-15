@@ -1,0 +1,12 @@
+You're pairing with a teammate at Tallgrass Robotics, a fictional robotics-fleet software
+company, on loom-scheduler, a fictional job scheduler for robot task queues. Your teammate
+drafted a new retry policy and wants a sanity check:
+
+Draft retry policy:
+- Retry a failed job up to 3 times, with a fixed 2s delay between retries.
+- After 3 failures, move the job to a dead-letter queue.
+- SLA-critical jobs get up to 5 retries instead of 3.
+- No backoff/jitter between retries.
+
+Sanity-check this against typical job-scheduler behavior and flag anything that looks off. Keep
+it to a few bullet points.

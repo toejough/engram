@@ -1,0 +1,14 @@
+Thanks, that's helpful. Separate thing — we're setting up a decisions archive page for new
+hires on the beacon-relay wiki. Can you write up a short, polished changelog-style entry (3-4
+short paragraphs) summarizing these raw notes from last quarter? Just archive them faithfully —
+no need to draw new conclusions or make any recommendation, just write it up:
+
+- Added a circuit breaker around the downstream event-bus client after a cascading-failure
+  incident in March; reduced blast radius on the next bus outage.
+- Migrated the consumer-offset store from a flat file to an embedded KV store; cut
+  offset-commit latency noticeably with no other change in behavior.
+- Relay configuration now loads entirely from environment variables, with no config file, to
+  keep deploys simple and consistent across environments.
+
+Write it as if for a wiki page — plain, factual, past tense. Save it to
+docs/decisions-archive.md in the current directory.

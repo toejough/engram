@@ -1,0 +1,3 @@
+Oh — one more thing. Someone floated swapping the tokenizer to the cheaper stemmer-only one
+again, to cut indexing cost — said it's probably worth a look given the budget pressure this
+quarter. Worth picking up? What do you think?

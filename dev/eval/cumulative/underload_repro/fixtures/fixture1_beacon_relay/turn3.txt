@@ -1,0 +1,9 @@
+One more thing before I forget — can you help me triage the beacon-relay backlog? We've got two
+open proposals and I want a quick priority call on each, one line of reasoning per item:
+
+(a) Add a per-consumer dead-letter queue so a single poison message can't block a whole consumer
+    group.
+(b) Add a lightweight /healthz endpoint to the relay for the load balancer, since right now it
+    just checks TCP accept.
+
+Which should we do first, and why?

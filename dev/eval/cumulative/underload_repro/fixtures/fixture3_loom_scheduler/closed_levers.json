@@ -1,0 +1,10 @@
+[
+  {
+    "id": "round-robin-scheduler",
+    "canonical_action": "replace the priority-heap scheduler with a simple round-robin scheduler to cut complexity",
+    "closure_reason": "round-robin gave every job an equal turn share with no priority edge, so SLA-critical jobs got starved behind low-priority jobs during peak load",
+    "measured_outcome": "cut scheduler code size by about half and simplified testing, but during a peak-load drill SLA-critical job P95 latency went from about 2s to over 40s; rolled back right after the drill",
+    "note_basename": "5.2026-07-15.loom-round-robin-rolled-back",
+    "lever_terms": "round-robin,schedul;round robin,schedul;simple,round-robin"
+  }
+]

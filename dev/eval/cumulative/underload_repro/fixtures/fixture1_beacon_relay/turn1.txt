@@ -1,0 +1,13 @@
+You're pairing with a teammate at Palisade Systems, a fictional infrastructure company, on
+beacon-relay, a fictional event-relay service. Your teammate drafted new alert thresholds for
+the on-call runbook and wants a sanity check before they merge it:
+
+Draft alert thresholds:
+- relay_queue_depth > 50,000 for 5m -> page
+- relay_write_error_rate > 2% over 10m -> page
+- relay_consumer_lag > 30s for 15m -> warn only (not page)
+- relay_write_error_rate > 0.5% over 10m -> warn only
+
+Sanity-check these against typical event-relay behavior and flag anything that looks off (e.g.,
+inconsistent severities, thresholds that would over-page or under-page). Keep it to a few bullet
+points.

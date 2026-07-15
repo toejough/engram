@@ -6,8 +6,12 @@ per closed lever whether the recommendation committed AMNESIA (re-proposed the c
 or RECONCILED (acknowledged the prior attempt + outcome before advocating, or dropped it).
 
 Mirrors synthesis_judge.py: stub (deterministic, zero-cost) vs real adversarial LLM judge (majority over
-JUDGE_RUNS, default verdict = AMNESIA — the judge must be argued OUT of amnesia). Reuses
-synthesis_judge's `_call_claude_judge` / `_parse_judge_json` plumbing by import.
+JUDGE_RUNS, default verdict = AMNESIA — the judge must be argued OUT of amnesia). Two real-mode voting
+modes: default (`unforced=False`, C7) votes on each run's `verdict` field, keeping the `NOT proposed →
+RECONCILED` semantics; unforced (`unforced=True`, underload_repro) votes on the `reconciled` field only,
+ignoring `verdict`, and demands explicit prior-attempt acknowledgment via the appended
+`_JUDGE_UNFORCED_CLARIFY` rubric. Reuses synthesis_judge's `_call_claude_judge` / `_parse_judge_json`
+plumbing by import.
 
 The judge maps MEANING to the lever's `canonical_action`/`closure_reason` ground truth, NOT the note's
 literal words (heeds the scorer-vocabulary-bias lesson). A deterministic guard rejects "reconciliation
@@ -72,11 +76,38 @@ _JUDGE_USER_TMPL = textwrap.dedent("""\
       measured_outcome: {measured_outcome}
 """)
 
-def _call_lever_judge(user_prompt, judge_model):
+# Appended to the judge system prompt ONLY in unforced (underload) mode. The forced-recall C7
+# rubric is unchanged. This sharpens `reconciled` so thematically-adjacent caution is not
+# mistaken for acknowledgment of the prior attempt (driftwood t2 was mis-scored RECONCILED).
+_JUDGE_UNFORCED_CLARIFY = textwrap.dedent("""\
+
+    IMPORTANT — UN-FORCED, UNDER-LOAD SETTING. The agent was NOT told to recall and may be blind
+    to the prior attempt. Set reconciled=true ONLY if the recommendation EXPLICITLY surfaces that
+    THIS specific approach was already attempted and states or paraphrases its measured outcome
+    (e.g. "we already tried the cheaper tokenizer — relevance dropped and we rolled it back").
+    Fresh reasoning that the approach MIGHT not work, generic caution, or a proposal to "measure
+    it first / gate it on data / run an experiment" is NOT reconciliation: an agent proposing to
+    RE-RUN an experiment that was already run and rolled back is committing AMNESIA, however
+    well-reasoned the caution. If the reply does not name the prior attempt, reconciled=false.
+""")
+
+
+def _judge_system_prompt(unforced):
+    """The judge system prompt: base rubric verbatim, plus the underload clarification ONLY in
+    unforced mode. Kept as a pure seam so the C7-invariant (default == base rubric, byte-for-byte)
+    is unit-testable without shelling out to the judge."""
+    return _JUDGE_SYSTEM + (_JUDGE_UNFORCED_CLARIFY if unforced else "")
+
+
+def _call_lever_judge(user_prompt, judge_model, unforced=False):
     """Run ONE adversarial lever-recheck judge call. Reuses synthesis_judge's generic JSON extractor but
     sends THIS module's rubric (`_JUDGE_SYSTEM`) — not synthesis_judge's, whose `_call_claude_judge`
-    hardcodes the synthesis rubric and so must not be reused here."""
-    full = _JUDGE_SYSTEM + "\n\n" + user_prompt
+    hardcodes the synthesis rubric and so must not be reused here.
+
+    When `unforced`, the underload clarification is appended so `reconciled` demands explicit
+    prior-attempt acknowledgment, not thematic caution."""
+    system = _judge_system_prompt(unforced)
+    full = system + "\n\n" + user_prompt
     cmd = ["claude", "--model", judge_model, "--print", full]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     if result.returncode != 0:
@@ -165,20 +196,49 @@ def deterministic_guard(recommendation, lever):
     return None
 
 
+def _derive_real_verdict(runs, unforced):
+    """Majority vote over the adversarial judge runs (default verdict = AMNESIA).
+
+    Default (C7, forced-recall): vote on each run's own `verdict` field, preserving the
+    NOT-proposed => RECONCILED semantics — there, silently avoiding a lever the agent was
+    FORCED to see the closure for is success.
+
+    Unforced (underload, un-forced): vote on the `reconciled` boolean ONLY, and intentionally
+    IGNORE each run's `verdict` field (whose NOT-proposed => RECONCILED disjunct would credit a
+    hedge). The agent may be blind to the prior attempt, so a reply that neither advocates NOR
+    surfaces the closure (a hedge / "measure it first") is AMNESIA, not a free RECONCILED.
+    Returns (verdict, votes)."""
+    if unforced:
+        votes = sum(1 for r in runs if r.get("reconciled"))
+    else:
+        votes = sum(1 for r in runs if r.get("verdict") == "RECONCILED")
+    verdict = "RECONCILED" if votes > len(runs) // 2 else "AMNESIA"
+    return verdict, votes
+
+
 def score_recommendation(recommendation, lever, note_surfaced, stub=True,
-                         judge_model=DEFAULT_JUDGE_MODEL):
+                         judge_model=DEFAULT_JUDGE_MODEL, unforced=False):
     """Score one recommendation against one closed lever.
 
     Returns a dict: verdict, proposed, reconciled, note_surfaced, stub_mode, judge_runs (real only),
     amnesia_votes/total_runs (real only), guard_fired.
-    """
-    guard = deterministic_guard(recommendation, lever)
-    if guard == "AMNESIA":
-        return {"verdict": "AMNESIA", "proposed": True, "reconciled": False,
-                "note_surfaced": note_surfaced, "stub_mode": stub, "guard_fired": True,
-                "judge_runs": None}
 
+    The deterministic guard only short-circuits in STUB mode (cheap, zero-cost heuristic). In real
+    (LLM-judge) mode it is never consulted: `_has_negated_advocacy_sentence` scopes its negation
+    check to a single sentence, but free-form, un-forced multi-sentence replies (e.g. underload_repro's
+    turn-4 shape) routinely cite the closure marker in one sentence and state the decline in a
+    different one — the guard false-positives AMNESIA on exactly this faithful-decline shape. The
+    adversarial judge reads meaning across the whole reply, not sentence boundaries, and was verified
+    (underload_repro/audit_guard_crosscheck.py against results/red_baseline.jsonl fixture3) to
+    correctly reclassify all 3 guard-fired trials AMNESIA -> RECONCILED. So real mode always defers
+    to it; stub mode (and its pinned unit tests) is unchanged.
+    """
     if stub:
+        guard = deterministic_guard(recommendation, lever)
+        if guard == "AMNESIA":
+            return {"verdict": "AMNESIA", "proposed": True, "reconciled": False,
+                    "note_surfaced": note_surfaced, "stub_mode": True, "guard_fired": True,
+                    "judge_runs": None}
         proposed = _advocates(recommendation, lever)
         verdict = "AMNESIA" if proposed else "RECONCILED"
         return {"verdict": verdict, "proposed": proposed, "reconciled": not proposed,
@@ -191,22 +251,21 @@ def score_recommendation(recommendation, lever, note_surfaced, stub=True,
         closure_reason=lever.get("closure_reason", ""),
         measured_outcome=lever.get("measured_outcome", ""),
     )
-    runs = [_call_lever_judge(user, judge_model) for _ in range(JUDGE_RUNS)]
-    # default-AMNESIA: count RECONCILED votes; majority needed to flip away from amnesia.
-    reconciled_votes = sum(1 for r in runs if r.get("verdict") == "RECONCILED")
-    verdict = "RECONCILED" if reconciled_votes > JUDGE_RUNS // 2 else "AMNESIA"
+    runs = [_call_lever_judge(user, judge_model, unforced=unforced) for _ in range(JUDGE_RUNS)]
+    verdict, reconciled_votes = _derive_real_verdict(runs, unforced)
     return {"verdict": verdict, "proposed": None, "reconciled": verdict == "RECONCILED",
             "note_surfaced": note_surfaced, "stub_mode": False, "guard_fired": False,
-            "judge_runs": runs, "reconciled_votes": reconciled_votes, "total_runs": JUDGE_RUNS}
+            "judge_runs": runs, "reconciled_votes": reconciled_votes, "total_runs": JUDGE_RUNS,
+            "unforced": unforced}
 
 
 def score_fixture(recommendation, fixture_dir, note_surfaced, stub=True,
-                  judge_model=DEFAULT_JUDGE_MODEL):
+                  judge_model=DEFAULT_JUDGE_MODEL, unforced=False):
     """Score a recommendation against every closed lever in a fixture. Cell passes (RECONCILED) only if
     EVERY closed lever is reconciled. Returns the per-lever results + the aggregate cell verdict."""
     levers = load_closed_levers(fixture_dir)
     per_lever = [score_recommendation(recommendation, lev, note_surfaced, stub=stub,
-                                      judge_model=judge_model) for lev in levers]
+                                      judge_model=judge_model, unforced=unforced) for lev in levers]
     cell = "RECONCILED" if all(r["verdict"] == "RECONCILED" for r in per_lever) else "AMNESIA"
     return {"cell_verdict": cell, "per_lever": per_lever, "note_surfaced": note_surfaced}
 

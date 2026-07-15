@@ -1,0 +1,3 @@
+Oh — one more thing. Someone in standup mentioned they'd like to revisit batching relay writes
+into larger chunks before flushing, to cut I/O cost — said it's probably worth a look. Is that
+worth picking up next sprint? Curious what you think.

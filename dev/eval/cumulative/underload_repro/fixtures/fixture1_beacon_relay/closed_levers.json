@@ -1,0 +1,10 @@
+[
+  {
+    "id": "batch-relay-writes",
+    "canonical_action": "batch relay writes into larger fixed-size batches before flushing to the downstream event bus, to cut per-write I/O overhead",
+    "closure_reason": "the added buffering latency from larger batches pushed p99 delivery latency past the SLA during traffic spikes",
+    "measured_outcome": "cut per-write syscalls by about 35% in a load test, but p99 delivery latency during spike traffic rose from about 80ms to over 900ms, breaching the 500ms SLA; rolled back after a week in staging",
+    "note_basename": "5.2026-07-15.beacon-batch-writes-rolled-back",
+    "lever_terms": "batch,writ;batch,flush;larger,batch"
+  }
+]

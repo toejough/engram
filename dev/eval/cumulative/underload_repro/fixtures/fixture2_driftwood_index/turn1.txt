@@ -1,0 +1,13 @@
+You're pairing with a teammate at Anchorpoint Labs, a fictional search-infrastructure company,
+on driftwood-index, a fictional document search service. Your teammate drafted a
+shard-rebalancing runbook and wants a sanity check:
+
+Draft runbook steps:
+1. Detect shard skew when any shard exceeds 150% of the average shard size.
+2. Freeze writes to the skewed shard.
+3. Split the skewed shard into two, using a hash-based key split.
+4. Re-point 50% of the split shard's routing table entries to the new shard.
+5. Unfreeze writes.
+
+Sanity-check this against typical distributed search-index behavior and flag anything that
+looks off (missing step, ordering issue, risk). Keep it to a few bullet points.

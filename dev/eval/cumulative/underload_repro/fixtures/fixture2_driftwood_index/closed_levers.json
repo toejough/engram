@@ -1,0 +1,10 @@
+[
+  {
+    "id": "cheap-stemmer-tokenizer",
+    "canonical_action": "swap the indexing tokenizer to a cheaper stemmer-only tokenizer to cut indexing compute cost",
+    "closure_reason": "the cheaper tokenizer's coarser stemming collapsed distinct query terms together, which measurably hurt search relevance",
+    "measured_outcome": "indexing compute dropped about 30%, but NDCG search relevance fell enough that \"wrong result\" support tickets spiked; rolled back within two weeks",
+    "note_basename": "5.2026-07-15.driftwood-cheap-tokenizer-rolled-back",
+    "lever_terms": "stemmer,tokenizer;cheap,tokenizer;stemmer-only"
+  }
+]

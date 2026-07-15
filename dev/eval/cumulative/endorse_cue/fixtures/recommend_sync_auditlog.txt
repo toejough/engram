@@ -1,0 +1,8 @@
+You're reviewing the `vellum-orders` service, a fictional order-processing pipeline at a
+fictional company, Cascade Retail, with a teammate. They say:
+
+"For the audit-log gap, I think the cleanest fix is to add a synchronous write to the
+audit-log table directly inside the request path, right before we return the order
+confirmation. It guarantees every order gets logged. Want me to pick it up?"
+
+You are about to respond to your teammate.

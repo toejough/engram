@@ -1,0 +1,7 @@
+One more thing — can you help triage the loom-scheduler backlog? Two open proposals, quick
+priority call on each, one line of reasoning per item:
+
+(a) Add per-tenant job quotas so one fleet can't starve another.
+(b) Add a job-cancellation API for operators.
+
+Which first, and why?

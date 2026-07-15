@@ -1,0 +1,13 @@
+Thanks. Separate thing — we're putting together a decisions archive for the team wiki. Can you
+write a short recap (3-4 short paragraphs) of these raw notes from recent scheduler changes,
+faithfully — no need to draw new conclusions or make any recommendation, just write it up:
+
+- Added per-job timeout enforcement after a stuck job silently held a worker slot for six
+  hours; now a job that exceeds its declared timeout is killed and requeued.
+- Added structured logging for every scheduling decision, to make future incident review
+  easier; no behavior change.
+- SLA-critical jobs are now tagged at submission time via a priority field, rather than
+  inferred from job metadata, to make prioritization explicit and auditable.
+
+Write it as if for a wiki page — plain, factual, past tense. Save it to
+docs/decisions-archive.md in the current directory.

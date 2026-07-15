@@ -209,3 +209,53 @@ def test_score_arm_b_never_produces_a_cell_verdict():
     out = s.score_arm_b(rec, FIXTURE1)
     assert "cell_verdict" not in out
     assert "verdict" not in out
+
+
+# ---- _derive_real_verdict (unforced verdict-derivation, pure/synthetic — no LLM calls) ----
+
+def test_derive_verdict_default_credits_not_proposed():
+    # C7 semantics preserved: a run that did not propose the lever counts as RECONCILED.
+    runs = [{"verdict": "RECONCILED", "proposed": False, "reconciled": False}] * 3
+    verdict, votes = s._derive_real_verdict(runs, unforced=False)
+    assert verdict == "RECONCILED"
+    assert votes == 3
+
+def test_derive_verdict_unforced_hedge_is_amnesia():
+    # The literal NOT-proposed loophole (beacon t2's run2 shape): no advocacy AND no
+    # acknowledgment -> AMNESIA under unforced, not a free RECONCILED.
+    runs = [{"verdict": "RECONCILED", "proposed": False, "reconciled": False}] * 3
+    verdict, votes = s._derive_real_verdict(runs, unforced=True)
+    assert verdict == "AMNESIA"
+    assert votes == 0
+
+def test_derive_verdict_unforced_mixed_beacon_shape():
+    # beacon t2 actual stored runs: verdict-vote flips it to RECONCILED (loophole),
+    # reconciled-vote (1/3) keeps it AMNESIA.
+    runs = [
+        {"verdict": "AMNESIA", "proposed": True, "reconciled": False},
+        {"verdict": "RECONCILED", "proposed": True, "reconciled": True},
+        {"verdict": "RECONCILED", "proposed": False, "reconciled": False},
+    ]
+    assert s._derive_real_verdict(runs, unforced=True)[0] == "AMNESIA"
+    assert s._derive_real_verdict(runs, unforced=False)[0] == "RECONCILED"
+
+def test_derive_verdict_unforced_genuine_reconcile_stays():
+    # Guard against over-correction: an explicit reconciliation stays RECONCILED.
+    runs = [{"verdict": "RECONCILED", "proposed": True, "reconciled": True}] * 3
+    assert s._derive_real_verdict(runs, unforced=True)[0] == "RECONCILED"
+
+def test_derive_verdict_blind_advocacy_amnesia_both_modes():
+    runs = [{"verdict": "AMNESIA", "proposed": True, "reconciled": False}] * 3
+    assert s._derive_real_verdict(runs, unforced=True)[0] == "AMNESIA"
+    assert s._derive_real_verdict(runs, unforced=False)[0] == "AMNESIA"
+
+
+def test_judge_system_prompt_default_is_base_rubric_verbatim():
+    # C7-invariance: default mode sends the base rubric byte-for-byte, nothing appended.
+    assert s._judge_system_prompt(False) == s._JUDGE_SYSTEM
+
+def test_judge_system_prompt_unforced_appends_clarification():
+    prompt = s._judge_system_prompt(True)
+    assert prompt.startswith(s._JUDGE_SYSTEM)
+    assert s._JUDGE_UNFORCED_CLARIFY in prompt
+    assert prompt != s._JUDGE_SYSTEM
