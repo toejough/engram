@@ -41,7 +41,7 @@ Angle charges — each reviewer is prompted to REFUTE the artifact, not to bless
 
 - **ask-alignment:** trace every element of the user's verbatim ask to a plan item AND every plan item back to the ask. Gaps (ask items without coverage) and scope creep (plan items beyond the ask) are findings. Is the point of the ask front-and-center, or buried?
 - **code-alignment:** does the plan match the actual working tree — paths, interfaces, patterns, conventions? Verify against the code, not the plan's claims.
-- **docs/diagrams-alignment:** is the plan consistent with architecture diagrams, design docs, and glossaries in the repo?
+- **docs/diagrams-alignment:** is the plan consistent with architecture diagrams, design docs, and glossaries in the repo? When the plan carries an author-pasted enumeration-grep disposition list (Step 3's non-waivable grep), VERIFY every listed disposition against the files AND still run your own independent discovery pass — you are never the list's source, and its presence never narrows your scan.
 - **clarity/standards:** is the prose clear, concise, and per the repo's writing standards?
 - **design-fit:** is the refactored result DRY, SRP-respecting, YAGNI-compliant? Does it read as if written as part of the whole from the start, or layered on?
 - **relevance:** does each updated doc actually need this change — and is any OTHER doc now stale because of it?
@@ -81,7 +81,11 @@ At the start of execution, push all seven steps below to the task list via `Task
    - Ask the user clarifying questions about intent or any new concepts encountered, via `AskUserQuestion`.
    - **State your own assessment of the ask** — sound, flawed, or underspecified — and raise any challenge NOW, per the anti-sycophantic lean. "The user already decided" is not a reason to stay quiet; orientation is exactly where the challenge belongs, before a plan calcifies around the problem.
    - Repeat the recall/read/ask loop until understanding is solid. Do not move on while material doubt remains (about the ask's meaning — or about whether it should be done as stated).
-3. **Plan.** Write a plan to accomplish the ask. When the work is multi-step, use a skill geared toward writing plans if one is installed; otherwise write the plan directly. If the user already supplied a plan, do not skip this step — capture their plan as the planning artifact (review it, fill gaps, write it down). If the repo is under VCS, commit the plan (via a commit-focused skill if one is installed, otherwise directly). The plan is not approved until **gate A** closes (see Adversarial review gates).
+3. **Plan.** Write a plan to accomplish the ask. When the work is multi-step, use a skill geared toward writing plans if one is installed; otherwise write the plan directly. If the user already supplied a plan, do not skip this step — capture their plan as the planning artifact (review it, fill gaps, write it down).
+
+   **Doc-surface enumeration grep (non-waivable).** When a planned change alters a *repeated invariant* — a payload shape, a sweep cadence, a command set, a count, or a naming convention echoed across docs, diagrams, or skills — RUN this grep over the repo before writing the doc-scrub task: search the term itself, its synonyms, its hyphenated or compound forms, AND the OLD text's echoes in diagram labels and comments. Paste the resulting per-file disposition list (file → keep / update / rewrite / N/A, with the one-line reason) INTO the plan itself. The grep runs regardless of how large the surface looks — its cost scales with the surface, so a small surface is a cheap grep, never an exemption. Gate A's docs/diagrams-alignment reviewer independently verifies this list (see Adversarial review gates).
+
+   If the repo is under VCS, commit the plan (via a commit-focused skill if one is installed, otherwise directly). The plan is not approved until **gate A** closes (see Adversarial review gates).
 4. **Execute (TDD).** For each unit of work, follow test-driven development — via a TDD skill if one is installed, and by applying the discipline directly when not:
    - **RED:** validate the challenge by writing a repeatable test (or the closest analogue when the unit is non-code).
    - **GREEN:** make the test pass with the minimal change.

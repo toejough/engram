@@ -69,6 +69,20 @@ in-the-moment "it's trivial" guess.
 why: mirrors the recall-firing guidance (@import) pattern; doctrine in `guidance/delegate.md`, `skills/route/SKILL.md`, `skills/please/SKILL.md`
 validation: `dev/eval/LEDGER.md#delegate-guidance-flip` (headless RED→GREEN: solo→subagent-dispatch, including the trivial-rename case)
 
+## Please Step 3 doc-surface enumeration grep + Gate A independent-pass verification
+
+`please`'s Step 3 (Plan) carries a non-waivable doc-surface enumeration grep: when a plan alters
+a repeated invariant (a payload shape, a cadence, a naming convention echoed across docs,
+diagrams, or skills), the author runs a concept-variant grep over the repo and pastes a per-file
+disposition list into the plan itself. Gate A's docs/diagrams-alignment charge verifies that
+list against the repo and still runs its own independent discovery pass regardless — the list is
+never the reviewer's source, and its presence never narrows the reviewer's scan.
+
+why: issue #685 (Change #1) — gate reviewers kept catching doc-scrub the plan author missed across
+4+ cycles
+validation: `dev/eval/LEDGER.md#685-doc-enumeration-grep`; new headless probe harness
+`dev/eval/cumulative/please_step3_probe/`
+
 ## Evidence-based route rubric
 
 The `route` skill picks a subagent's model tier from memory, not a fixed table: every unit

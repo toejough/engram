@@ -443,7 +443,7 @@ sequenceDiagram
             H->>GR: fresh reviewer — verify the plan against the working tree, not the plan's own claims
             GR-->>H: findings or clean-pass
         and docs/diagrams-alignment (haiku)
-            H->>GR: fresh reviewer — check the plan against architecture diagrams, design docs, glossaries
+            H->>GR: fresh reviewer — check the plan against architecture diagrams, design docs, glossaries; independently verify any author-pasted enumeration-grep list, never deferring to it
             GR-->>H: findings or clean-pass
         and clarity/standards (haiku)
             H->>GR: fresh reviewer — check prose clarity against repo writing standards
