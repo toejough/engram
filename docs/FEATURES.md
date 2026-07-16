@@ -49,12 +49,12 @@ validation: `dev/eval/LEDGER.md#glance-delivers-c3-c4i-c6` (delivery); `dev/eval
 ## Recall-at-decision-moments guidance (@import)
 
 A standing instruction, imported into CLAUDE.md, nudges the agent to fire a cheap recall
-pass at specific moments — before declaring work done, after a failure it can't explain,
-and before committing to a new approach — instead of relying on recall firing only at
-task start.
+pass at specific moments — when weighing a proposed approach in conversation, before
+declaring work done, after a failure it can't explain, and before committing to a new
+approach — instead of relying on recall firing only at task start.
 
 why: `docs/architecture/adr.md` — ADR-0001
-validation: `dev/eval/LEDGER.md#recall-moments-opus48-remeasure` (current-model measurement; supersedes the earlier headless flip)
+validation: `dev/eval/LEDGER.md#recall-moments-opus48-remeasure` (current-model measurement; supersedes the earlier headless flip); `dev/eval/LEDGER.md#underload-firing-wording-fix` (the conversational-endorse cue lifts under-load firing 50%→100%, deployed 2026-07-15)
 
 ## Delegate-object-level-work guidance (@import)
 

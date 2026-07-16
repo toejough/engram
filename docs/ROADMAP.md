@@ -185,7 +185,7 @@ practice, now a standing rule.
 | Pre-registered guard upgrades | G6→G5 (escalation gating) | a future escalation ships a measured claim with an absent or dishonest validity line |
 | Pre-registered guard upgrades | G2→G3 (fresh-context lessons reviewer) | a future capture-blindspot audit's "no lesson" mapping is shown wrong |
 | Pre-registered guard upgrades | G4 (crystallize-on-discovery) | no trigger defined; revisit only if a future capture-blindspot review calls for real-time write-on-discovery over the current end-of-cycle audit |
-| Decision-moment recall hook | narrower before-done / after-failure deterministic hook | guidance-based cues (`recall.md`) shown insufficient at scale (Joe's call) |
+| Decision-moment recall hook | narrower before-done / after-failure deterministic hook | guidance enables firing under load: an engagement-led `recall.md` cue lifted under-load firing +50pp (50%→100%) on 5-note fixtures and is deployed (`LEDGER.md#underload-firing-wording-fix`, 2026-07-15); revisit a hook only if real-vault retrieval precision or endorse-moment firing prove insufficient at scale (#695) |
 
 ## Provenance — shipped / refuted / dead ends (do not relitigate)
 

@@ -64,7 +64,8 @@ in-context save (never recalled, still reconciled from turn-2 memory).
 
 Usage:
   python3 run_underload_repro.py --n 3 --model opus --out results/red_baseline.jsonl \
-      [--fixtures fixture1_beacon_relay,fixture2_driftwood_index] [--workers 3] [--resume]
+      [--fixtures fixture1_beacon_relay,fixture2_driftwood_index] [--workers 3] [--resume] \
+      [--guidance path/to/guidance.md]
 """
 import argparse
 import concurrent.futures as cf
@@ -142,6 +143,15 @@ def build_trial_cwd(guidance_text, marker):
     return wd
 
 
+def _guidance_probe(guidance_text):
+    """The note-194 treatment-delivery probe: guidance_text's first non-blank line (of ANY
+    kind — markdown heading, HTML comment, plain bullet), stripped. Unlike a heading-only probe,
+    this always yields a value for non-empty guidance, so the delivery gate can never silently
+    skip itself for heading-less treatment text. Returns None only for empty/whitespace-only
+    input."""
+    return next((line.strip() for line in guidance_text.splitlines() if line.strip()), None)
+
+
 # ----- transcript scanning: cumulative marker counts across the WHOLE isolated cfg (a fresh
 # per-trial CLAUDE_CONFIG_DIR holds exactly one project, so no sid/filename matching is needed —
 # just sum both needles across every jsonl under cfg/projects, main session + any subagents). -----
@@ -189,8 +199,7 @@ def call_turn(cfg, model, vault, wd, chunks, prompt, resume_sid=None):
 
 # ----- one trial: 4 sequential resumed turns -----
 
-def run_one_trial(fixture_name, fixture_dir, model, judge_model):
-    guidance_text = open(GUIDANCE_PATH).read()
+def run_one_trial(fixture_name, fixture_dir, model, judge_model, guidance_text):
     marker = f"UNDERLOAD-REPRO-MARKER-{uuid.uuid4().hex[:8]}"
     turn_texts = read_turn_texts(fixture_dir)
 
@@ -205,6 +214,25 @@ def run_one_trial(fixture_name, fixture_dir, model, judge_model):
         vault = os.path.join(scratch, "vault")
         shutil.copytree(os.path.join(fixture_dir, "vault_seed"), vault)
         wd = build_trial_cwd(guidance_text, marker)
+
+        # note 194 treatment-delivery gate: build_trial_cwd inlines guidance_text into the
+        # trial's CLAUDE.md; verify it actually landed rather than trusting the seam silently.
+        # The probe is guidance_text's first non-blank line of ANY kind (heading, HTML comment,
+        # plain bullet) so this ALWAYS runs — never silently skips for heading-less guidance,
+        # the exact failure note 194 exists to prevent.
+        guidance_probe = _guidance_probe(guidance_text)
+        if guidance_probe is None:
+            raise RuntimeError(
+                f"treatment-delivery gate failed for fixture {fixture_name!r}: guidance_text is "
+                "empty/whitespace-only — cannot deliver an empty treatment"
+            )
+        with open(os.path.join(wd, "CLAUDE.md")) as probe_check_fh:
+            inlined_claude_md = probe_check_fh.read()
+        if guidance_probe not in inlined_claude_md:
+            raise RuntimeError(
+                f"treatment-delivery gate failed for fixture {fixture_name!r}: guidance probe "
+                f"{guidance_probe!r} not found in inlined CLAUDE.md at {wd!r}"
+            )
 
         record = {"fixture": fixture_name, "model": model, "judge_model": judge_model,
                   "marker": marker, "session_id": None}
@@ -316,13 +344,14 @@ def load_completed(out_path):
     return completed
 
 
-def run_fixture(fixture_name, fixture_dir, n, retry_cap, out_path, model, judge_model, already_done):
+def run_fixture(fixture_name, fixture_dir, n, retry_cap, out_path, model, judge_model,
+                guidance_text, already_done):
     valid_count = sum(1 for s in already_done.values() if s == "valid")
     attempts = len(already_done)
     next_idx = (max(already_done) + 1) if already_done else 0
     new_records = []
     while valid_count < n and attempts < retry_cap:
-        record = run_one_trial(fixture_name, fixture_dir, model, judge_model)
+        record = run_one_trial(fixture_name, fixture_dir, model, judge_model, guidance_text)
         record["trial_idx"] = next_idx
         append_jsonl(out_path, record)
         new_records.append(record)
@@ -377,6 +406,9 @@ def build_argparser():
                      help="opus is the target model per spec; a weaker model is invalid")
     ap.add_argument("--judge-model", default=scorer.DEFAULT_JUDGE_MODEL)
     ap.add_argument("--out", default=DEFAULT_OUT)
+    ap.add_argument("--guidance", default=GUIDANCE_PATH,
+                     help="path to the recall-firing guidance inlined into each trial CLAUDE.md "
+                          "(default: repo guidance/recall.md — the current-wording control arm)")
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--resume", action="store_true", help="skip (fixture, trial_idx) rows already in --out")
     return ap
@@ -393,6 +425,7 @@ def main(argv=None):
 
     completed = load_completed(args.out) if args.resume else {}
     retry_cap = args.n * RETRY_CAP_MULTIPLIER
+    guidance_text = open(args.guidance).read()
 
     with cf.ThreadPoolExecutor(max_workers=args.workers) as ex:
         futs = {}
@@ -400,7 +433,7 @@ def main(argv=None):
             fixture_dir = os.path.join(FIXTURES_DIR, name)
             already = {idx: status for (f, idx), status in completed.items() if f == name}
             fut = ex.submit(run_fixture, name, fixture_dir, args.n, retry_cap, args.out,
-                            args.model, args.judge_model, already)
+                            args.model, args.judge_model, guidance_text, already)
             futs[fut] = name
         for fut in cf.as_completed(futs):
             name = futs[fut]
