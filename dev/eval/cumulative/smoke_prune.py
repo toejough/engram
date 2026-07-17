@@ -188,7 +188,7 @@ def run_build_loop(
     if is_err and cost < 0.02:
         raise RuntimeError(f"{arm_label}: build call failed at round 1 (likely rate-limit)")
 
-    spec = json.load(open(spec_path))
+    spec = scoremod.load_spec(spec_path)  # single spec-load path (merges house checks when named)
     sc = scoremod.score(cwd, spec_path)
     conv, feat = harness.split_failed(sc.get("failed", []))
     rounds = [harness._round_rec(1, sc, res, conv, feat)]
@@ -258,7 +258,7 @@ def run_smoke_app(
 ) -> dict:
     """Run one app: recall → Arm A (carried) → Arm B (pruned). Returns per-app result dict."""
     spec_path = os.path.join(CUM, APP_SPEC[app])
-    interface = json.load(open(spec_path))["interface"]
+    interface = scoremod.load_spec(spec_path)["interface"]  # single spec-load path
 
     # Arm A shares the recall cwd (recall runs first, then build resumes in same session).
     # Arm B gets its own cwd (fresh session, no prior context).

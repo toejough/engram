@@ -12,9 +12,10 @@ import archscore, behavioral
 def load_spec(path):
     """Load a spec, merging the shared house-gotcha checks when the spec names one.
 
-    Single source of truth for spec loading: every raw `json.load(open(spec))` site routes
-    through here so a standalone behavioral run, the leakage check, and the build loop all
-    carry byte-identical house checks. Resolves `house_checks_file` relative to the spec dir."""
+    Single source of truth for spec loading: every spec-load site in the harness routes through
+    here (score.score, harness's interface read + build loop, standalone behavioral run, and
+    smoke_prune's arms) so all carry byte-identical house checks. Resolves `house_checks_file`
+    relative to the spec dir."""
     with open(path) as f:
         spec = json.load(f)
     spec.setdefault("checks", [])

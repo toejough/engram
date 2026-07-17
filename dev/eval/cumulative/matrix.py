@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
 """Cumulative-accumulation matrix orchestrator (v3 — 2 regimes: cold, real.full).
 
-Per (model, trial) chain — TWO regimes, each running its own 3-app chain:
-  cold:      app1(notes) → app2(links) → app3(feeds), no memory, no learn
-  real.full: app1 → app2 → app3, each app builds with /recall, then /learn in-session.
-             Between apps the vault accumulates (seeded vault_in + /learn fact+feedback notes).
+Per (model, trial) chain — TWO regimes, each running its own N-app chain (--app-set picks which):
+  crud (default): app1(notes) → app2(links) → app3(feeds) — the easy-CRUD baseline.
+  hard (#642):    app1(wardex) → app2(glyphex) → app3(relayex) — the gotcha-concentrated fictional
+                  regime; all 3 share ~8 idiosyncratic house conventions (house_gotchas.json).
+  cold:      no memory, no learn.
+  real.full: each app builds with /recall, then /learn in-session; between apps the vault
+             accumulates (seeded vault_in + /learn fact+feedback notes).
 
-  => 2 regimes × 3 apps = 6 build ops, 0 separate learn ops (learn is in-session for real.full).
-Matrix = that × (models × trials). Pilot: 1 model × 1 trial. Full: 3 × 5 = 90 cells.
+  => 2 regimes × N apps build ops, 0 separate learn ops (learn is in-session for real.full).
+Matrix = that × (models × trials). --max-apps caps the chain to the first N apps (pilot uses 2).
 
 Operations form a DAG (app2 build waits on app1; app3 waits on app2). Resumable (skips
 ops whose result JSON exists), budget-capped, parallel across a pool of ISOLATED cfg dirs.
 
 Usage:
   python3 matrix.py [--models haiku,sonnet,opus] [--trials 1,2,3,4,5] [--workers N]
+                    [--app-set crud|hard] [--max-apps N] [--regimes cold,real.full]
                     [--budget USD] [--timeout-min M] [--date YYYY-MM-DD] [--stub good|naive]
 """
 import argparse, concurrent.futures as cf, datetime, json, os, queue, shutil, subprocess, sys, threading, time
@@ -31,7 +35,6 @@ CFGPOOL = ROOT + "/cfgpool"
 KEYCHAIN = 'security find-generic-password -s "Claude Code-credentials" -w'
 
 ALL_MODELS = list(harness.MODELS.keys())
-APP_SPEC = {"notes": "notes_spec.json", "links": "links_spec.json", "feeds": "feeds_spec.json"}
 
 # App-sets selected by --app-set. Each is an ordered (app, chain-tag) list; the spec path is
 # derived generically as f"{CUM}/{app}_spec.json". "crud" is the live easy-CRUD baseline (default,

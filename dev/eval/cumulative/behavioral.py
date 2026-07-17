@@ -5,8 +5,9 @@ Inherently name-agnostic — it checks what the program *does*, not what its
 identifiers are called. Each check runs a command sequence in an isolated HOME
 (so the app's real data path lands in a throwaway dir) and asserts on output.
 
-A "spec" is a list of checks: {name, steps:[(argv, assertion)]}. Assertions:
-  contains:S / absent:S / json / exit0 / exit_nonzero   (applied to the step's stdout/rc)
+A "spec" is a list of checks: {name, steps:[(argv, assertion)]}. Assertions (applied to the
+step's combined stdout+stderr / rc):
+  contains:S / absent:S / any / json / jsonlen:N / exit0 / exit_nonzero / exit:N
 
 Usage: python3 behavioral.py <workdir> <spec.json>
 """
