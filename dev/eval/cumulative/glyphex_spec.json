@@ -1,0 +1,17 @@
+{
+  "app": "glyphex",
+  "interface": "A command-line glyph registry `glyphex`. Subcommands: add <text> [--tag X ...], list [--tag X] [--search Q] [--deep] [--raw] [--json], show <sigil>, edit <sigil> <text>, rm <pos>, tag <sigil> <tag>, untag <sigil> <tag>, export <file>, import <file>, history <sigil>. Persist to a file. This project has established HOUSE CONVENTIONS for id format, persistence format, addressing, provenance, error protocol, tag normalization, search scoping, and audit journaling — follow them. (You will receive review feedback if your implementation violates a house convention.)",
+  "house_checks_file": "house_gotchas.json",
+  "buckets": {"ARCH": "structural", "house": "shared idiosyncratic house conventions (see house_gotchas.json)", "native": "glyphex-only surface behavior (non-transferable control)"},
+  "checks": [
+    {"name": "glyph_add_list", "bucket": "native", "symptom": "Basic add then list doesn't show the glyph text I added.",
+     "steps": [{"argv": ["add", "glyphtextZ"], "assert": "exit0"}, {"argv": ["list"], "assert": "contains:glyphtextZ"}]},
+    {"name": "glyph_json_mode", "bucket": "native", "symptom": "I want a machine-readable JSON listing I can pipe into scripts.",
+     "steps": [{"argv": ["add", "gjsonrecZ"], "assert": "exit0"}, {"argv": ["list", "--json"], "assert": "jsonlen:1"}]},
+    {"name": "glyph_tag_filter", "bucket": "native", "symptom": "Filtering the list by a tag doesn't narrow it to the tagged glyphs.",
+     "variants": [
+       [{"argv": ["add", "gtaggedZ", "--tag", "glypha"], "assert": "exit0"}, {"argv": ["add", "gcontrolZ"], "assert": "exit0"}, {"argv": ["list", "--tag", "glypha", "--json"], "assert": "jsonlen:1"}],
+       [{"argv": ["add", "--tag", "glypha", "gtaggedZ"], "assert": "exit0"}, {"argv": ["add", "gcontrolZ"], "assert": "exit0"}, {"argv": ["list", "--tag", "glypha", "--json"], "assert": "jsonlen:1"}]
+     ]}
+  ]
+}

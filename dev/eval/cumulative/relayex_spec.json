@@ -1,0 +1,17 @@
+{
+  "app": "relayex",
+  "interface": "A command-line relay registry `relayex`. Subcommands: add <text> [--tag X ...], list [--tag X] [--search Q] [--deep] [--raw] [--json], show <sigil>, edit <sigil> <text>, rm <pos>, tag <sigil> <tag>, untag <sigil> <tag>, export <file>, import <file>, history <sigil>. Persist to a file. This project has established HOUSE CONVENTIONS for id format, persistence format, addressing, provenance, error protocol, tag normalization, search scoping, and audit journaling — follow them. (You will receive review feedback if your implementation violates a house convention.)",
+  "house_checks_file": "house_gotchas.json",
+  "buckets": {"ARCH": "structural", "house": "shared idiosyncratic house conventions (see house_gotchas.json)", "native": "relayex-only surface behavior (non-transferable control)"},
+  "checks": [
+    {"name": "relay_add_list", "bucket": "native", "symptom": "Basic add then list doesn't show the relay text I added.",
+     "steps": [{"argv": ["add", "relaytextZ"], "assert": "exit0"}, {"argv": ["list"], "assert": "contains:relaytextZ"}]},
+    {"name": "relay_json_mode", "bucket": "native", "symptom": "I want a machine-readable JSON listing I can pipe into scripts.",
+     "steps": [{"argv": ["add", "rjsonrecZ"], "assert": "exit0"}, {"argv": ["list", "--json"], "assert": "jsonlen:1"}]},
+    {"name": "relay_tag_filter", "bucket": "native", "symptom": "Filtering the list by a tag doesn't narrow it to the tagged relays.",
+     "variants": [
+       [{"argv": ["add", "rtaggedZ", "--tag", "relaya"], "assert": "exit0"}, {"argv": ["add", "rcontrolZ"], "assert": "exit0"}, {"argv": ["list", "--tag", "relaya", "--json"], "assert": "jsonlen:1"}],
+       [{"argv": ["add", "--tag", "relaya", "rtaggedZ"], "assert": "exit0"}, {"argv": ["add", "rcontrolZ"], "assert": "exit0"}, {"argv": ["list", "--tag", "relaya", "--json"], "assert": "jsonlen:1"}]
+     ]}
+  ]
+}
