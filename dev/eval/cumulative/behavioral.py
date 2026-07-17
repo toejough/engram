@@ -123,5 +123,9 @@ def score(workdir, spec):
     return {"build": "ok", "feat": f"{passed}/{len(res)}", "passed": passed, "n": len(res), "checks": res}
 
 if __name__ == "__main__":
-    spec = json.load(open(sys.argv[2]))
+    # Local import to avoid the score<->behavioral cycle (score.py does `import behavioral` at
+    # module top); `score` is fully importable by the time this __main__ block runs. Alias it so
+    # it does not shadow behavioral's own module-level `score` function used on the next line.
+    import score as scoremod
+    spec = scoremod.load_spec(sys.argv[2])
     print(json.dumps(score(sys.argv[1], spec), indent=2))

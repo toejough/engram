@@ -5,8 +5,24 @@ user-symptom phrasings (the convergence-feedback payload).
 
 Usage: python3 score.py <workdir> <spec.json>
 """
-import sys, json
+import sys, os, json
 import archscore, behavioral
+
+
+def load_spec(path):
+    """Load a spec, merging the shared house-gotcha checks when the spec names one.
+
+    Single source of truth for spec loading: every raw `json.load(open(spec))` site routes
+    through here so a standalone behavioral run, the leakage check, and the build loop all
+    carry byte-identical house checks. Resolves `house_checks_file` relative to the spec dir."""
+    with open(path) as f:
+        spec = json.load(f)
+    spec.setdefault("checks", [])
+    hcf = spec.get("house_checks_file")
+    if hcf:
+        with open(os.path.join(os.path.dirname(path), hcf)) as f:
+            spec["checks"] = spec["checks"] + json.load(f).get("house_checks", [])
+    return spec
 
 ARCH_SYMPTOMS = {
     "di": "Your core logic and the file handling are fused together — I want the storage swappable so the core can be exercised without touching a real file.",
@@ -22,7 +38,7 @@ ARCH_SYMPTOMS = {
 }
 
 def score(workdir, specpath):
-    spec = json.load(open(specpath))
+    spec = load_spec(specpath)
     arch = archscore.score(workdir)
     beh = behavioral.score(workdir, spec)
     out = {"arch": arch["arch"], "arch_pass": arch["passed"]}

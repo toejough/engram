@@ -679,7 +679,7 @@ def run_build(args):
     # notes_written/learn_kind_breakdown must be reported as a delta against this, not the total.
     notes_baseline = snapshot_notes(build_vault)
 
-    interface = json.load(open(args.spec))["interface"]
+    interface = scoremod.load_spec(args.spec)["interface"]
     warm = regime["read_mode"] == "skill" and not args.stub
 
     def do_build(msg, resume_sid=None):
@@ -738,7 +738,7 @@ def run_build(args):
     round1_feat_fails = len(feat)
 
     stated = list(conv_labels(sc.get("failed", [])))  # cumulative, for the learn prompt
-    spec = json.load(open(args.spec))
+    spec = scoremod.load_spec(args.spec)
 
     # DRIVE TO COMPLETION. No stale-break / round-cap give-up — the chain's premise is that each
     # app is built to completion before its memory is learned and the next app recalls it (a

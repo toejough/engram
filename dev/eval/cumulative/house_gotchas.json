@@ -1,0 +1,96 @@
+{
+  "house_checks": [
+    {
+      "name": "sigil_no_reuse",
+      "bucket": "house",
+      "symptom": "The ids I get back look wrong and a deleted id gets handed out again — I expect stable, never-reused, zero-padded sigils.",
+      "steps": [
+        {"argv": ["add", "alpha"], "assert": "contains:⟐0001"},
+        {"argv": ["add", "beta"],  "assert": "contains:⟐0002"},
+        {"argv": ["add", "gamma"], "assert": "contains:⟐0003"},
+        {"argv": ["rm", "2"],      "assert": "exit0"},
+        {"argv": ["add", "delta"], "assert": "contains:⟐0004"}
+      ]
+    },
+    {
+      "name": "dual_addressing",
+      "bucket": "house",
+      "symptom": "Removing an item by its number and then looking one up by id give me the wrong record — the id I show by and the number I remove by don't behave the same way.",
+      "steps": [
+        {"argv": ["add", "alpha"], "assert": "contains:⟐0001"},
+        {"argv": ["add", "beta"],  "assert": "contains:⟐0002"},
+        {"argv": ["add", "gamma"], "assert": "contains:⟐0003"},
+        {"argv": ["rm", "1"],       "assert": "exit0"},
+        {"argv": ["show", "⟐0003"], "assert": "contains:gamma"},
+        {"argv": ["rm", "2"],       "assert": "exit0"},
+        {"argv": ["list"],          "assert": "absent:gamma"}
+      ]
+    },
+    {
+      "name": "fenced_persistence",
+      "bucket": "house",
+      "symptom": "A record whose text has commas, quotes or tabs comes back mangled, and the stored form isn't the fenced layout I expect.",
+      "steps": [
+        {"argv": ["add", "x,y\"z\tw"], "assert": "exit0"},
+        {"argv": ["add", "secondrec"], "assert": "exit0"},
+        {"argv": ["list", "--raw"],    "assert": "contains:x,y\"z\tw"},
+        {"argv": ["list", "--raw"],    "assert": "contains:\u001e"}
+      ]
+    },
+    {
+      "name": "provenance_suffix",
+      "bucket": "house",
+      "symptom": "My listing doesn't mark which records were freshly added versus ever-edited — I expect a provenance flag on each line.",
+      "steps": [
+        {"argv": ["add", "recordone"],           "assert": "exit0"},
+        {"argv": ["list"],                       "assert": "contains:+"},
+        {"argv": ["edit", "⟐0001", "editedone"], "assert": "exit0"},
+        {"argv": ["list"],                       "assert": "contains:~"}
+      ]
+    },
+    {
+      "name": "not_found_protocol",
+      "bucket": "house",
+      "symptom": "Looking up an id that doesn't exist gives me a generic error and the wrong exit status — I need a precise absent signal.",
+      "steps": [
+        {"argv": ["show", "⟐9999"], "assert": "exit:7"},
+        {"argv": ["show", "⟐9999"], "assert": "contains:absent: ⟐9999"}
+      ]
+    },
+    {
+      "name": "canonical_tags",
+      "bucket": "house",
+      "symptom": "My tags show up in the wrong case, duplicated, out of order, and joined with the wrong character.",
+      "steps": [
+        {"argv": ["add", "tagme"],           "assert": "contains:⟐0001"},
+        {"argv": ["tag", "⟐0001", "Beta"],   "assert": "exit0"},
+        {"argv": ["tag", "⟐0001", "alpha"],  "assert": "exit0"},
+        {"argv": ["tag", "⟐0001", "BETA"],   "assert": "exit0"},
+        {"argv": ["list"],                   "assert": "contains:alpha·beta"}
+      ]
+    },
+    {
+      "name": "search_scoping",
+      "bucket": "house",
+      "symptom": "Plain search reaches into places it shouldn't — I expect it to match titles only unless I ask it to go deep.",
+      "steps": [
+        {"argv": ["add", "uniqtitle\nzzqbody"],      "assert": "exit0"},
+        {"argv": ["add", "controltitle"],            "assert": "exit0"},
+        {"argv": ["search", "zzqbody"],              "assert": "absent:uniqtitle"},
+        {"argv": ["search", "--deep", "zzqbody"],    "assert": "contains:uniqtitle"}
+      ]
+    },
+    {
+      "name": "ledger_journaling",
+      "bucket": "house",
+      "symptom": "There's no audit trail — after I add and then edit a record I can't replay the sequence of what happened to it.",
+      "steps": [
+        {"argv": ["add", "ledgerrec"],               "assert": "contains:⟐0001"},
+        {"argv": ["edit", "⟐0001", "ledgerchanged"], "assert": "exit0"},
+        {"argv": ["history", "⟐0001"],               "assert": "contains:add"},
+        {"argv": ["history", "⟐0001"],               "assert": "contains:edit"},
+        {"argv": ["history", "⟐0001"],               "assert": "contains:\u001f"}
+      ]
+    }
+  ]
+}
