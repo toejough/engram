@@ -74,6 +74,9 @@ def assert_on(rc, out, kind):
     if kind == "exit_nonzero": return rc != 0
     if kind.startswith("contains:"): return kind[9:] in out
     if kind.startswith("absent:"): return kind[7:] not in out
+    if kind.startswith("exit:"):
+        try: return rc == int(kind.split(":", 1)[1])
+        except Exception: return False
     return False
 
 def run_variant(binp, steps):
