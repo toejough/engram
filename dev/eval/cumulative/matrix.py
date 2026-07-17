@@ -33,6 +33,14 @@ KEYCHAIN = 'security find-generic-password -s "Claude Code-credentials" -w'
 ALL_MODELS = list(harness.MODELS.keys())
 APP_SPEC = {"notes": "notes_spec.json", "links": "links_spec.json", "feeds": "feeds_spec.json"}
 
+# App-sets selected by --app-set. Each is an ordered (app, chain-tag) list; the spec path is
+# derived generically as f"{CUM}/{app}_spec.json". "crud" is the live easy-CRUD baseline (default,
+# preserves current behavior); "hard" is the gotcha-concentrated fictional regime (#642).
+APP_SETS = {
+    "crud": [("notes", "app1"), ("links", "app2"), ("feeds", "app3")],   # existing baseline (default)
+    "hard": [("wardex", "app1"), ("glyphex", "app2"), ("relayex", "app3")],
+}
+
 # Price sheet ($/Mtok), verified 2026-06-02 (carried forward for provenance; see results doc).
 PRICE_SHEET_DATE = "2026-06-02"
 
@@ -107,14 +115,18 @@ def _op(kind, oid, dep, cfg_kind, out, cmd_tail):
 REAL_REGIMES = ("cold", "real.full", "real.checklist")  # real.checklist = Lever 4 (gating handoff)
 
 
-def real_cells_for(model, trial, date, stub, max_rounds, regimes):
+def real_cells_for(model, trial, date, stub, max_rounds, regimes, apps=None):
     """Two-regime chains (cold, real.full). Each app is ONE one-session cell — the build op runs
     recall → build → /learn IN-SESSION for real.full; cold = build only, no recall, no learn.
-    Each regime runs its OWN 3-app chain from app1. app1 for real.full recalls an empty seed vault
-    (a no-op that still fires the skill, seeding recall behavior from the start)."""
+    Each regime runs its OWN chain from app1. app1 for real.full recalls an empty seed vault
+    (a no-op that still fires the skill, seeding recall behavior from the start).
+
+    `apps` is the ordered (app, chain-tag) list to build; defaults to the crud baseline so existing
+    callers (validate.py) keep working. main() passes the --app-set/--max-apps slice."""
+    if apps is None:
+        apps = APP_SETS["crud"]
     pfx = f"{model}-t{trial}"
     stub_args = ["--stub", stub] if stub else []
-    apps = [("notes", "app1"), ("links", "app2"), ("feeds", "app3")]
     sel = [r for r in REAL_REGIMES if (regimes is None or r in regimes)]
     ops = []
     for regime in sel:
@@ -143,9 +155,9 @@ def real_cells_for(model, trial, date, stub, max_rounds, regimes):
     return ops
 
 
-def ops_for(model, trial, date, stub, max_rounds, regimes):
+def ops_for(model, trial, date, stub, max_rounds, regimes, apps=None):
     """All operations for one (model, trial) chain: real-skill regimes only (recall-v2)."""
-    return real_cells_for(model, trial, date, stub, max_rounds, regimes)
+    return real_cells_for(model, trial, date, stub, max_rounds, regimes, apps)
 
 
 def op_done(op):
@@ -223,12 +235,12 @@ def run_op(op, pools, timeout_s):
             pools[op["cfg_kind"]].put(cfg)
 
 
-def write_manifest(models, trials, date, stub, regimes):
+def write_manifest(models, trials, date, stub, regimes, app_set="crud"):
     os.makedirs(RESULTS, exist_ok=True)
     json.dump({
         "schema_version": harness.SCHEMA_VERSION, "engram_sha": harness.engram_sha(),
         "date": date, "models": models, "model_ids": {m: harness.MODELS[m] for m in models},
-        "trials": trials, "regimes": regimes, "stub": stub or None,
+        "trials": trials, "regimes": regimes, "stub": stub or None, "app_set": app_set,
         "price_sheet_date": PRICE_SHEET_DATE,
     }, open(f"{RESULTS}/run-manifest.json", "w"), indent=2)
 
@@ -243,6 +255,11 @@ def main():
     ap.add_argument("--date", default=datetime.date.today().isoformat())
     ap.add_argument("--max-rounds", type=int, default=8)  # lowered from 15; escalation drives completion
     ap.add_argument("--stub", default="", choices=["", "good", "naive"])
+    ap.add_argument("--app-set", default="crud", choices=list(APP_SETS),
+                    help="which app-set to build: crud (easy-CRUD baseline, default) or hard "
+                         "(gotcha-concentrated fictional regime, #642)")
+    ap.add_argument("--max-apps", type=int, default=3,
+                    help="cap the chain to the first N apps of the app-set (pilot uses 2)")
     ap.add_argument("--regimes", default="",
                     help="comma-separated regime keys to restrict the run to (e.g. cold,real.full); "
                          "default empty = all regimes")
@@ -260,16 +277,18 @@ def main():
             log(f"!! no valid regimes in --regimes={args.regimes!r}; nothing to run.")
             return
     manifest_regimes = regimes if regimes is not None else list(harness.REGIMES.keys())
+    apps = APP_SETS[args.app_set][:args.max_apps]
     for d in (VAULTS, RESULTS, WS):
         os.makedirs(d, exist_ok=True)
-    write_manifest(models, trials, args.date, args.stub, manifest_regimes)
+    write_manifest(models, trials, args.date, args.stub, manifest_regimes, args.app_set)
 
     regime_set = set(regimes) if regimes is not None else None
     pools = make_pools(nwarm=args.workers, ncold=args.workers)
     all_ops = [op for m in models for t in trials
-               for op in ops_for(m, t, args.date, args.stub, args.max_rounds, regime_set)]
+               for op in ops_for(m, t, args.date, args.stub, args.max_rounds, regime_set, apps)]
     by_id = {op["id"]: op for op in all_ops}
-    log(f"matrix: {len(all_ops)} ops | models={models} trials={trials} regimes={manifest_regimes} "
+    log(f"matrix: {len(all_ops)} ops | app_set={args.app_set} apps={[a for a, _ in apps]} "
+        f"models={models} trials={trials} regimes={manifest_regimes} "
         f"workers={args.workers} budget={'none' if not args.budget else '$'+str(args.budget)} stub={args.stub or 'no'}")
     log(f"already done: {sum(1 for op in all_ops if op_done(op))}/{len(all_ops)} | spent ${spent_so_far():.2f}")
 
