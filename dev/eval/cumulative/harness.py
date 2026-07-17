@@ -673,8 +673,14 @@ def run_build(args):
     os.makedirs(args.workdir, exist_ok=True)
     t0 = time.time()
     build_vault, vault_in = _seed_build_vault(args.workdir, args.vault_in)
-    build_chunks = os.path.join(args.workdir + ".buildchunks")
-    os.makedirs(build_chunks, exist_ok=True)
+    # Isolated chunk index, chained in lockstep with the vault. The chunk snapshot lives beside the
+    # vault snapshot ("<vault>.chunks"), so app N+1 recalls app N's ingested chunks — and NEVER the
+    # operator's real $XDG_DATA_HOME/engram/chunks. Without an isolated ENGRAM_CHUNKS_DIR (wired into
+    # the build subprocess below), recall's `engram query` AND its Step 0.5 `engram ingest --auto`
+    # fall through to that global default index, which holds the operator's live sessions = the eval
+    # answer key (contamination: warm app1 scored house 8/8 off an "empty" vault by reading it).
+    chunks_in = (args.vault_in + ".chunks") if args.vault_in and args.vault_in != "none" else "none"
+    build_chunks = _seed_build_chunks(args.workdir, chunks_in)
     # START-of-op snapshot of the seeded vault — warm cells carry prior apps' notes forward, so
     # notes_written/learn_kind_breakdown must be reported as a delta against this, not the total.
     notes_baseline = snapshot_notes(build_vault)
@@ -685,7 +691,8 @@ def run_build(args):
     def do_build(msg, resume_sid=None):
         if args.stub:
             return _stub_build(args)
-        res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid)
+        res = claude(args.cfg, args.model, build_vault, args.workdir, msg,
+                     resume_sid=resume_sid, chunks=build_chunks)
         # Transient rate-limit/overload retry on BOTH the initial build and resumes (a $0-ish,
         # 1-turn error is the 429 signature). Sustained quota exhaustion outlasts these backoffs
         # and is handled downstream (a never-built round writes no success result; a rate-limited
@@ -695,7 +702,8 @@ def run_build(args):
                 break
             refresh_creds_path(args.cfg)
             time.sleep(backoff)
-            res = claude(args.cfg, args.model, build_vault, args.workdir, msg, resume_sid=resume_sid)
+            res = claude(args.cfg, args.model, build_vault, args.workdir, msg,
+                         resume_sid=resume_sid, chunks=build_chunks)
         return res
 
     # Phase 1 — recall only (warm). Billed on its own claude call so recall_cost/recall_s are clean.
@@ -902,10 +910,15 @@ def run_build(args):
     }
 
     # Promote the accumulated build vault to vault_out for real.full so the next app recalls it.
+    # Promote the isolated chunk index alongside it ("<vault_out>.chunks") in lockstep, so the next
+    # app's recall reads THIS chain's accumulated chunks — never the operator's global default index.
     if regime["write"] in ("skill",) and getattr(args, "vault_out", ""):
         import shutil as _shutil
         _shutil.rmtree(args.vault_out, ignore_errors=True)
         _shutil.copytree(build_vault, args.vault_out)
+        chunks_out = args.vault_out + ".chunks"
+        _shutil.rmtree(chunks_out, ignore_errors=True)
+        _shutil.copytree(build_chunks, chunks_out)
 
     json.dump(out, open(args.out, "w"), indent=2)
     print(json.dumps({k: out[k] for k in ["app", "model", "regime", "converged",
