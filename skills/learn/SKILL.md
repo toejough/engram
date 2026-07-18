@@ -3,7 +3,10 @@ name: learn
 description: >
   Use after completing any action we started with a recall call, or after any work that involved more than one tool
   call or more than quick shallow thinking. Also use immediately on explicit save-requests like "remember this",
-  "remember that X", "save that for later", "note for next time", "don't forget X", "write this down". Also use at
+  "remember that X", "save that for later", "note for next time", "don't forget X", "write this down". Also use THE
+  MOMENT a review, a failing check, or the user corrects your approach mid-task — rejects it or names a different
+  convention ("no, do X not Y", "the convention here is Z") — firing right then to crystallize the confirmed
+  correction, before you apply the fix, rather than deferring to a session end that may never get its own beat. Also use at
   session end when a conclusion, design, or finding you presented was later overturned or corrected. Also use when a
   specific approach was confirmed to work — the user explicitly praised a specific behavior, or a genuine guess or
   uncertain call you acted on turned out right. This preserves relevant memories that are VITAL to recall for a good
@@ -18,6 +21,14 @@ Two jobs, in order: (1) mechanically true up the chunk index so every conversati
 > markdown itself — no summaries, no episode notes, no arc detection. The agent's only writing
 > job is crystallizing EXPLICIT lessons. Do not reconstruct the old episode workflow
 > (`engram transcript`, `engram learn episode`) — it is gone.
+
+> **Mid-cycle capture (fast path).** When you fire at a CORRECTION moment mid-task — a review, a
+> failing check, or the user just rejected your approach or named a different convention — this is a
+> focused single-note capture, NOT the open/close of a cycle. **SKIP Step 1 (sweep) and Step 1.5
+> (vocab); go straight to Step 2** and crystallize the ONE confirmed correction (hand off to
+> write-memory as always). Do NOT run `engram ingest --auto` mid-task — the sweep is a
+> cycle-boundary job, it is wasteful here and can block on a large corpus, and losing the capture to
+> a hung sweep is the failure mode. The closing learn still sweeps.
 
 ## Step 1 — Sweep (first; the closing learn always sweeps)
 
