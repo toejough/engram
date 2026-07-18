@@ -81,30 +81,30 @@ async/background and framed as savings (a lateral move, not a cut). *(Historical
 | Rank | Item | Axis / type / value | Why here | Deps |
 |---|---|---|---|---|
 | 1 | **#686** old-text echo detector (staleness at the creating commit) | Dev / mover / High | Retro-verified 3/3 against real staleness incidents; compounding | none |
-| 2 | **#642** eval harness: self-seeding cold-vs-warm | Meas / enabler(foundation) / High | The value-proof spine — proves whether memory helps at all; front of the eval-value chain (blocker #643 closed). **Axis-2 but crosses above #687 (Dev) on value: it's the highest-leverage mover overall** | none |
+| 2 | **#646** e2e recency value-proof | Meas / mover / High | Front of the eval-value chain now #642 is closed — the actual "does memory help a real agent" proof. **Re-scoped per Joe 2026-07-18 (Option A)** off the dead self-seeding build-eval harness (note 98) to ONE non-self-seeding context-loss continuity scenario with a real dead-end, recency memory ON vs OFF. **Primary metric = unassisted correctness** (right result with NO corrective user prompts); time/$ compared ONLY among unassisted-correct runs (note 292). Memory wins either by reaching correctness the no-memory arm can't (note 99) or by the same correctness for less; pre-registered null → recency is situational and #648 tunes on surfacing evidence alone. Meas (axis-2) but still crosses above #687 (Dev) on value, inheriting the value-proof-spine slot #642 vacated | none (blocker #642 dispositioned/closed) |
 | 3 | **#687** run-level self-evaluation (surprise-mining retrospective) | Dev / mover / Med | Generates follow-up issues mechanically; meta-leverage | none |
 | 4 | **#658** unbundle recall's $ from build_cost | Meas / enabler / Med | Separable recall_cost unblocks the warm-vs-cold $ question + L4-at-n | none |
 | 5 | **#644** OpenCode SQLite session ingest | Corr(reach) / mover / Med | Extends recall coverage to OpenCode history (currently invisible); needs restoring a removed backend | none |
-| 6 | **#670** route rubric-refit (fold accrued tier evidence into cold-start priors) | Corr / mover / Med | Unblocked — #674 already shipped the evidence notes; defining the evidence-threshold trigger is the first STEP of the work, not an external blocker | none |
-| 7 | **#672** route price table + non-CC cost source | Cost / mover / Low-Med | Real $ in the route mini-report; CC capture already done | none |
-| 8 | **Batchable hardening** (one writing pass): **#683** vocab byte-oracle · **#688** recall_time.py hardening · **#679** route dup-aggregate guard · **#680** route copyedit bundle | Dev / hygiene / Low | Real but low-value; each "not a live gap." Batched to amortize cycle overhead; explicitly NOT floated above #642 despite being axis-1 (value-crossover: Low value sinks them below the Cost item #672) | none |
-| 9 | **#695** validate under-load recall-firing fix (placebo control · real-vault retrieval precision · attention-displacement) | Meas / enabler / High | Three caveats the adversarial verifier flagged on the engagement-led `recall.md` cue deployed 2026-07-15 (`LEDGER.md#underload-firing-wording-fix`): isolate engagement-framing from any leading-cue, validate fire→surface precision beyond 5-note fixtures, and rule out the cue displacing the other three decision-moment cues; gates the Parked → Decision-moment recall hook revive trigger | none |
+| 6 | **#696** Pi session-file ingest | Corr(reach) / mover / Med | Extends recall coverage to Pi coding-agent sessions (JSONL, USER:/ASSISTANT:, RFC3339 timestamps) through the same transcript pipeline; sibling of #644 | none |
+| 7 | **#670** route rubric-refit (fold accrued tier evidence into cold-start priors) | Corr / mover / Med | Unblocked — #674 already shipped the evidence notes; defining the evidence-threshold trigger is the first STEP of the work, not an external blocker | none |
+| 8 | **#672** route price table + non-CC cost source | Cost / mover / Low-Med | Real $ in the route mini-report; CC capture already done | none |
+| 9 | **Batchable hardening** (one writing pass): **#683** vocab byte-oracle · **#688** recall_time.py hardening · **#679** route dup-aggregate guard · **#680** route copyedit bundle | Dev / hygiene / Low | Real but low-value; each "not a live gap." Batched to amortize cycle overhead; explicitly NOT floated above the higher-value movers despite being axis-1 (value-crossover: Low value sinks them below the Cost item #672) | none |
+| 10 | **#695** validate under-load recall-firing fix (placebo control · real-vault retrieval precision · attention-displacement) | Meas / enabler / High | Three caveats the adversarial verifier flagged on the engagement-led `recall.md` cue deployed 2026-07-15 (`LEDGER.md#underload-firing-wording-fix`): isolate engagement-framing from any leading-cue, validate fire→surface precision beyond 5-note fixtures, and rule out the cue displacing the other three decision-moment cues; gates the Parked → Decision-moment recall hook revive trigger | none |
 
 ### NEXT — blocked by exactly one NOW item
 | Item | Axis / type / value | Why here | Blocked on |
 |---|---|---|---|
-| **#646** e2e recency value-proof | Meas / mover / High | Second link of the eval-value chain; the actual "does memory help a real agent" proof | #642 |
+| **#648** tune usefulness-activation constants | Meas / mover / Med | Third link of the eval-value chain (#646→#648); a constants sweep is only meaningful once the value-proof (#646) exists and is trustworthy | #646 |
 
 ### LATER — blocked deeper, or on prior work we must build
 | Item | Axis / type / value | Why here | Blocked on |
 |---|---|---|---|
-| **#648** tune usefulness-activation constants | Meas / mover / Med | Third link of the #642→#646 eval chain — **grouped with its chain (above #656), not by strict Dev-first lean**; a constants sweep is only meaningful after the harness + value-proof exist | #642 AND #646 |
 | **#656** gate analytical recommendations as outcome-keyed artifacts | Dev/Corr / mover / Med | Needs a `/please`-orchestration harness variant of #654 built first (our work, not an external gate) | build the harness variant |
 
 ### GATED — external / date / validation trigger
 | Item | Axis | Trigger |
 |---|---|---|
-| **Q&A memory round-2** (P2′ attribution · P3′ spread · Arm V @ larger-n) | Corr | ≥20 captured pairs **or** 2026-07-17 |
+| **Q&A memory round-2** (P2′ attribution · P3′ spread · Arm V @ larger-n) | Corr | ≥20 captured pairs **or** 2026-07-17 — **date trigger FIRED, but only 7/20 pairs captured as of 2026-07-18: a run now hits P3′ INFORMATIVE-NULL (underpowered). Decision pending (Joe): wait for ≥20 pairs, or run accepting the INFORMATIVE-NULL floor** |
 | **#675** `engram usage report` (round-3) | Corr | round-2 P3′ = PASS |
 | Dedicated Q-channel + `answered_by` (round-3) | Corr | round-2 Arm V = PASS |
 | Ranking A/B falsifier (round-3 sketch; pre-registered bar only) | Corr | a future ranking ambition invokes its bar |
@@ -112,8 +112,10 @@ async/background and framed as savings (a lateral move, not a cut). *(Historical
 | **#652** recency-weighted cluster centroid | Corr | an over-surfacing eval exists |
 | **#685 Change #2** task-kind glance cue (`guidance/recall.md`) | Corr | #695's attention-displacement finding (does the shipped engagement-led cue already generalize to task-kind moments, or does a dedicated cue risk displacing the other three decision-moment cues?) |
 
-> **Q&A memory round-2 gate criteria (pre-registered, not yet run; opens at ≥20 captured pairs or
-> 2026-07-17):** two checks re-run on real data, same branch sets as round-1's probes (source:
+> **Q&A memory round-2 gate criteria (pre-registered, not yet run; date trigger 2026-07-17 has now
+> PASSED, but only 7/20 pairs are captured as of 2026-07-18 → P3′ pre-registers INFORMATIVE-NULL below
+> 20 exchanges, so a run now is underpowered; awaiting Joe's call — wait for ≥20 pairs or run accepting
+> the null):** two checks re-run on real data, same branch sets as round-1's probes (source:
 > `docs/superpowers/plans/2026-07-03-qa-memory-exploration.md` and
 > `docs/design/2026-07-03-qa-memory-proposals.md`, both deleted 2026-07, git log).
 > - **P2′ — attribution fidelity** (does cite-derived attribution — the `[[basename]]` links
