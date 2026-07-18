@@ -45,17 +45,17 @@ Files under `dev/eval/traps/recency_value/fixtures/`:
 - `validate_import.py` — the forcing function: asserts each `amt == round(dollars*1000)` (integer tenths-of-a-cent); on mismatch fails with a *symptom* message ("row 1: amt out of range — expected integer tenths-of-a-cent, got 19.99") that forces discovery-by-running without writing a copy-paste formula into any file phase 2 reads.
 - `expected.json` — `{"dollar_total": <sum>}`, used only by the scorer (never in an agent workspace).
 
-**Why milli-dollars is a valid closed lever (note 195):** idiosyncratic (cold defaults to cents/dollars → 10×/1000× wrong), discovered empirically, and the escape is neutralized — phase 2 gets `orders.db.json` (opaque integer `amt`) but NOT `orders.csv`, so the unit can't be re-derived from the data.
+**Why milli-dollars is a valid closed lever (note 195):** idiosyncratic (cold defaults to cents/dollars → 10×/1000× wrong), discovered empirically, and every escape is neutralized — phase 2 gets ONLY `{SPEC.md, orders.db.json}` (opaque integer `amt`); it does NOT get `orders.csv` (dollars), `validate_import.py` (contains the formula), OR **phase-1's own importer source** (which narrates the `*1000` math — a phase-2 agent extending the same CLI would otherwise read the neighboring `import` code and recover the unit with zero recall, in both arms → vacuous). WS2 is a **whitelist** of exactly those two files (Gate B finding 1), not a copy-minus-some.
 
 ### 2.2 The two phases (per trial, per arm)
 
 1. **Phase 1 — self-capture.** Fresh `claude -p` in workspace `WS1`, isolated engram env. Prompt: *"Implement `import` in orders-cli per SPEC.md, then make `./validate_import.py orders.db.json` pass."* The agent runs the validator, hits the milli-dollar failure, fixes it, narrates the discovery. Deliverables: importer code + `orders.db.json` + a phase-1 session transcript.
 2. **Ingest.** `engram ingest --transcript <phase-1 .jsonl> --chunks-dir <per-trial ENGRAM_CHUNKS_DIR>` folds phase-1's narration into the per-trial chunk index as the newest chunks. **Optional volume padding** (see §2.5): ingest a few extra recent unrelated chunks to simulate realistic recent-session volume.
-3. **Phase 2 — context-lost measurement.** A **brand-new** `claude -p` session (no `--resume`) in `WS2` = `WS1` with `orders.csv` **removed** (only importer code + `orders.db.json` remain). Same isolated engram env; `ENGRAM_RECENT_FILL=-1` iff `arm=="off"`. **Natural prompt:** *"Implement `report` in orders-cli per SPEC.md."* The agent decides whether to `/recall`; if it does, `engram query` surfaces the phase-1 narration via the recency channel only when the channel is ON. Correct `report` divides `amt` by 1000.
+3. **Phase 2 — context-lost measurement.** A **brand-new** `claude -p` session (no `--resume`) in `WS2`, constructed as a **whitelist** = exactly `{SPEC.md (fixture), orders.db.json (phase-1 output)}` — NO phase-1 importer source, no `orders.csv`, no `validate_import.py` (Gate B finding 1; `run_trial` asserts the WS2 file set). Same isolated engram env; `ENGRAM_RECENT_FILL=-1` iff `arm=="off"`. **Natural prompt:** *"Implement `report` in orders-cli per SPEC.md."* The agent decides whether to `/recall`; if it does, `engram query` surfaces the phase-1 narration via the recency channel only when the channel is ON. Correct `report` divides `amt` by 1000.
 
 ### 2.3 Arms
 - **ON** (default `ENGRAM_RECENT_FILL` unset → 25): phase-1 narration surfaces via the recency channel (newest-by-ingest chunks) even though it is a weak cosine match to "implement report".
-- **OFF** (`ENGRAM_RECENT_FILL=-1` → channel off, `resolveRecentFill`: negative → 0): the recency channel is empty; phase-1 narration competes on raw cosine only (weak). The re-rank bias still applies in the matched set; the pilot (P2) confirms this does NOT leak the weak-cosine chunk — if it does, build Appendix A.
+- **OFF** (`ENGRAM_RECENT_FILL=-1` → channel off, `resolveRecentFill`: negative → 0): the recency channel is empty; phase-1 narration competes on raw cosine only (weak). **NOTE (Gate B finding 2):** the recency *re-rank bias* (`scoreChunkForPhrase`, `query_chunks.go`) is a SEPARATE mechanism NOT gated by `ENGRAM_RECENT_FILL` — it still boosts matched-set chunks (tagged `provenanceDirect`, not `recent`) in the OFF arm. The pilot (P2, using `surfaced_any`) confirms whether this leaks the weak-cosine chunk into a readable position; if it does, build Appendix A (which also disables the re-rank bias).
 
 ### 2.4 Why this satisfies the hard constraints
 Non-tautological (own transcript, no seed — 288) ✓ · recency-only recoverable (topical distance + withheld CSV — 195; pilot-validated) ✓ · idiosyncratic (99/195) ✓ · real engram, zero stubs, both arms real configs (197) ✓ · recall-firing natural + recorded, not scripted (ask-faithful; note 83 separation) ✓.
@@ -78,7 +78,8 @@ Non-tautological (own transcript, no seed — 288) ✓ · recency-only recoverab
 **Interfaces — `score.py` produces:**
 - `import_ok(db_path, csv_path) -> bool` — every `amt == round(dollars*1000)`.
 - `report_revenue_ok(stdout, expected_dollar_total) -> bool` — parses `total revenue: $X`; True iff `abs(X - expected_dollar_total) < 0.005`.
-- `narration_surfaced(query_payload_yaml) -> bool` — parses a captured `engram query` YAML payload; True iff a phase-1 chunk mentioning the milli-dollar unit appears in the recency channel (items with `provenances` containing `recent`) OR the matched set. Mirrors `dev/eval/cumulative/recency_probe.py:97` `score_recency_hit` (which returns `{recent_channel_items, target_surfaced}` and matches items whose `provenances` include `"recent"`).
+- `surfaced_any(query_payload_yaml) -> bool` — True iff a phase-1 chunk mentioning the milli-dollar unit appears ANYWHERE in the payload (recency channel OR matched set). Serves the P2 vacuous-contrast gate — catches the re-rank-bias leak the recent-channel filter would miss (Gate B finding 2).
+- `surfaced_via_recency(query_payload_yaml) -> bool` — True iff such an item appears with `provenances` containing `"recent"` (the recency channel specifically). The note-83 diagnostic — separates "recency channel delivered it" from "cosine/re-rank delivered it". Mirrors `dev/eval/cumulative/recency_probe.py:97` `score_recency_hit` faithfully; **validate against a REAL payload** (`dev/eval/cumulative/testdata/recency_with_R.yaml`), not the plan's synthetic fixture (whose indentation was wrong — fix that fixture to the real shape).
 - `recall_fired(transcript_path) -> bool` — True iff the phase-2 transcript contains an `engram query` invocation (per `wrun.py:65-73`).
 
 - [ ] **Step 1: Write failing scorer tests** in `test_score.py`:
@@ -112,7 +113,7 @@ def test_recall_fired_detects_engram_query(tmp_path):
 - Produces: `build_trial_env(arm, trial_dir) -> dict`; `run_trial(arm, idx, model) -> dict` with keys `{arm, idx, phase1_ok, recall_fired, correct, surfaced, phase2_cost, phase2_turns, phase2_dur_ms, phase1_cost}`; `main()` with `--arm on|off --trials N --model opus --recent-volume K --out <path>`.
 
 **`run_trial` sequence (each step isolated):**
-1. Fresh `WS1`; copy fixtures; `build_trial_env` (empty vault, per-trial chunks dir, transcript dir, warm cfg with `/recall`+`/learn`); set `ENGRAM_RECENT_FILL=-1` in the phase-2 env iff `arm=="off"`.
+1. Fresh `WS1`; copy fixtures (EXCLUDING `expected.json` — the scorer answer key); `build_trial_env` (empty vault, per-trial chunks dir, transcript dir); **phase-1 config has NO engram skills** (it only builds; the transcript is captured by the explicit `engram ingest` regardless), **phase-2 config has `/recall` ONLY** (no `/learn` — a phase-1 `/learn` would write a vault note that surfaces via cosine in both arms, confounding the contrast; Gate B finding 3). Set `ENGRAM_RECENT_FILL=-1` in the phase-2 env iff `arm=="off"`.
 2. Phase-1 `claude -p` (importer prompt). Record `phase1_cost`; gate `phase1_ok = import_ok(WS1/orders.db.json, csv)` — a trial with `phase1_ok == False` is **excluded and counted** (not silently dropped): phase 1 must have captured the lesson for the phase-2 measurement to be meaningful.
 3. `engram ingest --transcript <phase1 .jsonl> --chunks-dir <CHUNKS>` (+ K padding chunks if `--recent-volume K`).
 4. `WS2` = copy of `WS1` minus `orders.csv`.
@@ -133,7 +134,7 @@ def test_recall_fired_detects_engram_query(tmp_path):
 **Interfaces — `aggregate(trials) -> dict` per arm:**
 - `n_valid` (excludes `phase1_ok == False`), `recall_fired_rate`.
 - `correct_rate_all` (over n_valid), `correct_rate_fired` (over fired trials only — the note-83 conditioning).
-- `surfaced_rate` (over fired trials).
+- `surfaced_any_rate` and `surfaced_via_recency_rate` (both over fired trials; None-safe when a trial's recall didn't fire) — the dual metric from Gate B finding 2.
 - `raw_cost` — mean phase-2 cost/turns/dur over ALL valid trials (the issue's raw-cost requirement).
 - `efficiency` — `{cost_usd, turns, dur_ms}` computed only over `correct == True` trials (note 292), or `None` if no correct trials.
 - `verdict_inputs`: only-path? (ON correct & OFF ≈ 0); cheaper/faster among correct?; sized vs the within-arm spread.
@@ -157,7 +158,7 @@ python3 dev/eval/traps/recency_value_agg.py /tmp/646-pilot-on.json /tmp/646-pilo
 
 ### Pass/fail signals (pre-registered)
 - **P1 — phase-1 capture works:** both trials `phase1_ok == True` and the phase-1 `.jsonl` contains the milli-dollar narration (grep). Else tune validator/prompt, re-pilot.
-- **P2 — non-vacuous contrast (critical gate):** ON `surfaced == True` AND OFF `surfaced == False`. Numeric bar for the batch: **OFF `surfaced_rate ≤ 0.2 × ON surfaced_rate`** (or OFF surfaced 0 while ON ≥ 1 at pilot n=1). If OFF *also* surfaces the unit → the re-rank bias is leaking the weak-cosine chunk → **build Appendix A** (the `ENGRAM_RECENCY` full toggle) and re-pilot; do NOT batch on a vacuous contrast (note-195 guard).
+- **P2 — non-vacuous contrast (critical gate):** using `surfaced_any` (the whole-payload check that sees the re-rank leak), ON `surfaced_any == True` AND OFF `surfaced_any == False`. Batch bar: **OFF `surfaced_any_rate ≤ 0.2 × ON`** (or OFF 0 while ON ≥ 1 at pilot n=1). Also record `surfaced_via_recency` both arms (the note-83 read). If OFF `surfaced_any` is True → the re-rank bias is leaking the weak-cosine chunk → **build Appendix A** (the `ENGRAM_RECENCY` full toggle, which also disables the re-rank bias) and re-pilot; do NOT batch on a vacuous contrast (note-195 guard).
 - **P3 — the mechanism can bite:** OFF `correct == False` on the pilot trial is the signal the dead-end is real; ON `correct == True` is encouraging (batch decides — one trial is anecdotal).
 - **P4 — clean run:** no exhausted degraded-build retries; both payloads confirm the per-trial `ENGRAM_CHUNKS_DIR` was used (not the global index); `recall_fired` recorded for both.
 
