@@ -12,3 +12,6 @@ Minor findings for final-review triage:
 - R11 cite: tallyStates at embed.go:273 not :275
 - T15 step 3's newOsQueryDeps edit is the CERTAIN skip path under R4 (T6 precedes); its skip-clause covers it
 - Executor reminder: design flags at plan lines ~244/311/315 are superseded — always read through the supersession map (in every dispatch's constraints file)
+Task 1-rework: implemented (commit b1ea7ca3), review pending
+Task 1-rework: complete (commit b1ea7ca3, task review APPROVED, Gate B APPROVED)
+BASE-T2: b1ea7ca3db478107b58c2be81bbff9d034e93dcb
