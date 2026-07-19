@@ -15,3 +15,7 @@ Minor findings for final-review triage:
 Task 1-rework: implemented (commit b1ea7ca3), review pending
 Task 1-rework: complete (commit b1ea7ca3, task review APPROVED, Gate B APPROVED)
 BASE-T2: b1ea7ca3db478107b58c2be81bbff9d034e93dcb
+Task 2: implemented (commit d946a145), review pending
+Task 2: complete (commit d946a145, task review APPROVED, Gate B APPROVED)
+- Minor (Gate B, polish): add inline flag comments (// P-2/P-3, // SIG-1) to the non-S-1 sanctioned closures in cmd/engram/main.go for reader-visible sanction parity
+BASE-T3: d946a145701ca636410e1595273d7751a363e3d4
