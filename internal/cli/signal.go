@@ -37,11 +37,21 @@ func ForceExitOnRepeatedSignal(signals <-chan struct{}, exitFn func(int)) {
 	}()
 }
 
+// ForwardAsPulses forwards each value received on in as a unit pulse on
+// out. It is generic so cmd/engram can feed a chan os.Signal without
+// os.Signal entering any internal signature (#700); tests drive it with a
+// chan int.
+func ForwardAsPulses[T any](in <-chan T, out chan<- struct{}) {
+	for range in {
+		out <- struct{}{}
+	}
+}
+
 // SetupSignalHandling registers signal handlers and starts the force-exit goroutine.
 // Returns the configured targets for targ.Main.
 //
 // Deprecated: interim shim only — deleted by the #700 wiring task; cmd/engram
-// registers signals itself and calls Targets directly.
+// wires signal pulses through cli.Primitives.StartSignalPulses instead.
 func SetupSignalHandling(
 	stdout, stderr io.Writer,
 	exitFn func(int),
@@ -52,11 +62,7 @@ func SetupSignalHandling(
 
 	pulses := make(chan struct{}, signalChannelBuffer)
 
-	go func() {
-		for range sigCh {
-			pulses <- struct{}{}
-		}
-	}()
+	go ForwardAsPulses(sigCh, pulses)
 
 	ForceExitOnRepeatedSignal(pulses, exitFn)
 
@@ -66,5 +72,19 @@ func SetupSignalHandling(
 // unexported constants.
 const (
 	secondSignal        = 2  // Force exit on second signal
-	signalChannelBuffer = 10 // Buffer size for signal channel
+	signalChannelBuffer = 10 // Buffer size for signal + pulse channels
 )
+
+// startForceExit starts the repeated-signal force-exit watcher from the
+// injected starter primitive. A nil primitive or exit func (minimal test
+// Deps) skips registration. The pulse channel, buffer size, and force-exit
+// policy live here — cmd only subscribes and forwards (#700).
+func startForceExit(prims Primitives, exit func(int)) {
+	if prims.StartSignalPulses == nil || exit == nil {
+		return
+	}
+
+	pulses := make(chan struct{}, signalChannelBuffer)
+	prims.StartSignalPulses(pulses, signalChannelBuffer)
+	ForceExitOnRepeatedSignal(pulses, exit)
+}

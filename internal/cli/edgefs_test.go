@@ -1,0 +1,247 @@
+package cli_test
+
+import (
+	"errors"
+	"io"
+	"io/fs"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/onsi/gomega"
+
+	"github.com/toejough/engram/internal/cli"
+)
+
+func TestEdgeFS_PreservesSentinelChainsThroughWrapping(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fsys := fsFromPrims(cli.Primitives{
+		ReadFile: func(string) ([]byte, error) {
+			return nil, &fs.PathError{Op: "open", Path: "x", Err: fs.ErrNotExist}
+		},
+	})
+
+	_, err := fsys.ReadFile("x")
+	g.Expect(err).To(gomega.MatchError(fs.ErrNotExist), "%w wrapping must preserve errors.Is chains")
+	g.Expect(err.Error()).To(gomega.ContainSubstring("x"), "wrap must add path context")
+}
+
+func TestEdgeFS_WriteFileAtomicFailuresRemoveTemp(t *testing.T) {
+	t.Parallel()
+
+	boom := errors.New("boom")
+
+	t.Run("rename failure removes the created temp", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var created string
+
+		removed := make([]string, 0, 1)
+		prims := cli.Primitives{
+			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
+			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+				created = path
+
+				return nil
+			},
+			Chmod:  func(string, fs.FileMode) error { return nil },
+			Rename: func(string, string) error { return boom },
+			Remove: func(path string) error {
+				removed = append(removed, path)
+
+				return nil
+			},
+		}
+
+		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
+		g.Expect(err).To(gomega.MatchError(boom))
+		g.Expect(err.Error()).To(gomega.ContainSubstring("rename"))
+		g.Expect(removed).To(gomega.Equal([]string{created}),
+			"a failed dance must remove the temp file it created")
+	})
+
+	t.Run("chmod failure removes the created temp", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var created string
+
+		removed := make([]string, 0, 1)
+		prims := cli.Primitives{
+			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
+			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+				created = path
+
+				return nil
+			},
+			Chmod: func(string, fs.FileMode) error { return boom },
+			Remove: func(path string) error {
+				removed = append(removed, path)
+
+				return nil
+			},
+		}
+
+		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
+		g.Expect(err).To(gomega.MatchError(boom))
+		g.Expect(err.Error()).To(gomega.ContainSubstring("chmod"))
+		g.Expect(removed).To(gomega.Equal([]string{created}),
+			"a failed dance must remove the temp file it created")
+	})
+
+	t.Run("exclusive-create failure aborts with nothing to clean", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		prims := cli.Primitives{
+			Now:           func() time.Time { return time.Unix(0, fakeDanceNanos) },
+			WriteFileExcl: func(string, []byte, fs.FileMode) error { return boom },
+			Remove: func(string) error {
+				t.Error("nothing was created, so nothing may be removed")
+
+				return nil
+			},
+		}
+
+		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
+		g.Expect(err).To(gomega.MatchError(boom))
+		g.Expect(err.Error()).To(gomega.ContainSubstring("create temp"))
+	})
+}
+
+func TestEdgeFS_WriteFileAtomicHappyPathDance(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	calls := &callRecorder{}
+	target := filepath.Join("some", "dir", "note.md")
+
+	fsys := fsFromPrims(cli.Primitives{
+		Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
+		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
+			g.Expect(filepath.Dir(path)).To(gomega.Equal(filepath.Join("some", "dir")),
+				"temp must be created in the target's dir — same-directory rename is the ADR-0013 primitive")
+			g.Expect(filepath.Base(path)).To(gomega.Equal(".note.md.tmp-12345-0"),
+				"candidate names derive from target base + clock nanos + attempt counter (P-4)")
+			g.Expect(string(data)).To(gomega.Equal("v2"), "the data lands in the exclusive create itself")
+			g.Expect(perm).To(gomega.Equal(atomicPerm), "the target perm reaches the exclusive create")
+			calls.add("writeexcl " + filepath.Base(path))
+
+			return nil
+		},
+		Chmod: func(path string, perm fs.FileMode) error {
+			g.Expect(perm).To(gomega.Equal(atomicPerm),
+				"chmod must force the EXACT target perm regardless of umask")
+			calls.add("chmod " + filepath.Base(path))
+
+			return nil
+		},
+		Rename: func(oldPath, newPath string) error {
+			calls.add("rename " + filepath.Base(oldPath) + "->" + filepath.Base(newPath))
+
+			return nil
+		},
+		Remove: func(path string) error {
+			calls.add("remove " + filepath.Base(path))
+
+			return nil
+		},
+	})
+
+	g.Expect(fsys.WriteFileAtomic(target, []byte("v2"), atomicPerm)).To(gomega.Succeed())
+	g.Expect(calls.list()).To(gomega.Equal([]string{
+		"writeexcl .note.md.tmp-12345-0",
+		"chmod .note.md.tmp-12345-0",
+		"rename .note.md.tmp-12345-0->note.md",
+	}), "success path must not remove the renamed file")
+}
+
+func TestEdgeFS_WriteFileAtomicUniqueNameRetry(t *testing.T) {
+	t.Parallel()
+
+	t.Run("collision retries a fresh candidate then succeeds", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		target := filepath.Join("some", "dir", "note.md")
+		tried := make([]string, 0, 2)
+
+		var renamed string
+
+		prims := cli.Primitives{
+			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
+			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+				tried = append(tried, path)
+				if len(tried) == 1 {
+					return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
+				}
+
+				return nil
+			},
+			Chmod: func(string, fs.FileMode) error { return nil },
+			Rename: func(oldPath, _ string) error {
+				renamed = oldPath
+
+				return nil
+			},
+			Remove: func(string) error {
+				t.Error("a colliding candidate was not created by the dance and must not be removed")
+
+				return nil
+			},
+		}
+
+		g.Expect(fsFromPrims(prims).WriteFileAtomic(target, []byte("v2"), atomicPerm)).To(gomega.Succeed())
+		g.Expect(tried).To(gomega.HaveLen(2))
+		g.Expect(tried[0]).NotTo(gomega.Equal(tried[1]), "each retry must try a FRESH candidate name")
+		g.Expect(renamed).To(gomega.Equal(tried[1]), "the created candidate is the one renamed into place")
+	})
+
+	t.Run("exhausted candidates yield a bounded wrapped error", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		attempts := 0
+		prims := cli.Primitives{
+			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
+			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+				attempts++
+
+				return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
+			},
+		}
+
+		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
+		g.Expect(err).To(gomega.MatchError(fs.ErrExist), "the last collision stays in the error chain")
+		g.Expect(err.Error()).To(gomega.ContainSubstring("create temp"))
+		g.Expect(err.Error()).To(gomega.ContainSubstring("attempts"))
+		g.Expect(attempts).To(gomega.Equal(danceMaxAttempts), "the retry loop must be BOUNDED")
+	})
+}
+
+// unexported constants.
+const (
+	atomicPerm fs.FileMode = 0o600
+	// danceMaxAttempts mirrors edgefs.go's maxTempAttempts — the spec'd
+	// bound on unique-temp-name candidates (doctrine flag P-4).
+	danceMaxAttempts = 10
+	// fakeDanceNanos is the fixed clock reading the dance fakes inject;
+	// candidate temp names embed it.
+	fakeDanceNanos = 12345
+)
+
+// callRecorder records call labels in order (single-goroutine use).
+type callRecorder struct{ calls []string }
+
+func (c *callRecorder) add(call string) { c.calls = append(c.calls, call) }
+
+func (c *callRecorder) list() []string { return c.calls }
+
+// fsFromPrims composes the production EdgeFS from fake primitives via the
+// public composition root.
+func fsFromPrims(prims cli.Primitives) cli.EdgeFS {
+	return cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).FS
+}

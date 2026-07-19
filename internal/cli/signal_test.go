@@ -59,3 +59,28 @@ func TestForceExitOnRepeatedSignal(t *testing.T) {
 		}
 	})
 }
+
+func TestForwardAsPulses_ForwardsEachValue(t *testing.T) {
+	t.Parallel()
+
+	const valueCount = 2
+
+	input := make(chan int, valueCount)
+	pulses := make(chan struct{}, valueCount)
+
+	go cli.ForwardAsPulses(input, pulses)
+
+	input <- 1
+
+	input <- 2
+
+	const pulseTimeout = time.Second
+
+	for range valueCount {
+		select {
+		case <-pulses:
+		case <-time.After(pulseTimeout):
+			t.Fatal("pulse not forwarded within timeout")
+		}
+	}
+}
