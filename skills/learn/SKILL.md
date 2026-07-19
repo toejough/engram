@@ -1,16 +1,12 @@
 ---
 name: learn
 description: >
-  Use after completing any action we started with a recall call, or after any work that involved more than one tool
-  call or more than quick shallow thinking. Also use immediately on explicit save-requests like "remember this",
-  "remember that X", "save that for later", "note for next time", "don't forget X", "write this down". Also use THE
-  MOMENT a review, a failing check, or the user corrects your approach mid-task — rejects it or names a different
-  convention ("no, do X not Y", "the convention here is Z") — firing right then to crystallize the confirmed
-  correction, before you apply the fix, rather than deferring to a session end that may never get its own beat. Also use at
-  session end when a conclusion, design, or finding you presented was later overturned or corrected. Also use when a
-  specific approach was confirmed to work — the user explicitly praised a specific behavior, or a genuine guess or
-  uncertain call you acted on turned out right. This preserves relevant memories that are VITAL to recall for a good
-  user experience and a greater chance at first-pass success for similar work in the future.
+  Use after work begun with recall, or any work requiring more than one tool call or non-trivial thought. Use immediately
+  for explicit save requests ("remember this", "save that", "note for next time"), and the moment a review, failing check,
+  or user correction confirms a lesson; capture it before applying the fix. Also use at session end when a presented
+  conclusion, design, or finding was later overturned or corrected. Use when a specific approach is confirmed: the user
+  praises a reusable behavior, or an uncertain choice succeeds with observable evidence. This preserves lessons for
+  future recall.
 ---
 
 # Learn — Sweep Raw Memory, Crystallize Explicit Lessons
