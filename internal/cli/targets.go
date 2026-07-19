@@ -181,12 +181,12 @@ func ingestQueryTargets(
 		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
 		targ.Targ(func(_ context.Context, a CountArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			errHandler(RunCount(a, newOsCountDeps(), deps.Stdout))
+			errHandler(RunCount(a, newCountDeps(deps), deps.Stdout))
 		}).Name("count").Description(
 			"Count notes by a frontmatter attribute or a note's wikilink in-degree (read-only)"),
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
 			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-			errHandler(RunShow(withLog(ctx), a, newOsShowDeps(), deps.Stdout))
+			errHandler(RunShow(withLog(ctx), a, newShowDeps(deps), deps.Stdout))
 		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
 		targ.Targ(func(ctx context.Context, a ShowChunkArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
@@ -194,7 +194,7 @@ func ingestQueryTargets(
 		}).Name("show-chunk").Description("Print a chunk's text by its source#anchor id (read-only)"),
 		targ.Targ(func(ctx context.Context, a CheckArgs) {
 			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-			errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), deps.Stdout))
+			errHandler(RunCheck(withLog(ctx), a, newCheckDeps(deps), deps.Stdout))
 		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
 	}
 }

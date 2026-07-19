@@ -118,9 +118,10 @@ func matchesAllFilters(attrs map[string]any, filters []countFilter) bool {
 	return true
 }
 
-// newOsCountDeps wires RunCount to the real filesystem vault reader/scanner.
-func newOsCountDeps() CountDeps {
-	fsys := &osVaultFS{}
+// newCountDeps wires RunCount from the injected CLI capabilities — pure
+// composition over EdgeFS (#700).
+func newCountDeps(deps Deps) CountDeps {
+	fsys := newVaultFS(deps.FS)
 
 	return CountDeps{
 		ListMD:   fsys.ListMD,

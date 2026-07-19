@@ -1,6 +1,8 @@
 package cli_test
 
 import (
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,7 +12,7 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestOsVaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
+func TestVaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -19,8 +21,8 @@ func TestOsVaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
 	g.Expect(os.WriteFile(filepath.Join(dir, "note.md"), []byte("x"), 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("y"), 0o600)).To(Succeed())
 
-	fs := cli.ExportNewOsVaultFS()
-	names, err := fs.ListMD(dir)
+	vfs := cli.ExportNewVaultFS(osTestEdgeFS{})
+	names, err := vfs.ListMD(dir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -30,12 +32,12 @@ func TestOsVaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
 	g.Expect(names).To(ConsistOf("note.md"))
 }
 
-func TestOsVaultFS_ListMD_MissingDirReturnsEmpty(t *testing.T) {
+func TestVaultFS_ListMD_MissingDirReturnsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	fs := cli.ExportNewOsVaultFS()
-	names, err := fs.ListMD("/nonexistent/vault/dir")
+	vfs := cli.ExportNewVaultFS(osTestEdgeFS{})
+	names, err := vfs.ListMD("/nonexistent/vault/dir")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -45,37 +47,54 @@ func TestOsVaultFS_ListMD_MissingDirReturnsEmpty(t *testing.T) {
 	g.Expect(names).To(BeEmpty())
 }
 
-func TestOsVaultFS_ListMD_NonExistError(t *testing.T) {
+func TestVaultFS_ListMD_NonExistError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// dir is a regular file, not a directory → ReadDir returns ENOTDIR (not IsNotExist).
+	// dir is a regular file, not a directory → ReadDir returns ENOTDIR (not not-exist).
 	path := filepath.Join(t.TempDir(), "file")
 	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
 
-	fs := cli.ExportNewOsVaultFS()
-	_, err := fs.ListMD(path)
+	vfs := cli.ExportNewVaultFS(osTestEdgeFS{})
+	_, err := vfs.ListMD(path)
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestOsVaultFS_ReadFile_MissingPathError(t *testing.T) {
+func TestVaultFS_ListMD_WrappedNotExistReturnsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	fs := cli.ExportNewOsVaultFS()
-	_, err := fs.ReadFile("/nonexistent/path.md")
+	// EdgeFS implementations wrap errors with %w; missing-dir detection must
+	// survive wrapping (errors.Is unwraps; os.IsNotExist would not).
+	vfs := cli.ExportNewVaultFS(wrappedNotExistEdgeFS{})
+	names, err := vfs.ListMD("/anything")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(names).To(BeEmpty())
+}
+
+func TestVaultFS_ReadFile_MissingPathError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vfs := cli.ExportNewVaultFS(osTestEdgeFS{})
+	_, err := vfs.ReadFile("/nonexistent/path.md")
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestOsVaultFS_ReadFile_Success(t *testing.T) {
+func TestVaultFS_ReadFile_Success(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	path := filepath.Join(t.TempDir(), "f.md")
 	g.Expect(os.WriteFile(path, []byte("hello"), 0o600)).To(Succeed())
 
-	fs := cli.ExportNewOsVaultFS()
-	data, err := fs.ReadFile(path)
+	vfs := cli.ExportNewVaultFS(osTestEdgeFS{})
+	data, err := vfs.ReadFile(path)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -83,4 +102,12 @@ func TestOsVaultFS_ReadFile_Success(t *testing.T) {
 	}
 
 	g.Expect(string(data)).To(Equal("hello"))
+}
+
+// wrappedNotExistEdgeFS overrides ReadDir to return a WRAPPED fs.ErrNotExist,
+// proving missing-dir detection unwraps through EdgeFS error wrapping.
+type wrappedNotExistEdgeFS struct{ osTestEdgeFS }
+
+func (wrappedNotExistEdgeFS) ReadDir(string) ([]fs.DirEntry, error) {
+	return nil, fmt.Errorf("listing: %w", fs.ErrNotExist)
 }

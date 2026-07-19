@@ -218,9 +218,10 @@ func isSituationBearing(noteType string) bool {
 	return noteType == typeFact || noteType == typeFeedback
 }
 
-// newOsCheckDeps wires RunCheck to the real filesystem vault scanner.
-func newOsCheckDeps() CheckDeps {
-	fsys := &osVaultFS{}
+// newCheckDeps wires RunCheck from the injected CLI capabilities — pure
+// composition over EdgeFS (#700).
+func newCheckDeps(deps Deps) CheckDeps {
+	fsys := newVaultFS(deps.FS)
 
 	return CheckDeps{
 		Scan: func(vault string) ([]vaultgraph.Note, error) {

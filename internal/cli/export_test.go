@@ -74,10 +74,7 @@ var (
 	ExportNewErrHandler                    = newErrHandler
 	ExportNewOsActivateDeps                = newOsActivateDeps
 	ExportNewOsAmendDeps                   = newOsAmendDeps
-	ExportNewOsCheckDeps                   = newOsCheckDeps
-	ExportNewOsCountDeps                   = newOsCountDeps
 	ExportNewOsPruneDeps                   = newOsPruneDeps
-	ExportNewOsShowDeps                    = newOsShowDeps
 	ExportNewOsVocabDeps                   = newOsVocabDeps
 	ExportNextLuhmannID                    = nextLuhmannID
 	ExportNoteAgeDays                      = noteAgeDays
@@ -441,6 +438,9 @@ func ExportMergePhraseIntoUnion(noteHits []scoredCandidate, chunkHits []scoredCh
 	return keys
 }
 
+// ExportNewCheckDeps builds production CheckDeps over the given EdgeFS.
+func ExportNewCheckDeps(fsys EdgeFS) CheckDeps { return newCheckDeps(Deps{FS: fsys}) }
+
 // ExportNewChunkResolvedItem builds a chunk-kind resolvedItem for band tests.
 // notePath mirrors chunkNotePath's "source#anchor" form.
 func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
@@ -462,6 +462,9 @@ func ExportNewCompatibleSidecars(
 
 	return out
 }
+
+// ExportNewCountDeps builds production CountDeps over the given EdgeFS.
+func ExportNewCountDeps(fsys EdgeFS) CountDeps { return newCountDeps(Deps{FS: fsys}) }
 
 // ExportNewEmptyVaultNotesMeta constructs an AllVaultNotesMeta with
 // empty (but non-nil) maps — the backward-compat no-op fixture.
@@ -636,6 +639,17 @@ func ExportNewScoredChunkWithIngestedAt(
 	rec.IngestedAt = ingestedAt
 
 	return scoredChunk{record: rec, score: score}
+}
+
+// ExportNewShowDeps builds production ShowDeps over the given EdgeFS.
+func ExportNewShowDeps(fsys EdgeFS) ShowDeps { return newShowDeps(Deps{FS: fsys}) }
+
+// ExportNewVaultFS returns the pure EdgeFS→vaultgraph.VaultFS adapter.
+func ExportNewVaultFS(fsys EdgeFS) interface {
+	ListMD(dir string) ([]string, error)
+	ReadFile(path string) ([]byte, error)
+} {
+	return newVaultFS(fsys)
 }
 
 // ExportNewVaultNotesMetaWithSupersedes builds an AllVaultNotesMeta that has

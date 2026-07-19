@@ -64,9 +64,10 @@ var (
 	errShowNoteNotFound = errors.New("show: note not found")
 )
 
-// newOsShowDeps wires RunShow to the real filesystem vault scanner and reader.
-func newOsShowDeps() ShowDeps {
-	fsys := &osVaultFS{}
+// newShowDeps wires RunShow from the injected CLI capabilities — pure
+// composition over EdgeFS (#700).
+func newShowDeps(deps Deps) ShowDeps {
+	fsys := newVaultFS(deps.FS)
 
 	return ShowDeps{
 		Scan: func(vault string) ([]vaultgraph.Note, error) {

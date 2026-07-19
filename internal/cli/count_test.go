@@ -451,8 +451,9 @@ func TestRunCount_NoModeErrors(t *testing.T) {
 	g.Expect(err).To(MatchError(cli.ErrCountNoModeForTest))
 }
 
-// TestRunCount_OsDepsReadRealVault exercises newOsCountDeps against a real
-// on-disk vault, covering the ListMD, ReadFile, and Scan wiring for both modes.
+// TestRunCount_OsDepsReadRealVault exercises newCountDeps over a real-FS
+// EdgeFS against a real on-disk vault, covering the ListMD, ReadFile, and
+// Scan wiring for both modes.
 func TestRunCount_OsDepsReadRealVault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -461,7 +462,7 @@ func TestRunCount_OsDepsReadRealVault(t *testing.T) {
 	writeVaultFile(t, vault, "m1.md", "---\ntype: feedback\nfoo: [alpha]\n---\nlinks [[foo.alpha]]\n")
 	writeVaultFile(t, vault, "foo.alpha.md", "---\ntype: fact\n---\nalpha node\n")
 
-	deps := cli.ExportNewOsCountDeps()
+	deps := cli.ExportNewCountDeps(osTestEdgeFS{})
 
 	var groupOut strings.Builder
 
@@ -557,7 +558,7 @@ func TestRunCount_SkipsUncountableNotes(t *testing.T) {
 }
 
 // TestTargets_CountEmptyVault exercises the count closure end-to-end through
-// Targets() so the newOsCountDeps + resolveVault wiring is covered. An empty
+// Targets() so the newCountDeps + resolveVault wiring is covered. An empty
 // vault matches zero notes, so group-by prints nothing and stderr stays clean.
 func TestTargets_CountEmptyVault(t *testing.T) {
 	t.Parallel()
