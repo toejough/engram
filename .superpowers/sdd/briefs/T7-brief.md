@@ -1,0 +1,32 @@
+### Task T7 (Q3): Purge legacy `osVaultFS` (grep-gated; runs after T12/T15 per R4)
+
+Sequencing: after the amend/learn/qa/resituate/embed/vocab clusters migrate to `newVaultFS(d.FS)` and T12 migrates the vocab tests off `ExportNewOsVaultFS` (R12). Runs after T15 and T12 (R4) — all its preconditions precede it; T13/T16/T17 follow it in R4.
+
+**Files:**
+- Modify: `internal/cli/vault_fs.go` (delete `osVaultFS` + methods + `"os"` import), `internal/cli/export_test.go` (delete `ExportNewOsVaultFS`, lines currently 572-578)
+- Delete: none
+
+**Interfaces:**
+- Consumes: nothing new. Produces: a pure vault_fs.go (zero I/O-capable imports).
+
+**Steps:**
+1. [ ] Gate: `grep -rn "osVaultFS\|ExportNewOsVaultFS" internal/cli --include='*.go'` — expected: hits ONLY in vault_fs.go (definition) and export_test.go (shim). Any other hit → STOP; that cluster has not migrated (the `ExportNewOsVaultFS` pattern is load-bearing — R12: the lowercase-only `osVaultFS` grep cannot see the capital-O shim call sites, so without it this task's deletion is a silent compile break); do not proceed.
+2. [ ] Delete from vault_fs.go: the `osVaultFS` type, its `ListMD`/`ReadFile` methods, and the `"os"` import (all other imports stay: errors, fmt, io/fs, path/filepath, strings).
+3. [ ] Delete from export_test.go:
+   ```go
+   // ExportNewOsVaultFS returns the production osVaultFS adapter for testing.
+   func ExportNewOsVaultFS() interface {
+   	ListMD(dir string) ([]string, error)
+   	ReadFile(path string) ([]byte, error)
+   } {
+   	return &osVaultFS{}
+   }
+   ```
+4. [ ] Verify purity: `grep -n '"os"' internal/cli/vault_fs.go` — expected: no output.
+5. [ ] Run `targ test` then `targ check-full` — expected: all green, no findings.
+6. [ ] Commit: `refactor(cli): #700 delete legacy osVaultFS adapter`
+
+---
+
+Files read (worktree `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity`): `internal/cli/{query.go,query_chunks.go,query_nominations.go,count.go,show.go,check.go,vault_fs.go,targets.go,main.go,embed.go(80-269),learn.go(320-378),export_test.go,vault_fs_test.go,count_test.go(440-599),check_test.go(40-95),query_chunks_test.go(1-25),targets_test.go(420-455)}`, `internal/vaultgraph/scanner.go(14-30)`, `internal/embed/embedder.go(50-70)`, `cmd/engram/main.go`.
+

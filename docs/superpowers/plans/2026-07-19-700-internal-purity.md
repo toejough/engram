@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Zero I/O-capable imports in `internal/` non-test code: relocate all eight production I/O adapters to `cmd/engram` (package main), thread env/clock/FS capabilities from the edge via `cli.Deps`, and land depguard default-deny + forbidigo enforcement with no in-boundary carve-outs (issue #700).
+**Goal:** Zero I/O-capable imports in `internal/` non-test code: raw impure capabilities enter as `cli.Primitives` func values from `cmd/engram` (whose package main stays declaration-free and single-statement — `targ check-thin-api` enforced), ALL adapter composition/lifecycle logic lives in `internal/`, env/clock/FS capabilities thread from the edge via `cli.NewDeps`/`cli.Deps`, and depguard default-deny + forbidigo enforcement lands with no in-boundary carve-outs (issue #700).
 
-**Architecture:** `cmd/engram` becomes the composition root: it implements `cli.EdgeFS`/`cli.FileLocker`/commander/embedder/debug-sink adapters and wires them into `cli.Targets(deps cli.Deps)`; `internal/` keeps interfaces + pure logic only. Enforcement is config-only (depguard allow-list default-deny + forbidigo call-level rules), landing as the FINAL task so every prior task keeps `targ check-full` green.
+**Architecture:** `cmd/engram` stays radically thin — package main is a single-statement `main()` over a `cli.Primitives` literal of raw capability references and single-call closures (targ's `check-thin-api` builtin enforces this and is authoritative); `internal/cli` composes ALL production adapters from those primitives via `cli.NewDeps` (EdgeFS wrapping + ADR-0013 dances, flock lifecycle, debug sink, signal force-exit) behind `cli.Targets(deps cli.Deps)`, unit-tested with fake primitives and integration-tested with real os/syscall funcs in internal `_test` files. Enforcement is config-only (depguard allow-list default-deny + forbidigo call-level rules; both exclude `_test.go`), landing as the FINAL task so every prior task keeps `targ check-full` AND `targ check-thin-api` green. See "Revised composition doctrine" under Design flags (user correction, 2026-07-19).
 
 **Tech Stack:** Go, targ (build/check), golangci-lint v2 (depguard, forbidigo), imptest + rapid + gomega, git worktree `worktree-700-internal-purity`.
 
@@ -16,9 +16,182 @@
 - ADR-0013 (vault flock + atomic rename) semantics are safety-critical: lock acquisition stays at `Run*` entry points; the concurrent-writers regression test must survive every task; never weaken atomic-rename.
 - Implement the validated recipe from issue #700 — do not redesign mid-task (vault note 238). Any forced departure is a DESIGN FLAG escalated to the orchestrator, not an improvisation.
 - `internal/update/update.go` diff stays minimal (concurrent Pi worktrees touch it).
-- Each task ends with `targ check-full` green (or `targ test` where the task says so) and a commit (mid-task RED steps are expected to fail by design; only the task-final gate must be green) with an `AI-Used: [claude]` trailer.
+- Each task ends with `targ check-full` green (or `targ test` where the task says so) AND `targ check-thin-api` PASS, and a commit (mid-task RED steps are expected to fail by design; only the task-final gate must be green) with an `AI-Used: [claude]` trailer. A thin-api finding is never suppressed or worked around — escalate it (doctrine flag SIG-1).
 
 ## Design flags resolved at plan time
+
+**Revised composition doctrine (user correction, 2026-07-19 — BINDING; wins over any conflicting flag or task-body text below):**
+
+Joe's rule (vault note 303): ALL actual logic lives in `internal/`; cmd wiring is EXPLICITLY very
+thin, and targ's `check-thin-api` builtin gate — which walks every non-internal, non-test `.go`
+file — is the AUTHORITATIVE enforcement. The T1 that landed at de484526 implemented real adapter
+logic in `cmd/engram` and FAILED it with 9 non-thin declarations; that layout is REJECTED and
+reworked by Task T1-rework. Checker semantics (verified from targ's `dev/targets.go`
+`checkFuncThinness`/`checkTypeSpecThinness`/`checkValueSpecThinness`): THIN = a func whose body is
+one statement calling another package (or returning an external call/selector/basic-literal/ident,
+or the 2–3-statement `x, err := pkg.F(); if err != nil {...}; return` wrapper), interface types,
+type aliases, EMPTY structs, consts with literal/re-export values. NOT thin: any func — INCLUDING
+`func main()` — with two or more non-wrapper statements; structs with fields; vars whose value is a
+composite literal (so no `var _ cli.EdgeFS = x{}` conformance vars in cmd — put them in internal).
+Closures (`ast.FuncLit`) inside expressions are NOT walked by the checker, but the doctrine still
+caps cmd closures at single-call (or trivially-sequenced single-call) bodies — orchestration hidden
+in a closure violates the DESIGN even where the checker cannot see it. The corrected shape:
+
+1. **`cli.Primitives`** (internal/cli/primitives.go, landed by T1-rework) carries raw impure
+   capabilities as func fields; cmd populates it with direct references (`os.ReadFile`,
+   `filepath.WalkDir`, `time.Now`) or single-call closures where a signature must be erased. The
+   canonical struct — downstream briefs consume these field names verbatim:
+
+```go
+type Primitives struct {
+	// Filesystem (direct os/filepath references).
+	ReadFile   func(path string) ([]byte, error)                      // os.ReadFile
+	WriteFile  func(path string, data []byte, perm fs.FileMode) error // os.WriteFile
+	MkdirAll   func(path string, perm fs.FileMode) error              // os.MkdirAll
+	MkdirTemp  func(dir, pattern string) (string, error)              // os.MkdirTemp
+	Stat       func(path string) (fs.FileInfo, error)                 // os.Stat
+	ReadDir    func(path string) ([]fs.DirEntry, error)               // os.ReadDir
+	Remove     func(path string) error                                // os.Remove
+	RemoveAll  func(path string) error                                // os.RemoveAll
+	Rename     func(oldPath, newPath string) error                    // os.Rename
+	Chmod      func(path string, perm fs.FileMode) error              // os.Chmod
+	WalkDir    func(root string, fn fs.WalkDirFunc) error             // filepath.WalkDir
+	CreateTemp func(dir, pattern string) (string, error)              // closure: os.CreateTemp + Close; returns the unique name
+
+	// Process, env, clock (direct references).
+	Getenv      func(key string) string // os.Getenv
+	Now         func() time.Time        // time.Now
+	Getwd       func() (string, error)  // os.Getwd
+	UserHomeDir func() (string, error)  // os.UserHomeDir
+
+	// Advisory file locking (single-syscall closures; lifecycle internal).
+	OpenLockFile   func(path string, perm fs.FileMode) (uintptr, error) // syscall.Open O_CREAT|O_RDWR
+	FlockExclusive func(fd uintptr) error                               // syscall.Flock LOCK_EX
+	FlockUnlock    func(fd uintptr) error                               // syscall.Flock LOCK_UN
+	CloseFD        func(fd uintptr) error                               // syscall.Close
+
+	// Debug sink (single-call closure; empty-path branch + sync policy internal).
+	OpenDebugFile func(path string, perm fs.FileMode) (WriteSyncer, error) // os.OpenFile O_APPEND|O_CREATE|O_WRONLY
+
+	// Signal (starter closure; forwarding via internal ForwardAsPulses).
+	StartSignalPulses func(pulses chan<- struct{}, buffer int)
+}
+```
+
+2. **`cli.NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps`** composes
+   EVERYTHING internally: `primFS` (internal/cli/edgefs.go — the EdgeFS impl with all `%w`
+   wrapping + the ADR-0013 atomic-write dance; primitives return RAW os errors, so
+   `errors.Is(err, fs.ErrNotExist)`/`fs.ErrExist` chains survive trivially and the wrap happens
+   exactly once, internally), `primLocker` (internal/cli/locker.go — open→flock→unlock-then-close
+   lifecycle + unlock-error semantics), the debug sink (internal/cli/debugsink.go —
+   `openDebugSink` empty-path/failed-open→nil branch + per-write-Sync `syncWriter`; `type
+   WriteSyncer interface { io.Writer; Sync() error }` is exported from internal/cli and *os.File
+   satisfies it), the force-exit signal watcher (`startForceExit`), and (from T2) `Deps.Embed`.
+   All of it is unit-tested with fake primitives and integration-tested with REAL os/syscall
+   funcs in internal `_test` files — sanctioned: the T-final-1 purity lint excludes `!$test`, and
+   the ADR-0013 regression tests ride there.
+3. **Signal:** generic `ForwardAsPulses[T any](in <-chan T, out chan<- struct{})`
+   (internal/cli/signal.go) erases os.Signal without importing os; tests drive it with `chan int`.
+   `ForceExitOnRepeatedSignal` stays as-is.
+4. **cmd/engram/main.go final shape (T2):** package main is DECLARATION-FREE — `main()` is ONE
+   statement, `targ.Main(cli.Targets(cli.NewDeps(cli.Primitives{...}, os.Stdout, os.Stderr,
+   os.Exit))...)`, with every capability inline in the literal. Signal registration happens inside
+   NewDeps during argument evaluation — before targ.Main runs. The issue-AC "targ.Main called from
+   cmd" holds.
+5. **Per-task gate:** every task's final gate includes `targ check-thin-api` PASS alongside
+   `targ check-full`. If a single-call closure or the literal itself ever trips the checker,
+   ESCALATE the exact finding to the orchestrator — do not suppress, do not restructure ad hoc.
+
+Recorded design flags (choices within the correction's stated latitude):
+
+- **SIG-1 (escalated + resolved):** the correction's sketch put the signal statements directly in
+  `main()`; that literally FAILS the authoritative gate — `checkFuncThinness` has NO main()
+  exemption, so a ~6-statement main() is a "has 6 statements" violation (finding derived from the
+  checker source; the landed main passed only because it was a single external call). Resolution
+  preserving every other element: `Primitives.StartSignalPulses` carries a cmd closure whose body
+  is three single-call lines (`make` sigCh → `signal.Notify(SIGINT, SIGTERM)` → `go
+  cli.ForwardAsPulses(sigCh, pulses)`); internal `startForceExit` (called by NewDeps, nil-skipped
+  for test Deps) owns the pulse channel, buffer size, and ForceExitOnRepeatedSignal registration.
+  If Joe prefers a different resolution (e.g. teaching targ to exempt `func main`), the swap is
+  confined to one Primitives field + startForceExit.
+- **P-1:** permissions thread through primitives as `fs.FileMode` args (`OpenLockFile(path,
+  perm)`, `OpenDebugFile(path, perm)`) so perm POLICY (0o600 lock, 0o644 debug log) stays internal
+  and cmd declares zero constants.
+- **P-2:** flock is three semantic single-syscall primitives (FlockExclusive/FlockUnlock/CloseFD
+  over a `uintptr` fd) rather than `Flock(fd, how)` + re-exported LOCK_* consts — no const
+  duplication, every closure single-call, unlock-error semantics internal.
+- **P-3:** the lock-open primitive wraps `syscall.Open`, NOT `os.OpenFile(...).Fd()` — dropping
+  the *os.File after extracting its fd lets the runtime finalizer close the fd and silently
+  release the flock mid-hold. syscall.Open has no finalizer.
+- **P-4:** `CreateTemp(dir, pattern)` returns the NAME of a created-then-closed unique temp file;
+  the internal atomic dance is CreateTemp→Chmod→WriteFile→Rename (+Remove on any failure).
+  Same-directory rename atomicity — the ADR-0013 primitive — is unchanged.
+- **D-1 (amends R6 and the wiring-core cmd-wiring sequencing flag):** `Deps.Embed` is wired INSIDE
+  NewDeps at T2 (`embed.NewLazyEmbedder(CacheDirFromHome(homeOrEmpty(deps), embed.BundledModelID,
+  prims.Getenv))`, guarded on non-nil Getenv); cmd carries no embed wiring line. T14's 3-arg
+  constructor change edits that internal line and adds backend/cache capability fields to
+  Primitives whose cmd-side values are single-call method bodies on EMPTY structs (empty structs
+  and single-call methods pass the checker; any stateful session/cache/temp-dir orchestration
+  stays internal, parameterized over primitives — a cmd struct WITH fields is a gate failure).
+- **C-1 (T16/T17):** the commander uses the injected-sentinel form — Primitives gains a raw run
+  capability plus a `NotFoundErr error` field (cmd wires `exec.ErrNotFound`); the run-and-collect
+  logic + `errors.Is(err, notFoundErr)` → `update.ErrCommandNotFound` translation live internal.
+  Zero cmd logic beyond single-call wrapping; T17's brief reviser owns the exact field shapes.
+- **X-1 (T3 forward-guidance):** the EdgeFS `WriteFileExcl` method (learn-family flag) is
+  implemented INTERNALLY over a new semantic exclusive-create primitive (e.g. `OpenExcl(path,
+  perm) (uintptr, error)` = syscall.Open O_CREAT|O_EXCL|O_WRONLY plus a write/close over existing
+  fd primitives, or an equivalent single-call shape) — the composed error must keep satisfying
+  `errors.Is(err, fs.ErrExist)`. T3's brief reviser owns the exact shape under this doctrine.
+- **DRIFT:** cli_test's `realPrimitives()` helper mirrors cmd/engram/main.go's literal and can
+  drift from it; cli_test.go's end-to-end binary tests are the guard on the production literal.
+
+Supersession map (downstream task briefs — T3 through T-final-2 — read their bodies through this):
+
+- Wiring-core flag "the final cmd/engram/main.go wires `Commander: &osCommander{}` ... `Embed:
+  embed.NewLazyEmbedder(...)`" → SUPERSEDED by D-1/C-1 (no cmd wiring lines; internal composition).
+- Wiring-core flag "T1's cmd/engram/os_signal.go needs the pure ... signature" → AMENDED: no
+  cmd/engram/os_signal.go exists post-rework; the SIGUSR2 real-delivery integration test lives in
+  internal/cli/signal_integration_test.go.
+- Wiring-core flag "lint risk in T1 — registerForceExit/openDebugSink unused until T2" →
+  SUPERSEDED: those symbols are internal and consumed by NewDeps; the surviving T1-rework residual
+  is the `SetupSignalHandling` 0% coverage gap, resolved by T2's deletion.
+- Wiring-core flag "EdgeFS adapter methods wrap errors with %w" and every learn/query/maintenance/
+  update-family obligation on "cmd/engram osFS must wrap with %w / preserve errors.Is chains /
+  keep RemoveAll nil-on-absent" → obligations TRANSFER VERBATIM to internal/cli/edgefs.go
+  (`primFS`); the raw primitives return unwrapped os errors, preserving sentinel chains by
+  construction. Learn-family cmd-integration-test obligations (flock-on-unwritable-path,
+  WriteFileExcl→fs.ErrExist) land as internal `_test` files instead.
+- Maintenance-family flag "sequencing — cmd/engram/os_fs.go's osFS has no production caller" and
+  M1's "create-or-append cmd/engram/os_fs.go" → OBSOLETE: there is no cmd/engram/os_fs.go;
+  T10/M1's `WriteFileAtomic` relocation target is internal/cli/edgefs.go, ALREADY landed by
+  T1-rework — T10 reduces to migrating its internal consumers onto `deps.FS.WriteFileAtomic`
+  (T13's grep gate is unchanged).
+- Embed-family flags 1/8 and T14's cmd/engram/hugot.go: the Backend/PipelineHandle interface
+  erasure stands, but cmd's implementations must be single-call method bodies on empty structs
+  wired as Primitives/NewDeps inputs (D-1); session/cache orchestration stays internal.
+- Update-family "coordination with os_fs cluster" flag → binds internal/cli/edgefs.go; the nine
+  deleted TestOsUpdateFS_* round-trips hand coverage to internal/cli/primitives_integration_test.go.
+- Update-family flags "only osCommander physically moves to cmd/engram/os_update.go" and "the
+  `Commander: &osCommander{},` field lands in cmd/engram's Deps literal ... requires
+  cmd/engram/os_fs.go to exist" → SUPERSEDED by doctrine flag C-1: no cmd commander type, no
+  os_update.go, no cmd Deps literal — cmd contributes the `RunCommand` single-call closure +
+  `NotFoundErr` value in the Primitives literal; internal `primCommander` owns run-and-collect +
+  the sentinel translation (T17).
+- Ingest-family flag 4's "production flockLocker mutual-exclusion coverage moves to cmd/engram;
+  confirm the adapters cluster's plan includes a flockLocker exclusivity + fresh-dir integration
+  test" → the coverage lives INTERNAL: `TestRealFlockLocker_SecondLockWaitsForUnlock`
+  (primitives_integration_test.go) + the `TestPrimLocker_*` fake suite (locker_test.go), both
+  T1-rework; fresh-dir mkdir-before-lock rides T8's manifest-lock composition test + T9's
+  real-binary check. No cmd-side lock test exists.
+- T-final-1 Step 5.5 (coverage stance): cmd/engram now holds ONLY the declaration-free main.go —
+  an entry point, coverage-excluded per the user's global rules; the former cmd adapter tests live
+  as internal `_test` files and count toward internal coverage. The deliberate revisit reduces to
+  confirming the entry-point exclusion still applies.
+- Any remaining task-body reference to `cmd/engram/os_fs.go`, `os_signal.go`,
+  `debuglog_sink.go`, `osFS`, `flockLocker` (cmd), `syncWriter` (cmd), `registerForceExit`,
+  `forwardAsPulses` (cmd), or `newOsDeps` → read as the internal equivalents: `primFS`,
+  `primLocker`, `syncWriter` (internal/cli/debugsink.go), `startForceExit` +
+  `Primitives.StartSignalPulses`, `cli.ForwardAsPulses`, and `cli.NewDeps`.
 
 **Wiring-core (foundation — binding for all tasks):**
 
@@ -86,11 +259,11 @@
 3. **`newOsEmbedDeps()` has two external consumers**: `targets.go:226,230` (embed group closures) and `query.go:1288` (`newOsQueryDeps`). Task B swaps the targets.go call sites and makes a minimal `newOsQueryDeps(d Deps)` signature change + its call site `targets.go:155`. This overlaps the query cluster's territory — coordinate; the query task's full `newQueryDeps(d)` rewrite subsumes this edit if it lands first (then Task B skips step 6).
 4. **Dead production machinery found**: `unpackModelToTemp`, `tempFS`, `productionTempFS` (`internal/embed/hugot.go:314-452`) are referenced by NO production code — `extractToCache` replaced them. Plan **deletes** them plus `unpack_test.go`/`tempfs_test.go` instead of relocating (git is the fallback). Note: `nonEmptyTestFS` (go:embed) is declared in `unpack_test.go:65-66` but used by `cache_test.go` — its declaration moves into `cache_test.go`.
 5. **`parity_test.go`** (build tag `parity`) imports hugot directly and reads `assets/model` from disk. It is a test file and is excluded from normal builds; the enforcement task must exempt `_test.go` files (or this tagged file) from depguard, otherwise relocate it to cmd/engram in that task — not handled here.
-6. **Behavioral contract shift on `CacheFS.Rename`** (verified, load-bearing): today `commitCache` sniffs `*os.LinkError`/ENOTEMPTY strings via `isExistErr` (`cache.go:196`). os classification must live beside `os.Rename`, so the sniffing moves into the cmd adapter and the internal contract becomes `errors.Is(err, fs.ErrExist)`. The fakes at `cache_test.go:54,107` currently return raw `&os.LinkError{...directory not empty...}` — they MUST be updated to the new contract or the race tests go red for the wrong reason (Task A step 5).
-7. **`CacheDirFromHome` stays in `internal/cli/targets.go:56`** (pure, exported); cmd calls it with `os.UserHomeDir`/`os.Getenv` at the edge. If the wiring cluster relocates it, adjust the import in `cmd/engram/hugot.go`.
-8. **Foundation dependency**: both tasks assume the foundation task has landed — `internal/cli/deps.go` (Deps + EdgeFS), `Targets(deps Deps) []any`, and cmd/engram building the Deps literal. Task A adds one field-init line (`Embed: newProductionEmbedder()`) to that literal and one statement to `Targets` — coordinate the merge. EdgeFS contract notes for foundation: `ReadFile`/`ReadDir` errors must satisfy `errors.Is(err, fs.ErrNotExist)` for missing paths (state classification and ListMD-missing-dir semantics depend on it).
+6. **Behavioral contract shift on `CacheFS.Rename`** (verified, load-bearing; REVISED per the composition doctrine): today `commitCache` sniffs `*os.LinkError`/ENOTEMPTY strings via `isExistErr` (`cache.go:196`). The internal contract becomes `errors.Is(err, fs.ErrExist)`; the classification does NOT move to cmd (multi-statement logic fails `check-thin-api`) — it lives in internal/embed's `renameIsExist` over the RAW error the `Rename` primitive returns (T14 flag E-3: `errors.Is` + string fallback, no os import). The fakes at `cache_test.go:54,107` currently return raw `&os.LinkError{...directory not empty...}` — they MUST be updated to the new contract or the race tests go red for the wrong reason (Task T14 step 8).
+7. **`CacheDirFromHome` stays in `internal/cli/targets.go:56`** (pure, exported; REVISED per D-1): its production caller is `cli.NewDeps`'s internal Embed line (`homeOrEmpty(deps)` + `prims.Getenv`) — cmd never calls it and `cmd/engram/hugot.go` imports only `hugot` + `internal/embed`.
+8. **Foundation dependency** (REVISED per D-1): both tasks assume T1-rework/T2 have landed — `Deps`/`EdgeFS`, `Targets(deps Deps) []any`, `cli.NewDeps` with the guarded 1-arg Embed line, and the declaration-free cmd main over `cli.Primitives`. Task T14 edits that internal NewDeps line to the 3-arg composition, adds `Primitives.EmbedRuntime`, adds the `EmbedRuntime: hugotRuntime{},` literal line in cmd, and inserts one `wireSharedEmbedder(deps.Embed)` statement in `Targets` — coordinate the merge. EdgeFS contract notes for foundation: `ReadFile`/`ReadDir` errors must satisfy `errors.Is(err, fs.ErrNotExist)` for missing paths (state classification and ListMD-missing-dir semantics depend on it).
 9. **`internal/embed/embedder.go` and `internal/embed/state.go` are already pure** (imports: `context/errors/fmt` and `errors/io/fs`) — zero changes needed in this cluster's charge for them.
-10. **Coverage config**: cmd/engram may be excluded from coverage as an entry point (user global rules). The relocated adapter tests still run under `targ test`; if `targ check-full` flags cmd coverage, that's a dev-tooling config question for the enforcement task, not a reason to keep adapters in internal.
+10. **Coverage config** (REVISED per the composition doctrine): cmd/engram is coverage-excluded as an entry point (user global rules); the orchestration coverage now lives in internal (runtime_test/cachefs_test/cachefs_integration_test count toward internal coverage). cmd's only test file is the sanctioned hugot wiring-smoke; if `targ check-full` flags cmd coverage, that's a dev-tooling config question for the enforcement task (T-final-1 step 5.5 confirms the entry-point exclusion).
 
 **Update-family:**
 
@@ -136,6 +309,8 @@ conversion), T9 for prune.go, T12 for amend.go. T12 — amend.go is the LAST con
 
 **R4 — EXECUTION ORDER (binding; document order is NOT execution order):**
 T1 → T2 → T3 → T5 → T6 → T8 → T9 → T10 → T11 → T12 → T4 → T14 → T15 → T7 → T13 → T16 → T17 → T-final-1 → T-final-2.
+("T1" here means Task T1-rework, which occupies T1's slot: the original T1 landed at de484526 and
+is reworked in place per the composition doctrine.)
 Rationale: T4 (purge cli.go adapters) requires T8/T9/T12 done (its own heading says so — it sits
 mid-document only because drafts were assembled by family); T7 (purge osVaultFS) runs after T15
 (embed.go is osVaultFS's last consumer); T13 (purge internal atomic write) also runs after T15
@@ -145,12 +320,16 @@ cannot pass earlier); deletions are grep-gated so a premature run fails loud.
 **R5 — `osFileReader` is deleted ONCE, by T8.** T4's corresponding step becomes a grep
 verification (`rg -n "osFileReader" internal/` → zero hits), not a second deletion.
 
-**R6 — `embed.NewLazyEmbedder` arity handoff.** T2 wires `Embed: embed.NewLazyEmbedder(cacheDir)`
-(today's 1-arg form). T14 changes the constructor to its 3-arg form AND updates that one line in
-`cmd/engram/main.go` in the same commit — the executor of T14 must not skip the cmd-side line
-(it is in T14's file list).
+**R6 — `embed.NewLazyEmbedder` arity handoff (REVISED per the composition doctrine, flag D-1).**
+T2 wires `Embed` INSIDE `cli.NewDeps` (internal/cli/primitives.go):
+`embed.NewLazyEmbedder(CacheDirFromHome(homeOrEmpty(deps), embed.BundledModelID, prims.Getenv))`
+— today's 1-arg form, guarded on non-nil Getenv; cmd/engram carries NO embed wiring line. T14
+changes the constructor to its 3-arg form AND updates that internal NewDeps line in the same
+commit, adding the backend/cache capabilities as Primitives fields whose cmd-side values are
+single-call method bodies on empty structs; `cmd/engram/main.go`'s Primitives literal gains those
+field lines in T14 (both files are in T14's file list — the executor must not skip either).
 
-**R8 — FIXME(#700) marker lifecycle.** T2 deletes the marker's host file (`internal/cli/main.go`) for wiring reasons, so T2 RELOCATES the marker into `cmd/engram/main.go` (exact comment text in T2's step); it stays grep-able through the whole migration and is deleted ONLY by T-final-2 after the enforcement gate is verified green. Any state where `rg "FIXME\(#700\)"` returns zero hits before T-final-2 is a defect.
+**R8 — FIXME(#700) marker lifecycle.** T2 deletes the marker's host file (`internal/cli/main.go`) for wiring reasons, so T2 RELOCATES the marker into `cmd/engram/main.go` as the comment block directly ABOVE `func main()` (exact text in T2's step 5b — comments are legal in the declaration-free package main; `check-thin-api` sees only declarations); it stays grep-able through the whole migration and is deleted ONLY by T-final-2 after the enforcement gate is verified green. Any state where `rg "FIXME\(#700\)"` returns zero hits before T-final-2 is a defect.
 
 **R9 — depguard files-glob vs the issue AC's literal `internal/**`.** The issue AC says root-anchored `'internal/**'`; the plan-time prototype only confirmed `'**/internal/**'` (the root-anchored form was never exercised). T-final-1 resolves this empirically: Step 5's negative probe runs FIRST with `files = ['internal/**', '!$test']`; if the probe fires, keep the AC's literal form. If it does not fire, switch to the confirmed `'**/internal/**'`, record the probe output in the commit body, and post a one-line comment on issue #700 amending the AC wording to the verified form. No silent substitution in either direction.
 
@@ -217,100 +396,993 @@ the new name. The executor note "reuse it and delete this one if so" is supersed
 | depguard `internal-purity` rule active (root-anchored `internal/**`, no negation globs, no companion adapter rule); forbidigo enabled with the custom clock/PRNG/rand-v1 list; no fmt.Print flagging | T-final-1 (glob per R9) |
 | Zero non-test files under `internal/` import os, os/exec, os/signal, syscall, net, net/http, database/sql, or any third-party I/O package (hugot) | T1–T17 cumulative; enforced + verified T-final-1 |
 | Zero time.Now/Since/Tick, global-PRNG, or math/rand (v1) references in non-test internal/ code | T3, T6, T8, T12 (Now threading); enforced T-final-1 |
-| All eight adapter implementations relocated to cmd/engram (package main) with integration tests; internal keeps interfaces + logic only | T1 (signal, debuglog sink, EdgeFS/flock), T10 (atomic write), T14 (hugot + cache), T17 (commander); absorption-into-EdgeFS design flags cover vault_fs/learn-FS (T5/T3) |
+| All eight adapter implementations relocated to cmd/engram (package main) with integration tests; internal keeps interfaces + logic only | Read per the revised composition doctrine (user correction 2026-07-19, vault note 303): raw PRIMITIVES relocate to cmd (func references + single-call closures in the Primitives literal); adapter COMPOSITION lives in internal/cli, integration-tested in internal `_test` files — T1-rework (signal, debuglog sink, EdgeFS/flock), T14 (hugot + cache), T17 (commander); T10 reduces to consumer migration; absorption-into-EdgeFS flags cover vault_fs/learn-FS (T5/T3); `targ check-thin-api` enforces the cmd side |
 | debuglog is pure (writer + clock injected); both direct env reads eliminated; env/clock threaded from cmd/engram; targ.Main called from cmd | T2 (debuglog, ENGRAM_DEBUG_LOG, targ.Main), T8 (ENGRAM_TRANSCRIPT_DIR) |
-| internal/update no longer imports os/exec (sentinel translated in the cmd adapter) | T16, T17 |
+| internal/update no longer imports os/exec (sentinel translated in the cmd adapter) | T16, T17 — read per doctrine flag C-1: cmd contributes only a raw run primitive plus a `NotFoundErr error` Primitives field wiring `exec.ErrNotFound`; the `errors.Is` translation to `update.ErrCommandNotFound` lives internal (zero cmd logic) |
 | Coverage stance for cmd/engram revisited deliberately | T-final-1 Step 5.5 |
-| targ check-full green; truncation setting (max-issues-per-linter) decided deliberately | every task's final gate; T-final-1 Step 3 |
+| targ check-full green; truncation setting (max-issues-per-linter) decided deliberately | every task's final gate (check-full green AND `targ check-thin-api` PASS, per Global Constraints); T-final-1 Step 3 |
 | FIXME at internal/cli/main.go removed — last, after everything above is green | T2 relocates the marker (R8); T-final-2 deletes it |
 
 ## Tasks
 
-### Task T1: Pure signal seam, cli.Deps carrier, cmd/engram OS adapters
+### Task T1-rework: compose EdgeFS/flock/sink internally from Primitives; thin cmd/engram (REWORK of landed commit de484526)
+
+> **Context:** the original T1 landed at de484526 with the production adapters (`osFS`,
+> `flockLocker`, `syncWriter`/`openDebugSink`, `registerForceExit`/`forwardAsPulses`) implemented
+> in `cmd/engram` — and `targ check-thin-api` FAILED with 9 non-thin declarations across the 3 new
+> cmd files. That layout is REJECTED (user correction 2026-07-19, vault note 303; see "Revised
+> composition doctrine" under Design flags). This task REWORKS the landed state: the logic moves
+> into `internal/cli` composed from a new `cli.Primitives` carrier of raw capability funcs, the six
+> cmd/engram adapter files are deleted, and the relocated integration tests run against the
+> composed implementations with REAL os/syscall primitives in internal `_test` files (sanctioned —
+> the T-final-1 purity lint excludes `!$test`). What SURVIVES from de484526 unchanged:
+> `internal/cli/deps.go` (Deps/EdgeFS/FileLocker, incl. the `//nolint:interfacebloat`), the pure
+> `ForceExitOnRepeatedSignal` + its signal_test.go tests, the `SetupSignalHandling` shim +
+> `internal/cli/main.go` (both die in T2), and `cmd/engram/main.go`'s single-statement form.
 
 **Files:**
-- Create: `internal/cli/deps.go`
-- Create: `cmd/engram/os_fs.go`, `cmd/engram/os_fs_test.go`
-- Create: `cmd/engram/os_signal.go`, `cmd/engram/os_signal_test.go`
-- Create: `cmd/engram/debuglog_sink.go`, `cmd/engram/debuglog_sink_test.go`
-- Modify: `internal/cli/signal.go` (pure `ForceExitOnRepeatedSignal`; interim adapter in `SetupSignalHandling`)
-- Modify: `internal/cli/signal_test.go` (struct{} pulses)
+- Create: `internal/cli/primitives.go` (Primitives, WriteSyncer, NewDeps, envOrEmpty)
+- Create: `internal/cli/edgefs.go` (primFS — EdgeFS composed from primitives, %w wraps + ADR-0013 atomic dance)
+- Create: `internal/cli/locker.go` (primLocker — flock lifecycle over fd primitives)
+- Create: `internal/cli/debugsink.go` (openDebugSink, syncWriter, debugLogEnvVar/debugLogPerm)
+- Create: `internal/cli/primitives_test.go`, `internal/cli/edgefs_test.go`, `internal/cli/locker_test.go` (unit, fake primitives)
+- Create: `internal/cli/primitives_integration_test.go`, `internal/cli/signal_integration_test.go` (real os/syscall — relocated cmd suites)
+- Modify: `internal/cli/signal.go` (add generic `ForwardAsPulses` + `startForceExit`; shim goroutine now calls ForwardAsPulses)
+- Modify: `internal/cli/signal_test.go` (add ForwardAsPulses test, chan int)
+- Delete: `cmd/engram/os_fs.go`, `cmd/engram/os_fs_test.go`, `cmd/engram/os_signal.go`, `cmd/engram/os_signal_test.go`, `cmd/engram/debuglog_sink.go`, `cmd/engram/debuglog_sink_test.go`
+- Unchanged: `internal/cli/deps.go`, `cmd/engram/main.go` (still the 1-statement `cli.Main(...)` — T2 rewrites it), `internal/cli/main.go`
 
 **Interfaces:**
-- Consumes: `update.Commander` — `Run(ctx context.Context, dir, name string, args ...string) (stdout, stderr []byte, err error)` (internal/update/update.go:48); `embed.Embedder` — `Embed(ctx context.Context, text string) ([]float32, error)`, `ModelID() string`, `Dims() int` (internal/embed/embedder.go:54); `cli.ForceExitOnRepeatedSignal`, `cli.ExitCodeSigInt` (internal/cli/signal.go).
-- Produces: `cli.Deps`, `cli.EdgeFS`, `cli.FileLocker` (new, exact code below); `func ForceExitOnRepeatedSignal(signals <-chan struct{}, exitFn func(int))` (changed signature); package-main `osFS`, `flockLocker`, `registerForceExit(exitFn func(int), sigs ...os.Signal)`, `forwardAsPulses`, `openDebugSink(path string) io.Writer`, `syncWriter`.
+- Consumes: `cli.Deps`/`cli.EdgeFS`/`cli.FileLocker` (landed, unchanged); `cli.ForceExitOnRepeatedSignal`, `cli.ExitCodeSigInt`.
+- Produces: `cli.Primitives` (struct — exact fields in the doctrine subsection, consume verbatim); `type WriteSyncer interface { io.Writer; Sync() error }`; `func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps`; `func ForwardAsPulses[T any](in <-chan T, out chan<- struct{})`; unexported `primFS`, `primLocker`, `openDebugSink`, `syncWriter`, `startForceExit`, `envOrEmpty`, consts `lockFilePerm`/`debugLogPerm`/`debugLogEnvVar`.
 
 **Steps:**
 
-1. [ ] RED — rewrite `internal/cli/signal_test.go` for the pure signature. Current file (lines 1–75) uses `chan os.Signal` + `syscall.SIGINT` and tests `SetupSignalHandling`. Replace the whole file with:
+1. [ ] RED — create the unit-test files against the not-yet-existing composition seams. All three compile-fail (`undefined: cli.Primitives`, `undefined: cli.NewDeps`) — that is the RED; the behaviors they pin (wrap-with-%w, temp-cleanup-on-failure, fd-close-on-flock-failure, per-write Sync, force-exit watcher registration) were UNTESTABLE against the real-os cmd adapters, which is exactly the seam this rework buys.
+
+   `internal/cli/primitives_test.go`:
 
 ```go
 package cli_test
 
 import (
+	"bytes"
+	"errors"
+	"io"
+	"io/fs"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega"
 
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestForceExitOnRepeatedSignal(t *testing.T) {
+func TestNewDeps_ComposesCarrierFromPrimitives(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	exitCodes := make([]int, 0, 1)
+	fixed := time.Date(2026, time.July, 19, 12, 0, 0, 0, time.UTC)
+
+	prims := cli.Primitives{
+		Getenv:      func(string) string { return "" },
+		Now:         func() time.Time { return fixed },
+		Getwd:       func() (string, error) { return "/work", nil },
+		UserHomeDir: func() (string, error) { return "/home/x", nil },
+	}
+
+	deps := cli.NewDeps(prims, &stdout, &stderr, func(code int) { exitCodes = append(exitCodes, code) })
+
+	g.Expect(deps.Stdout).To(gomega.BeIdenticalTo(&stdout))
+	g.Expect(deps.Stderr).To(gomega.BeIdenticalTo(&stderr))
+	g.Expect(deps.Now()).To(gomega.Equal(fixed))
+
+	wd, err := deps.Getwd()
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(wd).To(gomega.Equal("/work"))
+
+	home, homeErr := deps.UserHomeDir()
+	g.Expect(homeErr).NotTo(gomega.HaveOccurred())
+	g.Expect(home).To(gomega.Equal("/home/x"))
+
+	g.Expect(deps.FS).NotTo(gomega.BeNil())
+	g.Expect(deps.Lock).NotTo(gomega.BeNil())
+
+	deps.Exit(3)
+	g.Expect(exitCodes).To(gomega.Equal([]int{3}))
+}
+
+func TestNewDeps_DebugSinkEmptyEnvOrFailedOpenIsNil(t *testing.T) {
 	t.Parallel()
 
-	t.Run("calls exit on second signal", func(t *testing.T) {
+	t.Run("empty env yields nil sink without opening", func(t *testing.T) {
 		t.Parallel()
-		g := NewWithT(t)
+		g := gomega.NewWithT(t)
 
-		const pulseBuffer = 2
+		prims := cli.Primitives{
+			Getenv: func(string) string { return "" },
+			OpenDebugFile: func(string, fs.FileMode) (cli.WriteSyncer, error) {
+				t.Error("open must not be called for an empty path")
 
-		pulses := make(chan struct{}, pulseBuffer)
-		exitCalled := make(chan int, 1)
-
-		cli.ForceExitOnRepeatedSignal(pulses, func(code int) {
-			exitCalled <- code
-		})
-
-		pulses <- struct{}{}
-
-		pulses <- struct{}{}
-
-		select {
-		case code := <-exitCalled:
-			g.Expect(code).To(Equal(cli.ExitCodeSigInt))
-		case <-time.After(time.Second):
-			t.Fatal("exit not called within 1s of second signal")
+				return nil, nil
+			},
 		}
+
+		g.Expect(cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).DebugLog).To(gomega.BeNil())
 	})
 
-	t.Run("does not exit on first signal alone", func(t *testing.T) {
+	t.Run("failed open yields nil sink", func(t *testing.T) {
 		t.Parallel()
+		g := gomega.NewWithT(t)
 
-		pulses := make(chan struct{}, 1)
-		exitCalled := make(chan int, 1)
-
-		cli.ForceExitOnRepeatedSignal(pulses, func(code int) {
-			exitCalled <- code
-		})
-
-		pulses <- struct{}{} // first only
-
-		const shortWait = 100 * time.Millisecond
-
-		select {
-		case <-exitCalled:
-			t.Fatal("exit called after only one signal")
-		case <-time.After(shortWait):
-			// good — no exit after one signal
+		prims := cli.Primitives{
+			Getenv: func(string) string { return "/nope/debug.log" },
+			OpenDebugFile: func(string, fs.FileMode) (cli.WriteSyncer, error) {
+				return nil, errors.New("open failed")
+			},
 		}
+
+		g.Expect(cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).DebugLog).To(gomega.BeNil())
 	})
+}
+
+func TestNewDeps_DebugSinkSyncsEveryWrite(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	sink := &recordingSyncer{}
+	prims := cli.Primitives{
+		Getenv: func(key string) string {
+			if key == "ENGRAM_DEBUG_LOG" {
+				return "/dev/fake/debug.log"
+			}
+
+			return ""
+		},
+		OpenDebugFile: func(path string, _ fs.FileMode) (cli.WriteSyncer, error) {
+			g.Expect(path).To(gomega.Equal("/dev/fake/debug.log"))
+
+			return sink, nil
+		},
+	}
+
+	deps := cli.NewDeps(prims, io.Discard, io.Discard, func(int) {})
+	g.Expect(deps.DebugLog).NotTo(gomega.BeNil())
+
+	if deps.DebugLog == nil {
+		return
+	}
+
+	_, err := deps.DebugLog.Write([]byte("line one\n"))
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	_, err = deps.DebugLog.Write([]byte("line two\n"))
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	g.Expect(sink.contents()).To(gomega.Equal("line one\nline two\n"))
+	g.Expect(sink.syncCount()).To(gomega.Equal(2), "per-line Sync is the tail -F liveness contract")
+}
+
+func TestNewDeps_StartsForceExitWatcherFromPrimitive(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	pulsesCh := make(chan chan<- struct{}, 1)
+	exitCodes := make(chan int, 1)
+
+	prims := cli.Primitives{
+		StartSignalPulses: func(pulses chan<- struct{}, buffer int) {
+			g.Expect(buffer).To(gomega.BeNumerically(">", 0))
+			pulsesCh <- pulses
+		},
+	}
+
+	cli.NewDeps(prims, io.Discard, io.Discard, func(code int) { exitCodes <- code })
+
+	var pulses chan<- struct{}
+
+	select {
+	case pulses = <-pulsesCh:
+	case <-time.After(time.Second):
+		t.Fatal("StartSignalPulses was not invoked by NewDeps")
+	}
+
+	pulses <- struct{}{}
+
+	pulses <- struct{}{}
+
+	select {
+	case code := <-exitCodes:
+		g.Expect(code).To(gomega.Equal(cli.ExitCodeSigInt))
+	case <-time.After(time.Second):
+		t.Fatal("exit not called after two pulses")
+	}
+}
+
+func TestNewDeps_ZeroPrimitivesDisablesOptionalEdges(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	deps := cli.NewDeps(cli.Primitives{}, io.Discard, io.Discard, func(int) {})
+
+	g.Expect(deps.DebugLog).To(gomega.BeNil())
+}
+
+// recordingSyncer is a fake WriteSyncer that records writes and counts Sync
+// calls (safe for concurrent use).
+type recordingSyncer struct {
+	mu    sync.Mutex
+	data  strings.Builder
+	syncs int
+}
+
+func (r *recordingSyncer) Sync() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.syncs++
+
+	return nil
+}
+
+func (r *recordingSyncer) Write(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.data.Write(p)
+}
+
+func (r *recordingSyncer) contents() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.data.String()
+}
+
+func (r *recordingSyncer) syncCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.syncs
 }
 ```
 
-   Note `TestSetupSignalHandling_ReturnsTargets` (old lines 64–75) is deleted here — its target-count assertion already exists as targets_test.go:146 `TestTargets/"returns expected target count"`. Run `targ test` — expect a compile failure in internal/cli tests (`cannot use pulses (variable of type chan struct{}) as chan os.Signal`). That is the RED.
+   `internal/cli/edgefs_test.go`:
 
-2. [ ] GREEN — convert `internal/cli/signal.go`. Current file imports `io`, `os`, `os/signal`, `sync/atomic`, `syscall`, debuglog, and `ForceExitOnRepeatedSignal` takes `<-chan os.Signal` (line 21). Replace the whole file with:
+```go
+package cli_test
+
+import (
+	"errors"
+	"io"
+	"io/fs"
+	"path/filepath"
+	"testing"
+
+	"github.com/onsi/gomega"
+
+	"github.com/toejough/engram/internal/cli"
+)
+
+func TestEdgeFS_PreservesSentinelChainsThroughWrapping(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fsys := fsFromPrims(cli.Primitives{
+		ReadFile: func(string) ([]byte, error) {
+			return nil, &fs.PathError{Op: "open", Path: "x", Err: fs.ErrNotExist}
+		},
+	})
+
+	_, err := fsys.ReadFile("x")
+	g.Expect(err).To(gomega.MatchError(fs.ErrNotExist), "%w wrapping must preserve errors.Is chains")
+	g.Expect(err.Error()).To(gomega.ContainSubstring("x"), "wrap must add path context")
+}
+
+func TestEdgeFS_WriteFileAtomicFailuresRemoveTemp(t *testing.T) {
+	t.Parallel()
+
+	boom := errors.New("boom")
+
+	cases := []struct {
+		name    string
+		breakIt func(prims *cli.Primitives)
+		wantMsg string
+	}{
+		{
+			name: "chmod failure",
+			breakIt: func(prims *cli.Primitives) {
+				prims.Chmod = func(string, fs.FileMode) error { return boom }
+			},
+			wantMsg: "chmod temp",
+		},
+		{
+			name: "write failure",
+			breakIt: func(prims *cli.Primitives) {
+				prims.WriteFile = func(string, []byte, fs.FileMode) error { return boom }
+			},
+			wantMsg: "write temp",
+		},
+		{
+			name: "rename failure",
+			breakIt: func(prims *cli.Primitives) {
+				prims.Rename = func(string, string) error { return boom }
+			},
+			wantMsg: "rename",
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
+
+			removed := make([]string, 0, 1)
+			prims := cli.Primitives{
+				CreateTemp: func(dir, _ string) (string, error) { return filepath.Join(dir, ".n.tmp-1"), nil },
+				Chmod:      func(string, fs.FileMode) error { return nil },
+				WriteFile:  func(string, []byte, fs.FileMode) error { return nil },
+				Rename:     func(string, string) error { return nil },
+				Remove: func(path string) error {
+					removed = append(removed, path)
+
+					return nil
+				},
+			}
+			testCase.breakIt(&prims)
+
+			err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
+			g.Expect(err).To(gomega.MatchError(boom))
+			g.Expect(err.Error()).To(gomega.ContainSubstring(testCase.wantMsg))
+			g.Expect(removed).To(gomega.Equal([]string{filepath.Join("d", ".n.tmp-1")}),
+				"a failed dance must remove the temp file")
+		})
+	}
+}
+
+func TestEdgeFS_WriteFileAtomicHappyPathDance(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	calls := &callRecorder{}
+	target := filepath.Join("some", "dir", "note.md")
+
+	fsys := fsFromPrims(cli.Primitives{
+		CreateTemp: func(dir, pattern string) (string, error) {
+			g.Expect(dir).To(gomega.Equal(filepath.Join("some", "dir")),
+				"temp must be created in the target's dir — same-directory rename is the ADR-0013 primitive")
+			g.Expect(pattern).To(gomega.Equal(".note.md.tmp-*"))
+			calls.add("createtemp")
+
+			return filepath.Join(dir, ".note.md.tmp-1"), nil
+		},
+		Chmod: func(path string, perm fs.FileMode) error {
+			g.Expect(perm).To(gomega.Equal(atomicPerm))
+			calls.add("chmod " + filepath.Base(path))
+
+			return nil
+		},
+		WriteFile: func(path string, data []byte, _ fs.FileMode) error {
+			g.Expect(string(data)).To(gomega.Equal("v2"))
+			calls.add("write " + filepath.Base(path))
+
+			return nil
+		},
+		Rename: func(oldPath, newPath string) error {
+			calls.add("rename " + filepath.Base(oldPath) + "->" + filepath.Base(newPath))
+
+			return nil
+		},
+		Remove: func(path string) error {
+			calls.add("remove " + filepath.Base(path))
+
+			return nil
+		},
+	})
+
+	g.Expect(fsys.WriteFileAtomic(target, []byte("v2"), atomicPerm)).To(gomega.Succeed())
+	g.Expect(calls.list()).To(gomega.Equal([]string{
+		"createtemp",
+		"chmod .note.md.tmp-1",
+		"write .note.md.tmp-1",
+		"rename .note.md.tmp-1->note.md",
+	}), "success path must not remove the renamed file")
+}
+
+// fsFromPrims composes the production EdgeFS from fake primitives via the
+// public composition root.
+func fsFromPrims(prims cli.Primitives) cli.EdgeFS {
+	return cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).FS
+}
+
+// callRecorder records call labels in order (single-goroutine use).
+type callRecorder struct{ calls []string }
+
+func (c *callRecorder) add(call string) { c.calls = append(c.calls, call) }
+
+func (c *callRecorder) list() []string { return c.calls }
+
+// unexported constants.
+const (
+	atomicPerm fs.FileMode = 0o600
+)
+```
+
+   `internal/cli/locker_test.go`:
+
+```go
+package cli_test
+
+import (
+	"errors"
+	"io"
+	"io/fs"
+	"testing"
+
+	"github.com/onsi/gomega"
+
+	"github.com/toejough/engram/internal/cli"
+)
+
+func TestPrimLocker_FlockFailureClosesDescriptor(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const fakeFD = uintptr(7)
+
+	closed := make([]uintptr, 0, 1)
+	boom := errors.New("flock boom")
+
+	locker := lockerFromPrims(cli.Primitives{
+		OpenLockFile:   func(string, fs.FileMode) (uintptr, error) { return fakeFD, nil },
+		FlockExclusive: func(uintptr) error { return boom },
+		CloseFD: func(fd uintptr) error {
+			closed = append(closed, fd)
+
+			return nil
+		},
+	})
+
+	_, err := locker.Lock("/vault/.lock")
+	g.Expect(err).To(gomega.MatchError(boom))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("/vault/.lock"))
+	g.Expect(closed).To(gomega.Equal([]uintptr{fakeFD}), "flock failure must not leak the fd")
+}
+
+func TestPrimLocker_OpenFailureWrapsWithPath(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	boom := errors.New("open boom")
+
+	locker := lockerFromPrims(cli.Primitives{
+		OpenLockFile: func(string, fs.FileMode) (uintptr, error) { return 0, boom },
+		FlockExclusive: func(uintptr) error {
+			t.Error("flock must not run after a failed open")
+
+			return nil
+		},
+	})
+
+	_, err := locker.Lock("/vault/.lock")
+	g.Expect(err).To(gomega.MatchError(boom))
+	g.Expect(err.Error()).To(gomega.ContainSubstring("open lock /vault/.lock"))
+}
+
+func TestPrimLocker_UnlockLifecycle(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unlock flocks LOCK_UN then closes", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		calls := &callRecorder{}
+		locker := lockerFromPrims(cli.Primitives{
+			OpenLockFile: func(string, fs.FileMode) (uintptr, error) { return 4, nil },
+			FlockExclusive: func(uintptr) error {
+				calls.add("flock-ex")
+
+				return nil
+			},
+			FlockUnlock: func(uintptr) error {
+				calls.add("flock-un")
+
+				return nil
+			},
+			CloseFD: func(uintptr) error {
+				calls.add("close")
+
+				return nil
+			},
+		})
+
+		unlock, err := locker.Lock("/vault/.lock")
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(unlock()).To(gomega.Succeed())
+		g.Expect(calls.list()).To(gomega.Equal([]string{"flock-ex", "flock-un", "close"}))
+	})
+
+	t.Run("funlock error reported and fd still closed", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		boom := errors.New("funlock boom")
+		closed := make([]uintptr, 0, 1)
+		locker := lockerFromPrims(cli.Primitives{
+			OpenLockFile:   func(string, fs.FileMode) (uintptr, error) { return 4, nil },
+			FlockExclusive: func(uintptr) error { return nil },
+			FlockUnlock:    func(uintptr) error { return boom },
+			CloseFD: func(fd uintptr) error {
+				closed = append(closed, fd)
+
+				return nil
+			},
+		})
+
+		unlock, err := locker.Lock("/vault/.lock")
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		unlockErr := unlock()
+		g.Expect(unlockErr).To(gomega.MatchError(boom))
+		g.Expect(unlockErr.Error()).To(gomega.ContainSubstring("funlock"))
+		g.Expect(closed).To(gomega.HaveLen(1), "unlock error must not leak the fd")
+	})
+
+	t.Run("close error reported when funlock succeeds", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		boom := errors.New("close boom")
+		locker := lockerFromPrims(cli.Primitives{
+			OpenLockFile:   func(string, fs.FileMode) (uintptr, error) { return 4, nil },
+			FlockExclusive: func(uintptr) error { return nil },
+			FlockUnlock:    func(uintptr) error { return nil },
+			CloseFD:        func(uintptr) error { return boom },
+		})
+
+		unlock, err := locker.Lock("/vault/.lock")
+		g.Expect(err).NotTo(gomega.HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		unlockErr := unlock()
+		g.Expect(unlockErr).To(gomega.MatchError(boom))
+		g.Expect(unlockErr.Error()).To(gomega.ContainSubstring("close lock"))
+	})
+}
+
+// lockerFromPrims composes the production FileLocker from fake primitives
+// via the public composition root.
+func lockerFromPrims(prims cli.Primitives) cli.FileLocker {
+	return cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).Lock
+}
+```
+
+   Also modify `internal/cli/signal_test.go` — add (same imports; `cli` already imported):
+
+```go
+func TestForwardAsPulses_ForwardsEachValue(t *testing.T) {
+	t.Parallel()
+
+	const valueCount = 2
+
+	in := make(chan int, valueCount)
+	pulses := make(chan struct{}, valueCount)
+
+	go cli.ForwardAsPulses(in, pulses)
+
+	in <- 1
+
+	in <- 2
+
+	const pulseTimeout = time.Second
+
+	for range valueCount {
+		select {
+		case <-pulses:
+		case <-time.After(pulseTimeout):
+			t.Fatal("pulse not forwarded within timeout")
+		}
+	}
+}
+```
+
+   Run `targ test` — expect compile failure in internal/cli tests (`undefined: cli.Primitives`, `undefined: cli.NewDeps`, `undefined: cli.ForwardAsPulses`). That is the RED.
+
+2. [ ] GREEN — create the internal composition. `internal/cli/primitives.go` (the Primitives struct is the doctrine subsection's canonical inventory — byte-identical):
+
+```go
+package cli
+
+import (
+	"io"
+	"io/fs"
+	"time"
+)
+
+// Primitives carries raw impure capabilities as func values. cmd/engram
+// populates it with direct references to os/syscall/filepath/time functions,
+// or single-call closures where a signature must be erased (fd instead of
+// *os.File, WriteSyncer instead of *os.File, pulses instead of os.Signal).
+// ALL composition, error wrapping, and lifecycle logic lives in internal/cli;
+// targ check-thin-api enforces that the cmd side stays declaration-free (#700).
+type Primitives struct {
+	// Filesystem (direct os/filepath references).
+	ReadFile   func(path string) ([]byte, error)                      // os.ReadFile
+	WriteFile  func(path string, data []byte, perm fs.FileMode) error // os.WriteFile
+	MkdirAll   func(path string, perm fs.FileMode) error              // os.MkdirAll
+	MkdirTemp  func(dir, pattern string) (string, error)              // os.MkdirTemp
+	Stat       func(path string) (fs.FileInfo, error)                 // os.Stat
+	ReadDir    func(path string) ([]fs.DirEntry, error)               // os.ReadDir
+	Remove     func(path string) error                                // os.Remove
+	RemoveAll  func(path string) error                                // os.RemoveAll
+	Rename     func(oldPath, newPath string) error                    // os.Rename
+	Chmod      func(path string, perm fs.FileMode) error              // os.Chmod
+	WalkDir    func(root string, fn fs.WalkDirFunc) error             // filepath.WalkDir
+	CreateTemp func(dir, pattern string) (string, error)              // closure: os.CreateTemp + Close; returns the unique name
+
+	// Process, env, clock (direct references).
+	Getenv      func(key string) string // os.Getenv
+	Now         func() time.Time        // time.Now
+	Getwd       func() (string, error)  // os.Getwd
+	UserHomeDir func() (string, error)  // os.UserHomeDir
+
+	// Advisory file locking (single-syscall closures; lifecycle internal —
+	// design flags P-2/P-3: semantic per-op funcs over a raw uintptr fd,
+	// via syscall.Open, never os.OpenFile().Fd()).
+	OpenLockFile   func(path string, perm fs.FileMode) (uintptr, error) // syscall.Open O_CREAT|O_RDWR
+	FlockExclusive func(fd uintptr) error                               // syscall.Flock LOCK_EX
+	FlockUnlock    func(fd uintptr) error                               // syscall.Flock LOCK_UN
+	CloseFD        func(fd uintptr) error                               // syscall.Close
+
+	// Debug sink (single-call closure; empty-path branch + sync policy internal).
+	OpenDebugFile func(path string, perm fs.FileMode) (WriteSyncer, error) // os.OpenFile O_APPEND|O_CREATE|O_WRONLY
+
+	// Signal (single-purpose starter closure; pulse forwarding is internal
+	// via ForwardAsPulses; buffer/pulse-channel/force-exit policy internal).
+	StartSignalPulses func(pulses chan<- struct{}, buffer int)
+}
+
+// WriteSyncer is the debug-sink capability surface (*os.File satisfies it).
+type WriteSyncer interface {
+	io.Writer
+	Sync() error
+}
+
+// NewDeps composes the production Deps carrier from raw primitives: the
+// EdgeFS implementation (contextual %w wrapping + the ADR-0013 atomic-write
+// dance), the flock lifecycle, the debug sink (ENGRAM_DEBUG_LOG; empty path
+// or failed open → nil → no-op logger), and the repeated-signal force-exit
+// watcher. cmd/engram calls this exactly once from main(); tests call it
+// with fake primitives to unit-test the composition (#700).
+func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
+	startForceExit(prims, exit)
+
+	return Deps{
+		Stdout:      stdout,
+		Stderr:      stderr,
+		Exit:        exit,
+		Getenv:      prims.Getenv,
+		Now:         prims.Now,
+		Getwd:       prims.Getwd,
+		UserHomeDir: prims.UserHomeDir,
+		FS:          primFS{prims: prims},
+		Lock:        primLocker{prims: prims},
+		DebugLog:    openDebugSink(envOrEmpty(prims.Getenv, debugLogEnvVar), prims.OpenDebugFile),
+	}
+}
+
+// envOrEmpty reads key via getenv, tolerating a nil (unwired) capability.
+func envOrEmpty(getenv func(string) string, key string) string {
+	if getenv == nil {
+		return ""
+	}
+
+	return getenv(key)
+}
+```
+
+   `internal/cli/edgefs.go` — the landed cmd/engram/os_fs.go `osFS` logic verbatim with `os.X`/`filepath.WalkDir` swapped for `f.prims.X`, PLUS the atomic-write dance re-sequenced for the name-returning CreateTemp primitive (design flag P-4 — same-directory rename atomicity unchanged):
+
+```go
+package cli
+
+import (
+	"fmt"
+	"io/fs"
+	"path/filepath"
+)
+
+// Compile-time interface conformance (internal — the thin-api checker does
+// not walk internal/).
+var _ EdgeFS = primFS{}
+
+// primFS is the production EdgeFS: it composes the injected raw primitives
+// with contextual error wrapping (%w preserves errors.Is chains such as
+// fs.ErrNotExist) and the ADR-0013 atomic-write dance. All orchestration
+// lives here in internal/; cmd/engram contributes only raw os/filepath
+// references (#700).
+type primFS struct {
+	prims Primitives
+}
+
+// MkdirAll creates path with any missing parents; no-op when path exists.
+func (f primFS) MkdirAll(path string, perm fs.FileMode) error {
+	err := f.prims.MkdirAll(path, perm)
+	if err != nil {
+		return fmt.Errorf("mkdir %s: %w", path, err)
+	}
+
+	return nil
+}
+
+// MkdirTemp creates a fresh unique directory in dir matching pattern.
+func (f primFS) MkdirTemp(dir, pattern string) (string, error) {
+	made, err := f.prims.MkdirTemp(dir, pattern)
+	if err != nil {
+		return "", fmt.Errorf("mkdir temp in %s: %w", dir, err)
+	}
+
+	return made, nil
+}
+
+// ReadDir returns the directory entries of path.
+func (f primFS) ReadDir(path string) ([]fs.DirEntry, error) {
+	entries, err := f.prims.ReadDir(path)
+	if err != nil {
+		return nil, fmt.Errorf("read dir %s: %w", path, err)
+	}
+
+	return entries, nil
+}
+
+// ReadFile reads the file at path.
+func (f primFS) ReadFile(path string) ([]byte, error) {
+	data, err := f.prims.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+
+	return data, nil
+}
+
+// Remove deletes the file or empty directory at path.
+func (f primFS) Remove(path string) error {
+	err := f.prims.Remove(path)
+	if err != nil {
+		return fmt.Errorf("remove %s: %w", path, err)
+	}
+
+	return nil
+}
+
+// RemoveAll deletes path and any children; no-op when path is absent.
+func (f primFS) RemoveAll(path string) error {
+	err := f.prims.RemoveAll(path)
+	if err != nil {
+		return fmt.Errorf("remove all %s: %w", path, err)
+	}
+
+	return nil
+}
+
+// Rename atomically renames oldPath to newPath (same-directory renames are
+// atomic on POSIX — the ADR-0013 primitive).
+func (f primFS) Rename(oldPath, newPath string) error {
+	err := f.prims.Rename(oldPath, newPath)
+	if err != nil {
+		return fmt.Errorf("rename %s -> %s: %w", oldPath, newPath, err)
+	}
+
+	return nil
+}
+
+// Stat returns the fs.FileInfo for path.
+func (f primFS) Stat(path string) (fs.FileInfo, error) {
+	info, err := f.prims.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("stat %s: %w", path, err)
+	}
+
+	return info, nil
+}
+
+// WalkDir walks the file tree rooted at root, calling fn for each entry.
+func (f primFS) WalkDir(root string, fn fs.WalkDirFunc) error {
+	err := f.prims.WalkDir(root, fn)
+	if err != nil {
+		return fmt.Errorf("walk %s: %w", root, err)
+	}
+
+	return nil
+}
+
+// WriteFile writes data to path with perm.
+func (f primFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
+	err := f.prims.WriteFile(path, data, perm)
+	if err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+
+	return nil
+}
+
+// WriteFileAtomic writes data to path atomically: it creates a unique temp
+// file in filepath.Dir(path), sets perms, writes, then renames into place.
+// A same-directory rename is atomic on POSIX — a concurrent reader sees
+// either the old or the new file, never a partial one. On any error the
+// temp file is removed and the original (if any) is left untouched
+// (ADR-0013; design flag P-4: the CreateTemp primitive returns a
+// created-and-closed unique name, so the write goes through WriteFile).
+func (f primFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+
+	tmpName, err := f.prims.CreateTemp(dir, "."+base+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("atomic write %s: create temp: %w", path, err)
+	}
+
+	// Best-effort cleanup on any error path.
+	success := false
+
+	defer func() {
+		if !success {
+			_ = f.prims.Remove(tmpName)
+		}
+	}()
+
+	chmodErr := f.prims.Chmod(tmpName, perm)
+	if chmodErr != nil {
+		return fmt.Errorf("atomic write %s: chmod temp: %w", path, chmodErr)
+	}
+
+	writeErr := f.prims.WriteFile(tmpName, data, perm)
+	if writeErr != nil {
+		return fmt.Errorf("atomic write %s: write temp: %w", path, writeErr)
+	}
+
+	renameErr := f.prims.Rename(tmpName, path)
+	if renameErr != nil {
+		return fmt.Errorf("atomic write %s: rename: %w", path, renameErr)
+	}
+
+	success = true
+
+	return nil
+}
+```
+
+   `internal/cli/locker.go` — the landed `flockLocker.Lock` lifecycle verbatim over the fd primitives:
+
+```go
+package cli
+
+import "fmt"
+
+// Compile-time interface conformance.
+var _ FileLocker = primLocker{}
+
+// primLocker is the production FileLocker: an exclusive advisory flock via
+// the injected syscall primitives. Open-then-flock, unlock-then-close, and
+// the unlock-error semantics all live here (ADR-0013; #700). The fd-shaped
+// primitives deliberately avoid *os.File (design flag P-3: a dropped
+// *os.File's finalizer would close the fd and silently release the lock
+// mid-hold).
+type primLocker struct {
+	prims Primitives
+}
+
+// Lock acquires an exclusive flock on path, creating the file if absent.
+func (l primLocker) Lock(path string) (func() error, error) {
+	fd, err := l.prims.OpenLockFile(path, lockFilePerm)
+	if err != nil {
+		return nil, fmt.Errorf("open lock %s: %w", path, err)
+	}
+
+	flockErr := l.prims.FlockExclusive(fd)
+	if flockErr != nil {
+		_ = l.prims.CloseFD(fd)
+
+		return nil, fmt.Errorf("flock %s: %w", path, flockErr)
+	}
+
+	unlock := func() error {
+		unlockErr := l.prims.FlockUnlock(fd)
+		closeErr := l.prims.CloseFD(fd)
+
+		if unlockErr != nil {
+			return fmt.Errorf("funlock %s: %w", path, unlockErr)
+		}
+
+		if closeErr != nil {
+			return fmt.Errorf("close lock %s: %w", path, closeErr)
+		}
+
+		return nil
+	}
+
+	return unlock, nil
+}
+
+// unexported constants.
+const (
+	lockFilePerm = 0o600
+)
+```
+
+   `internal/cli/debugsink.go` — the landed cmd sink logic, parameterized over the open primitive (perm policy internal, design flag P-1):
+
+```go
+package cli
+
+import (
+	"fmt"
+	"io"
+	"io/fs"
+)
+
+// openDebugSink builds the debug-log sink: nil for an empty path, an
+// unwired open capability, or a failed open — debuglog treats a nil writer
+// as "logging disabled", so the CLI still runs (pre-#700 behavior
+// preserved). Otherwise every write is followed by Sync so `tail -F` shows
+// progress live.
+func openDebugSink(path string, open func(string, fs.FileMode) (WriteSyncer, error)) io.Writer {
+	if path == "" || open == nil {
+		return nil
+	}
+
+	file, err := open(path, debugLogPerm)
+	if err != nil {
+		return nil
+	}
+
+	return &syncWriter{file: file}
+}
+
+// syncWriter flushes after every write. debuglog is documented tail -F
+// friendly; the Logger sees only an io.Writer, so the per-line sync lives
+// here in the composed sink.
+type syncWriter struct {
+	file WriteSyncer
+}
+
+// Write appends p and syncs the underlying sink.
+func (w *syncWriter) Write(p []byte) (int, error) {
+	n, err := w.file.Write(p)
+	if err != nil {
+		return n, fmt.Errorf("debug log write: %w", err)
+	}
+
+	_ = w.file.Sync()
+
+	return n, nil
+}
+
+// unexported constants.
+const (
+	debugLogEnvVar             = "ENGRAM_DEBUG_LOG"
+	debugLogPerm   fs.FileMode = 0o644
+)
+```
+
+   Modify `internal/cli/signal.go` — add `ForwardAsPulses` + `startForceExit`, and point the shim's goroutine at the generic (full replacement file):
 
 ```go
 package cli
@@ -352,11 +1424,21 @@ func ForceExitOnRepeatedSignal(signals <-chan struct{}, exitFn func(int)) {
 	}()
 }
 
+// ForwardAsPulses forwards each value received on in as a unit pulse on
+// out. It is generic so cmd/engram can feed a chan os.Signal without
+// os.Signal entering any internal signature (#700); tests drive it with a
+// chan int.
+func ForwardAsPulses[T any](in <-chan T, out chan<- struct{}) {
+	for range in {
+		out <- struct{}{}
+	}
+}
+
 // SetupSignalHandling registers signal handlers and starts the force-exit goroutine.
 // Returns the configured targets for targ.Main.
 //
 // Deprecated: interim shim only — deleted by the #700 wiring task; cmd/engram
-// registers signals itself and calls Targets directly.
+// wires signal pulses through cli.Primitives.StartSignalPulses instead.
 func SetupSignalHandling(
 	stdout, stderr io.Writer,
 	exitFn func(int),
@@ -367,190 +1449,121 @@ func SetupSignalHandling(
 
 	pulses := make(chan struct{}, signalChannelBuffer)
 
-	go func() {
-		for range sigCh {
-			pulses <- struct{}{}
-		}
-	}()
+	go ForwardAsPulses(sigCh, pulses)
 
 	ForceExitOnRepeatedSignal(pulses, exitFn)
 
 	return Targets(stdout, stderr, exitFn, logger)
 }
 
+// startForceExit starts the repeated-signal force-exit watcher from the
+// injected starter primitive. A nil primitive or exit func (minimal test
+// Deps) skips registration. The pulse channel, buffer size, and force-exit
+// policy live here — cmd only subscribes and forwards (#700).
+func startForceExit(prims Primitives, exit func(int)) {
+	if prims.StartSignalPulses == nil || exit == nil {
+		return
+	}
+
+	pulses := make(chan struct{}, signalChannelBuffer)
+	prims.StartSignalPulses(pulses, signalChannelBuffer)
+	ForceExitOnRepeatedSignal(pulses, exit)
+}
+
 // unexported constants.
 const (
 	secondSignal        = 2  // Force exit on second signal
-	signalChannelBuffer = 10 // Buffer size for signal channel
+	signalChannelBuffer = 10 // Buffer size for signal + pulse channels
 )
 ```
 
-   Run `targ test` — expect all green (existing suite unchanged elsewhere; signal behavior identical through the interim adapter).
+   Run `targ test` — expect green (unit tests pass; existing suite untouched; shim behavior identical through ForwardAsPulses).
 
-3. [ ] Create `internal/cli/deps.go` — the capability carrier, verbatim per the central spec (only `Embed`'s type adjusted to the real interface name):
+3. [ ] Integration tests — relocate the cmd/engram adapter suites into internal `_test` files running the COMPOSED implementations over REAL os/syscall primitives (this preserves the ADR-0013 regression coverage the cmd tests carried; test files are exempt from the T-final-1 purity lint by design). Create `internal/cli/primitives_integration_test.go`:
 
 ```go
-package cli
+package cli_test
 
 import (
 	"io"
 	"io/fs"
-	"time"
-
-	"github.com/toejough/engram/internal/embed"
-	"github.com/toejough/engram/internal/update"
-)
-
-// Deps carries every impure capability the CLI needs, wired by cmd/engram.
-// internal/ code never calls os.*, exec, syscall, or time.Now directly —
-// production I/O enters exclusively through this struct (#700, ADR-0001).
-type Deps struct {
-	// Stdout receives command output (production: os.Stdout).
-	Stdout io.Writer
-	// Stderr receives error output (production: os.Stderr).
-	Stderr io.Writer
-	// Exit terminates the process with a status code (production: os.Exit).
-	Exit func(int)
-	// Getenv reads an environment variable (production: os.Getenv).
-	Getenv func(string) string
-	// Now returns the current wall-clock time (production: time.Now).
-	Now func() time.Time
-	// Getwd returns the process working directory (production: os.Getwd).
-	Getwd func() (string, error)
-	// UserHomeDir returns the user's home directory (production: os.UserHomeDir).
-	UserHomeDir func() (string, error)
-	// FS is the filesystem edge (production: cmd/engram's osFS).
-	FS EdgeFS
-	// Lock acquires exclusive cross-process file locks (production: flockLocker).
-	Lock FileLocker
-	// Commander runs external commands for `engram update` (production: osCommander).
-	Commander update.Commander
-	// Embed is the production embedder backend (hugot-backed lazy embedder).
-	Embed embed.Embedder
-	// DebugLog is the debug-log sink; nil disables debug logging (no-op logger).
-	DebugLog io.Writer
-}
-
-// EdgeFS is the filesystem capability surface for production wiring. All
-// mode/info/entry types come from io/fs — never os — so internal/ stays
-// free of I/O-capable imports (#700).
-type EdgeFS interface {
-	ReadFile(path string) ([]byte, error)
-	WriteFile(path string, data []byte, perm fs.FileMode) error
-	// WriteFileAtomic writes via temp file + same-directory rename so a
-	// concurrent reader sees the old or the new content, never a torn
-	// write (ADR-0013).
-	WriteFileAtomic(path string, data []byte, perm fs.FileMode) error
-	MkdirAll(path string, perm fs.FileMode) error
-	MkdirTemp(dir, pattern string) (string, error)
-	Stat(path string) (fs.FileInfo, error)
-	ReadDir(path string) ([]fs.DirEntry, error)
-	Remove(path string) error
-	RemoveAll(path string) error
-	Rename(oldPath, newPath string) error
-	WalkDir(root string, fn fs.WalkDirFunc) error
-}
-
-// FileLocker acquires an exclusive advisory lock on the file at path,
-// creating it if absent. unlock releases the lock and closes the handle.
-// Production: flock(2) via cmd/engram's flockLocker (ADR-0013).
-type FileLocker interface {
-	Lock(path string) (unlock func() error, err error)
-}
-```
-
-   Run `targ check-full` — expect clean (exported, not-yet-consumed types are legal and unflagged).
-
-4. [ ] RED — create `cmd/engram/os_fs_test.go` (package main, real FS in `t.TempDir()`; fails to compile until step 5 — `undefined: osFS`):
-
-```go
-package main
-
-import (
-	"io/fs"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/onsi/gomega"
+
+	"github.com/toejough/engram/internal/cli"
 )
 
-// Shared test constants for the package-main adapter tests.
-const (
-	testFilePerm fs.FileMode = 0o600
-	testDirPerm  fs.FileMode = 0o750
-)
+// This file exercises the internally-composed EdgeFS/FileLocker/debug-sink
+// implementations over REAL os/syscall primitives — the relocated
+// cmd/engram adapter integration suite (#700 rework). realPrimitives()
+// mirrors cmd/engram/main.go's Primitives literal (doctrine flag DRIFT:
+// cli_test.go's end-to-end binary tests guard the production literal).
 
-func TestOsFS_ReadWriteRoundTrip(t *testing.T) {
+func TestRealDebugSink_AppendsAcrossOpens(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, "file.txt")
-	fsys := osFS{}
+	path := filepath.Join(t.TempDir(), "debug.log")
 
-	g.Expect(fsys.WriteFile(path, []byte("hello"), testFilePerm)).To(gomega.Succeed())
+	first := debugSinkAt(path)
+	g.Expect(first).NotTo(gomega.BeNil())
 
-	data, err := fsys.ReadFile(path)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
+	if first == nil {
 		return
 	}
 
-	g.Expect(string(data)).To(gomega.Equal("hello"))
-}
-
-func TestOsFS_ReadFileMissingSatisfiesErrNotExist(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	fsys := osFS{}
-
-	_, err := fsys.ReadFile(filepath.Join(t.TempDir(), "missing.txt"))
-	g.Expect(err).To(gomega.MatchError(fs.ErrNotExist))
-}
-
-func TestOsFS_WriteFileAtomicReplacesContentAndCleansTemp(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	dir := t.TempDir()
-	path := filepath.Join(dir, "note.md")
-	fsys := osFS{}
-
-	g.Expect(fsys.WriteFile(path, []byte("v1"), testFilePerm)).To(gomega.Succeed())
-	g.Expect(fsys.WriteFileAtomic(path, []byte("v2"), testFilePerm)).To(gomega.Succeed())
-
-	data, err := fsys.ReadFile(path)
+	_, err := first.Write([]byte("line one\n"))
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	if err != nil {
+	// Re-open the same path: append mode must preserve the first line —
+	// the tail -F contract debuglog documents.
+	second := debugSinkAt(path)
+	g.Expect(second).NotTo(gomega.BeNil())
+
+	if second == nil {
 		return
 	}
 
-	g.Expect(string(data)).To(gomega.Equal("v2"))
+	_, err = second.Write([]byte("line two\n"))
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	entries, readErr := fsys.ReadDir(dir)
+	contents, readErr := os.ReadFile(path)
 	g.Expect(readErr).NotTo(gomega.HaveOccurred())
 
 	if readErr != nil {
 		return
 	}
 
-	g.Expect(entries).To(gomega.HaveLen(1), "temp files must be renamed or removed")
+	g.Expect(string(contents)).To(gomega.Equal("line one\nline two\n"))
 }
 
-func TestOsFS_MkdirAllStatReadDir(t *testing.T) {
+func TestRealDebugSink_UnopenablePathYieldsNilSink(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// Parent is a regular file, so opening a child path fails -> nil sink
+	// (the CLI must run without debug logging rather than fail).
+	dir := t.TempDir()
+	blocked := filepath.Join(dir, "isfile")
+	g.Expect(os.WriteFile(blocked, []byte("x"), realFSFilePerm)).To(gomega.Succeed())
+
+	g.Expect(debugSinkAt(filepath.Join(blocked, "debug.log"))).To(gomega.BeNil())
+}
+
+func TestRealEdgeFS_MkdirAllStatReadDir(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	dir := t.TempDir()
 	nested := filepath.Join(dir, "a", "b")
-	fsys := osFS{}
+	fsys := realFSForTest()
 
-	g.Expect(fsys.MkdirAll(nested, testDirPerm)).To(gomega.Succeed())
+	g.Expect(fsys.MkdirAll(nested, realFSDirPerm)).To(gomega.Succeed())
 
 	info, err := fsys.Stat(nested)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -572,36 +1585,12 @@ func TestOsFS_MkdirAllStatReadDir(t *testing.T) {
 	g.Expect(entries[0].Name()).To(gomega.Equal("b"))
 }
 
-func TestOsFS_RenameRemoveRemoveAll(t *testing.T) {
+func TestRealEdgeFS_MkdirTempAndWalkDir(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	dir := t.TempDir()
-	fsys := osFS{}
-
-	oldPath := filepath.Join(dir, "old.txt")
-	newPath := filepath.Join(dir, "new.txt")
-	g.Expect(fsys.WriteFile(oldPath, []byte("x"), testFilePerm)).To(gomega.Succeed())
-	g.Expect(fsys.Rename(oldPath, newPath)).To(gomega.Succeed())
-	g.Expect(newPath).To(gomega.BeAnExistingFile())
-	g.Expect(oldPath).NotTo(gomega.BeAnExistingFile())
-
-	g.Expect(fsys.Remove(newPath)).To(gomega.Succeed())
-	g.Expect(newPath).NotTo(gomega.BeAnExistingFile())
-
-	sub := filepath.Join(dir, "sub")
-	g.Expect(fsys.MkdirAll(sub, testDirPerm)).To(gomega.Succeed())
-	g.Expect(fsys.WriteFile(filepath.Join(sub, "f"), []byte("x"), testFilePerm)).To(gomega.Succeed())
-	g.Expect(fsys.RemoveAll(sub)).To(gomega.Succeed())
-	g.Expect(sub).NotTo(gomega.BeADirectory())
-}
-
-func TestOsFS_MkdirTempAndWalkDir(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	dir := t.TempDir()
-	fsys := osFS{}
+	fsys := realFSForTest()
 
 	tmpDir, err := fsys.MkdirTemp(dir, "pat-*")
 	g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -611,7 +1600,7 @@ func TestOsFS_MkdirTempAndWalkDir(t *testing.T) {
 	}
 
 	g.Expect(filepath.Base(tmpDir)).To(gomega.HavePrefix("pat-"))
-	g.Expect(fsys.WriteFile(filepath.Join(tmpDir, "leaf.txt"), []byte("x"), testFilePerm)).To(gomega.Succeed())
+	g.Expect(fsys.WriteFile(filepath.Join(tmpDir, "leaf.txt"), []byte("x"), realFSFilePerm)).To(gomega.Succeed())
 
 	visited := make([]string, 0, 3)
 	walkErr := fsys.WalkDir(dir, func(path string, _ fs.DirEntry, err error) error {
@@ -627,15 +1616,100 @@ func TestOsFS_MkdirTempAndWalkDir(t *testing.T) {
 	g.Expect(visited).To(gomega.ContainElement(filepath.Join(tmpDir, "leaf.txt")))
 }
 
-// TestFlockLocker_SecondLockWaitsForUnlock is the cmd-side ADR-0013 lock
-// regression guard: a second locker on the same path must block until the
-// first unlocks — never proceed concurrently, never fail.
-func TestFlockLocker_SecondLockWaitsForUnlock(t *testing.T) {
+func TestRealEdgeFS_ReadFileMissingSatisfiesErrNotExist(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fsys := realFSForTest()
+
+	_, err := fsys.ReadFile(filepath.Join(t.TempDir(), "missing.txt"))
+	g.Expect(err).To(gomega.MatchError(fs.ErrNotExist))
+}
+
+func TestRealEdgeFS_ReadWriteRoundTrip(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "file.txt")
+	fsys := realFSForTest()
+
+	g.Expect(fsys.WriteFile(path, []byte("hello"), realFSFilePerm)).To(gomega.Succeed())
+
+	data, err := fsys.ReadFile(path)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(gomega.Equal("hello"))
+}
+
+func TestRealEdgeFS_RenameRemoveRemoveAll(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	fsys := realFSForTest()
+
+	oldPath := filepath.Join(dir, "old.txt")
+	newPath := filepath.Join(dir, "new.txt")
+
+	g.Expect(fsys.WriteFile(oldPath, []byte("x"), realFSFilePerm)).To(gomega.Succeed())
+	g.Expect(fsys.Rename(oldPath, newPath)).To(gomega.Succeed())
+	g.Expect(newPath).To(gomega.BeAnExistingFile())
+	g.Expect(oldPath).NotTo(gomega.BeAnExistingFile())
+
+	g.Expect(fsys.Remove(newPath)).To(gomega.Succeed())
+	g.Expect(newPath).NotTo(gomega.BeAnExistingFile())
+
+	sub := filepath.Join(dir, "sub")
+	g.Expect(fsys.MkdirAll(sub, realFSDirPerm)).To(gomega.Succeed())
+	g.Expect(fsys.WriteFile(filepath.Join(sub, "f"), []byte("x"), realFSFilePerm)).To(gomega.Succeed())
+	g.Expect(fsys.RemoveAll(sub)).To(gomega.Succeed())
+	g.Expect(sub).NotTo(gomega.BeADirectory())
+}
+
+func TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "note.md")
+	fsys := realFSForTest()
+
+	g.Expect(fsys.WriteFile(path, []byte("v1"), realFSFilePerm)).To(gomega.Succeed())
+	g.Expect(fsys.WriteFileAtomic(path, []byte("v2"), realFSFilePerm)).To(gomega.Succeed())
+
+	data, err := fsys.ReadFile(path)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(gomega.Equal("v2"))
+
+	entries, readErr := fsys.ReadDir(dir)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(entries).To(gomega.HaveLen(1), "temp files must be renamed or removed")
+}
+
+// TestRealFlockLocker_SecondLockWaitsForUnlock is the relocated ADR-0013
+// lock regression guard: a second locker on the same path must block until
+// the first unlocks — never proceed concurrently, never fail.
+func TestRealFlockLocker_SecondLockWaitsForUnlock(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	lockPath := filepath.Join(t.TempDir(), "test.lock")
-	locker := flockLocker{}
+	locker := realDepsForTest().Lock
 
 	unlock, err := locker.Lock(lockPath)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -676,250 +1750,93 @@ func TestFlockLocker_SecondLockWaitsForUnlock(t *testing.T) {
 	}
 }
 
-// Silence the unused warning for os in files where only some tests need it.
-var _ = os.Getpid
-```
-
-   (Drop the final `var _` line if `os` ends up referenced; as written `os` is unreferenced in this file — remove the `"os"` import and the `var _` line instead. Final import list: `io/fs`, `path/filepath`, `testing`, `time`, gomega.) Run `targ test` — expect compile failure `undefined: osFS` (RED).
-
-5. [ ] GREEN — create `cmd/engram/os_fs.go`. `WriteFileAtomic` is a faithful port of internal/cli/writesafe.go:21–73 `doAtomicWrite` (CreateTemp in target dir, chmod, write, close, rename; temp removed on failure — ADR-0013 semantics preserved exactly). `flockLocker` is a port of internal/cli/cli.go:169–192 `flockPath` with the spec's `unlock func() error` shape:
-
-```go
-package main
-
-import (
-	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
-	"syscall"
-
-	"github.com/toejough/engram/internal/cli"
-)
-
-// Compile-time interface conformance for the production adapters.
-var (
-	_ cli.EdgeFS     = osFS{}
-	_ cli.FileLocker = flockLocker{}
-)
-
-// osFS is the production cli.EdgeFS: thin wrappers over os.* with
-// contextual error wrapping (%w preserves errors.Is chains such as
-// fs.ErrNotExist). All production filesystem I/O lives here, not in
-// internal/ (#700).
-type osFS struct{}
-
-// MkdirAll creates path with any missing parents; no-op when path exists.
-func (osFS) MkdirAll(path string, perm fs.FileMode) error {
-	err := os.MkdirAll(path, perm)
-	if err != nil {
-		return fmt.Errorf("mkdir %s: %w", path, err)
-	}
-
-	return nil
-}
-
-// MkdirTemp creates a fresh unique directory in dir matching pattern.
-func (osFS) MkdirTemp(dir, pattern string) (string, error) {
-	made, err := os.MkdirTemp(dir, pattern)
-	if err != nil {
-		return "", fmt.Errorf("mkdir temp in %s: %w", dir, err)
-	}
-
-	return made, nil
-}
-
-// ReadDir returns the directory entries of path.
-func (osFS) ReadDir(path string) ([]fs.DirEntry, error) {
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("read dir %s: %w", path, err)
-	}
-
-	return entries, nil
-}
-
-// ReadFile reads the file at path.
-func (osFS) ReadFile(path string) ([]byte, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // path from caller
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-
-	return data, nil
-}
-
-// Remove deletes the file or empty directory at path.
-func (osFS) Remove(path string) error {
-	err := os.Remove(path)
-	if err != nil {
-		return fmt.Errorf("remove %s: %w", path, err)
-	}
-
-	return nil
-}
-
-// RemoveAll deletes path and any children; no-op when path is absent.
-func (osFS) RemoveAll(path string) error {
-	err := os.RemoveAll(path)
-	if err != nil {
-		return fmt.Errorf("remove all %s: %w", path, err)
-	}
-
-	return nil
-}
-
-// Rename atomically renames oldPath to newPath (same-directory renames are
-// atomic on POSIX — the ADR-0013 primitive).
-func (osFS) Rename(oldPath, newPath string) error {
-	err := os.Rename(oldPath, newPath)
-	if err != nil {
-		return fmt.Errorf("rename %s -> %s: %w", oldPath, newPath, err)
-	}
-
-	return nil
-}
-
-// Stat returns the fs.FileInfo for path.
-func (osFS) Stat(path string) (fs.FileInfo, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, fmt.Errorf("stat %s: %w", path, err)
-	}
-
-	return info, nil
-}
-
-// WalkDir walks the file tree rooted at root, calling fn for each entry.
-func (osFS) WalkDir(root string, fn fs.WalkDirFunc) error {
-	err := filepath.WalkDir(root, fn)
-	if err != nil {
-		return fmt.Errorf("walk %s: %w", root, err)
-	}
-
-	return nil
-}
-
-// WriteFile writes data to path with perm.
-func (osFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
-	err := os.WriteFile(path, data, perm) //nolint:gosec // path from caller
-	if err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-
-	return nil
-}
-
-// WriteFileAtomic writes data to path atomically: it creates a unique temp
-// file in filepath.Dir(path), sets perms, writes, closes, then renames into
-// place. A same-directory rename is atomic on POSIX — a concurrent reader
-// sees either the old or the new file, never a partial one. On any error the
-// temp file is removed and the original (if any) is left untouched
-// (ADR-0013; port of internal/cli's doAtomicWrite).
-func (osFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
-	dir := filepath.Dir(path)
-	base := filepath.Base(path)
-
-	tmp, err := os.CreateTemp(dir, "."+base+".tmp-*")
-	if err != nil {
-		return fmt.Errorf("atomic write %s: create temp: %w", path, err)
-	}
-
-	tmpName := tmp.Name()
-
-	// Best-effort cleanup on any error path.
-	success := false
-
-	defer func() {
-		if !success {
-			_ = os.Remove(tmpName)
-		}
-	}()
-
-	chmodErr := os.Chmod(tmpName, perm)
-	if chmodErr != nil {
-		_ = tmp.Close()
-
-		return fmt.Errorf("atomic write %s: chmod temp: %w", path, chmodErr)
-	}
-
-	_, writeErr := tmp.Write(data)
-	if writeErr != nil {
-		_ = tmp.Close()
-
-		return fmt.Errorf("atomic write %s: write temp: %w", path, writeErr)
-	}
-
-	closeErr := tmp.Close()
-	if closeErr != nil {
-		return fmt.Errorf("atomic write %s: close temp: %w", path, closeErr)
-	}
-
-	renameErr := os.Rename(tmpName, path)
-	if renameErr != nil {
-		return fmt.Errorf("atomic write %s: rename: %w", path, renameErr)
-	}
-
-	success = true
-
-	return nil
-}
-
-// flockLocker is the production cli.FileLocker: opens path (O_CREATE|O_RDWR)
-// and acquires an exclusive flock(2). unlock releases the lock and closes the
-// handle. ADR-0013: advisory flock + atomic rename are the two safety
-// primitives for concurrent vault writers (port of internal/cli's flockPath).
-type flockLocker struct{}
-
-// Lock acquires an exclusive flock on path, creating the file if absent.
-func (flockLocker) Lock(path string) (func() error, error) {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, lockFilePerm) //nolint:gosec // path from caller
-	if err != nil {
-		return nil, fmt.Errorf("open lock %s: %w", path, err)
-	}
-
-	fileDescriptor := int(f.Fd())
-
-	flockErr := syscall.Flock(fileDescriptor, syscall.LOCK_EX)
-	if flockErr != nil {
-		_ = f.Close()
-
-		return nil, fmt.Errorf("flock %s: %w", path, flockErr)
-	}
-
-	unlock := func() error {
-		unlockErr := syscall.Flock(fileDescriptor, syscall.LOCK_UN)
-		closeErr := f.Close()
-
-		if unlockErr != nil {
-			return fmt.Errorf("funlock %s: %w", path, unlockErr)
+// debugSinkAt composes a real debug sink for path via NewDeps (Getenv fake
+// points ENGRAM_DEBUG_LOG at path; the open primitive is real).
+func debugSinkAt(path string) io.Writer {
+	prims := realPrimitives()
+	prims.Getenv = func(key string) string {
+		if key == "ENGRAM_DEBUG_LOG" {
+			return path
 		}
 
-		if closeErr != nil {
-			return fmt.Errorf("close lock %s: %w", path, closeErr)
-		}
-
-		return nil
+		return ""
 	}
 
-	return unlock, nil
+	return cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).DebugLog
+}
+
+// realDepsForTest composes production Deps over real OS primitives.
+func realDepsForTest() cli.Deps {
+	return cli.NewDeps(realPrimitives(), io.Discard, io.Discard, func(int) {})
+}
+
+// realFSForTest composes the production EdgeFS over real OS primitives.
+func realFSForTest() cli.EdgeFS {
+	return realDepsForTest().FS
+}
+
+// realPrimitives mirrors cmd/engram/main.go's production Primitives literal
+// (minus the signal starter — tests must not subscribe process signals).
+func realPrimitives() cli.Primitives {
+	return cli.Primitives{
+		ReadFile:    os.ReadFile,
+		WriteFile:   os.WriteFile,
+		MkdirAll:    os.MkdirAll,
+		MkdirTemp:   os.MkdirTemp,
+		Stat:        os.Stat,
+		ReadDir:     os.ReadDir,
+		Remove:      os.Remove,
+		RemoveAll:   os.RemoveAll,
+		Rename:      os.Rename,
+		Chmod:       os.Chmod,
+		WalkDir:     filepath.WalkDir,
+		Getenv:      os.Getenv,
+		Now:         time.Now,
+		Getwd:       os.Getwd,
+		UserHomeDir: os.UserHomeDir,
+		CreateTemp: func(dir, pattern string) (string, error) {
+			file, err := os.CreateTemp(dir, pattern)
+			if err != nil {
+				return "", err
+			}
+
+			return file.Name(), file.Close()
+		},
+		OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
+			fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
+
+			return uintptr(fd), err
+		},
+		FlockExclusive: func(fd uintptr) error {
+			return syscall.Flock(int(fd), syscall.LOCK_EX)
+		},
+		FlockUnlock: func(fd uintptr) error {
+			return syscall.Flock(int(fd), syscall.LOCK_UN)
+		},
+		CloseFD: func(fd uintptr) error {
+			return syscall.Close(int(fd))
+		},
+		OpenDebugFile: func(path string, perm fs.FileMode) (cli.WriteSyncer, error) {
+			return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
+		},
+	}
 }
 
 // unexported constants.
 const (
-	lockFilePerm = 0o600
+	realFSDirPerm  fs.FileMode = 0o750
+	realFSFilePerm fs.FileMode = 0o600
 )
 ```
 
-   Run `targ test` — expect green (os_fs tests pass).
-
-6. [ ] RED — create `cmd/engram/os_signal_test.go` (fails to compile — `undefined: forwardAsPulses`, `undefined: registerForceExit`):
+   And `internal/cli/signal_integration_test.go` (relocated real-signal test):
 
 ```go
-package main
+package cli_test
 
 import (
 	"os"
+	"os/signal"
 	"syscall"
 	"testing"
 	"time"
@@ -929,44 +1846,29 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestForwardAsPulses_ForwardsEachSignal(t *testing.T) {
-	t.Parallel()
-
-	const signalCount = 2
-
-	sigCh := make(chan os.Signal, signalCount)
-	pulses := make(chan struct{}, signalCount)
-
-	go forwardAsPulses(sigCh, pulses)
-
-	sigCh <- syscall.SIGUSR1
-
-	sigCh <- syscall.SIGUSR1
-
-	const pulseTimeout = time.Second
-
-	for range signalCount {
-		select {
-		case <-pulses:
-		case <-time.After(pulseTimeout):
-			t.Fatal("pulse not forwarded within timeout")
-		}
-	}
-}
-
-// TestRegisterForceExit_SecondSignalForcesExit delivers real OS signals to
-// this process. SIGUSR2 is registered only by this test, and Notify overrides
-// the default (terminate) disposition, so the test run is safe. Pending
-// same-signal coalescing can swallow a rapid second delivery, so the test
-// keeps signalling (paced) until exit fires — over-delivery still means
-// "force exit", so this can never false-pass.
-func TestRegisterForceExit_SecondSignalForcesExit(t *testing.T) {
+// TestForceExit_RealSignalDeliveryThroughForwardAsPulses replicates
+// cmd/engram/main.go's StartSignalPulses closure with SIGUSR2 (registered
+// only by this test; Notify overrides the default terminate disposition, so
+// the test run is safe) and proves the full chain: real signal -> Notify ->
+// ForwardAsPulses -> ForceExitOnRepeatedSignal. Pending same-signal
+// coalescing can swallow a rapid second delivery, so the test keeps
+// signalling (paced) until exit fires — over-delivery still means "force
+// exit", so this can never false-pass.
+func TestForceExit_RealSignalDeliveryThroughForwardAsPulses(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
+	const buffer = 10
+
 	exitCodes := make(chan int, 1)
 
-	registerForceExit(func(code int) { exitCodes <- code }, syscall.SIGUSR2)
+	sigCh := make(chan os.Signal, buffer)
+	signal.Notify(sigCh, syscall.SIGUSR2)
+
+	pulses := make(chan struct{}, buffer)
+
+	go cli.ForwardAsPulses(sigCh, pulses)
+	cli.ForceExitOnRepeatedSignal(pulses, func(code int) { exitCodes <- code })
 
 	proc, err := os.FindProcess(os.Getpid())
 	g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -998,213 +1900,53 @@ func TestRegisterForceExit_SecondSignalForcesExit(t *testing.T) {
 }
 ```
 
-7. [ ] GREEN — create `cmd/engram/os_signal.go`:
+   Run `targ test` — expect green (the relocated suites pass against the composed implementations).
 
-```go
-package main
-
-import (
-	"os"
-	"os/signal"
-
-	"github.com/toejough/engram/internal/cli"
-)
-
-// registerForceExit subscribes to sigs and starts the force-exit watcher:
-// the first signal is left to targ's context cancellation for graceful
-// shutdown; the second forces exitFn (cli.ForceExitOnRepeatedSignal). Must
-// run BEFORE targ.Main so the handler covers the whole run. os.Signal never
-// crosses into internal/ — deliveries are adapted to pure struct{} pulses
-// here (#700).
-func registerForceExit(exitFn func(int), sigs ...os.Signal) {
-	sigCh := make(chan os.Signal, signalChannelBuffer)
-	signal.Notify(sigCh, sigs...)
-
-	pulses := make(chan struct{}, signalChannelBuffer)
-
-	go forwardAsPulses(sigCh, pulses)
-
-	cli.ForceExitOnRepeatedSignal(pulses, exitFn)
-}
-
-// forwardAsPulses converts OS signal deliveries into unit pulses.
-func forwardAsPulses(sigCh <-chan os.Signal, pulses chan<- struct{}) {
-	for range sigCh {
-		pulses <- struct{}{}
-	}
-}
-
-// unexported constants.
-const (
-	signalChannelBuffer = 10 // buffer so a burst of signals is not dropped
-)
-```
-
-   Run `targ test` — expect green.
-
-8. [ ] RED — create `cmd/engram/debuglog_sink_test.go` (fails to compile — `undefined: openDebugSink`):
-
-```go
-package main
-
-import (
-	"os"
-	"path/filepath"
-	"testing"
-
-	"github.com/onsi/gomega"
-)
-
-func TestOpenDebugSink_EmptyPathReturnsNil(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	g.Expect(openDebugSink("")).To(gomega.BeNil())
-}
-
-func TestOpenDebugSink_AppendsAcrossOpens(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	path := filepath.Join(t.TempDir(), "debug.log")
-
-	sink := openDebugSink(path)
-	g.Expect(sink).NotTo(gomega.BeNil())
-
-	if sink == nil {
-		return
-	}
-
-	_, err := sink.Write([]byte("line one\n"))
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	// Re-open the same path: append mode must preserve the first line —
-	// the tail -F contract debuglog documents.
-	second := openDebugSink(path)
-	g.Expect(second).NotTo(gomega.BeNil())
-
-	if second == nil {
-		return
-	}
-
-	_, err = second.Write([]byte("line two\n"))
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	contents, readErr := os.ReadFile(path)
-	g.Expect(readErr).NotTo(gomega.HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	g.Expect(string(contents)).To(gomega.Equal("line one\nline two\n"))
-}
-
-func TestOpenDebugSink_UnopenablePathReturnsNil(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	// Parent is a regular file, so opening a child path fails -> nil sink
-	// (the CLI must run without debug logging rather than fail).
-	dir := t.TempDir()
-	blocked := filepath.Join(dir, "isfile")
-	g.Expect(os.WriteFile(blocked, []byte("x"), testFilePerm)).To(gomega.Succeed())
-
-	g.Expect(openDebugSink(filepath.Join(blocked, "debug.log"))).To(gomega.BeNil())
-}
-```
-
-   (`testFilePerm` is shared from os_fs_test.go — same package.)
-
-9. [ ] GREEN — create `cmd/engram/debuglog_sink.go`:
-
-```go
-package main
-
-import (
-	"fmt"
-	"io"
-	"os"
-)
-
-// openDebugSink opens path in append mode as the debug-log sink. An empty
-// path or an open failure yields nil — debuglog.New treats a nil writer as
-// "logging disabled", so the CLI still runs (matches the pre-#700 behavior
-// where a failed open fell back to a no-op logger).
-func openDebugSink(path string) io.Writer {
-	if path == "" {
-		return nil
-	}
-
-	// Path comes from operator-set env var (ENGRAM_DEBUG_LOG), not user input.
-	//nolint:gosec // operator-controlled path
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, debugLogPerm)
-	if err != nil {
-		return nil
-	}
-
-	return &syncWriter{file: f}
-}
-
-// syncWriter wraps an *os.File so every write is flushed to disk. debuglog
-// is documented tail -F friendly; the Logger now sees only an io.Writer, so
-// the per-line sync lives here at the edge.
-type syncWriter struct {
-	file *os.File
-}
-
-// Write appends p and syncs to disk.
-func (w *syncWriter) Write(p []byte) (int, error) {
-	n, err := w.file.Write(p)
-	if err != nil {
-		return n, fmt.Errorf("debug log write: %w", err)
-	}
-
-	_ = w.file.Sync()
-
-	return n, nil
-}
-
-// unexported constants.
-const (
-	debugLogPerm = 0o644
-)
-```
-
-   Run `targ test` — expect green.
-
-10. [ ] Run `targ check-full` — expect clean. If it flags `registerForceExit`/`openDebugSink` as unused (not yet called from main.go), do NOT suppress: fold this commit together with T2's instead.
-
-11. [ ] Commit:
+4. [ ] Thin cmd — delete all six cmd/engram adapter files (their logic now lives in internal/cli; their tests were relocated in steps 1 and 3):
 
 ```
-refactor(cli): add Deps carrier + pure signal seam (#700)
+git rm cmd/engram/os_fs.go cmd/engram/os_fs_test.go \
+       cmd/engram/os_signal.go cmd/engram/os_signal_test.go \
+       cmd/engram/debuglog_sink.go cmd/engram/debuglog_sink_test.go
+```
 
-Introduces cli.Deps/EdgeFS/FileLocker (the single impure-capability
-carrier wired by cmd/engram), converts ForceExitOnRepeatedSignal to a
-pure struct{} pulse channel, and lands the cmd-side production adapters
-(osFS + flockLocker, signal adapter, syncing debug-log sink) with
-integration tests on the real filesystem. ADR-0013 flock + atomic-rename
-semantics ported verbatim and regression-tested.
+   `cmd/engram/main.go` is untouched — still the single-statement `cli.Main(os.Stdout, os.Stderr, os.Exit)` (T2 rewrites it over NewDeps). Run `targ test` — expect green (cli_test.go's end-to-end binary tests still build and run the real binary).
+
+5. [ ] Gate — run `targ check-thin-api`. Expect PASS: `All N public API files are thin wrappers.` — cmd/engram now contains only main.go (one single-external-call statement, zero other declarations). If ANY finding remains, escalate the exact finding to the orchestrator (do not suppress, do not restructure ad hoc — doctrine flag SIG-1 documents the checker's exact rules). Then run `targ check-full` — the ONLY tolerated new-vs-baseline residual is the KNOWN `SetupSignalHandling` 0% function-coverage gap (T1-report concern #1; resolved when T2 deletes the shim). Run `targ reorder-decls` if `reorder-decls-check` flags the new files (revert any out-of-scope `dev/eval/**/testdata` touches before committing, as the landed T1 did). Any OTHER new failure: fix before commit.
+
+6. [ ] Commit:
+
+```
+refactor(cli): compose I/O adapters internally from Primitives (#700)
+
+Rework of the landed T1 (de484526): targ check-thin-api rejected real
+adapter logic in cmd/engram (9 non-thin declarations). EdgeFS wrapping +
+the ADR-0013 atomic-write dance, the flock lifecycle, and the syncing
+debug sink move behind internal/cli composition (cli.Primitives +
+cli.NewDeps), unit-tested with fake primitives and integration-tested
+with real os/syscall funcs in internal _test files. Adds generic
+ForwardAsPulses; deletes all six cmd/engram adapter files. cmd keeps its
+single-statement main until T2 wires NewDeps.
 
 AI-Used: [claude]
 ```
 
 ---
 
-### Task T2: Targets(deps), cmd-side wiring, delete SetupSignalHandling/Main, purify debuglog
+### Task T2: Targets(deps), single-statement cmd main over Primitives, delete SetupSignalHandling/Main, purify debuglog
 
 **Files:**
 - Modify: `internal/debuglog/debuglog.go` (pure New/Log/Timed), `internal/debuglog/debuglog_test.go`
 - Modify: `internal/cli/targets.go` (Targets(deps Deps) + all helper funcs; 22 `os.Getenv` sites → `deps.Getenv`; `os` import dropped)
-- Modify: `internal/cli/signal.go` (delete `SetupSignalHandling` + `signalChannelBuffer` + io/os/signal/syscall/debuglog imports)
+- Modify: `internal/cli/primitives.go` (NewDeps gains the internal Embed wiring line — R6/doctrine flag D-1)
+- Modify: `internal/cli/signal.go` (delete `SetupSignalHandling` + its io/os/os-signal/syscall/debuglog imports; KEEP `signalChannelBuffer` — consumed by `startForceExit` — plus `ForwardAsPulses`/`startForceExit`)
 - Modify: `internal/cli/targets_test.go`, `internal/cli/vocab_commands_test.go` (8 `cli.Targets` call sites → `newTestDeps` helper)
-- Modify: `cmd/engram/main.go` (full rewrite: newOsDeps + registerForceExit + targ.Main)
-- Delete: `internal/cli/main.go` (old `Main`) — the FIXME(#700) marker at main.go:19–22 is NOT resolved here: T2 RELOCATES it into `cmd/engram/main.go` (see the marker-relocation step); only T-final-2 deletes it, after enforcement is green
+- Modify: `cmd/engram/main.go` (full rewrite: declaration-free package, single-statement main() over the `cli.Primitives` literal + relocated FIXME marker)
+- Delete: `internal/cli/main.go` (old `Main`) — the FIXME(#700) marker at main.go:19–22 is NOT resolved here: T2 RELOCATES it into `cmd/engram/main.go` (see step 5); only T-final-2 deletes it, after enforcement is green
 
 **Interfaces:**
-- Consumes: `cli.Deps` (T1); `debuglog.WithLogger(ctx, *Logger) context.Context`; `targ.Main(...any)`; `embed.NewLazyEmbedder(cacheDir string) *LazyEmbedder` (internal/embed/hugot.go:149); `embed.BundledModelID = "minilm-l6-v2@384"` (hugot.go:18); `cli.CacheDirFromHome(home, modelID string, getenv func(string) string) string` (targets.go:56).
-- Produces: `func Targets(deps Deps) []any` (replaces `Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) []any`); `func New(w io.Writer, prefix string, now func() time.Time) *Logger` (replaces `New(path, comp string) (*Logger, error)`); package-main `newOsDeps() cli.Deps`.
+- Consumes: `cli.Primitives`/`cli.NewDeps`/`cli.ForwardAsPulses`/`cli.WriteSyncer` (T1-rework); `debuglog.WithLogger(ctx, *Logger) context.Context`; `targ.Main(...any)`; `embed.NewLazyEmbedder(cacheDir string) *LazyEmbedder` (internal/embed/hugot.go:149); `embed.BundledModelID = "minilm-l6-v2@384"` (hugot.go:18); `cli.CacheDirFromHome(home, modelID string, getenv func(string) string) string` (targets.go:56).
+- Produces: `func Targets(deps Deps) []any` (replaces `Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) []any`); `func New(w io.Writer, prefix string, now func() time.Time) *Logger` (replaces `New(path, comp string) (*Logger, error)`); `Deps.Embed` wired inside NewDeps.
 
 **Steps:**
 
@@ -1327,9 +2069,10 @@ func steppingNow() func() time.Time {
 // Package debuglog provides a tail-friendly debug logger for engram
 // pipelines. New wraps an injected io.Writer sink and returns a *Logger.
 // Log calls write one line at a time under a mutex; the production sink
-// (cmd/engram's debug-log sink) syncs to disk after every write so
-// `tail -F` shows progress live. The package itself performs no I/O and
-// reads no clock — the sink and the now func are injected at the edge (#700).
+// (internal/cli's composed debug sink over the cmd-injected open primitive)
+// syncs to disk after every write so `tail -F` shows progress live. The
+// package itself performs no I/O and reads no clock — the sink and the now
+// func are injected at the edge (#700).
 //
 // Loggers are threaded through context (see WithLogger / LoggerFromContext).
 // The package-level Log and Timed helpers read the logger from ctx, so call
@@ -1337,6 +2080,7 @@ func steppingNow() func() time.Time {
 package debuglog
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"sync"
@@ -1419,7 +2163,7 @@ func Timed(ctx context.Context, stage, format string, args ...any) func() {
 }
 ```
 
-   (Add `"context"` back to the import block for the package-level helpers — final imports: `context`, `fmt`, `io`, `sync`, `time`.) `targ test` still RED overall: internal/cli/main.go:23 now fails to compile (`debuglog.New(os.Getenv(...), "engram")` — wrong arity). That is expected; proceed.
+   `targ test` still RED overall: internal/cli/main.go:23 now fails to compile (`debuglog.New(os.Getenv(...), "engram")` — wrong arity). That is expected; proceed.
 
 3. [ ] Rewrite `internal/cli/targets.go`. Lines 1–79 (imports through `ProjectSlugFromPath`) change only in the import block — drop `"io"`? No: `newErrHandler` keeps `io.Writer`; drop only `"os"`. New import block replaces lines 3–14:
 
@@ -1678,13 +2422,14 @@ func vocabTargets(
 
    `os.Getenv` sites replaced (all 22): lines 107, 111, 112, 153, 154, 158, 162, 168, 172, 176, 181, 185, 189, 208, 212, 216, 225, 229, 277, 281, 285, 289. `os.UserHomeDir` site replaced: line 136 (`homeOrEmpty`).
 
-4. [ ] Update the 8 test call sites. Add to `internal/cli/targets_test.go` (package cli_test; add `"io"` and keep `"os"`/`"time"` imports):
+4. [ ] Update the 8 test call sites. Add to `internal/cli/targets_test.go` (package cli_test; add `"io"` and keep `"os"`/`"time"` imports). NOTE (R11): `newTestDeps` builds a `cli.Deps` literal DIRECTLY — it does NOT call `cli.NewDeps`, so targets-level tests never construct the lazy embedder or register signal watchers; the composition path has its own tests (T1-rework):
 
 ```go
 // newTestDeps builds a cli.Deps wired to real OS capabilities with captured
-// stdout/stderr and a no-op exit — the test analog of cmd/engram's newOsDeps.
-// Command clusters extend this as their constructors convert to Deps-based
-// composition (#700).
+// stdout/stderr and a no-op exit — the test analog of the production
+// cli.NewDeps composition (built directly so no embedder/signal wiring
+// occurs). Command clusters extend this as their constructors convert to
+// Deps-based composition (#700).
 func newTestDeps(stdout, stderr io.Writer) cli.Deps {
 	return cli.Deps{
 		Stdout:      stdout,
@@ -1703,73 +2448,132 @@ func newTestDeps(stdout, stderr io.Writer) cli.Deps {
    - targets_test.go:439 (inside `executeForTest`) — current: `targets := cli.Targets(&stdout, &stderr, func(int) {}, nil)` → `targets := cli.Targets(newTestDeps(&stdout, &stderr))`
    - vocab_commands_test.go:3580, 3606, 3630, 3655 — current: `targets := cli.Targets(&stdout, &stderr, func(int) {}, nil)` → `targets := cli.Targets(newTestDeps(&stdout, &stderr))`
 
-5. [ ] Rewrite `cmd/engram/main.go` (replaces the whole 13-line file) and delete `internal/cli/main.go`; delete `SetupSignalHandling` (signal.go lines for the func, its `io`/`os`/`os/signal`/`syscall`/debuglog imports, and the `signalChannelBuffer` const — final signal.go keeps only `ExitCodeSigInt`, `ForceExitOnRepeatedSignal`, `secondSignal`, importing just `sync/atomic`):
+5. [ ] Composition-root cutover, in four sub-edits (one commit):
+
+   **5a.** Modify `internal/cli/primitives.go` — `NewDeps` gains the internal Embed wiring (this is the R6 arity-handoff point: T14 later edits THIS line to the 3-arg constructor). Restructure the return into a named `deps` so the guarded field-set reads cleanly, and add `"github.com/toejough/engram/internal/embed"` to the imports:
 
 ```go
-// Package main provides the engram CLI binary entry point (ARCH-6). All
-// production I/O adapters live in this package; internal/ holds interfaces
-// and pure logic (#700).
+func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
+	startForceExit(prims, exit)
+
+	deps := Deps{
+		Stdout:      stdout,
+		Stderr:      stderr,
+		Exit:        exit,
+		Getenv:      prims.Getenv,
+		Now:         prims.Now,
+		Getwd:       prims.Getwd,
+		UserHomeDir: prims.UserHomeDir,
+		FS:          primFS{prims: prims},
+		Lock:        primLocker{prims: prims},
+		DebugLog:    openDebugSink(envOrEmpty(prims.Getenv, debugLogEnvVar), prims.OpenDebugFile),
+	}
+
+	// The lazy embedder is constructed once here, preserving the
+	// one-unpack-per-process property of the old sharedEmbedder singleton
+	// (guarded: minimal fake Primitives without Getenv skip it). R6: T14
+	// swaps this line to the 3-arg constructor over cmd-injected backend
+	// and cache capabilities.
+	if prims.Getenv != nil {
+		deps.Embed = embed.NewLazyEmbedder(
+			CacheDirFromHome(homeOrEmpty(deps), embed.BundledModelID, prims.Getenv))
+	}
+
+	return deps
+}
+```
+
+   **5b.** Rewrite `cmd/engram/main.go` (replaces the whole file). Package main becomes DECLARATION-FREE: `main()` is ONE statement — a single external call, which is exactly what `checkFuncThinness` accepts (doctrine flag SIG-1: any second statement in main() FAILS the gate) — and every raw capability enters as a direct func reference or single-call closure inside the `cli.Primitives` literal (closures are expressions, not declarations; the checker does not walk them, and the doctrine caps their bodies at single calls). Signal registration happens inside `cli.NewDeps` (via `StartSignalPulses` + internal `startForceExit`) during argument evaluation — strictly BEFORE `targ.Main` runs, preserving the handler-covers-the-whole-run property:
+
+```go
+// Package main provides the engram CLI binary entry point (ARCH-6). It is
+// deliberately declaration-free: raw impure capabilities enter as func
+// references and single-call closures in the cli.Primitives literal, and
+// ALL composition, error wrapping, and lifecycle logic lives in
+// internal/cli (targ check-thin-api enforces this shape; #700).
 package main
 
 import (
+	"io/fs"
 	"os"
+	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/toejough/targ"
 
 	"github.com/toejough/engram/internal/cli"
-	"github.com/toejough/engram/internal/embed"
 )
 
+// FIXME(#700): internal-purity migration in progress — this marker tracks the
+// unresolved issue. The original internal/cli/main.go os.Getenv violation is
+// fixed (env enters via cli.Primitives.Getenv), but adapter/env-threading/
+// enforcement tasks are still landing. Remove this marker ONLY in T-final-2,
+// after the depguard/forbidigo gate is verified green.
 func main() {
-	deps := newOsDeps()
-
-	// Register BEFORE targ.Main: the first SIGINT/SIGTERM flows through
-	// targ's context cancellation for graceful shutdown; the second forces
-	// exit (cli.ForceExitOnRepeatedSignal).
-	registerForceExit(deps.Exit, syscall.SIGINT, syscall.SIGTERM)
-
-	targ.Main(cli.Targets(deps)...)
-}
-
-// newOsDeps wires every impure capability the CLI needs from the real OS.
-// This is the single production composition root (#700): internal/ receives
-// all I/O through this struct. The lazy embedder is constructed once here,
-// preserving the one-unpack-per-process property of the old sharedEmbedder
-// singleton.
-func newOsDeps() cli.Deps {
-	home, _ := os.UserHomeDir()
-
-	return cli.Deps{
-		Stdout:      os.Stdout,
-		Stderr:      os.Stderr,
-		Exit:        os.Exit,
+	targ.Main(cli.Targets(cli.NewDeps(cli.Primitives{
+		ReadFile:    os.ReadFile,
+		WriteFile:   os.WriteFile,
+		MkdirAll:    os.MkdirAll,
+		MkdirTemp:   os.MkdirTemp,
+		Stat:        os.Stat,
+		ReadDir:     os.ReadDir,
+		Remove:      os.Remove,
+		RemoveAll:   os.RemoveAll,
+		Rename:      os.Rename,
+		Chmod:       os.Chmod,
+		WalkDir:     filepath.WalkDir,
 		Getenv:      os.Getenv,
 		Now:         time.Now,
 		Getwd:       os.Getwd,
 		UserHomeDir: os.UserHomeDir,
-		FS:          osFS{},
-		Lock:        flockLocker{},
-		Commander:   &osCommander{},
-		Embed:       embed.NewLazyEmbedder(cli.CacheDirFromHome(home, embed.BundledModelID, os.Getenv)),
-		DebugLog:    openDebugSink(os.Getenv("ENGRAM_DEBUG_LOG")),
-	}
+		CreateTemp: func(dir, pattern string) (string, error) {
+			file, err := os.CreateTemp(dir, pattern)
+			if err != nil {
+				return "", err
+			}
+
+			return file.Name(), file.Close()
+		},
+		OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
+			fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
+
+			return uintptr(fd), err
+		},
+		FlockExclusive: func(fd uintptr) error {
+			return syscall.Flock(int(fd), syscall.LOCK_EX)
+		},
+		FlockUnlock: func(fd uintptr) error {
+			return syscall.Flock(int(fd), syscall.LOCK_UN)
+		},
+		CloseFD: func(fd uintptr) error {
+			return syscall.Close(int(fd))
+		},
+		OpenDebugFile: func(path string, perm fs.FileMode) (cli.WriteSyncer, error) {
+			// Path comes from operator-set ENGRAM_DEBUG_LOG, not user input.
+			//nolint:gosec // operator-controlled path
+			return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
+		},
+		StartSignalPulses: func(pulses chan<- struct{}, buffer int) {
+			sigCh := make(chan os.Signal, buffer)
+			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+			go cli.ForwardAsPulses(sigCh, pulses)
+		},
+	}, os.Stdout, os.Stderr, os.Exit))...)
 }
 ```
 
-   SEQUENCING: if the update cluster's `cmd/engram/os_update.go` (owner of `osCommander`) has not landed yet, omit the `Commander: &osCommander{},` line — the field stays nil and NOTHING consumes it until `runUpdate` converts; the update cluster adds the line together with the adapter. The `Embed:` line compiles today (`embed.NewLazyEmbedder`, hugot.go:149). The ENGRAM_DEBUG_LOG read (old internal/cli/main.go:23) moves here to the edge. The FIXME(#700) marker does NOT die with the deleted file — the user's rule is "remove the FIXME only when the issue is resolved", and at T2 the issue is 15 tasks from resolved. Place this comment block in cmd/engram/main.go directly above the Getenv wiring line:
+   If `targ check-full` flags additional gosec G304 sites in the closures (e.g. `os.CreateTemp`), add the same targeted, justified `//nolint:gosec` line — never a config-level suppression. If `check-thin-api` itself flags ANYTHING in this file, escalate the exact finding (doctrine flag SIG-1).
 
-```go
-// FIXME(#700): internal-purity migration in progress — this marker tracks the
-// unresolved issue. The original internal/cli/main.go os.Getenv violation is
-// fixed, but adapters/env-threading/enforcement are still landing. Remove this
-// marker ONLY in T-final-2, after the depguard/forbidigo gate is verified green.
-```
+   **5c.** Delete `internal/cli/main.go` (the old `Main`; its ENGRAM_DEBUG_LOG read now lives in `NewDeps` via the Getenv primitive — T1-rework). The FIXME(#700) marker does NOT die with the file: it is relocated to `cmd/engram/main.go` per R8 (the comment block above `func main()` in 5b — comments are legal in the declaration-free package).
 
-6. [ ] Run `targ test` — expect all green: debuglog tests (new API), cli tests (new Targets), cmd/engram adapter tests, plus cli_test.go's end-to-end binary build (`go build ./cmd/engram`) still passing.
+   **5d.** Modify `internal/cli/signal.go` — delete `SetupSignalHandling` (the whole func), its `io`/`os`/`os/signal`/`syscall`/debuglog imports, and its doc comment. KEEP: `ExitCodeSigInt`, `ForceExitOnRepeatedSignal`, `ForwardAsPulses`, `startForceExit`, `secondSignal`, AND `signalChannelBuffer` (consumed by `startForceExit` — this corrects the pre-rework T2 text, which deleted the const). Final signal.go imports: `sync/atomic` only.
 
-7. [ ] Purity verification (expect zero matches from the first three; fourth expect only the `_ = targ` free none — file gone):
+6. [ ] Run `targ test` — expect all green: debuglog tests (new API), cli tests (new Targets + T1-rework composition suites), plus cli_test.go's end-to-end binary build (`go build ./cmd/engram`) still passing.
+
+7. [ ] Purity verification (expect zero matches from the first three; fourth expect an `ls` error — file gone):
 
 ```
 grep -n "os\." internal/cli/targets.go internal/cli/signal.go internal/debuglog/debuglog.go
@@ -1778,30 +2582,33 @@ grep -n "time.Now\|time.Since" internal/debuglog/debuglog.go
 ls internal/cli/main.go
 ```
 
-   Expected: no `os.` in the three files; no `SetupSignalHandling` anywhere; no `time.Now`/`time.Since` in debuglog.go; `ls` errors (file deleted).
+   Expected: no `os.` in the three files; no `SetupSignalHandling` anywhere; no `time.Now`/`time.Since` in debuglog.go; `ls` errors (file deleted). Also verify the FIXME survived relocation: `rg "FIXME\(#700\)" cmd/engram/main.go` → exactly one hit (R8).
 
-8. [ ] Run `targ check-full` — expect clean (T1's `registerForceExit`/`openDebugSink` now consumed by main.go).
+8. [ ] Run `targ check-thin-api` — expect PASS (`All N public API files are thin wrappers.`): cmd/engram holds only the declaration-free main.go. Escalate any finding (doctrine flag SIG-1); do not suppress.
 
-9. [ ] Run the real binary (usable-system check): `go install ./cmd/engram && engram show-chunk --help` and `ENGRAM_DEBUG_LOG=/tmp/engram-700.log engram count --vault "$(mktemp -d)" --attribute type` then `cat /tmp/engram-700.log` — expect help text, a zero count table, and timestamped `[engram]` debug lines proving the sink+logger wiring is live.
+9. [ ] Run `targ check-full` — expect clean: T1-rework's known `SetupSignalHandling` coverage residual is resolved by 5d's deletion.
 
-10. [ ] Commit:
+10. [ ] Run the real binary (usable-system check): `go install ./cmd/engram && engram show-chunk --help` and `ENGRAM_DEBUG_LOG=/tmp/engram-700.log engram count --vault "$(mktemp -d)" --attribute type` then `cat /tmp/engram-700.log` — expect help text, a zero count table, and timestamped `[engram]` debug lines proving the primitive → NewDeps → sink → logger wiring is live end-to-end.
+
+11. [ ] Commit:
 
 ```
-refactor(cli): move composition root to cmd/engram (#700)
+refactor(cli): single-statement main over Primitives literal (#700)
 
-Targets now takes the cli.Deps capability carrier; signal registration
-and the targ.Main call move to cmd/engram/main.go (the single production
-composition root). Deletes cli.Main and SetupSignalHandling, drops the
-os import from targets.go, and purifies debuglog: New(w io.Writer,
-prefix string, now func() time.Time) with a nil-writer no-op, per-line
-disk sync now provided by the cmd-side sink.
+Targets now takes the cli.Deps capability carrier; cmd/engram/main.go
+becomes a declaration-free package whose main() is one statement wiring
+raw primitives (os/syscall/filepath references and single-call closures)
+into cli.NewDeps. Deletes cli.Main and SetupSignalHandling, drops the os
+import from targets.go, purifies debuglog (injected writer + clock, nil
+no-op), and wires the lazy embedder inside NewDeps (R6/D-1). FIXME(#700)
+marker relocates to cmd/engram/main.go per R8.
 
 AI-Used: [claude]
 ```
 
 ---
 
-Key file paths: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/cli/targets.go` (81–294 rewritten), `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/cli/signal.go`, `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/cli/main.go` (deleted), `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/debuglog/debuglog.go`, `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/cmd/engram/main.go`, plus new `internal/cli/deps.go` and `cmd/engram/{os_fs,os_signal,debuglog_sink}.go` with `_test.go` siblings.
+Key file paths: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/cli/targets.go` (81–294 rewritten), `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/cli/signal.go`, `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/cli/primitives.go` (+ edgefs.go, locker.go, debugsink.go from T1-rework), `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/cli/main.go` (deleted in T2), `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/debuglog/debuglog.go`, `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/cmd/engram/main.go` (single-statement rewrite; the six landed cmd adapter files are deleted by T1-rework).
 
 ### Task T3 (L1): learn-family — compose LearnDeps/LearnQADeps purely from cli.Deps
 
@@ -1809,18 +2616,24 @@ Key file paths: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal
 - Create: `internal/cli/deps_compose.go` (shared EdgeFS/FileLocker composition helpers)
 - Create: `internal/cli/deps_compose_test.go` (RED tests for the compositions)
 - Modify: `internal/cli/deps.go` (foundation file: add `WriteFileExcl` to EdgeFS — flagged addition)
+- Modify: `internal/cli/primitives.go` (add `Primitives.OpenExcl` — the flag-X-1 exclusive-create primitive)
+- Modify: `internal/cli/edgefs.go` (add `primFS.WriteFileExcl` — open/write/close lifecycle internal)
+- Modify: `internal/cli/edgefs_test.go` (fake-primitive contract tests for `WriteFileExcl`)
+- Modify: `internal/cli/primitives_integration_test.go` (real-FS `WriteFileExcl` → `fs.ErrExist` round-trip; extend `realPrimitives()` with the `OpenExcl` closure)
+- Modify: `cmd/engram/main.go` (ONE new field line in the `cli.Primitives` literal — the `OpenExcl` single-call closure — plus its `io` import; nothing else)
 - Modify: `internal/cli/learn.go` (delete `newOsLearnDeps` + `logWarningToStderrf`; add `newLearnDeps(d Deps)`; re-sign `runLearnFrom*Args`; drop `os` import)
 - Modify: `internal/cli/qa.go` (delete `newOsLearnQADeps`; add `newQaDeps(d Deps)`; drop `os` import)
 - Modify: `internal/cli/cli.go` (re-parameterize `listRootNotes`; shrink `osLearnFS` to Lock-only; receive relocated `logWarningToStderrf`)
 - Modify: `internal/cli/targets.go` (learn-group closures only)
 - Modify: `internal/cli/targets_test.go` (extend `newTestDeps` with `FS`/`Lock` — R11; this task's closure flip makes the executed learn tests dereference both)
 - Modify: `internal/cli/export_test.go` (re-sign fact/feedback exports; add `ExportNewLearnDeps`/`ExportNewQaDeps`; drop `ExportNewOsLearnFS` uses of deleted methods)
-- Modify: `internal/cli/testhelpers_test.go` (add `osEdgeFSForTest`, `flockLockerForTest`, `realFSDepsForTest`)
-- Modify: `internal/cli/invariants_k1_property_test.go` (K1 drives production `newLearnDeps` over real FS + real flock)
+- Modify: `internal/cli/testhelpers_test.go` (add `realFSDepsForTest` — composed over T1-rework's cli_test helpers; the draft's `osEdgeFSForTest`/`flockLockerForTest` os doubles are NOT declared, per the composition doctrine — see step 1 and the NOTE(R11-naming) in step 7)
+- Modify: `internal/cli/invariants_k1_property_test.go` (K1 drives production `newLearnDeps` over the composed primFS/primLocker with real primitives)
 - Modify: `internal/cli/learn_adapters_test.go` (delete `TestOsLearnFS_*` except Lock test; thread Deps into `ExportRunLearnFrom*Args` calls)
 
 **Interfaces**
 - Consumes (from foundation `internal/cli/deps.go`): `Deps{Stdout, Stderr io.Writer; Now func() time.Time; Getenv func(string) string; FS EdgeFS; Lock FileLocker; Embed embed.Embedder; ...}`, `EdgeFS`, `FileLocker{ Lock(path string) (unlock func() error, err error) }`
+- Consumes (from T1-rework): `cli.Primitives` + `cli.NewDeps` (this task adds the `OpenExcl` field per flag X-1), `primFS`/`primLocker` (unexported, reached only through `NewDeps`), and the cli_test helpers `realPrimitives()`, `realDepsForTest()`, `realFSForTest()`, `fsFromPrims`, `lockerFromPrims`, const `atomicPerm`/`realFSFilePerm`
 - Produces:
   - `func newLearnDeps(d Deps) LearnDeps`
   - `func newQaDeps(d Deps) LearnQADeps`
@@ -1828,124 +2641,147 @@ Key file paths: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal
   - `func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, d Deps, stdout io.Writer) error`
   - Shared helpers: `statDirFromFS(fsys EdgeFS) func(string) error`, `initVaultFromFS(fsys EdgeFS) func(string) error`, `listIDsFromFS`, `listBasenamesFromFS`, `listMDFromFS(fsys EdgeFS) func(string) ([]string, error)`, `vaultLockFromLocker(locker FileLocker) func(string) (func(), error)`, `writeNewFromFS`, `writeSidecarFromFS`, `writeNoteAtomicFromFS(fsys EdgeFS, perm fs.FileMode) func(string, []byte) error`, `logWarningTo(w io.Writer) func(string, ...any)`
   - EdgeFS addition (flagged): `WriteFileExcl(path string, data []byte, perm fs.FileMode) error`
+  - Primitives addition (flag X-1 resolution): `OpenExcl func(path string, perm fs.FileMode) (io.WriteCloser, error)` + `primFS.WriteFileExcl` (internal lifecycle)
 
 **Steps**
 
-- [ ] 1. **RED — real-FS test doubles + composition tests.** Add to `internal/cli/testhelpers_test.go` (package `cli_test`; test files are exempt from the depguard/forbidigo enforcement):
+- [ ] 1. **RED — composed test Deps + contract tests.** NO os-backed doubles are declared in this task — the composition doctrine forbids hand-rolled adapter mirrors. The FS/Lock capabilities for every test below are the PRODUCTION `primFS`/`primLocker` compositions, reached through T1-rework's cli_test helpers (`realDepsForTest()` = `cli.NewDeps(realPrimitives(), io.Discard, io.Discard, func(int) {})`). Add to `internal/cli/testhelpers_test.go` (package `cli_test`; test files are exempt from the depguard/forbidigo enforcement):
 
 ```go
-// osEdgeFSForTest is a real-filesystem cli.EdgeFS for tests that drive
-// production compositions against t.TempDir(). It mirrors cmd/engram's osFS
-// adapter (which is integration-tested in cmd/engram os_fs_test.go).
-type osEdgeFSForTest struct{}
-
-func (osEdgeFSForTest) ReadFile(path string) ([]byte, error) { return os.ReadFile(path) } //nolint:wrapcheck // test double
-
-func (osEdgeFSForTest) WriteFile(path string, data []byte, perm fs.FileMode) error {
-	return os.WriteFile(path, data, perm) //nolint:wrapcheck // test double
-}
-
-func (osEdgeFSForTest) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
-	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
-	if err != nil {
-		return fmt.Errorf("create temp: %w", err)
-	}
-
-	name := tmp.Name()
-
-	if _, writeErr := tmp.Write(data); writeErr != nil {
-		_ = tmp.Close()
-		_ = os.Remove(name)
-
-		return fmt.Errorf("write temp: %w", writeErr)
-	}
-
-	if closeErr := tmp.Close(); closeErr != nil {
-		_ = os.Remove(name)
-
-		return fmt.Errorf("close temp: %w", closeErr)
-	}
-
-	if chmodErr := os.Chmod(name, perm); chmodErr != nil {
-		_ = os.Remove(name)
-
-		return fmt.Errorf("chmod temp: %w", chmodErr)
-	}
-
-	if renameErr := os.Rename(name, path); renameErr != nil {
-		_ = os.Remove(name)
-
-		return fmt.Errorf("rename temp: %w", renameErr)
-	}
-
-	return nil
-}
-
-func (osEdgeFSForTest) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // test double
-	if err != nil {
-		return fmt.Errorf("open excl: %w", err)
-	}
-
-	defer func() { _ = f.Close() }()
-
-	if _, writeErr := f.Write(data); writeErr != nil {
-		return fmt.Errorf("write excl: %w", writeErr)
-	}
-
-	return nil
-}
-
-func (osEdgeFSForTest) MkdirAll(path string, perm fs.FileMode) error { return os.MkdirAll(path, perm) }   //nolint:wrapcheck // test double
-func (osEdgeFSForTest) MkdirTemp(dir, pattern string) (string, error) { return os.MkdirTemp(dir, pattern) } //nolint:wrapcheck // test double
-func (osEdgeFSForTest) Stat(path string) (fs.FileInfo, error)        { return os.Stat(path) }             //nolint:wrapcheck // test double
-func (osEdgeFSForTest) ReadDir(path string) ([]fs.DirEntry, error)   { return os.ReadDir(path) }          //nolint:wrapcheck // test double
-func (osEdgeFSForTest) Remove(path string) error                     { return os.Remove(path) }           //nolint:wrapcheck // test double
-func (osEdgeFSForTest) RemoveAll(path string) error                  { return os.RemoveAll(path) }        //nolint:wrapcheck // test double
-func (osEdgeFSForTest) Rename(oldPath, newPath string) error         { return os.Rename(oldPath, newPath) } //nolint:wrapcheck // test double
-
-func (osEdgeFSForTest) WalkDir(root string, fn fs.WalkDirFunc) error {
-	return filepath.WalkDir(root, fn) //nolint:wrapcheck // test double
-}
-
-// flockLockerForTest is a real syscall.Flock cli.FileLocker, mirroring
-// cmd/engram's flockLocker so lock-protocol tests race on real OS locks.
-type flockLockerForTest struct{}
-
-func (flockLockerForTest) Lock(path string) (func() error, error) {
-	const lockPerm = 0o600
-
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, lockPerm) //nolint:gosec // test double
-	if err != nil {
-		return nil, fmt.Errorf("open lock: %w", err)
-	}
-
-	fileDescriptor := int(f.Fd())
-
-	if flockErr := syscall.Flock(fileDescriptor, syscall.LOCK_EX); flockErr != nil {
-		_ = f.Close()
-
-		return nil, fmt.Errorf("flock: %w", flockErr)
-	}
-
-	return func() error {
-		_ = syscall.Flock(fileDescriptor, syscall.LOCK_UN)
-
-		return f.Close() //nolint:wrapcheck // test double
-	}, nil
-}
-
-// realFSDepsForTest is the test analogue of cmd/engram's production wiring:
-// real filesystem, real flock, discarded output, nil Embed (auto-embed skips).
+// realFSDepsForTest is the learn-family test Deps: production Deps composed
+// by cli.NewDeps over real OS primitives (T1-rework's realDepsForTest), with
+// Embed forced nil so auto-embed skips — unit tests must not load the
+// bundled model (the embed-on-write path stays covered by cli_test.go's
+// real-binary end-to-end test). No signal registration occurs:
+// realPrimitives() omits StartSignalPulses, so startForceExit nil-skips
+// (doctrine flag SIG-1).
 func realFSDepsForTest() cli.Deps {
-	return cli.Deps{
-		Stdout: io.Discard,
-		Stderr: io.Discard,
-		Now:    time.Now,
-		Getenv: os.Getenv,
-		FS:     osEdgeFSForTest{},
-		Lock:   flockLockerForTest{},
+	deps := realDepsForTest()
+	deps.Embed = nil
+
+	return deps
+}
+```
+
+Add to `internal/cli/edgefs_test.go` (package `cli_test` — T1-rework's fake-primitive EdgeFS suite; reuses its `fsFromPrims` helper and `atomicPerm` const, and its existing `errors`/`io`/`io/fs` imports) the `WriteFileExcl` contract tests. These fail to compile until step 2 lands the `OpenExcl` field and the `primFS.WriteFileExcl` method (RED):
+
+```go
+func TestEdgeFS_WriteFileExclPreservesErrExistAndAddsPath(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fsys := fsFromPrims(cli.Primitives{
+		OpenExcl: func(path string, _ fs.FileMode) (io.WriteCloser, error) {
+			return nil, &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
+		},
+	})
+
+	err := fsys.WriteFileExcl("existing.md", []byte("x"), atomicPerm)
+	g.Expect(err).To(gomega.MatchError(fs.ErrExist),
+		"K1 backstop: errors.Is(err, fs.ErrExist) must survive the internal wrap")
+	g.Expect(err.Error()).To(gomega.ContainSubstring("existing.md"), "wrap must add path context")
+}
+
+func TestEdgeFS_WriteFileExclLifecycle(t *testing.T) {
+	t.Parallel()
+
+	t.Run("happy path passes perm, writes data, closes once", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		file := &exclFileFake{}
+		fsys := fsFromPrims(cli.Primitives{
+			OpenExcl: func(_ string, perm fs.FileMode) (io.WriteCloser, error) {
+				g.Expect(perm).To(gomega.Equal(atomicPerm), "caller perm must reach the primitive")
+
+				return file, nil
+			},
+		})
+
+		g.Expect(fsys.WriteFileExcl("new.md", []byte("body"), atomicPerm)).To(gomega.Succeed())
+		g.Expect(string(file.wrote)).To(gomega.Equal("body"))
+		g.Expect(file.closes).To(gomega.Equal(1))
+	})
+
+	t.Run("write failure reported and file still closed", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		boom := errors.New("write boom")
+		file := &exclFileFake{writeErr: boom}
+		fsys := fsFromPrims(cli.Primitives{
+			OpenExcl: func(string, fs.FileMode) (io.WriteCloser, error) { return file, nil },
+		})
+
+		err := fsys.WriteFileExcl("new.md", []byte("body"), atomicPerm)
+		g.Expect(err).To(gomega.MatchError(boom))
+		g.Expect(file.closes).To(gomega.Equal(1), "write failure must not leak the handle")
+	})
+
+	t.Run("close failure is reported", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		boom := errors.New("close boom")
+		file := &exclFileFake{closeErr: boom}
+		fsys := fsFromPrims(cli.Primitives{
+			OpenExcl: func(string, fs.FileMode) (io.WriteCloser, error) { return file, nil },
+		})
+
+		err := fsys.WriteFileExcl("new.md", []byte("body"), atomicPerm)
+		g.Expect(err).To(gomega.MatchError(boom))
+		g.Expect(err.Error()).To(gomega.ContainSubstring("close"))
+	})
+}
+
+// exclFileFake is a recording io.WriteCloser for WriteFileExcl lifecycle tests.
+type exclFileFake struct {
+	writeErr error
+	closeErr error
+	closes   int
+	wrote    []byte
+}
+
+func (f *exclFileFake) Write(data []byte) (int, error) {
+	if f.writeErr != nil {
+		return 0, f.writeErr
 	}
+
+	f.wrote = append(f.wrote, data...)
+
+	return len(data), nil
+}
+
+func (f *exclFileFake) Close() error {
+	f.closes++
+
+	return f.closeErr
+}
+```
+
+Add to `internal/cli/primitives_integration_test.go` (package `cli_test`; existing `io/fs`/`path/filepath` imports suffice) the real-primitive round-trip — RED until step 2 extends `realPrimitives()` (compile fails on the unknown `OpenExcl` field first; after 2b, a missed 2d panics on the nil func — either way loud):
+
+```go
+func TestRealEdgeFS_WriteFileExclRefusesExistingFile(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	path := filepath.Join(t.TempDir(), "note.md")
+	fsys := realFSForTest()
+
+	g.Expect(fsys.WriteFileExcl(path, []byte("first"), realFSFilePerm)).To(gomega.Succeed())
+
+	err := fsys.WriteFileExcl(path, []byte("second"), realFSFilePerm)
+	g.Expect(err).To(gomega.MatchError(fs.ErrExist), "O_EXCL contract: existing path must satisfy fs.ErrExist")
+
+	data, readErr := fsys.ReadFile(path)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(gomega.Equal("first"), "the losing writer must not clobber the existing note")
 }
 ```
 
@@ -2103,9 +2939,11 @@ func TestNewQaDeps_WiresRemoveAndReadThroughFS(t *testing.T) {
 }
 ```
 
-Run: `targ test` → expected FAIL (compile error: `ExportNewLearnDeps`/`ExportNewQaDeps` undefined). This is the RED.
+Run: `targ test` → expected FAIL (compile errors: unknown field `OpenExcl` in `cli.Primitives`; `WriteFileExcl` not in `cli.EdgeFS`; `ExportNewLearnDeps`/`ExportNewQaDeps` undefined). This is the RED.
 
-- [ ] 2. **EdgeFS addition (flagged).** In the foundation's `internal/cli/deps.go`, add to `EdgeFS`:
+- [ ] 2. **GREEN (flag X-1) — `EdgeFS.WriteFileExcl`, composed internally over a new exclusive-create primitive.** X-1 resolution (recorded): the primitive is `OpenExcl func(path string, perm fs.FileMode) (io.WriteCloser, error)` — cmd-side value is a single `os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)` call (one closure, one external call; `*os.File` satisfies `io.WriteCloser`, and its raw error already satisfies `errors.Is(err, fs.ErrExist)` via `*fs.PathError`). The flag's `uintptr`-fd sketch would need a second `WriteFD` primitive — rejected as the less clean shape. The write/close lifecycle (close-on-write-failure, close-error reporting, single `%w` wrap) lives in `primFS`. NO cmd/engram adapter file exists or is created — the supersession map re-points every "cmd/engram os_fs.go `osFS`" obligation to internal/cli/edgefs.go. Five sub-edits, one commit:
+
+   **2a.** In the foundation's `internal/cli/deps.go`, add to `EdgeFS`:
 
 ```go
 	// WriteFileExcl creates path exclusively (O_CREATE|O_EXCL semantics): it
@@ -2115,7 +2953,59 @@ Run: `targ test` → expected FAIL (compile error: `ExportNewLearnDeps`/`ExportN
 	WriteFileExcl(path string, data []byte, perm fs.FileMode) error
 ```
 
-and add the matching implementation to `cmd/engram/os_fs.go`'s `osFS` (coordinate with the os_fs owner; body is the current cli.go:115-135 `WriteNew` open/write/close with the caller-supplied perm) plus a cmd/engram integration test asserting `fs.ErrExist` on an existing file.
+   **2b.** In `internal/cli/primitives.go`, add to the `Primitives` struct's filesystem block (`io` is already imported for `NewDeps`):
+
+```go
+	// Exclusive create (single-call closure; write/close lifecycle internal).
+	OpenExcl func(path string, perm fs.FileMode) (io.WriteCloser, error) // os.OpenFile O_CREATE|O_EXCL|O_WRONLY
+```
+
+   **2c.** In `internal/cli/edgefs.go`, add to `primFS`:
+
+```go
+// WriteFileExcl creates path exclusively via the OpenExcl primitive
+// (O_CREATE|O_EXCL — the ADR-0013 K1 collision backstop). The raw primitive
+// error is wrapped exactly once here, preserving the fs.ErrExist chain; the
+// write/close lifecycle is internal (doctrine flag X-1).
+func (p primFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+	file, err := p.prims.OpenExcl(path, perm)
+	if err != nil {
+		return fmt.Errorf("write excl %s: %w", path, err)
+	}
+
+	if _, writeErr := file.Write(data); writeErr != nil {
+		_ = file.Close()
+
+		return fmt.Errorf("write excl %s: %w", path, writeErr)
+	}
+
+	if closeErr := file.Close(); closeErr != nil {
+		return fmt.Errorf("write excl %s: close: %w", path, closeErr)
+	}
+
+	return nil
+}
+```
+
+   **2d.** In `internal/cli/primitives_integration_test.go`, extend `realPrimitives()` with the mirror closure (keeps the DRIFT-flag mirror exact):
+
+```go
+		OpenExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
+			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // test helper, path from test
+		},
+```
+
+   **2e.** In `cmd/engram/main.go`, add ONE field line to the `cli.Primitives` literal (beside `CreateTemp`) and `"io"` to the import block. This is a single-call closure inside an expression — `check-thin-api` walks declarations only, and the doctrine caps the closure body at this single call:
+
+```go
+			OpenExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
+				// Vault paths are operator-supplied CLI args, not untrusted input.
+				//nolint:gosec // operator-controlled path
+				return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
+			},
+```
+
+Run `targ test` → the step-1 `WriteFileExcl` contract + integration tests go green; the deps_compose tests stay RED until steps 3-8 land.
 
 - [ ] 3. **GREEN — create `internal/cli/deps_compose.go`** (package `cli`; imports `errors`, `fmt`, `io`, `io/fs`, `path/filepath`, `strings` only — no `os`, no `syscall`, no `time`):
 
@@ -2480,7 +3370,7 @@ Remove `"os"` and `"time"`?—no: keep `"time"` (`time.Time` in signatures); rem
 
 (The `resolveVault(a.Vault, home, os.Getenv)` → `d.Getenv`/`d.UserHomeDir` swap is the targets cluster's charge — leave those expressions to that task.)
 
-In the same commit, extend `newTestDeps` in `internal/cli/targets_test.go` (R11 — this task owns the FS/Lock extension because its closure flip is the FIRST to make an executed targets-level test dereference them: the learn feedback/fact/qa tests at targets_test.go:206-263 run through `executeForTest`, and the qa test asserts real note files on disk; nil `FS`/`Lock` is a nil-interface panic inside `newLearnDeps`/`newQaDeps`). Exact diff — the two added fields use this task's own step-1 doubles (same package cli_test):
+In the same commit, extend `newTestDeps` in `internal/cli/targets_test.go` (R11 — this task owns the FS/Lock extension because its closure flip is the FIRST to make an executed targets-level test dereference them: the learn feedback/fact/qa tests at targets_test.go:206-263 run through `executeForTest`, and the qa test asserts real note files on disk; nil `FS`/`Lock` is a nil-interface panic inside `newLearnDeps`/`newQaDeps`). Exact diff — the two added field VALUES are the production compositions via T1-rework's cli_test helpers (same package cli_test):
 
 ```go
 func newTestDeps(stdout, stderr io.Writer) cli.Deps {
@@ -2492,11 +3382,13 @@ func newTestDeps(stdout, stderr io.Writer) cli.Deps {
 		Now:         time.Now,
 		Getwd:       os.Getwd,
 		UserHomeDir: os.UserHomeDir,
-		FS:          osEdgeFSForTest{},
-		Lock:        flockLockerForTest{},
+		FS:          realFSForTest(),
+		Lock:        lockerFromPrims(realPrimitives()),
 	}
 }
 ```
+
+NOTE(R11-naming): R11's text names the draft doubles `osEdgeFSForTest{}`/`flockLockerForTest{}` as the field values; under the composition doctrine those hand-rolled os doubles are NOT declared anywhere — the values are the composed `primFS`/`primLocker` reached through T1-rework's helpers. R11's OWNERSHIP rule is unchanged: T3 is the sole extender, fields are exactly `FS`+`Lock`. The helper itself remains a `cli.Deps` literal (it never calls `cli.NewDeps` directly); the T1-rework helpers it consumes do call `NewDeps`, but retain only `.FS`/`.Lock` — no signal registration occurs (`realPrimitives()` omits `StartSignalPulses`, SIG-1) and the transiently-constructed lazy embedder is discarded unloaded, so T2's "no embedder/signal wiring" intent holds behaviorally.
 
 No later task extends `newTestDeps` further (R11); every later executed targets-level path (count/show T5, show-chunk T6, ingest T8, prune T9, vocab/amend/resituate/activate T12) rides these same two fields. (`Embed` stays absent — see R11's recorded CONFLICT for the T15 embed closures.)
 
@@ -2527,7 +3419,7 @@ func ExportRunLearnFromFeedbackArgs(
 
 Keep `ExportNewOsLearnFS` and `ExportFlockPath` untouched here (`ExportNewOsLearnFS`'s Lock-only consumer survives until T4/L2; `ExportFlockPath` is deleted later by T8, which also repoints its consumers — R7).
 
-- [ ] 9. **learn_adapters_test.go:** delete `TestOsLearnFS_ListBasenames_*`, `TestOsLearnFS_ListIDs_*`, `TestOsLearnFS_MkdirAll_*`, `TestOsLearnFS_StatDir_*`, `TestOsLearnFS_WriteFileIfMissing_*`, `TestOsLearnFS_WriteNew_*` (lines 58-122, 133-288 — behavior now covered by deps_compose_test.go against the production composition + the cmd/engram osFS integration tests). Keep `TestOsLearnFS_Lock_BadVaultReturnsError` (124-131) until L2. Update every `cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)` / `...FeedbackArgs(...)` call (lines 37, 310, 371, 408, 456, 489) to `cli.ExportRunLearnFromFactArgs(context.Background(), args, realFSDepsForTest(), io.Discard)` (same for feedback). Note: with `Embed` nil these tests now skip auto-embed (they only assert `.md` presence/absence — assertions unchanged; the embed-on-write path stays covered by cli_test.go's real-binary end-to-end test, which asserts the `.vec.json` sidecar).
+- [ ] 9. **learn_adapters_test.go:** delete `TestOsLearnFS_ListBasenames_*`, `TestOsLearnFS_ListIDs_*`, `TestOsLearnFS_MkdirAll_*`, `TestOsLearnFS_StatDir_*`, `TestOsLearnFS_WriteFileIfMissing_*`, `TestOsLearnFS_WriteNew_*` (lines 58-122, 133-288 — behavior now covered by deps_compose_test.go against the production composition + the internal primitives integration suite, `internal/cli/primitives_integration_test.go`; the former cmd adapter suites were deleted by T1-rework). Keep `TestOsLearnFS_Lock_BadVaultReturnsError` (124-131) until L2. Update every `cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)` / `...FeedbackArgs(...)` call (lines 37, 310, 371, 408, 456, 489) to `cli.ExportRunLearnFromFactArgs(context.Background(), args, realFSDepsForTest(), io.Discard)` (same for feedback). Note: with `Embed` forced nil in `realFSDepsForTest` these tests skip auto-embed (they only assert `.md` presence/absence — assertions unchanged; the embed-on-write path stays covered by cli_test.go's real-binary end-to-end test, which asserts the `.vec.json` sidecar).
 
 - [ ] 10. **K1 regression test survives (ADR-0013).** In `invariants_k1_property_test.go`, replace `k1RealLockDeps` (lines 122-140) — the test body (30-120) is unchanged:
 
@@ -2536,10 +3428,11 @@ Keep `ExportNewOsLearnFS` and `ExportFlockPath` untouched here (`ExportNewOsLear
 var errK1VaultMissing = errors.New("k1: vault should already exist")
 
 // k1RealLockDeps wires LearnDeps through the PRODUCTION composition
-// (newLearnDeps) over a real-filesystem EdgeFS and a real syscall.Flock
-// FileLocker — the same flock + exclusive-create (WriteFileExcl) path the
-// shipped binary composes in cmd/engram. Embed is nil (zero Deps field) so
-// auto-embed skips; InitVault errors because the caller pre-creates the vault.
+// (newLearnDeps) over the internally-composed primFS EdgeFS and primLocker
+// FileLocker with real OS primitives — the exact flock + exclusive-create
+// (WriteFileExcl over the OpenExcl primitive) path the shipped binary builds
+// via cli.NewDeps. Embed is nil (realFSDepsForTest forces it) so auto-embed
+// skips; InitVault errors because the caller pre-creates the vault.
 func k1RealLockDeps(vault string) cli.LearnDeps {
 	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
 
@@ -2551,9 +3444,9 @@ func k1RealLockDeps(vault string) cli.LearnDeps {
 }
 ```
 
-(Add `"errors"` to the file's imports; `"time"` and the `os.Getenv` import uses move into `realFSDepsForTest`.) This upgrade means K1 now races the production composition layer itself — lock file `vault/.luhmann.lock`, span ListIDs→WriteNew, O_EXCL backstop — not a hand-wired double of it.
+(Add `"errors"` to the file's imports; the old hand-wired deps' `"time"`/`os.Getenv` uses disappear — drop those imports if nothing else in the file needs them.) This upgrade means K1 now races the production composition layer itself — lock file `vault/.luhmann.lock`, span ListIDs→WriteNew, O_EXCL backstop through `primFS.WriteFileExcl` — not a hand-wired double of it.
 
-- [ ] 11. Run `targ test` → all green (RED tests from step 1 now pass; K1 passes at workers=2,5,10,20). Run `targ check-full` → clean. Run `go install ./cmd/engram && cd "$(mktemp -d)" && engram learn fact --slug smoke --vault "$(mktemp -d)/v" --position top --source smoke --situation "smoke" --subject s --predicate p --object o` → prints the note path; the note and `.vec.json` sidecar exist.
+- [ ] 11. Run `targ test` → all green (RED tests from step 1 now pass; K1 passes at workers=2,5,10,20). Run `targ check-full` → clean. Run `targ check-thin-api` → PASS: this task's only cmd/engram delta is the single-call `OpenExcl` closure inside the `Primitives` literal (an expression, not a declaration). If the checker flags ANYTHING, escalate the exact finding to the orchestrator (global constraint / doctrine item 5) — do not suppress, do not restructure ad hoc. Then run `go install ./cmd/engram && cd "$(mktemp -d)" && engram learn fact --slug smoke --vault "$(mktemp -d)/v" --position top --source smoke --situation "smoke" --subject s --predicate p --object o` → prints the note path; the note and `.vec.json` sidecar exist.
 
 - [ ] 12. Commit:
 
@@ -2561,8 +3454,9 @@ func k1RealLockDeps(vault string) cli.LearnDeps {
 refactor(cli): compose learn-family deps from Deps (#700)
 
 newLearnDeps/newQaDeps replace newOsLearnDeps/newOsLearnQADeps; all learn/qa
-I/O flows through EdgeFS/FileLocker/Embed/Stderr. Adds EdgeFS.WriteFileExcl
-(exclusive create) so the ADR-0013 K1 O_EXCL backstop survives composition;
+I/O flows through EdgeFS/FileLocker/Embed/Stderr. Adds EdgeFS.WriteFileExcl,
+composed internally in primFS over the new single-call OpenExcl primitive
+(doctrine flag X-1), so the ADR-0013 K1 O_EXCL backstop survives composition;
 K1 concurrency property now drives the production composition over real flock.
 
 AI-Used: [claude]
@@ -2595,7 +3489,7 @@ NOTE (anchors): line numbers cited below are from the pristine tree and shift af
 
 - [ ] 3. **Delete from cli.go:** `osLearnFS` + its `Lock` method (33-57 remnant), `flockPath` (165-192), `logWarningToStderrf` (relocated block from L1 step 4). (`osFileReader` and `osManifestLock` are NOT deleted here — T8/T9 already did, per R5/R10; step 1's greps proved it.) Remove `"os"`, `"syscall"`, and `"path/filepath"` (if now unused — `filepath.Join` was only used by the deleted lock helpers; `vaultLockFromLocker` in deps_compose.go has its own import) from the import block. cli.go retains: package doc, `luhmannLockFile`/`manifestLockFile` constants (consumed by `vaultLockFromLocker` and the ingest cluster's manifest-lock composition + `ExportManifestLockFile`), `errNotADirectory` (consumed by `statDirFromFS`), `acquireOptionalLock` (152-163, pure), `listRootNotes` (pure since L1), `pathOf` (240-243).
 
-- [ ] 4. Delete `TestOsLearnFS_Lock_BadVaultReturnsError` (learn_adapters_test.go:124-131) and `TestExportLogWarningToStderr_FormatsAndWrites` (os_adapters_test.go:150-172). (`TestOsManifestLock_MkdirError` was already deleted by T9 per R10 — verify with `rg -n "TestOsManifestLock_MkdirError" internal/` → zero hits.) Confirm the replacement coverage exists before deleting: cmd/engram `flockLocker` integration test covers lock-open failure; the ingest cluster's manifest-lock composition test covers mkdir-before-lock; `TestNewLearnDeps_LogWarning_WritesToDepsStderr` covers the warning format.
+- [ ] 4. Delete `TestOsLearnFS_Lock_BadVaultReturnsError` (learn_adapters_test.go:124-131) and `TestExportLogWarningToStderr_FormatsAndWrites` (os_adapters_test.go:150-172). (`TestOsManifestLock_MkdirError` was already deleted by T9 per R10 — verify with `rg -n "TestOsManifestLock_MkdirError" internal/` → zero hits.) Confirm the replacement coverage exists before deleting: the internal locker suite covers lock-open failure (`TestPrimLocker_OpenFailureWrapsWithPath`, locker_test.go — T1-rework; per the supersession map the cmd-integration-test obligation landed as internal `_test` files); the ingest cluster's manifest-lock composition test covers mkdir-before-lock; `TestNewLearnDeps_LogWarning_WritesToDepsStderr` covers the warning format.
 
 - [ ] 5. Verify purity of the migrated files: `grep -n "\"os\"\|\"syscall\"\|os\.\|syscall\." internal/cli/cli.go internal/cli/learn.go internal/cli/qa.go internal/cli/deps_compose.go` → no hits. Run `targ test` → green, including `TestInvariant_K1_ConcurrentLearnNeverCollides` and `TestManifest_ConcurrentWritersDoNotLoseEntries`. Run `targ check-full` → clean. `go install ./cmd/engram` and re-run the step-11 smoke from L1.
 
@@ -2606,9 +3500,10 @@ refactor(cli): delete os/syscall adapters from cli.go (#700)
 
 osLearnFS, flockPath, and the stderr warning hook are gone from internal
 (osFileReader/osManifestLock fell earlier to T8/T9 — grep-verified);
-production I/O lives in cmd/engram. The concurrent-writers regression
-suites keep racing real OS flocks via T8's test-local testFlocker (test
-files are exempt from the purity deny).
+raw I/O enters only as cmd/engram primitives composed by cli.NewDeps.
+The concurrent-writers regression suites keep racing real OS flocks
+via T8's test-local testFlocker (test files are exempt from the
+purity deny).
 
 AI-Used: [claude]
 ```
@@ -2673,14 +3568,15 @@ AI-Used: [claude]
    )
 
    // osTestEdgeFS is a real-filesystem cli.EdgeFS for integration-style tests
-   // over t.TempDir() fixtures. The production EdgeFS adapter lives in
-   // cmd/engram (package main) and is not importable here; test files are
+   // over t.TempDir() fixtures. The production EdgeFS impl is internal/cli's
+   // unexported primFS (composed by cli.NewDeps — T1-rework); test files are
    // exempt from the internal/ purity rules, so this double calls os directly.
    // Errors are wrapped with %w, matching the production contract that
    // errors.Is(err, fs.ErrNotExist) / errors.Is(err, fs.ErrExist) must
    // survive the adapter.
    // WriteFileAtomic is a plain write — ADR-0013 atomicity is exercised by
-   // cmd/engram's own integration tests, never through this double.
+   // the internal edgefs/primitives integration suites (T1-rework), never
+   // through this double.
    // WriteFileExcl is a real exclusive create (O_CREATE|O_EXCL) matching
    // T3's EdgeFS addition.
    type osTestEdgeFS struct{}
@@ -2932,7 +3828,7 @@ AI-Used: [claude]
    )
 
    // vaultFS adapts the injected EdgeFS to vaultgraph.VaultFS — pure
-   // composition, all I/O flows through the EdgeFS wired by cmd/engram (#700).
+   // composition, all I/O flows through the injected EdgeFS (#700).
    // Listing a non-existent directory returns an empty slice (not an error) —
    // the scanner uses this to skip missing subdirs (e.g. an absent MOCs/ on a
    // brand-new vault).
@@ -3365,7 +4261,7 @@ Sequencing: AFTER Q1 (`newVaultFS`, `osTestEdgeFS`). Per R4, T6 runs BEFORE the 
 
 ---
 
-### Task T7 (Q3): Purge legacy `osVaultFS` (grep-gated, runs LAST)
+### Task T7 (Q3): Purge legacy `osVaultFS` (grep-gated; runs after T12/T15 per R4)
 
 Sequencing: after the amend/learn/qa/resituate/embed/vocab clusters migrate to `newVaultFS(d.FS)` and T12 migrates the vocab tests off `ExportNewOsVaultFS` (R12). Runs after T15 and T12 (R4) — all its preconditions precede it; T13/T16/T17 follow it in R4.
 
@@ -3599,8 +4495,9 @@ func TestIngestDepsWriteFileMkdirsParentThenWritesAtomically(t *testing.T) {
 }
 
 // --- cli_test OS harness: real-FS EdgeFS + real flock FileLocker ---
-// Test files are exempt from the internal I/O purity enforcement; production
-// adapters live in cmd/engram. These doubles back the ingest-family
+// Test files are exempt from the internal I/O purity enforcement; the
+// production adapters are composed in internal/cli from cmd-supplied
+// primitives (T1-rework). These doubles back the ingest-family
 // integration tests and the ADR-0013 concurrency regression.
 
 type fakeEdgeFS struct {
@@ -4067,7 +4964,7 @@ func (r *realFS) write(_, path string, data []byte) error {
 
 - [ ] 7. Adapt `internal/cli/ingest_auto_test.go` (three call sites). `TestDefaultSessionDirHonorsTranscriptDirEnv` (current lines 48-57, uses `t.Setenv`) is DELETED — superseded by the pure `TestIngestDepsSessionDirHonorsTranscriptDirEnv` from step 1 (now parallel-safe, no env mutation). In `TestDefaultSessionDirIsAllProjects` (line 63) and `TestOsListSourcesSkipsExcludedDirs` (line 95), replace `deps := cli.ExportNewOsIngestDeps(fakeIngestEmbedder{})` with `deps := cli.ExportNewIngestDeps(testDeps(), fakeIngestEmbedder{})`. In `internal/cli/ingest_integration_test.go` line 188 replace `ingestDeps := cli.ExportNewOsIngestDeps(fakeIngestEmbedder{})` with `ingestDeps := cli.ExportNewIngestDeps(testDeps(), fakeIngestEmbedder{})`. Remove the now-unused `os` import from ingest_auto_test.go only if no other use remains (TestOsListSourcesSkipsExcludedDirs still uses os.MkdirAll/os.WriteFile — keep it).
 
-- [ ] 8. Adapt `internal/cli/adapters_test.go`: delete `TestOsFileReader_Read` (lines 14-30) and `TestOsFileReader_ReadError` (lines 32-39). The transcript-read path is now covered by the pure `fsFileReader` composition (exercised end-to-end by `TestOsIngestThenChunkQuery` through `testDeps()`), and raw `os.ReadFile` adapter coverage belongs to cmd/engram's `osFS` integration tests (adapters cluster). Keep the `osLearnFS` tests untouched.
+- [ ] 8. Adapt `internal/cli/adapters_test.go`: delete `TestOsFileReader_Read` (lines 14-30) and `TestOsFileReader_ReadError` (lines 32-39). The transcript-read path is now covered by the pure `fsFileReader` composition (exercised end-to-end by `TestOsIngestThenChunkQuery` through `testDeps()`), and raw `os.ReadFile` adapter coverage lives in the internal real-primitives EdgeFS suite (`TestRealEdgeFS_ReadWriteRoundTrip` / `TestRealEdgeFS_ReadFileMissingSatisfiesErrNotExist`, primitives_integration_test.go — T1-rework). Keep the `osLearnFS` tests untouched.
 
 - [ ] 9. Verify: `targ test` — expected PASS (all new pure tests green; `TestOsIngestThenChunkQuery`, `TestManifest_ConcurrentWritersDoNotLoseEntries`, sweep/auto tests green). Then purity greps — both must print nothing:
   - `grep -nE '\bos\.|filepath\.WalkDir|time\.Now|syscall' internal/cli/ingest.go`
@@ -4319,298 +5216,174 @@ AI-Used: [claude]"
 
 Verified source anchors: internal/cli/ingest.go (os at 248/252/496/504/516/520, time.Now at 514, filepath.WalkDir at 662), internal/cli/prune.go (os.Stat 111, os.Remove 116), internal/cli/cli.go (osFileReader 27, flockPath 169, osManifestLock 227, manifestLockFile 17), internal/cli/targets.go (157-166), internal/cli/query_chunks.go (listJSONLIndexes 138), internal/cli/embed.go (osEmbedFS 140, sharedEmbedder 110), internal/context/context.go (FileReader 7), internal/embed/embedder.go (Embedder 54), tests: ingest_test.go 319/376/403/899, ingest_auto_test.go 48-105, ingest_integration_test.go 188, prune_integration_test.go 48, testhelpers_test.go 13-28, adapters_test.go 14-39, export_test.go 79/342/536/543/687.
 
-### Task T10 (M1): Move atomic write to cmd/engram as EdgeFS.WriteFileAtomic
+### Task T10 (M1): Atomic-write parity on the internal composition (relocation absorbed by T1-rework; consumers migrate in T12/T4/T15)
+
+**Doctrine note (supersedes this task's original relocate-to-cmd brief):** under the revised composition doctrine there is no `cmd/engram/os_fs.go` to relocate onto — the ADR-0013 dance already lives INTERNAL as `primFS.WriteFileAtomic` (`internal/cli/edgefs.go`, landed by T1-rework; flag P-4 sequence CreateTemp→Chmod→WriteFile→Rename, + Remove on any failure), unit-tested with fake primitives (`TestEdgeFS_WriteFileAtomicHappyPathDance`, `TestEdgeFS_WriteFileAtomicFailuresRemoveTemp` in edgefs_test.go) and integration-tested with real ones (`TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp` in primitives_integration_test.go). The supersession map's "T10 reduces to migrating its internal consumers onto `deps.FS.WriteFileAtomic`" is realized BY the owning tasks, not here: every remaining caller sits inside an os-backed constructor/adapter that its own task replaces wholesale — learn.go/qa.go (T3, already landed at this slot in R4's order), amend/resituate/activate/vocab (T12), cli.go's `osLearnFS.WriteSidecar` (T4), embed.go's `osEmbedFS.Write` (T15) — exactly T13's gate ledger, which is UNCHANGED. A standalone call-site flip in this task is meaningless (the enclosing adapters die whole). What the M1 slot still owes the cluster before T13 may delete writesafe.go + writesafe_test.go: re-prove, against the composed implementation over REAL primitives, the writesafe regression behaviors T1-rework did not carry over, and verify the caller ledger matches T13's gate.
+
+Behavior-parity ledger (writesafe_test.go behavior → coverage on the composed `primFS`):
+
+| writesafe_test.go behavior | Re-proven by | Landed in |
+|---|---|---|
+| `TestAtomicWriteFile_OverwritesExistingFile` | `TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp` | T1-rework |
+| `TestAtomicWriteFile_NoLeftoverTempFiles` | same test's closing `HaveLen(1)` temp-count assertion | T1-rework |
+| `TestAtomicWriteFile_WritesNewFile` | `TestRealEdgeFS_WriteFileAtomicWritesNewFile` | THIS TASK |
+| `TestAtomicWriteFile_FailureDoesNotTouchOriginal` | `TestRealEdgeFS_WriteFileAtomicCreateTempFailureLeavesOriginalUntouched` | THIS TASK |
+| `TestAtomicWriteFile_RenameFailure_CleansTempAndLeavesOriginalUntouched` | `TestRealEdgeFS_WriteFileAtomicRenameFailureCleansTempAndOriginal` (real FS, injected `Rename` primitive — no export shim needed) plus the fake-prims rename case of `TestEdgeFS_WriteFileAtomicFailuresRemoveTemp` | THIS TASK |
 
 **Files**
-- Create (or append to, if the cmd-wiring task already created it): `cmd/engram/os_fs.go`
-- Create: `cmd/engram/os_fs_atomic_test.go`
-- (No internal deletions yet — writesafe.go still has out-of-cluster callers; deleted in M4.)
+- Modify (append tests, one import, one const block, one sentinel var): `internal/cli/primitives_integration_test.go` (created by T1-rework)
+- (No production edits. No deletions — writesafe.go keeps its callers until T12/T4/T15 migrate them; T13 deletes it.)
 
 **Interfaces**
-- Produces: `func (osFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error` — the EdgeFS method absorbing internal/cli/writesafe.go.
-- Produces (unexported, test seam): `func doAtomicWrite(path string, data []byte, perm fs.FileMode, rename func(oldpath, newpath string) error) error`
-- Consumes: `EdgeFS` method-set contract from internal/cli/deps.go (foundation task).
+- Consumes: `cli.EdgeFS.WriteFileAtomic` through T1-rework's cli_test helpers — `realFSForTest()`, `realPrimitives()`, `fsFromPrims(...)` (edgefs_test.go; package `cli_test` is one namespace across files) — and const `realFSFilePerm`.
+- Produces: the three THIS-TASK parity tests in the ledger; test-only consts `writableDirPerm`/`readOnlyDirPerm` and sentinel `errInjectedRename` (collision-checked free in package `cli_test`). No production symbols. (The original brief's cmd-side `osFS.WriteFileAtomic`/`doAtomicWrite` are NOT produced — nothing may reference them.)
 
 **Steps**
 
-1. [ ] RED (relocation form: new adapter integration tests against code that doesn't exist yet — compile failure is the RED): create `cmd/engram/os_fs_atomic_test.go`, package `main` (white-box; package main is unimportable so no `_test` package). This is the verbatim relocation of internal/cli/writesafe_test.go with `cli.ExportAtomicWriteFile` → `(osFS{}).WriteFileAtomic` and `cli.ExportDoAtomicWrite` → `doAtomicWrite`:
+1. [ ] Preflight — verify the T1-rework/T2 landed state this task builds on (any miss → STOP: an upstream task is incomplete; escalate rather than building the missing piece here):
+   - `rg -n "func \(f primFS\) WriteFileAtomic" internal/cli/edgefs.go` → exactly one hit.
+   - `rg -n "TestEdgeFS_WriteFileAtomicHappyPathDance|TestEdgeFS_WriteFileAtomicFailuresRemoveTemp" internal/cli/edgefs_test.go` → both present.
+   - `rg -n "TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp|func realPrimitives|func realFSForTest" internal/cli/primitives_integration_test.go` → all present.
+   - `ls cmd/engram/` → `main.go` only (no os_fs.go / os_signal.go / debuglog_sink.go — the pre-rework layout is gone; a trivial wiring smoke test, if T2 kept one, is also acceptable).
+
+2. [ ] Parity tests — relocation onto ALREADY-LANDED code, so this step is verify-form, not RED/GREEN: all three tests are expected GREEN on arrival. Any FAILURE is a genuine parity defect in the landed dance — STOP, fix `internal/cli/edgefs.go` under its unit suite, re-run; never bend the test to the defect. Append to `internal/cli/primitives_integration_test.go`, adding `"errors"` to its import block:
 
 ```go
-package main
-
-import (
-	"errors"
-	"os"
-	"path/filepath"
-	"testing"
-
-	. "github.com/onsi/gomega"
-)
-
-func TestWriteFileAtomic_FailureDoesNotTouchOriginal(t *testing.T) {
+func TestRealEdgeFS_WriteFileAtomicWritesNewFile(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
+	g := gomega.NewWithT(t)
 
 	dir := t.TempDir()
+	target := filepath.Join(dir, "out.txt")
+	content := []byte("hello atomic world")
+	fsys := realFSForTest()
 
-	// Create a subdirectory to hold the original file.
-	subdir := filepath.Join(dir, "sub")
-	mkErr := os.Mkdir(subdir, 0o700)
-	g.Expect(mkErr).NotTo(HaveOccurred())
+	g.Expect(fsys.WriteFileAtomic(target, content, realFSFilePerm)).To(gomega.Succeed())
 
-	if mkErr != nil {
+	got, readErr := os.ReadFile(target)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
 		return
 	}
+
+	g.Expect(got).To(gomega.Equal(content), "file must contain exactly the written bytes")
+}
+
+func TestRealEdgeFS_WriteFileAtomicCreateTempFailureLeavesOriginalUntouched(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	fsys := realFSForTest()
+
+	// A read-only directory makes the CreateTemp primitive fail before the
+	// dance writes a single byte (relocated writesafe_test.go behavior).
+	subdir := filepath.Join(dir, "sub")
+	g.Expect(os.Mkdir(subdir, writableDirPerm)).To(gomega.Succeed())
 
 	target := filepath.Join(subdir, "original.txt")
 	original := []byte("original untouched content")
+	g.Expect(os.WriteFile(target, original, realFSFilePerm)).To(gomega.Succeed())
 
-	writeErr := os.WriteFile(target, original, 0o600)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	// Make the directory read-only so CreateTemp fails.
-	chmodErr := os.Chmod(subdir, 0o500)
-	g.Expect(chmodErr).NotTo(HaveOccurred())
-
-	if chmodErr != nil {
-		return
-	}
+	g.Expect(os.Chmod(subdir, readOnlyDirPerm)).To(gomega.Succeed())
 
 	// Restore permissions so TempDir cleanup can succeed.
-	t.Cleanup(func() { _ = os.Chmod(subdir, 0o700) })
+	t.Cleanup(func() { _ = os.Chmod(subdir, writableDirPerm) })
 
-	// Make the directory readable again for the final assertions.
-	defer func() { _ = os.Chmod(subdir, 0o700) }()
+	err := fsys.WriteFileAtomic(target, []byte("new content"), realFSFilePerm)
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("create temp")),
+		"write into a read-only dir must fail at temp creation")
 
-	err := (osFS{}).WriteFileAtomic(target, []byte("new content"), 0o600)
-	g.Expect(err).To(HaveOccurred(), "write to read-only dir must fail")
-
-	// Restore permissions to check the original.
-	_ = os.Chmod(subdir, 0o700)
+	// Make the directory readable again for the assertions.
+	g.Expect(os.Chmod(subdir, writableDirPerm)).To(gomega.Succeed())
 
 	got, readErr := os.ReadFile(target)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(got).To(Equal(original), "original file must be untouched after failure")
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
 
-	// No leftover temp files.
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(got).To(gomega.Equal(original), "original file must be untouched after failure")
+
 	tmpFiles, globErr := filepath.Glob(filepath.Join(subdir, ".original.txt.tmp-*"))
-	g.Expect(globErr).NotTo(HaveOccurred())
-	g.Expect(tmpFiles).To(BeEmpty(), "no leftover .tmp-* files must remain after failure")
+	g.Expect(globErr).NotTo(gomega.HaveOccurred())
+	g.Expect(tmpFiles).To(gomega.BeEmpty(), "no leftover .tmp-* files must remain after failure")
 }
 
-func TestWriteFileAtomic_NoLeftoverTempFiles(t *testing.T) {
+func TestRealEdgeFS_WriteFileAtomicRenameFailureCleansTempAndOriginal(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	target := filepath.Join(dir, "out.txt")
-
-	err := (osFS{}).WriteFileAtomic(target, []byte("data"), 0o600)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	tmpFiles, globErr := filepath.Glob(filepath.Join(dir, ".out.txt.tmp-*"))
-	g.Expect(globErr).NotTo(HaveOccurred())
-	g.Expect(tmpFiles).To(BeEmpty(), "no leftover .tmp-* files must remain after success")
-}
-
-func TestWriteFileAtomic_OverwritesExistingFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	target := filepath.Join(dir, "out.txt")
-	original := []byte("original content")
-	updated := []byte("updated content")
-
-	writeErr := os.WriteFile(target, original, 0o600)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	err := (osFS{}).WriteFileAtomic(target, updated, 0o600)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	got, readErr := os.ReadFile(target)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(got).To(Equal(updated), "file must contain the updated bytes")
-}
-
-func TestWriteFileAtomic_RenameFailure_CleansTempAndLeavesOriginalUntouched(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+	g := gomega.NewWithT(t)
 
 	dir := t.TempDir()
 	target := filepath.Join(dir, "file.txt")
 	original := []byte("original content")
 
-	// Write the original file before the failing atomic write.
-	writeErr := os.WriteFile(target, original, 0o600)
-	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(os.WriteFile(target, original, realFSFilePerm)).To(gomega.Succeed())
 
-	if writeErr != nil {
-		return
-	}
-
-	// Track the temp path so we can verify the defer cleans it up.
+	// Real primitives except Rename — parameterizing the dance over
+	// Primitives is what lets this test inject the rename failure with no
+	// export shim (replaces writesafe_test.go's injected-rename test).
 	var tmpSeen string
 
-	err := doAtomicWrite(target, []byte("new content"), 0o600,
-		func(src, _ string) error {
-			tmpSeen = src
+	prims := realPrimitives()
+	prims.Rename = func(oldPath, _ string) error {
+		tmpSeen = oldPath
 
-			return errInjectedRename
-		},
-	)
-
-	g.Expect(err).To(MatchError(ContainSubstring("rename")), "error must mention rename")
-
-	// Original file must be untouched.
-	got, readErr := os.ReadFile(target)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(got).To(Equal(original), "original must be untouched after rename failure")
-
-	// Temp file must be removed by the defer cleanup.
-	if tmpSeen != "" {
-		_, statErr := os.Stat(tmpSeen)
-		g.Expect(os.IsNotExist(statErr)).To(BeTrue(), "temp file must be cleaned up by defer")
+		return errInjectedRename
 	}
-}
 
-func TestWriteFileAtomic_WritesNewFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+	err := fsFromPrims(prims).WriteFileAtomic(target, []byte("new content"), realFSFilePerm)
+	g.Expect(err).To(gomega.MatchError(errInjectedRename))
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("rename")),
+		"error must name the failing dance step")
 
-	dir := t.TempDir()
-	target := filepath.Join(dir, "out.txt")
-	content := []byte("hello atomic world")
+	got, readErr := os.ReadFile(target)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
 
-	err := (osFS{}).WriteFileAtomic(target, content, 0o600)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
+	if readErr != nil {
 		return
 	}
 
-	got, readErr := os.ReadFile(target)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(got).To(Equal(content), "file must contain exactly the written bytes")
+	g.Expect(got).To(gomega.Equal(original), "original must be untouched after rename failure")
+
+	g.Expect(tmpSeen).NotTo(gomega.BeEmpty(), "the dance must reach the rename step")
+	g.Expect(tmpSeen).NotTo(gomega.BeAnExistingFile(), "temp file must be removed by the failure cleanup")
+
+	tmpFiles, globErr := filepath.Glob(filepath.Join(dir, ".file.txt.tmp-*"))
+	g.Expect(globErr).NotTo(gomega.HaveOccurred())
+	g.Expect(tmpFiles).To(gomega.BeEmpty(), "no leftover .tmp-* files must remain after failure")
 }
 
-// errInjectedRename is the sentinel injected by the rename-failure test.
+// errInjectedRename is the sentinel injected by the rename-failure parity test.
 var errInjectedRename = errors.New("injected rename failure")
-```
 
-2. [ ] Run `targ test` — expect FAIL (undefined: osFS / doAtomicWrite). That is the RED.
-
-3. [ ] GREEN: add to `cmd/engram/os_fs.go` (if the cmd-wiring task hasn't created the file yet, create it with exactly this content; if it exists, append only the two functions — `osFS` and the imports will already be there). The moved code is verbatim from internal/cli/writesafe.go lines 9–73 with exactly two mechanical changes: `atomicWriteFile(path, ...)` becomes the method `(osFS) WriteFileAtomic`, and `perm os.FileMode` becomes `perm fs.FileMode` (alias types — `os.Chmod` accepts it unchanged):
-
-```go
-// Package main wires the engram CLI's impure edges (ADR: internal/ purity, #700).
-package main
-
-import (
-	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
+// Directory permission modes for the read-only-dir parity test.
+const (
+	writableDirPerm fs.FileMode = 0o700
+	readOnlyDirPerm fs.FileMode = 0o500
 )
-
-// osFS is the production EdgeFS implementation over the real filesystem.
-type osFS struct{}
-
-// WriteFileAtomic writes data to path atomically: it creates a unique temp
-// file in filepath.Dir(path), sets perms, writes, closes, then renames into
-// place. A same-directory rename is atomic on POSIX — a concurrent reader
-// sees either the old or the new file, never a partial one. On any error the
-// temp file is removed and the original (if any) is left untouched.
-// Moved verbatim from internal/cli/writesafe.go (ADR-0013 semantics preserved).
-func (osFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
-	return doAtomicWrite(path, data, perm, os.Rename)
-}
-
-// doAtomicWrite is the testable core of WriteFileAtomic. The rename parameter
-// is injected so tests can trigger the rename-failure path and verify that the
-// defer cleanup removes the temp file and the original is left untouched.
-func doAtomicWrite(
-	path string,
-	data []byte,
-	perm fs.FileMode,
-	rename func(oldpath, newpath string) error,
-) error {
-	dir := filepath.Dir(path)
-	base := filepath.Base(path)
-
-	tmp, err := os.CreateTemp(dir, "."+base+".tmp-*")
-	if err != nil {
-		return fmt.Errorf("atomic write %s: create temp: %w", path, err)
-	}
-
-	tmpName := tmp.Name()
-
-	// Best-effort cleanup on any error path.
-	success := false
-
-	defer func() {
-		if !success {
-			_ = os.Remove(tmpName)
-		}
-	}()
-
-	chmodErr := os.Chmod(tmpName, perm)
-	if chmodErr != nil {
-		_ = tmp.Close()
-
-		return fmt.Errorf("atomic write %s: chmod temp: %w", path, chmodErr)
-	}
-
-	_, writeErr := tmp.Write(data)
-	if writeErr != nil {
-		_ = tmp.Close()
-
-		return fmt.Errorf("atomic write %s: write temp: %w", path, writeErr)
-	}
-
-	closeErr := tmp.Close()
-	if closeErr != nil {
-		return fmt.Errorf("atomic write %s: close temp: %w", path, closeErr)
-	}
-
-	renameErr := rename(tmpName, path)
-	if renameErr != nil {
-		return fmt.Errorf("atomic write %s: rename: %w", path, renameErr)
-	}
-
-	success = true
-
-	return nil
-}
 ```
 
-4. [ ] Run `targ test` — expect PASS (5 new cmd tests green; internal suite untouched, still green).
-5. [ ] Run `targ check-full` — expect clean, EXCEPT possibly an unused-`osFS` finding if the cmd-wiring task hasn't landed (see sequencing DESIGN FLAG; if flagged, hold this commit until wiring lands rather than suppressing).
+3. [ ] Run `targ test` — expect PASS (the three parity tests green against the landed dance; internal/cli/writesafe_test.go's originals also still green — they are deleted by T13, not here).
+
+4. [ ] Caller-ledger check (verify-only, ZERO edits): `grep -rn "atomicWriteFile(" internal/cli --include="*.go" | grep -v _test | grep -v writesafe.go` → exactly the six callers T13's gate assigns to later tasks (current numbering): amend.go:351 + resituate.go:169 + activate.go:136 + vocab_commands.go:1217 (→ T12), cli.go:144 (→ T4), embed.go:164 (→ T15). A learn.go or qa.go hit → T3 incomplete, STOP. Any caller OUTSIDE this ledger → T13's gate can never clear; escalate to the orchestrator with the exact hit (do not migrate it ad hoc — the owning task's brief must absorb it).
+
+5. [ ] Run `targ check-full` — expect clean. Run `targ check-thin-api` — expect PASS (this task touches no cmd code, so any finding predates it → escalate per Global Constraints, never suppress).
+
 6. [ ] Commit:
 
 ```
-refactor(cli): move atomic write behind EdgeFS (#700)
+test(cli): prove writesafe parity on internal atomic write (#700)
 
-Relocates the internal/cli/writesafe.go temp+chmod+write+close+rename dance
-verbatim onto the production EdgeFS adapter; relocates its 5 regression tests
-as package-main integration tests. internal/cli/writesafe.go stays until all
-internal callers are migrated (removed by the follow-up purge task).
+The ADR-0013 dance lives on internal/cli's primFS.WriteFileAtomic
+(landed by the T1 rework). This closes the writesafe_test.go parity
+gap with real-primitive regression tests — create-temp failure leaves
+the original untouched, injected rename failure cleans the temp, and
+new-file write — so the purge task (T13) can delete writesafe.go with
+zero behavior-coverage loss. Call-site migration stays with the owning
+tasks (T12/T4/T15) per T13's gate.
 
 AI-Used: [claude]
 ```
@@ -4621,13 +5394,13 @@ AI-Used: [claude]
 
 **Files**
 - Create: `internal/cli/deps_compose_internal_test.go` (fake-driven contract tests over the LANDED canonical helpers)
-- Create: `internal/cli/testdeps_test.go`
+- Create: `internal/cli/testdeps_test.go` (`ExportNewTestOsDeps` built through `cli.NewDeps` over a real-OS `Primitives` literal — NO hand-rolled adapter mirrors; composition doctrine)
 - Verify-only (NO edit — R1): `internal/cli/deps_compose.go`. T3 created it and it already carries everything this task's draft once declared: the four parallel-drafted helpers (`edgeVaultFS`, `vaultLuhmannLock`, `warnLoggerTo`, `jsonlIndexesLister`) are LOSERS per R1/R2/R3 — their canonical equivalents are T5's `newVaultFS(fsys EdgeFS)` (vault_fs.go), T3's `vaultLockFromLocker`/`logWarningTo` (deps_compose.go), and T6's `listJSONLIndexes(fsys EdgeFS)` (query_chunks.go). T11 appends NOTHING to deps_compose.go; NEVER apply a full-file `package cli` replacement (it would clobber T3's landed `vaultLockFromLocker`/`logWarningTo`/`statDirFromFS`/`initVaultFromFS`/`list*FromFS`/`write*FromFS` helpers).
 
 **Interfaces**
-- Consumes: `type Deps struct{...}`, `type EdgeFS interface{...}`, `type FileLocker interface{...}` from internal/cli/deps.go (foundation task — M2 is blocked on it); `luhmannLockFile` const (internal/cli/cli.go:16, pure, stays); the landed canonical helpers `newVaultFS` (T5), `listJSONLIndexes` (T6), `vaultLockFromLocker` + `logWarningTo` (T3) — all in place before T11 per R4.
+- Consumes: `type Deps struct{...}`, `type EdgeFS interface{...}`, `type FileLocker interface{...}` from internal/cli/deps.go (foundation task — M2 is blocked on it); `luhmannLockFile` const (internal/cli/cli.go:16, pure, stays); the landed canonical helpers `newVaultFS` (T5), `listJSONLIndexes` (T6), `vaultLockFromLocker` + `logWarningTo` (T3) — all in place before T11 per R4; `NewDeps`, `Primitives` (T1-rework/T2, INCLUDING T3's `OpenExcl` field — in place per R4), and `WriteSyncer` for the step-5 literal.
 - Produces:
-  - Test-only: `func ExportNewTestOsDeps() Deps` (package cli, _test.go file) — this task's ONLY new symbol.
+  - Test-only: `func ExportNewTestOsDeps() Deps` (package cli, _test.go file; body is one `NewDeps` call over an inline real-OS `Primitives` literal) — this task's ONLY new symbol.
   - Additional fake-driven test coverage of the canonical helpers' contracts (wrapped-ErrNotExist handling, lock path, warning format).
 
 **Steps**
@@ -4800,19 +5573,18 @@ var _ = time.Now
 
 4. [ ] (Absorbed into steps 2-3 — no separate GREEN; this task's only production-adjacent artifact is the test-only Deps in step 5.)
 
-5. [ ] Create `internal/cli/testdeps_test.go` (package `cli` — test file, exempt from purity enforcement; mirrors the production cmd adapters so wiring tests exercise real-FS composition). The `WriteFileAtomic` body is intentionally a copy of the production dance (cmd/engram is unimportable):
+5. [ ] Create `internal/cli/testdeps_test.go` (package `cli` — test file, exempt from purity enforcement). Under the composition doctrine this file contains NO adapter implementations: the production `primFS`/`primLocker`/debug-sink impls live in internal (T1-rework) and are reached only through `NewDeps`. The ONLY declaration is `ExportNewTestOsDeps`; its real-OS `Primitives` literal mirrors `cmd/engram/main.go`'s (doctrine flag DRIFT — cli_test.go's end-to-end binary tests guard the production literal; a package-`cli` test file cannot consume cli_test's `realPrimitives()`, hence this second one-screen mirror) minus `StartSignalPulses`, which stays nil so `startForceExit` skips (SIG-1: tests never subscribe process signals). Primitive closures return RAW os errors BY CONTRACT — the `%w` wrap happens exactly once, inside `primFS`/`primLocker`; do NOT add wrapping here (it would double-wrap), and if a linter flags the raw returns in this _test file, escalate rather than wrap. `Deps.Embed` comes out as the NewDeps-wired lazy embedder — production parity with today's `sharedEmbedder`-backed constructors (nothing loads until an embed call); wiring tests needing determinism override the per-command deps field after construction (existing patterns: `fakeEmbedder`, `successEmbedder`). The ADR-0013 concurrent-manifest regression rides `primFS.WriteFileAtomic` — the REAL production dance, not a copy:
 
 ```go
 package cli
 
-// Test-only os-backed edge implementations so wiring-integration tests can
-// drive the production composition (newAmendDeps etc.) against a real
-// filesystem. Production adapters live in cmd/engram (unimportable package
-// main), so this file mirrors them; _test.go files are exempt from the #700
-// internal-purity enforcement.
+// Test-only composition of production Deps over real OS primitives, so
+// wiring-integration tests drive the exact primFS/primLocker/debug-sink
+// implementations the binary ships. Composition doctrine (#700): NewDeps is
+// the single composition root — no hand-rolled adapter mirrors anywhere.
 
 import (
-	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -4820,231 +5592,73 @@ import (
 	"time"
 )
 
-// ExportNewTestOsDeps returns a Deps wired to the real filesystem and clock
-// for wiring tests. Embed is nil — tests needing an embedder override the
-// per-command deps field after construction (existing pattern: fakeEmbedder).
+// ExportNewTestOsDeps returns production-composed Deps for wiring tests:
+// one NewDeps call over an inline real-OS Primitives literal (mirrors
+// cmd/engram/main.go's — doctrine flag DRIFT — minus StartSignalPulses,
+// nil so startForceExit skips per SIG-1). Closures return raw os errors by
+// primitive contract; primFS/primLocker add the single %w wrap.
 func ExportNewTestOsDeps() Deps {
-	return Deps{
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-		Getenv: os.Getenv,
-		Now:    time.Now,
-		FS:     testOsFS{},
-		Lock:   testFlockLocker{},
-	}
-}
+	return NewDeps(Primitives{
+		ReadFile:    os.ReadFile,
+		WriteFile:   os.WriteFile,
+		MkdirAll:    os.MkdirAll,
+		MkdirTemp:   os.MkdirTemp,
+		Stat:        os.Stat,
+		ReadDir:     os.ReadDir,
+		Remove:      os.Remove,
+		RemoveAll:   os.RemoveAll,
+		Rename:      os.Rename,
+		Chmod:       os.Chmod,
+		WalkDir:     filepath.WalkDir,
+		Getenv:      os.Getenv,
+		Now:         time.Now,
+		Getwd:       os.Getwd,
+		UserHomeDir: os.UserHomeDir,
+		CreateTemp: func(dir, pattern string) (string, error) {
+			file, err := os.CreateTemp(dir, pattern)
+			if err != nil {
+				return "", err
+			}
 
-// testFlockLocker implements FileLocker via an exclusive flock, mirroring the
-// production cmd/engram flockLocker (ADR-0013).
-type testFlockLocker struct{}
+			return file.Name(), file.Close()
+		},
+		OpenExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
+			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // test helper, path from test
+		},
+		OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
+			fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
 
-// Lock opens path (O_CREATE|O_RDWR), acquires LOCK_EX, and returns an unlock
-// that releases and closes.
-func (testFlockLocker) Lock(path string) (func() error, error) {
-	const perm = 0o600
-
-	lockFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, perm) //nolint:gosec // test helper
-	if err != nil {
-		return nil, fmt.Errorf("open lock: %w", err)
-	}
-
-	fileDescriptor := int(lockFile.Fd())
-
-	flockErr := syscall.Flock(fileDescriptor, syscall.LOCK_EX)
-	if flockErr != nil {
-		_ = lockFile.Close()
-
-		return nil, fmt.Errorf("flock: %w", flockErr)
-	}
-
-	return func() error {
-		_ = syscall.Flock(fileDescriptor, syscall.LOCK_UN)
-
-		closeErr := lockFile.Close()
-		if closeErr != nil {
-			return fmt.Errorf("close lock: %w", closeErr)
-		}
-
-		return nil
-	}, nil
-}
-
-// testOsFS implements EdgeFS over the real filesystem for wiring tests.
-type testOsFS struct{}
-
-func (testOsFS) MkdirAll(path string, perm fs.FileMode) error {
-	err := os.MkdirAll(path, perm)
-	if err != nil {
-		return fmt.Errorf("mkdir %s: %w", path, err)
-	}
-
-	return nil
-}
-
-func (testOsFS) MkdirTemp(dir, pattern string) (string, error) {
-	made, err := os.MkdirTemp(dir, pattern)
-	if err != nil {
-		return "", fmt.Errorf("mkdtemp %s: %w", dir, err)
-	}
-
-	return made, nil
-}
-
-func (testOsFS) ReadDir(path string) ([]fs.DirEntry, error) {
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("read dir %s: %w", path, err)
-	}
-
-	return entries, nil
-}
-
-func (testOsFS) ReadFile(path string) ([]byte, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // test helper, path from test
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-
-	return data, nil
-}
-
-func (testOsFS) Remove(path string) error {
-	err := os.Remove(path)
-	if err != nil {
-		return fmt.Errorf("remove %s: %w", path, err)
-	}
-
-	return nil
-}
-
-func (testOsFS) RemoveAll(path string) error {
-	err := os.RemoveAll(path)
-	if err != nil {
-		return fmt.Errorf("remove all %s: %w", path, err)
-	}
-
-	return nil
-}
-
-func (testOsFS) Rename(oldPath, newPath string) error {
-	err := os.Rename(oldPath, newPath)
-	if err != nil {
-		return fmt.Errorf("rename %s: %w", oldPath, err)
-	}
-
-	return nil
-}
-
-func (testOsFS) Stat(path string) (fs.FileInfo, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return nil, fmt.Errorf("stat %s: %w", path, err)
-	}
-
-	return info, nil
-}
-
-func (testOsFS) WalkDir(root string, walkFn fs.WalkDirFunc) error {
-	err := filepath.WalkDir(root, walkFn)
-	if err != nil {
-		return fmt.Errorf("walk %s: %w", root, err)
-	}
-
-	return nil
-}
-
-func (testOsFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
-	err := os.WriteFile(path, data, perm) //nolint:gosec // test helper
-	if err != nil {
-		return fmt.Errorf("write %s: %w", path, err)
-	}
-
-	return nil
-}
-
-// WriteFileAtomic mirrors the production cmd/engram temp+rename dance — the
-// real semantics matter here: ingest's concurrent-manifest regression test
-// (ADR-0013) races goroutines through this writer and depends on readers
-// never seeing a torn write.
-func (testOsFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
-	dir := filepath.Dir(path)
-	base := filepath.Base(path)
-
-	tmp, err := os.CreateTemp(dir, "."+base+".tmp-*")
-	if err != nil {
-		return fmt.Errorf("atomic write %s: create temp: %w", path, err)
-	}
-
-	tmpName := tmp.Name()
-
-	success := false
-
-	defer func() {
-		if !success {
-			_ = os.Remove(tmpName)
-		}
-	}()
-
-	chmodErr := os.Chmod(tmpName, perm)
-	if chmodErr != nil {
-		_ = tmp.Close()
-
-		return fmt.Errorf("atomic write %s: chmod temp: %w", path, chmodErr)
-	}
-
-	_, writeErr := tmp.Write(data)
-	if writeErr != nil {
-		_ = tmp.Close()
-
-		return fmt.Errorf("atomic write %s: write temp: %w", path, writeErr)
-	}
-
-	closeErr := tmp.Close()
-	if closeErr != nil {
-		return fmt.Errorf("atomic write %s: close temp: %w", path, closeErr)
-	}
-
-	renameErr := os.Rename(tmpName, path)
-	if renameErr != nil {
-		return fmt.Errorf("atomic write %s: rename: %w", path, renameErr)
-	}
-
-	success = true
-
-	return nil
-}
-
-// WriteFileExcl mirrors the production cmd/engram exclusive create
-// (O_CREATE|O_EXCL) — the ADR-0013 K1 collision backstop. A wrapped
-// fs.ErrExist survives errors.Is, matching the EdgeFS contract.
-func (testOsFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // test helper
-	if err != nil {
-		return fmt.Errorf("write excl %s: %w", path, err)
-	}
-
-	defer func() { _ = file.Close() }()
-
-	_, writeErr := file.Write(data)
-	if writeErr != nil {
-		return fmt.Errorf("write excl %s: %w", path, writeErr)
-	}
-
-	return nil
+			return uintptr(fd), err
+		},
+		FlockExclusive: func(fd uintptr) error {
+			return syscall.Flock(int(fd), syscall.LOCK_EX)
+		},
+		FlockUnlock: func(fd uintptr) error {
+			return syscall.Flock(int(fd), syscall.LOCK_UN)
+		},
+		CloseFD: func(fd uintptr) error {
+			return syscall.Close(int(fd))
+		},
+		OpenDebugFile: func(path string, perm fs.FileMode) (WriteSyncer, error) {
+			return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm) //nolint:gosec // test helper, operator-controlled path
+		},
+	}, os.Stdout, os.Stderr, func(int) {})
 }
 ```
 
-6. [ ] Run `targ test` then `targ check-full` — expect PASS/clean. (`ExportNewTestOsDeps` is unreferenced until M3; if the unused linter flags it, land M2+M3 as one PR — do not suppress.)
+6. [ ] Run `targ test` then `targ check-full` — expect PASS/clean. Run `targ check-thin-api` — expect PASS (this task adds internal test files only; per Global Constraints any finding escalates to the orchestrator, never suppressed). (`ExportNewTestOsDeps` is unreferenced until M3; if the unused linter flags it, land M2+M3 as one PR — do not suppress.)
 7. [ ] Commit:
 
 ```
-test(cli): add os-backed test Deps + compose-contract tests (#700)
+test(cli): NewDeps-composed test Deps + compose-contract tests (#700)
 
-ExportNewTestOsDeps mirrors the cmd adapters so wiring tests keep
-exercising the real filesystem; fake-driven contract tests cover the
-landed canonical helpers (newVaultFS, listJSONLIndexes,
-vaultLockFromLocker, logWarningTo). No production code — the M2 draft's
-own helpers were losers per R1/R2/R3 and were never declared.
+ExportNewTestOsDeps builds Deps through cli.NewDeps over real OS
+primitives — the same primFS/primLocker composition the binary ships —
+so wiring tests exercise production composition, not a hand-rolled os
+adapter mirror (composition doctrine). Fake-driven contract tests cover
+the landed canonical helpers (newVaultFS, listJSONLIndexes,
+vaultLockFromLocker, logWarningTo). The M2 draft's own helpers were
+losers per R1/R2/R3 and were never declared.
 
 AI-Used: [claude]
 ```
@@ -5278,7 +5892,7 @@ func newVocabStatsDeps(d Deps) VocabStatsDeps {
 }
 ```
 
-6.5. [ ] **Migrate the `ExportNewOsVaultFS` call sites (R12 — this task owns the vocab test files).** Replace every `osFS := cli.ExportNewOsVaultFS()` with `osFS := cli.ExportNewVaultFS(osTestEdgeFS{})` (T5's export over the cli_test real-FS EdgeFS double — same `ListMD`/`ReadFile` shape and semantics; `osTestEdgeFS` lives in T5's edgefs_os_test.go, same package cli_test). Sites (verified in the pristine tree; locate by the call expression, not line): vocab_trigger_test.go:251, 441; vocab_commands_test.go:96, 131, 198, 231, 543, 559, 613, 651, 3856, 3874. After the edit: `rg -n "ExportNewOsVaultFS" internal/cli --include='*_test.go'` → hits ONLY in export_test.go (the shim definition, which T7 deletes). Without this step T7's shim deletion is a compile break its gate grep cannot see (R12).
+- [ ] 6.5. **Migrate the `ExportNewOsVaultFS` call sites (R12 — this task owns the vocab test files).** Replace every `osFS := cli.ExportNewOsVaultFS()` with `osFS := cli.ExportNewVaultFS(osTestEdgeFS{})` (T5's export over the cli_test real-FS EdgeFS double — same `ListMD`/`ReadFile` shape and semantics; `osTestEdgeFS` lives in T5's edgefs_os_test.go, same package cli_test). Sites (verified in the pristine tree; locate by the call expression, not line): vocab_trigger_test.go:251, 441; vocab_commands_test.go:96, 131, 198, 231, 543, 559, 613, 651, 3856, 3874. After the edit: `rg -n "ExportNewOsVaultFS" internal/cli --include='*_test.go'` → hits ONLY in export_test.go (the shim definition, which T7 deletes). Without this step T7's shim deletion is a compile break its gate grep cannot see (R12).
 
 7. [ ] targets.go call-expression updates (coordinate with wiring cluster's `deps Deps` threading through `amendResituateTargets`/`ingestQueryTargets`/`vocabTargets`; only the constructor expressions belong to this task):
    - line 108: `newOsResituateDeps()` → `newResituateDeps(deps)`
@@ -5319,7 +5933,7 @@ AI-Used: [claude]
 **Files**
 - Delete: `internal/cli/writesafe.go`, `internal/cli/writesafe_test.go`
 - Modify: `internal/cli/export_test.go` (remove two shims)
-- Verify-only (no edit): `internal/cli/ingest_test.go` (`realFS.write` already repointed by T8 step 6 — step 1 verifies)
+- Verify-only (no edit): `internal/cli/ingest_test.go` (`realFS.write` already repointed by T8 step 6 — step 1 verifies); `internal/cli/edgefs_test.go` + `internal/cli/primitives_integration_test.go` (the surviving atomic-write coverage — step 2 verifies presence, no edits)
 
 **Interfaces**
 - Removes: `atomicWriteFile`, `doAtomicWrite`, `ExportAtomicWriteFile`, `ExportDoAtomicWrite` from internal/cli.
@@ -5336,7 +5950,8 @@ func (r *realFS) write(_, path string, data []byte) error {
 
 and `rg -n "ExportAtomicWriteFile" internal/cli/ingest_test.go` → zero hits. Any `ExportAtomicWriteFile` reference remaining outside writesafe_test.go → T8 incomplete, STOP.
 
-2. [ ] Delete `internal/cli/writesafe.go` and `internal/cli/writesafe_test.go` (all five behaviors live on as cmd/engram/os_fs_atomic_test.go from M1).
+2. [ ] Delete `internal/cli/writesafe.go` and `internal/cli/writesafe_test.go`. All five writesafe behaviors live on INTERNALLY against the composed `primFS.WriteFileAtomic` (internal/cli/edgefs.go, landed by T1-rework — the revised doctrine's relocation target; nothing relocates to cmd/engram, which holds only the declaration-free main.go): the fake-prims dance suite (`TestEdgeFS_WriteFileAtomicHappyPathDance`, `TestEdgeFS_WriteFileAtomicFailuresRemoveTemp` — edgefs_test.go) plus the real-primitive suite (`TestRealEdgeFS_WriteFileAtomic*` — primitives_integration_test.go), completed by T10's parity tests per T10's behavior-parity ledger. Verify before deleting: `rg -n "TestRealEdgeFS_WriteFileAtomicWritesNewFile|TestRealEdgeFS_WriteFileAtomicCreateTempFailureLeavesOriginalUntouched|TestRealEdgeFS_WriteFileAtomicRenameFailureCleansTempAndOriginal" internal/cli/primitives_integration_test.go` → all three present (any miss → T10 incomplete, STOP).
+
 3. [ ] In export_test.go, delete the two function shims (lines 204-207 and 331-340 in current numbering):
 
 ```go
@@ -5361,52 +5976,541 @@ func ExportDoAtomicWrite(
 (If these were export_test.go's last uses of the `os` import, drop that import too — check compile.)
 
 4. [ ] Verify gate held: `grep -rn "atomicWriteFile\|doAtomicWrite" internal/` — expected EMPTY.
-5. [ ] Run `targ test` — expect PASS, including the ingest concurrent-writers regression test (its lock is still real flock via T8's test-local `testFlocker` — R7 — and its writer is T8's `testAtomicWrite`).
-6. [ ] Run `targ check-full` — expect clean.
+5. [ ] Run `targ test` — expect PASS, including the ingest concurrent-writers regression test (its lock is still real flock via T8's test-local `testFlocker` — R7 — and its writer is T8's `testAtomicWrite`) and the surviving internal atomic-write suites named in step 2.
+6. [ ] Run `targ check-full` — expect clean. Run `targ check-thin-api` — expect PASS (this task touches no cmd code; per Global Constraints any finding escalates to the orchestrator, never suppressed).
 7. [ ] Commit:
 
 ```
 refactor(cli): delete internal atomic-write (#700)
 
-writesafe.go's dance now lives solely on cmd/engram's EdgeFS adapter (and its
-test mirror); the ADR-0013 concurrent-manifest regression test now writes
-through the test EdgeFS's WriteFileAtomic with identical temp+rename
-semantics.
+writesafe.go's dance now lives solely on internal/cli/edgefs.go's
+primFS.WriteFileAtomic, composed from Primitives and covered by the
+fake-prims dance suite plus the real-primitive parity suite (T10's
+ledger carries all five writesafe behaviors). The ADR-0013
+concurrent-manifest regression test writes through T8's test-local
+testAtomicWrite with identical temp+rename semantics.
 
 AI-Used: [claude]
 ```
 
 ---
 
-Key file paths: /Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/cli/{writesafe.go, writesafe_test.go, amend.go, resituate.go, activate.go, vocab.go, vocab_commands.go, vault_init.go, cli.go, targets.go, export_test.go, ingest_test.go, learn_test.go}, /Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/cmd/engram/main.go.
+Key file paths: /Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/internal/cli/{writesafe.go, writesafe_test.go, edgefs.go, edgefs_test.go, primitives_integration_test.go, amend.go, resituate.go, activate.go, vocab.go, vocab_commands.go, vault_init.go, cli.go, targets.go, export_test.go, ingest_test.go, learn_test.go}, /Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity/cmd/engram/main.go.
 
-### Task T14 (A): Move hugot backend + model-cache FS out of internal/embed; inject Backend/CacheFS seams
+### Task T14 (A): internal/embed purification — Backend/CacheFS composed internally; thin hugot Runtime at the cmd edge (doctrine D-1)
+
+**Doctrine note (BINDING — this rework applies the revised composition doctrine; it supersedes the pre-correction embed draft):** cmd/engram contributes ONLY thin declarations for the embedder path: one EMPTY struct `hugotRuntime` whose two methods are checker-verified thin shapes, plus one field line in `cmd/engram/main.go`'s `cli.Primitives` literal. ALL orchestration — session→pipeline lifecycle with destroy-on-failure, pipeline config policy (`engram-embed` / `model.onnx`), cache extraction, sentinel policy, permission policy, exist-error classification, and every `%w` wrap — lives in `internal/embed`, parameterized over injected capabilities. `Deps.Embed` stays wired INSIDE `cli.NewDeps` (R6/D-1); this task flips that line to the 3-arg constructor. Task-local design flags (within D-1's stated latitude — the doctrine's supersession map delegates "the exact field shapes" to this brief):
+
+- **E-1 (runtime erasure shape — checker-derived):** `Runtime.NewPipeline` returns the pipeline's run function (`RunPipelineFunc`) as a closure over the concrete hugot pipeline, instead of an opaque handle that a separate `Run` method re-asserts. Reason, verified against targ's `checkFuncThinness`/`isSimpleErrorWrapper` source: the wrapper pattern requires statement 1's RHS to be a call whose receiver is a bare identifier — `pipeline.(*T).RunPipeline(...)` (type-asserted receiver) provably FAILS the gate, so an empty-struct `Run(pipeline any, ...)` mapping method is impossible. The closure form passes: `NewPipeline`'s body is the sanctioned 3-statement wrapper (`x, err := hugot.NewPipeline(...)`, `if err != nil`, `return`), whose third statement need only BE a return; the returned closure is doctrine-capped at a trivially-sequenced single-call body (call on the captured ident, err-check, selector return). No `any`, no re-assertion, no `pipelines` import in cmd.
+- **E-2 (no new cache fields on Primitives):** D-1 names "backend/cache capability fields"; the cache side needs NO new fields — the T1-rework `cli.Primitives` FS fields (`Stat`, `MkdirAll`, `MkdirTemp`, `WriteFile`, `Rename`, `RemoveAll`) already carry every raw capability the cache composition needs, and `cli.NewDeps` forwards them into `embed.CacheFSPrims` verbatim. Only ONE new Primitives field lands: `EmbedRuntime embed.Runtime`.
+- **E-3 (exist-classification moves internal, os-free):** the old `isExistErr`/`renameIsExist` sniffing cannot live in cmd (multi-statement) nor import `os` in internal. Internal `renameIsExist` uses `errors.Is(err, fs.ErrExist)` — which already covers EEXIST and, via `syscall.Errno.Is`'s ENOTEMPTY mapping, the macOS dir-over-dir case through `*os.LinkError`'s `Unwrap` — plus a `strings.Contains` fallback on the message ("file exists" / "directory not empty") preserving the previous defensive sniffing. The real-OS integration test (rename onto populated dir) keeps this honest on the actual platform.
 
 **Files**
 
+- Create: `internal/embed/runtime.go` (Runtime seam + `NewRuntimeBackend` composition), `internal/embed/cachefs.go` (`CacheFSPrims` + `NewCacheFS` composition), `internal/embed/runtime_test.go`, `internal/embed/cachefs_test.go`, `internal/embed/cachefs_integration_test.go` (real-os `_test` — sanctioned by the purity lint's `!$test` exclusion)
 - Modify: `internal/embed/hugot.go` (full rewrite below)
 - Modify: `internal/embed/cache.go` (full rewrite below)
 - Modify: `internal/embed/export_test.go` (full rewrite below)
 - Modify: `internal/embed/hugot_test.go`, `internal/embed/cache_test.go`, `internal/embed/buildembedder_test.go`, `internal/embed/overlength_test.go`, `internal/embed/embedder_fake_test.go`
 - Delete: `internal/embed/production_cache_test.go`, `internal/embed/production_hugot_test.go`, `internal/embed/unpack_test.go`, `internal/embed/tempfs_test.go`
-- Create: `cmd/engram/hugot.go`, `cmd/engram/hugot_test.go`, `cmd/engram/os_cachefs_test.go`, `cmd/engram/bundled_smoke_test.go`, `cmd/engram/testdata/model-stub.txt`
-- Modify: `internal/cli/embed.go` (sharedEmbedder → bridge; delete `modelCacheDir`), `internal/cli/targets.go` (wire bridge), `internal/cli/export_test.go` (bridge export), `cmd/engram/main.go` (the Deps literal's `Embed:` line — the R6 3-arg `embed.NewLazyEmbedder` arity flip lands here in the same commit)
+- Create: `cmd/engram/hugot.go` (THIN: empty `hugotRuntime` struct + two thin methods, NOTHING else), `cmd/engram/hugot_test.go` (the sanctioned cmd wiring-smoke tests — `_test.go` is exempt from `check-thin-api`), `cmd/engram/testdata/model-stub.txt`
+- Modify: `internal/cli/primitives.go` (Primitives gains `EmbedRuntime embed.Runtime`; `NewDeps`'s guarded Embed line → 3-arg composition — the R6 arity flip lands HERE, not in cmd), `internal/cli/embed.go` (sharedEmbedder → bridge; delete `modelCacheDir`), `internal/cli/targets.go` (wire bridge), `internal/cli/export_test.go` (bridge export), `cmd/engram/main.go` (Primitives literal gains ONE line: `EmbedRuntime: hugotRuntime{},`)
 - Create: `internal/cli/embed_bridge_test.go`
 
 **Interfaces**
 
-- Produces: `embed.Backend` — `OpenPipeline(ctx context.Context, modelDir string) (PipelineHandle, error)`; `embed.PipelineHandle` — `RunPipeline(ctx context.Context, inputs []string) (FeatureOutput, error)`, `Destroy() error`; `embed.FeatureOutput{ Embeddings [][]float32 }`; `embed.CacheFS` (exported rename of `cacheFS`, same 7 methods, Rename contract = `errors.Is(err, fs.ErrExist)`); `embed.BundledModelFS() stdembed.FS`; `embed.BundledModelDir = "assets/model"`; new constructor signatures `NewBundledHugotEmbedder(ctx, backend Backend, cfs CacheFS, cacheDir string)`, `NewHugotEmbedderFromDir(ctx, backend Backend, modelDir, modelID string)`, `NewHugotEmbedderFromFS(ctx, backend Backend, cfs CacheFS, modelFS stdembed.FS, modelDir, modelID, cacheDir string)`, `NewLazyEmbedder(backend Backend, cfs CacheFS, cacheDir string)`; cmd-side `newHugotBackend() hugotBackend`, `osCacheFS`, `newProductionEmbedder() *embed.LazyEmbedder`; cli-side `wireSharedEmbedder(embed.Embedder)`.
-- Consumes: `cli.CacheDirFromHome(home, modelID string, getenv func(string) string) string` (targets.go:56, unchanged); foundation's `cli.Deps.Embed embed.Embedder` field.
+- Produces (internal/embed): `embed.Backend` — `OpenPipeline(ctx context.Context, modelDir string) (PipelineHandle, error)`; `embed.PipelineHandle` — `RunPipeline(ctx context.Context, inputs []string) (FeatureOutput, error)`, `Destroy() error`; `embed.FeatureOutput{ Embeddings [][]float32 }`; `embed.CacheFS` (exported rename of `cacheFS`, same 7 methods, Rename contract = `errors.Is(err, fs.ErrExist)`); `embed.RawSession` — `Destroy() error`; `embed.RunPipelineFunc func(ctx context.Context, inputs []string) ([][]float32, error)`; `embed.Runtime` — `NewSession(ctx context.Context) (RawSession, error)`, `NewPipeline(session RawSession, modelPath, name, onnxFilename string) (RunPipelineFunc, error)`; `embed.NewRuntimeBackend(runtime Runtime) Backend`; `embed.CacheFSPrims` (six func fields with signatures identical to the matching `cli.Primitives` fields); `embed.NewCacheFS(prims CacheFSPrims) CacheFS`; `embed.ErrRuntimeMissing`; `embed.BundledModelFS() stdembed.FS`; `embed.BundledModelDir = "assets/model"`; new constructor signatures `NewBundledHugotEmbedder(ctx, backend Backend, cfs CacheFS, cacheDir string)`, `NewHugotEmbedderFromDir(ctx, backend Backend, modelDir, modelID string)`, `NewHugotEmbedderFromFS(ctx, backend Backend, cfs CacheFS, modelFS stdembed.FS, modelDir, modelID, cacheDir string)`, `NewLazyEmbedder(backend Backend, cfs CacheFS, cacheDir string)`.
+- Produces (internal/cli): `Primitives.EmbedRuntime embed.Runtime` field; the 3-arg NewDeps Embed composition; `wireSharedEmbedder(embed.Embedder)` (unexported, called from `Targets`).
+- Produces (cmd/engram): `hugotRuntime` — EMPTY struct implementing `embed.Runtime` with exactly two thin methods; NO other new declarations in package main.
+- Consumes: T2's landed `NewDeps` guarded Embed wiring (`internal/cli/primitives.go` — exact before-text in step 9); `cli.CacheDirFromHome(home, modelID string, getenv func(string) string) string` (targets.go:56, unchanged); foundation's `cli.Deps.Embed embed.Embedder` field; `hugot.NewGoSession` / `hugot.NewPipeline` / `hugot.FeatureExtractionConfig` (cmd `_test` and `cmd/engram/hugot.go` only).
 
 **Steps**
 
-- [ ] 1. **RED — new cmd adapter integration tests first.** Create `cmd/engram/testdata/model-stub.txt` containing `stub model payload` (one line). Create `cmd/engram/os_cachefs_test.go`:
+- [ ] 1. **RED — internal composition tests first.** Create `internal/embed/runtime_test.go` (unit tests of the internally-composed backend lifecycle over a fake Runtime — these are the relocated semantics of the old cmd backend-branch tests):
 
 ```go
-package main
+package embed_test
 
 import (
-	stdembed "embed"
+	"context"
+	"errors"
+	"testing"
+
+	. "github.com/onsi/gomega"
+
+	"github.com/toejough/engram/internal/embed"
+)
+
+// fakeRuntime scripts the raw runtime seam so every branch of the
+// internally-composed backend is unit-testable without hugot.
+type fakeRuntime struct {
+	sessionErr     error
+	pipelineErr    error
+	destroyErr     error
+	destroyCalls   int
+	pipelineCalled bool
+	runFn          embed.RunPipelineFunc
+	gotModelPath   string
+	gotName        string
+	gotOnnxFile    string
+}
+
+func (f *fakeRuntime) NewPipeline(
+	_ embed.RawSession, modelPath, name, onnxFilename string,
+) (embed.RunPipelineFunc, error) {
+	f.pipelineCalled = true
+	f.gotModelPath = modelPath
+	f.gotName = name
+	f.gotOnnxFile = onnxFilename
+
+	if f.pipelineErr != nil {
+		return nil, f.pipelineErr
+	}
+
+	return f.runFn, nil
+}
+
+func (f *fakeRuntime) NewSession(context.Context) (embed.RawSession, error) {
+	if f.sessionErr != nil {
+		return nil, f.sessionErr
+	}
+
+	return fakeRuntimeSession{runtime: f}, nil
+}
+
+type fakeRuntimeSession struct{ runtime *fakeRuntime }
+
+func (s fakeRuntimeSession) Destroy() error {
+	s.runtime.destroyCalls++
+
+	return s.runtime.destroyErr
+}
+
+// TestRuntimeBackend_NilRuntimeFailsLoud asserts a Deps carrier built from
+// Primitives without EmbedRuntime surfaces a clear error, never a panic.
+func TestRuntimeBackend_NilRuntimeFailsLoud(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, err := embed.NewRuntimeBackend(nil).OpenPipeline(t.Context(), "/tmp/x")
+	g.Expect(err).To(MatchError(embed.ErrRuntimeMissing))
+}
+
+// TestRuntimeBackend_SessionFailPropagates exercises the first error branch
+// of the composed OpenPipeline: NewSession returns an error.
+func TestRuntimeBackend_SessionFailPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sessionErr := errors.New("session blocked")
+	runtime := &fakeRuntime{sessionErr: sessionErr}
+
+	_, err := embed.NewRuntimeBackend(runtime).OpenPipeline(t.Context(), "/tmp/x")
+	g.Expect(err).To(MatchError(ContainSubstring("hugot session")))
+	g.Expect(err).To(MatchError(ContainSubstring("session blocked")))
+	g.Expect(runtime.pipelineCalled).To(BeFalse(),
+		"NewPipeline must not be called when NewSession fails")
+}
+
+// TestRuntimeBackend_PipelineFailDestroysSession exercises the second error
+// branch: NewPipeline fails and the session's Destroy is called.
+func TestRuntimeBackend_PipelineFailDestroysSession(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	pipeErr := errors.New("pipeline blocked")
+	runtime := &fakeRuntime{pipelineErr: pipeErr}
+
+	_, err := embed.NewRuntimeBackend(runtime).OpenPipeline(t.Context(), "/tmp/x")
+	g.Expect(err).To(MatchError(ContainSubstring("hugot pipeline")))
+	g.Expect(err).To(MatchError(ContainSubstring("pipeline blocked")))
+	g.Expect(runtime.destroyCalls).
+		To(Equal(1), "session.Destroy must be called on pipeline failure")
+}
+
+// TestRuntimeBackend_ConfigPolicyIsInternal proves the pipeline config
+// policy (name, onnx filename) lives internal: the raw runtime receives
+// the values without cmd declaring them.
+func TestRuntimeBackend_ConfigPolicyIsInternal(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	runtime := &fakeRuntime{
+		runFn: func(context.Context, []string) ([][]float32, error) {
+			return [][]float32{{1}}, nil
+		},
+	}
+
+	_, err := embed.NewRuntimeBackend(runtime).OpenPipeline(t.Context(), "/models/m1")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(runtime.gotModelPath).To(Equal("/models/m1"))
+	g.Expect(runtime.gotName).To(Equal("engram-embed"))
+	g.Expect(runtime.gotOnnxFile).To(Equal("model.onnx"))
+}
+
+// TestRuntimeBackend_RunMapsOutput drives the happy path through the
+// returned handle: raw [][]float32 maps into embed.FeatureOutput.
+func TestRuntimeBackend_RunMapsOutput(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	runtime := &fakeRuntime{
+		runFn: func(context.Context, []string) ([][]float32, error) {
+			return [][]float32{{1, 2}}, nil
+		},
+	}
+
+	handle, err := embed.NewRuntimeBackend(runtime).OpenPipeline(t.Context(), "/tmp/x")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	out, runErr := handle.RunPipeline(t.Context(), []string{"hello"})
+	g.Expect(runErr).NotTo(HaveOccurred())
+	g.Expect(out.Embeddings).To(Equal([][]float32{{1, 2}}))
+}
+
+// TestRuntimeBackend_RunErrorPropagates exercises the run error branch of
+// the composed handle.
+func TestRuntimeBackend_RunErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	runErr := errors.New("run blocked")
+	runtime := &fakeRuntime{
+		runFn: func(context.Context, []string) ([][]float32, error) {
+			return nil, runErr
+		},
+	}
+
+	handle, err := embed.NewRuntimeBackend(runtime).OpenPipeline(t.Context(), "/tmp/x")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	_, err = handle.RunPipeline(t.Context(), []string{"hello"})
+	g.Expect(err).To(MatchError(ContainSubstring("hugot run")))
+	g.Expect(err).To(MatchError(ContainSubstring("run blocked")))
+}
+
+// TestRuntimeBackend_DestroyErrorPropagates exercises the error branch of
+// the composed handle's Destroy.
+func TestRuntimeBackend_DestroyErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	destroyErr := errors.New("destroy blocked")
+	runtime := &fakeRuntime{
+		destroyErr: destroyErr,
+		runFn: func(context.Context, []string) ([][]float32, error) {
+			return [][]float32{{1}}, nil
+		},
+	}
+
+	handle, err := embed.NewRuntimeBackend(runtime).OpenPipeline(t.Context(), "/tmp/x")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	err = handle.Destroy()
+	g.Expect(err).To(MatchError(ContainSubstring("hugot session destroy")))
+	g.Expect(err).To(MatchError(ContainSubstring("destroy blocked")))
+}
+```
+
+Create `internal/embed/cachefs_test.go` (unit tests of the composed CacheFS over fake primitives — sentinel policy, permission policy, wraps, and the exist contract; the relocated semantics of the old cmd `osCacheFS` method tests):
+
+```go
+package embed_test
+
+import (
+	"errors"
+	"io/fs"
+	"os"
+	"testing"
+
+	. "github.com/onsi/gomega"
+
+	"github.com/toejough/engram/internal/embed"
+)
+
+// cachePrimRecorder scripts and records the raw-primitive calls the
+// composed CacheFS makes, so sentinel/permission policy and error wraps
+// are assertable without a real disk. Each (sub)test builds its own
+// recorder — no shared mutable state across parallel tests.
+type cachePrimRecorder struct {
+	statPath     string
+	statErr      error
+	mkdirAllPath string
+	mkdirAllPerm fs.FileMode
+	mkdirAllErr  error
+	mkdirTempErr error
+	writePath    string
+	writeData    []byte
+	writePerm    fs.FileMode
+	writeErr     error
+	renameErr    error
+	removeAllErr error
+}
+
+func (r *cachePrimRecorder) prims() embed.CacheFSPrims {
+	return embed.CacheFSPrims{
+		Stat: func(path string) (fs.FileInfo, error) {
+			r.statPath = path
+
+			return nil, r.statErr
+		},
+		MkdirAll: func(path string, perm fs.FileMode) error {
+			r.mkdirAllPath = path
+			r.mkdirAllPerm = perm
+
+			return r.mkdirAllErr
+		},
+		MkdirTemp: func(_, _ string) (string, error) {
+			return "/tmp/fake-extract", r.mkdirTempErr
+		},
+		WriteFile: func(path string, data []byte, perm fs.FileMode) error {
+			r.writePath = path
+			r.writeData = data
+			r.writePerm = perm
+
+			return r.writeErr
+		},
+		Rename: func(_, _ string) error {
+			return r.renameErr
+		},
+		RemoveAll: func(_ string) error {
+			return r.removeAllErr
+		},
+	}
+}
+
+// TestCacheFS_StatSentinel covers the sentinel-probe branches and proves
+// the ".complete" sentinel name is internal policy (the raw Stat sees the
+// joined path).
+func TestCacheFS_StatSentinel(t *testing.T) {
+	t.Parallel()
+
+	t.Run("missing sentinel is false, nil", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{statErr: fs.ErrNotExist}
+
+		present, err := embed.NewCacheFS(recorder.prims()).StatSentinel("/cache/m1")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(present).To(BeFalse())
+		g.Expect(recorder.statPath).To(Equal("/cache/m1/.complete"))
+	})
+
+	t.Run("stat failure wraps", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{statErr: errors.New("disk gone")}
+
+		_, err := embed.NewCacheFS(recorder.prims()).StatSentinel("/cache/m1")
+		g.Expect(err).To(MatchError(ContainSubstring("stat sentinel")))
+		g.Expect(err).To(MatchError(ContainSubstring("disk gone")))
+	})
+
+	t.Run("present sentinel is true, nil", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{}
+
+		present, err := embed.NewCacheFS(recorder.prims()).StatSentinel("/cache/m1")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(present).To(BeTrue())
+	})
+}
+
+// TestCacheFS_MkdirAll asserts the internal dir-perm policy (0o755) and
+// the error wrap.
+func TestCacheFS_MkdirAll(t *testing.T) {
+	t.Parallel()
+
+	t.Run("passes 0o755 and succeeds", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{}
+
+		g.Expect(embed.NewCacheFS(recorder.prims()).MkdirAll("/cache")).To(Succeed())
+		g.Expect(recorder.mkdirAllPath).To(Equal("/cache"))
+		g.Expect(recorder.mkdirAllPerm).To(Equal(fs.FileMode(0o755)))
+	})
+
+	t.Run("failure wraps", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{mkdirAllErr: errors.New("denied")}
+
+		err := embed.NewCacheFS(recorder.prims()).MkdirAll("/cache")
+		g.Expect(err).To(MatchError(ContainSubstring("mkdir all")))
+		g.Expect(err).To(MatchError(ContainSubstring("denied")))
+	})
+}
+
+// TestCacheFS_MkdirTemp covers passthrough and wrap.
+func TestCacheFS_MkdirTemp(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns the created dir", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{}
+
+		tmp, err := embed.NewCacheFS(recorder.prims()).MkdirTemp("/cache", ".tmp-*")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(tmp).To(Equal("/tmp/fake-extract"))
+	})
+
+	t.Run("failure wraps", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{mkdirTempErr: errors.New("full")}
+
+		_, err := embed.NewCacheFS(recorder.prims()).MkdirTemp("/cache", ".tmp-*")
+		g.Expect(err).To(MatchError(ContainSubstring("mkdir temp")))
+	})
+}
+
+// TestCacheFS_WriteFile asserts the internal file-perm policy (0o600) and
+// the error wrap.
+func TestCacheFS_WriteFile(t *testing.T) {
+	t.Parallel()
+
+	t.Run("passes 0o600 and succeeds", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{}
+
+		g.Expect(embed.NewCacheFS(recorder.prims()).WriteFile("/tmp/x/model.onnx", []byte("m"))).
+			To(Succeed())
+		g.Expect(recorder.writePath).To(Equal("/tmp/x/model.onnx"))
+		g.Expect(recorder.writePerm).To(Equal(fs.FileMode(0o600)))
+	})
+
+	t.Run("failure wraps", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{writeErr: errors.New("denied")}
+
+		err := embed.NewCacheFS(recorder.prims()).WriteFile("/tmp/x/model.onnx", []byte("m"))
+		g.Expect(err).To(MatchError(ContainSubstring("write file")))
+	})
+}
+
+// TestCacheFS_WriteSentinel proves the sentinel write is an empty
+// ".complete" file under the internal perm policy.
+func TestCacheFS_WriteSentinel(t *testing.T) {
+	t.Parallel()
+
+	t.Run("writes empty .complete", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{}
+
+		g.Expect(embed.NewCacheFS(recorder.prims()).WriteSentinel("/tmp/extract")).To(Succeed())
+		g.Expect(recorder.writePath).To(Equal("/tmp/extract/.complete"))
+		g.Expect(recorder.writeData).To(BeEmpty())
+		g.Expect(recorder.writePerm).To(Equal(fs.FileMode(0o600)))
+	})
+
+	t.Run("failure wraps", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{writeErr: errors.New("denied")}
+
+		err := embed.NewCacheFS(recorder.prims()).WriteSentinel("/tmp/extract")
+		g.Expect(err).To(MatchError(ContainSubstring("write sentinel")))
+	})
+}
+
+// TestCacheFS_RenameExistContract pins the load-bearing contract: every
+// destination-exists flavor the raw primitive can produce must surface as
+// errors.Is(err, fs.ErrExist); everything else wraps without the sentinel.
+func TestCacheFS_RenameExistContract(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		raw       error
+		wantExist bool
+	}{
+		"raw fs.ErrExist":                  {raw: fs.ErrExist, wantExist: true},
+		"LinkError wrapping ErrExist":      {raw: &os.LinkError{Op: "rename", Old: "a", New: "b", Err: os.ErrExist}, wantExist: true},
+		"LinkError directory not empty":    {raw: &os.LinkError{Op: "rename", Old: "a", New: "b", Err: errors.New("directory not empty")}, wantExist: true},
+		"bare directory-not-empty message": {raw: errors.New("rename a b: directory not empty"), wantExist: true},
+		"unrelated error":                  {raw: os.ErrPermission, wantExist: false},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			recorder := &cachePrimRecorder{renameErr: testCase.raw}
+
+			err := embed.NewCacheFS(recorder.prims()).Rename("/tmp/src", "/cache/dst")
+			g.Expect(err).To(HaveOccurred())
+			g.Expect(errors.Is(err, fs.ErrExist)).To(Equal(testCase.wantExist))
+
+			if !testCase.wantExist {
+				g.Expect(err).To(MatchError(ContainSubstring("rename")))
+			}
+		})
+	}
+
+	t.Run("success is nil", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		recorder := &cachePrimRecorder{}
+
+		g.Expect(embed.NewCacheFS(recorder.prims()).Rename("/tmp/src", "/cache/dst")).To(Succeed())
+	})
+}
+
+// TestCacheFS_RemoveAllPassesThroughRaw pins the nil-on-missing contract:
+// the raw primitive's error (or nil) passes through unwrapped.
+func TestCacheFS_RemoveAllPassesThroughRaw(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(embed.NewCacheFS((&cachePrimRecorder{}).prims()).RemoveAll("/tmp/x")).To(Succeed())
+
+	rawErr := errors.New("busy")
+	recorder := &cachePrimRecorder{removeAllErr: rawErr}
+
+	err := embed.NewCacheFS(recorder.prims()).RemoveAll("/tmp/x")
+	g.Expect(err).To(MatchError(rawErr))
+}
+
+```
+
+(The old cmd `TestRenameIsExist` branch matrix is absorbed by `TestCacheFS_RenameExistContract` above — the classifier is now an unexported internal helper exercised through the composed `Rename`.)
+
+Create `internal/embed/cachefs_integration_test.go` (REAL os functions through the composition — sanctioned in internal `_test` files; this carries the extraction + platform-quirk coverage the old cmd adapter tests held):
+
+```go
+package embed_test
+
+import (
 	"context"
 	"errors"
 	"io/fs"
@@ -5419,219 +6523,94 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-//go:embed testdata
-var testModelFS stdembed.FS
-
 // errBackendUnused aborts embedder construction after extraction so
-// extraction-only behavior is assertable without a Hugot runtime.
+// extraction-only behavior is assertable without a hugot runtime.
 var errBackendUnused = errors.New("backend intentionally failing")
 
-// TestOsCacheFS_Methods exercises each osCacheFS method directly so the
-// success paths and error wraps are covered on real disk.
-func TestOsCacheFS_Methods(t *testing.T) {
-	t.Parallel()
+// failingBackend implements embed.Backend and always refuses to open.
+type failingBackend struct{}
 
-	t.Run("MkdirAll creates nested dirs", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
+func (failingBackend) OpenPipeline(context.Context, string) (embed.PipelineHandle, error) {
+	return nil, errBackendUnused
+}
 
-		cfs := osCacheFS{}
-		path := filepath.Join(t.TempDir(), "a", "b", "c")
-		g.Expect(cfs.MkdirAll(path)).To(Succeed())
-		_, err := os.Stat(path)
-		g.Expect(err).NotTo(HaveOccurred())
-	})
-
-	t.Run("MkdirAll on non-writable parent fails", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		g.Expect(osCacheFS{}.MkdirAll("/no/such/root/path")).NotTo(Succeed())
-	})
-
-	t.Run("MkdirTemp creates a temp dir", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		tmp, err := osCacheFS{}.MkdirTemp(t.TempDir(), ".tmp-test-*")
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(tmp).To(ContainSubstring(".tmp-test-"))
-	})
-
-	t.Run("MkdirTemp under non-existent parent fails", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		_, err := osCacheFS{}.MkdirTemp("/no/such/path", ".tmp-*")
-		g.Expect(err).To(HaveOccurred())
-	})
-
-	t.Run("WriteFile writes and RemoveAll cleans up", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		cfs := osCacheFS{}
-		dir := t.TempDir()
-		path := filepath.Join(dir, "test.bin")
-
-		g.Expect(cfs.WriteFile(path, []byte("payload"))).To(Succeed())
-		g.Expect(cfs.RemoveAll(dir)).To(Succeed())
-
-		_, err := os.Stat(dir)
-		g.Expect(os.IsNotExist(err)).To(BeTrue())
-	})
-
-	t.Run("WriteFile to non-existent dir fails", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		g.Expect(osCacheFS{}.WriteFile("/no/such/dir/x.bin", []byte("x"))).NotTo(Succeed())
-	})
-
-	t.Run("WriteSentinel writes .complete file", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		dir := t.TempDir()
-		g.Expect(osCacheFS{}.WriteSentinel(dir)).To(Succeed())
-
-		_, err := os.Stat(filepath.Join(dir, sentinelFileName))
-		g.Expect(err).NotTo(HaveOccurred())
-	})
-
-	t.Run("WriteSentinel to non-existent dir fails", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		g.Expect(osCacheFS{}.WriteSentinel("/no/such/dir")).NotTo(Succeed())
-	})
-
-	t.Run("StatSentinel false when missing, true when present", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		cfs := osCacheFS{}
-		dir := t.TempDir()
-
-		present, err := cfs.StatSentinel(dir)
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(present).To(BeFalse())
-
-		g.Expect(os.WriteFile(filepath.Join(dir, sentinelFileName), []byte{}, 0o600)).To(Succeed())
-
-		present, err = cfs.StatSentinel(dir)
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(present).To(BeTrue())
-	})
-
-	t.Run("Rename moves dir atomically", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		parent := t.TempDir()
-		src := filepath.Join(parent, "src")
-		dst := filepath.Join(parent, "dst")
-
-		g.Expect(os.Mkdir(src, 0o755)).To(Succeed())
-		g.Expect(os.WriteFile(filepath.Join(src, "f.txt"), []byte("hi"), 0o600)).To(Succeed())
-
-		g.Expect(osCacheFS{}.Rename(src, dst)).To(Succeed())
-
-		_, srcErr := os.Stat(src)
-		g.Expect(os.IsNotExist(srcErr)).To(BeTrue())
-
-		_, dstErr := os.Stat(dst)
-		g.Expect(dstErr).NotTo(HaveOccurred())
-	})
-
-	t.Run("Rename over non-existent path fails wrapped", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		g.Expect(osCacheFS{}.Rename("/no/such/src", "/no/such/dst")).NotTo(Succeed())
-	})
-
-	t.Run("Rename onto populated dir satisfies fs.ErrExist contract", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		parent := t.TempDir()
-		src := filepath.Join(parent, "src")
-		dst := filepath.Join(parent, "dst")
-		g.Expect(os.Mkdir(src, 0o755)).To(Succeed())
-		g.Expect(os.Mkdir(dst, 0o755)).To(Succeed())
-		g.Expect(os.WriteFile(filepath.Join(dst, "f.txt"), []byte("hi"), 0o600)).To(Succeed())
-
-		err := osCacheFS{}.Rename(src, dst)
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(errors.Is(err, fs.ErrExist)).To(BeTrue(),
-			"CacheFS.Rename contract: destination-exists must satisfy errors.Is(err, fs.ErrExist)")
+// realCacheFSForTest builds the production CacheFS composition over the
+// raw os functions — the same wiring cli.NewDeps performs from
+// cli.Primitives.
+func realCacheFSForTest() embed.CacheFS {
+	return embed.NewCacheFS(embed.CacheFSPrims{
+		Stat:      os.Stat,
+		MkdirAll:  os.MkdirAll,
+		MkdirTemp: os.MkdirTemp,
+		WriteFile: os.WriteFile,
+		Rename:    os.Rename,
+		RemoveAll: os.RemoveAll,
 	})
 }
 
-// TestRenameIsExist covers the classification helper for the LinkError /
-// string-match branches (relocated from internal/embed isExistErr tests).
-func TestRenameIsExist(t *testing.T) {
+// TestCacheFS_RealOS_SentinelRoundTrip proves sentinel write + probe
+// against a real tempdir.
+func TestCacheFS_RealOS_SentinelRoundTrip(t *testing.T) {
 	t.Parallel()
+	g := NewWithT(t)
 
-	t.Run("nil is not an exist error", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
+	cfs := realCacheFSForTest()
+	dir := t.TempDir()
 
-		g.Expect(renameIsExist(nil)).To(BeFalse())
-	})
+	present, err := cfs.StatSentinel(dir)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(present).To(BeFalse())
 
-	t.Run("os.ErrExist is recognized", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
+	g.Expect(cfs.WriteSentinel(dir)).To(Succeed())
 
-		g.Expect(renameIsExist(os.ErrExist)).To(BeTrue())
-	})
+	_, statErr := os.Stat(filepath.Join(dir, ".complete"))
+	g.Expect(statErr).NotTo(HaveOccurred())
 
-	t.Run("LinkError with ErrExist is recognized", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		linkErr := &os.LinkError{Op: "rename", Old: "a", New: "b", Err: os.ErrExist}
-		g.Expect(renameIsExist(linkErr)).To(BeTrue())
-	})
-
-	t.Run("LinkError with 'directory not empty' string is recognized", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		linkErr := &os.LinkError{Op: "rename", Old: "a", New: "b",
-			Err: errStringError("directory not empty"),
-		}
-		g.Expect(renameIsExist(linkErr)).To(BeTrue())
-	})
-
-	t.Run("unrelated error is not an exist error", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		linkErr := &os.LinkError{Op: "rename", Old: "a", New: "b", Err: os.ErrPermission}
-		g.Expect(renameIsExist(linkErr)).To(BeFalse())
-	})
+	present, err = cfs.StatSentinel(dir)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(present).To(BeTrue())
 }
 
-// TestOsCacheFS_ExtractToCacheRealOS drives the internal extraction logic
-// through the production adapter on real disk: first call extracts and
-// stamps the sentinel; second call reuses without re-extracting. The
-// injected backend fails so no Hugot runtime is needed (extraction happens
-// before the backend opens).
-func TestOsCacheFS_ExtractToCacheRealOS(t *testing.T) {
+// TestCacheFS_RealOS_RenameOntoPopulatedDir keeps the exist-classification
+// honest on the actual OS: on macOS the raw rename error is ENOTEMPTY, and
+// the composed Rename must still satisfy the fs.ErrExist contract.
+func TestCacheFS_RealOS_RenameOntoPopulatedDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	parent := t.TempDir()
+	src := filepath.Join(parent, "src")
+	dst := filepath.Join(parent, "dst")
+	g.Expect(os.Mkdir(src, 0o755)).To(Succeed())
+	g.Expect(os.Mkdir(dst, 0o755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dst, "f.txt"), []byte("hi"), 0o600)).To(Succeed())
+
+	err := realCacheFSForTest().Rename(src, dst)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, fs.ErrExist)).To(BeTrue(),
+		"CacheFS.Rename contract: destination-exists must satisfy errors.Is(err, fs.ErrExist)")
+}
+
+// TestExtractToCache_RealOS drives the internal extraction through the
+// composed CacheFS on real disk: first call extracts and stamps the
+// sentinel; second call reuses without re-extracting. The injected backend
+// fails so no hugot runtime is needed (extraction happens before the
+// backend opens). nonEmptyTestFS is declared in cache_test.go (same
+// embed_test package; its move from unpack_test.go happens in step 8).
+func TestExtractToCache_RealOS(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	cacheDir := filepath.Join(t.TempDir(), "models", "stub@1")
 
 	_, err := embed.NewHugotEmbedderFromFS(
-		t.Context(), failingBackend{}, osCacheFS{}, testModelFS, "testdata", "stub@1", cacheDir)
+		t.Context(), failingBackend{}, realCacheFSForTest(),
+		nonEmptyTestFS, "testdata", "stub@1", cacheDir)
 	g.Expect(err).To(MatchError(errBackendUnused))
 
-	_, sentinelErr := os.Stat(filepath.Join(cacheDir, sentinelFileName))
-	g.Expect(sentinelErr).NotTo(HaveOccurred(), ".complete sentinel must be written after first extraction")
+	_, sentinelErr := os.Stat(filepath.Join(cacheDir, ".complete"))
+	g.Expect(sentinelErr).NotTo(HaveOccurred(),
+		".complete sentinel must be written after first extraction")
 
 	entries1, readErr1 := os.ReadDir(cacheDir)
 	g.Expect(readErr1).NotTo(HaveOccurred())
@@ -5640,7 +6619,8 @@ func TestOsCacheFS_ExtractToCacheRealOS(t *testing.T) {
 	g.Expect(fileCount1).To(BeNumerically(">", 1), "cache dir must contain model files + sentinel")
 
 	_, err = embed.NewHugotEmbedderFromFS(
-		t.Context(), failingBackend{}, osCacheFS{}, testModelFS, "testdata", "stub@1", cacheDir)
+		t.Context(), failingBackend{}, realCacheFSForTest(),
+		nonEmptyTestFS, "testdata", "stub@1", cacheDir)
 	g.Expect(err).To(MatchError(errBackendUnused))
 
 	entries2, readErr2 := os.ReadDir(cacheDir)
@@ -5648,162 +6628,18 @@ func TestOsCacheFS_ExtractToCacheRealOS(t *testing.T) {
 	g.Expect(entries2).To(HaveLen(fileCount1),
 		"second call must not add/modify files — cache reused as-is")
 }
-
-// errStringError is a minimal error whose message matches the
-// "directory not empty" string.
-type errStringError string
-
-func (e errStringError) Error() string { return string(e) }
-
-// failingBackend implements embed.Backend and always refuses to open.
-type failingBackend struct{}
-
-func (failingBackend) OpenPipeline(context.Context, string) (embed.PipelineHandle, error) {
-	return nil, errBackendUnused
-}
 ```
 
-Create `cmd/engram/hugot_test.go` (relocated from `internal/embed/production_hugot_test.go`, now driving the unexported cmd types directly):
+(This replaces the old `internal/embed/production_cache_test.go` real-OS coverage and the deleted cmd-side extract test; the ADR-adjacent concurrent-race branches stay covered by cache_test.go's fake-driven race tests.)
+
+- [ ] 2. **RED — cmd wiring-smoke tests.** Create `cmd/engram/testdata/model-stub.txt` containing `stub model payload` (one line). Create `cmd/engram/hugot_test.go` — the sanctioned cmd smoke suite (`_test.go` files are exempt from `check-thin-api`); it drives the REAL `hugotRuntime` through the internally-composed backend, which is the only direct coverage the thin cmd type gets (the production Primitives literal itself is guarded by cli_test's end-to-end binary tests, doctrine flag DRIFT):
 
 ```go
 package main
 
 import (
-	"context"
-	"errors"
-	"testing"
-
-	"github.com/knights-analytics/hugot/pipelines"
-	. "github.com/onsi/gomega"
-)
-
-// TestOpenPipeline_SessionFailPropagates exercises the first error branch
-// of hugotBackend.OpenPipeline: openSession returns an error.
-func TestOpenPipeline_SessionFailPropagates(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	sessionErr := errors.New("session blocked")
-
-	backend := hugotBackend{
-		openSession: func(context.Context) (hugotSession, error) {
-			return nil, sessionErr
-		},
-		openPipeline: func(hugotSession, string) (hugotRawPipeline, error) {
-			return nil, errors.New("openPipeline must not be called when openSession fails")
-		},
-	}
-
-	_, err := backend.OpenPipeline(t.Context(), "/tmp/x")
-	g.Expect(err).To(MatchError(ContainSubstring("hugot session")))
-	g.Expect(err).To(MatchError(ContainSubstring("session blocked")))
-}
-
-// TestOpenPipeline_PipelineFailDestroysSession exercises the second error
-// branch: openPipeline fails and the session's Destroy is called.
-func TestOpenPipeline_PipelineFailDestroysSession(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	pipeErr := errors.New("pipeline blocked")
-	session := &fakeSession{}
-
-	backend := hugotBackend{
-		openSession: func(context.Context) (hugotSession, error) {
-			return session, nil
-		},
-		openPipeline: func(hugotSession, string) (hugotRawPipeline, error) {
-			return nil, pipeErr
-		},
-	}
-
-	_, err := backend.OpenPipeline(t.Context(), "/tmp/x")
-	g.Expect(err).To(MatchError(ContainSubstring("hugot pipeline")))
-	g.Expect(err).To(MatchError(ContainSubstring("pipeline blocked")))
-	g.Expect(session.destroyCalls).
-		To(Equal(1), "session.Destroy must be called on pipeline failure")
-}
-
-// TestHugotPipeline_DestroyErrorPropagates exercises the error branch of
-// hugotPipeline.Destroy.
-func TestHugotPipeline_DestroyErrorPropagates(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	destroyErr := errors.New("destroy blocked")
-	handle := &hugotPipeline{session: &fakeSession{destroyErr: destroyErr}}
-
-	err := handle.Destroy()
-	g.Expect(err).To(MatchError(ContainSubstring("hugot session destroy")))
-	g.Expect(err).To(MatchError(ContainSubstring("destroy blocked")))
-}
-
-// TestHugotPipeline_RunPipelineErrorPropagates exercises the error branch
-// of hugotPipeline.RunPipeline.
-func TestHugotPipeline_RunPipelineErrorPropagates(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	runErr := errors.New("run blocked")
-	handle := &hugotPipeline{
-		session:  &fakeSession{},
-		pipeline: &fakeRawPipeline{runErr: runErr},
-	}
-
-	_, err := handle.RunPipeline(t.Context(), []string{"hello"})
-	g.Expect(err).To(MatchError(ContainSubstring("hugot run")))
-	g.Expect(err).To(MatchError(ContainSubstring("run blocked")))
-}
-
-// TestHugotPipeline_RunPipelineHappyPath maps the raw output shape into
-// embed.FeatureOutput.
-func TestHugotPipeline_RunPipelineHappyPath(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	handle := &hugotPipeline{
-		session:  &fakeSession{},
-		pipeline: &fakeRawPipeline{},
-	}
-
-	out, err := handle.RunPipeline(t.Context(), []string{"hello"})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.Embeddings).To(Equal([][]float32{{1, 2}}))
-}
-
-type fakeRawPipeline struct {
-	runErr error
-}
-
-func (f *fakeRawPipeline) RunPipeline(
-	_ context.Context,
-	_ []string,
-) (*pipelines.FeatureExtractionOutput, error) {
-	if f.runErr != nil {
-		return nil, f.runErr
-	}
-
-	return &pipelines.FeatureExtractionOutput{Embeddings: [][]float32{{1, 2}}}, nil
-}
-
-type fakeSession struct {
-	destroyCalls int
-	destroyErr   error
-}
-
-func (s *fakeSession) Destroy() error {
-	s.destroyCalls++
-
-	return s.destroyErr
-}
-```
-
-Create `cmd/engram/bundled_smoke_test.go` (relocated `TestBundledHugotEmbedder_Smoke` from `internal/embed/hugot_test.go:16` and `TestNewHugotEmbedderFromFS_InvalidModelFails` from `production_hugot_test.go:18`):
-
-```go
-package main
-
-import (
+	stdembed "embed"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -5812,9 +6648,26 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
+//go:embed testdata
+var testModelFS stdembed.FS
+
+// realCacheFS mirrors the CacheFSPrims wiring cli.NewDeps builds from the
+// production Primitives literal.
+func realCacheFS() embed.CacheFS {
+	return embed.NewCacheFS(embed.CacheFSPrims{
+		Stat:      os.Stat,
+		MkdirAll:  os.MkdirAll,
+		MkdirTemp: os.MkdirTemp,
+		WriteFile: os.WriteFile,
+		Rename:    os.Rename,
+		RemoveAll: os.RemoveAll,
+	})
+}
+
 // TestBundledEmbedder_Smoke exercises the full production wiring
-// end-to-end: real hugot backend, real cache FS, bundled model assets.
-// Skipped under -short because it unpacks the ~90MB ONNX.
+// end-to-end: real hugot runtime (cmd's thin hugotRuntime), internally
+// composed backend + cache FS, bundled model assets. Skipped under -short
+// because it unpacks the ~90MB ONNX.
 func TestBundledEmbedder_Smoke(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping bundled-embedder smoke test under -short")
@@ -5825,7 +6678,8 @@ func TestBundledEmbedder_Smoke(t *testing.T) {
 	g := NewWithT(t)
 
 	embedder, err := embed.NewBundledHugotEmbedder(
-		t.Context(), newHugotBackend(), osCacheFS{}, filepath.Join(t.TempDir(), "model-cache"))
+		t.Context(), embed.NewRuntimeBackend(hugotRuntime{}), realCacheFS(),
+		filepath.Join(t.TempDir(), "model-cache"))
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -5857,92 +6711,126 @@ func TestBundledEmbedder_Smoke(t *testing.T) {
 	g.Expect(vec2).To(HaveLen(expectedDims))
 }
 
-// TestHugotRejectsInvalidModelDir exercises the embedder-construction error
-// branch of NewHugotEmbedderFromFS: extraction succeeds (files exist) but
-// Hugot rejects the directory because it has no valid model.onnx.
+// TestHugotRejectsInvalidModelDir exercises the embedder-construction
+// error branch through the real runtime: extraction succeeds (files
+// exist) but hugot rejects the directory because it has no valid
+// model.onnx.
 func TestHugotRejectsInvalidModelDir(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	cacheDir := filepath.Join(t.TempDir(), "model-cache")
 	_, err := embed.NewHugotEmbedderFromFS(
-		t.Context(), newHugotBackend(), osCacheFS{}, testModelFS, "testdata", "fake@1", cacheDir)
+		t.Context(), embed.NewRuntimeBackend(hugotRuntime{}), realCacheFS(),
+		testModelFS, "testdata", "fake@1", cacheDir)
 	g.Expect(err).To(HaveOccurred())
 }
 ```
 
-Run: `targ test` — expected RED (compile failures: `osCacheFS`, `hugotBackend`, `sentinelFileName`, `renameIsExist`, new `embed.*` signatures don't exist yet).
+Run: `targ test` — expected RED (compile failures: `embed.Runtime`, `embed.RunPipelineFunc`, `embed.RawSession`, `embed.NewRuntimeBackend`, `embed.CacheFSPrims`, `embed.NewCacheFS`, `embed.ErrRuntimeMissing`, `hugotRuntime`, and the new `embed.*` constructor arities don't exist yet).
 
-- [ ] 2. **GREEN — create `cmd/engram/hugot.go`** (the full moved backend file):
+- [ ] 3. **GREEN — create `internal/embed/runtime.go`** (the Runtime seam + the internally-composed production Backend; this is where the old cmd `hugotBackend`/`hugotPipeline` orchestration now lives):
 
 ```go
-// Production hugot + model-cache adapters. This is the only place in the
-// repo (outside _test files) that imports hugot or touches os for the
-// embedder path — internal/embed depends only on the embed.Backend and
-// embed.CacheFS seams (#700).
-package main
+package embed
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
-
-	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/pipelines"
-
-	"github.com/toejough/engram/internal/cli"
-	"github.com/toejough/engram/internal/embed"
 )
+
+// Exported variables.
+var (
+	// ErrRuntimeMissing reports an embed attempt through a backend composed
+	// from a nil Runtime (a Deps carrier whose Primitives had no
+	// EmbedRuntime wired). Production main.go always wires one; minimal
+	// test Primitives may not — this surfaces that as a clean lazy-init
+	// error instead of a panic.
+	ErrRuntimeMissing = errors.New(
+		"embed runtime not wired: cli.Primitives.EmbedRuntime is required for embedding")
+)
+
+// RawSession is the minimal runtime-session surface the composed backend
+// needs: cleanup on pipeline-creation failure and on normal close.
+// *hugot.Session satisfies it structurally.
+type RawSession interface {
+	Destroy() error
+}
+
+// RunPipelineFunc runs an opened embedding pipeline on inputs and returns
+// one vector per input. cmd's Runtime.NewPipeline returns one as a closure
+// over the concrete pipeline, erasing the runtime's types without any
+// re-assertion at call time (doctrine flag E-1).
+type RunPipelineFunc func(ctx context.Context, inputs []string) ([][]float32, error)
+
+// Runtime is the raw model-runtime capability surface. The production
+// implementation is cmd/engram's EMPTY hugotRuntime struct whose two
+// methods are single-call bodies (targ check-thin-api); ALL lifecycle
+// orchestration and config policy live here, behind NewRuntimeBackend
+// (#700, doctrine flag D-1).
+type Runtime interface {
+	// NewSession opens a runtime session.
+	NewSession(ctx context.Context) (RawSession, error)
+	// NewPipeline opens a feature-extraction pipeline for the model at
+	// modelPath on session and returns its run function.
+	NewPipeline(session RawSession, modelPath, name, onnxFilename string) (RunPipelineFunc, error)
+}
+
+// NewRuntimeBackend composes the production Backend from a raw Runtime:
+// the open-session → open-pipeline → destroy-on-failure lifecycle, the
+// pipeline config policy, and all error wrapping happen here, internally.
+func NewRuntimeBackend(runtime Runtime) Backend {
+	return runtimeBackend{runtime: runtime}
+}
 
 // unexported constants.
 const (
-	// sentinelFileName marks a fully extracted model cache dir.
-	sentinelFileName = ".complete"
-
-	cacheDirPerm  = 0o755
-	cacheFilePerm = 0o600
+	// pipelineName and pipelineOnnxFilename are the feature-extraction
+	// pipeline config policy — kept internal so cmd passes values through
+	// without declaring any constants (thin-api).
+	pipelineName         = "engram-embed"
+	pipelineOnnxFilename = "model.onnx"
 )
 
-// hugotBackend wires the real hugot.NewGoSession + NewPipeline behind
-// embed.Backend. The openSession and openPipeline fields are injectable so
-// each error branch of OpenPipeline is testable without a Hugot runtime.
-type hugotBackend struct {
-	openSession  func(ctx context.Context) (hugotSession, error)
-	openPipeline func(session hugotSession, modelDir string) (hugotRawPipeline, error)
+// runtimeBackend implements Backend over a raw Runtime.
+type runtimeBackend struct {
+	runtime Runtime
 }
 
 // OpenPipeline opens a session, then a feature-extraction pipeline on it,
 // destroying the session if pipeline creation fails.
-func (b hugotBackend) OpenPipeline(
+func (b runtimeBackend) OpenPipeline(
 	ctx context.Context, modelDir string,
-) (embed.PipelineHandle, error) {
-	session, err := b.openSession(ctx)
+) (PipelineHandle, error) {
+	if b.runtime == nil {
+		return nil, ErrRuntimeMissing
+	}
+
+	session, err := b.runtime.NewSession(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("hugot session: %w", err)
 	}
 
-	pipeline, pipeErr := b.openPipeline(session, modelDir)
+	run, pipeErr := b.runtime.NewPipeline(session, modelDir, pipelineName, pipelineOnnxFilename)
 	if pipeErr != nil {
 		_ = session.Destroy()
 
 		return nil, fmt.Errorf("hugot pipeline: %w", pipeErr)
 	}
 
-	return &hugotPipeline{session: session, pipeline: pipeline}, nil
+	return &runtimePipeline{session: session, run: run}, nil
 }
 
-// hugotPipeline pairs a Hugot pipeline with the session that owns it so
-// Destroy releases both together.
-type hugotPipeline struct {
-	session  hugotSession
-	pipeline hugotRawPipeline
+// runtimePipeline pairs a pipeline run function with the session that owns
+// it so Destroy releases both together.
+type runtimePipeline struct {
+	session RawSession
+	run     RunPipelineFunc
 }
 
 // Destroy releases the owning session (which owns the pipeline).
-func (p *hugotPipeline) Destroy() error {
+func (p *runtimePipeline) Destroy() error {
 	err := p.session.Destroy()
 	if err != nil {
 		return fmt.Errorf("hugot session destroy: %w", err)
@@ -5951,173 +6839,21 @@ func (p *hugotPipeline) Destroy() error {
 	return nil
 }
 
-// RunPipeline runs the model and maps the raw output into the
-// runtime-neutral embed.FeatureOutput shape.
-func (p *hugotPipeline) RunPipeline(
+// RunPipeline runs the model and maps the raw vectors into the
+// runtime-neutral FeatureOutput shape.
+func (p *runtimePipeline) RunPipeline(
 	ctx context.Context, inputs []string,
-) (embed.FeatureOutput, error) {
-	out, err := p.pipeline.RunPipeline(ctx, inputs)
+) (FeatureOutput, error) {
+	out, err := p.run(ctx, inputs)
 	if err != nil {
-		return embed.FeatureOutput{}, fmt.Errorf("hugot run: %w", err)
+		return FeatureOutput{}, fmt.Errorf("hugot run: %w", err)
 	}
 
-	return embed.FeatureOutput{Embeddings: out.Embeddings}, nil
-}
-
-// hugotRawPipeline is the minimal Hugot pipeline surface, extracted so
-// tests can inject a failing implementation without a real Hugot session.
-type hugotRawPipeline interface {
-	RunPipeline(ctx context.Context, inputs []string) (*pipelines.FeatureExtractionOutput, error)
-}
-
-// hugotSession is the minimal Hugot session surface needed: cleanup on
-// pipeline-creation failure and on normal close.
-type hugotSession interface {
-	Destroy() error
-}
-
-// osCacheFS is the os-backed embed.CacheFS used to extract the bundled
-// model into its persistent XDG cache dir. Rename translates the platform's
-// destination-exists quirks into the fs.ErrExist contract internal/embed
-// classifies against.
-type osCacheFS struct{}
-
-// MkdirAll ensures the parent directory of the cache dir exists.
-func (osCacheFS) MkdirAll(path string) error {
-	err := os.MkdirAll(path, cacheDirPerm)
-	if err != nil {
-		return fmt.Errorf("mkdir all: %w", err)
-	}
-
-	return nil
-}
-
-// MkdirTemp creates a temporary sibling dir for atomic extraction.
-func (osCacheFS) MkdirTemp(parent, pattern string) (string, error) {
-	tmp, err := os.MkdirTemp(parent, pattern)
-	if err != nil {
-		return "", fmt.Errorf("mkdir temp: %w", err)
-	}
-
-	return tmp, nil
-}
-
-// RemoveAll deletes path. os.RemoveAll's error contract is already
-// caller-friendly (nil on missing paths); wrapping adds noise.
-func (osCacheFS) RemoveAll(path string) error {
-	return os.RemoveAll(path) //nolint:wrapcheck // thin adapter; nil on missing paths
-}
-
-// Rename renames src to dst atomically. When the destination already
-// exists (including macOS ENOTEMPTY for dir-over-dir renames), the returned
-// error satisfies errors.Is(err, fs.ErrExist) per the embed.CacheFS contract.
-func (osCacheFS) Rename(src, dst string) error {
-	err := os.Rename(src, dst)
-	if err != nil {
-		if renameIsExist(err) {
-			return fmt.Errorf("%w: %w", fs.ErrExist, err)
-		}
-
-		return fmt.Errorf("rename: %w", err)
-	}
-
-	return nil
-}
-
-// StatSentinel reports whether cacheDir already has a .complete sentinel.
-func (osCacheFS) StatSentinel(cacheDir string) (bool, error) {
-	_, err := os.Stat(filepath.Join(cacheDir, sentinelFileName))
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
-
-	if err != nil {
-		return false, fmt.Errorf("stat sentinel: %w", err)
-	}
-
-	return true, nil
-}
-
-// WriteFile writes data to path (copies model files into the temp dir).
-func (osCacheFS) WriteFile(path string, data []byte) error {
-	err := os.WriteFile(path, data, cacheFilePerm)
-	if err != nil {
-		return fmt.Errorf("write file: %w", err)
-	}
-
-	return nil
-}
-
-// WriteSentinel writes the .complete sentinel into tmpDir.
-func (osCacheFS) WriteSentinel(tmpDir string) error {
-	err := os.WriteFile(filepath.Join(tmpDir, sentinelFileName), []byte{}, cacheFilePerm)
-	if err != nil {
-		return fmt.Errorf("write sentinel: %w", err)
-	}
-
-	return nil
-}
-
-// newHugotBackend wires the real hugot.NewGoSession + NewPipeline.
-func newHugotBackend() hugotBackend {
-	return hugotBackend{
-		openSession: func(ctx context.Context) (hugotSession, error) {
-			return hugot.NewGoSession(ctx)
-		},
-		// openPipeline type-asserts session to *hugot.Session because
-		// openSession always returns *hugot.Session in production; test code
-		// injects its own openPipeline that never performs this assertion.
-		openPipeline: func(session hugotSession, modelDir string) (hugotRawPipeline, error) {
-			config := hugot.FeatureExtractionConfig{
-				ModelPath:    modelDir,
-				Name:         "engram-embed",
-				OnnxFilename: "model.onnx",
-			}
-
-			//nolint:forcetypeassert // production invariant
-			return hugot.NewPipeline(
-				session.(*hugot.Session),
-				config,
-			)
-		},
-	}
-}
-
-// newProductionEmbedder wires the bundled lazy embedder: real hugot
-// backend, real cache FS, XDG-keyed model cache dir. Env + home reads
-// happen here, at the impure edge.
-func newProductionEmbedder() *embed.LazyEmbedder {
-	home, _ := os.UserHomeDir()
-	cacheDir := cli.CacheDirFromHome(home, embed.BundledModelID, os.Getenv)
-
-	return embed.NewLazyEmbedder(newHugotBackend(), osCacheFS{}, cacheDir)
-}
-
-// renameIsExist reports whether err (from os.Rename) is a "destination
-// exists" error. On macOS, renaming over an existing dir returns ENOTEMPTY
-// ("directory not empty") rather than EEXIST, so the string is also checked.
-func renameIsExist(err error) bool {
-	if errors.Is(err, os.ErrExist) {
-		return true
-	}
-
-	var linkErr *os.LinkError
-	if errors.As(err, &linkErr) {
-		if errors.Is(linkErr.Err, os.ErrExist) {
-			return true
-		}
-
-		errStr := linkErr.Err.Error()
-		if errStr == "file exists" || errStr == "directory not empty" {
-			return true
-		}
-	}
-
-	return false
+	return FeatureOutput{Embeddings: out}, nil
 }
 ```
 
-- [ ] 3. **Rewrite `internal/embed/hugot.go`** — hugot and os imports leave internal; `Backend`/`PipelineHandle`/`FeatureOutput` exported; constructors take injected seams; `buildEmbedder` folds into `NewHugotEmbedderFromDir`; dead `tempFS`/`productionTempFS`/`unpackModelToTemp` deleted. Full replacement:
+- [ ] 4. **Rewrite `internal/embed/hugot.go`** — hugot and os imports leave internal; `Backend`/`PipelineHandle`/`FeatureOutput` exported; constructors take injected seams; `buildEmbedder` folds into `NewHugotEmbedderFromDir`; dead `tempFS`/`productionTempFS`/`unpackModelToTemp` deleted. Full replacement:
 
 ```go
 package embed
@@ -6149,8 +6885,9 @@ var (
 )
 
 // Backend opens an embedding pipeline for an on-disk model directory. The
-// production implementation wraps Hugot and lives in cmd/engram so the
-// hugot import stays out of internal/ (#700); tests inject fakes to
+// production implementation is composed internally by NewRuntimeBackend
+// (runtime.go) over the raw Runtime that cmd wires into cli.Primitives —
+// no hugot import anywhere in internal (#700); tests inject fakes to
 // exercise every constructor branch.
 type Backend interface {
 	OpenPipeline(ctx context.Context, modelDir string) (PipelineHandle, error)
@@ -6403,7 +7140,7 @@ func (p *pipelineRunner) RunPipeline(ctx context.Context, inputs []string) (Feat
 }
 ```
 
-- [ ] 4. **Rewrite `internal/embed/cache.go`** — `CacheFS` exported, os import gone, exist-classification becomes the `fs.ErrExist` contract. Full replacement:
+- [ ] 5. **Rewrite `internal/embed/cache.go`** — `CacheFS` exported, os import gone, exist-classification becomes the `fs.ErrExist` contract (the classification itself lives in cachefs.go, step 6). Full replacement:
 
 ```go
 package embed
@@ -6417,8 +7154,9 @@ import (
 )
 
 // CacheFS is the I/O surface extractToCache depends on. The production
-// implementation (os-backed) lives in cmd/engram; tests inject fakes to
-// exercise every branch without touching the real disk.
+// implementation is composed internally by NewCacheFS (cachefs.go) over
+// raw filesystem primitives; tests inject fakes to exercise every branch
+// without touching the real disk.
 type CacheFS interface {
 	// StatSentinel reports whether the cache dir already has a .complete sentinel.
 	StatSentinel(cacheDir string) (bool, error)
@@ -6564,7 +7302,215 @@ func populateCache(
 }
 ```
 
-- [ ] 5. **Adapt internal/embed tests.** Delete files: `internal/embed/production_cache_test.go`, `internal/embed/production_hugot_test.go`, `internal/embed/unpack_test.go`, `internal/embed/tempfs_test.go`. Rewrite `internal/embed/export_test.go` (full replacement):
+- [ ] 6. **Create `internal/embed/cachefs.go`** — the composed production CacheFS over raw primitives (the old cmd `osCacheFS` logic, now internal; sentinel + perm policy + exist-classification live here):
+
+```go
+package embed
+
+import (
+	"errors"
+	"fmt"
+	"io/fs"
+	"path/filepath"
+	"strings"
+)
+
+// CacheFSPrims carries the raw filesystem capabilities the production
+// CacheFS composition needs. Field signatures are identical to the
+// matching cli.Primitives fields — cli.NewDeps forwards its Primitives
+// fields into this struct verbatim (doctrine flag E-2: no new cache
+// fields on cli.Primitives). The funcs return RAW os errors; all wrapping
+// and exist-classification happen here, internally.
+type CacheFSPrims struct {
+	Stat      func(path string) (fs.FileInfo, error)
+	MkdirAll  func(path string, perm fs.FileMode) error
+	MkdirTemp func(dir, pattern string) (string, error)
+	WriteFile func(path string, data []byte, perm fs.FileMode) error
+	Rename    func(oldPath, newPath string) error
+	RemoveAll func(path string) error
+}
+
+// NewCacheFS composes the production CacheFS from raw filesystem
+// primitives: sentinel policy, permission policy, error wrapping, and the
+// fs.ErrExist rename contract all live here (#700).
+func NewCacheFS(prims CacheFSPrims) CacheFS {
+	return primCacheFS{prims: prims}
+}
+
+// unexported constants.
+const (
+	// sentinelFileName marks a fully extracted model cache dir.
+	sentinelFileName = ".complete"
+
+	cacheDirPerm  fs.FileMode = 0o755
+	cacheFilePerm fs.FileMode = 0o600
+)
+
+// primCacheFS is the CacheFS composition over raw primitives.
+type primCacheFS struct {
+	prims CacheFSPrims
+}
+
+// MkdirAll ensures the parent directory of the cache dir exists.
+func (c primCacheFS) MkdirAll(path string) error {
+	err := c.prims.MkdirAll(path, cacheDirPerm)
+	if err != nil {
+		return fmt.Errorf("mkdir all: %w", err)
+	}
+
+	return nil
+}
+
+// MkdirTemp creates a temporary sibling dir for atomic extraction.
+func (c primCacheFS) MkdirTemp(parent, pattern string) (string, error) {
+	tmp, err := c.prims.MkdirTemp(parent, pattern)
+	if err != nil {
+		return "", fmt.Errorf("mkdir temp: %w", err)
+	}
+
+	return tmp, nil
+}
+
+// RemoveAll deletes path. The raw primitive's contract (os.RemoveAll: nil
+// on missing paths) is already caller-friendly; the error passes through
+// unwrapped.
+func (c primCacheFS) RemoveAll(path string) error {
+	return c.prims.RemoveAll(path) //nolint:wrapcheck // see comment above
+}
+
+// Rename renames src to dst atomically. When the destination already
+// exists (including macOS ENOTEMPTY for dir-over-dir renames), the
+// returned error satisfies errors.Is(err, fs.ErrExist) per the CacheFS
+// contract.
+func (c primCacheFS) Rename(src, dst string) error {
+	err := c.prims.Rename(src, dst)
+	if err != nil {
+		if renameIsExist(err) {
+			return fmt.Errorf("%w: %w", fs.ErrExist, err)
+		}
+
+		return fmt.Errorf("rename: %w", err)
+	}
+
+	return nil
+}
+
+// StatSentinel reports whether cacheDir already has a .complete sentinel.
+func (c primCacheFS) StatSentinel(cacheDir string) (bool, error) {
+	_, err := c.prims.Stat(filepath.Join(cacheDir, sentinelFileName))
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+
+	if err != nil {
+		return false, fmt.Errorf("stat sentinel: %w", err)
+	}
+
+	return true, nil
+}
+
+// WriteFile writes data to path (copies model files into the temp dir).
+func (c primCacheFS) WriteFile(path string, data []byte) error {
+	err := c.prims.WriteFile(path, data, cacheFilePerm)
+	if err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	return nil
+}
+
+// WriteSentinel writes the .complete sentinel into tmpDir.
+func (c primCacheFS) WriteSentinel(tmpDir string) error {
+	err := c.prims.WriteFile(filepath.Join(tmpDir, sentinelFileName), []byte{}, cacheFilePerm)
+	if err != nil {
+		return fmt.Errorf("write sentinel: %w", err)
+	}
+
+	return nil
+}
+
+// renameIsExist reports whether err (raw from the rename primitive) is a
+// destination-exists error. errors.Is(err, fs.ErrExist) covers EEXIST
+// and — via syscall.Errno's Is mapping — ENOTEMPTY through
+// *os.LinkError's Unwrap; the string fallback preserves the previous
+// defensive platform sniffing for chains that don't unwrap to a mapped
+// errno, without importing os (doctrine flag E-3).
+func renameIsExist(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, fs.ErrExist) {
+		return true
+	}
+
+	message := err.Error()
+
+	return strings.Contains(message, "file exists") ||
+		strings.Contains(message, "directory not empty")
+}
+```
+
+- [ ] 7. **Create `cmd/engram/hugot.go`** — the THIN production runtime. This is the entire file; `targ check-thin-api` walks it, and every declaration is a verified-thin shape (empty struct; single-return external call; 3-statement simple-error-wrapper whose closing return carries the doctrine-capped closure — flag E-1):
+
+```go
+// Thin hugot capability wrappers. This file (plus its _test siblings) is
+// the only place in the repo outside internal/embed's _test files that
+// imports hugot — and it holds NO logic: hugotRuntime is an EMPTY struct
+// whose methods are single-call / simple-error-wrapper bodies. The
+// session/pipeline lifecycle, config policy, output mapping, and error
+// wrapping all live in internal/embed (#700).
+package main
+
+import (
+	"context"
+
+	"github.com/knights-analytics/hugot"
+
+	"github.com/toejough/engram/internal/embed"
+)
+
+// hugotRuntime implements embed.Runtime over the real hugot library.
+type hugotRuntime struct{}
+
+// NewPipeline opens a feature-extraction pipeline on session and returns
+// its run function, erasing hugot's pipeline type via closure capture
+// (doctrine flag E-1): the closure body is the sanctioned
+// trivially-sequenced single-call shape — run on the captured pipe,
+// err-check, selector return.
+func (hugotRuntime) NewPipeline(
+	session embed.RawSession, modelPath, name, onnxFilename string,
+) (embed.RunPipelineFunc, error) {
+	//nolint:forcetypeassert // production invariant: sessions come from NewSession
+	pipe, err := hugot.NewPipeline(session.(*hugot.Session), hugot.FeatureExtractionConfig{
+		ModelPath:    modelPath,
+		Name:         name,
+		OnnxFilename: onnxFilename,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return func(ctx context.Context, inputs []string) ([][]float32, error) {
+		out, runErr := pipe.RunPipeline(ctx, inputs)
+		if runErr != nil {
+			return nil, runErr
+		}
+
+		return out.Embeddings, nil
+	}, nil
+}
+
+// NewSession opens a Go-backend hugot session. *hugot.Session satisfies
+// embed.RawSession structurally.
+func (hugotRuntime) NewSession(ctx context.Context) (embed.RawSession, error) {
+	return hugot.NewGoSession(ctx)
+}
+```
+
+Checker verification (derived from targ's `checkFuncThinness` source — escalate, do not restructure, if the gate disagrees): `type hugotRuntime struct{}` = empty struct → thin; `NewSession` = single return of an external call (`hugot.NewGoSession`) → thin; `NewPipeline` = `isSimpleErrorWrapper` (stmt 1: `pipe, err := hugot.NewPipeline(...)` — RHS is a `pkg.Func` call, arguments are not walked, so the inline type assertion and composite literal are legal; stmt 2: `if err != nil`; stmt 3: any return statement — contents unchecked). Raw errors, zero constants, zero `pipelines` import: config values and wraps are internal.
+
+- [ ] 8. **Adapt internal/embed tests.** Delete files: `internal/embed/production_cache_test.go`, `internal/embed/production_hugot_test.go`, `internal/embed/unpack_test.go`, `internal/embed/tempfs_test.go`. Rewrite `internal/embed/export_test.go` (full replacement):
 
 ```go
 package embed
@@ -6641,7 +7587,7 @@ Then mechanical edits, all in `internal/embed/*_test.go`:
 var nonEmptyTestFS stdembed.FS
 ```
 
-  - `hugot_test.go`: delete `TestBundledHugotEmbedder_Smoke` (relocated to cmd, step 1); adapt T10 (fakes never reached — extraction fails first on the empty FS):
+  - `hugot_test.go`: delete `TestBundledHugotEmbedder_Smoke` (relocated to `cmd/engram/hugot_test.go`, step 2 — where the real `hugotRuntime` lives); adapt T10 (fakes never reached — extraction fails first on the empty FS):
 
 ```go
 func TestT10_MissingBundledModel_ClearError(t *testing.T) {
@@ -6660,7 +7606,7 @@ func TestT10_MissingBundledModel_ClearError(t *testing.T) {
   (`fakeBackend` lives in `buildembedder_test.go`, `fakeCacheFS` in `cache_test.go` — same `embed_test` package; zero-value `fakeCacheFS.StatSentinel` returns `(false, nil)` — verified.)
   - `embedder_fake_test.go`: `embed.NewLazyEmbedder(t.TempDir())` → `embed.NewLazyEmbedder(&fakeBackend{}, &fakeCacheFS{}, t.TempDir())`.
 
-- [ ] 6. **Bridge `internal/cli/embed.go` + wire `Targets`.** In `internal/cli/embed.go` delete `modelCacheDir()` (lines 232-239) and replace the singleton block (lines 107-111):
+- [ ] 9. **Wire internal/cli: Primitives field, NewDeps 3-arg flip, bridge, cmd literal line.** Four sub-edits, one commit with the rest of the task. **9a.** In `internal/cli/embed.go` delete the `modelCacheDir()` helper (its `os.UserHomeDir`/`os.Getenv` reads die with it — the `"os"` import leaves this file) and replace the `sharedEmbedder` singleton block:
 
 Current:
 ```go
@@ -6748,9 +7694,65 @@ func wireSharedEmbedder(embedder embed.Embedder) {
 }
 ```
 
-In `internal/cli/targets.go`, insert as the first statement of `Targets` (post-foundation shape `func Targets(deps Deps) []any` — coordinate with foundation task): `wireSharedEmbedder(deps.Embed)`. In cmd/engram's Deps literal (foundation's file) add: `Embed: newProductionEmbedder(),`.
+**9b.** In `internal/cli/targets.go`, insert as the first statement of `Targets` (T2's landed shape `func Targets(deps Deps) []any`): `wireSharedEmbedder(deps.Embed)`.
 
-- [ ] 7. **Bridge behavior tests (parallel-safe, no global state).** Add to `internal/cli/export_test.go`:
+**9c.** In `internal/cli/primitives.go`: add ONE field to `Primitives` (grouped after the debug-sink field, with the doctrine cross-reference) —
+
+```go
+	// Embedding runtime (cmd wires an EMPTY struct with single-call
+	// methods; all lifecycle/config/cache policy is internal — doctrine
+	// flags D-1/E-1/E-2).
+	EmbedRuntime embed.Runtime
+```
+
+— and flip `NewDeps`'s guarded Embed wiring (T2's landed R6 handoff line) to the 3-arg composition. Current (landed by T2):
+
+```go
+	// The lazy embedder is constructed once here, preserving the
+	// one-unpack-per-process property of the old sharedEmbedder singleton
+	// (guarded: minimal fake Primitives without Getenv skip it). R6: T14
+	// swaps this line to the 3-arg constructor over cmd-injected backend
+	// and cache capabilities.
+	if prims.Getenv != nil {
+		deps.Embed = embed.NewLazyEmbedder(
+			CacheDirFromHome(homeOrEmpty(deps), embed.BundledModelID, prims.Getenv))
+	}
+```
+
+New:
+
+```go
+	// The lazy embedder is constructed once here, preserving the
+	// one-unpack-per-process property of the old sharedEmbedder singleton
+	// (guarded: minimal fake Primitives without Getenv skip it). R6/D-1:
+	// backend composed from the raw EmbedRuntime, cache FS from the raw
+	// filesystem primitives — no embed wiring in cmd. A nil EmbedRuntime
+	// surfaces as embed.ErrRuntimeMissing on first use (fail-loud lazy),
+	// never a panic.
+	if prims.Getenv != nil {
+		deps.Embed = embed.NewLazyEmbedder(
+			embed.NewRuntimeBackend(prims.EmbedRuntime),
+			embed.NewCacheFS(embed.CacheFSPrims{
+				Stat:      prims.Stat,
+				MkdirAll:  prims.MkdirAll,
+				MkdirTemp: prims.MkdirTemp,
+				WriteFile: prims.WriteFile,
+				Rename:    prims.Rename,
+				RemoveAll: prims.RemoveAll,
+			}),
+			CacheDirFromHome(homeOrEmpty(deps), embed.BundledModelID, prims.Getenv))
+	}
+```
+
+**9d.** In `cmd/engram/main.go`'s `cli.Primitives` literal, add ONE field line (after `WalkDir:`, keeping the literal's direct-reference grouping):
+
+```go
+			EmbedRuntime: hugotRuntime{},
+```
+
+Package main stays declaration-free — `hugotRuntime{}` is a composite-literal ARGUMENT expression (unchecked by the gate); the type itself is step 7's empty struct. NOTE(cli_test DRIFT flag): `realPrimitives()` in internal/cli tests does NOT gain an EmbedRuntime (cli_test cannot reference package main's `hugotRuntime`); Deps built from it get the fail-loud `ErrRuntimeMissing` lazy embedder, which no cli-level test may trigger (R11's `stubEmbedderForTargets` covers targets-level embed tests; the production literal is guarded by cli_test's end-to-end binary tests).
+
+- [ ] 10. **Bridge behavior tests (parallel-safe, no global state).** Add to `internal/cli/export_test.go`:
 
 ```go
 // ExportNewBridgeEmbedder returns a fresh transitional shared-embedder
@@ -6823,17 +7825,21 @@ func (bridgeStubEmbedder) Embed(context.Context, string) ([]float32, error) {
 func (bridgeStubEmbedder) ModelID() string { return "stub@4" }
 ```
 
-- [ ] 8. **Verify.** Run `targ test` — expected: all green (relocated adapter tests pass in cmd/engram; internal embed suite green with fakes; bridge tests green; `TestTargets_EmbedStatus` stays green via bridge → LazyEmbedder pre-init ModelID). Run `targ check-full` — expected: clean; confirm `grep -rn '"os"\|knights-analytics' internal/embed/*.go | grep -v _test` returns nothing. Run `go install ./cmd/engram && engram embed status --vault "$(mktemp -d)"` from a non-repo cwd — expected: the six status lines with all-zero counts (real-binary check per house rules).
-- [ ] 9. **Commit:**
+- [ ] 11. **Verify.** Run `targ test` — expected: all green (internal runtime/cachefs suites green with fakes; real-os integration green; cmd smoke green; bridge tests green; `TestTargets_EmbedStatus` stays green via bridge → LazyEmbedder pre-init ModelID). Run `targ check-full` — expected: clean. Run `targ check-thin-api` — expected: PASS (cmd/engram/hugot.go's declarations are the verified-thin shapes from step 7; the main.go literal line is an argument expression). If the gate flags ANY declaration, ESCALATE the exact finding to the orchestrator — do not suppress, do not restructure ad hoc (Global Constraints / doctrine item 5). Confirm `grep -rn '"os"\|knights-analytics' internal/embed/*.go | grep -v _test` returns nothing. Run `go install ./cmd/engram && engram embed status --vault "$(mktemp -d)"` from a non-repo cwd — expected: the six status lines with all-zero counts (real-binary check per house rules).
+- [ ] 12. **Commit:**
 
 ```
-refactor(embed): move hugot backend + cache FS to cmd (#700)
+refactor(embed): internal backend/cache composition, thin cmd (#700)
 
-internal/embed now depends only on injected Backend/CacheFS seams; the
-hugot and os imports live in cmd/engram/hugot.go. CacheFS.Rename adopts
-an errors.Is(fs.ErrExist) contract (platform-quirk sniffing moved into
-the os adapter). Dead tempFS/unpackModelToTemp machinery deleted. cli
-gains a transitional sharedEmbedder bridge wired from Deps.Embed.
+internal/embed now owns ALL embedder orchestration: session/pipeline
+lifecycle (NewRuntimeBackend over the raw Runtime seam) and cache
+extraction + sentinel/perm policy + the errors.Is(fs.ErrExist) rename
+classification (NewCacheFS over raw FS primitives). cmd/engram/hugot.go
+shrinks to an EMPTY hugotRuntime struct with two single-call methods
+(targ check-thin-api PASS); cli.NewDeps composes Deps.Embed from
+Primitives internally (R6 3-arg flip, doctrine D-1/E-1/E-2). Dead
+tempFS/unpackModelToTemp machinery deleted. cli gains the transitional
+sharedEmbedder bridge wired from Deps.Embed.
 
 AI-Used: [claude]
 ```
@@ -6842,7 +7848,7 @@ AI-Used: [claude]
 
 ### Task T15 (B): internal/cli/embed.go — compose EmbedDeps from cli.Deps, delete osEmbedFS
 
-**Depends on:** Task A + foundation task (Deps.FS `EdgeFS`, Deps.Embed) landed.
+**Depends on:** Task T14 (A) + T1-rework/T2 landed (Deps.FS `EdgeFS`; `Deps.Embed` composed INSIDE `cli.NewDeps` per R6/D-1 — this task never touches cmd/engram or the embed wiring, only internal composition; verified unaffected by the T14 doctrine rework).
 
 **Files**
 
@@ -6945,7 +7951,7 @@ func (osTestEdgeFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) er
 ```go
 // newEmbedDeps composes the embed-command dependencies from the CLI-wide
 // impure capability set. Pure composition — all I/O flows through d.FS and
-// d.Embed, wired by cmd/engram. Sidecar writes go through WriteFileAtomic
+// d.Embed, wired via cli.NewDeps at the edge. Sidecar writes go through WriteFileAtomic
 // (temp+rename) so concurrent readers always see either the old or new
 // file, never a torn write (ADR-0013 semantics preserved).
 func newEmbedDeps(d Deps) EmbedDeps {
@@ -7000,7 +8006,7 @@ func newOsQueryDeps(d Deps) QueryDeps {
 
 and its call site `internal/cli/targets.go:155`: `newOsQueryDeps()` → `newOsQueryDeps(deps)`.
 
-- [ ] 3.5. **Wire the targets-level embed tests per R11.** `newTestDeps.Embed` is nil by design (R11); the two executed embed tests dereference `ModelID()`, so give them a local fail-loud stub. In `internal/cli/targets_test.go`, add (exported-test-func-before-private-decls per reorder-decls — place the type after the last Test func or in the file's existing helper region):
+- [ ] 3.5. **Wire the targets-level embed tests per R11.** `newTestDeps.Embed` is nil by design (R11 — `newTestDeps` builds the `cli.Deps` literal directly and never calls `NewDeps`, so T14's internal Embed composition does not reach it; VERIFIED unaffected by the T14 doctrine rework: the stub below satisfies `embed.Embedder`, which the rework leaves unchanged, and `embed.BundledModelID` survives). The two executed embed tests dereference `ModelID()`, so give them a local fail-loud stub. In `internal/cli/targets_test.go`, add (exported-test-func-before-private-decls per reorder-decls — place the type after the last Test func or in the file's existing helper region):
 
 ```go
 // stubEmbedderForTargets satisfies embed.Embedder for targets-level tests that
@@ -7019,7 +8025,7 @@ func (stubEmbedderForTargets) Dims() int { return 384 }
 
 In `TestTargets_EmbedApplyDryRun` (targets_test.go:340) and `TestTargets_EmbedStatus` (:355), where the test builds its deps, override: `d := newTestDeps(stdout, stderr); d.Embed = stubEmbedderForTargets{}` (adapt to the tests' actual deps-construction shape — they currently ride `cli.Targets(newTestDeps(...))`; introduce the local variable form for these two tests only). Add the `context`/`errors`/`embed` imports if absent.
 
-- [ ] 4. **Verify.** `targ test` — expected green (embed_test.go's in-memory deps untouched; adapted os_adapters tests pass through `newEmbedDeps` + `osTestEdgeFS`; `TestTargets_EmbedApplyDryRun` / `TestTargets_EmbedStatus` green through the new wiring). `targ check-full` — clean; confirm `grep -n '"os"' internal/cli/embed.go` returns nothing. Real-binary check: `go install ./cmd/engram`, then in a temp dir: create `note.md` with a body, run `engram embed apply --vault . --dry-run` (expect `would-embed note.md (missing)`), then `engram embed apply --vault .` (expect `embedded  note.md (missing)` and a `note.vec.json` sidecar with `"embedding_model_id": "minilm-l6-v2@384"`), then `engram embed status --vault .` (expect `with-embeddings: 1`).
+- [ ] 4. **Verify.** `targ test` — expected green (embed_test.go's in-memory deps untouched; adapted os_adapters tests pass through `newEmbedDeps` + `osTestEdgeFS`; `TestTargets_EmbedApplyDryRun` / `TestTargets_EmbedStatus` green through the new wiring). `targ check-full` — clean; confirm `grep -n '"os"' internal/cli/embed.go` returns nothing. `targ check-thin-api` — expected PASS (this task touches no cmd/engram file, so a failure here means an earlier task regressed the thin edge — ESCALATE the exact finding, do not fix ad hoc). Real-binary check: `go install ./cmd/engram`, then in a temp dir: create `note.md` with a body, run `engram embed apply --vault . --dry-run` (expect `would-embed note.md (missing)`), then `engram embed apply --vault .` (expect `embedded  note.md (missing)` and a `note.vec.json` sidecar with `"embedding_model_id": "minilm-l6-v2@384"`), then `engram embed status --vault .` (expect `with-embeddings: 1`).
 - [ ] 5. **Commit:**
 
 ```
@@ -7048,7 +8054,7 @@ AI-Used: [claude]
 
 **Interfaces**
 - Produces: `var ErrCommandNotFound = errors.New("command not found")` in package `update` — the Commander contract: implementations translate their platform not-found error to this sentinel before returning.
-- Consumes: `update.Commander` (unchanged), `exec.ErrNotFound` (now only in the adapter, later only in cmd).
+- Consumes: `update.Commander` (unchanged), `exec.ErrNotFound` (now only in the transitional internal adapter; after T17 only as the injected `Primitives.NotFoundErr` value in cmd/engram's literal — doctrine flag C-1).
 
 **Steps**
 
@@ -7121,7 +8127,7 @@ AI-Used: [claude]
    		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("%s %v: %w", name, args, err)
    	}
    ```
-   (`errors` is already imported at line 6; go 1.26 supports the double `%w`.) Run `targ test` → expect PASS (internal/update still checks exec.ErrNotFound, which remains in the chain — both checks are satisfied during this step).
+   (`errors` is already imported at line 6; go 1.26 supports the double `%w`.) Run `targ test` → expect PASS (internal/update still checks exec.ErrNotFound, which remains in the chain — both checks are satisfied during this step). This internal adapter and its os/exec import are TRANSITIONAL — T17 deletes them and re-homes the translation into the primCommander composition over the injected `NotFoundErr` primitive (doctrine flag C-1).
 
 4. [ ] Cut internal/update over to the sentinel — all four hunks in one pass, tests updated in the same step:
    - `internal/update/update.go` line 436, replace:
@@ -7159,164 +8165,343 @@ AI-Used: [claude]
      		Cmd: &u1FailCmd{err: fmt.Errorf(`go [install ./cmd/engram/]: %w`, update.ErrCommandNotFound)},
      ```
      delete `"os/exec"` from imports (line 8); replace comment lines 21–22 (`// missing 'go' binary (surfaced as exec.ErrNotFound from the go install` / `// command) must make update FAIL...`) with `// missing 'go' binary (surfaced as update.ErrCommandNotFound from the injected` / `// Commander) must make update FAIL with the update.ErrGoNotFound sentinel, and`; replace comment lines 32–33 with `// Commander fails the way the production adapter does when 'go' is absent:` / `// the update.ErrCommandNotFound chain is preserved through its %w wrap.`
-   Run `targ test` → expect PASS. Run `targ check-full` → expect clean (verifies no unused-import leftovers, line lengths).
+   Run `targ test` → expect PASS. Run `targ check-full` → expect clean (verifies no unused-import leftovers, line lengths). Run `targ check-thin-api` → expect PASS (this task touches no cmd/engram file; a finding here means unrelated drift — escalate the exact finding, never suppress).
 
-5. [ ] Verify zero os/exec in internal non-test files of this family: `grep -rn '"os/exec"' internal/update/ internal/cli/update.go | grep -v _test.go` → expect only `internal/cli/update.go` (removed by Task UF-2).
+5. [ ] Verify zero os/exec in internal non-test files of this family: `grep -rn '"os/exec"' internal/update/ internal/cli/update.go | grep -v _test.go` → expect only `internal/cli/update.go` (the transitional adapter — T17 deletes it along with the import; after T17 this grep returns zero hits).
 
 6. [ ] Commit (via the commit skill):
    ```
    refactor(update): add ErrCommandNotFound sentinel (#700)
 
-   internal/update no longer imports os/exec: Commander implementations now
-   translate their platform not-found error to the sentinel at the adapter
-   boundary; the two errors.Is call sites classify against it.
+   internal/update no longer imports os/exec: the Commander implementation
+   now translates the platform not-found error to the sentinel; the two
+   errors.Is call sites classify against it. T17 re-homes the translation
+   into the primCommander composition over an injected NotFoundErr
+   primitive (doctrine flag C-1).
 
    AI-Used: [claude]
    ```
 
 ---
 
-### Task T17 (UF-2): move osCommander to cmd/engram; compose update deps purely from cli.Deps
+### Task T17 (UF-2): commander via injected run primitive + NotFoundErr (doctrine flag C-1); compose update deps purely from cli.Deps
 
-Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(deps Deps)` threading down to `learnUpdateTargets`, and `cmd/engram/os_fs.go` (production EdgeFS) have landed.
+Sequencing precondition: Task T1-rework (`cli.Primitives`, `cli.NewDeps`, `internal/cli/primitives_integration_test.go` with `realPrimitives()`/`realDepsForTest()`) and Task T2 (declaration-free `cmd/engram/main.go`; `Targets(deps Deps)` threading `deps` into `learnUpdateTargets`) have landed; Task T16 landed the sentinel + the internal/update cutover.
+
+**C-1 field shapes (resolved here — the doctrine assigns this brief the exact shapes; BINDING for this task):**
+
+- `Primitives.RunCommand func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error` — cmd's literal value is ONE closure whose body is `exec.CommandContext` + three field assignments on the returned handle (`Dir`, `Stdout`, `Stderr`) + `return cmd.Run()`: a trivially-sequenced single-call body, the same latitude SIG-1 grants the `StartSignalPulses` closure (the checker does not walk closures, and `main()` stays one statement). `args` is a slice, not variadic, because the writer params must follow it. `*exec.Cmd` never crosses the boundary — internal sees only this erased func shape.
+- `Primitives.NotFoundErr error` — cmd wires the bare identifier `exec.ErrNotFound` (the kernel's preferred injected-sentinel-value form; zero cmd logic).
+- Everything else lives in internal `primCommander` (internal/cli/commander.go): output collection (the `bytes.Buffer` lifecycle), contextual `%w` wrapping, and the `errors.Is(runErr, prims.NotFoundErr)` → `update.ErrCommandNotFound` translation. `errors.Is` with a nil target matches no non-nil error, so a fake `Primitives` without `NotFoundErr` merely never translates — no nil guard needed.
 
 **Files**
-- Create: `cmd/engram/os_update.go`
-- Create: `cmd/engram/os_update_test.go`
-- Modify: `cmd/engram/main.go` (add `Commander: &osCommander{},` to the Deps literal built by the wiring cluster)
+- Modify: `internal/cli/primitives.go` (Primitives gains `RunCommand`/`NotFoundErr`; NewDeps wires `Commander: primCommander{prims: prims}`; imports gain `context`)
+- Create: `internal/cli/commander.go` (primCommander — collection + wrapping + translation)
+- Create: `internal/cli/commander_test.go` (unit tests, fake run primitive through NewDeps)
+- Create: `internal/cli/commander_integration_test.go` (real-exec integration tests — the relocated `TestOsCommander_*` coverage)
+- Modify: `internal/cli/primitives_integration_test.go` (extend `realPrimitives()` with the two new fields — doctrine flag DRIFT)
+- Modify: `cmd/engram/main.go` (two field lines in the `cli.Primitives` literal; imports gain `context`, `io`, `os/exec`)
 - Modify: `internal/cli/update.go` (delete osCommander/osUpdateFS/osUpdateEnv/osDirEntry/osFileInfo; add updateDeps/newUpdateDeps/updateFSFromEdge/updateEnvFromDeps; new runUpdate signature; drop `os`, `os/exec` imports)
 - Modify: `internal/cli/targets.go` (update target call site)
 - Modify: `internal/cli/export_test.go` (drop 3 adapter exports; add updateDeps exports + internal/update import)
-- Modify: `internal/cli/update_test.go` (delete 10 adapter tests; rewrite 2 runUpdate smoke tests over test doubles)
+- Modify: `internal/cli/update_test.go` (delete 13 adapter tests — 3 commander + 1 env + 9 FS; rewrite 2 runUpdate smoke tests over test doubles)
 - Create: `internal/cli/update_deps_test.go` (pure-composition unit tests)
 
 **Interfaces**
-- Consumes: `cli.Deps` fields `FS EdgeFS`, `Getenv func(string) string`, `Getwd func() (string, error)`, `UserHomeDir func() (string, error)`, `Commander update.Commander`, `Stdout io.Writer`; EdgeFS methods `ReadFile/WriteFile/MkdirAll/Stat/ReadDir/RemoveAll`; `update.ErrCommandNotFound` (UF-1).
-- Produces: `func newUpdateDeps(d Deps) updateDeps` (pure); `func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.Writer) error`; cmd/engram `osCommander` implementing `update.Commander` with not-found translation.
+- Consumes: `cli.Primitives`/`cli.NewDeps` (T1-rework); `cli.Deps` fields `FS EdgeFS`, `Getenv func(string) string`, `Getwd func() (string, error)`, `UserHomeDir func() (string, error)`, `Commander update.Commander` (deps.go:35 — field already landed), `Stdout io.Writer`; EdgeFS methods `ReadFile/WriteFile/MkdirAll/Stat/ReadDir/RemoveAll`; `update.ErrCommandNotFound` (T16).
+- Produces: `Primitives.RunCommand` + `Primitives.NotFoundErr` (shapes above); unexported `primCommander` (the production `update.Commander`); `func newUpdateDeps(d Deps) updateDeps` (pure); `func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.Writer) error`.
 
 **Steps**
 
-1. [ ] Create `cmd/engram/os_update.go` (verbatim relocation of the UF-1 osCommander, package main):
+1. [ ] RED: create `internal/cli/commander_test.go` — unit tests driving the composed commander from fake primitives through the real `NewDeps` wiring path (doctrine item 2: composition unit-tested with fake primitives):
    ```go
-   package main
+   package cli_test
 
    import (
-   	"bytes"
    	"context"
    	"errors"
    	"fmt"
-   	"os/exec"
-
-   	"github.com/toejough/engram/internal/update"
-   )
-
-   // unexported variables.
-   var _ update.Commander = (*osCommander)(nil)
-
-   // osCommander is the production update.Commander: runs external commands
-   // via os/exec, capturing stdout/stderr. A missing binary is translated to
-   // update.ErrCommandNotFound per the Commander contract (#700) — internal/
-   // never imports os/exec.
-   type osCommander struct{}
-
-   func (*osCommander) Run(
-   	ctx context.Context, dir, name string, args ...string,
-   ) ([]byte, []byte, error) {
-   	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // name/args from internal callers
-   	cmd.Dir = dir
-   	stdout := &bytes.Buffer{}
-   	stderr := &bytes.Buffer{}
-   	cmd.Stdout = stdout
-   	cmd.Stderr = stderr
-
-   	err := cmd.Run()
-   	if err != nil {
-   		if errors.Is(err, exec.ErrNotFound) {
-   			return stdout.Bytes(), stderr.Bytes(),
-   				fmt.Errorf("%s %v: %w: %w", name, args, update.ErrCommandNotFound, err)
-   		}
-
-   		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("%s %v: %w", name, args, err)
-   	}
-
-   	return stdout.Bytes(), stderr.Bytes(), nil
-   }
-   ```
-
-2. [ ] Create `cmd/engram/os_update_test.go` (relocated + strengthened integration tests, package main):
-   ```go
-   package main
-
-   import (
-   	"context"
-   	"path/filepath"
-   	"strings"
+   	"io"
    	"testing"
 
    	. "github.com/onsi/gomega"
 
+   	"github.com/toejough/engram/internal/cli"
    	"github.com/toejough/engram/internal/update"
    )
 
-   func TestOsCommander_ReportsFailure(t *testing.T) {
-   	t.Parallel()
+   // commanderOver builds the composed update.Commander from a fake RunCommand
+   // primitive and an injected platform not-found sentinel, through the real
+   // NewDeps wiring path (nil Getenv skips Embed; nil exit skips the
+   // force-exit watcher).
+   func commanderOver(
+   	run func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error,
+   	notFound error,
+   ) update.Commander {
+   	prims := cli.Primitives{RunCommand: run, NotFoundErr: notFound}
 
-   	g := NewWithT(t)
-
-   	cmd := &osCommander{}
-
-   	_, _, err := cmd.Run(context.Background(), "", "false")
-   	g.Expect(err).To(HaveOccurred())
+   	return cli.NewDeps(prims, io.Discard, io.Discard, nil).Commander
    }
 
-   func TestOsCommander_RunsCommand(t *testing.T) {
+   func TestCommander_CollectsOutputOnSuccess(t *testing.T) {
    	t.Parallel()
 
    	g := NewWithT(t)
 
-   	cmd := &osCommander{}
+   	run := func(_ context.Context, _, _ string, _ []string, stdout, stderr io.Writer) error {
+   		_, _ = stdout.Write([]byte("out-bytes"))
+   		_, _ = stderr.Write([]byte("err-bytes"))
 
-   	stdout, _, err := cmd.Run(context.Background(), "", "echo", "hello world")
-   	g.Expect(err).NotTo(HaveOccurred())
-   	g.Expect(strings.TrimSpace(string(stdout))).To(Equal("hello world"))
-   }
-
-   func TestOsCommander_RunsInDir(t *testing.T) {
-   	t.Parallel()
-
-   	g := NewWithT(t)
-
-   	cmd := &osCommander{}
-   	dir := t.TempDir()
-
-   	// macOS TempDir sits under a symlink (/tmp → /private/tmp); compare
-   	// against the resolved path so `pwd` output matches.
-   	resolved, evalErr := filepath.EvalSymlinks(dir)
-   	g.Expect(evalErr).NotTo(HaveOccurred())
-
-   	if evalErr != nil {
-   		return
+   		return nil
    	}
 
-   	stdout, _, err := cmd.Run(context.Background(), dir, "pwd")
+   	stdout, stderr, err := commanderOver(run, nil).Run(context.Background(), "", "tool")
    	g.Expect(err).NotTo(HaveOccurred())
-   	g.Expect(strings.TrimSpace(string(stdout))).To(Equal(resolved))
+   	g.Expect(string(stdout)).To(Equal("out-bytes"))
+   	g.Expect(string(stderr)).To(Equal("err-bytes"))
    }
 
-   func TestOsCommander_TranslatesNotFound(t *testing.T) {
+   func TestCommander_NilNotFoundErrNeverTranslates(t *testing.T) {
    	t.Parallel()
 
    	g := NewWithT(t)
 
-   	cmd := &osCommander{}
+   	errSpawn := errors.New("spawn failed")
+   	run := func(_ context.Context, _, _ string, _ []string, _, _ io.Writer) error {
+   		return errSpawn
+   	}
 
-   	_, _, err := cmd.Run(context.Background(), "", "engram-no-such-binary-7f3a")
+   	_, _, err := commanderOver(run, nil).Run(context.Background(), "", "tool")
+   	g.Expect(err).To(MatchError(errSpawn))
+   	g.Expect(err).NotTo(MatchError(update.ErrCommandNotFound))
+   }
+
+   func TestCommander_PassesCallThrough(t *testing.T) {
+   	t.Parallel()
+
+   	g := NewWithT(t)
+
+   	var gotDir, gotName string
+
+   	var gotArgs []string
+
+   	run := func(_ context.Context, dir, name string, args []string, _, _ io.Writer) error {
+   		gotDir, gotName, gotArgs = dir, name, args
+
+   		return nil
+   	}
+
+   	_, _, err := commanderOver(run, nil).Run(context.Background(), "/work", "git", "clone", "url")
+   	g.Expect(err).NotTo(HaveOccurred())
+   	g.Expect(gotDir).To(Equal("/work"))
+   	g.Expect(gotName).To(Equal("git"))
+   	g.Expect(gotArgs).To(Equal([]string{"clone", "url"}))
+   }
+
+   func TestCommander_TranslatesInjectedNotFound(t *testing.T) {
+   	t.Parallel()
+
+   	g := NewWithT(t)
+
+   	errPlatformNotFound := errors.New("platform: executable file not found")
+   	run := func(_ context.Context, _, _ string, _ []string, _, _ io.Writer) error {
+   		return fmt.Errorf("spawning: %w", errPlatformNotFound)
+   	}
+
+   	_, _, err := commanderOver(run, errPlatformNotFound).Run(context.Background(), "", "ghost")
    	g.Expect(err).To(MatchError(update.ErrCommandNotFound))
+   	g.Expect(err).To(MatchError(errPlatformNotFound))
+   }
+
+   func TestCommander_WrapsFailureAndKeepsOutput(t *testing.T) {
+   	t.Parallel()
+
+   	g := NewWithT(t)
+
+   	errBoom := errors.New("boom")
+   	run := func(_ context.Context, _, _ string, _ []string, stdout, stderr io.Writer) error {
+   		_, _ = stdout.Write([]byte("partial"))
+   		_, _ = stderr.Write([]byte("diagnostic"))
+
+   		return errBoom
+   	}
+
+   	stdout, stderr, err := commanderOver(run, errors.New("not-found")).Run(
+   		context.Background(), "", "tool", "arg")
+   	g.Expect(err).To(MatchError(errBoom))
+   	g.Expect(err).NotTo(MatchError(update.ErrCommandNotFound))
+   	g.Expect(err).To(MatchError(ContainSubstring("tool [arg]")))
+   	g.Expect(string(stdout)).To(Equal("partial"))
+   	g.Expect(string(stderr)).To(Equal("diagnostic"))
    }
    ```
-   Run `targ test` → expect PASS (this is refactor-RED: existing suite green + new adapter integration tests green; the internal copies still exist at this point).
+   Run `targ test` → expect FAIL (compile: `RunCommand`/`NotFoundErr` are not fields of `cli.Primitives` yet — the composition does not exist).
 
-3. [ ] Rewrite `internal/cli/update.go` — delete the adapters, add pure composition, retarget runUpdate.
+2. [ ] GREEN: add the primitives and the internal composition.
+   - **2a.** Modify `internal/cli/primitives.go`. Add `"context"` to the import block, and insert a new field group into `Primitives` between the debug-sink group and the signal group (the doctrine's canonical struct grows here exactly as its future-task hooks anticipate — same mechanism T14 uses for backend/cache):
+     ```go
+     	// External command execution (doctrine flag C-1: one erased run closure
+     	// + the platform not-found sentinel value; collection, wrapping, and
+     	// not-found translation live internal in primCommander).
+     	RunCommand func(
+     		ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer,
+     	) error // closure: exec.CommandContext; Dir/Stdout/Stderr assignment; Run
+     	NotFoundErr error // exec.ErrNotFound
+     ```
+     In `NewDeps`, add one field line to the `deps := Deps{...}` literal directly below `Lock:` (gofmt realigns the literal):
+     ```go
+     		Commander: primCommander{prims: prims},
+     ```
+     Wiring is unconditional, matching primFS/primLocker: a Deps built from fake primitives without `RunCommand` panics only if update actually runs — the same posture as every other unwired capability.
+   - **2b.** Create `internal/cli/commander.go`:
+     ```go
+     package cli
+
+     import (
+     	"bytes"
+     	"context"
+     	"errors"
+     	"fmt"
+
+     	"github.com/toejough/engram/internal/update"
+     )
+
+     // Compile-time interface conformance (internal — the thin-api checker
+     // does not walk internal/).
+     var _ update.Commander = primCommander{}
+
+     // primCommander is the production update.Commander: it composes the
+     // injected raw run primitive with output collection, contextual %w
+     // wrapping, and the platform-not-found → update.ErrCommandNotFound
+     // translation (doctrine flag C-1). cmd/engram contributes only the
+     // exec.CommandContext closure and the exec.ErrNotFound sentinel value;
+     // ALL policy lives here (#700).
+     type primCommander struct {
+     	prims Primitives
+     }
+
+     // Run executes name with args in dir (empty dir inherits the process
+     // cwd), returning captured stdout and stderr. A failure whose chain
+     // matches the injected NotFoundErr is additionally tagged
+     // update.ErrCommandNotFound per the Commander contract; errors.Is with
+     // a nil target matches no non-nil error, so an unwired NotFoundErr
+     // merely disables translation.
+     func (c primCommander) Run(
+     	ctx context.Context, dir, name string, args ...string,
+     ) ([]byte, []byte, error) {
+     	stdout := &bytes.Buffer{}
+     	stderr := &bytes.Buffer{}
+
+     	runErr := c.prims.RunCommand(ctx, dir, name, args, stdout, stderr)
+     	if runErr != nil {
+     		if errors.Is(runErr, c.prims.NotFoundErr) {
+     			return stdout.Bytes(), stderr.Bytes(),
+     				fmt.Errorf("%s %v: %w: %w", name, args, update.ErrCommandNotFound, runErr)
+     		}
+
+     		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("%s %v: %w", name, args, runErr)
+     	}
+
+     	return stdout.Bytes(), stderr.Bytes(), nil
+     }
+     ```
+   Run `targ test` → expect PASS (step-1 suite green). Run `targ check-full` → expect clean.
+
+3. [ ] Integration relocation — the former cmd adapter suite runs the COMPOSED primCommander over the REAL exec primitive in internal `_test` files (sanctioned: the T-final-1 purity lint excludes `!$test`).
+   - **3a.** Modify `internal/cli/primitives_integration_test.go`: extend `realPrimitives()`'s returned literal after the `OpenDebugFile` entry (it must keep mirroring cmd/engram/main.go's literal — doctrine flag DRIFT), and add `"context"` and `"os/exec"` to the file's imports (`io` is already there):
+     ```go
+     		RunCommand: func(
+     			ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer,
+     		) error {
+     			cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // test-chosen name/args
+     			cmd.Dir = dir
+     			cmd.Stdout = stdout
+     			cmd.Stderr = stderr
+
+     			return cmd.Run() //nolint:wrapcheck // raw platform error; wrapping is primCommander's job
+     		},
+     		NotFoundErr: exec.ErrNotFound,
+     ```
+   - **3b.** Create `internal/cli/commander_integration_test.go` (the relocated `TestOsCommander_*` coverage):
+     ```go
+     package cli_test
+
+     import (
+     	"context"
+     	"path/filepath"
+     	"strings"
+     	"testing"
+
+     	. "github.com/onsi/gomega"
+
+     	"github.com/toejough/engram/internal/update"
+     )
+
+     // These tests drive the composed primCommander over the REAL exec
+     // primitive (realPrimitives mirrors cmd/engram/main.go's literal —
+     // doctrine flag DRIFT): the relocated TestOsCommander_* coverage
+     // (#700 rework — integration tests with real os funcs live in
+     // internal _test files).
+
+     func TestCommanderIntegration_ReportsFailure(t *testing.T) {
+     	t.Parallel()
+
+     	g := NewWithT(t)
+
+     	commander := realDepsForTest().Commander
+
+     	_, _, err := commander.Run(context.Background(), "", "false")
+     	g.Expect(err).To(HaveOccurred())
+     }
+
+     func TestCommanderIntegration_RunsCommand(t *testing.T) {
+     	t.Parallel()
+
+     	g := NewWithT(t)
+
+     	commander := realDepsForTest().Commander
+
+     	stdout, _, err := commander.Run(context.Background(), "", "echo", "hello world")
+     	g.Expect(err).NotTo(HaveOccurred())
+     	g.Expect(strings.TrimSpace(string(stdout))).To(Equal("hello world"))
+     }
+
+     func TestCommanderIntegration_RunsInDir(t *testing.T) {
+     	t.Parallel()
+
+     	g := NewWithT(t)
+
+     	commander := realDepsForTest().Commander
+     	dir := t.TempDir()
+
+     	// macOS TempDir sits under a symlink (/tmp → /private/tmp); compare
+     	// against the resolved path so `pwd` output matches.
+     	resolved, evalErr := filepath.EvalSymlinks(dir)
+     	g.Expect(evalErr).NotTo(HaveOccurred())
+
+     	if evalErr != nil {
+     		return
+     	}
+
+     	stdout, _, err := commander.Run(context.Background(), dir, "pwd")
+     	g.Expect(err).NotTo(HaveOccurred())
+     	g.Expect(strings.TrimSpace(string(stdout))).To(Equal(resolved))
+     }
+
+     func TestCommanderIntegration_TranslatesNotFound(t *testing.T) {
+     	t.Parallel()
+
+     	g := NewWithT(t)
+
+     	commander := realDepsForTest().Commander
+
+     	_, _, err := commander.Run(context.Background(), "", "engram-no-such-binary-7f3a")
+     	g.Expect(err).To(MatchError(update.ErrCommandNotFound))
+     }
+     ```
+   Run `targ test` → expect PASS (refactor-parallel: the transitional internal osCommander suite still passes alongside; its deletion is the next step).
+
+4. [ ] Rewrite `internal/cli/update.go` — delete the adapters, add pure composition, retarget runUpdate.
    - Imports (lines 3–17): delete `"os"` and `"os/exec"`; keep `bytes`, `context`, `errors`, `fmt`, `io`, `io/fs`, `path/filepath`, `slices`, `strings`, and the `internal/update` import.
    - Replace the unexported-variables block (lines 34–40):
      ```go
@@ -7340,7 +8525,7 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
      	)
      )
      ```
-   - Delete entirely: `osCommander` type + `Run` method (lines 42–60), `osDirEntry` + methods (62–66), `osFileInfo` + method (68–70), `osUpdateEnv` + methods (72–84), the `// --- production adapters ---` comment (86), `osUpdateFS` + all six methods (88–151).
+   - Delete entirely: `osCommander` type + `Run` method (pre-T16 lines 42–60; T16's translation grew Run, so delete by symbol), `osDirEntry` + methods (62–66), `osFileInfo` + method (68–70), `osUpdateEnv` + methods (72–84), the `// --- production adapters ---` comment (86), `osUpdateFS` + all six methods (88–151).
    - In their place add the pure composition (zero I/O — depguard-safe):
      ```go
      // updateDeps carries the injected surfaces Updater.Run needs. Composed
@@ -7482,10 +8667,10 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
      ```
      (ENGRAM_VAULT_PATH / ENGRAM_CHUNKS_DIR reads thereby flow through `deps.Env.Getenv` ← `cli.Deps.Getenv` — no separate env work needed for this family.)
 
-4. [ ] Retarget the call site in `internal/cli/targets.go` (current lines 220–222; `learnUpdateTargets` has `deps Deps` in scope post-wiring-cluster). Replace:
+5. [ ] Retarget the call site in `internal/cli/targets.go` (post-T2, `learnUpdateTargets` has `deps Deps` in scope and the closure reads `deps.Stdout`). Replace:
    ```go
    		targ.Targ(func(ctx context.Context, a UpdateArgs) {
-   			errHandler(runUpdate(withLog(ctx), a, stdout))
+   			errHandler(runUpdate(withLog(ctx), a, deps.Stdout))
    		}).Name("update").Description("Refresh engram binary and harness skills"),
    ```
    with:
@@ -7494,15 +8679,24 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
    			errHandler(runUpdate(withLog(ctx), a, newUpdateDeps(deps), deps.Stdout))
    		}).Name("update").Description("Refresh engram binary and harness skills"),
    ```
-   (If the wiring cluster still passes `stdout` as a separate arg to `learnUpdateTargets`, use `stdout` in place of `deps.Stdout` — same value, wired from `Deps.Stdout` upstream.)
 
-5. [ ] Wire the commander in `cmd/engram/main.go`: inside the Deps literal built by the wiring cluster, add the field:
+6. [ ] Wire the primitives in `cmd/engram/main.go` — add exactly two field lines to the `cli.Primitives` literal (directly below the `OpenDebugFile` entry, mirroring step 3a's `realPrimitives()` extension) and `"context"`, `"io"`, `"os/exec"` to the import block. `main()` remains ONE statement and package main remains declaration-free; the closure is an expression the checker does not walk, and its body is the trivially-sequenced single-call sequence sanctioned by the C-1 field-shape resolution above:
    ```go
-   		Commander: &osCommander{},
-   ```
-   (Exact surrounding literal owned by the wiring cluster; this field assignment is this task's contract.)
+   			RunCommand: func(
+   				ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer,
+   			) error {
+   				cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // name/args from internal callers
+   				cmd.Dir = dir
+   				cmd.Stdout = stdout
+   				cmd.Stderr = stderr
 
-6. [ ] `internal/cli/export_test.go`:
+   				return cmd.Run() //nolint:wrapcheck // raw platform error; wrapping is internal policy (C-1)
+   			},
+   			NotFoundErr: exec.ErrNotFound,
+   ```
+   If `targ check-thin-api` flags anything in this file after the edit, ESCALATE the exact finding to the orchestrator (doctrine item 5) — do not suppress, do not restructure ad hoc.
+
+7. [ ] `internal/cli/export_test.go`:
    - Delete lines 523–524 (`ExportNewOsCommander`), 566–567 (`ExportNewOsUpdateEnv`), 569–570 (`ExportNewOsUpdateFS`) including their doc comments.
    - `ExportRunUpdate = runUpdate` (line 108) stays — the alias picks up the new signature.
    - Add to the import block `"github.com/toejough/engram/internal/update"`, and add:
@@ -7518,8 +8712,8 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
      ```
      (Place the var alphabetically in the existing var block; the func with the other Export funcs.)
 
-7. [ ] `internal/cli/update_test.go`:
-   - Delete `TestOsCommander_ReportsFailure`, `TestOsCommander_RunsCommand`, `TestOsCommander_TranslatesNotFound` (relocated in step 2), `TestOsUpdateEnv_ReturnsValues`, and all nine `TestOsUpdateFS_*` tests plus the `// osUpdateFS round-trip tests:` comment (lines 235–441 in the current file, minus `TestPluralFile`).
+8. [ ] `internal/cli/update_test.go`:
+   - Delete `TestOsCommander_ReportsFailure`, `TestOsCommander_RunsCommand`, `TestOsCommander_TranslatesNotFound` (T16's RED test — all three re-covered by step 3b's integration suite), `TestOsUpdateEnv_ReturnsValues`, and all nine `TestOsUpdateFS_*` tests plus the `// osUpdateFS round-trip tests:` comment (pre-T16 lines 235–441, minus `TestPluralFile` at 443; T16's insertion shifts later numbers — delete by name). The nine FS round-trips hand their real-FS coverage to `internal/cli/primitives_integration_test.go` (supersession map).
    - Rewrite the two runUpdate smoke tests and add the test doubles (file-local; `os` and `io/fs` already importable in _test.go — `fs` needs adding to imports):
      ```go
      // liveUpdateEnv adapts the real process environment to update.Env for the
@@ -7629,7 +8823,7 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
      ```
      Add `"io/fs"` to the file's imports (as `fs`), keep `os`, `context`, etc.
 
-8. [ ] Create `internal/cli/update_deps_test.go` — pure-composition unit tests over a fake EdgeFS (hand fakes match this family's precedent: u1FS/fakeCmd):
+9. [ ] Create `internal/cli/update_deps_test.go` — pure-composition unit tests over a fake EdgeFS (hand fakes match this family's precedent: u1FS/fakeCmd):
     ```go
     package cli_test
 
@@ -7777,18 +8971,25 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
     Note for the executor: sync `updateFakeEdgeFS`'s method set with the LANDED `cli.EdgeFS` (R13: T8 owns the cli_test `fakeEdgeFS` name; this one is `updateFakeEdgeFS`, distinct by design). `fstest.MapFS` paths are slash-relative (no leading `/`), hence the relative paths above; its error chains wrap `fs.ErrNotExist`, which is exactly the property under test.
     Run `targ test` → expect PASS. Run `targ check-full` → expect clean.
 
-9. [ ] Purity verification for this family:
+10. [ ] Purity + gate verification for this family:
     - `grep -rn '"os"\|"os/exec"' internal/cli/update.go internal/update/update.go` → no hits.
-    - `go install ./cmd/engram && engram update --dry-run` from the worktree root → expect `[dry-run] engram update` + `source: local clone at ...` output (real-binary check per house rule; exercises the full Deps wiring including osCommander).
+    - `grep -rln '"os/exec"' internal/ | grep -v _test` → no hits (os/exec now enters only through cmd/engram's Primitives literal; `_test` files are sanctioned by the doctrine).
+    - `targ test` → green; `targ check-full` → clean.
+    - `targ check-thin-api` → PASS (cmd/engram still holds only the declaration-free main.go; the RunCommand closure is an expression the checker does not walk). If it flags ANYTHING, escalate the exact finding — never suppress (Global Constraints).
+    - `go install ./cmd/engram && engram update --dry-run` from the worktree root → expect `[dry-run] engram update` + `source: local clone at ...` output (real-binary check per house rule; exercises Primitives.RunCommand → primCommander → newUpdateDeps → Updater.Run end to end).
 
-10. [ ] Commit (via the commit skill):
+11. [ ] Commit (via the commit skill):
     ```
-    refactor(cli): move commander to cmd, compose update deps (#700)
+    refactor(cli): commander via injected run primitive (#700)
 
-    osCommander (the only os/exec user) relocates to cmd/engram/os_update.go
-    with the ErrCommandNotFound translation; osUpdateFS/osUpdateEnv are
-    absorbed into pure adapters over cli.Deps (EdgeFS bridge + env-func
-    bridge). internal/cli/update.go is now I/O-import-free.
+    os/exec leaves internal/ entirely: cmd/engram's Primitives literal
+    contributes one erased exec.CommandContext run closure (RunCommand)
+    plus the exec.ErrNotFound sentinel value (NotFoundErr, doctrine flag
+    C-1); internal primCommander owns output collection, %w wrapping, and
+    the update.ErrCommandNotFound translation. osUpdateFS/osUpdateEnv are
+    absorbed into pure bridges over cli.Deps (EdgeFS bridge + env-func
+    bridge); runUpdate takes an injected updateDeps.
+    internal/cli/update.go is now I/O-import-free.
 
     AI-Used: [claude]
     ```
@@ -7800,13 +9001,17 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
 
 **Interfaces:**
 - Consumes: the fully-migrated tree (all prior tasks complete; no os/exec/signal/syscall/hugot imports and no time.Now/Since/Tick references remain in internal/ non-test code).
-- Produces: the enforced purity boundary; `targ check-full` fails on any regression.
+- Produces: the enforced purity boundary; `targ check-full` fails on any internal-side regression, and `targ check-thin-api` (authoritative, unchanged by this task) keeps guarding the cmd side.
 
 - [ ] **Step 1: RED — add the depguard rule and confirm it currently passes only because migration is done.** Add to `dev/golangci-lint.toml` alongside the existing `[linters.settings.depguard.rules.all]`:
 
 ```toml
 # #700: internal/ purity — default-deny. Anything not prefix-matched below is denied
-# in internal non-test code. NO file carve-outs (all I/O adapters live in cmd/engram).
+# in internal non-test code. NO file carve-outs: raw I/O primitives enter from
+# cmd/engram's declaration-free main (cli.Primitives; targ check-thin-api enforces that
+# side), ALL adapter composition is injected in internal/cli, and the only real-os code
+# under internal/ sits in _test files — excluded via '!$test' (sanctioned by the revised
+# composition doctrine).
 # Glob form per R9: start with the issue-AC literal 'internal/**'; Step 5's negative
 # probe validates it fires. Fall back to the prototype-confirmed '**/internal/**'
 # ONLY if the probe stays silent, and amend the issue AC wording (see R9).
@@ -7873,13 +9078,13 @@ path = '_test\.go$'
 
 - [ ] **Step 3: set `max-issues-per-linter = 0`** (deliberate: never truncate findings; the default 10 hid 14 of 24 findings during the plan-time prototype). Find the existing `max-issues-per-linter` line and set it to `0`.
 
-- [ ] **Step 4: verify — `targ check-full`.** Expected: GREEN. If depguard/forbidigo report findings, the migration missed a site — fix the SITE (relocate/thread it per the relevant task's pattern); NEVER add a carve-out, nolint, or allow-list entry to make it pass (that violates the issue's zero-grandfathering acceptance criteria; escalate to the orchestrator if a finding looks structural).
+- [ ] **Step 4: verify — `targ check-full` AND `targ check-thin-api`.** Expected: check-full GREEN, check-thin-api PASS (`All N public API files are thin wrappers.`). If depguard/forbidigo report findings, the migration missed a site — fix the SITE (relocate/thread it per the relevant task's pattern); NEVER add a carve-out, nolint, or allow-list entry to make it pass (that violates the issue's zero-grandfathering acceptance criteria; escalate to the orchestrator if a finding looks structural). If check-thin-api reports a finding, a prior task regressed the declaration-free cmd shape — escalate the exact finding (doctrine flag SIG-1); never suppress.
 
 - [ ] **Step 5: negative self-test of the gate (temporary, not committed).** Add `_ = os.Getenv("PROBE")` (+ `"os"` import) to any internal/ non-test file; run `targ check-full`; expect a depguard finding naming `internal-purity`. Revert the probe. This proves the rule fires (a green gate that can't fail is no gate).
 
 - [ ] **Step 5.2: loser-symbol grep gate.** `rg -n "edgeVaultFS|depsVaultFS|jsonlIndexesLister|jsonlIndexListerFrom|vaultLuhmannLock|warnLoggerTo|osListJSONLIndexes|ExportNewOsVaultFS" internal/ cmd/` must return ZERO hits: the parallel-drafting loser symbols (R1/R2/R3 — never legally declared anywhere) and the transitional shims (`osListJSONLIndexes`, deleted by T12; `ExportNewOsVaultFS`, call sites migrated by T12 per R12 and shim deleted by T7) must not exist in the final tree. Any hit → a task landed a loser or skipped its gated deletion; fix the SITE per the owning resolution (R1/R2/R3/R12) before proceeding — never rename-in-place to dodge the grep.
 
-- [ ] **Step 5.5: coverage stance for cmd/engram (issue AC).** `cmd/engram` now holds adapter code with integration tests, not just a thin entry point. Inspect how the coverage gate treats it: read the check-full output's coverage section (and `rg -n "cmd/" dev/targs.go dev/*.toml` for exclusion patterns). Record the finding + decision as a one-paragraph note in the commit body of Step 6: either (a) cmd/engram stays coverage-excluded because its files are integration-tested I/O wrappers (unit-coverage-exempt per the repo's test-categorization doctrine), or (b) it enters coverage with the integration tests counting. Do not silently leave the stance undecided — the issue AC requires a deliberate call, surfaced to the orchestrator if the tooling makes (b) awkward.
+- [ ] **Step 5.5: coverage stance for cmd/engram (issue AC).** Post-rework, `cmd/engram` holds ONLY the declaration-free `main.go` — a single-statement `main()` over the `cli.Primitives` literal, `targ check-thin-api`-enforced, with no testable logic. The adapter logic and the tests that used to sit beside it in cmd now live in `internal/cli`: unit tests with fake primitives plus integration `_test` files with real os/syscall funcs, all counting toward internal coverage like any other internal tests; the production literal itself is guarded by cli_test.go's end-to-end binary build. Inspect how the coverage gate treats `cmd/engram`: read the check-full output's coverage section (and `rg -n "cmd/" dev/targs.go dev/*.toml` for exclusion patterns). Record the finding + decision as a one-paragraph note in the commit body of Step 6: the expected call is (a) `cmd/engram` stays coverage-excluded as an entry point (the repo's entry-point exclusion doctrine — wiring only, no testable logic). If the tooling instead shows main.go entering coverage uncovered, that is call (b): decide deliberately between an explicit entry-point exclusion and a trivial main-wiring smoke test (the most cmd may keep), and surface the choice to the orchestrator. Do not silently leave the stance undecided — the issue AC requires a deliberate call.
 
 - [ ] **Step 6: Commit.**
 
@@ -7887,9 +9092,12 @@ path = '_test\.go$'
 git add dev/golangci-lint.toml
 git commit -m "check(#700): enforce internal purity via depguard + forbidigo
 
-Zero carve-outs: all I/O adapters now live in cmd/engram, so the rule
-needs no file exceptions. Custom forbidigo list replaces print defaults
-(printing stays legal). max-issues-per-linter=0 so findings never truncate.
+Zero carve-outs: raw I/O primitives enter from cmd/engram's
+declaration-free main (check-thin-api-enforced), adapter composition is
+injected in internal/cli, and real-os code under internal/ is confined
+to _test files ('!$test'), so the rule needs no file exceptions. Custom
+forbidigo list replaces print defaults (printing stays legal).
+max-issues-per-linter=0 so findings never truncate.
 
 AI-Used: [claude]"
 ```
@@ -7903,8 +9111,9 @@ AI-Used: [claude]"
 - Consumes: T-final-1 complete (`targ check-full` green with enforcement active).
 - Produces: the resolved FIXME per the user's rule ("remove the FIXME only when the issue is resolved").
 
-- [ ] **Step 1: verify the enforcement is green**: `targ check-full` → GREEN (fresh run, not a cached claim).
-- [ ] **Step 2: delete the relocated `FIXME(#700)` marker block from `cmd/engram/main.go`** (T2 carried it there; it begins `// FIXME(#700): internal-purity migration in progress`). This is a real deletion of a marker that MUST still exist at this point — if `rg -n "FIXME\(#700\)" .` returns zero hits BEFORE this step, that is a defect (the marker was removed early, violating the user's rule): STOP and escalate to the orchestrator. After deletion, re-run the grep — zero hits is the deliverable.
+- [ ] **Step 1: verify the enforcement is green**: `targ check-full` → GREEN AND `targ check-thin-api` → PASS (fresh runs, not cached claims).
+- [ ] **Step 2: delete the relocated `FIXME(#700)` marker block from `cmd/engram/main.go`** (T2 carried it there per R8: the comment block directly ABOVE `func main()`, beginning `// FIXME(#700): internal-purity migration in progress`). Delete ONLY that comment block — the declaration-free package (single-statement `main()`) is untouched. This is a real deletion of a marker that MUST still exist at this point — if `rg -n "FIXME\(#700\)" .` returns zero hits BEFORE this step, that is a defect (the marker was removed early, violating the user's rule): STOP and escalate to the orchestrator. After deletion, re-run the grep — zero hits is the deliverable.
+- [ ] **Step 2.5: re-run the task-final gates** — `targ check-full` GREEN + `targ check-thin-api` PASS (a comment-only deletion must change neither; the checker sees only declarations, so any new thin-api finding here means the edit touched more than the comment — revert and redo Step 2).
 - [ ] **Step 3: Commit.**
 
 ```bash
@@ -7918,10 +9127,10 @@ AI-Used: [claude]"
 
 | File | Disposition | Reason |
 |---|---|---|
-| `CLAUDE.md` | update | directory-structure + Key Files: `cmd/engram` becomes composition root (adapters + wiring + integration tests); DI bullet gains "lint-enforced (depguard/forbidigo, #700)"; line 43 stale ADR range `(ADR-0001..0003)` → `(ADR-0001..0020)` (or current top ADR at edit time) |
-| `README.md` | update | line 127 "cmd/engram/ CLI entry point (thin wiring layer)" → composition root with adapter implementations + integration tests |
-| `docs/architecture/c3-components.md` | update | K11 row: replace with `\| K11 \| internal/debuglog \| tail-friendly sink (pure: writer+clock injected) \| Cross-cutting debug log threaded through every CLI target (targets.go); file sink + env read live in cmd/engram/debuglog_sink.go (#700). \| — \|`; ADD a composition-root row (next free K-id — K13 per the current K1–K12 inventory; re-verify at edit time): `\| K<n> \| cmd/engram \| composition root \| Edge adapters (EdgeFS, FileLocker, commander, hugot backend, debug sink, signal registration) + cli.Deps wiring; integration-tested with real FS/env (#700). \| — \|`; mirror both in the mermaid block |
-| `docs/architecture/adr.md` | update | Append to ADR-0001's Status line: `; #700 (2026-07): composition root relocated to cmd/engram — all I/O adapter implementations + wiring live at the edge; internal/ is import-pure (lint-enforced, ADR-0020)`. Append to ADR-0013's Status line: `; #700 (2026-07): flock/atomic-rename implementations relocated to cmd/engram behind cli.EdgeFS/cli.FileLocker — semantics unchanged, lock-at-Run*-entry convention preserved, concurrent-writers regression test carried`. Add NEW ADR-0020 with this draft text (Gate C polishes wording, not substance): **ADR-0020 — Enforced internal/ purity: all I/O assignment outside internal.** Status: Accepted (shipped via #700). Context: the DI doctrine ("wire at the edges" — CLAUDE.md's summary bullet, under ADR-0001..0003's authority) was convention-only; production I/O adapters lived inside internal/cli, internal/debuglog, internal/embed, and direct env reads had crept in (the #700 FIXME); testing internal code meant working around real I/O. Decision: the boundary is absolute — internal/ holds interfaces + pure logic only; every production I/O implementation (FS, flock, signal registration, commander, embedder backend, debug sink) and all wiring live in cmd/engram (package main), injected via cli.Deps; enforcement is config-only — depguard default-deny allow-list over internal/ non-test files (zero file carve-outs) + forbidigo call-level bans (time.Now/Since/Tick, math/rand v1, auto-seeded rand/v2 globals, targ.Main). Consequences: every internal package is testable by injection alone; a new I/O capability requires an edge adapter + a Deps field (visible in review); the lint gate fails loud on regression; adapter integration tests live in cmd/engram with real FS/env; seeded math/rand/v2 stays legal (deterministic computation) |
+| `CLAUDE.md` | update | directory-structure + Key Files: `internal/cli` becomes the composition root (`cli.NewDeps` builds every production adapter from injected `cli.Primitives`); `cmd/engram` stays a declaration-free single-statement entry point supplying raw primitives (`targ check-thin-api`-enforced); DI bullet gains "lint-enforced (depguard/forbidigo + check-thin-api, #700)"; line 43 stale ADR range `(ADR-0001..0003)` → `(ADR-0001..0020)` (or current top ADR at edit time) |
+| `README.md` | update | line 127 "cmd/engram/ CLI entry point (thin wiring layer)" stays TRUE and is sharpened, not reversed: declaration-free `main()` over a `cli.Primitives` literal of raw capability references; all adapter composition lives in `internal/cli` (`cli.NewDeps`); enforced by `targ check-thin-api` |
+| `docs/architecture/c3-components.md` | update | K11 row: replace with `\| K11 \| internal/debuglog \| tail-friendly sink (pure: writer+clock injected) \| Cross-cutting debug log threaded through every CLI target (targets.go); sink composition (openDebugSink + per-write-Sync syncWriter, env-gated) lives in internal/cli/debugsink.go; cmd/engram supplies only the raw OpenDebugFile primitive (#700). \| — \|`; ADD an edge-primitives row (next free K-id — K13 per the current K1–K12 inventory; re-verify at edit time): `\| K<n> \| cmd/engram \| edge primitives + entry point \| Declaration-free single-statement main() populating cli.Primitives (raw os/syscall/filepath/hugot/exec capability references + single-call closures); targ check-thin-api-enforced; ALL adapter composition (EdgeFS, FileLocker, commander, hugot backend, debug sink, signal force-exit) lives in internal/cli via cli.NewDeps, integration-tested there with real FS/env (#700). \| — \|`; mirror both in the mermaid block |
+| `docs/architecture/adr.md` | update | Append to ADR-0001's Status line: `; #700 (2026-07): raw I/O primitives relocated to cmd/engram (declaration-free package main over cli.Primitives, targ check-thin-api-enforced); ALL adapter composition + wiring live in internal/cli (cli.NewDeps); internal/ is import-pure (lint-enforced, ADR-0020)`. Append to ADR-0013's Status line: `; #700 (2026-07): flock/atomic-rename lifecycle composed in internal/cli (primFS/primLocker over raw os/syscall primitives supplied by cmd/engram) — semantics unchanged, lock-at-Run*-entry convention preserved, concurrent-writers regression test carried (now an internal/cli integration test)`. Add NEW ADR-0020 with this draft text (Gate C polishes wording, not substance): **ADR-0020 — Enforced internal/ purity: raw I/O assignment in cmd/engram, all logic in internal/.** Status: Accepted (shipped via #700). Context: the DI doctrine ("wire at the edges" — CLAUDE.md's summary bullet, under ADR-0001..0003's authority) was convention-only; production I/O adapters lived inside internal/cli, internal/debuglog, internal/embed, and direct env reads had crept in (the #700 FIXME); testing internal code meant working around real I/O; and cmd thinness (targ's check-thin-api gate) forbids moving real adapter logic into package main. Decision: the boundary is absolute and two-sided — internal/ non-test code holds interfaces + ALL logic (adapter composition, error wrapping, lifecycle: EdgeFS atomic-write dance, flock open/lock/unlock-closure semantics, debug sink, signal force-exit, commander run-and-collect, embedder session/cache orchestration — built by cli.NewDeps from injected cli.Primitives) but imports no I/O packages; cmd/engram (package main) is declaration-free — a single-statement main() populating cli.Primitives with raw capability references (os.ReadFile, time.Now, filepath.WalkDir, syscall wrappers) and single-call closures, zero orchestration; enforcement is config-only and two-gate — depguard default-deny allow-list over internal/ non-test files (zero file carve-outs; real-os integration tests live in internal _test files via the sanctioned '!$test' exclusion) + forbidigo call-level bans (time.Now/Since/Tick, math/rand v1, auto-seeded rand/v2 globals, targ.Main) on the internal side, and targ check-thin-api (authoritative) on the cmd side. Consequences: every internal package is testable by injection alone (unit tests with fake primitives; real-os integration tests as internal _test files); a new I/O capability requires a Primitives field + internal composition, both visible in review; both gates fail loud on regression; cmd/engram carries no testable logic and stays coverage-exempt as an entry point; seeded math/rand/v2 stays legal (deterministic computation) |
 | `docs/GLOSSARY.md` | keep (verify) | cited files remain and `targets.go` still wires subcommands — verification only, no edit expected; if any entry describes os-level wiring, escalate rather than silently rewrite |
 | `docs/architecture/c1-system-context.md` | keep (verify citations) | flows unchanged; update-flow + query citations still valid |
 | `docs/architecture/c2-containers.md` | keep (verify) | C1/C2 skill-binary seam unchanged |
