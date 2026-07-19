@@ -13,12 +13,12 @@ import recency_value_agg as agg
 
 
 def _trial(phase1_ok=True, phase1_learned=False, recall_fired=True, correct=True,
-           surfaced_any=True, surfaced_via_recency=True,
+           runlog_ok=True, revenue_ok=True, surfaced_any=True, surfaced_via_recency=True,
            phase2_cost=1.0, phase2_turns=5, phase2_dur_ms=1000):
     return {"phase1_ok": phase1_ok, "phase1_learned": phase1_learned, "recall_fired": recall_fired,
-            "correct": correct, "surfaced_any": surfaced_any,
-            "surfaced_via_recency": surfaced_via_recency, "phase2_cost": phase2_cost,
-            "phase2_turns": phase2_turns, "phase2_dur_ms": phase2_dur_ms}
+            "correct": correct, "runlog_ok": runlog_ok, "revenue_ok": revenue_ok,
+            "surfaced_any": surfaced_any, "surfaced_via_recency": surfaced_via_recency,
+            "phase2_cost": phase2_cost, "phase2_turns": phase2_turns, "phase2_dur_ms": phase2_dur_ms}
 
 
 def test_n_valid_excludes_phase1_failures():
@@ -95,6 +95,18 @@ def test_recall_fired_rate_over_n_valid():
     trials = [_trial(recall_fired=True), _trial(recall_fired=False),
               _trial(phase1_ok=False, recall_fired=True)]
     assert agg.aggregate(trials)["recall_fired_rate"] == 0.5
+
+
+def test_runlog_and_revenue_rates_over_n_valid_and_distinct():
+    # The RUNLOG convention is the lever; revenue is the easy floor. When revenue is always right
+    # but only half honor the RUNLOG convention, the two rates must diverge — over n_valid, not
+    # conditioned on firing.
+    trials = [_trial(runlog_ok=True, revenue_ok=True, correct=True),
+              _trial(runlog_ok=False, revenue_ok=True, correct=False),
+              _trial(phase1_ok=False, runlog_ok=True, revenue_ok=True)]  # invalid -> excluded
+    out = agg.aggregate(trials)
+    assert out["revenue_ok_rate"] == 1.0
+    assert out["runlog_ok_rate"] == 0.5
 
 
 def test_verdict_inputs_present_with_learn_count():

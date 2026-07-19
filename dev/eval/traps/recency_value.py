@@ -1,26 +1,35 @@
 """Recency Recall Value-Proof (#646): two-phase per-arm trial runner.
 
-Each trial is two FRESH `claude -p` sessions sharing one per-trial-isolated vault + chunk index:
+Each trial is two FRESH `claude -p` sessions sharing one per-trial-isolated vault + chunk index.
+Phase 1 and phase 2 are commands in DIFFERENT tools (a `notes` tool vs an `orders` tool), but
+phase 1 discovers an ORG-WIDE house convention that applies across every tool. Because phase-1's
+transcript is about the unrelated `notes` tool, phase-2's recall angles ("prior work on the orders
+report", "compute revenue") do NOT cosine-match it — so the RUNLOG convention can only reach phase
+2 via the recency channel (the cross-context redesign that closed the shared-tool cosine leak,
+where "prior work on hq" surfaced phase-1 `direct`):
 
-  Phase 1 (self-capture): a fresh session builds `import` in the orders-cli sandbox and, forced
-  by validate_import.py, discovers + narrates the idiosyncratic milli-dollar convention. Its
-  transcript is ingested as chunks (no planted note - note 288).
+  Phase 1 (self-capture): a fresh session implements `add` in the `notes` CLI and, forced by
+  check.sh, discovers + narrates the idiosyncratic ORG-WIDE RUNLOG convention (EVERY command in
+  EVERY tool appends `RUNLOG v1 :: <CMD> :: rows=<N> :: sig=QX7Z`). Its transcript is ingested as
+  chunks (no planted note - note 288).
 
   Ingest: `engram ingest --transcript <phase-1 .jsonl> --chunks-dir <per-trial dir>` folds
   phase-1's narration into the chunk index as the newest chunks.
 
   Phase 2 (context-lost measurement): a BRAND-NEW session (no --resume, zero phase-1 context) in
-  a strict-whitelist workspace containing ONLY {SPEC.md, orders.db.json} (Gate B FIX 1 - no
-  phase-1-authored importer source, which would leak the round(dollars*1000) formula to a phase-2
-  agent extending the same CLI, making the contrast vacuous in both arms). A natural prompt
-  ("implement report per SPEC.md"); the agent decides on its own whether to /recall. The only
-  systematic variable between arms is the recency channel: ON = default; OFF =
-  ENGRAM_RECENT_FILL=-1 (existing flag, resolveRecentFill: negative -> channel off).
+  a strict-whitelist workspace containing ONLY {SPEC.md (orders tool), orders.db.json} — no
+  check.sh, no RUNLOG, no phase-1 `notes` material, so the convention cannot be re-derived and
+  must be RECALLED. A natural prompt ("implement report per SPEC.md"); the agent decides whether
+  to /recall. Revenue is trivial (plain-dollar amt) so the RUNLOG convention is the SOLE
+  differentiator. The only systematic variable between arms is the recency channel: ON = default;
+  OFF = ENGRAM_RECENT_FILL=-1 (existing flag, resolveRecentFill: negative -> off).
 
-Config isolation (Gate B FIX 3): phase 1 runs with NO engram skills so its own build task (fail
-validator -> discover -> fix) cannot trip /learn and write a confounding vault note; its
-transcript is captured by the explicit `engram ingest` regardless of skills. Phase 2 gets the
-/recall skill ONLY (no /learn) so it can naturally recall without a learn-write confound.
+Config isolation (Gate B FIX 3): phase 1 runs with NO engram skills so its own build task cannot
+trip /learn; phase 2 gets the /recall skill ONLY. Workspace isolation (Task 1): the claude cwd is
+created under a CLEAN temp dir NOT nested under any `.claude` (or VCS repo) — the recall skill's
+`engram ingest --auto` walks the cwd's ancestors for `.claude` dirs, and a workspace under
+`~/.claude/jobs/...` made it sweep the operator's global `~/.claude` into the per-trial recency
+channel (~48 files, displacing phase-1's chunk). See _new_clean_workspace_dir / _assert_clean_cwd.
 
 See docs/superpowers/plans/2026-07-18-646-recency-value-proof.md for the full design.
 
@@ -48,24 +57,23 @@ REPO = "/Users/joe/repos/personal/engram"
 ROOT = os.environ.get("TRAPS_ROOT", "/tmp/recency-value")
 FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "recency_value", "fixtures")
 
-PHASE1_PROMPT = ("Implement `import` in orders-cli per SPEC.md, then make "
-                  "`./validate_import.py orders.db.json` pass.")
-PHASE2_PROMPT = "Implement `report` in orders-cli per SPEC.md."
+PHASE1_PROMPT = ("Implement `add` in the notes CLI per SPEC.md, then make "
+                  "`./check.sh add` pass.")
+PHASE2_PROMPT = "Implement `report` in the orders CLI per SPEC.md."
 
-# Out-of-band surfacing probe (run_trial step 6): topically distant from the phase-1 build task
-# so a hit is attributable to the recency channel, not plain cosine on task vocabulary.
-SURFACING_PHRASES = ["implement the revenue report", "orders-cli report total"]
+# Phase-2's mandated report invocation (per orders SPEC.md).
+REPORT_CMD = ["./orders", "report", "orders.db.json"]
 
-# The out-of-band probe must render FULL chunk content (the milli-dollar narration lives in a
-# chunk's content) so the scorer can match markers. --content-budget=-1 = unlimited full content;
-# NOT --lazy-chunks, which zeroes all chunk content (clearChunkContent) and would make surfacing
-# undetectable. Note: the `=` form is required — a bare `-1` is parsed as another flag.
-PROBE_CONTENT_BUDGET = "--content-budget=-1"
+# Each workspace is a strict WHITELIST (Gate B FIX 1) mapping dst-name -> fixtures src-name, so
+# nothing outside the map can leak. Phase 1 gets the notes tool + its check.sh; phase 2 gets ONLY
+# the orders tool spec + data (no phase-1 `notes` material, no check.sh/RUNLOG, no answer key), so
+# the org RUNLOG convention must be recalled, not read. The per-tool spec is copied in as SPEC.md.
+WS1_FILES = {"SPEC.md": "notes_SPEC.md", "items.txt": "items.txt", "check.sh": "check.sh"}
+WS2_FILES = {"SPEC.md": "orders_SPEC.md", "orders.db.json": "orders.db.json"}
 
-# WS2 is a strict WHITELIST (Gate B FIX 1): EXACTLY these files, constructed fresh (not copied
-# from WS1 and subtracted). SPEC.md comes from fixtures; orders.db.json is phase-1's own output.
-# No phase-1-authored importer source (leaks round(dollars*1000)), no orders.csv, no validator.
-WS2_WHITELIST = ("SPEC.md", "orders.db.json")
+# Surfacing is measured from the agent's ACTUAL in-band recall payloads in the phase-2 transcript
+# (note-197 instrument-fidelity fix), NOT a post-hoc out-of-band re-query. See score.py's
+# extract_query_payloads / surfaced_*_inband.
 
 
 def build_recall_only_cfg(dst):
@@ -75,6 +83,56 @@ def build_recall_only_cfg(dst):
     src = os.path.join(REPO, "skills", "recall")
     if os.path.isdir(src):
         shutil.copytree(src, os.path.join(dst, "skills", "recall"), dirs_exist_ok=True)
+
+
+def _assert_clean_cwd(path):
+    """Fail loud (note-197 instrument fidelity) if `path` is nested under any `.claude` directory
+    or VCS repo. The recall skill runs `engram ingest --auto`, which (sweepspec.go) walks the cwd's
+    ancestors collecting every `.claude` dir AND resolves the nearest VCS repo root for markdown —
+    so a claude workspace under `~/.claude/jobs/...` or inside a repo would sweep operator-global /
+    repo content into the per-trial recency channel, displacing phase-1's chunk."""
+    directory = os.path.abspath(path)
+    while True:
+        if os.path.isdir(os.path.join(directory, ".claude")):
+            raise RuntimeError(
+                f"workspace {path} is under a .claude dir ({directory}/.claude) — engram ingest "
+                "--auto would sweep operator-global memory into the per-trial recency channel")
+        for marker in (".git", ".hg", ".jj"):
+            if os.path.isdir(os.path.join(directory, marker)):
+                raise RuntimeError(
+                    f"workspace {path} is inside a VCS repo ({directory}) — engram ingest --auto's "
+                    "repo-markdown sweep would ingest the repo's docs into the recency channel")
+
+        parent = os.path.dirname(directory)
+        if parent == directory:
+            return
+
+        directory = parent
+
+
+def _new_clean_workspace_dir(arm, idx):
+    """A per-trial base for the claude workspaces (cwd), created under the system temp dir so it is
+    NOT nested under any `.claude` (Task 1 isolation). Prefers /tmp (stable, never under ~/.claude);
+    the guard fails loud if the chosen base is somehow polluted rather than silently leaking."""
+    base = "/tmp" if os.path.isdir("/tmp") and os.access("/tmp", os.W_OK) else tempfile.gettempdir()
+    work_dir = tempfile.mkdtemp(prefix=f"rvwork-{arm}-{idx}-", dir=base)
+    _assert_clean_cwd(work_dir)
+
+    return work_dir
+
+
+def _build_ws(ws, file_map):
+    """Construct a workspace fresh as a strict WHITELIST (Gate B FIX 1): EXACTLY the mapped files,
+    each copied from fixtures under its destination name (copy2 preserves check.sh's exec bit).
+    Raises if the result set is not exactly the whitelist (defense-in-depth against a leak)."""
+    os.makedirs(ws, exist_ok=True)
+    for dst_name, src_name in file_map.items():
+        shutil.copy2(os.path.join(FIXTURES, src_name), os.path.join(ws, dst_name))
+
+    present = set(os.listdir(ws))
+    if present != set(file_map):
+        raise RuntimeError(
+            f"workspace whitelist violated: expected {sorted(file_map)}, got {sorted(present)}")
 
 
 def build_trial_env(arm, trial_dir):
@@ -156,28 +214,17 @@ def _ingest_padding(chunks_dir, env, count):
     subprocess.run(cmd, env=env, capture_output=True, text=True)
 
 
-def _build_ws2(ws1, ws2):
-    """Construct phase-2's workspace fresh as a strict WHITELIST (Gate B FIX 1): EXACTLY SPEC.md
-    (from fixtures) + orders.db.json (phase-1's output copied from WS1). Never copytree-WS1-and-
-    subtract: phase-1-authored importer source contains the literal round(dollars*1000) math, and
-    a phase-2 agent extending the same CLI would recover the unit by reading it — ZERO recall,
-    both arms — making the contrast vacuous. Raises if the result set is not exactly the whitelist
-    (defense-in-depth against an accidental leak)."""
-    os.makedirs(ws2, exist_ok=True)
-    shutil.copy(os.path.join(FIXTURES, "SPEC.md"), os.path.join(ws2, "SPEC.md"))
-    shutil.copy(os.path.join(ws1, "orders.db.json"), os.path.join(ws2, "orders.db.json"))
-
-    present = set(os.listdir(ws2))
-    if present != set(WS2_WHITELIST):
-        raise RuntimeError(
-            f"WS2 whitelist violated: expected {sorted(WS2_WHITELIST)}, got {sorted(present)}")
-
-
 def run_trial(arm, idx, model, recent_volume=0):
     """Run one full trial: phase 1 (self-capture) -> ingest -> phase 2 (context-lost measurement)
     -> score. Returns a dict with the keys consumed by recency_value_agg.aggregate."""
     os.makedirs(os.path.join(ROOT, "trials"), exist_ok=True)
     trial_dir = tempfile.mkdtemp(prefix=f"{arm}-{idx}-", dir=os.path.join(ROOT, "trials"))
+
+    # The claude workspaces (cwd) live under a CLEAN temp dir, NOT under trial_dir — trial_dir may
+    # be under ~/.claude/jobs/..., which would make `engram ingest --auto` sweep operator-global
+    # memory into the recency channel (Task 1). Bookkeeping (cfg, chunks, transcripts) stays under
+    # trial_dir for collection; only the cwd must be isolation-clean.
+    work_dir = _new_clean_workspace_dir(arm, idx)
 
     # base_env carries ONLY the engram env (vault, per-trial chunks dir, arm's recency toggle);
     # CLAUDE_CONFIG_DIR is layered per-phase so the two phases get DIFFERENT configs (FIX 3).
@@ -192,16 +239,16 @@ def run_trial(arm, idx, model, recent_volume=0):
 
     result = {
         "arm": arm, "idx": idx, "phase1_ok": False, "phase1_learned": None,
-        "recall_fired": None, "correct": None, "surfaced_any": None,
-        "surfaced_via_recency": None, "phase2_cost": None, "phase2_turns": None,
-        "phase2_dur_ms": None, "phase1_cost": 0.0, "trial_dir": trial_dir,
+        "recall_fired": None, "correct": None, "runlog_ok": None, "revenue_ok": None,
+        "surfaced_any": None, "surfaced_via_recency": None, "phase2_cost": None,
+        "phase2_turns": None, "phase2_dur_ms": None, "phase1_cost": 0.0,
+        "trial_dir": trial_dir, "work_dir": work_dir,
     }
 
-    # Phase 1: self-capture. expected.json is the scorer's answer key — it must NEVER enter an
-    # agent workspace (§2.1: "used only by the scorer, never in an agent workspace"), so it is
-    # excluded here (WS2 is built fresh from a whitelist, so it can never leak there).
-    ws1 = os.path.join(trial_dir, "ws1")
-    shutil.copytree(FIXTURES, ws1, ignore=shutil.ignore_patterns("expected.json"))
+    # Phase 1: self-capture. WS1 = the notes tool + check.sh only (its SPEC, items.txt, check.sh);
+    # orders material + the scorer answer key are withheld.
+    ws1 = os.path.join(work_dir, "ws1")
+    _build_ws(ws1, WS1_FILES)
 
     env1 = dict(base_env)
     env1["CLAUDE_CONFIG_DIR"] = phase1_cfg
@@ -210,9 +257,8 @@ def run_trial(arm, idx, model, recent_volume=0):
     out1 = _run_claude(PHASE1_PROMPT, ws1, env1, model)
     result["phase1_cost"] = out1.get("total_cost_usd", 0) or 0
 
-    db_path = os.path.join(ws1, "orders.db.json")
-    csv_path = os.path.join(ws1, "orders.csv")
-    phase1_ok = os.path.exists(db_path) and score.import_ok(db_path, csv_path)
+    # phase1_ok = did phase 1 discover + honor the org RUNLOG convention (a valid ADD line)?
+    phase1_ok = score.notes_add_ok(ws1)
     result["phase1_ok"] = phase1_ok
 
     phase1_transcript = _find_transcript(phase1_cfg, out1.get("session_id"))
@@ -235,9 +281,10 @@ def run_trial(arm, idx, model, recent_volume=0):
     if recent_volume > 0:
         _ingest_padding(chunks_dir, base_env, recent_volume)
 
-    # Phase 2: context-lost measurement in a brand-new session, strict-whitelist workspace.
-    ws2 = os.path.join(trial_dir, "ws2")
-    _build_ws2(ws1, ws2)
+    # Phase 2: context-lost measurement in a brand-new session, strict-whitelist workspace (the
+    # orders tool spec + data only — a DIFFERENT tool from phase 1's notes).
+    ws2 = os.path.join(work_dir, "ws2")
+    _build_ws(ws2, WS2_FILES)
 
     env2 = dict(base_env)
     env2["CLAUDE_CONFIG_DIR"] = phase2_cfg
@@ -251,32 +298,34 @@ def run_trial(arm, idx, model, recent_volume=0):
     phase2_transcript = _find_transcript(phase2_cfg, out2.get("session_id"))
     result["recall_fired"] = bool(phase2_transcript) and score.recall_fired(phase2_transcript)
 
-    # Independently verify the artifact (the built CLI's own stdout), not the agent's narration.
-    report_cmd = ["./orders-cli", "report"]
-    report_result = subprocess.run(report_cmd, cwd=ws2, capture_output=True, text=True)
+    # Exercise the agent's own `./orders report orders.db.json` per SPEC's mandated invocation.
+    # This both checks revenue (stdout) AND drives the report command so it appends its RUNLOG line
+    # if the agent built the convention in. revenue_ok is trivially easy (plain-dollar amt);
+    # runlog_ok is the real lever (did the agent recall + apply the un-guessable ORG convention?).
+    # correct requires BOTH — recording each separately shows convention-recall vs easy-revenue.
+    report_result = subprocess.run(REPORT_CMD, cwd=ws2, capture_output=True, text=True)
 
     with open(os.path.join(FIXTURES, "expected.json")) as f:
         expected_total = json.load(f)["dollar_total"]
 
-    result["correct"] = score.report_revenue_ok(report_result.stdout, expected_total)
+    revenue_ok = score.report_revenue_ok(report_result.stdout, expected_total)
+    runlog_ok = score.runlog_report_ok(os.path.join(ws2, "RUNLOG"))
+    result["revenue_ok"] = revenue_ok
+    result["runlog_ok"] = runlog_ok
+    result["correct"] = bool(revenue_ok and runlog_ok)
 
-    # Step 6: out-of-band surfacing capture. Does NOT feed the agent (phase 2's own recall already
-    # ran) - it only scores what the arm's ranking would surface, teed to disk. Uses the SAME arm
-    # env (base_env carries ENGRAM_RECENT_FILL). --content-budget=-1 (NOT --lazy-chunks) so full
-    # chunk content is rendered and the milli-dollar markers are matchable.
-    query_cmd = ["engram", "query", PROBE_CONTENT_BUDGET]
-    for phrase in SURFACING_PHRASES:
-        query_cmd += ["--phrase", phrase]
-
-    query_result = subprocess.run(query_cmd, env=base_env, capture_output=True, text=True)
-
+    # Surfacing from the agent's ACTUAL in-band recall payloads (note-197 instrument fix): parse
+    # the phase-2 transcript for every engram query payload and match phase-1's chunk by its
+    # session id (path-based — robust to the recall skill's --lazy-chunks zeroing content). No
+    # out-of-band re-query (it read a post-ingest-auto-polluted index and used canned phrases).
+    payloads = score.extract_query_payloads(phase2_transcript)
     with open(os.path.join(trial_dir, "recall_payload.yaml"), "w") as f:
-        f.write(query_result.stdout)
+        f.write("\n---\n".join(payloads))
 
-    # Dual surfacing metric (FIX 2): surfaced_any = P2 vacuous-contrast gate (any provenance,
-    # catches the re-rank leak); surfaced_via_recency = note-83 diagnostic (recency channel only).
-    result["surfaced_any"] = score.surfaced_any(query_result.stdout)
-    result["surfaced_via_recency"] = score.surfaced_via_recency(query_result.stdout)
+    # surfaced_any = did the agent's recall surface phase-1's chunk at all (any provenance);
+    # surfaced_via_recency = did the RECENCY CHANNEL specifically deliver it (note-83 diagnostic).
+    result["surfaced_any"] = score.surfaced_any_inband(payloads, phase1_transcript)
+    result["surfaced_via_recency"] = score.surfaced_via_recency_inband(payloads, phase1_transcript)
 
     return result
 
@@ -303,9 +352,9 @@ def main():
             results.append(r)
             print(f"  [{r['arm']:3} #{r['idx']}] phase1_ok={r['phase1_ok']} "
                   f"learned={r['phase1_learned']} recall_fired={r['recall_fired']} "
-                  f"correct={r['correct']} surfaced_any={r['surfaced_any']} "
-                  f"via_recency={r['surfaced_via_recency']} $p1={r['phase1_cost']:.2f} "
-                  f"$p2={(r['phase2_cost'] or 0):.2f}")
+                  f"correct={r['correct']} (runlog={r['runlog_ok']} revenue={r['revenue_ok']}) "
+                  f"surfaced_any={r['surfaced_any']} via_recency={r['surfaced_via_recency']} "
+                  f"$p1={r['phase1_cost']:.2f} $p2={(r['phase2_cost'] or 0):.2f}")
 
     total_spend = sum((r["phase1_cost"] or 0) + (r["phase2_cost"] or 0) for r in results)
     print(f"\ntotal spend: ${total_spend:.2f}")

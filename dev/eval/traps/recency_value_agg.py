@@ -41,6 +41,15 @@ def aggregate(trials):
     correct_rate_fired = (
         sum(1 for t in fired if t.get("correct")) / len(fired) if fired else None
     )
+    # Correctness breakdown over all valid trials (hq-RUNLOG scenario): runlog_ok is the real
+    # lever (recall + apply the un-guessable house convention); revenue_ok is the trivial-revenue
+    # floor. Both over n_valid so "revenue easy, RUNLOG the differentiator" is visible.
+    runlog_ok_rate = (
+        sum(1 for t in valid if t.get("runlog_ok")) / n_valid if n_valid else None
+    )
+    revenue_ok_rate = (
+        sum(1 for t in valid if t.get("revenue_ok")) / n_valid if n_valid else None
+    )
     # Dual surfacing rates (FIX 2), over fired trials (plan Task 3). None-safe when no trial
     # fired / payload was empty (EDGE): a missing key is falsy, and an empty `fired` yields None.
     surfaced_any_rate = (
@@ -76,6 +85,8 @@ def aggregate(trials):
         "recall_fired_rate": recall_fired_rate,
         "correct_rate_all": correct_rate_all,
         "correct_rate_fired": correct_rate_fired,
+        "runlog_ok_rate": runlog_ok_rate,
+        "revenue_ok_rate": revenue_ok_rate,
         "surfaced_any_rate": surfaced_any_rate,
         "surfaced_via_recency_rate": surfaced_via_recency_rate,
         "raw_cost": raw_cost,
@@ -107,8 +118,9 @@ def main():
     args = parser.parse_args()
 
     header = (f"{'arm':5} {'n_valid':>7} {'fired%':>7} {'correct_all%':>13} "
-              f"{'correct_fired%':>15} {'surf_any%':>10} {'surf_recency%':>14} "
-              f"{'$raw(all)':>10} {'$(correct)':>11} {'turns(correct)':>15} {'ms(correct)':>12}")
+              f"{'correct_fired%':>15} {'runlog%':>8} {'revenue%':>9} {'surf_any%':>10} "
+              f"{'surf_recency%':>14} {'$raw(all)':>10} {'$(correct)':>11} "
+              f"{'turns(correct)':>15} {'ms(correct)':>12}")
     print(header)
 
     for path in args.files:
@@ -121,6 +133,7 @@ def main():
 
         row = (f"{arm:5} {result['n_valid']:>7} {_pct(result['recall_fired_rate']):>7} "
                f"{_pct(result['correct_rate_all']):>13} {_pct(result['correct_rate_fired']):>15} "
+               f"{_pct(result['runlog_ok_rate']):>8} {_pct(result['revenue_ok_rate']):>9} "
                f"{_pct(result['surfaced_any_rate']):>10} "
                f"{_pct(result['surfaced_via_recency_rate']):>14} "
                f"{_fmt_money(result['raw_cost']['cost_usd']):>10} "

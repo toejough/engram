@@ -1,0 +1,12 @@
+[
+  {"id": "1", "customer": "Acme Corp", "amt": 19.99},
+  {"id": "2", "customer": "Blue Sky LLC", "amt": 45.50},
+  {"id": "3", "customer": "Cedar Grove", "amt": 12.00},
+  {"id": "4", "customer": "Dune Traders", "amt": 99.95},
+  {"id": "5", "customer": "Echo Systems", "amt": 7.25},
+  {"id": "6", "customer": "Fern & Co", "amt": 150.00},
+  {"id": "7", "customer": "Granite Works", "amt": 33.10},
+  {"id": "8", "customer": "Harbor Goods", "amt": 4.99},
+  {"id": "9", "customer": "Ivory Lane", "amt": 88.88},
+  {"id": "10", "customer": "Juniper Market", "amt": 21.34}
+]
