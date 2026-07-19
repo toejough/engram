@@ -19,3 +19,8 @@ Task 2: implemented (commit d946a145), review pending
 Task 2: complete (commit d946a145, task review APPROVED, Gate B APPROVED)
 - Minor (Gate B, polish): add inline flag comments (// P-2/P-3, // SIG-1) to the non-S-1 sanctioned closures in cmd/engram/main.go for reader-visible sanction parity
 BASE-T3: d946a145701ca636410e1595273d7751a363e3d4
+Task 3: implemented (commit d98b0ca0), review pending
+Task 3: complete (commits d98b0ca0 + 240a2a95 fix, task review APPROVED, Gate B APPROVED after fix round)
+- T5 reviewer watch (Gate B residual): newVaultFS.ListMD must NOT port "reading dir %s: %w" verbatim over EdgeFS — use the distinct-word/no-path shape ("list md: %w"); EdgeFS.ReadDir already carries the path
+- Non-blocking note: newTestDeps now flows through NewDeps, so targets-tests get a real DebugLog sink iff ENGRAM_DEBUG_LOG is set in the env (production-faithful, benign)
+BASE-T5: 240a2a955608e8b9cebcd07663118a8a2c7da36a
