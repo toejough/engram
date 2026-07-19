@@ -2627,7 +2627,7 @@ AI-Used: [claude]
 | query.go:1294 | `logWarningToStderrf` (os.Stderr via learn.go:333) | `logWarningTo(d.Stderr)` |
 | query.go:1295 | `ListChunkIndexes: listJSONLIndexes` (os.ReadDir) | `listJSONLIndexes(d.FS)` |
 | query.go:1296 | `Now: time.Now` | `Now: d.Now` |
-| query_chunks.go:8 | `"os"` import | deleted; add `"io/fs"` |
+| query_chunks.go:8 | `"os"` import | retained through T6 (transitional osListJSONLIndexes), deleted in T12 (R3); add `"io/fs"` |
 | query_chunks.go:139 | `os.ReadDir(dir)` | `fsys.ReadDir(dir)` (EdgeFS, via closure) |
 | query_chunks.go:141 | `os.IsNotExist(err)` | `errors.Is(err, fs.ErrNotExist)` |
 | query_chunks.go:188 | `fs := &osEmbedFS{}` | `d.FS` (newChunkQueryDeps) |
