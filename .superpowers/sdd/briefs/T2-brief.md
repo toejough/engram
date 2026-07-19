@@ -548,12 +548,12 @@ func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
 }
 ```
 
-   **5b.** Rewrite `cmd/engram/main.go` (replaces the whole file). Package main becomes DECLARATION-FREE: `main()` is ONE statement — a single external call, which is exactly what `checkFuncThinness` accepts (doctrine flag SIG-1: any second statement in main() FAILS the gate) — and every raw capability enters as a direct func reference or single-call closure inside the `cli.Primitives` literal (closures are expressions, not declarations; the checker does not walk them, and the doctrine caps their bodies at single calls). Signal registration happens inside `cli.NewDeps` (via `StartSignalPulses` + internal `startForceExit`) during argument evaluation — strictly BEFORE `targ.Main` runs, preserving the handler-covers-the-whole-run property:
+   **5b.** Rewrite `cmd/engram/main.go` (replaces the whole file). Package main becomes DECLARATION-FREE: `main()` is ONE statement — a single external call, which is exactly what `checkFuncThinness` accepts (doctrine flag SIG-1: any second statement in main() FAILS the gate) — and every raw capability enters as a direct func reference or sanctioned closure inside the `cli.Primitives` literal (closures are expressions, not declarations; the checker does not walk them — the doctrine's closure rule caps them at single-call signature erasure or an enumerated stdlib-equivalent survivor: S-1 `WriteFileExcl` below, C-1 `RunCommand` in T17). Signal registration happens inside `cli.NewDeps` (via `StartSignalPulses` + internal `startForceExit`) during argument evaluation — strictly BEFORE `targ.Main` runs, preserving the handler-covers-the-whole-run property:
 
 ```go
 // Package main provides the engram CLI binary entry point (ARCH-6). It is
 // deliberately declaration-free: raw impure capabilities enter as func
-// references and single-call closures in the cli.Primitives literal, and
+// references and sanctioned closures in the cli.Primitives literal, and
 // ALL composition, error wrapping, and lifecycle logic lives in
 // internal/cli (targ check-thin-api enforces this shape; #700).
 package main
@@ -587,19 +587,28 @@ func main() {
 		Remove:      os.Remove,
 		RemoveAll:   os.RemoveAll,
 		Rename:      os.Rename,
-		Chmod:       os.Chmod,
 		WalkDir:     filepath.WalkDir,
+		Chmod:       os.Chmod,
 		Getenv:      os.Getenv,
 		Now:         time.Now,
 		Getwd:       os.Getwd,
 		UserHomeDir: os.UserHomeDir,
-		CreateTemp: func(dir, pattern string) (string, error) {
-			file, err := os.CreateTemp(dir, pattern)
+		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
+			// Doctrine survivor S-1: os.WriteFile's own body with
+			// O_CREATE|O_EXCL — mechanical error propagation only; behavior
+			// changes extend the Primitives SIGNATURE, never this body.
+			//nolint:gosec // operator-controlled path
+			file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 			if err != nil {
-				return "", err
+				return err
 			}
 
-			return file.Name(), file.Close()
+			_, err = file.Write(data)
+			if closeErr := file.Close(); closeErr != nil && err == nil {
+				err = closeErr
+			}
+
+			return err
 		},
 		OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
 			fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
@@ -630,7 +639,7 @@ func main() {
 }
 ```
 
-   If `targ check-full` flags additional gosec G304 sites in the closures (e.g. `os.CreateTemp`), add the same targeted, justified `//nolint:gosec` line — never a config-level suppression. If `check-thin-api` itself flags ANYTHING in this file, escalate the exact finding (doctrine flag SIG-1).
+   If `targ check-full` flags additional gosec G304 sites in the closures, add the same targeted, justified `//nolint:gosec` line — never a config-level suppression. If `check-thin-api` itself flags ANYTHING in this file, escalate the exact finding (doctrine flag SIG-1).
 
    **5c.** Delete `internal/cli/main.go` (the old `Main`; its ENGRAM_DEBUG_LOG read now lives in `NewDeps` via the Getenv primitive — T1-rework). The FIXME(#700) marker does NOT die with the file: it is relocated to `cmd/engram/main.go` per R8 (the comment block above `func main()` in 5b — comments are legal in the declaration-free package).
 
@@ -662,7 +671,7 @@ refactor(cli): single-statement main over Primitives literal (#700)
 
 Targets now takes the cli.Deps capability carrier; cmd/engram/main.go
 becomes a declaration-free package whose main() is one statement wiring
-raw primitives (os/syscall/filepath references and single-call closures)
+raw primitives (os/syscall/filepath references and sanctioned closures)
 into cli.NewDeps. Deletes cli.Main and SetupSignalHandling, drops the os
 import from targets.go, purifies debuglog (injected writer + clock, nil
 no-op), and wires the lazy embedder inside NewDeps (R6/D-1). FIXME(#700)

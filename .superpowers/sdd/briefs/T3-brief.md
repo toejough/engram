@@ -4,11 +4,10 @@
 - Create: `internal/cli/deps_compose.go` (shared EdgeFS/FileLocker composition helpers)
 - Create: `internal/cli/deps_compose_test.go` (RED tests for the compositions)
 - Modify: `internal/cli/deps.go` (foundation file: add `WriteFileExcl` to EdgeFS — flagged addition)
-- Modify: `internal/cli/primitives.go` (add `Primitives.OpenExcl` — the flag-X-1 exclusive-create primitive)
-- Modify: `internal/cli/edgefs.go` (add `primFS.WriteFileExcl` — open/write/close lifecycle internal)
+- Modify: `internal/cli/edgefs.go` (add `primFS.WriteFileExcl` — the single `%w` wrap over the base `WriteFileExcl` primitive)
 - Modify: `internal/cli/edgefs_test.go` (fake-primitive contract tests for `WriteFileExcl`)
-- Modify: `internal/cli/primitives_integration_test.go` (real-FS `WriteFileExcl` → `fs.ErrExist` round-trip; extend `realPrimitives()` with the `OpenExcl` closure)
-- Modify: `cmd/engram/main.go` (ONE new field line in the `cli.Primitives` literal — the `OpenExcl` single-call closure — plus its `io` import; nothing else)
+- Modify: `internal/cli/primitives_integration_test.go` (real-FS `WriteFileExcl` → `fs.ErrExist` round-trip — survivor S-1's behavior-mirror test; `realPrimitives()` already carries the `WriteFileExcl` closure from T1-rework)
+- Verify-only (NO edit — flag X-1 is consume/verify): `internal/cli/primitives.go`, `cmd/engram/main.go` (the `WriteFileExcl` primitive and its literal closure landed with T1-rework/T2)
 - Modify: `internal/cli/learn.go` (delete `newOsLearnDeps` + `logWarningToStderrf`; add `newLearnDeps(d Deps)`; re-sign `runLearnFrom*Args`; drop `os` import)
 - Modify: `internal/cli/qa.go` (delete `newOsLearnQADeps`; add `newQaDeps(d Deps)`; drop `os` import)
 - Modify: `internal/cli/cli.go` (re-parameterize `listRootNotes`; shrink `osLearnFS` to Lock-only; receive relocated `logWarningToStderrf`)
@@ -21,7 +20,7 @@
 
 **Interfaces**
 - Consumes (from foundation `internal/cli/deps.go`): `Deps{Stdout, Stderr io.Writer; Now func() time.Time; Getenv func(string) string; FS EdgeFS; Lock FileLocker; Embed embed.Embedder; ...}`, `EdgeFS`, `FileLocker{ Lock(path string) (unlock func() error, err error) }`
-- Consumes (from T1-rework): `cli.Primitives` + `cli.NewDeps` (this task adds the `OpenExcl` field per flag X-1), `primFS`/`primLocker` (unexported, reached only through `NewDeps`), and the cli_test helpers `realPrimitives()`, `realDepsForTest()`, `realFSForTest()`, `fsFromPrims`, `lockerFromPrims`, const `atomicPerm`/`realFSFilePerm`
+- Consumes (from T1-rework): `cli.Primitives` + `cli.NewDeps` (the base struct already carries the `WriteFileExcl` primitive — flag X-1 is consume/verify, doctrine survivor S-1), `primFS`/`primLocker` (unexported, reached only through `NewDeps`), and the cli_test helpers `realPrimitives()`, `realDepsForTest()`, `realFSForTest()`, `fsFromPrims`, `lockerFromPrims`, const `atomicPerm`/`realFSFilePerm`
 - Produces:
   - `func newLearnDeps(d Deps) LearnDeps`
   - `func newQaDeps(d Deps) LearnQADeps`
@@ -29,7 +28,7 @@
   - `func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, d Deps, stdout io.Writer) error`
   - Shared helpers: `statDirFromFS(fsys EdgeFS) func(string) error`, `initVaultFromFS(fsys EdgeFS) func(string) error`, `listIDsFromFS`, `listBasenamesFromFS`, `listMDFromFS(fsys EdgeFS) func(string) ([]string, error)`, `vaultLockFromLocker(locker FileLocker) func(string) (func(), error)`, `writeNewFromFS`, `writeSidecarFromFS`, `writeNoteAtomicFromFS(fsys EdgeFS, perm fs.FileMode) func(string, []byte) error`, `logWarningTo(w io.Writer) func(string, ...any)`
   - EdgeFS addition (flagged): `WriteFileExcl(path string, data []byte, perm fs.FileMode) error`
-  - Primitives addition (flag X-1 resolution): `OpenExcl func(path string, perm fs.FileMode) (io.WriteCloser, error)` + `primFS.WriteFileExcl` (internal lifecycle)
+  - `primFS.WriteFileExcl` (flag X-1 resolution: the single internal `%w` wrap over T1-rework's `WriteFileExcl` primitive — NO new primitive, NO cmd edit)
 
 **Steps**
 
@@ -51,7 +50,7 @@ func realFSDepsForTest() cli.Deps {
 }
 ```
 
-Add to `internal/cli/edgefs_test.go` (package `cli_test` — T1-rework's fake-primitive EdgeFS suite; reuses its `fsFromPrims` helper and `atomicPerm` const, and its existing `errors`/`io`/`io/fs` imports) the `WriteFileExcl` contract tests. These fail to compile until step 2 lands the `OpenExcl` field and the `primFS.WriteFileExcl` method (RED):
+Add to `internal/cli/edgefs_test.go` (package `cli_test` — T1-rework's fake-primitive EdgeFS suite; reuses its `fsFromPrims` helper, `atomicPerm` const, and existing imports) the `WriteFileExcl` contract tests. These fail to compile until step 2 lands the `primFS.WriteFileExcl` method — `WriteFileExcl` is not yet in `cli.EdgeFS` (RED):
 
 ```go
 func TestEdgeFS_WriteFileExclPreservesErrExistAndAddsPath(t *testing.T) {
@@ -59,8 +58,8 @@ func TestEdgeFS_WriteFileExclPreservesErrExistAndAddsPath(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	fsys := fsFromPrims(cli.Primitives{
-		OpenExcl: func(path string, _ fs.FileMode) (io.WriteCloser, error) {
-			return nil, &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
+		WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+			return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
 		},
 	})
 
@@ -70,84 +69,35 @@ func TestEdgeFS_WriteFileExclPreservesErrExistAndAddsPath(t *testing.T) {
 	g.Expect(err.Error()).To(gomega.ContainSubstring("existing.md"), "wrap must add path context")
 }
 
-func TestEdgeFS_WriteFileExclLifecycle(t *testing.T) {
+func TestEdgeFS_WriteFileExclPassesDataAndPermToPrimitive(t *testing.T) {
 	t.Parallel()
+	g := gomega.NewWithT(t)
 
-	t.Run("happy path passes perm, writes data, closes once", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
+	var (
+		gotPath string
+		gotData []byte
+		gotPerm fs.FileMode
+	)
 
-		file := &exclFileFake{}
-		fsys := fsFromPrims(cli.Primitives{
-			OpenExcl: func(_ string, perm fs.FileMode) (io.WriteCloser, error) {
-				g.Expect(perm).To(gomega.Equal(atomicPerm), "caller perm must reach the primitive")
+	fsys := fsFromPrims(cli.Primitives{
+		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
+			gotPath = path
+			gotData = append([]byte(nil), data...)
+			gotPerm = perm
 
-				return file, nil
-			},
-		})
-
-		g.Expect(fsys.WriteFileExcl("new.md", []byte("body"), atomicPerm)).To(gomega.Succeed())
-		g.Expect(string(file.wrote)).To(gomega.Equal("body"))
-		g.Expect(file.closes).To(gomega.Equal(1))
+			return nil
+		},
 	})
 
-	t.Run("write failure reported and file still closed", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		boom := errors.New("write boom")
-		file := &exclFileFake{writeErr: boom}
-		fsys := fsFromPrims(cli.Primitives{
-			OpenExcl: func(string, fs.FileMode) (io.WriteCloser, error) { return file, nil },
-		})
-
-		err := fsys.WriteFileExcl("new.md", []byte("body"), atomicPerm)
-		g.Expect(err).To(gomega.MatchError(boom))
-		g.Expect(file.closes).To(gomega.Equal(1), "write failure must not leak the handle")
-	})
-
-	t.Run("close failure is reported", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		boom := errors.New("close boom")
-		file := &exclFileFake{closeErr: boom}
-		fsys := fsFromPrims(cli.Primitives{
-			OpenExcl: func(string, fs.FileMode) (io.WriteCloser, error) { return file, nil },
-		})
-
-		err := fsys.WriteFileExcl("new.md", []byte("body"), atomicPerm)
-		g.Expect(err).To(gomega.MatchError(boom))
-		g.Expect(err.Error()).To(gomega.ContainSubstring("close"))
-	})
-}
-
-// exclFileFake is a recording io.WriteCloser for WriteFileExcl lifecycle tests.
-type exclFileFake struct {
-	writeErr error
-	closeErr error
-	closes   int
-	wrote    []byte
-}
-
-func (f *exclFileFake) Write(data []byte) (int, error) {
-	if f.writeErr != nil {
-		return 0, f.writeErr
-	}
-
-	f.wrote = append(f.wrote, data...)
-
-	return len(data), nil
-}
-
-func (f *exclFileFake) Close() error {
-	f.closes++
-
-	return f.closeErr
+	g.Expect(fsys.WriteFileExcl("new.md", []byte("body"), atomicPerm)).To(gomega.Succeed())
+	g.Expect(gotPath).To(gomega.Equal("new.md"))
+	g.Expect(string(gotData)).To(gomega.Equal("body"))
+	g.Expect(gotPerm).To(gomega.Equal(atomicPerm),
+		"the caller's perm must reach the raw primitive unchanged")
 }
 ```
 
-Add to `internal/cli/primitives_integration_test.go` (package `cli_test`; existing `io/fs`/`path/filepath` imports suffice) the real-primitive round-trip — RED until step 2 extends `realPrimitives()` (compile fails on the unknown `OpenExcl` field first; after 2b, a missed 2d panics on the nil func — either way loud):
+Add to `internal/cli/primitives_integration_test.go` (package `cli_test`; existing `io/fs`/`path/filepath` imports suffice) the real-primitive round-trip — survivor S-1's named behavior-mirror test; `realPrimitives()` already carries the real `WriteFileExcl` closure (T1-rework), so this is RED only until step 2 lands the EdgeFS method:
 
 ```go
 func TestRealEdgeFS_WriteFileExclRefusesExistingFile(t *testing.T) {
@@ -327,9 +277,9 @@ func TestNewQaDeps_WiresRemoveAndReadThroughFS(t *testing.T) {
 }
 ```
 
-Run: `targ test` → expected FAIL (compile errors: unknown field `OpenExcl` in `cli.Primitives`; `WriteFileExcl` not in `cli.EdgeFS`; `ExportNewLearnDeps`/`ExportNewQaDeps` undefined). This is the RED.
+Run: `targ test` → expected FAIL (compile errors: `WriteFileExcl` not in `cli.EdgeFS`; `ExportNewLearnDeps`/`ExportNewQaDeps` undefined). This is the RED.
 
-- [ ] 2. **GREEN (flag X-1) — `EdgeFS.WriteFileExcl`, composed internally over a new exclusive-create primitive.** X-1 resolution (recorded): the primitive is `OpenExcl func(path string, perm fs.FileMode) (io.WriteCloser, error)` — cmd-side value is a single `os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)` call (one closure, one external call; `*os.File` satisfies `io.WriteCloser`, and its raw error already satisfies `errors.Is(err, fs.ErrExist)` via `*fs.PathError`). The flag's `uintptr`-fd sketch would need a second `WriteFD` primitive — rejected as the less clean shape. The write/close lifecycle (close-on-write-failure, close-error reporting, single `%w` wrap) lives in `primFS`. NO cmd/engram adapter file exists or is created — the supersession map re-points every "cmd/engram os_fs.go `osFS`" obligation to internal/cli/edgefs.go. Five sub-edits, one commit:
+- [ ] 2. **GREEN (flag X-1) — `EdgeFS.WriteFileExcl`, the internal wrap over the base exclusive-create primitive.** X-1 resolution (recorded): there is NO new primitive and NO cmd edit — T1-rework's base `Primitives` already carries `WriteFileExcl` (doctrine survivor S-1: the stdlib-equivalent exclusive-create closure that also backs the atomic dance, P-4), T2's literal already wires it, and `realPrimitives()` already mirrors it. This task CONSUMES it: the EdgeFS method adds the single internal `%w` wrap (path context; the raw `*fs.PathError` keeps `errors.Is(err, fs.ErrExist)` alive). NO cmd/engram adapter file exists or is created — the supersession map re-points every "cmd/engram os_fs.go `osFS`" obligation to internal/cli/edgefs.go. Two sub-edits + one verify, one commit:
 
    **2a.** In the foundation's `internal/cli/deps.go`, add to `EdgeFS`:
 
@@ -341,57 +291,25 @@ Run: `targ test` → expected FAIL (compile errors: unknown field `OpenExcl` in 
 	WriteFileExcl(path string, data []byte, perm fs.FileMode) error
 ```
 
-   **2b.** In `internal/cli/primitives.go`, add to the `Primitives` struct's filesystem block (`io` is already imported for `NewDeps`):
+   **2b.** In `internal/cli/edgefs.go`, add to `primFS`:
 
 ```go
-	// Exclusive create (single-call closure; write/close lifecycle internal).
-	OpenExcl func(path string, perm fs.FileMode) (io.WriteCloser, error) // os.OpenFile O_CREATE|O_EXCL|O_WRONLY
-```
-
-   **2c.** In `internal/cli/edgefs.go`, add to `primFS`:
-
-```go
-// WriteFileExcl creates path exclusively via the OpenExcl primitive
-// (O_CREATE|O_EXCL — the ADR-0013 K1 collision backstop). The raw primitive
-// error is wrapped exactly once here, preserving the fs.ErrExist chain; the
-// write/close lifecycle is internal (doctrine flag X-1).
+// WriteFileExcl creates path exclusively via the base WriteFileExcl
+// primitive (O_CREATE|O_EXCL — the ADR-0013 K1 collision backstop). The raw
+// primitive error is wrapped exactly once here, preserving the fs.ErrExist
+// chain (doctrine flags X-1/S-1: the exclusive create itself is the
+// enumerated stdlib-equivalent cmd primitive; only the wrap lives here).
 func (p primFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
-	file, err := p.prims.OpenExcl(path, perm)
+	err := p.prims.WriteFileExcl(path, data, perm)
 	if err != nil {
 		return fmt.Errorf("write excl %s: %w", path, err)
-	}
-
-	if _, writeErr := file.Write(data); writeErr != nil {
-		_ = file.Close()
-
-		return fmt.Errorf("write excl %s: %w", path, writeErr)
-	}
-
-	if closeErr := file.Close(); closeErr != nil {
-		return fmt.Errorf("write excl %s: close: %w", path, closeErr)
 	}
 
 	return nil
 }
 ```
 
-   **2d.** In `internal/cli/primitives_integration_test.go`, extend `realPrimitives()` with the mirror closure (keeps the DRIFT-flag mirror exact):
-
-```go
-		OpenExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
-			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // test helper, path from test
-		},
-```
-
-   **2e.** In `cmd/engram/main.go`, add ONE field line to the `cli.Primitives` literal (beside `CreateTemp`) and `"io"` to the import block. This is a single-call closure inside an expression — `check-thin-api` walks declarations only, and the doctrine caps the closure body at this single call:
-
-```go
-			OpenExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
-				// Vault paths are operator-supplied CLI args, not untrusted input.
-				//nolint:gosec // operator-controlled path
-				return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
-			},
-```
+   **2c.** Verify the base primitive is in place (consume, never re-declare): `rg -n "WriteFileExcl" internal/cli/primitives.go internal/cli/primitives_integration_test.go cmd/engram/main.go` → the struct field + its doc group (T1-rework), the `realPrimitives()` closure (T1-rework), and the cmd literal closure (T2) all present. Any miss → an upstream task is incomplete; STOP and escalate — do NOT add the missing piece here.
 
 Run `targ test` → the step-1 `WriteFileExcl` contract + integration tests go green; the deps_compose tests stay RED until steps 3-8 land.
 
@@ -818,7 +736,7 @@ var errK1VaultMissing = errors.New("k1: vault should already exist")
 // k1RealLockDeps wires LearnDeps through the PRODUCTION composition
 // (newLearnDeps) over the internally-composed primFS EdgeFS and primLocker
 // FileLocker with real OS primitives — the exact flock + exclusive-create
-// (WriteFileExcl over the OpenExcl primitive) path the shipped binary builds
+// (EdgeFS.WriteFileExcl over the base WriteFileExcl primitive) path the shipped binary builds
 // via cli.NewDeps. Embed is nil (realFSDepsForTest forces it) so auto-embed
 // skips; InitVault errors because the caller pre-creates the vault.
 func k1RealLockDeps(vault string) cli.LearnDeps {
@@ -834,7 +752,7 @@ func k1RealLockDeps(vault string) cli.LearnDeps {
 
 (Add `"errors"` to the file's imports; the old hand-wired deps' `"time"`/`os.Getenv` uses disappear — drop those imports if nothing else in the file needs them.) This upgrade means K1 now races the production composition layer itself — lock file `vault/.luhmann.lock`, span ListIDs→WriteNew, O_EXCL backstop through `primFS.WriteFileExcl` — not a hand-wired double of it.
 
-- [ ] 11. Run `targ test` → all green (RED tests from step 1 now pass; K1 passes at workers=2,5,10,20). Run `targ check-full` → clean. Run `targ check-thin-api` → PASS: this task's only cmd/engram delta is the single-call `OpenExcl` closure inside the `Primitives` literal (an expression, not a declaration). If the checker flags ANYTHING, escalate the exact finding to the orchestrator (global constraint / doctrine item 5) — do not suppress, do not restructure ad hoc. Then run `go install ./cmd/engram && cd "$(mktemp -d)" && engram learn fact --slug smoke --vault "$(mktemp -d)/v" --position top --source smoke --situation "smoke" --subject s --predicate p --object o` → prints the note path; the note and `.vec.json` sidecar exist.
+- [ ] 11. Run `targ test` → all green (RED tests from step 1 now pass; K1 passes at workers=2,5,10,20). Run `targ check-full` → clean. Run `targ check-thin-api` → PASS: this task touches NO cmd/engram file — the `WriteFileExcl` primitive and its literal closure landed with T1-rework/T2 (flag X-1: consume/verify). If the checker flags ANYTHING, escalate the exact finding to the orchestrator (global constraint / doctrine item 5) — do not suppress, do not restructure ad hoc. Then run `go install ./cmd/engram && cd "$(mktemp -d)" && engram learn fact --slug smoke --vault "$(mktemp -d)/v" --position top --source smoke --situation "smoke" --subject s --predicate p --object o` → prints the note path; the note and `.vec.json` sidecar exist.
 
 - [ ] 12. Commit:
 
@@ -842,9 +760,10 @@ func k1RealLockDeps(vault string) cli.LearnDeps {
 refactor(cli): compose learn-family deps from Deps (#700)
 
 newLearnDeps/newQaDeps replace newOsLearnDeps/newOsLearnQADeps; all learn/qa
-I/O flows through EdgeFS/FileLocker/Embed/Stderr. Adds EdgeFS.WriteFileExcl,
-composed internally in primFS over the new single-call OpenExcl primitive
-(doctrine flag X-1), so the ADR-0013 K1 O_EXCL backstop survives composition;
+I/O flows through EdgeFS/FileLocker/Embed/Stderr. Adds the EdgeFS
+WriteFileExcl method as the single internal wrap over the base
+WriteFileExcl primitive (doctrine flags X-1/S-1), so the ADR-0013 K1
+O_EXCL backstop survives composition;
 K1 concurrency property now drives the production composition over real flock.
 
 AI-Used: [claude]

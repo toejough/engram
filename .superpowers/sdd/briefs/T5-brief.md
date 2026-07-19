@@ -501,7 +501,7 @@
    - show_test.go line 89: `cli.ExportNewOsShowDeps()` → `cli.ExportNewShowDeps(osTestEdgeFS{})`
    - count_test.go line 464: `cli.ExportNewOsCountDeps()` → `cli.ExportNewCountDeps(osTestEdgeFS{})`; update the comment at 454-455 from "exercises newOsCountDeps" to "exercises newCountDeps over a real-FS EdgeFS" and at 560 from "newOsCountDeps + resolveVault" to "newCountDeps + resolveVault"
 
-7. [ ] Run `targ test` — expected: all green (new vaultFS tests pass; count/show/check suites pass unchanged). Run `targ check-full` — expected: no new findings.
+7. [ ] Run `targ test` — expected: all green (new vaultFS tests pass; count/show/check suites pass unchanged). Run `targ check-full` — expected: no new findings. Run `targ check-thin-api` — expected: PASS (`All N public API files are thin wrappers.`); this task adds no cmd/engram declarations, so any finding predates it — escalate per Global Constraints, never suppress.
 8. [ ] Commit: `refactor(cli): vault reads via EdgeFS-backed vaultFS (#700)`
 
 ---

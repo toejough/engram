@@ -4,7 +4,7 @@ Sequencing precondition: Task T1-rework (`cli.Primitives`, `cli.NewDeps`, `inter
 
 **C-1 field shapes (resolved here — the doctrine assigns this brief the exact shapes; BINDING for this task):**
 
-- `Primitives.RunCommand func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error` — cmd's literal value is ONE closure whose body is `exec.CommandContext` + three field assignments on the returned handle (`Dir`, `Stdout`, `Stderr`) + `return cmd.Run()`: a trivially-sequenced single-call body, the same latitude SIG-1 grants the `StartSignalPulses` closure (the checker does not walk closures, and `main()` stays one statement). `args` is a slice, not variadic, because the writer params must follow it. `*exec.Cmd` never crosses the boundary — internal sees only this erased func shape.
+- `Primitives.RunCommand func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error` — cmd's literal value is ONE closure whose body is `exec.CommandContext` + three field assignments on the returned handle (`Dir`, `Stdout`, `Stderr`) + `return cmd.Run()`: the second enumerated stdlib-equivalent survivor (doctrine flag C-1: `*exec.Cmd` cannot cross the boundary, so the closure is construction + field assignments + ONE invocation, zero branching — semantically one operation; the checker does not walk closures, and `main()` stays one statement; behavior changes — timeout, env, output policy, retry — extend the SIGNATURE, never this body). `args` is a slice, not variadic, because the writer params must follow it. `*exec.Cmd` never crosses the boundary — internal sees only this erased func shape.
 - `Primitives.NotFoundErr error` — cmd wires the bare identifier `exec.ErrNotFound` (the kernel's preferred injected-sentinel-value form; zero cmd logic).
 - Everything else lives in internal `primCommander` (internal/cli/commander.go): output collection (the `bytes.Buffer` lifecycle), contextual `%w` wrapping, and the `errors.Is(runErr, prims.NotFoundErr)` → `update.ErrCommandNotFound` translation. `errors.Is` with a nil target matches no non-nil error, so a fake `Primitives` without `NotFoundErr` merely never translates — no nil guard needed.
 
@@ -494,7 +494,7 @@ Sequencing precondition: Task T1-rework (`cli.Primitives`, `cli.NewDeps`, `inter
    		}).Name("update").Description("Refresh engram binary and harness skills"),
    ```
 
-6. [ ] Wire the primitives in `cmd/engram/main.go` — add exactly two field lines to the `cli.Primitives` literal (directly below the `OpenDebugFile` entry, mirroring step 3a's `realPrimitives()` extension) and `"context"`, `"io"`, `"os/exec"` to the import block. `main()` remains ONE statement and package main remains declaration-free; the closure is an expression the checker does not walk, and its body is the trivially-sequenced single-call sequence sanctioned by the C-1 field-shape resolution above:
+6. [ ] Wire the primitives in `cmd/engram/main.go` — add exactly two field lines to the `cli.Primitives` literal (directly below the `OpenDebugFile` entry, mirroring step 3a's `realPrimitives()` extension) and `"context"`, `"io"`, `"os/exec"` to the import block. `main()` remains ONE statement and package main remains declaration-free; the closure is an expression the checker does not walk, and its body is the enumerated stdlib-equivalent survivor shape sanctioned by doctrine flag C-1 (construction + field assignments + one invocation, zero branching — behavior changes extend the SIGNATURE, never this body):
    ```go
    			RunCommand: func(
    				ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer,
@@ -789,7 +789,7 @@ Sequencing precondition: Task T1-rework (`cli.Primitives`, `cli.NewDeps`, `inter
     - `grep -rn '"os"\|"os/exec"' internal/cli/update.go internal/update/update.go` → no hits.
     - `grep -rln '"os/exec"' internal/ | grep -v _test` → no hits (os/exec now enters only through cmd/engram's Primitives literal; `_test` files are sanctioned by the doctrine).
     - `targ test` → green; `targ check-full` → clean.
-    - `targ check-thin-api` → PASS (cmd/engram still holds only the declaration-free main.go; the RunCommand closure is an expression the checker does not walk). If it flags ANYTHING, escalate the exact finding — never suppress (Global Constraints).
+    - `targ check-thin-api` → PASS (cmd/engram still holds only the declaration-free main.go; the RunCommand closure is an expression the checker does not walk — enumerated survivor C-1, human-enforced via the doctrine's survivor list and its behavior-mirror test). If it flags ANYTHING, escalate the exact finding — never suppress (Global Constraints).
     - `go install ./cmd/engram && engram update --dry-run` from the worktree root → expect `[dry-run] engram update` + `source: local clone at ...` output (real-binary check per house rule; exercises Primitives.RunCommand → primCommander → newUpdateDeps → Updater.Run end to end).
 
 11. [ ] Commit (via the commit skill):

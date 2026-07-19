@@ -6,7 +6,7 @@
 - Verify-only (NO edit — R1): `internal/cli/deps_compose.go`. T3 created it and it already carries everything this task's draft once declared: the four parallel-drafted helpers (`edgeVaultFS`, `vaultLuhmannLock`, `warnLoggerTo`, `jsonlIndexesLister`) are LOSERS per R1/R2/R3 — their canonical equivalents are T5's `newVaultFS(fsys EdgeFS)` (vault_fs.go), T3's `vaultLockFromLocker`/`logWarningTo` (deps_compose.go), and T6's `listJSONLIndexes(fsys EdgeFS)` (query_chunks.go). T11 appends NOTHING to deps_compose.go; NEVER apply a full-file `package cli` replacement (it would clobber T3's landed `vaultLockFromLocker`/`logWarningTo`/`statDirFromFS`/`initVaultFromFS`/`list*FromFS`/`write*FromFS` helpers).
 
 **Interfaces**
-- Consumes: `type Deps struct{...}`, `type EdgeFS interface{...}`, `type FileLocker interface{...}` from internal/cli/deps.go (foundation task — M2 is blocked on it); `luhmannLockFile` const (internal/cli/cli.go:16, pure, stays); the landed canonical helpers `newVaultFS` (T5), `listJSONLIndexes` (T6), `vaultLockFromLocker` + `logWarningTo` (T3) — all in place before T11 per R4; `NewDeps`, `Primitives` (T1-rework/T2, INCLUDING T3's `OpenExcl` field — in place per R4), and `WriteSyncer` for the step-5 literal.
+- Consumes: `type Deps struct{...}`, `type EdgeFS interface{...}`, `type FileLocker interface{...}` from internal/cli/deps.go (foundation task — M2 is blocked on it); `luhmannLockFile` const (internal/cli/cli.go:16, pure, stays); the landed canonical helpers `newVaultFS` (T5), `listJSONLIndexes` (T6), `vaultLockFromLocker` + `logWarningTo` (T3) — all in place before T11 per R4; `NewDeps`, `Primitives` (T1-rework/T2 — the base struct already carries the `WriteFileExcl` exclusive-create primitive, survivor S-1), and `WriteSyncer` for the step-5 literal.
 - Produces:
   - Test-only: `func ExportNewTestOsDeps() Deps` (package cli, _test.go file; body is one `NewDeps` call over an inline real-OS `Primitives` literal) — this task's ONLY new symbol.
   - Additional fake-driven test coverage of the canonical helpers' contracts (wrapped-ErrNotExist handling, lock path, warning format).
@@ -192,7 +192,6 @@ package cli
 // the single composition root — no hand-rolled adapter mirrors anywhere.
 
 import (
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -216,22 +215,25 @@ func ExportNewTestOsDeps() Deps {
 		Remove:      os.Remove,
 		RemoveAll:   os.RemoveAll,
 		Rename:      os.Rename,
-		Chmod:       os.Chmod,
 		WalkDir:     filepath.WalkDir,
+		Chmod:       os.Chmod,
 		Getenv:      os.Getenv,
 		Now:         time.Now,
 		Getwd:       os.Getwd,
 		UserHomeDir: os.UserHomeDir,
-		CreateTemp: func(dir, pattern string) (string, error) {
-			file, err := os.CreateTemp(dir, pattern)
+		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
+			//nolint:gosec // test helper, path from test
+			file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 			if err != nil {
-				return "", err
+				return err
 			}
 
-			return file.Name(), file.Close()
-		},
-		OpenExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
-			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // test helper, path from test
+			_, err = file.Write(data)
+			if closeErr := file.Close(); closeErr != nil && err == nil {
+				err = closeErr
+			}
+
+			return err
 		},
 		OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
 			fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))

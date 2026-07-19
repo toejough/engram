@@ -205,7 +205,7 @@ Sequencing: AFTER Q1 (`newVaultFS`, `osTestEdgeFS`). Per R4, T6 runs BEFORE the 
 
 7. [ ] Update targets.go call sites (identifier is `deps`, per T2's landed `ingestQueryTargets(deps Deps, ...)`): line 155 `newOsQueryDeps()` → `newQueryDeps(deps)`; line 169 `newOsChunkQueryDeps()` → `newChunkQueryDeps(deps)`; line 186 `newOsShowChunkDeps()` → `newShowChunkDeps(deps)` (line numbers are pre-T2 anchors — locate by constructor name).
 8. [ ] Verify purity of the migrated files: `grep -n '"os"' internal/cli/query.go internal/cli/show_chunk.go` — expected: no output. `grep -n 'time\.Now' internal/cli/query.go` — expected: no output. `grep -n 'os\.' internal/cli/query_chunks.go` — expected: hits ONLY inside `osListJSONLIndexes` (the transitional lister; full query_chunks.go purity is T12's exit criterion, not this task's). `grep -rn 'newOsShowChunkDeps\|osEmbedFS' internal/cli/show_chunk.go` — expected: no output.
-9. [ ] Run `targ test` — expected: all green (step-1 tests now pass; show-chunk, ingest integration + query suites unchanged). Run `targ check-full` — expected: clean.
+9. [ ] Run `targ test` — expected: all green (step-1 tests now pass; show-chunk, ingest integration + query suites unchanged). Run `targ check-full` — expected: clean. Run `targ check-thin-api` — expected: PASS (`All N public API files are thin wrappers.`); this task adds no cmd/engram declarations, so any finding predates it — escalate per Global Constraints, never suppress.
 10. [ ] Commit: `refactor(cli): query + show-chunk compose from Deps (#700)`
 
 ---

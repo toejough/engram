@@ -23,7 +23,7 @@ Sequencing: after the amend/learn/qa/resituate/embed/vocab clusters migrate to `
    }
    ```
 4. [ ] Verify purity: `grep -n '"os"' internal/cli/vault_fs.go` — expected: no output.
-5. [ ] Run `targ test` then `targ check-full` — expected: all green, no findings.
+5. [ ] Run `targ test` then `targ check-full` — expected: all green, no findings. Run `targ check-thin-api` — expected: PASS (`All N public API files are thin wrappers.`); this task adds no cmd/engram declarations, so any finding predates it — escalate per Global Constraints, never suppress.
 6. [ ] Commit: `refactor(cli): #700 delete legacy osVaultFS adapter`
 
 ---

@@ -674,7 +674,7 @@ func (r *realFS) write(_, path string, data []byte) error {
 - [ ] 9. Verify: `targ test` — expected PASS (all new pure tests green; `TestOsIngestThenChunkQuery`, `TestManifest_ConcurrentWritersDoNotLoseEntries`, sweep/auto tests green). Then purity greps — both must print nothing:
   - `grep -nE '\bos\.|filepath\.WalkDir|time\.Now|syscall' internal/cli/ingest.go`
   - `grep -n 'osFileReader' internal/cli/*.go` (only historical mentions in comments must be gone too)
-  Then `targ check-full` — expected: no new lint findings (fix any reorder-decls/lll it reports in the touched files before proceeding).
+  Then `targ check-full` — expected: no new lint findings (fix any reorder-decls/lll it reports in the touched files before proceeding). Then `targ check-thin-api` — expected: PASS (`All N public API files are thin wrappers.`); this task adds no cmd/engram declarations, so any finding predates it — escalate per Global Constraints, never suppress.
 
 - [ ] 10. Commit:
 

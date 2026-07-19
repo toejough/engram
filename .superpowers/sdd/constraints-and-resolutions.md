@@ -23,30 +23,45 @@ or the 2–3-statement `x, err := pkg.F(); if err != nil {...}; return` wrapper)
 type aliases, EMPTY structs, consts with literal/re-export values. NOT thin: any func — INCLUDING
 `func main()` — with two or more non-wrapper statements; structs with fields; vars whose value is a
 composite literal (so no `var _ cli.EdgeFS = x{}` conformance vars in cmd — put them in internal).
-Closures (`ast.FuncLit`) inside expressions are NOT walked by the checker, but the doctrine still
-caps cmd closures at single-call (or trivially-sequenced single-call) bodies — orchestration hidden
-in a closure violates the DESIGN even where the checker cannot see it. The corrected shape:
+Closures (`ast.FuncLit`) inside expressions are NOT walked by the checker — a CHECKER limitation,
+not a license. The doctrine's closure rule: a cmd Primitives closure is sanctioned ONLY as a
+**stdlib-equivalent primitive** — linear open/configure/do/close plumbing with mechanical error
+propagation and nothing else (no policy, no retry, no branching decisions beyond
+`if err != nil { return err }`); the yardstick is os.WriteFile's own multi-syscall body. Every such
+closure gets (a) an enumerated doctrine flag, (b) a signature-extension guard — when behavior must
+change (timeout, env, output policy, retry), extend the primitive's SIGNATURE and put the logic
+internal; NEVER grow the closure body — and (c) a named behavior-mirror integration test over the
+real primitive. The enumerated survivor list (exactly two: S-1 `WriteFileExcl`, C-1 `RunCommand`)
+is the human-enforced complement to the checker gap; single-call signature-erasure closures and
+the SIG-1 signal starter remain sanctioned under their own recorded flags. Any NEW closure beyond
+the enumerated set is a review DEFECT — orchestration hidden in a closure violates the DESIGN even
+where the checker cannot see it. The corrected shape:
 
 1. **`cli.Primitives`** (internal/cli/primitives.go, landed by T1-rework) carries raw impure
    capabilities as func fields; cmd populates it with direct references (`os.ReadFile`,
-   `filepath.WalkDir`, `time.Now`) or single-call closures where a signature must be erased. The
+   `filepath.WalkDir`, `time.Now`), single-call closures where a signature must be erased, or an
+   enumerated stdlib-equivalent survivor closure (S-1/C-1 — closure rule above). The
    canonical struct — downstream briefs consume these field names verbatim:
 
 ```go
 type Primitives struct {
 	// Filesystem (direct os/filepath references).
-	ReadFile   func(path string) ([]byte, error)                      // os.ReadFile
-	WriteFile  func(path string, data []byte, perm fs.FileMode) error // os.WriteFile
-	MkdirAll   func(path string, perm fs.FileMode) error              // os.MkdirAll
-	MkdirTemp  func(dir, pattern string) (string, error)              // os.MkdirTemp
-	Stat       func(path string) (fs.FileInfo, error)                 // os.Stat
-	ReadDir    func(path string) ([]fs.DirEntry, error)               // os.ReadDir
-	Remove     func(path string) error                                // os.Remove
-	RemoveAll  func(path string) error                                // os.RemoveAll
-	Rename     func(oldPath, newPath string) error                    // os.Rename
-	Chmod      func(path string, perm fs.FileMode) error              // os.Chmod
-	WalkDir    func(root string, fn fs.WalkDirFunc) error             // filepath.WalkDir
-	CreateTemp func(dir, pattern string) (string, error)              // closure: os.CreateTemp + Close; returns the unique name
+	ReadFile  func(path string) ([]byte, error)                      // os.ReadFile
+	WriteFile func(path string, data []byte, perm fs.FileMode) error // os.WriteFile
+	MkdirAll  func(path string, perm fs.FileMode) error              // os.MkdirAll
+	MkdirTemp func(dir, pattern string) (string, error)              // os.MkdirTemp
+	Stat      func(path string) (fs.FileInfo, error)                 // os.Stat
+	ReadDir   func(path string) ([]fs.DirEntry, error)               // os.ReadDir
+	Remove    func(path string) error                                // os.Remove
+	RemoveAll func(path string) error                                // os.RemoveAll
+	Rename    func(oldPath, newPath string) error                    // os.Rename
+	WalkDir   func(root string, fn fs.WalkDirFunc) error             // filepath.WalkDir
+	Chmod     func(path string, mode fs.FileMode) error              // os.Chmod
+
+	// Exclusive create (doctrine survivor S-1 — a stdlib-equivalent
+	// primitive closure: os.WriteFile's own body with O_CREATE|O_EXCL;
+	// behavior changes extend this SIGNATURE, never the cmd body).
+	WriteFileExcl func(path string, data []byte, perm fs.FileMode) error
 
 	// Process, env, clock (direct references).
 	Getenv      func(key string) string // os.Getenv
@@ -89,7 +104,7 @@ type Primitives struct {
    NewDeps during argument evaluation — before targ.Main runs. The issue-AC "targ.Main called from
    cmd" holds.
 5. **Per-task gate:** every task's final gate includes `targ check-thin-api` PASS alongside
-   `targ check-full`. If a single-call closure or the literal itself ever trips the checker,
+   `targ check-full`. If a sanctioned closure or the literal itself ever trips the checker,
    ESCALATE the exact finding to the orchestrator — do not suppress, do not restructure ad hoc.
 
 Recorded design flags (choices within the correction's stated latitude):
@@ -113,9 +128,28 @@ Recorded design flags (choices within the correction's stated latitude):
 - **P-3:** the lock-open primitive wraps `syscall.Open`, NOT `os.OpenFile(...).Fd()` — dropping
   the *os.File after extracting its fd lets the runtime finalizer close the fd and silently
   release the flock mid-hold. syscall.Open has no finalizer.
-- **P-4:** `CreateTemp(dir, pattern)` returns the NAME of a created-then-closed unique temp file;
-  the internal atomic dance is CreateTemp→Chmod→WriteFile→Rename (+Remove on any failure).
-  Same-directory rename atomicity — the ADR-0013 primitive — is unchanged.
+- **P-4:** the unique-temp-name policy is INTERNAL. The atomic dance derives candidate temp names
+  from the target path + `Now` nanos + an attempt counter, creates each exclusively via the
+  `WriteFileExcl` primitive (S-1) with the data at the target perm, retries a fresh candidate on
+  `fs.ErrExist` (bounded: `const maxTempAttempts = 10`; exceeded → wrapped error), then explicitly
+  chmods the created temp to the exact target perm via the restored `Chmod` primitive —
+  umask-independent, parity with the pre-#700 dance (chmod runs AFTER the exclusive create/write
+  and BEFORE rename; reordering it earlier is a defect) — then renames onto the target; any
+  failure after creation (including a chmod failure) removes the temp. Same-directory rename
+  atomicity — the ADR-0013 primitive — is unchanged. Umask-filtered atomic writes (matching plain
+  WriteFile) were considered and deferred — behavior preservation governs this refactor;
+  normalizing perms policy is a candidate follow-up issue.
+- **S-1 (enumerated survivor — exclusive create):**
+  `Primitives.WriteFileExcl func(path string, data []byte, perm fs.FileMode) error` — cmd's
+  literal value is ONE stdlib-equivalent closure: `os.OpenFile(path,
+  os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)` + write + close with os.WriteFile's exact error
+  plumbing, raw error returned (the `*fs.PathError` keeps `errors.Is(err, fs.ErrExist)` alive).
+  Lands in T1-rework's BASE Primitives: it backs both the atomic dance's unique-temp creation
+  (P-4) and `EdgeFS.WriteFileExcl` (X-1). Signature-extension guard: behavior changes (perm
+  policy, fsync, retry) extend the SIGNATURE with the logic internal — never grow this body.
+  Behavior-mirror integration test: `TestRealEdgeFS_WriteFileExclRefusesExistingFile`
+  (internal/cli/primitives_integration_test.go, lands T3; T1-rework's real-primitive dance suite
+  exercises the same closure).
 - **D-1 (amends R6 and the wiring-core cmd-wiring sequencing flag):** `Deps.Embed` is wired INSIDE
   NewDeps at T2 (`embed.NewLazyEmbedder(CacheDirFromHome(homeOrEmpty(deps), embed.BundledModelID,
   prims.Getenv))`, guarded on non-nil Getenv); cmd carries no embed wiring line. T14's 3-arg
@@ -123,15 +157,22 @@ Recorded design flags (choices within the correction's stated latitude):
   Primitives whose cmd-side values are single-call method bodies on EMPTY structs (empty structs
   and single-call methods pass the checker; any stateful session/cache/temp-dir orchestration
   stays internal, parameterized over primitives — a cmd struct WITH fields is a gate failure).
-- **C-1 (T16/T17):** the commander uses the injected-sentinel form — Primitives gains a raw run
-  capability plus a `NotFoundErr error` field (cmd wires `exec.ErrNotFound`); the run-and-collect
-  logic + `errors.Is(err, notFoundErr)` → `update.ErrCommandNotFound` translation live internal.
-  Zero cmd logic beyond single-call wrapping; T17's brief reviser owns the exact field shapes.
-- **X-1 (T3 forward-guidance):** the EdgeFS `WriteFileExcl` method (learn-family flag) is
-  implemented INTERNALLY over a new semantic exclusive-create primitive (e.g. `OpenExcl(path,
-  perm) (uintptr, error)` = syscall.Open O_CREAT|O_EXCL|O_WRONLY plus a write/close over existing
-  fd primitives, or an equivalent single-call shape) — the composed error must keep satisfying
-  `errors.Is(err, fs.ErrExist)`. T3's brief reviser owns the exact shape under this doctrine.
+- **C-1 (T16/T17; enumerated survivor — command run):** the commander uses the injected-sentinel
+  form — Primitives gains a raw `RunCommand` capability plus a `NotFoundErr error` field (cmd
+  wires `exec.ErrNotFound`); the run-and-collect logic + `errors.Is(err, notFoundErr)` →
+  `update.ErrCommandNotFound` translation live internal. The `RunCommand` closure is the second
+  enumerated survivor: `*exec.Cmd` cannot cross the boundary, so the closure is construction +
+  field assignments + ONE invocation (`exec.CommandContext` → `Dir`/`Stdout`/`Stderr` assignments
+  → `return cmd.Run()`), zero branching — semantically one operation. Signature-extension guard:
+  behavior changes (timeout, env, output policy, retry) extend the SIGNATURE with the logic
+  internal — never grow this body. Behavior-mirror integration test:
+  `TestCommanderIntegration_RunsInDir` (+ siblings, internal/cli/commander_integration_test.go,
+  T17). T17's brief reviser owns the exact field shapes.
+- **X-1 (T3 forward-guidance; RESOLVED into survivor S-1):** the EdgeFS `WriteFileExcl` method
+  (learn-family flag) is the single internal `%w` wrap over the BASE `WriteFileExcl` primitive
+  (S-1, landed in T1-rework — the same exclusive create the atomic dance uses); the composed
+  error must keep satisfying `errors.Is(err, fs.ErrExist)`. T3 consumes and verifies — it adds NO
+  new primitive and NO cmd line.
 - **DRIFT:** cli_test's `realPrimitives()` helper mirrors cmd/engram/main.go's literal and can
   drift from it; cli_test.go's end-to-end binary tests are the guard on the production literal.
 
@@ -164,7 +205,7 @@ Supersession map (downstream task briefs — T3 through T-final-2 — read their
 - Update-family flags "only osCommander physically moves to cmd/engram/os_update.go" and "the
   `Commander: &osCommander{},` field lands in cmd/engram's Deps literal ... requires
   cmd/engram/os_fs.go to exist" → SUPERSEDED by doctrine flag C-1: no cmd commander type, no
-  os_update.go, no cmd Deps literal — cmd contributes the `RunCommand` single-call closure +
+  os_update.go, no cmd Deps literal — cmd contributes the `RunCommand` survivor closure (C-1) +
   `NotFoundErr` value in the Primitives literal; internal `primCommander` owns run-and-collect +
   the sentinel translation (T17).
 - Ingest-family flag 4's "production flockLocker mutual-exclusion coverage moves to cmd/engram;
@@ -386,10 +427,9 @@ the new name. The executor note "reuse it and delete this one if so" is supersed
 | depguard `internal-purity` rule active (root-anchored `internal/**`, no negation globs, no companion adapter rule); forbidigo enabled with the custom clock/PRNG/rand-v1 list; no fmt.Print flagging | T-final-1 (glob per R9) |
 | Zero non-test files under `internal/` import os, os/exec, os/signal, syscall, net, net/http, database/sql, or any third-party I/O package (hugot) | T1–T17 cumulative; enforced + verified T-final-1 |
 | Zero time.Now/Since/Tick, global-PRNG, or math/rand (v1) references in non-test internal/ code | T3, T6, T8, T12 (Now threading); enforced T-final-1 |
-| All eight adapter implementations relocated to cmd/engram (package main) with integration tests; internal keeps interfaces + logic only | Read per the revised composition doctrine (user correction 2026-07-19, vault note 303): raw PRIMITIVES relocate to cmd (func references + single-call closures in the Primitives literal); adapter COMPOSITION lives in internal/cli, integration-tested in internal `_test` files — T1-rework (signal, debuglog sink, EdgeFS/flock), T14 (hugot + cache), T17 (commander); T10 reduces to consumer migration; absorption-into-EdgeFS flags cover vault_fs/learn-FS (T5/T3); `targ check-thin-api` enforces the cmd side |
+| All eight adapter implementations relocated to cmd/engram (package main) with integration tests; internal keeps interfaces + logic only | Read per the revised composition doctrine (user correction 2026-07-19, vault note 303): raw PRIMITIVES relocate to cmd (func references + sanctioned closures in the Primitives literal); adapter COMPOSITION lives in internal/cli, integration-tested in internal `_test` files — T1-rework (signal, debuglog sink, EdgeFS/flock), T14 (hugot + cache), T17 (commander); T10 reduces to consumer migration; absorption-into-EdgeFS flags cover vault_fs/learn-FS (T5/T3); `targ check-thin-api` enforces the cmd side |
 | debuglog is pure (writer + clock injected); both direct env reads eliminated; env/clock threaded from cmd/engram; targ.Main called from cmd | T2 (debuglog, ENGRAM_DEBUG_LOG, targ.Main), T8 (ENGRAM_TRANSCRIPT_DIR) |
 | internal/update no longer imports os/exec (sentinel translated in the cmd adapter) | T16, T17 — read per doctrine flag C-1: cmd contributes only a raw run primitive plus a `NotFoundErr error` Primitives field wiring `exec.ErrNotFound`; the `errors.Is` translation to `update.ErrCommandNotFound` lives internal (zero cmd logic) |
 | Coverage stance for cmd/engram revisited deliberately | T-final-1 Step 5.5 |
 | targ check-full green; truncation setting (max-issues-per-linter) decided deliberately | every task's final gate (check-full green AND `targ check-thin-api` PASS, per Global Constraints); T-final-1 Step 3 |
 | FIXME at internal/cli/main.go removed — last, after everything above is green | T2 relocates the marker (R8); T-final-2 deletes it |
-

@@ -27,11 +27,11 @@
 
 **Interfaces:**
 - Consumes: `cli.Deps`/`cli.EdgeFS`/`cli.FileLocker` (landed, unchanged); `cli.ForceExitOnRepeatedSignal`, `cli.ExitCodeSigInt`.
-- Produces: `cli.Primitives` (struct — exact fields in the doctrine subsection, consume verbatim); `type WriteSyncer interface { io.Writer; Sync() error }`; `func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps`; `func ForwardAsPulses[T any](in <-chan T, out chan<- struct{})`; unexported `primFS`, `primLocker`, `openDebugSink`, `syncWriter`, `startForceExit`, `envOrEmpty`, consts `lockFilePerm`/`debugLogPerm`/`debugLogEnvVar`.
+- Produces: `cli.Primitives` (struct — exact fields in the doctrine subsection, consume verbatim); `type WriteSyncer interface { io.Writer; Sync() error }`; `func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps`; `func ForwardAsPulses[T any](in <-chan T, out chan<- struct{})`; unexported `primFS`, `primLocker`, `openDebugSink`, `syncWriter`, `startForceExit`, `envOrEmpty`, consts `lockFilePerm`/`debugLogPerm`/`debugLogEnvVar`/`maxTempAttempts`, sentinel `errTempNameExhausted`.
 
 **Steps:**
 
-1. [ ] RED — create the unit-test files against the not-yet-existing composition seams. All three compile-fail (`undefined: cli.Primitives`, `undefined: cli.NewDeps`) — that is the RED; the behaviors they pin (wrap-with-%w, temp-cleanup-on-failure, fd-close-on-flock-failure, per-write Sync, force-exit watcher registration) were UNTESTABLE against the real-os cmd adapters, which is exactly the seam this rework buys.
+1. [ ] RED — create the unit-test files against the not-yet-existing composition seams. All three compile-fail (`undefined: cli.Primitives`, `undefined: cli.NewDeps`) — that is the RED; the behaviors they pin (wrap-with-%w, temp-cleanup-on-failure, unique-temp-name collision retry, fd-close-on-flock-failure, per-write Sync, force-exit watcher registration) were UNTESTABLE against the real-os cmd adapters, which is exactly the seam this rework buys.
 
    `internal/cli/primitives_test.go`:
 
@@ -256,6 +256,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/onsi/gomega"
 
@@ -282,60 +283,82 @@ func TestEdgeFS_WriteFileAtomicFailuresRemoveTemp(t *testing.T) {
 
 	boom := errors.New("boom")
 
-	cases := []struct {
-		name    string
-		breakIt func(prims *cli.Primitives)
-		wantMsg string
-	}{
-		{
-			name: "chmod failure",
-			breakIt: func(prims *cli.Primitives) {
-				prims.Chmod = func(string, fs.FileMode) error { return boom }
+	t.Run("rename failure removes the created temp", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var created string
+
+		removed := make([]string, 0, 1)
+		prims := cli.Primitives{
+			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
+			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+				created = path
+
+				return nil
 			},
-			wantMsg: "chmod temp",
-		},
-		{
-			name: "write failure",
-			breakIt: func(prims *cli.Primitives) {
-				prims.WriteFile = func(string, []byte, fs.FileMode) error { return boom }
+			Rename: func(string, string) error { return boom },
+			Remove: func(path string) error {
+				removed = append(removed, path)
+
+				return nil
 			},
-			wantMsg: "write temp",
-		},
-		{
-			name: "rename failure",
-			breakIt: func(prims *cli.Primitives) {
-				prims.Rename = func(string, string) error { return boom }
+		}
+
+		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
+		g.Expect(err).To(gomega.MatchError(boom))
+		g.Expect(err.Error()).To(gomega.ContainSubstring("rename"))
+		g.Expect(removed).To(gomega.Equal([]string{created}),
+			"a failed dance must remove the temp file it created")
+	})
+
+	t.Run("chmod failure removes the created temp", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var created string
+
+		removed := make([]string, 0, 1)
+		prims := cli.Primitives{
+			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
+			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+				created = path
+
+				return nil
 			},
-			wantMsg: "rename",
-		},
-	}
+			Chmod: func(string, fs.FileMode) error { return boom },
+			Remove: func(path string) error {
+				removed = append(removed, path)
 
-	for _, testCase := range cases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			g := gomega.NewWithT(t)
+				return nil
+			},
+		}
 
-			removed := make([]string, 0, 1)
-			prims := cli.Primitives{
-				CreateTemp: func(dir, _ string) (string, error) { return filepath.Join(dir, ".n.tmp-1"), nil },
-				Chmod:      func(string, fs.FileMode) error { return nil },
-				WriteFile:  func(string, []byte, fs.FileMode) error { return nil },
-				Rename:     func(string, string) error { return nil },
-				Remove: func(path string) error {
-					removed = append(removed, path)
+		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
+		g.Expect(err).To(gomega.MatchError(boom))
+		g.Expect(err.Error()).To(gomega.ContainSubstring("chmod"))
+		g.Expect(removed).To(gomega.Equal([]string{created}),
+			"a failed dance must remove the temp file it created")
+	})
 
-					return nil
-				},
-			}
-			testCase.breakIt(&prims)
+	t.Run("exclusive-create failure aborts with nothing to clean", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
 
-			err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
-			g.Expect(err).To(gomega.MatchError(boom))
-			g.Expect(err.Error()).To(gomega.ContainSubstring(testCase.wantMsg))
-			g.Expect(removed).To(gomega.Equal([]string{filepath.Join("d", ".n.tmp-1")}),
-				"a failed dance must remove the temp file")
-		})
-	}
+		prims := cli.Primitives{
+			Now:           func() time.Time { return time.Unix(0, fakeDanceNanos) },
+			WriteFileExcl: func(string, []byte, fs.FileMode) error { return boom },
+			Remove: func(string) error {
+				t.Error("nothing was created, so nothing may be removed")
+
+				return nil
+			},
+		}
+
+		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
+		g.Expect(err).To(gomega.MatchError(boom))
+		g.Expect(err.Error()).To(gomega.ContainSubstring("create temp"))
+	})
 }
 
 func TestEdgeFS_WriteFileAtomicHappyPathDance(t *testing.T) {
@@ -346,23 +369,22 @@ func TestEdgeFS_WriteFileAtomicHappyPathDance(t *testing.T) {
 	target := filepath.Join("some", "dir", "note.md")
 
 	fsys := fsFromPrims(cli.Primitives{
-		CreateTemp: func(dir, pattern string) (string, error) {
-			g.Expect(dir).To(gomega.Equal(filepath.Join("some", "dir")),
+		Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
+		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
+			g.Expect(filepath.Dir(path)).To(gomega.Equal(filepath.Join("some", "dir")),
 				"temp must be created in the target's dir — same-directory rename is the ADR-0013 primitive")
-			g.Expect(pattern).To(gomega.Equal(".note.md.tmp-*"))
-			calls.add("createtemp")
-
-			return filepath.Join(dir, ".note.md.tmp-1"), nil
-		},
-		Chmod: func(path string, perm fs.FileMode) error {
-			g.Expect(perm).To(gomega.Equal(atomicPerm))
-			calls.add("chmod " + filepath.Base(path))
+			g.Expect(filepath.Base(path)).To(gomega.Equal(".note.md.tmp-12345-0"),
+				"candidate names derive from target base + clock nanos + attempt counter (P-4)")
+			g.Expect(string(data)).To(gomega.Equal("v2"), "the data lands in the exclusive create itself")
+			g.Expect(perm).To(gomega.Equal(atomicPerm), "the target perm reaches the exclusive create")
+			calls.add("writeexcl " + filepath.Base(path))
 
 			return nil
 		},
-		WriteFile: func(path string, data []byte, _ fs.FileMode) error {
-			g.Expect(string(data)).To(gomega.Equal("v2"))
-			calls.add("write " + filepath.Base(path))
+		Chmod: func(path string, perm fs.FileMode) error {
+			g.Expect(perm).To(gomega.Equal(atomicPerm),
+				"chmod must force the EXACT target perm regardless of umask")
+			calls.add("chmod " + filepath.Base(path))
 
 			return nil
 		},
@@ -380,11 +402,72 @@ func TestEdgeFS_WriteFileAtomicHappyPathDance(t *testing.T) {
 
 	g.Expect(fsys.WriteFileAtomic(target, []byte("v2"), atomicPerm)).To(gomega.Succeed())
 	g.Expect(calls.list()).To(gomega.Equal([]string{
-		"createtemp",
-		"chmod .note.md.tmp-1",
-		"write .note.md.tmp-1",
-		"rename .note.md.tmp-1->note.md",
+		"writeexcl .note.md.tmp-12345-0",
+		"chmod .note.md.tmp-12345-0",
+		"rename .note.md.tmp-12345-0->note.md",
 	}), "success path must not remove the renamed file")
+}
+
+func TestEdgeFS_WriteFileAtomicUniqueNameRetry(t *testing.T) {
+	t.Parallel()
+
+	t.Run("collision retries a fresh candidate then succeeds", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		target := filepath.Join("some", "dir", "note.md")
+		tried := make([]string, 0, 2)
+
+		var renamed string
+
+		prims := cli.Primitives{
+			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
+			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+				tried = append(tried, path)
+				if len(tried) == 1 {
+					return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
+				}
+
+				return nil
+			},
+			Rename: func(oldPath, _ string) error {
+				renamed = oldPath
+
+				return nil
+			},
+			Remove: func(string) error {
+				t.Error("a colliding candidate was not created by the dance and must not be removed")
+
+				return nil
+			},
+		}
+
+		g.Expect(fsFromPrims(prims).WriteFileAtomic(target, []byte("v2"), atomicPerm)).To(gomega.Succeed())
+		g.Expect(tried).To(gomega.HaveLen(2))
+		g.Expect(tried[0]).NotTo(gomega.Equal(tried[1]), "each retry must try a FRESH candidate name")
+		g.Expect(renamed).To(gomega.Equal(tried[1]), "the created candidate is the one renamed into place")
+	})
+
+	t.Run("exhausted candidates yield a bounded wrapped error", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		attempts := 0
+		prims := cli.Primitives{
+			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
+			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+				attempts++
+
+				return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
+			},
+		}
+
+		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
+		g.Expect(err).To(gomega.MatchError(fs.ErrExist), "the last collision stays in the error chain")
+		g.Expect(err.Error()).To(gomega.ContainSubstring("create temp"))
+		g.Expect(err.Error()).To(gomega.ContainSubstring("attempts"))
+		g.Expect(attempts).To(gomega.Equal(danceMaxAttempts), "the retry loop must be BOUNDED")
+	})
 }
 
 // fsFromPrims composes the production EdgeFS from fake primitives via the
@@ -403,6 +486,14 @@ func (c *callRecorder) list() []string { return c.calls }
 // unexported constants.
 const (
 	atomicPerm fs.FileMode = 0o600
+
+	// danceMaxAttempts mirrors edgefs.go's maxTempAttempts — the spec'd
+	// bound on unique-temp-name candidates (doctrine flag P-4).
+	danceMaxAttempts = 10
+
+	// fakeDanceNanos is the fixed clock reading the dance fakes inject;
+	// candidate temp names embed it.
+	fakeDanceNanos = 12345
 )
 ```
 
@@ -611,24 +702,30 @@ import (
 
 // Primitives carries raw impure capabilities as func values. cmd/engram
 // populates it with direct references to os/syscall/filepath/time functions,
-// or single-call closures where a signature must be erased (fd instead of
-// *os.File, WriteSyncer instead of *os.File, pulses instead of os.Signal).
+// single-call closures where a signature must be erased (fd instead of
+// *os.File, WriteSyncer instead of *os.File, pulses instead of os.Signal),
+// or an enumerated stdlib-equivalent survivor closure (doctrine survivors:
+// S-1 WriteFileExcl here; C-1 RunCommand lands in T17).
 // ALL composition, error wrapping, and lifecycle logic lives in internal/cli;
 // targ check-thin-api enforces that the cmd side stays declaration-free (#700).
 type Primitives struct {
 	// Filesystem (direct os/filepath references).
-	ReadFile   func(path string) ([]byte, error)                      // os.ReadFile
-	WriteFile  func(path string, data []byte, perm fs.FileMode) error // os.WriteFile
-	MkdirAll   func(path string, perm fs.FileMode) error              // os.MkdirAll
-	MkdirTemp  func(dir, pattern string) (string, error)              // os.MkdirTemp
-	Stat       func(path string) (fs.FileInfo, error)                 // os.Stat
-	ReadDir    func(path string) ([]fs.DirEntry, error)               // os.ReadDir
-	Remove     func(path string) error                                // os.Remove
-	RemoveAll  func(path string) error                                // os.RemoveAll
-	Rename     func(oldPath, newPath string) error                    // os.Rename
-	Chmod      func(path string, perm fs.FileMode) error              // os.Chmod
-	WalkDir    func(root string, fn fs.WalkDirFunc) error             // filepath.WalkDir
-	CreateTemp func(dir, pattern string) (string, error)              // closure: os.CreateTemp + Close; returns the unique name
+	ReadFile  func(path string) ([]byte, error)                      // os.ReadFile
+	WriteFile func(path string, data []byte, perm fs.FileMode) error // os.WriteFile
+	MkdirAll  func(path string, perm fs.FileMode) error              // os.MkdirAll
+	MkdirTemp func(dir, pattern string) (string, error)              // os.MkdirTemp
+	Stat      func(path string) (fs.FileInfo, error)                 // os.Stat
+	ReadDir   func(path string) ([]fs.DirEntry, error)               // os.ReadDir
+	Remove    func(path string) error                                // os.Remove
+	RemoveAll func(path string) error                                // os.RemoveAll
+	Rename    func(oldPath, newPath string) error                    // os.Rename
+	WalkDir   func(root string, fn fs.WalkDirFunc) error             // filepath.WalkDir
+	Chmod     func(path string, mode fs.FileMode) error              // os.Chmod
+
+	// Exclusive create (doctrine survivor S-1 — a stdlib-equivalent
+	// primitive closure: os.WriteFile's own body with O_CREATE|O_EXCL;
+	// behavior changes extend this SIGNATURE, never the cmd body).
+	WriteFileExcl func(path string, data []byte, perm fs.FileMode) error
 
 	// Process, env, clock (direct references).
 	Getenv      func(key string) string // os.Getenv
@@ -691,12 +788,13 @@ func envOrEmpty(getenv func(string) string, key string) string {
 }
 ```
 
-   `internal/cli/edgefs.go` — the landed cmd/engram/os_fs.go `osFS` logic verbatim with `os.X`/`filepath.WalkDir` swapped for `f.prims.X`, PLUS the atomic-write dance re-sequenced for the name-returning CreateTemp primitive (design flag P-4 — same-directory rename atomicity unchanged):
+   `internal/cli/edgefs.go` — the landed cmd/engram/os_fs.go `osFS` logic verbatim with `os.X`/`filepath.WalkDir` swapped for `f.prims.X`, PLUS the atomic-write dance re-sequenced for internal unique-temp-name generation over the exclusive-create `WriteFileExcl` primitive (design flags P-4/S-1 — same-directory rename atomicity unchanged):
 
 ```go
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -816,50 +914,83 @@ func (f primFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
 	return nil
 }
 
-// WriteFileAtomic writes data to path atomically: it creates a unique temp
-// file in filepath.Dir(path), sets perms, writes, then renames into place.
-// A same-directory rename is atomic on POSIX — a concurrent reader sees
-// either the old or the new file, never a partial one. On any error the
-// temp file is removed and the original (if any) is left untouched
-// (ADR-0013; design flag P-4: the CreateTemp primitive returns a
-// created-and-closed unique name, so the write goes through WriteFile).
+// WriteFileAtomic writes data to path atomically: it derives a unique temp
+// name in filepath.Dir(path) from the target base + the injected clock's
+// nanos + an attempt counter, creates it exclusively (data written at perm)
+// via the WriteFileExcl primitive — retrying fresh candidates on
+// fs.ErrExist, bounded by maxTempAttempts — then chmods the temp to the
+// exact target perm (umask-independent) and renames into place. A
+// same-directory rename is atomic on POSIX — a concurrent reader sees
+// either the old or the new file, never a partial one. On any failure
+// after creation the temp file is removed and the original (if any) is
+// left untouched (ADR-0013; design flag P-4: the unique-temp-name policy
+// is INTERNAL — cmd contributes only the stdlib-equivalent WriteFileExcl
+// primitive, doctrine survivor S-1, plus the restored direct Chmod
+// primitive for umask-independent perms).
 func (f primFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
-	dir := filepath.Dir(path)
-	base := filepath.Base(path)
-
-	tmpName, err := f.prims.CreateTemp(dir, "."+base+".tmp-*")
+	tmpName, err := f.createUniqueTemp(path, data, perm)
 	if err != nil {
 		return fmt.Errorf("atomic write %s: create temp: %w", path, err)
 	}
 
-	// Best-effort cleanup on any error path.
-	success := false
-
-	defer func() {
-		if !success {
-			_ = f.prims.Remove(tmpName)
-		}
-	}()
-
+	// chmod after write (temp is never wider than final); explicit chmod
+	// keeps atomic-write perms umask-independent — parity with the
+	// pre-#700 dance. Do NOT reorder chmod before the data write.
 	chmodErr := f.prims.Chmod(tmpName, perm)
 	if chmodErr != nil {
-		return fmt.Errorf("atomic write %s: chmod temp: %w", path, chmodErr)
-	}
+		_ = f.prims.Remove(tmpName)
 
-	writeErr := f.prims.WriteFile(tmpName, data, perm)
-	if writeErr != nil {
-		return fmt.Errorf("atomic write %s: write temp: %w", path, writeErr)
+		return fmt.Errorf("atomic write %s: chmod temp: %w", path, chmodErr)
 	}
 
 	renameErr := f.prims.Rename(tmpName, path)
 	if renameErr != nil {
+		// Cleanup on any failure after creation (P-4).
+		_ = f.prims.Remove(tmpName)
+
 		return fmt.Errorf("atomic write %s: rename: %w", path, renameErr)
 	}
 
-	success = true
-
 	return nil
 }
+
+// createUniqueTemp writes data exclusively to a fresh candidate temp name
+// beside path (".<base>.tmp-<nanos>-<attempt>"). A candidate that already
+// exists (fs.ErrExist) is retried with the next attempt counter, bounded
+// by maxTempAttempts; any other error aborts immediately — nothing was
+// created, so there is nothing to clean.
+func (f primFS) createUniqueTemp(path string, data []byte, perm fs.FileMode) (string, error) {
+	dir := filepath.Dir(path)
+	base := filepath.Base(path)
+	nanos := f.prims.Now().UnixNano()
+
+	var lastErr error
+
+	for attempt := range maxTempAttempts {
+		candidate := filepath.Join(dir, fmt.Sprintf(".%s.tmp-%d-%d", base, nanos, attempt))
+
+		lastErr = f.prims.WriteFileExcl(candidate, data, perm)
+		if lastErr == nil {
+			return candidate, nil
+		}
+
+		if !errors.Is(lastErr, fs.ErrExist) {
+			return "", lastErr
+		}
+	}
+
+	return "", fmt.Errorf("%w after %d attempts: %w", errTempNameExhausted, maxTempAttempts, lastErr)
+}
+
+// unexported variables.
+var errTempNameExhausted = errors.New("no unique temp name available")
+
+// unexported constants.
+const (
+	// maxTempAttempts bounds the fs.ErrExist retry when deriving a unique
+	// temp name for the atomic-write dance (doctrine flag P-4).
+	maxTempAttempts = 10
+)
 ```
 
    `internal/cli/locker.go` — the landed `flockLocker.Lock` lifecycle verbatim over the fd primitives:
@@ -1294,6 +1425,32 @@ func TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp(t *testing.T) {
 	g.Expect(entries).To(gomega.HaveLen(1), "temp files must be renamed or removed")
 }
 
+// TestRealEdgeFS_WriteFileAtomicPermsAreUmaskIndependent proves the restored
+// Chmod step (P-4) makes WriteFileAtomic's final perm exact regardless of
+// the process umask — parity with the pre-#700 dance.
+func TestRealEdgeFS_WriteFileAtomicPermsAreUmaskIndependent(t *testing.T) {
+	// serial: syscall.Umask is process-global; parallel file-creating tests would flake
+	g := gomega.NewWithT(t)
+
+	old := syscall.Umask(umaskParityRestrictiveMask)
+	defer syscall.Umask(old)
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "note.md")
+	fsys := realFSForTest()
+
+	g.Expect(fsys.WriteFileAtomic(target, []byte("v1"), umaskParityPerm)).To(gomega.Succeed())
+
+	info, err := os.Stat(target)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(info.Mode().Perm()).To(gomega.Equal(umaskParityPerm))
+}
+
 // TestRealFlockLocker_SecondLockWaitsForUnlock is the relocated ADR-0013
 // lock regression guard: a second locker on the same path must block until
 // the first unlocks — never proceed concurrently, never fail.
@@ -1381,19 +1538,25 @@ func realPrimitives() cli.Primitives {
 		Remove:      os.Remove,
 		RemoveAll:   os.RemoveAll,
 		Rename:      os.Rename,
-		Chmod:       os.Chmod,
 		WalkDir:     filepath.WalkDir,
+		Chmod:       os.Chmod,
 		Getenv:      os.Getenv,
 		Now:         time.Now,
 		Getwd:       os.Getwd,
 		UserHomeDir: os.UserHomeDir,
-		CreateTemp: func(dir, pattern string) (string, error) {
-			file, err := os.CreateTemp(dir, pattern)
+		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
+			//nolint:gosec // test helper, path from test
+			file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 			if err != nil {
-				return "", err
+				return err
 			}
 
-			return file.Name(), file.Close()
+			_, err = file.Write(data)
+			if closeErr := file.Close(); closeErr != nil && err == nil {
+				err = closeErr
+			}
+
+			return err
 		},
 		OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
 			fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
@@ -1419,6 +1582,14 @@ func realPrimitives() cli.Primitives {
 const (
 	realFSDirPerm  fs.FileMode = 0o750
 	realFSFilePerm fs.FileMode = 0o600
+
+	// umaskParityPerm is the target perm for the umask-independence parity
+	// test (P-4 restored chmod step).
+	umaskParityPerm fs.FileMode = 0o644
+
+	// umaskParityRestrictiveMask is a deliberately restrictive umask (would
+	// mask 0o644 down to 0o600 without the explicit chmod step).
+	umaskParityRestrictiveMask = 0o077
 )
 ```
 

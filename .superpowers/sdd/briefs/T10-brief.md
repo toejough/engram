@@ -1,6 +1,6 @@
 ### Task T10 (M1): Atomic-write parity on the internal composition (relocation absorbed by T1-rework; consumers migrate in T12/T4/T15)
 
-**Doctrine note (supersedes this task's original relocate-to-cmd brief):** under the revised composition doctrine there is no `cmd/engram/os_fs.go` to relocate onto — the ADR-0013 dance already lives INTERNAL as `primFS.WriteFileAtomic` (`internal/cli/edgefs.go`, landed by T1-rework; flag P-4 sequence CreateTemp→Chmod→WriteFile→Rename, + Remove on any failure), unit-tested with fake primitives (`TestEdgeFS_WriteFileAtomicHappyPathDance`, `TestEdgeFS_WriteFileAtomicFailuresRemoveTemp` in edgefs_test.go) and integration-tested with real ones (`TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp` in primitives_integration_test.go). The supersession map's "T10 reduces to migrating its internal consumers onto `deps.FS.WriteFileAtomic`" is realized BY the owning tasks, not here: every remaining caller sits inside an os-backed constructor/adapter that its own task replaces wholesale — learn.go/qa.go (T3, already landed at this slot in R4's order), amend/resituate/activate/vocab (T12), cli.go's `osLearnFS.WriteSidecar` (T4), embed.go's `osEmbedFS.Write` (T15) — exactly T13's gate ledger, which is UNCHANGED. A standalone call-site flip in this task is meaningless (the enclosing adapters die whole). What the M1 slot still owes the cluster before T13 may delete writesafe.go + writesafe_test.go: re-prove, against the composed implementation over REAL primitives, the writesafe regression behaviors T1-rework did not carry over, and verify the caller ledger matches T13's gate.
+**Doctrine note (supersedes this task's original relocate-to-cmd brief):** under the revised composition doctrine there is no `cmd/engram/os_fs.go` to relocate onto — the ADR-0013 dance already lives INTERNAL as `primFS.WriteFileAtomic` (`internal/cli/edgefs.go`, landed by T1-rework; flag P-4 sequence: internal unique-name candidates (target base + Now nanos + attempt counter) → exclusive create via the `WriteFileExcl` primitive (bounded fs.ErrExist retry) → Chmod to the exact target perm via the restored `Chmod` primitive (umask-independent, parity with the pre-#700 dance) → Rename, + Remove on any post-creation failure (including a chmod failure)), unit-tested with fake primitives (`TestEdgeFS_WriteFileAtomicHappyPathDance`, `TestEdgeFS_WriteFileAtomicFailuresRemoveTemp`, `TestEdgeFS_WriteFileAtomicUniqueNameRetry` in edgefs_test.go) and integration-tested with real ones (`TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp`, `TestRealEdgeFS_WriteFileAtomicPermsAreUmaskIndependent` in primitives_integration_test.go). The supersession map's "T10 reduces to migrating its internal consumers onto `deps.FS.WriteFileAtomic`" is realized BY the owning tasks, not here: every remaining caller sits inside an os-backed constructor/adapter that its own task replaces wholesale — learn.go/qa.go (T3, already landed at this slot in R4's order), amend/resituate/activate/vocab (T12), cli.go's `osLearnFS.WriteSidecar` (T4), embed.go's `osEmbedFS.Write` (T15) — exactly T13's gate ledger, which is UNCHANGED. A standalone call-site flip in this task is meaningless (the enclosing adapters die whole). What the M1 slot still owes the cluster before T13 may delete writesafe.go + writesafe_test.go: re-prove, against the composed implementation over REAL primitives, the writesafe regression behaviors T1-rework did not carry over, and verify the caller ledger matches T13's gate.
 
 Behavior-parity ledger (writesafe_test.go behavior → coverage on the composed `primFS`):
 
@@ -9,8 +9,9 @@ Behavior-parity ledger (writesafe_test.go behavior → coverage on the composed 
 | `TestAtomicWriteFile_OverwritesExistingFile` | `TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp` | T1-rework |
 | `TestAtomicWriteFile_NoLeftoverTempFiles` | same test's closing `HaveLen(1)` temp-count assertion | T1-rework |
 | `TestAtomicWriteFile_WritesNewFile` | `TestRealEdgeFS_WriteFileAtomicWritesNewFile` | THIS TASK |
-| `TestAtomicWriteFile_FailureDoesNotTouchOriginal` | `TestRealEdgeFS_WriteFileAtomicCreateTempFailureLeavesOriginalUntouched` | THIS TASK |
+| `TestAtomicWriteFile_FailureDoesNotTouchOriginal` | `TestRealEdgeFS_WriteFileAtomicExclCreateFailureLeavesOriginalUntouched` (exclusive-create failure/retry leaves original untouched) | THIS TASK |
 | `TestAtomicWriteFile_RenameFailure_CleansTempAndLeavesOriginalUntouched` | `TestRealEdgeFS_WriteFileAtomicRenameFailureCleansTempAndOriginal` (real FS, injected `Rename` primitive — no export shim needed) plus the fake-prims rename case of `TestEdgeFS_WriteFileAtomicFailuresRemoveTemp` | THIS TASK |
+| *(none — the pre-#700 dance's chmod-driven umask independence had no explicit writesafe_test.go coverage)* | `TestRealEdgeFS_WriteFileAtomicPermsAreUmaskIndependent` (restored `Chmod` primitive, P-4) | T1-rework |
 
 **Files**
 - Modify (append tests, one import, one const block, one sentinel var): `internal/cli/primitives_integration_test.go` (created by T1-rework)
@@ -24,7 +25,7 @@ Behavior-parity ledger (writesafe_test.go behavior → coverage on the composed 
 
 1. [ ] Preflight — verify the T1-rework/T2 landed state this task builds on (any miss → STOP: an upstream task is incomplete; escalate rather than building the missing piece here):
    - `rg -n "func \(f primFS\) WriteFileAtomic" internal/cli/edgefs.go` → exactly one hit.
-   - `rg -n "TestEdgeFS_WriteFileAtomicHappyPathDance|TestEdgeFS_WriteFileAtomicFailuresRemoveTemp" internal/cli/edgefs_test.go` → both present.
+   - `rg -n "TestEdgeFS_WriteFileAtomicHappyPathDance|TestEdgeFS_WriteFileAtomicFailuresRemoveTemp|TestEdgeFS_WriteFileAtomicUniqueNameRetry" internal/cli/edgefs_test.go` → all three present.
    - `rg -n "TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp|func realPrimitives|func realFSForTest" internal/cli/primitives_integration_test.go` → all present.
    - `ls cmd/engram/` → `main.go` only (no os_fs.go / os_signal.go / debuglog_sink.go — the pre-rework layout is gone; a trivial wiring smoke test, if T2 kept one, is also acceptable).
 
@@ -52,15 +53,18 @@ func TestRealEdgeFS_WriteFileAtomicWritesNewFile(t *testing.T) {
 	g.Expect(got).To(gomega.Equal(content), "file must contain exactly the written bytes")
 }
 
-func TestRealEdgeFS_WriteFileAtomicCreateTempFailureLeavesOriginalUntouched(t *testing.T) {
+func TestRealEdgeFS_WriteFileAtomicExclCreateFailureLeavesOriginalUntouched(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	dir := t.TempDir()
 	fsys := realFSForTest()
 
-	// A read-only directory makes the CreateTemp primitive fail before the
-	// dance writes a single byte (relocated writesafe_test.go behavior).
+	// A read-only directory makes the exclusive-create (WriteFileExcl)
+	// primitive fail with a non-ErrExist error, so the dance aborts before
+	// creating anything (relocated writesafe_test.go behavior; the
+	// fs.ErrExist retry path is covered by the fake-prims
+	// TestEdgeFS_WriteFileAtomicUniqueNameRetry).
 	subdir := filepath.Join(dir, "sub")
 	g.Expect(os.Mkdir(subdir, writableDirPerm)).To(gomega.Succeed())
 
@@ -161,11 +165,11 @@ test(cli): prove writesafe parity on internal atomic write (#700)
 
 The ADR-0013 dance lives on internal/cli's primFS.WriteFileAtomic
 (landed by the T1 rework). This closes the writesafe_test.go parity
-gap with real-primitive regression tests — create-temp failure leaves
-the original untouched, injected rename failure cleans the temp, and
-new-file write — so the purge task (T13) can delete writesafe.go with
-zero behavior-coverage loss. Call-site migration stays with the owning
-tasks (T12/T4/T15) per T13's gate.
+gap with real-primitive regression tests — exclusive-create failure
+leaves the original untouched, injected rename failure cleans the
+temp, and new-file write — so the purge task (T13) can delete
+writesafe.go with zero behavior-coverage loss. Call-site migration
+stays with the owning tasks (T12/T4/T15) per T13's gate.
 
 AI-Used: [claude]
 ```
