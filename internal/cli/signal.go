@@ -1,13 +1,7 @@
 package cli
 
 import (
-	"io"
-	"os"
-	"os/signal"
 	"sync/atomic"
-	"syscall"
-
-	"github.com/toejough/engram/internal/debuglog"
 )
 
 // Exported constants.
@@ -45,28 +39,6 @@ func ForwardAsPulses[T any](in <-chan T, out chan<- struct{}) {
 	for range in {
 		out <- struct{}{}
 	}
-}
-
-// SetupSignalHandling registers signal handlers and starts the force-exit goroutine.
-// Returns the configured targets for targ.Main.
-//
-// Deprecated: interim shim only — deleted by the #700 wiring task; cmd/engram
-// wires signal pulses through cli.Primitives.StartSignalPulses instead.
-func SetupSignalHandling(
-	stdout, stderr io.Writer,
-	exitFn func(int),
-	logger *debuglog.Logger,
-) []any {
-	sigCh := make(chan os.Signal, signalChannelBuffer)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	pulses := make(chan struct{}, signalChannelBuffer)
-
-	go ForwardAsPulses(sigCh, pulses)
-
-	ForceExitOnRepeatedSignal(pulses, exitFn)
-
-	return Targets(stdout, stderr, exitFn, logger)
 }
 
 // unexported constants.

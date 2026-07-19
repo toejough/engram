@@ -3577,7 +3577,7 @@ func TestTargets_VocabBootstrapNonExistentSeed(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 
-	targets := cli.Targets(&stdout, &stderr, func(int) {}, nil)
+	targets := cli.Targets(newTestDeps(&stdout, &stderr))
 
 	_, targErr := targ.Execute(
 		[]string{"engram", "vocab", "bootstrap", "--vault", vault, "--seed", filepath.Join(vault, "nonexistent.yaml")},
@@ -3603,7 +3603,7 @@ func TestTargets_VocabProposeCreatesNote(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 
-	targets := cli.Targets(&stdout, &stderr, func(int) {}, nil)
+	targets := cli.Targets(newTestDeps(&stdout, &stderr))
 
 	_, targErr := targ.Execute(
 		[]string{"engram", "vocab", "propose", "--vault", vault, "--term", "test-term", "--description", "a test"},
@@ -3627,7 +3627,7 @@ func TestTargets_VocabRefitMissingPlan(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 
-	targets := cli.Targets(&stdout, &stderr, func(int) {}, nil)
+	targets := cli.Targets(newTestDeps(&stdout, &stderr))
 
 	_, targErr := targ.Execute(
 		[]string{"engram", "vocab", "refit", "--vault", vault, "--plan", filepath.Join(vault, "missing.yaml")},
@@ -3652,7 +3652,7 @@ func TestTargets_VocabStatsEmpty(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 
-	targets := cli.Targets(&stdout, &stderr, func(int) {}, nil)
+	targets := cli.Targets(newTestDeps(&stdout, &stderr))
 
 	_, targErr := targ.Execute([]string{"engram", "vocab", "stats", "--vault", vault}, targets...)
 	if targErr != nil {

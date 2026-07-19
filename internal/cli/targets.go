@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -78,39 +77,42 @@ func ProjectSlugFromPath(path string) string {
 	return strings.ReplaceAll(path, string(filepath.Separator), "-")
 }
 
-// Targets returns all targ targets for the engram CLI. The logger is
-// attached to each handler's ctx so downstream code can call debuglog.Log
-// without an explicit logger argument.
-func Targets(stdout, stderr io.Writer, exit func(int), logger *debuglog.Logger) []any {
-	errHandler := newErrHandler(stderr, exit)
+// Targets returns all targ targets for the engram CLI, wired from the
+// single production capability carrier (#700). The debug logger is
+// constructed from deps.DebugLog (nil sink → no-op logger) and attached to
+// each handler's ctx so downstream code can call debuglog.Log without an
+// explicit logger argument.
+func Targets(deps Deps) []any {
+	errHandler := newErrHandler(deps.Stderr, deps.Exit)
+	logger := debuglog.New(deps.DebugLog, "engram", deps.Now)
 
 	withLog := func(ctx context.Context) context.Context {
 		return debuglog.WithLogger(ctx, logger)
 	}
 
 	return append(
-		coreTargets(stdout, withLog, errHandler),
-		maintenanceTargets(stdout, withLog, errHandler)...,
+		coreTargets(deps, withLog, errHandler),
+		maintenanceTargets(deps, withLog, errHandler)...,
 	)
 }
 
 // amendResituateTargets returns the amend and resituate subcommands. Split out
 // of maintenanceTargets to stay within the per-function length budget.
 func amendResituateTargets(
-	stdout io.Writer,
+	deps Deps,
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 	home string,
 ) []any {
 	return []any{
 		targ.Targ(func(ctx context.Context, a ResituateArgs) {
-			a.Vault = resolveVault(a.Vault, home, os.Getenv)
-			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), stdout))
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), deps.Stdout))
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 		targ.Targ(func(ctx context.Context, a AmendArgs) {
-			a.Vault = resolveVault(a.Vault, home, os.Getenv)
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
-			errHandler(RunAmend(withLog(ctx), a, newOsAmendDeps(), stdout))
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+			errHandler(RunAmend(withLog(ctx), a, newOsAmendDeps(), deps.Stdout))
 		}).Name("amend").Description("Amend a note in place: supersedes, provenance-merge, field-replacement, activate"),
 	}
 }
@@ -119,21 +121,26 @@ func amendResituateTargets(
 // show, check). Split from Targets to stay within the per-function length
 // budget; the wiring mirrors maintenanceTargets exactly.
 func coreTargets(
-	stdout io.Writer,
+	deps Deps,
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 ) []any {
 	return append(
-		ingestQueryTargets(stdout, withLog, errHandler),
-		learnUpdateTargets(stdout, withLog, errHandler)...,
+		ingestQueryTargets(deps, withLog, errHandler),
+		learnUpdateTargets(deps, withLog, errHandler)...,
 	)
 }
 
-// homeOrEmpty returns the user's home directory, or "" when it cannot be
-// resolved. resolveVault tolerates an empty home (it falls back to env / XDG),
-// so the error is intentionally discarded.
-func homeOrEmpty() string {
-	home, _ := os.UserHomeDir()
+// homeOrEmpty returns the user's home directory via the injected capability,
+// or "" when it cannot be resolved (or is unwired, as in minimal test Deps).
+// resolveVault tolerates an empty home (it falls back to env / XDG), so the
+// error is intentionally discarded.
+func homeOrEmpty(deps Deps) string {
+	if deps.UserHomeDir == nil {
+		return ""
+	}
+
+	home, _ := deps.UserHomeDir()
 
 	return home
 }
@@ -142,52 +149,52 @@ func homeOrEmpty() string {
 // query-chunks, activate, show, check). Split from coreTargets to stay within
 // the per-function length budget.
 func ingestQueryTargets(
-	stdout io.Writer,
+	deps Deps,
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 ) []any {
-	home := homeOrEmpty()
+	home := homeOrEmpty(deps)
 
 	return []any{
 		targ.Targ(func(ctx context.Context, a QueryArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
-			errHandler(RunQuery(withLog(ctx), a, newOsQueryDeps(), stdout))
+			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+			errHandler(RunQuery(withLog(ctx), a, newOsQueryDeps(), deps.Stdout))
 		}).Name("query").Description("Semantic search over vault + chunk index (YAML output)"),
 		targ.Targ(func(ctx context.Context, a IngestArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
-			errHandler(RunIngest(withLog(ctx), a, newOsIngestDeps(), stdout))
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+			errHandler(RunIngest(withLog(ctx), a, newOsIngestDeps(), deps.Stdout))
 		}).Name("ingest").Description("Chunk+embed transcripts/markdown into a chunk index (zero-LLM)"),
 		targ.Targ(func(ctx context.Context, a PruneArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
-			errHandler(RunPrune(withLog(ctx), a, newOsPruneDeps(), stdout))
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+			errHandler(RunPrune(withLog(ctx), a, newOsPruneDeps(), deps.Stdout))
 		}).Name("prune").Description(
 			"Detach chunk entries whose source file is gone: drop the stale manifest entry, " +
 				"keep the embedded chunks (still searchable)"),
 		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
-			errHandler(RunChunkQuery(withLog(ctx), a, newOsChunkQueryDeps(), stdout))
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+			errHandler(RunChunkQuery(withLog(ctx), a, newOsChunkQueryDeps(), deps.Stdout))
 		}).Name("query-chunks").Description("Semantic search over the chunk index (YAML output)"),
 		targ.Targ(func(_ context.Context, a ActivateArgs) {
-			a.Vault = resolveVault(a.Vault, home, os.Getenv)
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 			errHandler(RunActivate(a, newOsActivateDeps()))
 		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
 		targ.Targ(func(_ context.Context, a CountArgs) {
-			a.Vault = resolveVault(a.Vault, home, os.Getenv)
-			errHandler(RunCount(a, newOsCountDeps(), stdout))
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			errHandler(RunCount(a, newOsCountDeps(), deps.Stdout))
 		}).Name("count").Description(
 			"Count notes by a frontmatter attribute or a note's wikilink in-degree (read-only)"),
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
-			errHandler(RunShow(withLog(ctx), a, newOsShowDeps(), stdout))
+			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+			errHandler(RunShow(withLog(ctx), a, newOsShowDeps(), deps.Stdout))
 		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
 		targ.Targ(func(ctx context.Context, a ShowChunkArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, os.Getenv)
-			errHandler(RunShowChunk(withLog(ctx), a, newOsShowChunkDeps(), stdout))
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+			errHandler(RunShowChunk(withLog(ctx), a, newOsShowChunkDeps(), deps.Stdout))
 		}).Name("show-chunk").Description("Print a chunk's text by its source#anchor id (read-only)"),
 		targ.Targ(func(ctx context.Context, a CheckArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
-			errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), stdout))
+			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+			errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), deps.Stdout))
 		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
 	}
 }
@@ -196,38 +203,38 @@ func ingestQueryTargets(
 // update, embed group). Split from coreTargets to stay within the
 // per-function length budget.
 func learnUpdateTargets(
-	stdout io.Writer,
+	deps Deps,
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 ) []any {
-	home := homeOrEmpty()
+	home := homeOrEmpty(deps)
 
 	return []any{
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
-				a.Vault = resolveVault(a.Vault, home, os.Getenv)
-				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, stdout))
+				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, deps.Stdout))
 			}).Name("feedback").Description("Write a feedback note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
-				a.Vault = resolveVault(a.Vault, home, os.Getenv)
-				errHandler(runLearnFromFactArgs(withLog(ctx), a, stdout))
+				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				errHandler(runLearnFromFactArgs(withLog(ctx), a, deps.Stdout))
 			}).Name("fact").Description("Write a fact note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnQAArgs) {
-				a.Vault = resolveVault(a.Vault, home, os.Getenv)
-				errHandler(RunLearnQA(withLog(ctx), a, newOsLearnQADeps(), stdout))
+				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				errHandler(RunLearnQA(withLog(ctx), a, newOsLearnQADeps(), deps.Stdout))
 			}).Name("qa").Description("Write a QA pair (Q+A notes) to the vault"),
 		),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
-			errHandler(runUpdate(withLog(ctx), a, stdout))
+			errHandler(runUpdate(withLog(ctx), a, deps.Stdout))
 		}).Name("update").Description("Refresh engram binary and harness skills"),
 		targ.Group("embed",
 			targ.Targ(func(ctx context.Context, a EmbedApplyArgs) {
-				a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
-				errHandler(RunEmbedApply(withLog(ctx), a, newOsEmbedDeps(), stdout))
+				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+				errHandler(RunEmbedApply(withLog(ctx), a, newOsEmbedDeps(), deps.Stdout))
 			}).Name("apply").Description("Embed notes (default: missing only)"),
 			targ.Targ(func(ctx context.Context, a EmbedStatusArgs) {
-				a.VaultPath = resolveVault(a.VaultPath, home, os.Getenv)
-				errHandler(RunEmbedStatus(withLog(ctx), a, newOsEmbedDeps(), stdout))
+				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+				errHandler(RunEmbedStatus(withLog(ctx), a, newOsEmbedDeps(), deps.Stdout))
 			}).Name("status").Description("Report embedding state counts"),
 		),
 	}
@@ -237,15 +244,15 @@ func learnUpdateTargets(
 // amend, vocab). Split out of Targets to keep each function within the length budget;
 // the wiring mirrors the other targets exactly.
 func maintenanceTargets(
-	stdout io.Writer,
+	deps Deps,
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 ) []any {
-	home := homeOrEmpty()
+	home := homeOrEmpty(deps)
 
 	return append(
-		amendResituateTargets(stdout, withLog, errHandler, home),
-		vocabTargets(stdout, withLog, errHandler, home)...,
+		amendResituateTargets(deps, withLog, errHandler, home),
+		vocabTargets(deps, withLog, errHandler, home)...,
 	)
 }
 
@@ -266,7 +273,7 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 // vocabTargets returns the vocab group subcommands (bootstrap, stats,
 // propose, refit).
 func vocabTargets(
-	stdout io.Writer,
+	deps Deps,
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 	home string,
@@ -274,20 +281,20 @@ func vocabTargets(
 	return []any{
 		targ.Group("vocab",
 			targ.Targ(func(ctx context.Context, a VocabBootstrapArgs) {
-				a.Vault = resolveVault(a.Vault, home, os.Getenv)
-				errHandler(RunVocabBootstrap(withLog(ctx), a, newOsVocabDeps(), stdout))
+				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				errHandler(RunVocabBootstrap(withLog(ctx), a, newOsVocabDeps(), deps.Stdout))
 			}).Name("bootstrap").Description("Seed vocab term notes + tag all existing notes (idempotent)"),
 			targ.Targ(func(_ context.Context, a VocabStatsArgs) {
-				a.Vault = resolveVault(a.Vault, home, os.Getenv)
-				errHandler(RunVocabStats(a, newOsVocabStatsDeps(), stdout))
+				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				errHandler(RunVocabStats(a, newOsVocabStatsDeps(), deps.Stdout))
 			}).Name("stats").Description("Print vocab health report (per-term counts, hubs, orphans, untagged rate)"),
 			targ.Targ(func(ctx context.Context, a VocabProposeArgs) {
-				a.Vault = resolveVault(a.Vault, home, os.Getenv)
-				errHandler(RunVocabPropose(withLog(ctx), a, newOsVocabDeps(), stdout))
+				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				errHandler(RunVocabPropose(withLog(ctx), a, newOsVocabDeps(), deps.Stdout))
 			}).Name("propose").Description("Add a new vocab term note + minor version bump (LLM gate runs agent-side)"),
 			targ.Targ(func(ctx context.Context, a VocabRefitArgs) {
-				a.Vault = resolveVault(a.Vault, home, os.Getenv)
-				errHandler(RunVocabRefit(withLog(ctx), a, newOsVocabDeps(), stdout))
+				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				errHandler(RunVocabRefit(withLog(ctx), a, newOsVocabDeps(), deps.Stdout))
 			}).Name("refit").Description("Apply a refit plan: renames, removals, additions, re-tag, major version bump"),
 		),
 	}

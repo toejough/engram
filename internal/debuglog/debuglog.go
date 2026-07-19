@@ -1,6 +1,10 @@
-// Package debuglog provides a tail-friendly debug logger for engram pipelines.
-// New opens an append-mode log file and returns a *Logger. Log calls write
-// atomically and sync to disk so `tail -F` shows progress live.
+// Package debuglog provides a tail-friendly debug logger for engram
+// pipelines. New wraps an injected io.Writer sink and returns a *Logger.
+// Log calls write one line at a time under a mutex; the production sink
+// (internal/cli's composed debug sink over the cmd-injected open primitive)
+// syncs to disk after every write so `tail -F` shows progress live. The
+// package itself performs no I/O and reads no clock — the sink and the now
+// func are injected at the edge (#700).
 //
 // Loggers are threaded through context (see WithLogger / LoggerFromContext).
 // The package-level Log and Timed helpers read the logger from ctx, so call
@@ -10,41 +14,35 @@ package debuglog
 import (
 	"context"
 	"fmt"
-	"os"
+	"io"
 	"sync"
 	"time"
 )
 
-// Logger writes structured debug lines to an append-mode file. Methods are
+// Logger writes structured debug lines to an injected sink. Methods are
 // safe for concurrent use within one process and safe to call on a nil
 // receiver (no-op), which means tests can pass a nil logger without panics.
 type Logger struct {
 	component string
-	file      *os.File
+	out       io.Writer
+	now       func() time.Time
 	mu        sync.Mutex
 }
 
-// New opens path in append mode and returns a *Logger tagged with comp.
-// If path is empty, returns a no-op *Logger that ignores all writes.
-// Errors only surface for non-empty paths that fail to open.
-func New(path, comp string) (*Logger, error) {
-	if path == "" {
-		return &Logger{}, nil
+// New returns a *Logger tagged with prefix that writes to w, stamping each
+// line via now. A nil w returns a nil *Logger — every method is a
+// nil-receiver-safe no-op, preserving the "unset ENGRAM_DEBUG_LOG disables
+// logging" behavior. now must be non-nil when w is non-nil.
+func New(w io.Writer, prefix string, now func() time.Time) *Logger {
+	if w == nil {
+		return nil
 	}
 
-	// Path comes from operator-set env var (ENGRAM_DEBUG_LOG), not user input.
-	//nolint:gosec // operator-controlled path
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, filePerm)
-	if err != nil {
-		return nil, fmt.Errorf("opening debug log %s: %w", path, err)
-	}
-
-	return &Logger{file: f, component: comp}, nil
+	return &Logger{component: prefix, out: w, now: now}
 }
 
 // Log writes a single line: <timestamp> [<component>] <stage>: <message>.
-// Each call appends and syncs. Safe on a nil receiver (no-op) and safe for
-// concurrent use.
+// Safe on a nil receiver (no-op) and safe for concurrent use.
 //
 //nolint:goprintffuncname // "Log" reads more naturally than "Logf" at call sites
 func (l *Logger) Log(stage, format string, args ...any) {
@@ -55,16 +53,11 @@ func (l *Logger) Log(stage, format string, args ...any) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if l.file == nil {
-		return
-	}
-
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	timestamp := l.now().UTC().Format(time.RFC3339Nano)
 	msg := fmt.Sprintf(format, args...)
-	line := fmt.Sprintf("%s [%s] %s: %s\n", now, l.component, stage, msg)
+	line := fmt.Sprintf("%s [%s] %s: %s\n", timestamp, l.component, stage, msg)
 
-	_, _ = l.file.WriteString(line)
-	_ = l.file.Sync()
+	_, _ = io.WriteString(l.out, line)
 }
 
 // Timed wraps a stage with .start and .end log entries plus duration.
@@ -74,12 +67,16 @@ func (l *Logger) Log(stage, format string, args ...any) {
 //
 // Safe on a nil receiver.
 func (l *Logger) Timed(stage, format string, args ...any) func() {
+	if l == nil {
+		return func() {}
+	}
+
 	l.Log(stage+".start", format, args...)
 
-	start := time.Now()
+	start := l.now()
 
 	return func() {
-		l.Log(stage+".end", "took=%s", time.Since(start))
+		l.Log(stage+".end", "took=%s", l.now().Sub(start))
 	}
 }
 
@@ -96,8 +93,3 @@ func Log(ctx context.Context, stage, format string, args ...any) {
 func Timed(ctx context.Context, stage, format string, args ...any) func() {
 	return LoggerFromContext(ctx).Timed(stage, format, args...)
 }
-
-// unexported constants.
-const (
-	filePerm = 0o644
-)

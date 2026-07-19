@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -150,7 +151,7 @@ func TestTargets(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
+		targets := cli.Targets(newTestDeps(&bytes.Buffer{}, &bytes.Buffer{}))
 		// learn (group), update, embed (group), query, ingest, query-chunks,
 		// activate, count, show, show-chunk, check, resituate, amend, prune,
 		// vocab (group)
@@ -286,7 +287,7 @@ func TestTargets(t *testing.T) {
 		vault := t.TempDir()
 		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
+		targets := cli.Targets(newTestDeps(&bytes.Buffer{}, &bytes.Buffer{}))
 		result, err := targ.Execute([]string{
 			"engram", "learn", "feedback",
 			"--slug", "test-slug",
@@ -304,7 +305,7 @@ func TestTargets(t *testing.T) {
 		vault := t.TempDir()
 		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 
-		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, func(int) {}, nil)
+		targets := cli.Targets(newTestDeps(&bytes.Buffer{}, &bytes.Buffer{}))
 		result, err := targ.Execute([]string{
 			"engram", "learn", "fact",
 			"--slug", "test-slug",
@@ -436,7 +437,7 @@ func executeForTest(t *testing.T, args []string) string {
 
 	var stdout, stderr bytes.Buffer
 
-	targets := cli.Targets(&stdout, &stderr, func(int) {}, nil)
+	targets := cli.Targets(newTestDeps(&stdout, &stderr))
 
 	_, err := targ.Execute(args, targets...)
 	if err != nil {
@@ -445,6 +446,23 @@ func executeForTest(t *testing.T, args []string) string {
 	}
 
 	return stderr.String()
+}
+
+// newTestDeps builds a cli.Deps wired to real OS capabilities with captured
+// stdout/stderr and a no-op exit — the test analog of the production
+// cli.NewDeps composition (built directly so no embedder/signal wiring
+// occurs). Command clusters extend this as their constructors convert to
+// Deps-based composition (#700).
+func newTestDeps(stdout, stderr io.Writer) cli.Deps {
+	return cli.Deps{
+		Stdout:      stdout,
+		Stderr:      stderr,
+		Exit:        func(int) {},
+		Getenv:      os.Getenv,
+		Now:         time.Now,
+		Getwd:       os.Getwd,
+		UserHomeDir: os.UserHomeDir,
+	}
 }
 
 // timeNowDateForTest returns today's date in the vault filename format,

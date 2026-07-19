@@ -4,6 +4,8 @@ import (
 	"io"
 	"io/fs"
 	"time"
+
+	"github.com/toejough/engram/internal/embed"
 )
 
 // Primitives carries raw impure capabilities as func values. cmd/engram
@@ -70,7 +72,7 @@ type WriteSyncer interface {
 func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
 	startForceExit(prims, exit)
 
-	return Deps{
+	deps := Deps{
 		Stdout:      stdout,
 		Stderr:      stderr,
 		Exit:        exit,
@@ -82,6 +84,18 @@ func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
 		Lock:        primLocker{prims: prims},
 		DebugLog:    openDebugSink(envOrEmpty(prims.Getenv, debugLogEnvVar), prims.OpenDebugFile),
 	}
+
+	// The lazy embedder is constructed once here, preserving the
+	// one-unpack-per-process property of the old sharedEmbedder singleton
+	// (guarded: minimal fake Primitives without Getenv skip it). R6: T14
+	// swaps this line to the 3-arg constructor over cmd-injected backend
+	// and cache capabilities.
+	if prims.Getenv != nil {
+		deps.Embed = embed.NewLazyEmbedder(
+			CacheDirFromHome(homeOrEmpty(deps), embed.BundledModelID, prims.Getenv))
+	}
+
+	return deps
 }
 
 // envOrEmpty reads key via getenv, tolerating a nil (unwired) capability.

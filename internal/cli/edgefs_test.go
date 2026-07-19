@@ -28,6 +28,50 @@ func TestEdgeFS_PreservesSentinelChainsThroughWrapping(t *testing.T) {
 	g.Expect(err.Error()).To(gomega.ContainSubstring("x"), "wrap must add path context")
 }
 
+func TestEdgeFS_WrapsEveryPrimitiveErrorWithContext(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		call    func(cli.EdgeFS) error
+		context string
+	}{
+		{"MkdirAll", func(f cli.EdgeFS) error { return f.MkdirAll("d", atomicPerm) }, "mkdir d"},
+		{"MkdirTemp", func(f cli.EdgeFS) error {
+			_, err := f.MkdirTemp("d", "p")
+
+			return err
+		}, "mkdir temp in d"},
+		{"ReadDir", func(f cli.EdgeFS) error {
+			_, err := f.ReadDir("d")
+
+			return err
+		}, "read dir d"},
+		{"Remove", func(f cli.EdgeFS) error { return f.Remove("x") }, "remove x"},
+		{"RemoveAll", func(f cli.EdgeFS) error { return f.RemoveAll("x") }, "remove all x"},
+		{"Rename", func(f cli.EdgeFS) error { return f.Rename("a", "b") }, "rename a -> b"},
+		{"Stat", func(f cli.EdgeFS) error {
+			_, err := f.Stat("x")
+
+			return err
+		}, "stat x"},
+		{"WalkDir", func(f cli.EdgeFS) error { return f.WalkDir("d", nil) }, "walk d"},
+		{"WriteFile", func(f cli.EdgeFS) error { return f.WriteFile("x", []byte("v"), atomicPerm) }, "write x"},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
+
+			boom := errors.New("boom")
+			err := testCase.call(fsFromPrims(failingPrims(boom)))
+			g.Expect(err).To(gomega.MatchError(boom), "the wrap must preserve the error chain")
+			g.Expect(err.Error()).To(gomega.ContainSubstring(testCase.context), "the wrap must add context")
+		})
+	}
+}
+
 func TestEdgeFS_WriteFileAtomicFailuresRemoveTemp(t *testing.T) {
 	t.Parallel()
 
@@ -239,6 +283,22 @@ type callRecorder struct{ calls []string }
 func (c *callRecorder) add(call string) { c.calls = append(c.calls, call) }
 
 func (c *callRecorder) list() []string { return c.calls }
+
+// failingPrims returns fresh Primitives whose every filesystem capability
+// fails with the given error, for exercising primFS's error-wrap paths.
+func failingPrims(boom error) cli.Primitives {
+	return cli.Primitives{
+		MkdirAll:  func(string, fs.FileMode) error { return boom },
+		MkdirTemp: func(string, string) (string, error) { return "", boom },
+		ReadDir:   func(string) ([]fs.DirEntry, error) { return nil, boom },
+		Remove:    func(string) error { return boom },
+		RemoveAll: func(string) error { return boom },
+		Rename:    func(string, string) error { return boom },
+		Stat:      func(string) (fs.FileInfo, error) { return nil, boom },
+		WalkDir:   func(string, fs.WalkDirFunc) error { return boom },
+		WriteFile: func(string, []byte, fs.FileMode) error { return boom },
+	}
+}
 
 // fsFromPrims composes the production EdgeFS from fake primitives via the
 // public composition root.
