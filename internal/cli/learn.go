@@ -349,7 +349,7 @@ func newLearnDeps(d Deps) LearnDeps {
 		Lock:          vaultLockFromLocker(d.Lock),
 		WriteNew:      writeNewFromFS(d.FS),
 		Embedder:      d.Embed,
-		WriteSidecar:  writeAtomicFromFS(d.FS, sidecarPerm, "write sidecar"),
+		WriteSidecar:  writeAtomicFromFS(d.FS, "write sidecar"),
 		LogWarning:    logWarningTo(d.Stderr),
 		// Vocab assignment wiring: no-op when the vault has no term notes.
 		// Uses stored member centroids (vocab.centroids.json) when present,
@@ -358,7 +358,7 @@ func newLearnDeps(d Deps) LearnDeps {
 			return loadAssignmentTermVectors(vault, listMDFromFS(d.FS), d.FS.ReadFile)
 		},
 		ReadSidecar: d.FS.ReadFile,
-		WriteNote:   writeAtomicFromFS(d.FS, vocabNotePerm, "write note"),
+		WriteNote:   writeAtomicFromFS(d.FS, "write note"),
 		// ListMD provides full .md filenames for the vocab trigger scan.
 		// Must be full filenames (not stripped basenames) — ListBasenames
 		// filters to Luhmann IDs, causing 100% false-fire on the untagged trigger.

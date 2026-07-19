@@ -11,8 +11,7 @@ import (
 
 // unexported constants.
 const (
-	notePerm    fs.FileMode = 0o600
-	sidecarPerm fs.FileMode = 0o600
+	atomicFilePerm fs.FileMode = 0o600
 )
 
 // edgeVaultInitFS adapts EdgeFS to the VaultInitFS bootstrap surface.
@@ -139,28 +138,28 @@ func vaultLockFromLocker(locker FileLocker) func(string) (func(), error) {
 	}
 }
 
-// writeNewFromFS returns a WriteNew func: exclusive create, preserving
-// errors.Is(err, fs.ErrExist) — the K1 collision backstop under the vault lock.
-func writeNewFromFS(fsys EdgeFS) func(string, []byte) error {
+// writeAtomicFromFS returns an atomic-rewrite func (temp+rename via
+// EdgeFS.WriteFileAtomic — ADR-0013's atomic-rename edge). opName labels the
+// wrapped error (e.g. "write note", "write sidecar") — the single atomic-write
+// composition shared by the note and sidecar call sites.
+func writeAtomicFromFS(fsys EdgeFS, opName string) func(string, []byte) error {
 	return func(path string, data []byte) error {
-		err := fsys.WriteFileExcl(path, data, notePerm)
+		err := fsys.WriteFileAtomic(path, data, atomicFilePerm)
 		if err != nil {
-			return fmt.Errorf("write new: %w", err)
+			return fmt.Errorf("%s: %w", opName, err)
 		}
 
 		return nil
 	}
 }
 
-// writeAtomicFromFS returns an atomic-rewrite func at the given perm (temp+
-// rename via EdgeFS.WriteFileAtomic — ADR-0013's atomic-rename edge). opName
-// labels the wrapped error (e.g. "write note", "write sidecar") — the single
-// atomic-write composition shared by the note and sidecar call sites.
-func writeAtomicFromFS(fsys EdgeFS, perm fs.FileMode, opName string) func(string, []byte) error {
+// writeNewFromFS returns a WriteNew func: exclusive create, preserving
+// errors.Is(err, fs.ErrExist) — the K1 collision backstop under the vault lock.
+func writeNewFromFS(fsys EdgeFS) func(string, []byte) error {
 	return func(path string, data []byte) error {
-		err := fsys.WriteFileAtomic(path, data, perm)
+		err := fsys.WriteFileExcl(path, data, atomicFilePerm)
 		if err != nil {
-			return fmt.Errorf("%s: %w", opName, err)
+			return fmt.Errorf("write new: %w", err)
 		}
 
 		return nil

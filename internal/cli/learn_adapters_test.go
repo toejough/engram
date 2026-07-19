@@ -230,7 +230,8 @@ func TestRunLearnFromFeedbackArgs_RequiresSituation(t *testing.T) {
 				Action:    "write tests",
 			}
 
-			err := cli.ExportRunLearnFromFeedbackArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
+			deps := newTestDeps(io.Discard, io.Discard)
+			err := cli.ExportRunLearnFromFeedbackArgs(context.Background(), args, deps, io.Discard)
 			g.Expect(err).To(MatchError(ContainSubstring("situation")))
 
 			entries, readErr := os.ReadDir(vault)
