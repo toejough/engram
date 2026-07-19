@@ -203,6 +203,13 @@ sites are already replaced wholesale by T5) — from `cli.ExportNewOsVaultFS()` 
 extended to `osVaultFS\|ExportNewOsVaultFS` — the lowercase-only pattern would MISS the shim
 (capital-O `OsVaultFS`) and let T7's deletion break the compile silently.
 
+**R13 — `fakeEdgeFS` has ONE cli_test declaration: T8's.** T8 (ingest) declares the func-field
+`fakeEdgeFS` in package cli_test. T17's draft declares a same-named `fstest.MapFS`-backed fake in
+the same package — a redeclaration compile error if both land. T17's fake is RENAMED
+`updateFakeEdgeFS` (its read-only errUnsupported write-side semantics differ from T8's
+func-injection design, so reuse does not fit); every reference in T17's steps and test code uses
+the new name. The executor note "reuse it and delete this one if so" is superseded by this rule.
+
 ## Issue-AC traceability (Gate A finding 3)
 
 | Issue #700 acceptance criterion (verbatim key) | Owning task(s) |
@@ -3360,7 +3367,7 @@ Sequencing: AFTER Q1 (`newVaultFS`, `osTestEdgeFS`). Per R4, T6 runs BEFORE the 
 
 ### Task T7 (Q3): Purge legacy `osVaultFS` (grep-gated, runs LAST)
 
-Sequencing: after the amend/learn/qa/resituate/embed/vocab clusters migrate to `newVaultFS(d.FS)` and T12 migrates the vocab tests off `ExportNewOsVaultFS` (R12). Belongs immediately before the depguard/forbidigo enforcement task.
+Sequencing: after the amend/learn/qa/resituate/embed/vocab clusters migrate to `newVaultFS(d.FS)` and T12 migrates the vocab tests off `ExportNewOsVaultFS` (R12). Runs after T15 and T12 (R4) — all its preconditions precede it; T13/T16/T17 follow it in R4.
 
 **Files:**
 - Modify: `internal/cli/vault_fs.go` (delete `osVaultFS` + methods + `"os"` import), `internal/cli/export_test.go` (delete `ExportNewOsVaultFS`, lines currently 572-578)
@@ -7926,10 +7933,3 @@ AI-Used: [claude]"
 ## Merge protocol (repo rules)
 
 Review-before-merge with argumentation; rebase on main + re-test before merging; `git merge --ff-only` only; rebase loop if another branch (two live Pi worktrees!) lands first; never push unreviewed work.
-
-**R13 — `fakeEdgeFS` has ONE cli_test declaration: T8's.** T8 (ingest) declares the func-field
-`fakeEdgeFS` in package cli_test. T17's draft declares a same-named `fstest.MapFS`-backed fake in
-the same package — a redeclaration compile error if both land. T17's fake is RENAMED
-`updateFakeEdgeFS` (its read-only errUnsupported write-side semantics differ from T8's
-func-injection design, so reuse does not fit); every reference in T17's steps and test code uses
-the new name. The executor note "reuse it and delete this one if so" is superseded by this rule.
