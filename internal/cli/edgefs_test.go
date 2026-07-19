@@ -266,6 +266,50 @@ func TestEdgeFS_WriteFileAtomicUniqueNameRetry(t *testing.T) {
 	})
 }
 
+func TestEdgeFS_WriteFileExclPassesDataAndPermToPrimitive(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var (
+		gotPath string
+		gotData []byte
+		gotPerm fs.FileMode
+	)
+
+	fsys := fsFromPrims(cli.Primitives{
+		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
+			gotData = append([]byte(nil), data...)
+			gotPath = path
+			gotPerm = perm
+
+			return nil
+		},
+	})
+
+	g.Expect(fsys.WriteFileExcl("new.md", []byte("body"), atomicPerm)).To(gomega.Succeed())
+	g.Expect(gotPath).To(gomega.Equal("new.md"))
+	g.Expect(string(gotData)).To(gomega.Equal("body"))
+	g.Expect(gotPerm).To(gomega.Equal(atomicPerm),
+		"the caller's perm must reach the raw primitive unchanged")
+}
+
+func TestEdgeFS_WriteFileExclPreservesErrExistAndAddsPath(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fsys := fsFromPrims(cli.Primitives{
+		WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+			return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
+		},
+	})
+
+	err := fsys.WriteFileExcl("existing.md", []byte("x"), atomicPerm)
+	g.Expect(err).To(gomega.MatchError(fs.ErrExist),
+		"K1 backstop: errors.Is(err, fs.ErrExist) must survive the internal wrap")
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("existing.md")),
+		"wrap must add path context")
+}
+
 // unexported constants.
 const (
 	atomicPerm fs.FileMode = 0o600

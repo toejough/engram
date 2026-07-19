@@ -213,15 +213,15 @@ func learnUpdateTargets(
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, deps.Stdout))
+				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, deps, deps.Stdout))
 			}).Name("feedback").Description("Write a feedback note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(runLearnFromFactArgs(withLog(ctx), a, deps.Stdout))
+				errHandler(runLearnFromFactArgs(withLog(ctx), a, deps, deps.Stdout))
 			}).Name("fact").Description("Write a fact note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnQAArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunLearnQA(withLog(ctx), a, newOsLearnQADeps(), deps.Stdout))
+				errHandler(RunLearnQA(withLog(ctx), a, newQaDeps(deps), deps.Stdout))
 			}).Name("qa").Description("Write a QA pair (Q+A notes) to the vault"),
 		),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {

@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 )
 
@@ -31,122 +30,15 @@ func (r *osFileReader) Read(path string) ([]byte, error) {
 }
 
 // osLearnFS is the production filesystem adapter for the learn subcommand.
+// Shrunk to Lock-only (#700 T3): the other methods moved to deps_compose.go
+// compositions over EdgeFS. Lock stays here until Task L2 — it has four
+// consumers outside the learn cluster (activate.go, amend.go, resituate.go,
+// vocab_commands.go).
 type osLearnFS struct{}
-
-// ListBasenames returns note basenames (filename minus .md) for luhmann-id
-// notes at the vault root (flat layout) — used to resolve a relation's bare
-// Luhmann id to its full basename (D1).
-func (*osLearnFS) ListBasenames(vault string) ([]string, error) {
-	return listRootNotes(vault, func(name string) (string, bool) {
-		if _, ok := extractLuhmannFromFilename(name); !ok {
-			return "", false
-		}
-
-		return strings.TrimSuffix(name, ".md"), true
-	})
-}
-
-// ListIDs returns Luhmann IDs from .md filenames at the vault root (flat layout).
-func (*osLearnFS) ListIDs(vault string) ([]string, error) {
-	return listRootNotes(vault, extractLuhmannFromFilename)
-}
 
 // Lock acquires an exclusive flock on vault/.luhmann.lock; returns a release func.
 func (*osLearnFS) Lock(vault string) (func(), error) {
 	return flockPath(filepath.Join(vault, luhmannLockFile))
-}
-
-// MkdirAll creates path with any missing parents; no-op when path exists.
-func (*osLearnFS) MkdirAll(path string, perm fs.FileMode) error {
-	err := os.MkdirAll(path, perm)
-	if err != nil {
-		return fmt.Errorf("mkdir: %w", err)
-	}
-
-	return nil
-}
-
-// StatDir returns fs.ErrNotExist if the directory is missing, errNotADirectory
-// if the path exists but is a file, or a wrapped error otherwise.
-func (*osLearnFS) StatDir(path string) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return fs.ErrNotExist
-		}
-
-		return fmt.Errorf("stat: %w", err)
-	}
-
-	if !info.IsDir() {
-		return fmt.Errorf("%w: %s", errNotADirectory, path)
-	}
-
-	return nil
-}
-
-// WriteFileIfMissing writes data with O_EXCL so existing files are left
-// untouched; ErrExist is swallowed so initializeVault is idempotent.
-func (*osLearnFS) WriteFileIfMissing(path string, data []byte, perm fs.FileMode) error {
-	f, err := os.OpenFile( //nolint:gosec // path from caller
-		path,
-		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
-		perm,
-	)
-	if err != nil {
-		if errors.Is(err, fs.ErrExist) {
-			return nil
-		}
-
-		return fmt.Errorf("open: %w", err)
-	}
-
-	defer func() { _ = f.Close() }()
-
-	_, writeErr := f.Write(data)
-	if writeErr != nil {
-		return fmt.Errorf("write: %w", writeErr)
-	}
-
-	return nil
-}
-
-// WriteNew creates the file with O_EXCL — errors with fs.ErrExist if it already exists.
-func (*osLearnFS) WriteNew(path string, data []byte) error {
-	const perm = 0o600
-
-	f, err := os.OpenFile( //nolint:gosec // path from caller
-		path,
-		os.O_CREATE|os.O_EXCL|os.O_WRONLY,
-		perm,
-	)
-	if err != nil {
-		return fmt.Errorf("open: %w", err)
-	}
-
-	defer func() { _ = f.Close() }()
-
-	_, writeErr := f.Write(data)
-	if writeErr != nil {
-		return fmt.Errorf("write: %w", writeErr)
-	}
-
-	return nil
-}
-
-// WriteSidecar writes a .vec.json sidecar to path with 0o600 perms. Used
-// by autoEmbedNote after a successful note write; lives on osLearnFS so
-// the production wiring uses a named method (visible to coverage) instead
-// of an anonymous closure.
-func (*osLearnFS) WriteSidecar(path string, data []byte) error {
-	const perm = 0o600
-
-	err := atomicWriteFile(path, data, perm)
-	if err != nil {
-		return fmt.Errorf("write sidecar: %w", err)
-	}
-
-	return nil
 }
 
 // acquireOptionalLock calls lock(arg) if lock is non-nil and returns (release, nil).
@@ -191,16 +83,20 @@ func flockPath(lockPath string) (func(), error) {
 	return release, nil
 }
 
-// listRootNotes reads the flat vault root and collects one string per non-dir
-// entry for which extract returns ok; a ("", false) result skips the entry. A
-// missing vault is treated as empty. Shared by ListBasenames and ListIDs so the
-// flat-root traversal lives in exactly one place.
-func listRootNotes(vault string, extract func(name string) (string, bool)) ([]string, error) {
+// listRootNotes reads the flat vault root via the injected readDir and
+// collects one string per non-dir entry for which extract returns ok. A
+// missing vault is treated as empty. Shared by listIDsFromFS and
+// listBasenamesFromFS so the flat-root traversal lives in exactly one place.
+func listRootNotes(
+	readDir func(string) ([]fs.DirEntry, error),
+	vault string,
+	extract func(name string) (string, bool),
+) ([]string, error) {
 	out := []string{}
 
-	entries, err := os.ReadDir(vault)
+	entries, err := readDir(vault)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return out, nil
 		}
 
@@ -218,6 +114,13 @@ func listRootNotes(vault string, extract func(name string) (string, bool)) ([]st
 	}
 
 	return out, nil
+}
+
+// logWarningToStderrf is the transitional os.Stderr-bound LogWarning hook.
+// Deps-migrated constructors use logWarningTo(d.Stderr) instead; this stays
+// only for the not-yet-migrated constructors and dies in the cli.go purge task.
+func logWarningToStderrf(format string, args ...any) {
+	_, _ = fmt.Fprintf(os.Stderr, "warning: "+format+"\n", args...)
 }
 
 // osManifestLock ensures dir exists then acquires an exclusive flock on

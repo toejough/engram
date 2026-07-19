@@ -170,6 +170,20 @@ func (f primFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) erro
 	return nil
 }
 
+// WriteFileExcl creates path exclusively via the base WriteFileExcl
+// primitive (O_CREATE|O_EXCL — the ADR-0013 K1 collision backstop). The raw
+// primitive error is wrapped exactly once here, preserving the fs.ErrExist
+// chain (doctrine flags X-1/S-1: the exclusive create itself is the
+// enumerated stdlib-equivalent cmd primitive; only the wrap lives here).
+func (f primFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+	err := f.prims.WriteFileExcl(path, data, perm)
+	if err != nil {
+		return fmt.Errorf("write excl %s: %w", path, err)
+	}
+
+	return nil
+}
+
 // createUniqueTemp writes data exclusively to a fresh candidate temp name
 // beside path (".<base>.tmp-<nanos>-<attempt>"). A candidate that already
 // exists (fs.ErrExist) is retried with the next attempt counter, bounded

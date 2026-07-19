@@ -2,13 +2,13 @@ package cli_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -21,7 +21,7 @@ import (
 // never computes the same next Luhmann id and never overwrites a note.
 //
 // We drive the REAL locked write path: LearnDeps built from the production
-// osLearnFS (real flock + real ListIDs + real O_EXCL WriteNew) against a
+// composition (real flock + real ListIDs + real O_EXCL WriteNew) against a
 // real temp vault. N goroutines each write a top-level note. If the lock
 // failed to span compute→write, two goroutines would read the same existing
 // set, compute the same id, and either collide (O_EXCL error) or lose a
@@ -119,22 +119,24 @@ func TestInvariant_K1_ConcurrentLearnNeverCollides(t *testing.T) {
 	}
 }
 
-// k1RealLockDeps wires LearnDeps to the production osLearnFS so the test
-// exercises the real flock + real O_EXCL write path. The Permanent dir is
-// pre-created by the caller so StatDir succeeds and InitVault never fires.
-// Embedder is nil to skip the auto-embed step (irrelevant to the lock).
-func k1RealLockDeps(vault string) cli.LearnDeps {
-	osFS := cli.ExportNewOsLearnFS()
+// unexported variables.
+var (
+	errK1VaultMissing = errors.New("k1: vault should already exist")
+)
 
-	return cli.LearnDeps{
-		Now:      time.Now,
-		Getenv:   os.Getenv,
-		StatDir:  osFS.StatDir,
-		ListIDs:  osFS.ListIDs,
-		Lock:     osFS.Lock,
-		WriteNew: osFS.WriteNew,
-		InitVault: func(string) error {
-			return fmt.Errorf("k1: vault %s should already exist", vault)
-		},
+// k1RealLockDeps wires LearnDeps through the PRODUCTION composition
+// (newLearnDeps) over the internally-composed primFS EdgeFS and primLocker
+// FileLocker with real OS primitives — the exact flock + exclusive-create
+// (EdgeFS.WriteFileExcl over the base WriteFileExcl primitive) path the
+// shipped binary builds via cli.NewDeps. Embed is nil (realFSDepsForTest
+// forces it) so auto-embed skips; InitVault errors because the caller
+// pre-creates the vault.
+func k1RealLockDeps(vault string) cli.LearnDeps {
+	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+
+	deps.InitVault = func(string) error {
+		return fmt.Errorf("%w: %s", errK1VaultMissing, vault)
 	}
+
+	return deps
 }

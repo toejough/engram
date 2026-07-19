@@ -473,6 +473,9 @@ func ExportNewEmptyVaultNotesMeta() AllVaultNotesMeta {
 	}
 }
 
+// ExportNewLearnDeps exposes the pure Deps→LearnDeps composition for tests.
+func ExportNewLearnDeps(d Deps) LearnDeps { return newLearnDeps(d) }
+
 // ExportNewNoteResolvedItem builds a note-kind resolvedItem for recency band
 // tests. lastUsed and created are YYYY-MM-DD strings (empty = not set).
 // kind is intentionally left blank — the zero value means "note" in the
@@ -576,6 +579,9 @@ func ExportNewOsVaultFS() interface {
 } {
 	return &osVaultFS{}
 }
+
+// ExportNewQaDeps exposes the pure Deps→LearnQADeps composition for tests.
+func ExportNewQaDeps(d Deps) LearnQADeps { return newQaDeps(d) }
 
 // ExportNewRecencyParams builds a recencyParams for tests.
 func ExportNewRecencyParams(halfLifeDays, tailWeight float64, floor int) recencyParams {
@@ -834,17 +840,18 @@ func ExportRewriteVocabVersionKey(content, newVersion string) string {
 }
 
 // ExportRunLearnFromFactArgs invokes the unexported runLearnFromFactArgs for testing.
-func ExportRunLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer) error {
-	return runLearnFromFactArgs(ctx, a, stdout)
+func ExportRunLearnFromFactArgs(ctx context.Context, a LearnFactArgs, d Deps, stdout io.Writer) error {
+	return runLearnFromFactArgs(ctx, a, d, stdout)
 }
 
 // ExportRunLearnFromFeedbackArgs invokes the unexported runLearnFromFeedbackArgs for testing.
 func ExportRunLearnFromFeedbackArgs(
 	ctx context.Context,
 	a LearnFeedbackArgs,
+	d Deps,
 	stdout io.Writer,
 ) error {
-	return runLearnFromFeedbackArgs(ctx, a, stdout)
+	return runLearnFromFeedbackArgs(ctx, a, d, stdout)
 }
 
 func ExportScoredChunkRecord(s scoredChunk) chunk.Record { return s.record }

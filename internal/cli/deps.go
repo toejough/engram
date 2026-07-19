@@ -54,6 +54,11 @@ type EdgeFS interface {
 	// concurrent reader sees the old or the new content, never a torn
 	// write (ADR-0013).
 	WriteFileAtomic(path string, data []byte, perm fs.FileMode) error
+	// WriteFileExcl creates path exclusively (O_CREATE|O_EXCL semantics): it
+	// errors with an error satisfying errors.Is(err, fs.ErrExist) when path
+	// already exists. The learn family's ID-collision backstop (ADR-0013 K1)
+	// and idempotent vault bootstrap both require exclusive create.
+	WriteFileExcl(path string, data []byte, perm fs.FileMode) error
 	MkdirAll(path string, perm fs.FileMode) error
 	MkdirTemp(dir, pattern string) (string, error)
 	Stat(path string) (fs.FileInfo, error)

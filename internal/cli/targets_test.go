@@ -462,6 +462,8 @@ func newTestDeps(stdout, stderr io.Writer) cli.Deps {
 		Now:         time.Now,
 		Getwd:       os.Getwd,
 		UserHomeDir: os.UserHomeDir,
+		FS:          realFSForTest(),
+		Lock:        lockerFromPrims(realPrimitives()),
 	}
 }
 

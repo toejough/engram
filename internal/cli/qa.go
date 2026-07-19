@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -257,31 +256,26 @@ func isQueryExcludedKind(content string) bool {
 	return isQAQuestionKind(content)
 }
 
-// newOsLearnQADeps wires production I/O adapters for RunLearnQA.
-func newOsLearnQADeps() LearnQADeps {
-	osVault := &osVaultFS{}
-	vaultFS := &osLearnFS{}
-
+// newQaDeps composes LearnQADeps purely from the injected edge capabilities.
+func newQaDeps(d Deps) LearnQADeps {
 	return LearnQADeps{
-		Now:          time.Now,
-		Getenv:       os.Getenv,
-		StatDir:      vaultFS.StatDir,
-		InitVault:    func(path string) error { return initializeVault(vaultFS, path) },
-		ListMD:       osVault.ListMD,
-		Lock:         vaultFS.Lock,
-		WriteNew:     vaultFS.WriteNew,
-		RemoveFile:   os.Remove,
-		ReadFile:     osVault.ReadFile,
-		Embedder:     sharedEmbedder,
-		WriteSidecar: vaultFS.WriteSidecar,
-		LogWarning:   logWarningToStderrf,
+		Now:          d.Now,
+		Getenv:       d.Getenv,
+		StatDir:      statDirFromFS(d.FS),
+		InitVault:    initVaultFromFS(d.FS),
+		ListMD:       listMDFromFS(d.FS),
+		Lock:         vaultLockFromLocker(d.Lock),
+		WriteNew:     writeNewFromFS(d.FS),
+		RemoveFile:   d.FS.Remove,
+		ReadFile:     d.FS.ReadFile,
+		Embedder:     d.Embed,
+		WriteSidecar: writeSidecarFromFS(d.FS),
+		LogWarning:   logWarningTo(d.Stderr),
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
-			return loadAssignmentTermVectors(vault, osVault.ListMD, osVault.ReadFile)
+			return loadAssignmentTermVectors(vault, listMDFromFS(d.FS), d.FS.ReadFile)
 		},
-		ReadSidecar: osVault.ReadFile,
-		WriteNote: func(path string, data []byte) error {
-			return atomicWriteFile(path, data, vocabNotePerm)
-		},
+		ReadSidecar: d.FS.ReadFile,
+		WriteNote:   writeNoteAtomicFromFS(d.FS, vocabNotePerm),
 	}
 }
 

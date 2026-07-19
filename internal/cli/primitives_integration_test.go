@@ -244,6 +244,32 @@ func TestRealEdgeFS_WriteFileAtomicReplacesContentAndCleansTemp(t *testing.T) {
 	g.Expect(entries).To(gomega.HaveLen(1), "temp files must be renamed or removed")
 }
 
+// TestRealEdgeFS_WriteFileExclRefusesExistingFile is survivor S-1's named
+// behavior-mirror test: the real WriteFileExcl primitive backs both the
+// atomic-write dance's unique-temp creation (P-4) and EdgeFS.WriteFileExcl
+// (X-1) — this proves the O_EXCL contract over the real primitive.
+func TestRealEdgeFS_WriteFileExclRefusesExistingFile(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	path := filepath.Join(t.TempDir(), "note.md")
+	fsys := realFSForTest()
+
+	g.Expect(fsys.WriteFileExcl(path, []byte("first"), realFSFilePerm)).To(gomega.Succeed())
+
+	err := fsys.WriteFileExcl(path, []byte("second"), realFSFilePerm)
+	g.Expect(err).To(gomega.MatchError(fs.ErrExist), "O_EXCL contract: existing path must satisfy fs.ErrExist")
+
+	data, readErr := fsys.ReadFile(path)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(gomega.Equal("first"), "the losing writer must not clobber the existing note")
+}
+
 // TestRealFlockLocker_SecondLockWaitsForUnlock is the relocated ADR-0013
 // lock regression guard: a second locker on the same path must block until
 // the first unlocks — never proceed concurrently, never fail.

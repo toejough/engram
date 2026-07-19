@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -326,13 +325,6 @@ func learnPath(vault, luhmann, slug string, when time.Time) string {
 	return filepath.Join(vault, filename)
 }
 
-// logWarningToStderrf is the production LogWarning hook. Method-named so
-// coverage attributes its execution to one identifier rather than to an
-// anonymous closure inside newOsLearnDeps.
-func logWarningToStderrf(format string, args ...any) {
-	_, _ = fmt.Fprintf(os.Stderr, "warning: "+format+"\n", args...)
-}
-
 // marshalFrontmatter encodes v as YAML and wraps the result with the "---"
 // delimiters and trailing blank line used by Permanent/MOC notes. All callers
 // pass structs of typed string fields and do not implement MarshalYAML, so
@@ -344,36 +336,33 @@ func marshalFrontmatter(v any) string {
 	return "---\n" + string(body) + "---\n\n"
 }
 
-func newOsLearnDeps() LearnDeps {
-	vaultFS := &osLearnFS{}
-	osVault := &osVaultFS{}
-
+// newLearnDeps composes LearnDeps purely from the injected edge capabilities.
+// All I/O flows through d.FS / d.Lock / d.Embed / d.Stderr — no direct os use.
+func newLearnDeps(d Deps) LearnDeps {
 	return LearnDeps{
-		Now:           time.Now,
-		Getenv:        os.Getenv,
-		StatDir:       vaultFS.StatDir,
-		InitVault:     func(path string) error { return initializeVault(vaultFS, path) },
-		ListIDs:       vaultFS.ListIDs,
-		ListBasenames: vaultFS.ListBasenames,
-		Lock:          vaultFS.Lock,
-		WriteNew:      vaultFS.WriteNew,
-		Embedder:      sharedEmbedder,
-		WriteSidecar:  vaultFS.WriteSidecar,
-		LogWarning:    logWarningToStderrf,
+		Now:           d.Now,
+		Getenv:        d.Getenv,
+		StatDir:       statDirFromFS(d.FS),
+		InitVault:     initVaultFromFS(d.FS),
+		ListIDs:       listIDsFromFS(d.FS),
+		ListBasenames: listBasenamesFromFS(d.FS),
+		Lock:          vaultLockFromLocker(d.Lock),
+		WriteNew:      writeNewFromFS(d.FS),
+		Embedder:      d.Embed,
+		WriteSidecar:  writeSidecarFromFS(d.FS),
+		LogWarning:    logWarningTo(d.Stderr),
 		// Vocab assignment wiring: no-op when the vault has no term notes.
 		// Uses stored member centroids (vocab.centroids.json) when present,
 		// falling back to description embeddings per term.
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
-			return loadAssignmentTermVectors(vault, osVault.ListMD, osVault.ReadFile)
+			return loadAssignmentTermVectors(vault, listMDFromFS(d.FS), d.FS.ReadFile)
 		},
-		ReadSidecar: osVault.ReadFile,
-		WriteNote: func(path string, data []byte) error {
-			return atomicWriteFile(path, data, vocabNotePerm)
-		},
+		ReadSidecar: d.FS.ReadFile,
+		WriteNote:   writeNoteAtomicFromFS(d.FS, vocabNotePerm),
 		// ListMD provides full .md filenames for the vocab trigger scan.
-		// Must use ListMD (not ListBasenames) — ListBasenames strips .md and
+		// Must be full filenames (not stripped basenames) — ListBasenames
 		// filters to Luhmann IDs, causing 100% false-fire on the untagged trigger.
-		ListMD: osVault.ListMD,
+		ListMD: listMDFromFS(d.FS),
 	}
 }
 
@@ -494,9 +483,7 @@ func runLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 	return nil
 }
 
-func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer) error {
-	deps := newOsLearnDeps()
-
+func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, d Deps, stdout io.Writer) error {
 	return runLearn(ctx, LearnArgs{
 		Type:         typeFact,
 		Slug:         a.Slug,
@@ -514,12 +501,10 @@ func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, stdout io.Writer
 		Subject:      a.Subject,
 		Predicate:    a.Predicate,
 		Object:       a.Object,
-	}, deps, stdout)
+	}, newLearnDeps(d), stdout)
 }
 
-func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout io.Writer) error {
-	deps := newOsLearnDeps()
-
+func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, d Deps, stdout io.Writer) error {
 	return runLearn(ctx, LearnArgs{
 		Type:         typeFeedback,
 		Slug:         a.Slug,
@@ -537,7 +522,7 @@ func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, stdout i
 		Behavior:     a.Behavior,
 		Impact:       a.Impact,
 		Action:       a.Action,
-	}, deps, stdout)
+	}, newLearnDeps(d), stdout)
 }
 
 // stripLeadingWhen removes a case-insensitive leading "When " or "when " from
