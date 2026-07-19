@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,7 +30,7 @@ func TestNewLearnDeps_ListIDs_ReturnsRootNotesOnly(t *testing.T) {
 		To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(vault, "README.md"), nil, 0o600)).To(Succeed())
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	got, err := deps.ListIDs(vault)
 	g.Expect(err).NotTo(HaveOccurred())
 

@@ -269,13 +269,13 @@ func newQaDeps(d Deps) LearnQADeps {
 		RemoveFile:   d.FS.Remove,
 		ReadFile:     d.FS.ReadFile,
 		Embedder:     d.Embed,
-		WriteSidecar: writeSidecarFromFS(d.FS),
+		WriteSidecar: writeAtomicFromFS(d.FS, sidecarPerm, "write sidecar"),
 		LogWarning:   logWarningTo(d.Stderr),
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
 			return loadAssignmentTermVectors(vault, listMDFromFS(d.FS), d.FS.ReadFile)
 		},
 		ReadSidecar: d.FS.ReadFile,
-		WriteNote:   writeNoteAtomicFromFS(d.FS, vocabNotePerm),
+		WriteNote:   writeAtomicFromFS(d.FS, vocabNotePerm, "write note"),
 	}
 }
 

@@ -449,22 +449,18 @@ func executeForTest(t *testing.T, args []string) string {
 }
 
 // newTestDeps builds a cli.Deps wired to real OS capabilities with captured
-// stdout/stderr and a no-op exit — the test analog of the production
-// cli.NewDeps composition (built directly so no embedder/signal wiring
-// occurs). Command clusters extend this as their constructors convert to
-// Deps-based composition (#700).
+// stdout/stderr — the test analog of the production cli.NewDeps composition,
+// built over realDepsForTest (T1-rework's primitives_integration_test.go
+// helper) with Stdout/Stderr swapped in and Embed forced nil (R11 — unit
+// tests must not load the bundled model; the embed-on-write path stays
+// covered by cli_test.go's real-binary end-to-end test).
 func newTestDeps(stdout, stderr io.Writer) cli.Deps {
-	return cli.Deps{
-		Stdout:      stdout,
-		Stderr:      stderr,
-		Exit:        func(int) {},
-		Getenv:      os.Getenv,
-		Now:         time.Now,
-		Getwd:       os.Getwd,
-		UserHomeDir: os.UserHomeDir,
-		FS:          realFSForTest(),
-		Lock:        lockerFromPrims(realPrimitives()),
-	}
+	d := realDepsForTest()
+	d.Stdout = stdout
+	d.Stderr = stderr
+	d.Embed = nil
+
+	return d
 }
 
 // timeNowDateForTest returns today's date in the vault filename format,

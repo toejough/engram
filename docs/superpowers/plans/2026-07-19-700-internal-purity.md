@@ -254,7 +254,7 @@ Supersession map (downstream task briefs — T3 through T-final-2 — read their
 - DESIGN FLAG (ordering): `osLearnFS.Lock` has four consumers OUTSIDE this cluster (activate.go:123, amend.go:345, resituate.go:163, vocab_commands.go:1211); `flockPath` two more via `osManifestLock` (ingest.go:491, prune.go:107); `logWarningToStderrf` (defined in learn.go:332) is consumed by activate/amend/resituate/vocab/qa constructors; `osFileReader` (cli.go:27) is consumed by ingest.go:488. Task L1 therefore keeps `osLearnFS` (Lock-only), `flockPath`, `osManifestLock`, and relocates `logWarningToStderrf` into cli.go; Task L2 (the cli.go purge) MUST be sequenced after the activate/amend/resituate/vocab/ingest/prune constructor migrations.
 - DESIGN FLAG (coordination, os_fs.go owner): cmd/engram `osFS.ReadDir`/`Stat`/`WriteFileExcl` must return errors satisfying `errors.Is(err, fs.ErrNotExist)` / `fs.ErrExist` (wrap with `%w` or return the raw `*fs.PathError`) — the learn compositions replace `os.IsNotExist` with `errors.Is`. Also: cmd integration tests must cover flock-on-unwritable-path error (replaces `TestOsLearnFS_Lock_BadVaultReturnsError`, deleted in L2) and `WriteFileExcl` → `fs.ErrExist` on existing file.
 - DESIGN FLAG (coordination, ingest cluster; superseded by R7/R10 — those win): `TestManifest_ConcurrentWritersDoNotLoseEntries` (ingest_test.go:319) consumes `cli.ExportFlockPath` today. Per R7, T8 deletes `ExportFlockPath` and repoints the test's two Lock closures to its test-local real-flock `testFlocker{}` (still a real syscall flock; test files are exempt from enforcement) — nobody re-implements it, and L2/T4 only grep-verifies zero hits. `TestOsManifestLock_MkdirError` (testhelpers_test.go) dies with `osManifestLock` in T9 per R10 — the mkdir-before-lock behavior is re-covered by the ingest cluster's replacement composition.
-- DESIGN FLAG (coordination, targets/foundation cluster): this draft assumes the foundation task lands first (`internal/cli/deps.go` with `Deps`/`EdgeFS`/`FileLocker`, `cmd/engram` `osFS`+`flockLocker`, `Targets(d Deps)` threading `d` into `learnUpdateTargets`, and `executeForTest` in targets_test.go re-wired to a real-FS test Deps). The shared test doubles `osEdgeFSForTest`/`flockLockerForTest`/`realFSDepsForTest` created in L1 (testhelpers_test.go) are intended for reuse by targets_test and the other family clusters. Shared compose helpers (`statDirFromFS`, `listMDFromFS`, `logWarningTo`, `vaultLockFromLocker`, `writeNoteAtomicFromFS`) are declared ONCE in `internal/cli/deps_compose.go` by this task — amend/resituate/vocab/activate clusters must consume, not re-declare.
+- DESIGN FLAG (coordination, targets/foundation cluster): this draft assumes the foundation task lands first (`internal/cli/deps.go` with `Deps`/`EdgeFS`/`FileLocker`, `cmd/engram` `osFS`+`flockLocker`, `Targets(d Deps)` threading `d` into `learnUpdateTargets`, and `executeForTest` in targets_test.go re-wired to a real-FS test Deps). The shared test doubles `osEdgeFSForTest`/`flockLockerForTest` created in L1 (testhelpers_test.go) are intended for reuse by targets_test and the other family clusters — L1's separate `realFSDepsForTest` builder was later collapsed into `newTestDeps` (Gate B #700 T3 review finding 2; targets_test.go's single builder is the sole real-Deps test constructor). Shared compose helpers (`statDirFromFS`, `listMDFromFS`, `logWarningTo`, `vaultLockFromLocker`, `writeAtomicFromFS`) are declared ONCE in `internal/cli/deps_compose.go` by this task — amend/resituate/vocab/activate clusters must consume, not re-declare.
 - DESIGN FLAG: cli_test.go's end-to-end tests (`TestEngramLearn_Fact_EndToEnd` etc.) build and run the real binary — they gate the cmd/engram wiring automatically and need no changes.
 
 **Query-family:**
@@ -2845,9 +2845,8 @@ Key file paths: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal
 - Modify: `internal/cli/qa.go` (delete `newOsLearnQADeps`; add `newQaDeps(d Deps)`; drop `os` import)
 - Modify: `internal/cli/cli.go` (re-parameterize `listRootNotes`; shrink `osLearnFS` to Lock-only; receive relocated `logWarningToStderrf`)
 - Modify: `internal/cli/targets.go` (learn-group closures only)
-- Modify: `internal/cli/targets_test.go` (extend `newTestDeps` with `FS`/`Lock` — R11; this task's closure flip makes the executed learn tests dereference both)
+- Modify: `internal/cli/targets_test.go` (extend `newTestDeps` with `FS`/`Lock`, `Embed` forced nil — R11; this task's closure flip makes the executed learn tests dereference both; per Gate B #700 T3 review finding 2, `newTestDeps` is the single real-Deps test builder, composed over T1-rework's cli_test helpers — `testhelpers_test.go` gets NO separate `realFSDepsForTest`, see step 1 and the NOTE(R11-naming) in step 7)
 - Modify: `internal/cli/export_test.go` (re-sign fact/feedback exports; add `ExportNewLearnDeps`/`ExportNewQaDeps`; drop `ExportNewOsLearnFS` uses of deleted methods)
-- Modify: `internal/cli/testhelpers_test.go` (add `realFSDepsForTest` — composed over T1-rework's cli_test helpers; the draft's `osEdgeFSForTest`/`flockLockerForTest` os doubles are NOT declared, per the composition doctrine — see step 1 and the NOTE(R11-naming) in step 7)
 - Modify: `internal/cli/invariants_k1_property_test.go` (K1 drives production `newLearnDeps` over the composed primFS/primLocker with real primitives)
 - Modify: `internal/cli/learn_adapters_test.go` (delete `TestOsLearnFS_*` except Lock test; thread Deps into `ExportRunLearnFrom*Args` calls)
 
@@ -2859,27 +2858,30 @@ Key file paths: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal
   - `func newQaDeps(d Deps) LearnQADeps`
   - `func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, d Deps, stdout io.Writer) error`
   - `func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, d Deps, stdout io.Writer) error`
-  - Shared helpers: `statDirFromFS(fsys EdgeFS) func(string) error`, `initVaultFromFS(fsys EdgeFS) func(string) error`, `listIDsFromFS`, `listBasenamesFromFS`, `listMDFromFS(fsys EdgeFS) func(string) ([]string, error)`, `vaultLockFromLocker(locker FileLocker) func(string) (func(), error)`, `writeNewFromFS`, `writeSidecarFromFS`, `writeNoteAtomicFromFS(fsys EdgeFS, perm fs.FileMode) func(string, []byte) error`, `logWarningTo(w io.Writer) func(string, ...any)`
+  - Shared helpers: `statDirFromFS(fsys EdgeFS) func(string) error`, `initVaultFromFS(fsys EdgeFS) func(string) error`, `listIDsFromFS`, `listBasenamesFromFS`, `listMDFromFS(fsys EdgeFS) func(string) ([]string, error)`, `vaultLockFromLocker(locker FileLocker) func(string) (func(), error)`, `writeNewFromFS`, `writeAtomicFromFS(fsys EdgeFS, perm fs.FileMode, opName string) func(string, []byte) error`, `logWarningTo(w io.Writer) func(string, ...any)`
   - EdgeFS addition (flagged): `WriteFileExcl(path string, data []byte, perm fs.FileMode) error`
   - `primFS.WriteFileExcl` (flag X-1 resolution: the single internal `%w` wrap over T1-rework's `WriteFileExcl` primitive — NO new primitive, NO cmd edit)
 
 **Steps**
 
-- [ ] 1. **RED — composed test Deps + contract tests.** NO os-backed doubles are declared in this task — the composition doctrine forbids hand-rolled adapter mirrors. The FS/Lock capabilities for every test below are the PRODUCTION `primFS`/`primLocker` compositions, reached through T1-rework's cli_test helpers (`realDepsForTest()` = `cli.NewDeps(realPrimitives(), io.Discard, io.Discard, func(int) {})`). Add to `internal/cli/testhelpers_test.go` (package `cli_test`; test files are exempt from the depguard/forbidigo enforcement):
+- [ ] 1. **RED — composed test Deps + contract tests.** NO os-backed doubles are declared in this task — the composition doctrine forbids hand-rolled adapter mirrors. The FS/Lock capabilities for every test below are the PRODUCTION `primFS`/`primLocker` compositions, reached through T1-rework's cli_test helpers (`realDepsForTest()` = `cli.NewDeps(realPrimitives(), io.Discard, io.Discard, func(int) {})`). SUPERSEDED (Gate B #700 T3 review finding 2 — "three overlapping real-Deps test builders"): do NOT declare a separate `realFSDepsForTest` in `internal/cli/testhelpers_test.go`. Instead use `newTestDeps(io.Discard, io.Discard)` — step 7 below is amended to extend `newTestDeps` (targets_test.go, package `cli_test`) with `FS`/`Lock`/`Embed`-nil FIRST, in this task, so it becomes the single real-Deps builder every family cluster (this task included) consumes; `testhelpers_test.go` gets no new declaration:
 
 ```go
-// realFSDepsForTest is the learn-family test Deps: production Deps composed
-// by cli.NewDeps over real OS primitives (T1-rework's realDepsForTest), with
-// Embed forced nil so auto-embed skips — unit tests must not load the
-// bundled model (the embed-on-write path stays covered by cli_test.go's
-// real-binary end-to-end test). No signal registration occurs:
-// realPrimitives() omits StartSignalPulses, so startForceExit nil-skips
-// (doctrine flag SIG-1).
-func realFSDepsForTest() cli.Deps {
-	deps := realDepsForTest()
-	deps.Embed = nil
+// newTestDeps builds a cli.Deps wired to real OS capabilities with captured
+// stdout/stderr — the test analog of the production cli.NewDeps composition,
+// built over realDepsForTest (T1-rework's primitives_integration_test.go
+// helper) with Stdout/Stderr swapped in and Embed forced nil (unit tests
+// must not load the bundled model — the embed-on-write path stays covered
+// by cli_test.go's real-binary end-to-end test). No signal registration
+// occurs: realPrimitives() omits StartSignalPulses, so startForceExit
+// nil-skips (doctrine flag SIG-1).
+func newTestDeps(stdout, stderr io.Writer) cli.Deps {
+	d := realDepsForTest()
+	d.Stdout = stdout
+	d.Stderr = stderr
+	d.Embed = nil
 
-	return deps
+	return d
 }
 ```
 
@@ -2978,7 +2980,7 @@ func TestNewLearnDeps_StatDir_MissingReturnsErrNotExist(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 
 	err := deps.StatDir(filepath.Join(t.TempDir(), "absent"))
 	g.Expect(errors.Is(err, fs.ErrNotExist)).To(BeTrue())
@@ -2991,7 +2993,7 @@ func TestNewLearnDeps_StatDir_FileIsNotADirectory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "file.txt")
 	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	g.Expect(deps.StatDir(path)).To(MatchError(ContainSubstring("not a directory")))
 }
 
@@ -3002,7 +3004,7 @@ func TestNewLearnDeps_WriteNew_PreservesErrExist(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "existing.md")
 	g.Expect(os.WriteFile(path, []byte("already"), 0o600)).To(Succeed())
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	err := deps.WriteNew(path, []byte("nope"))
 	g.Expect(errors.Is(err, fs.ErrExist)).To(BeTrue(), "O_EXCL backstop must survive composition")
 
@@ -3016,7 +3018,7 @@ func TestNewLearnDeps_InitVault_IdempotentAndPreservesEdits(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := filepath.Join(t.TempDir(), "vault")
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 
 	g.Expect(deps.InitVault(vault)).To(Succeed())
 
@@ -3034,7 +3036,7 @@ func TestNewLearnDeps_ListIDs_MissingVaultIsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	got, err := deps.ListIDs(filepath.Join(t.TempDir(), "absent"))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(got).To(BeEmpty())
@@ -3049,7 +3051,7 @@ func TestNewLearnDeps_ListBasenames_SkipsSubdirsAndNonLuhmann(t *testing.T) {
 	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-09.foo.md"), nil, 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(vault, "README.md"), nil, 0o600)).To(Succeed())
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	got, err := deps.ListBasenames(vault)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(got).To(ConsistOf("1.2026-05-09.foo"))
@@ -3061,7 +3063,7 @@ func TestNewLearnDeps_Lock_AcquiresVaultLuhmannLockFile(t *testing.T) {
 
 	vault := t.TempDir()
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	release, err := deps.Lock(vault)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -3081,7 +3083,7 @@ func TestNewLearnDeps_LogWarning_WritesToDepsStderr(t *testing.T) {
 
 	var stderr bytes.Buffer
 
-	d := realFSDepsForTest()
+	d := newTestDeps(io.Discard, io.Discard)
 	d.Stderr = &stderr
 
 	deps := cli.ExportNewLearnDeps(d)
@@ -3098,7 +3100,7 @@ func TestNewQaDeps_WiresRemoveAndReadThroughFS(t *testing.T) {
 	path := filepath.Join(dir, "f.txt")
 	g.Expect(os.WriteFile(path, []byte("data"), 0o600)).To(Succeed())
 
-	deps := cli.ExportNewQaDeps(realFSDepsForTest())
+	deps := cli.ExportNewQaDeps(newTestDeps(io.Discard, io.Discard))
 
 	got, readErr := deps.ReadFile(path)
 	g.Expect(readErr).NotTo(HaveOccurred())
@@ -3179,7 +3181,7 @@ type edgeVaultInitFS struct{ fsys EdgeFS }
 func (e edgeVaultInitFS) MkdirAll(path string, perm fs.FileMode) error {
 	err := e.fsys.MkdirAll(path, perm)
 	if err != nil {
-		return fmt.Errorf("mkdir: %w", err)
+		return fmt.Errorf("init vault mkdir: %w", err)
 	}
 
 	return nil
@@ -3230,7 +3232,7 @@ func listMDFromFS(fsys EdgeFS) func(string) ([]string, error) {
 				return nil, nil
 			}
 
-			return nil, fmt.Errorf("reading dir %s: %w", dir, err)
+			return nil, fmt.Errorf("list md: %w", err)
 		}
 
 		out := make([]string, 0, len(entries))
@@ -3265,7 +3267,7 @@ func statDirFromFS(fsys EdgeFS) func(string) error {
 				return fs.ErrNotExist
 			}
 
-			return fmt.Errorf("stat: %w", err)
+			return fmt.Errorf("vault stat: %w", err)
 		}
 
 		if !info.IsDir() {
@@ -3303,25 +3305,17 @@ func writeNewFromFS(fsys EdgeFS) func(string, []byte) error {
 	}
 }
 
-// writeNoteAtomicFromFS returns an atomic note-rewrite func at the given perm
-// (temp+rename via EdgeFS.WriteFileAtomic — ADR-0013's atomic-rename edge).
-func writeNoteAtomicFromFS(fsys EdgeFS, perm fs.FileMode) func(string, []byte) error {
+// writeAtomicFromFS returns an atomic-rewrite func at the given perm (temp+
+// rename via EdgeFS.WriteFileAtomic — ADR-0013's atomic-rename edge). opName
+// labels the wrapped error (e.g. "write note", "write sidecar") — the single
+// atomic-write composition shared by the note and sidecar call sites (Gate B
+// #700 T3 review finding 3: writeNoteAtomicFromFS/writeSidecarFromFS collapsed
+// into this one helper).
+func writeAtomicFromFS(fsys EdgeFS, perm fs.FileMode, opName string) func(string, []byte) error {
 	return func(path string, data []byte) error {
 		err := fsys.WriteFileAtomic(path, data, perm)
 		if err != nil {
-			return fmt.Errorf("write note: %w", err)
-		}
-
-		return nil
-	}
-}
-
-// writeSidecarFromFS returns a WriteSidecar func: atomic .vec.json write.
-func writeSidecarFromFS(fsys EdgeFS) func(string, []byte) error {
-	return func(path string, data []byte) error {
-		err := fsys.WriteFileAtomic(path, data, sidecarPerm)
-		if err != nil {
-			return fmt.Errorf("write sidecar: %w", err)
+			return fmt.Errorf("%s: %w", opName, err)
 		}
 
 		return nil
@@ -3393,7 +3387,7 @@ func newLearnDeps(d Deps) LearnDeps {
 		Lock:          vaultLockFromLocker(d.Lock),
 		WriteNew:      writeNewFromFS(d.FS),
 		Embedder:      d.Embed,
-		WriteSidecar:  writeSidecarFromFS(d.FS),
+		WriteSidecar:  writeAtomicFromFS(d.FS, sidecarPerm, "write sidecar"),
 		LogWarning:    logWarningTo(d.Stderr),
 		// Vocab assignment wiring: no-op when the vault has no term notes.
 		// Uses stored member centroids (vocab.centroids.json) when present,
@@ -3402,7 +3396,7 @@ func newLearnDeps(d Deps) LearnDeps {
 			return loadAssignmentTermVectors(vault, listMDFromFS(d.FS), d.FS.ReadFile)
 		},
 		ReadSidecar: d.FS.ReadFile,
-		WriteNote:   writeNoteAtomicFromFS(d.FS, vocabNotePerm),
+		WriteNote:   writeAtomicFromFS(d.FS, vocabNotePerm, "write note"),
 		// ListMD provides full .md filenames for the vocab trigger scan.
 		// Must be full filenames (not stripped basenames) — ListBasenames
 		// filters to Luhmann IDs, causing 100% false-fire on the untagged trigger.
@@ -3475,13 +3469,13 @@ func newQaDeps(d Deps) LearnQADeps {
 		RemoveFile:   d.FS.Remove,
 		ReadFile:     d.FS.ReadFile,
 		Embedder:     d.Embed,
-		WriteSidecar: writeSidecarFromFS(d.FS),
+		WriteSidecar: writeAtomicFromFS(d.FS, sidecarPerm, "write sidecar"),
 		LogWarning:   logWarningTo(d.Stderr),
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
 			return loadAssignmentTermVectors(vault, listMDFromFS(d.FS), d.FS.ReadFile)
 		},
 		ReadSidecar: d.FS.ReadFile,
-		WriteNote:   writeNoteAtomicFromFS(d.FS, vocabNotePerm),
+		WriteNote:   writeAtomicFromFS(d.FS, vocabNotePerm, "write note"),
 	}
 }
 ```
@@ -3509,25 +3503,20 @@ Remove `"os"` and `"time"`?—no: keep `"time"` (`time.Time` in signatures); rem
 
 (The `resolveVault(a.Vault, home, os.Getenv)` → `d.Getenv`/`d.UserHomeDir` swap is the targets cluster's charge — leave those expressions to that task.)
 
-In the same commit, extend `newTestDeps` in `internal/cli/targets_test.go` (R11 — this task owns the FS/Lock extension because its closure flip is the FIRST to make an executed targets-level test dereference them: the learn feedback/fact/qa tests at targets_test.go:206-263 run through `executeForTest`, and the qa test asserts real note files on disk; nil `FS`/`Lock` is a nil-interface panic inside `newLearnDeps`/`newQaDeps`). Exact diff — the two added field VALUES are the production compositions via T1-rework's cli_test helpers (same package cli_test):
+In the same commit, extend `newTestDeps` in `internal/cli/targets_test.go` (R11 — this task owns the FS/Lock extension because its closure flip is the FIRST to make an executed targets-level test dereference them: the learn feedback/fact/qa tests at targets_test.go:206-263 run through `executeForTest`, and the qa test asserts real note files on disk; nil `FS`/`Lock` is a nil-interface panic inside `newLearnDeps`/`newQaDeps`). SUPERSEDED (Gate B #700 T3 review finding 2 — "three overlapping real-Deps test builders"): rather than adding `FS`/`Lock` fields to T2's hand-built `cli.Deps` literal, rebuild `newTestDeps` over `realDepsForTest()` (T1-rework's `primitives_integration_test.go` helper) so `FS`/`Lock` — and every other real-OS field — come from the single production composition, with `Stdout`/`Stderr` swapped in and `Embed` forced nil. Exact diff (same package `cli_test`):
 
 ```go
 func newTestDeps(stdout, stderr io.Writer) cli.Deps {
-	return cli.Deps{
-		Stdout:      stdout,
-		Stderr:      stderr,
-		Exit:        func(int) {},
-		Getenv:      os.Getenv,
-		Now:         time.Now,
-		Getwd:       os.Getwd,
-		UserHomeDir: os.UserHomeDir,
-		FS:          realFSForTest(),
-		Lock:        lockerFromPrims(realPrimitives()),
-	}
+	d := realDepsForTest()
+	d.Stdout = stdout
+	d.Stderr = stderr
+	d.Embed = nil
+
+	return d
 }
 ```
 
-NOTE(R11-naming): R11's text names the draft doubles `osEdgeFSForTest{}`/`flockLockerForTest{}` as the field values; under the composition doctrine those hand-rolled os doubles are NOT declared anywhere — the values are the composed `primFS`/`primLocker` reached through T1-rework's helpers. R11's OWNERSHIP rule is unchanged: T3 is the sole extender, fields are exactly `FS`+`Lock`. The helper itself remains a `cli.Deps` literal (it never calls `cli.NewDeps` directly); the T1-rework helpers it consumes do call `NewDeps`, but retain only `.FS`/`.Lock` — no signal registration occurs (`realPrimitives()` omits `StartSignalPulses`, SIG-1) and the transiently-constructed lazy embedder is discarded unloaded, so T2's "no embedder/signal wiring" intent holds behaviorally.
+NOTE(R11-naming): R11's text names the draft doubles `osEdgeFSForTest{}`/`flockLockerForTest{}` as the field values; under the composition doctrine those hand-rolled os doubles are NOT declared anywhere — the values are the composed `primFS`/`primLocker` reached through T1-rework's helpers, now via `realDepsForTest()` directly rather than duplicated field-by-field. R11's OWNERSHIP rule is unchanged: T3 is the sole extender, and post-collapse `newTestDeps` is the ONLY real-Deps test builder (`FS`/`Lock` ride in `realDepsForTest()`; `Embed` explicitly nil). No signal registration occurs (`realPrimitives()` omits `StartSignalPulses`, SIG-1) and the transiently-constructed lazy embedder built inside `realDepsForTest()`'s `cli.NewDeps` call is discarded (overwritten by the explicit nil), so T2's "no embedder/signal wiring" intent holds behaviorally.
 
 No later task extends `newTestDeps` further (R11); every later executed targets-level path (count/show T5, show-chunk T6, ingest T8, prune T9, vocab/amend/resituate/activate T12) rides these same two fields. (`Embed` stays absent — see R11's recorded CONFLICT for the T15 embed closures.)
 
@@ -3558,7 +3547,7 @@ func ExportRunLearnFromFeedbackArgs(
 
 Keep `ExportNewOsLearnFS` and `ExportFlockPath` untouched here (`ExportNewOsLearnFS`'s Lock-only consumer survives until T4/L2; `ExportFlockPath` is deleted later by T8, which also repoints its consumers — R7).
 
-- [ ] 9. **learn_adapters_test.go:** delete `TestOsLearnFS_ListBasenames_*`, `TestOsLearnFS_ListIDs_*`, `TestOsLearnFS_MkdirAll_*`, `TestOsLearnFS_StatDir_*`, `TestOsLearnFS_WriteFileIfMissing_*`, `TestOsLearnFS_WriteNew_*` (lines 58-122, 133-288 — behavior now covered by deps_compose_test.go against the production composition + the internal primitives integration suite, `internal/cli/primitives_integration_test.go`; the former cmd adapter suites were deleted by T1-rework). Keep `TestOsLearnFS_Lock_BadVaultReturnsError` (124-131) until L2. Update every `cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)` / `...FeedbackArgs(...)` call (lines 37, 310, 371, 408, 456, 489) to `cli.ExportRunLearnFromFactArgs(context.Background(), args, realFSDepsForTest(), io.Discard)` (same for feedback). Note: with `Embed` forced nil in `realFSDepsForTest` these tests skip auto-embed (they only assert `.md` presence/absence — assertions unchanged; the embed-on-write path stays covered by cli_test.go's real-binary end-to-end test, which asserts the `.vec.json` sidecar).
+- [ ] 9. **learn_adapters_test.go:** delete `TestOsLearnFS_ListBasenames_*`, `TestOsLearnFS_ListIDs_*`, `TestOsLearnFS_MkdirAll_*`, `TestOsLearnFS_StatDir_*`, `TestOsLearnFS_WriteFileIfMissing_*`, `TestOsLearnFS_WriteNew_*` (lines 58-122, 133-288 — behavior now covered by deps_compose_test.go against the production composition + the internal primitives integration suite, `internal/cli/primitives_integration_test.go`; the former cmd adapter suites were deleted by T1-rework). Keep `TestOsLearnFS_Lock_BadVaultReturnsError` (124-131) until L2. Update every `cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)` / `...FeedbackArgs(...)` call (lines 37, 310, 371, 408, 456, 489) to `cli.ExportRunLearnFromFactArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)` (same for feedback). Note: with `Embed` forced nil in `newTestDeps` these tests skip auto-embed (they only assert `.md` presence/absence — assertions unchanged; the embed-on-write path stays covered by cli_test.go's real-binary end-to-end test, which asserts the `.vec.json` sidecar).
 
 - [ ] 10. **K1 regression test survives (ADR-0013).** In `invariants_k1_property_test.go`, replace `k1RealLockDeps` (lines 122-140) — the test body (30-120) is unchanged:
 
@@ -3570,10 +3559,10 @@ var errK1VaultMissing = errors.New("k1: vault should already exist")
 // (newLearnDeps) over the internally-composed primFS EdgeFS and primLocker
 // FileLocker with real OS primitives — the exact flock + exclusive-create
 // (EdgeFS.WriteFileExcl over the base WriteFileExcl primitive) path the shipped binary builds
-// via cli.NewDeps. Embed is nil (realFSDepsForTest forces it) so auto-embed
+// via cli.NewDeps. Embed is nil (newTestDeps forces it) so auto-embed
 // skips; InitVault errors because the caller pre-creates the vault.
 func k1RealLockDeps(vault string) cli.LearnDeps {
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 
 	deps.InitVault = func(string) error {
 		return fmt.Errorf("%w: %s", errK1VaultMissing, vault)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -128,11 +129,11 @@ var (
 // (newLearnDeps) over the internally-composed primFS EdgeFS and primLocker
 // FileLocker with real OS primitives — the exact flock + exclusive-create
 // (EdgeFS.WriteFileExcl over the base WriteFileExcl primitive) path the
-// shipped binary builds via cli.NewDeps. Embed is nil (realFSDepsForTest
-// forces it) so auto-embed skips; InitVault errors because the caller
+// shipped binary builds via cli.NewDeps. Embed is nil (newTestDeps forces
+// it) so auto-embed skips; InitVault errors because the caller
 // pre-creates the vault.
 func k1RealLockDeps(vault string) cli.LearnDeps {
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 
 	deps.InitVault = func(string) error {
 		return fmt.Errorf("%w: %s", errK1VaultMissing, vault)

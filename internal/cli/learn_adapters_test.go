@@ -34,7 +34,7 @@ func TestLearnFactArgs_AcceptsProjectAndIssueFlags(t *testing.T) {
 		Object:    "project metadata",
 	}
 
-	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, realFSDepsForTest(), io.Discard)
+	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -84,7 +84,7 @@ func TestRunLearnFromFactArgs_BootstrapsMissingVault(t *testing.T) {
 		Object:    "the vault",
 	}
 
-	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, realFSDepsForTest(), io.Discard)
+	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -145,7 +145,7 @@ func TestRunLearnFromFactArgs_RequiresSituation(t *testing.T) {
 				Object:    "obj",
 			}
 
-			err := cli.ExportRunLearnFromFactArgs(context.Background(), args, realFSDepsForTest(), io.Discard)
+			err := cli.ExportRunLearnFromFactArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
 			g.Expect(err).To(MatchError(ContainSubstring("situation")))
 
 			entries, readErr := os.ReadDir(vault)
@@ -182,7 +182,7 @@ func TestRunLearnFromFactArgs_WritesFile(t *testing.T) {
 		Object:    "obj",
 	}
 
-	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, realFSDepsForTest(), io.Discard)
+	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -230,7 +230,7 @@ func TestRunLearnFromFeedbackArgs_RequiresSituation(t *testing.T) {
 				Action:    "write tests",
 			}
 
-			err := cli.ExportRunLearnFromFeedbackArgs(context.Background(), args, realFSDepsForTest(), io.Discard)
+			err := cli.ExportRunLearnFromFeedbackArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
 			g.Expect(err).To(MatchError(ContainSubstring("situation")))
 
 			entries, readErr := os.ReadDir(vault)
@@ -263,7 +263,7 @@ func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 		Action:    "write tests",
 	}
 
-	err := cli.ExportRunLearnFromFeedbackArgs(context.Background(), args, realFSDepsForTest(), io.Discard)
+	err := cli.ExportRunLearnFromFeedbackArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

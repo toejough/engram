@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -18,7 +19,7 @@ func TestNewLearnDeps_InitVault_IdempotentAndPreservesEdits(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := filepath.Join(t.TempDir(), "vault")
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 
 	g.Expect(deps.InitVault(vault)).To(Succeed())
 
@@ -40,7 +41,7 @@ func TestNewLearnDeps_InitVault_MkdirFailureSurfaces(t *testing.T) {
 	blocked := filepath.Join(t.TempDir(), "isfile")
 	g.Expect(os.WriteFile(blocked, []byte("x"), 0o600)).To(Succeed())
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	g.Expect(deps.InitVault(filepath.Join(blocked, "vault"))).
 		To(MatchError(ContainSubstring("mkdir")))
 }
@@ -54,7 +55,7 @@ func TestNewLearnDeps_ListBasenames_SkipsSubdirsAndNonLuhmann(t *testing.T) {
 	g.Expect(os.WriteFile(filepath.Join(vault, "1.2026-05-09.foo.md"), nil, 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(vault, "README.md"), nil, 0o600)).To(Succeed())
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	got, err := deps.ListBasenames(vault)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(got).To(ConsistOf("1.2026-05-09.foo"))
@@ -64,7 +65,7 @@ func TestNewLearnDeps_ListIDs_MissingVaultIsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	got, err := deps.ListIDs(filepath.Join(t.TempDir(), "absent"))
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(got).To(BeEmpty())
@@ -76,7 +77,7 @@ func TestNewLearnDeps_Lock_AcquiresVaultLuhmannLockFile(t *testing.T) {
 
 	vault := t.TempDir()
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	release, err := deps.Lock(vault)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -96,7 +97,7 @@ func TestNewLearnDeps_LogWarning_WritesToDepsStderr(t *testing.T) {
 
 	var stderr bytes.Buffer
 
-	d := realFSDepsForTest()
+	d := newTestDeps(io.Discard, io.Discard)
 	d.Stderr = &stderr
 
 	deps := cli.ExportNewLearnDeps(d)
@@ -112,7 +113,7 @@ func TestNewLearnDeps_StatDir_FileIsNotADirectory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "file.txt")
 	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	g.Expect(deps.StatDir(path)).To(MatchError(ContainSubstring("not a directory")))
 }
 
@@ -120,7 +121,7 @@ func TestNewLearnDeps_StatDir_MissingReturnsErrNotExist(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 
 	err := deps.StatDir(filepath.Join(t.TempDir(), "absent"))
 	g.Expect(errors.Is(err, fs.ErrNotExist)).To(BeTrue())
@@ -133,7 +134,7 @@ func TestNewLearnDeps_WriteNew_PreservesErrExist(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "existing.md")
 	g.Expect(os.WriteFile(path, []byte("already"), 0o600)).To(Succeed())
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	err := deps.WriteNew(path, []byte("nope"))
 	g.Expect(errors.Is(err, fs.ErrExist)).To(BeTrue(), "O_EXCL backstop must survive composition")
 
@@ -149,7 +150,7 @@ func TestNewLearnDeps_WriteSidecar_WritesAtomicallyAndWrapsErrors(t *testing.T) 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "note.vec.json")
 
-	deps := cli.ExportNewLearnDeps(realFSDepsForTest())
+	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 	g.Expect(deps.WriteSidecar(path, []byte(`{"v":1}`))).To(Succeed())
 
 	got, readErr := os.ReadFile(path)
@@ -170,9 +171,9 @@ func TestNewQaDeps_ListMD_WrapsNonMissingErrors(t *testing.T) {
 	filePath := filepath.Join(t.TempDir(), "isfile")
 	g.Expect(os.WriteFile(filePath, []byte("x"), 0o600)).To(Succeed())
 
-	deps := cli.ExportNewQaDeps(realFSDepsForTest())
+	deps := cli.ExportNewQaDeps(newTestDeps(io.Discard, io.Discard))
 	_, err := deps.ListMD(filePath)
-	g.Expect(err).To(MatchError(ContainSubstring("reading dir")))
+	g.Expect(err).To(MatchError(ContainSubstring("list md")))
 }
 
 func TestNewQaDeps_WiresRemoveAndReadThroughFS(t *testing.T) {
@@ -183,7 +184,7 @@ func TestNewQaDeps_WiresRemoveAndReadThroughFS(t *testing.T) {
 	path := filepath.Join(dir, "f.txt")
 	g.Expect(os.WriteFile(path, []byte("data"), 0o600)).To(Succeed())
 
-	deps := cli.ExportNewQaDeps(realFSDepsForTest())
+	deps := cli.ExportNewQaDeps(newTestDeps(io.Discard, io.Discard))
 
 	got, readErr := deps.ReadFile(path)
 	g.Expect(readErr).NotTo(HaveOccurred())

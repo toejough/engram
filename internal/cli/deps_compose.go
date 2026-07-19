@@ -23,7 +23,7 @@ type edgeVaultInitFS struct{ fsys EdgeFS }
 func (e edgeVaultInitFS) MkdirAll(path string, perm fs.FileMode) error {
 	err := e.fsys.MkdirAll(path, perm)
 	if err != nil {
-		return fmt.Errorf("mkdir: %w", err)
+		return fmt.Errorf("init vault mkdir: %w", err)
 	}
 
 	return nil
@@ -79,7 +79,7 @@ func listMDFromFS(fsys EdgeFS) func(string) ([]string, error) {
 				return nil, nil
 			}
 
-			return nil, fmt.Errorf("reading dir %s: %w", dir, err)
+			return nil, fmt.Errorf("list md: %w", err)
 		}
 
 		out := make([]string, 0, len(entries))
@@ -114,7 +114,7 @@ func statDirFromFS(fsys EdgeFS) func(string) error {
 				return fs.ErrNotExist
 			}
 
-			return fmt.Errorf("stat: %w", err)
+			return fmt.Errorf("vault stat: %w", err)
 		}
 
 		if !info.IsDir() {
@@ -152,25 +152,15 @@ func writeNewFromFS(fsys EdgeFS) func(string, []byte) error {
 	}
 }
 
-// writeNoteAtomicFromFS returns an atomic note-rewrite func at the given perm
-// (temp+rename via EdgeFS.WriteFileAtomic — ADR-0013's atomic-rename edge).
-func writeNoteAtomicFromFS(fsys EdgeFS, perm fs.FileMode) func(string, []byte) error {
+// writeAtomicFromFS returns an atomic-rewrite func at the given perm (temp+
+// rename via EdgeFS.WriteFileAtomic — ADR-0013's atomic-rename edge). opName
+// labels the wrapped error (e.g. "write note", "write sidecar") — the single
+// atomic-write composition shared by the note and sidecar call sites.
+func writeAtomicFromFS(fsys EdgeFS, perm fs.FileMode, opName string) func(string, []byte) error {
 	return func(path string, data []byte) error {
 		err := fsys.WriteFileAtomic(path, data, perm)
 		if err != nil {
-			return fmt.Errorf("write note: %w", err)
-		}
-
-		return nil
-	}
-}
-
-// writeSidecarFromFS returns a WriteSidecar func: atomic .vec.json write.
-func writeSidecarFromFS(fsys EdgeFS) func(string, []byte) error {
-	return func(path string, data []byte) error {
-		err := fsys.WriteFileAtomic(path, data, sidecarPerm)
-		if err != nil {
-			return fmt.Errorf("write sidecar: %w", err)
+			return fmt.Errorf("%s: %w", opName, err)
 		}
 
 		return nil
