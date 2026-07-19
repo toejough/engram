@@ -16,7 +16,7 @@
 - ADR-0013 (vault flock + atomic rename) semantics are safety-critical: lock acquisition stays at `Run*` entry points; the concurrent-writers regression test must survive every task; never weaken atomic-rename.
 - Implement the validated recipe from issue #700 — do not redesign mid-task (vault note 238). Any forced departure is a DESIGN FLAG escalated to the orchestrator, not an improvisation.
 - `internal/update/update.go` diff stays minimal (concurrent Pi worktrees touch it).
-- Each task ends with `targ check-full` green (or `targ test` where the task says so) and a commit with an `AI-Used: [claude]` trailer.
+- Each task ends with `targ check-full` green (or `targ test` where the task says so) and a commit (mid-task RED steps are expected to fail by design; only the task-final gate must be green) with an `AI-Used: [claude]` trailer.
 
 ## Design flags resolved at plan time
 
@@ -39,14 +39,14 @@
 - DESIGN FLAG: `LearnDeps.Getenv` and `LearnQADeps.Getenv` are dead fields — assigned in the constructors (learn.go:353, qa.go:267) but never read (vault resolution happens in targets.go via `resolveVault`). Kept and wired from `d.Getenv` for surface stability; candidate for a follow-up removal.
 - DESIGN FLAG (ordering): `osLearnFS.Lock` has four consumers OUTSIDE this cluster (activate.go:123, amend.go:345, resituate.go:163, vocab_commands.go:1211); `flockPath` two more via `osManifestLock` (ingest.go:491, prune.go:107); `logWarningToStderrf` (defined in learn.go:332) is consumed by activate/amend/resituate/vocab/qa constructors; `osFileReader` (cli.go:27) is consumed by ingest.go:488. Task L1 therefore keeps `osLearnFS` (Lock-only), `flockPath`, `osManifestLock`, and relocates `logWarningToStderrf` into cli.go; Task L2 (the cli.go purge) MUST be sequenced after the activate/amend/resituate/vocab/ingest/prune constructor migrations.
 - DESIGN FLAG (coordination, os_fs.go owner): cmd/engram `osFS.ReadDir`/`Stat`/`WriteFileExcl` must return errors satisfying `errors.Is(err, fs.ErrNotExist)` / `fs.ErrExist` (wrap with `%w` or return the raw `*fs.PathError`) — the learn compositions replace `os.IsNotExist` with `errors.Is`. Also: cmd integration tests must cover flock-on-unwritable-path error (replaces `TestOsLearnFS_Lock_BadVaultReturnsError`, deleted in L2) and `WriteFileExcl` → `fs.ErrExist` on existing file.
-- DESIGN FLAG (coordination, ingest cluster): `TestManifest_ConcurrentWritersDoNotLoseEntries` (ingest_test.go:319) consumes `cli.ExportFlockPath`. L2 re-implements `ExportFlockPath` as a test-only real flock inside export_test.go (test files are exempt from enforcement), so that test survives byte-for-byte unchanged. `TestOsManifestLock_MkdirError` (testhelpers_test.go) dies with `osManifestLock` in L2 — the mkdir-before-lock behavior must be re-covered by the ingest cluster's replacement composition.
+- DESIGN FLAG (coordination, ingest cluster; superseded by R7/R10 — those win): `TestManifest_ConcurrentWritersDoNotLoseEntries` (ingest_test.go:319) consumes `cli.ExportFlockPath` today. Per R7, T8 deletes `ExportFlockPath` and repoints the test's two Lock closures to its test-local real-flock `testFlocker{}` (still a real syscall flock; test files are exempt from enforcement) — nobody re-implements it, and L2/T4 only grep-verifies zero hits. `TestOsManifestLock_MkdirError` (testhelpers_test.go) dies with `osManifestLock` in T9 per R10 — the mkdir-before-lock behavior is re-covered by the ingest cluster's replacement composition.
 - DESIGN FLAG (coordination, targets/foundation cluster): this draft assumes the foundation task lands first (`internal/cli/deps.go` with `Deps`/`EdgeFS`/`FileLocker`, `cmd/engram` `osFS`+`flockLocker`, `Targets(d Deps)` threading `d` into `learnUpdateTargets`, and `executeForTest` in targets_test.go re-wired to a real-FS test Deps). The shared test doubles `osEdgeFSForTest`/`flockLockerForTest`/`realFSDepsForTest` created in L1 (testhelpers_test.go) are intended for reuse by targets_test and the other family clusters. Shared compose helpers (`statDirFromFS`, `listMDFromFS`, `logWarningTo`, `vaultLockFromLocker`, `writeNoteAtomicFromFS`) are declared ONCE in `internal/cli/deps_compose.go` by this task — amend/resituate/vocab/activate clusters must consume, not re-declare.
 - DESIGN FLAG: cli_test.go's end-to-end tests (`TestEngramLearn_Fact_EndToEnd` etc.) build and run the real binary — they gate the cmd/engram wiring automatically and need no changes.
 
 **Query-family:**
 
 - DESIGN FLAG: `osVaultFS` (vault_fs.go:14) is consumed by SEVEN non-cluster files: amend.go:342, learn.go:349, embed.go:156, qa.go:262, resituate.go:160, vocab_commands.go:1213/1215/1237/1238, plus test shim `ExportNewOsVaultFS` (export_test.go:573) used by vocab_trigger_test.go:251,441 and vocab_commands_test.go (10 sites). Deleting it inside this cluster's window breaks their compile. Split: Task Q1 adds the pure `vaultFS` and migrates this cluster's three consumers; Task Q3 (purge) deletes `osVaultFS` + its `os` import and MUST be sequenced after those clusters migrate to `newVaultFS(d.FS)`. Until Q3, vault_fs.go temporarily retains its `os` import (grep-gated in Q3).
-- DESIGN FLAG: `listJSONLIndexes` (query_chunks.go:138) signature flip is cross-cluster-atomic. Consumers: query.go:1295 (mine), amend.go:365, prune.go:115, show_chunk.go:72. The flip and all four call sites must land in ONE commit, and the three foreign call sites need a `d Deps` in scope — so Task Q2 must be sequenced AFTER the amend/prune/show-chunk cluster tasks convert their constructors to `newXxxDeps(d Deps)`. (Those clusters keep calling the old os-backed `listJSONLIndexes` until Q2 flips it — that ordering works; the reverse does not.)
+- DESIGN FLAG (superseded by R3's staged cutover — R3 wins): `listJSONLIndexes` (query_chunks.go:138) has four consumers: query.go:1295, amend.go:365, prune.go:115, show_chunk.go:72. R4 runs T6 BEFORE the prune (T9) and amend (T12) conversions, so a single-commit four-site flip is impossible (those files have no `d Deps` in scope at T6 time). Per R3: T6 lands the curried canonical lister, renames the legacy os-backed one to `osListJSONLIndexes` (mechanical rename at amend.go:365/prune.go:115), and flips only the call sites in files it converts itself (query.go, query_chunks.go, show_chunk.go — T6 owns show-chunk); T9/T12 flip prune/amend when they convert; T12 (last consumer) deletes the legacy lister grep-gated.
 - DESIGN FLAG: the `os.IsNotExist` → `errors.Is(err, fs.ErrNotExist)` change at query_chunks.go:141 is load-bearing, not cosmetic: `os.IsNotExist` does NOT unwrap `%w`-wrapped errors, and EdgeFS implementations wrap. The cmd/engram `osFS` impl must wrap with `%w` (contract: `errors.Is(err, fs.ErrNotExist)` survives the adapter); Q1/Q2 add tests proving the internal side unwraps.
 - DESIGN FLAG: `newQueryDeps` needs the LogWarning hook. Current `logWarningToStderrf` (learn.go:332) writes to `os.Stderr` — learn cluster's file. This plan consumes `logWarningTo(w io.Writer) func(format string, args ...any)`; exact definition included in Q2 step 3 with instructions to add it to deps.go ONLY if the learn cluster has not already landed it (coordinate — one definition, two consumers).
 - DESIGN FLAG: preconditions from other clusters: (a) foundation task must have landed `internal/cli/deps.go` (`Deps`, `EdgeFS` — neither exists yet, verified by grep); (b) targets-cluster task must have landed `Targets(d Deps)` with `d` threaded into `ingestQueryTargets` (targets.go:144) — all five constructor renames edit call sites there; (c) `executeForTest` (targets_test.go:434-448) migration is the targets cluster's; `TestTargets_CountEmptyVault` (count_test.go:562) rides on it unchanged.
@@ -60,7 +60,7 @@
 - DESIGN FLAG: hidden I/O not named in the central task list — `walkSourcesExcluding` (ingest.go:654) calls `filepath.WalkDir` directly (real disk walk) with an `os.DirEntry` callback. Migrated below via `deps.FS.WalkDir` + `fs.DirEntry` (`sweepListerFrom`).
 - DESIGN FLAG: `defaultSessionDir` (ingest.go:247-258) reads BOTH `ENGRAM_TRANSCRIPT_DIR` (os.Getenv) and `os.UserHomeDir` — the migration needs `deps.Getenv` AND `deps.UserHomeDir`, not Getenv alone.
 - DESIGN FLAG (cross-cluster, coordination required):
-  1. `listJSONLIndexes` (query_chunks.go:138, `os.ReadDir`) is shared by prune + query-chunks + show-chunk + query + amend. My plan adds the pure `jsonlIndexListerFrom(readDir)` helper in prune.go and migrates only prune's use; the query cluster must migrate its four call sites to the same helper and delete the os-based `listJSONLIndexes` last. The cmd `osFS.ReadDir` MUST wrap errors with `%w` so `errors.Is(err, fs.ErrNotExist)` survives (cold-start = empty index, not error).
+  1. `listJSONLIndexes` (query_chunks.go:138, `os.ReadDir`) is shared by prune + query-chunks + show-chunk + query + amend. Superseded by R3's staged cutover (R3 wins): T9 declares NO lister helper — it consumes T6's canonical curried `listJSONLIndexes(d.FS)` (T6 runs earlier per R4 and has already renamed the legacy os-backed lister to `osListJSONLIndexes`, which T12 — amend, the last consumer — deletes grep-gated). The cmd `osFS.ReadDir` MUST wrap errors with `%w` so `errors.Is(err, fs.ErrNotExist)` survives (cold-start = empty index, not error).
   2. `flockPath` (cli.go:169, syscall) is also used by `osLearnFS.Lock` — my tasks delete `osManifestLock` (its consumers are exactly ingest+prune) but must NOT delete `flockPath`; the learn cluster owns that removal.
   3. `osFileReader` (cli.go:27) has exactly one production consumer: ingest.go:488. Task I1 deletes it + its adapter tests (adapters_test.go:14-39) + `ExportNewOsFileReader`. If the core cluster also drafted this deletion, dedupe.
   4. The ADR-0013 concurrency regression test (ingest_test.go:319) today injects the REAL flock via `cli.ExportFlockPath`. After migration it uses a test-local syscall flock (test files are exempt from enforcement) — this preserves the Run*-holds-lock-across-read-modify-write proof, but production `flockLocker` mutual-exclusion coverage moves to cmd/engram; confirm the adapters cluster's plan includes a flockLocker exclusivity + fresh-dir integration test, else production-lock coverage regresses.
@@ -71,12 +71,12 @@
 **Maintenance-family:**
 
 - DESIGN FLAG: `atomicWriteFile` has callers OUTSIDE this cluster: internal/cli/learn.go:371 (LearnDeps.WriteNote), internal/cli/cli.go:144 (osLearnFS.WriteSidecar), internal/cli/embed.go:164 (osEmbedFS.Write), internal/cli/qa.go:283 (QA deps). Deleting internal/cli/writesafe.go must be gated until those clusters migrate — split into Task M4 with an explicit grep gate.
-- DESIGN FLAG: internal/cli/ingest_test.go:899 (`realFS.write`, part of the ADR-0013-adjacent concurrent-manifest regression infra) calls `cli.ExportAtomicWriteFile`. It needs REAL temp+rename semantics (torn-read protection under the race). Task M2 provides a test-only os-backed EdgeFS (`ExportNewTestOsDeps`) whose `WriteFileAtomic` carries the real dance; M4 repoints ingest_test.go:899 at it.
+- DESIGN FLAG: internal/cli/ingest_test.go:899 (`realFS.write`, part of the ADR-0013-adjacent concurrent-manifest regression infra) calls `cli.ExportAtomicWriteFile` today. It needs REAL temp+rename semantics (torn-read protection under the race). T8 (running earlier per R4) repoints it at its test-local `testAtomicWrite` (same real dance) in step 6; M4/T13 only verifies that repoint held before deleting writesafe.go. M2's `ExportNewTestOsDeps` still carries a real `WriteFileAtomic` for the wiring tests it serves.
 - DESIGN FLAG: shared-helper collision risk. My constructors need four composition helpers other clusters also need: a `vaultgraph.VaultFS` adapter over EdgeFS (replaces osVaultFS), a `.luhmann.lock` adapter over FileLocker (replaces osLearnFS.Lock), a stderr warn-logger (replaces learn.go's `logWarningToStderrf`), and an injected `.jsonl` lister (replaces query_chunks.go's os-backed `listJSONLIndexes`, which reads via `os.ReadDir` at query_chunks.go:139). I draft them once in internal/cli/deps_compose.go; orchestrator must dedupe against the learn/query/embed cluster drafts and have those clusters consume these helpers.
-- DESIGN FLAG: EdgeFS error contract — `edgeVaultFS.ListMD` and `jsonlIndexesLister` rely on `errors.Is(err, fs.ErrNotExist)` for the missing-dir→empty contract (current code uses `os.IsNotExist` on the raw error). The cmd osFS `ReadDir`/`Stat` implementations MUST wrap with `%w` (never `%v`) so sentinel matching survives. Ditto the test EdgeFS.
+- DESIGN FLAG: EdgeFS error contract — the canonical `vaultFS.ListMD` (T5's `newVaultFS`) and `listJSONLIndexes` (T6) rely on `errors.Is(err, fs.ErrNotExist)` for the missing-dir→empty contract (current code uses `os.IsNotExist` on the raw error). The cmd osFS `ReadDir`/`Stat` implementations MUST wrap with `%w` (never `%v`) so sentinel matching survives. Ditto the test EdgeFS.
 - DESIGN FLAG: targets.go call sites (lines 108, 113, 173, 278, 282, 286, 290) wire my constructors but the surrounding `Targets(deps Deps)` threading is the wiring cluster's charge. M3 lists the exact call-expression diffs; the wiring cluster owns adding the `deps Deps` parameter to `amendResituateTargets`/`ingestQueryTargets`/`vocabTargets`.
 - DESIGN FLAG: sequencing — cmd/engram/os_fs.go's `osFS` type has no production caller until the cmd wiring task lands `Deps{FS: osFS{}}` in main.go. If M1 merges before wiring, `targ check-full`'s unused-symbol lint may flag `osFS`. Order M1 after (or in the same merge window as) the cmd-wiring task's os_fs.go creation; M1 below is written create-or-append.
-- DESIGN FLAG: cross-cluster test-file touches — learn_test.go:132 uses `ExportNewOsAmendDeps` (my constructor, learn cluster's file); os_adapters_test.go:150 tests `logWarningToStderrf` (learn cluster should delete it when adopting `warnLoggerTo`); targets_test.go:413 covers resituate wiring through `Targets()` (wiring cluster updates). One-line diffs for the first are included in M3.
+- DESIGN FLAG: cross-cluster test-file touches — learn_test.go:132 uses `ExportNewOsAmendDeps` (my constructor, learn cluster's file); os_adapters_test.go:150 tests `logWarningToStderrf` (learn cluster should delete it when adopting `logWarningTo`); targets_test.go:413 covers resituate wiring through `Targets()` (wiring cluster updates). One-line diffs for the first are included in M3.
 - DESIGN FLAG: vault_init.go and vocab.go are ALREADY pure (verified: vault_init.go imports fmt/io\/fs/path\/filepath only; vocab.go imports slices/strings/yaml/embed only; no os, no time.Now). No migration needed — M3 carries verify-only steps.
 
 **Embed-family (numbered — Task T14/T15 text cites these as "DESIGN FLAG n"):**
@@ -97,7 +97,7 @@
 - DESIGN FLAG: osUpdateFS/osUpdateEnv cannot literally "move to cmd/engram/os_update.go" and stay wired: the fixed cli.Deps carries no `update.Filesystem`/`update.Env` field (only `FS EdgeFS` + env func fields), and `cli.Targets(deps Deps)` is the sole channel into internal/cli. Moving them verbatim would strand them as production-dead code in cmd (hoarding). This draft absorbs them instead: only osCommander physically moves to cmd/engram/os_update.go (wired as `Deps.Commander`); osUpdateFS becomes a pure EdgeFS→update.Filesystem bridge in internal/cli (`updateFSFromEdge`, zero I/O — `fs.DirEntry`/`fs.FileInfo` structurally satisfy `update.DirEntry`/`update.FileInfo`, so `osDirEntry`/`osFileInfo` wrappers die too); osUpdateEnv becomes a pure Deps-func bridge (`updateEnvFromDeps`).
 - DESIGN FLAG: spec cites exec.ErrNotFound at update.go:437/:545; actual worktree lines are 436 and 544, plus the doc comment at 541–542 names exec.ErrNotFound (updated in Task UF-1).
 - DESIGN FLAG: two test files inject exec.ErrNotFound to simulate the commander — internal/update/runner_test.go:556 and internal/cli/invariants_u1_test.go:36. Both must switch to `update.ErrCommandNotFound` in the same commit as the sentinel cutover or the suite goes red (ErrGitNotFound/ErrGoNotFound classification tests).
-- DESIGN FLAG (coordination with os_fs cluster): update's `isNotExist` and its planners tolerate missing dirs via `errors.Is(err, fs.ErrNotExist)`. The production EdgeFS impl (cmd/engram/os_fs.go) MUST preserve that chain on ReadFile/ReadDir/Stat (no chain-breaking wraps), and RemoveAll must keep os.RemoveAll's nil-on-absent semantics. The deleted TestOsUpdateFS_* round-trips (7 tests in internal/cli/update_test.go:275-441) hand their real-FS coverage to that cluster's cmd/engram/os_fs_test.go.
+- DESIGN FLAG (coordination with os_fs cluster): update's `isNotExist` and its planners tolerate missing dirs via `errors.Is(err, fs.ErrNotExist)`. The production EdgeFS impl (cmd/engram/os_fs.go) MUST preserve that chain on ReadFile/ReadDir/Stat (no chain-breaking wraps), and RemoveAll must keep os.RemoveAll's nil-on-absent semantics. The deleted TestOsUpdateFS_* round-trips (nine tests in internal/cli/update_test.go:275-441) hand their real-FS coverage to that cluster's cmd/engram/os_fs_test.go.
 - DESIGN FLAG (coordination with wiring cluster): Task UF-2's targets.go call site assumes `learnUpdateTargets` receives `deps Deps` after the Targets(deps) migration; the `Commander: &osCommander{},` field lands in cmd/engram's Deps literal built by that cluster. Sequencing: UF-1 is independent and can land first; UF-2 requires deps.go (Deps+EdgeFS), Targets(deps) threading, and cmd/engram/os_fs.go to exist.
 - DESIGN FLAG: export_test.go (package cli) does not currently import internal/update; UF-2's new export helper adds that import.
 - DESIGN FLAG: this worktree's internal/update/update.go is clean; the uncommitted Pi-harness edit exists only in the main tree. The internal/update diff below is 4 hunks (sentinel var, two errors.Is swaps, one comment) + import line — minimal for concurrent Pi worktrees.
@@ -121,15 +121,26 @@ adds `ExportNewTestOsDeps() Deps` (test-only) and any helper with no T3 equivale
 `newVaultFS(fsys EdgeFS) *vaultFS` is canonical. T11 does NOT declare `edgeVaultFS`; T15 does NOT
 declare `depsVaultFS`; both consume `newVaultFS(d.FS)`.
 
-**R3 — ONE `.jsonl` index lister.** T6's `listJSONLIndexes(fsys EdgeFS) func(dir string) ([]string, error)`
-is canonical. T9 consumes `listJSONLIndexes(d.FS)` instead of declaring `jsonlIndexListerFrom`;
-T11 does NOT declare `jsonlIndexesLister`.
+**R3 — ONE `.jsonl` index lister, staged cutover (single story; T6/T9/T12 bodies conform).**
+T6's curried `listJSONLIndexes(fsys EdgeFS) func(dir string) ([]string, error)` is canonical.
+T6 lands it and, in the same commit, RENAMES the legacy os-backed lister to `osListJSONLIndexes`
+(query_chunks.go keeps its `"os"` import for it until T12); the two foreign references
+(amend.go:365, prune.go:115) get that mechanical rename ONLY — no deps flip, because under R4
+those files still sit inside `newOsAmendDeps()`/`newOsPruneDeps()` with no `d Deps` in scope.
+Each consumer's own task then flips its line to `listJSONLIndexes(d.FS)` when it converts its
+constructor: T6 itself for query.go/query_chunks.go/show_chunk.go (T6 owns the show-chunk
+conversion), T9 for prune.go, T12 for amend.go. T12 — amend.go is the LAST consumer — deletes
+`osListJSONLIndexes` grep-gated and drops query_chunks.go's `"os"` import with it. T9 consumes
+`listJSONLIndexes(d.FS)` and does NOT declare `jsonlIndexListerFrom`; T11 does NOT declare
+`jsonlIndexesLister`.
 
 **R4 — EXECUTION ORDER (binding; document order is NOT execution order):**
-T1 → T2 → T3 → T5 → T6 → T8 → T9 → T10 → T11 → T12 → T4 → T13 → T14 → T15 → T7 → T16 → T17 → T-final-1 → T-final-2.
+T1 → T2 → T3 → T5 → T6 → T8 → T9 → T10 → T11 → T12 → T4 → T14 → T15 → T7 → T13 → T16 → T17 → T-final-1 → T-final-2.
 Rationale: T4 (purge cli.go adapters) requires T8/T9/T12 done (its own heading says so — it sits
 mid-document only because drafts were assembled by family); T7 (purge osVaultFS) runs after T15
-(embed.go is osVaultFS's last consumer); deletions are grep-gated so a premature run fails loud.
+(embed.go is osVaultFS's last consumer); T13 (purge internal atomic write) also runs after T15
+(embed.go:164's `osEmbedFS.Write` calls `atomicWriteFile` until T15 deletes it — T13's gate
+cannot pass earlier); deletions are grep-gated so a premature run fails loud.
 
 **R5 — `osFileReader` is deleted ONCE, by T8.** T4's corresponding step becomes a grep
 verification (`rg -n "osFileReader" internal/` → zero hits), not a second deletion.
@@ -139,8 +150,72 @@ verification (`rg -n "osFileReader" internal/` → zero hits), not a second dele
 `cmd/engram/main.go` in the same commit — the executor of T14 must not skip the cmd-side line
 (it is in T14's file list).
 
-**R7 — `ExportFlockPath`.** T8 deletes it from `export_test.go`; T4 (running later per R4)
-re-implements the flock probe test-locally exactly as its body specifies. No other task touches it.
+**R8 — FIXME(#700) marker lifecycle.** T2 deletes the marker's host file (`internal/cli/main.go`) for wiring reasons, so T2 RELOCATES the marker into `cmd/engram/main.go` (exact comment text in T2's step); it stays grep-able through the whole migration and is deleted ONLY by T-final-2 after the enforcement gate is verified green. Any state where `rg "FIXME\(#700\)"` returns zero hits before T-final-2 is a defect.
+
+**R9 — depguard files-glob vs the issue AC's literal `internal/**`.** The issue AC says root-anchored `'internal/**'`; the plan-time prototype only confirmed `'**/internal/**'` (the root-anchored form was never exercised). T-final-1 resolves this empirically: Step 5's negative probe runs FIRST with `files = ['internal/**', '!$test']`; if the probe fires, keep the AC's literal form. If it does not fire, switch to the confirmed `'**/internal/**'`, record the probe output in the commit body, and post a one-line comment on issue #700 amending the AC wording to the verified form. No silent substitution in either direction.
+
+**R7 — `ExportFlockPath`.** T8 deletes it from `export_test.go` AND, in the same commit, repoints
+its only two consumers — the `TestManifest_ConcurrentWritersDoNotLoseEntries` Lock closures
+(ingest_test.go:375-377 and 402-404) — to T8's own test-local real-flock `testFlocker{}` (T8 step 6).
+NOBODY re-implements it: T4's former re-implementation step is dead work and is collapsed to a grep
+verification (`rg -n "ExportFlockPath" internal/` → zero hits). No other task touches it.
+
+**R10 — `osManifestLock` has ONE deleter: T9.** T9 (I2) deletes all three artifacts: `osManifestLock`
+from cli.go (its step 3), `ExportOsManifestLock` from export_test.go (its step 5), and
+`TestOsManifestLock_MkdirError` from testhelpers_test.go (its step 6). T4 (running later per R4)
+does NOT re-delete any of them — its corresponding Files-list entries and steps are grep
+verifications (`rg -n "osManifestLock" internal/` → zero hits), mirroring R5's pattern.
+
+**R11 — `newTestDeps` field extensions have single owners.** T2 lands `newTestDeps`
+(targets_test.go) with Stdout/Stderr/Exit/Getenv/Now/Getwd/UserHomeDir only. Each edge field is
+added by the FIRST task (per R4 order) whose constructor flip makes an executed targets-level test
+dereference it. That task is T3 for BOTH `FS` and `Lock`: T3 flips the learn closures to
+`runLearnFrom*Args(…, d, …)`/`newQaDeps(d)`, and the executed learn tests
+(targets_test.go:206-263 — feedback/fact/qa through `executeForTest`, with the qa test asserting
+real note files on disk) drive `newLearnDeps(d)`/`newQaDeps(d)` through `d.FS` (StatDir/InitVault/
+ListIDs/WriteNew) and `d.Lock` (vaultLockFromLocker) — nil either field is a nil-interface panic.
+T3 therefore extends `newTestDeps` with `FS: osEdgeFSForTest{}` and `Lock: flockLockerForTest{}`
+(its own step-1 doubles, same package cli_test; exact diff in T3 step 7). Every later executed path
+(count T5, show/show-chunk T5/T6, ingest T8, prune T9, vocab/amend/resituate/activate T12) rides
+those same two fields — no other task extends `newTestDeps`. `Embed` (RESOLVED): `newTestDeps.Embed` stays NIL globally — post-T3, nil Embed makes
+`autoEmbedNote`/`embedDefinitionNote` skip silently, which is byte-identical in observable output
+(empty stderr) to today's silently-succeeding real sharedEmbedder, so the learn-qa
+(targets_test.go:241-263) and vocab-propose (vocab_commands_test.go:~3597) empty-stderr assertions
+keep passing unchanged. T15 — whose embed-closure flip makes `TestTargets_EmbedApplyDryRun` /
+`TestTargets_EmbedStatus` (targets_test.go:340/355) dereference `deps.Embedder.ModelID()`
+(embed.go:63; tallyStates embed.go:275) — wires a fail-loud stub ONLY in those two tests via a
+local deps override (`d := newTestDeps(...); d.Embed = stubEmbedderForTargets{}`): the stub is
+named `stubEmbedderForTargets` (NOT `stubEmbedder` — that name already exists in cli_test at
+embed_test.go:213), with ModelID() returning `embed.BundledModelID` (matches today's lazy-embedder
+output without loading the model), Dims() returning 384, and Embed() returning an error
+("stubEmbedderForTargets: Embed not expected in targets-level tests") so real embedding through
+it fails loud. The production lazy-embedder alternative is structurally unavailable: after T14 its
+constructor needs the hugot Backend + CacheFS built in package main, unreachable from cli_test.
+Exact stub declaration + per-test wiring in T15's steps.
+
+**R12 — `ExportNewOsVaultFS` call-site migration owner: T12; shim deleter: T7.** T5 keeps the
+`ExportNewOsVaultFS` shim (vocab tests still consume it). T12, which owns the vocab test files,
+migrates EVERY remaining call site — vocab_trigger_test.go:251,441 and
+vocab_commands_test.go:96,131,198,231,543,559,613,651,3856,3874 (12 sites; vault_fs_test.go's five
+sites are already replaced wholesale by T5) — from `cli.ExportNewOsVaultFS()` to
+`cli.ExportNewVaultFS(osTestEdgeFS{})` (T5's export over the cli_test real-FS EdgeFS double; same
+`ListMD`/`ReadFile` interface shape and semantics). T7 then deletes the shim, and its gate grep is
+extended to `osVaultFS\|ExportNewOsVaultFS` — the lowercase-only pattern would MISS the shim
+(capital-O `OsVaultFS`) and let T7's deletion break the compile silently.
+
+## Issue-AC traceability (Gate A finding 3)
+
+| Issue #700 acceptance criterion (verbatim key) | Owning task(s) |
+|---|---|
+| depguard `internal-purity` rule active (root-anchored `internal/**`, no negation globs, no companion adapter rule); forbidigo enabled with the custom clock/PRNG/rand-v1 list; no fmt.Print flagging | T-final-1 (glob per R9) |
+| Zero non-test files under `internal/` import os, os/exec, os/signal, syscall, net, net/http, database/sql, or any third-party I/O package (hugot) | T1–T17 cumulative; enforced + verified T-final-1 |
+| Zero time.Now/Since/Tick, global-PRNG, or math/rand (v1) references in non-test internal/ code | T3, T6, T8, T12 (Now threading); enforced T-final-1 |
+| All eight adapter implementations relocated to cmd/engram (package main) with integration tests; internal keeps interfaces + logic only | T1 (signal, debuglog sink, EdgeFS/flock), T10 (atomic write), T14 (hugot + cache), T17 (commander); absorption-into-EdgeFS design flags cover vault_fs/learn-FS (T5/T3) |
+| debuglog is pure (writer + clock injected); both direct env reads eliminated; env/clock threaded from cmd/engram; targ.Main called from cmd | T2 (debuglog, ENGRAM_DEBUG_LOG, targ.Main), T8 (ENGRAM_TRANSCRIPT_DIR) |
+| internal/update no longer imports os/exec (sentinel translated in the cmd adapter) | T16, T17 |
+| Coverage stance for cmd/engram revisited deliberately | T-final-1 Step 5.5 |
+| targ check-full green; truncation setting (max-issues-per-linter) decided deliberately | every task's final gate; T-final-1 Step 3 |
+| FIXME at internal/cli/main.go removed — last, after everything above is green | T2 relocates the marker (R8); T-final-2 deletes it |
 
 ## Tasks
 
@@ -1096,7 +1171,7 @@ const (
 11. [ ] Commit:
 
 ```
-refactor(cli): #700 add Deps carrier, pure signal seam, cmd/engram OS adapters
+refactor(cli): add Deps carrier + pure signal seam (#700)
 
 Introduces cli.Deps/EdgeFS/FileLocker (the single impure-capability
 carrier wired by cmd/engram), converts ForceExitOnRepeatedSignal to a
@@ -1118,7 +1193,7 @@ AI-Used: [claude]
 - Modify: `internal/cli/signal.go` (delete `SetupSignalHandling` + `signalChannelBuffer` + io/os/signal/syscall/debuglog imports)
 - Modify: `internal/cli/targets_test.go`, `internal/cli/vocab_commands_test.go` (8 `cli.Targets` call sites → `newTestDeps` helper)
 - Modify: `cmd/engram/main.go` (full rewrite: newOsDeps + registerForceExit + targ.Main)
-- Delete: `internal/cli/main.go` (old `Main`; resolves the FIXME(#700) at main.go:19–22)
+- Delete: `internal/cli/main.go` (old `Main`) — the FIXME(#700) marker at main.go:19–22 is NOT resolved here: T2 RELOCATES it into `cmd/engram/main.go` (see the marker-relocation step); only T-final-2 deletes it, after enforcement is green
 
 **Interfaces:**
 - Consumes: `cli.Deps` (T1); `debuglog.WithLogger(ctx, *Logger) context.Context`; `targ.Main(...any)`; `embed.NewLazyEmbedder(cacheDir string) *LazyEmbedder` (internal/embed/hugot.go:149); `embed.BundledModelID = "minilm-l6-v2@384"` (hugot.go:18); `cli.CacheDirFromHome(home, modelID string, getenv func(string) string) string` (targets.go:56).
@@ -1581,7 +1656,7 @@ func vocabTargets(
    | activate | 171–174 | `newOsActivateDeps()` | `newActivateDeps(deps)` (activate) |
    | count | 175–179 | `newOsCountDeps()` | `newCountDeps(deps)` (count) |
    | show | 180–183 | `newOsShowDeps()` | `newShowDeps(deps)` (show) |
-   | show-chunk | 184–187 | `newOsShowChunkDeps()` | `newShowChunkDeps(deps)` (show) |
+   | show-chunk | 184–187 | `newOsShowChunkDeps()` | `newShowChunkDeps(deps)` (query — T6) |
    | check | 188–191 | `newOsCheckDeps()` | `newCheckDeps(deps)` (check) |
    | learn feedback | 207–210 | inside `runLearnFromFeedbackArgs` (learn.go:520) | `runLearnFromFeedbackArgs(ctx, a, deps, stdout)` → `newLearnDeps(deps)` (learn) |
    | learn fact | 211–214 | inside `runLearnFromFactArgs` (learn.go:497) | `runLearnFromFactArgs(ctx, a, deps, stdout)` → `newLearnDeps(deps)` (learn) |
@@ -1676,7 +1751,14 @@ func newOsDeps() cli.Deps {
 }
 ```
 
-   SEQUENCING: if the update cluster's `cmd/engram/os_update.go` (owner of `osCommander`) has not landed yet, omit the `Commander: &osCommander{},` line — the field stays nil and NOTHING consumes it until `runUpdate` converts; the update cluster adds the line together with the adapter. The `Embed:` line compiles today (`embed.NewLazyEmbedder`, hugot.go:149). The ENGRAM_DEBUG_LOG read (old internal/cli/main.go:23) and its FIXME(#700) comment die with the deleted file; the env read now happens here at the edge.
+   SEQUENCING: if the update cluster's `cmd/engram/os_update.go` (owner of `osCommander`) has not landed yet, omit the `Commander: &osCommander{},` line — the field stays nil and NOTHING consumes it until `runUpdate` converts; the update cluster adds the line together with the adapter. The `Embed:` line compiles today (`embed.NewLazyEmbedder`, hugot.go:149). The ENGRAM_DEBUG_LOG read (old internal/cli/main.go:23) moves here to the edge. The FIXME(#700) marker does NOT die with the deleted file — the user's rule is "remove the FIXME only when the issue is resolved", and at T2 the issue is 15 tasks from resolved. Place this comment block in cmd/engram/main.go directly above the Getenv wiring line:
+
+```go
+// FIXME(#700): internal-purity migration in progress — this marker tracks the
+// unresolved issue. The original internal/cli/main.go os.Getenv violation is
+// fixed, but adapters/env-threading/enforcement are still landing. Remove this
+// marker ONLY in T-final-2, after the depguard/forbidigo gate is verified green.
+```
 
 6. [ ] Run `targ test` — expect all green: debuglog tests (new API), cli tests (new Targets), cmd/engram adapter tests, plus cli_test.go's end-to-end binary build (`go build ./cmd/engram`) still passing.
 
@@ -1698,7 +1780,7 @@ ls internal/cli/main.go
 10. [ ] Commit:
 
 ```
-refactor(cli): #700 wire Targets(deps), move composition root to cmd/engram
+refactor(cli): move composition root to cmd/engram (#700)
 
 Targets now takes the cli.Deps capability carrier; signal registration
 and the targ.Main call move to cmd/engram/main.go (the single production
@@ -1724,6 +1806,7 @@ Key file paths: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal
 - Modify: `internal/cli/qa.go` (delete `newOsLearnQADeps`; add `newQaDeps(d Deps)`; drop `os` import)
 - Modify: `internal/cli/cli.go` (re-parameterize `listRootNotes`; shrink `osLearnFS` to Lock-only; receive relocated `logWarningToStderrf`)
 - Modify: `internal/cli/targets.go` (learn-group closures only)
+- Modify: `internal/cli/targets_test.go` (extend `newTestDeps` with `FS`/`Lock` — R11; this task's closure flip makes the executed learn tests dereference both)
 - Modify: `internal/cli/export_test.go` (re-sign fact/feedback exports; add `ExportNewLearnDeps`/`ExportNewQaDeps`; drop `ExportNewOsLearnFS` uses of deleted methods)
 - Modify: `internal/cli/testhelpers_test.go` (add `osEdgeFSForTest`, `flockLockerForTest`, `realFSDepsForTest`)
 - Modify: `internal/cli/invariants_k1_property_test.go` (K1 drives production `newLearnDeps` over real FS + real flock)
@@ -2390,6 +2473,26 @@ Remove `"os"` and `"time"`?—no: keep `"time"` (`time.Time` in signatures); rem
 
 (The `resolveVault(a.Vault, home, os.Getenv)` → `d.Getenv`/`d.UserHomeDir` swap is the targets cluster's charge — leave those expressions to that task.)
 
+In the same commit, extend `newTestDeps` in `internal/cli/targets_test.go` (R11 — this task owns the FS/Lock extension because its closure flip is the FIRST to make an executed targets-level test dereference them: the learn feedback/fact/qa tests at targets_test.go:206-263 run through `executeForTest`, and the qa test asserts real note files on disk; nil `FS`/`Lock` is a nil-interface panic inside `newLearnDeps`/`newQaDeps`). Exact diff — the two added fields use this task's own step-1 doubles (same package cli_test):
+
+```go
+func newTestDeps(stdout, stderr io.Writer) cli.Deps {
+	return cli.Deps{
+		Stdout:      stdout,
+		Stderr:      stderr,
+		Exit:        func(int) {},
+		Getenv:      os.Getenv,
+		Now:         time.Now,
+		Getwd:       os.Getwd,
+		UserHomeDir: os.UserHomeDir,
+		FS:          osEdgeFSForTest{},
+		Lock:        flockLockerForTest{},
+	}
+}
+```
+
+No later task extends `newTestDeps` further (R11); every later executed targets-level path (count/show T5, show-chunk T6, ingest T8, prune T9, vocab/amend/resituate/activate T12) rides these same two fields. (`Embed` stays absent — see R11's recorded CONFLICT for the T15 embed closures.)
+
 - [ ] 8. **export_test.go:** re-sign the two wrappers' exports (current lines 836-846) and add the constructor exports:
 
 ```go
@@ -2415,7 +2518,7 @@ func ExportRunLearnFromFeedbackArgs(
 }
 ```
 
-Keep `ExportNewOsLearnFS` and `ExportFlockPath` untouched (Lock-only consumers survive until L2).
+Keep `ExportNewOsLearnFS` and `ExportFlockPath` untouched here (`ExportNewOsLearnFS`'s Lock-only consumer survives until T4/L2; `ExportFlockPath` is deleted later by T8, which also repoints its consumers — R7).
 
 - [ ] 9. **learn_adapters_test.go:** delete `TestOsLearnFS_ListBasenames_*`, `TestOsLearnFS_ListIDs_*`, `TestOsLearnFS_MkdirAll_*`, `TestOsLearnFS_StatDir_*`, `TestOsLearnFS_WriteFileIfMissing_*`, `TestOsLearnFS_WriteNew_*` (lines 58-122, 133-288 — behavior now covered by deps_compose_test.go against the production composition + the cmd/engram osFS integration tests). Keep `TestOsLearnFS_Lock_BadVaultReturnsError` (124-131) until L2. Update every `cli.ExportRunLearnFromFactArgs(context.Background(), args, io.Discard)` / `...FeedbackArgs(...)` call (lines 37, 310, 371, 408, 456, 489) to `cli.ExportRunLearnFromFactArgs(context.Background(), args, realFSDepsForTest(), io.Discard)` (same for feedback). Note: with `Embed` nil these tests now skip auto-embed (they only assert `.md` presence/absence — assertions unchanged; the embed-on-write path stays covered by cli_test.go's real-binary end-to-end test, which asserts the `.vec.json` sidecar).
 
@@ -2448,7 +2551,7 @@ func k1RealLockDeps(vault string) cli.LearnDeps {
 - [ ] 12. Commit:
 
 ```
-refactor(cli): compose learn-family deps purely from injected Deps (#700)
+refactor(cli): compose learn-family deps from Deps (#700)
 
 newLearnDeps/newQaDeps replace newOsLearnDeps/newOsLearnQADeps; all learn/qa
 I/O flows through EdgeFS/FileLocker/Embed/Stderr. Adds EdgeFS.WriteFileExcl
@@ -2462,57 +2565,30 @@ AI-Used: [claude]
 
 ### Task T4 (L2): purge os/syscall adapters from internal/cli/cli.go (ORDER: after activate/amend/resituate/vocab/ingest/prune constructor migrations, before enforcement)
 
+**Depends on:** T8, T9, T12 complete (ingest/prune/maintenance constructors already compose from Deps) — see binding execution order R4.
+
 **Files**
-- Modify: `internal/cli/cli.go` (delete `osFileReader`, `osLearnFS`, `flockPath`, `osManifestLock`, `logWarningToStderrf`; drop `os`/`syscall` imports)
-- Modify: `internal/cli/export_test.go` (re-implement `ExportFlockPath` as test-local real flock; delete `ExportNewOsLearnFS`, `ExportOsManifestLock`, `ExportLogWarningToStderr`)
+- Modify: `internal/cli/cli.go` (delete `osLearnFS`, `flockPath`, `logWarningToStderrf`; drop `os`/`syscall` imports; `osFileReader` and `osManifestLock` are already gone — deleted by T8 per R5 and T9 per R10, grep-verified here)
+- Modify: `internal/cli/export_test.go` (delete `ExportNewOsLearnFS`, `ExportLogWarningToStderr`; `ExportFlockPath` and `ExportOsManifestLock` are already gone — deleted by T8 per R7 and T9 per R10, grep-verified here)
 - Modify: `internal/cli/learn_adapters_test.go` (delete `TestOsLearnFS_Lock_BadVaultReturnsError`)
-- Modify: `internal/cli/testhelpers_test.go` (delete `TestOsManifestLock_MkdirError`)
 - Modify: `internal/cli/os_adapters_test.go` (delete `TestExportLogWarningToStderr_FormatsAndWrites` — superseded by `TestNewLearnDeps_LogWarning_WritesToDepsStderr`)
+- Verify-only (no edit): `internal/cli/testhelpers_test.go` (`TestOsManifestLock_MkdirError` already deleted by T9 per R10), `internal/cli/ingest_test.go` (Lock closures already ride T8's `testFlocker{}` per R7)
 
 **Interfaces**
-- Consumes: nothing new. Produces: none — pure deletion plus a test-only flock.
+- Consumes: nothing new. Produces: none — pure deletion.
+
+NOTE (anchors): line numbers cited below are from the pristine tree and shift after T3's deletions (and the other families' migrations that land before T4 per R4); the symbol-based gates govern, not absolute lines.
 
 **Steps**
 
 - [ ] 1. **Precondition gate (must pass before any edit):**
-`grep -rn "osLearnFS\|flockPath\|osManifestLock\|logWarningToStderrf\|osFileReader" internal/ --include="*.go" | grep -v "_test.go"` → expected: hits ONLY inside `internal/cli/cli.go` (the definitions themselves). Any hit in activate.go/amend.go/resituate.go/vocab_commands.go/ingest.go/prune.go means a family migration hasn't landed — STOP and reorder.
+`grep -rn "osLearnFS\|flockPath\|logWarningToStderrf" internal/ --include="*.go" | grep -v "_test.go"` → expected: hits ONLY inside `internal/cli/cli.go` (the definitions themselves). Any hit in activate.go/amend.go/resituate.go/vocab_commands.go/ingest.go/prune.go means a family migration hasn't landed — STOP and reorder. Additionally verify the earlier owners' deletions landed: `rg -n "osFileReader" internal/` → zero hits (T8, R5) and `rg -n "osManifestLock" internal/` → zero hits (T9, R10). Any hit → that task did not complete — STOP.
 
-- [ ] 2. **Keep the manifest concurrent-writers regression green (RED-equivalent for this refactor is the existing suite).** In `export_test.go`, replace the delegating `ExportFlockPath` (lines 342-347) with a self-contained real flock — test files are exempt from the depguard/forbidigo deny, so `syscall` is legal here and `TestManifest_ConcurrentWritersDoNotLoseEntries` (ingest_test.go:319) keeps racing real OS locks without any production flock symbol:
+- [ ] 2. **Grep-verify the flock handoff (dead-work guard — R7).** T8 already deleted `ExportFlockPath` and repointed the `TestManifest_ConcurrentWritersDoNotLoseEntries` Lock closures to its test-local real-flock `testFlocker{}`, so the concurrent-writers regression keeps racing real OS locks without any production flock symbol and NOTHING is re-implemented here. Verify: `rg -n "ExportFlockPath" internal/` → zero hits (any hit → T8 incomplete, STOP). (`ExportManifestLockFile` stays — the constant it returns survives; `ExportOsManifestLock` was deleted by T9 per R10, covered by step 1's grep.) Then delete `ExportNewOsLearnFS` (553-554) and the `ExportLogWarningToStderr` alias (line 70) from export_test.go.
 
-```go
-// ExportFlockPath is a test-only real flock used by the concurrent-writers
-// regression tests (ingest_test.go). The goroutines race on the SAME OS lock
-// file to prove the locking protocol prevents lost updates; production locking
-// lives in cmd/engram's flockLocker (integration-tested there).
-func ExportFlockPath(lockPath string) (func(), error) {
-	const lockPerm = 0o600
+- [ ] 3. **Delete from cli.go:** `osLearnFS` + its `Lock` method (33-57 remnant), `flockPath` (165-192), `logWarningToStderrf` (relocated block from L1 step 4). (`osFileReader` and `osManifestLock` are NOT deleted here — T8/T9 already did, per R5/R10; step 1's greps proved it.) Remove `"os"`, `"syscall"`, and `"path/filepath"` (if now unused — `filepath.Join` was only used by the deleted lock helpers; `vaultLockFromLocker` in deps_compose.go has its own import) from the import block. cli.go retains: package doc, `luhmannLockFile`/`manifestLockFile` constants (consumed by `vaultLockFromLocker` and the ingest cluster's manifest-lock composition + `ExportManifestLockFile`), `errNotADirectory` (consumed by `statDirFromFS`), `acquireOptionalLock` (152-163, pure), `listRootNotes` (pure since L1), `pathOf` (240-243).
 
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, lockPerm) //nolint:gosec // test helper
-	if err != nil {
-		return nil, fmt.Errorf("open lock: %w", err)
-	}
-
-	fileDescriptor := int(f.Fd())
-
-	flockErr := syscall.Flock(fileDescriptor, syscall.LOCK_EX)
-	if flockErr != nil {
-		_ = f.Close()
-
-		return nil, fmt.Errorf("flock: %w", flockErr)
-	}
-
-	return func() {
-		_ = syscall.Flock(fileDescriptor, syscall.LOCK_UN)
-		_ = f.Close()
-	}, nil
-}
-```
-
-(Add `"syscall"` to export_test.go's imports; `ExportManifestLockFile` stays — the constant it returns survives.) Delete `ExportNewOsLearnFS` (553-554), `ExportOsManifestLock` (687-690), and the `ExportLogWarningToStderr` alias (line 70).
-
-- [ ] 3. **Delete from cli.go:** `osFileReader` (27-31), `osLearnFS` + its `Lock` method (33-57 remnant), `flockPath` (165-192), `osManifestLock` (223-236), `logWarningToStderrf` (relocated block from L1 step 4). Remove `"os"`, `"syscall"`, and `"path/filepath"` (if now unused — `filepath.Join` was only used by the deleted lock helpers; `vaultLockFromLocker` in deps_compose.go has its own import) from the import block. cli.go retains: package doc, `luhmannLockFile`/`manifestLockFile` constants (consumed by `vaultLockFromLocker` and the ingest cluster's manifest-lock composition + `ExportManifestLockFile`), `errNotADirectory` (consumed by `statDirFromFS`), `acquireOptionalLock` (152-163, pure), `listRootNotes` (pure since L1), `pathOf` (240-243).
-
-- [ ] 4. Delete `TestOsLearnFS_Lock_BadVaultReturnsError` (learn_adapters_test.go:124-131), `TestOsManifestLock_MkdirError` (testhelpers_test.go), `TestExportLogWarningToStderr_FormatsAndWrites` (os_adapters_test.go:151-172). Confirm the replacement coverage exists before deleting: cmd/engram `flockLocker` integration test covers lock-open failure; the ingest cluster's manifest-lock composition test covers mkdir-before-lock; `TestNewLearnDeps_LogWarning_WritesToDepsStderr` covers the warning format.
+- [ ] 4. Delete `TestOsLearnFS_Lock_BadVaultReturnsError` (learn_adapters_test.go:124-131) and `TestExportLogWarningToStderr_FormatsAndWrites` (os_adapters_test.go:150-172). (`TestOsManifestLock_MkdirError` was already deleted by T9 per R10 — verify with `rg -n "TestOsManifestLock_MkdirError" internal/` → zero hits.) Confirm the replacement coverage exists before deleting: cmd/engram `flockLocker` integration test covers lock-open failure; the ingest cluster's manifest-lock composition test covers mkdir-before-lock; `TestNewLearnDeps_LogWarning_WritesToDepsStderr` covers the warning format.
 
 - [ ] 5. Verify purity of the migrated files: `grep -n "\"os\"\|\"syscall\"\|os\.\|syscall\." internal/cli/cli.go internal/cli/learn.go internal/cli/qa.go internal/cli/deps_compose.go` → no hits. Run `targ test` → green, including `TestInvariant_K1_ConcurrentLearnNeverCollides` and `TestManifest_ConcurrentWritersDoNotLoseEntries`. Run `targ check-full` → clean. `go install ./cmd/engram` and re-run the step-11 smoke from L1.
 
@@ -2521,17 +2597,18 @@ func ExportFlockPath(lockPath string) (func(), error) {
 ```
 refactor(cli): delete os/syscall adapters from cli.go (#700)
 
-osLearnFS, flockPath, osManifestLock, osFileReader, and the stderr warning
-hook are gone from internal; production I/O lives in cmd/engram. The
-concurrent-writers regression suites keep racing real OS flocks via a
-test-local ExportFlockPath (test files are exempt from the purity deny).
+osLearnFS, flockPath, and the stderr warning hook are gone from internal
+(osFileReader/osManifestLock fell earlier to T8/T9 — grep-verified);
+production I/O lives in cmd/engram. The concurrent-writers regression
+suites keep racing real OS flocks via T8's test-local testFlocker (test
+files are exempt from the purity deny).
 
 AI-Used: [claude]
 ```
 
 ---
 
-**ADR-0013 survival summary:** lock semantics are preserved exactly — same lock files (`vault/.luhmann.lock` via `vaultLockFromLocker`, `chunksDir/.manifest.lock` on the ingest side), same acquisition points (`writeLearnUnderLock` learn.go:657, `writeQANotesUnderLock` qa.go:427, both inside `Run*` entry flows), same span (ListIDs→WriteNew under one exclusive flock), same O_EXCL backstop (`EdgeFS.WriteFileExcl`), same atomic temp+rename edge (`EdgeFS.WriteFileAtomic`). The two regression tests survive: `TestInvariant_K1_ConcurrentLearnNeverCollides` (adapted in L1 step 10 to drive the production `newLearnDeps` composition over a real flock — strictly stronger than before) and `TestManifest_ConcurrentWritersDoNotLoseEntries` (unchanged; its `ExportFlockPath` dependency is re-implemented test-locally in L2 step 2).
+**ADR-0013 survival summary:** lock semantics are preserved exactly — same lock files (`vault/.luhmann.lock` via `vaultLockFromLocker`, `chunksDir/.manifest.lock` on the ingest side), same acquisition points (`writeLearnUnderLock` learn.go:657, `writeQANotesUnderLock` qa.go:427, both inside `Run*` entry flows), same span (ListIDs→WriteNew under one exclusive flock), same O_EXCL backstop (`EdgeFS.WriteFileExcl`), same atomic temp+rename edge (`EdgeFS.WriteFileAtomic`). The two regression tests survive: `TestInvariant_K1_ConcurrentLearnNeverCollides` (adapted in L1 step 10 to drive the production `newLearnDeps` composition over a real flock — strictly stronger than before) and `TestManifest_ConcurrentWritersDoNotLoseEntries` (its Lock closures repointed by T8 to the test-local real-flock `testFlocker{}` per R7 — still real OS flocks; L2/T4 only grep-verifies `ExportFlockPath` is gone).
 
 ## Complete os/time inventory for the cluster (line → replacement)
 
@@ -2593,9 +2670,12 @@ AI-Used: [claude]
    // cmd/engram (package main) and is not importable here; test files are
    // exempt from the internal/ purity rules, so this double calls os directly.
    // Errors are wrapped with %w, matching the production contract that
-   // errors.Is(err, fs.ErrNotExist) must survive the adapter.
+   // errors.Is(err, fs.ErrNotExist) / errors.Is(err, fs.ErrExist) must
+   // survive the adapter.
    // WriteFileAtomic is a plain write — ADR-0013 atomicity is exercised by
    // cmd/engram's own integration tests, never through this double.
+   // WriteFileExcl is a real exclusive create (O_CREATE|O_EXCL) matching
+   // T3's EdgeFS addition.
    type osTestEdgeFS struct{}
 
    func (osTestEdgeFS) ReadFile(path string) ([]byte, error) {
@@ -2620,6 +2700,22 @@ AI-Used: [claude]
    	err := os.WriteFile(path, data, perm)
    	if err != nil {
    		return fmt.Errorf("test edgefs: writing %s: %w", path, err)
+   	}
+
+   	return nil
+   }
+
+   func (osTestEdgeFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+   	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // test fixture path
+   	if err != nil {
+   		return fmt.Errorf("test edgefs: opening excl %s: %w", path, err)
+   	}
+
+   	defer func() { _ = file.Close() }()
+
+   	_, err = file.Write(data)
+   	if err != nil {
+   		return fmt.Errorf("test edgefs: writing excl %s: %w", path, err)
    	}
 
    	return nil
@@ -3011,6 +3107,8 @@ AI-Used: [claude]
    - `errHandler(RunShow(withLog(ctx), a, newOsShowDeps(), stdout))` → `errHandler(RunShow(withLog(ctx), a, newShowDeps(d), stdout))`
    - `errHandler(RunCheck(withLog(ctx), a, newOsCheckDeps(), stdout))` → `errHandler(RunCheck(withLog(ctx), a, newCheckDeps(d), stdout))`
 
+   The executed targets-level tests riding these flips (`TestTargets_CountEmptyVault` count_test.go:562, the show test targets_test.go:160-177) dereference `d.FS` through `newVaultFS(d.FS)` — `newTestDeps` already carries `FS`/`Lock` since T3 (R11); no `newTestDeps` edit here.
+
 5. [ ] Update export_test.go: delete the three var-block entries (lines 77, 78, 80):
    ```go
    ExportNewOsCheckDeps                   = newOsCheckDeps
@@ -3044,21 +3142,21 @@ AI-Used: [claude]
    - count_test.go line 464: `cli.ExportNewOsCountDeps()` → `cli.ExportNewCountDeps(osTestEdgeFS{})`; update the comment at 454-455 from "exercises newOsCountDeps" to "exercises newCountDeps over a real-FS EdgeFS" and at 560 from "newOsCountDeps + resolveVault" to "newCountDeps + resolveVault"
 
 7. [ ] Run `targ test` — expected: all green (new vaultFS tests pass; count/show/check suites pass unchanged). Run `targ check-full` — expected: no new findings.
-8. [ ] Commit: `refactor(cli): #700 query-family vault reads via EdgeFS-backed vaultFS`
+8. [ ] Commit: `refactor(cli): vault reads via EdgeFS-backed vaultFS (#700)`
 
 ---
 
-### Task T6 (Q2): query + query-chunks compose from Deps (EdgeFS lister, injected clock)
+### Task T6 (Q2): query + query-chunks + show-chunk compose from Deps (EdgeFS lister, injected clock)
 
-Sequencing: AFTER Q1 and AFTER the amend/prune/show-chunk cluster tasks land `newAmendDeps(d)`, `newPruneDeps(d)`, `newShowChunkDeps(d)` (their call sites must have `d Deps` in scope for the atomic signature flip).
+Sequencing: AFTER Q1 (`newVaultFS`, `osTestEdgeFS`). Per R4, T6 runs BEFORE the prune (T9) and amend (T12) conversions — so T6 flips `listJSONLIndexes` call sites ONLY in the files it converts itself (query.go, query_chunks.go, show_chunk.go; T6 owns the show-chunk conversion) and keeps the legacy os-backed lister alive, renamed `osListJSONLIndexes`, for amend/prune until T9/T12 flip their own lines. T12 (last consumer) deletes it, grep-gated. See R3.
 
 **Files:**
-- Modify: `internal/cli/query_chunks.go`, `internal/cli/query.go`, `internal/cli/export_test.go`, `internal/cli/query_chunks_test.go`, `internal/cli/ingest_integration_test.go` (2 lines), `internal/cli/targets.go` (2 lines), `internal/cli/amend.go` (1 line), `internal/cli/prune.go` (1 line), `internal/cli/show_chunk.go` (1 line), `internal/cli/deps.go` (only if `logWarningTo` not yet landed by the learn cluster)
+- Modify: `internal/cli/query_chunks.go`, `internal/cli/query.go`, `internal/cli/show_chunk.go` (full `newShowChunkDeps` conversion — step 5), `internal/cli/export_test.go`, `internal/cli/query_chunks_test.go`, `internal/cli/ingest_integration_test.go` (2 lines), `internal/cli/targets.go` (3 lines), `internal/cli/amend.go` (1 line, mechanical rename only), `internal/cli/prune.go` (1 line, mechanical rename only), `internal/cli/deps.go` (only if `logWarningTo` not yet landed by the learn cluster)
 - Delete: none
 
 **Interfaces:**
 - Consumes: `cli.Deps{FS, Embed, Stderr, Now}`; `logWarningTo(w io.Writer) func(format string, args ...any)`
-- Produces: `func listJSONLIndexes(fsys EdgeFS) func(dir string) ([]string, error)` (CANONICAL final shape — amend/prune/show-chunk clusters consume it as `listJSONLIndexes(d.FS)`); `func newChunkQueryDeps(d Deps) ChunkQueryDeps`; `func newQueryDeps(d Deps) QueryDeps`; test shim `ExportNewChunkQueryDeps(fsys EdgeFS, emb embed.Embedder) ChunkQueryDeps`
+- Produces: `func listJSONLIndexes(fsys EdgeFS) func(dir string) ([]string, error)` (CANONICAL final shape — T6 consumes it in-file for query/query-chunks/show-chunk; T9 (prune) and T12 (amend) consume it as `listJSONLIndexes(d.FS)` when they convert); `osListJSONLIndexes` (TRANSITIONAL — the renamed legacy os-backed lister, deleted by T12 grep-gated); `func newChunkQueryDeps(d Deps) ChunkQueryDeps`; `func newQueryDeps(d Deps) QueryDeps`; `func newShowChunkDeps(d Deps) ShowChunkDeps`; test shim `ExportNewChunkQueryDeps(fsys EdgeFS, emb embed.Embedder) ChunkQueryDeps`
 
 **Steps:**
 
@@ -3101,7 +3199,15 @@ Sequencing: AFTER Q1 and AFTER the amend/prune/show-chunk cluster tasks land `ne
    ```
    Run `targ test` — expected: compile failure (`undefined: cli.ExportNewChunkQueryDeps` — the old shim is `ExportNewOsChunkQueryDeps`).
 
-2. [ ] GREEN — rewrite `internal/cli/query_chunks.go` I/O seams. Imports: delete `"os"`, add `"io/fs"`. Replace lines 136-157 (current `listJSONLIndexes` shown in inventory) with:
+2. [ ] GREEN — rewrite `internal/cli/query_chunks.go` I/O seams. Imports: add `"io/fs"`; KEEP `"os"` (the transitional lister below still uses `os.ReadDir`/`os.IsNotExist`; T12 deletes both). Do NOT delete the legacy os-backed lister (current lines 136-157) — amend.go and prune.go still reference it and have no `d Deps` in scope yet (R3). Instead RENAME it to `osListJSONLIndexes`, body unchanged, with this replacement doc comment:
+   ```go
+   // osListJSONLIndexes is the TRANSITIONAL os-backed .jsonl lister (#700).
+   // Remaining consumers: amend.go (newOsAmendDeps) and prune.go
+   // (newOsPruneDeps); T9/T12 flip those lines to listJSONLIndexes(d.FS) when
+   // they convert, and T12 (last consumer) deletes this func + the "os" import.
+   func osListJSONLIndexes(dir string) ([]string, error) {
+   ```
+   and ADD the canonical curried lister alongside it:
    ```go
    // listJSONLIndexes returns a lister over fsys for the .jsonl files directly
    // under a dir. A missing dir is an empty index (cold start), not an error —
@@ -3189,12 +3295,39 @@ Sequencing: AFTER Q1 and AFTER the amend/prune/show-chunk cluster tasks land `ne
    }
    ```
 
-4. [ ] Atomic call-site flip for `listJSONLIndexes` (same commit; these constructors are d-scoped by their own cluster tasks at this point — apply the same one-line edit to whatever the constructor is named at rebase time):
-   - amend.go:365 `ListIndexes: listJSONLIndexes,` → `ListIndexes: listJSONLIndexes(d.FS),`
-   - prune.go:115 `ListIndexes: listJSONLIndexes,` → `ListIndexes: listJSONLIndexes(d.FS),`
-   - show_chunk.go:72 `ListIndexes: listJSONLIndexes,` → `ListIndexes: listJSONLIndexes(d.FS),`
+4. [ ] Mechanical rename of the two remaining foreign references (same commit; rename ONLY — these constructors are still `newOsAmendDeps()`/`newOsPruneDeps()` with no `d Deps` in scope, so NO deps flip here; T12/T9 own those flips per R3):
+   - amend.go:365 `ListIndexes: listJSONLIndexes,` → `ListIndexes: osListJSONLIndexes,`
+   - prune.go:115 `ListIndexes: listJSONLIndexes,` → `ListIndexes: osListJSONLIndexes,`
+   - amend.go:361-362 comment `// listJSONLIndexes (query_chunks.go) lists *.jsonl chunk indexes, treats` → start it with `// osListJSONLIndexes (query_chunks.go) lists ...` (T12 replaces the whole constructor, comment included, when it converts).
 
-5. [ ] Update export_test.go lines 514-521, current:
+5. [ ] Convert `internal/cli/show_chunk.go` — the query family owns show-chunk; this also retires the last `osEmbedFS` consumer outside the files T8/T9/T12/T15 already handle, so T15's `osEmbedFS` deletion compiles. Current code (show_chunk.go:66-75, verified — `&osEmbedFS{}` at :69, lister reference at :72):
+   ```go
+   // newOsShowChunkDeps wires the production filesystem index loader for
+   // `engram show-chunk`. No embedder is needed — lookup is by id, not similarity.
+   func newOsShowChunkDeps() ShowChunkDeps {
+   	fs := &osEmbedFS{}
+
+   	return ShowChunkDeps{
+   		ListIndexes: listJSONLIndexes,
+   		ReadFile:    fs.Read,
+   	}
+   }
+   ```
+   Replace with:
+   ```go
+   // newShowChunkDeps wires `engram show-chunk` from the injected CLI
+   // capabilities — pure composition (#700). No embedder is needed — lookup
+   // is by id, not similarity.
+   func newShowChunkDeps(d Deps) ShowChunkDeps {
+   	return ShowChunkDeps{
+   		ListIndexes: listJSONLIndexes(d.FS),
+   		ReadFile:    d.FS.ReadFile,
+   	}
+   }
+   ```
+   No import changes in show_chunk.go (it never imported `os`; `osEmbedFS` came from package-mate embed.go). Behavioral note: `ReadFile`'s error wrap text changes from osEmbedFS's `"read: %w"` to the EdgeFS adapter's wrap — non-behavioral; `loadChunkRecords` only re-wraps. Test adjustments: NONE — show_chunk_test.go's three tests (lines 18, 39, 61) inject `cli.ShowChunkDeps{...}` literals directly and never touch the constructor; there is no `ExportNewOsShowChunkDeps` shim (verified); the wiring is exercised by targets_test.go:179's show-chunk test through `executeForTest` and the step-9 suite run.
+
+6. [ ] Update export_test.go lines 514-521, current:
    ```go
    // ExportNewOsChunkQueryDeps returns production ChunkQueryDeps with an
    // injected embedder, mirroring ExportNewOsIngestDeps.
@@ -3218,16 +3351,16 @@ Sequencing: AFTER Q1 and AFTER the amend/prune/show-chunk cluster tasks land `ne
    ```
    Update ingest_integration_test.go lines 100 and 204: `cli.ExportNewOsChunkQueryDeps(fakeIngestEmbedder{})` → `cli.ExportNewChunkQueryDeps(osTestEdgeFS{}, fakeIngestEmbedder{})`.
 
-6. [ ] Update targets.go call sites: line 155 `newOsQueryDeps()` → `newQueryDeps(d)`; line 169 `newOsChunkQueryDeps()` → `newChunkQueryDeps(d)`.
-7. [ ] Verify no os import remains in the migrated files: `grep -n '"os"' internal/cli/query_chunks.go internal/cli/query.go` — expected: no output. `grep -n 'time\.Now' internal/cli/query.go` — expected: no output.
-8. [ ] Run `targ test` — expected: all green (step-1 tests now pass; ingest integration + query suites unchanged). Run `targ check-full` — expected: clean.
-9. [ ] Commit: `refactor(cli): #700 query/query-chunks compose from Deps (EdgeFS lister, injected clock)`
+7. [ ] Update targets.go call sites (identifier is `deps`, per T2's landed `ingestQueryTargets(deps Deps, ...)`): line 155 `newOsQueryDeps()` → `newQueryDeps(deps)`; line 169 `newOsChunkQueryDeps()` → `newChunkQueryDeps(deps)`; line 186 `newOsShowChunkDeps()` → `newShowChunkDeps(deps)` (line numbers are pre-T2 anchors — locate by constructor name).
+8. [ ] Verify purity of the migrated files: `grep -n '"os"' internal/cli/query.go internal/cli/show_chunk.go` — expected: no output. `grep -n 'time\.Now' internal/cli/query.go` — expected: no output. `grep -n 'os\.' internal/cli/query_chunks.go` — expected: hits ONLY inside `osListJSONLIndexes` (the transitional lister; full query_chunks.go purity is T12's exit criterion, not this task's). `grep -rn 'newOsShowChunkDeps\|osEmbedFS' internal/cli/show_chunk.go` — expected: no output.
+9. [ ] Run `targ test` — expected: all green (step-1 tests now pass; show-chunk, ingest integration + query suites unchanged). Run `targ check-full` — expected: clean.
+10. [ ] Commit: `refactor(cli): query + show-chunk compose from Deps (#700)`
 
 ---
 
 ### Task T7 (Q3): Purge legacy `osVaultFS` (grep-gated, runs LAST)
 
-Sequencing: after the amend/learn/qa/resituate/embed/vocab clusters migrate to `newVaultFS(d.FS)` and vocab tests drop `ExportNewOsVaultFS`. Belongs immediately before the depguard/forbidigo enforcement task.
+Sequencing: after the amend/learn/qa/resituate/embed/vocab clusters migrate to `newVaultFS(d.FS)` and T12 migrates the vocab tests off `ExportNewOsVaultFS` (R12). Belongs immediately before the depguard/forbidigo enforcement task.
 
 **Files:**
 - Modify: `internal/cli/vault_fs.go` (delete `osVaultFS` + methods + `"os"` import), `internal/cli/export_test.go` (delete `ExportNewOsVaultFS`, lines currently 572-578)
@@ -3237,7 +3370,7 @@ Sequencing: after the amend/learn/qa/resituate/embed/vocab clusters migrate to `
 - Consumes: nothing new. Produces: a pure vault_fs.go (zero I/O-capable imports).
 
 **Steps:**
-1. [ ] Gate: `grep -rn "osVaultFS" internal/cli --include='*.go'` — expected: hits ONLY in vault_fs.go (definition) and export_test.go (shim). Any other hit → STOP; that cluster has not migrated; do not proceed.
+1. [ ] Gate: `grep -rn "osVaultFS\|ExportNewOsVaultFS" internal/cli --include='*.go'` — expected: hits ONLY in vault_fs.go (definition) and export_test.go (shim). Any other hit → STOP; that cluster has not migrated (the `ExportNewOsVaultFS` pattern is load-bearing — R12: the lowercase-only `osVaultFS` grep cannot see the capital-O shim call sites, so without it this task's deletion is a silent compile break); do not proceed.
 2. [ ] Delete from vault_fs.go: the `osVaultFS` type, its `ListMD`/`ReadFile` methods, and the `"os"` import (all other imports stay: errors, fmt, io/fs, path/filepath, strings).
 3. [ ] Delete from export_test.go:
    ```go
@@ -3268,7 +3401,7 @@ Files read (worktree `/Users/joe/repos/personal/engram/.claude/worktrees/700-int
 - Modify: `internal/cli/ingest_auto_test.go`, `internal/cli/ingest_integration_test.go`, `internal/cli/ingest_test.go`, `internal/cli/adapters_test.go`
 
 **Interfaces:**
-- Consumes (foundation): `type Deps struct { …; Getenv func(string) string; Now func() time.Time; Getwd func() (string, error); UserHomeDir func() (string, error); FS EdgeFS; Lock FileLocker; Embed embed.Embedder; … }`; `EdgeFS` with `ReadFile/WriteFile/WriteFileAtomic/MkdirAll/MkdirTemp/Stat/ReadDir/Remove/RemoveAll/Rename/WalkDir`; `FileLocker.Lock(path string) (unlock func() error, err error)`; `transcript.NewJSONLReader(reader sessionctx.FileReader) *JSONLReader` where `sessionctx.FileReader` is `Read(path string) ([]byte, error)` (internal/context/context.go:7).
+- Consumes (foundation): `type Deps struct { …; Getenv func(string) string; Now func() time.Time; Getwd func() (string, error); UserHomeDir func() (string, error); FS EdgeFS; Lock FileLocker; Embed embed.Embedder; … }`; `EdgeFS` with `ReadFile/WriteFile/WriteFileAtomic/WriteFileExcl/MkdirAll/MkdirTemp/Stat/ReadDir/Remove/RemoveAll/Rename/WalkDir` (`WriteFileExcl` is T3's flagged addition); `FileLocker.Lock(path string) (unlock func() error, err error)`; `transcript.NewJSONLReader(reader sessionctx.FileReader) *JSONLReader` where `sessionctx.FileReader` is `Read(path string) ([]byte, error)` (internal/context/context.go:7).
 - Produces: `func newIngestDeps(d Deps) IngestDeps`; `func manifestLockFrom(d Deps) func(chunksDir string) (func(), error)`; `func sessionDirFrom(getenv func(string) string, userHomeDir func() (string, error)) func(string) string`; `func sweepListerFrom(walkDir func(root string, fn fs.WalkDirFunc) error) func(SweepRoot) ([]string, error)`; `type fsFileReader struct{ fs EdgeFS }` with `Read(path string) ([]byte, error)`; test export `func ExportNewIngestDeps(d Deps, emb embed.Embedder) IngestDeps`.
 
 **Steps:**
@@ -3467,6 +3600,7 @@ type fakeEdgeFS struct {
 	readFile        func(string) ([]byte, error)
 	writeFile       func(string, []byte, fs.FileMode) error
 	writeFileAtomic func(string, []byte, fs.FileMode) error
+	writeFileExcl   func(string, []byte, fs.FileMode) error
 	mkdirAll        func(string, fs.FileMode) error
 	mkdirTemp       func(string, string) (string, error)
 	stat            func(string) (fs.FileInfo, error)
@@ -3485,6 +3619,10 @@ func (f fakeEdgeFS) WriteFile(path string, data []byte, perm fs.FileMode) error 
 
 func (f fakeEdgeFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
 	return f.writeFileAtomic(path, data, perm)
+}
+
+func (f fakeEdgeFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+	return f.writeFileExcl(path, data, perm)
 }
 
 func (f fakeEdgeFS) MkdirAll(path string, perm fs.FileMode) error { return f.mkdirAll(path, perm) }
@@ -3534,6 +3672,10 @@ func (osTestFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
 
 func (osTestFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
 	return testAtomicWrite(path, data, perm)
+}
+
+func (osTestFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+	return testWriteFileExcl(path, data, perm)
 }
 
 func (osTestFS) MkdirAll(path string, perm fs.FileMode) error { return os.MkdirAll(path, perm) }
@@ -3599,6 +3741,24 @@ func testAtomicWrite(path string, data []byte, perm fs.FileMode) error {
 		_ = os.Remove(tmp)
 
 		return fmt.Errorf("atomic write rename: %w", err)
+	}
+
+	return nil
+}
+
+// testWriteFileExcl is exclusive create (O_CREATE|O_EXCL), mirroring the
+// production WriteFileExcl; a wrapped fs.ErrExist survives errors.Is.
+func testWriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
+	if err != nil {
+		return fmt.Errorf("excl write open: %w", err)
+	}
+
+	defer func() { _ = file.Close() }()
+
+	_, writeErr := file.Write(data)
+	if writeErr != nil {
+		return fmt.Errorf("excl write: %w", writeErr)
 	}
 
 	return nil
@@ -3914,7 +4074,7 @@ git add internal/cli/ingest.go internal/cli/cli.go internal/cli/targets.go \
   internal/cli/export_test.go internal/cli/ingest_family_deps_test.go \
   internal/cli/ingest_auto_test.go internal/cli/ingest_integration_test.go \
   internal/cli/ingest_test.go internal/cli/adapters_test.go
-git commit -m "refactor(cli): compose ingest deps from cli.Deps, no direct os in ingest.go (#700)
+git commit -m "refactor(cli): compose ingest deps from cli.Deps (#700)
 
 ENGRAM_TRANSCRIPT_DIR + home via deps.Getenv/UserHomeDir, walk via
 EdgeFS.WalkDir, manifest lock via FileLocker behind MkdirAll composition
@@ -3929,7 +4089,7 @@ AI-Used: [claude]"
 ### Task T9 (I2): Migrate `engram prune` wiring to cli.Deps composition and retire osManifestLock
 
 **Files:**
-- Modify: `internal/cli/prune.go` (replace `newOsPruneDeps` with `newPruneDeps`; add shared `jsonlIndexListerFrom`)
+- Modify: `internal/cli/prune.go` (replace `newOsPruneDeps` with `newPruneDeps`; flip its lister line from the transitional `osListJSONLIndexes` to T6's canonical `listJSONLIndexes(d.FS)` — per R3, T9 declares NO lister helper)
 - Modify: `internal/cli/cli.go` (delete `osManifestLock` — last consumer gone)
 - Modify: `internal/cli/targets.go` (prune call site)
 - Modify: `internal/cli/export_test.go` (swap `ExportNewOsPruneDeps` → `ExportNewPruneDeps`; delete `ExportOsManifestLock`)
@@ -3937,8 +4097,8 @@ AI-Used: [claude]"
 - Modify: `internal/cli/prune_integration_test.go`, `internal/cli/testhelpers_test.go`
 
 **Interfaces:**
-- Consumes: `Deps`/`EdgeFS`/`FileLocker` (foundation), `manifestLockFrom` (Task I1), `chunksDirPerm`/`indexFilePerm` consts (Task I1).
-- Produces: `func newPruneDeps(d Deps) PruneDeps`; `func jsonlIndexListerFrom(readDir func(string) ([]fs.DirEntry, error)) func(string) ([]string, error)` (shared helper — query/show/amend clusters migrate their `listJSONLIndexes` call sites to this; the os-based `listJSONLIndexes` in query_chunks.go is deleted by whichever cluster removes its last consumer).
+- Consumes: `Deps`/`EdgeFS`/`FileLocker` (foundation), `manifestLockFrom` (Task I1), `chunksDirPerm`/`indexFilePerm` consts (Task I1), `listJSONLIndexes(fsys EdgeFS)` (T6's canonical curried lister — landed earlier per R4).
+- Produces: `func newPruneDeps(d Deps) PruneDeps`. Per R3, T9 declares NO lister helper (`jsonlIndexListerFrom` is not created anywhere): it flips prune.go's line off the transitional `osListJSONLIndexes` onto `listJSONLIndexes(d.FS)`; the transitional lister itself is deleted later by T12 (amend, its last consumer), grep-gated.
 
 **Steps:**
 
@@ -4040,21 +4200,19 @@ func (e fakeDirEntry) Info() (fs.FileInfo, error) { return nil, fs.ErrInvalid }
 
 Run `targ test` — expected FAIL: `undefined: cli.ExportNewPruneDeps`.
 
-- [ ] 2. GREEN — rewrite `internal/cli/prune.go`. Import block (current lines 3-10) becomes:
+- [ ] 2. GREEN — rewrite `internal/cli/prune.go`. Import block (current lines 3-10; `filepath` stays for the `filepath.Join` calls in `RunPrune`) becomes:
 
 ```go
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"path/filepath"
 )
 ```
 
-Update the stale `PruneDeps.Lock` doc comment (current lines 21-22): `// Wired to flockPath(chunksDir/.manifest.lock) in newOsPruneDeps.` → `// Wired to manifestLockFrom (MkdirAll + FileLocker flock) in newPruneDeps.` Replace `newOsPruneDeps` (current lines 102-118):
+Update the stale `PruneDeps.Lock` doc comment (current line 22 — the full line, prefix included, so a literal find/replace works): `// release func. Wired to flockPath(chunksDir/.manifest.lock) in newOsPruneDeps.` → `// release func. Wired to manifestLockFrom (MkdirAll + FileLocker flock) in newPruneDeps.` Replace `newOsPruneDeps` (current lines 102-118; note the `ListIndexes` line reads `osListJSONLIndexes` at this point — T6's mechanical rename landed earlier per R4):
 
 ```go
 // newOsPruneDeps wires the production filesystem for `engram prune`.
@@ -4070,45 +4228,15 @@ func newOsPruneDeps() PruneDeps {
 
 			return statErr == nil
 		},
-		ListIndexes: listJSONLIndexes,
+		ListIndexes: osListJSONLIndexes,
 		Remove:      os.Remove,
 	}
 }
 ```
 
-with:
+with (per R3: NO lister helper is declared here — the lister is T6's canonical `listJSONLIndexes(d.FS)`; prune.go was one of `osListJSONLIndexes`'s two remaining consumers, and after this flip only amend.go remains, so T12 deletes it there, grep-gated):
 
 ```go
-// jsonlIndexListerFrom returns a lister of the .jsonl files directly under a
-// dir, reading via the injected readDir (EdgeFS.ReadDir in production). A
-// missing dir is an empty index (cold start), not an error. Shared shape with
-// listJSONLIndexes (query_chunks.go); query/show/amend compose from here as
-// they migrate, after which the os-backed listJSONLIndexes is deleted.
-func jsonlIndexListerFrom(
-	readDir func(string) ([]fs.DirEntry, error),
-) func(string) ([]string, error) {
-	return func(dir string) ([]string, error) {
-		entries, err := readDir(dir)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, nil
-			}
-
-			return nil, fmt.Errorf("listing chunk indexes: %w", err)
-		}
-
-		var paths []string
-
-		for _, entry := range entries {
-			if !entry.IsDir() && filepath.Ext(entry.Name()) == jsonlExt {
-				paths = append(paths, filepath.Join(dir, entry.Name()))
-			}
-		}
-
-		return paths, nil
-	}
-}
-
 // newPruneDeps composes production PruneDeps from the CLI-edge Deps.
 func newPruneDeps(d Deps) PruneDeps {
 	return PruneDeps{
@@ -4127,7 +4255,7 @@ func newPruneDeps(d Deps) PruneDeps {
 
 			return statErr == nil
 		},
-		ListIndexes: jsonlIndexListerFrom(d.FS.ReadDir),
+		ListIndexes: listJSONLIndexes(d.FS),
 		Remove:      d.FS.Remove,
 	}
 }
@@ -4160,7 +4288,7 @@ becomes:
 func ExportNewPruneDeps(d Deps) PruneDeps { return newPruneDeps(d) }
 ```
 
-- [ ] 6. Adapt tests. `internal/cli/prune_integration_test.go` line 48: `cli.ExportNewOsPruneDeps()` → `cli.ExportNewPruneDeps(testDeps())`. `internal/cli/testhelpers_test.go`: delete `TestOsManifestLock_MkdirError` (current lines 13-29) and its now-unused imports if any (`os`, `filepath`, `cli`, `gomega` — check remaining uses; `sliceIndex` stays) — its coverage is replaced by the pure `TestIngestDepsLockMkdirErrorPropagates` (Task I1) plus the shared `manifestLockFrom` path now exercised by both constructors.
+- [ ] 6. Adapt tests. `internal/cli/prune_integration_test.go` line 48: `cli.ExportNewOsPruneDeps()` → `cli.ExportNewPruneDeps(testDeps())`. `internal/cli/testhelpers_test.go`: delete `TestOsManifestLock_MkdirError` (current lines 13-28) and its now-unused imports if any (`os`, `filepath`, `cli`, `gomega` — check remaining uses; `sliceIndex` stays) — its coverage is replaced by the pure `TestIngestDepsLockMkdirErrorPropagates` (Task I1) plus the shared `manifestLockFrom` path now exercised by both constructors.
 
 - [ ] 7. Verify: `targ test` — expected PASS, including `TestOsPruneDetachesDeadSource` (real FS through `testDeps()`), `TestRunPrune_LocksManifestAroundReadModifyWrite` (untouched — pure injected deps), and `TestManifest_ConcurrentWritersDoNotLoseEntries`. Purity grep, must print nothing: `grep -nE '\bos\.|time\.Now|syscall' internal/cli/prune.go`. Then `targ check-full` — expected clean. Then run the real flow once (passing tests are not a usable system): `go install ./cmd/engram && cd $(mktemp -d) && ENGRAM_CHUNKS_DIR=$PWD/chunks engram prune` — expected stdout `prune: no manifest, nothing to prune` and a created `chunks/.manifest.lock` (proves the MkdirAll-before-lock composition against the real wired binary; requires the foundation cmd wiring to be in place).
 
@@ -4170,19 +4298,19 @@ func ExportNewPruneDeps(d Deps) PruneDeps { return newPruneDeps(d) }
 git add internal/cli/prune.go internal/cli/cli.go internal/cli/targets.go \
   internal/cli/export_test.go internal/cli/ingest_family_deps_test.go \
   internal/cli/prune_integration_test.go internal/cli/testhelpers_test.go
-git commit -m "refactor(cli): compose prune deps from cli.Deps, retire osManifestLock (#700)
+git commit -m "refactor(cli): compose prune deps, retire osManifestLock (#700)
 
 Stat/Remove/ReadDir via EdgeFS, manifest lock via shared manifestLockFrom
-(MkdirAll-before-flock fresh-dir regression preserved). jsonlIndexListerFrom
-added as the pure lister for the remaining listJSONLIndexes call sites to
-migrate onto.
+(MkdirAll-before-flock fresh-dir regression preserved). Prune's index lister
+now flows through the canonical listJSONLIndexes(d.FS) (T6); the transitional
+osListJSONLIndexes keeps amend.go as its sole consumer until T12 deletes it.
 
 AI-Used: [claude]"
 ```
 
 ---
 
-Verified source anchors: internal/cli/ingest.go (os at 248/252/496/504/516/520, time.Now at 514, filepath.WalkDir at 662), internal/cli/prune.go (os.Stat 111, os.Remove 117), internal/cli/cli.go (osFileReader 27, flockPath 169, osManifestLock 227, manifestLockFile 17), internal/cli/targets.go (157-166), internal/cli/query_chunks.go (listJSONLIndexes 138), internal/cli/embed.go (osEmbedFS 140, sharedEmbedder 110), internal/context/context.go (FileReader 7), internal/embed/embedder.go (Embedder 54), tests: ingest_test.go 319/376/403/899, ingest_auto_test.go 48-105, ingest_integration_test.go 188, prune_integration_test.go 48, testhelpers_test.go 13-29, adapters_test.go 14-39, export_test.go 79/342/536/543/687.
+Verified source anchors: internal/cli/ingest.go (os at 248/252/496/504/516/520, time.Now at 514, filepath.WalkDir at 662), internal/cli/prune.go (os.Stat 111, os.Remove 116), internal/cli/cli.go (osFileReader 27, flockPath 169, osManifestLock 227, manifestLockFile 17), internal/cli/targets.go (157-166), internal/cli/query_chunks.go (listJSONLIndexes 138), internal/cli/embed.go (osEmbedFS 140, sharedEmbedder 110), internal/context/context.go (FileReader 7), internal/embed/embedder.go (Embedder 54), tests: ingest_test.go 319/376/403/899, ingest_auto_test.go 48-105, ingest_integration_test.go 188, prune_integration_test.go 48, testhelpers_test.go 13-28, adapters_test.go 14-39, export_test.go 79/342/536/543/687.
 
 ### Task T10 (M1): Move atomic write to cmd/engram as EdgeFS.WriteFileAtomic
 
@@ -4470,7 +4598,7 @@ func doAtomicWrite(
 6. [ ] Commit:
 
 ```
-refactor(cli): move atomic write to cmd/engram as EdgeFS.WriteFileAtomic (#700)
+refactor(cli): move atomic write behind EdgeFS (#700)
 
 Relocates the internal/cli/writesafe.go temp+chmod+write+close+rename dance
 verbatim onto the production EdgeFS adapter; relocates its 5 regression tests
@@ -4482,25 +4610,22 @@ AI-Used: [claude]
 
 ---
 
-### Task T11 (M2): Pure edge-composition helpers + os-backed test Deps
+### Task T11 (M2): os-backed test Deps + contract tests over the landed canonical helpers
 
 **Files**
-- Create: `internal/cli/deps_compose.go`
-- Create: `internal/cli/deps_compose_internal_test.go`
+- Create: `internal/cli/deps_compose_internal_test.go` (fake-driven contract tests over the LANDED canonical helpers)
 - Create: `internal/cli/testdeps_test.go`
+- Verify-only (NO edit — R1): `internal/cli/deps_compose.go`. T3 created it and it already carries everything this task's draft once declared: the four parallel-drafted helpers (`edgeVaultFS`, `vaultLuhmannLock`, `warnLoggerTo`, `jsonlIndexesLister`) are LOSERS per R1/R2/R3 — their canonical equivalents are T5's `newVaultFS(fsys EdgeFS)` (vault_fs.go), T3's `vaultLockFromLocker`/`logWarningTo` (deps_compose.go), and T6's `listJSONLIndexes(fsys EdgeFS)` (query_chunks.go). T11 appends NOTHING to deps_compose.go; NEVER apply a full-file `package cli` replacement (it would clobber T3's landed `vaultLockFromLocker`/`logWarningTo`/`statDirFromFS`/`initVaultFromFS`/`list*FromFS`/`write*FromFS` helpers).
 
 **Interfaces**
-- Consumes: `type Deps struct{...}`, `type EdgeFS interface{...}`, `type FileLocker interface{...}` from internal/cli/deps.go (foundation task — M2 is blocked on it); `luhmannLockFile` const (internal/cli/cli.go:16, pure, stays); `jsonlExt` const (query_chunks.go, pure, stays).
+- Consumes: `type Deps struct{...}`, `type EdgeFS interface{...}`, `type FileLocker interface{...}` from internal/cli/deps.go (foundation task — M2 is blocked on it); `luhmannLockFile` const (internal/cli/cli.go:16, pure, stays); the landed canonical helpers `newVaultFS` (T5), `listJSONLIndexes` (T6), `vaultLockFromLocker` + `logWarningTo` (T3) — all in place before T11 per R4.
 - Produces:
-  - `type edgeVaultFS struct{ fs EdgeFS }` with `ListMD(dir string) ([]string, error)` and `ReadFile(path string) ([]byte, error)` — satisfies `vaultgraph.VaultFS`.
-  - `func vaultLuhmannLock(locker FileLocker) func(vault string) (func(), error)`
-  - `func warnLoggerTo(w io.Writer) func(format string, args ...any)`
-  - `func jsonlIndexesLister(edgeFS EdgeFS) func(dir string) ([]string, error)`
-  - Test-only: `func ExportNewTestOsDeps() Deps` (package cli, _test.go file).
+  - Test-only: `func ExportNewTestOsDeps() Deps` (package cli, _test.go file) — this task's ONLY new symbol.
+  - Additional fake-driven test coverage of the canonical helpers' contracts (wrapped-ErrNotExist handling, lock path, warning format).
 
 **Steps**
 
-1. [ ] RED: create `internal/cli/deps_compose_internal_test.go` (package `cli`, internal-test precedent: resituate_internal_test.go). Compile failure on the missing helpers is the RED:
+1. [ ] Create `internal/cli/deps_compose_internal_test.go` (package `cli`, internal-test precedent: resituate_internal_test.go). These tests drive the LANDED canonical helpers (T3/T5/T6 — no new production code in this task, so there is no compile-RED; they add fake-driven contract coverage the real-FS suites can't express as directly):
 
 ```go
 package cli
@@ -4516,54 +4641,54 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestEdgeVaultFS_ListMD_FiltersToMDFilesSkippingDirs(t *testing.T) {
+func TestNewVaultFS_ListMD_FiltersToMDFilesSkippingDirs(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	vaultFS := edgeVaultFS{fs: fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
+	vfs := newVaultFS(fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
 		return []fs.DirEntry{
 			fakeDirEntry{name: "1.2026-01-01.note.md"},
 			fakeDirEntry{name: "sidecar.vec.json"},
 			fakeDirEntry{name: "subdir", dir: true},
 		}, nil
-	}}}
+	}})
 
-	names, err := vaultFS.ListMD("/vault")
+	names, err := vfs.ListMD("/vault")
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(names).To(Equal([]string{"1.2026-01-01.note.md"}))
 }
 
-func TestEdgeVaultFS_ListMD_MissingDirIsEmptyNotError(t *testing.T) {
+func TestNewVaultFS_ListMD_MissingDirIsEmptyNotError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	vaultFS := edgeVaultFS{fs: fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
+	vfs := newVaultFS(fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
 		return nil, fmt.Errorf("read dir: %w", fs.ErrNotExist)
-	}}}
+	}})
 
-	names, err := vaultFS.ListMD("/missing")
+	names, err := vfs.ListMD("/missing")
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(names).To(BeEmpty())
 }
 
-func TestEdgeVaultFS_ReadFile_WrapsErrorWithPath(t *testing.T) {
+func TestNewVaultFS_ReadFile_WrapsErrorWithPath(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	vaultFS := edgeVaultFS{fs: fakeEdgeFS{readFile: func(string) ([]byte, error) {
+	vfs := newVaultFS(fakeEdgeFS{readFile: func(string) ([]byte, error) {
 		return nil, errInjectedCompose
-	}}}
+	}})
 
-	_, err := vaultFS.ReadFile("/vault/x.md")
+	_, err := vfs.ReadFile("/vault/x.md")
 	g.Expect(err).To(MatchError(errInjectedCompose))
 	g.Expect(err).To(MatchError(ContainSubstring("/vault/x.md")))
 }
 
-func TestJSONLIndexesLister_FiltersAndTreatsMissingDirAsEmpty(t *testing.T) {
+func TestListJSONLIndexes_FiltersAndTreatsMissingDirAsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	lister := jsonlIndexesLister(fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
+	lister := listJSONLIndexes(fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
 		return []fs.DirEntry{
 			fakeDirEntry{name: "s.jsonl"},
 			fakeDirEntry{name: "manifest.json"},
@@ -4575,7 +4700,7 @@ func TestJSONLIndexesLister_FiltersAndTreatsMissingDirAsEmpty(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(paths).To(Equal([]string{"/chunks/s.jsonl"}))
 
-	missing := jsonlIndexesLister(fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
+	missing := listJSONLIndexes(fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
 		return nil, fmt.Errorf("read dir: %w", fs.ErrNotExist)
 	}})
 
@@ -4584,7 +4709,7 @@ func TestJSONLIndexesLister_FiltersAndTreatsMissingDirAsEmpty(t *testing.T) {
 	g.Expect(paths).To(BeEmpty())
 }
 
-func TestVaultLuhmannLock_LocksVaultLuhmannLockFileAndReleases(t *testing.T) {
+func TestVaultLockFromLocker_LocksVaultLuhmannLockFileAndReleases(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -4597,7 +4722,7 @@ func TestVaultLuhmannLock_LocksVaultLuhmannLockFileAndReleases(t *testing.T) {
 		return func() error { unlocked = true; return nil }, nil
 	}}
 
-	lock := vaultLuhmannLock(locker)
+	lock := vaultLockFromLocker(locker)
 
 	release, err := lock("/vault")
 	g.Expect(err).NotTo(HaveOccurred())
@@ -4612,13 +4737,13 @@ func TestVaultLuhmannLock_LocksVaultLuhmannLockFileAndReleases(t *testing.T) {
 	g.Expect(unlocked).To(BeTrue())
 }
 
-func TestWarnLoggerTo_FormatsWithWarningPrefixAndNewline(t *testing.T) {
+func TestLogWarningTo_FormatsWithWarningPrefixAndNewline(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	var buf bytes.Buffer
 
-	warnLoggerTo(&buf)("amend: %s failed after %d tries", "embed", 2)
+	logWarningTo(&buf)("amend: %s failed after %d tries", "embed", 2)
 	g.Expect(buf.String()).To(Equal("warning: amend: embed failed after 2 tries\n"))
 }
 
@@ -4662,120 +4787,11 @@ var _ = time.Now
 
    (Drop the trailing `var _ = time.Now` and the `time` import if the linter flags them — they exist only if a later step in this file needs a clock; expected final state has neither.)
 
-2. [ ] Run `targ test` — expect FAIL (undefined: edgeVaultFS, jsonlIndexesLister, vaultLuhmannLock, warnLoggerTo). RED confirmed.
+2. [ ] Run `targ test` — expect PASS immediately (the canonical helpers already landed: `vaultLockFromLocker`/`logWarningTo` in T3's deps_compose.go, `newVaultFS` in T5's vault_fs.go, `listJSONLIndexes` in T6's query_chunks.go). There is NO compile-RED in this task because it adds no production code. If any of the four is undefined, an earlier task did not land — STOP and fix the ordering, do NOT declare the missing helper here.
 
-3. [ ] GREEN: create `internal/cli/deps_compose.go` — pure composition, allowed imports only (errors/fmt/io/io\/fs/path\/filepath/strings):
+3. [ ] Verify deps_compose.go needs nothing from this task (R1 guard — verify, never edit): `rg -n "func vaultLockFromLocker|func logWarningTo" internal/cli/deps_compose.go` → both present; `rg -n "func newVaultFS" internal/cli/vault_fs.go` → present; `rg -n "func listJSONLIndexes" internal/cli/query_chunks.go` → present. Also confirm no loser symbol was ever declared: `rg -n "edgeVaultFS|jsonlIndexesLister|vaultLuhmannLock|warnLoggerTo" internal/` → zero hits outside this plan's prose (i.e., none in the tree).
 
-```go
-package cli
-
-import (
-	"errors"
-	"fmt"
-	"io"
-	"io/fs"
-	"path/filepath"
-	"strings"
-)
-
-// edgeVaultFS adapts the injected EdgeFS to vaultgraph.VaultFS (ListMD +
-// ReadFile) and to every per-command dep needing the same shape. Listing a
-// non-existent directory returns empty (not an error) — the scanner uses this
-// to skip missing dirs, matching the retired osVaultFS contract. Relies on
-// EdgeFS.ReadDir wrapping its error with %w so fs.ErrNotExist survives.
-type edgeVaultFS struct {
-	fs EdgeFS
-}
-
-// ListMD returns the .md filenames in dir. Missing dir → empty, nil.
-func (v edgeVaultFS) ListMD(dir string) ([]string, error) {
-	entries, err := v.fs.ReadDir(dir)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
-
-		return nil, fmt.Errorf("reading dir %s: %w", dir, err)
-	}
-
-	out := make([]string, 0, len(entries))
-
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
-		}
-
-		out = append(out, entry.Name())
-	}
-
-	return out, nil
-}
-
-// ReadFile reads the file at path, wrapping errors with the path for parity
-// with the retired osVaultFS.ReadFile.
-func (v edgeVaultFS) ReadFile(path string) ([]byte, error) {
-	data, err := v.fs.ReadFile(filepath.Clean(path))
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
-
-	return data, nil
-}
-
-// jsonlIndexesLister returns a chunk-index lister backed by the injected
-// EdgeFS: the .jsonl files directly under dir. A missing dir is an empty
-// index (cold start), not an error. Injected twin of the retired os-backed
-// listJSONLIndexes (query_chunks.go) — same contract, including never
-// matching manifest.json (not a .jsonl file).
-func jsonlIndexesLister(edgeFS EdgeFS) func(dir string) ([]string, error) {
-	return func(dir string) ([]string, error) {
-		entries, err := edgeFS.ReadDir(dir)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, nil
-			}
-
-			return nil, fmt.Errorf("listing chunk indexes: %w", err)
-		}
-
-		paths := make([]string, 0, len(entries))
-
-		for _, entry := range entries {
-			if !entry.IsDir() && filepath.Ext(entry.Name()) == jsonlExt {
-				paths = append(paths, filepath.Join(dir, entry.Name()))
-			}
-		}
-
-		return paths, nil
-	}
-}
-
-// vaultLuhmannLock adapts the injected FileLocker to the per-command
-// Lock(vault) shape: an exclusive lock on vault/.luhmann.lock whose release
-// discards the unlock error — exact parity with the retired flockPath release
-// (which swallowed LOCK_UN and Close errors). Lock acquisition stays at Run*
-// entry points only (ADR-0013); helpers must never re-acquire.
-func vaultLuhmannLock(locker FileLocker) func(vault string) (func(), error) {
-	return func(vault string) (func(), error) {
-		unlock, err := locker.Lock(filepath.Join(vault, luhmannLockFile))
-		if err != nil {
-			return nil, fmt.Errorf("acquiring %s: %w", luhmannLockFile, err)
-		}
-
-		return func() { _ = unlock() }, nil
-	}
-}
-
-// warnLoggerTo returns a LogWarning func writing "warning: ..." lines to w —
-// the injected-Stderr replacement for the retired logWarningToStderrf.
-func warnLoggerTo(w io.Writer) func(format string, args ...any) {
-	return func(format string, args ...any) {
-		_, _ = fmt.Fprintf(w, "warning: "+format+"\n", args...)
-	}
-}
-```
-
-4. [ ] Run `targ test` — expect PASS (M2 tests green).
+4. [ ] (Absorbed into steps 2-3 — no separate GREEN; this task's only production-adjacent artifact is the test-only Deps in step 5.)
 
 5. [ ] Create `internal/cli/testdeps_test.go` (package `cli` — test file, exempt from purity enforcement; mirrors the production cmd adapters so wiring tests exercise real-FS composition). The `WriteFileAtomic` body is intentionally a copy of the production dance (cmd/engram is unimportable):
 
@@ -4990,18 +5006,38 @@ func (testOsFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) erro
 
 	return nil
 }
+
+// WriteFileExcl mirrors the production cmd/engram exclusive create
+// (O_CREATE|O_EXCL) — the ADR-0013 K1 collision backstop. A wrapped
+// fs.ErrExist survives errors.Is, matching the EdgeFS contract.
+func (testOsFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // test helper
+	if err != nil {
+		return fmt.Errorf("write excl %s: %w", path, err)
+	}
+
+	defer func() { _ = file.Close() }()
+
+	_, writeErr := file.Write(data)
+	if writeErr != nil {
+		return fmt.Errorf("write excl %s: %w", path, writeErr)
+	}
+
+	return nil
+}
 ```
 
 6. [ ] Run `targ test` then `targ check-full` — expect PASS/clean. (`ExportNewTestOsDeps` is unreferenced until M3; if the unused linter flags it, land M2+M3 as one PR — do not suppress.)
 7. [ ] Commit:
 
 ```
-refactor(cli): add pure edge-composition helpers + os-backed test Deps (#700)
+test(cli): add os-backed test Deps + compose-contract tests (#700)
 
-edgeVaultFS/vaultLuhmannLock/warnLoggerTo/jsonlIndexesLister compose
-per-command deps from the injected Deps without touching os/syscall in
-production code; testdeps_test.go mirrors the cmd adapters so wiring
-tests keep exercising the real filesystem.
+ExportNewTestOsDeps mirrors the cmd adapters so wiring tests keep
+exercising the real filesystem; fake-driven contract tests cover the
+landed canonical helpers (newVaultFS, listJSONLIndexes,
+vaultLockFromLocker, logWarningTo). No production code — the M2 draft's
+own helpers were losers per R1/R2/R3 and were never declared.
 
 AI-Used: [claude]
 ```
@@ -5012,13 +5048,14 @@ AI-Used: [claude]
 
 **Files**
 - Modify: `internal/cli/amend.go`, `internal/cli/resituate.go`, `internal/cli/activate.go`, `internal/cli/vocab_commands.go`
+- Modify: `internal/cli/query_chunks.go` (delete the transitional `osListJSONLIndexes` + its `"os"` import — amend.go, converted here, was its last consumer; step 8, grep-gated per R3)
 - Modify: `internal/cli/export_test.go`, `internal/cli/activate_test.go`, `internal/cli/amend_test.go`, `internal/cli/resituate_test.go`, `internal/cli/vocab_commands_test.go`, `internal/cli/vocab_trigger_test.go`, `internal/cli/learn_test.go` (one line — cross-cluster, see flag)
 - Modify (call expressions only; signature threading owned by wiring cluster): `internal/cli/targets.go`
 - Verify-only (no edits): `internal/cli/vocab.go`, `internal/cli/vault_init.go`
 
 **Interfaces**
-- Consumes: `Deps` (deps.go), M2 helpers, `d.FS.WriteFileAtomic`, `d.Embed embed.Embedder`.
-- Produces: `func newAmendDeps(d Deps) AmendDeps`, `func newResituateDeps(d Deps) ResituateDeps`, `func newActivateDeps(d Deps) ActivateDeps`, `func newVocabDeps(d Deps) VocabDeps`, `func newVocabStatsDeps(d Deps) VocabStatsDeps` — replacing `newOsAmendDeps()`, `newOsResituateDeps()`, `newOsActivateDeps()`, `newOsVocabDeps()`, `newOsVocabStatsDeps()`. Deletes `osWriteSidecar`.
+- Consumes: `Deps` (deps.go), the canonical composition helpers — T5's `newVaultFS(d.FS)`, T3's `vaultLockFromLocker(d.Lock)` + `logWarningTo(d.Stderr)` (deps_compose.go), T6's `listJSONLIndexes(fsys EdgeFS)` curried lister — plus `d.FS.WriteFileAtomic`, `d.Embed embed.Embedder`. (The M2 draft's `edgeVaultFS`/`vaultLuhmannLock`/`warnLoggerTo` are losers per R1/R2 and exist nowhere.)
+- Produces: `func newAmendDeps(d Deps) AmendDeps`, `func newResituateDeps(d Deps) ResituateDeps`, `func newActivateDeps(d Deps) ActivateDeps`, `func newVocabDeps(d Deps) VocabDeps`, `func newVocabStatsDeps(d Deps) VocabStatsDeps` — replacing `newOsAmendDeps()`, `newOsResituateDeps()`, `newOsActivateDeps()`, `newOsVocabDeps()`, `newOsVocabStatsDeps()`. Deletes `osWriteSidecar` and (per R3, grep-gated) the transitional `osListJSONLIndexes`.
 
 **Steps**
 
@@ -5084,14 +5121,14 @@ func ExportNewResituateDeps(d Deps, emb embed.Embedder) ResituateDeps {
 func newAmendDeps(d Deps) AmendDeps {
 	const perm = 0o600
 
-	vaultFS := edgeVaultFS{fs: d.FS}
+	vfs := newVaultFS(d.FS)
 
 	return AmendDeps{
-		Lock: vaultLuhmannLock(d.Lock),
+		Lock: vaultLockFromLocker(d.Lock),
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
-			return vaultgraph.ScanVault(vaultFS, vault)
+			return vaultgraph.ScanVault(vfs, vault)
 		},
-		Read: vaultFS.ReadFile,
+		Read: vfs.ReadFile,
 		Write: func(path string, data []byte) error {
 			err := d.FS.WriteFileAtomic(path, data, perm)
 			if err != nil {
@@ -5103,25 +5140,26 @@ func newAmendDeps(d Deps) AmendDeps {
 		Embedder:     d.Embed,
 		Now:          d.Now,
 		LoadChunkIDs: buildChunkIDSet,
-		// jsonlIndexesLister lists *.jsonl chunk indexes, treats an absent dir
-		// as empty (not an error), and never matches manifest.json — exactly
-		// the contract the retired os-backed listJSONLIndexes provided.
-		ListIndexes: jsonlIndexesLister(d.FS),
-		LogWarning:  warnLoggerTo(d.Stderr),
+		// listJSONLIndexes(d.FS) lists *.jsonl chunk indexes, treats an absent
+		// dir as empty (not an error), and never matches manifest.json —
+		// exactly the contract the transitional os-backed osListJSONLIndexes
+		// provided (deleted in step 8 now that this, its last consumer, flips).
+		ListIndexes: listJSONLIndexes(d.FS),
+		LogWarning:  logWarningTo(d.Stderr),
 		// Vocab assignment wiring: no-op when the vault has no term notes.
 		// Uses stored member centroids (vocab.centroids.json) when present,
 		// falling back to description embeddings per term.
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
-			return loadAssignmentTermVectors(vault, vaultFS.ListMD, vaultFS.ReadFile)
+			return loadAssignmentTermVectors(vault, vfs.ListMD, vfs.ReadFile)
 		},
 		// ListMD provides full .md filenames for the vocab trigger scan.
 		// Must use ListMD (not stripped basenames) — basename filtering causes
 		// false-fire on the untagged trigger.
-		ListMD: vaultFS.ListMD,
+		ListMD: vfs.ListMD,
 	}
 }
 ```
-Doc-comment touch-ups in the same file: AmendDeps struct comment line 43 `The production wiring in newOsAmendDeps supplies os.ReadDir/os.ReadFile via closures.` → `The production wiring in newAmendDeps supplies the injected EdgeFS via closures.`; Lock field comment line 47 `Wired to vaultFS.Lock in newOsAmendDeps.` → `Wired via vaultLuhmannLock in newAmendDeps.`
+Doc-comment touch-ups in the same file: AmendDeps struct comment line 43 `The production wiring in newOsAmendDeps supplies os.ReadDir/os.ReadFile via closures.` → `The production wiring in newAmendDeps supplies the injected EdgeFS via closures.`; Lock field comment line 47 `Wired to vaultFS.Lock in newOsAmendDeps.` → `Wired via vaultLockFromLocker in newAmendDeps.`
 
 4. [ ] resituate.go. Replace `newOsResituateDeps` (resituate.go:155-184) with:
 
@@ -5131,14 +5169,14 @@ Doc-comment touch-ups in the same file: AmendDeps struct comment line 43 `The pr
 func newResituateDeps(d Deps) ResituateDeps {
 	const perm = 0o600
 
-	vaultFS := edgeVaultFS{fs: d.FS}
+	vfs := newVaultFS(d.FS)
 
 	return ResituateDeps{
-		Lock: vaultLuhmannLock(d.Lock),
+		Lock: vaultLockFromLocker(d.Lock),
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
-			return vaultgraph.ScanVault(vaultFS, vault)
+			return vaultgraph.ScanVault(vfs, vault)
 		},
-		Read: vaultFS.ReadFile,
+		Read: vfs.ReadFile,
 		Write: func(path string, data []byte) error {
 			err := d.FS.WriteFileAtomic(path, data, perm)
 			if err != nil {
@@ -5149,15 +5187,15 @@ func newResituateDeps(d Deps) ResituateDeps {
 		},
 		Embedder: d.Embed,
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
-			return loadAssignmentTermVectors(vault, vaultFS.ListMD, vaultFS.ReadFile)
+			return loadAssignmentTermVectors(vault, vfs.ListMD, vfs.ReadFile)
 		},
-		ListMD:     vaultFS.ListMD,
-		LogWarning: warnLoggerTo(d.Stderr),
+		ListMD:     vfs.ListMD,
+		LogWarning: logWarningTo(d.Stderr),
 		Now:        d.Now,
 	}
 }
 ```
-ResituateDeps.Lock comment line 28-29 `Wired to vaultFS.Lock in newOsResituateDeps.` → `Wired via vaultLuhmannLock in newResituateDeps.`
+ResituateDeps.Lock comment line 28-29 `Wired to vaultFS.Lock in newOsResituateDeps.` → `Wired via vaultLockFromLocker in newResituateDeps.`
 
 5. [ ] activate.go. Delete the `os` import; replace `newOsActivateDeps` + `osWriteSidecar` (activate.go:120-137) with:
 
@@ -5170,17 +5208,17 @@ func newActivateDeps(d Deps) ActivateDeps {
 	const sidecarPerm = 0o600
 
 	return ActivateDeps{
-		Lock: vaultLuhmannLock(d.Lock),
+		Lock: vaultLockFromLocker(d.Lock),
 		Now:  d.Now,
 		Read: d.FS.ReadFile,
 		Write: func(path string, data []byte) error {
 			return d.FS.WriteFileAtomic(path, data, sidecarPerm)
 		},
-		LogWarning: warnLoggerTo(d.Stderr),
+		LogWarning: logWarningTo(d.Stderr),
 	}
 }
 ```
-Comment touch-ups: ActivateDeps.Lock comment line 23 `Wired to vaultFS.Lock in newOsActivateDeps.` → `Wired via vaultLuhmannLock in newActivateDeps.`; bumpLastUsed comment lines 86-87 `Sidecar writes go through atomicWriteFile (temp+rename) AND RunActivate holds the vault flock` → `Sidecar writes go through the injected atomic write (WriteFileAtomic, temp+rename) AND RunActivate holds the vault flock`.
+Comment touch-ups: ActivateDeps.Lock comment line 23 `Wired to vaultFS.Lock in newOsActivateDeps.` → `Wired via vaultLockFromLocker in newActivateDeps.`; bumpLastUsed comment lines 86-87 `Sidecar writes go through atomicWriteFile (temp+rename) AND RunActivate holds the vault flock` → `Sidecar writes go through the injected atomic write (WriteFileAtomic, temp+rename) AND RunActivate holds the vault flock`.
 
 6. [ ] vocab_commands.go. Delete the `os` import; replace `newOsVocabDeps` + `newOsVocabStatsDeps` (vocab_commands.go:1208-1240) with (behavior parity: WriteFile/DeleteFile error text preserved; WriteSidecar keeps osEmbedFS.Write's `"write: %w"` wrap):
 
@@ -5190,12 +5228,12 @@ Comment touch-ups: ActivateDeps.Lock comment line 23 `Wired to vaultFS.Lock in n
 func newVocabDeps(d Deps) VocabDeps {
 	const sidecarPerm = 0o600
 
-	vaultFS := edgeVaultFS{fs: d.FS}
+	vfs := newVaultFS(d.FS)
 
 	return VocabDeps{
-		Lock:     vaultLuhmannLock(d.Lock),
-		ListMD:   vaultFS.ListMD,
-		ReadFile: vaultFS.ReadFile,
+		Lock:     vaultLockFromLocker(d.Lock),
+		ListMD:   vfs.ListMD,
+		ReadFile: vfs.ReadFile,
 		WriteFile: func(path string, data []byte) error {
 			return d.FS.WriteFileAtomic(path, data, vocabNotePerm)
 		},
@@ -5216,7 +5254,7 @@ func newVocabDeps(d Deps) VocabDeps {
 			return nil
 		},
 		Embedder:   d.Embed,
-		LogWarning: warnLoggerTo(d.Stderr),
+		LogWarning: logWarningTo(d.Stderr),
 		Now:        d.Now,
 	}
 }
@@ -5224,14 +5262,16 @@ func newVocabDeps(d Deps) VocabDeps {
 // newVocabStatsDeps composes the read-only vocab stats deps from the injected
 // edge Deps.
 func newVocabStatsDeps(d Deps) VocabStatsDeps {
-	vaultFS := edgeVaultFS{fs: d.FS}
+	vfs := newVaultFS(d.FS)
 
 	return VocabStatsDeps{
-		ListMD:   vaultFS.ListMD,
-		ReadFile: vaultFS.ReadFile,
+		ListMD:   vfs.ListMD,
+		ReadFile: vfs.ReadFile,
 	}
 }
 ```
+
+6.5. [ ] **Migrate the `ExportNewOsVaultFS` call sites (R12 — this task owns the vocab test files).** Replace every `osFS := cli.ExportNewOsVaultFS()` with `osFS := cli.ExportNewVaultFS(osTestEdgeFS{})` (T5's export over the cli_test real-FS EdgeFS double — same `ListMD`/`ReadFile` shape and semantics; `osTestEdgeFS` lives in T5's edgefs_os_test.go, same package cli_test). Sites (verified in the pristine tree; locate by the call expression, not line): vocab_trigger_test.go:251, 441; vocab_commands_test.go:96, 131, 198, 231, 543, 559, 613, 651, 3856, 3874. After the edit: `rg -n "ExportNewOsVaultFS" internal/cli --include='*_test.go'` → hits ONLY in export_test.go (the shim definition, which T7 deletes). Without this step T7's shim deletion is a compile break its gate grep cannot see (R12).
 
 7. [ ] targets.go call-expression updates (coordinate with wiring cluster's `deps Deps` threading through `amendResituateTargets`/`ingestQueryTargets`/`vocabTargets`; only the constructor expressions belong to this task):
    - line 108: `newOsResituateDeps()` → `newResituateDeps(deps)`
@@ -5240,22 +5280,25 @@ func newVocabStatsDeps(d Deps) VocabStatsDeps {
    - lines 278/286/290: `newOsVocabDeps()` → `newVocabDeps(deps)`
    - line 282: `newOsVocabStatsDeps()` → `newVocabStatsDeps(deps)`
 
-8. [ ] Run `targ test` — expect PASS: the relocated wiring-integration tests (activate/amend/resituate/vocab against real t.TempDir vaults) prove the composed deps behave identically; resituate tests still inject `successEmbedder{}`; vocab tests still override `deps.Embedder = &fakeEmbedder{}`.
-9. [ ] Purity verification for this cluster (enforcement task lands later; this is the leave-nothing-behind check the central spec demands):
+8. [ ] Delete the transitional lister (per R3 — amend.go, converted in step 3, was its LAST consumer). Gate first: `grep -rn "osListJSONLIndexes" internal/ --include='*.go'` — expected: the definition in query_chunks.go ONLY (step 3 already removed amend.go's reference). Any hit in another file → STOP: that file's task has not landed; do not delete. Then delete `osListJSONLIndexes` (func + doc comment) from query_chunks.go and its now-unused `"os"` import. Verify: re-run the grep — zero hits; `grep -n '"os"\|os\.' internal/cli/query_chunks.go` — no output (query_chunks.go fully pure as of this task).
+9. [ ] Run `targ test` — expect PASS: the relocated wiring-integration tests (activate/amend/resituate/vocab against real t.TempDir vaults) prove the composed deps behave identically; resituate tests still inject `successEmbedder{}`; vocab tests still override `deps.Embedder = &fakeEmbedder{}`. The executed targets-level tests riding this task's flips (vocab bootstrap/propose/refit/stats via targ.Execute, activate/resituate/amend via executeForTest) dereference `d.FS` and — on the propose success path — `d.Lock`; both fields are already in `newTestDeps` since T3 (R11), and `Embed` stays nil (vocab's embed path skips on nil Embedder at vocab_commands.go:833).
+10. [ ] Purity verification for this cluster (enforcement task lands later; this is the leave-nothing-behind check the central spec demands):
    - `grep -n "\"os\"\|os\.\|syscall\|time\.Now\|time\.Since\|time\.Tick" internal/cli/amend.go internal/cli/resituate.go internal/cli/activate.go internal/cli/vocab.go internal/cli/vocab_commands.go internal/cli/vault_init.go` — expected: NO import of `os`/`syscall`, no `time.Now/Since/Tick` calls; only comment mentions (scrub remaining comment references: amend.go:43 handled in step 3; vocab_commands.go:1126 `os.ReadDir sorts by name` → reword to `the OS-backed lister sorts by name`; resituate.go:128 `wiring provides time.Now` → `wiring provides the injected clock`).
    - Verify-only: vocab.go and vault_init.go unchanged (imports already pure; `fs.FileMode` from io/fs stays per spec).
-10. [ ] Run `targ check-full` — expect clean (lint + coverage; the composed constructors are covered by the wiring tests, matching the coverage intent behind the old named `osWriteSidecar`/`logWarningToStderrf` pattern).
-11. [ ] Commit:
+11. [ ] Run `targ check-full` — expect clean (lint + coverage; the composed constructors are covered by the wiring tests, matching the coverage intent behind the old named `osWriteSidecar`/`logWarningToStderrf` pattern).
+12. [ ] Commit:
 
 ```
-refactor(cli): compose maintenance-family deps from injected edge Deps (#700)
+refactor(cli): compose maintenance deps from Deps (#700)
 
 newAmendDeps/newResituateDeps/newActivateDeps/newVocabDeps/newVocabStatsDeps
 replace their newOsXxx forms: flock via FileLocker (.luhmann.lock at Run*
 entry only, ADR-0013), atomic note/sidecar writes via EdgeFS.WriteFileAtomic,
 clock via Deps.Now, warnings via Deps.Stderr, embedder via Deps.Embed.
 activate.go and vocab_commands.go drop their os imports; vocab.go and
-vault_init.go verified already pure.
+vault_init.go verified already pure. The transitional osListJSONLIndexes
+(T6) dies here with query_chunks.go's os import — amend was its last
+consumer (grep-gated).
 
 AI-Used: [claude]
 ```
@@ -5264,31 +5307,27 @@ AI-Used: [claude]
 
 ### Task T13 (M4): Purge internal atomic write (gated)
 
-**GATE (do not start until true):** `grep -rn "atomicWriteFile" internal/cli --include="*.go" | grep -v _test | grep -v writesafe.go` returns EMPTY — i.e. learn.go:371, cli.go:144, embed.go:164, qa.go:283 have been migrated by their clusters.
+**GATE (do not start until true; per R4 this task runs after T15):** `grep -rn "atomicWriteFile" internal/cli --include="*.go" | grep -v _test | grep -v writesafe.go` returns EMPTY — i.e. every internal caller has been migrated by its own task: learn.go:371 + qa.go:283 (T3), amend.go:351 + resituate.go:169 + activate.go:136 + vocab_commands.go:1217 (T12), cli.go:144 (T4), and embed.go:164 (`osEmbedFS.Write` — deleted by T15, the LAST caller standing, which is why R4 orders T13 after T15).
 
 **Files**
 - Delete: `internal/cli/writesafe.go`, `internal/cli/writesafe_test.go`
-- Modify: `internal/cli/export_test.go` (remove two shims), `internal/cli/ingest_test.go` (one line)
+- Modify: `internal/cli/export_test.go` (remove two shims)
+- Verify-only (no edit): `internal/cli/ingest_test.go` (`realFS.write` already repointed by T8 step 6 — step 1 verifies)
 
 **Interfaces**
 - Removes: `atomicWriteFile`, `doAtomicWrite`, `ExportAtomicWriteFile`, `ExportDoAtomicWrite` from internal/cli.
 
 **Steps**
 
-1. [ ] Repoint the ADR-0013 concurrent-manifest regression infra (must survive per spec — relocate, never delete). ingest_test.go:898-900, current:
+1. [ ] Verify the ADR-0013 concurrent-manifest regression infra is already repointed (must survive per spec — T8 step 6 moved `realFS.write` off `cli.ExportAtomicWriteFile` onto its test-local `testAtomicWrite`, which carries the same real temp+rename semantics; no edit here). Check ingest_test.go's `realFS.write` reads:
 
 ```go
 func (r *realFS) write(_, path string, data []byte) error {
-	return cli.ExportAtomicWriteFile(path, data, 0o600)
+	return testAtomicWrite(path, data, 0o600)
 }
 ```
-replacement (same real temp+rename semantics via the M2 test EdgeFS):
 
-```go
-func (r *realFS) write(_, path string, data []byte) error {
-	return cli.ExportNewTestOsDeps().FS.WriteFileAtomic(path, data, 0o600)
-}
-```
+and `rg -n "ExportAtomicWriteFile" internal/cli/ingest_test.go` → zero hits. Any `ExportAtomicWriteFile` reference remaining outside writesafe_test.go → T8 incomplete, STOP.
 
 2. [ ] Delete `internal/cli/writesafe.go` and `internal/cli/writesafe_test.go` (all five behaviors live on as cmd/engram/os_fs_atomic_test.go from M1).
 3. [ ] In export_test.go, delete the two function shims (lines 204-207 and 331-340 in current numbering):
@@ -5315,12 +5354,12 @@ func ExportDoAtomicWrite(
 (If these were export_test.go's last uses of the `os` import, drop that import too — check compile.)
 
 4. [ ] Verify gate held: `grep -rn "atomicWriteFile\|doAtomicWrite" internal/` — expected EMPTY.
-5. [ ] Run `targ test` — expect PASS, including the ingest concurrent-writers regression test (its lock is still real flock via ExportFlockPath — other cluster — and its writer is now the test EdgeFS atomic write).
+5. [ ] Run `targ test` — expect PASS, including the ingest concurrent-writers regression test (its lock is still real flock via T8's test-local `testFlocker` — R7 — and its writer is T8's `testAtomicWrite`).
 6. [ ] Run `targ check-full` — expect clean.
 7. [ ] Commit:
 
 ```
-refactor(cli): delete internal atomic-write after all callers migrated (#700)
+refactor(cli): delete internal atomic-write (#700)
 
 writesafe.go's dance now lives solely on cmd/engram's EdgeFS adapter (and its
 test mirror); the ADR-0013 concurrent-manifest regression test now writes
@@ -5344,7 +5383,7 @@ Key file paths: /Users/joe/repos/personal/engram/.claude/worktrees/700-internal-
 - Modify: `internal/embed/hugot_test.go`, `internal/embed/cache_test.go`, `internal/embed/buildembedder_test.go`, `internal/embed/overlength_test.go`, `internal/embed/embedder_fake_test.go`
 - Delete: `internal/embed/production_cache_test.go`, `internal/embed/production_hugot_test.go`, `internal/embed/unpack_test.go`, `internal/embed/tempfs_test.go`
 - Create: `cmd/engram/hugot.go`, `cmd/engram/hugot_test.go`, `cmd/engram/os_cachefs_test.go`, `cmd/engram/bundled_smoke_test.go`, `cmd/engram/testdata/model-stub.txt`
-- Modify: `internal/cli/embed.go` (sharedEmbedder → bridge; delete `modelCacheDir`), `internal/cli/targets.go` (wire bridge), `internal/cli/export_test.go` (bridge export), cmd Deps literal (one line, foundation's file)
+- Modify: `internal/cli/embed.go` (sharedEmbedder → bridge; delete `modelCacheDir`), `internal/cli/targets.go` (wire bridge), `internal/cli/export_test.go` (bridge export), `cmd/engram/main.go` (the Deps literal's `Embed:` line — the R6 3-arg `embed.NewLazyEmbedder` arity flip lands here in the same commit)
 - Create: `internal/cli/embed_bridge_test.go`
 
 **Interfaces**
@@ -6781,7 +6820,7 @@ func (bridgeStubEmbedder) ModelID() string { return "stub@4" }
 - [ ] 9. **Commit:**
 
 ```
-refactor(embed): move hugot backend + model-cache FS to cmd/engram (#700)
+refactor(embed): move hugot backend + cache FS to cmd (#700)
 
 internal/embed now depends only on injected Backend/CacheFS seams; the
 hugot and os imports live in cmd/engram/hugot.go. CacheFS.Rename adopts
@@ -6801,18 +6840,18 @@ AI-Used: [claude]
 **Files**
 
 - Modify: `internal/cli/embed.go` (delete `osEmbedFS`, `newOsEmbedDeps`; add `newEmbedDeps`)
-- Modify: `internal/cli/vault_fs.go` (add `depsVaultFS` — shared-territory, see DESIGN FLAG 3's sibling note: other clusters should reuse this type when migrating `osVaultFS` call sites)
 - Modify: `internal/cli/targets.go` (lines 226, 230, 155), `internal/cli/query.go` (line 1287-1288)
 - Modify: `internal/cli/export_test.go` (replace `ExportNewOsEmbedDeps`), `internal/cli/os_adapters_test.go`
+- NOT touched (R2): `internal/cli/vault_fs.go` — this task declares NO VaultFS adapter; the draft's `depsVaultFS` is a loser. It consumes T5's landed `newVaultFS(d.FS)`.
 
 **Interfaces**
 
-- Produces: `newEmbedDeps(d Deps) EmbedDeps` (pure composition); `depsVaultFS` (vaultgraph.VaultFS over EdgeFS); `ExportNewEmbedDeps(d Deps) EmbedDeps`.
+- Produces: `newEmbedDeps(d Deps) EmbedDeps` (pure composition); `ExportNewEmbedDeps(d Deps) EmbedDeps`. (No `depsVaultFS` — R2; the vaultgraph.VaultFS view comes from T5's `newVaultFS`.)
 - Consumes: `Deps.FS EdgeFS` (`ReadFile`, `WriteFileAtomic(path, data, perm fs.FileMode)`, `ReadDir(path) ([]fs.DirEntry, error)`), `Deps.Embed embed.Embedder`, `vaultgraph.ScanVault(fs VaultFS, vaultPath string) ([]Note, error)` with `VaultFS{ ListMD(dir string) ([]string, error); ReadFile(path string) ([]byte, error) }` (verified at `internal/vaultgraph/scanner.go:20-32`).
 
 **Steps**
 
-- [ ] 1. **RED — adapt the integration tests to the composed deps first.** In `internal/cli/os_adapters_test.go`: replace the three `cli.ExportNewOsEmbedDeps(<embedder>)` calls (lines 89, 125, 190) with `cli.ExportNewEmbedDeps(cli.Deps{FS: osTestEdgeFS{}, Embed: <same embedder>})`; rename `TestOsEmbedFS_ReadWriteScanRoundTrip` → `TestEmbedDeps_ReadWriteScanRoundTrip` and update its comment to say it exercises the composed Scan/Read/Write against a real tempdir vault; append the test-only EdgeFS implementation (test files are exempt from the purity rule; dedupe with foundation's equivalent if one exists — DESIGN FLAG 9):
+- [ ] 1. **RED — adapt the integration tests to the composed deps first.** In `internal/cli/os_adapters_test.go`: replace the three `cli.ExportNewOsEmbedDeps(<embedder>)` calls (lines 89, 125, 190) with `cli.ExportNewEmbedDeps(cli.Deps{FS: osTestEdgeFS{}, Embed: <same embedder>})`; rename `TestOsEmbedFS_ReadWriteScanRoundTrip` → `TestEmbedDeps_ReadWriteScanRoundTrip` and update its comment to say it exercises the composed Scan/Read/Write against a real tempdir vault. Do NOT append the EdgeFS double below if `osTestEdgeFS` already exists in package cli_test — per R4, T5's edgefs_os_test.go landed it before this task runs, so the expected action is to CONSUME that one and skip this block (a second declaration in the same package is a compile error; the block below survives only for the contingency that T5's was somehow renamed/removed — DESIGN FLAG 9):
 
 ```go
 // osTestEdgeFS implements cli.EdgeFS over the real filesystem for
@@ -6874,6 +6913,22 @@ func (osTestEdgeFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) 
 
 	return nil
 }
+
+func (osTestEdgeFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // thin test adapter
+	if err != nil {
+		return fmt.Errorf("opening excl %s: %w", path, err)
+	}
+
+	defer func() { _ = file.Close() }()
+
+	_, err = file.Write(data)
+	if err != nil {
+		return fmt.Errorf("writing excl %s: %w", path, err)
+	}
+
+	return nil
+}
 ```
 
 (add `"fmt"` and `"io/fs"` to the file's imports). Run `targ test` — expected RED: `ExportNewEmbedDeps` undefined.
@@ -6891,7 +6946,7 @@ func newEmbedDeps(d Deps) EmbedDeps {
 
 	return EmbedDeps{
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
-			return vaultgraph.ScanVault(&depsVaultFS{fs: d.FS}, vault)
+			return vaultgraph.ScanVault(newVaultFS(d.FS), vault)
 		},
 		Read: d.FS.ReadFile,
 		Write: func(path string, data []byte) error {
@@ -6907,51 +6962,7 @@ func newEmbedDeps(d Deps) EmbedDeps {
 }
 ```
 
-In `internal/cli/vault_fs.go` add (below `osVaultFS`; imports gain `"io/fs"`):
-
-```go
-// depsVaultFS satisfies vaultgraph.VaultFS on top of the injected EdgeFS.
-// Missing dirs list as empty (not an error), matching osVaultFS semantics —
-// relies on the EdgeFS contract that ReadDir errors on absent paths satisfy
-// errors.Is(err, fs.ErrNotExist).
-type depsVaultFS struct {
-	fs EdgeFS
-}
-
-// ListMD returns the .md filenames in dir. Missing dir → empty, nil.
-func (v *depsVaultFS) ListMD(dir string) ([]string, error) {
-	entries, err := v.fs.ReadDir(dir)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
-
-		return nil, fmt.Errorf("reading dir %s: %w", dir, err)
-	}
-
-	out := make([]string, 0, len(entries))
-
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
-		}
-
-		out = append(out, entry.Name())
-	}
-
-	return out, nil
-}
-
-// ReadFile reads the file at path via the injected EdgeFS.
-func (v *depsVaultFS) ReadFile(path string) ([]byte, error) {
-	data, err := v.fs.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
-
-	return data, nil
-}
-```
+No VaultFS adapter is declared here (R2): `newVaultFS` already landed in T5's vault_fs.go and provides exactly the vaultgraph.VaultFS-over-EdgeFS view (missing dir → empty, wrapped-ErrNotExist unwrapped via errors.Is) — vault_fs.go is not touched by this task.
 
 In `internal/cli/export_test.go`, replace `ExportNewOsEmbedDeps` (lines 526-534):
 
@@ -6982,6 +6993,25 @@ func newOsQueryDeps(d Deps) QueryDeps {
 
 and its call site `internal/cli/targets.go:155`: `newOsQueryDeps()` → `newOsQueryDeps(deps)`.
 
+- [ ] 3.5. **Wire the targets-level embed tests per R11.** `newTestDeps.Embed` is nil by design (R11); the two executed embed tests dereference `ModelID()`, so give them a local fail-loud stub. In `internal/cli/targets_test.go`, add (exported-test-func-before-private-decls per reorder-decls — place the type after the last Test func or in the file's existing helper region):
+
+```go
+// stubEmbedderForTargets satisfies embed.Embedder for targets-level tests that
+// only need ModelID/Dims. Embed fails loud: no targets-level test may silently
+// real-embed (R11). Named to avoid cli_test's existing stubEmbedder (embed_test.go).
+type stubEmbedderForTargets struct{}
+
+func (stubEmbedderForTargets) Embed(context.Context, string) ([]float32, error) {
+	return nil, errors.New("stubEmbedderForTargets: Embed not expected in targets-level tests")
+}
+
+func (stubEmbedderForTargets) ModelID() string { return embed.BundledModelID }
+
+func (stubEmbedderForTargets) Dims() int { return 384 }
+```
+
+In `TestTargets_EmbedApplyDryRun` (targets_test.go:340) and `TestTargets_EmbedStatus` (:355), where the test builds its deps, override: `d := newTestDeps(stdout, stderr); d.Embed = stubEmbedderForTargets{}` (adapt to the tests' actual deps-construction shape — they currently ride `cli.Targets(newTestDeps(...))`; introduce the local variable form for these two tests only). Add the `context`/`errors`/`embed` imports if absent.
+
 - [ ] 4. **Verify.** `targ test` — expected green (embed_test.go's in-memory deps untouched; adapted os_adapters tests pass through `newEmbedDeps` + `osTestEdgeFS`; `TestTargets_EmbedApplyDryRun` / `TestTargets_EmbedStatus` green through the new wiring). `targ check-full` — clean; confirm `grep -n '"os"' internal/cli/embed.go` returns nothing. Real-binary check: `go install ./cmd/engram`, then in a temp dir: create `note.md` with a body, run `engram embed apply --vault . --dry-run` (expect `would-embed note.md (missing)`), then `engram embed apply --vault .` (expect `embedded  note.md (missing)` and a `note.vec.json` sidecar with `"embedding_model_id": "minilm-l6-v2@384"`), then `engram embed status --vault .` (expect `with-embeddings: 1`).
 - [ ] 5. **Commit:**
 
@@ -6998,7 +7028,7 @@ AI-Used: [claude]
 
 ---
 
-**Post-cluster residue for the enforcement task** (not handled here): delete the `sharedEmbedder`/`bridgeEmbedder` transitional block in `internal/cli/embed.go` once `grep -rn "sharedEmbedder" internal/cli --include='*.go' | grep -v _test` shows only its own definition; decide `parity_test.go` exemption (DESIGN FLAG 5); delete `osVaultFS` once all its consumers migrate to `depsVaultFS`.
+**Post-cluster residue for the enforcement task** (not handled here): delete the `sharedEmbedder`/`bridgeEmbedder` transitional block in `internal/cli/embed.go` once `grep -rn "sharedEmbedder" internal/cli --include='*.go' | grep -v _test` shows only its own definition; decide `parity_test.go` exemption (DESIGN FLAG 5); `osVaultFS` deletion is T7's, gated on all consumers having migrated to `newVaultFS(d.FS)` (R2).
 
 ### Task T16 (UF-1): `update.ErrCommandNotFound` sentinel + commander translation (drops os/exec from internal/update)
 
@@ -7128,7 +7158,7 @@ AI-Used: [claude]
 
 6. [ ] Commit (via the commit skill):
    ```
-   refactor(update): ErrCommandNotFound sentinel replaces exec.ErrNotFound (#700)
+   refactor(update): add ErrCommandNotFound sentinel (#700)
 
    internal/update no longer imports os/exec: Commander implementations now
    translate their platform not-found error to the sentinel at the adapter
@@ -7482,7 +7512,7 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
      (Place the var alphabetically in the existing var block; the func with the other Export funcs.)
 
 7. [ ] `internal/cli/update_test.go`:
-   - Delete `TestOsCommander_ReportsFailure`, `TestOsCommander_RunsCommand`, `TestOsCommander_TranslatesNotFound` (relocated in step 2), `TestOsUpdateEnv_ReturnsValues`, and all seven `TestOsUpdateFS_*` tests plus the `// osUpdateFS round-trip tests:` comment (lines 235–441 in the current file, minus `TestPluralFile`).
+   - Delete `TestOsCommander_ReportsFailure`, `TestOsCommander_RunsCommand`, `TestOsCommander_TranslatesNotFound` (relocated in step 2), `TestOsUpdateEnv_ReturnsValues`, and all nine `TestOsUpdateFS_*` tests plus the `// osUpdateFS round-trip tests:` comment (lines 235–441 in the current file, minus `TestPluralFile`).
    - Rewrite the two runUpdate smoke tests and add the test doubles (file-local; `os` and `io/fs` already importable in _test.go — `fs` needs adding to imports):
      ```go
      // liveUpdateEnv adapts the real process environment to update.Env for the
@@ -7615,7 +7645,7 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
     	g := NewWithT(t)
 
     	cmd := stubCommander{}
-    	deps := cli.ExportNewUpdateDeps(cli.Deps{Commander: cmd, FS: fakeEdgeFS{}})
+    	deps := cli.ExportNewUpdateDeps(cli.Deps{Commander: cmd, FS: updateFakeEdgeFS{}})
 
     	stdout, stderr, err := deps.Cmd.Run(context.Background(), "", "x")
     	g.Expect(err).NotTo(HaveOccurred())
@@ -7629,7 +7659,7 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
     	g := NewWithT(t)
 
     	deps := cli.ExportNewUpdateDeps(cli.Deps{
-    		FS:          fakeEdgeFS{},
+    		FS:          updateFakeEdgeFS{},
     		Getenv:      func(key string) string { return "env:" + key },
     		Getwd:       func() (string, error) { return "/cwd", nil },
     		UserHomeDir: func() (string, error) { return "/home/x", nil },
@@ -7651,7 +7681,7 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
 
     	g := NewWithT(t)
 
-    	deps := cli.ExportNewUpdateDeps(cli.Deps{FS: fakeEdgeFS{}})
+    	deps := cli.ExportNewUpdateDeps(cli.Deps{FS: updateFakeEdgeFS{}})
 
     	_, readErr := deps.FS.ReadFile("/missing")
     	g.Expect(errors.Is(readErr, fs.ErrNotExist)).To(BeTrue())
@@ -7668,7 +7698,7 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
 
     	g := NewWithT(t)
 
-    	deps := cli.ExportNewUpdateDeps(cli.Deps{FS: fakeEdgeFS{
+    	deps := cli.ExportNewUpdateDeps(cli.Deps{FS: updateFakeEdgeFS{
     		"skills/learn/SKILL.md": &fstest.MapFile{Data: []byte("learn")},
     	}})
 
@@ -7697,45 +7727,47 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
     	g.Expect(info.IsDir()).To(BeFalse())
     }
 
-    // fakeEdgeFS is a read-only in-memory cli.EdgeFS over fstest.MapFS.
+    // updateFakeEdgeFS is a read-only in-memory cli.EdgeFS over fstest.MapFS.
     // Write-side methods return errUnsupported: the update dry-run/read paths
     // under test never invoke them.
-    type fakeEdgeFS fstest.MapFS
+    type updateFakeEdgeFS fstest.MapFS
 
-    func (m fakeEdgeFS) MkdirAll(string, fs.FileMode) error { return errUnsupported }
+    func (m updateFakeEdgeFS) MkdirAll(string, fs.FileMode) error { return errUnsupported }
 
-    func (m fakeEdgeFS) MkdirTemp(string, string) (string, error) { return "", errUnsupported }
+    func (m updateFakeEdgeFS) MkdirTemp(string, string) (string, error) { return "", errUnsupported }
 
-    func (m fakeEdgeFS) ReadDir(path string) ([]fs.DirEntry, error) {
+    func (m updateFakeEdgeFS) ReadDir(path string) ([]fs.DirEntry, error) {
     	return fs.ReadDir(fstest.MapFS(m), path) //nolint:wrapcheck // fake passes chains through
     }
 
-    func (m fakeEdgeFS) ReadFile(path string) ([]byte, error) {
+    func (m updateFakeEdgeFS) ReadFile(path string) ([]byte, error) {
     	return fs.ReadFile(fstest.MapFS(m), path) //nolint:wrapcheck // fake passes chains through
     }
 
-    func (m fakeEdgeFS) Remove(string) error { return errUnsupported }
+    func (m updateFakeEdgeFS) Remove(string) error { return errUnsupported }
 
-    func (m fakeEdgeFS) RemoveAll(string) error { return errUnsupported }
+    func (m updateFakeEdgeFS) RemoveAll(string) error { return errUnsupported }
 
-    func (m fakeEdgeFS) Rename(string, string) error { return errUnsupported }
+    func (m updateFakeEdgeFS) Rename(string, string) error { return errUnsupported }
 
-    func (m fakeEdgeFS) Stat(path string) (fs.FileInfo, error) {
+    func (m updateFakeEdgeFS) Stat(path string) (fs.FileInfo, error) {
     	return fs.Stat(fstest.MapFS(m), path) //nolint:wrapcheck // fake passes chains through
     }
 
-    func (m fakeEdgeFS) WalkDir(root string, fn fs.WalkDirFunc) error {
+    func (m updateFakeEdgeFS) WalkDir(root string, fn fs.WalkDirFunc) error {
     	return fs.WalkDir(fstest.MapFS(m), root, fn) //nolint:wrapcheck // fake passes chains through
     }
 
-    func (m fakeEdgeFS) WriteFile(string, []byte, fs.FileMode) error { return errUnsupported }
+    func (m updateFakeEdgeFS) WriteFile(string, []byte, fs.FileMode) error { return errUnsupported }
 
-    func (m fakeEdgeFS) WriteFileAtomic(string, []byte, fs.FileMode) error { return errUnsupported }
+    func (m updateFakeEdgeFS) WriteFileAtomic(string, []byte, fs.FileMode) error { return errUnsupported }
+
+    func (m updateFakeEdgeFS) WriteFileExcl(string, []byte, fs.FileMode) error { return errUnsupported }
 
     // unexported variables.
-    var errUnsupported = errors.New("fakeEdgeFS: write path not supported")
+    var errUnsupported = errors.New("updateFakeEdgeFS: write path not supported")
     ```
-    Note for the executor: sync `fakeEdgeFS`'s method set with the LANDED `cli.EdgeFS` (the deps cluster may also ship a shared fake — reuse it and delete this one if so). `fstest.MapFS` paths are slash-relative (no leading `/`), hence the relative paths above; its error chains wrap `fs.ErrNotExist`, which is exactly the property under test.
+    Note for the executor: sync `updateFakeEdgeFS`'s method set with the LANDED `cli.EdgeFS` (R13: T8 owns the cli_test `fakeEdgeFS` name; this one is `updateFakeEdgeFS`, distinct by design). `fstest.MapFS` paths are slash-relative (no leading `/`), hence the relative paths above; its error chains wrap `fs.ErrNotExist`, which is exactly the property under test.
     Run `targ test` → expect PASS. Run `targ check-full` → expect clean.
 
 9. [ ] Purity verification for this family:
@@ -7744,7 +7776,7 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
 
 10. [ ] Commit (via the commit skill):
     ```
-    refactor(cli): move update commander to cmd/engram, compose update deps from cli.Deps (#700)
+    refactor(cli): move commander to cmd, compose update deps (#700)
 
     osCommander (the only os/exec user) relocates to cmd/engram/os_update.go
     with the ErrCommandNotFound translation; osUpdateFS/osUpdateEnv are
@@ -7768,9 +7800,11 @@ Sequencing precondition: `internal/cli/deps.go` (Deps + EdgeFS), `cli.Targets(de
 ```toml
 # #700: internal/ purity — default-deny. Anything not prefix-matched below is denied
 # in internal non-test code. NO file carve-outs (all I/O adapters live in cmd/engram).
-# Glob form '**/internal/**' is the prototype-confirmed form (2026-07-19).
+# Glob form per R9: start with the issue-AC literal 'internal/**'; Step 5's negative
+# probe validates it fires. Fall back to the prototype-confirmed '**/internal/**'
+# ONLY if the probe stays silent, and amend the issue AC wording (see R9).
 [linters.settings.depguard.rules.internal-purity]
-files = ['**/internal/**', '!$test']
+files = ['internal/**', '!$test']
 allow = [
 	'strings', 'fmt', 'errors', 'sort', 'slices', 'maps', 'strconv', 'unicode',
 	'bufio', 'bytes', 'io', 'path', 'regexp',
@@ -7836,13 +7870,15 @@ path = '_test\.go$'
 
 - [ ] **Step 5: negative self-test of the gate (temporary, not committed).** Add `_ = os.Getenv("PROBE")` (+ `"os"` import) to any internal/ non-test file; run `targ check-full`; expect a depguard finding naming `internal-purity`. Revert the probe. This proves the rule fires (a green gate that can't fail is no gate).
 
+- [ ] **Step 5.2: loser-symbol grep gate.** `rg -n "edgeVaultFS|depsVaultFS|jsonlIndexesLister|jsonlIndexListerFrom|vaultLuhmannLock|warnLoggerTo|osListJSONLIndexes|ExportNewOsVaultFS" internal/ cmd/` must return ZERO hits: the parallel-drafting loser symbols (R1/R2/R3 — never legally declared anywhere) and the transitional shims (`osListJSONLIndexes`, deleted by T12; `ExportNewOsVaultFS`, call sites migrated by T12 per R12 and shim deleted by T7) must not exist in the final tree. Any hit → a task landed a loser or skipped its gated deletion; fix the SITE per the owning resolution (R1/R2/R3/R12) before proceeding — never rename-in-place to dodge the grep.
+
 - [ ] **Step 5.5: coverage stance for cmd/engram (issue AC).** `cmd/engram` now holds adapter code with integration tests, not just a thin entry point. Inspect how the coverage gate treats it: read the check-full output's coverage section (and `rg -n "cmd/" dev/targs.go dev/*.toml` for exclusion patterns). Record the finding + decision as a one-paragraph note in the commit body of Step 6: either (a) cmd/engram stays coverage-excluded because its files are integration-tested I/O wrappers (unit-coverage-exempt per the repo's test-categorization doctrine), or (b) it enters coverage with the integration tests counting. Do not silently leave the stance undecided — the issue AC requires a deliberate call, surfaced to the orchestrator if the tooling makes (b) awkward.
 
 - [ ] **Step 6: Commit.**
 
 ```bash
 git add dev/golangci-lint.toml
-git commit -m "check(#700): enforce internal/ purity — depguard default-deny + forbidigo clock/PRNG
+git commit -m "check(#700): enforce internal purity via depguard + forbidigo
 
 Zero carve-outs: all I/O adapters now live in cmd/engram, so the rule
 needs no file exceptions. Custom forbidigo list replaces print defaults
@@ -7854,14 +7890,14 @@ AI-Used: [claude]"
 ### Task T-final-2: FIXME removal + issue closure prep
 
 **Files:**
-- Modify: `internal/cli/main.go` (or its successor location for the comment — wherever the FIXME(#700) block lives after the wiring-core task)
+- Modify: `cmd/engram/main.go` (the FIXME(#700) marker's home since T2's relocation — see R8)
 
 **Interfaces:**
 - Consumes: T-final-1 complete (`targ check-full` green with enforcement active).
 - Produces: the resolved FIXME per the user's rule ("remove the FIXME only when the issue is resolved").
 
 - [ ] **Step 1: verify the enforcement is green**: `targ check-full` → GREEN (fresh run, not a cached claim).
-- [ ] **Step 2: delete the 4-line `FIXME(#700)` comment block** (it begins `// FIXME(#700): this os.Getenv call is IO.`). Note: the wiring-core task already deleted the `os.Getenv` call itself; if the comment was relocated or already removed by that task's diff, verify with `rg -n "FIXME\(#700\)" .` that ZERO hits remain — that grep result is this step's deliverable either way.
+- [ ] **Step 2: delete the relocated `FIXME(#700)` marker block from `cmd/engram/main.go`** (T2 carried it there; it begins `// FIXME(#700): internal-purity migration in progress`). This is a real deletion of a marker that MUST still exist at this point — if `rg -n "FIXME\(#700\)" .` returns zero hits BEFORE this step, that is a defect (the marker was removed early, violating the user's rule): STOP and escalate to the orchestrator. After deletion, re-run the grep — zero hits is the deliverable.
 - [ ] **Step 3: Commit.**
 
 ```bash
@@ -7875,17 +7911,25 @@ AI-Used: [claude]"
 
 | File | Disposition | Reason |
 |---|---|---|
-| `CLAUDE.md` | update | directory-structure + Key Files: `cmd/engram` becomes composition root (adapters + wiring + integration tests); DI bullet gains "lint-enforced (depguard/forbidigo, #700)" |
+| `CLAUDE.md` | update | directory-structure + Key Files: `cmd/engram` becomes composition root (adapters + wiring + integration tests); DI bullet gains "lint-enforced (depguard/forbidigo, #700)"; line 43 stale ADR range `(ADR-0001..0003)` → `(ADR-0001..0020)` (or current top ADR at edit time) |
 | `README.md` | update | line 127 "cmd/engram/ CLI entry point (thin wiring layer)" → composition root with adapter implementations + integration tests |
-| `docs/architecture/c3-components.md` | update | K11 debuglog row cites `cli/signal.go` (moved to cmd); add the edge/adapter composition to the component table + mermaid |
-| `docs/architecture/adr.md` | update | status addenda on ADR-0001 (composition root now cmd/engram, lint-enforced) and ADR-0013 (flock/atomic impls relocated to cmd, semantics unchanged, regression test carried); NEW ADR-0020 recording the enforced purity boundary (config-only enforcement, zero carve-outs) |
-| `docs/GLOSSARY.md` | keep (verify) | cited files remain; `targets.go` still wires subcommands (now from `cli.Deps`) |
+| `docs/architecture/c3-components.md` | update | K11 row: replace with `\| K11 \| internal/debuglog \| tail-friendly sink (pure: writer+clock injected) \| Cross-cutting debug log threaded through every CLI target (targets.go); file sink + env read live in cmd/engram/debuglog_sink.go (#700). \| — \|`; ADD a composition-root row (next free K-id — K13 per the current K1–K12 inventory; re-verify at edit time): `\| K<n> \| cmd/engram \| composition root \| Edge adapters (EdgeFS, FileLocker, commander, hugot backend, debug sink, signal registration) + cli.Deps wiring; integration-tested with real FS/env (#700). \| — \|`; mirror both in the mermaid block |
+| `docs/architecture/adr.md` | update | Append to ADR-0001's Status line: `; #700 (2026-07): composition root relocated to cmd/engram — all I/O adapter implementations + wiring live at the edge; internal/ is import-pure (lint-enforced, ADR-0020)`. Append to ADR-0013's Status line: `; #700 (2026-07): flock/atomic-rename implementations relocated to cmd/engram behind cli.EdgeFS/cli.FileLocker — semantics unchanged, lock-at-Run*-entry convention preserved, concurrent-writers regression test carried`. Add NEW ADR-0020 with this draft text (Gate C polishes wording, not substance): **ADR-0020 — Enforced internal/ purity: all I/O assignment outside internal.** Status: Accepted (shipped via #700). Context: the DI doctrine ("wire at the edges" — CLAUDE.md's summary bullet, under ADR-0001..0003's authority) was convention-only; production I/O adapters lived inside internal/cli, internal/debuglog, internal/embed, and direct env reads had crept in (the #700 FIXME); testing internal code meant working around real I/O. Decision: the boundary is absolute — internal/ holds interfaces + pure logic only; every production I/O implementation (FS, flock, signal registration, commander, embedder backend, debug sink) and all wiring live in cmd/engram (package main), injected via cli.Deps; enforcement is config-only — depguard default-deny allow-list over internal/ non-test files (zero file carve-outs) + forbidigo call-level bans (time.Now/Since/Tick, math/rand v1, auto-seeded rand/v2 globals, targ.Main). Consequences: every internal package is testable by injection alone; a new I/O capability requires an edge adapter + a Deps field (visible in review); the lint gate fails loud on regression; adapter integration tests live in cmd/engram with real FS/env; seeded math/rand/v2 stays legal (deterministic computation) |
+| `docs/GLOSSARY.md` | keep (verify) | cited files remain and `targets.go` still wires subcommands — verification only, no edit expected; if any entry describes os-level wiring, escalate rather than silently rewrite |
 | `docs/architecture/c1-system-context.md` | keep (verify citations) | flows unchanged; update-flow + query citations still valid |
 | `docs/architecture/c2-containers.md` | keep (verify) | C1/C2 skill-binary seam unchanged |
 | `dev/eval/LEDGER.md` | keep | historical vintage-stamped measurement records — never retro-edited |
 | `docs/superpowers/plans/2026-07-18-646-recency-value-proof.md` | keep | historical plan artifact |
 | `skills/`, `commands/`, `guidance/` | n/a | grep-verified 2026-07-19: no Go-path references |
+| `docs/design/2026-07-01-engram-recall-subprocess-design.md` | keep (verify) | line 84 states the "DI everywhere, no os/exec" invariant — remains TRUE (strengthened) post-refactor; verify wording needs no update |
 
 ## Merge protocol (repo rules)
 
 Review-before-merge with argumentation; rebase on main + re-test before merging; `git merge --ff-only` only; rebase loop if another branch (two live Pi worktrees!) lands first; never push unreviewed work.
+
+**R13 — `fakeEdgeFS` has ONE cli_test declaration: T8's.** T8 (ingest) declares the func-field
+`fakeEdgeFS` in package cli_test. T17's draft declares a same-named `fstest.MapFS`-backed fake in
+the same package — a redeclaration compile error if both land. T17's fake is RENAMED
+`updateFakeEdgeFS` (its read-only errUnsupported write-side semantics differ from T8's
+func-injection design, so reuse does not fit); every reference in T17's steps and test code uses
+the new name. The executor note "reuse it and delete this one if so" is superseded by this rule.
