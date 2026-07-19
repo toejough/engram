@@ -156,7 +156,7 @@ separate, un-clustered recency channel (the newest raw activity). An agent re-or
 after context loss gets both "what's relevant" and "what just happened" in a single pass.
 
 why: `docs/architecture/adr.md` — ADR-0004
-validation: unmeasured as a channel-split capability; the relevance channel's ranking is validated by `dev/eval/LEDGER.md#matched-note-floor`, the recency channel's delivery is not separately eval'd
+validation: the relevance channel's ranking is validated by `dev/eval/LEDGER.md#matched-note-floor`. The recency channel decomposes into two mechanisms. Its **re-rank** (recent-relevant outranks old-relevant — the day-to-day continuity lever) is proven via C4i recency-supersession, and its delivery of *deliberately-unrelated* recent items is proven via C5 (both `dev/eval/LEDGER.md#crowded-vault-capability-robustness`). Its **recent-fill** delivery of *self-captured work the agent needs* was found to add nothing over plain cosine — a needed decision is topically related to the task, so `/recall`'s broad query already surfaces it (`direct`), making the recent-fill channel redundant there and structurally untestable via self-capture (`dev/eval/LEDGER.md#646-recency-recent-fill-selfcapture`, #646 closed 2026-07-19)
 
 ## Ingest auto-sweep with non-persistent-workspace skip
 
