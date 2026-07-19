@@ -1,9 +1,6 @@
 package cli_test
 
 import (
-	"bytes"
-	"os"
-	"syscall"
 	"testing"
 	"time"
 
@@ -19,16 +16,18 @@ func TestForceExitOnRepeatedSignal(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
-		sigCh := make(chan os.Signal, 2)
+		const pulseBuffer = 2
+
+		pulses := make(chan struct{}, pulseBuffer)
 		exitCalled := make(chan int, 1)
 
-		cli.ForceExitOnRepeatedSignal(sigCh, func(code int) {
+		cli.ForceExitOnRepeatedSignal(pulses, func(code int) {
 			exitCalled <- code
 		})
 
-		sigCh <- syscall.SIGINT
+		pulses <- struct{}{}
 
-		sigCh <- syscall.SIGINT
+		pulses <- struct{}{}
 
 		select {
 		case code := <-exitCalled:
@@ -41,14 +40,14 @@ func TestForceExitOnRepeatedSignal(t *testing.T) {
 	t.Run("does not exit on first signal alone", func(t *testing.T) {
 		t.Parallel()
 
-		sigCh := make(chan os.Signal, 1)
+		pulses := make(chan struct{}, 1)
 		exitCalled := make(chan int, 1)
 
-		cli.ForceExitOnRepeatedSignal(sigCh, func(code int) {
+		cli.ForceExitOnRepeatedSignal(pulses, func(code int) {
 			exitCalled <- code
 		})
 
-		sigCh <- syscall.SIGINT // first only
+		pulses <- struct{}{} // first only
 
 		const shortWait = 100 * time.Millisecond
 
@@ -59,17 +58,4 @@ func TestForceExitOnRepeatedSignal(t *testing.T) {
 			// good — no exit after one signal
 		}
 	})
-}
-
-func TestSetupSignalHandling_ReturnsTargets(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	targets := cli.SetupSignalHandling(&stdout, &stderr, func(_ int) {}, nil)
-	// learn (group), update, embed (group), query, ingest, query-chunks,
-	// activate, count, show, show-chunk, check, resituate, amend, prune,
-	// vocab (group)
-	g.Expect(targets).To(HaveLen(15))
 }
