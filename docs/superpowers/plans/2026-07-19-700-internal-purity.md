@@ -2803,7 +2803,7 @@ grep -n "time.Now\|time.Since" internal/debuglog/debuglog.go
 ls internal/cli/main.go
 ```
 
-   Expected: no `os.` in the three files; no `SetupSignalHandling` anywhere; no `time.Now`/`time.Since` in debuglog.go; `ls` errors (file deleted). Also verify the FIXME survived relocation: `rg "FIXME\(#700\)" cmd/engram/main.go` → exactly one hit (R8).
+   Expected: no `os.` CODE references; exactly these residual COMMENT-only hits are correct and must NOT be scrubbed: targets.go:~55 and :~66 (`pass os.Getenv in production` doc comments, preserved by step 3), signal.go ForceExitOnRepeatedSignal doc (`cmd/engram adapts real os.Signal deliveries`), signal.go ForwardAsPulses doc (`can feed a chan os.Signal without os.Signal entering`). debuglog.go: zero hits of any kind. Any OTHER hit (or any hit outside a comment) is a real failure — STOP; no `SetupSignalHandling` anywhere; no `time.Now`/`time.Since` in debuglog.go; `ls` errors (file deleted). Also verify the FIXME survived relocation: `rg "FIXME\(#700\)" cmd/engram/main.go` → exactly one hit (R8).
 
 8. [ ] Run `targ check-thin-api` — expect PASS (`All N public API files are thin wrappers.`): cmd/engram holds only the declaration-free main.go. Escalate any finding (doctrine flag SIG-1); do not suppress.
 
