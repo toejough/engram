@@ -55,3 +55,9 @@ BASE-T9: 3763e684aff6294a9415edd972251b49da0eed3a
 - T9 Minor (pre-existing convention, both ingest+prune): WriteFile closures double-prefix command names over their callers' wraps (prune: writing manifest: prune: writing /path:) — harmless to errors.Is; polish candidate for final review
 Task 9: complete (commit b2c256b5, task review APPROVED, Gate B APPROVED)
 BASE-T10: b2c256b53657c1b90b83000c75b19d5bb8befec8
+Task 10: complete (commits b54f436b parity tests + 80430e8f reorder-amend, task review ACK; Gate B N/A — tests-only, no refactor phase, skip named explicitly)
+- All three parity tests GREEN on arrival — no writesafe-parity defect in the internal atomic-write composition
+- T13 ledger CORRECTION (verified by implementer AND reviewer independently): atomicWriteFile has 5 remaining production callers, not the brief's 6 — cli.go:144 (osLearnFS.WriteSidecar → was T4's) already absorbed by T3's writeAtomicFromFS composition. Remaining: amend.go:351, resituate.go:169, activate.go:136, vocab_commands.go:1217 (→ T12) + embed.go:164 (→ T15). T13's gate expects 5 migrations; T4 has NO atomicWriteFile obligation left. Zero hits in cli.go/learn.go/qa.go.
+- T11 brief amendments (orchestrator-verified against landed tree): plan's TestNewVaultFS_ReadFile_WrapsErrorWithPath is STALE (predates T5 wrap fix; landed wrap is "vault read: %w", no path) — brief binds the distinct-verb assertion instead; plan's fake names (fakeEdgeFS/fakeDirEntry/fakeLocker) collide with nothing in package cli (existing ones are cli_test-side)
+BASE-T11: 80430e8ff48898e9cec586319e038f3ff9db6ce8
+Task 11: dispatched

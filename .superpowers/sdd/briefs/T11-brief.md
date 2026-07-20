@@ -1,3 +1,23 @@
+# DISPATCH HEADER (orchestrator)
+
+- Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
+- BASE-T11: 80430e8f (T10 complete). Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; its supersession map governs over plan-prose flags.
+- ACCUMULATED DISPATCH NOTES (binding):
+  - threaded variable is `deps` not `d`; adapt brief snippets mechanically
+  - EdgeFS-layer error wraps: distinct-word/no-path ("list md: %w", "vault read: %w") — never repeat EdgeFS's verb+path.
+  - **STALE SNIPPET — orchestrator-verified fix (binding):** the plan's `TestNewVaultFS_ReadFile_WrapsErrorWithPath` predates T5's wrap-convention fix. The LANDED `vaultFS.ReadFile` (vault_fs.go:47-50) wraps `"vault read: %w"` with NO path — the snippet's `ContainSubstring("/vault/x.md")` assertion would FAIL. Write it as `TestNewVaultFS_ReadFile_WrapsWithDistinctVerb`: keep `MatchError(errInjectedCompose)`, replace the path assertion with `MatchError(ContainSubstring("vault read"))`. Do NOT edit production code to make the stale snippet pass.
+  - test builders: newTestDeps(stdout,stderr) [flows through NewDeps] + realFSForTest(); realFSDepsForTest/osTestEdgeFS DELETED
+  - writeAtomicFromFS(fsys, opName) — perm param removed, atomicFilePerm inside
+  - gates run FOREGROUND (no background-run-and-yield); stage EXPLICIT paths only (never `git add -A`/`-u` — other agents may have in-flight files)
+  - check-full residual set (NOT yours to fix): e2e-under-load coverage flake (re-run check-coverage-for-fail standalone to confirm) + 2 dev/eval please_step3_probe reorder fixtures; lint-full must be 0
+- Name-collision status (orchestrator-verified): `fakeEdgeFS`/`fakeDirEntry`/`fakeLocker` exist ONLY in `ingest_family_deps_test.go`, which is package `cli_test` — no collision with your package-`cli` files (only export_test.go and resituate_internal_test.go are package `cli`, and neither claims these names). Declare the plan's fakes as written. General rule stands (T10 lesson): before declaring any OTHER helper name, `rg` it across `internal/cli/` and check the claiming file's package line.
+- The `Primitives` struct in `internal/cli/primitives.go` is authoritative for the step-5 literal's field set — reconcile the snippet against it. If a snippet field doesn't exist on the struct (or the struct has a required field the snippet lacks), STOP and escalate; do not invent or drop fields silently.
+- Step-6 contingency: if the unused linter flags `ExportNewTestOsDeps` (unreferenced until T12), STOP and report — landing M2+M3 together is an orchestrator call, not yours. Never suppress.
+- House rules: `t.Parallel()` on every test; gomega + nilaway guards; named constants; descriptive names; <120 char lines; run `targ reorder-decls` on created files if the check flags section order.
+- REPORT: write `.superpowers/sdd/briefs/T11-report.md` BEFORE your final message — status, commit SHA(s), gate outcomes verbatim (test / check-full / check-thin-api + standalone re-runs), every deviation with rationale, concerns/watch items. Final message: STATUS line, SHAs, one-paragraph summary, concerns.
+
+---
+
 ### Task T11 (M2): os-backed test Deps + contract tests over the landed canonical helpers
 
 **Files**
