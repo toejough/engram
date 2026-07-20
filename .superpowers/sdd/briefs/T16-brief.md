@@ -1,3 +1,19 @@
+# DISPATCH HEADER (orchestrator)
+
+- Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
+- BASE-T16: <SET AT DISPATCH — after T13 ACK; verify `git log --oneline -1` matches>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- ACCUMULATED DISPATCH NOTES (binding):
+  - **T4 lesson:** before swapping/deleting ANY symbol or error value, `rg` it across `internal/` and `cmd/` INCLUDING `_test.go` files — a missed test consumer is a compile-forced deviation to handle and report, not a STOP.
+  - ALL cited line numbers are pristine-tree — locate by text; symbol gates govern.
+  - **Warning-routing class (T12):** if any assertion touches stderr routing, pin exact text.
+  - **reorder-decls HAZARD:** `targ reorder-decls` is UNSCOPED — rewrites the 2 protected dev/eval please_step3_probe fixtures; if run, `git restore` those two paths explicitly afterward.
+  - gates run FOREGROUND (no background-run-and-yield); stage EXPLICIT paths only (never `git add -A`/`-u`)
+  - check-full residual set (NOT yours to fix): e2e-under-load coverage flake (re-run check-coverage-for-fail standalone to confirm) + the 2 dev/eval reorder fixtures; lint-full must be 0
+- House rules: `t.Parallel()` on every test; gomega + nilaway guards; named constants; <120 char lines.
+- REPORT: write `.superpowers/sdd/briefs/T16-report.md` BEFORE your final message — status, commit SHA(s), verbatim gate outcomes, every deviation with rationale, concerns. Final message: STATUS line, SHAs, one-paragraph summary, concerns.
+
+---
+
 ### Task T16 (UF-1): `update.ErrCommandNotFound` sentinel + commander translation (drops os/exec from internal/update)
 
 **Files**

@@ -1,3 +1,23 @@
+# DISPATCH HEADER (orchestrator)
+
+- Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
+- BASE-T17: <SET AT DISPATCH — after T16 ACK; verify `git log --oneline -1` matches>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- ACCUMULATED DISPATCH NOTES (binding):
+  - **T4 lesson:** before deleting/renaming ANY symbol, `rg` it across `internal/` and `cmd/` INCLUDING `_test.go` files — a missed test consumer is a compile-forced deviation to handle and report, not a STOP.
+  - R13: this brief's fake-EdgeFS needs are served by `updateFakeEdgeFS` per R13 — check what already exists in the test files before declaring (T10/T11 name-collision protocol: `rg` the name, check the claiming file's package line).
+  - ALL cited line numbers are pristine-tree — locate by text; symbol gates govern.
+  - Surgical edits only on shared files (primitives.go, targets.go, export_test.go, cmd/engram/main.go) — never full-file replacement.
+  - The C-1 RunCommand closure is the SECOND sanctioned multi-statement primitive closure (S-1 WriteFileExcl is the first): its body shape is doctrine-capped (construction + field assignments + one invocation, zero branching) and needs the signature-extension guard comment + behavior-mirror test per the doctrine — the brief's steps prescribe them; do not improvise the shape.
+  - `targ check-thin-api` gates main.go staying a declaration-free single statement — if your literal edit trips it, capture the finding and STOP (escalate; never suppress).
+  - **reorder-decls HAZARD:** `targ reorder-decls` is UNSCOPED — rewrites the 2 protected dev/eval please_step3_probe fixtures; if run, `git restore` those two paths explicitly afterward.
+  - gates run FOREGROUND (no background-run-and-yield); stage EXPLICIT paths only (never `git add -A`/`-u`)
+  - check-full residual set (NOT yours to fix): e2e-under-load coverage flake (re-run check-coverage-for-fail standalone to confirm) + the 2 dev/eval reorder fixtures; lint-full must be 0
+  - POST-TASK SWEEP to report: `rg -n '"os"|"syscall"|"os/exec"' internal/cli internal/update --type go | grep -v _test` — expected after you land: ONLY writesafe.go (T13's, if T13 hasn't landed yet — check the ledger; if T13 landed, expected ZERO). This is T-final-1's readiness gate; report the exact output.
+- House rules: `t.Parallel()` on every test; gomega + nilaway guards; named constants; <120 char lines.
+- REPORT: write `.superpowers/sdd/briefs/T17-report.md` BEFORE your final message — status, commit SHA(s), verbatim gate outcomes, the post-task sweep result, every deviation with rationale, concerns. Final message: STATUS line, SHAs, one-paragraph summary, concerns.
+
+---
+
 ### Task T17 (UF-2): commander via injected run primitive + NotFoundErr (doctrine flag C-1); compose update deps purely from cli.Deps
 
 Sequencing precondition: Task T1-rework (`cli.Primitives`, `cli.NewDeps`, `internal/cli/primitives_integration_test.go` with `realPrimitives()`/`realDepsForTest()`) and Task T2 (declaration-free `cmd/engram/main.go`; `Targets(deps Deps)` threading `deps` into `learnUpdateTargets`) have landed; Task T16 landed the sentinel + the internal/update cutover.
