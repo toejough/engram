@@ -1,7 +1,7 @@
 # DISPATCH HEADER (orchestrator)
 
 - Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
-- BASE-T16: <SET AT DISPATCH — after T13 ACK; verify `git log --oneline -1` matches>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- BASE-T16: 31cf7bb6 (T13 complete; docs-only ledger commits atop are fine). Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
 - ACCUMULATED DISPATCH NOTES (binding):
   - **T4 lesson:** before swapping/deleting ANY symbol or error value, `rg` it across `internal/` and `cmd/` INCLUDING `_test.go` files — a missed test consumer is a compile-forced deviation to handle and report, not a STOP.
   - ALL cited line numbers are pristine-tree — locate by text; symbol gates govern.
