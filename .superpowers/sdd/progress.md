@@ -97,3 +97,12 @@ Task 14: complete (commit 2e5388bd, task review ACK, Gate B APPROVED — no fix 
 - T-final-1: no new loser symbols needed; depguard default-deny already covers hugot-import regression
 BASE-T15: 2e5388bd07ccbee4b12ed79dd53c1e55f3890ecf
 Task 15: dispatched
+Task 15: complete (commit 742d80ed, task review ACK, Gate B APPROVED — no fix round)
+- MIGRATION MILESTONE: all 16 internal/cli constructors now compose from Deps; zero newOs*Deps anywhere; remaining os/syscall production imports are EXACTLY the 3 sanctioned-until files: writesafe.go (T13), vault_fs.go (T7), update.go (T16/T17) — this is T-final-1's flip-readiness inventory
+- Bridge FOLD fired + validated: lint-full unused-var was real; sharedEmbedder/bridgeEmbedder/wireSharedEmbedder/ExportNewBridgeEmbedder/embed_bridge_test.go all gone; one-embedder-per-process property PRESERVED BY CONSTRUCTION (Deps.Embed composed once inside NewDeps, main calls NewDeps once)
+- executeForTestWithDeps landed; T6 hand-inline collapsed onto it; R11 two-stub doctrine verified (fail-loud stub never Embed-reached on ModelID-only sites)
+- T7 brief amended AGAIN pre-dispatch (Gate B): FOUR legacy tests now (T15's coverage-forced TestOsVaultFS_RoundTrip_ListMDAndReadFile joins), gate expected-hit set updated, deps_compose.go:97 comment reword folded into T7
+- FINAL-CONSOLIDATION ledger item grew: embed.go Write closure ≡ writeAtomicFromFS(d.FS, "write") — second instance of the T12 vocab WriteSidecar class (distinct from the writeAtomicFromFSWithPath candidate: amend/resituate/prune/ingest)
+- Comment residue ledgered: primitives.go:94 "old sharedEmbedder singleton" — T-final-1 doc scrub
+BASE-T7: 742d80ed9f9ed571835dce06045305f7de79bf09
+Task 7: dispatched
