@@ -117,3 +117,8 @@ Task 13: complete (commit 31cf7bb6 — amended from c570474b pre-review, message
 - internal/cli impurity inventory for T-final-1: EXACTLY update.go:10 (dies at T16/T17)
 BASE-T16: 31cf7bb6
 Task 16: dispatched
+Task 16: complete (commit e6a6efc5, consolidated dual-mandate review ACK)
+- Sentinel + cutover byte-for-byte per brief; internal/update fully pure incl. tests; no user-visible stutter (both not-found paths re-wrap clean); T17 swap point localized to ONE errors.Is block (update.go:56-59)
+- REVIEWER PROCESS INCIDENT (recovered + independently verified): T16 reviewer ran bare git stash/pop, briefly popped another session's parked #686 stash; reverted via reset --hard; orchestrator verified stash stack intact (both entries), tree clean, HEAD correct; reviewer /learn'd the lesson to the vault (git-stash-pop-not-a-safe-noop-pair)
+BASE-T17: e6a6efc5
+Task 17: dispatched
