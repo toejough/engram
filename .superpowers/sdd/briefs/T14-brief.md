@@ -1,7 +1,8 @@
 # DISPATCH HEADER (orchestrator)
 
 - Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
-- BASE-T14: <SET AT DISPATCH — after T4 ACK; verify `git log --oneline -1` matches>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- BASE-T14: 51f2c04e (T4 complete). Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- **T4 lesson (binding):** briefs can under-enumerate TEST-side consumers of symbols you delete or rewrite — before deleting/renaming ANY symbol, `rg` it across `internal/` and `cmd/` INCLUDING `_test.go` files; a missed test consumer is a compile-forced deviation to handle and report, not a STOP.
 - ACCUMULATED DISPATCH NOTES (binding):
   - **R11 amendment (ledgered at T6):** the stubEmbedder local-override pattern is ALREADY IN USE by the query cluster's targets tests — you are not introducing it. Two distinct stub needs exist: query-cluster tests need a SUCCEEDING Embed (RunQuery embeds per phrase); ModelID-only sites (T15's scope) use the fail-loud stubEmbedderForTargets. Don't conflate; don't touch T15's sites (osEmbedFS/embed.go's newOsEmbedDeps family stays until T15 — embed.go:156's osVaultFS reference is T15's to delete).
   - **Warning-routing class (ledgered at T12):** any family flipped to logWarningTo(d.Stderr) makes formerly-process-stderr warnings visible to test assertions — expect empty-stderr assertions to flip; pin the exact warning text when they do.

@@ -1,7 +1,7 @@
 # DISPATCH HEADER (orchestrator)
 
 - Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
-- BASE-T15: <SET AT DISPATCH — after T14 ACK; verify `git log --oneline -1` matches>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- BASE-T15: 2e5388bd (T14 complete; the ledger commit atop it is docs-only). Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
 - ACCUMULATED DISPATCH NOTES (binding):
   - **R11 (two stub needs — don't conflate):** the query cluster already uses a SUCCEEDING stubEmbedder (RunQuery embeds per phrase; landed at T6). YOUR ModelID-only targets sites use the fail-loud `stubEmbedderForTargets` per R11 — Embed calls on it must fail the test loudly, only ModelID answers.
   - **T6 minor (act on it here):** TestTargets_QueryEmptyVault hand-inlines executeForTest's body because no deps-override hook existed; your targets-test edits need the same shape — ADD the `executeForTestWithDeps` helper at this task rather than hand-inlining a third time, and consider flipping the T6 inline onto it if trivial (report either way).
