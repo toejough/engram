@@ -106,3 +106,9 @@ Task 15: complete (commit 742d80ed, task review ACK, Gate B APPROVED — no fix 
 - Comment residue ledgered: primitives.go:94 "old sharedEmbedder singleton" — T-final-1 doc scrub
 BASE-T7: 742d80ed9f9ed571835dce06045305f7de79bf09
 Task 7: dispatched
+Task 7: complete (commit b3a0f925, consolidated dual-mandate review ACK — task review + Gate B folded into one sonnet reviewer, consolidation named: small grep-gated deletion whose target state was pre-validated by T15 Gate B's milestone sweep)
+- osVaultFS + listDirBySuffix + 4 legacy tests + shim gone in one commit; vault_fs.go pure (fmt + path/filepath only); vaultFS coverage held via T11 contract tests + real-FS blackbox suite (83.5% gating run)
+- Both compile-forced deviations VALID: errors/io-fs/strings imports died with listDirBySuffix per the brief's own gate logic; shim line drift cosmetic (body verbatim)
+- Impurity residual now EXACTLY: writesafe.go (T13) + update.go (T16/T17)
+BASE-T13: b3a0f9257de1e04f81f31c9e21b3c9963913f0ad
+Task 13: dispatched

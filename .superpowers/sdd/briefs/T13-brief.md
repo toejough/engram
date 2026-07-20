@@ -1,7 +1,7 @@
 # DISPATCH HEADER (orchestrator)
 
 - Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
-- BASE-T13: <SET AT DISPATCH — after T7 ACK; verify `git log --oneline -1` matches>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- BASE-T13: b3a0f925 (T7 complete; docs-only ledger commits atop it are fine). Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
 - **LEDGER CORRECTION (twice-verified at T10, confirmed at T12/T15):** the migration count was 5, not the GATE paragraph's 6 — cli.go:144 never reached T4; T3's writeAtomicFromFS absorbed it. History: learn.go+qa.go (T3), amend/resituate/activate/vocab (T12), embed.go (T15). The gate GREP is unchanged and was already verified EMPTY at T15 close — re-run it anyway; non-empty = STOP.
 - ACCUMULATED DISPATCH NOTES (binding):
   - **T4 lesson:** before deleting ANY symbol, `rg` it across `internal/` and `cmd/` INCLUDING `_test.go` files — the brief's Files list may under-enumerate test consumers of `atomicWriteFile`/`doAtomicWrite`/`ExportAtomicWriteFile`/`ExportDoAtomicWrite`; a missed consumer is a compile-forced deviation to handle and report, not a STOP.
