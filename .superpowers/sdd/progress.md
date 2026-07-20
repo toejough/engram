@@ -41,3 +41,9 @@ Task 6: implemented (commit fe2427ac), review pending
 - R11 amendment needed: query cluster (T6) consumes the stubEmbedder local-override pattern EARLIER than T14/T15 (RunQuery derefs Embedder unconditionally); T14/T15 briefs must not assume first-use
 - New flaky watch: TestForceExit_RealSignalDeliveryThroughForwardAsPulses panicked once under check-full load, cleared on rerun (T1-rework signal integration; SIGUSR2 pacing)
 - Third standing residual: vault_fs.go listDirBySuffix 76.9% coverage (pre-existing from T5 fix round; dies at T7 — fold into T7)
+- T6 Minor: TestTargets_QueryEmptyVault hand-inlines executeForTest's body (no deps-override hook exists); T15 needs the same shape — consider adding an executeForTestWithDeps helper AT T15 rather than duplicating a third time
+- T15 note: query cluster's stub needs SUCCEEDING Embed (RunQuery embeds per phrase); T15's ModelID-only sites can use the fail-loud stubEmbedderForTargets per R11 — two different stub needs, don't conflate
+Task 6: complete (commits fe2427ac + f52df6de walker extraction, task review APPROVED, Gate B APPROVED after fix round)
+- listDirBySuffix coverage gap CLOSED (100%, two legacy-path branch tests; they die with their subject at T7 via the grep gate)
+- New watch: check-coverage-for-fail flakes under full-parallel check-full load (test-run failure not threshold; same family as e2e timeout) — if it persists past this cycle, file an issue
+BASE-T8: f52df6de99fca891702f90a38e0d1c29063827db
