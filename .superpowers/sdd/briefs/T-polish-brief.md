@@ -1,7 +1,8 @@
 # DISPATCH HEADER (orchestrator)
 
 - Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
-- BASE-T-polish: <SET AT DISPATCH — after T17 ACK>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md`.
+- BASE-T-polish: 1c8382ff (T17 complete; docs-only ledger commits atop are fine). Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md`.
+- Do NOT touch cmd/engram/main.go or dev/golangci-lint.toml — the funlen decision is Joe's, ledgered separately; your scope is exactly the five items below.
 - This task consolidates the review-ledgered polish items accumulated across T4/T12/T15 Gate B verdicts. It runs BEFORE T-final-1 so the enforcement flip validates the final tree. It is behavior-neutral by contract: NO error-text changes, NO signature changes visible to callers, NO test-assertion changes except where a moved helper makes an assertion's subject move with it.
 
 ### Task T-polish: final consolidation — wrap-closure dedup + comment scrubs
