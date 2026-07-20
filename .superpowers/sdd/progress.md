@@ -136,3 +136,10 @@ Task T-polish: complete (commit 06d787fb, dual-mandate review ACK)
 - Non-blocking residue: writeAtomicFromFS doc comment phrasing slightly under-inclusive (still accurate); activate.go no-wrap closure noted as genuine variant
 BASE-T-final-1: 06d787fb
 Task T-final-1: dispatched
+Task T-final-1: complete (commits 352569c4 comment-scrub + 13631846 enforcement flip, dual-mandate review ACK — reviewer re-ran the negative probe live)
+- ENFORCEMENT ACTIVE: depguard internal-purity default-deny ('**/internal/**' + '!$test', R9 fallback — root-anchored glob empirically never fires) + forbidigo six-entry custom list + max-issues=0; zero carve-outs verified byte-by-byte; probe fires verbatim; testdata over-match question answered (structurally excluded by go/packages)
+- Step 5.5 = call (a): cmd/engram entry-point-excluded (coverage denominator './, ./internal/...' structural in targ); recorded in commit body
+- Issue #700 AC amended per R9 (body edit + evidence comment) — DONE by orchestrator
+- FOR JOE (deliberate-call list, completion report): (1) funlen 60/60 on main() — Gate B recommends path-scoped exclusion with why-comment; (2) pre-existing issues.fix=true in lint config — auto-fix can silently modify files during lint runs, revisit deliberately
+BASE-T-final-2: 13631846
+Task T-final-2: dispatched
