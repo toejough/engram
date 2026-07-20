@@ -47,3 +47,8 @@ Task 6: complete (commits fe2427ac + f52df6de walker extraction, task review APP
 - listDirBySuffix coverage gap CLOSED (100%, two legacy-path branch tests; they die with their subject at T7 via the grep gate)
 - New watch: check-coverage-for-fail flakes under full-parallel check-full load (test-run failure not threshold; same family as e2e timeout) — if it persists past this cycle, file an issue
 BASE-T8: f52df6de99fca891702f90a38e0d1c29063827db
+Task 8: implemented (commit 3763e684), task review APPROVED; Gate B pending
+- T9 fold-in: cli.go:119 osManifestLock doc comment stale ("newOsIngestDeps" gone) — T9 deletes the whole func anyway
+- Minor (style): TestIngestDepsReadTranscriptReadsViaFS lacks the house post-Expect err guard (value struct, not a nilaway issue)
+Task 8: complete (commit 3763e684, task review APPROVED, Gate B APPROVED — one minor folded into T9: cli.go osManifestLock stale comment, moot at its T9 deletion)
+BASE-T9: 3763e684aff6294a9415edd972251b49da0eed3a
