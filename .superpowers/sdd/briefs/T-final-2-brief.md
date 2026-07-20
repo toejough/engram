@@ -1,3 +1,14 @@
+# DISPATCH HEADER (orchestrator)
+
+- Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
+- BASE-T-final-2: <SET AT DISPATCH — after T-final-1 ACK>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md`.
+- **Step-3 AMENDMENT (binding):** the plan's `git add -A` is superseded — stage the EXPLICIT path only: `git add cmd/engram/main.go`. Never `-A`/`-u`.
+- The marker MUST exist before deletion (`rg -n "FIXME\(#700\)" .` → exactly one hit in cmd/engram/main.go); zero-hits-before = defect → STOP and escalate. Zero hits AFTER is the deliverable.
+- gates run FOREGROUND; comment-only deletion must change no gate outcome.
+- REPORT: `.superpowers/sdd/briefs/T-final-2-report.md` BEFORE your final message — status, commit SHA, verbatim gate outcomes, the before/after grep outputs, concerns. Final message: STATUS line, SHA, summary, concerns.
+
+---
+
 ### Task T-final-2: FIXME removal + issue closure prep
 
 **Files:**
