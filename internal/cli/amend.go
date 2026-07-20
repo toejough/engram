@@ -351,9 +351,7 @@ func newAmendDeps(d Deps) AmendDeps {
 		Now:          d.Now,
 		LoadChunkIDs: buildChunkIDSet,
 		// listJSONLIndexes(d.FS) lists *.jsonl chunk indexes, treats an absent
-		// dir as empty (not an error), and never matches manifest.json —
-		// exactly the contract the transitional os-backed osListJSONLIndexes
-		// provided (deleted in step 8 now that this, its last consumer, flips).
+		// dir as empty (not an error), and never matches manifest.json.
 		ListIndexes: listJSONLIndexes(d.FS),
 		LogWarning:  logWarningTo(d.Stderr),
 		// Vocab assignment wiring: no-op when the vault has no term notes.
