@@ -205,6 +205,95 @@ func TestIngestDepsWriteFileMkdirsParentThenWritesAtomically(t *testing.T) {
 	}), "parent dir created before atomic 0600 write")
 }
 
+func TestPruneDepsExistsAndRemoveGoThroughFS(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var removed []string
+
+	d := newTestDeps(io.Discard, io.Discard)
+	d.FS = fakeEdgeFS{
+		stat: func(path string) (fs.FileInfo, error) {
+			if path == "/live.jsonl" {
+				return fakeFileInfo{}, nil
+			}
+
+			return nil, fs.ErrNotExist
+		},
+		remove: func(path string) error {
+			removed = append(removed, path)
+
+			return nil
+		},
+	}
+
+	deps := cli.ExportNewPruneDeps(d)
+
+	g.Expect(deps.Exists("/live.jsonl")).To(gomega.BeTrue())
+	g.Expect(deps.Exists("/dead.jsonl")).To(gomega.BeFalse())
+	g.Expect(deps.Remove("/chunks/empty.jsonl")).To(gomega.Succeed())
+	g.Expect(removed).To(gomega.Equal([]string{"/chunks/empty.jsonl"}))
+}
+
+func TestPruneDepsListIndexesColdStartAndFiltering(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	d := newTestDeps(io.Discard, io.Discard)
+	d.FS = fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
+		return nil, fmt.Errorf("reading dir: %w", fs.ErrNotExist)
+	}}
+
+	deps := cli.ExportNewPruneDeps(d)
+
+	paths, err := deps.ListIndexes("/absent")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(paths).To(gomega.BeEmpty(), "missing chunks dir is a cold start, not an error")
+
+	d.FS = fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) {
+		return []fs.DirEntry{
+			fakeDirEntry{name: "a.jsonl"},
+			fakeDirEntry{name: "notes.md"},
+			fakeDirEntry{name: "sub", dir: true},
+			fakeDirEntry{name: "b.jsonl"},
+		}, nil
+	}}
+	deps = cli.ExportNewPruneDeps(d)
+
+	paths, err = deps.ListIndexes("/chunks")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(paths).To(gomega.Equal([]string{
+		filepath.Join("/chunks", "a.jsonl"),
+		filepath.Join("/chunks", "b.jsonl"),
+	}), "only non-dir .jsonl entries, joined under dir")
+
+	d.FS = fakeEdgeFS{readDir: func(string) ([]fs.DirEntry, error) { return nil, errBoom }}
+	deps = cli.ExportNewPruneDeps(d)
+
+	_, err = deps.ListIndexes("/chunks")
+	g.Expect(err).To(gomega.MatchError(errBoom))
+}
+
+// fakeDirEntry satisfies fs.DirEntry for index-lister tests.
+type fakeDirEntry struct {
+	name string
+	dir  bool
+}
+
+func (e fakeDirEntry) Info() (fs.FileInfo, error) { return nil, fs.ErrInvalid }
+
+func (e fakeDirEntry) IsDir() bool { return e.dir }
+
+func (e fakeDirEntry) Name() string { return e.name }
+
+func (e fakeDirEntry) Type() fs.FileMode {
+	if e.dir {
+		return fs.ModeDir
+	}
+
+	return 0
+}
+
 // fakeEdgeFS implements cli.EdgeFS via injected closures, backing the pure
 // newIngestDeps composition tests above. Declared once here (#700 T8, R13) —
 // package cli_test is one namespace across files; other clusters consume

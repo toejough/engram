@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 )
 
@@ -19,7 +18,7 @@ type PruneArgs struct {
 // PruneDeps holds injected dependencies for RunPrune.
 type PruneDeps struct {
 	// Lock acquires an exclusive flock on chunksDir/.manifest.lock and returns a
-	// release func. Wired to flockPath(chunksDir/.manifest.lock) in newOsPruneDeps.
+	// release func. Wired to manifestLockFrom (MkdirAll + FileLocker flock) in newPruneDeps.
 	// Guards the manifest read-modify-write against concurrent ingest/prune (#660).
 	Lock        func(chunksDir string) (func(), error)
 	ReadFile    func(path string) ([]byte, error)
@@ -99,21 +98,26 @@ func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Write
 	return nil
 }
 
-// newOsPruneDeps wires the production filesystem for `engram prune`.
-func newOsPruneDeps() PruneDeps {
-	fs := &osEmbedFS{}
-
+// newPruneDeps composes production PruneDeps from the CLI-edge Deps.
+func newPruneDeps(d Deps) PruneDeps {
 	return PruneDeps{
-		Lock:      osManifestLock,
-		ReadFile:  fs.Read,
-		WriteFile: fs.Write,
+		Lock:     manifestLockFrom(d),
+		ReadFile: d.FS.ReadFile,
+		WriteFile: func(path string, data []byte) error {
+			err := d.FS.WriteFileAtomic(path, data, indexFilePerm)
+			if err != nil {
+				return fmt.Errorf("prune: writing %s: %w", path, err)
+			}
+
+			return nil
+		},
 		Exists: func(path string) bool {
-			_, statErr := os.Stat(path)
+			_, statErr := d.FS.Stat(path)
 
 			return statErr == nil
 		},
-		ListIndexes: osListJSONLIndexes,
-		Remove:      os.Remove,
+		ListIndexes: listJSONLIndexes(d.FS),
+		Remove:      d.FS.Remove,
 	}
 }
 

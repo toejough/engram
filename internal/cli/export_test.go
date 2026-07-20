@@ -74,7 +74,6 @@ var (
 	ExportNewErrHandler                    = newErrHandler
 	ExportNewOsActivateDeps                = newOsActivateDeps
 	ExportNewOsAmendDeps                   = newOsAmendDeps
-	ExportNewOsPruneDeps                   = newOsPruneDeps
 	ExportNewOsVocabDeps                   = newOsVocabDeps
 	ExportNextLuhmannID                    = nextLuhmannID
 	ExportNoteAgeDays                      = noteAgeDays
@@ -570,6 +569,9 @@ func ExportNewOsVaultFS() interface {
 	return &osVaultFS{}
 }
 
+// ExportNewPruneDeps returns production PruneDeps composed from d.
+func ExportNewPruneDeps(d Deps) PruneDeps { return newPruneDeps(d) }
+
 // ExportNewQaDeps exposes the pure Deps→LearnQADeps composition for tests.
 func ExportNewQaDeps(d Deps) LearnQADeps { return newQaDeps(d) }
 
@@ -689,11 +691,6 @@ func ExportNoteClusterIDForPathFromPlain(
 		matchedSet{members: members},
 		clusterReport{memberIDs: memberIDs},
 	)
-}
-
-// ExportOsManifestLock exposes osManifestLock for coverage of its MkdirAll-error branch.
-func ExportOsManifestLock(dir string) (func(), error) {
-	return osManifestLock(dir)
 }
 
 // ExportProvenanceRankFor exposes provenanceRankFor for whitebox testing.

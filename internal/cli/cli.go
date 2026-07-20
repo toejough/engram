@@ -115,21 +115,6 @@ func logWarningToStderrf(format string, args ...any) {
 	_, _ = fmt.Fprintf(os.Stderr, "warning: "+format+"\n", args...)
 }
 
-// osManifestLock ensures dir exists then acquires an exclusive flock on
-// dir/.manifest.lock. Returns a release func. Used by newOsIngestDeps and
-// newOsPruneDeps so the MkdirAll+flock pair lives in exactly one place — fixing
-// the regression where prune's lock skipped MkdirAll and errored on a fresh dir.
-func osManifestLock(dir string) (func(), error) {
-	const dirPerm = 0o700
-
-	err := os.MkdirAll(dir, dirPerm)
-	if err != nil {
-		return nil, fmt.Errorf("creating chunks dir for lock: %w", err)
-	}
-
-	return flockPath(filepath.Join(dir, manifestLockFile))
-}
-
 // pathOf returns the vault-relative path for a note, e.g. "foo.md". The vault
 // is flat — notes live at the root (Permanent/ and MOCs/ are retired).
 func pathOf(basename string) string {

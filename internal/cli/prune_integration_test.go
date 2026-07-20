@@ -3,6 +3,7 @@ package cli_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -45,7 +46,9 @@ func TestOsPruneDetachesDeadSource(t *testing.T) {
 
 	var out strings.Builder
 
-	err := cli.RunPrune(context.Background(), cli.PruneArgs{ChunksDir: chunksDir}, cli.ExportNewOsPruneDeps(), &out)
+	deps := cli.ExportNewPruneDeps(newTestDeps(io.Discard, io.Discard))
+
+	err := cli.RunPrune(context.Background(), cli.PruneArgs{ChunksDir: chunksDir}, deps, &out)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if err != nil {

@@ -167,7 +167,7 @@ func ingestQueryTargets(
 		}).Name("ingest").Description("Chunk+embed transcripts/markdown into a chunk index (zero-LLM)"),
 		targ.Targ(func(ctx context.Context, a PruneArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-			errHandler(RunPrune(withLog(ctx), a, newOsPruneDeps(), deps.Stdout))
+			errHandler(RunPrune(withLog(ctx), a, newPruneDeps(deps), deps.Stdout))
 		}).Name("prune").Description(
 			"Detach chunk entries whose source file is gone: drop the stale manifest entry, " +
 				"keep the embedded chunks (still searchable)"),
