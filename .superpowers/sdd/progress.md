@@ -24,3 +24,8 @@ Task 3: complete (commits d98b0ca0 + 240a2a95 fix, task review APPROVED, Gate B 
 - T5 reviewer watch (Gate B residual): newVaultFS.ListMD must NOT port "reading dir %s: %w" verbatim over EdgeFS — use the distinct-word/no-path shape ("list md: %w"); EdgeFS.ReadDir already carries the path
 - Non-blocking note: newTestDeps now flows through NewDeps, so targets-tests get a real DebugLog sink iff ENGRAM_DEBUG_LOG is set in the env (production-faithful, benign)
 BASE-T5: 240a2a955608e8b9cebcd07663118a8a2c7da36a
+Task 5: implemented (commit 205e9acf), review pending; T3-fix fallout (3 findings from 240a2a95) queued
+- T5 Minor (task review): vaultFS.ReadFile wraps 'reading %s' over EdgeFS's own wrap (double-wrap; pre-existing pattern; ListMD fix was scoped narrower) — consider distinct-word sweep when T7 deletes osVaultFS
+T3-fallout: cleared (commit 8dda0d72 — lll, unparam→atomicFilePerm consolidation, reorder-decls)
+Task 5: complete (commits 205e9acf + 5f0a1670 review fixes, task review APPROVED, Gate B APPROVED after fix round)
+BASE-T6: 5f0a1670c3ffec24981bf6b40074933ebe93cc7f
