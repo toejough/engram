@@ -1,7 +1,8 @@
 # DISPATCH HEADER (orchestrator)
 
 - Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
-- BASE-T-final-1: <SET AT DISPATCH — after T-polish ACK>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- BASE-T-final-1: 06d787fb (T-polish complete; docs-only ledger commits atop are fine). Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- **funlen fence:** do NOT add any funlen exclusion or touch funlen config — the main.go 60/60 tension is ledgered for Joe's explicit call; it is OUT of this task's scope.
 - ACCUMULATED DISPATCH NOTES (binding):
   - The migration inventory is COMPLETE and ledgered: at dispatch time internal/ has ZERO non-test os/syscall/os-exec/hugot imports (T13 left update.go, T16/T17 killed it — verify with the sweeps below before you start; a hit = tree doesn't match ledger = STOP).
   - Step-4 discipline is absolute: a depguard/forbidigo finding means the migration missed a SITE — fix the site or escalate; NEVER a carve-out/nolint/allow-entry. A check-thin-api finding = a prior task regressed cmd — escalate the exact finding.
