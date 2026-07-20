@@ -86,3 +86,14 @@ Task 4: complete (commit 51f2c04e, task review ACK, Gate B APPROVED — no fix r
 - T-final-1 false-positive check CLEARED: loser-symbol grep list does not include the deleted names; the 2 historical comment mentions are in _test.go, outside the purity rule
 BASE-T14: 51f2c04ecbb1f44262b43b8294f25cb8d7438c00
 Task 14: dispatched
+Task 14: complete (commit 2e5388bd, task review ACK, Gate B APPROVED — no fix round; 8 deviations all accepted on verified merits)
+- internal/embed purified: zero os/hugot imports outside tests; cmd/engram/hugot.go = empty struct + 2 checker-thin methods (check-thin-api PASS, "All 2 public API files"); E-1 closure honors the doctrine content rule INDEPENDENT of the checker gap (Gate B AST-traced targ's own checker source); E-2 single new field; E-3 two-tier exist-classification with real-OS dir-over-dir pin
+- 4 production nolints ACCEPTED: wrapcheck ignore-globs cover only internal/* (cmd genuinely fires), single-line + contract-citing, S-1 precedent (main.go:53) consistent; forcetypeassert has no config exclusion
+- Destroy-on-failure lifecycle owned internally, no session-leak path (Gate B traced all error branches)
+- sharedEmbedder bridge quarantined: sole production consumer newOsEmbedDeps (dies at T15); deadcode contingency written into T15 header (fold-or-leave rule)
+- -short smoke: skip verified, unskipped PASS 0.3s; targ's -short behavior unknown (black box, honestly flagged); real-binary learn probe produced genuine 384-dim sidecar
+- NOTE for Joe: step-11 smoke required go install — the GLOBAL engram binary is now this worktree's build (ahead of main until merge)
+- BundledModelFS: brief-mandated export, zero production callers — future surface-trim candidate
+- T-final-1: no new loser symbols needed; depguard default-deny already covers hugot-import regression
+BASE-T15: 2e5388bd07ccbee4b12ed79dd53c1e55f3890ecf
+Task 15: dispatched

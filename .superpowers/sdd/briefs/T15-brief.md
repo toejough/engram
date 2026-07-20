@@ -1,3 +1,24 @@
+# DISPATCH HEADER (orchestrator)
+
+- Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
+- BASE-T15: <SET AT DISPATCH — after T14 ACK; verify `git log --oneline -1` matches>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- ACCUMULATED DISPATCH NOTES (binding):
+  - **R11 (two stub needs — don't conflate):** the query cluster already uses a SUCCEEDING stubEmbedder (RunQuery embeds per phrase; landed at T6). YOUR ModelID-only targets sites use the fail-loud `stubEmbedderForTargets` per R11 — Embed calls on it must fail the test loudly, only ModelID answers.
+  - **T6 minor (act on it here):** TestTargets_QueryEmptyVault hand-inlines executeForTest's body because no deps-override hook existed; your targets-test edits need the same shape — ADD the `executeForTestWithDeps` helper at this task rather than hand-inlining a third time, and consider flipping the T6 inline onto it if trivial (report either way).
+  - **Warning-routing class (ledgered at T12):** flipping the embed family to logWarningTo(d.Stderr) makes formerly-process-stderr warnings visible to test assertions — expect empty-stderr assertions to flip; pin the exact warning text.
+  - **T4 lesson:** before deleting/renaming ANY symbol, `rg` it across `internal/` and `cmd/` INCLUDING `_test.go` files — a missed test consumer is a compile-forced deviation to handle and report, not a STOP.
+  - **Downstream gates riding on you:** (a) you delete embed.go's `osEmbedFS` (incl. its `atomicWriteFile` call at ~:164, the LAST one — post-task `rg -n "atomicWriteFile" internal/cli --type go | grep -v _test | grep -v writesafe` must be ZERO, unblocking T13's gate; report the count); (b) you delete embed.go's `osVaultFS` reference (~:156 inside osEmbedFS.Scan) — T7's gate expects zero non-vault_fs.go osVaultFS production references after you land; report that grep too.
+  - Plan cite drift: tallyStates at embed.go:273 not :275; ALL cited lines are pristine-tree — locate by text.
+  - **Bridge deadcode contingency (T14 Gate B):** deleting newOsEmbedDeps leaves the sharedEmbedder/bridgeEmbedder/wireSharedEmbedder bridge (internal/cli/embed.go) with zero non-test production consumers until T-final-1's residue cleanup. If deadcode/unused lint fires on the bridge in YOUR gates: fold the bridge deletion into this task (grep test consumers first per the T4 lesson) and report the fold — do NOT suppress or leave the gate red. If lint stays green, leave the bridge for the enforcement task as planned and say so in the report.
+  - **reorder-decls HAZARD:** `targ reorder-decls` is UNSCOPED — rewrites the 2 protected dev/eval please_step3_probe fixtures; if run, `git restore` those two paths explicitly afterward.
+  - NEVER apply a full-file replacement to a shared file (targets.go/export_test.go/primitives.go) — surgical edits only.
+  - gates run FOREGROUND (no background-run-and-yield); stage EXPLICIT paths only (never `git add -A`/`-u`)
+  - check-full residual set (NOT yours to fix): e2e-under-load coverage flake (re-run check-coverage-for-fail standalone) + the 2 dev/eval reorder fixtures; lint-full must be 0
+- House rules: `t.Parallel()` everywhere (imptest/rapid/gomega; nilaway guards); named constants; descriptive names; <120 char lines.
+- REPORT: write `.superpowers/sdd/briefs/T15-report.md` BEFORE your final message — status, commit SHA(s), verbatim gate outcomes, the two downstream-gate grep results, every deviation with rationale, concerns. Final message: STATUS line, SHAs, one-paragraph summary, concerns.
+
+---
+
 ### Task T15 (B): internal/cli/embed.go — compose EmbedDeps from cli.Deps, delete osEmbedFS
 
 **Depends on:** Task T14 (A) + T1-rework/T2 landed (Deps.FS `EdgeFS`; `Deps.Embed` composed INSIDE `cli.NewDeps` per R6/D-1 — this task never touches cmd/engram or the embed wiring, only internal composition; verified unaffected by the T14 doctrine rework).
