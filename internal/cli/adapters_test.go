@@ -42,33 +42,6 @@ func TestNewLearnDeps_ListIDs_ReturnsRootNotesOnly(t *testing.T) {
 	g.Expect(got).To(ConsistOf("1", "1a"))
 }
 
-func TestOsFileReader_Read(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	path := filepath.Join(t.TempDir(), "test.txt")
-	g.Expect(os.WriteFile(path, []byte("hello world"), 0o644)).To(Succeed())
-
-	reader := cli.ExportNewOsFileReader()
-	data, err := reader.Read(path)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(string(data)).To(Equal("hello world"))
-}
-
-func TestOsFileReader_ReadError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	reader := cli.ExportNewOsFileReader()
-	_, err := reader.Read("/nonexistent/file.txt")
-	g.Expect(err).To(HaveOccurred())
-}
-
 func TestOsLearnFS_Lock_ExclusiveAcrossSecondAcquisition(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

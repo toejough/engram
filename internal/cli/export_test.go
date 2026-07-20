@@ -337,13 +337,6 @@ func ExportDoAtomicWrite(
 	return doAtomicWrite(path, data, perm, rename)
 }
 
-// ExportFlockPath exposes flockPath for the concurrent regression test in
-// ingest_test.go. The test goroutines use the real flock, not an injected one,
-// so they can race on the SAME lock file and prove the locking prevents corruption.
-func ExportFlockPath(lockPath string) (func(), error) {
-	return flockPath(lockPath)
-}
-
 // Exported functions.
 
 // ExportIndexFileName exposes sourceSlug-based index naming so tests can
@@ -486,6 +479,16 @@ func ExportNewEmptyVaultNotesMeta() AllVaultNotesMeta {
 	}
 }
 
+// ExportNewIngestDeps returns production IngestDeps composed from d with an
+// injected embedder so coverage tests can drive the wiring without unpacking
+// the lazy bundled embedder.
+func ExportNewIngestDeps(d Deps, emb embed.Embedder) IngestDeps {
+	deps := newIngestDeps(d)
+	deps.Embedder = emb
+
+	return deps
+}
+
 // ExportNewLearnDeps exposes the pure Deps→LearnDeps composition for tests.
 func ExportNewLearnDeps(d Deps) LearnDeps { return newLearnDeps(d) }
 
@@ -535,23 +538,6 @@ func ExportNewOsCommander() *osCommander { return &osCommander{} }
 // through the lazy bundled embedder.
 func ExportNewOsEmbedDeps(emb embed.Embedder) EmbedDeps {
 	deps := newOsEmbedDeps()
-	deps.Embedder = emb
-
-	return deps
-}
-
-// ExportNewOsFileReader creates an osFileReader for testing.
-func ExportNewOsFileReader() interface {
-	Read(path string) ([]byte, error)
-} {
-	return &osFileReader{}
-}
-
-// ExportNewOsIngestDeps returns production IngestDeps with an injected
-// embedder so coverage tests can drive the wiring without unpacking the
-// lazy bundled embedder.
-func ExportNewOsIngestDeps(emb embed.Embedder) IngestDeps {
-	deps := newOsIngestDeps()
 	deps.Embedder = emb
 
 	return deps

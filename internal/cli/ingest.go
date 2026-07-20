@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
+	"io/fs"
 	"path/filepath"
 	"strings"
 	"time"
@@ -37,12 +37,12 @@ type IngestDeps struct {
 	ReadTranscript func(path string, from time.Time, budget int) (transcript.ReadResult, error)
 	Embedder       embed.Embedder
 	// Lock acquires an exclusive flock on chunksDir/.manifest.lock and returns a
-	// release func. Wired to flockPath(chunksDir/.manifest.lock) in newOsIngestDeps.
+	// release func. Wired to manifestLockFrom (MkdirAll + FileLocker flock) in newIngestDeps.
 	// Guards the manifest read-modify-write against concurrent ingest/prune (#660).
 	Lock func(chunksDir string) (func(), error)
 	// Now returns the current wall-clock time for IngestedAt stamping. Nil-safe:
-	// callers guard with "if deps.Now != nil" before calling. Wire time.Now in
-	// newOsIngestDeps.
+	// callers guard with "if deps.Now != nil" before calling. Wired to deps.Now in
+	// newIngestDeps.
 	Now func() time.Time
 	// IsDir, Getwd, and SessionDir feed --auto's declarative root resolution.
 	IsDir      func(path string) bool
@@ -129,6 +129,8 @@ func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.
 const (
 	chunkMaxChars    = 1500
 	chunkTargetChars = 500
+	chunksDirPerm    = 0o700
+	indexFilePerm    = 0o600
 	// ingestBudgetBytes bounds a single transcript read; 0 = no cap so the full
 	// transcript is ingested (ingestion is offline — no agent context at stake —
 	// and giant sessions' tails are worth keeping).
@@ -136,6 +138,17 @@ const (
 	jsonlExt          = ".jsonl"
 	manifestName      = "manifest.json"
 )
+
+// fsFileReader adapts EdgeFS.ReadFile to the context.FileReader interface
+// consumed by transcript.NewJSONLReader (production transcript stripping).
+type fsFileReader struct {
+	fs EdgeFS
+}
+
+// Read reads path via the injected edge filesystem.
+func (r fsFileReader) Read(path string) ([]byte, error) {
+	return r.fs.ReadFile(path)
+}
 
 // ingestManifest maps source path -> staleness signature.
 type ingestManifest map[string]manifestEntry
@@ -239,22 +252,6 @@ func chunkSource(source string, raw []byte, deps IngestDeps) ([]chunk.Chunk, tim
 	}
 
 	return chunk.Markdown(string(raw), chunkMaxChars), time.Time{}, nil
-}
-
-// defaultSessionDir is the root of ALL recorded session transcripts:
-// ENGRAM_TRANSCRIPT_DIR when set (headless/eval cells get only their own
-// sessions), else ~/.claude/projects — every project, every conversation.
-func defaultSessionDir(_ string) string {
-	if dir := os.Getenv("ENGRAM_TRANSCRIPT_DIR"); dir != "" {
-		return dir
-	}
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-
-	return filepath.Join(home, ".claude", "projects")
 }
 
 // errorsIsReadFailure reports whether ingesting failed at the source-read
@@ -422,6 +419,29 @@ func manifestBackfill(manifest ingestManifest) func(source string) time.Time {
 	}
 }
 
+// manifestLockFrom composes the ADR-0013 manifest lock from the CLI-edge
+// Deps: ensure chunksDir exists first (regression: prune's lock on a fresh
+// dir errored without MkdirAll), then take an exclusive advisory lock on
+// chunksDir/.manifest.lock via the injected FileLocker. The unlock error is
+// discarded to preserve the historical release-func() contract at every Run*
+// entry point. Shared by newIngestDeps and newPruneDeps so the MkdirAll+lock
+// pair lives in exactly one place.
+func manifestLockFrom(d Deps) func(chunksDir string) (func(), error) {
+	return func(chunksDir string) (func(), error) {
+		err := d.FS.MkdirAll(chunksDir, chunksDirPerm)
+		if err != nil {
+			return nil, fmt.Errorf("creating chunks dir for lock: %w", err)
+		}
+
+		unlock, err := d.Lock.Lock(filepath.Join(chunksDir, manifestLockFile))
+		if err != nil {
+			return nil, fmt.Errorf("locking %s: %w", manifestLockFile, err)
+		}
+
+		return func() { _ = unlock() }, nil
+	}
+}
+
 // mergeChunkRecords builds the append-only merged record set: prior records are
 // preserved (never deleted, zero-IngestedAt legacy records backfilled via
 // backfillTime), and new-hash chunks are embedded and stamped with ingestTime.
@@ -480,45 +500,48 @@ func mergeChunkRecords(
 	return merged, reused, embedded, nil
 }
 
-// newOsIngestDeps wires the production filesystem, JSONL transcript reader,
-// and bundled embedder for `engram ingest`. WriteFile creates the chunks
-// directory on demand so first ingest into a fresh dir succeeds.
-func newOsIngestDeps() IngestDeps {
-	fs := &osEmbedFS{}
-	reader := transcript.NewJSONLReader(&osFileReader{})
+// newIngestDeps composes production IngestDeps from the CLI-edge Deps: every
+// filesystem, clock, and environment capability flows through d — internal/
+// makes no direct OS calls. WriteFile creates the chunks directory on demand
+// so first ingest into a fresh dir succeeds.
+func newIngestDeps(d Deps) IngestDeps {
+	reader := transcript.NewJSONLReader(fsFileReader{fs: d.FS})
 
 	return IngestDeps{
-		Lock:     osManifestLock,
-		ReadFile: fs.Read,
+		Lock:     manifestLockFrom(d),
+		ReadFile: d.FS.ReadFile,
 		WriteFile: func(path string, data []byte) error {
-			const dirPerm = 0o700
-
-			err := os.MkdirAll(filepath.Dir(path), dirPerm)
+			err := d.FS.MkdirAll(filepath.Dir(path), chunksDirPerm)
 			if err != nil {
 				return fmt.Errorf("ingest: creating chunks dir: %w", err)
 			}
 
-			return fs.Write(path, data)
+			err = d.FS.WriteFileAtomic(path, data, indexFilePerm)
+			if err != nil {
+				return fmt.Errorf("ingest: writing %s: %w", path, err)
+			}
+
+			return nil
 		},
 		Stat: func(path string) (SourceStat, error) {
-			info, err := os.Stat(path)
+			info, err := d.FS.Stat(path)
 			if err != nil {
 				return SourceStat{}, fmt.Errorf("ingest: stat %s: %w", path, err)
 			}
 
 			return SourceStat{MtimeUnixNano: info.ModTime().UnixNano(), Size: info.Size()}, nil
 		},
-		ListSources:    walkSourcesExcluding,
+		ListSources:    sweepListerFrom(d.FS.WalkDir),
 		ReadTranscript: reader.ReadFrom,
-		Embedder:       sharedEmbedder,
-		Now:            time.Now,
+		Embedder:       d.Embed,
+		Now:            d.Now,
 		IsDir: func(path string) bool {
-			info, err := os.Stat(path)
+			info, err := d.FS.Stat(path)
 
 			return err == nil && info.IsDir()
 		},
-		Getwd:      os.Getwd,
-		SessionDir: defaultSessionDir,
+		Getwd:      d.Getwd,
+		SessionDir: sessionDirFrom(d.Getenv, d.UserHomeDir),
 	}
 }
 
@@ -606,6 +629,27 @@ func resolveAutoSpec(deps IngestDeps) (SweepSpec, SweepEnv, error) {
 	return spec, env, nil
 }
 
+// sessionDirFrom resolves the root of ALL recorded session transcripts:
+// ENGRAM_TRANSCRIPT_DIR when set (headless/eval cells get only their own
+// sessions), else <home>/.claude/projects — every project, every conversation.
+func sessionDirFrom(
+	getenv func(string) string,
+	userHomeDir func() (string, error),
+) func(string) string {
+	return func(_ string) string {
+		if dir := getenv("ENGRAM_TRANSCRIPT_DIR"); dir != "" {
+			return dir
+		}
+
+		home, err := userHomeDir()
+		if err != nil {
+			return ""
+		}
+
+		return filepath.Join(home, ".claude", "projects")
+	}
+}
+
 // shouldSkipDir reports whether a swept subdirectory should be skipped: its
 // name is an excluded build/dependency name, or it starts with a
 // non-persistent-workspace prefix (a slugified throwaway cwd).
@@ -649,43 +693,48 @@ func statOrZero(deps IngestDeps, path string) SourceStat {
 	return stat
 }
 
-// walkSourcesExcluding lists files under root, pruning excluded directory
-// names (build/dependency trees) and, when SkipHidden, every dot-directory.
-func walkSourcesExcluding(root SweepRoot) ([]string, error) {
-	excluded := make(map[string]struct{}, len(root.ExcludeDirs))
-	for _, name := range root.ExcludeDirs {
-		excluded[name] = struct{}{}
-	}
-
-	var paths []string
-
-	err := filepath.WalkDir(root.Path, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
+// sweepListerFrom returns a SweepRoot lister walking via the injected walkDir
+// (EdgeFS.WalkDir in production), pruning excluded directory names
+// (build/dependency trees) and, when SkipHidden, every dot-directory.
+func sweepListerFrom(
+	walkDir func(root string, fn fs.WalkDirFunc) error,
+) func(SweepRoot) ([]string, error) {
+	return func(root SweepRoot) ([]string, error) {
+		excluded := make(map[string]struct{}, len(root.ExcludeDirs))
+		for _, name := range root.ExcludeDirs {
+			excluded[name] = struct{}{}
 		}
 
-		if entry.IsDir() {
-			if path == root.Path {
+		var paths []string
+
+		err := walkDir(root.Path, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+
+			if entry.IsDir() {
+				if path == root.Path {
+					return nil
+				}
+
+				hidden := root.SkipHidden && strings.HasPrefix(entry.Name(), ".")
+				if hidden || shouldSkipDir(entry.Name(), excluded, root.ExcludePrefixes) {
+					return filepath.SkipDir
+				}
+
 				return nil
 			}
 
-			hidden := root.SkipHidden && strings.HasPrefix(entry.Name(), ".")
-			if hidden || shouldSkipDir(entry.Name(), excluded, root.ExcludePrefixes) {
-				return filepath.SkipDir
-			}
+			paths = append(paths, path)
 
 			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("ingest: walking %s: %w", root.Path, err)
 		}
 
-		paths = append(paths, path)
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("ingest: walking %s: %w", root.Path, err)
+		return paths, nil
 	}
-
-	return paths, nil
 }
 
 // writeManifestFile persists the manifest next to the index files it covers.

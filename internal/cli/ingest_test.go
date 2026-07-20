@@ -358,6 +358,12 @@ func TestManifest_ConcurrentWritersDoNotLoseEntries(t *testing.T) {
 		return
 	}
 
+	// The ADR-0013 real flock, shared by both goroutines below so they race on
+	// the SAME lock file and prove locking (not injected serialization)
+	// prevents corruption (R7: repointed off the deleted ExportFlockPath onto
+	// the production FileLocker composed over real OS primitives).
+	locker := newTestDeps(io.Discard, io.Discard).Lock
+
 	// --- goroutine A: ingest a new source (adds it to the manifest) ---
 	stripped := "USER: brand new unique content long enough to form a real ingest chunk"
 
@@ -373,7 +379,12 @@ func TestManifest_ConcurrentWritersDoNotLoseEntries(t *testing.T) {
 		})
 		deps := cli.IngestDeps{
 			Lock: func(dir string) (func(), error) {
-				return cli.ExportFlockPath(dir + "/" + cli.ExportManifestLockFile())
+				unlock, lockErr := locker.Lock(dir + "/" + cli.ExportManifestLockFile())
+				if lockErr != nil {
+					return nil, lockErr
+				}
+
+				return func() { _ = unlock() }, nil
 			},
 			ReadFile: func(path string) ([]byte, error) {
 				return fs.read(chunksDir, path)
@@ -400,7 +411,12 @@ func TestManifest_ConcurrentWritersDoNotLoseEntries(t *testing.T) {
 
 		deps := cli.PruneDeps{
 			Lock: func(dir string) (func(), error) {
-				return cli.ExportFlockPath(dir + "/" + cli.ExportManifestLockFile())
+				unlock, lockErr := locker.Lock(dir + "/" + cli.ExportManifestLockFile())
+				if lockErr != nil {
+					return nil, lockErr
+				}
+
+				return func() { _ = unlock() }, nil
 			},
 			ReadFile: func(path string) ([]byte, error) {
 				return fs.read(chunksDir, path)
@@ -896,7 +912,9 @@ func (r *realFS) read(chunksDir, path string) ([]byte, error) {
 }
 
 func (r *realFS) write(_, path string, data []byte) error {
-	return cli.ExportAtomicWriteFile(path, data, 0o600)
+	const writePerm = 0o600
+
+	return realFSForTest().WriteFileAtomic(path, data, writePerm)
 }
 
 func newRealFS(extras map[string][]byte) *realFS {

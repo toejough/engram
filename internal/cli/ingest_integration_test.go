@@ -185,7 +185,7 @@ func TestOsIngestThenChunkQuery(t *testing.T) {
 		To(gomega.Succeed())
 
 	chunksDir := filepath.Join(dir, "chunks")
-	ingestDeps := cli.ExportNewOsIngestDeps(fakeIngestEmbedder{})
+	ingestDeps := cli.ExportNewIngestDeps(newTestDeps(io.Discard, io.Discard), fakeIngestEmbedder{})
 
 	// Sweep mode drives the production Stat + ListSources wiring too.
 	err := cli.RunIngest(context.Background(), cli.IngestArgs{

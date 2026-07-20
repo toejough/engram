@@ -45,22 +45,11 @@ func TestAutoSweepUsesSpecRootsAndRepoOverride(t *testing.T) {
 	g.Expect(sessionsSwept).To(gomega.BeFalse(), "session_logs disabled by repo override")
 }
 
-func TestDefaultSessionDirHonorsTranscriptDirEnv(t *testing.T) {
-	// Not parallel: mutates process env.
-	g := gomega.NewWithT(t)
-
-	t.Setenv("ENGRAM_TRANSCRIPT_DIR", "/custom/sessions")
-
-	deps := cli.ExportNewOsIngestDeps(fakeIngestEmbedder{})
-
-	g.Expect(deps.SessionDir("/anywhere")).To(gomega.Equal("/custom/sessions"))
-}
-
 func TestDefaultSessionDirIsAllProjects(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	deps := cli.ExportNewOsIngestDeps(fakeIngestEmbedder{})
+	deps := cli.ExportNewIngestDeps(newTestDeps(io.Discard, io.Discard), fakeIngestEmbedder{})
 	dir := deps.SessionDir("/anywhere/at/all")
 
 	g.Expect(dir).To(gomega.HaveSuffix(filepath.Join(".claude", "projects")),
@@ -92,7 +81,7 @@ func TestOsListSourcesSkipsExcludedDirs(t *testing.T) {
 	g.Expect(os.WriteFile(filepath.Join(dir, ".layer-run", "cfg", "junk.md"), []byte("# junk"), 0o600)).
 		To(gomega.Succeed())
 
-	deps := cli.ExportNewOsIngestDeps(fakeIngestEmbedder{})
+	deps := cli.ExportNewIngestDeps(newTestDeps(io.Discard, io.Discard), fakeIngestEmbedder{})
 	paths, err := deps.ListSources(cli.SweepRoot{Path: dir, ExcludeDirs: []string{"node_modules"}, SkipHidden: true})
 
 	g.Expect(err).NotTo(gomega.HaveOccurred())

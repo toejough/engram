@@ -163,7 +163,7 @@ func ingestQueryTargets(
 		}).Name("query").Description("Semantic search over vault + chunk index (YAML output)"),
 		targ.Targ(func(ctx context.Context, a IngestArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-			errHandler(RunIngest(withLog(ctx), a, newOsIngestDeps(), deps.Stdout))
+			errHandler(RunIngest(withLog(ctx), a, newIngestDeps(deps), deps.Stdout))
 		}).Name("ingest").Description("Chunk+embed transcripts/markdown into a chunk index (zero-LLM)"),
 		targ.Targ(func(ctx context.Context, a PruneArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)

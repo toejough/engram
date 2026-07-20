@@ -21,14 +21,6 @@ var (
 	errNotADirectory = errors.New("not a directory")
 )
 
-// I/O adapters for context package DI interfaces.
-
-type osFileReader struct{}
-
-func (r *osFileReader) Read(path string) ([]byte, error) {
-	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
-}
-
 // osLearnFS is the production filesystem adapter for the learn subcommand.
 // Shrunk to Lock-only (#700 T3): the other methods moved to deps_compose.go
 // compositions over EdgeFS. Lock stays here until Task L2 — it has four
