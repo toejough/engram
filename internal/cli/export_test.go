@@ -67,7 +67,6 @@ var (
 	ExportLoadAssignmentTermVectors        = loadAssignmentTermVectors
 	ExportLoadCurrentVocabVersion          = loadCurrentVocabVersion
 	ExportLoadTermVectors                  = loadTermVectors
-	ExportLogWarningToStderr               = logWarningToStderrf
 	ExportMarshalFrontmatter               = marshalFrontmatter
 	ExportMaxTurnBySource                  = maxTurnBySource
 	ExportMostRecentlyUsedNoteItems        = mostRecentlyUsedNoteItems
@@ -541,9 +540,6 @@ func ExportNewOsEmbedDeps(emb embed.Embedder) EmbedDeps {
 
 	return deps
 }
-
-// ExportNewOsLearnFS returns the production osLearnFS adapter for testing.
-func ExportNewOsLearnFS() *osLearnFS { return &osLearnFS{} }
 
 // ExportNewOsUpdateEnv returns the production Env adapter for testing.
 func ExportNewOsUpdateEnv() *osUpdateEnv { return &osUpdateEnv{} }

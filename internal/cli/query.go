@@ -52,7 +52,7 @@ type QueryArgs struct {
 //
 // LogWarning, when non-nil, receives non-fatal advisories (e.g. sidecars
 // dropped for a stale embedding model). It mirrors LearnDeps.LogWarning so
-// both commands share the production logWarningToStderrf hook.
+// both commands share the production logWarningTo(d.Stderr) hook.
 type QueryDeps struct {
 	Scan       func(vault string) ([]vaultgraph.Note, error)
 	Read       func(path string) ([]byte, error)

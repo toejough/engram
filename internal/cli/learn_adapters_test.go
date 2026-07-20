@@ -55,15 +55,6 @@ func TestLearnFactArgs_AcceptsProjectAndIssueFlags(t *testing.T) {
 	g.Expect(string(body)).To(ContainSubstring("issue: \"636\"\n"))
 }
 
-func TestOsLearnFS_Lock_BadVaultReturnsError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := cli.ExportNewOsLearnFS()
-	_, err := fs.Lock("/nonexistent/parent/that/does/not/exist")
-	g.Expect(err).To(HaveOccurred())
-}
-
 func TestRunLearnFromFactArgs_BootstrapsMissingVault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

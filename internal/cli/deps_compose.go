@@ -103,7 +103,7 @@ func listMDFromFS(fsys EdgeFS) func(string) ([]string, error) {
 }
 
 // logWarningTo returns the production LogWarning hook writing to w — the
-// Deps-threaded replacement for the old os.Stderr-bound logWarningToStderrf.
+// Deps-threaded replacement for the retired stderr-bound warning adapter.
 func logWarningTo(w io.Writer) func(string, ...any) {
 	return func(format string, args ...any) {
 		_, _ = fmt.Fprintf(w, "warning: "+format+"\n", args...)

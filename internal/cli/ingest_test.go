@@ -307,8 +307,8 @@ func TestLoadPriorRecordsPreservesIngestedAt(t *testing.T) {
 	g.Expect(loaded.IngestedAt).To(gomega.Equal(ingestedAt), "IngestedAt must survive the load")
 }
 
-// TestManifest_ConcurrentWritersDoNotLoseEntries exercises the real flock via
-// flockPath on a t.TempDir(): one goroutine ingests a NEW source while another
+// TestManifest_ConcurrentWritersDoNotLoseEntries exercises a real flock via
+// testFlocker on a t.TempDir(): one goroutine ingests a NEW source while another
 // prunes a dead one, both running concurrently on the SAME chunksDir and each
 // sleeping ~5ms between read and write to widen the race window. The final
 // manifest must retain the ingested entry AND drop only the dead one.

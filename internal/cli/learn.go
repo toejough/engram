@@ -426,8 +426,8 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 // resolveVault returns the vault path. Flag wins, then env, then the XDG
 // default ($XDG_DATA_HOME/engram/vault, falling back to
 // $HOME/.local/share/engram/vault). home and getenv are injected so callers
-// control environment access; pass the result of os.UserHomeDir and
-// os.Getenv in production. The returned path is never empty — callers that
+// control environment access; production passes the UserHomeDir and Getenv
+// primitive results. The returned path is never empty — callers that
 // need "does this exist?" semantics must stat it separately.
 func resolveVault(flagValue, home string, getenv func(string) string) string {
 	if flagValue != "" {

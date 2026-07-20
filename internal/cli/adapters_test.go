@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -40,40 +39,4 @@ func TestNewLearnDeps_ListIDs_ReturnsRootNotesOnly(t *testing.T) {
 
 	// flat vault: subdirectories (including legacy MOCs/) are ignored
 	g.Expect(got).To(ConsistOf("1", "1a"))
-}
-
-func TestOsLearnFS_Lock_ExclusiveAcrossSecondAcquisition(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	vault := t.TempDir()
-
-	fs := cli.ExportNewOsLearnFS()
-	release1, err := fs.Lock(vault)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	done := make(chan struct{})
-
-	go func() {
-		release2, err2 := fs.Lock(vault)
-		g.Expect(err2).NotTo(HaveOccurred())
-
-		if release2 != nil {
-			release2()
-		}
-
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		t.Fatal("second Lock should not have succeeded while first holds")
-	case <-time.After(100 * time.Millisecond):
-	}
-
-	release1()
-	<-done
 }

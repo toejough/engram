@@ -145,32 +145,6 @@ func TestApplyOne_EmbedFailureSurfaces(t *testing.T) {
 	g.Expect(strings.Contains(out.String(), "total:")).To(BeTrue())
 }
 
-// TestExportLogWarningToStderr_FormatsAndWritesViaCaptureFD verifies the
-// production warning hook by sniffing stderr via a captured pipe.
-func TestExportLogWarningToStderr_FormatsAndWrites(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Redirect stderr to a pipe, run the hook, restore.
-	saved := os.Stderr
-
-	read, write, err := os.Pipe()
-	g.Expect(err).NotTo(HaveOccurred())
-
-	os.Stderr = write
-
-	cli.ExportLogWarningToStderr("hello %s", "world")
-
-	_ = write.Close()
-	os.Stderr = saved
-
-	var buf bytes.Buffer
-
-	_, err = buf.ReadFrom(read)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(buf.String()).To(Equal("warning: hello world\n"))
-}
-
 // TestOsEmbedFS_ReadWriteScanRoundTrip exercises the production
 // osEmbedFS adapter against a real tempdir vault so Read/Write/Scan
 // are covered without spawning a subprocess.
