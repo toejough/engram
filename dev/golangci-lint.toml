@@ -9,7 +9,6 @@ relative-path-mode = 'gomod'
 default = 'all'
 disable = [
 	'exhaustruct',    # too noisy for zero value structs
-	'forbidigo',      # I print output on purpose sometimes
 	'godot',          # has a bug that causes panics on some files
 	'godox',          # saving todos till another validation step
 	'ireturn',        # I like generic return types
@@ -38,6 +37,16 @@ linters = [
 [[linters.exclusions.rules]]
 path = '_test\.go$'
 text = 'dot-imports'
+
+# #700: forbidigo applies only to internal non-test code (edge wiring in cmd/ and
+# dev tooling legitimately call the forbidden symbols).
+[[linters.exclusions.rules]]
+linters = ['forbidigo']
+path-except = '^internal/'
+
+[[linters.exclusions.rules]]
+linters = ['forbidigo']
+path = '_test\.go$'
 
 [linters.settings.depguard.rules.all]
 files = ['$all', '!$test']
@@ -80,6 +89,59 @@ allow = [
 	# Embedder parity gate (engram query spike).
 	'github.com/knights-analytics/hugot',
 ]
+
+# #700: internal/ purity — default-deny. Anything not prefix-matched below is denied
+# in internal non-test code. NO file carve-outs: raw I/O primitives enter from
+# cmd/engram's declaration-free main (cli.Primitives; targ check-thin-api enforces that
+# side), ALL adapter composition is injected in internal/cli, and the only real-os code
+# under internal/ sits in _test files — excluded via '!$test' (sanctioned by the revised
+# composition doctrine).
+# Glob form per R9: the issue-AC literal 'internal/**' was tried first and the
+# negative probe (os.Getenv in an internal file) stayed SILENT — root-anchored
+# globs never match depguard's full file paths. The prototype-confirmed
+# '**/internal/**' below is the empirically-validated form (probe fires); the
+# issue #700 AC wording is being amended to match (R9).
+[linters.settings.depguard.rules.internal-purity]
+files = ['**/internal/**', '!$test']
+allow = [
+	'strings', 'fmt', 'errors', 'sort', 'slices', 'maps', 'strconv', 'unicode',
+	'bufio', 'bytes', 'io', 'path', 'regexp',
+	'encoding/json', 'encoding/hex', 'crypto/sha256', 'hash/fnv', 'math', 'time',
+	'context', 'sync', 'embed',
+	'github.com/toejough/engram',
+	'go.yaml.in/yaml/v3',
+	'github.com/toejough/targ',
+]
+
+[linters.settings.forbidigo]
+# Custom list REPLACES the fmt.Print defaults — printing stays legal (repo prints on purpose).
+analyze-types = true
+
+[[linters.settings.forbidigo.forbid]]
+pattern = '^time\.Now$'
+msg = 'inject a clock via cli.Deps.Now (#700)'
+
+[[linters.settings.forbidigo.forbid]]
+pattern = '^time\.Since$'
+msg = 'inject a clock via cli.Deps.Now (#700)'
+
+[[linters.settings.forbidigo.forbid]]
+pattern = '^time\.Tick$'
+msg = 'inject a clock via cli.Deps.Now (#700)'
+
+[[linters.settings.forbidigo.forbid]]
+pattern = '^targ\.Main$'
+msg = 'targ dispatch is edge work — call from cmd/engram only (#700)'
+
+[[linters.settings.forbidigo.forbid]]
+pattern = '.*'
+pkg = '^math/rand$'
+msg = 'math/rand v1 is banned — use a seeded math/rand/v2 *rand.Rand (#700)'
+
+[[linters.settings.forbidigo.forbid]]
+pattern = '^rand\.(N|Int32|Int64|Int32N|Int64N|IntN|Int|Uint32|Uint64|Uint32N|Uint64N|UintN|Uint|Float32|Float64|NormFloat64|ExpFloat64|Perm|Shuffle)$'
+pkg = '^math/rand/v2$'
+msg = 'auto-seeded global PRNG is banned — use a seeded *rand.Rand (#700)'
 
 [linters.settings.nlreturn]
 block-size = 2
@@ -150,8 +212,8 @@ fix = true
 # Repeated issues don't bother me - I'll count on the issues per linter rule to limit the noise
 max-same-issues = 0
 # Maximum issues count per one linter. Set to 0 to disable. Default: 50
-# I want to see when there's a lot of findings, but ten is enough to get the idea
-max-issues-per-linter = 10
+# #700: never truncate findings — the default hid 14 of 24 findings at prototype time.
+max-issues-per-linter = 0
 
 # how to show the issues the linters find
 [output]
