@@ -52,3 +52,6 @@ Task 8: implemented (commit 3763e684), task review APPROVED; Gate B pending
 - Minor (style): TestIngestDepsReadTranscriptReadsViaFS lacks the house post-Expect err guard (value struct, not a nilaway issue)
 Task 8: complete (commit 3763e684, task review APPROVED, Gate B APPROVED — one minor folded into T9: cli.go osManifestLock stale comment, moot at its T9 deletion)
 BASE-T9: 3763e684aff6294a9415edd972251b49da0eed3a
+- T9 Minor (pre-existing convention, both ingest+prune): WriteFile closures double-prefix command names over their callers' wraps (prune: writing manifest: prune: writing /path:) — harmless to errors.Is; polish candidate for final review
+Task 9: complete (commit b2c256b5, task review APPROVED, Gate B APPROVED)
+BASE-T10: b2c256b53657c1b90b83000c75b19d5bb8befec8
