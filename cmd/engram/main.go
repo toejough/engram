@@ -21,11 +21,6 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// FIXME(#700): internal-purity migration in progress — this marker tracks the
-// unresolved issue. The original internal/cli/main.go os.Getenv violation is
-// fixed (env enters via cli.Primitives.Getenv), but adapter/env-threading/
-// enforcement tasks are still landing. Remove this marker ONLY in T-final-2,
-// after the depguard/forbidigo gate is verified green.
 func main() {
 	targ.Main(cli.Targets(cli.NewDeps(cli.Primitives{
 		ReadFile:     os.ReadFile,
