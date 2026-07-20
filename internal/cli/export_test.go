@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"os"
 	"time"
 
 	"github.com/toejough/engram/internal/chunk"
@@ -196,11 +195,6 @@ func ExportApplyVocabAssignmentAfterResituate(deps ResituateDeps, vault, notePat
 	applyVocabAssignmentAfterResituate(deps, vault, notePath, content)
 }
 
-// ExportAtomicWriteFile exposes atomicWriteFile for writesafe tests.
-func ExportAtomicWriteFile(path string, data []byte, perm os.FileMode) error {
-	return atomicWriteFile(path, data, perm)
-}
-
 // ExportBreakRepresentativeTie is a whitebox handle on the tiebreak helper
 // used by cluster representative selection.
 func ExportBreakRepresentativeTie(
@@ -321,17 +315,6 @@ func ExportClearChunkContent(kinds, contents []string) []string {
 // ExportCollectVaultStats exposes collectVaultStats for cli_test fixtures.
 func ExportCollectVaultStats(names []string, deps VocabStatsDeps, vault string) ([]string, map[string]int, int, int) {
 	return collectVaultStats(names, deps, vault)
-}
-
-// ExportDoAtomicWrite exposes doAtomicWrite for writesafe tests that need to
-// inject a failing rename to cover the rename-error and defer-cleanup paths.
-func ExportDoAtomicWrite(
-	path string,
-	data []byte,
-	perm os.FileMode,
-	rename func(oldpath, newpath string) error,
-) error {
-	return doAtomicWrite(path, data, perm, rename)
 }
 
 // Exported functions.
