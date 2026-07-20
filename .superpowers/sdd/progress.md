@@ -29,3 +29,11 @@ Task 5: implemented (commit 205e9acf), review pending; T3-fix fallout (3 finding
 T3-fallout: cleared (commit 8dda0d72 — lll, unparam→atomicFilePerm consolidation, reorder-decls)
 Task 5: complete (commits 205e9acf + 5f0a1670 review fixes, task review APPROVED, Gate B APPROVED after fix round)
 BASE-T6: 5f0a1670c3ffec24981bf6b40074933ebe93cc7f
+ACCUMULATED DISPATCH NOTES (include in every implementer dispatch):
+- threaded variable is `deps` not `d`; adapt brief snippets mechanically
+- EdgeFS-layer error wraps: distinct-word/no-path ("list md: %w", "vault read: %w") — never repeat EdgeFS's verb+path
+- test builders: newTestDeps(stdout,stderr) [flows through NewDeps] + realFSForTest(); realFSDepsForTest/osTestEdgeFS DELETED
+- writeAtomicFromFS(fsys, opName) — perm param removed, atomicFilePerm inside
+- gates run FOREGROUND (no background-run-and-yield); stage EXPLICIT paths only (never add -A)
+- check-full residual set: e2e-under-load coverage timeout + 2 dev/eval reorder fixtures; lint-full 0
+- reviewers: task reviewer (spec+quality, sonnet) + Gate B design-fit (sonnet) per task; fix rounds re-ACK with the same reviewer
