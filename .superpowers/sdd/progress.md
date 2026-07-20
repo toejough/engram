@@ -68,3 +68,12 @@ Task 11: complete (commit 16f1d2df, task review ACK; Gate B N/A — tests-only, 
 - ExportNewTestOsDeps consumer-less until T12 (expected); unused-linter did NOT fire
 BASE-T12: 16f1d2dfdd68701dbc6507d63bd8de8a4b9da30c
 Task 12: dispatched
+Task 12: complete (commit 99f309fe, task review ACK, Gate B APPROVED — no fix round needed)
+- All 3 implementer deviations validated on merits: legacy TestOsVaultFS tests kept (die at T7), TestOsVaultFS_ReadFile_MissingPathError added (osVaultFS live via embed.go:156 until T15), vocab-propose warning pinned (visibility fix — warning previously leaked to real stderr)
+- R11-WARNING-ROUTING CLASS (dispatch note for T14/T15/T16/T17): flipping a family to logWarningTo(d.Stderr) makes formerly-process-stderr warnings visible to test assertions — expect empty-stderr assertions to flip; pin the exact warning text
+- Gate B ledger items for FINAL CONSOLIDATION pass (both non-blocking, brief-baked not executor error): (1) vocab_commands.go WriteSidecar closure ≡ writeAtomicFromFS(d.FS, "write") — zero-risk one-liner swap; (2) wrap-with-path Write-closure class now at 3+ sites (amend.go:351/resituate.go:168 byte-identical, prune.go:106 label variant, ingest.go:513 MkdirAll variant) — writeAtomicFromFSWithPath extraction candidate, T6 walker precedent
+- T7 BRIEF FIXED pre-dispatch (Gate B teeth item): vault_fs_test.go added to Files (3 legacy tests die with subject), step-1 gate expected-hit set widened, listDirBySuffix grep-gated deletion added — unfixed, T7's gate would false-STOP
+- Brief-hygiene nit (task review): T12 brief step 6.5 named nonexistent osTestEdgeFS{}; landed realFSForTest() (correct established helper) — unlisted deviation, harmless
+- atomicWriteFile callers post-T12: exactly 1 (embed.go:164 → T15), matching corrected T13 ledger
+BASE-T4: 99f309fe57923c1047a37f0e52791325a94a0bc9
+Task 4: dispatched

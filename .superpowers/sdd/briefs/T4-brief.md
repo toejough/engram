@@ -1,3 +1,21 @@
+# DISPATCH HEADER (orchestrator)
+
+- Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
+- BASE-T4: 99f309fe (T12 complete). Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- ACCUMULATED DISPATCH NOTES (binding):
+  - **T13 caller-ledger correction (twice-verified):** cli.go has ZERO atomicWriteFile hits — osLearnFS's WriteSidecar was already absorbed by T3's writeAtomicFromFS. The osLearnFS you delete is the Lock-method remnant only. If you find a WriteSidecar method or atomicWriteFile call in cli.go, the tree does not match the ledger — STOP and report.
+  - Anchor drift (ledgered): acquireOptionalLock is at cli.go:157, not the plan's 152-163; ALL cited line numbers are pristine-tree — the symbol-based gates govern, locate by text.
+  - This is a PURE-DELETION task — produces no new symbols. Every step-1/2/4 grep is a hard STOP condition: an unexpected hit means an upstream task didn't land as ledgered; report, don't improvise.
+  - Step 4's confirm-before-delete is mandatory: verify the named replacement coverage exists (TestPrimLocker_OpenFailureWrapsWithPath in locker_test.go; the ingest manifest-lock composition test; TestNewLearnDeps_LogWarning_WritesToDepsStderr) BEFORE deleting the old tests.
+  - **reorder-decls HAZARD:** `targ reorder-decls` is UNSCOPED — it rewrites the 2 protected dev/eval please_step3_probe fixtures; if run, `git restore` those two paths explicitly afterward and verify `git status` shows only your files.
+  - gates run FOREGROUND (no background-run-and-yield); stage EXPLICIT paths only (never `git add -A`/`-u`)
+  - check-full residual set (NOT yours to fix): e2e-under-load coverage flake (re-run check-coverage-for-fail standalone to confirm) + the 2 dev/eval reorder fixtures; lint-full must be 0
+  - Step 5's binary smoke is mandatory: `go install ./cmd/engram` then re-run the L1 step-11 smoke (real binary, real args, from a non-data-dir cwd) — passing tests alone do not close this task.
+- House rules: gomega + nilaway guards on any touched test; <120 char lines.
+- REPORT: write `.superpowers/sdd/briefs/T4-report.md` BEFORE your final message — status, commit SHA(s), gate outcomes verbatim (test / check-full / check-thin-api + smoke output), every deviation with rationale, concerns/watch items. Final message: STATUS line, SHAs, one-paragraph summary, concerns.
+
+---
+
 ### Task T4 (L2): purge os/syscall adapters from internal/cli/cli.go (ORDER: after activate/amend/resituate/vocab/ingest/prune constructor migrations, before enforcement)
 
 **Depends on:** T8, T9, T12 complete (ingest/prune/maintenance constructors already compose from Deps) — see binding execution order R4.
