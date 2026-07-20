@@ -124,7 +124,7 @@ Inputs longer than 1500 chars are truncated to MiniLM-L6's 512-token limit — a
 ## Project structure
 
 ```
-cmd/engram/          CLI entry point (thin wiring layer)
+cmd/engram/          CLI entry point: declaration-free main() over a cli.Primitives literal of raw capability references (all adapter composition lives in internal/cli via cli.NewDeps; enforced by targ check-thin-api)
 internal/            Business logic (DI boundaries)
   chunk/             Splits transcripts/markdown into embedding-sized chunks for the chunk index (pure string logic, no I/O)
   cli/               CLI command wiring (targ targets)

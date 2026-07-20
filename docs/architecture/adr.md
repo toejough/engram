@@ -18,7 +18,7 @@ Status legend: **Accepted** · **Accepted (known defect)** — sound decision, b
 
 ## ADR-0001 — Skills + slim binary split
 
-**Status:** Accepted (INV-S1 seam resolved 2026-06 via `engram amend`, `internal/cli/amend.go`)
+**Status:** Accepted (INV-S1 seam resolved 2026-06 via `engram amend`, `internal/cli/amend.go`; #700 (2026-07): raw I/O primitives relocated to `cmd/engram` — declaration-free `package main` over `cli.Primitives`, `targ check-thin-api`-enforced; ALL adapter composition + wiring live in `internal/cli` (`cli.NewDeps`); `internal/` is import-pure — lint-enforced, ADR-0020)
 
 **Context.** The work divides into LLM judgment (which lessons to capture, how to frame a
 `situation`, whether a cluster shares a binding principle) and deterministic compute (cosine,
@@ -292,7 +292,7 @@ pending a further check.
 
 ## ADR-0013 — Vault flock + atomic-rename write safety
 
-**Status:** Accepted (shipped 2026-07-01, commit `f7f6b389`; closed #660 + #666)
+**Status:** Accepted (shipped 2026-07-01, commit `f7f6b389`; closed #660 + #666; #700 (2026-07): flock/atomic-rename lifecycle composed in `internal/cli` — `primFS`/`primLocker` over raw os/syscall primitives supplied by `cmd/engram` — semantics unchanged, lock-at-`Run*`-entry convention preserved, concurrent-writers regression test carried, now an `internal/cli` real-FS integration test)
 
 **Context.** The planned payload-prune production build spawns many parallel sub-recalls that
 write the vault and chunk index concurrently. Before this fix, only `learn`'s Luhmann-ID
@@ -500,6 +500,39 @@ the standing rule that a new edge type must first demonstrate retrieval value (A
 `docs/ROADMAP.md` → Standing constraint; vault note 73). Vocab's hub-note channel migrated to this tags
 convention 2026-07-10 (#678): definitions are recallable bare-`vocab`-tagged fact notes,
 `vocab_version` lives on `vocab-definition`, and the vocab query exclusions are deleted.
+
+---
+
+## ADR-0020 — Enforced `internal/` purity: raw I/O assignment in `cmd/engram`, all logic in `internal/`
+
+**Status:** Accepted (shipped via #700, 2026-07)
+
+**Context.** The DI doctrine ("wire at the edges" — CLAUDE.md's summary bullet, under
+ADR-0001..0003's authority) was convention-only: production I/O adapters lived inside
+`internal/cli`, `internal/debuglog`, and `internal/embed`; direct env reads had crept in (the
+#700 FIXME); and testing internal code meant working around real I/O. Meanwhile cmd thinness
+(targ's `check-thin-api` gate) forbids moving real adapter logic into `package main`.
+
+**Decision.** The boundary is absolute and two-sided. `internal/` non-test code holds interfaces
+plus ALL logic — adapter composition, error wrapping, lifecycle (the EdgeFS atomic-write dance,
+flock open/lock/unlock-closure semantics, the debug sink, signal force-exit, commander
+run-and-collect, embedder session/cache orchestration — built by `cli.NewDeps` from injected
+`cli.Primitives`) — but imports no I/O packages. `cmd/engram` (`package main`) is
+declaration-free: a single-statement `main()` populating `cli.Primitives` with raw capability
+references (`os.ReadFile`, `time.Now`, `filepath.WalkDir`, syscall wrappers) and sanctioned
+closures (single-call signature-erasers plus the two enumerated stdlib-equivalent survivors,
+`WriteFileExcl` and `RunCommand`) — zero orchestration. Enforcement is config-only and
+two-gate: on the internal side, a depguard default-deny allow-list over `internal/` non-test
+files (zero file carve-outs; real-os integration tests live in internal `_test` files via the
+sanctioned `!$test` exclusion) plus forbidigo call-level bans (`time.Now`/`Since`/`Tick`,
+math/rand v1, auto-seeded rand/v2 globals, `targ.Main`); on the cmd side, `targ check-thin-api`
+(authoritative).
+
+**Consequences.** Every internal package is testable by injection alone — unit tests with fake
+primitives, real-os integration tests as internal `_test` files. A new I/O capability requires a
+`Primitives` field plus internal composition, both visible in review. Both gates fail loud on
+regression. `cmd/engram` carries no testable logic and stays coverage-exempt as an entry point.
+Seeded `math/rand/v2` stays legal (deterministic computation).
 
 ## Decisions deliberately NOT made into ADRs
 

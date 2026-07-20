@@ -10,10 +10,10 @@ Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. 
 
 ```
 engram/
-├── cmd/engram/        # CLI binary entry point
+├── cmd/engram/        # CLI binary entry point — declaration-free single-statement main() supplying raw I/O primitives (targ check-thin-api-enforced)
 ├── internal/          # Non-public implementation
 │   ├── chunk/         # Splits memory sources (stripped transcripts, markdown) into embedding-sized chunks for the auto-ingested vector space (pure string logic, no I/O)
-│   ├── cli/           # CLI command wiring (targ targets)
+│   ├── cli/           # CLI command wiring (targ targets) + composition root: cli.NewDeps builds every production adapter from injected cli.Primitives
 │   ├── cluster/       # k-means clustering with silhouette-based auto-K, for recall clustering
 │   ├── context/       # Transcript processing for LLM agents
 │   ├── debuglog/      # Tail-friendly debug logger
@@ -31,7 +31,8 @@ engram/
 
 ## Key Files
 
-- `cmd/engram/main.go` — CLI entry point
+- `cmd/engram/main.go` — CLI entry point (declaration-free: one statement populating `cli.Primitives` with raw capability references; `targ check-thin-api`-enforced)
+- `internal/cli/primitives.go` — Composition root (`cli.Primitives` + `cli.NewDeps`, which builds every production adapter from the injected primitives)
 - `internal/cli/targets.go` — Subcommand wiring
 - `skills/{learn,recall,write-memory,please,route}/SKILL.md` — Skill definitions
 - `dev/targs.go` — Build targets (targ definitions)
@@ -40,9 +41,9 @@ engram/
 
 ## Design Principles
 
-Authority: `docs/architecture/adr.md` (ADR-0001..0003) — the bullets below are the agent-facing summary.
+Authority: `docs/architecture/adr.md` (ADR-0001..0020) — the bullets below are the agent-facing summary.
 
-- **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges.
+- **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges. Lint-enforced (depguard/forbidigo + `targ check-thin-api`, #700).
 - **Pure Go, no CGO.** External API only for LLM operations. Embedder runs through GoMLX's `simplego` backend (CGO not required).
 - **Skills + binary:** Skills for behavior (learn, recall), slim Go binary for computation.
 - **Embed-on-write:** Every note gets a sibling `.vec.json` sidecar on `engram learn`. The bundled MiniLM-L6 model (`minilm-l6-v2@384`) is `go:embed`-ed into the binary from `internal/embed/assets/model/` (git-lfs tracked). Sidecars are stamped with the model_id so future swaps require explicit `engram embed apply --force`.

@@ -50,7 +50,8 @@ flowchart TB
     %% shared kernels: compiled into multiple subcommand processes; never call across them
     embed["K5 · embed (shared kernel)<br/>Text(body) · ContentHash · Sidecar · embedder"]
     lz["K10 · luhmann (shared kernel)<br/>ParseID · LetterLess"]
-    dbg["K11 · debuglog (cross-cutting, all targets)"]
+    dbg["K11 · debuglog (cross-cutting, all targets)<br/>pure: writer+clock injected; sink composed in internal/cli/debugsink.go"]
+    prims["K13 · cmd/engram — edge primitives + entry point<br/>declaration-free main() → cli.Primitives → cli.NewDeps<br/>(ALL adapter composition in internal/cli); targ check-thin-api-enforced"]
 
     vault[("C4 · Vault")]
     model[["C3 · MiniLM"]]
@@ -85,7 +86,7 @@ flowchart TB
     embed --- model
     upd -->|go install| gotool
 
-    class ing,learn,query,vg,cl,eb,embed,upd,lz,prune comp
+    class ing,learn,query,vg,cl,eb,embed,upd,lz,prune,prims comp
     class dbg xcut
     class vault store
     class skills,sessions,gotool ext
@@ -105,9 +106,10 @@ flowchart TB
 | K8 | `internal/cluster` | `KMeans`, `Silhouette`, `AutoK`, `CosineDistance` | Pick k by silhouette; cluster the matched set. Silhouette is O(n²) per k swept, so clustering inputs are bounded: the matched set is hard-capped at `matchSetCap`=300 (10 phrases × top-30 per phrase) before clustering; recency-channel chunks (`recentFillChunks`, default 25; `--recent-fill`) are appended un-clustered and never enter K8. | C1 resolved — `TestInvariant_C1_ClusteringDeterminism`, `TestKMeans_DeterministicAcrossRuns`; L3-1 RETIRED (L3 note kind removed) |
 | K9 | `internal/update` | `Run`, `SourceLocal/Remote` | `go install` the binary; copy refreshed skills/commands per harness; `--with-guidance` deploys the guidance docs under `guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` (Claude Code only; opt-in; OpenCode deferred); sentinels `ErrGoNotFound`/`ErrNoHarness`/`ErrSkillsSrcMissing`. | **U1** resolved — `TestUpdater_Run_Local_Idempotent_Property` |
 | K10 | `internal/luhmann` | `ParseID`, `LetterLess`, sort/tie-break | Parse and order Luhmann ids; **shared kernel** consumed by K4 (`cli/learn.go`, `cli/luhmann.go`) AND K7 (`vaultgraph/{selector,scanner}.go`). | — |
-| K11 | `internal/debuglog` | tail-friendly sink | Cross-cutting debug log threaded through every CLI target (`targets.go`, `cli/signal.go`); L1 deferred it to here. | — |
+| K11 | `internal/debuglog` | tail-friendly sink (pure: writer+clock injected) | Cross-cutting debug log threaded through every CLI target (`targets.go`); sink composition (`openDebugSink` + per-write-`Sync` `syncWriter`, env-gated) lives in `internal/cli/debugsink.go`; `cmd/engram` supplies only the raw `OpenDebugFile` primitive (#700). | — |
 | K5b | `cli/embed.go` | `RunEmbedApply`, `RunEmbedStatus`, `selectStates` | The `engram embed apply/status` subcommand (separate process, operator-run for model migration): re-embeds notes whose sidecar is missing/stale/incompatible via the shared K5 package; `apply` writes sidecars, `status` reports counts. Wired in `targets.go` (grep `Name("embed")`). | drives **M4** remediation |
 | K12 | `cli/prune.go` | `RunPrune` | The `engram prune` subcommand (operator-run GC): reads the chunk-index manifest and, for every source whose file no longer exists, drops its manifest entry — the per-source index file (embedded chunk vectors) is left on disk, since chunk search discovers `.jsonl` files by directory scan and never consults the manifest, so detached chunks stay fully searchable (#659). Acquires `flock(.manifest.lock)` around the manifest read-modify-write (shared with `ingest`) so a concurrent ingest/prune cannot lose updates — #660. A separate `--empty` mode (`pruneEmptyLocked`, + `--dry-run`) instead removes existing 0-byte `.jsonl` index files left by a zero-record source under the `rebuildIndex` guard (#694) — ranking-neutral, re-reading each file live at delete time rather than deleting off a frozen enumeration. Not part of the recall/learn/please flows — manual cleanup only. Wired in `targets.go` (grep `Name("prune")`) alongside ingest/query. | — |
+| K13 | `cmd/engram` | edge primitives + entry point | Declaration-free single-statement `main()` populating `cli.Primitives` (raw os/syscall/filepath/hugot/exec capability references + sanctioned closures); `targ check-thin-api`-enforced; ALL adapter composition (EdgeFS, FileLocker, commander, hugot backend, debug sink, signal force-exit) lives in `internal/cli` via `cli.NewDeps`, integration-tested there with real FS/env (#700). | — |
 
 ## The recurring defect shape (feeds the Phase-4 ADR) — corrected per Phase-2 antagonist
 The canonical example of the silent-mismatch bug class:
