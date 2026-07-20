@@ -93,7 +93,7 @@ func TestCollectCurrentTermEntries_DefinitionNotesCarryDescriptions(t *testing.T
 
 	vault := buildTask4DefinitionFixture(t)
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	names, listErr := osFS.ListMD(vault)
 	g.Expect(listErr).NotTo(HaveOccurred())
@@ -128,7 +128,7 @@ func TestCollectCurrentTermEntries_MalformedDefinitionNote_Skipped(t *testing.T)
 	writeNote(t, vault, "1.2026-07-10.vocab-broken-definition.md",
 		"---\ntags:\n    - vocab\nobject:\n    - not-a-string\n---\n\nBroken frontmatter.\n")
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	names, listErr := osFS.ListMD(vault)
 	g.Expect(listErr).NotTo(HaveOccurred())
@@ -195,7 +195,7 @@ func TestCollectVaultStats_DefinitionNoteTermsWithMemberCounts(t *testing.T) {
 
 	vault := buildTask4DefinitionFixture(t)
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	names, listErr := osFS.ListMD(vault)
 	g.Expect(listErr).NotTo(HaveOccurred())
@@ -228,7 +228,7 @@ func TestCollectVaultStats_DefinitionNotesExcluded(t *testing.T) {
 	writeNote(t, vault, "2.2026-07-10.vocab-retrieval-design-definition.md",
 		"---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines.\n")
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	names, listErr := osFS.ListMD(vault)
 	g.Expect(listErr).NotTo(HaveOccurred())
@@ -267,7 +267,7 @@ func TestComputeTermCentroids_ExcludesDefinitionVectors(t *testing.T) {
 	writeNoteAndSidecar(t, vault, "3.2026-07-10.vocab-retrieval-design-definition.md",
 		"---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines retrieval-design.\n", definitionVec)
 
-	deps := cli.ExportNewOsVocabDeps()
+	deps := cli.ExportNewVocabDeps(cli.ExportNewTestOsDeps())
 	terms := []cli.TermWithVector{{Term: "retrieval-design", Vector: []float32{1, 0, 0}}}
 
 	// floor=-1 makes pass 1 assign EVERY member note to the sole term
@@ -540,7 +540,7 @@ func TestLoadCurrentVocabVersion_NoFamilyNote_DefaultsInitial(t *testing.T) {
 	vault := t.TempDir()
 	writeNote(t, vault, "1.2026-07-10.other.md", "---\ntype: fact\n---\n\nBody.\n")
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	got := cli.ExportLoadCurrentVocabVersion(vault, osFS.ListMD, osFS.ReadFile)
 	g.Expect(got).To(Equal("1.0"))
@@ -556,7 +556,7 @@ func TestLoadCurrentVocabVersion_ReadsFamilyNote(t *testing.T) {
 
 	vault := buildTask4DefinitionFixture(t)
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	got := cli.ExportLoadCurrentVocabVersion(vault, osFS.ListMD, osFS.ReadFile)
 	g.Expect(got).To(Equal("6.0"))
@@ -610,7 +610,7 @@ func TestLoadTermVectors_DuplicateDefinitionNotes_FirstWins(t *testing.T) {
 		"---\ntype: fact\nobject: desc\ntags:\n    - vocab\n---\n\nDefines dup-term (second).\n",
 		secondVec)
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	terms, err := cli.ExportLoadTermVectors(vault, osFS.ListMD, osFS.ReadFile)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -648,7 +648,7 @@ func TestLoadTermVectors_ReadsDefinitionNoteSidecars(t *testing.T) {
 	writeNote(t, vault, "210.2026-07-10.vocab-definition.md",
 		"---\ntype: fact\nvocab_version: \"6.0\"\ntags:\n    - vocab\n---\n\nFamily root.\n")
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	terms, err := cli.ExportLoadTermVectors(vault, osFS.ListMD, osFS.ReadFile)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -723,18 +723,18 @@ func TestMemberScan_FilenamePrefixNoLongerSpecial(t *testing.T) {
 			"(isQAQuestionFilename)")
 }
 
-// ── Coverage: newOsVocabDeps closures ────────────────────────────────────────
+// ── Coverage: newVocabDeps closures ──────────────────────────────────────────
 
-// TestNewOsVocabDeps_ClosuresCalled verifies that the ListMD, WriteFile, and
-// DeleteFile closures inside newOsVocabDeps are wired correctly. Covers the
+// TestNewVocabDeps_ClosuresCalled verifies that the ListMD, WriteFile, and
+// DeleteFile closures inside newVocabDeps are wired correctly. Covers the
 // function body and its closure blocks.
-func TestNewOsVocabDeps_ClosuresCalled(t *testing.T) {
+func TestNewVocabDeps_ClosuresCalled(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	deps := cli.ExportNewOsVocabDeps()
+	deps := cli.ExportNewVocabDeps(cli.ExportNewTestOsDeps())
 
 	// ListMD: empty vault returns no files.
 	names, listErr := deps.ListMD(vault)
@@ -1017,7 +1017,7 @@ func TestRetagAllNotesTwoPass_SkipsDefinitionNotes(t *testing.T) {
 	memberContent := "---\ntype: fact\ntags:\n    - vocab/retrieval-design\n---\n\nMember body.\n"
 	writeNoteAndSidecar(t, vault, "1.2026-07-10.member.md", memberContent, []float32{1, 0, 0})
 
-	deps := cli.ExportNewOsVocabDeps()
+	deps := cli.ExportNewVocabDeps(cli.ExportNewTestOsDeps())
 	terms := []cli.TermWithVector{{Term: "retrieval-design", Vector: []float32{1, 0, 0}}}
 
 	cli.ExportRetagAllNotesTwoPass(deps, vault, terms, 0.35, nil)
@@ -3566,7 +3566,7 @@ func TestSlugFromNoteFilename(t *testing.T) {
 // ── Coverage: vocabTargets bootstrap closure ──────────────────────────────────
 
 // TestTargets_VocabBootstrapNonExistentSeed exercises the vocab bootstrap
-// closure end-to-end (covers newOsVocabDeps and the bootstrap closure in
+// closure end-to-end (covers newVocabDeps and the bootstrap closure in
 // vocabTargets). The seed file does not exist, so the command returns an error.
 func TestTargets_VocabBootstrapNonExistentSeed(t *testing.T) {
 	t.Parallel()
@@ -3594,6 +3594,12 @@ func TestTargets_VocabBootstrapNonExistentSeed(t *testing.T) {
 
 // TestTargets_VocabProposeCreatesNote exercises the vocab propose closure via
 // Targets() on an empty vault (covers the propose target wiring in vocabTargets).
+// A pre-bootstrap vault has no vocab-definition family note, so propose
+// succeeds and emits exactly the documented missing-family-note warning
+// (bumpAndPersistVocabVersion: logged and skipped, not fatal). Before #700
+// T12 that warning leaked to the real process stderr; the composed
+// logWarningTo(d.Stderr) routes it to the injected stderr, where this test
+// pins it.
 func TestTargets_VocabProposeCreatesNote(t *testing.T) {
 	t.Parallel()
 
@@ -3613,7 +3619,12 @@ func TestTargets_VocabProposeCreatesNote(t *testing.T) {
 		stderr.WriteString(targErr.Error())
 	}
 
-	g.Expect(stderr.String()).To(BeEmpty(), "vocab propose must succeed on an empty vault")
+	g.Expect(stdout.String()).To(ContainSubstring("vocab propose: created test-term"),
+		"vocab propose must succeed on an empty vault")
+	g.Expect(stderr.String()).To(Equal(
+		"warning: vocab propose: writing family note version: "+
+			"vocab: family definition note (vocab-definition) not found\n"),
+		"pre-bootstrap propose warns about the absent family note via the injected stderr — nothing else")
 }
 
 // TestTargets_VocabRefitMissingPlan exercises the vocab refit closure via
@@ -3643,7 +3654,7 @@ func TestTargets_VocabRefitMissingPlan(t *testing.T) {
 // ── Vocab integration: OS wiring ─────────────────────────────────────────────
 
 // TestTargets_VocabStatsEmpty exercises the vocab stats closure end-to-end
-// through Targets() with an empty vault so newOsVocabStatsDeps wiring is covered.
+// through Targets() with an empty vault so newVocabStatsDeps wiring is covered.
 func TestTargets_VocabStatsEmpty(t *testing.T) {
 	t.Parallel()
 
@@ -3787,7 +3798,7 @@ func TestVocabFamilyNote_NeverEnumeratesTerms(t *testing.T) {
 
 	g.Expect(os.WriteFile(seedPath, seedYAML, 0o600)).To(Succeed())
 
-	deps := cli.ExportNewOsVocabDeps()
+	deps := cli.ExportNewVocabDeps(cli.ExportNewTestOsDeps())
 	deps.Embedder = &fakeEmbedder{}
 	deps.Now = func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) }
 
@@ -3853,7 +3864,7 @@ func TestWriteVocabVersionToFamilyNote_MissingFamilyNote_ReturnsSentinel(t *test
 	vault := t.TempDir()
 	writeNote(t, vault, "1.2026-07-10.other.md", "---\ntype: fact\n---\n\nBody.\n")
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	writeErr := cli.ExportWriteVocabVersionToFamilyNote(vault, "1.1", osFS.ListMD, osFS.ReadFile,
 		func(string, []byte) error { return nil })
@@ -3871,7 +3882,7 @@ func TestWriteVocabVersionToFamilyNote_RewritesOnlyFamilyNote(t *testing.T) {
 
 	vault := buildTask4DefinitionFixture(t)
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	written := make(map[string][]byte)
 	writeFile := func(path string, data []byte) error {

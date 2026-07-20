@@ -248,7 +248,7 @@ func TestRunResituate_Fact(t *testing.T) {
 
 	originalHash := embed.ContentHash([]byte(resituateFactNote))
 
-	deps := cli.ExportNewOsResituateDeps(successEmbedder{})
+	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
 
 	var stdout strings.Builder
 
@@ -292,7 +292,7 @@ func TestRunResituate_Feedback(t *testing.T) {
 
 	originalHash := embed.ContentHash([]byte(resituateFeedbackNote))
 
-	deps := cli.ExportNewOsResituateDeps(successEmbedder{})
+	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
 
 	var stdout strings.Builder
 
@@ -406,7 +406,7 @@ func TestRunResituate_LocatesByFullBasename(t *testing.T) {
 	notePath := filepath.Join(vault, basename+".md")
 	writeResituateFixture(t, notePath, resituateFactNote)
 
-	deps := cli.ExportNewOsResituateDeps(successEmbedder{})
+	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
 
 	var stdout strings.Builder
 
@@ -516,7 +516,7 @@ func TestRunResituate_NotFound(t *testing.T) {
 	vault := t.TempDir()
 	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 
-	deps := cli.ExportNewOsResituateDeps(successEmbedder{})
+	deps := cli.ExportNewResituateDeps(cli.ExportNewTestOsDeps(), successEmbedder{})
 
 	var stdout strings.Builder
 

@@ -89,12 +89,13 @@ func TestBumpLastUsedSetsDatePreservesVectors(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// OS-wired coverage: newOsActivateDeps + osWriteSidecar
+// Wiring coverage: newActivateDeps composed over real-OS test Deps
 // ---------------------------------------------------------------------------
 
-// TestNewOsActivateDeps_BumpsRealSidecar exercises newOsActivateDeps and
-// osWriteSidecar against a real file in a temp directory.
-func TestNewOsActivateDeps_BumpsRealSidecar(t *testing.T) {
+// TestNewActivateDeps_BumpsRealSidecar exercises newActivateDeps and its
+// WriteFileAtomic-backed sidecar write against a real file in a temp
+// directory.
+func TestNewActivateDeps_BumpsRealSidecar(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -118,7 +119,7 @@ func TestNewOsActivateDeps_BumpsRealSidecar(t *testing.T) {
 		return
 	}
 
-	deps := cli.ExportNewOsActivateDeps()
+	deps := cli.ExportNewActivateDeps(cli.ExportNewTestOsDeps())
 
 	runErr := cli.ExportRunActivate(cli.ActivateArgs{Notes: []string{notePath}}, deps)
 	g.Expect(runErr).NotTo(HaveOccurred())

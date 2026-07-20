@@ -25,7 +25,7 @@ type ResituateArgs struct {
 // ResituateDeps holds injected dependencies for RunResituate.
 type ResituateDeps struct {
 	// Lock acquires an exclusive flock on vault/.luhmann.lock and returns a release
-	// func. Wired to vaultFS.Lock in newOsResituateDeps. Guards the note
+	// func. Wired via vaultLockFromLocker in newResituateDeps. Guards the note
 	// read-modify-write against concurrent amend/resituate/learn runs.
 	Lock     func(vault string) (func(), error)
 	Scan     func(vault string) ([]vaultgraph.Note, error)
@@ -125,7 +125,7 @@ func applyVocabAssignmentAfterResituate(deps ResituateDeps, vault, notePath, con
 	applyResituateVocabAssignment(deps, vault, notePath, content)
 
 	if deps.Now == nil {
-		return // trigger check needs an injected clock; wiring provides time.Now
+		return // trigger check needs an injected clock; wiring provides the injected clock
 	}
 
 	// Trigger check — uses ListMD dep (optional, gated inside the callee).
@@ -152,34 +152,34 @@ func findNote(notes []vaultgraph.Note, target string) (string, error) {
 	return "", fmt.Errorf("%w: %q", errResituateNoteNotFound, original)
 }
 
-// newOsResituateDeps wires RunResituate to the real filesystem + the bundled
-// embedder.
-func newOsResituateDeps() ResituateDeps {
+// newResituateDeps composes RunResituate's dependencies from the injected
+// edge Deps (pure composition — no direct I/O; #700).
+func newResituateDeps(d Deps) ResituateDeps {
 	const perm = 0o600
 
-	osVault := &osVaultFS{}
+	vfs := newVaultFS(d.FS)
 
 	return ResituateDeps{
-		Lock: (&osLearnFS{}).Lock,
+		Lock: vaultLockFromLocker(d.Lock),
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
-			return vaultgraph.ScanVault(osVault, vault)
+			return vaultgraph.ScanVault(vfs, vault)
 		},
-		Read: osVault.ReadFile,
+		Read: vfs.ReadFile,
 		Write: func(path string, data []byte) error {
-			err := atomicWriteFile(path, data, perm)
+			err := d.FS.WriteFileAtomic(path, data, perm)
 			if err != nil {
 				return fmt.Errorf("write %s: %w", path, err)
 			}
 
 			return nil
 		},
-		Embedder: sharedEmbedder,
+		Embedder: d.Embed,
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
-			return loadAssignmentTermVectors(vault, osVault.ListMD, osVault.ReadFile)
+			return loadAssignmentTermVectors(vault, vfs.ListMD, vfs.ReadFile)
 		},
-		ListMD:     osVault.ListMD,
-		LogWarning: logWarningToStderrf,
-		Now:        time.Now,
+		ListMD:     vfs.ListMD,
+		LogWarning: logWarningTo(d.Stderr),
+		Now:        d.Now,
 	}
 }
 

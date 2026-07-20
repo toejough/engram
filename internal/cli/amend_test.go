@@ -814,8 +814,8 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
 	}
 
 	// Use the production deps end-to-end (real Scan/Read/Write/ListBasenames),
-	// overriding only the clock for determinism. This exercises newOsAmendDeps.
-	deps := cli.ExportNewOsAmendDeps()
+	// overriding only the clock for determinism. This exercises newAmendDeps.
+	deps := cli.ExportNewAmendDeps(cli.ExportNewTestOsDeps())
 	deps.Now = func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) }
 
 	args := cli.AmendArgs{

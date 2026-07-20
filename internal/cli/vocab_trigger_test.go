@@ -248,7 +248,7 @@ func TestCollectTriggerVaultStats_DefinitionsAreNeitherMembersNorUntagged(t *tes
 	writeNote(t, vault, "3.2026-07-10.vocab-retrieval-design-definition.md",
 		"---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines.\n")
 
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 
 	totalNotes, untaggedCount, _ := cli.ExportCollectTriggerVaultStats(vault, osFS.ListMD, osFS.ReadFile)
 
@@ -408,7 +408,7 @@ func TestVocabRefitSeed_MatchesTriggerCheckUnits(t *testing.T) {
 	seedPath := filepath.Join(vault, "seed.yaml")
 	g.Expect(os.WriteFile(seedPath, seedYAML, 0o600)).To(Succeed())
 
-	deps := cli.ExportNewOsVocabDeps()
+	deps := cli.ExportNewVocabDeps(cli.ExportNewTestOsDeps())
 	deps.Embedder = &fakeEmbedder{} // deterministic, no bundled-model cost
 
 	args := cli.VocabBootstrapArgs{Vault: vault, SeedFile: seedPath, Floor: 0.30}
@@ -438,7 +438,7 @@ func TestVocabRefitSeed_MatchesTriggerCheckUnits(t *testing.T) {
 
 	// The trigger check's own content-based measure, run fresh against the
 	// vault's final on-disk state (seed-minted definition notes included).
-	osFS := cli.ExportNewOsVaultFS()
+	osFS := cli.ExportNewVaultFS(realFSForTest())
 	wantTotal, _, _ := cli.ExportCollectTriggerVaultStats(vault, osFS.ListMD, osFS.ReadFile)
 
 	g.Expect(doc.LastRefit.NoteCount).To(Equal(wantTotal),

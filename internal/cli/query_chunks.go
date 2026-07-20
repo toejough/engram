@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -193,31 +192,6 @@ func newChunkQueryDeps(d Deps) ChunkQueryDeps {
 		ReadFile:    d.FS.ReadFile,
 		Embedder:    d.Embed,
 	}
-}
-
-// osListJSONLIndexes is the TRANSITIONAL os-backed .jsonl lister (#700).
-// Remaining consumers: amend.go (newOsAmendDeps) and prune.go
-// (newOsPruneDeps); T9/T12 flip those lines to listJSONLIndexes(d.FS) when
-// they convert, and T12 (last consumer) deletes this func + the "os" import.
-func osListJSONLIndexes(dir string) ([]string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-
-		return nil, fmt.Errorf("listing chunk indexes: %w", err)
-	}
-
-	var paths []string
-
-	for _, entry := range entries {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == jsonlExt {
-			paths = append(paths, filepath.Join(dir, entry.Name()))
-		}
-	}
-
-	return paths, nil
 }
 
 // scoreChunkForPhrase scores every record against a single pre-embedded phrase

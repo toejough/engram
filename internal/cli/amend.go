@@ -40,10 +40,10 @@ type AmendArgs struct {
 // LoadChunkIDs is DI-compliant: it takes injected listIndexes and readFile
 // functions (matching buildChunkIDSet from Component 2) and returns a
 // map[string]bool keyed by "source#anchor". The production wiring in
-// newOsAmendDeps supplies os.ReadDir/os.ReadFile via closures.
+// newAmendDeps supplies the injected EdgeFS via closures.
 type AmendDeps struct {
 	// Lock acquires an exclusive flock on vault/.luhmann.lock and returns a release
-	// func. Wired to vaultFS.Lock in newOsAmendDeps. Guards the note read-modify-write
+	// func. Wired via vaultLockFromLocker in newAmendDeps. Guards the note read-modify-write
 	// against concurrent amend/resituate/learn runs so no writer's changes are lost.
 	// Acquire only at the RunAmend entry point — shared helpers (reEmbedAndActivate,
 	// bumpLastUsed) must NOT re-acquire (RunAmend already holds it, re-acquiring would
@@ -334,46 +334,47 @@ func mergeChunkSources(existing, incoming []string) []string {
 	return out
 }
 
-// newOsAmendDeps wires RunAmend to the real filesystem + bundled embedder.
-// ChunksDir flows through AmendArgs, not here.
-func newOsAmendDeps() AmendDeps {
+// newAmendDeps composes RunAmend's dependencies from the injected edge Deps
+// (pure composition — no direct I/O; #700). ChunksDir flows through
+// AmendArgs, not here.
+func newAmendDeps(d Deps) AmendDeps {
 	const perm = 0o600
 
-	osVault := &osVaultFS{}
+	vfs := newVaultFS(d.FS)
 
 	return AmendDeps{
-		Lock: (&osLearnFS{}).Lock,
+		Lock: vaultLockFromLocker(d.Lock),
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
-			return vaultgraph.ScanVault(osVault, vault)
+			return vaultgraph.ScanVault(vfs, vault)
 		},
-		Read: osVault.ReadFile,
+		Read: vfs.ReadFile,
 		Write: func(path string, data []byte) error {
-			err := atomicWriteFile(path, data, perm)
+			err := d.FS.WriteFileAtomic(path, data, perm)
 			if err != nil {
 				return fmt.Errorf("write %s: %w", path, err)
 			}
 
 			return nil
 		},
-		Embedder:     sharedEmbedder,
-		Now:          time.Now,
+		Embedder:     d.Embed,
+		Now:          d.Now,
 		LoadChunkIDs: buildChunkIDSet,
-		// osListJSONLIndexes (query_chunks.go) lists *.jsonl chunk indexes, treats
-		// an absent dir as empty (not an error), and never matches manifest.json
-		// (it is not a .jsonl file) — exactly the contract needed here, so reuse
-		// it rather than hand-roll a closure.
-		ListIndexes: osListJSONLIndexes,
-		LogWarning:  logWarningToStderrf,
+		// listJSONLIndexes(d.FS) lists *.jsonl chunk indexes, treats an absent
+		// dir as empty (not an error), and never matches manifest.json —
+		// exactly the contract the transitional os-backed osListJSONLIndexes
+		// provided (deleted in step 8 now that this, its last consumer, flips).
+		ListIndexes: listJSONLIndexes(d.FS),
+		LogWarning:  logWarningTo(d.Stderr),
 		// Vocab assignment wiring: no-op when the vault has no term notes.
 		// Uses stored member centroids (vocab.centroids.json) when present,
 		// falling back to description embeddings per term.
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
-			return loadAssignmentTermVectors(vault, osVault.ListMD, osVault.ReadFile)
+			return loadAssignmentTermVectors(vault, vfs.ListMD, vfs.ReadFile)
 		},
 		// ListMD provides full .md filenames for the vocab trigger scan.
-		// Must use ListMD (not stripped basenames) — ListBasenames filters to
-		// Luhmann IDs, causing false-fire on the untagged trigger.
-		ListMD: osVault.ListMD,
+		// Must use ListMD (not stripped basenames) — basename filtering causes
+		// false-fire on the untagged trigger.
+		ListMD: vfs.ListMD,
 	}
 }
 

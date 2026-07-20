@@ -129,7 +129,7 @@ func TestFactAmend_VocabVersionRoundTrip(t *testing.T) {
 		return
 	}
 
-	deps := cli.ExportNewOsAmendDeps()
+	deps := cli.ExportNewAmendDeps(cli.ExportNewTestOsDeps())
 	deps.Now = func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) }
 
 	args := cli.AmendArgs{Vault: dir, Target: "210", Object: "updated description"}

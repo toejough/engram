@@ -138,25 +138,6 @@ func TestChunkQueryRanksByCosine(t *testing.T) {
 	}
 }
 
-// TestOsListJSONLIndexes_MissingDirIsEmptyIndex covers the TRANSITIONAL
-// os-backed lister's not-exist branch (#700 — amend.go/prune.go still wire
-// osListJSONLIndexes directly against real chunks dirs that always exist,
-// so this is the only remaining path to the not-exist short-circuit until
-// T12 deletes the function).
-func TestOsListJSONLIndexes_MissingDirIsEmptyIndex(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	paths, err := cli.ExportOsListJSONLIndexes(filepath.Join(t.TempDir(), "absent"))
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(paths).To(gomega.BeEmpty())
-}
-
 // axisEmbedder maps known texts onto fixed unit vectors so cosine ranking is
 // fully deterministic in tests.
 type axisEmbedder struct{ axes map[string][]float32 }

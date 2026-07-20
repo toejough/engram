@@ -107,12 +107,12 @@ func amendResituateTargets(
 	return []any{
 		targ.Targ(func(ctx context.Context, a ResituateArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			errHandler(RunResituate(withLog(ctx), a, newOsResituateDeps(), deps.Stdout))
+			errHandler(RunResituate(withLog(ctx), a, newResituateDeps(deps), deps.Stdout))
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 		targ.Targ(func(ctx context.Context, a AmendArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-			errHandler(RunAmend(withLog(ctx), a, newOsAmendDeps(), deps.Stdout))
+			errHandler(RunAmend(withLog(ctx), a, newAmendDeps(deps), deps.Stdout))
 		}).Name("amend").Description("Amend a note in place: supersedes, provenance-merge, field-replacement, activate"),
 	}
 }
@@ -177,7 +177,7 @@ func ingestQueryTargets(
 		}).Name("query-chunks").Description("Semantic search over the chunk index (YAML output)"),
 		targ.Targ(func(_ context.Context, a ActivateArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			errHandler(RunActivate(a, newOsActivateDeps()))
+			errHandler(RunActivate(a, newActivateDeps(deps)))
 		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
 		targ.Targ(func(_ context.Context, a CountArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
@@ -282,19 +282,19 @@ func vocabTargets(
 		targ.Group("vocab",
 			targ.Targ(func(ctx context.Context, a VocabBootstrapArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunVocabBootstrap(withLog(ctx), a, newOsVocabDeps(), deps.Stdout))
+				errHandler(RunVocabBootstrap(withLog(ctx), a, newVocabDeps(deps), deps.Stdout))
 			}).Name("bootstrap").Description("Seed vocab term notes + tag all existing notes (idempotent)"),
 			targ.Targ(func(_ context.Context, a VocabStatsArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunVocabStats(a, newOsVocabStatsDeps(), deps.Stdout))
+				errHandler(RunVocabStats(a, newVocabStatsDeps(deps), deps.Stdout))
 			}).Name("stats").Description("Print vocab health report (per-term counts, hubs, orphans, untagged rate)"),
 			targ.Targ(func(ctx context.Context, a VocabProposeArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunVocabPropose(withLog(ctx), a, newOsVocabDeps(), deps.Stdout))
+				errHandler(RunVocabPropose(withLog(ctx), a, newVocabDeps(deps), deps.Stdout))
 			}).Name("propose").Description("Add a new vocab term note + minor version bump (LLM gate runs agent-side)"),
 			targ.Targ(func(ctx context.Context, a VocabRefitArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunVocabRefit(withLog(ctx), a, newOsVocabDeps(), deps.Stdout))
+				errHandler(RunVocabRefit(withLog(ctx), a, newVocabDeps(deps), deps.Stdout))
 			}).Name("refit").Description("Apply a refit plan: renames, removals, additions, re-tag, major version bump"),
 		),
 	}

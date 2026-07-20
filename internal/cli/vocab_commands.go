@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -1123,7 +1122,7 @@ func loadRefitPlan(planFile string, readFile func(string) ([]byte, error)) (Refi
 // union with the old-shape vocab.<term>.md term note is retired — a single
 // read source means a term can never be double-counted). names are visited
 // in the order listMD returns them (filename-sorted for the real OS-backed
-// implementation — os.ReadDir sorts by name); the FIRST definition note seen
+// implementation — the OS-backed lister sorts by name); the FIRST definition note seen
 // per term wins and any later duplicate is skipped — a cheap dedup guard
 // against a hand-edited vault carrying two definition notes for the same
 // term (structurally impossible via this package's own writers, but not
@@ -1205,37 +1204,50 @@ func mintDefinitionNote(
 	return nil
 }
 
-// newOsVocabDeps wires VocabDeps to the real filesystem + bundled embedder.
-func newOsVocabDeps() VocabDeps {
+// newVocabDeps composes VocabDeps from the injected edge Deps (pure
+// composition — no direct I/O; #700).
+func newVocabDeps(d Deps) VocabDeps {
+	const sidecarPerm = 0o600
+
+	vfs := newVaultFS(d.FS)
+
 	return VocabDeps{
-		Lock: (&osLearnFS{}).Lock,
-		ListMD: func(vault string) ([]string, error) {
-			return (&osVaultFS{}).ListMD(vault)
-		},
-		ReadFile: (&osVaultFS{}).ReadFile,
+		Lock:     vaultLockFromLocker(d.Lock),
+		ListMD:   vfs.ListMD,
+		ReadFile: vfs.ReadFile,
 		WriteFile: func(path string, data []byte) error {
-			return atomicWriteFile(path, data, vocabNotePerm)
+			return d.FS.WriteFileAtomic(path, data, vocabNotePerm)
 		},
 		DeleteFile: func(path string) error {
-			deleteErr := os.Remove(filepath.Clean(path))
+			deleteErr := d.FS.Remove(filepath.Clean(path))
 			if deleteErr != nil {
 				return fmt.Errorf("deleting %s: %w", path, deleteErr)
 			}
 
 			return nil
 		},
-		WriteSidecar: (&osEmbedFS{}).Write,
-		Embedder:     sharedEmbedder,
-		LogWarning:   logWarningToStderrf,
-		Now:          time.Now,
+		WriteSidecar: func(path string, data []byte) error {
+			err := d.FS.WriteFileAtomic(path, data, sidecarPerm)
+			if err != nil {
+				return fmt.Errorf("write: %w", err)
+			}
+
+			return nil
+		},
+		Embedder:   d.Embed,
+		LogWarning: logWarningTo(d.Stderr),
+		Now:        d.Now,
 	}
 }
 
-// newOsVocabStatsDeps wires VocabStatsDeps to the real filesystem.
-func newOsVocabStatsDeps() VocabStatsDeps {
+// newVocabStatsDeps composes the read-only vocab stats deps from the injected
+// edge Deps.
+func newVocabStatsDeps(d Deps) VocabStatsDeps {
+	vfs := newVaultFS(d.FS)
+
 	return VocabStatsDeps{
-		ListMD:   (&osVaultFS{}).ListMD,
-		ReadFile: (&osVaultFS{}).ReadFile,
+		ListMD:   vfs.ListMD,
+		ReadFile: vfs.ReadFile,
 	}
 }
 

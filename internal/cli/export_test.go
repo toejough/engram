@@ -71,15 +71,14 @@ var (
 	ExportMarshalFrontmatter               = marshalFrontmatter
 	ExportMaxTurnBySource                  = maxTurnBySource
 	ExportMostRecentlyUsedNoteItems        = mostRecentlyUsedNoteItems
+	ExportNewActivateDeps                  = newActivateDeps
+	ExportNewAmendDeps                     = newAmendDeps
 	ExportNewErrHandler                    = newErrHandler
-	ExportNewOsActivateDeps                = newOsActivateDeps
-	ExportNewOsAmendDeps                   = newOsAmendDeps
-	ExportNewOsVocabDeps                   = newOsVocabDeps
+	ExportNewVocabDeps                     = newVocabDeps
 	ExportNextLuhmannID                    = nextLuhmannID
 	ExportNoteAgeDays                      = noteAgeDays
 	ExportNoteContainsAnyRemoval           = noteContainsAnyRemoval
 	ExportOldVocabFilesPresent             = oldVocabFilesPresent
-	ExportOsListJSONLIndexes               = osListJSONLIndexes
 	ExportParseCreatedFromNote             = parseCreatedFromNote
 	ExportParseNoteQueryFrontmatter        = parseNoteQueryFrontmatter
 	ExportParseSupersedesFlag              = parseSupersedesFlag
@@ -342,12 +341,13 @@ func ExportDoAtomicWrite(
 // locate a source's chunk index file.
 func ExportIndexFileName(source string) string { return sourceSlug(source) + ".jsonl" }
 
-// ExportLoadMemberNoteVectors drives loadMemberNoteVectors with real
-// OS-backed VocabDeps (newOsVocabDeps), so tests can exercise it against a
-// real t.TempDir() vault fixture (see writeNoteAndSidecar). The real function
-// returns only a map (no error) — adapted per the Task 2 brief's note.
+// ExportLoadMemberNoteVectors drives loadMemberNoteVectors with
+// production-composed VocabDeps (newVocabDeps over real-OS test Deps), so
+// tests can exercise it against a real t.TempDir() vault fixture (see
+// writeNoteAndSidecar). The real function returns only a map (no error) —
+// adapted per the Task 2 brief's note.
 func ExportLoadMemberNoteVectors(vault string) map[string][]float32 {
-	return loadMemberNoteVectors(newOsVocabDeps(), vault)
+	return loadMemberNoteVectors(newVocabDeps(ExportNewTestOsDeps()), vault)
 }
 
 // ExportLoadPriorRecords exposes loadPriorRecords for ingest unit tests.
@@ -545,16 +545,6 @@ func ExportNewOsEmbedDeps(emb embed.Embedder) EmbedDeps {
 // ExportNewOsLearnFS returns the production osLearnFS adapter for testing.
 func ExportNewOsLearnFS() *osLearnFS { return &osLearnFS{} }
 
-// ExportNewOsResituateDeps returns production ResituateDeps with an injected
-// embedder so coverage tests can drive Scan/Read/Write without unpacking the
-// lazy bundled embedder.
-func ExportNewOsResituateDeps(emb embed.Embedder) ResituateDeps {
-	deps := newOsResituateDeps()
-	deps.Embedder = emb
-
-	return deps
-}
-
 // ExportNewOsUpdateEnv returns the production Env adapter for testing.
 func ExportNewOsUpdateEnv() *osUpdateEnv { return &osUpdateEnv{} }
 
@@ -578,6 +568,16 @@ func ExportNewQaDeps(d Deps) LearnQADeps { return newQaDeps(d) }
 // ExportNewRecencyParams builds a recencyParams for tests.
 func ExportNewRecencyParams(halfLifeDays, tailWeight float64, floor int) recencyParams {
 	return recencyParams{halfLifeDays: halfLifeDays, tailWeight: tailWeight, floor: floor}
+}
+
+// ExportNewResituateDeps returns production-composed ResituateDeps with an
+// injected embedder so coverage tests can drive Scan/Read/Write without
+// unpacking the lazy bundled embedder.
+func ExportNewResituateDeps(d Deps, emb embed.Embedder) ResituateDeps {
+	deps := newResituateDeps(d)
+	deps.Embedder = emb
+
+	return deps
 }
 
 // ExportNewResolvedItem builds a resolvedItem for tests that need to

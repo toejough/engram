@@ -40,6 +40,19 @@ func TestOsVaultFS_ListMD_NonDirError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("list md")))
 }
 
+// TestOsVaultFS_ReadFile_MissingPathError covers the legacy osVaultFS.ReadFile
+// error branch (#700 — the T12 constructor flips moved amend/resituate/vocab
+// reads onto the pure vaultFS, leaving embed.go's ScanVault as the adapter's
+// only production caller until T15/T7; dies with T7).
+func TestOsVaultFS_ReadFile_MissingPathError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vfs := cli.ExportNewOsVaultFS()
+	_, err := vfs.ReadFile("/nonexistent/path.md")
+	g.Expect(err).To(MatchError(ContainSubstring("reading")))
+}
+
 func TestVaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

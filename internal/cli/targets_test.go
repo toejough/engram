@@ -326,7 +326,7 @@ func TestTargets(t *testing.T) {
 }
 
 // TestTargets_ActivateNoNotes exercises the activate closure end-to-end
-// through Targets() with no --note flags so newOsActivateDeps wiring is
+// through Targets() with no --note flags so newActivateDeps wiring is
 // covered. The empty-notes fast path returns nil (0 failures, 0 notes).
 func TestTargets_ActivateNoNotes(t *testing.T) {
 	t.Parallel()
@@ -432,7 +432,7 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 }
 
 // TestTargets_Resituate exercises the resituate closure end-to-end through
-// Targets() so the newOsResituateDeps wiring is covered. The target is a
+// Targets() so the newResituateDeps wiring is covered. The target is a
 // non-existent note in an empty vault: the real ScanVault runs and finds
 // nothing, so the not-found sentinel surfaces on stderr without unpacking
 // the bundled embedder (no matching note to re-embed).
