@@ -160,6 +160,21 @@ func writeAtomicFromFS(fsys EdgeFS, opName string) func(string, []byte) error {
 	}
 }
 
+// writeAtomicWithPathFromFS returns an atomic-rewrite func (temp+rename via
+// EdgeFS.WriteFileAtomic — ADR-0013's atomic-rename edge) whose error wrap
+// carries the target path ("write %s: %w") — the composition shared by the
+// amend and resituate Write call sites.
+func writeAtomicWithPathFromFS(fsys EdgeFS) func(string, []byte) error {
+	return func(path string, data []byte) error {
+		err := fsys.WriteFileAtomic(path, data, atomicFilePerm)
+		if err != nil {
+			return fmt.Errorf("write %s: %w", path, err)
+		}
+
+		return nil
+	}
+}
+
 // writeNewFromFS returns a WriteNew func: exclusive create, preserving
 // errors.Is(err, fs.ErrExist) — the K1 collision backstop under the vault lock.
 func writeNewFromFS(fsys EdgeFS) func(string, []byte) error {

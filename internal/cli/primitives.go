@@ -100,9 +100,10 @@ func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
 		DebugLog:    openDebugSink(envOrEmpty(prims.Getenv, debugLogEnvVar), prims.OpenDebugFile),
 	}
 
-	// The lazy embedder is constructed once here, preserving the
-	// one-unpack-per-process property of the old sharedEmbedder singleton
-	// (guarded: minimal fake Primitives without Getenv skip it). R6/D-1:
+	// The lazy embedder is constructed exactly once, here: NewDeps is the
+	// sole composition point for Deps.Embed, so the model unpacks at most
+	// once per process (guarded: minimal fake Primitives without Getenv
+	// skip it). R6/D-1:
 	// backend composed from the raw EmbedRuntime, cache FS from the raw
 	// filesystem primitives — no embed wiring in cmd. A nil EmbedRuntime
 	// surfaces as embed.ErrRuntimeMissing on first use (fail-loud lazy),

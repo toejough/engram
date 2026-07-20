@@ -155,8 +155,6 @@ func findNote(notes []vaultgraph.Note, target string) (string, error) {
 // newResituateDeps composes RunResituate's dependencies from the injected
 // edge Deps (pure composition — no direct I/O; #700).
 func newResituateDeps(d Deps) ResituateDeps {
-	const perm = 0o600
-
 	vfs := newVaultFS(d.FS)
 
 	return ResituateDeps{
@@ -164,15 +162,8 @@ func newResituateDeps(d Deps) ResituateDeps {
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
 			return vaultgraph.ScanVault(vfs, vault)
 		},
-		Read: vfs.ReadFile,
-		Write: func(path string, data []byte) error {
-			err := d.FS.WriteFileAtomic(path, data, perm)
-			if err != nil {
-				return fmt.Errorf("write %s: %w", path, err)
-			}
-
-			return nil
-		},
+		Read:     vfs.ReadFile,
+		Write:    writeAtomicWithPathFromFS(d.FS),
 		Embedder: d.Embed,
 		LoadTermVectors: func(vault string) ([]TermWithVector, error) {
 			return loadAssignmentTermVectors(vault, vfs.ListMD, vfs.ReadFile)

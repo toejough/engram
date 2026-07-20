@@ -192,21 +192,12 @@ func applyOne(
 // WriteFileAtomic (temp+rename) so concurrent readers always see either
 // the old or new file, never a torn write (ADR-0013 semantics preserved).
 func newEmbedDeps(d Deps) EmbedDeps {
-	const sidecarPerm = 0o600
-
 	return EmbedDeps{
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
 			return vaultgraph.ScanVault(newVaultFS(d.FS), vault)
 		},
-		Read: d.FS.ReadFile,
-		Write: func(path string, data []byte) error {
-			err := d.FS.WriteFileAtomic(path, data, sidecarPerm)
-			if err != nil {
-				return fmt.Errorf("write: %w", err)
-			}
-
-			return nil
-		},
+		Read:     d.FS.ReadFile,
+		Write:    writeAtomicFromFS(d.FS, "write"),
 		Embedder: d.Embed,
 	}
 }

@@ -338,8 +338,6 @@ func mergeChunkSources(existing, incoming []string) []string {
 // (pure composition — no direct I/O; #700). ChunksDir flows through
 // AmendArgs, not here.
 func newAmendDeps(d Deps) AmendDeps {
-	const perm = 0o600
-
 	vfs := newVaultFS(d.FS)
 
 	return AmendDeps{
@@ -347,15 +345,8 @@ func newAmendDeps(d Deps) AmendDeps {
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
 			return vaultgraph.ScanVault(vfs, vault)
 		},
-		Read: vfs.ReadFile,
-		Write: func(path string, data []byte) error {
-			err := d.FS.WriteFileAtomic(path, data, perm)
-			if err != nil {
-				return fmt.Errorf("write %s: %w", path, err)
-			}
-
-			return nil
-		},
+		Read:         vfs.ReadFile,
+		Write:        writeAtomicWithPathFromFS(d.FS),
 		Embedder:     d.Embed,
 		Now:          d.Now,
 		LoadChunkIDs: buildChunkIDSet,

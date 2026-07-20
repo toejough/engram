@@ -308,10 +308,11 @@ func TestLoadPriorRecordsPreservesIngestedAt(t *testing.T) {
 }
 
 // TestManifest_ConcurrentWritersDoNotLoseEntries exercises a real flock via
-// testFlocker on a t.TempDir(): one goroutine ingests a NEW source while another
-// prunes a dead one, both running concurrently on the SAME chunksDir and each
-// sleeping ~5ms between read and write to widen the race window. The final
-// manifest must retain the ingested entry AND drop only the dead one.
+// the production FileLocker composed over real OS primitives on a t.TempDir():
+// one goroutine ingests a NEW source while another prunes a dead one, both
+// running concurrently on the SAME chunksDir and each sleeping ~5ms between
+// read and write to widen the race window. The final manifest must retain
+// the ingested entry AND drop only the dead one.
 //
 // The shared chunksDir is the deliberate test subject, not accidental state.
 // Without the flock the ingest entry would be silently dropped (the prune

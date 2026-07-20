@@ -1207,8 +1207,6 @@ func mintDefinitionNote(
 // newVocabDeps composes VocabDeps from the injected edge Deps (pure
 // composition — no direct I/O; #700).
 func newVocabDeps(d Deps) VocabDeps {
-	const sidecarPerm = 0o600
-
 	vfs := newVaultFS(d.FS)
 
 	return VocabDeps{
@@ -1226,17 +1224,10 @@ func newVocabDeps(d Deps) VocabDeps {
 
 			return nil
 		},
-		WriteSidecar: func(path string, data []byte) error {
-			err := d.FS.WriteFileAtomic(path, data, sidecarPerm)
-			if err != nil {
-				return fmt.Errorf("write: %w", err)
-			}
-
-			return nil
-		},
-		Embedder:   d.Embed,
-		LogWarning: logWarningTo(d.Stderr),
-		Now:        d.Now,
+		WriteSidecar: writeAtomicFromFS(d.FS, "write"),
+		Embedder:     d.Embed,
+		LogWarning:   logWarningTo(d.Stderr),
+		Now:          d.Now,
 	}
 }
 
