@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -33,126 +31,87 @@ const (
 
 // unexported variables.
 var (
-	_                      update.Filesystem = (*osUpdateFS)(nil)
+	_                      update.Env        = (*updateEnvFromDeps)(nil)
+	_                      update.Filesystem = (*updateFSFromEdge)(nil)
 	errSomeHarnessesFailed                   = errors.New(
 		"update: one or more detected harnesses failed",
 	)
 )
 
-type osCommander struct{}
+// updateDeps carries the injected surfaces Updater.Run needs. Composed
+// from the CLI-wide Deps by newUpdateDeps — pure plumbing, no I/O (#700).
+type updateDeps struct {
+	FS  update.Filesystem
+	Cmd update.Commander
+	Env update.Env
+}
 
-func (*osCommander) Run(
-	ctx context.Context, dir, name string, args ...string,
-) ([]byte, []byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // name/args from internal callers
-	cmd.Dir = dir
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+// updateEnvFromDeps adapts cli.Deps' env funcs to update.Env.
+type updateEnvFromDeps struct {
+	getenv      func(string) string
+	getwd       func() (string, error)
+	userHomeDir func() (string, error)
+}
 
-	err := cmd.Run()
+func (e *updateEnvFromDeps) Getenv(key string) string { return e.getenv(key) }
+
+func (e *updateEnvFromDeps) Getwd() (string, error) { return e.getwd() }
+
+func (e *updateEnvFromDeps) UserHomeDir() (string, error) { return e.userHomeDir() }
+
+// updateFSFromEdge adapts the CLI-wide EdgeFS to update.Filesystem. Pure
+// interface plumbing: fs.DirEntry / fs.FileInfo structurally satisfy
+// update.DirEntry / update.FileInfo. Errors pass through unwrapped so
+// errors.Is(err, fs.ErrNotExist) checks in the update package keep working.
+type updateFSFromEdge struct {
+	fs EdgeFS
+}
+
+func (a *updateFSFromEdge) MkdirAll(path string, perm fs.FileMode) error {
+	return a.fs.MkdirAll(path, perm) // pass-through; update core adds context
+}
+
+func (a *updateFSFromEdge) ReadDir(path string) ([]update.DirEntry, error) {
+	entries, err := a.fs.ReadDir(path)
 	if err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
-			return stdout.Bytes(), stderr.Bytes(),
-				fmt.Errorf("%s %v: %w: %w", name, args, update.ErrCommandNotFound, err)
-		}
-
-		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("%s %v: %w", name, args, err)
-	}
-
-	return stdout.Bytes(), stderr.Bytes(), nil
-}
-
-type osDirEntry struct{ entry fs.DirEntry }
-
-func (o *osDirEntry) IsDir() bool { return o.entry.IsDir() }
-
-func (o *osDirEntry) Name() string { return o.entry.Name() }
-
-type osFileInfo struct{ info fs.FileInfo }
-
-func (o *osFileInfo) IsDir() bool { return o.info.IsDir() }
-
-type osUpdateEnv struct{}
-
-func (*osUpdateEnv) Getenv(key string) string {
-	return os.Getenv(key)
-}
-
-func (*osUpdateEnv) Getwd() (string, error) {
-	return os.Getwd() //nolint:wrapcheck // adapter; caller wraps with context
-}
-
-func (*osUpdateEnv) UserHomeDir() (string, error) {
-	return os.UserHomeDir() //nolint:wrapcheck // adapter; caller wraps with context
-}
-
-// --- production adapters --------------------------------------------------
-
-type osUpdateFS struct{}
-
-func (*osUpdateFS) MkdirAll(path string, perm fs.FileMode) error {
-	err := os.MkdirAll(path, perm)
-	if err != nil {
-		return fmt.Errorf("mkdir: %w", err)
-	}
-
-	return nil
-}
-
-func (*osUpdateFS) ReadDir(path string) ([]update.DirEntry, error) {
-	entries, err := os.ReadDir(path)
-	if err != nil {
-		//nolint:wrapcheck // caller distinguishes fs.ErrNotExist via errors.Is
+		// Caller distinguishes fs.ErrNotExist via errors.Is.
 		return nil, err
 	}
 
 	out := make([]update.DirEntry, 0, len(entries))
-
 	for _, entry := range entries {
-		out = append(out, &osDirEntry{entry: entry})
+		out = append(out, entry)
 	}
 
 	return out, nil
 }
 
-func (*osUpdateFS) ReadFile(path string) ([]byte, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // path supplied by walker
+func (a *updateFSFromEdge) ReadFile(path string) ([]byte, error) {
+	data, err := a.fs.ReadFile(path)
 	if err != nil {
-		//nolint:wrapcheck // adapter; caller adds context
+		// Caller distinguishes fs.ErrNotExist via errors.Is.
 		return nil, err
 	}
 
 	return data, nil
 }
 
-func (*osUpdateFS) RemoveAll(path string) error {
-	err := os.RemoveAll(path)
-	if err != nil {
-		return fmt.Errorf("remove: %w", err)
-	}
-
-	return nil
+func (a *updateFSFromEdge) RemoveAll(path string) error {
+	return a.fs.RemoveAll(path) // pass-through; update core adds context
 }
 
-func (*osUpdateFS) Stat(path string) (update.FileInfo, error) {
-	info, err := os.Stat(path)
+func (a *updateFSFromEdge) Stat(path string) (update.FileInfo, error) {
+	info, err := a.fs.Stat(path)
 	if err != nil {
-		//nolint:wrapcheck // thin I/O adapter; caller distinguishes fs.ErrNotExist via errors.Is
+		// Caller distinguishes fs.ErrNotExist via errors.Is.
 		return nil, err
 	}
 
-	return &osFileInfo{info: info}, nil
+	return info, nil
 }
 
-func (*osUpdateFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
-	err := os.WriteFile(path, data, perm)
-	if err != nil {
-		return fmt.Errorf("write: %w", err)
-	}
-
-	return nil
+func (a *updateFSFromEdge) WriteFile(path string, data []byte, perm fs.FileMode) error {
+	return a.fs.WriteFile(path, data, perm) // pass-through; update core adds context
 }
 
 func anyHarnessFailed(report update.Report) bool {
@@ -242,6 +201,19 @@ func finishUpdate(stdout io.Writer, report update.Report, runErr error) error {
 
 func harnessFailed(harness update.HarnessReport) bool { return harness.Err != nil }
 
+// newUpdateDeps composes update's dependency surface from cli.Deps.
+func newUpdateDeps(d Deps) updateDeps {
+	return updateDeps{
+		FS:  &updateFSFromEdge{fs: d.FS},
+		Cmd: d.Commander,
+		Env: &updateEnvFromDeps{
+			getenv:      d.Getenv,
+			getwd:       d.Getwd,
+			userHomeDir: d.UserHomeDir,
+		},
+	}
+}
+
 // oldVocabFilesPresent reports whether vaultPath still holds pre-tags vocab
 // files (vocab.<term>.md term notes, vocab.index.md) — the signal that a
 // vault predates the 2026-07-10 vocab→tags migration (#678). A missing or
@@ -277,12 +249,12 @@ func pluralFile(n int) string {
 	return "files"
 }
 
-// runUpdate wires production adapters and invokes Updater.Run.
-func runUpdate(ctx context.Context, args UpdateArgs, stdout io.Writer) error {
+// runUpdate invokes Updater.Run over the injected dependency surface.
+func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.Writer) error {
 	updater := &update.Updater{
-		FS:  &osUpdateFS{},
-		Cmd: &osCommander{},
-		Env: &osUpdateEnv{},
+		FS:  deps.FS,
+		Cmd: deps.Cmd,
+		Env: deps.Env,
 	}
 
 	report, runErr := updater.Run(ctx, update.Options{
@@ -290,10 +262,10 @@ func runUpdate(ctx context.Context, args UpdateArgs, stdout io.Writer) error {
 		WithGuidance: args.WithGuidance,
 	})
 	if runErr == nil {
-		vaultPath := resolveVault("", report.Home, updater.Env.Getenv)
-		report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, updater.FS)
-		chunksDir := ResolveChunksDir("", report.Home, updater.Env.Getenv)
-		report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, updater.FS)
+		vaultPath := resolveVault("", report.Home, deps.Env.Getenv)
+		report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, deps.FS)
+		chunksDir := ResolveChunksDir("", report.Home, deps.Env.Getenv)
+		report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, deps.FS)
 	}
 
 	return finishUpdate(stdout, report, runErr)

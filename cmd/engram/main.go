@@ -6,8 +6,11 @@
 package main
 
 import (
+	"context"
+	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -64,7 +67,6 @@ func main() {
 		},
 		OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
 			fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
-
 			return uintptr(fd), err
 		},
 		FlockExclusive: func(fd uintptr) error {
@@ -81,6 +83,17 @@ func main() {
 			//nolint:gosec // operator-controlled path
 			return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
 		},
+		RunCommand: func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error {
+			// Doctrine survivor C-1: construction + field assignments + one
+			// invocation, zero branching. Behavior changes (timeout, env,
+			// output policy, retry) extend the Primitives SIGNATURE, never
+			// this body. Raw error out; primCommander wraps + translates.
+			cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec // name/args from internal callers
+			cmd.Dir, cmd.Stdout, cmd.Stderr = dir, stdout, stderr
+
+			return cmd.Run()
+		},
+		NotFoundErr: exec.ErrNotFound,
 		StartSignalPulses: func(pulses chan<- struct{}, buffer int) {
 			sigCh := make(chan os.Signal, buffer)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)

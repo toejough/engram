@@ -1,10 +1,12 @@
 package cli_test
 
 import (
+	"context"
 	"errors"
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 	"testing"
@@ -523,5 +525,12 @@ func realPrimitives() cli.Primitives {
 		OpenDebugFile: func(path string, perm fs.FileMode) (cli.WriteSyncer, error) {
 			return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
 		},
+		RunCommand: func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error {
+			cmd := exec.CommandContext(ctx, name, args...)
+			cmd.Dir, cmd.Stdout, cmd.Stderr = dir, stdout, stderr
+
+			return cmd.Run()
+		},
+		NotFoundErr: exec.ErrNotFound,
 	}
 }

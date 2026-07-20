@@ -225,7 +225,7 @@ func learnUpdateTargets(
 			}).Name("qa").Description("Write a QA pair (Q+A notes) to the vault"),
 		),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
-			errHandler(runUpdate(withLog(ctx), a, deps.Stdout))
+			errHandler(runUpdate(withLog(ctx), a, newUpdateDeps(deps), deps.Stdout))
 		}).Name("update").Description("Refresh engram binary and harness skills"),
 		targ.Group("embed",
 			targ.Targ(func(ctx context.Context, a EmbedApplyArgs) {

@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io/fs"
 	"maps"
 	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -232,225 +231,6 @@ func TestOldVocabFilesPresent(t *testing.T) {
 	}
 }
 
-func TestOsCommander_ReportsFailure(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	cmd := cli.ExportNewOsCommander()
-
-	_, _, err := cmd.Run(context.Background(), "", "false")
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestOsCommander_RunsCommand(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	cmd := cli.ExportNewOsCommander()
-
-	stdout, _, err := cmd.Run(context.Background(), "", "echo", "hello world")
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(strings.TrimSpace(string(stdout))).To(Equal("hello world"))
-}
-
-func TestOsCommander_TranslatesNotFound(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	cmd := cli.ExportNewOsCommander()
-
-	_, _, err := cmd.Run(context.Background(), "", "engram-no-such-binary-7f3a")
-	g.Expect(err).To(MatchError(update.ErrCommandNotFound))
-}
-
-func TestOsUpdateEnv_ReturnsValues(t *testing.T) {
-	g := NewWithT(t)
-
-	env := cli.ExportNewOsUpdateEnv()
-
-	home, homeErr := env.UserHomeDir()
-	g.Expect(homeErr).NotTo(HaveOccurred())
-	g.Expect(home).NotTo(BeEmpty())
-
-	cwd, cwdErr := env.Getwd()
-	g.Expect(cwdErr).NotTo(HaveOccurred())
-	g.Expect(cwd).NotTo(BeEmpty())
-
-	t.Setenv("ENGRAM_UPDATE_TEST", "1")
-	g.Expect(env.Getenv("ENGRAM_UPDATE_TEST")).To(Equal("1"))
-}
-
-func TestOsUpdateFS_MkdirAllOnFileErrors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	osFS := cli.ExportNewOsUpdateFS()
-
-	tmp := t.TempDir()
-	filePath := filepath.Join(tmp, "blocking")
-
-	writeErr := os.WriteFile(filePath, []byte("x"), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	// MkdirAll fails because filePath exists and is not a directory.
-	err := osFS.MkdirAll(filepath.Join(filePath, "sub"), 0o755)
-	g.Expect(err).To(HaveOccurred())
-}
-
-// osUpdateFS round-trip tests: exercise the production adapters against
-// a tmp dir so coverage credits them.
-
-func TestOsUpdateFS_ReadDirEmpty(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	tmp := t.TempDir()
-	osFS := cli.ExportNewOsUpdateFS()
-
-	entries, err := osFS.ReadDir(tmp)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(entries).To(BeEmpty())
-}
-
-func TestOsUpdateFS_ReadDirMissing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	osFS := cli.ExportNewOsUpdateFS()
-
-	_, err := osFS.ReadDir(filepath.Join(t.TempDir(), "nope"))
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(os.IsNotExist(err)).To(BeTrue())
-}
-
-func TestOsUpdateFS_ReadFileMissing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	osFS := cli.ExportNewOsUpdateFS()
-
-	_, err := osFS.ReadFile(filepath.Join(t.TempDir(), "nope"))
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestOsUpdateFS_RemoveAllClearsDirAndIsIdempotent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	osFS := cli.ExportNewOsUpdateFS()
-	tmp := t.TempDir()
-	target := filepath.Join(tmp, "skill")
-
-	mkErr := osFS.MkdirAll(filepath.Join(target, "nested"), 0o755)
-	g.Expect(mkErr).NotTo(HaveOccurred())
-
-	writeErr := osFS.WriteFile(filepath.Join(target, "x.md"), []byte("x"), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	removeErr := osFS.RemoveAll(target)
-	g.Expect(removeErr).NotTo(HaveOccurred())
-
-	_, statErr := osFS.Stat(target)
-	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
-
-	// Idempotent: removing a non-existent path returns nil.
-	g.Expect(osFS.RemoveAll(target)).NotTo(HaveOccurred())
-}
-
-func TestOsUpdateFS_RemoveAllErrorsOnReadOnlyParent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	osFS := cli.ExportNewOsUpdateFS()
-	tmp := t.TempDir()
-	parent := filepath.Join(tmp, "ro")
-	child := filepath.Join(parent, "leaf")
-
-	g.Expect(os.MkdirAll(child, 0o755)).NotTo(HaveOccurred())
-	g.Expect(os.WriteFile(filepath.Join(child, "x"), []byte("x"), 0o644)).NotTo(HaveOccurred())
-
-	// Read-only parent prevents removing the child entry.
-	g.Expect(os.Chmod(parent, 0o500)).NotTo(HaveOccurred())
-	t.Cleanup(func() { _ = os.Chmod(parent, 0o700) })
-
-	err := osFS.RemoveAll(child)
-	g.Expect(err).To(MatchError(ContainSubstring("remove")))
-}
-
-func TestOsUpdateFS_StatMissing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	osFS := cli.ExportNewOsUpdateFS()
-
-	_, err := osFS.Stat(filepath.Join(t.TempDir(), "nope"))
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(os.IsNotExist(err)).To(BeTrue())
-}
-
-func TestOsUpdateFS_WriteAndRead(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	osFS := cli.ExportNewOsUpdateFS()
-	tmp := t.TempDir()
-	target := filepath.Join(tmp, "sub", "file.txt")
-	body := []byte("hello")
-
-	mkErr := osFS.MkdirAll(filepath.Dir(target), 0o755)
-	g.Expect(mkErr).NotTo(HaveOccurred())
-
-	writeErr := osFS.WriteFile(target, body, 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	got, readErr := osFS.ReadFile(target)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(got).To(Equal(body))
-
-	info, statErr := osFS.Stat(filepath.Dir(target))
-	g.Expect(statErr).NotTo(HaveOccurred())
-
-	if statErr != nil || info == nil {
-		return
-	}
-
-	g.Expect(info.IsDir()).To(BeTrue())
-
-	entries, listErr := osFS.ReadDir(filepath.Dir(target))
-	g.Expect(listErr).NotTo(HaveOccurred())
-
-	if listErr != nil || entries == nil {
-		return
-	}
-
-	g.Expect(entries).To(HaveLen(1))
-	g.Expect(entries[0].Name()).To(Equal("file.txt"))
-	g.Expect(entries[0].IsDir()).To(BeFalse())
-}
-
-func TestOsUpdateFS_WriteToBadPathErrors(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	osFS := cli.ExportNewOsUpdateFS()
-
-	// Writing to a directory path returns an error.
-	err := osFS.WriteFile(t.TempDir(), []byte("x"), 0o644)
-	g.Expect(err).To(HaveOccurred())
-}
-
 func TestPluralFile(t *testing.T) {
 	t.Parallel()
 
@@ -467,15 +247,11 @@ func TestRunUpdate_DryRunFromCwd(t *testing.T) {
 	g := NewWithT(t)
 
 	stdout := &bytes.Buffer{}
+	deps := cli.ExportNewUpdateDepsFrom(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{})
 
-	// We run a dry-run against the live filesystem. The current cwd is
-	// inside the engram worktree, so source resolution will pick local
-	// mode without invoking `go install` (DryRun=true).
-	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{DryRun: true}, stdout)
-	// Result depends on the local environment: at least one of
-	// ~/.claude or ~/.config/opencode must be present, else
-	// ErrNoHarness surfaces. Accept either outcome but verify output
-	// when successful.
+	// Dry-run against the live filesystem: cwd is inside the engram
+	// worktree, so source resolution picks local mode without `go install`.
+	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{DryRun: true}, deps, stdout)
 	out := stdout.String()
 
 	if err != nil {
@@ -494,15 +270,11 @@ func TestRunUpdate_WithGuidanceFlagMapsToOptions(t *testing.T) {
 	g := NewWithT(t)
 
 	stdout := &bytes.Buffer{}
+	deps := cli.ExportNewUpdateDepsFrom(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{})
 
-	// Dry-run with --with-guidance; cwd inside engram repo → local mode.
-	// We only verify the flag is ACCEPTED and maps to Options (no unknown-field
-	// error). The hint OUTPUT is asserted separately in
-	// TestWriteUpdateReport_GuidanceActivationHint.
-	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{DryRun: true, WithGuidance: true}, stdout)
-
-	// With dry-run the guidance files are not written; accept either
-	// success or ErrNoHarness (env-dependent) but NOT an unknown-field error.
+	// Dry-run with --with-guidance; only verifies the flag maps to Options.
+	err := cli.ExportRunUpdate(
+		context.Background(), cli.UpdateArgs{DryRun: true, WithGuidance: true}, deps, stdout)
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("update"))
 	}
@@ -848,4 +620,68 @@ func TestWriteUpdateReport_VocabMigrationHint(t *testing.T) {
 			}
 		})
 	}
+}
+
+// liveUpdateEnv adapts the real process environment to update.Env for the
+// dry-run smoke tests (production Env is composed from cli.Deps).
+type liveUpdateEnv struct{}
+
+func (liveUpdateEnv) Getenv(key string) string { return os.Getenv(key) }
+
+func (liveUpdateEnv) Getwd() (string, error) {
+	return os.Getwd() // test adapter
+}
+
+func (liveUpdateEnv) UserHomeDir() (string, error) {
+	return os.UserHomeDir() // test adapter
+}
+
+// liveUpdateFS is an os-backed update.Filesystem for the dry-run smoke
+// tests (dry-run never writes; write methods exist to satisfy the interface).
+type liveUpdateFS struct{}
+
+func (liveUpdateFS) MkdirAll(path string, perm fs.FileMode) error {
+	return os.MkdirAll(path, perm) // test adapter
+}
+
+func (liveUpdateFS) ReadDir(path string) ([]update.DirEntry, error) {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err // errors.Is(fs.ErrNotExist) must survive
+	}
+
+	out := make([]update.DirEntry, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, entry)
+	}
+
+	return out, nil
+}
+
+func (liveUpdateFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path) // test adapter; test-chosen paths
+}
+
+func (liveUpdateFS) RemoveAll(path string) error {
+	return os.RemoveAll(path) // test adapter
+}
+
+func (liveUpdateFS) Stat(path string) (update.FileInfo, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err // errors.Is(fs.ErrNotExist) must survive
+	}
+
+	return info, nil
+}
+
+func (liveUpdateFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
+	return os.WriteFile(path, data, perm) // test adapter
+}
+
+// stubCommander satisfies update.Commander; dry-run local mode never runs it.
+type stubCommander struct{}
+
+func (stubCommander) Run(context.Context, string, string, ...string) ([]byte, []byte, error) {
+	return nil, nil, nil
 }

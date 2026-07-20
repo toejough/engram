@@ -31,7 +31,7 @@ type Deps struct {
 	FS EdgeFS
 	// Lock acquires exclusive cross-process file locks (production: flockLocker).
 	Lock FileLocker
-	// Commander runs external commands for `engram update` (production: osCommander).
+	// Commander runs external commands for `engram update` (production: primCommander).
 	Commander update.Commander
 	// Embed is the production embedder backend (hugot-backed lazy embedder).
 	Embed embed.Embedder

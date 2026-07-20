@@ -9,6 +9,7 @@ import (
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cluster"
 	"github.com/toejough/engram/internal/embed"
+	"github.com/toejough/engram/internal/update"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
@@ -72,37 +73,39 @@ var (
 	ExportNewActivateDeps                  = newActivateDeps
 	ExportNewAmendDeps                     = newAmendDeps
 	ExportNewErrHandler                    = newErrHandler
-	ExportNewVocabDeps                     = newVocabDeps
-	ExportNextLuhmannID                    = nextLuhmannID
-	ExportNoteAgeDays                      = noteAgeDays
-	ExportNoteContainsAnyRemoval           = noteContainsAnyRemoval
-	ExportOldVocabFilesPresent             = oldVocabFilesPresent
-	ExportParseCreatedFromNote             = parseCreatedFromNote
-	ExportParseNoteQueryFrontmatter        = parseNoteQueryFrontmatter
-	ExportParseSupersedesFlag              = parseSupersedesFlag
-	ExportParseTagsFromFrontmatter         = parseTagsFromFrontmatter
-	ExportParseTurnN                       = parseTurnN
-	ExportPluralFile                       = pluralFile
-	ExportPrintLinkExamples                = printLinkExamples
-	ExportPrintNoteExamples                = printNoteExamples
-	ExportPrintStatsReport                 = printStatsReport
-	ExportRecencyMultiplier                = recencyMultiplier
-	ExportRenderDefinitionNoteContent      = renderDefinitionNoteContent
-	ExportRenderFactBody                   = renderFactBody
-	ExportRenderFactFrontmatter            = renderFactFrontmatter
-	ExportRenderFeedbackBody               = renderFeedbackBody
-	ExportRenderFeedbackFrontmatter        = renderFeedbackFrontmatter
-	ExportRenderQAAnswerNote               = renderQAAnswerNote
-	ExportRenderQAQuestionNote             = renderQAQuestionNote
-	ExportResolveVault                     = resolveVault
-	ExportRetagAllNotesTwoPass             = retagAllNotesTwoPass
-	ExportRunActivate                      = RunActivate
-	ExportRunAmend                         = RunAmend
-	ExportRunLearn                         = runLearn
-	ExportRunUpdate                        = runUpdate
-	ExportScanNonVocabNotes                = scanNonVocabNotes
-	ExportSelectStates                     = selectStates
-	ExportShouldEmbed                      = func(args EmbedApplyArgs, state embed.State) bool {
+	// ExportNewUpdateDeps exposes the production pure composition for tests.
+	ExportNewUpdateDeps               = newUpdateDeps
+	ExportNewVocabDeps                = newVocabDeps
+	ExportNextLuhmannID               = nextLuhmannID
+	ExportNoteAgeDays                 = noteAgeDays
+	ExportNoteContainsAnyRemoval      = noteContainsAnyRemoval
+	ExportOldVocabFilesPresent        = oldVocabFilesPresent
+	ExportParseCreatedFromNote        = parseCreatedFromNote
+	ExportParseNoteQueryFrontmatter   = parseNoteQueryFrontmatter
+	ExportParseSupersedesFlag         = parseSupersedesFlag
+	ExportParseTagsFromFrontmatter    = parseTagsFromFrontmatter
+	ExportParseTurnN                  = parseTurnN
+	ExportPluralFile                  = pluralFile
+	ExportPrintLinkExamples           = printLinkExamples
+	ExportPrintNoteExamples           = printNoteExamples
+	ExportPrintStatsReport            = printStatsReport
+	ExportRecencyMultiplier           = recencyMultiplier
+	ExportRenderDefinitionNoteContent = renderDefinitionNoteContent
+	ExportRenderFactBody              = renderFactBody
+	ExportRenderFactFrontmatter       = renderFactFrontmatter
+	ExportRenderFeedbackBody          = renderFeedbackBody
+	ExportRenderFeedbackFrontmatter   = renderFeedbackFrontmatter
+	ExportRenderQAAnswerNote          = renderQAAnswerNote
+	ExportRenderQAQuestionNote        = renderQAQuestionNote
+	ExportResolveVault                = resolveVault
+	ExportRetagAllNotesTwoPass        = retagAllNotesTwoPass
+	ExportRunActivate                 = RunActivate
+	ExportRunAmend                    = RunAmend
+	ExportRunLearn                    = runLearn
+	ExportRunUpdate                   = runUpdate
+	ExportScanNonVocabNotes           = scanNonVocabNotes
+	ExportSelectStates                = selectStates
+	ExportShouldEmbed                 = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
 	ExportShouldSkipDir                 = shouldSkipDir
@@ -516,15 +519,6 @@ func ExportNewNoteResolvedItemWithScore(notePath string, score, baseScore float3
 	return resolvedItem{notePath: notePath, score: score, baseScore: baseScore}
 }
 
-// ExportNewOsCommander returns the production Commander adapter for testing.
-func ExportNewOsCommander() *osCommander { return &osCommander{} }
-
-// ExportNewOsUpdateEnv returns the production Env adapter for testing.
-func ExportNewOsUpdateEnv() *osUpdateEnv { return &osUpdateEnv{} }
-
-// ExportNewOsUpdateFS returns the production Filesystem adapter for testing.
-func ExportNewOsUpdateFS() *osUpdateFS { return &osUpdateFS{} }
-
 // ExportNewPruneDeps returns production PruneDeps composed from d.
 func ExportNewPruneDeps(d Deps) PruneDeps { return newPruneDeps(d) }
 
@@ -598,6 +592,12 @@ func ExportNewScoredChunkWithIngestedAt(
 
 // ExportNewShowDeps builds production ShowDeps over the given EdgeFS.
 func ExportNewShowDeps(fsys EdgeFS) ShowDeps { return newShowDeps(Deps{FS: fsys}) }
+
+// ExportNewUpdateDepsFrom builds the unexported updateDeps from explicit
+// surfaces so black-box tests can drive runUpdate with test doubles.
+func ExportNewUpdateDepsFrom(fs update.Filesystem, cmd update.Commander, env update.Env) updateDeps {
+	return updateDeps{FS: fs, Cmd: cmd, Env: env}
+}
 
 // ExportNewVaultFS returns the pure EdgeFS→vaultgraph.VaultFS adapter.
 func ExportNewVaultFS(fsys EdgeFS) interface {

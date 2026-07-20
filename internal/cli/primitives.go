@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"io"
 	"io/fs"
 	"time"
@@ -52,6 +53,14 @@ type Primitives struct {
 	// Debug sink (single-call closure; empty-path branch + sync policy internal).
 	OpenDebugFile func(path string, perm fs.FileMode) (WriteSyncer, error) // os.OpenFile O_APPEND|O_CREATE|O_WRONLY
 
+	// External command execution (doctrine flag C-1: one erased run closure
+	// + the platform not-found sentinel value; collection, wrapping, and
+	// not-found translation live internal in primCommander).
+	RunCommand func(
+		ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer,
+	) error // closure: exec.CommandContext; Dir/Stdout/Stderr assignment; Run
+	NotFoundErr error // exec.ErrNotFound
+
 	// Embedding runtime (cmd wires an EMPTY struct with single-call
 	// methods; all lifecycle/config/cache policy is internal — doctrine
 	// flags D-1/E-1/E-2).
@@ -87,6 +96,7 @@ func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
 		UserHomeDir: prims.UserHomeDir,
 		FS:          primFS{prims: prims},
 		Lock:        primLocker{prims: prims},
+		Commander:   primCommander{prims: prims},
 		DebugLog:    openDebugSink(envOrEmpty(prims.Getenv, debugLogEnvVar), prims.OpenDebugFile),
 	}
 
