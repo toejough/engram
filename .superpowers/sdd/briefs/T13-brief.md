@@ -1,3 +1,19 @@
+# DISPATCH HEADER (orchestrator)
+
+- Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
+- BASE-T13: <SET AT DISPATCH — after T7 ACK; verify `git log --oneline -1` matches>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- **LEDGER CORRECTION (twice-verified at T10, confirmed at T12/T15):** the migration count was 5, not the GATE paragraph's 6 — cli.go:144 never reached T4; T3's writeAtomicFromFS absorbed it. History: learn.go+qa.go (T3), amend/resituate/activate/vocab (T12), embed.go (T15). The gate GREP is unchanged and was already verified EMPTY at T15 close — re-run it anyway; non-empty = STOP.
+- ACCUMULATED DISPATCH NOTES (binding):
+  - **T4 lesson:** before deleting ANY symbol, `rg` it across `internal/` and `cmd/` INCLUDING `_test.go` files — the brief's Files list may under-enumerate test consumers of `atomicWriteFile`/`doAtomicWrite`/`ExportAtomicWriteFile`/`ExportDoAtomicWrite`; a missed consumer is a compile-forced deviation to handle and report, not a STOP.
+  - Verify-only files are VERIFY-ONLY (ingest_test.go, edgefs_test.go, primitives_integration_test.go — the surviving atomic-write coverage, incl. T10's three parity tests, must remain untouched and passing).
+  - **reorder-decls HAZARD:** `targ reorder-decls` is UNSCOPED — rewrites the 2 protected dev/eval please_step3_probe fixtures; if run, `git restore` those two paths explicitly afterward.
+  - gates run FOREGROUND (no background-run-and-yield); stage EXPLICIT paths only (never `git add -A`/`-u`)
+  - check-full residual set (NOT yours to fix): e2e-under-load coverage flake (re-run check-coverage-for-fail standalone to confirm) + the 2 dev/eval reorder fixtures; lint-full must be 0
+- House rules: gomega + nilaway guards on touched tests; <120 char lines.
+- REPORT: write `.superpowers/sdd/briefs/T13-report.md` BEFORE your final message — status, commit SHA(s), verbatim gate outcomes, every deviation with rationale, concerns. Final message: STATUS line, SHAs, one-paragraph summary, concerns.
+
+---
+
 ### Task T13 (M4): Purge internal atomic write (gated)
 
 **GATE (do not start until true; per R4 this task runs after T15):** `grep -rn "atomicWriteFile" internal/cli --include="*.go" | grep -v _test | grep -v writesafe.go` returns EMPTY — i.e. every internal caller has been migrated by its own task: learn.go:371 + qa.go:283 (T3), amend.go:351 + resituate.go:169 + activate.go:136 + vocab_commands.go:1217 (T12), cli.go:144 (T4), and embed.go:164 (`osEmbedFS.Write` — deleted by T15, the LAST caller standing, which is why R4 orders T13 after T15).
