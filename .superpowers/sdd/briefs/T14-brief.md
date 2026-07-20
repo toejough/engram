@@ -1,3 +1,21 @@
+# DISPATCH HEADER (orchestrator)
+
+- Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
+- BASE-T14: <SET AT DISPATCH — after T4 ACK; verify `git log --oneline -1` matches>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- ACCUMULATED DISPATCH NOTES (binding):
+  - **R11 amendment (ledgered at T6):** the stubEmbedder local-override pattern is ALREADY IN USE by the query cluster's targets tests — you are not introducing it. Two distinct stub needs exist: query-cluster tests need a SUCCEEDING Embed (RunQuery embeds per phrase); ModelID-only sites (T15's scope) use the fail-loud stubEmbedderForTargets. Don't conflate; don't touch T15's sites (osEmbedFS/embed.go's newOsEmbedDeps family stays until T15 — embed.go:156's osVaultFS reference is T15's to delete).
+  - **Warning-routing class (ledgered at T12):** any family flipped to logWarningTo(d.Stderr) makes formerly-process-stderr warnings visible to test assertions — expect empty-stderr assertions to flip; pin the exact warning text when they do.
+  - Plan cite drift: tallyStates is at embed.go:273 not :275; ALL cited line numbers are pristine-tree — locate by text, symbol gates govern.
+  - **reorder-decls HAZARD:** `targ reorder-decls` is UNSCOPED — rewrites the 2 protected dev/eval please_step3_probe fixtures; if run, `git restore` those two paths explicitly afterward and verify `git status` shows only your files.
+  - NEVER apply a full-file replacement to a file this brief doesn't own outright (primitives.go/targets.go/export_test.go/main.go get surgical edits only — other tasks' landed helpers live there).
+  - gates run FOREGROUND (no background-run-and-yield); stage EXPLICIT paths only (never `git add -A`/`-u`)
+  - check-full residual set (NOT yours to fix): e2e-under-load coverage flake (re-run check-coverage-for-fail standalone to confirm) + the 2 dev/eval reorder fixtures; lint-full must be 0
+  - `targ check-thin-api` gates your new cmd/engram/hugot.go — the E-1 closure shape below was empirically validated against the checker at plan time; if the checker still fails it, capture the exact finding and STOP (escalate; never suppress or restructure past the doctrine).
+- House rules: `t.Parallel()` on every test/subtest (imptest/rapid/gomega stack; nilaway guards); named constants; descriptive names; <120 char lines.
+- REPORT: write `.superpowers/sdd/briefs/T14-report.md` BEFORE your final message — status, commit SHA(s), gate outcomes verbatim (test / check-full / check-thin-api + standalone re-runs), every deviation with rationale, concerns/watch items. Final message: STATUS line, SHAs, one-paragraph summary, concerns.
+
+---
+
 ### Task T14 (A): internal/embed purification — Backend/CacheFS composed internally; thin hugot Runtime at the cmd edge (doctrine D-1)
 
 **Doctrine note (BINDING — this rework applies the revised composition doctrine; it supersedes the pre-correction embed draft):** cmd/engram contributes ONLY thin declarations for the embedder path: one EMPTY struct `hugotRuntime` whose two methods are checker-verified thin shapes, plus one field line in `cmd/engram/main.go`'s `cli.Primitives` literal. ALL orchestration — session→pipeline lifecycle with destroy-on-failure, pipeline config policy (`engram-embed` / `model.onnx`), cache extraction, sentinel policy, permission policy, exist-error classification, and every `%w` wrap — lives in `internal/embed`, parameterized over injected capabilities. `Deps.Embed` stays wired INSIDE `cli.NewDeps` (R6/D-1); this task flips that line to the 3-arg constructor. Task-local design flags (within D-1's stated latitude — the doctrine's supersession map delegates "the exact field shapes" to this brief):

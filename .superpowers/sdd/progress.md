@@ -77,3 +77,12 @@ Task 12: complete (commit 99f309fe, task review ACK, Gate B APPROVED — no fix 
 - atomicWriteFile callers post-T12: exactly 1 (embed.go:164 → T15), matching corrected T13 ledger
 BASE-T4: 99f309fe57923c1047a37f0e52791325a94a0bc9
 Task 4: dispatched
+Task 4: complete (commit 51f2c04e, task review ACK, Gate B APPROVED — no fix round)
+- cli.go now pure: 72 lines, imports errors/fmt/io/fs only; retained set intact; ADR-0013 lock chain verified by wiring-read (primLocker over injected syscall prims, lock-at-Run*-entry, K1 + concurrent-writers confirmed EXECUTING real flocks via targeted -run)
+- Deviation VALID: TestOsLearnFS_Lock_ExclusiveAcrossSecondAcquisition compile-forced out (brief under-enumeration, not a STOP signal); replacement TestRealFlockLocker_SecondLockWaitsForUnlock is strictly stronger (bounded wait vs unbounded)
+- NEW DISPATCH NOTE: briefs can under-enumerate TEST-side consumers of deleted symbols — executors grep _test.go files for every symbol before deleting it; a missed consumer is a compile-forced deviation to report, not a STOP
+- Gate B minor (final-pass wording fix): comment + commit message cite "testFlocker" which never existed — T8 substituted newTestDeps(...).Lock (production primLocker, stronger); reword ingest_test.go R7 note to "production FileLocker composed over real OS primitives"
+- Gate B judgment call (documented, accepted): primLocker bad-path open failure covered via fake injection only (repo test-categorization doctrine: wrap logic via mock, primitive is a declaration-free one-liner)
+- T-final-1 false-positive check CLEARED: loser-symbol grep list does not include the deleted names; the 2 historical comment mentions are in _test.go, outside the purity rule
+BASE-T14: 51f2c04ecbb1f44262b43b8294f25cb8d7438c00
+Task 14: dispatched
