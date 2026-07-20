@@ -1,7 +1,8 @@
 # DISPATCH HEADER (orchestrator)
 
 - Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
-- BASE-T17: <SET AT DISPATCH — after T16 ACK; verify `git log --oneline -1` matches>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- BASE-T17: e6a6efc5 (T16 complete; docs-only ledger commits atop are fine). Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- **T13 landed before you:** the post-task sweep expectation resolves to ZERO — after your task, `rg -n '"os"|"syscall"|"os/exec"' internal/cli internal/update --type go | grep -v _test` must return NOTHING (writesafe.go died at T13, update.go's os+os/exec die HERE). This is the last impurity in internal/.
 - ACCUMULATED DISPATCH NOTES (binding):
   - **T4 lesson:** before deleting/renaming ANY symbol, `rg` it across `internal/` and `cmd/` INCLUDING `_test.go` files — a missed test consumer is a compile-forced deviation to handle and report, not a STOP.
   - R13: this brief's fake-EdgeFS needs are served by `updateFakeEdgeFS` per R13 — check what already exists in the test files before declaring (T10/T11 name-collision protocol: `rg` the name, check the claiming file's package line).
