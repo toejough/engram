@@ -122,3 +122,12 @@ Task 16: complete (commit e6a6efc5, consolidated dual-mandate review ACK)
 - REVIEWER PROCESS INCIDENT (recovered + independently verified): T16 reviewer ran bare git stash/pop, briefly popped another session's parked #686 stash; reverted via reset --hard; orchestrator verified stash stack intact (both entries), tree clean, HEAD correct; reviewer /learn'd the lesson to the vault (git-stash-pop-not-a-safe-noop-pair)
 BASE-T17: e6a6efc5
 Task 17: dispatched
+Task 17: complete (commit 1c8382ff, task review ACK + Gate B APPROVED — no fix round; all deviations accepted incl. the funlen tuple-compression, 21 inert nolints proven by lint-full silence, pwd -P re-verified empirically)
+- INTERNAL/ FULLY PURE: the wide sweep (os/syscall/os-exec/os-signal/net/net-http/database-sql, non-test) is EMPTY — T-final-1 green light confirmed by three independent agents
+- C-1 landed: RunCommand tuple-compressed closure (doctrine-cap preserved, mirrored in realPrimitives), NotFoundErr as bare sentinel VALUE (zero cmd logic); translation owned by internal primCommander; nil-NotFoundErr never-translates pinned by test
+- FUNLEN DECISION FOR JOE (Gate B recommendation, NOT executed): main() at exactly 60/60 — next Primitives field trips it. Recommended: path-scoped funlen exclusion for cmd/engram/main.go with a why-comment (style gate, not purity; zero-carve-outs AC covers depguard/forbidigo only). Config change = Joe's call; surfaced in completion report. Nothing in #700's remaining scope trips it.
+- FOLLOW-UP ISSUE CANDIDATE (Gate B finding): the production RunCommand closure in main.go is guarded only by its byte-identical realPrimitives mirror — no end-to-end path reaches Cmd.Run (update absent from cli_test.go; local-mode dry-run stops at resolveSource; same pre-existing class as OpenDebugFile/ENGRAM_DEBUG_LOG). File gh issue at completion: end-to-end update test reaching Cmd.Run (fake git on PATH or non-module cwd) or corrected doctrine claim.
+- T17 implementer stall mid-task (no process, 25min) — SendMessage nudge recovered it; claims gates ran foreground
+- Reviewer git incidents this cycle: T16 reviewer bare stash/pop (popped foreign #686 stash; recovered; /learn'd), T17 task reviewer detached HEAD (recovered) — orchestrator re-verified tree/branch/stashes after each
+BASE-T-polish: 1c8382ff
+Task T-polish: dispatched
