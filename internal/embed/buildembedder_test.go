@@ -14,8 +14,8 @@ func TestBuildEmbedder_EmptyProbeDestroysAndReportsSentinel(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	handle := &fakePipelineHandle{runResult: embed.ExportFeatureOutput{Embeddings: [][]float32{}}}
-	_, err := embed.BuildEmbedderForTest(
+	handle := &fakePipelineHandle{runResult: embed.FeatureOutput{Embeddings: [][]float32{}}}
+	_, err := embed.NewHugotEmbedderFromDir(
 		context.Background(),
 		&fakeBackend{handle: handle},
 		"/tmp/x", "fake@1",
@@ -29,9 +29,9 @@ func TestBuildEmbedder_HappyPathBindsRunnerAndCloser(t *testing.T) {
 	g := NewWithT(t)
 
 	handle := &fakePipelineHandle{
-		runResult: embed.ExportFeatureOutput{Embeddings: [][]float32{{0.1, 0.2}}},
+		runResult: embed.FeatureOutput{Embeddings: [][]float32{{0.1, 0.2}}},
 	}
-	emb, err := embed.BuildEmbedderForTest(
+	emb, err := embed.NewHugotEmbedderFromDir(
 		context.Background(),
 		&fakeBackend{handle: handle},
 		"/tmp/x", "fake@2",
@@ -54,7 +54,7 @@ func TestBuildEmbedder_OpenFailurePropagates(t *testing.T) {
 	g := NewWithT(t)
 
 	bootErr := errors.New("session blocked")
-	_, err := embed.BuildEmbedderForTest(
+	_, err := embed.NewHugotEmbedderFromDir(
 		context.Background(),
 		&fakeBackend{openErr: bootErr},
 		"/tmp/x", "fake@1",
@@ -68,7 +68,7 @@ func TestBuildEmbedder_ProbeFailureDestroysAndPropagates(t *testing.T) {
 
 	probeErr := errors.New("probe blocked")
 	handle := &fakePipelineHandle{runErr: probeErr}
-	_, err := embed.BuildEmbedderForTest(
+	_, err := embed.NewHugotEmbedderFromDir(
 		context.Background(),
 		&fakeBackend{handle: handle},
 		"/tmp/x", "fake@1",
@@ -81,8 +81,8 @@ func TestBuildEmbedder_ZeroLengthVectorIsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	handle := &fakePipelineHandle{runResult: embed.ExportFeatureOutput{Embeddings: [][]float32{{}}}}
-	_, err := embed.BuildEmbedderForTest(
+	handle := &fakePipelineHandle{runResult: embed.FeatureOutput{Embeddings: [][]float32{{}}}}
+	_, err := embed.NewHugotEmbedderFromDir(
 		context.Background(),
 		&fakeBackend{handle: handle},
 		"/tmp/x", "fake@1",
@@ -91,7 +91,7 @@ func TestBuildEmbedder_ZeroLengthVectorIsEmpty(t *testing.T) {
 	g.Expect(handle.destroyHits).To(Equal(1))
 }
 
-// fakeBackend implements embed.ExportHugotBackend for unit tests.
+// fakeBackend implements embed.Backend for unit tests.
 type fakeBackend struct {
 	openErr error
 	handle  *fakePipelineHandle
@@ -100,7 +100,7 @@ type fakeBackend struct {
 func (f *fakeBackend) OpenPipeline(
 	_ context.Context,
 	_ string,
-) (embed.ExportHugotPipelineHandle, error) {
+) (embed.PipelineHandle, error) {
 	if f.openErr != nil {
 		return nil, f.openErr
 	}
@@ -108,10 +108,10 @@ func (f *fakeBackend) OpenPipeline(
 	return f.handle, nil
 }
 
-// fakePipelineHandle implements embed.ExportHugotPipelineHandle.
+// fakePipelineHandle implements embed.PipelineHandle.
 type fakePipelineHandle struct {
 	runErr      error
-	runResult   embed.ExportFeatureOutput
+	runResult   embed.FeatureOutput
 	destroyErr  error
 	destroyHits int
 }
@@ -124,9 +124,9 @@ func (h *fakePipelineHandle) Destroy() error {
 
 func (h *fakePipelineHandle) RunPipeline(
 	_ context.Context, _ []string,
-) (embed.ExportFeatureOutput, error) {
+) (embed.FeatureOutput, error) {
 	if h.runErr != nil {
-		return embed.ExportFeatureOutput{}, h.runErr
+		return embed.FeatureOutput{}, h.runErr
 	}
 
 	return h.runResult, nil

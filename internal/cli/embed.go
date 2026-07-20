@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync/atomic"
 
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
@@ -106,8 +107,20 @@ func RunEmbedStatus(
 
 // unexported variables.
 var (
-	//nolint:gochecknoglobals // shared lazy singleton across CLI commands
-	sharedEmbedder = embed.NewLazyEmbedder(modelCacheDir())
+	// errEmbedderUnwired reports an Embed call before Targets wired Deps.Embed.
+	errEmbedderUnwired = errors.New("embedder not wired: cli.Targets(deps) has not run")
+	// sharedEmbedder is the value legacy per-command constructors wire into
+	// their deps structs; it forwards to the Targets-wired embedder.
+	// TRANSITIONAL (#700) — same removal condition as sharedEmbedderPtr.
+	//nolint:gochecknoglobals // transitional bridge, see comment
+	sharedEmbedder embed.Embedder = bridgeEmbedder{ptr: &sharedEmbedderPtr}
+	// sharedEmbedderPtr holds the Deps-wired production embedder, stored by
+	// wireSharedEmbedder (called from Targets). Atomic because tests build
+	// Targets concurrently.
+	// TRANSITIONAL (#700): deleted once every per-command deps constructor
+	// takes Deps and reads d.Embed directly.
+	//nolint:gochecknoglobals // transitional bridge, see comment
+	sharedEmbedderPtr atomic.Pointer[embed.Embedder]
 )
 
 // applySelection captures which states the user asked to re-embed,
@@ -131,6 +144,54 @@ func (a applySelection) shouldEmbed(state embed.State) bool {
 	default:
 		return false
 	}
+}
+
+// bridgeEmbedder forwards Embedder calls to the embedder wired by Targets.
+// Pre-wiring fallbacks mirror LazyEmbedder's pre-init behavior: ModelID
+// reports the bundled constant, Dims reports 0, Embed errors.
+type bridgeEmbedder struct {
+	ptr *atomic.Pointer[embed.Embedder]
+}
+
+// Dims delegates to the wired embedder; 0 before wiring.
+func (b bridgeEmbedder) Dims() int {
+	emb := b.load()
+	if emb == nil {
+		return 0
+	}
+
+	return emb.Dims()
+}
+
+// Embed delegates to the wired embedder; errors before wiring.
+func (b bridgeEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
+	emb := b.load()
+	if emb == nil {
+		return nil, errEmbedderUnwired
+	}
+
+	return emb.Embed(ctx, text)
+}
+
+// ModelID delegates to the wired embedder; bundled constant before wiring
+// (keeps status-style callers unpack-free, matching LazyEmbedder).
+func (b bridgeEmbedder) ModelID() string {
+	emb := b.load()
+	if emb == nil {
+		return embed.BundledModelID
+	}
+
+	return emb.ModelID()
+}
+
+// load returns the wired embedder or nil before wiring.
+func (b bridgeEmbedder) load() embed.Embedder {
+	ptr := b.ptr.Load()
+	if ptr == nil || *ptr == nil {
+		return nil
+	}
+
+	return *ptr
 }
 
 // osEmbedFS is the production adapter wrapping os.ReadFile/WriteFile +
@@ -229,15 +290,6 @@ func applyOne(
 	_, _ = fmt.Fprintf(stdout, "embedded  %s (%s)\n", notePath, state)
 }
 
-// modelCacheDir resolves the XDG-keyed model cache directory at package init
-// time. The home dir and env vars are read here at the CLI edge; the embed
-// package itself has no direct os.* calls.
-func modelCacheDir() string {
-	home, _ := os.UserHomeDir()
-
-	return CacheDirFromHome(home, embed.BundledModelID, os.Getenv)
-}
-
 // newOsEmbedDeps wires the production filesystem + bundled embedder for
 // the embed commands.
 func newOsEmbedDeps() EmbedDeps {
@@ -296,6 +348,12 @@ func tallyStates(notes []vaultgraph.Note, vault string, deps EmbedDeps) stateCou
 	}
 
 	return counts
+}
+
+// wireSharedEmbedder points the transitional sharedEmbedder bridge at the
+// Deps-wired embedder. Called by Targets.
+func wireSharedEmbedder(embedder embed.Embedder) {
+	sharedEmbedderPtr.Store(&embedder)
 }
 
 func writeStatusReport(stdout io.Writer, counts stateCounts) error {

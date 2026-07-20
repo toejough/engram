@@ -4,19 +4,15 @@ import (
 	stdembed "embed"
 	"errors"
 	"fmt"
-	"os"
+	"io/fs"
 	"path/filepath"
 )
 
-// unexported constants.
-const (
-	sentinel = ".complete"
-)
-
-// cacheFS is the I/O surface extractToCache depends on. Production wires
-// productionCacheFS (thin wrappers around os.*); tests inject fakes to
-// exercise every branch without touching the real disk.
-type cacheFS interface {
+// CacheFS is the I/O surface extractToCache depends on. The production
+// implementation is composed internally by NewCacheFS (cachefs.go) over
+// raw filesystem primitives; tests inject fakes to exercise every branch
+// without touching the real disk.
+type CacheFS interface {
 	// StatSentinel reports whether the cache dir already has a .complete sentinel.
 	StatSentinel(cacheDir string) (bool, error)
 	// MkdirAll ensures the parent directory of the cache dir exists.
@@ -27,105 +23,29 @@ type cacheFS interface {
 	WriteFile(path string, data []byte) error
 	// WriteSentinel writes the .complete sentinel into tmpDir.
 	WriteSentinel(tmpDir string) error
-	// Rename renames src to dst atomically (os.Rename). Returns an error wrapping
-	// os.ErrExist when dst already exists (concurrent-race scenario).
+	// Rename renames src to dst atomically. When dst already exists
+	// (concurrent-race scenario), the returned error MUST satisfy
+	// errors.Is(err, fs.ErrExist) — implementations translate platform
+	// quirks (e.g. macOS ENOTEMPTY on dir-over-dir renames) before returning.
 	Rename(src, dst string) error
 	// RemoveAll deletes path recursively (used to clean up temp on rename race).
 	RemoveAll(path string) error
 }
 
-// productionCacheFS is the canonical os.*-backed cacheFS. Every method is
-// a thin passthrough — coverage is provided through integration via
-// ExportExtractToCacheProduction.
-type productionCacheFS struct{}
-
-func (productionCacheFS) MkdirAll(path string) error {
-	const perm = 0o755
-
-	err := os.MkdirAll(path, perm)
-	if err != nil {
-		return fmt.Errorf("mkdir all: %w", err)
-	}
-
-	return nil
-}
-
-func (productionCacheFS) MkdirTemp(parent, pattern string) (string, error) {
-	tmp, err := os.MkdirTemp(parent, pattern)
-	if err != nil {
-		return "", fmt.Errorf("mkdir temp: %w", err)
-	}
-
-	return tmp, nil
-}
-
-func (productionCacheFS) RemoveAll(path string) error {
-	return os.RemoveAll(path) //nolint:wrapcheck // thin adapter; nil on missing paths
-}
-
-func (productionCacheFS) Rename(src, dst string) error {
-	err := os.Rename(src, dst)
-	if err != nil {
-		// Wrap with os.ErrExist when the destination already exists so callers
-		// can distinguish a lost race from a true rename failure.
-		if isExistErr(err) {
-			return fmt.Errorf("%w: %w", os.ErrExist, err)
-		}
-
-		return fmt.Errorf("rename: %w", err)
-	}
-
-	return nil
-}
-
-func (productionCacheFS) StatSentinel(cacheDir string) (bool, error) {
-	_, err := os.Stat(filepath.Join(cacheDir, sentinel))
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
-
-	if err != nil {
-		return false, fmt.Errorf("stat sentinel: %w", err)
-	}
-
-	return true, nil
-}
-
-func (productionCacheFS) WriteFile(path string, data []byte) error {
-	const perm = 0o600
-
-	err := os.WriteFile(path, data, perm)
-	if err != nil {
-		return fmt.Errorf("write file: %w", err)
-	}
-
-	return nil
-}
-
-func (productionCacheFS) WriteSentinel(tmpDir string) error {
-	const perm = 0o600
-
-	err := os.WriteFile(filepath.Join(tmpDir, sentinel), []byte{}, perm)
-	if err != nil {
-		return fmt.Errorf("write sentinel: %w", err)
-	}
-
-	return nil
-}
-
-// commitCache atomically renames tmp into cacheDir. If the rename fails with an
-// existence error (concurrent-process race), it re-checks the sentinel: if the
-// winner completed the cache, discards tmp and returns cacheDir. Otherwise returns
-// the rename error.
-func commitCache(cfs cacheFS, tmp, cacheDir string) (string, error) {
+// commitCache atomically renames tmp into cacheDir. If the rename fails with
+// a destination-exists error (concurrent-process race), it re-checks the
+// sentinel: if the winner completed the cache, discards tmp and returns
+// cacheDir. Otherwise returns the rename error.
+func commitCache(cfs CacheFS, tmp, cacheDir string) (string, error) {
 	renameErr := cfs.Rename(tmp, cacheDir)
 	if renameErr == nil {
 		return cacheDir, nil
 	}
 
-	// If the rename failed with an existence-style error, check whether another
-	// process just won the race and completed the cache. If so, discard our temp.
-	if isExistErr(renameErr) {
+	// If the rename failed because the destination exists, check whether
+	// another process just won the race and completed the cache. If so,
+	// discard our temp.
+	if errors.Is(renameErr, fs.ErrExist) {
 		complete, statErr := cfs.StatSentinel(cacheDir)
 		if statErr == nil && complete {
 			_ = cfs.RemoveAll(tmp)
@@ -141,7 +61,7 @@ func commitCache(cfs cacheFS, tmp, cacheDir string) (string, error) {
 }
 
 // copyModelFiles copies every non-directory entry from modelFS/modelDir into tmpDir.
-func copyModelFiles(cfs cacheFS, modelFS stdembed.FS, modelDir, tmpDir string) error {
+func copyModelFiles(cfs CacheFS, modelFS stdembed.FS, modelDir, tmpDir string) error {
 	entries, _ := modelFS.ReadDir(modelDir) // already validated by caller
 
 	for _, entry := range entries {
@@ -170,7 +90,7 @@ func copyModelFiles(cfs cacheFS, modelFS stdembed.FS, modelDir, tmpDir string) e
 // (rename fails because another process just won) is handled by discarding
 // the temp dir and using the pre-existing complete cache.
 func extractToCache(
-	cfs cacheFS,
+	cfs CacheFS,
 	modelFS stdembed.FS,
 	modelDir string,
 	cacheDir string,
@@ -188,38 +108,11 @@ func extractToCache(
 	return populateCache(cfs, modelFS, modelDir, cacheDir)
 }
 
-// isExistErr reports whether err (from os.Rename) is a "destination exists"
-// error. On macOS/Linux, os.Rename replaces the destination atomically when
-// both are dirs ONLY on the same filesystem; on macOS it returns ENOTEMPTY
-// when the destination dir exists, which maps to syscall.ENOTEMPTY — handled
-// by os.IsExist on some platforms. We also check the string for robustness.
-func isExistErr(err error) bool {
-	if errors.Is(err, os.ErrExist) {
-		return true
-	}
-	// macOS returns "file exists" or "directory not empty" for rename-over-existing-dir.
-	// unwrap to syscall layer and check.
-	var linkErr *os.LinkError
-	if errors.As(err, &linkErr) {
-		if errors.Is(linkErr.Err, os.ErrExist) {
-			return true
-		}
-		// ENOTEMPTY is returned on macOS when renaming over an existing dir.
-		// We treat it the same as ErrExist for the cache-race case.
-		errStr := linkErr.Err.Error()
-		if errStr == "file exists" || errStr == "directory not empty" {
-			return true
-		}
-	}
-
-	return false
-}
-
 // populateCache handles the slow path of extractToCache: verifying the model
 // FS, creating a sibling temp dir, copying model files, and atomically renaming
 // the temp dir into place.
 func populateCache(
-	cfs cacheFS,
+	cfs CacheFS,
 	modelFS stdembed.FS,
 	modelDir string,
 	cacheDir string,

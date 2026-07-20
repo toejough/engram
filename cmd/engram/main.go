@@ -25,21 +25,22 @@ import (
 // after the depguard/forbidigo gate is verified green.
 func main() {
 	targ.Main(cli.Targets(cli.NewDeps(cli.Primitives{
-		ReadFile:    os.ReadFile,
-		WriteFile:   os.WriteFile,
-		MkdirAll:    os.MkdirAll,
-		MkdirTemp:   os.MkdirTemp,
-		Stat:        os.Stat,
-		ReadDir:     os.ReadDir,
-		Remove:      os.Remove,
-		RemoveAll:   os.RemoveAll,
-		Rename:      os.Rename,
-		WalkDir:     filepath.WalkDir,
-		Chmod:       os.Chmod,
-		Getenv:      os.Getenv,
-		Now:         time.Now,
-		Getwd:       os.Getwd,
-		UserHomeDir: os.UserHomeDir,
+		ReadFile:     os.ReadFile,
+		WriteFile:    os.WriteFile,
+		MkdirAll:     os.MkdirAll,
+		MkdirTemp:    os.MkdirTemp,
+		Stat:         os.Stat,
+		ReadDir:      os.ReadDir,
+		Remove:       os.Remove,
+		RemoveAll:    os.RemoveAll,
+		Rename:       os.Rename,
+		WalkDir:      filepath.WalkDir,
+		EmbedRuntime: hugotRuntime{},
+		Chmod:        os.Chmod,
+		Getenv:       os.Getenv,
+		Now:          time.Now,
+		Getwd:        os.Getwd,
+		UserHomeDir:  os.UserHomeDir,
 		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
 			// Doctrine survivor S-1: os.WriteFile's own body with
 			// O_CREATE|O_EXCL — mechanical error propagation only; behavior

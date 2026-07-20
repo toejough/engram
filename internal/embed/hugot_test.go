@@ -11,49 +11,18 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestBundledHugotEmbedder_Smoke exercises the production constructor
-// end-to-end. Skipped under -short because it unpacks the ~90MB ONNX.
-func TestBundledHugotEmbedder_Smoke(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping bundled-embedder smoke test under -short")
-	}
-
+// TestBundledModelFS_ExposesModelDir proves the exported accessor returns
+// the go:embed-ed assets rooted at BundledModelDir, so cmd/engram (and its
+// integration tests) can hand the bundled assets to the injectable
+// constructors without touching the unexported bundledModel var.
+func TestBundledModelFS_ExposesModelDir(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	embedder, err := embed.NewBundledHugotEmbedder(t.Context(), filepath.Join(t.TempDir(), "model-cache"))
+	entries, err := embed.BundledModelFS().ReadDir(embed.BundledModelDir)
 	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	defer func() {
-		_ = embedder.Close()
-	}()
-
-	const expectedDims = 384
-
-	g.Expect(embedder.ModelID()).To(Equal(embed.BundledModelID))
-	g.Expect(embedder.Dims()).To(Equal(expectedDims))
-
-	vec, embErr := embedder.Embed(t.Context(), "hello world")
-	g.Expect(embErr).NotTo(HaveOccurred())
-	g.Expect(vec).To(HaveLen(expectedDims))
-
-	// Send a very long input to exercise the >hugotInputCharLimit
-	// truncation branch in HugotEmbedder.Embed.
-	const longLen = 4000
-
-	longText := make([]byte, longLen)
-	for i := range longText {
-		longText[i] = 'a' + byte(i%26)
-	}
-
-	vec2, embErr2 := embedder.Embed(t.Context(), string(longText))
-	g.Expect(embErr2).NotTo(HaveOccurred())
-	g.Expect(vec2).To(HaveLen(expectedDims))
+	g.Expect(entries).NotTo(BeEmpty(), "bundled model dir must contain the model files")
 }
 
 func TestT10_MissingBundledModel_ClearError(t *testing.T) {
@@ -62,7 +31,8 @@ func TestT10_MissingBundledModel_ClearError(t *testing.T) {
 	g := NewWithT(t)
 
 	cacheDir := filepath.Join(t.TempDir(), "model-cache")
-	_, err := embed.NewHugotEmbedderFromFS(context.Background(), emptyFS, "assets/model", "x@1", cacheDir)
+	_, err := embed.NewHugotEmbedderFromFS(
+		context.Background(), &fakeBackend{}, &fakeCacheFS{}, emptyFS, "assets/model", "x@1", cacheDir)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("ENGRAM_MODEL_PATH"))
 }

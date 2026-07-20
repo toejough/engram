@@ -78,7 +78,7 @@ func TestLazyEmbedder_DimsAndModelIDBeforeInit(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	lazy := embed.NewLazyEmbedder(t.TempDir())
+	lazy := embed.NewLazyEmbedder(&fakeBackend{}, &fakeCacheFS{}, t.TempDir())
 	// ModelID before init returns the bundled constant.
 	g.Expect(lazy.ModelID()).To(Equal(embed.BundledModelID))
 }

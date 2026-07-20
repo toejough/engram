@@ -52,6 +52,11 @@ type Primitives struct {
 	// Debug sink (single-call closure; empty-path branch + sync policy internal).
 	OpenDebugFile func(path string, perm fs.FileMode) (WriteSyncer, error) // os.OpenFile O_APPEND|O_CREATE|O_WRONLY
 
+	// Embedding runtime (cmd wires an EMPTY struct with single-call
+	// methods; all lifecycle/config/cache policy is internal — doctrine
+	// flags D-1/E-1/E-2).
+	EmbedRuntime embed.Runtime
+
 	// Signal (single-purpose starter closure; pulse forwarding is internal
 	// via ForwardAsPulses; buffer/pulse-channel/force-exit policy internal).
 	StartSignalPulses func(pulses chan<- struct{}, buffer int)
@@ -87,11 +92,22 @@ func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
 
 	// The lazy embedder is constructed once here, preserving the
 	// one-unpack-per-process property of the old sharedEmbedder singleton
-	// (guarded: minimal fake Primitives without Getenv skip it). R6: T14
-	// swaps this line to the 3-arg constructor over cmd-injected backend
-	// and cache capabilities.
+	// (guarded: minimal fake Primitives without Getenv skip it). R6/D-1:
+	// backend composed from the raw EmbedRuntime, cache FS from the raw
+	// filesystem primitives — no embed wiring in cmd. A nil EmbedRuntime
+	// surfaces as embed.ErrRuntimeMissing on first use (fail-loud lazy),
+	// never a panic.
 	if prims.Getenv != nil {
 		deps.Embed = embed.NewLazyEmbedder(
+			embed.NewRuntimeBackend(prims.EmbedRuntime),
+			embed.NewCacheFS(embed.CacheFSPrims{
+				Stat:      prims.Stat,
+				MkdirAll:  prims.MkdirAll,
+				MkdirTemp: prims.MkdirTemp,
+				WriteFile: prims.WriteFile,
+				Rename:    prims.Rename,
+				RemoveAll: prims.RemoveAll,
+			}),
 			CacheDirFromHome(homeOrEmpty(deps), embed.BundledModelID, prims.Getenv))
 	}
 

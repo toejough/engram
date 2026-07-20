@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/toejough/engram/internal/chunk"
@@ -428,6 +429,17 @@ func ExportMergePhraseIntoUnion(noteHits []scoredCandidate, chunkHits []scoredCh
 	}
 
 	return keys
+}
+
+// ExportNewBridgeEmbedder returns a fresh transitional shared-embedder
+// bridge plus its wire function, backed by an isolated pointer so bridge
+// behavior tests never touch the package-global embedder.
+func ExportNewBridgeEmbedder() (embed.Embedder, func(embed.Embedder)) {
+	ptr := &atomic.Pointer[embed.Embedder]{}
+	bridge := bridgeEmbedder{ptr: ptr}
+	wire := func(e embed.Embedder) { ptr.Store(&e) }
+
+	return bridge, wire
 }
 
 // ExportNewCheckDeps builds production CheckDeps over the given EdgeFS.

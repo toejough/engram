@@ -83,6 +83,8 @@ func ProjectSlugFromPath(path string) string {
 // each handler's ctx so downstream code can call debuglog.Log without an
 // explicit logger argument.
 func Targets(deps Deps) []any {
+	wireSharedEmbedder(deps.Embed)
+
 	errHandler := newErrHandler(deps.Stderr, deps.Exit)
 	logger := debuglog.New(deps.DebugLog, "engram", deps.Now)
 

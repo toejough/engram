@@ -16,7 +16,7 @@ func TestEmbedRetriesShorterOnOverLengthFailure(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	handle := &lengthCappedHandle{capChars: 700}
-	embedder, err := embed.BuildEmbedderForTest(context.Background(), cappedBackend{handle: handle}, "dir", "m@2")
+	embedder, err := embed.NewHugotEmbedderFromDir(context.Background(), cappedBackend{handle: handle}, "dir", "m@2")
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if embedder == nil {
@@ -40,7 +40,7 @@ func TestEmbedStillFailsOnPersistentError(t *testing.T) {
 	// at every halving step down to the floor — the error must surface, not
 	// loop forever.
 	handle := &lengthCappedHandle{capChars: 10}
-	embedder, err := embed.BuildEmbedderForTest(context.Background(), cappedBackend{handle: handle}, "dir", "m@2")
+	embedder, err := embed.NewHugotEmbedderFromDir(context.Background(), cappedBackend{handle: handle}, "dir", "m@2")
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if embedder == nil {
@@ -63,7 +63,7 @@ func (cappedBackend) Close() error { return nil }
 
 func (b cappedBackend) OpenPipeline(
 	_ context.Context, _ string,
-) (embed.ExportHugotPipelineHandle, error) {
+) (embed.PipelineHandle, error) {
 	return b.handle, nil
 }
 
@@ -79,11 +79,11 @@ func (h *lengthCappedHandle) Destroy() error { return nil }
 
 func (h *lengthCappedHandle) RunPipeline(
 	_ context.Context, inputs []string,
-) (embed.ExportFeatureOutput, error) {
+) (embed.FeatureOutput, error) {
 	h.calls++
 	if len(inputs) > 0 && len(inputs[0]) > h.capChars {
-		return embed.ExportFeatureOutput{}, errOverLength
+		return embed.FeatureOutput{}, errOverLength
 	}
 
-	return embed.ExportFeatureOutput{Embeddings: [][]float32{{1, 2}}}, nil
+	return embed.FeatureOutput{Embeddings: [][]float32{{1, 2}}}, nil
 }

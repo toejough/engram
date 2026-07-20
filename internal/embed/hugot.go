@@ -5,17 +5,15 @@ import (
 	stdembed "embed"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
-
-	"github.com/knights-analytics/hugot"
-	"github.com/knights-analytics/hugot/pipelines"
 )
 
 // Exported constants.
 const (
-	BundledModelID = "minilm-l6-v2@384"
+	// BundledModelDir is the directory inside BundledModelFS holding the
+	// bundled model files.
+	BundledModelDir = "assets/model"
+	BundledModelID  = "minilm-l6-v2@384"
 )
 
 // Exported variables.
@@ -28,57 +26,101 @@ var (
 	ErrHugotProbeEmpty = errors.New("hugot probe returned no embedding")
 )
 
-// HugotEmbedder wraps a Hugot pipeline. Safe for concurrent use — Hugot's
-// pipeline runs the model under its own lock.
+// Backend opens an embedding pipeline for an on-disk model directory. The
+// production implementation is composed internally by NewRuntimeBackend
+// (runtime.go) over the raw Runtime that cmd wires into cli.Primitives —
+// no hugot import anywhere in internal (#700); tests inject fakes to
+// exercise every constructor branch.
+type Backend interface {
+	OpenPipeline(ctx context.Context, modelDir string) (PipelineHandle, error)
+}
+
+// FeatureOutput is the embedding shape returned by
+// PipelineHandle.RunPipeline, mirrored here so implementations don't leak
+// their runtime's own output types.
+type FeatureOutput struct {
+	Embeddings [][]float32
+}
+
+// HugotEmbedder wraps an embedding pipeline. Safe for concurrent use — the
+// production pipeline runs the model under its own lock.
 type HugotEmbedder struct {
 	pipeline interface {
-		RunPipeline(ctx context.Context, inputs []string) (out featureOutput, err error)
+		RunPipeline(ctx context.Context, inputs []string) (out FeatureOutput, err error)
 	}
 	modelID string
 	dims    int
 
 	// Capture the close logic at construction time so the destroy chain
-	// stays encapsulated even if Hugot's Session type changes across versions.
+	// stays encapsulated even if the backend's session type changes.
 	close func() error
 }
 
-// NewBundledHugotEmbedder is the production constructor: bundled assets
-// FS, fixed model directory, fixed model ID, and a caller-supplied cache dir.
-// The cache dir is the XDG-keyed path where the model is extracted once and
-// reused across all subsequent invocations.
-func NewBundledHugotEmbedder(ctx context.Context, cacheDir string) (*HugotEmbedder, error) {
-	return NewHugotEmbedderFromFS(ctx, bundledModel, "assets/model", BundledModelID, cacheDir)
+// NewBundledHugotEmbedder is the production constructor: bundled assets FS,
+// fixed model directory, fixed model ID, and caller-supplied backend, cache
+// FS, and cache dir. The cache dir is the XDG-keyed path where the model is
+// extracted once and reused across all subsequent invocations.
+func NewBundledHugotEmbedder(
+	ctx context.Context, backend Backend, cfs CacheFS, cacheDir string,
+) (*HugotEmbedder, error) {
+	return NewHugotEmbedderFromFS(
+		ctx, backend, cfs, bundledModel, BundledModelDir, BundledModelID, cacheDir)
 }
 
-// NewHugotEmbedderFromDir constructs an embedder reading the model from
-// a directory on disk. Thin wrapper over buildEmbedder with the
-// production Hugot backend; tests use buildEmbedder directly with a
-// fake backend to exercise every error branch.
+// NewHugotEmbedderFromDir constructs an embedder reading the model from a
+// directory on disk via the injected backend, probing once to learn the
+// embedding dimensionality. Every error branch (pipeline open, probe run,
+// empty probe) is unit-testable with a fake Backend.
 func NewHugotEmbedderFromDir(
-	ctx context.Context,
-	modelDir, modelID string,
+	ctx context.Context, backend Backend, modelDir, modelID string,
 ) (*HugotEmbedder, error) {
-	return buildEmbedder(ctx, newProductionHugotBackend(), modelDir, modelID)
+	handle, openErr := backend.OpenPipeline(ctx, modelDir)
+	if openErr != nil {
+		return nil, openErr
+	}
+
+	probe, probeErr := handle.RunPipeline(ctx, []string{"probe"})
+	if probeErr != nil {
+		_ = handle.Destroy()
+
+		return nil, probeErr
+	}
+
+	if len(probe.Embeddings) == 0 || len(probe.Embeddings[0]) == 0 {
+		_ = handle.Destroy()
+
+		return nil, ErrHugotProbeEmpty
+	}
+
+	runner := &pipelineRunner{run: handle.RunPipeline}
+
+	return &HugotEmbedder{
+		pipeline: runner,
+		modelID:  modelID,
+		dims:     len(probe.Embeddings[0]),
+		close:    handle.Destroy,
+	}, nil
 }
 
-// NewHugotEmbedderFromFS constructs an embedder from any stdembed.FS
-// rooted at modelDir. cacheDir is the stable directory where the model is
-// extracted once and reused across invocations (XDG-keyed). Tests pass an
-// empty FS to verify UAT 10's clear-error path; production wraps bundled assets.
+// NewHugotEmbedderFromFS constructs an embedder from any stdembed.FS rooted
+// at modelDir. cacheDir is the stable directory where the model is
+// extracted once via cfs and reused across invocations (XDG-keyed). Tests
+// pass an empty FS to verify UAT 10's clear-error path.
 func NewHugotEmbedderFromFS(
-	ctx context.Context, modelFS stdembed.FS, modelDir, modelID, cacheDir string,
+	ctx context.Context, backend Backend, cfs CacheFS,
+	modelFS stdembed.FS, modelDir, modelID, cacheDir string,
 ) (*HugotEmbedder, error) {
-	dir, extractErr := extractToCache(productionCacheFS{}, modelFS, modelDir, cacheDir)
+	dir, extractErr := extractToCache(cfs, modelFS, modelDir, cacheDir)
 	if extractErr != nil {
 		return nil, extractErr
 	}
 
-	return NewHugotEmbedderFromDir(ctx, dir, modelID)
+	return NewHugotEmbedderFromDir(ctx, backend, dir, modelID)
 }
 
-// Close releases the Hugot session. Safe to call multiple times. The model
-// cache dir is NOT removed — it is a shared, persistent cache reused across
-// all engram invocations.
+// Close releases the underlying session. Safe to call multiple times. The
+// model cache dir is NOT removed — it is a shared, persistent cache reused
+// across all engram invocations.
 func (h *HugotEmbedder) Close() error {
 	if h.close != nil {
 		err := h.close()
@@ -134,7 +176,7 @@ func (h *HugotEmbedder) ModelID() string { return h.modelID }
 // commands that don't need it (help, update, transcript) don't pay the
 // model-unpack cost or die if model loading fails. The construction is
 // factory-injected so tests can drive both the success and failure
-// init paths without running real Hugot.
+// init paths without a real backend.
 type LazyEmbedder struct {
 	once    sync.Once
 	factory func() (*HugotEmbedder, error)
@@ -144,15 +186,16 @@ type LazyEmbedder struct {
 
 // NewLazyEmbedder returns a wrapper around NewBundledHugotEmbedder that
 // extracts the bundled model to cacheDir at most once (on first Embed /
-// ModelID / Dims call). cacheDir should be the XDG-keyed stable cache path
-// for the model, e.g. $XDG_CACHE_HOME/engram/models/<model_id>/.
-func NewLazyEmbedder(cacheDir string) *LazyEmbedder {
+// ModelID / Dims call) using the injected backend and cache FS. cacheDir
+// should be the XDG-keyed stable cache path for the model, e.g.
+// $XDG_CACHE_HOME/engram/models/<model_id>/.
+func NewLazyEmbedder(backend Backend, cfs CacheFS, cacheDir string) *LazyEmbedder {
 	return &LazyEmbedder{
 		// Background context: the lazy init runs at most once per process;
 		// a request-scoped context could cancel construction partway through
 		// model extraction and leave a partial temp dir.
 		factory: func() (*HugotEmbedder, error) {
-			return NewBundledHugotEmbedder(context.Background(), cacheDir)
+			return NewBundledHugotEmbedder(context.Background(), backend, cfs, cacheDir)
 		},
 	}
 }
@@ -197,12 +240,24 @@ func (l *LazyEmbedder) ModelID() string {
 
 // init runs at most once per LazyEmbedder via sync.Once. The factory
 // is provided at construction time so tests can drive both success and
-// failure init paths without running real Hugot.
+// failure init paths without a real backend.
 func (l *LazyEmbedder) init() {
 	l.once.Do(func() {
 		l.emb, l.initErr = l.factory()
 	})
 }
+
+// PipelineHandle is the runtime surface of an opened pipeline plus its
+// owning session; Destroy releases both together.
+type PipelineHandle interface {
+	RunPipeline(ctx context.Context, inputs []string) (FeatureOutput, error)
+	Destroy() error
+}
+
+// BundledModelFS returns the go:embed-ed bundled model assets, rooted at
+// BundledModelDir. Exposed so cmd/engram (and its integration tests) can
+// hand the bundled assets to the injectable constructors.
+func BundledModelFS() stdembed.FS { return bundledModel }
 
 // unexported constants.
 const (
@@ -215,238 +270,13 @@ const (
 //go:embed assets/model/*
 var bundledModel stdembed.FS
 
-// featureOutput mirrors the shape we care about from
-// hugot/pipelines.FeatureExtractionOutput so the test surface doesn't
-// have to import Hugot directly.
-type featureOutput struct {
-	Embeddings [][]float32
-}
-
-// hugotBackend is the Hugot surface we depend on, extracted so tests
-// can inject failures for every constructor branch.
-type hugotBackend interface {
-	OpenPipeline(ctx context.Context, modelDir string) (hugotPipelineHandle, error)
-}
-
-// hugotPipelineHandle is the runtime surface we use from a Hugot
-// pipeline + its owning session.
-type hugotPipelineHandle interface {
-	RunPipeline(ctx context.Context, inputs []string) (featureOutput, error)
-	Destroy() error
-}
-
-// hugotRawPipeline is the minimal Hugot pipeline surface we depend on, extracted
-// so tests can inject a failing implementation without a real Hugot session.
-type hugotRawPipeline interface {
-	RunPipeline(ctx context.Context, inputs []string) (*pipelines.FeatureExtractionOutput, error)
-}
-
-// hugotSessionDestroyer is the minimal Hugot session surface we need —
-// just cleanup on pipeline-creation failure and on normal close.
-type hugotSessionDestroyer interface {
-	Destroy() error
-}
-
-// pipelineRunner adapts hugot's concrete pipeline to the small interface
-// we depend on; isolating the dependency makes Hugot version bumps a
-// surgical edit instead of a sweep.
+// pipelineRunner adapts a PipelineHandle's run function to the small
+// interface HugotEmbedder depends on; isolating the dependency makes
+// backend version bumps a surgical edit instead of a sweep.
 type pipelineRunner struct {
-	run func(ctx context.Context, inputs []string) (featureOutput, error)
+	run func(ctx context.Context, inputs []string) (FeatureOutput, error)
 }
 
-func (p *pipelineRunner) RunPipeline(ctx context.Context, inputs []string) (featureOutput, error) {
+func (p *pipelineRunner) RunPipeline(ctx context.Context, inputs []string) (FeatureOutput, error) {
 	return p.run(ctx, inputs)
-}
-
-// productionHugotBackend wires the real hugot.NewGoSession + NewPipeline.
-// The openSession and openPipeline fields are injectable so each error branch
-// of OpenPipeline can be covered by a unit test without a real Hugot runtime.
-type productionHugotBackend struct {
-	openSession  func(ctx context.Context) (hugotSessionDestroyer, error)
-	openPipeline func(session hugotSessionDestroyer, modelDir string) (hugotRawPipeline, error)
-}
-
-func (b productionHugotBackend) OpenPipeline(
-	ctx context.Context, modelDir string,
-) (hugotPipelineHandle, error) {
-	session, err := b.openSession(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("hugot session: %w", err)
-	}
-
-	pipeline, pipeErr := b.openPipeline(session, modelDir)
-	if pipeErr != nil {
-		_ = session.Destroy()
-
-		return nil, fmt.Errorf("hugot pipeline: %w", pipeErr)
-	}
-
-	return &productionHugotPipeline{session: session, pipeline: pipeline}, nil
-}
-
-// productionHugotPipeline pairs a Hugot pipeline with the session that
-// owns it so Destroy releases both together.
-type productionHugotPipeline struct {
-	session  hugotSessionDestroyer
-	pipeline hugotRawPipeline
-}
-
-func (p *productionHugotPipeline) Destroy() error {
-	err := p.session.Destroy()
-	if err != nil {
-		return fmt.Errorf("hugot session destroy: %w", err)
-	}
-
-	return nil
-}
-
-func (p *productionHugotPipeline) RunPipeline(
-	ctx context.Context, inputs []string,
-) (featureOutput, error) {
-	out, err := p.pipeline.RunPipeline(ctx, inputs)
-	if err != nil {
-		return featureOutput{}, fmt.Errorf("hugot run: %w", err)
-	}
-
-	return featureOutput{Embeddings: out.Embeddings}, nil
-}
-
-// productionTempFS is the canonical os.*-backed tempFS. Every method is
-// a one-line passthrough — coverage is asserted via integration through
-// NewBundledHugotEmbedder, not by unit tests on this adapter.
-type productionTempFS struct{}
-
-func (productionTempFS) MkdirTemp(dir, pattern string) (string, error) {
-	tmp, err := os.MkdirTemp(dir, pattern)
-	if err != nil {
-		return "", fmt.Errorf("mkdir temp: %w", err)
-	}
-
-	return tmp, nil
-}
-
-// RemoveAll deletes path. os.RemoveAll's error contract is already
-// caller-friendly (returns nil on missing paths); wrapping adds noise
-// without information, so the underlying error propagates as-is.
-func (productionTempFS) RemoveAll(path string) error {
-	return os.RemoveAll(path) //nolint:wrapcheck // thin adapter; see comment above
-}
-
-func (productionTempFS) WriteFile(name string, data []byte) error {
-	const perm = 0o600
-
-	err := os.WriteFile(name, data, perm)
-	if err != nil {
-		return fmt.Errorf("write file: %w", err)
-	}
-
-	return nil
-}
-
-// tempFS is the I/O surface unpackModelToTemp uses. Production wires
-// productionTempFS (thin wrapper around os.*); tests inject fakes to
-// exercise every error branch without touching the real disk.
-type tempFS interface {
-	MkdirTemp(dir, pattern string) (string, error)
-	WriteFile(name string, data []byte) error
-	RemoveAll(path string) error
-}
-
-// buildEmbedder is the orchestration shared between production and the
-// parity-gate constructor. Takes a hugotBackend so every error branch
-// (pipeline open, probe run, empty probe) is unit-testable with fakes.
-func buildEmbedder(
-	ctx context.Context, backend hugotBackend, modelDir, modelID string,
-) (*HugotEmbedder, error) {
-	handle, openErr := backend.OpenPipeline(ctx, modelDir)
-	if openErr != nil {
-		return nil, openErr
-	}
-
-	probe, probeErr := handle.RunPipeline(ctx, []string{"probe"})
-	if probeErr != nil {
-		_ = handle.Destroy()
-
-		return nil, probeErr
-	}
-
-	if len(probe.Embeddings) == 0 || len(probe.Embeddings[0]) == 0 {
-		_ = handle.Destroy()
-
-		return nil, ErrHugotProbeEmpty
-	}
-
-	runner := &pipelineRunner{run: handle.RunPipeline}
-
-	return &HugotEmbedder{
-		pipeline: runner,
-		modelID:  modelID,
-		dims:     len(probe.Embeddings[0]),
-		close:    handle.Destroy,
-	}, nil
-}
-
-func newProductionHugotBackend() productionHugotBackend {
-	return productionHugotBackend{
-		openSession: func(ctx context.Context) (hugotSessionDestroyer, error) {
-			return hugot.NewGoSession(ctx)
-		},
-		// openPipeline type-asserts session to *hugot.Session because openSession
-		// always returns *hugot.Session in production; test code injects its own
-		// openPipeline that never performs this assertion.
-		openPipeline: func(session hugotSessionDestroyer, modelDir string) (hugotRawPipeline, error) {
-			config := hugot.FeatureExtractionConfig{
-				ModelPath:    modelDir,
-				Name:         "engram-embed",
-				OnnxFilename: "model.onnx",
-			}
-
-			//nolint:forcetypeassert // production invariant
-			return hugot.NewPipeline(
-				session.(*hugot.Session),
-				config,
-			)
-		},
-	}
-}
-
-// unpackModelToTemp copies every file from modelFS rooted at modelDir
-// into a fresh temp directory and returns its path. Extracted so UAT 10
-// (missing model file) can be exercised by passing an empty embed.FS,
-// and so the mkdir/write/remove error branches can be unit-tested with
-// a fake tempFS.
-func unpackModelToTemp(tfs tempFS, modelFS stdembed.FS, modelDir string) (string, error) {
-	entries, dirErr := modelFS.ReadDir(modelDir)
-	if dirErr != nil || len(entries) == 0 {
-		return "", fmt.Errorf("%w: dir %s (underlying: %w)",
-			ErrBundledModelUnavailable, modelDir, dirErr,
-		)
-	}
-
-	tmp, mkErr := tfs.MkdirTemp("", "engram-embed-model-*")
-	if mkErr != nil {
-		return "", fmt.Errorf("temp dir: %w", mkErr)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		data, readErr := modelFS.ReadFile(filepath.Join(modelDir, entry.Name()))
-		if readErr != nil {
-			_ = tfs.RemoveAll(tmp)
-
-			return "", fmt.Errorf("read embedded %s: %w", entry.Name(), readErr)
-		}
-
-		writeErr := tfs.WriteFile(filepath.Join(tmp, entry.Name()), data)
-		if writeErr != nil {
-			_ = tfs.RemoveAll(tmp)
-
-			return "", fmt.Errorf("unpack %s: %w", entry.Name(), writeErr)
-		}
-	}
-
-	return tmp, nil
 }

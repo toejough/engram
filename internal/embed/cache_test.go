@@ -1,7 +1,10 @@
 package embed_test
 
 import (
+	stdembed "embed"
 	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -48,10 +51,11 @@ func TestExtractToCache_AtomicRenameRace(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// renameErr simulates macOS ENOTEMPTY when the dst dir already exists.
+	// renameErr satisfies the CacheFS.Rename contract for a lost race: the
+	// composed production Rename translates macOS ENOTEMPTY into fs.ErrExist.
 	// After the rename fails, the sentinel IS present (concurrent winner wrote it).
 	cfs := &fakeCacheFS{
-		renameErr:           &os.LinkError{Op: "rename", Err: errors.New("directory not empty")},
+		renameErr:           fmt.Errorf("%w: directory not empty", fs.ErrExist),
 		sentinelAfterRename: true,
 	}
 	cacheDir := "/cache/engram/models/minilm-l6-v2@384"
@@ -104,47 +108,13 @@ func TestExtractToCache_RaceWithoutSentinelFails(t *testing.T) {
 	// renameErr looks like an exist-err, but sentinelAfterRename is false
 	// (the pre-existing dir is not yet complete).
 	cfs := &fakeCacheFS{
-		renameErr: &os.LinkError{Op: "rename", Err: errors.New("directory not empty")},
+		renameErr: fmt.Errorf("%w: directory not empty", fs.ErrExist),
 	}
 	cacheDir := "/cache/engram/models/minilm-l6-v2@384"
 
 	_, err := embed.ExportExtractToCache(cfs, nonEmptyTestFS, "testdata", cacheDir)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(cfs.removeCalls).To(BeNumerically(">", 0), "temp dir must be cleaned up")
-}
-
-// TestExtractToCache_RealOS exercises the full production path end-to-end:
-// first call extracts into cacheDir, second call reuses without re-extracting.
-func TestExtractToCache_RealOS(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	cacheDir := filepath.Join(t.TempDir(), "models", "minilm-l6-v2@384")
-
-	// First call: should extract.
-	resultDir1, err1 := embed.ExportExtractToCacheProduction(nonEmptyTestFS, "testdata", cacheDir)
-	g.Expect(err1).NotTo(HaveOccurred())
-	g.Expect(resultDir1).To(Equal(cacheDir))
-
-	// Sentinel must exist.
-	_, sentinelErr := os.Stat(filepath.Join(cacheDir, ".complete"))
-	g.Expect(sentinelErr).NotTo(HaveOccurred(), ".complete sentinel must be written after first extraction")
-
-	entries1, readErr1 := os.ReadDir(cacheDir)
-	g.Expect(readErr1).NotTo(HaveOccurred())
-
-	fileCount1 := len(entries1)
-	g.Expect(fileCount1).To(BeNumerically(">", 1), "cache dir must contain model files + sentinel")
-
-	// Second call: must reuse without re-extracting.
-	resultDir2, err2 := embed.ExportExtractToCacheProduction(nonEmptyTestFS, "testdata", cacheDir)
-	g.Expect(err2).NotTo(HaveOccurred())
-	g.Expect(resultDir2).To(Equal(cacheDir))
-
-	entries2, readErr2 := os.ReadDir(cacheDir)
-	g.Expect(readErr2).NotTo(HaveOccurred())
-	g.Expect(entries2).To(HaveLen(fileCount1),
-		"second call must not add/modify files — cache reused as-is")
 }
 
 // TestExtractToCache_SecondInitReusesExistingCache verifies that when the
@@ -208,9 +178,12 @@ func TestExtractToCache_WriteFileFailureCleansUpTemp(t *testing.T) {
 	g.Expect(cfs.removeCalls).To(BeNumerically(">", 0), "temp dir must be cleaned up on write failure")
 }
 
+//go:embed testdata/gen-reference.py
+var nonEmptyTestFS stdembed.FS
+
 // unexported variables.
 var (
-	_ embed.ExportCacheFS = (*fakeCacheFS)(nil)
+	_ embed.CacheFS = (*fakeCacheFS)(nil)
 )
 
 // fakeCacheFS records cacheFS method calls for assertion in unit tests.
