@@ -143,3 +143,6 @@ Task T-final-1: complete (commits 352569c4 comment-scrub + 13631846 enforcement 
 - FOR JOE (deliberate-call list, completion report): (1) funlen 60/60 on main() — Gate B recommends path-scoped exclusion with why-comment; (2) pre-existing issues.fix=true in lint config — auto-fix can silently modify files during lint runs, revisit deliberately
 BASE-T-final-2: 13631846
 Task T-final-2: dispatched
+Task T-final-2: complete (commit a04f3541, verification review ACK — 5-line comment-only deletion, gates identical, Go-scoped grep zero)
+STEP 4 (EXECUTE) COMPLETE: T1-rework, T2, T3, T5, T6, T8, T9, T10, T11, T12, T4, T14, T15, T7, T13, T16, T17, T-polish, T-final-1, T-final-2 — all review-ACK'd; enforcement active; FIXME resolved per the user's rule
+STEP 5 (DOCUMENT) BEGINS: disposition table in T-final-2-brief.md governs
