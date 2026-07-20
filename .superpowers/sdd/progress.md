@@ -37,3 +37,7 @@ ACCUMULATED DISPATCH NOTES (include in every implementer dispatch):
 - gates run FOREGROUND (no background-run-and-yield); stage EXPLICIT paths only (never add -A)
 - check-full residual set: e2e-under-load coverage timeout + 2 dev/eval reorder fixtures; lint-full 0
 - reviewers: task reviewer (spec+quality, sonnet) + Gate B design-fit (sonnet) per task; fix rounds re-ACK with the same reviewer
+Task 6: implemented (commit fe2427ac), review pending
+- R11 amendment needed: query cluster (T6) consumes the stubEmbedder local-override pattern EARLIER than T14/T15 (RunQuery derefs Embedder unconditionally); T14/T15 briefs must not assume first-use
+- New flaky watch: TestForceExit_RealSignalDeliveryThroughForwardAsPulses panicked once under check-full load, cleared on rerun (T1-rework signal integration; SIGUSR2 pacing)
+- Third standing residual: vault_fs.go listDirBySuffix 76.9% coverage (pre-existing from T5 fix round; dies at T7 — fold into T7)
