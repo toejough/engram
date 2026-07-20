@@ -131,3 +131,8 @@ Task 17: complete (commit 1c8382ff, task review ACK + Gate B APPROVED — no fix
 - Reviewer git incidents this cycle: T16 reviewer bare stash/pop (popped foreign #686 stash; recovered; /learn'd), T17 task reviewer detached HEAD (recovered) — orchestrator re-verified tree/branch/stashes after each
 BASE-T-polish: 1c8382ff
 Task T-polish: dispatched
+Task T-polish: complete (commit 06d787fb, dual-mandate review ACK)
+- All 5 items byte-identical/accurate verified against pre-commit tree; ZERO test-behavior edits; helper writeAtomicWithPathFromFS conforms to *FromFS convention, exactly 2 consumers (amend/resituate); prune/ingest/activate variants correctly untouched
+- Non-blocking residue: writeAtomicFromFS doc comment phrasing slightly under-inclusive (still accurate); activate.go no-wrap closure noted as genuine variant
+BASE-T-final-1: 06d787fb
+Task T-final-1: dispatched
