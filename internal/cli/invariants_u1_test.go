@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -18,8 +17,8 @@ import (
 )
 
 // TestInvariant_U1_MissingGoSentinel locks U1's missing-go failure surface: a
-// missing `go` binary (surfaced as exec.ErrNotFound from the go install
-// command) must make update FAIL with the update.ErrGoNotFound sentinel, and
+// missing `go` binary (surfaced as update.ErrCommandNotFound from the injected
+// Commander) must make update FAIL with the update.ErrGoNotFound sentinel, and
 // that sentinel must survive the CLI's finishUpdate wrapping (errors.Is /
 // MatchError) — never a silent success, never a bare un-typed error.
 func TestInvariant_U1_MissingGoSentinel(t *testing.T) {
@@ -29,11 +28,11 @@ func TestInvariant_U1_MissingGoSentinel(t *testing.T) {
 	memFS := newU1FS()
 	memFS.seedLocalRepo()
 
-	// Commander fails the way the real osCommander does when `go` is absent:
-	// the exec.ErrNotFound chain is preserved through its %w wrap.
+	// Commander fails the way the production adapter does when 'go' is absent:
+	// the update.ErrCommandNotFound chain is preserved through its %w wrap.
 	updater := &update.Updater{
 		FS:  memFS,
-		Cmd: &u1FailCmd{err: fmt.Errorf(`go [install ./cmd/engram/]: %w`, exec.ErrNotFound)},
+		Cmd: &u1FailCmd{err: fmt.Errorf(`go [install ./cmd/engram/]: %w`, update.ErrCommandNotFound)},
 		Env: u1LocalEnv(),
 	}
 

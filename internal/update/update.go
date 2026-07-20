@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -33,8 +32,13 @@ const (
 
 // Exported variables.
 var (
-	ErrGitNotFound = errors.New("git binary not found on PATH")
-	ErrGoNotFound  = errors.New("go binary not found on PATH")
+	// ErrCommandNotFound is the Commander contract for "binary not on PATH":
+	// implementations translate their platform's not-found error (e.g.
+	// exec.ErrNotFound) to this sentinel before returning, keeping this
+	// package free of os/exec (#700).
+	ErrCommandNotFound = errors.New("command not found")
+	ErrGitNotFound     = errors.New("git binary not found on PATH")
+	ErrGoNotFound      = errors.New("go binary not found on PATH")
 	// ErrModelLFSStub means the cloned model.onnx is a Git-LFS pointer file,
 	// not the real model — building from it would embed a 133-byte stub and
 	// every embedding call would fail (issue #645).
@@ -433,7 +437,7 @@ func (u *Updater) resolveRemoteByClone(ctx context.Context, dryRun bool) (Source
 
 	_, _, cloneErr := u.Cmd.Run(ctx, "", "git", "clone", "--depth", "1", repoCloneURL, cloneDir)
 	if cloneErr != nil {
-		if errors.Is(cloneErr, exec.ErrNotFound) {
+		if errors.Is(cloneErr, ErrCommandNotFound) {
 			return SourceInfo{}, fmt.Errorf("git clone: %w", ErrGitNotFound)
 		}
 
@@ -538,10 +542,10 @@ const (
 )
 
 // classifyGoInstallErr maps a `go install` failure to ErrGoNotFound when the go
-// binary is absent from PATH (exec.ErrNotFound), otherwise wrapping the raw
-// error with the install mode for context.
+// binary is absent from PATH (ErrCommandNotFound from the Commander), otherwise
+// wrapping the raw error with the install mode for context.
 func classifyGoInstallErr(mode string, runErr error) error {
-	if errors.Is(runErr, exec.ErrNotFound) {
+	if errors.Is(runErr, ErrCommandNotFound) {
 		return fmt.Errorf("go install (%s): %w", mode, ErrGoNotFound)
 	}
 

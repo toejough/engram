@@ -53,6 +53,11 @@ func (*osCommander) Run(
 
 	err := cmd.Run()
 	if err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return stdout.Bytes(), stderr.Bytes(),
+				fmt.Errorf("%s %v: %w: %w", name, args, update.ErrCommandNotFound, err)
+		}
+
 		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("%s %v: %w", name, args, err)
 	}
 

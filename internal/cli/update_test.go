@@ -255,6 +255,17 @@ func TestOsCommander_RunsCommand(t *testing.T) {
 	g.Expect(strings.TrimSpace(string(stdout))).To(Equal("hello world"))
 }
 
+func TestOsCommander_TranslatesNotFound(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	cmd := cli.ExportNewOsCommander()
+
+	_, _, err := cmd.Run(context.Background(), "", "engram-no-such-binary-7f3a")
+	g.Expect(err).To(MatchError(update.ErrCommandNotFound))
+}
+
 func TestOsUpdateEnv_ReturnsValues(t *testing.T) {
 	g := NewWithT(t)
 

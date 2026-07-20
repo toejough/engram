@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io/fs"
-	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -553,7 +552,7 @@ func TestUpdater_Run_RemoteCloneFailures(t *testing.T) {
 	fileSystem := newMemFS()
 	fileSystem.dirs["/home/joe/.claude"] = true
 
-	cmd := &fakeCmd{err: exec.ErrNotFound}
+	cmd := &fakeCmd{err: update.ErrCommandNotFound}
 	updater := &update.Updater{FS: fileSystem, Cmd: cmd, Env: &fakeEnv{home: "/home/joe", cwd: "/x"}}
 
 	_, err := updater.Run(context.Background(), update.Options{})
