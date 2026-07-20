@@ -358,11 +358,11 @@ func newOsAmendDeps() AmendDeps {
 		Embedder:     sharedEmbedder,
 		Now:          time.Now,
 		LoadChunkIDs: buildChunkIDSet,
-		// listJSONLIndexes (query_chunks.go) lists *.jsonl chunk indexes, treats
+		// osListJSONLIndexes (query_chunks.go) lists *.jsonl chunk indexes, treats
 		// an absent dir as empty (not an error), and never matches manifest.json
 		// (it is not a .jsonl file) — exactly the contract needed here, so reuse
 		// it rather than hand-roll a closure.
-		ListIndexes: listJSONLIndexes,
+		ListIndexes: osListJSONLIndexes,
 		LogWarning:  logWarningToStderrf,
 		// Vocab assignment wiring: no-op when the vault has no term notes.
 		// Uses stored member centroids (vocab.centroids.json) when present,

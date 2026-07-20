@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,6 +12,41 @@ import (
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 )
+
+func TestChunkQueryDeps_ListIndexes_ListsOnlyJSONLFiles(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(dir, "sub.jsonl"), 0o750)).To(gomega.Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "a.jsonl"), []byte("{}"), 0o600)).To(gomega.Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "manifest.json"), []byte("{}"), 0o600)).To(gomega.Succeed())
+
+	deps := cli.ExportNewChunkQueryDeps(realFSForTest(), nil)
+	paths, err := deps.ListIndexes(dir)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(paths).To(gomega.ConsistOf(filepath.Join(dir, "a.jsonl")))
+}
+
+func TestChunkQueryDeps_ListIndexes_WrappedNotExistIsEmptyIndex(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	deps := cli.ExportNewChunkQueryDeps(wrappedNotExistEdgeFS{}, nil)
+	paths, err := deps.ListIndexes("/any/chunks/dir")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(paths).To(gomega.BeEmpty())
+}
 
 func TestChunkQueryEmptyIndexSaysSo(t *testing.T) {
 	t.Parallel()
@@ -99,6 +136,25 @@ func TestChunkQueryRanksByCosine(t *testing.T) {
 	if second != -1 {
 		g.Expect(first).To(gomega.BeNumerically("<", second), "best match listed first")
 	}
+}
+
+// TestOsListJSONLIndexes_MissingDirIsEmptyIndex covers the TRANSITIONAL
+// os-backed lister's not-exist branch (#700 — amend.go/prune.go still wire
+// osListJSONLIndexes directly against real chunks dirs that always exist,
+// so this is the only remaining path to the not-exist short-circuit until
+// T12 deletes the function).
+func TestOsListJSONLIndexes_MissingDirIsEmptyIndex(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	paths, err := cli.ExportOsListJSONLIndexes(filepath.Join(t.TempDir(), "absent"))
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(paths).To(gomega.BeEmpty())
 }
 
 // axisEmbedder maps known texts onto fixed unit vectors so cosine ranking is

@@ -112,7 +112,7 @@ func newOsPruneDeps() PruneDeps {
 
 			return statErr == nil
 		},
-		ListIndexes: listJSONLIndexes,
+		ListIndexes: osListJSONLIndexes,
 		Remove:      os.Remove,
 	}
 }

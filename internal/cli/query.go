@@ -1283,20 +1283,6 @@ func mergeProvenances(
 	return items
 }
 
-// newOsQueryDeps wires the production scan + read for the query command.
-func newOsQueryDeps() QueryDeps {
-	embedDeps := newOsEmbedDeps()
-
-	return QueryDeps{
-		Scan:             embedDeps.Scan,
-		Read:             embedDeps.Read,
-		Embedder:         embedDeps.Embedder,
-		LogWarning:       logWarningToStderrf,
-		ListChunkIndexes: listJSONLIndexes,
-		Now:              time.Now,
-	}
-}
-
 // newPhaseTimer returns nil when timing is disabled (now == nil or !enabled),
 // so every mark()/boundary()/timings() call is a no-op on the nil receiver.
 func newPhaseTimer(now func() time.Time, enabled bool) *phaseTimer {
@@ -1305,6 +1291,23 @@ func newPhaseTimer(now func() time.Time, enabled bool) *phaseTimer {
 	}
 
 	return &phaseTimer{now: now, last: now(), dur: map[string]time.Duration{}}
+}
+
+// newQueryDeps wires the query command from the injected CLI capabilities —
+// pure composition, every I/O flows through d (#700).
+func newQueryDeps(d Deps) QueryDeps {
+	vfs := newVaultFS(d.FS)
+
+	return QueryDeps{
+		Scan: func(vault string) ([]vaultgraph.Note, error) {
+			return vaultgraph.ScanVault(vfs, vault)
+		},
+		Read:             d.FS.ReadFile,
+		Embedder:         d.Embed,
+		LogWarning:       logWarningTo(d.Stderr),
+		ListChunkIndexes: listJSONLIndexes(d.FS),
+		Now:              d.Now,
+	}
 }
 
 // perClusterMeanSilhouette returns one mean silhouette score per cluster

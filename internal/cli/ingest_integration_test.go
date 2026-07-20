@@ -97,7 +97,7 @@ func TestChunkQueryMissingChunksDirIsEmpty(t *testing.T) {
 
 	var out strings.Builder
 
-	deps := cli.ExportNewOsChunkQueryDeps(fakeIngestEmbedder{})
+	deps := cli.ExportNewChunkQueryDeps(realFSForTest(), fakeIngestEmbedder{})
 	err := cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
 		Phrases: []string{"anything"}, ChunksDir: filepath.Join(t.TempDir(), "absent"), Limit: 5,
 	}, deps, &out)
@@ -201,7 +201,7 @@ func TestOsIngestThenChunkQuery(t *testing.T) {
 
 	var out strings.Builder
 
-	queryDeps := cli.ExportNewOsChunkQueryDeps(fakeIngestEmbedder{})
+	queryDeps := cli.ExportNewChunkQueryDeps(realFSForTest(), fakeIngestEmbedder{})
 	err = cli.RunChunkQuery(context.Background(), cli.ChunkQueryArgs{
 		Phrases: []string{"magic numbers"}, ChunksDir: chunksDir, Limit: 5,
 	}, queryDeps, &out)

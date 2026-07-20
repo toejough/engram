@@ -80,6 +80,7 @@ var (
 	ExportNoteAgeDays                      = noteAgeDays
 	ExportNoteContainsAnyRemoval           = noteContainsAnyRemoval
 	ExportOldVocabFilesPresent             = oldVocabFilesPresent
+	ExportOsListJSONLIndexes               = osListJSONLIndexes
 	ExportParseCreatedFromNote             = parseCreatedFromNote
 	ExportParseNoteQueryFrontmatter        = parseNoteQueryFrontmatter
 	ExportParseSupersedesFlag              = parseSupersedesFlag
@@ -441,6 +442,15 @@ func ExportMergePhraseIntoUnion(noteHits []scoredCandidate, chunkHits []scoredCh
 // ExportNewCheckDeps builds production CheckDeps over the given EdgeFS.
 func ExportNewCheckDeps(fsys EdgeFS) CheckDeps { return newCheckDeps(Deps{FS: fsys}) }
 
+// ExportNewChunkQueryDeps returns production ChunkQueryDeps over the given
+// EdgeFS with an injected embedder.
+func ExportNewChunkQueryDeps(fsys EdgeFS, emb embed.Embedder) ChunkQueryDeps {
+	deps := newChunkQueryDeps(Deps{FS: fsys})
+	deps.Embedder = emb
+
+	return deps
+}
+
 // ExportNewChunkResolvedItem builds a chunk-kind resolvedItem for band tests.
 // notePath mirrors chunkNotePath's "source#anchor" form.
 func ExportNewChunkResolvedItem(notePath string, score float32) resolvedItem {
@@ -515,15 +525,6 @@ func ExportNewNoteResolvedItemWithProvenances(
 // both score and baseScore set, for testing mergeIntoExisting score logic.
 func ExportNewNoteResolvedItemWithScore(notePath string, score, baseScore float32) resolvedItem {
 	return resolvedItem{notePath: notePath, score: score, baseScore: baseScore}
-}
-
-// ExportNewOsChunkQueryDeps returns production ChunkQueryDeps with an
-// injected embedder, mirroring ExportNewOsIngestDeps.
-func ExportNewOsChunkQueryDeps(emb embed.Embedder) ChunkQueryDeps {
-	deps := newOsChunkQueryDeps()
-	deps.Embedder = emb
-
-	return deps
 }
 
 // ExportNewOsCommander returns the production Commander adapter for testing.

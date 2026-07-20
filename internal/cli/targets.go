@@ -159,7 +159,7 @@ func ingestQueryTargets(
 		targ.Targ(func(ctx context.Context, a QueryArgs) {
 			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-			errHandler(RunQuery(withLog(ctx), a, newOsQueryDeps(), deps.Stdout))
+			errHandler(RunQuery(withLog(ctx), a, newQueryDeps(deps), deps.Stdout))
 		}).Name("query").Description("Semantic search over vault + chunk index (YAML output)"),
 		targ.Targ(func(ctx context.Context, a IngestArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
@@ -173,7 +173,7 @@ func ingestQueryTargets(
 				"keep the embedded chunks (still searchable)"),
 		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-			errHandler(RunChunkQuery(withLog(ctx), a, newOsChunkQueryDeps(), deps.Stdout))
+			errHandler(RunChunkQuery(withLog(ctx), a, newChunkQueryDeps(deps), deps.Stdout))
 		}).Name("query-chunks").Description("Semantic search over the chunk index (YAML output)"),
 		targ.Targ(func(_ context.Context, a ActivateArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
@@ -190,7 +190,7 @@ func ingestQueryTargets(
 		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
 		targ.Targ(func(ctx context.Context, a ShowChunkArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-			errHandler(RunShowChunk(withLog(ctx), a, newOsShowChunkDeps(), deps.Stdout))
+			errHandler(RunShowChunk(withLog(ctx), a, newShowChunkDeps(deps), deps.Stdout))
 		}).Name("show-chunk").Description("Print a chunk's text by its source#anchor id (read-only)"),
 		targ.Targ(func(ctx context.Context, a CheckArgs) {
 			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)

@@ -397,7 +397,15 @@ func TestTargets_PruneEmpty(t *testing.T) {
 }
 
 // TestTargets_QueryEmptyVault exercises the query closure on an empty
-// vault — fast path returns items:[] without invoking the embedder.
+// vault. Unlike query-chunks, RunQuery has no notes/records short-circuit
+// ahead of the per-phrase embed call (buildMatchedSetFromPhrases always
+// calls deps.Embedder.Embed), so a nil Embed (newTestDeps.Embed stays nil
+// globally per R11) would panic here. This test overrides Embed with the
+// deterministic stubEmbedder (embed_test.go) — a per-test local deps
+// override, the same pattern R11 sanctions for the embed-family targets
+// tests' ModelID()/Embed() dereferences (#700 T6 finding: the query
+// cluster's newQueryDeps(d) conversion surfaces this one task earlier
+// than R11's embed-cluster enumeration anticipated).
 func TestTargets_QueryEmptyVault(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -406,8 +414,21 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
-	stderr := executeForTest(t, []string{"engram", "query", "--phrase", "anything", "--vault", vault})
-	g.Expect(stderr).To(gomega.BeEmpty())
+	var stdout, stderrBuf bytes.Buffer
+
+	deps := newTestDeps(&stdout, &stderrBuf)
+	deps.Embed = stubEmbedder{modelID: "test-model", dims: 8}
+
+	_, err := targ.Execute(
+		[]string{"engram", "query", "--phrase", "anything", "--vault", vault},
+		cli.Targets(deps)...,
+	)
+	if err != nil {
+		stderrBuf.WriteString(err.Error())
+		stderrBuf.WriteString("\n")
+	}
+
+	g.Expect(stderrBuf.String()).To(gomega.BeEmpty())
 }
 
 // TestTargets_Resituate exercises the resituate closure end-to-end through

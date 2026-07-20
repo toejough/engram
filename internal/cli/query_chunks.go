@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -133,27 +134,31 @@ func clusterChunks(top []scoredChunk) []chunkCluster {
 	return clusters
 }
 
-// listJSONLIndexes returns the .jsonl files directly under dir. A missing
-// dir is an empty index (cold start), not an error.
-func listJSONLIndexes(dir string) ([]string, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
+// listJSONLIndexes returns a lister over fsys for the .jsonl files directly
+// under a dir. A missing dir is an empty index (cold start), not an error —
+// matched via errors.Is so EdgeFS implementations may wrap the not-exist
+// error (os.IsNotExist would not unwrap a %w chain).
+func listJSONLIndexes(fsys EdgeFS) func(dir string) ([]string, error) {
+	return func(dir string) ([]string, error) {
+		entries, err := fsys.ReadDir(dir)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, nil
+			}
+
+			return nil, fmt.Errorf("listing chunk indexes: %w", err)
 		}
 
-		return nil, fmt.Errorf("listing chunk indexes: %w", err)
-	}
+		var paths []string
 
-	var paths []string
-
-	for _, entry := range entries {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == jsonlExt {
-			paths = append(paths, filepath.Join(dir, entry.Name()))
+		for _, entry := range entries {
+			if !entry.IsDir() && filepath.Ext(entry.Name()) == jsonlExt {
+				paths = append(paths, filepath.Join(dir, entry.Name()))
+			}
 		}
-	}
 
-	return paths, nil
+		return paths, nil
+	}
 }
 
 // loadChunkRecords reads every index file under the chunks dir.
@@ -182,16 +187,39 @@ func loadChunkRecords(dir string, deps ChunkQueryDeps) ([]chunk.Record, error) {
 	return records, nil
 }
 
-// newOsChunkQueryDeps wires the production filesystem + bundled embedder for
-// `engram query-chunks`.
-func newOsChunkQueryDeps() ChunkQueryDeps {
-	fs := &osEmbedFS{}
-
+// newChunkQueryDeps wires `engram query-chunks` from the injected CLI
+// capabilities — pure composition (#700).
+func newChunkQueryDeps(d Deps) ChunkQueryDeps {
 	return ChunkQueryDeps{
-		ListIndexes: listJSONLIndexes,
-		ReadFile:    fs.Read,
-		Embedder:    sharedEmbedder,
+		ListIndexes: listJSONLIndexes(d.FS),
+		ReadFile:    d.FS.ReadFile,
+		Embedder:    d.Embed,
 	}
+}
+
+// osListJSONLIndexes is the TRANSITIONAL os-backed .jsonl lister (#700).
+// Remaining consumers: amend.go (newOsAmendDeps) and prune.go
+// (newOsPruneDeps); T9/T12 flip those lines to listJSONLIndexes(d.FS) when
+// they convert, and T12 (last consumer) deletes this func + the "os" import.
+func osListJSONLIndexes(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("listing chunk indexes: %w", err)
+	}
+
+	var paths []string
+
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == jsonlExt {
+			paths = append(paths, filepath.Join(dir, entry.Name()))
+		}
+	}
+
+	return paths, nil
 }
 
 // scoreChunkForPhrase scores every record against a single pre-embedded phrase

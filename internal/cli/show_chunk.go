@@ -63,14 +63,13 @@ var (
 	errShowChunkNotFound = errors.New("chunk not found")
 )
 
-// newOsShowChunkDeps wires the production filesystem index loader for
-// `engram show-chunk`. No embedder is needed — lookup is by id, not similarity.
-func newOsShowChunkDeps() ShowChunkDeps {
-	fs := &osEmbedFS{}
-
+// newShowChunkDeps wires `engram show-chunk` from the injected CLI
+// capabilities — pure composition (#700). No embedder is needed — lookup
+// is by id, not similarity.
+func newShowChunkDeps(d Deps) ShowChunkDeps {
 	return ShowChunkDeps{
-		ListIndexes: listJSONLIndexes,
-		ReadFile:    fs.Read,
+		ListIndexes: listJSONLIndexes(d.FS),
+		ReadFile:    d.FS.ReadFile,
 	}
 }
 
