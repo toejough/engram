@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"sync/atomic"
 	"time"
 
 	"github.com/toejough/engram/internal/chunk"
@@ -431,17 +430,6 @@ func ExportMergePhraseIntoUnion(noteHits []scoredCandidate, chunkHits []scoredCh
 	return keys
 }
 
-// ExportNewBridgeEmbedder returns a fresh transitional shared-embedder
-// bridge plus its wire function, backed by an isolated pointer so bridge
-// behavior tests never touch the package-global embedder.
-func ExportNewBridgeEmbedder() (embed.Embedder, func(embed.Embedder)) {
-	ptr := &atomic.Pointer[embed.Embedder]{}
-	bridge := bridgeEmbedder{ptr: ptr}
-	wire := func(e embed.Embedder) { ptr.Store(&e) }
-
-	return bridge, wire
-}
-
 // ExportNewCheckDeps builds production CheckDeps over the given EdgeFS.
 func ExportNewCheckDeps(fsys EdgeFS) CheckDeps { return newCheckDeps(Deps{FS: fsys}) }
 
@@ -478,6 +466,11 @@ func ExportNewCompatibleSidecars(
 
 // ExportNewCountDeps builds production CountDeps over the given EdgeFS.
 func ExportNewCountDeps(fsys EdgeFS) CountDeps { return newCountDeps(Deps{FS: fsys}) }
+
+// ExportNewEmbedDeps exposes newEmbedDeps so integration tests can drive
+// the composed Scan/Read/Write against a test EdgeFS without waking the
+// bundled embedder (set Deps.Embed to a stub).
+func ExportNewEmbedDeps(d Deps) EmbedDeps { return newEmbedDeps(d) }
 
 // ExportNewEmptyVaultNotesMeta constructs an AllVaultNotesMeta with
 // empty (but non-nil) maps — the backward-compat no-op fixture.
@@ -542,16 +535,6 @@ func ExportNewNoteResolvedItemWithScore(notePath string, score, baseScore float3
 
 // ExportNewOsCommander returns the production Commander adapter for testing.
 func ExportNewOsCommander() *osCommander { return &osCommander{} }
-
-// ExportNewOsEmbedDeps returns production EmbedDeps with an injected
-// embedder so coverage tests can drive Read/Write/Scan without going
-// through the lazy bundled embedder.
-func ExportNewOsEmbedDeps(emb embed.Embedder) EmbedDeps {
-	deps := newOsEmbedDeps()
-	deps.Embedder = emb
-
-	return deps
-}
 
 // ExportNewOsUpdateEnv returns the production Env adapter for testing.
 func ExportNewOsUpdateEnv() *osUpdateEnv { return &osUpdateEnv{} }

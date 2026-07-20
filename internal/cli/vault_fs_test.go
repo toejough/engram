@@ -53,6 +53,35 @@ func TestOsVaultFS_ReadFile_MissingPathError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("reading")))
 }
 
+// TestOsVaultFS_RoundTrip_ListMDAndReadFile covers the legacy adapter's happy
+// paths (listDirBySuffix dir/suffix filtering + ReadFile success). T15 moved
+// the embed commands onto the composed newEmbedDeps route, so the legacy
+// adapter's only remaining coverage is direct; dies with T7's purge.
+func TestOsVaultFS_RoundTrip_ListMDAndReadFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(dir, "subdir"), 0o750)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "note.md"), []byte("body"), 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("y"), 0o600)).To(Succeed())
+
+	vfs := cli.ExportNewOsVaultFS()
+
+	names, err := vfs.ListMD(dir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(names).To(ConsistOf("note.md"))
+
+	data, readErr := vfs.ReadFile(filepath.Join(dir, "note.md"))
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(data)).To(Equal("body"))
+}
+
 func TestVaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

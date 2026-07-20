@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
-	"sync/atomic"
 
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
@@ -105,24 +103,6 @@ func RunEmbedStatus(
 	return writeStatusReport(stdout, counts)
 }
 
-// unexported variables.
-var (
-	// errEmbedderUnwired reports an Embed call before Targets wired Deps.Embed.
-	errEmbedderUnwired = errors.New("embedder not wired: cli.Targets(deps) has not run")
-	// sharedEmbedder is the value legacy per-command constructors wire into
-	// their deps structs; it forwards to the Targets-wired embedder.
-	// TRANSITIONAL (#700) — same removal condition as sharedEmbedderPtr.
-	//nolint:gochecknoglobals // transitional bridge, see comment
-	sharedEmbedder embed.Embedder = bridgeEmbedder{ptr: &sharedEmbedderPtr}
-	// sharedEmbedderPtr holds the Deps-wired production embedder, stored by
-	// wireSharedEmbedder (called from Targets). Atomic because tests build
-	// Targets concurrently.
-	// TRANSITIONAL (#700): deleted once every per-command deps constructor
-	// takes Deps and reads d.Embed directly.
-	//nolint:gochecknoglobals // transitional bridge, see comment
-	sharedEmbedderPtr atomic.Pointer[embed.Embedder]
-)
-
 // applySelection captures which states the user asked to re-embed,
 // derived from the flag combination on EmbedApplyArgs.
 type applySelection struct {
@@ -144,90 +124,6 @@ func (a applySelection) shouldEmbed(state embed.State) bool {
 	default:
 		return false
 	}
-}
-
-// bridgeEmbedder forwards Embedder calls to the embedder wired by Targets.
-// Pre-wiring fallbacks mirror LazyEmbedder's pre-init behavior: ModelID
-// reports the bundled constant, Dims reports 0, Embed errors.
-type bridgeEmbedder struct {
-	ptr *atomic.Pointer[embed.Embedder]
-}
-
-// Dims delegates to the wired embedder; 0 before wiring.
-func (b bridgeEmbedder) Dims() int {
-	emb := b.load()
-	if emb == nil {
-		return 0
-	}
-
-	return emb.Dims()
-}
-
-// Embed delegates to the wired embedder; errors before wiring.
-func (b bridgeEmbedder) Embed(ctx context.Context, text string) ([]float32, error) {
-	emb := b.load()
-	if emb == nil {
-		return nil, errEmbedderUnwired
-	}
-
-	return emb.Embed(ctx, text)
-}
-
-// ModelID delegates to the wired embedder; bundled constant before wiring
-// (keeps status-style callers unpack-free, matching LazyEmbedder).
-func (b bridgeEmbedder) ModelID() string {
-	emb := b.load()
-	if emb == nil {
-		return embed.BundledModelID
-	}
-
-	return emb.ModelID()
-}
-
-// load returns the wired embedder or nil before wiring.
-func (b bridgeEmbedder) load() embed.Embedder {
-	ptr := b.ptr.Load()
-	if ptr == nil || *ptr == nil {
-		return nil
-	}
-
-	return *ptr
-}
-
-// osEmbedFS is the production adapter wrapping os.ReadFile/WriteFile +
-// vaultgraph.ScanVault behind named methods so coverage tracking treats
-// the wiring as one unit measured by integration tests, rather than as
-// three anonymous closures that each need their own unit tests.
-type osEmbedFS struct{}
-
-// Read reads path via os.ReadFile.
-func (osEmbedFS) Read(path string) ([]byte, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // path from caller
-	if err != nil {
-		return nil, fmt.Errorf("read: %w", err)
-	}
-
-	return data, nil
-}
-
-// Scan returns every note in vault via vaultgraph.ScanVault. The
-// returned error (if any) is propagated as-is since vaultgraph is an
-// internal package; wrapcheck excludes internal packages.
-func (osEmbedFS) Scan(vault string) ([]vaultgraph.Note, error) {
-	return vaultgraph.ScanVault(&osVaultFS{}, vault)
-}
-
-// Write writes data to path with 0o600 perms using atomicWriteFile (temp+rename)
-// so concurrent readers always see either the old or new file, never a torn write.
-func (osEmbedFS) Write(path string, data []byte) error {
-	const sidecarPerm = 0o600
-
-	err := atomicWriteFile(path, data, sidecarPerm)
-	if err != nil {
-		return fmt.Errorf("write: %w", err)
-	}
-
-	return nil
 }
 
 // readerFS adapts EmbedDeps.Read to the embed.FS interface so we can
@@ -290,16 +186,28 @@ func applyOne(
 	_, _ = fmt.Fprintf(stdout, "embedded  %s (%s)\n", notePath, state)
 }
 
-// newOsEmbedDeps wires the production filesystem + bundled embedder for
-// the embed commands.
-func newOsEmbedDeps() EmbedDeps {
-	fs := &osEmbedFS{}
+// newEmbedDeps composes the embed-command dependencies from the CLI-wide
+// impure capability set. Pure composition — all I/O flows through d.FS and
+// d.Embed, wired via cli.NewDeps at the edge. Sidecar writes go through
+// WriteFileAtomic (temp+rename) so concurrent readers always see either
+// the old or new file, never a torn write (ADR-0013 semantics preserved).
+func newEmbedDeps(d Deps) EmbedDeps {
+	const sidecarPerm = 0o600
 
 	return EmbedDeps{
-		Scan:     fs.Scan,
-		Read:     fs.Read,
-		Write:    fs.Write,
-		Embedder: sharedEmbedder,
+		Scan: func(vault string) ([]vaultgraph.Note, error) {
+			return vaultgraph.ScanVault(newVaultFS(d.FS), vault)
+		},
+		Read: d.FS.ReadFile,
+		Write: func(path string, data []byte) error {
+			err := d.FS.WriteFileAtomic(path, data, sidecarPerm)
+			if err != nil {
+				return fmt.Errorf("write: %w", err)
+			}
+
+			return nil
+		},
+		Embedder: d.Embed,
 	}
 }
 
@@ -348,12 +256,6 @@ func tallyStates(notes []vaultgraph.Note, vault string, deps EmbedDeps) stateCou
 	}
 
 	return counts
-}
-
-// wireSharedEmbedder points the transitional sharedEmbedder bridge at the
-// Deps-wired embedder. Called by Targets.
-func wireSharedEmbedder(embedder embed.Embedder) {
-	sharedEmbedderPtr.Store(&embedder)
 }
 
 func writeStatusReport(stdout io.Writer, counts stateCounts) error {

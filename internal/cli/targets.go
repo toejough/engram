@@ -83,8 +83,6 @@ func ProjectSlugFromPath(path string) string {
 // each handler's ctx so downstream code can call debuglog.Log without an
 // explicit logger argument.
 func Targets(deps Deps) []any {
-	wireSharedEmbedder(deps.Embed)
-
 	errHandler := newErrHandler(deps.Stderr, deps.Exit)
 	logger := debuglog.New(deps.DebugLog, "engram", deps.Now)
 
@@ -232,11 +230,11 @@ func learnUpdateTargets(
 		targ.Group("embed",
 			targ.Targ(func(ctx context.Context, a EmbedApplyArgs) {
 				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-				errHandler(RunEmbedApply(withLog(ctx), a, newOsEmbedDeps(), deps.Stdout))
+				errHandler(RunEmbedApply(withLog(ctx), a, newEmbedDeps(deps), deps.Stdout))
 			}).Name("apply").Description("Embed notes (default: missing only)"),
 			targ.Targ(func(ctx context.Context, a EmbedStatusArgs) {
 				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-				errHandler(RunEmbedStatus(withLog(ctx), a, newOsEmbedDeps(), deps.Stdout))
+				errHandler(RunEmbedStatus(withLog(ctx), a, newEmbedDeps(deps), deps.Stdout))
 			}).Name("status").Description("Report embedding state counts"),
 		),
 	}

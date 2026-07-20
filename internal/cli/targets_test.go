@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/embed"
 )
 
 func TestCacheDirFromHome(t *testing.T) {
@@ -336,8 +338,11 @@ func TestTargets_ActivateNoNotes(t *testing.T) {
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
-// TestTargets_EmbedApplyDryRun exercises embed apply closure with --dry-run
-// against an empty vault. Lazy embedder's ModelID() doesn't unpack model.
+// TestTargets_EmbedApplyDryRun exercises the embed apply closure with
+// --dry-run against an empty vault. newTestDeps.Embed is nil by design
+// (R11), and RunEmbedApply dereferences Embedder.ModelID(), so the test
+// overrides Embed with the fail-loud stubEmbedderForTargets — only
+// ModelID() answers; any real Embed call fails the test loudly.
 func TestTargets_EmbedApplyDryRun(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -346,13 +351,17 @@ func TestTargets_EmbedApplyDryRun(t *testing.T) {
 	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
-	stderr := executeForTest(t, []string{"engram", "embed", "apply", "--dry-run", "--vault", vault})
+	stderr := executeForTestWithDeps(t,
+		[]string{"engram", "embed", "apply", "--dry-run", "--vault", vault},
+		func(d *cli.Deps) { d.Embed = stubEmbedderForTargets{} })
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
 // TestTargets_EmbedStatus exercises the embed status closure end-to-end
-// through Targets() so newOsEmbedDeps wiring is covered. Uses an empty
-// vault so the LazyEmbedder's ModelID() path doesn't trigger model unpack.
+// through Targets() so the newEmbedDeps(deps) wiring is covered. Empty
+// vault; tallyStates dereferences Embedder.ModelID(), so the test wires
+// the fail-loud stubEmbedderForTargets (R11) — no model unpack, and any
+// real Embed call fails loudly.
 func TestTargets_EmbedStatus(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -361,7 +370,9 @@ func TestTargets_EmbedStatus(t *testing.T) {
 	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
-	stderr := executeForTest(t, []string{"engram", "embed", "status", "--vault", vault})
+	stderr := executeForTestWithDeps(t,
+		[]string{"engram", "embed", "status", "--vault", vault},
+		func(d *cli.Deps) { d.Embed = stubEmbedderForTargets{} })
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
@@ -401,11 +412,11 @@ func TestTargets_PruneEmpty(t *testing.T) {
 // ahead of the per-phrase embed call (buildMatchedSetFromPhrases always
 // calls deps.Embedder.Embed), so a nil Embed (newTestDeps.Embed stays nil
 // globally per R11) would panic here. This test overrides Embed with the
-// deterministic stubEmbedder (embed_test.go) — a per-test local deps
-// override, the same pattern R11 sanctions for the embed-family targets
-// tests' ModelID()/Embed() dereferences (#700 T6 finding: the query
-// cluster's newQueryDeps(d) conversion surfaces this one task earlier
-// than R11's embed-cluster enumeration anticipated).
+// deterministic stubEmbedder (embed_test.go) via executeForTestWithDeps —
+// the same pattern R11 sanctions for the embed-family targets tests'
+// ModelID()/Embed() dereferences (#700 T6 finding: the query cluster's
+// newQueryDeps(d) conversion surfaces this one task earlier than R11's
+// embed-cluster enumeration anticipated).
 func TestTargets_QueryEmptyVault(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -414,21 +425,10 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
-	var stdout, stderrBuf bytes.Buffer
-
-	deps := newTestDeps(&stdout, &stderrBuf)
-	deps.Embed = stubEmbedder{modelID: "test-model", dims: 8}
-
-	_, err := targ.Execute(
+	stderr := executeForTestWithDeps(t,
 		[]string{"engram", "query", "--phrase", "anything", "--vault", vault},
-		cli.Targets(deps)...,
-	)
-	if err != nil {
-		stderrBuf.WriteString(err.Error())
-		stderrBuf.WriteString("\n")
-	}
-
-	g.Expect(stderrBuf.String()).To(gomega.BeEmpty())
+		func(d *cli.Deps) { d.Embed = stubEmbedder{modelID: "test-model", dims: 8} })
+	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
 // TestTargets_Resituate exercises the resituate closure end-to-end through
@@ -450,17 +450,42 @@ func TestTargets_Resituate(t *testing.T) {
 	g.Expect(stderr).To(gomega.ContainSubstring("not found"))
 }
 
+// stubEmbedderForTargets satisfies embed.Embedder for targets-level tests that
+// only need ModelID/Dims. Embed fails loud: no targets-level test may silently
+// real-embed (R11). Named to avoid cli_test's existing stubEmbedder (embed_test.go).
+type stubEmbedderForTargets struct{}
+
+func (stubEmbedderForTargets) Dims() int { return 384 }
+
+func (stubEmbedderForTargets) Embed(context.Context, string) ([]float32, error) {
+	return nil, errors.New("stubEmbedderForTargets: Embed not expected in targets-level tests")
+}
+
+func (stubEmbedderForTargets) ModelID() string { return embed.BundledModelID }
+
 // executeForTest runs an engram CLI command through targ, returning stderr content.
 // Command-level errors are written to stderr (errHandler contract), not returned as Go errors.
 // Targ-level errors (unknown flags, missing required args) are also written to stderr.
 func executeForTest(t *testing.T, args []string) string {
 	t.Helper()
 
+	return executeForTestWithDeps(t, args, nil)
+}
+
+// executeForTestWithDeps runs an engram CLI command through targ like
+// executeForTest, but lets the caller customize the test deps (e.g. wire a
+// stub embedder into Embed) before Targets runs. customize may be nil.
+func executeForTestWithDeps(t *testing.T, args []string, customize func(*cli.Deps)) string {
+	t.Helper()
+
 	var stdout, stderr bytes.Buffer
 
-	targets := cli.Targets(newTestDeps(&stdout, &stderr))
+	deps := newTestDeps(&stdout, &stderr)
+	if customize != nil {
+		customize(&deps)
+	}
 
-	_, err := targ.Execute(args, targets...)
+	_, err := targ.Execute(args, cli.Targets(deps)...)
 	if err != nil {
 		stderr.WriteString(err.Error())
 		stderr.WriteString("\n")

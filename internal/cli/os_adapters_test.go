@@ -86,7 +86,7 @@ func TestApplyOneErrorPaths(t *testing.T) {
 	)).To(Succeed())
 
 	// Run --stale (also re-embeds broken per shouldEmbed).
-	deps := cli.ExportNewOsEmbedDeps(stubEmbedderForOSAdapter{})
+	deps := cli.ExportNewEmbedDeps(cli.Deps{FS: realFSForTest(), Embed: stubEmbedderForOSAdapter{}})
 
 	var out bytes.Buffer
 
@@ -122,7 +122,7 @@ func TestApplyOne_EmbedFailureSurfaces(t *testing.T) {
 	notePath := filepath.Join(vault, "1.2026-05-24.probe.md")
 	g.Expect(os.WriteFile(notePath, []byte("body"), 0o600)).To(Succeed())
 
-	deps := cli.ExportNewOsEmbedDeps(failingEmbedder{})
+	deps := cli.ExportNewEmbedDeps(cli.Deps{FS: realFSForTest(), Embed: failingEmbedder{}})
 
 	var out bytes.Buffer
 
@@ -145,10 +145,11 @@ func TestApplyOne_EmbedFailureSurfaces(t *testing.T) {
 	g.Expect(strings.Contains(out.String(), "total:")).To(BeTrue())
 }
 
-// TestOsEmbedFS_ReadWriteScanRoundTrip exercises the production
-// osEmbedFS adapter against a real tempdir vault so Read/Write/Scan
-// are covered without spawning a subprocess.
-func TestOsEmbedFS_ReadWriteScanRoundTrip(t *testing.T) {
+// TestEmbedDeps_ReadWriteScanRoundTrip exercises the composed
+// Scan/Read/Write (newEmbedDeps over a real-FS EdgeFS) against a real
+// tempdir vault so the composition is covered without spawning a
+// subprocess.
+func TestEmbedDeps_ReadWriteScanRoundTrip(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -159,9 +160,9 @@ func TestOsEmbedFS_ReadWriteScanRoundTrip(t *testing.T) {
 	notePath := filepath.Join(vault, "1.2026-05-24.probe.md")
 	g.Expect(os.WriteFile(notePath, []byte("body"), 0o600)).To(Succeed())
 
-	// Build deps via the production constructor; embedder slot is a
+	// Build deps via the composed constructor; the embedder slot is a
 	// stub so we don't pay the bundled-model unpack cost.
-	deps := cli.ExportNewOsEmbedDeps(stubEmbedderForOSAdapter{})
+	deps := cli.ExportNewEmbedDeps(cli.Deps{FS: realFSForTest(), Embed: stubEmbedderForOSAdapter{}})
 
 	// Scan finds the note.
 	notes, scanErr := deps.Scan(vault)
