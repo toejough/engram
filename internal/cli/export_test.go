@@ -542,14 +542,6 @@ func ExportNewOsUpdateEnv() *osUpdateEnv { return &osUpdateEnv{} }
 // ExportNewOsUpdateFS returns the production Filesystem adapter for testing.
 func ExportNewOsUpdateFS() *osUpdateFS { return &osUpdateFS{} }
 
-// ExportNewOsVaultFS returns the production osVaultFS adapter for testing.
-func ExportNewOsVaultFS() interface {
-	ListMD(dir string) ([]string, error)
-	ReadFile(path string) ([]byte, error)
-} {
-	return &osVaultFS{}
-}
-
 // ExportNewPruneDeps returns production PruneDeps composed from d.
 func ExportNewPruneDeps(d Deps) PruneDeps { return newPruneDeps(d) }
 

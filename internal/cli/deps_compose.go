@@ -94,8 +94,8 @@ func listIDsFromFS(fsys EdgeFS) func(string) ([]string, error) {
 	}
 }
 
-// listMDFromFS returns a ListMD func with osVaultFS.ListMD semantics: the .md
-// filenames directly inside dir; a missing dir yields (nil, nil).
+// listMDFromFS returns a ListMD func: the .md filenames directly inside dir;
+// a missing dir yields (nil, nil).
 func listMDFromFS(fsys EdgeFS) func(string) ([]string, error) {
 	return listEntryNamesMatching(fsys, "list md", func(entry fs.DirEntry) bool {
 		return strings.HasSuffix(entry.Name(), ".md")
