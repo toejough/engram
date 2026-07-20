@@ -12,6 +12,34 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func TestOsVaultFS_ListMD_MissingDirReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vfs := cli.ExportNewOsVaultFS()
+	names, err := vfs.ListMD("/nonexistent/vault/dir")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(names).To(BeEmpty())
+}
+
+func TestOsVaultFS_ListMD_NonDirError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// dir is a regular file, not a directory → ReadDir returns ENOTDIR (not not-exist).
+	path := filepath.Join(t.TempDir(), "file")
+	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
+
+	vfs := cli.ExportNewOsVaultFS()
+	_, err := vfs.ListMD(path)
+	g.Expect(err).To(MatchError(ContainSubstring("list md")))
+}
+
 func TestVaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

@@ -139,22 +139,20 @@ func clusterChunks(top []scoredChunk) []chunkCluster {
 // matched via errors.Is so EdgeFS implementations may wrap the not-exist
 // error (os.IsNotExist would not unwrap a %w chain).
 func listJSONLIndexes(fsys EdgeFS) func(dir string) ([]string, error) {
-	return func(dir string) ([]string, error) {
-		entries, err := fsys.ReadDir(dir)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, nil
-			}
+	listNames := listEntryNamesMatching(fsys, "list jsonl", func(entry fs.DirEntry) bool {
+		return filepath.Ext(entry.Name()) == jsonlExt
+	})
 
-			return nil, fmt.Errorf("listing chunk indexes: %w", err)
+	return func(dir string) ([]string, error) {
+		names, err := listNames(dir)
+		if err != nil {
+			return nil, err
 		}
 
 		var paths []string
 
-		for _, entry := range entries {
-			if !entry.IsDir() && filepath.Ext(entry.Name()) == jsonlExt {
-				paths = append(paths, filepath.Join(dir, entry.Name()))
-			}
+		for _, name := range names {
+			paths = append(paths, filepath.Join(dir, name))
 		}
 
 		return paths, nil

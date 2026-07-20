@@ -60,6 +60,32 @@ func listBasenamesFromFS(fsys EdgeFS) func(string) ([]string, error) {
 	}
 }
 
+// listEntryNamesMatching walks dir via the injected EdgeFS, returning names of
+// non-dir entries accepted by keep. Missing dir is an empty result, not an error.
+// opName labels the wrap per the house distinct-word/no-path convention.
+func listEntryNamesMatching(fsys EdgeFS, opName string, keep func(fs.DirEntry) bool) func(string) ([]string, error) {
+	return func(dir string) ([]string, error) {
+		entries, err := fsys.ReadDir(dir)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil, nil
+			}
+
+			return nil, fmt.Errorf("%s: %w", opName, err)
+		}
+
+		names := make([]string, 0, len(entries))
+
+		for _, entry := range entries {
+			if !entry.IsDir() && keep(entry) {
+				names = append(names, entry.Name())
+			}
+		}
+
+		return names, nil
+	}
+}
+
 // listIDsFromFS returns a ListIDs func: Luhmann IDs from .md filenames at the
 // flat vault root.
 func listIDsFromFS(fsys EdgeFS) func(string) ([]string, error) {
@@ -71,28 +97,9 @@ func listIDsFromFS(fsys EdgeFS) func(string) ([]string, error) {
 // listMDFromFS returns a ListMD func with osVaultFS.ListMD semantics: the .md
 // filenames directly inside dir; a missing dir yields (nil, nil).
 func listMDFromFS(fsys EdgeFS) func(string) ([]string, error) {
-	return func(dir string) ([]string, error) {
-		entries, err := fsys.ReadDir(dir)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return nil, nil
-			}
-
-			return nil, fmt.Errorf("list md: %w", err)
-		}
-
-		out := make([]string, 0, len(entries))
-
-		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-				continue
-			}
-
-			out = append(out, entry.Name())
-		}
-
-		return out, nil
-	}
+	return listEntryNamesMatching(fsys, "list md", func(entry fs.DirEntry) bool {
+		return strings.HasSuffix(entry.Name(), ".md")
+	})
 }
 
 // logWarningTo returns the production LogWarning hook writing to w — the
