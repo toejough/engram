@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -407,3 +408,122 @@ func realPrimitives() cli.Primitives {
 		},
 	}
 }
+
+func TestRealEdgeFS_WriteFileAtomicWritesNewFile(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "out.txt")
+	content := []byte("hello atomic world")
+	fsys := realFSForTest()
+
+	g.Expect(fsys.WriteFileAtomic(target, content, realFSFilePerm)).To(gomega.Succeed())
+
+	got, readErr := os.ReadFile(target)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(got).To(gomega.Equal(content), "file must contain exactly the written bytes")
+}
+
+func TestRealEdgeFS_WriteFileAtomicExclCreateFailureLeavesOriginalUntouched(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	fsys := realFSForTest()
+
+	// A read-only directory makes the exclusive-create (WriteFileExcl)
+	// primitive fail with a non-ErrExist error, so the dance aborts before
+	// creating anything (relocated writesafe_test.go behavior; the
+	// fs.ErrExist retry path is covered by the fake-prims
+	// TestEdgeFS_WriteFileAtomicUniqueNameRetry).
+	subdir := filepath.Join(dir, "sub")
+	g.Expect(os.Mkdir(subdir, writableDirPerm)).To(gomega.Succeed())
+
+	target := filepath.Join(subdir, "original.txt")
+	original := []byte("original untouched content")
+	g.Expect(os.WriteFile(target, original, realFSFilePerm)).To(gomega.Succeed())
+
+	g.Expect(os.Chmod(subdir, readOnlyDirPerm)).To(gomega.Succeed())
+
+	// Restore permissions so TempDir cleanup can succeed.
+	t.Cleanup(func() { _ = os.Chmod(subdir, writableDirPerm) })
+
+	err := fsys.WriteFileAtomic(target, []byte("new content"), realFSFilePerm)
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("create temp")),
+		"write into a read-only dir must fail at temp creation")
+
+	// Make the directory readable again for the assertions.
+	g.Expect(os.Chmod(subdir, writableDirPerm)).To(gomega.Succeed())
+
+	got, readErr := os.ReadFile(target)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(got).To(gomega.Equal(original), "original file must be untouched after failure")
+
+	tmpFiles, globErr := filepath.Glob(filepath.Join(subdir, ".original.txt.tmp-*"))
+	g.Expect(globErr).NotTo(gomega.HaveOccurred())
+	g.Expect(tmpFiles).To(gomega.BeEmpty(), "no leftover .tmp-* files must remain after failure")
+}
+
+func TestRealEdgeFS_WriteFileAtomicRenameFailureCleansTempAndOriginal(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "file.txt")
+	original := []byte("original content")
+
+	g.Expect(os.WriteFile(target, original, realFSFilePerm)).To(gomega.Succeed())
+
+	// Real primitives except Rename — parameterizing the dance over
+	// Primitives is what lets this test inject the rename failure with no
+	// export shim (replaces writesafe_test.go's injected-rename test).
+	var tmpSeen string
+
+	prims := realPrimitives()
+	prims.Rename = func(oldPath, _ string) error {
+		tmpSeen = oldPath
+
+		return errInjectedRename
+	}
+
+	err := fsFromPrims(prims).WriteFileAtomic(target, []byte("new content"), realFSFilePerm)
+	g.Expect(err).To(gomega.MatchError(errInjectedRename))
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("rename")),
+		"error must name the failing dance step")
+
+	got, readErr := os.ReadFile(target)
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(got).To(gomega.Equal(original), "original must be untouched after rename failure")
+
+	g.Expect(tmpSeen).NotTo(gomega.BeEmpty(), "the dance must reach the rename step")
+	g.Expect(tmpSeen).NotTo(gomega.BeAnExistingFile(), "temp file must be removed by the failure cleanup")
+
+	tmpFiles, globErr := filepath.Glob(filepath.Join(dir, ".file.txt.tmp-*"))
+	g.Expect(globErr).NotTo(gomega.HaveOccurred())
+	g.Expect(tmpFiles).To(gomega.BeEmpty(), "no leftover .tmp-* files must remain after failure")
+}
+
+// errInjectedRename is the sentinel injected by the rename-failure parity test.
+var errInjectedRename = errors.New("injected rename failure")
+
+// Directory permission modes for the read-only-dir parity test.
+const (
+	writableDirPerm fs.FileMode = 0o700
+	readOnlyDirPerm fs.FileMode = 0o500
+)
