@@ -40,23 +40,25 @@ type vaultFS struct {
 
 // ListMD returns the .md filenames in dir. Missing dir → empty, nil.
 func (v *vaultFS) ListMD(dir string) ([]string, error) {
-	return listDirBySuffix(v.fs.ReadDir, dir, ".md")
+	return listMDFromFS(v.fs)(dir)
 }
 
 // ReadFile reads the file at path.
 func (v *vaultFS) ReadFile(path string) ([]byte, error) {
 	data, err := v.fs.ReadFile(filepath.Clean(path))
 	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
+		return nil, fmt.Errorf("vault read: %w", err)
 	}
 
 	return data, nil
 }
 
 // listDirBySuffix returns the filenames directly inside dir whose name has
-// the given suffix, using the injected readDir (EdgeFS.ReadDir in
-// production). Missing dir → empty, nil — matched via errors.Is so wrapped
-// not-exist errors from EdgeFS adapters are recognized.
+// the given suffix, using the injected readDir (os.ReadDir for the legacy
+// adapter). Missing dir → empty, nil — matched via errors.Is so wrapped
+// not-exist errors are recognized.
+// listDirBySuffix serves only the legacy osVaultFS; both die together at
+// the #700 purge task (T7).
 func listDirBySuffix(
 	readDir func(string) ([]fs.DirEntry, error),
 	dir, suffix string,

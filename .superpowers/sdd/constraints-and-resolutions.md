@@ -408,8 +408,10 @@ Exact stub declaration + per-test wiring in T15's steps.
 migrates EVERY remaining call site — vocab_trigger_test.go:251,441 and
 vocab_commands_test.go:96,131,198,231,543,559,613,651,3856,3874 (12 sites; vault_fs_test.go's five
 sites are already replaced wholesale by T5) — from `cli.ExportNewOsVaultFS()` to
-`cli.ExportNewVaultFS(osTestEdgeFS{})` (T5's export over the cli_test real-FS EdgeFS double; same
-`ListMD`/`ReadFile` interface shape and semantics). T7 then deletes the shim, and its gate grep is
+`cli.ExportNewVaultFS(realFSForTest())` (T1-rework's real-FS EdgeFS helper in
+primitives_integration_test.go, package cli_test; T5's Gate B fix retired the redundant
+hand-rolled `osTestEdgeFS` double in favor of this helper — same `ListMD`/`ReadFile` interface
+shape and semantics). T7 then deletes the shim, and its gate grep is
 extended to `osVaultFS\|ExportNewOsVaultFS` — the lowercase-only pattern would MISS the shim
 (capital-O `OsVaultFS`) and let T7's deletion break the compile silently.
 

@@ -63,7 +63,7 @@ func TestRunCheck_DanglingLinkIsWarnNotFail(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vault},
-		cli.ExportNewCheckDeps(osTestEdgeFS{}), &out)
+		cli.ExportNewCheckDeps(realFSForTest()), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("WARN"))
@@ -85,7 +85,7 @@ func TestRunCheck_FailsOnMissingSituation(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vault},
-		cli.ExportNewCheckDeps(osTestEdgeFS{}), &out)
+		cli.ExportNewCheckDeps(realFSForTest()), &out)
 
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("FAIL"))
@@ -205,7 +205,7 @@ func TestRunCheck_RealDepsFlagBareIDLinks(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vault},
-		cli.ExportNewCheckDeps(osTestEdgeFS{}), &out)
+		cli.ExportNewCheckDeps(realFSForTest()), &out)
 
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("FAIL"))
@@ -236,7 +236,7 @@ func TestRunCheck_SituationPresenceSkipsNonBearingNotes(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunCheck(context.Background(), cli.CheckArgs{VaultPath: vault},
-		cli.ExportNewCheckDeps(osTestEdgeFS{}), &out)
+		cli.ExportNewCheckDeps(realFSForTest()), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("PASS  M5 situation-presence"))

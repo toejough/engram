@@ -418,8 +418,10 @@ Exact stub declaration + per-test wiring in T15's steps.
 migrates EVERY remaining call site — vocab_trigger_test.go:251,441 and
 vocab_commands_test.go:96,131,198,231,543,559,613,651,3856,3874 (12 sites; vault_fs_test.go's five
 sites are already replaced wholesale by T5) — from `cli.ExportNewOsVaultFS()` to
-`cli.ExportNewVaultFS(osTestEdgeFS{})` (T5's export over the cli_test real-FS EdgeFS double; same
-`ListMD`/`ReadFile` interface shape and semantics). T7 then deletes the shim, and its gate grep is
+`cli.ExportNewVaultFS(realFSForTest())` (T1-rework's real-FS EdgeFS helper in
+primitives_integration_test.go, package cli_test; T5's Gate B fix retired the redundant
+hand-rolled `osTestEdgeFS` double in favor of this helper — same `ListMD`/`ReadFile` interface
+shape and semantics). T7 then deletes the shim, and its gate grep is
 extended to `osVaultFS\|ExportNewOsVaultFS` — the lowercase-only pattern would MISS the shim
 (capital-O `OsVaultFS`) and let T7's deletion break the compile silently.
 
@@ -6027,7 +6029,7 @@ func newVocabStatsDeps(d Deps) VocabStatsDeps {
 }
 ```
 
-- [ ] 6.5. **Migrate the `ExportNewOsVaultFS` call sites (R12 — this task owns the vocab test files).** Replace every `osFS := cli.ExportNewOsVaultFS()` with `osFS := cli.ExportNewVaultFS(osTestEdgeFS{})` (T5's export over the cli_test real-FS EdgeFS double — same `ListMD`/`ReadFile` shape and semantics; `osTestEdgeFS` lives in T5's edgefs_os_test.go, same package cli_test). Sites (verified in the pristine tree; locate by the call expression, not line): vocab_trigger_test.go:251, 441; vocab_commands_test.go:96, 131, 198, 231, 543, 559, 613, 651, 3856, 3874. After the edit: `rg -n "ExportNewOsVaultFS" internal/cli --include='*_test.go'` → hits ONLY in export_test.go (the shim definition, which T7 deletes). Without this step T7's shim deletion is a compile break its gate grep cannot see (R12).
+- [ ] 6.5. **Migrate the `ExportNewOsVaultFS` call sites (R12 — this task owns the vocab test files).** Replace every `osFS := cli.ExportNewOsVaultFS()` with `osFS := cli.ExportNewVaultFS(realFSForTest())` (T1-rework's real-FS EdgeFS helper in primitives_integration_test.go, package cli_test — same `ListMD`/`ReadFile` shape and semantics; T5's Gate B fix retired the redundant hand-rolled `osTestEdgeFS` double, that edgefs_os_test.go had defined, in favor of this helper). Sites (verified in the pristine tree; locate by the call expression, not line): vocab_trigger_test.go:251, 441; vocab_commands_test.go:96, 131, 198, 231, 543, 559, 613, 651, 3856, 3874. After the edit: `rg -n "ExportNewOsVaultFS" internal/cli --include='*_test.go'` → hits ONLY in export_test.go (the shim definition, which T7 deletes). Without this step T7's shim deletion is a compile break its gate grep cannot see (R12).
 
 7. [ ] targets.go call-expression updates (coordinate with wiring cluster's `deps Deps` threading through `amendResituateTargets`/`ingestQueryTargets`/`vocabTargets`; only the constructor expressions belong to this task):
    - line 108: `newOsResituateDeps()` → `newResituateDeps(deps)`

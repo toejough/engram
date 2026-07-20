@@ -86,7 +86,7 @@ func TestRunShow_OsDepsReadRealVault(t *testing.T) {
 	var out bytes.Buffer
 
 	err := cli.RunShow(context.Background(),
-		cli.ShowArgs{Ref: "1.real", VaultPath: vault}, cli.ExportNewShowDeps(osTestEdgeFS{}), &out)
+		cli.ShowArgs{Ref: "1.real", VaultPath: vault}, cli.ExportNewShowDeps(realFSForTest()), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(out.String()).To(ContainSubstring("real note body"))

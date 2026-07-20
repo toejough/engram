@@ -21,7 +21,7 @@ func TestVaultFS_ListMD_FiltersDirsAndNonMd(t *testing.T) {
 	g.Expect(os.WriteFile(filepath.Join(dir, "note.md"), []byte("x"), 0o600)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("y"), 0o600)).To(Succeed())
 
-	vfs := cli.ExportNewVaultFS(osTestEdgeFS{})
+	vfs := cli.ExportNewVaultFS(realFSForTest())
 	names, err := vfs.ListMD(dir)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -36,7 +36,7 @@ func TestVaultFS_ListMD_MissingDirReturnsEmpty(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	vfs := cli.ExportNewVaultFS(osTestEdgeFS{})
+	vfs := cli.ExportNewVaultFS(realFSForTest())
 	names, err := vfs.ListMD("/nonexistent/vault/dir")
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -55,7 +55,7 @@ func TestVaultFS_ListMD_NonExistError(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "file")
 	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
 
-	vfs := cli.ExportNewVaultFS(osTestEdgeFS{})
+	vfs := cli.ExportNewVaultFS(realFSForTest())
 	_, err := vfs.ListMD(path)
 	g.Expect(err).To(HaveOccurred())
 }
@@ -66,7 +66,7 @@ func TestVaultFS_ListMD_WrappedNotExistReturnsEmpty(t *testing.T) {
 
 	// EdgeFS implementations wrap errors with %w; missing-dir detection must
 	// survive wrapping (errors.Is unwraps; os.IsNotExist would not).
-	vfs := cli.ExportNewVaultFS(wrappedNotExistEdgeFS{})
+	vfs := cli.ExportNewVaultFS(wrappedNotExistEdgeFS{EdgeFS: realFSForTest()})
 	names, err := vfs.ListMD("/anything")
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -81,7 +81,7 @@ func TestVaultFS_ReadFile_MissingPathError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	vfs := cli.ExportNewVaultFS(osTestEdgeFS{})
+	vfs := cli.ExportNewVaultFS(realFSForTest())
 	_, err := vfs.ReadFile("/nonexistent/path.md")
 	g.Expect(err).To(HaveOccurred())
 }
@@ -93,7 +93,7 @@ func TestVaultFS_ReadFile_Success(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "f.md")
 	g.Expect(os.WriteFile(path, []byte("hello"), 0o600)).To(Succeed())
 
-	vfs := cli.ExportNewVaultFS(osTestEdgeFS{})
+	vfs := cli.ExportNewVaultFS(realFSForTest())
 	data, err := vfs.ReadFile(path)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -106,7 +106,7 @@ func TestVaultFS_ReadFile_Success(t *testing.T) {
 
 // wrappedNotExistEdgeFS overrides ReadDir to return a WRAPPED fs.ErrNotExist,
 // proving missing-dir detection unwraps through EdgeFS error wrapping.
-type wrappedNotExistEdgeFS struct{ osTestEdgeFS }
+type wrappedNotExistEdgeFS struct{ cli.EdgeFS }
 
 func (wrappedNotExistEdgeFS) ReadDir(string) ([]fs.DirEntry, error) {
 	return nil, fmt.Errorf("listing: %w", fs.ErrNotExist)

@@ -462,7 +462,7 @@ func TestRunCount_OsDepsReadRealVault(t *testing.T) {
 	writeVaultFile(t, vault, "m1.md", "---\ntype: feedback\nfoo: [alpha]\n---\nlinks [[foo.alpha]]\n")
 	writeVaultFile(t, vault, "foo.alpha.md", "---\ntype: fact\n---\nalpha node\n")
 
-	deps := cli.ExportNewCountDeps(osTestEdgeFS{})
+	deps := cli.ExportNewCountDeps(realFSForTest())
 
 	var groupOut strings.Builder
 
