@@ -112,3 +112,8 @@ Task 7: complete (commit b3a0f925, consolidated dual-mandate review ACK — task
 - Impurity residual now EXACTLY: writesafe.go (T13) + update.go (T16/T17)
 BASE-T13: b3a0f9257de1e04f81f31c9e21b3c9963913f0ad
 Task 13: dispatched
+Task 13: complete (commit 31cf7bb6 — amended from c570474b pre-review, message-only fix of the phantom testAtomicWrite clause, tree verified identical; consolidated dual-mandate review ACK)
+- writesafe machinery gone (−265); ADR-0013 atomic-rename edge now SINGLE-IMPLEMENTATION (primFS.WriteFileAtomic); all 7 surviving atomic-write tests directly executed green; concurrent-manifest regression rides the PRODUCTION dance via realFSForTest (stronger than the brief's stale description)
+- internal/cli impurity inventory for T-final-1: EXACTLY update.go:10 (dies at T16/T17)
+BASE-T16: 31cf7bb6
+Task 16: dispatched
