@@ -1,3 +1,20 @@
+# DISPATCH HEADER (orchestrator)
+
+- Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
+- BASE-T-final-1: <SET AT DISPATCH — after T-polish ACK>. Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; supersession map governs.
+- ACCUMULATED DISPATCH NOTES (binding):
+  - The migration inventory is COMPLETE and ledgered: at dispatch time internal/ has ZERO non-test os/syscall/os-exec/hugot imports (T13 left update.go, T16/T17 killed it — verify with the sweeps below before you start; a hit = tree doesn't match ledger = STOP).
+  - Step-4 discipline is absolute: a depguard/forbidigo finding means the migration missed a SITE — fix the site or escalate; NEVER a carve-out/nolint/allow-entry. A check-thin-api finding = a prior task regressed cmd — escalate the exact finding.
+  - Step-5 negative probe is mandatory BEFORE commit (a green gate that can't fail is no gate); revert the probe cleanly and verify `git status` clean-modulo-your-toml afterward.
+  - R9: try `files = ['internal/**', '!$test']` FIRST; only if the step-5 probe stays silent, fall back to `'**/internal/**'` AND report that the issue-AC wording needs amending (orchestrator owns the issue edit).
+  - Step 5.5's coverage-stance decision must land in the commit body — if it resolves to call (b), STOP and surface the choice, don't decide unilaterally.
+  - Empirically-confirmed linter semantics (vault note 301, plan-validated): depguard allow-only = default-deny; allow/deny are PREFIX-based; forbidigo custom `forbid` REPLACES print defaults; `analyze-types` needed for pkg-qualified patterns; `issues.fix=true` auto-modifies (do not enable); max-issues truncation hid 14/24 findings at prototype time — step 3's =0 is load-bearing.
+  - gates run FOREGROUND; stage EXPLICIT paths only (`git add dev/golangci-lint.toml` exactly, per step 6).
+  - check-full residual set (NOT yours to fix): e2e-under-load coverage flake (re-run check-coverage-for-fail standalone) + the 2 protected dev/eval reorder fixtures; lint-full must be 0.
+- REPORT: `.superpowers/sdd/briefs/T-final-1-report.md` BEFORE your final message — status, commit SHA, verbatim gate outcomes INCLUDING the step-5 probe finding text and the step-5.5 stance evidence, deviations, concerns. Final message: STATUS line, SHA, summary, concerns.
+
+---
+
 ### Task T-final-1: Enforcement flip — depguard + forbidigo land with zero carve-outs
 
 **Files:**
