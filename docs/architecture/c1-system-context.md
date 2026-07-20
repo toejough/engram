@@ -196,7 +196,7 @@ D5). It then writes any EXPLICIT lessons (corrections, explicit save-requests,
 self-discovered reversals, and confirmed approaches) into the vault via
 `engram learn {feedback|fact}`. Each write acquires a `flock`
 on the vault root before computing the Luhmann ID and emitting the new file.
-Source: `internal/cli/ingest.go` (`runIngest`) and `internal/cli/learn.go`
+Source: `internal/cli/ingest.go` (`RunIngest`) and `internal/cli/learn.go`
 (`runLearn`). The `engram learn episode` subcommand and `engram transcript --mark`
 are retired: episodes are superseded by the chunk layer (D4); transcript reading
 is subsumed by `engram ingest --auto`.
