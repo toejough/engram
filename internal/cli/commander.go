@@ -38,9 +38,9 @@ func (c primCommander) Run(
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
-	runErr := c.prims.RunCommand(ctx, dir, name, args, stdout, stderr)
+	runErr := c.prims.Exec.RunCommand(ctx, dir, name, args, stdout, stderr)
 	if runErr != nil {
-		if errors.Is(runErr, c.prims.NotFoundErr) {
+		if errors.Is(runErr, c.prims.Exec.NotFoundErr) {
 			return stdout.Bytes(), stderr.Bytes(),
 				fmt.Errorf("%s %v: %w: %w", name, args, update.ErrCommandNotFound, runErr)
 		}

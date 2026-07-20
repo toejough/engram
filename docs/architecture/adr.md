@@ -18,7 +18,7 @@ Status legend: **Accepted** · **Accepted (known defect)** — sound decision, b
 
 ## ADR-0001 — Skills + slim binary split
 
-**Status:** Accepted (INV-S1 seam resolved 2026-06 via `engram amend`, `internal/cli/amend.go`; #700 (2026-07): raw I/O primitives relocated to `cmd/engram` — declaration-free `package main` over `cli.Primitives`, `targ check-thin-api`-enforced; ALL adapter composition + wiring live in `internal/cli` (`cli.NewDeps`); `internal/` is import-pure — lint-enforced, ADR-0020)
+**Status:** Accepted (INV-S1 seam resolved 2026-06 via `engram amend`, `internal/cli/amend.go`; #700 (2026-07): raw I/O primitives relocated to `cmd/engram` — wiring-only `package main` over grouped `cli.Primitives`, `targ check-thin-api`-enforced; ALL adapter composition + wiring live in `internal/cli` (`cli.NewDeps`); `internal/` is import-pure — lint-enforced, ADR-0020)
 
 **Context.** The work divides into LLM judgment (which lessons to capture, how to frame a
 `situation`, whether a cluster shares a binding principle) and deterministic compute (cosine,
@@ -518,10 +518,12 @@ plus ALL logic — adapter composition, error wrapping, lifecycle (the EdgeFS at
 flock open/lock/unlock-closure semantics, the debug sink, signal force-exit, commander
 run-and-collect, embedder session/cache orchestration — built by `cli.NewDeps` from injected
 `cli.Primitives`) — but imports no I/O packages. `cmd/engram` (`package main`) is
-declaration-free: a single-statement `main()` populating `cli.Primitives` with raw capability
-references (`os.ReadFile`, `time.Now`, `filepath.WalkDir`, syscall wrappers) and sanctioned
-closures (single-call signature-erasers plus the two enumerated stdlib-equivalent survivors,
-`WriteFileExcl` and `RunCommand`) — zero orchestration. Enforcement is config-only and
+wiring-only: a single-statement `main()` composing `cli.Primitives` from checker-thin
+per-capability-group functions (each a single return of an external carrier call whose argument
+is the group literal) that populate raw capability references (`os.ReadFile`, `time.Now`,
+`filepath.WalkDir`, syscall wrappers) and sanctioned closures (single-call signature-erasers
+plus the enumerated stdlib-equivalent survivors, `WriteFileExcl` and `RunCommand`, and the
+SIG-1 signal starter) — zero orchestration. Enforcement is config-only and
 two-gate: on the internal side, a depguard default-deny allow-list over `internal/` non-test
 files (zero file carve-outs; real-os integration tests live in internal `_test` files via the
 sanctioned `!$test` exclusion) plus forbidigo call-level bans (`time.Now`/`Since`/`Tick`,

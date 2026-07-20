@@ -17,11 +17,11 @@ func TestEdgeFS_PreservesSentinelChainsThroughWrapping(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	fsys := fsFromPrims(cli.Primitives{
+	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
 		ReadFile: func(string) ([]byte, error) {
 			return nil, &fs.PathError{Op: "open", Path: "x", Err: fs.ErrNotExist}
 		},
-	})
+	}})
 
 	_, err := fsys.ReadFile("x")
 	g.Expect(err).To(gomega.MatchError(fs.ErrNotExist), "%w wrapping must preserve errors.Is chains")
@@ -85,19 +85,21 @@ func TestEdgeFS_WriteFileAtomicFailuresRemoveTemp(t *testing.T) {
 
 		removed := make([]string, 0, 1)
 		prims := cli.Primitives{
-			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
-			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
-				created = path
+			FS: cli.FSPrims{
+				WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+					created = path
 
-				return nil
-			},
-			Chmod:  func(string, fs.FileMode) error { return nil },
-			Rename: func(string, string) error { return boom },
-			Remove: func(path string) error {
-				removed = append(removed, path)
+					return nil
+				},
+				Chmod:  func(string, fs.FileMode) error { return nil },
+				Rename: func(string, string) error { return boom },
+				Remove: func(path string) error {
+					removed = append(removed, path)
 
-				return nil
+					return nil
+				},
 			},
+			Proc: cli.ProcPrims{Now: func() time.Time { return time.Unix(0, fakeDanceNanos) }},
 		}
 
 		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
@@ -115,18 +117,20 @@ func TestEdgeFS_WriteFileAtomicFailuresRemoveTemp(t *testing.T) {
 
 		removed := make([]string, 0, 1)
 		prims := cli.Primitives{
-			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
-			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
-				created = path
+			FS: cli.FSPrims{
+				WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+					created = path
 
-				return nil
-			},
-			Chmod: func(string, fs.FileMode) error { return boom },
-			Remove: func(path string) error {
-				removed = append(removed, path)
+					return nil
+				},
+				Chmod: func(string, fs.FileMode) error { return boom },
+				Remove: func(path string) error {
+					removed = append(removed, path)
 
-				return nil
+					return nil
+				},
 			},
+			Proc: cli.ProcPrims{Now: func() time.Time { return time.Unix(0, fakeDanceNanos) }},
 		}
 
 		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
@@ -141,13 +145,15 @@ func TestEdgeFS_WriteFileAtomicFailuresRemoveTemp(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		prims := cli.Primitives{
-			Now:           func() time.Time { return time.Unix(0, fakeDanceNanos) },
-			WriteFileExcl: func(string, []byte, fs.FileMode) error { return boom },
-			Remove: func(string) error {
-				t.Error("nothing was created, so nothing may be removed")
+			FS: cli.FSPrims{
+				WriteFileExcl: func(string, []byte, fs.FileMode) error { return boom },
+				Remove: func(string) error {
+					t.Error("nothing was created, so nothing may be removed")
 
-				return nil
+					return nil
+				},
 			},
+			Proc: cli.ProcPrims{Now: func() time.Time { return time.Unix(0, fakeDanceNanos) }},
 		}
 
 		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
@@ -164,35 +170,37 @@ func TestEdgeFS_WriteFileAtomicHappyPathDance(t *testing.T) {
 	target := filepath.Join("some", "dir", "note.md")
 
 	fsys := fsFromPrims(cli.Primitives{
-		Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
-		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
-			g.Expect(filepath.Dir(path)).To(gomega.Equal(filepath.Join("some", "dir")),
-				"temp must be created in the target's dir — same-directory rename is the ADR-0013 primitive")
-			g.Expect(filepath.Base(path)).To(gomega.Equal(".note.md.tmp-12345-0"),
-				"candidate names derive from target base + clock nanos + attempt counter (P-4)")
-			g.Expect(string(data)).To(gomega.Equal("v2"), "the data lands in the exclusive create itself")
-			g.Expect(perm).To(gomega.Equal(atomicPerm), "the target perm reaches the exclusive create")
-			calls.add("writeexcl " + filepath.Base(path))
+		FS: cli.FSPrims{
+			WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
+				g.Expect(filepath.Dir(path)).To(gomega.Equal(filepath.Join("some", "dir")),
+					"temp must be created in the target's dir — same-directory rename is the ADR-0013 primitive")
+				g.Expect(filepath.Base(path)).To(gomega.Equal(".note.md.tmp-12345-0"),
+					"candidate names derive from target base + clock nanos + attempt counter (P-4)")
+				g.Expect(string(data)).To(gomega.Equal("v2"), "the data lands in the exclusive create itself")
+				g.Expect(perm).To(gomega.Equal(atomicPerm), "the target perm reaches the exclusive create")
+				calls.add("writeexcl " + filepath.Base(path))
 
-			return nil
-		},
-		Chmod: func(path string, perm fs.FileMode) error {
-			g.Expect(perm).To(gomega.Equal(atomicPerm),
-				"chmod must force the EXACT target perm regardless of umask")
-			calls.add("chmod " + filepath.Base(path))
+				return nil
+			},
+			Chmod: func(path string, perm fs.FileMode) error {
+				g.Expect(perm).To(gomega.Equal(atomicPerm),
+					"chmod must force the EXACT target perm regardless of umask")
+				calls.add("chmod " + filepath.Base(path))
 
-			return nil
-		},
-		Rename: func(oldPath, newPath string) error {
-			calls.add("rename " + filepath.Base(oldPath) + "->" + filepath.Base(newPath))
+				return nil
+			},
+			Rename: func(oldPath, newPath string) error {
+				calls.add("rename " + filepath.Base(oldPath) + "->" + filepath.Base(newPath))
 
-			return nil
-		},
-		Remove: func(path string) error {
-			calls.add("remove " + filepath.Base(path))
+				return nil
+			},
+			Remove: func(path string) error {
+				calls.add("remove " + filepath.Base(path))
 
-			return nil
+				return nil
+			},
 		},
+		Proc: cli.ProcPrims{Now: func() time.Time { return time.Unix(0, fakeDanceNanos) }},
 	})
 
 	g.Expect(fsys.WriteFileAtomic(target, []byte("v2"), atomicPerm)).To(gomega.Succeed())
@@ -216,26 +224,28 @@ func TestEdgeFS_WriteFileAtomicUniqueNameRetry(t *testing.T) {
 		var renamed string
 
 		prims := cli.Primitives{
-			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
-			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
-				tried = append(tried, path)
-				if len(tried) == 1 {
-					return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
-				}
+			FS: cli.FSPrims{
+				WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+					tried = append(tried, path)
+					if len(tried) == 1 {
+						return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
+					}
 
-				return nil
-			},
-			Chmod: func(string, fs.FileMode) error { return nil },
-			Rename: func(oldPath, _ string) error {
-				renamed = oldPath
+					return nil
+				},
+				Chmod: func(string, fs.FileMode) error { return nil },
+				Rename: func(oldPath, _ string) error {
+					renamed = oldPath
 
-				return nil
-			},
-			Remove: func(string) error {
-				t.Error("a colliding candidate was not created by the dance and must not be removed")
+					return nil
+				},
+				Remove: func(string) error {
+					t.Error("a colliding candidate was not created by the dance and must not be removed")
 
-				return nil
+					return nil
+				},
 			},
+			Proc: cli.ProcPrims{Now: func() time.Time { return time.Unix(0, fakeDanceNanos) }},
 		}
 
 		g.Expect(fsFromPrims(prims).WriteFileAtomic(target, []byte("v2"), atomicPerm)).To(gomega.Succeed())
@@ -250,12 +260,14 @@ func TestEdgeFS_WriteFileAtomicUniqueNameRetry(t *testing.T) {
 
 		attempts := 0
 		prims := cli.Primitives{
-			Now: func() time.Time { return time.Unix(0, fakeDanceNanos) },
-			WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
-				attempts++
+			FS: cli.FSPrims{
+				WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
+					attempts++
 
-				return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
+					return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
+				},
 			},
+			Proc: cli.ProcPrims{Now: func() time.Time { return time.Unix(0, fakeDanceNanos) }},
 		}
 
 		err := fsFromPrims(prims).WriteFileAtomic(filepath.Join("d", "n"), []byte("x"), atomicPerm)
@@ -276,7 +288,7 @@ func TestEdgeFS_WriteFileExclPassesDataAndPermToPrimitive(t *testing.T) {
 		gotPerm fs.FileMode
 	)
 
-	fsys := fsFromPrims(cli.Primitives{
+	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
 		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
 			gotData = append([]byte(nil), data...)
 			gotPath = path
@@ -284,7 +296,7 @@ func TestEdgeFS_WriteFileExclPassesDataAndPermToPrimitive(t *testing.T) {
 
 			return nil
 		},
-	})
+	}})
 
 	g.Expect(fsys.WriteFileExcl("new.md", []byte("body"), atomicPerm)).To(gomega.Succeed())
 	g.Expect(gotPath).To(gomega.Equal("new.md"))
@@ -297,11 +309,11 @@ func TestEdgeFS_WriteFileExclPreservesErrExistAndAddsPath(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	fsys := fsFromPrims(cli.Primitives{
+	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
 		WriteFileExcl: func(path string, _ []byte, _ fs.FileMode) error {
 			return &fs.PathError{Op: "open", Path: path, Err: fs.ErrExist}
 		},
-	})
+	}})
 
 	err := fsys.WriteFileExcl("existing.md", []byte("x"), atomicPerm)
 	g.Expect(err).To(gomega.MatchError(fs.ErrExist),
@@ -331,7 +343,7 @@ func (c *callRecorder) list() []string { return c.calls }
 // failingPrims returns fresh Primitives whose every filesystem capability
 // fails with the given error, for exercising primFS's error-wrap paths.
 func failingPrims(boom error) cli.Primitives {
-	return cli.Primitives{
+	return cli.Primitives{FS: cli.FSPrims{
 		MkdirAll:  func(string, fs.FileMode) error { return boom },
 		MkdirTemp: func(string, string) (string, error) { return "", boom },
 		ReadDir:   func(string) ([]fs.DirEntry, error) { return nil, boom },
@@ -341,7 +353,7 @@ func failingPrims(boom error) cli.Primitives {
 		Stat:      func(string) (fs.FileInfo, error) { return nil, boom },
 		WalkDir:   func(string, fs.WalkDirFunc) error { return boom },
 		WriteFile: func(string, []byte, fs.FileMode) error { return boom },
-	}
+	}}
 }
 
 // fsFromPrims composes the production EdgeFS from fake primitives via the

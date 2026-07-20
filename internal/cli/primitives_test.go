@@ -24,12 +24,12 @@ func TestNewDeps_ComposesCarrierFromPrimitives(t *testing.T) {
 	exitCodes := make([]int, 0, 1)
 	fixed := time.Date(2026, time.July, 19, 12, 0, 0, 0, time.UTC)
 
-	prims := cli.Primitives{
+	prims := cli.Primitives{Proc: cli.ProcPrims{
 		Getenv:      func(string) string { return "" },
 		Now:         func() time.Time { return fixed },
 		Getwd:       func() (string, error) { return "/work", nil },
 		UserHomeDir: func() (string, error) { return "/home/x", nil },
-	}
+	}}
 
 	deps := cli.NewDeps(prims, &stdout, &stderr, func(code int) { exitCodes = append(exitCodes, code) })
 
@@ -59,14 +59,14 @@ func TestNewDeps_DebugSinkEmptyEnvOrFailedOpenIsNil(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		prims := cli.Primitives{
+		prims := cli.Primitives{Proc: cli.ProcPrims{
 			Getenv: func(string) string { return "" },
 			OpenDebugFile: func(string, fs.FileMode) (cli.WriteSyncer, error) {
 				t.Error("open must not be called for an empty path")
 
 				return nil, errors.New("unexpected open")
 			},
-		}
+		}}
 
 		g.Expect(cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).DebugLog).To(gomega.BeNil())
 	})
@@ -75,12 +75,12 @@ func TestNewDeps_DebugSinkEmptyEnvOrFailedOpenIsNil(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		prims := cli.Primitives{
+		prims := cli.Primitives{Proc: cli.ProcPrims{
 			Getenv: func(string) string { return "/nope/debug.log" },
 			OpenDebugFile: func(string, fs.FileMode) (cli.WriteSyncer, error) {
 				return nil, errors.New("open failed")
 			},
-		}
+		}}
 
 		g.Expect(cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).DebugLog).To(gomega.BeNil())
 	})
@@ -91,7 +91,7 @@ func TestNewDeps_DebugSinkSyncsEveryWrite(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	sink := &recordingSyncer{}
-	prims := cli.Primitives{
+	prims := cli.Primitives{Proc: cli.ProcPrims{
 		Getenv: func(key string) string {
 			if key == "ENGRAM_DEBUG_LOG" {
 				return "/dev/fake/debug.log"
@@ -104,7 +104,7 @@ func TestNewDeps_DebugSinkSyncsEveryWrite(t *testing.T) {
 
 			return sink, nil
 		},
-	}
+	}}
 
 	deps := cli.NewDeps(prims, io.Discard, io.Discard, func(int) {})
 	g.Expect(deps.DebugLog).NotTo(gomega.BeNil())
@@ -130,13 +130,13 @@ func TestNewDeps_StartsForceExitWatcherFromPrimitive(t *testing.T) {
 	pulsesCh := make(chan chan<- struct{}, 1)
 	exitCodes := make(chan int, 1)
 
-	prims := cli.Primitives{
+	prims := cli.Primitives{Proc: cli.ProcPrims{
 		StartSignalPulses: func(pulses chan<- struct{}, buffer int) {
 			g.Expect(buffer).To(gomega.BeNumerically(">", 0))
 
 			pulsesCh <- pulses
 		},
-	}
+	}}
 
 	cli.NewDeps(prims, io.Discard, io.Discard, func(code int) { exitCodes <- code })
 

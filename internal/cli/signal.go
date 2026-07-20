@@ -52,11 +52,11 @@ const (
 // Deps) skips registration. The pulse channel, buffer size, and force-exit
 // policy live here — cmd only subscribes and forwards (#700).
 func startForceExit(prims Primitives, exit func(int)) {
-	if prims.StartSignalPulses == nil || exit == nil {
+	if prims.Proc.StartSignalPulses == nil || exit == nil {
 		return
 	}
 
 	pulses := make(chan struct{}, signalChannelBuffer)
-	prims.StartSignalPulses(pulses, signalChannelBuffer)
+	prims.Proc.StartSignalPulses(pulses, signalChannelBuffer)
 	ForceExitOnRepeatedSignal(pulses, exit)
 }

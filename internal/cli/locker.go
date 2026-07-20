@@ -24,21 +24,21 @@ type primLocker struct {
 
 // Lock acquires an exclusive flock on path, creating the file if absent.
 func (l primLocker) Lock(path string) (func() error, error) {
-	lockFD, err := l.prims.OpenLockFile(path, lockFilePerm)
+	lockFD, err := l.prims.Lock.OpenLockFile(path, lockFilePerm)
 	if err != nil {
 		return nil, fmt.Errorf("open lock %s: %w", path, err)
 	}
 
-	flockErr := l.prims.FlockExclusive(lockFD)
+	flockErr := l.prims.Lock.FlockExclusive(lockFD)
 	if flockErr != nil {
-		_ = l.prims.CloseFD(lockFD)
+		_ = l.prims.Lock.CloseFD(lockFD)
 
 		return nil, fmt.Errorf("flock %s: %w", path, flockErr)
 	}
 
 	unlock := func() error {
-		unlockErr := l.prims.FlockUnlock(lockFD)
-		closeErr := l.prims.CloseFD(lockFD)
+		unlockErr := l.prims.Lock.FlockUnlock(lockFD)
+		closeErr := l.prims.Lock.CloseFD(lockFD)
 
 		if unlockErr != nil {
 			return fmt.Errorf("funlock %s: %w", path, unlockErr)

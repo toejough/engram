@@ -92,7 +92,7 @@ allow = [
 
 # #700: internal/ purity — default-deny. Anything not prefix-matched below is denied
 # in internal non-test code. NO file carve-outs: raw I/O primitives enter from
-# cmd/engram's declaration-free main (cli.Primitives; targ check-thin-api enforces that
+# cmd/engram's checker-thin wiring (cli.Primitives; targ check-thin-api enforces that
 # side), ALL adapter composition is injected in internal/cli, and the only real-os code
 # under internal/ sits in _test files — excluded via '!$test' (sanctioned by the revised
 # composition doctrine).

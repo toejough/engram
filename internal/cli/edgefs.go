@@ -31,7 +31,7 @@ type primFS struct {
 
 // MkdirAll creates path with any missing parents; no-op when path exists.
 func (f primFS) MkdirAll(path string, perm fs.FileMode) error {
-	err := f.prims.MkdirAll(path, perm)
+	err := f.prims.FS.MkdirAll(path, perm)
 	if err != nil {
 		return fmt.Errorf("mkdir %s: %w", path, err)
 	}
@@ -41,7 +41,7 @@ func (f primFS) MkdirAll(path string, perm fs.FileMode) error {
 
 // MkdirTemp creates a fresh unique directory in dir matching pattern.
 func (f primFS) MkdirTemp(dir, pattern string) (string, error) {
-	made, err := f.prims.MkdirTemp(dir, pattern)
+	made, err := f.prims.FS.MkdirTemp(dir, pattern)
 	if err != nil {
 		return "", fmt.Errorf("mkdir temp in %s: %w", dir, err)
 	}
@@ -51,7 +51,7 @@ func (f primFS) MkdirTemp(dir, pattern string) (string, error) {
 
 // ReadDir returns the directory entries of path.
 func (f primFS) ReadDir(path string) ([]fs.DirEntry, error) {
-	entries, err := f.prims.ReadDir(path)
+	entries, err := f.prims.FS.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("read dir %s: %w", path, err)
 	}
@@ -61,7 +61,7 @@ func (f primFS) ReadDir(path string) ([]fs.DirEntry, error) {
 
 // ReadFile reads the file at path.
 func (f primFS) ReadFile(path string) ([]byte, error) {
-	data, err := f.prims.ReadFile(path)
+	data, err := f.prims.FS.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
@@ -71,7 +71,7 @@ func (f primFS) ReadFile(path string) ([]byte, error) {
 
 // Remove deletes the file or empty directory at path.
 func (f primFS) Remove(path string) error {
-	err := f.prims.Remove(path)
+	err := f.prims.FS.Remove(path)
 	if err != nil {
 		return fmt.Errorf("remove %s: %w", path, err)
 	}
@@ -81,7 +81,7 @@ func (f primFS) Remove(path string) error {
 
 // RemoveAll deletes path and any children; no-op when path is absent.
 func (f primFS) RemoveAll(path string) error {
-	err := f.prims.RemoveAll(path)
+	err := f.prims.FS.RemoveAll(path)
 	if err != nil {
 		return fmt.Errorf("remove all %s: %w", path, err)
 	}
@@ -92,7 +92,7 @@ func (f primFS) RemoveAll(path string) error {
 // Rename atomically renames oldPath to newPath (same-directory renames are
 // atomic on POSIX — the ADR-0013 primitive).
 func (f primFS) Rename(oldPath, newPath string) error {
-	err := f.prims.Rename(oldPath, newPath)
+	err := f.prims.FS.Rename(oldPath, newPath)
 	if err != nil {
 		return fmt.Errorf("rename %s -> %s: %w", oldPath, newPath, err)
 	}
@@ -102,7 +102,7 @@ func (f primFS) Rename(oldPath, newPath string) error {
 
 // Stat returns the fs.FileInfo for path.
 func (f primFS) Stat(path string) (fs.FileInfo, error) {
-	info, err := f.prims.Stat(path)
+	info, err := f.prims.FS.Stat(path)
 	if err != nil {
 		return nil, fmt.Errorf("stat %s: %w", path, err)
 	}
@@ -112,7 +112,7 @@ func (f primFS) Stat(path string) (fs.FileInfo, error) {
 
 // WalkDir walks the file tree rooted at root, calling fn for each entry.
 func (f primFS) WalkDir(root string, fn fs.WalkDirFunc) error {
-	err := f.prims.WalkDir(root, fn)
+	err := f.prims.FS.WalkDir(root, fn)
 	if err != nil {
 		return fmt.Errorf("walk %s: %w", root, err)
 	}
@@ -122,7 +122,7 @@ func (f primFS) WalkDir(root string, fn fs.WalkDirFunc) error {
 
 // WriteFile writes data to path with perm.
 func (f primFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
-	err := f.prims.WriteFile(path, data, perm)
+	err := f.prims.FS.WriteFile(path, data, perm)
 	if err != nil {
 		return fmt.Errorf("write %s: %w", path, err)
 	}
@@ -152,17 +152,17 @@ func (f primFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) erro
 	// chmod after write (temp is never wider than final); explicit chmod
 	// keeps atomic-write perms umask-independent — parity with the
 	// pre-#700 dance. Do NOT reorder chmod before the data write.
-	chmodErr := f.prims.Chmod(tmpName, perm)
+	chmodErr := f.prims.FS.Chmod(tmpName, perm)
 	if chmodErr != nil {
-		_ = f.prims.Remove(tmpName)
+		_ = f.prims.FS.Remove(tmpName)
 
 		return fmt.Errorf("atomic write %s: chmod temp: %w", path, chmodErr)
 	}
 
-	renameErr := f.prims.Rename(tmpName, path)
+	renameErr := f.prims.FS.Rename(tmpName, path)
 	if renameErr != nil {
 		// Cleanup on any failure after creation (P-4).
-		_ = f.prims.Remove(tmpName)
+		_ = f.prims.FS.Remove(tmpName)
 
 		return fmt.Errorf("atomic write %s: rename: %w", path, renameErr)
 	}
@@ -176,7 +176,7 @@ func (f primFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) erro
 // chain (doctrine flags X-1/S-1: the exclusive create itself is the
 // enumerated stdlib-equivalent cmd primitive; only the wrap lives here).
 func (f primFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
-	err := f.prims.WriteFileExcl(path, data, perm)
+	err := f.prims.FS.WriteFileExcl(path, data, perm)
 	if err != nil {
 		return fmt.Errorf("write excl %s: %w", path, err)
 	}
@@ -192,14 +192,14 @@ func (f primFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error 
 func (f primFS) createUniqueTemp(path string, data []byte, perm fs.FileMode) (string, error) {
 	dir := filepath.Dir(path)
 	base := filepath.Base(path)
-	nanos := f.prims.Now().UnixNano()
+	nanos := f.prims.Proc.Now().UnixNano()
 
 	var lastErr error
 
 	for attempt := range maxTempAttempts {
 		candidate := filepath.Join(dir, fmt.Sprintf(".%s.tmp-%d-%d", base, nanos, attempt))
 
-		lastErr = f.prims.WriteFileExcl(candidate, data, perm)
+		lastErr = f.prims.FS.WriteFileExcl(candidate, data, perm)
 		if lastErr == nil {
 			return candidate, nil
 		}

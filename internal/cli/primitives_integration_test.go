@@ -278,7 +278,7 @@ func TestRealEdgeFS_WriteFileAtomicRenameFailureCleansTempAndOriginal(t *testing
 	var tmpSeen string
 
 	prims := realPrimitives()
-	prims.Rename = func(oldPath, _ string) error {
+	prims.FS.Rename = func(oldPath, _ string) error {
 		tmpSeen = oldPath
 
 		return errInjectedRename
@@ -455,7 +455,7 @@ var (
 // points ENGRAM_DEBUG_LOG at path; the open primitive is real).
 func debugSinkAt(path string) io.Writer {
 	prims := realPrimitives()
-	prims.Getenv = func(key string) string {
+	prims.Proc.Getenv = func(key string) string {
 		if key == "ENGRAM_DEBUG_LOG" {
 			return path
 		}
@@ -471,30 +471,38 @@ func realDepsForTest() cli.Deps {
 	return cli.NewDeps(realPrimitives(), io.Discard, io.Discard, func(int) {})
 }
 
+// realExecPrims mirrors cmd/engram/main.go's execPrimitives() group.
+func realExecPrims() cli.ExecPrims {
+	return cli.NewExecPrims(cli.ExecPrims{
+		RunCommand: func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error {
+			cmd := exec.CommandContext(ctx, name, args...)
+			cmd.Dir, cmd.Stdout, cmd.Stderr = dir, stdout, stderr
+
+			return cmd.Run()
+		},
+		NotFoundErr: exec.ErrNotFound,
+	})
+}
+
 // realFSForTest composes the production EdgeFS over real OS primitives.
 func realFSForTest() cli.EdgeFS {
 	return realDepsForTest().FS
 }
 
-// realPrimitives mirrors cmd/engram/main.go's production Primitives literal
-// (minus the signal starter — tests must not subscribe process signals).
-func realPrimitives() cli.Primitives {
-	return cli.Primitives{
-		ReadFile:    os.ReadFile,
-		WriteFile:   os.WriteFile,
-		MkdirAll:    os.MkdirAll,
-		MkdirTemp:   os.MkdirTemp,
-		Stat:        os.Stat,
-		ReadDir:     os.ReadDir,
-		Remove:      os.Remove,
-		RemoveAll:   os.RemoveAll,
-		Rename:      os.Rename,
-		WalkDir:     filepath.WalkDir,
-		Chmod:       os.Chmod,
-		Getenv:      os.Getenv,
-		Now:         time.Now,
-		Getwd:       os.Getwd,
-		UserHomeDir: os.UserHomeDir,
+// realFSPrims mirrors cmd/engram/main.go's fsPrimitives() group.
+func realFSPrims() cli.FSPrims {
+	return cli.NewFSPrims(cli.FSPrims{
+		ReadFile:  os.ReadFile,
+		WriteFile: os.WriteFile,
+		MkdirAll:  os.MkdirAll,
+		MkdirTemp: os.MkdirTemp,
+		Stat:      os.Stat,
+		ReadDir:   os.ReadDir,
+		Remove:    os.Remove,
+		RemoveAll: os.RemoveAll,
+		Rename:    os.Rename,
+		WalkDir:   filepath.WalkDir,
+		Chmod:     os.Chmod,
 		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
 			file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 			if err != nil {
@@ -508,6 +516,12 @@ func realPrimitives() cli.Primitives {
 
 			return err
 		},
+	})
+}
+
+// realLockPrims mirrors cmd/engram/main.go's lockPrimitives() group.
+func realLockPrims() cli.LockPrims {
+	return cli.NewLockPrims(cli.LockPrims{
 		OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
 			fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
 
@@ -522,15 +536,31 @@ func realPrimitives() cli.Primitives {
 		CloseFD: func(fd uintptr) error {
 			return syscall.Close(int(fd))
 		},
+	})
+}
+
+// realPrimitives mirrors cmd/engram/main.go's production Primitives literal
+// group-for-group (minus the signal starter — tests must not subscribe
+// process signals — and the embed runtime).
+func realPrimitives() cli.Primitives {
+	return cli.Primitives{
+		FS:   realFSPrims(),
+		Lock: realLockPrims(),
+		Exec: realExecPrims(),
+		Proc: realProcPrims(),
+	}
+}
+
+// realProcPrims mirrors cmd/engram/main.go's procPrimitives() group,
+// minus StartSignalPulses (SIG-1 — nil so startForceExit skips).
+func realProcPrims() cli.ProcPrims {
+	return cli.NewProcPrims(cli.ProcPrims{
+		Getenv:      os.Getenv,
+		Now:         time.Now,
+		Getwd:       os.Getwd,
+		UserHomeDir: os.UserHomeDir,
 		OpenDebugFile: func(path string, perm fs.FileMode) (cli.WriteSyncer, error) {
 			return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
 		},
-		RunCommand: func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error {
-			cmd := exec.CommandContext(ctx, name, args...)
-			cmd.Dir, cmd.Stdout, cmd.Stderr = dir, stdout, stderr
-
-			return cmd.Run()
-		},
-		NotFoundErr: exec.ErrNotFound,
-	}
+	})
 }

@@ -10,7 +10,7 @@ Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. 
 
 ```
 engram/
-├── cmd/engram/        # CLI binary entry point — declaration-free single-statement main() supplying raw I/O primitives (targ check-thin-api-enforced)
+├── cmd/engram/        # CLI binary entry point — single-statement main() + checker-thin per-group functions supplying raw I/O primitives (targ check-thin-api-enforced)
 ├── internal/          # Non-public implementation
 │   ├── chunk/         # Splits memory sources (stripped transcripts, markdown) into embedding-sized chunks for the auto-ingested vector space (pure string logic, no I/O)
 │   ├── cli/           # CLI command wiring (targ targets) + composition root: cli.NewDeps builds every production adapter from injected cli.Primitives
@@ -31,7 +31,7 @@ engram/
 
 ## Key Files
 
-- `cmd/engram/main.go` — CLI entry point (declaration-free: one statement populating `cli.Primitives` with raw capability references; `targ check-thin-api`-enforced)
+- `cmd/engram/main.go` — CLI entry point (wiring-only: single-statement main() composing `cli.Primitives` from checker-thin per-group functions of raw capability references; `targ check-thin-api`-enforced)
 - `internal/cli/primitives.go` — Composition root (`cli.Primitives` + `cli.NewDeps`, which builds every production adapter from the injected primitives)
 - `internal/cli/targets.go` — Subcommand wiring
 - `skills/{learn,recall,write-memory,please,route}/SKILL.md` — Skill definitions

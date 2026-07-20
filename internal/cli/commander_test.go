@@ -113,7 +113,7 @@ func commanderOver(
 	run func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error,
 	notFound error,
 ) update.Commander {
-	prims := cli.Primitives{RunCommand: run, NotFoundErr: notFound}
+	prims := cli.Primitives{Exec: cli.ExecPrims{RunCommand: run, NotFoundErr: notFound}}
 
 	return cli.NewDeps(prims, io.Discard, io.Discard, nil).Commander
 }

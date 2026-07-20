@@ -20,7 +20,7 @@ func TestPrimLocker_FlockFailureClosesDescriptor(t *testing.T) {
 	closed := make([]uintptr, 0, 1)
 	boom := errors.New("flock boom")
 
-	locker := lockerFromPrims(cli.Primitives{
+	locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
 		OpenLockFile:   func(string, fs.FileMode) (uintptr, error) { return fakeFD, nil },
 		FlockExclusive: func(uintptr) error { return boom },
 		CloseFD: func(fd uintptr) error {
@@ -28,7 +28,7 @@ func TestPrimLocker_FlockFailureClosesDescriptor(t *testing.T) {
 
 			return nil
 		},
-	})
+	}})
 
 	_, err := locker.Lock("/vault/.lock")
 	g.Expect(err).To(gomega.MatchError(boom))
@@ -42,14 +42,14 @@ func TestPrimLocker_OpenFailureWrapsWithPath(t *testing.T) {
 
 	boom := errors.New("open boom")
 
-	locker := lockerFromPrims(cli.Primitives{
+	locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
 		OpenLockFile: func(string, fs.FileMode) (uintptr, error) { return 0, boom },
 		FlockExclusive: func(uintptr) error {
 			t.Error("flock must not run after a failed open")
 
 			return nil
 		},
-	})
+	}})
 
 	_, err := locker.Lock("/vault/.lock")
 	g.Expect(err).To(gomega.MatchError(boom))
@@ -64,7 +64,7 @@ func TestPrimLocker_UnlockLifecycle(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		calls := &callRecorder{}
-		locker := lockerFromPrims(cli.Primitives{
+		locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
 			OpenLockFile: func(string, fs.FileMode) (uintptr, error) { return 4, nil },
 			FlockExclusive: func(uintptr) error {
 				calls.add("flock-ex")
@@ -81,7 +81,7 @@ func TestPrimLocker_UnlockLifecycle(t *testing.T) {
 
 				return nil
 			},
-		})
+		}})
 
 		unlock, err := locker.Lock("/vault/.lock")
 		g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -100,7 +100,7 @@ func TestPrimLocker_UnlockLifecycle(t *testing.T) {
 
 		boom := errors.New("funlock boom")
 		closed := make([]uintptr, 0, 1)
-		locker := lockerFromPrims(cli.Primitives{
+		locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
 			OpenLockFile:   func(string, fs.FileMode) (uintptr, error) { return 4, nil },
 			FlockExclusive: func(uintptr) error { return nil },
 			FlockUnlock:    func(uintptr) error { return boom },
@@ -109,7 +109,7 @@ func TestPrimLocker_UnlockLifecycle(t *testing.T) {
 
 				return nil
 			},
-		})
+		}})
 
 		unlock, err := locker.Lock("/vault/.lock")
 		g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -129,12 +129,12 @@ func TestPrimLocker_UnlockLifecycle(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		boom := errors.New("close boom")
-		locker := lockerFromPrims(cli.Primitives{
+		locker := lockerFromPrims(cli.Primitives{Lock: cli.LockPrims{
 			OpenLockFile:   func(string, fs.FileMode) (uintptr, error) { return 4, nil },
 			FlockExclusive: func(uintptr) error { return nil },
 			FlockUnlock:    func(uintptr) error { return nil },
 			CloseFD:        func(uintptr) error { return boom },
-		})
+		}})
 
 		unlock, err := locker.Lock("/vault/.lock")
 		g.Expect(err).NotTo(gomega.HaveOccurred())
