@@ -1,3 +1,22 @@
+# DISPATCH HEADER (orchestrator)
+
+- Worktree: `/Users/joe/repos/personal/engram/.claude/worktrees/700-internal-purity` (branch `worktree-700-internal-purity`). Work ONLY here — never cd to the main checkout.
+- BASE-T12: 16f1d2df (T11 complete). Constraints mirror: `.superpowers/sdd/constraints-and-resolutions.md` — READ IT FIRST; its supersession map governs over plan-prose flags.
+- ACCUMULATED DISPATCH NOTES (binding):
+  - Constructor param convention (orchestrator-verified): the landed family uses `d Deps` (newIngestDeps(d Deps), newPruneDeps(d Deps)) — this task's snippets match; keep `d`. The older "threaded variable is `deps` not `d`" note applies ONLY to targets.go's threaded variable — step 7's call expressions use `deps` there.
+  - T11 rename: `ExportNewTestOsDeps` lives in `internal/cli/testdeps_internal_test.go` (NOT testdeps_test.go — testpackage-linter forced). The symbol is exactly as this brief quotes it.
+  - **Error-wrap parity in this task's snippets is INTENTIONAL** — the command-layer wraps ("write %s: %w", "deleting %s: %w", "write: %w") preserve existing behavior verbatim; the distinct-word/no-path rule is for EdgeFS-layer wraps only. Do NOT "fix" them. The known double-prefix polish item (T9 minor) is final-review scope, not yours.
+  - Plan cite drift (locate-by-TEXT governs, never by line): vocab_commands_test.go coverage-comment header is at ~:726 not :737; resituate.go Lock comment at 27-28 not 28-29; the vocab nil-Embedder skip guard is at vocab_commands.go:834 not :833. Other quoted line numbers may have drifted similarly — anchor on the quoted code text.
+  - **reorder-decls HAZARD (T11-discovered):** `targ reorder-decls` has no path scoping — it also rewrites the two protected dev/eval please_step3_probe fixtures. If you run it, immediately `git restore` those two fixture paths by explicit path and re-verify `git status` shows only your intended files.
+  - gates run FOREGROUND (no background-run-and-yield); stage EXPLICIT paths only (never `git add -A`/`-u`)
+  - check-full residual set (NOT yours to fix): e2e-under-load coverage flake (re-run check-coverage-for-fail standalone to confirm) + the 2 dev/eval reorder fixtures; lint-full must be 0
+  - Step 6.5 (R12) is load-bearing: after migrating the ExportNewOsVaultFS call sites, the verification grep must show hits ONLY in export_test.go — T7's later shim deletion depends on it.
+  - Step 8's grep gate is a hard STOP condition: any osListJSONLIndexes hit outside query_chunks.go's definition means an unlanded task — report, don't delete.
+- House rules: `t.Parallel()` on every test; gomega + nilaway guards; named constants; descriptive names; <120 char lines.
+- REPORT: write `.superpowers/sdd/briefs/T12-report.md` BEFORE your final message — status, commit SHA(s), gate outcomes verbatim (test / check-full / check-thin-api + standalone re-runs), every deviation with rationale, concerns/watch items. Final message: STATUS line, SHAs, one-paragraph summary, concerns.
+
+---
+
 ### Task T12 (M3): Maintenance-family constructors compose from Deps
 
 **Files**

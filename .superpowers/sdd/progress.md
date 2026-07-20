@@ -61,3 +61,10 @@ Task 10: complete (commits b54f436b parity tests + 80430e8f reorder-amend, task 
 - T11 brief amendments (orchestrator-verified against landed tree): plan's TestNewVaultFS_ReadFile_WrapsErrorWithPath is STALE (predates T5 wrap fix; landed wrap is "vault read: %w", no path) — brief binds the distinct-verb assertion instead; plan's fake names (fakeEdgeFS/fakeDirEntry/fakeLocker) collide with nothing in package cli (existing ones are cli_test-side)
 BASE-T11: 80430e8ff48898e9cec586319e038f3ff9db6ce8
 Task 11: dispatched
+Task 11: complete (commit 16f1d2df, task review ACK; Gate B N/A — tests-only, skip named explicitly)
+- Deviations verified TRUE by reviewer against linter configs: (1) testdeps_internal_test.go rename forced by testpackage default skip-regexp '(export|internal)_test\.go'; (2) //nolint:gosec dropped — gosec is path-excluded for _test.go, directives were nolintlint-flaggable
+- Primitives literal reconciled field-by-field vs primitives.go AND main.go's production literal — behaviorally identical closures, StartSignalPulses nil per SIG-1, no wrapping on raw returns
+- NEW STANDING HAZARD (added to dispatch notes): targ reorder-decls has NO path scoping — rewrites the 2 protected dev/eval please_step3_probe fixtures; executors must git-restore them by explicit path after any run
+- ExportNewTestOsDeps consumer-less until T12 (expected); unused-linter did NOT fire
+BASE-T12: 16f1d2dfdd68701dbc6507d63bd8de8a4b9da30c
+Task 12: dispatched
