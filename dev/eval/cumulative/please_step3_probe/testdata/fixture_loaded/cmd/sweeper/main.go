@@ -14,9 +14,6 @@ import (
 	"sweeper/internal/store"
 )
 
-// reconcileEvery is the sweeper's fixed reconciliation cadence.
-const reconcileEvery = "6h"
-
 func main() {
 	cfg := config.Load()
 	q := queue.New(cfg)
@@ -48,6 +45,11 @@ func main() {
 		}
 	}
 }
+
+// unexported constants.
+const (
+	reconcileEvery = "6h" // reconcileEvery is the sweeper's fixed reconciliation cadence.
+)
 
 func runSweep(q *queue.Queue, st *store.Store, m *metrics.Registry) {
 	entries := q.Drain()
