@@ -25,23 +25,23 @@ type ExecPrims struct {
 func NewExecPrims(spec ExecPrims) ExecPrims { return spec }
 
 // FSPrims groups the raw filesystem capabilities: direct os/filepath
-// references plus the exclusive-create survivor closure (doctrine survivor
-// S-1 — a stdlib-equivalent primitive: os.WriteFile's own body with
-// O_CREATE|O_EXCL; behavior changes extend this SIGNATURE, never the cmd
-// body).
+// references plus the exclusive-create eraser (doctrine survivor S-1 —
+// a single-call primitive: os.OpenFile with O_CREATE|O_EXCL erases *os.File
+// to io.WriteCloser; the write+close error-merge lives in primFS.WriteFileExcl,
+// unit-testable with fakes).
 type FSPrims struct {
-	ReadFile      func(path string) ([]byte, error)                      // os.ReadFile
-	WriteFile     func(path string, data []byte, perm fs.FileMode) error // os.WriteFile
-	MkdirAll      func(path string, perm fs.FileMode) error              // os.MkdirAll
-	MkdirTemp     func(dir, pattern string) (string, error)              // os.MkdirTemp
-	Stat          func(path string) (fs.FileInfo, error)                 // os.Stat
-	ReadDir       func(path string) ([]fs.DirEntry, error)               // os.ReadDir
-	Remove        func(path string) error                                // os.Remove
-	RemoveAll     func(path string) error                                // os.RemoveAll
-	Rename        func(oldPath, newPath string) error                    // os.Rename
-	WalkDir       func(root string, fn fs.WalkDirFunc) error             // filepath.WalkDir
-	Chmod         func(path string, mode fs.FileMode) error              // os.Chmod
-	WriteFileExcl func(path string, data []byte, perm fs.FileMode) error // S-1 closure
+	ReadFile       func(path string) ([]byte, error)                        // os.ReadFile
+	WriteFile      func(path string, data []byte, perm fs.FileMode) error   // os.WriteFile
+	MkdirAll       func(path string, perm fs.FileMode) error                // os.MkdirAll
+	MkdirTemp      func(dir, pattern string) (string, error)                // os.MkdirTemp
+	Stat           func(path string) (fs.FileInfo, error)                   // os.Stat
+	ReadDir        func(path string) ([]fs.DirEntry, error)                 // os.ReadDir
+	Remove         func(path string) error                                  // os.Remove
+	RemoveAll      func(path string) error                                  // os.RemoveAll
+	Rename         func(oldPath, newPath string) error                      // os.Rename
+	WalkDir        func(root string, fn fs.WalkDirFunc) error               // filepath.WalkDir
+	Chmod          func(path string, mode fs.FileMode) error                // os.Chmod
+	OpenFileExcl   func(path string, perm fs.FileMode) (io.WriteCloser, error) // S-1 eraser
 }
 
 // NewFSPrims returns spec unchanged. It is the check-thin-api-visible seam
@@ -72,13 +72,13 @@ func NewLockPrims(spec LockPrims) LockPrims { return spec }
 // Primitives carries raw impure capabilities as func values, grouped into
 // cohesive capability sub-structs (FS, Lock, Exec, Proc). cmd/engram
 // populates each group with direct references to os/syscall/filepath/time
-// functions, single-call closures where a signature must be erased (fd
-// instead of *os.File, WriteSyncer instead of *os.File, pulses instead of
-// os.Signal), or an enumerated stdlib-equivalent survivor closure
-// (doctrine survivors: S-1 WriteFileExcl, C-1 RunCommand, SIG-1
-// StartSignalPulses). ALL composition, error wrapping, and lifecycle logic
-// lives in internal/cli; targ check-thin-api enforces that the cmd side
-// stays wiring-only (#700).
+// functions, or single-call erasers where a signature must be hidden (fd
+// instead of *os.File, WriteSyncer instead of *os.File, io.WriteCloser
+// instead of *os.File, pulses instead of os.Signal, or an enumerated
+// stdlib-equivalent primitive (doctrine survivors: S-1 OpenFileExcl eraser,
+// C-1 RunCommand, SIG-1 StartSignalPulses). ALL composition, error
+// wrapping, and lifecycle logic lives in internal/cli; targ check-thin-api
+// enforces that the cmd side stays wiring-only (#700).
 type Primitives struct {
 	// Filesystem capabilities (consumed by primFS and the embed cache).
 	FS FSPrims

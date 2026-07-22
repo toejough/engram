@@ -52,40 +52,22 @@ func execPrimitives() cli.ExecPrims {
 }
 
 // fsPrimitives groups the raw filesystem capabilities: direct os/filepath
-// references plus the S-1 exclusive-create survivor closure.
+// references plus the S-1 exclusive-create eraser.
 func fsPrimitives() cli.FSPrims {
 	return cli.NewFSPrims(cli.FSPrims{
-		ReadFile:  os.ReadFile,
-		WriteFile: os.WriteFile,
-		MkdirAll:  os.MkdirAll,
-		MkdirTemp: os.MkdirTemp,
-		Stat:      os.Stat,
-		ReadDir:   os.ReadDir,
-		Remove:    os.Remove,
-		RemoveAll: os.RemoveAll,
-		Rename:    os.Rename,
-		WalkDir:   filepath.WalkDir,
-		Chmod:     os.Chmod,
-		WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
-			// Doctrine survivor S-1: os.WriteFile's own body with
-			// O_CREATE|O_EXCL — mechanical error propagation only; behavior
-			// changes extend the Primitives SIGNATURE, never this body.
-			// Errors return RAW (unwrapped): the *fs.PathError must keep
-			// errors.Is(err, fs.ErrExist) alive; internal/cli wraps once.
-			//nolint:gosec // operator-controlled path
-			file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
-			if err != nil {
-				return err //nolint:wrapcheck // S-1 contract: raw error, internal wraps once
-			}
-
-			_, err = file.Write(data)
-
-			closeErr := file.Close()
-			if closeErr != nil && err == nil {
-				err = closeErr
-			}
-
-			return err
+		ReadFile:     os.ReadFile,
+		WriteFile:    os.WriteFile,
+		MkdirAll:     os.MkdirAll,
+		MkdirTemp:    os.MkdirTemp,
+		Stat:         os.Stat,
+		ReadDir:      os.ReadDir,
+		Remove:       os.Remove,
+		RemoveAll:    os.RemoveAll,
+		Rename:       os.Rename,
+		WalkDir:      filepath.WalkDir,
+		Chmod:        os.Chmod,
+		OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) { //nolint:gosec
+			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 		},
 	})
 }

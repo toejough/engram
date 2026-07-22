@@ -6,6 +6,7 @@ package cli
 // the single composition root — no hand-rolled adapter mirrors anywhere.
 
 import (
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -22,30 +23,19 @@ import (
 func ExportNewTestOsDeps() Deps {
 	return NewDeps(Primitives{
 		FS: NewFSPrims(FSPrims{
-			ReadFile:  os.ReadFile,
-			WriteFile: os.WriteFile,
-			MkdirAll:  os.MkdirAll,
-			MkdirTemp: os.MkdirTemp,
-			Stat:      os.Stat,
-			ReadDir:   os.ReadDir,
-			Remove:    os.Remove,
-			RemoveAll: os.RemoveAll,
-			Rename:    os.Rename,
-			WalkDir:   filepath.WalkDir,
-			Chmod:     os.Chmod,
-			WriteFileExcl: func(path string, data []byte, perm fs.FileMode) error {
-				// Test-helper path; gosec is path-excluded for _test files.
-				file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
-				if err != nil {
-					return err
-				}
-
-				_, err = file.Write(data)
-				if closeErr := file.Close(); closeErr != nil && err == nil {
-					err = closeErr
-				}
-
-				return err
+			ReadFile:     os.ReadFile,
+			WriteFile:    os.WriteFile,
+			MkdirAll:     os.MkdirAll,
+			MkdirTemp:    os.MkdirTemp,
+			Stat:         os.Stat,
+			ReadDir:      os.ReadDir,
+			Remove:       os.Remove,
+			RemoveAll:    os.RemoveAll,
+			Rename:       os.Rename,
+			WalkDir:      filepath.WalkDir,
+			Chmod:        os.Chmod,
+			OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
+				return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 			},
 		}),
 		Lock: NewLockPrims(LockPrims{

@@ -133,16 +133,16 @@ func (f primFS) WriteFile(path string, data []byte, perm fs.FileMode) error {
 // WriteFileAtomic writes data to path atomically: it derives a unique temp
 // name in filepath.Dir(path) from the target base + the injected clock's
 // nanos + an attempt counter, creates it exclusively (data written at perm)
-// via the WriteFileExcl primitive — retrying fresh candidates on
+// via the OpenFileExcl eraser — retrying fresh candidates on
 // fs.ErrExist, bounded by maxTempAttempts — then chmods the temp to the
 // exact target perm (umask-independent) and renames into place. A
 // same-directory rename is atomic on POSIX — a concurrent reader sees
 // either the old or the new file, never a partial one. On any failure
 // after creation the temp file is removed and the original (if any) is
 // left untouched (ADR-0013; design flag P-4: the unique-temp-name policy
-// is INTERNAL — cmd contributes only the stdlib-equivalent WriteFileExcl
-// primitive, doctrine survivor S-1, plus the restored direct Chmod
-// primitive for umask-independent perms).
+// is INTERNAL — cmd contributes only the single-call OpenFileExcl eraser,
+// doctrine survivor S-1, plus the restored direct Chmod primitive for
+// umask-independent perms).
 func (f primFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) error {
 	tmpName, err := f.createUniqueTemp(path, data, perm)
 	if err != nil {
@@ -170,15 +170,29 @@ func (f primFS) WriteFileAtomic(path string, data []byte, perm fs.FileMode) erro
 	return nil
 }
 
-// WriteFileExcl creates path exclusively via the base WriteFileExcl
-// primitive (O_CREATE|O_EXCL — the ADR-0013 K1 collision backstop). The raw
-// primitive error is wrapped exactly once here, preserving the fs.ErrExist
-// chain (doctrine flags X-1/S-1: the exclusive create itself is the
-// enumerated stdlib-equivalent cmd primitive; only the wrap lives here).
+// WriteFileExcl creates path exclusively via the base OpenFileExcl eraser
+// (O_CREATE|O_EXCL — the ADR-0013 K1 collision backstop). The composition
+// handles write+close error precedence: write errors take priority; when
+// write succeeds and close fails, the close error surfaces. Errors wrap
+// exactly once here, preserving the fs.ErrExist chain from OpenFileExcl
+// (doctrine flags X-1/S-1: the exclusive create itself is the single-call
+// cmd primitive; error-merge composition lives here, unit-testable with
+// fakes).
 func (f primFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
-	err := f.prims.FS.WriteFileExcl(path, data, perm)
+	file, err := f.prims.FS.OpenFileExcl(path, perm)
 	if err != nil {
 		return fmt.Errorf("write excl %s: %w", path, err)
+	}
+
+	_, writeErr := file.Write(data)
+	closeErr := file.Close()
+
+	if writeErr != nil {
+		return fmt.Errorf("write excl %s: %w", path, writeErr)
+	}
+
+	if closeErr != nil {
+		return fmt.Errorf("write excl %s: %w", path, closeErr)
 	}
 
 	return nil
@@ -199,7 +213,7 @@ func (f primFS) createUniqueTemp(path string, data []byte, perm fs.FileMode) (st
 	for attempt := range maxTempAttempts {
 		candidate := filepath.Join(dir, fmt.Sprintf(".%s.tmp-%d-%d", base, nanos, attempt))
 
-		lastErr = f.prims.FS.WriteFileExcl(candidate, data, perm)
+		lastErr = f.WriteFileExcl(candidate, data, perm)
 		if lastErr == nil {
 			return candidate, nil
 		}
