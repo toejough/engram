@@ -20,10 +20,6 @@ type ExecPrims struct {
 	NotFoundErr error // exec.ErrNotFound
 }
 
-// NewExecPrims returns spec unchanged: the check-thin-api carrier for
-// cmd/engram's execPrimitives() (see NewFSPrims for the shared rationale).
-func NewExecPrims(spec ExecPrims) ExecPrims { return spec }
-
 // FSPrims groups the raw filesystem capabilities: direct os/filepath
 // references plus the exclusive-create eraser (doctrine survivor S-1 —
 // a single-call primitive: os.OpenFile with O_CREATE|O_EXCL erases *os.File
@@ -44,16 +40,6 @@ type FSPrims struct {
 	OpenFileExcl func(path string, perm fs.FileMode) (io.WriteCloser, error) // S-1 eraser
 }
 
-// NewFSPrims returns spec unchanged. It is the check-thin-api-visible seam
-// through which cmd/engram hands a capability-group literal to composition:
-// the checker rejects composite-literal RETURNS in cmd declarations but
-// sanctions literals as ARGUMENTS of an external call — the same
-// literal-as-argument idiom as main()'s cli.Primitives literal in its
-// cli.NewDeps call. The carriers hold ZERO logic by contract; any logic
-// creeping into one belongs in NewDeps composition instead and is a review
-// defect (#700 funlen refactor).
-func NewFSPrims(spec FSPrims) FSPrims { return spec }
-
 // LockPrims groups the raw advisory file-locking capabilities:
 // single-syscall closures over a raw fd; the lock lifecycle lives internal
 // in primLocker (design flags P-2/P-3: semantic per-op funcs over a raw
@@ -64,10 +50,6 @@ type LockPrims struct {
 	FlockUnlock    func(fd uintptr) error                               // syscall.Flock LOCK_UN
 	CloseFD        func(fd uintptr) error                               // syscall.Close
 }
-
-// NewLockPrims returns spec unchanged: the check-thin-api carrier for
-// cmd/engram's lockPrimitives() (see NewFSPrims for the shared rationale).
-func NewLockPrims(spec LockPrims) LockPrims { return spec }
 
 // Primitives carries raw impure capabilities as func values, grouped into
 // cohesive capability sub-structs (FS, Lock, Exec, Proc). cmd/engram
@@ -112,10 +94,6 @@ type ProcPrims struct {
 	OpenDebugFile     func(path string, perm fs.FileMode) (WriteSyncer, error) // os.OpenFile O_APPEND|O_CREATE|O_WRONLY
 	StartSignalPulses func(pulses chan<- struct{}, buffer int)                 // SIG-1 closure
 }
-
-// NewProcPrims returns spec unchanged: the check-thin-api carrier for
-// cmd/engram's procPrimitives() (see NewFSPrims for the shared rationale).
-func NewProcPrims(spec ProcPrims) ProcPrims { return spec }
 
 // WriteSyncer is the debug-sink capability surface (*os.File satisfies it).
 type WriteSyncer interface {

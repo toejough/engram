@@ -473,7 +473,7 @@ func realDepsForTest() cli.Deps {
 
 // realExecPrims mirrors cmd/engram/main.go's execPrimitives() group.
 func realExecPrims() cli.ExecPrims {
-	return cli.NewExecPrims(cli.ExecPrims{
+	return cli.ExecPrims{
 		RunCommand: func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error {
 			cmd := exec.CommandContext(ctx, name, args...)
 			cmd.Dir, cmd.Stdout, cmd.Stderr = dir, stdout, stderr
@@ -481,7 +481,7 @@ func realExecPrims() cli.ExecPrims {
 			return cmd.Run()
 		},
 		NotFoundErr: exec.ErrNotFound,
-	})
+	}
 }
 
 // realFSForTest composes the production EdgeFS over real OS primitives.
@@ -491,7 +491,7 @@ func realFSForTest() cli.EdgeFS {
 
 // realFSPrims mirrors cmd/engram/main.go's fsPrimitives() group.
 func realFSPrims() cli.FSPrims {
-	return cli.NewFSPrims(cli.FSPrims{
+	return cli.FSPrims{
 		ReadFile:  os.ReadFile,
 		WriteFile: os.WriteFile,
 		MkdirAll:  os.MkdirAll,
@@ -506,12 +506,12 @@ func realFSPrims() cli.FSPrims {
 		OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
 			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 		},
-	})
+	}
 }
 
 // realLockPrims mirrors cmd/engram/main.go's lockPrimitives() group.
 func realLockPrims() cli.LockPrims {
-	return cli.NewLockPrims(cli.LockPrims{
+	return cli.LockPrims{
 		OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
 			fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
 
@@ -526,7 +526,7 @@ func realLockPrims() cli.LockPrims {
 		CloseFD: func(fd uintptr) error {
 			return syscall.Close(int(fd))
 		},
-	})
+	}
 }
 
 // realPrimitives mirrors cmd/engram/main.go's production Primitives literal
@@ -544,7 +544,7 @@ func realPrimitives() cli.Primitives {
 // realProcPrims mirrors cmd/engram/main.go's procPrimitives() group,
 // minus StartSignalPulses (SIG-1 — nil so startForceExit skips).
 func realProcPrims() cli.ProcPrims {
-	return cli.NewProcPrims(cli.ProcPrims{
+	return cli.ProcPrims{
 		Getenv:      os.Getenv,
 		Now:         time.Now,
 		Getwd:       os.Getwd,
@@ -552,5 +552,5 @@ func realProcPrims() cli.ProcPrims {
 		OpenDebugFile: func(path string, perm fs.FileMode) (cli.WriteSyncer, error) {
 			return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
 		},
-	})
+	}
 }

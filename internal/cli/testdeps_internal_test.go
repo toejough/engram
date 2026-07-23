@@ -22,7 +22,7 @@ import (
 // primFS/primLocker add the single %w wrap.
 func ExportNewTestOsDeps() Deps {
 	return NewDeps(Primitives{
-		FS: NewFSPrims(FSPrims{
+		FS: FSPrims{
 			ReadFile:  os.ReadFile,
 			WriteFile: os.WriteFile,
 			MkdirAll:  os.MkdirAll,
@@ -37,8 +37,8 @@ func ExportNewTestOsDeps() Deps {
 			OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
 				return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 			},
-		}),
-		Lock: NewLockPrims(LockPrims{
+		},
+		Lock: LockPrims{
 			OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
 				fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
 
@@ -53,8 +53,8 @@ func ExportNewTestOsDeps() Deps {
 			CloseFD: func(fd uintptr) error {
 				return syscall.Close(int(fd))
 			},
-		}),
-		Proc: NewProcPrims(ProcPrims{
+		},
+		Proc: ProcPrims{
 			Getenv:      os.Getenv,
 			Now:         time.Now,
 			Getwd:       os.Getwd,
@@ -63,6 +63,6 @@ func ExportNewTestOsDeps() Deps {
 				// Operator-controlled path; gosec is path-excluded for _test files.
 				return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
 			},
-		}),
+		},
 	}, os.Stdout, os.Stderr, func(int) {})
 }

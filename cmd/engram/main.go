@@ -36,7 +36,7 @@ func main() {
 // execPrimitives groups the raw external-command capabilities: the C-1
 // run-survivor closure plus the platform not-found sentinel value.
 func execPrimitives() cli.ExecPrims {
-	return cli.NewExecPrims(cli.ExecPrims{
+	return cli.ExecPrims{
 		RunCommand: func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error {
 			// Doctrine survivor C-1: construction + field assignments + one
 			// invocation, zero branching. Behavior changes (timeout, env,
@@ -48,13 +48,13 @@ func execPrimitives() cli.ExecPrims {
 			return cmd.Run()
 		},
 		NotFoundErr: exec.ErrNotFound,
-	})
+	}
 }
 
 // fsPrimitives groups the raw filesystem capabilities: direct os/filepath
 // references plus the S-1 exclusive-create eraser.
 func fsPrimitives() cli.FSPrims {
-	return cli.NewFSPrims(cli.FSPrims{
+	return cli.FSPrims{
 		ReadFile:  os.ReadFile,
 		WriteFile: os.WriteFile,
 		MkdirAll:  os.MkdirAll,
@@ -69,7 +69,7 @@ func fsPrimitives() cli.FSPrims {
 		OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
 			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // operator-controlled path
 		},
-	})
+	}
 }
 
 // lockPrimitives groups the raw advisory-flock capabilities: semantic
@@ -77,7 +77,7 @@ func fsPrimitives() cli.FSPrims {
 // syscall.Open so no finalizer can release the lock mid-hold; the lock
 // lifecycle lives internal in primLocker).
 func lockPrimitives() cli.LockPrims {
-	return cli.NewLockPrims(cli.LockPrims{
+	return cli.LockPrims{
 		OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
 			fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
 			return uintptr(fd), err
@@ -91,14 +91,14 @@ func lockPrimitives() cli.LockPrims {
 		CloseFD: func(fd uintptr) error {
 			return syscall.Close(int(fd))
 		},
-	})
+	}
 }
 
 // procPrimitives groups the raw process-scoped capabilities: env, clock,
 // working dir, home dir, the debug-sink opener, and the SIG-1
 // signal-pulse starter closure.
 func procPrimitives() cli.ProcPrims {
-	return cli.NewProcPrims(cli.ProcPrims{
+	return cli.ProcPrims{
 		Getenv:      os.Getenv,
 		Now:         time.Now,
 		Getwd:       os.Getwd,
@@ -120,5 +120,5 @@ func procPrimitives() cli.ProcPrims {
 
 			go cli.ForwardAsPulses(sigCh, pulses)
 		},
-	})
+	}
 }
