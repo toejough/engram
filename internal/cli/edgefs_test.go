@@ -375,28 +375,6 @@ func TestEdgeFS_WriteFileExclPreservesErrExistAndAddsPath(t *testing.T) {
 		"wrap must add path context")
 }
 
-func TestEdgeFS_WriteFileExclSuccessWritesData(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	var writtenData []byte
-
-	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
-		OpenFileExcl: func(string, fs.FileMode) (io.WriteCloser, error) {
-			return &mockWriteCloser{
-				writeFunc: func(data []byte) (int, error) {
-					writtenData = append(writtenData, data...)
-					return len(data), nil
-				},
-			}, nil
-		},
-	}})
-
-	err := fsys.WriteFileExcl("path", []byte("hello world"), atomicPerm)
-	g.Expect(err).To(gomega.Succeed())
-	g.Expect(writtenData).To(gomega.Equal([]byte("hello world")))
-}
-
 func TestEdgeFS_WriteFileExclShortWriteIgnoresReturnedN(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -417,6 +395,28 @@ func TestEdgeFS_WriteFileExclShortWriteIgnoresReturnedN(t *testing.T) {
 	// WriteFileExcl still returns nil (composition ignores n, just like the old closure).
 	err := fsys.WriteFileExcl("path", []byte("hello world"), atomicPerm)
 	g.Expect(err).To(gomega.Succeed())
+}
+
+func TestEdgeFS_WriteFileExclSuccessWritesData(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var writtenData []byte
+
+	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
+		OpenFileExcl: func(string, fs.FileMode) (io.WriteCloser, error) {
+			return &mockWriteCloser{
+				writeFunc: func(data []byte) (int, error) {
+					writtenData = append(writtenData, data...)
+					return len(data), nil
+				},
+			}, nil
+		},
+	}})
+
+	err := fsys.WriteFileExcl("path", []byte("hello world"), atomicPerm)
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(writtenData).To(gomega.Equal([]byte("hello world")))
 }
 
 func TestEdgeFS_WriteFileExclWriteErrorPrecedence(t *testing.T) {
