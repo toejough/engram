@@ -138,6 +138,15 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 // in cmd/engram/main.go's procPrimitives (lines 106-109). Runs engram with
 // ENGRAM_DEBUG_LOG set to a temp file to prove OpenDebugFile executes the
 // production closure end-to-end.
+//
+// cli.NewDeps composes the debug sink at process-startup time, before targ
+// dispatches to any subcommand (main.go: NewDeps is an argument to
+// targ.Main, evaluated first) — so the cheapest possible invocation that
+// still reaches OpenDebugFile is `--help`, which prints usage and exits
+// without touching a vault or loading the embedder. A `query` invocation
+// was measured at ~5-7s (embedder model load, real-vault scan) vs ~15ms
+// for `--help`; under the coverage-instrumented parallel test run, that
+// gap is precisely what pushed the package over its 30s budget.
 func TestOpenDebugFile_EndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -155,9 +164,9 @@ func TestOpenDebugFile_EndToEnd(t *testing.T) {
 		return
 	}
 
-	// Run engram with ENGRAM_DEBUG_LOG set. Use a cheap command (e.g. help)
-	// or a small query to avoid spending time.
-	run := exec.Command(binPath, "query", "--phrase", "test")
+	// Run engram with ENGRAM_DEBUG_LOG set, using the cheapest invocation
+	// that still reaches OpenDebugFile (see doc comment above).
+	run := exec.Command(binPath, "--help")
 
 	run.Env = append(os.Environ(), "ENGRAM_DEBUG_LOG="+debugFile)
 	_ = run.Run()
@@ -168,17 +177,43 @@ func TestOpenDebugFile_EndToEnd(t *testing.T) {
 	_, err = os.Stat(debugFile)
 	g.Expect(err).NotTo(HaveOccurred(), "debug file not created — OpenDebugFile closure not reached")
 
-	// NEGATIVE CONTROL: Run the same command WITHOUT the env var. The debug
-	// file should not be created (or a second one should not appear).
+	// NEGATIVE CONTROL: run the same cheap invocation with the real process
+	// environment MINUS ENGRAM_DEBUG_LOG (not an emptied environment — a
+	// stripped-to-nothing Env drops HOME/XDG/PATH/GOCOVERDIR too, which
+	// breaks the subprocess's own data-dir resolution and coverage
+	// propagation under `targ check-full`'s instrumented runner; only the
+	// one variable under test may differ between the two runs). The debug
+	// file should not be created.
 	debugFile2 := filepath.Join(t.TempDir(), "debug2.log")
-	run2 := exec.Command(binPath, "query", "--phrase", "test")
+	run2 := exec.Command(binPath, "--help")
 
-	run2.Env = []string{} // Empty env (no ENGRAM_DEBUG_LOG)
+	run2.Env = envWithoutDebugLog()
 	_ = run2.Run()
 
 	// Verify the second debug file was NOT created (no env var = no file).
 	_, err2 := os.Stat(debugFile2)
 	g.Expect(err2).To(HaveOccurred(), "debug file created without env var set")
+}
+
+// envWithoutDebugLog returns a copy of the current process environment with
+// any ENGRAM_DEBUG_LOG entries removed — the correct shape for a negative
+// control that isolates a single variable. Wiping the environment entirely
+// (Env = []string{}) is wrong: it also strips HOME/XDG/PATH/GOCOVERDIR,
+// which breaks the subprocess's data-dir resolution and, under `targ
+// check-full`'s coverage-instrumented runner, coverage propagation.
+func envWithoutDebugLog() []string {
+	base := os.Environ()
+	filtered := make([]string, 0, len(base))
+
+	for _, kv := range base {
+		if strings.HasPrefix(kv, "ENGRAM_DEBUG_LOG=") {
+			continue
+		}
+
+		filtered = append(filtered, kv)
+	}
+
+	return filtered
 }
 
 // TestRunCommand_EndToEnd guards the production C-1 closure in
