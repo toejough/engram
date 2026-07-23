@@ -195,27 +195,6 @@ func TestOpenDebugFile_EndToEnd(t *testing.T) {
 	g.Expect(err2).To(HaveOccurred(), "debug file created without env var set")
 }
 
-// envWithoutDebugLog returns a copy of the current process environment with
-// any ENGRAM_DEBUG_LOG entries removed — the correct shape for a negative
-// control that isolates a single variable. Wiping the environment entirely
-// (Env = []string{}) is wrong: it also strips HOME/XDG/PATH/GOCOVERDIR,
-// which breaks the subprocess's data-dir resolution and, under `targ
-// check-full`'s coverage-instrumented runner, coverage propagation.
-func envWithoutDebugLog() []string {
-	base := os.Environ()
-	filtered := make([]string, 0, len(base))
-
-	for _, kv := range base {
-		if strings.HasPrefix(kv, "ENGRAM_DEBUG_LOG=") {
-			continue
-		}
-
-		filtered = append(filtered, kv)
-	}
-
-	return filtered
-}
-
 // TestRunCommand_EndToEnd guards the production C-1 closure in
 // cmd/engram/main.go's execPrimitives (lines 40-48). Runs engram update
 // from a non-module cwd with fake git/go shims on PATH to prove Cmd.Run
@@ -290,6 +269,27 @@ exit 0
 	// Assert marker still only contains invocations from the remote mode test
 	// (local mode doesn't call git). Verify the marker from the first run.
 	g.Expect(markerData).NotTo(BeEmpty())
+}
+
+// envWithoutDebugLog returns a copy of the current process environment with
+// any ENGRAM_DEBUG_LOG entries removed — the correct shape for a negative
+// control that isolates a single variable. Wiping the environment entirely
+// (Env = []string{}) is wrong: it also strips HOME/XDG/PATH/GOCOVERDIR,
+// which breaks the subprocess's data-dir resolution and, under `targ
+// check-full`'s coverage-instrumented runner, coverage propagation.
+func envWithoutDebugLog() []string {
+	base := os.Environ()
+	filtered := make([]string, 0, len(base))
+
+	for _, kv := range base {
+		if strings.HasPrefix(kv, "ENGRAM_DEBUG_LOG=") {
+			continue
+		}
+
+		filtered = append(filtered, kv)
+	}
+
+	return filtered
 }
 
 // expectSidecarValid asserts the sidecar file parses as a Sidecar with
