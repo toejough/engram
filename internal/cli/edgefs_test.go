@@ -168,6 +168,7 @@ func TestEdgeFS_WriteFileAtomicHappyPathDance(t *testing.T) {
 
 	calls := &callRecorder{}
 	target := filepath.Join("some", "dir", "note.md")
+
 	var capturedData []byte
 
 	fsys := fsFromPrims(cli.Primitives{
@@ -284,6 +285,48 @@ func TestEdgeFS_WriteFileAtomicUniqueNameRetry(t *testing.T) {
 	})
 }
 
+func TestEdgeFS_WriteFileExclCloseErrorWhenWriteOK(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	closeErr := errors.New("close failed")
+	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
+		OpenFileExcl: func(string, fs.FileMode) (io.WriteCloser, error) {
+			return &mockWriteCloser{closeErr: closeErr}, nil
+		},
+	}})
+
+	err := fsys.WriteFileExcl("path", []byte("data"), atomicPerm)
+	g.Expect(err).To(gomega.HaveOccurred())
+
+	if err != nil {
+		g.Expect(err).To(gomega.MatchError(closeErr),
+			"close error must be returned when write succeeds")
+		g.Expect(err.Error()).To(gomega.ContainSubstring("write excl"))
+	}
+}
+
+func TestEdgeFS_WriteFileExclOpenErrorWrapped(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	openErr := &fs.PathError{Op: "open", Path: "path", Err: fs.ErrPermission}
+	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
+		OpenFileExcl: func(string, fs.FileMode) (io.WriteCloser, error) {
+			return nil, openErr
+		},
+	}})
+
+	err := fsys.WriteFileExcl("path", []byte("data"), atomicPerm)
+	g.Expect(err).To(gomega.HaveOccurred())
+
+	if err != nil {
+		g.Expect(err).To(gomega.MatchError(fs.ErrPermission),
+			"open error chain must survive wrap")
+		g.Expect(err.Error()).To(gomega.ContainSubstring("path"))
+	}
+}
+
 func TestEdgeFS_WriteFileExclPassesDataAndPermToPrimitive(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -332,24 +375,26 @@ func TestEdgeFS_WriteFileExclPreservesErrExistAndAddsPath(t *testing.T) {
 		"wrap must add path context")
 }
 
-func TestEdgeFS_WriteFileExclOpenErrorWrapped(t *testing.T) {
+func TestEdgeFS_WriteFileExclSuccessWritesData(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	openErr := &fs.PathError{Op: "open", Path: "path", Err: fs.ErrPermission}
+	var writtenData []byte
+
 	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
 		OpenFileExcl: func(string, fs.FileMode) (io.WriteCloser, error) {
-			return nil, openErr
+			return &mockWriteCloser{
+				writeFunc: func(data []byte) (int, error) {
+					writtenData = append(writtenData, data...)
+					return len(data), nil
+				},
+			}, nil
 		},
 	}})
 
-	err := fsys.WriteFileExcl("path", []byte("data"), atomicPerm)
-	g.Expect(err).NotTo(gomega.BeNil())
-	if err != nil {
-		g.Expect(err).To(gomega.MatchError(fs.ErrPermission),
-			"open error chain must survive wrap")
-		g.Expect(err.Error()).To(gomega.ContainSubstring("path"))
-	}
+	err := fsys.WriteFileExcl("path", []byte("hello world"), atomicPerm)
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(writtenData).To(gomega.Equal([]byte("hello world")))
 }
 
 func TestEdgeFS_WriteFileExclWriteErrorPrecedence(t *testing.T) {
@@ -364,53 +409,13 @@ func TestEdgeFS_WriteFileExclWriteErrorPrecedence(t *testing.T) {
 	}})
 
 	err := fsys.WriteFileExcl("path", []byte("data"), atomicPerm)
-	g.Expect(err).NotTo(gomega.BeNil())
+	g.Expect(err).To(gomega.HaveOccurred())
+
 	if err != nil {
 		g.Expect(err.Error()).To(gomega.ContainSubstring("write excl"))
 		g.Expect(err).To(gomega.MatchError(writeErr),
 			"write error must be wrapped and returned even if close also fails")
 	}
-}
-
-func TestEdgeFS_WriteFileExclCloseErrorWhenWriteOK(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	closeErr := errors.New("close failed")
-	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
-		OpenFileExcl: func(string, fs.FileMode) (io.WriteCloser, error) {
-			return &mockWriteCloser{closeErr: closeErr}, nil
-		},
-	}})
-
-	err := fsys.WriteFileExcl("path", []byte("data"), atomicPerm)
-	g.Expect(err).NotTo(gomega.BeNil())
-	if err != nil {
-		g.Expect(err).To(gomega.MatchError(closeErr),
-			"close error must be returned when write succeeds")
-		g.Expect(err.Error()).To(gomega.ContainSubstring("write excl"))
-	}
-}
-
-func TestEdgeFS_WriteFileExclSuccessWritesData(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	var writtenData []byte
-	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
-		OpenFileExcl: func(string, fs.FileMode) (io.WriteCloser, error) {
-			return &mockWriteCloser{
-				writeFunc: func(data []byte) (int, error) {
-					writtenData = append(writtenData, data...)
-					return len(data), nil
-				},
-			}, nil
-		},
-	}})
-
-	err := fsys.WriteFileExcl("path", []byte("hello world"), atomicPerm)
-	g.Expect(err).To(gomega.BeNil())
-	g.Expect(writtenData).To(gomega.Equal([]byte("hello world")))
 }
 
 // unexported constants.
@@ -438,18 +443,20 @@ type mockWriteCloser struct {
 	closeErr  error
 }
 
+func (m *mockWriteCloser) Close() error {
+	return m.closeErr
+}
+
 func (m *mockWriteCloser) Write(p []byte) (int, error) {
 	if m.writeFunc != nil {
 		return m.writeFunc(p)
 	}
+
 	if m.writeErr != nil {
 		return 0, m.writeErr
 	}
-	return len(p), nil
-}
 
-func (m *mockWriteCloser) Close() error {
-	return m.closeErr
+	return len(p), nil
 }
 
 // failingPrims returns fresh Primitives whose every filesystem capability

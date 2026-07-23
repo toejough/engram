@@ -30,18 +30,18 @@ func NewExecPrims(spec ExecPrims) ExecPrims { return spec }
 // to io.WriteCloser; the write+close error-merge lives in primFS.WriteFileExcl,
 // unit-testable with fakes).
 type FSPrims struct {
-	ReadFile       func(path string) ([]byte, error)                        // os.ReadFile
-	WriteFile      func(path string, data []byte, perm fs.FileMode) error   // os.WriteFile
-	MkdirAll       func(path string, perm fs.FileMode) error                // os.MkdirAll
-	MkdirTemp      func(dir, pattern string) (string, error)                // os.MkdirTemp
-	Stat           func(path string) (fs.FileInfo, error)                   // os.Stat
-	ReadDir        func(path string) ([]fs.DirEntry, error)                 // os.ReadDir
-	Remove         func(path string) error                                  // os.Remove
-	RemoveAll      func(path string) error                                  // os.RemoveAll
-	Rename         func(oldPath, newPath string) error                      // os.Rename
-	WalkDir        func(root string, fn fs.WalkDirFunc) error               // filepath.WalkDir
-	Chmod          func(path string, mode fs.FileMode) error                // os.Chmod
-	OpenFileExcl   func(path string, perm fs.FileMode) (io.WriteCloser, error) // S-1 eraser
+	ReadFile     func(path string) ([]byte, error)                           // os.ReadFile
+	WriteFile    func(path string, data []byte, perm fs.FileMode) error      // os.WriteFile
+	MkdirAll     func(path string, perm fs.FileMode) error                   // os.MkdirAll
+	MkdirTemp    func(dir, pattern string) (string, error)                   // os.MkdirTemp
+	Stat         func(path string) (fs.FileInfo, error)                      // os.Stat
+	ReadDir      func(path string) ([]fs.DirEntry, error)                    // os.ReadDir
+	Remove       func(path string) error                                     // os.Remove
+	RemoveAll    func(path string) error                                     // os.RemoveAll
+	Rename       func(oldPath, newPath string) error                         // os.Rename
+	WalkDir      func(root string, fn fs.WalkDirFunc) error                  // filepath.WalkDir
+	Chmod        func(path string, mode fs.FileMode) error                   // os.Chmod
+	OpenFileExcl func(path string, perm fs.FileMode) (io.WriteCloser, error) // S-1 eraser
 }
 
 // NewFSPrims returns spec unchanged. It is the check-thin-api-visible seam

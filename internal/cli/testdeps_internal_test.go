@@ -23,17 +23,17 @@ import (
 func ExportNewTestOsDeps() Deps {
 	return NewDeps(Primitives{
 		FS: NewFSPrims(FSPrims{
-			ReadFile:     os.ReadFile,
-			WriteFile:    os.WriteFile,
-			MkdirAll:     os.MkdirAll,
-			MkdirTemp:    os.MkdirTemp,
-			Stat:         os.Stat,
-			ReadDir:      os.ReadDir,
-			Remove:       os.Remove,
-			RemoveAll:    os.RemoveAll,
-			Rename:       os.Rename,
-			WalkDir:      filepath.WalkDir,
-			Chmod:        os.Chmod,
+			ReadFile:  os.ReadFile,
+			WriteFile: os.WriteFile,
+			MkdirAll:  os.MkdirAll,
+			MkdirTemp: os.MkdirTemp,
+			Stat:      os.Stat,
+			ReadDir:   os.ReadDir,
+			Remove:    os.Remove,
+			RemoveAll: os.RemoveAll,
+			Rename:    os.Rename,
+			WalkDir:   filepath.WalkDir,
+			Chmod:     os.Chmod,
 			OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
 				return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 			},

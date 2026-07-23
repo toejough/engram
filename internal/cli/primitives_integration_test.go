@@ -492,17 +492,17 @@ func realFSForTest() cli.EdgeFS {
 // realFSPrims mirrors cmd/engram/main.go's fsPrimitives() group.
 func realFSPrims() cli.FSPrims {
 	return cli.NewFSPrims(cli.FSPrims{
-		ReadFile:     os.ReadFile,
-		WriteFile:    os.WriteFile,
-		MkdirAll:     os.MkdirAll,
-		MkdirTemp:    os.MkdirTemp,
-		Stat:         os.Stat,
-		ReadDir:      os.ReadDir,
-		Remove:       os.Remove,
-		RemoveAll:    os.RemoveAll,
-		Rename:       os.Rename,
-		WalkDir:      filepath.WalkDir,
-		Chmod:        os.Chmod,
+		ReadFile:  os.ReadFile,
+		WriteFile: os.WriteFile,
+		MkdirAll:  os.MkdirAll,
+		MkdirTemp: os.MkdirTemp,
+		Stat:      os.Stat,
+		ReadDir:   os.ReadDir,
+		Remove:    os.Remove,
+		RemoveAll: os.RemoveAll,
+		Rename:    os.Rename,
+		WalkDir:   filepath.WalkDir,
+		Chmod:     os.Chmod,
 		OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
 			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 		},
