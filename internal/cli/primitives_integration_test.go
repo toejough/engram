@@ -21,7 +21,8 @@ import (
 // implementations over REAL os/syscall primitives — the relocated
 // cmd/engram adapter integration suite (#700 rework). realPrimitives()
 // mirrors cmd/engram/main.go's Primitives literal (doctrine flag DRIFT:
-// cli_test.go's end-to-end binary tests guard the production literal).
+// cli_test.go's end-to-end binary tests guard FS/lock only; C-1/OpenDebugFile
+// are mirror-only, per #700).
 
 func TestRealDebugSink_AppendsAcrossOpens(t *testing.T) {
 	t.Parallel()

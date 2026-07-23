@@ -16,10 +16,10 @@ import (
 
 // ExportNewTestOsDeps returns production-composed Deps for wiring tests:
 // one NewDeps call over inline real-OS group literals (mirrors
-// cmd/engram/main.go's per-group functions — doctrine flag DRIFT — minus
-// the Exec group and StartSignalPulses, nil so startForceExit skips per
-// SIG-1). Closures return raw os errors by primitive contract;
-// primFS/primLocker add the single %w wrap.
+// cmd/engram/main.go's per-group functions — doctrine flag DRIFT: e2e
+// binary tests guard FS/lock only; C-1/Exec and SIG-1 are mirror-only per #700
+// — nil so startForceExit skips per SIG-1). Closures return raw os errors
+// by primitive contract; primFS/primLocker add the single %w wrap.
 func ExportNewTestOsDeps() Deps {
 	return NewDeps(Primitives{
 		FS: FSPrims{

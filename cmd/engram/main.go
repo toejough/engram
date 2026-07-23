@@ -109,12 +109,11 @@ func procPrimitives() cli.ProcPrims {
 			return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
 		},
 		StartSignalPulses: func(pulses chan<- struct{}, buffer int) {
-			// Doctrine flag SIG-1: single-purpose starter closure — three
-			// single-call statements (make, Notify, go forward), zero
-			// branching. Behavior changes (signal set, buffer policy,
-			// forwarding) extend the Primitives SIGNATURE, never this body;
-			// pulse-channel, buffer-size, and force-exit policy live
-			// internal in startForceExit.
+			// Doctrine survivor SIG-1: three single-call statements
+			// (make, Notify, forward), zero branching. Behavior changes
+			// (signal set, buffer policy, forwarding) extend the
+			// Primitives SIGNATURE, never this body. Policy wrapping and
+			// force-exit wiring live internal in startForceExit.
 			sigCh := make(chan os.Signal, buffer)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
