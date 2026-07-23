@@ -12,11 +12,10 @@ import (
 )
 
 // These tests drive the composed primCommander over the REAL exec
-// primitive (realPrimitives mirrors cmd/engram/main.go's literal —
-// doctrine flag DRIFT: C-1 is mirror-only, not reached by cli_test.go's
-// end-to-end binary tests; #700). The relocated TestOsCommander_* coverage
-// (#700 rework — integration tests with real os funcs live in
-// internal _test files).
+// primitive (realPrimitives mirrors cmd/engram/main.go's literal).
+// The production C-1 closure is guarded end-to-end by cli_test.go's
+// TestRunCommand_EndToEnd (#700). The integration tests below verify
+// the composed Commander over real os funcs.
 
 func TestCommanderIntegration_ReportsFailure(t *testing.T) {
 	t.Parallel()

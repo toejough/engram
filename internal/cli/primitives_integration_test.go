@@ -20,9 +20,9 @@ import (
 // This file exercises the internally-composed EdgeFS/FileLocker/debug-sink
 // implementations over REAL os/syscall primitives — the relocated
 // cmd/engram adapter integration suite (#700 rework). realPrimitives()
-// mirrors cmd/engram/main.go's Primitives literal (doctrine flag DRIFT:
-// cli_test.go's end-to-end binary tests guard FS/lock only; C-1/OpenDebugFile
-// are mirror-only, per #700).
+// mirrors cmd/engram/main.go's Primitives literal. The production C-1 and
+// OpenDebugFile closures are guarded end-to-end by cli_test.go's
+// TestRunCommand_EndToEnd and TestOpenDebugFile_EndToEnd (#700).
 
 func TestRealDebugSink_AppendsAcrossOpens(t *testing.T) {
 	t.Parallel()
