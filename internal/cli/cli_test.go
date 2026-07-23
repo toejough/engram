@@ -134,6 +134,53 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 	expectSidecarValid(g, filepath.Join(expectedPath, sidecarName))
 }
 
+// TestOpenDebugFile_EndToEnd guards the production OpenDebugFile closure
+// in cmd/engram/main.go's procPrimitives (lines 106-109). Runs engram with
+// ENGRAM_DEBUG_LOG set to a temp file to prove OpenDebugFile executes the
+// production closure end-to-end.
+func TestOpenDebugFile_EndToEnd(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	debugFile := filepath.Join(t.TempDir(), "debug.log")
+
+	// Build the engram binary.
+	binPath := filepath.Join(t.TempDir(), "engram")
+	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
+	cmd.Dir = projectRoot(t)
+	out, err := cmd.CombinedOutput()
+	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
+
+	if err != nil {
+		return
+	}
+
+	// Run engram with ENGRAM_DEBUG_LOG set. Use a cheap command (e.g. help)
+	// or a small query to avoid spending time.
+	run := exec.Command(binPath, "query", "--phrase", "test")
+
+	run.Env = append(os.Environ(), "ENGRAM_DEBUG_LOG="+debugFile)
+	_ = run.Run()
+
+	// Assert the debug file was created (proof of reach). The file may be
+	// empty or have content depending on whether the logger writes eagerly,
+	// but it must exist.
+	_, err = os.Stat(debugFile)
+	g.Expect(err).NotTo(HaveOccurred(), "debug file not created — OpenDebugFile closure not reached")
+
+	// NEGATIVE CONTROL: Run the same command WITHOUT the env var. The debug
+	// file should not be created (or a second one should not appear).
+	debugFile2 := filepath.Join(t.TempDir(), "debug2.log")
+	run2 := exec.Command(binPath, "query", "--phrase", "test")
+
+	run2.Env = []string{} // Empty env (no ENGRAM_DEBUG_LOG)
+	_ = run2.Run()
+
+	// Verify the second debug file was NOT created (no env var = no file).
+	_, err2 := os.Stat(debugFile2)
+	g.Expect(err2).To(HaveOccurred(), "debug file created without env var set")
+}
+
 // TestRunCommand_EndToEnd guards the production C-1 closure in
 // cmd/engram/main.go's execPrimitives (lines 40-48). Runs engram update
 // from a non-module cwd with fake git/go shims on PATH to prove Cmd.Run
@@ -208,53 +255,6 @@ exit 0
 	// Assert marker still only contains invocations from the remote mode test
 	// (local mode doesn't call git). Verify the marker from the first run.
 	g.Expect(markerData).NotTo(BeEmpty())
-}
-
-// TestOpenDebugFile_EndToEnd guards the production OpenDebugFile closure
-// in cmd/engram/main.go's procPrimitives (lines 106-109). Runs engram with
-// ENGRAM_DEBUG_LOG set to a temp file to prove OpenDebugFile executes the
-// production closure end-to-end.
-func TestOpenDebugFile_EndToEnd(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	debugFile := filepath.Join(t.TempDir(), "debug.log")
-
-	// Build the engram binary.
-	binPath := filepath.Join(t.TempDir(), "engram")
-	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
-	cmd.Dir = projectRoot(t)
-	out, err := cmd.CombinedOutput()
-	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
-
-	if err != nil {
-		return
-	}
-
-	// Run engram with ENGRAM_DEBUG_LOG set. Use a cheap command (e.g. help)
-	// or a small query to avoid spending time.
-	run := exec.Command(binPath, "query", "--phrase", "test")
-
-	run.Env = append(os.Environ(), "ENGRAM_DEBUG_LOG="+debugFile)
-	_ = run.Run()
-
-	// Assert the debug file was created (proof of reach). The file may be
-	// empty or have content depending on whether the logger writes eagerly,
-	// but it must exist.
-	_, err = os.Stat(debugFile)
-	g.Expect(err).NotTo(HaveOccurred(), "debug file not created — OpenDebugFile closure not reached")
-
-	// NEGATIVE CONTROL: Run the same command WITHOUT the env var. The debug
-	// file should not be created (or a second one should not appear).
-	debugFile2 := filepath.Join(t.TempDir(), "debug2.log")
-	run2 := exec.Command(binPath, "query", "--phrase", "test")
-
-	run2.Env = []string{} // Empty env (no ENGRAM_DEBUG_LOG)
-	_ = run2.Run()
-
-	// Verify the second debug file was NOT created (no env var = no file).
-	_, err2 := os.Stat(debugFile2)
-	g.Expect(err2).To(HaveOccurred(), "debug file created without env var set")
 }
 
 // expectSidecarValid asserts the sidecar file parses as a Sidecar with
