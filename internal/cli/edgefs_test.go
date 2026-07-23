@@ -302,7 +302,7 @@ func TestEdgeFS_WriteFileExclCloseErrorWhenWriteOK(t *testing.T) {
 	if err != nil {
 		g.Expect(err).To(gomega.MatchError(closeErr),
 			"close error must be returned when write succeeds")
-		g.Expect(err.Error()).To(gomega.ContainSubstring("write excl"))
+		g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("write excl")))
 	}
 }
 
@@ -323,7 +323,7 @@ func TestEdgeFS_WriteFileExclOpenErrorWrapped(t *testing.T) {
 	if err != nil {
 		g.Expect(err).To(gomega.MatchError(fs.ErrPermission),
 			"open error chain must survive wrap")
-		g.Expect(err.Error()).To(gomega.ContainSubstring("path"))
+		g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("path")))
 	}
 }
 
@@ -397,14 +397,37 @@ func TestEdgeFS_WriteFileExclSuccessWritesData(t *testing.T) {
 	g.Expect(writtenData).To(gomega.Equal([]byte("hello world")))
 }
 
+func TestEdgeFS_WriteFileExclShortWriteIgnoresReturnedN(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
+		OpenFileExcl: func(string, fs.FileMode) (io.WriteCloser, error) {
+			return &mockWriteCloser{
+				writeFunc: func(data []byte) (int, error) {
+					// Return fewer bytes than requested; conforming writers must return error on short write.
+					// The composition relies on the io.Writer contract and matches the old closure's semantics.
+					return len(data) / 2, nil
+				},
+			}, nil
+		},
+	}})
+
+	// If the writer violates the contract by returning short write with nil error,
+	// WriteFileExcl still returns nil (composition ignores n, just like the old closure).
+	err := fsys.WriteFileExcl("path", []byte("hello world"), atomicPerm)
+	g.Expect(err).To(gomega.Succeed())
+}
+
 func TestEdgeFS_WriteFileExclWriteErrorPrecedence(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	writeErr := io.ErrUnexpectedEOF
+	mock := &mockWriteCloser{writeErr: writeErr}
 	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
 		OpenFileExcl: func(string, fs.FileMode) (io.WriteCloser, error) {
-			return &mockWriteCloser{writeErr: writeErr}, nil
+			return mock, nil
 		},
 	}})
 
@@ -412,9 +435,11 @@ func TestEdgeFS_WriteFileExclWriteErrorPrecedence(t *testing.T) {
 	g.Expect(err).To(gomega.HaveOccurred())
 
 	if err != nil {
-		g.Expect(err.Error()).To(gomega.ContainSubstring("write excl"))
+		g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("write excl")))
 		g.Expect(err).To(gomega.MatchError(writeErr),
 			"write error must be wrapped and returned even if close also fails")
+		g.Expect(mock.closeCalled).To(gomega.BeTrue(),
+			"Close must be called on the writer even when Write fails")
 	}
 }
 
@@ -438,12 +463,14 @@ func (c *callRecorder) list() []string { return c.calls }
 
 // mockWriteCloser is a test helper WriteCloser that can inject errors at write or close time.
 type mockWriteCloser struct {
-	writeFunc func([]byte) (int, error)
-	writeErr  error
-	closeErr  error
+	writeFunc   func([]byte) (int, error)
+	writeErr    error
+	closeErr    error
+	closeCalled bool
 }
 
 func (m *mockWriteCloser) Close() error {
+	m.closeCalled = true
 	return m.closeErr
 }
 
