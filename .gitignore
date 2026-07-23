@@ -14,6 +14,7 @@ coverage.out
 *.fail
 internal/memory/testdata/
 internal/memory/embeddings.db
+.cache/
 
 # Claude local state
 .claude/projects/

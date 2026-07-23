@@ -166,9 +166,12 @@ func TestOpenDebugFile_EndToEnd(t *testing.T) {
 
 	// Run engram with ENGRAM_DEBUG_LOG set, using the cheapest invocation
 	// that still reaches OpenDebugFile (see doc comment above).
+	// Pin the subprocess cache location to t.TempDir() via XDG_CACHE_HOME
+	// to prevent the binary from materializing a model cache in the repo.
 	run := exec.Command(binPath, "--help")
 
-	run.Env = append(os.Environ(), "ENGRAM_DEBUG_LOG="+debugFile)
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	run.Env = append(os.Environ(), "ENGRAM_DEBUG_LOG="+debugFile, "XDG_CACHE_HOME="+cacheDir)
 	_ = run.Run()
 
 	// Assert the debug file was created (proof of reach). The file may be
@@ -184,10 +187,13 @@ func TestOpenDebugFile_EndToEnd(t *testing.T) {
 	// propagation under `targ check-full`'s instrumented runner; only the
 	// one variable under test may differ between the two runs). The debug
 	// file should not be created.
+	// Also pin the cache location via XDG_CACHE_HOME to prevent cache
+	// materialization in the repo.
 	debugFile2 := filepath.Join(t.TempDir(), "debug2.log")
 	run2 := exec.Command(binPath, "--help")
 
-	run2.Env = envWithoutDebugLog()
+	cacheDir2 := filepath.Join(t.TempDir(), "cache2")
+	run2.Env = append(envWithoutDebugLog(), "XDG_CACHE_HOME="+cacheDir2)
 	_ = run2.Run()
 
 	// Verify the second debug file was NOT created (no env var = no file).
@@ -237,10 +243,13 @@ exit 0
 	}
 
 	// Run engram update --dry-run from a non-module cwd with shims on PATH.
+	// Pin the subprocess cache location via XDG_CACHE_HOME to prevent the
+	// binary from materializing a model cache in the repo.
 	run := exec.Command(binPath, "update", "--dry-run")
 	run.Dir = workDir
 
-	run.Env = append(os.Environ(), "PATH="+shimDir+":"+os.Getenv("PATH"))
+	cacheDir := filepath.Join(t.TempDir(), "cache")
+	run.Env = append(os.Environ(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir)
 	_ = run.Run()
 
 	// The update may succeed or fail (dry-run stops before Cmd.Run for
@@ -260,10 +269,12 @@ exit 0
 
 	// NEGATIVE CONTROL: Run again from the module cwd (resolves to local mode,
 	// skips git). The shims should not be called in local mode.
+	// Also pin the cache location via XDG_CACHE_HOME.
 	run2 := exec.Command(binPath, "update", "--dry-run")
 	run2.Dir = projectRoot(t)
 
-	run2.Env = append(os.Environ(), "PATH="+shimDir+":"+os.Getenv("PATH"))
+	cacheDir2 := filepath.Join(t.TempDir(), "cache2")
+	run2.Env = append(os.Environ(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir2)
 	_ = run2.Run()
 
 	// Assert marker still only contains invocations from the remote mode test
