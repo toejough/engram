@@ -18,6 +18,7 @@ import (
 const (
 	HarnessClaude   Harness = "Claude Code"
 	HarnessOpencode Harness = "OpenCode"
+	HarnessPi       Harness = "Pi"
 	ModulePath              = "github.com/toejough/engram"
 )
 
@@ -221,7 +222,35 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	}
 
 	claudeMDPath := filepath.Join(home, ".claude", "CLAUDE.md")
-	report.GuidanceImports = detectGuidanceImports(claudeMDPath, home, u.FS)
+	agentsMDPath := filepath.Join(home, ".pi", "agent", "AGENTS.md")
+	
+	// Detect engram guidance imports from both CLAUDE.md and AGENTS.md
+	allGuidanceImports := map[string]bool{}
+	if claudeMDData, readErr := u.FS.ReadFile(claudeMDPath); readErr == nil {
+		tildePrefix := "@~/.claude/engram/"
+		expandedPrefix := "@" + filepath.Join(home, ".claude", "engram") + string(filepath.Separator)
+		for line := range strings.SplitSeq(string(claudeMDData), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if !strings.HasPrefix(trimmed, "```") {
+				if base, ok := guidanceImportBase(trimmed, tildePrefix, expandedPrefix); ok {
+					allGuidanceImports[base] = true
+				}
+			}
+		}
+	}
+	if agentsMDData, readErr := u.FS.ReadFile(agentsMDPath); readErr == nil {
+		tildePrefix := "@~/.pi/agent/engram/"
+		expandedPrefix := "@" + filepath.Join(home, ".pi", "agent", "engram") + string(filepath.Separator)
+		for line := range strings.SplitSeq(string(agentsMDData), "\n") {
+			trimmed := strings.TrimSpace(line)
+			if !strings.HasPrefix(trimmed, "```") {
+				if base, ok := guidanceImportBase(trimmed, tildePrefix, expandedPrefix); ok {
+					allGuidanceImports[base] = true
+				}
+			}
+		}
+	}
+	report.GuidanceImports = allGuidanceImports
 	report.GuidanceImported = len(report.GuidanceImports) > 0
 
 	var guidanceOps []CopyOp
@@ -535,7 +564,7 @@ const (
 	filePerm fs.FileMode = 0o644
 	// lfsPointerPrefix is the first line of every Git-LFS pointer file.
 	lfsPointerPrefix      = "version https://git-lfs"
-	maxSupportedHarnesses = 2
+	maxSupportedHarnesses = 3
 	// modelMinBytes: the real MiniLM ONNX is ~90 MB; anything under a
 	// megabyte is certainly not it.
 	modelMinBytes = 1 << 20
@@ -871,6 +900,12 @@ func supportedHarnesses() []HarnessSpec {
 			SkillsTargetRel:   filepath.Join(".config", "opencode", "skills"),
 			CommandsTargetRel: filepath.Join(".config", "opencode", "commands"),
 			// OpenCode @import support unverified — GuidanceTargetRel empty until confirmed.
+		},
+		{
+			Name:              HarnessPi,
+			ProbeRel:          ".pi",
+			SkillsTargetRel:   filepath.Join(".pi", "agent", "skills"),
+			GuidanceTargetRel: filepath.Join(".pi", "agent", "guidance"),
 		},
 	}
 }
