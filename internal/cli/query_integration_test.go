@@ -63,15 +63,7 @@ func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 		}
 	}
 
-	binPath := filepath.Join(t.TempDir(), "engram")
-	build := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
-	build.Dir = projectRoot(t)
-	buildOut, buildErr := build.CombinedOutput()
-	g.Expect(buildErr).NotTo(HaveOccurred(), "build failed: %s", buildOut)
-
-	if buildErr != nil {
-		return
-	}
+	binPath := sharedEngramBinary(t)
 
 	run := exec.Command(binPath, "query", "--phrase", "hub for cluster 1", "--vault", vault, "--limit", "5")
 

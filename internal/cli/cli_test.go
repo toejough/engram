@@ -19,15 +19,7 @@ func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
 
-	binPath := filepath.Join(t.TempDir(), "engram")
-	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
-	cmd.Dir = projectRoot(t)
-	out, err := cmd.CombinedOutput()
-	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
-
-	if err != nil {
-		return
-	}
+	binPath := sharedEngramBinary(t)
 
 	run := exec.Command(binPath, "learn", "fact",
 		"--slug", "ctx-fact",
@@ -81,15 +73,7 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 	g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o700)).To(Succeed())
 
-	binPath := filepath.Join(t.TempDir(), "engram")
-	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
-	cmd.Dir = projectRoot(t)
-	out, err := cmd.CombinedOutput()
-	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
-
-	if err != nil {
-		return
-	}
+	binPath := sharedEngramBinary(t)
 
 	run := exec.Command(binPath, "learn", "feedback",
 		"--slug", "ctx-rule",
@@ -153,16 +137,7 @@ func TestOpenDebugFile_EndToEnd(t *testing.T) {
 
 	debugFile := filepath.Join(t.TempDir(), "debug.log")
 
-	// Build the engram binary.
-	binPath := filepath.Join(t.TempDir(), "engram")
-	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
-	cmd.Dir = projectRoot(t)
-	out, err := cmd.CombinedOutput()
-	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
-
-	if err != nil {
-		return
-	}
+	binPath := sharedEngramBinary(t)
 
 	// Run engram with ENGRAM_DEBUG_LOG set, using the cheapest invocation
 	// that still reaches OpenDebugFile (see doc comment above).
@@ -177,7 +152,7 @@ func TestOpenDebugFile_EndToEnd(t *testing.T) {
 	// Assert the debug file was created (proof of reach). The file may be
 	// empty or have content depending on whether the logger writes eagerly,
 	// but it must exist.
-	_, err = os.Stat(debugFile)
+	_, err := os.Stat(debugFile)
 	g.Expect(err).NotTo(HaveOccurred(), "debug file not created — OpenDebugFile closure not reached")
 
 	// NEGATIVE CONTROL: run the same cheap invocation with the real process
@@ -230,17 +205,7 @@ exit 0
 `
 	g.Expect(os.WriteFile(goShim, []byte(goScript), 0o755)).To(Succeed())
 
-	// Build the engram binary.
-	binPath := filepath.Join(t.TempDir(), "engram")
-	cmd := exec.Command("go", "build", "-o", binPath, "./cmd/engram")
-	cmd.Dir = projectRoot(t)
-	out, err := cmd.CombinedOutput()
-
-	g.Expect(err).NotTo(HaveOccurred(), "build failed: %s", out)
-
-	if err != nil {
-		return
-	}
+	binPath := sharedEngramBinary(t)
 
 	// Run engram update --dry-run from a non-module cwd with shims on PATH.
 	// Pin the subprocess cache location via XDG_CACHE_HOME to prevent the

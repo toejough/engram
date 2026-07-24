@@ -185,9 +185,10 @@ type LazyEmbedder struct {
 }
 
 // NewLazyEmbedder returns a wrapper around NewBundledHugotEmbedder that
-// extracts the bundled model to cacheDir at most once (on first Embed /
-// ModelID / Dims call) using the injected backend and cache FS. cacheDir
-// should be the XDG-keyed stable cache path for the model, e.g.
+// extracts the bundled model to cacheDir at most once (on first Embed or
+// Dims call) using the injected backend and cache FS. ModelID returns the
+// bundled model ID without triggering initialization. cacheDir should be
+// the XDG-keyed stable cache path for the model, e.g.
 // $XDG_CACHE_HOME/engram/models/<model_id>/.
 func NewLazyEmbedder(backend Backend, cfs CacheFS, cacheDir string) *LazyEmbedder {
 	return &LazyEmbedder{
