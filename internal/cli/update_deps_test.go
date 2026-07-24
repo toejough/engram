@@ -58,9 +58,9 @@ func TestNewUpdateDeps_FSAdapterPassesWriteSideThrough(t *testing.T) {
 
 	// The fake's write side always fails with errUnsupported; the adapter
 	// must pass the error through unwrapped chains intact.
-	g.Expect(deps.FS.MkdirAll("skills", 0o755)).To(MatchError(errUnsupported))
-	g.Expect(deps.FS.RemoveAll("skills")).To(MatchError(errUnsupported))
-	g.Expect(deps.FS.WriteFile("skills/x.md", []byte("x"), 0o644)).To(MatchError(errUnsupported))
+	g.Expect(deps.FS.MkdirAll("agent-instructions/skills", 0o755)).To(MatchError(errUnsupported))
+	g.Expect(deps.FS.RemoveAll("agent-instructions/skills")).To(MatchError(errUnsupported))
+	g.Expect(deps.FS.WriteFile("agent-instructions/skills/x.md", []byte("x"), 0o644)).To(MatchError(errUnsupported))
 }
 
 func TestNewUpdateDeps_FSAdapterPreservesNotExist(t *testing.T) {
@@ -86,14 +86,14 @@ func TestNewUpdateDeps_FSAdapterReadsThroughEdgeFS(t *testing.T) {
 	g := NewWithT(t)
 
 	deps := cli.ExportNewUpdateDeps(cli.Deps{FS: updateFakeEdgeFS{
-		"skills/learn/SKILL.md": &fstest.MapFile{Data: []byte("learn")},
+		"agent-instructions/skills/learn/SKILL.md": &fstest.MapFile{Data: []byte("learn")},
 	}})
 
-	data, readErr := deps.FS.ReadFile("skills/learn/SKILL.md")
+	data, readErr := deps.FS.ReadFile("agent-instructions/skills/learn/SKILL.md")
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(data)).To(Equal("learn"))
 
-	entries, dirErr := deps.FS.ReadDir("skills")
+	entries, dirErr := deps.FS.ReadDir("agent-instructions/skills")
 	g.Expect(dirErr).NotTo(HaveOccurred())
 
 	if dirErr != nil {
@@ -104,7 +104,7 @@ func TestNewUpdateDeps_FSAdapterReadsThroughEdgeFS(t *testing.T) {
 	g.Expect(entries[0].Name()).To(Equal("learn"))
 	g.Expect(entries[0].IsDir()).To(BeTrue())
 
-	info, statErr := deps.FS.Stat("skills/learn/SKILL.md")
+	info, statErr := deps.FS.Stat("agent-instructions/skills/learn/SKILL.md")
 	g.Expect(statErr).NotTo(HaveOccurred())
 
 	if statErr != nil || info == nil {

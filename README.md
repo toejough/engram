@@ -37,7 +37,7 @@ Requires Go 1.25+ on `PATH`.
    engram update --dry-run       # show what would change
    ```
 
-   `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys the guidance docs under `guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` for CLAUDE.md `@import` (Claude Code; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md imports a guidance file, plain `engram update` keeps it current (like skills). Until then, plain `engram update` prints a one-line hint.
+   `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys the guidance docs under `agent-instructions/guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` for CLAUDE.md `@import` (Claude Code; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md imports a guidance file, plain `engram update` keeps it current (like skills). Until then, plain `engram update` prints a one-line hint.
 
 ## Upgrading
 
@@ -57,7 +57,7 @@ Migration is not automated; an LLM should be able to migrate the vault easily. T
 | `please` | Drives an ask end-to-end through a fixed seven-step workflow — capture, orient, plan, execute (TDD), document, complete, capture. Sequences `recall`, `learn`, and other available skills; tracks each step on the task list. Four adversarial review gates dispatch fresh per-angle reviewer subagents over the plan, each refactor, touched docs, and outward prose, blocking step completion until findings are resolved. Triggers on `/please <ask>` and natural-language phrasings of the same intent. |
 | `route` | Encodes the delegate-everything doctrine: guides subagent selection (agent type, model, effort) rather than doing object-level work. Easy work goes to a cheap model (not skipped), complex work is decomposed before dispatch, and every dispatched subagent recalls first. `please` consults it when staffing gate reviewers. |
 
-See `skills/recall/SKILL.md`, `skills/learn/SKILL.md`, `skills/write-memory/SKILL.md`, `skills/please/SKILL.md`, and `skills/route/SKILL.md` for the full skill definitions.
+See `agent-instructions/skills/recall/SKILL.md`, `agent-instructions/skills/learn/SKILL.md`, `agent-instructions/skills/write-memory/SKILL.md`, `agent-instructions/skills/please/SKILL.md`, and `agent-instructions/skills/route/SKILL.md` for the full skill definitions.
 
 ## Vault location
 
@@ -105,7 +105,7 @@ engram vocab bootstrap --seed <yaml> [--floor <f>]     Seed vocab definition fac
 engram vocab propose --term <t> --description <d>  LLM-gated: create a new vocab definition note if no existing term covers it and projected attachment ≤ 20% of vault (~$0.05/proposal). Both flags required.
 engram vocab stats                     Per-term member counts, vault untagged-rate, hub terms (> 25% of vault), orphan terms (< 2 members), version staleness.
 engram vocab refit                     LLM-judged: merge orphans, split hubs, rename terms; rewrites member `tags:` entries in the `vocab/<term>` namespace; major version bump on the family definition note (no index to regenerate — the index is emergent).
-engram update [--with-guidance]        Refresh binary and harness skills/commands ([--dry-run]); --with-guidance also deploys guidance/*.md (recall.md, delegate.md) to ~/.claude/engram/ (Claude Code; opt-in; OpenCode deferred)
+engram update [--with-guidance]        Refresh binary and harness skills/commands ([--dry-run]); --with-guidance also deploys agent-instructions/guidance/*.md (recall.md, delegate.md) to ~/.claude/engram/ (Claude Code; opt-in; OpenCode deferred)
 ```
 
 ## Semantic search & the embed-on-write pipeline
@@ -136,8 +136,9 @@ internal/            Business logic (DI boundaries)
   transcript/        Session transcript reading (Claude Code JSONL), read by engram ingest
   update/            Self-refresh subcommand
   vaultgraph/        Vault traversal (wikilink graph, note scanning)
-skills/              Source for the recall, learn, write-memory, please, and route skills
-commands/            Source for OpenCode slash commands
+agent-instructions/
+  skills/            Source for the recall, learn, write-memory, please, and route skills
+  commands/          Source for OpenCode slash commands
 ```
 
 ## Development

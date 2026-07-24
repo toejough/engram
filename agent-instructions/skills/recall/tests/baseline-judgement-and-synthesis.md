@@ -1,12 +1,12 @@
 # Baseline scenario — upfront judgement, single query, closing synthesis
 
-A subagent is given a realistic non-trivial request, loaded with the current `skills/recall/SKILL.md`, and asked to perform recall against the agent-memory vault.
+A subagent is given a realistic non-trivial request, loaded with the current `agent-instructions/skills/recall/SKILL.md`, and asked to perform recall against the agent-memory vault.
 
 ## Scenario prompt (verbatim, give to subagent)
 
 You are working on the `engram` repo at `/Users/joe/repos/personal/engram`. The user has asked you to wire OpenCode session transcripts into the `engram ingest` pipeline alongside the existing Claude Code JSONL reader, including per-harness progress markers. Before you start, the user wants you to run the `recall` skill.
 
-Read `skills/recall/SKILL.md` from the working directory and follow its instructions exactly. The vault is at the default location resolved by the binary. The `engram` binary is on `PATH`. Produce the user-facing reply the skill prescribes.
+Read `agent-instructions/skills/recall/SKILL.md` from the working directory and follow its instructions exactly. The vault is at the default location resolved by the binary. The `engram` binary is on `PATH`. Produce the user-facing reply the skill prescribes.
 
 Do NOT actually run `engram ingest` or `engram query` — instead:
 - Print your Step 0 judgement (ask / situation / plan).

@@ -21,7 +21,7 @@ You are working on the `engram` repo at `/Users/joe/repos/personal/engram`. The 
 You have not done any work yet. You have the `engram` binary on PATH and a populated vault at
 the default location.
 
-Read `/Users/joe/repos/personal/engram/skills/recall/SKILL.md` and follow its instructions
+Read `/Users/joe/repos/personal/engram/agent-instructions/skills/recall/SKILL.md` and follow its instructions
 exactly to run recall against this ask. Do NOT actually run `engram query` — instead:
 - Print your Step 0 judgement (ask / situation / plan).
 - Print the exact `engram query ...` invocation you would issue (one call,
@@ -30,7 +30,7 @@ exactly to run recall against this ask. Do NOT actually run `engram query` — i
 
 Constraints:
 - Do not consult any other skill file.
-- Use only what `skills/recall/SKILL.md` tells you.
+- Use only what `agent-instructions/skills/recall/SKILL.md` tells you.
 
 ## What we are measuring
 

@@ -27,7 +27,7 @@ flowchart TB
     cli -->|"embeds note/query text"| model
     cli -->|"C2→C4: read/write notes+sidecars under flock"| vault
     cli -->|"C2→S5: read transcripts; re-chunk/re-embed changed content only (manifest.json staleness)"| sessions
-    cli -->|"engram update: go install + copy skills/commands; --with-guidance adds guidance (Claude Code)"| gotool
+    cli -->|"engram update: go install + copy agent-instructions/{skills,commands}; --with-guidance adds agent-instructions/guidance (Claude Code)"| gotool
 
     class agent person
     class skills,cli,model container
@@ -51,7 +51,7 @@ flowchart TB
 | C2 → C3 | C2 embeds note text (on write) and query text (on read) via the bundled model. All notes embed the body — see [L3](c3-components.md) K5. |
 | C2 → C4 | Reads notes+sidecars at query time; writes notes+sidecars atomically (temp-file + rename) under the vault flock (`.luhmann.lock`) — every writer holds it: `learn` (id-compute→write, O_EXCL), `amend`, `resituate`, `activate`. The flock is acquired only at command entry points. The wikilink graph is built from note bodies at query time. `engram learn qa` writes Q&A pairs — Q-notes excluded from the query pipeline, A-notes competing as synthesis notes, machine-written edge lines (see [GLOSSARY](../GLOSSARY.md): qa-question / qa-answer / contributors). |
 | C2 → S5 | `engram ingest --auto` reads Claude `.jsonl`; re-chunks and re-embeds only sources whose mtime/size/hash changed vs the `manifest.json` written to `$XDG_DATA_HOME/engram/chunks`; strips harness noise; byte-capped with continuation signalling. `--auto` additionally skips session-log directories whose slugified project path starts with a non-persistent-workspace prefix (`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-` — slugified forms of `/private/tmp`, `/tmp`, and macOS `$TMPDIR`), preventing eval/test runs from bloating the main chunk index (configurable via the `non_persistent_prefixes` key in `.engram/sweep.json`). Two opt-in levers bypass the skip for deliberate test ingestion: explicit `--sweep <dir>` / `--transcript <file>` / `--markdown <file>` — manual sweep roots carry no prefix exclusion — or an isolated index + vault via `ENGRAM_CHUNKS_DIR` / `ENGRAM_VAULT_PATH`. |
-| C2 → S6 | `engram update` runs `go install`, then copies refreshed skills/commands into each harness root; `--with-guidance` also deploys the guidance docs under `guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` (Claude Code only; opt-in; OpenCode deferred). |
+| C2 → S6 | `engram update` runs `go install`, then copies refreshed agent-instructions/{skills,commands} into each harness root; `--with-guidance` also deploys the guidance docs under `agent-instructions/guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` (Claude Code only; opt-in; OpenCode deferred). |
 
 ### Flowchart: ingest/chunking (C2→S5)
 
@@ -197,7 +197,7 @@ sequenceDiagram
 ### Flowchart: learn capture kinds (C1)
 
 Companion to the sequence diagram above — the four Step-2 capture kinds plus the Step-2.5 QA-pair kind
-(`skills/learn/SKILL.md` Steps 2/2.5), each handed off to the **write-memory** skill, converging on the
+(`agent-instructions/skills/learn/SKILL.md` Steps 2/2.5), each handed off to the **write-memory** skill, converging on the
 same vault-write mechanics.
 
 ```mermaid
@@ -225,7 +225,7 @@ flowchart TD
     LQ --> CQ["Q-note: flock + embed-on-write, NO vocab assignment (D5' asymmetry) — excluded from the main set"]
 ```
 
-Source: `skills/learn/SKILL.md` (Step 1, Step 2, Step 2.5), `skills/please/SKILL.md` (Step 7 lessons
+Source: `agent-instructions/skills/learn/SKILL.md` (Step 1, Step 2, Step 2.5), `agent-instructions/skills/please/SKILL.md` (Step 7 lessons
 audit), `internal/cli/qa.go` (`isQueryExcludedKind`, `writeQANotesUnderLock`, the D5′ comments),
 `internal/cli/learn.go` (`writeLearnUnderLock`, `applyVocabAssignmentCore`).
 
@@ -255,7 +255,7 @@ Source: `internal/cli/vocab_trigger.go` (`refitGrowthMinNotes`, `refitGrowthMinD
 `refitUntaggedRateMax`, `evaluateVocabTriggers`), `internal/cli/vocab_commands.go` (`hubThreshold`,
 stats verdict rendering), `internal/cli/vocab.go` (`AssignVocabTerms`, `WriteVocabAssignment`,
 `applyVocabAssignmentCore`), `internal/cli/query.go` (`RefitPending` payload field),
-`skills/learn/SKILL.md` Step 1.5.
+`agent-instructions/skills/learn/SKILL.md` Step 1.5.
 
 ### Recall-time lazy-L2 synthesis — skill-orchestrated, blocking, NOT a binary loop
 

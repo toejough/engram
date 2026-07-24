@@ -1,6 +1,7 @@
 // Package update implements the `engram update` subcommand: refresh the
 // engram binary via `go install` and copy harness skills/commands from
-// either a local clone or the module cache into per-harness user dirs.
+// agent-instructions/ in either a local clone or the module cache into
+// per-harness user dirs.
 package update
 
 import (
@@ -128,7 +129,7 @@ type HarnessSpec struct {
 // Options controls one Run invocation.
 type Options struct {
 	DryRun       bool
-	WithGuidance bool // deploy guidance/*.md to the harness guidance dir
+	WithGuidance bool // deploy agent-instructions/guidance/*.md to the harness guidance dir
 }
 
 // Report is the final outcome of Updater.Run, suitable for formatting.
@@ -205,9 +206,9 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	report.GoInstall = describeGoInstall(source)
 	report.BinaryVersion = source.Version // local mode leaves this empty
 
-	srcSkills := filepath.Join(source.Root, "skills")
-	srcCommands := filepath.Join(source.Root, "commands")
-	srcGuidance := filepath.Join(source.Root, "guidance")
+	srcSkills := filepath.Join(source.Root, "agent-instructions", "skills")
+	srcCommands := filepath.Join(source.Root, "agent-instructions", "commands")
+	srcGuidance := filepath.Join(source.Root, "agent-instructions", "guidance")
 
 	skillOps, planErr := planSkillCopies(srcSkills, home, harnesses, u.FS)
 	if planErr != nil {

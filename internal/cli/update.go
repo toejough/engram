@@ -287,7 +287,7 @@ func writeCommandRows(buffer *bytes.Buffer, harness update.HarnessReport, home s
 
 	for _, name := range harness.CommandFiles {
 		dst := filepath.Join(harness.CommandsRoot, name)
-		fmt.Fprintf(buffer, "    commands/%s → %s\n", name, tildify(dst, home))
+		fmt.Fprintf(buffer, "    agent-instructions/commands/%s → %s\n", name, tildify(dst, home))
 	}
 }
 
@@ -359,7 +359,7 @@ func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
 func writeSkillRows(buffer *bytes.Buffer, harness update.HarnessReport, home string) {
 	for _, dirCount := range harness.SkillDirs {
 		dst := filepath.Join(harness.SkillsRoot, dirCount.Name) + string(filepath.Separator)
-		fmt.Fprintf(buffer, "    skills/%s/ → %s  (%d %s)\n",
+		fmt.Fprintf(buffer, "    agent-instructions/skills/%s/ → %s  (%d %s)\n",
 			dirCount.Name,
 			tildify(dst, home),
 			dirCount.Files,

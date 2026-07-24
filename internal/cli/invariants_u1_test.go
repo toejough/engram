@@ -83,7 +83,7 @@ func TestInvariant_U1_SkillsSrcMissingSentinel(t *testing.T) {
 	memFS.seedLocalRepo()
 	// Drop the entire skills source subtree (files AND dir entries) so
 	// planSkillCopies' walk hits the missing-root case and returns the sentinel.
-	memFS.removeSubtree(filepath.Join(u1RepoRoot, "skills"))
+	memFS.removeSubtree(filepath.Join(u1RepoRoot, "agent-instructions", "skills"))
 
 	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv()}
 
@@ -335,11 +335,11 @@ func (m *u1FS) removeSubtree(path string) {
 // engram module, two skill files, both harness probe dirs, and the go bin dir.
 func (m *u1FS) seedLocalRepo() {
 	m.files[filepath.Join(u1RepoRoot, "go.mod")] = []byte("module " + update.ModulePath + "\n")
-	m.files[filepath.Join(u1RepoRoot, "skills", "learn", "SKILL.md")] = []byte("learn skill\n")
-	m.files[filepath.Join(u1RepoRoot, "skills", "recall", "SKILL.md")] = []byte("recall skill\n")
-	m.dirs[filepath.Join(u1RepoRoot, "skills")] = true
-	m.dirs[filepath.Join(u1RepoRoot, "skills", "learn")] = true
-	m.dirs[filepath.Join(u1RepoRoot, "skills", "recall")] = true
+	m.files[filepath.Join(u1RepoRoot, "agent-instructions", "skills", "learn", "SKILL.md")] = []byte("learn skill\n")
+	m.files[filepath.Join(u1RepoRoot, "agent-instructions", "skills", "recall", "SKILL.md")] = []byte("recall skill\n")
+	m.dirs[filepath.Join(u1RepoRoot, "agent-instructions", "skills")] = true
+	m.dirs[filepath.Join(u1RepoRoot, "agent-instructions", "skills", "learn")] = true
+	m.dirs[filepath.Join(u1RepoRoot, "agent-instructions", "skills", "recall")] = true
 	// commands dir intentionally absent → planCommandCopies skips it.
 	m.dirs[filepath.Join(u1Home, ".claude")] = true
 	m.dirs[filepath.Join(u1Home, ".config", "opencode")] = true

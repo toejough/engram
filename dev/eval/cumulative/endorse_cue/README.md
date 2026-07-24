@@ -1,6 +1,6 @@
 # endorse_cue — headless ambient-cue-firing probe
 
-Measures whether `guidance/recall.md` fires `/recall` at the moment an agent is about to
+Measures whether `agent-instructions/guidance/recall.md` fires `/recall` at the moment an agent is about to
 **endorse, rank, or recommend a proposal** — see `dev/eval/LEDGER.md#endorse-cue-red-baseline-null`
 for the RED-baseline finding this harness produced (the originating plan doc was scratch and
 has been deleted; its finding now lives in that LEDGER row).
@@ -46,7 +46,7 @@ python3 probe.py --recall-md <path-to-recall.md-variant> --n 5 --out results.jso
     [--model opus] [--fixtures fixtures/] [--workers 4]
 ```
 
-- `--recall-md` — RED = `../../../guidance/recall.md` (current); GREEN = the edited variant
+- `--recall-md` — RED = `../../../agent-instructions/guidance/recall.md` (current); GREEN = the edited variant
   (Task 3). This is the ONLY variable between arms.
 - `--model` — defaults to `opus`, the target model this guidance runs on; do not swap in a
   weaker model as a stand-in.
@@ -60,14 +60,14 @@ divide by the raw trial count; report discards separately (a validity issue, not
 ## Scope note
 
 This directory implements Task 1 of the plan only: the probe + fixtures, smoke-tested for
-instrument validity against the *current* `guidance/recall.md`. The pre-registered
+instrument validity against the *current* `agent-instructions/guidance/recall.md`. The pre-registered
 RED/GREEN/pressure runs (Task 2/3) and the ship decision (Task 4) are separate,
 orchestrator-gated steps — this script does not run them itself.
 
 ## Status (2026-07-15)
 
 The harness is **KEPT** as reusable ambient-cue-firing infra — it works end-to-end and is
-cheap to re-run against a new `guidance/recall.md` variant. But it runs a **clean single-shot
+cheap to re-run against a new `agent-instructions/guidance/recall.md` variant. But it runs a **clean single-shot
 context** in which the inlined guidance is maximally salient (no competing turns, no other
 in-flight work), so it **over-fires** relative to real sessions and **cannot reproduce**
 context-emergent under-load firing failures — the actual #677 failure mode (recall not firing

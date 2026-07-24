@@ -34,7 +34,7 @@ orchestration), `route` (delegation doctrine — agent/model/effort selection),
 and [`write-memory`](#write-memory-worker-skill) (vault-write execution on handoff).
 Distinct from **slash command** — the user-facing `/name` trigger that invokes
 a skill in a harness (Claude Code's term) — and **command** — an OpenCode-specific
-file under `commands/` that wraps a skill invocation for that harness.
+file under `agent-instructions/commands/` that wraps a skill invocation for that harness.
 
 ### atom
 The skill-decomposition concept from the roadmap's guiding framing: one behavior, one skill
@@ -45,7 +45,7 @@ at the write seam) is recorded in `docs/architecture/adr.md` ADR-0015, with its 
 in `dev/eval/LEDGER.md`.
 
 ### write-memory (worker skill)
-The skill at `skills/write-memory/SKILL.md`. Executes a vault write handed off by
+The skill at `agent-instructions/skills/write-memory/SKILL.md`. Executes a vault write handed off by
 recall or learn: composes the `engram learn fact|feedback|qa` command from the
 handoff fields, runs it, retries on CLI errors (max 2), and reports the written
 note path. Parents judge; the worker writes. Amends stay in recall (single-site).
@@ -122,7 +122,7 @@ reference lives in `README.md` (Binary commands).
 ### Permanent (note)
 An atomic, principle-stated note — *one coherent topic with its full
 load-bearing detail and complete sets*, not one micro-fact (over-fragmenting a
-topic across notes harms retrieval; see `skills/learn/SKILL.md`). Notes originally
+topic across notes harms retrieval; see `agent-instructions/skills/learn/SKILL.md`). Notes originally
 lived in `<vault>/Permanent/`, retired 2026-06-12 in the flat-vault migration:
 they now live flat at the vault root, and the old folder's notes are archived
 under `<vault>/_legacy/` (ignored by the scanner). Filenames follow
@@ -236,7 +236,7 @@ Was a body line on a member note (`Vocab: [[vocab.<term>]], [[vocab.<term2>]], .
 ## Recall
 
 ### recall (skill)
-The skill at `skills/recall/SKILL.md`, invoked as `/recall` in a harness or
+The skill at `agent-instructions/skills/recall/SKILL.md`, invoked as `/recall` in a harness or
 self-fired by the agent. Issues `engram query` with 10 phrases (deep mode)
 and runs the inline coverage-synthesis loop over the returned clusters.
 
@@ -349,7 +349,7 @@ appears once regardless of how many roles it fills.
 ## Learn
 
 ### learn (skill)
-The skill at `skills/learn/SKILL.md`, invoked as `/learn` or fired after
+The skill at `agent-instructions/skills/learn/SKILL.md`, invoked as `/learn` or fired after
 recall-flow work. Writes new notes to the vault.
 
 ### `engram learn` (subcommand)
@@ -634,7 +634,7 @@ that topic in frontmatter; `vocab.index.md` was a machine-generated instance of 
 "aggregate note (route)" and ADR-0019); audit only, never the routing read path.
 
 ### guidance file
-An always-loaded ambient doc under `guidance/` in the engram repo, deployed
+An always-loaded ambient doc under `agent-instructions/guidance/` in the engram repo, deployed
 to `~/.claude/engram/<name>.md` by `engram update --with-guidance`. Two ship
 today: `recall.md` (recall-firing) and `delegate.md` (delegation-firing).
 Each is activated independently by adding its own

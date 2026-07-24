@@ -22,9 +22,10 @@ engram/
 │   ├── transcript/    # Claude Code session transcript reading
 │   ├── update/        # `engram update` subcommand
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
-├── skills/            # Source for the recall, learn, write-memory, please, and route skills
-├── commands/          # Source for OpenCode slash commands
-├── guidance/          # Source for the deployable ambient guidance docs — recall-firing (`recall.md`) and delegation-firing (`delegate.md`) — activated via CLAUDE.md `@import`
+├── agent-instructions/
+│   ├── skills/        # Source for the recall, learn, write-memory, please, and route skills
+│   ├── commands/      # Source for OpenCode slash commands
+│   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`) and delegation-firing (`delegate.md`) — activated via CLAUDE.md `@import`
 ├── dev/               # Build tooling (targ definitions, linter configs)
 └── docs/              # Organized by charter — see docs/README.md
 ```
@@ -34,7 +35,7 @@ engram/
 - `cmd/engram/main.go` — CLI entry point (wiring-only: single-statement main() composing `cli.Primitives` from checker-thin per-group functions of raw capability references; `targ check-thin-api`-enforced)
 - `internal/cli/primitives.go` — Composition root (`cli.Primitives` + `cli.NewDeps`, which builds every production adapter from the injected primitives)
 - `internal/cli/targets.go` — Subcommand wiring
-- `skills/{learn,recall,write-memory,please,route}/SKILL.md` — Skill definitions
+- `agent-instructions/skills/{learn,recall,write-memory,please,route}/SKILL.md` — Skill definitions
 - `dev/targs.go` — Build targets (targ definitions)
 - `docs/architecture/c1-system-context.md` — L1 C4 system context diagram + sequence diagrams for the four key flows (recall, learn, please, update)
 - `docs/README.md` — documentation index

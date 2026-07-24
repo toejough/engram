@@ -128,6 +128,8 @@ github.com/toejough/targ v0.0.0-20260723180241-822f27bcc856 h1:Dmt0i9WR7yurMEAXC
 github.com/toejough/targ v0.0.0-20260723180241-822f27bcc856/go.mod h1:h3cq/qiVlpn0mOdgBYYIevb+L/G+pK3UC7kbH3dZ+b4=
 github.com/toejough/targ v0.0.0-20260723204120-1a5aadc76cdc h1:1/HFxfX3i3B5L/Sn8cgb9fFP1BWakAIQ60yQuZB82GU=
 github.com/toejough/targ v0.0.0-20260723204120-1a5aadc76cdc/go.mod h1:8Cn+OXldIH63maZswWwV8ODprz+HLO2sTWkaHdFqVuc=
+github.com/toejough/targ v0.0.0-20260724161636-183566b7cef6 h1:Sn2l8ODuPjjC1Tf9+3TPeyBQb4TAWgtp8pO7N2Ayru8=
+github.com/toejough/targ v0.0.0-20260724161636-183566b7cef6/go.mod h1:8Cn+OXldIH63maZswWwV8ODprz+HLO2sTWkaHdFqVuc=
 github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61 h1:q2kh5K7BzSky2Fw0ZnsGYG6YBJzvQA8uaWBkfILkCh8=
 github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61/go.mod h1:BJ1ra8Pt6ouZE4yvgRt1j9HkH+yzusi0jlNrNTmZY6M=
 github.com/viant/afs v1.30.0 h1:dbgVVSCPwGHUgpgkWJ5gdjKBqssT7OV7Z2M81CjwZEY=

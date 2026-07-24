@@ -43,7 +43,7 @@ flowchart LR
 | ID | Name | Type | Responsibility | Source |
 |---|---|---|---|---|
 | <a id="s1-engram-operator"></a>S1 | Engram operator | Person | Directs work through the LLM coding harness; configures engram via environment variables (`ENGRAM_VAULT_PATH`, `XDG_DATA_HOME`, etc.) | Human |
-| <a id="s2-engram"></a>S2 | Engram | System in scope | Persistent memory for LLM coding agents: reads & writes a Luhmann zettelkasten vault, reads per-harness session transcripts via markers, self-updates, and provides operator-run tools outside the recall/learn/please/update flows — `engram prune` (GC: detaches chunk-index manifest entries whose source file no longer exists, preserving the embedded chunks on disk; `--empty` removes existing 0-byte `.jsonl` index files left by zero-record sources, ranking-neutral) and `engram count` (frontmatter membership `--group-by`/`--filter` counts + `--backlinks-of` wikilink in-degree; ADR-0018) | This repo (`cmd/engram/`, `internal/`, `skills/`) |
+| <a id="s2-engram"></a>S2 | Engram | System in scope | Persistent memory for LLM coding agents: reads & writes a Luhmann zettelkasten vault, reads per-harness session transcripts via markers, self-updates, and provides operator-run tools outside the recall/learn/please/update flows — `engram prune` (GC: detaches chunk-index manifest entries whose source file no longer exists, preserving the embedded chunks on disk; `--empty` removes existing 0-byte `.jsonl` index files left by zero-record sources, ranking-neutral) and `engram count` (frontmatter membership `--group-by`/`--filter` counts + `--backlinks-of` wikilink in-degree; ADR-0018) | This repo (`cmd/engram/`, `internal/`, `agent-instructions/`) |
 | <a id="s3-llm-coding-harness"></a>S3 | LLM coding harness | External system | Hosts engram's slash commands and subprocess-invokes the engram CLI. Engram skills are loaded by the harness's skill mechanism. | Claude Code (`~/.claude/`), OpenCode (`~/.config/opencode/`) |
 | <a id="s4-agent-memory-vault"></a>S4 | Agent-memory vault | External system | Luhmann zettelkasten on the local filesystem — a FLAT layout: notes live at the vault root (each with a sibling `.vec.json` embedding sidecar). The `Permanent/` and `MOCs/` tiers are retired (2026-06-12 flat-vault migration); subdirectories are ignored by the scanner | `$ENGRAM_VAULT_PATH` or `$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`) |
 | <a id="s5-harness-session-stores"></a>S5 | Harness session stores | External system | The LLM harness's per-session transcript storage; engram reads them at the filesystem level, not via a harness API | Claude Code: `~/.claude/projects/<slug>/*.jsonl` (JSONL only; the OpenCode SQLite backend was never wired into production ingest and was removed in the 2026-06-20 deep clean) |
@@ -58,7 +58,7 @@ flowchart LR
 | <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes plus their `.vec.json` embedding sidecars under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code `~/.claude/projects/<slug>/*.jsonl`) for changed sources only |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go list -m -json` and `go install` to self-update |
-| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, copies refreshed `skills/` and `commands/` files into each detected harness's install root (`~/.claude/`, `~/.config/opencode/`); `--with-guidance` additionally deploys the guidance docs under `guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` (Claude Code only; opt-in; OpenCode deferred) |
+| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, copies refreshed `agent-instructions/skills/` and `agent-instructions/commands/` files into each detected harness's install root (`~/.claude/`, `~/.config/opencode/`); `--with-guidance` additionally deploys the guidance docs under `agent-instructions/guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` (Claude Code only; opt-in; OpenCode deferred) |
 
 ## Key flows
 
@@ -348,7 +348,7 @@ sequenceDiagram
         Note over E: write into the harness install root (~/.claude/skills, ~/.claude/commands, OpenCode equivalents)
     end
     opt --with-guidance (opt-in; Claude Code only)
-        Note over E: write each guidance/*.md (recall.md, delegate.md) → ~/.claude/engram/
+        Note over E: write each agent-instructions/guidance/*.md (recall.md, delegate.md) → ~/.claude/engram/
     end
 
     E-->>H: per-harness report (skill paths, command paths, guidance paths if --with-guidance)
@@ -387,7 +387,7 @@ Steps run **in order** — each starts only after the previous completes. They a
 (urgency / "no ceremony" do not authorize skipping) and **N/A only when the mechanism is absent**
 (no VCS for the step-6 commit; no transcript source for the closing `/learn`). Adversarial review
 gates A–D are integral stops, not optional: each fans out fresh per-angle reviewer subagents and
-blocks its step's completion until every finding is resolved (see `skills/please/SKILL.md`).
+blocks its step's completion until every finding is resolved (see `agent-instructions/skills/please/SKILL.md`).
 
 ```mermaid
 flowchart TD
@@ -415,7 +415,7 @@ fan-out to fresh per-angle reviewer subagents and the argue-to-ACK loop. As in t
 diagram, the orchestrator's consult of the `route` skill for reviewer staffing (agent/model/effort)
 is in-context guidance, not an L1 edge — shown here as a `Note`, never a message or a participant
 (route is not an L1 element; see Out of scope at L1). Gate table
-(fires-at, artifact, angles, default model) verified against `skills/please/SKILL.md`'s Adversarial
+(fires-at, artifact, angles, default model) verified against `agent-instructions/skills/please/SKILL.md`'s Adversarial
 review gates table.
 
 ```mermaid

@@ -120,7 +120,7 @@ func TestGuidanceImportDetection(t *testing.T) {
 			}
 
 			fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-			fileSystem.dirs["/repo/skills"] = true
+			fileSystem.dirs["/repo/agent-instructions/skills"] = true
 			fileSystem.dirs[home+"/.claude"] = true
 
 			report, err := updater.Run(context.Background(), update.Options{})
@@ -140,7 +140,7 @@ func TestGuidanceImportDetection_MissingClaudeMD(t *testing.T) {
 	fileSystem := newMemFS()
 	fileSystem.dirs[home+"/.claude"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
 	// No CLAUDE.md → GuidanceImported should be false, no error
 
 	updater := &update.Updater{
@@ -166,7 +166,7 @@ func TestGuidanceImportDetection_PerFileSet(t *testing.T) {
 		"# joe\n\n@~/.claude/engram/recall.md\n@~/.claude/engram/delegate.md\n",
 	)
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
 	fileSystem.dirs[home+"/.claude"] = true
 
 	updater := &update.Updater{
@@ -224,10 +224,10 @@ func TestPlanGuidanceCopies_FilesUnderHome(t *testing.T) {
 			g := NewWithT(t)
 
 			fileSystem := newMemFS()
-			fileSystem.files["/src/guidance/recall.md"] = []byte("guidance")
-			fileSystem.dirs["/src/guidance"] = true
+			fileSystem.files["/src/agent-instructions/guidance/recall.md"] = []byte("guidance")
+			fileSystem.dirs["/src/agent-instructions/guidance"] = true
 
-			ops, err := update.ExportPlanGuidanceCopies("/src/guidance", "/home/joe", harnesses, fileSystem)
+			ops, err := update.ExportPlanGuidanceCopies("/src/agent-instructions/guidance", "/home/joe", harnesses, fileSystem)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(ops).To(HaveLen(tc.wantCount))
 			g.Expect(ops[0].Dst).To(Equal(tc.wantDst))
@@ -265,11 +265,11 @@ func TestPlanSkillCopies_FilesUnderHome_Property(t *testing.T) {
 		home := "/h/" + homeSeg
 
 		fileSystem := newMemFS()
-		fileSystem.dirs["/src/skills"] = true
-		fileSystem.dirs["/src/skills/learn"] = true
-		fileSystem.files["/src/skills/learn/SKILL.md"] = []byte("x")
-		fileSystem.dirs["/src/skills/recall"] = true
-		fileSystem.files["/src/skills/recall/SKILL.md"] = []byte("x")
+		fileSystem.dirs["/src/agent-instructions/skills"] = true
+		fileSystem.dirs["/src/agent-instructions/skills/learn"] = true
+		fileSystem.files["/src/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
+		fileSystem.dirs["/src/agent-instructions/skills/recall"] = true
+		fileSystem.files["/src/agent-instructions/skills/recall/SKILL.md"] = []byte("x")
 
 		// Detect Claude only.
 		fileSystem.dirs[home+"/.claude"] = true
@@ -279,7 +279,7 @@ func TestPlanSkillCopies_FilesUnderHome_Property(t *testing.T) {
 			rt.Fatalf("detect: %v", err)
 		}
 
-		ops, err := update.ExportPlanSkillCopies("/src/skills", home, harnesses, fileSystem)
+		ops, err := update.ExportPlanSkillCopies("/src/agent-instructions/skills", home, harnesses, fileSystem)
 		if err != nil {
 			rt.Fatalf("plan: %v", err)
 		}
@@ -316,10 +316,10 @@ func TestRun_PlainUpdate_DelegateOnlyImport_RefreshesAll(t *testing.T) {
 
 	fileSystem := newMemFS()
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
 	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.files["/repo/guidance/recall.md"] = []byte("recall guidance")
-	fileSystem.files["/repo/guidance/delegate.md"] = []byte("delegate guidance")
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
+	fileSystem.files["/repo/agent-instructions/guidance/delegate.md"] = []byte("delegate guidance")
 	// Only delegate.md is imported — recall.md is not.
 	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte("# joe\n\n@~/.claude/engram/delegate.md\n")
 
@@ -352,9 +352,9 @@ func TestRun_PlainUpdate_WhenImported_RefreshesGuidance(t *testing.T) {
 	fileSystem := newMemFS()
 	fileSystem.dirs[home+"/.claude"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.files["/repo/guidance/recall.md"] = []byte("fresh guidance content")
-	fileSystem.dirs["/repo/guidance"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("fresh guidance content")
+	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 	// The user already imports the guidance (opted in) — no --with-guidance flag.
 	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte("# joe\n\n@~/.claude/engram/recall.md\n")
 
@@ -388,9 +388,9 @@ func TestRun_WithGuidance_BothHarnesses_OnlyClaudeGetsGuidance(t *testing.T) {
 	fileSystem.dirs[home+"/.claude"] = true
 	fileSystem.dirs[home+"/.config/opencode"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.files["/repo/guidance/recall.md"] = []byte("recall guidance")
-	fileSystem.dirs["/repo/guidance"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
+	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 
 	updater := &update.Updater{
 		FS:  fileSystem,
@@ -423,9 +423,9 @@ func TestRun_WithGuidance_DeploysToClaudeEngram(t *testing.T) {
 	fileSystem := newMemFS()
 	fileSystem.dirs[home+"/.claude"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.files["/repo/guidance/recall.md"] = []byte("recall guidance content")
-	fileSystem.dirs["/repo/guidance"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance content")
+	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 
 	updater := &update.Updater{
 		FS:  fileSystem,
@@ -455,9 +455,9 @@ func TestRun_WithGuidance_GuidanceCopyError(t *testing.T) {
 	base := newMemFS()
 	base.dirs[home+"/.claude"] = true
 	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	base.dirs["/repo/skills"] = true
-	base.files["/repo/guidance/recall.md"] = []byte("recall guidance")
-	base.dirs["/repo/guidance"] = true
+	base.dirs["/repo/agent-instructions/skills"] = true
+	base.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
+	base.dirs["/repo/agent-instructions/guidance"] = true
 
 	removeErr := errors.New("disk full")
 	fileSystem := &errRemoveFS{
@@ -489,9 +489,9 @@ func TestRun_WithoutGuidance_SkipsGuidance(t *testing.T) {
 	fileSystem := newMemFS()
 	fileSystem.dirs[home+"/.claude"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.files["/repo/guidance/recall.md"] = []byte("recall guidance content")
-	fileSystem.dirs["/repo/guidance"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance content")
+	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 
 	updater := &update.Updater{
 		FS:  fileSystem,

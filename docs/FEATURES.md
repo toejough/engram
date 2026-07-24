@@ -66,7 +66,7 @@ procedure) rather than restating them. The floor is evidence, not a guess: go in
 recalled memory shows a task-kind runs reliably below the routing overhead — never on an
 in-the-moment "it's trivial" guess.
 
-why: mirrors the recall-firing guidance (@import) pattern; doctrine in `guidance/delegate.md`, `skills/route/SKILL.md`, `skills/please/SKILL.md`
+why: mirrors the recall-firing guidance (@import) pattern; doctrine in `agent-instructions/guidance/delegate.md`, `agent-instructions/skills/route/SKILL.md`, `agent-instructions/skills/please/SKILL.md`
 validation: `dev/eval/LEDGER.md#delegate-guidance-flip` (headless RED→GREEN: solo→subagent-dispatch, including the trivial-rename case)
 
 ## Please Step 3 doc-surface enumeration grep + Gate A independent-pass verification

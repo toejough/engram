@@ -1,6 +1,6 @@
 # please_step3_probe
 
-Headless micro-test for `skills/please/SKILL.md`'s Step 3 (Plan) enumeration-grep step and
+Headless micro-test for `agent-instructions/skills/please/SKILL.md`'s Step 3 (Plan) enumeration-grep step and
 Gate A's docs/diagrams-alignment charge (engram issue #685, Change #1). Built per
 `docs/superpowers/plans/2026-07-15-685-doc-enumeration-grep.md`.
 
@@ -34,10 +34,10 @@ cadence references).
 
 Usage:
 ```bash
-python3 run_probe.py --skill-text ../../../../skills/please/SKILL.md --n 3 \
+python3 run_probe.py --skill-text ../../../../agent-instructions/skills/please/SKILL.md --n 3 \
     --out results/red_baseline.jsonl --model sonnet
 
-python3 run_probe.py --skill-text ../../../../skills/please/SKILL.md --loaded --n 1 \
+python3 run_probe.py --skill-text ../../../../agent-instructions/skills/please/SKILL.md --loaded --n 1 \
     --out results/loaded_smoke.jsonl --model sonnet
 ```
 

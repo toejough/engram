@@ -98,9 +98,9 @@ func TestUpdater_Run_DryRun_NoWritesNoCommands(t *testing.T) {
 	fileSystem.dirs["/home/joe/.claude"] = true
 	fileSystem.dirs["/repo"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.dirs["/repo/skills/learn"] = true
-	fileSystem.files["/repo/skills/learn/SKILL.md"] = []byte("x")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
 
 	cmd := &fakeCmd{}
 
@@ -129,7 +129,7 @@ func TestUpdater_Run_GoInstallFails(t *testing.T) {
 	fileSystem.dirs["/home/joe/.claude"] = true
 	fileSystem.dirs["/repo"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
 
 	cmdErr := errors.New("go install boom")
 	cmd := &fakeCmd{err: cmdErr}
@@ -155,11 +155,11 @@ func TestUpdater_Run_Local_BothHarnesses_CommandsOnlyOpencode(t *testing.T) {
 	fileSystem.dirs["/home/joe/.config/opencode"] = true
 	fileSystem.dirs["/repo"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.dirs["/repo/skills/recall"] = true
-	fileSystem.files["/repo/skills/recall/SKILL.md"] = []byte("r")
-	fileSystem.dirs["/repo/commands"] = true
-	fileSystem.files["/repo/commands/recall.md"] = []byte("c")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/recall"] = true
+	fileSystem.files["/repo/agent-instructions/skills/recall/SKILL.md"] = []byte("r")
+	fileSystem.dirs["/repo/agent-instructions/commands"] = true
+	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("c")
 
 	updater := &update.Updater{
 		FS:  fileSystem,
@@ -186,11 +186,11 @@ func TestUpdater_Run_Local_CommandRemoveAllFailureIsHarnessError(t *testing.T) {
 	mem.dirs["/home/joe/.config/opencode"] = true
 	mem.dirs["/repo"] = true
 	mem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	mem.dirs["/repo/skills"] = true
-	mem.dirs["/repo/skills/recall"] = true
-	mem.files["/repo/skills/recall/SKILL.md"] = []byte("r")
-	mem.dirs["/repo/commands"] = true
-	mem.files["/repo/commands/recall.md"] = []byte("c")
+	mem.dirs["/repo/agent-instructions/skills"] = true
+	mem.dirs["/repo/agent-instructions/skills/recall"] = true
+	mem.files["/repo/agent-instructions/skills/recall/SKILL.md"] = []byte("r")
+	mem.dirs["/repo/agent-instructions/commands"] = true
+	mem.files["/repo/agent-instructions/commands/recall.md"] = []byte("c")
 
 	// Fail RemoveAll for command path only (skill RemoveAll succeeds).
 	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "commands"}
@@ -217,9 +217,9 @@ func TestUpdater_Run_Local_GoInstallRunsFromModuleRoot(t *testing.T) {
 	fileSystem.dirs["/home/joe/.claude"] = true
 	fileSystem.dirs["/repo"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.dirs["/repo/skills/learn"] = true
-	fileSystem.files["/repo/skills/learn/SKILL.md"] = []byte("x")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
 
 	cmd := &fakeCmd{}
 
@@ -248,11 +248,11 @@ func TestUpdater_Run_Local_HappyPath(t *testing.T) {
 	// Local repo with go.mod, skills, no slash commands.
 	fileSystem.dirs["/repo"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.dirs["/repo/skills/learn"] = true
-	fileSystem.files["/repo/skills/learn/SKILL.md"] = []byte("learn skill")
-	fileSystem.files["/repo/skills/learn/tests/baseline.md"] = []byte("baseline")
-	fileSystem.dirs["/repo/skills/learn/tests"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
+	fileSystem.files["/repo/agent-instructions/skills/learn/tests/baseline.md"] = []byte("baseline")
+	fileSystem.dirs["/repo/agent-instructions/skills/learn/tests"] = true
 
 	cmd := &fakeCmd{}
 
@@ -331,14 +331,14 @@ func TestUpdater_Run_Local_OpencodeOnly_CopiesCommands(t *testing.T) {
 	fileSystem.dirs["/home/joe/.config/opencode"] = true
 	fileSystem.dirs["/repo"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.dirs["/repo/skills/recall"] = true
-	fileSystem.files["/repo/skills/recall/SKILL.md"] = []byte("recall")
-	fileSystem.dirs["/repo/commands"] = true
-	fileSystem.files["/repo/commands/recall.md"] = []byte("recall cmd")
-	fileSystem.files["/repo/commands/learn.md"] = []byte("learn cmd")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/recall"] = true
+	fileSystem.files["/repo/agent-instructions/skills/recall/SKILL.md"] = []byte("recall")
+	fileSystem.dirs["/repo/agent-instructions/commands"] = true
+	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("recall cmd")
+	fileSystem.files["/repo/agent-instructions/commands/learn.md"] = []byte("learn cmd")
 	// Non-md should be ignored.
-	fileSystem.files["/repo/commands/README.txt"] = []byte("readme")
+	fileSystem.files["/repo/agent-instructions/commands/README.txt"] = []byte("readme")
 
 	updater := &update.Updater{
 		FS:  fileSystem,
@@ -373,11 +373,11 @@ func TestUpdater_Run_Local_OverwritesExistingCommandFile(t *testing.T) {
 	fileSystem.dirs["/home/joe/.config/opencode"] = true
 	fileSystem.dirs["/repo"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.dirs["/repo/skills/recall"] = true
-	fileSystem.files["/repo/skills/recall/SKILL.md"] = []byte("recall")
-	fileSystem.dirs["/repo/commands"] = true
-	fileSystem.files["/repo/commands/recall.md"] = []byte("new cmd")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/recall"] = true
+	fileSystem.files["/repo/agent-instructions/skills/recall/SKILL.md"] = []byte("recall")
+	fileSystem.dirs["/repo/agent-instructions/commands"] = true
+	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("new cmd")
 
 	// Pre-existing command file at the destination (simulates a stale link).
 	fileSystem.files["/home/joe/.config/opencode/commands/recall.md"] = []byte("old cmd")
@@ -407,9 +407,9 @@ func TestUpdater_Run_Local_OverwritesExistingSkillDir(t *testing.T) {
 	fileSystem.dirs["/home/joe/.claude"] = true
 	fileSystem.dirs["/repo"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.dirs["/repo/skills/learn"] = true
-	fileSystem.files["/repo/skills/learn/SKILL.md"] = []byte("new")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("new")
 
 	// Pre-existing stale content at the destination.
 	fileSystem.dirs["/home/joe/.claude/skills/learn"] = true
@@ -446,9 +446,9 @@ func TestUpdater_Run_Local_RemoveAllFailureIsHarnessError(t *testing.T) {
 	mem.dirs["/home/joe/.claude"] = true
 	mem.dirs["/repo"] = true
 	mem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	mem.dirs["/repo/skills"] = true
-	mem.dirs["/repo/skills/learn"] = true
-	mem.files["/repo/skills/learn/SKILL.md"] = []byte("x")
+	mem.dirs["/repo/agent-instructions/skills"] = true
+	mem.dirs["/repo/agent-instructions/skills/learn"] = true
+	mem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
 
 	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "learn"}
 
@@ -525,9 +525,9 @@ func TestUpdater_Run_PartialFailure_AllFail(t *testing.T) {
 	base.dirs["/home/joe/.claude"] = true
 	base.dirs["/repo"] = true
 	base.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	base.dirs["/repo/skills"] = true
-	base.dirs["/repo/skills/learn"] = true
-	base.files["/repo/skills/learn/SKILL.md"] = []byte("x")
+	base.dirs["/repo/agent-instructions/skills"] = true
+	base.dirs["/repo/agent-instructions/skills/learn"] = true
+	base.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
 
 	fileSystem := &failWriteFS{memFS: base, failOn: ".claude/skills"}
 
@@ -699,9 +699,9 @@ func TestUpdater_Run_Remote_HappyPath(t *testing.T) {
 	cmd.hook = func(call []string) {
 		if call[0] == "git" && call[1] == "clone" {
 			seedCloneFixture(fileSystem, cloneDir, bytes.Repeat([]byte{1}, 1<<20))
-			fileSystem.files[cloneDir+"/skills/learn/SKILL.md"] = []byte("learn from clone")
-			fileSystem.dirs[cloneDir+"/commands"] = true
-			fileSystem.files[cloneDir+"/commands/learn.md"] = []byte("learn cmd")
+			fileSystem.files[cloneDir+"/agent-instructions/skills/learn/SKILL.md"] = []byte("learn from clone")
+			fileSystem.dirs[cloneDir+"/agent-instructions/commands"] = true
+			fileSystem.files[cloneDir+"/agent-instructions/commands/learn.md"] = []byte("learn cmd")
 		}
 	}
 
@@ -856,11 +856,11 @@ func buildLocalRepoForRapid(fileSystem *memFS, fileCount int) {
 	fileSystem.dirs["/home/joe/.claude"] = true
 	fileSystem.dirs["/repo"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/skills"] = true
-	fileSystem.dirs["/repo/skills/learn"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
 
 	for i := range fileCount {
-		fileSystem.files["/repo/skills/learn/file"+strconv.Itoa(i)+".md"] = []byte("content")
+		fileSystem.files["/repo/agent-instructions/skills/learn/file"+strconv.Itoa(i)+".md"] = []byte("content")
 	}
 }
 
@@ -887,9 +887,9 @@ func rapidCtx() context.Context {
 func seedCloneFixture(fileSystem *memFS, dir string, model []byte) {
 	fileSystem.dirs[dir] = true
 	fileSystem.files[dir+"/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs[dir+"/skills"] = true
-	fileSystem.dirs[dir+"/skills/learn"] = true
-	fileSystem.files[dir+"/skills/learn/SKILL.md"] = []byte("skill body")
+	fileSystem.dirs[dir+"/agent-instructions/skills"] = true
+	fileSystem.dirs[dir+"/agent-instructions/skills/learn"] = true
+	fileSystem.files[dir+"/agent-instructions/skills/learn/SKILL.md"] = []byte("skill body")
 	fileSystem.files[dir+"/internal/embed/assets/model/model.onnx"] = model
 }
 

@@ -14,7 +14,7 @@ This scenario tests that the agent:
 
 > You are a SINGLE agent (no subagent-dispatch / Task tool — do everything yourself) building a
 > Go CLI's storage layer. You already ran your recall query and got the recall query payload
-> below. Read `/Users/joe/repos/personal/engram/skills/recall/SKILL.md` and follow it **exactly**.
+> below. Read `/Users/joe/repos/personal/engram/agent-instructions/skills/recall/SKILL.md` and follow it **exactly**.
 > Do not read other repo files. For each cluster, print the EXACT `engram` invocation(s) you
 > would run (or state none) and whether you wait. (Dry run — print commands, don't execute.)
 > End with one line on what you do next.

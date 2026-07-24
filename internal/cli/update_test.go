@@ -465,9 +465,9 @@ func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("source: local clone at ~/src/engram"))
 	g.Expect(out).To(ContainSubstring("binary: go install ./cmd/engram/"))
 	g.Expect(out).To(ContainSubstring("Claude Code (~/.claude/):"))
-	g.Expect(out).To(ContainSubstring("skills/learn/ → ~/.claude/skills/learn/  (3 files)"))
-	g.Expect(out).To(ContainSubstring("skills/recall/ → ~/.claude/skills/recall/  (1 file)"))
-	g.Expect(out).To(ContainSubstring("commands/learn.md → ~/.config/opencode/commands/learn.md"))
+	g.Expect(out).To(ContainSubstring("agent-instructions/skills/learn/ → ~/.claude/skills/learn/  (3 files)"))
+	g.Expect(out).To(ContainSubstring("agent-instructions/skills/recall/ → ~/.claude/skills/recall/  (1 file)"))
+	g.Expect(out).To(ContainSubstring("agent-instructions/commands/learn.md → ~/.config/opencode/commands/learn.md"))
 	g.Expect(out).To(ContainSubstring("[dry-run] installed: Claude Code, OpenCode"))
 }
 

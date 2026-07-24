@@ -1,6 +1,6 @@
 # Route skill — baseline test index
 
-Before editing `skills/route/SKILL.md`, run the `superpowers:writing-skills` TDD cycle —
+Before editing `agent-instructions/skills/route/SKILL.md`, run the `superpowers:writing-skills` TDD cycle —
 RED baseline first, GREEN edit, pressure tests (CLAUDE.md mandates it). Same rule as the
 recall/learn indexes; the difference is what carries the baseline:
 

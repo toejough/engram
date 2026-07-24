@@ -33,8 +33,8 @@ playground/corpus/
 
 # Skill results
 result.toml
-skills/*/result.toml
-skills/*/test-coverage.md
+agent-instructions/skills/*/result.toml
+agent-instructions/skills/*/test-coverage.md
 .worktrees/
 chat.toml
 

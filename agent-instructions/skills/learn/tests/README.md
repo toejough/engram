@@ -1,7 +1,7 @@
 # Learn skill — baseline test index
 
 These are reusable RED/GREEN scenario inputs for `superpowers:writing-skills` TDD — re-run the
-relevant baseline before editing `skills/learn/SKILL.md` (CLAUDE.md mandates it).
+relevant baseline before editing `agent-instructions/skills/learn/SKILL.md` (CLAUDE.md mandates it).
 
 | baseline | locks which behavior | re-run before editing |
 |---|---|---|
