@@ -27,8 +27,11 @@ change (`~/.claude/skills` etc. stay as-is); OpenCode harness behavior.
 3. **REFACTOR + doc scrub:** apply the disposition list below; re-grep after apply
    (`\b(skills|commands|guidance)/` + `agent-instructions` + godoc comments) until clean.
 4. **Verify with the real binary:** `go install ./cmd/engram`, then `engram update --dry-run`
-   and `engram update` from a non-repo cwd — skills/commands/guidance ops must plan and apply
-   from the new source layout. `targ check-full` green.
+   and `engram update` from a non-repo cwd — and assert **nonzero op counts for each of
+   skills, commands, AND guidance** in the dry-run report (planCommandCopies and
+   planGuidanceCopies silently return nil on a missing source dir — update.go:744/786 — so
+   "it ran without error" does NOT prove the commands/guidance joins are right).
+   `targ check-full` green.
 
 ### Doc-surface disposition list (author-grepped: `\b(skills|commands|guidance)/`, godoc comments included)
 
@@ -36,13 +39,15 @@ change (`~/.claude/skills` etc. stay as-is); OpenCode harness behavior.
 | --- | --- | --- |
 | `internal/update/update.go:208-210` | 3 | update — the load-bearing source joins |
 | `internal/update/update.go` godoc/comment lines (2, 23, 582-583) | ~4 | update where they name repo-source paths; keep where they name deploy targets |
-| `internal/cli/invariants_u1_test.go`, `internal/update/update_test.go`, `internal/update/runner_test.go`, `internal/cli/update_deps_test.go` | ~10 | update repo-layout fixtures; deploy-target (`.claude/...`) fixtures keep |
-| `CLAUDE.md` (4), `README.md` (5), `docs/README.md` (2), `docs/GLOSSARY.md` (6), `docs/FEATURES.md` (1), `docs/ROADMAP.md` (3) | 21 | update path refs to `agent-instructions/...` |
+| `internal/cli/invariants_u1_test.go` (~12), `internal/update/update_test.go` (~35), `internal/update/runner_test.go` (~18), `internal/cli/update_deps_test.go` (~3) | ~68 | update repo-layout fixtures; deploy-target (`.claude/...`) fixtures keep |
+| `internal/cli/update.go:290,362` | 2 | update — `fmt.Fprintf` user-facing output naming source paths |
+| `CLAUDE.md` (4), `README.md` (6+), `docs/README.md` (2), `docs/GLOSSARY.md` (6), `docs/FEATURES.md` (3 folder names on line 69), `docs/ROADMAP.md` (3) | ~24 | update path refs to `agent-instructions/...` (per-line counts are indicative; the re-grep after apply is the completeness check, not these counts) |
 | `docs/architecture/c1-system-context.md` (5), `c2-containers.md` (5), `c3-components.md` (2), `adr.md` (1) | 13 | update path refs AND diagram labels naming the folders |
-| `dev/eval/LEDGER.md`, `dev/eval/cumulative/**` READMEs/fixtures, `docs/superpowers/plans/*` (prior cycles) | many | keep — vintage-stamped historical records; paths were valid at vintage. Executor re-checks each for a live-path use (a reusable-harness pointer, not a historical citation) and updates only those (note 383: keep-verdicts must not create newly-misleading text) |
+| `dev/eval/LEDGER.md`, `dev/eval/cumulative/**` READMEs/fixtures, `docs/superpowers/plans/*` (prior cycles) | many | keep — vintage-stamped historical records; paths were valid at vintage. Executor re-checks each for a live-path use and updates only those (note 383: keep-verdicts must not create newly-misleading text). **Live vs historical test:** a ref a future runner must FOLLOW to operate the harness today (e.g. a cumulative README's "edit `skills/recall/SKILL.md` to select the arm" instruction) = live → update; a ref describing what a past cycle measured/edited (e.g. a LEDGER evidence column citing `skills/please/SKILL.md:81-92` at its vintage) = historical → keep |
 | `skills/*/tests/*.md` internal relative refs | few | move with the dir; executor greps inside `agent-instructions/` post-move for now-broken relative paths |
 | `dev/eval/adapters_test.go` | 2 | keep — refs are deploy-target (`cfgDir/skills`), not repo layout |
-| `.claude/` project settings/rules | ? | executor greps; update any repo-path refs |
+| `.gitignore:36-37` (`skills/*/result.toml`, `skills/*/test-coverage.md`) | 2 | update — anchored patterns stop matching after the move; re-root under `agent-instructions/` |
+| `.claude/` project files (`skills/commit.md`, `skills/engram-go-conventions.md`, `commands/commit.md`, `rules/go.md`) | 0 | keep — scanned (`grep -rE '\b(skills|commands|guidance)/' .claude/`), no repo-path refs found; executor re-runs the same grep post-move as confirmation |
 
 ## Unit B — #698 FEATURES.md rewrite (after A, so path refs are final)
 
