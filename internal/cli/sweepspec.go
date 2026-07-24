@@ -41,6 +41,9 @@ type SweepSpec struct {
 	// AncestorClaudeDirs sweeps every .claude directory on the ancestor chain
 	// from cwd up to the filesystem root (project + user-level config/skills).
 	AncestorClaudeDirs bool `json:"ancestor_claude_dirs"` //nolint:tagliatelle // developer-facing config uses snake_case
+	// AncestorPiDirs sweeps every .pi directory on the ancestor chain for
+	// PI coding agent session transcripts.
+	AncestorPiDirs bool `json:"ancestor_pi_dirs"` //nolint:tagliatelle // developer-facing config uses snake_case
 	// SessionLogs sweeps ALL recorded session transcripts (every project,
 	// every conversation) — memory learns from the full conversation history.
 	SessionLogs bool `json:"session_logs"` //nolint:tagliatelle // developer-facing config uses snake_case
@@ -70,6 +73,7 @@ func DefaultSweepSpec() SweepSpec {
 	return SweepSpec{
 		RepoMarkdown:       true,
 		AncestorClaudeDirs: true,
+		AncestorPiDirs:      true,
 		SessionLogs:        true,
 		ExtraRoots:         nil,
 		ExcludeDirs: []string{
@@ -119,6 +123,13 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 		}
 	}
 
+	if spec.AncestorPiDirs {
+		piExcludes := []string{"jobs", "projects"} // PI sessions have similar subdirs to Claude
+		for _, dir := range ancestorPiDirs(env) {
+			roots = append(roots, SweepRoot{Path: dir, ExcludeDirs: piExcludes, SkipHidden: skipHidden})
+		}
+	}
+
 	if spec.SessionLogs && env.SessionDir != "" && env.IsDir(env.SessionDir) {
 		roots = append(roots, SweepRoot{
 			Path:            env.SessionDir,
@@ -142,6 +153,23 @@ func ancestorClaudeDirs(env SweepEnv) []string {
 
 	for dir := env.Cwd; ; dir = filepath.Dir(dir) {
 		candidate := filepath.Join(dir, ".claude")
+		if env.IsDir(candidate) {
+			dirs = append(dirs, candidate)
+		}
+
+		if dir == filepath.Dir(dir) {
+			return dirs
+		}
+	}
+}
+
+// ancestorPiDirs collects every existing .pi directory from cwd up to
+// the filesystem root (closest first).
+func ancestorPiDirs(env SweepEnv) []string {
+	var dirs []string
+
+	for dir := env.Cwd; ; dir = filepath.Dir(dir) {
+		candidate := filepath.Join(dir, ".pi")
 		if env.IsDir(candidate) {
 			dirs = append(dirs, candidate)
 		}
