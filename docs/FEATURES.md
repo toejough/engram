@@ -28,9 +28,10 @@ validation: `dev/eval/LEDGER.md#payload-cut-lazy-chunks`; `dev/eval/LEDGER.md#pa
 
 `engram query --timings` emits a per-stage wall-clock timing block (scan / embed / cluster /
 nominate / render) for the query in-flight phase, computed through the injected clock and gated
-so the default recall payload stays byte-identical. It is a measurement-only diagnostic — the
-split it surfaces is how the chunk-index I/O load was shown to dominate recall's query in-flight
-time (not the embedder).
+so the default recall payload stays byte-identical. It is a measurement-only diagnostic: breaking
+the query's time down by stage showed that reading and decoding the on-disk chunk-index files
+(the `scan` stage) — not running the embedding model (the `embed` stage) — is what makes a
+recall query slow.
 
 why: #691 — decompose the query in-flight span to find the dominant stage before optimizing
 (measurement-first; DI clock, additive, default payload unchanged)
@@ -40,8 +41,10 @@ validation: `dev/eval/LEDGER.md#query-inflight-split`
 
 Recall runs at two depths: a cheap, read-only rung for firing often at everyday decision
 points, and a full rung that also crystallizes new lessons into the vault. The cheap rung
-escalates to the full one automatically when the decision turns on honoring a
-recently-updated standard.
+escalates to the full one automatically when the task requires actually applying a
+convention that was recently corrected or superseded — retrieving that a newer convention
+exists is not enough; the agent has to act on it, and testing showed the cheap rung
+surfaces such conventions without acting on them.
 
 why: `docs/architecture/adr.md` — ADR-0004
 validation: `dev/eval/LEDGER.md#glance-delivers-c3-c4i-c6` (delivery); `dev/eval/LEDGER.md#glance-fails-c5-delivery` (the escalation rule's reason); `dev/eval/LEDGER.md#glance-cost-realvault` (cost)
@@ -74,9 +77,10 @@ validation: `dev/eval/LEDGER.md#delegate-guidance-flip` (headless RED→GREEN: s
 `please`'s Step 3 (Plan) carries a non-waivable doc-surface enumeration grep: when a plan alters
 a repeated invariant (a payload shape, a cadence, a naming convention echoed across docs,
 diagrams, or skills), the author runs a concept-variant grep over the repo and pastes a per-file
-disposition list into the plan itself. Gate A's docs/diagrams-alignment charge verifies that
-list against the repo and still runs its own independent discovery pass regardless — the list is
-never the reviewer's source, and its presence never narrows the reviewer's scan.
+disposition list into the plan itself. Before that plan can proceed, `please`'s Gate A review
+independently checks that list against the repo and always runs its own independent
+discovery pass too — the author's list is never the reviewer's source, and its presence
+never narrows the reviewer's scan.
 
 why: issue #685 (Change #1) — gate reviewers kept catching doc-scrub the plan author missed across
 4+ cycles
@@ -100,14 +104,15 @@ validation: `dev/eval/LEDGER.md#tier-routing-parity`
 A controlled vocabulary of bare-`vocab`-tagged definition notes (shipped as ordinary tags-based fact
 notes 2026-07-10, #678, superseding the earlier dual-channel `vocab.<term>.md` term-note form) tags
 every written note on a shared axis via `tags: [vocab/<term>]`, letting recall nominate cross-cluster
-notes that share a tag with its top matches and letting a superseding note ride along right behind the
-note it replaces. The vault also checks its own tag health (growth, concentration, untagged rate) and
-prompts its own re-fit instead of drifting stale.
+notes that share a tag with its top matches, and — when a newer note supersedes an older one — surfacing
+the newer note alongside the older one it replaces, instead of leaving them to be found separately. The
+vault also checks its own tag health (growth, concentration, untagged rate) and prompts its own re-fit
+instead of drifting stale.
 
 why: `docs/architecture/adr.md` — ADR-0011
 validation: `dev/eval/LEDGER.md#vocab-tag-nomination-l6xtag` (nomination); `dev/eval/LEDGER.md#vocab-refit-cost` (refit)
 
-## Q&A memory round-1 (learn qa, D5′)
+## Q&A memory round-1 (learn qa)
 
 `engram learn qa` captures a question and its answer as a linked pair. The answer
 competes for retrieval like any other note, while the question stays out of the main
@@ -156,7 +161,15 @@ separate, un-clustered recency channel (the newest raw activity). An agent re-or
 after context loss gets both "what's relevant" and "what just happened" in a single pass.
 
 why: `docs/architecture/adr.md` — ADR-0004
-validation: the relevance channel's ranking is validated by `dev/eval/LEDGER.md#matched-note-floor`. The recency channel decomposes into two mechanisms. Its **re-rank** (recent-relevant outranks old-relevant — the day-to-day continuity lever) is proven via C4i recency-supersession, and its delivery of *deliberately-unrelated* recent items is proven via C5 (both `dev/eval/LEDGER.md#crowded-vault-capability-robustness`). Its **recent-fill** delivery of *self-captured work the agent needs* was found to add nothing over plain cosine — a needed decision is topically related to the task, so `/recall`'s broad query already surfaces it (`direct`), making the recent-fill channel redundant there and structurally untestable via self-capture (`dev/eval/LEDGER.md#646-recency-recent-fill-selfcapture`, #646 closed 2026-07-19)
+validation: the relevance channel's ranking is validated by `dev/eval/LEDGER.md#matched-note-floor`. The recency channel decomposes into two mechanisms, both proven in the same eval
+(`dev/eval/LEDGER.md#crowded-vault-capability-robustness`, test conditions C4i and C5 there). Its
+**re-rank** (recent-relevant outranks old-relevant — the day-to-day continuity lever) is proven under
+that eval's C4i condition, and its delivery of *deliberately-unrelated* recent items is proven under
+its C5 condition. Its **recent-fill** delivery of *self-captured work the agent needs* was found to add
+nothing over plain cosine — a needed decision is topically related to the task, so `/recall`'s broad
+query already surfaces it directly, making the recent-fill channel redundant there and structurally
+untestable via self-capture (`dev/eval/LEDGER.md#646-recency-recent-fill-selfcapture`, issue #646 closed
+2026-07-19)
 
 ## Ingest auto-sweep with non-persistent-workspace skip
 
@@ -194,8 +207,8 @@ property/tag filter, backlinks-of against the backlinks panel — but they are *
 other: backlinks-of counts every linker while group-by counts only frontmatter members, so the two
 diverge by the number of non-member linkers (e.g. a hand-authored MOC/hub page that links every note
 on a topic without itself carrying that topic in frontmatter).
-With #674, count is also the audit surface for route's dispatch evidence:
-`--group-by tags --filter tags=tier/<t> [--filter tags=outcome/pass]` recomputes true
+Count is also the audit surface for route's dispatch evidence (see "Route dispatch evidence +
+aggregates" below): `--group-by tags --filter tags=tier/<t> [--filter tags=outcome/pass]` recomputes true
 tier×work-kind tallies from evidence-note tags to verify/repair the LLM-maintained aggregate
 notes — never on the routing read path (plain recall reads the aggregates).
 
