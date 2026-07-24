@@ -16,7 +16,7 @@ func TestSkillDescriptionsFitMetadataLimit(t *testing.T) {
 
 	g := gomega.NewWithT(t)
 
-	paths, err := filepath.Glob(filepath.Join("*", "SKILL.md"))
+	paths, err := filepath.Glob(filepath.Join("..", "..", "agent-instructions", "skills", "*", "SKILL.md"))
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(paths).NotTo(gomega.BeEmpty())
 
