@@ -105,7 +105,7 @@ engram vocab bootstrap --seed <yaml> [--floor <f>]     Seed vocab definition fac
 engram vocab propose --term <t> --description <d>  LLM-gated: create a new vocab definition note if no existing term covers it and projected attachment ≤ 20% of vault (~$0.05/proposal). Both flags required.
 engram vocab stats                     Per-term member counts, vault untagged-rate, hub terms (> 25% of vault), orphan terms (< 2 members), version staleness.
 engram vocab refit                     LLM-judged: merge orphans, split hubs, rename terms; rewrites member `tags:` entries in the `vocab/<term>` namespace; major version bump on the family definition note (no index to regenerate — the index is emergent).
-engram update [--with-guidance]        Refresh binary and harness skills/commands ([--dry-run]); --with-guidance also deploys agent-instructions/guidance/*.md (recall.md, delegate.md) to ~/.claude/engram/ (Claude Code; opt-in; OpenCode deferred)
+engram update [--with-guidance]        Refresh binary and harness skills and commands ([--dry-run]); --with-guidance also deploys agent-instructions/guidance/*.md (recall.md, delegate.md) to ~/.claude/engram/ (Claude Code; opt-in; OpenCode deferred)
 ```
 
 ## Semantic search & the embed-on-write pipeline
@@ -139,6 +139,7 @@ internal/            Business logic (DI boundaries)
 agent-instructions/
   skills/            Source for the recall, learn, write-memory, please, and route skills
   commands/          Source for OpenCode slash commands
+  guidance/          Source for the deployable ambient guidance docs — recall-firing (recall.md) and delegation-firing (delegate.md)
 ```
 
 ## Development
