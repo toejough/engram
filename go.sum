@@ -124,8 +124,10 @@ github.com/toejough/go-reorder v0.0.0-20260323214627-2c2148c725b2 h1:FoEGI0ozz1v
 github.com/toejough/go-reorder v0.0.0-20260323214627-2c2148c725b2/go.mod h1:RPG0RKzyzlpkYcX8YNsX4QpOJzt87lGdeRFA1NoOwFk=
 github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e h1:30DvtIHP1qxp8iXal2GDBHb67Qqwcp0h/qyT5ssuI9k=
 github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e/go.mod h1:x4rLasfjuQKaImCrhpmhQGQEINF7ShZkd9Yt6GBMnzk=
-github.com/toejough/targ v0.0.0-20260723030055-c1200afc8001 h1:wdEZTpcs9Mr5aH+fPxQ4GMcFzCo9qflwQAw8VOq5+nk=
-github.com/toejough/targ v0.0.0-20260723030055-c1200afc8001/go.mod h1:h3cq/qiVlpn0mOdgBYYIevb+L/G+pK3UC7kbH3dZ+b4=
+github.com/toejough/targ v0.0.0-20260723180241-822f27bcc856 h1:Dmt0i9WR7yurMEAXCUkAG7n3YoWtQi+eoqz4z9SP+Vg=
+github.com/toejough/targ v0.0.0-20260723180241-822f27bcc856/go.mod h1:h3cq/qiVlpn0mOdgBYYIevb+L/G+pK3UC7kbH3dZ+b4=
+github.com/toejough/targ v0.0.0-20260723204120-1a5aadc76cdc h1:1/HFxfX3i3B5L/Sn8cgb9fFP1BWakAIQ60yQuZB82GU=
+github.com/toejough/targ v0.0.0-20260723204120-1a5aadc76cdc/go.mod h1:8Cn+OXldIH63maZswWwV8ODprz+HLO2sTWkaHdFqVuc=
 github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61 h1:q2kh5K7BzSky2Fw0ZnsGYG6YBJzvQA8uaWBkfILkCh8=
 github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61/go.mod h1:BJ1ra8Pt6ouZE4yvgRt1j9HkH+yzusi0jlNrNTmZY6M=
 github.com/viant/afs v1.30.0 h1:dbgVVSCPwGHUgpgkWJ5gdjKBqssT7OV7Z2M81CjwZEY=
