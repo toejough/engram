@@ -1,132 +1,287 @@
 # Plan: chunk-index deduplication + two ingest/prune bugfixes
 
 Cycle: /please, 2026-07-25. Ask (verbatim): "fix the two bugs you found, as well as
-implementing the full general fix".
+implementing the full general fix". **Four units**, separately committed.
 
-The two bugs and the general fix all live in the same subsystem — `--auto` source selection and
-the manifest — so they ship as one cycle, three units, separately committed.
+Unit 4 (retroactive cleanup) was flagged by Gate A's ask-alignment reviewer as beyond the ask.
+It was escalated to Joe with fold/split options and he chose **fold it in** — recorded here per
+the propose-and-gate rule, not decided by the author.
 
-## Measured starting state (re-derive at execution time, note 178)
+## Measured starting state
 
-| Measure | Value | Command |
-| --- | --- | --- |
-| manifest sources | 62,397 | `python3` over `chunks/manifest.json` |
-| sources that are exact-content duplicates of another source | **49,295 (79%)** | group manifest entries by `file_hash`, sum `len(group)-1` |
-| … still present on disk | 48,952 | same, plus `os.path.exists` |
-| redundant chunk *records* | ~11,307 (15.3% of 73,945) | prior investigation |
-| duplicate share of returned items, production arm | 9.6% mean / 28.6% worst | `engram query --lazy-chunks` |
-| scan cost of the junk | −290 ms of ~5.1 s (−5.7%) | job-free hardlinked index, 3 runs |
+Re-derived live during Gate A (two independent counts, hence the drift):
 
-**Honest bound on the general fix.** Exact-content dedup reaches the 79%. It does NOT reach a
-*drifted* copy — a snapshot of a note that has since been amended hashes differently, so both
-survive. Measured: 50 of 256 shadowed vault notes have drifted. Unit 3 therefore carries a
-second rule for that class (a `.md` with a sibling `.vec.json` is a vault note, and only the
-canonical vault is indexed), and the plan states plainly what neither rule covers.
+| Measure | Author count | Reviewer recount | Command |
+| --- | --- | --- | --- |
+| manifest sources | 62,397 | 62,415 | group `chunks/manifest.json` entries |
+| exact-content duplicates of another source | 49,295 (79%) | 49,291 (79.0%) | group by `file_hash`, sum `len(group)-1` |
+| … still present on disk | 48,952 | 48,948 | same + `os.path.exists` |
+| redundant chunk *records* | ~11,307 of 73,945 (15.3%) | — | prior investigation |
+| duplicate share of returned items (production arm, `--lazy-chunks`) | 9.6% mean / 28.6% worst | — | `engram query` |
+| scan cost of the junk | −290 ms of ~5.1 s (−5.7%) | — | job-free hardlinked index, 3 runs |
+
+**These numbers are context, not a target.** Every deletion set is re-derived mechanically
+against the live manifest at execution time (note 178); no unit compares against a count in
+this document.
+
+**Honest bound.** Exact-content dedup reaches the 79%. It does NOT reach a *drifted* copy — a
+snapshot of a note since amended hashes differently, so both survive. Measured: 50 of 256
+shadowed vault notes have drifted. Rule B covers that class for vault notes specifically.
+Neither rule covers a drifted non-vault copy (e.g. an edited fork of a doc in a worktree);
+that is out of scope and stated so.
 
 ## Assessment of the ask
 
-Sound, and the general fix is the right call over the one-word `jobs` exclude: `jobs` is 29% of
-the problem, and a path-pattern blocklist cannot reach worktrees, backup-restore trees, or
-`/tmp` config pools, which are the majority. Two challenges recorded, neither blocking:
+Sound. The general fix is right over the cheap `jobs` exclude: `jobs` is 29% of the problem and
+a path blocklist cannot reach worktrees, backup-restore trees, or `/tmp` config pools. Two
+challenges, both recorded and mitigated rather than blocking:
 
-1. **Deletion of existing index files is destructive and one-shot.** Notes 241/178/25 apply:
-   gate every delete on the survivor verifiably existing, re-derive the set against the live
-   tree at execution time, and never delete on a frozen inventory. Unit 4 is therefore
-   dry-run-first with an explicit count check, and the reviewer live-runs it against a full
-   copy of the real chunks dir.
-2. **`--auto`'s ancestor sweep is intentional**, not itself the bug — it is how engram finds the
-   user's `~/.claude` memory (vault note 296 records this exact mechanism being diagnosed on
-   2026-07-19 in an eval-isolation context). The fix must dedup, not stop sweeping.
+1. **Retroactive deletion is destructive and one-shot** — notes 241/178/25. Mitigations are
+   normative in Unit 4, not aspirational.
+2. **`--auto`'s ancestor sweep is intentional** — it is how engram finds `~/.claude` memory
+   (vault note 296 diagnosed this exact mechanism on 2026-07-19). The fix dedups; it does not
+   stop sweeping.
 
-## Units
+## The append-only invariant — narrowed, not reversed
 
-### Unit 1 — `engram prune --dry-run` is ignored on the default path (bug)
+Gate A found "append-only / never deletes" asserted in `README.md:97`,
+`docs/GLOSSARY.md:550-551`, `docs/architecture/c1-system-context.md:194,223`,
+`agent-instructions/skills/learn/SKILL.md:36`, and Go doc comments at
+`internal/cli/ingest.go:464-465,476,584`.
 
-`RunPrune` (`internal/cli/prune.go:54-98`) drops dead manifest entries and calls
-`deps.WriteFile` unconditionally; `args.DryRun` is read only inside `pruneEmptyLocked`
-(`:138,154`). So `engram prune --dry-run` silently mutates the manifest today.
+Two distinct guarantees hide under one phrase, and this cycle touches only one:
 
-- **RED:** table test — `RunPrune` with `DryRun: true`, a manifest containing a dead source,
-  and a `WriteFile` stub that fails the test if called. Expect the current code to call it.
-- **GREEN:** guard the write on `!args.DryRun`; prefix the report line `[dry-run] ` exactly as
-  `pruneEmptyLocked` does.
-- **VERIFY:** `targ test`; then the real binary against a **copy** of the chunks dir — run
-  `engram prune --dry-run --chunks-dir <copy>` and confirm `manifest.json`'s mtime and bytes
-  are unchanged.
+- **Within a source** (`mergeChunkRecords`, `ingest.go:464-476`): prior records survive a
+  re-chunk. **Unchanged by this cycle.**
+- **Across sources**: no index file is ever removed, so content survives even when its source
+  file is deleted (`RunPrune`'s doc comment, `prune.go:31-39`). **Narrowed**: a duplicate index
+  may be removed *only when a byte-identical retained twin verifiably exists*, so no content
+  becomes unsearchable. The user-facing promise — "deleting a source file never loses the
+  recovered memory" — still holds exactly.
 
-### Unit 2 — non-persistent prefixes apply only to session logs (bug)
+ADR-0021 states this narrowing explicitly and the doc updates use this framing. The reviewer's
+"append-only is being revoked" reading is what the docs would say if we changed the text
+carelessly; the plan's job is to make the narrowing legible.
 
-`NonPersistentPrefixes` is wired onto the SessionLogs root alone
-(`internal/cli/sweepspec.go:133-140`). A sweep root whose **own path** is under a throwaway
-prefix (`/tmp`, `/private/tmp`, `/var/folders`) is still swept and permanently indexed — which
-is how `/tmp/cummatrix-*/cfgpool/…` markdown reached the index.
+## Unit 1 — `engram prune --dry-run` is ignored on the default path (bug)
 
-- **RED:** `ResolveSweepRoots` test with `env.Cwd` under `/private/tmp/...` — assert no root is
-  returned whose path is under a non-persistent prefix. Fails today.
-- **GREEN:** filter resolved roots by their own path prefix. Explicit `--sweep`/`--transcript`
-  keep bypassing this (`ingest.go:177-182`), which is the documented escape hatch.
-- **VERIFY:** `targ test`; real binary run from a `/private/tmp` cwd adds no sources.
+`RunPrune` (`internal/cli/prune.go:40-98`) calls `deps.WriteFile` at `:91` unconditionally;
+`args.DryRun` is read only at `:138` and `:154`, inside `pruneEmptyLocked`.
 
-Note the prefix forms differ: `NonPersistentPrefixes` today holds *slugified* project-dir
-names (`-private-tmp-`). Unit 2 needs real path prefixes; add a sibling field rather than
-overloading the existing one, and say so in the doc surface.
+- **RED:** in `internal/cli/prune_test.go`, add `TestRunPrune_DryRunDoesNotWriteManifest`:
+  manifest fixture with two sources — one whose `Exists` stub returns true, one false (that is
+  the "dead source": a manifest key whose file no longer exists, the condition at `:71`).
+  `PruneArgs{ChunksDir: "/c", DryRun: true}`. `WriteFile` stub calls `t.Fatal` if invoked.
+  Assert stdout contains `[dry-run] `. Fails today at the `t.Fatal`.
+- **GREEN:** guard `:86-94` on `!args.DryRun`; emit the same `[dry-run] ` prefix
+  `pruneEmptyLocked` uses at `:137-140`.
+- **VERIFY:** `targ test`; then the installed binary against a **copy** of the chunks dir —
+  `shasum manifest.json` before and after `engram prune --dry-run --chunks-dir <copy>` must be
+  identical (a hash, not mtime — JSON key order is not stable).
 
-### Unit 3 — dedup at ingest (the general fix, forward-looking)
+Existing `prune_test.go` / `prune_integration_test.go` construct `PruneArgs` with `DryRun`
+defaulting false, so none of their assertions change.
 
-The manifest already stores `FileHash` per source (`ingest.go:344-361`), so the mechanism is
-available without new state.
+## Unit 2 — non-persistent prefixes apply only to session logs (bug)
 
-- **Rule A (exact content):** when a swept source's content hash matches a source already
-  indexed **and still present on disk**, skip building a second index for it. Winner must be
-  deterministic and stable across runs regardless of walk order — pick by an explicit
-  precedence (explicit flags > repo root > `.claude`/`.pi` ancestors, then shortest path, then
-  lexicographic), not by first-seen.
-- **Rule B (vault copies):** a `.md` with a sibling `<name>.vec.json` is a vault note; index it
-  only from the canonical vault path. This is what catches the 50 drifted snapshots Rule A
-  cannot.
-- **RED:** unit tests over `gatherSources`/`ingestSource` with mocked FS — two sources, same
-  bytes, different paths → exactly one index built, and the winner is the precedence-correct
-  one; a drifted vault copy → not indexed.
-- **GREEN:** minimal implementation behind the existing DI seams.
+`ExcludePrefixes: spec.NonPersistentPrefixes` is wired only onto the SessionLogs root
+(`sweepspec.go:133-140`). `sweepListerFrom` (`ingest.go:718-757`) exempts the root's own path
+from every check (`if path == root.Path { return nil }`, `:735-736`), so a root that *is*
+under a throwaway prefix is swept whole. Confirmed live: `/tmp/cummatrix-n1/cfgpool/warm0/…`
+plus ~495 siblings are in the manifest today.
+
+`NonPersistentPrefixes` holds slugified directory-**name** prefixes (`-private-tmp-`) matched
+against `entry.Name()` — not path prefixes. So this needs a sibling field, not an overload.
+
+- **RED:** in `internal/cli/sweepspec_test.go`, add
+  `TestResolveSweepRootsDropsRootsUnderNonPersistentPaths`: `SweepEnv{Cwd:
+  "/private/tmp/work/proj"}` with `IsDir` true for that tree; assert no returned root has a
+  path under `/private/tmp`. Fails today. Existing
+  `TestResolveSweepRootsAttachesPrefixesToSessionRootOnly` (`:46`) still passes — the new field
+  is additive.
+- **GREEN:** add `NonPersistentPathPrefixes []string` to `SweepSpec` beside
+  `NonPersistentPrefixes` (default `{"/tmp", "/private/tmp", "/var/folders",
+  "/private/var/folders"}`); at the end of `ResolveSweepRoots` (`sweepspec.go:108-147`) drop
+  any root whose own `Path` is under one of them. Explicit `--sweep`/`--transcript`/`--markdown`
+  bypass this (`ingest.go:177-182`) — the documented escape hatch, unchanged.
+- **VERIFY:** `targ test`; installed binary run with cwd under `/private/tmp` adds zero sources.
+
+## Unit 3 — dedup at ingest (the general fix, forward-looking)
+
+Gate A refuted the first draft's "minimal change behind existing DI seams". Two structural
+additions are required and are specified here.
+
+**Structural change 1 — resolve duplicates across sources, not one at a time.**
+`gatherSources` (`ingest.go:268-324`) returns bare `sourceRef`s with no hash; `RunIngest`
+(`:103-120`) calls `ingestSource` per path with no cross-source view. So:
+
+1. Build a `hash → []sourceRef` registry before the ingest loop, seeded from the manifest's
+   cached `FileHash` (no extra reads for unchanged sources; only unknown/changed sources are
+   read and hashed).
+2. Rank each hash group by `selectCanonical(candidates []sourceRef) sourceRef` — a **pure
+   function**, first match wins, evaluated in this order:
+   1. `explicit == true` (came from `--transcript`/`--markdown`/`--pi-sessions`);
+   2. under the repo root (`repoRootFor(env)`);
+   3. under an ancestor `.claude`/`.pi` dir, **closest ancestor first**;
+   4. anything else;
+   5. tie-break: fewest path separators, then byte-wise lexicographic on the full path
+      (case-sensitive). Deterministic regardless of walk order.
+3. Index only the canonical member; record the others in the manifest as duplicates pointing at
+   the canonical source, so a later run does not re-read them. **This needs a new field:**
+   `manifestEntry` (`ingest.go:158-162`) is only `{SourceStat, FileHash}` today. Add
+   `DuplicateOf string` (empty for canonical entries), rather than relying on the implicit
+   "entry with no index file = suppressed duplicate" convention, which is indistinguishable
+   from the crash state below.
+
+**Structural change 2 — eviction, not just skipping.** A low-precedence copy indexed on day 1
+and a high-precedence twin appearing on day 5 must converge: when a newly-ranked canonical
+outranks an already-indexed member of its hash group, remove the stale index file and manifest
+entry. This shares one helper with Unit 4 (`removeDuplicateIndex`) rather than leaving Unit 4 as
+a one-off — without it, out-of-order arrivals re-accumulate exactly as today.
+
+**Rule B (vault copies) needs a new dependency.** `IngestArgs`/`IngestDeps` (`ingest.go:20-52`)
+has no vault path today; the analog is `resolveVault` (`learn.go:432`), wired only into
+`LearnDeps`. Add `Vault string` to `IngestArgs` and the resolver to `IngestDeps`, wired in
+`newIngestDeps` + `targets.go` exactly as `ResolveChunksDir` is. Rule: a `.md` with a sibling
+`<name>.vec.json` is a vault note (verified live: the vault is 461 `.md` / 461 `.vec.json`,
+1:1, `internal/embed/sidecar.go` `SidecarPath`); index it only when it sits under the resolved
+vault path.
+
+- **RED** (`internal/cli/ingest_test.go`, imptest mocks):
+  - `TestIngestDedupsExactContentByPrecedence`: `/repo/notes/a.md` and
+    `/home/u/.claude/copy/a.md` with identical bytes → exactly one index build; canonical is the
+    repo-root path.
+  - `TestIngestEvictsLowerPrecedenceDuplicate`: manifest pre-seeded with the `.claude` copy
+    indexed; the repo copy then appears → repo copy indexed, `.claude` index removed.
+  - `TestIngestSkipsVaultCopyOutsideCanonicalVault`: `/jobs/tmp/snap/vault/1.md` +
+    sibling `1.vec.json`, differing bytes from the live note (the drifted case Rule A misses)
+    → not indexed.
+  - `TestSelectCanonicalIsOrderIndependent`: rapid property — shuffle a candidate slice, assert
+    the same winner every time.
+- **GREEN:** minimal implementation of the three pieces above.
 - **REFACTOR + Gate B.**
-- **VERIFY:** `targ check-full`; then the real binary on a **copy** of the live chunks dir —
-  `engram ingest --auto` adds no new duplicate sources, and a chunk-query spot check returns
-  the same live notes.
+- **VERIFY:** `targ check-full`; then the installed binary against a **copy** of the live chunks
+  dir — `engram ingest --auto` adds no new duplicate hash groups, and a chunk-query spot check
+  returns the same live notes it did before.
 
-### Unit 4 — `engram prune --duplicates` (the general fix, retroactive)
+## Unit 4 — `engram prune --duplicates` (retroactive cleanup; folded in with Joe's approval)
 
-Cleans what is already there; without it the 49,295 existing duplicates persist.
+Removes index files + manifest entries for non-canonical members of each hash group, keeping
+exactly one per hash by Unit 3's `selectCanonical`.
 
-- Selects manifest sources whose `file_hash` matches a retained source, removes their index
-  files and manifest entries, keeps exactly one per hash by the Unit 3 precedence.
-- **Deletion safety (notes 241/178):** re-derive the set against the live manifest at run time;
-  gate each delete on the retained twin existing *now*; per-item failure set with a non-zero
-  exit naming failures; convergent re-run (a second run removes nothing). `--dry-run` must work
-  here from the start — Unit 1 makes that real.
-- **VERIFY:** reviewer live-runs `--dry-run` then the real delete against a **full copy** of the
-  chunks dir, with expected counts stated in advance and zero warnings, before it is ever run
-  against the live index. The live index is regenerable but re-embedding costs ~5 min/455 notes.
+Deletion safety, all normative:
 
-## Doc-surface disposition (author-grepped: `prune`, `sweep`, `manifest`, `ingest --auto`)
+- Re-derive the duplicate set against the live manifest at run time; never from this document.
+- Gate every delete on its retained twin existing **now** (`deps.Exists` on the canonical
+  source's index file immediately before removing the duplicate).
+- Per-item failure handling: on any removal error, write `[FAIL] <path>: <err>` to stderr,
+  continue, and exit non-zero with `N of M removals failed`. Never exit 0 with failures.
+- Convergent: a second run removes nothing and exits 0.
+- `--dry-run` works from the start (Unit 1 makes it real) and reports the counts it *would*
+  remove plus the retained count.
+- **VERIFY:** the Gate B reviewer live-runs `--dry-run` then the real delete against a **full
+  copy** of the chunks dir (note 241's copy-verification), confirms convergence on re-run and
+  zero warnings, and confirms `engram query` on the copy returns the same live notes. Only then
+  does it run against the live index.
 
-| File | Hits | Disposition |
-| --- | --- | --- |
-| `README.md` | prune 2, sweep 3, manifest 1 | **update** — CLI reference gains `--duplicates`; `--dry-run` now real on the default path |
-| `docs/FEATURES.md` | prune 8, sweep 4, manifest 3 | **update** — dedup is a new user-visible capability; needs an entry with `why:`/`validation:` |
-| `docs/GLOSSARY.md` | sweep 6, manifest 5, prune 1 | **update** — define the dedup rule and the canonical-source precedence |
-| `docs/architecture/c2-containers.md` | manifest 13, sweep 5, prune 3 | **update** — the manifest's role gains a dedup responsibility |
-| `docs/architecture/c3-components.md` | prune 7, manifest 4 | **update** — prune's component description gains the new mode |
-| `docs/architecture/adr.md` | prune 5, manifest 3 | **update** — a new ADR: dedup by content hash + canonical-source precedence, with the drifted-copy limitation recorded |
-| `docs/architecture/c1-system-context.md` | sweep/ingest flow | **check** — update only if the ingest flow diagram names the source-selection step |
-| `docs/ROADMAP.md` | prune 4, sweep 7 | **update** — Provenance row once shipped; check no band row claims this is open |
-| `agent-instructions/skills/{recall,learn}/SKILL.md`, `please/SKILL.md` | sweep/ingest mentions | **keep** — they invoke `engram ingest --auto`, whose interface is unchanged. Re-check post-change for newly-misleading omissions (note 383) |
-| `agent-instructions/skills/*/tests/*.md` | sweep mentions | **keep** — skill baselines; behavior under test unchanged |
-| `dev/eval/LEDGER.md`, `dev/eval/atoms*/**` | many | **keep** — vintage records and eval fixtures |
-| `docs/design/2026-07-01-engram-recall-subprocess-design.md` | sweep | **check** — historical design doc; update only if it states current source-selection behavior as live |
+## Unit 5 — `engram update` runs the dedup prune once (Joe, mid-cycle addition)
+
+Requested verbatim: "the update command to run the prune once for people updating to this
+version from an old one that might have accumulated copies." Without it, only people who read
+the release notes and run `prune --duplicates` by hand ever get the cleanup — everyone else
+keeps the accumulated copies forever, which is the whole population this cycle is for.
+
+**Divergence from precedent, stated once and then committed to.** The existing upgrade
+convention *notifies* rather than acts: for #694's empty files, `engram update` "prints a
+one-line notice pointing here" and the user runs `engram prune --empty` themselves
+(`README.md:44`). Unit 5 has update perform the deletion instead. That is defensible here —
+the removal is safe by construction (only a duplicate whose byte-identical twin is verifiably
+retained), and unlike the empty-file case there is no reason a user would want the copies —
+but it is a genuine change in what `update` is allowed to do, and it is Joe's call, made
+explicitly.
+
+- **Once, not every run.** Idempotence marker: a sentinel file `<chunks-dir>/.dedup-applied`
+  containing the schema tag and the ISO date. Present → skip entirely (no manifest read, so no
+  cost on the common path). Absent → run the Unit 4 removal, then write it. A sentinel file
+  rather than a manifest key because `ingestManifest` is a bare `map[string]manifestEntry` and
+  adding a metadata key would change its type and break every existing reader.
+- **Loud, never silent.** Report the removed and retained counts through the existing update
+  report (`internal/update/update.go`'s `Report`), in the same style as the harness sections —
+  a deletion the user did not ask for individually must be visible in the output they do read.
+- **Failure is non-fatal.** A dedup failure must not fail `engram update`'s primary job
+  (binary + skills refresh). On error: report it, do NOT write the sentinel (so the next update
+  retries), and continue. Exit code follows the update's own result.
+- **RED** (`internal/update/update_test.go`, memFS): sentinel absent + a manifest with a
+  duplicate group → removal called once, sentinel written, counts in the report; sentinel
+  present → removal never called; removal returns an error → sentinel NOT written, update still
+  succeeds.
+- **GREEN + REFACTOR + Gate B.**
+- **VERIFY:** installed binary, `engram update` against a **copy** of the chunks dir — first run
+  removes and writes the sentinel, second run reports nothing and leaves the index byte-identical.
+
+Note the DI boundary: `internal/update` must not reach into `internal/cli` directly. Wire the
+dedup entry point as an injected function on the updater's deps, composed in `cli.NewDeps`
+alongside the existing update wiring, so the dependency direction stays cli → update.
+
+## Cross-unit coordination
+
+- Unit 2 removes `/tmp` roots from future sweeps; it does **not** remove already-indexed `/tmp`
+  sources — Unit 4 does, if they duplicate a retained source. `/tmp` sources that are unique are
+  left alone; removing those is not in this ask.
+- Unit 3 and Unit 4 share `selectCanonical` and `removeDuplicateIndex`. Unit 3 lands first so
+  Unit 4 consumes them rather than duplicating the logic.
+- Deletion order in both: remove the index file first, then the manifest entry. The reverse
+  order would strand an unreferenced index file that nothing cleans up (confirmed: nothing
+  deletes a `.jsonl` with no manifest entry).
+
+  **The crash window between the two is real and does NOT self-heal today** — Gate A refuted the
+  first draft's claim that it does. `ingestSource`'s cheap-skip (`ingest.go:335-341`) compares
+  only the *source file's* mtime+size against the manifest and never checks whether the
+  `.jsonl` index file exists, so a crash that removed the index but not the entry leaves that
+  source with no searchable content, silently and indefinitely, until something unrelated
+  changes the source's mtime. `prune`'s default path tolerates it only by never looking
+  (`prune.go:71` checks the source file, not the index).
+
+  **Fix, in Unit 3:** extend the cheap-skip to also require the index file to exist — a stat per
+  known source, negligible against the read it replaces, and it makes "the next ingest rebuilds
+  it" true rather than aspirational. RED test `TestIngestRebuildsWhenIndexFileMissing`: manifest
+  entry present, source unchanged, index file absent → index is rebuilt (fails today; the cheap
+  skip returns early).
+
+## Doc-surface disposition (author-grepped: `prune`, `sweep`, `manifest`, `ingest --auto`, `append-only`, `never delete`)
+
+| File:line | Disposition |
+| --- | --- |
+| `README.md:97` | **update** — the `ingest` row says "append-only … never deletes"; narrow per the invariant section above and add `--duplicates` to the `prune` row |
+| `docs/GLOSSARY.md:550-551` | **update** — `engram ingest` entry's "(append-only chunk history)" narrowed |
+| `docs/GLOSSARY.md` `engram prune` entry | **update** — currently says prune "KEEPS that source's per-source index file"; the new mode is the exception |
+| `docs/GLOSSARY.md:519` | **keep** — "append-only trail" describes route evidence aggregates, unrelated |
+| `docs/architecture/c1-system-context.md:194,223` | **update** — both state "never deleting existing records"; the `:223` sequence-diagram note is a diagram label |
+| `docs/architecture/c2-containers.md` | **update** — manifest responsibilities gain dedup; prune flow gains the mode |
+| `docs/architecture/c3-components.md` | **update** — prune component description; the diagram shows prune's behavior, so the new mode is added as a branch, not a rewrite of the base flow |
+| `docs/architecture/adr.md` | **update** — add **ADR-0021** (ADR-0020 is the current highest): dedup by content hash + canonical precedence, explicitly narrowing the cross-source append-only guarantee and recording the drifted-copy limitation |
+| `docs/FEATURES.md` | **update** — new capability entry with `why:` (ADR-0021) and `validation:` (LEDGER row from this cycle) |
+| `docs/ROADMAP.md` | **update** — Provenance row on ship; verify no band row claims this open |
+| `agent-instructions/skills/learn/SKILL.md:36` | **update** — "existing chunks are never deleted (append-only history)" is the same over-broad claim, in deployed guidance |
+| `internal/cli/ingest.go:464-465,476,584` | **keep** — these describe `mergeChunkRecords`' within-source guarantee, which is genuinely unchanged. Re-read post-change for newly-misleading omission (note 383) |
+| `internal/cli/prune.go:31-39` | **update** — `RunPrune`'s doc comment states the keep-index rationale; add the dedup exception |
+| `agent-instructions/skills/{recall,please}/SKILL.md`, `*/tests/*.md` | **keep** — they invoke `engram ingest --auto`; interface unchanged |
+| `dev/eval/LEDGER.md`, `dev/eval/atoms*/**`, `docs/design/2026-07-01-*.md` | **keep** — vintage records, eval fixtures, historical design |
 
 ## Gates
 
-A (this plan): all four angles. B: after each unit's refactor. C: every doc above that ends up
-touched. D: commit messages.
+A (this plan): all four angles, one round complete — this revision addresses every finding.
+B: after each unit's refactor; Unit 4's Gate B reviewer additionally performs the live copy-run.
+C: every doc above. D: commit messages.
 
-Commits: one per unit, `AI-Used: [claude]`, ff-only main. `targ check-full` green before each.
+Commits: one per unit, `AI-Used: [claude]`, ff-only main, `targ check-full` green before each.
+
+## Rebutted finding
+
+Gate A's clarity reviewer asked the plan to state expected deletion counts up front (62,397 →
+13,102) and check against them. **Rejected**: note 178's measured lesson is that a
+planning-phase count is stale by execution time (that cycle's own work drifted the number and a
+count-check would have false-STOPped), and Gate A's own recount already drifted by 18 sources
+within one session. The plan instead requires mechanical re-derivation at run time plus a
+keep-list complement, which is strictly stronger. All of that reviewer's other findings are
+adopted above.
