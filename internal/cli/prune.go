@@ -34,9 +34,10 @@ type PruneDeps struct {
 // Chunk search discovers .jsonl files by directory scan and never consults
 // the manifest, so detached chunks remain fully searchable — this lets a
 // user delete source files without losing the recovered memory. Zero-LLM.
-// With --empty, RunPrune instead delegates to pruneEmptyLocked, which DOES
-// remove 0-byte .jsonl index files (regenerable; ranking-neutral) — see that
-// helper's doc comment.
+// With --dry-run, the manifest is left unwritten and stdout is prefixed
+// "[dry-run] ". With --empty, RunPrune instead delegates to
+// pruneEmptyLocked, which DOES remove 0-byte .jsonl index files
+// (regenerable; ranking-neutral) — see that helper's doc comment.
 func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Writer) error {
 	// Acquire the manifest lock before any read-modify-write on manifest.json
 	// so concurrent ingest/prune runs cannot produce lost updates (#660).
@@ -83,19 +84,26 @@ func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Write
 		return nil
 	}
 
-	out, err := json.Marshal(manifest)
-	if err != nil {
-		return fmt.Errorf("prune: encoding manifest: %w", err)
+	writeErr := writePrunedManifest(args, deps, manifest)
+	if writeErr != nil {
+		return writeErr
 	}
 
-	err = deps.WriteFile(filepath.Join(args.ChunksDir, manifestName), out)
-	if err != nil {
-		return fmt.Errorf("prune: writing manifest: %w", err)
-	}
-
-	_, _ = fmt.Fprintf(stdout, "prune: detached %d source(s) — embedded chunks preserved (still searchable)\n", detached)
+	_, _ = fmt.Fprintf(stdout, "%sprune: detached %d source(s) — embedded chunks preserved (still searchable)\n",
+		dryRunPrefix(args.DryRun), detached)
 
 	return nil
+}
+
+// dryRunPrefix returns the stdout line prefix RunPrune's two modes — the
+// default dead-source detach and pruneEmptyLocked's empty-file removal —
+// both use to mark a --dry-run report: nothing was written or removed.
+func dryRunPrefix(dryRun bool) string {
+	if dryRun {
+		return "[dry-run] "
+	}
+
+	return ""
 }
 
 // newPruneDeps composes production PruneDeps from the CLI-edge Deps.
@@ -134,10 +142,7 @@ func pruneEmptyLocked(args PruneArgs, deps PruneDeps, stdout io.Writer) error {
 		return fmt.Errorf("prune: listing chunk indexes: %w", err)
 	}
 
-	prefix := ""
-	if args.DryRun {
-		prefix = "[dry-run] "
-	}
+	prefix := dryRunPrefix(args.DryRun)
 
 	removed := 0
 
@@ -164,6 +169,27 @@ func pruneEmptyLocked(args PruneArgs, deps PruneDeps, stdout io.Writer) error {
 	_, _ = fmt.Fprintf(stdout,
 		"%sprune: removed %d empty chunk-index file(s) of %d scanned\n",
 		prefix, removed, len(paths))
+
+	return nil
+}
+
+// writePrunedManifest marshals and writes the detached manifest, unless
+// args.DryRun is set — a dry run reports what would change without
+// mutating the manifest on disk.
+func writePrunedManifest(args PruneArgs, deps PruneDeps, manifest ingestManifest) error {
+	if args.DryRun {
+		return nil
+	}
+
+	out, err := json.Marshal(manifest)
+	if err != nil {
+		return fmt.Errorf("prune: encoding manifest: %w", err)
+	}
+
+	err = deps.WriteFile(filepath.Join(args.ChunksDir, manifestName), out)
+	if err != nil {
+		return fmt.Errorf("prune: writing manifest: %w", err)
+	}
 
 	return nil
 }

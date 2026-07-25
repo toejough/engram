@@ -3,6 +3,7 @@ package cli_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"sort"
 	"strings"
@@ -164,6 +165,64 @@ func TestRunPruneEmptyRemovesOnlyEmptyFiles(t *testing.T) {
 		"prune --empty must never touch manifest.json")
 }
 
+// TestRunPrune_DryRunDoesNotWriteManifest asserts that RunPrune's default
+// (non-empty) path honors --dry-run: with a dead source present, the
+// manifest must never be written, and stdout must carry the same
+// "[dry-run] " prefix pruneEmptyLocked uses.
+func TestRunPrune_DryRunDoesNotWriteManifest(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const (
+		chunksDir    = "/c"
+		manifestPath = "/c/manifest.json"
+		liveSource   = "/sessions/live.jsonl"
+		deadSource   = "/sessions/dead.jsonl"
+	)
+
+	manifest := map[string]map[string]any{
+		liveSource: {"mtime_unix_nano": 1, "size": 10, "file_hash": "sha256:a"},
+		deadSource: {"mtime_unix_nano": 2, "size": 20, "file_hash": "sha256:b"},
+	}
+
+	manBytes, err := json.Marshal(manifest)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	deps := cli.PruneDeps{
+		ReadFile: func(path string) ([]byte, error) {
+			if path == manifestPath {
+				return manBytes, nil
+			}
+
+			return nil, io.ErrUnexpectedEOF
+		},
+		WriteFile: func(string, []byte) error {
+			t.Fatal("WriteFile must not be called in --dry-run")
+
+			return nil
+		},
+		Exists: func(path string) bool {
+			return path == liveSource // dead source's file does not exist
+		},
+	}
+
+	out := &strings.Builder{}
+	err = cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: chunksDir, DryRun: true}, deps, out)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out.String()).To(gomega.ContainSubstring("[dry-run] "))
+}
+
 // TestRunPrune_LocksManifestAroundReadModifyWrite asserts that RunPrune
 // acquires the manifest lock BEFORE reading the manifest and releases it
 // AFTER writing it, preventing concurrent lost updates alongside ingest (#660).
@@ -247,6 +306,49 @@ func TestRunPrune_LocksManifestAroundReadModifyWrite(t *testing.T) {
 		"manifest read must precede manifest write")
 	g.Expect(writeIdx).To(gomega.BeNumerically("<", unlockIdx),
 		"manifest write must precede unlock")
+}
+
+// TestRunPrune_WriteManifestErrorPropagates asserts that a WriteFile failure
+// while persisting the detached manifest is wrapped and returned, not
+// swallowed.
+func TestRunPrune_WriteManifestErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const (
+		chunksDir    = "/chunks"
+		manifestPath = "/chunks/manifest.json"
+		deadSource   = "/sessions/dead.jsonl"
+	)
+
+	manifest := map[string]map[string]any{
+		deadSource: {"mtime_unix_nano": 1, "size": 5, "file_hash": "sha256:x"},
+	}
+
+	manBytes, marshalErr := json.Marshal(manifest)
+	g.Expect(marshalErr).NotTo(gomega.HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	writeFailure := errors.New("disk full")
+
+	deps := cli.PruneDeps{
+		ReadFile: func(path string) ([]byte, error) {
+			if path == manifestPath {
+				return manBytes, nil
+			}
+
+			return nil, io.ErrUnexpectedEOF
+		},
+		WriteFile: func(string, []byte) error { return writeFailure },
+		Exists:    func(string) bool { return false }, // dead source: file does not exist
+	}
+
+	err := cli.RunPrune(context.Background(), cli.PruneArgs{ChunksDir: chunksDir}, deps, io.Discard)
+
+	g.Expect(err).To(gomega.MatchError(writeFailure))
 }
 
 type pruneFS struct {
