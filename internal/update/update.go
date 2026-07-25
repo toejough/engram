@@ -108,14 +108,19 @@ type Harness string
 
 // HarnessReport summarizes one harness install attempt.
 type HarnessReport struct {
-	Name          Harness
-	ProbeRoot     string // home-relative harness root, e.g. ".claude"
-	SkillsRoot    string // absolute skills install dir
-	CommandsRoot  string // absolute commands install dir (empty if harness has no commands)
-	SkillDirs     []SkillDirCount
-	CommandFiles  []string // basenames of .md files copied
-	GuidanceFiles []string // basenames of .md files copied into the guidance dir
-	Err           error
+	Name      Harness
+	ProbeRoot string // home-relative harness root, e.g. ".claude"
+	// SkillsRoot and CommandsRoot are pre-resolved ABSOLUTE paths (ready for
+	// direct use); the *Rel fields below stay HOME-RELATIVE because the CLI
+	// renders them into OS-independent forward-slash "@~/..." import syntax.
+	SkillsRoot        string // absolute skills install dir
+	CommandsRoot      string // absolute commands install dir (empty if harness has no commands)
+	GuidanceTargetRel string // home-relative guidance install dir (empty if harness takes no guidance)
+	ImportsFileRel    string // home-relative config file scanned for guidance imports (empty: no import support)
+	SkillDirs         []SkillDirCount
+	CommandFiles      []string // basenames of .md files copied
+	GuidanceFiles     []string // basenames of .md files copied into the guidance dir
+	Err               error
 }
 
 // HarnessSpec captures one harness's well-known paths (relative to home).
@@ -124,7 +129,11 @@ type HarnessSpec struct {
 	ProbeRel          string // dir to stat under home (e.g. ".claude")
 	SkillsTargetRel   string // skills install dir under home
 	CommandsTargetRel string // commands install dir under home (empty: skip commands)
+	// GuidanceTargetRel and ImportsFileRel are a coupled pair: both set, or
+	// both empty. guidanceImportPrefixes assumes this — a harness with an
+	// imports file but no guidance dir would derive a nonsensical "@~//".
 	GuidanceTargetRel string // guidance install dir under home (empty: skip guidance)
+	ImportsFileRel    string // config file under home scanned for guidance @imports (empty: skip detection)
 }
 
 // Options controls one Run invocation.
@@ -139,11 +148,11 @@ type Report struct {
 	WithGuidance     bool   // whether --with-guidance was requested
 	Home             string // user home (so the CLI can tildify paths)
 	Source           SourceInfo
-	GoInstall        string          // command line invoked (or planned)
-	BinaryPath       string          // resolved install location, e.g. /Users/joe/go/bin/engram
-	BinaryVersion    string          // resolved engram version, empty when unknown
-	GuidanceImported bool            // true when ~/.claude/CLAUDE.md imports ANY engram guidance file
-	GuidanceImports  map[string]bool // set of imported engram-guidance basenames (for per-file hints)
+	GoInstall        string                      // command line invoked (or planned)
+	BinaryPath       string                      // resolved install location, e.g. /Users/joe/go/bin/engram
+	BinaryVersion    string                      // resolved engram version, empty when unknown
+	GuidanceImported bool                        // true when any harness's config file imports ANY engram guidance file
+	GuidanceImports  map[Harness]map[string]bool // imported engram-guidance basenames per harness (for per-file hints)
 	// VaultHasOldVocabFiles is true when the vault still holds pre-tags
 	// vocab.*.md files. Set by the cli package after Run returns (via
 	// oldVocabFilesPresent) — Updater.Run itself never touches vault paths;
@@ -221,36 +230,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 		return report, cmdPlanErr
 	}
 
-	claudeMDPath := filepath.Join(home, ".claude", "CLAUDE.md")
-	agentsMDPath := filepath.Join(home, ".pi", "agent", "AGENTS.md")
-	
-	// Detect engram guidance imports from both CLAUDE.md and AGENTS.md
-	allGuidanceImports := map[string]bool{}
-	if claudeMDData, readErr := u.FS.ReadFile(claudeMDPath); readErr == nil {
-		tildePrefix := "@~/.claude/engram/"
-		expandedPrefix := "@" + filepath.Join(home, ".claude", "engram") + string(filepath.Separator)
-		for line := range strings.SplitSeq(string(claudeMDData), "\n") {
-			trimmed := strings.TrimSpace(line)
-			if !strings.HasPrefix(trimmed, "```") {
-				if base, ok := guidanceImportBase(trimmed, tildePrefix, expandedPrefix); ok {
-					allGuidanceImports[base] = true
-				}
-			}
-		}
-	}
-	if agentsMDData, readErr := u.FS.ReadFile(agentsMDPath); readErr == nil {
-		tildePrefix := "@~/.pi/agent/engram/"
-		expandedPrefix := "@" + filepath.Join(home, ".pi", "agent", "engram") + string(filepath.Separator)
-		for line := range strings.SplitSeq(string(agentsMDData), "\n") {
-			trimmed := strings.TrimSpace(line)
-			if !strings.HasPrefix(trimmed, "```") {
-				if base, ok := guidanceImportBase(trimmed, tildePrefix, expandedPrefix); ok {
-					allGuidanceImports[base] = true
-				}
-			}
-		}
-	}
-	report.GuidanceImports = allGuidanceImports
+	report.GuidanceImports = u.detectGuidanceImports(home, harnesses)
 	report.GuidanceImported = len(report.GuidanceImports) > 0
 
 	var guidanceOps []CopyOp
@@ -374,10 +354,12 @@ func (u *Updater) applyOps(
 
 	for _, spec := range harnesses {
 		rep := HarnessReport{
-			Name:         spec.Name,
-			ProbeRoot:    spec.ProbeRel,
-			SkillsRoot:   filepath.Join(home, spec.SkillsTargetRel),
-			CommandsRoot: cmdRootFor(spec, home),
+			Name:              spec.Name,
+			ProbeRoot:         spec.ProbeRel,
+			SkillsRoot:        filepath.Join(home, spec.SkillsTargetRel),
+			CommandsRoot:      cmdRootFor(spec, home),
+			GuidanceTargetRel: spec.GuidanceTargetRel,
+			ImportsFileRel:    spec.ImportsFileRel,
 		}
 
 		u.applyForHarness(&rep, spec.Name, skillOps, cmdOps, guidanceOps, dryRun)
@@ -448,6 +430,35 @@ func (u *Updater) clearSkillDirOnce(
 	cleared[target] = true
 
 	return nil
+}
+
+// detectGuidanceImports scans each detected harness's config file (the
+// spec's ImportsFileRel) for active @import lines pointing at that harness's
+// own guidance dir, keyed by harness. Harnesses without an imports file
+// (empty ImportsFileRel, e.g. OpenCode) are skipped explicitly, as are
+// harnesses whose config file is missing or holds no imports — only
+// harnesses with at least one import get an entry.
+func (u *Updater) detectGuidanceImports(home string, harnesses []HarnessSpec) map[Harness]map[string]bool {
+	imports := map[Harness]map[string]bool{}
+
+	for _, spec := range harnesses {
+		if spec.ImportsFileRel == "" {
+			continue // harness config cannot @import guidance — detection skipped
+		}
+
+		data, readErr := u.FS.ReadFile(filepath.Join(home, spec.ImportsFileRel))
+		if readErr != nil {
+			continue // missing config file: nothing imported, not an error
+		}
+
+		tildePrefix, expandedPrefix := guidanceImportPrefixes(spec, home)
+
+		if found := collectGuidanceImports(data, tildePrefix, expandedPrefix); len(found) > 0 {
+			imports[spec.Name] = found
+		}
+	}
+
+	return imports
 }
 
 // resolveRemoteByClone implements remote mode by CLONING the repo and
@@ -590,41 +601,13 @@ func cmdRootFor(spec HarnessSpec, home string) string {
 	return filepath.Join(home, spec.CommandsTargetRel)
 }
 
-func collectSkillDirs(order []string, counts map[string]int) []SkillDirCount {
-	out := make([]SkillDirCount, 0, len(order))
-
-	for _, name := range order {
-		out = append(out, SkillDirCount{Name: name, Files: counts[name]})
-	}
-
-	return out
-}
-
-func describeGoInstall(source SourceInfo) string {
-	if source.Mode == SourceLocal {
-		return "go install ./cmd/engram/"
-	}
-
-	return "git clone " + repoCloneURL + " && go install ./cmd/engram/ (LFS-safe; #645)"
-}
-
-// detectGuidanceImports scans the Claude Code CLAUDE.md at claudeMDPath for
-// active @import lines pointing at engram guidance files under
-// ~/.claude/engram/, returning the set of imported guidance basenames. Both
-// the tilde form (@~/.claude/engram/foo.md) and the expanded-home form
-// (@<home>/.claude/engram/foo.md) are recognized. Lines inside fenced code
-// blocks are ignored. A missing CLAUDE.md yields an empty set, no error.
-func detectGuidanceImports(claudeMDPath, home string, fileSystem Filesystem) map[string]bool {
+// collectGuidanceImports scans one harness config file's content for active
+// @import lines matching either derived prefix, returning the set of imported
+// guidance basenames. Lines inside fenced code blocks are ignored: a ```
+// line toggles fence state, and an unclosed fence suppresses everything
+// after it.
+func collectGuidanceImports(data []byte, tildePrefix, expandedPrefix string) map[string]bool {
 	imported := map[string]bool{}
-
-	data, readErr := fileSystem.ReadFile(claudeMDPath)
-	if readErr != nil {
-		return imported
-	}
-
-	tildePrefix := "@~/.claude/engram/"
-	expandedPrefix := "@" + filepath.Join(home, ".claude", "engram") + string(filepath.Separator)
-
 	inFence := false
 
 	for line := range strings.SplitSeq(string(data), "\n") {
@@ -645,6 +628,24 @@ func detectGuidanceImports(claudeMDPath, home string, fileSystem Filesystem) map
 	}
 
 	return imported
+}
+
+func collectSkillDirs(order []string, counts map[string]int) []SkillDirCount {
+	out := make([]SkillDirCount, 0, len(order))
+
+	for _, name := range order {
+		out = append(out, SkillDirCount{Name: name, Files: counts[name]})
+	}
+
+	return out
+}
+
+func describeGoInstall(source SourceInfo) string {
+	if source.Mode == SourceLocal {
+		return "go install ./cmd/engram/"
+	}
+
+	return "git clone " + repoCloneURL + " && go install ./cmd/engram/ (LFS-safe; #645)"
 }
 
 // detectHarnesses returns the supported harnesses whose probe path exists
@@ -714,6 +715,18 @@ func guidanceImportBase(trimmed, tildePrefix, expandedPrefix string) (string, bo
 	}
 
 	return "", false
+}
+
+// guidanceImportPrefixes derives the two recognized @import prefixes for one
+// harness from its spec, so detection can never drift from the deploy target
+// (this branch's original bug). The tilde form is built with literal forward
+// slashes — import syntax is OS-independent — while the expanded-home form
+// matches a rendered filesystem path under home.
+func guidanceImportPrefixes(spec HarnessSpec, home string) (tildePrefix, expandedPrefix string) {
+	tildePrefix = "@~/" + filepath.ToSlash(spec.GuidanceTargetRel) + "/"
+	expandedPrefix = "@" + filepath.Join(home, spec.GuidanceTargetRel) + string(filepath.Separator)
+
+	return tildePrefix, expandedPrefix
 }
 
 // isNotExist reports whether err signals a missing file. Tests inject
@@ -893,19 +906,22 @@ func supportedHarnesses() []HarnessSpec {
 			ProbeRel:          ".claude",
 			SkillsTargetRel:   filepath.Join(".claude", "skills"),
 			GuidanceTargetRel: filepath.Join(".claude", "engram"),
+			ImportsFileRel:    filepath.Join(".claude", "CLAUDE.md"),
 		},
 		{
 			Name:              HarnessOpencode,
 			ProbeRel:          filepath.Join(".config", "opencode"),
 			SkillsTargetRel:   filepath.Join(".config", "opencode", "skills"),
 			CommandsTargetRel: filepath.Join(".config", "opencode", "commands"),
-			// OpenCode @import support unverified — GuidanceTargetRel empty until confirmed.
+			// OpenCode @import support unverified — GuidanceTargetRel and
+			// ImportsFileRel empty until confirmed (guidance + detection skipped).
 		},
 		{
 			Name:              HarnessPi,
 			ProbeRel:          ".pi",
 			SkillsTargetRel:   filepath.Join(".pi", "agent", "skills"),
 			GuidanceTargetRel: filepath.Join(".pi", "agent", "guidance"),
+			ImportsFileRel:    filepath.Join(".pi", "agent", "AGENTS.md"),
 		},
 	}
 }

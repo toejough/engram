@@ -2,9 +2,10 @@ package update
 
 // Exported variables.
 var (
-	ExportDetectHarnesses    = detectHarnesses
-	ExportPlanCommandCopies  = planCommandCopies
-	ExportPlanGuidanceCopies = planGuidanceCopies
-	ExportPlanSkillCopies    = planSkillCopies
-	ExportWalkUpForModule    = walkUpForModule
+	ExportDetectHarnesses        = detectHarnesses
+	ExportGuidanceImportPrefixes = guidanceImportPrefixes
+	ExportPlanCommandCopies      = planCommandCopies
+	ExportPlanGuidanceCopies     = planGuidanceCopies
+	ExportPlanSkillCopies        = planSkillCopies
+	ExportWalkUpForModule        = walkUpForModule
 )

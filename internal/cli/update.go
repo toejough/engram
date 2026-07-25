@@ -144,18 +144,6 @@ func chunkIndexHasEmptyFiles(chunksDir string, fileSystem update.Filesystem) boo
 	return false
 }
 
-// claudeGuidanceFiles returns the guidance basenames deployed to Claude Code
-// this run (empty if none / harness absent).
-func claudeGuidanceFiles(report update.Report) []string {
-	for _, harness := range report.Harnesses {
-		if harness.Name == update.HarnessClaude {
-			return harness.GuidanceFiles
-		}
-	}
-
-	return nil
-}
-
 func describeBinary(report update.Report) string {
 	if report.DryRun {
 		return report.GoInstall
@@ -300,32 +288,57 @@ func writeEmptyChunkHint(buffer *bytes.Buffer, report update.Report) {
 	}
 }
 
+// writeGuidanceHints renders guidance deploy/wiring status per harness from
+// its spec-derived paths, then — when nothing was deployed anywhere and the
+// user has neither opted in nor imported — a one-line nudge.
 func writeGuidanceHints(buffer *bytes.Buffer, report update.Report) {
-	deployed := claudeGuidanceFiles(report)
+	anyDeployed := false
 
-	if len(deployed) > 0 {
-		for _, name := range deployed {
-			if report.GuidanceImports[name] {
-				fmt.Fprintf(buffer, "guidance refreshed: ~/.claude/engram/%s\n", name)
-
-				continue
-			}
-
-			fmt.Fprintf(buffer,
-				"guidance deployed to ~/.claude/engram/%s — add '@~/.claude/engram/%s'"+
-					" to ~/.claude/CLAUDE.md to activate it (Claude Code will ask you to"+
-					" approve the import once)\n", name, name,
-			)
+	for _, harness := range report.Harnesses {
+		if writeHarnessGuidanceHints(buffer, report, harness) {
+			anyDeployed = true
 		}
+	}
 
+	if anyDeployed || report.WithGuidance || report.GuidanceImported {
 		return
 	}
 
-	if !report.WithGuidance && !report.GuidanceImported {
+	buffer.WriteString(
+		"engram ships recall- and delegation-firing guidance; run 'engram update --with-guidance' to deploy it\n",
+	)
+}
+
+// writeHarnessGuidanceHints renders one harness's guidance lines — already
+// wired files as "refreshed", the rest with the @import line to add to the
+// harness's own config file — and reports whether anything was deployed.
+// Harnesses whose config cannot @import guidance (empty ImportsFileRel,
+// e.g. OpenCode) render nothing. Paths use forward slashes always: import
+// syntax is OS-independent.
+func writeHarnessGuidanceHints(buffer *bytes.Buffer, report update.Report, harness update.HarnessReport) bool {
+	if harness.ImportsFileRel == "" {
+		return false
+	}
+
+	guidanceDir := "~/" + filepath.ToSlash(harness.GuidanceTargetRel)
+	importsFile := "~/" + filepath.ToSlash(harness.ImportsFileRel)
+	imported := report.GuidanceImports[harness.Name]
+
+	for _, name := range harness.GuidanceFiles {
+		if imported[name] {
+			fmt.Fprintf(buffer, "guidance refreshed: %s/%s\n", guidanceDir, name)
+
+			continue
+		}
+
 		fmt.Fprintf(buffer,
-			"engram ships recall- and delegation-firing guidance; run 'engram update --with-guidance' to deploy it\n",
+			"guidance deployed to %s/%s — add '@%s/%s' to %s to activate it"+
+				" (%s will ask you to approve the import once)\n",
+			guidanceDir, name, guidanceDir, name, importsFile, harness.Name,
 		)
 	}
+
+	return len(harness.GuidanceFiles) > 0
 }
 
 func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {

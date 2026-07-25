@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -55,6 +56,148 @@ func TestDetectHarnesses_None(t *testing.T) {
 	detected, err := update.ExportDetectHarnesses("/home/joe", fileSystem)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(detected).To(BeEmpty())
+}
+
+func TestGuidanceImportAttribution_PerHarness(t *testing.T) {
+	t.Parallel()
+
+	const home = "/home/joe"
+
+	table := []struct {
+		name       string
+		claudeMD   string
+		agentsMD   string
+		wantClaude []string
+		wantPi     []string
+	}{
+		{
+			name:       "claude-import-attributes-to-claude-only",
+			claudeMD:   "@~/.claude/engram/recall.md\n",
+			agentsMD:   "# no imports here\n",
+			wantClaude: []string{"recall.md"},
+		},
+		{
+			name:     "pi-guidance-import-attributes-to-pi-only",
+			claudeMD: "# no imports here\n",
+			agentsMD: "@~/.pi/agent/guidance/recall.md\n",
+			wantPi:   []string{"recall.md"},
+		},
+		{
+			name:     "pi-expanded-form-detected",
+			agentsMD: "@" + home + "/.pi/agent/guidance/delegate.md\n",
+			wantPi:   []string{"delegate.md"},
+		},
+		{
+			name:     "pi-stale-engram-prefix-not-counted",
+			agentsMD: "@~/.pi/agent/engram/recall.md\n",
+		},
+		{
+			name:     "pi-import-in-claude-md-not-cross-attributed",
+			claudeMD: "@~/.pi/agent/guidance/recall.md\n",
+		},
+		{
+			name:     "claude-import-in-agents-md-not-cross-attributed",
+			agentsMD: "@~/.claude/engram/recall.md\n",
+		},
+		{
+			name:     "fence-ignored-in-agents-md",
+			agentsMD: "```\n@~/.pi/agent/guidance/recall.md\n```\n",
+		},
+		{
+			name:     "unclosed-fence-ignores-rest-of-agents-md",
+			agentsMD: "```\n@~/.pi/agent/guidance/recall.md\n",
+		},
+		{
+			name:       "both-files-attribute-independently",
+			claudeMD:   "@~/.claude/engram/recall.md\n",
+			agentsMD:   "@~/.pi/agent/guidance/delegate.md\n",
+			wantClaude: []string{"recall.md"},
+			wantPi:     []string{"delegate.md"},
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newMemFS()
+			fileSystem.dirs[home+"/.claude"] = true
+			fileSystem.dirs[home+"/.pi"] = true
+			fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+			fileSystem.dirs["/repo/agent-instructions/skills"] = true
+
+			if tc.claudeMD != "" {
+				fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte(tc.claudeMD)
+			}
+
+			if tc.agentsMD != "" {
+				fileSystem.files[home+"/.pi/agent/AGENTS.md"] = []byte(tc.agentsMD)
+			}
+
+			updater := &update.Updater{
+				FS:  fileSystem,
+				Cmd: &fakeCmd{},
+				Env: &fakeEnv{home: home, cwd: "/repo"},
+			}
+
+			report, err := updater.Run(context.Background(), update.Options{})
+			g.Expect(err).NotTo(HaveOccurred())
+
+			gotClaude := report.GuidanceImports[update.HarnessClaude]
+			g.Expect(gotClaude).To(HaveLen(len(tc.wantClaude)))
+
+			for _, name := range tc.wantClaude {
+				g.Expect(gotClaude).To(HaveKeyWithValue(name, true))
+			}
+
+			gotPi := report.GuidanceImports[update.HarnessPi]
+			g.Expect(gotPi).To(HaveLen(len(tc.wantPi)))
+
+			for _, name := range tc.wantPi {
+				g.Expect(gotPi).To(HaveKeyWithValue(name, true))
+			}
+
+			g.Expect(report.GuidanceImported).To(Equal(len(tc.wantClaude)+len(tc.wantPi) > 0))
+		})
+	}
+}
+
+func TestGuidanceImportAttribution_Property(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		const home = "/home/joe"
+
+		claudeDoc := drawGuidanceDoc(rt, "claude", home)
+		piDoc := drawGuidanceDoc(rt, "pi", home)
+
+		fileSystem := newMemFS()
+		fileSystem.dirs[home+"/.claude"] = true
+		fileSystem.dirs[home+"/.pi"] = true
+		fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+		fileSystem.dirs["/repo/agent-instructions/skills"] = true
+		fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte(claudeDoc.text)
+		fileSystem.files[home+"/.pi/agent/AGENTS.md"] = []byte(piDoc.text)
+
+		updater := &update.Updater{
+			FS:  fileSystem,
+			Cmd: &fakeCmd{},
+			Env: &fakeEnv{home: home, cwd: "/repo"},
+		}
+
+		report, err := updater.Run(context.Background(), update.Options{})
+		if err != nil {
+			rt.Fatalf("run: %v", err)
+		}
+
+		// (a) imports inside fences (closed or unclosed) are never counted;
+		// (b) every counted import attributes exactly to the harness whose
+		// derived prefix matched inside that harness's own imports file.
+		checkImportSet(rt, "claude", report.GuidanceImports[update.HarnessClaude], claudeDoc.wantOwn)
+		checkImportSet(rt, "pi", report.GuidanceImports[update.HarnessPi], piDoc.wantOwn)
+	})
 }
 
 func TestGuidanceImportDetection(t *testing.T) {
@@ -183,8 +326,73 @@ func TestGuidanceImportDetection_PerFileSet(t *testing.T) {
 	}
 
 	g.Expect(report.GuidanceImported).To(BeTrue())
-	g.Expect(report.GuidanceImports).To(HaveKeyWithValue("recall.md", true))
-	g.Expect(report.GuidanceImports).To(HaveKeyWithValue("delegate.md", true))
+	g.Expect(report.GuidanceImports[update.HarnessClaude]).To(HaveKeyWithValue("recall.md", true))
+	g.Expect(report.GuidanceImports[update.HarnessClaude]).To(HaveKeyWithValue("delegate.md", true))
+}
+
+func TestGuidanceImportPrefixDerivation_AllHarnesses(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.config/opencode"] = true
+	fileSystem.dirs[home+"/.pi"] = true
+
+	detected, err := update.ExportDetectHarnesses(home, fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(detected).To(HaveLen(3))
+
+	want := map[update.Harness][2]string{
+		update.HarnessClaude: {"@~/.claude/engram/", "@" + home + "/.claude/engram/"},
+		update.HarnessPi:     {"@~/.pi/agent/guidance/", "@" + home + "/.pi/agent/guidance/"},
+	}
+
+	for _, spec := range detected {
+		if spec.Name == update.HarnessOpencode {
+			// OpenCode has no imports file — detection (and thus prefix
+			// derivation) is skipped for it entirely.
+			g.Expect(spec.ImportsFileRel).To(BeEmpty())
+
+			continue
+		}
+
+		tilde, expanded := update.ExportGuidanceImportPrefixes(spec, home)
+		g.Expect(tilde).To(Equal(want[spec.Name][0]), string(spec.Name))
+		g.Expect(expanded).To(Equal(want[spec.Name][1]), string(spec.Name))
+	}
+}
+
+func TestHarnessSpecs_WellKnownPaths(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/home/joe/.config/opencode"] = true
+	fileSystem.dirs["/home/joe/.pi"] = true
+
+	detected, err := update.ExportDetectHarnesses("/home/joe", fileSystem)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(detected).To(HaveLen(3))
+
+	claude, opencode, pi := detected[0], detected[1], detected[2]
+
+	g.Expect(claude.Name).To(Equal(update.HarnessClaude))
+	g.Expect(claude.ImportsFileRel).To(Equal(filepath.Join(".claude", "CLAUDE.md")))
+
+	g.Expect(opencode.Name).To(Equal(update.HarnessOpencode))
+	g.Expect(opencode.ImportsFileRel).To(BeEmpty())
+
+	g.Expect(pi.Name).To(Equal(update.HarnessPi))
+	g.Expect(pi.ProbeRel).To(Equal(".pi"))
+	g.Expect(pi.SkillsTargetRel).To(Equal(filepath.Join(".pi", "agent", "skills")))
+	g.Expect(pi.GuidanceTargetRel).To(Equal(filepath.Join(".pi", "agent", "guidance")))
+	g.Expect(pi.ImportsFileRel).To(Equal(filepath.Join(".pi", "agent", "AGENTS.md")))
 }
 
 func TestPlanGuidanceCopies_FilesUnderHome(t *testing.T) {
@@ -793,12 +1001,90 @@ func addChild(
 	*out = append(*out, &memEntry{name: name, isDir: forceIsDir || hasSlash})
 }
 
+// checkImportSet fails the rapid run unless got holds exactly the want set.
+func checkImportSet(rt *rapid.T, label string, got, want map[string]bool) {
+	if len(got) != len(want) {
+		rt.Fatalf("%s: got %v, want %v", label, got, want)
+	}
+
+	for name := range want {
+		if !got[name] {
+			rt.Fatalf("%s: missing %q — got %v, want %v", label, name, got, want)
+		}
+	}
+}
+
 func dirPrefix(path string) string {
 	if strings.HasSuffix(path, "/") {
 		return path
 	}
 
 	return path + "/"
+}
+
+// guidanceDocSpec is a generated harness imports file plus the set of
+// guidance basenames a correct scanner must count for that harness (its own
+// prefix, outside any code fence). Everything else — foreign-harness
+// prefixes, the stale pre-guidance/ pi prefix, noise, fenced imports — must
+// never be counted.
+type guidanceDocSpec struct {
+	text    string
+	wantOwn map[string]bool
+}
+
+// drawGuidanceDoc generates an imports file for one harness out of blocks:
+// countable own-prefix imports (tilde or expanded form), foreign-harness
+// imports, stale-prefix imports, noise lines, closed fenced blocks holding
+// own-prefix imports, and optionally a trailing unclosed fence holding one.
+// wantOwn is built from the generation structure, not by re-scanning.
+func drawGuidanceDoc(rt *rapid.T, label, home string) guidanceDocSpec {
+	var ownTilde, ownExpanded, foreignTilde, staleTilde string
+
+	if label == "claude" {
+		ownTilde = "@~/.claude/engram/"
+		ownExpanded = "@" + home + "/.claude/engram/"
+		foreignTilde = "@~/.pi/agent/guidance/"
+		staleTilde = "@~/.claude/old-guidance/"
+	} else {
+		ownTilde = "@~/.pi/agent/guidance/"
+		ownExpanded = "@" + home + "/.pi/agent/guidance/"
+		foreignTilde = "@~/.claude/engram/"
+		staleTilde = "@~/.pi/agent/engram/"
+	}
+
+	kinds := []string{"own", "own-expanded", "foreign", "stale", "noise", "fenced"}
+	want := map[string]bool{}
+	lines := make([]string, 0)
+
+	blockCount := rapid.IntRange(0, 6).Draw(rt, label+"-blocks")
+	for i := range blockCount {
+		kind := rapid.SampledFrom(kinds).Draw(rt, label+"-kind"+strconv.Itoa(i))
+		name := rapid.StringMatching(`[a-z]{1,6}\.md`).Draw(rt, label+"-name"+strconv.Itoa(i))
+
+		switch kind {
+		case "own":
+			lines = append(lines, ownTilde+name)
+			want[name] = true
+		case "own-expanded":
+			lines = append(lines, ownExpanded+name)
+			want[name] = true
+		case "foreign":
+			lines = append(lines, foreignTilde+name)
+		case "stale":
+			lines = append(lines, staleTilde+name)
+		case "noise":
+			lines = append(lines, "# note about "+strings.TrimSuffix(name, ".md"))
+		case "fenced":
+			lines = append(lines, "```", ownTilde+name, "```")
+		}
+	}
+
+	if rapid.Bool().Draw(rt, label+"-unclosed-fence") {
+		name := rapid.StringMatching(`[a-z]{1,6}\.md`).Draw(rt, label+"-unclosed-name")
+		lines = append(lines, "```", ownTilde+name)
+	}
+
+	return guidanceDocSpec{text: strings.Join(lines, "\n") + "\n", wantOwn: want}
 }
 
 func newMemFS() *memFS {

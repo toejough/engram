@@ -325,52 +325,96 @@ func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 
 	table := []struct {
 		name             string
-		guidanceFiles    []string
-		guidanceImports  map[string]bool
+		harnesses        []update.HarnessReport
+		guidanceImports  map[update.Harness]map[string]bool
 		guidanceImported bool
 		withGuidance     bool
 		wantContains     []string
 		wantNotContains  []string
 	}{
 		{
-			name:             "deployed-not-imported",
-			guidanceFiles:    []string{"recall.md"},
-			guidanceImports:  nil,
-			guidanceImported: false,
-			withGuidance:     true,
-			wantContains:     []string{"@~/.claude/engram/recall.md"},
+			name:         "claude-deployed-not-imported",
+			harnesses:    []update.HarnessReport{claudeHarnessReport("recall.md")},
+			withGuidance: true,
+			wantContains: []string{
+				"guidance deployed to ~/.claude/engram/recall.md — add" +
+					" '@~/.claude/engram/recall.md' to ~/.claude/CLAUDE.md to activate it" +
+					" (Claude Code will ask you to approve the import once)",
+			},
 		},
 		{
-			name:             "deployed-and-imported",
-			guidanceFiles:    []string{"recall.md"},
-			guidanceImports:  map[string]bool{"recall.md": true},
+			name:      "claude-deployed-and-imported",
+			harnesses: []update.HarnessReport{claudeHarnessReport("recall.md")},
+			guidanceImports: map[update.Harness]map[string]bool{
+				update.HarnessClaude: {"recall.md": true},
+			},
 			guidanceImported: true,
 			withGuidance:     true,
 			wantContains:     []string{"guidance refreshed: ~/.claude/engram/recall.md"},
 			wantNotContains:  []string{"add '@~/.claude/engram/recall.md'"},
 		},
 		{
-			name:             "plain-update-not-imported",
-			guidanceFiles:    nil,
-			guidanceImports:  nil,
-			guidanceImported: false,
-			withGuidance:     false,
-			wantContains:     []string{"engram ships recall- and delegation-firing guidance"},
+			name:         "pi-deployed-not-imported",
+			harnesses:    []update.HarnessReport{piHarnessReport("recall.md")},
+			withGuidance: true,
+			wantContains: []string{
+				"guidance deployed to ~/.pi/agent/guidance/recall.md — add" +
+					" '@~/.pi/agent/guidance/recall.md' to ~/.pi/agent/AGENTS.md to activate it" +
+					" (Pi will ask you to approve the import once)",
+			},
+		},
+		{
+			name:      "pi-deployed-and-imported",
+			harnesses: []update.HarnessReport{piHarnessReport("recall.md")},
+			guidanceImports: map[update.Harness]map[string]bool{
+				update.HarnessPi: {"recall.md": true},
+			},
+			guidanceImported: true,
+			wantContains:     []string{"guidance refreshed: ~/.pi/agent/guidance/recall.md"},
+			wantNotContains:  []string{"add '@~/.pi/agent/guidance/recall.md'"},
+		},
+		{
+			name: "per-harness-independent-wiring",
+			harnesses: []update.HarnessReport{
+				claudeHarnessReport("recall.md"),
+				piHarnessReport("recall.md"),
+			},
+			guidanceImports: map[update.Harness]map[string]bool{
+				update.HarnessClaude: {"recall.md": true},
+			},
+			guidanceImported: true,
+			wantContains: []string{
+				"guidance refreshed: ~/.claude/engram/recall.md",
+				"add '@~/.pi/agent/guidance/recall.md' to ~/.pi/agent/AGENTS.md",
+			},
+			wantNotContains: []string{"add '@~/.claude/engram/recall.md'"},
+		},
+		{
+			name:         "opencode-renders-nothing",
+			harnesses:    []update.HarnessReport{opencodeHarnessReport("recall.md")},
+			withGuidance: true,
+			wantNotContains: []string{
+				"guidance deployed", "guidance refreshed", "engram ships",
+			},
+		},
+		{
+			name:         "plain-update-not-imported",
+			harnesses:    []update.HarnessReport{claudeHarnessReport()},
+			wantContains: []string{"engram ships recall- and delegation-firing guidance"},
 		},
 		{
 			name:             "plain-update-already-imported",
-			guidanceFiles:    nil,
-			guidanceImports:  nil,
+			harnesses:        []update.HarnessReport{claudeHarnessReport()},
 			guidanceImported: true,
-			withGuidance:     false,
 			wantNotContains:  []string{"engram ships", "activate it"},
 		},
 		{
-			name:             "mixed-recall-imported-delegate-not",
-			guidanceFiles:    []string{"recall.md", "delegate.md"},
-			guidanceImports:  map[string]bool{"recall.md": true},
+			name:      "mixed-recall-imported-delegate-not",
+			harnesses: []update.HarnessReport{claudeHarnessReport("recall.md", "delegate.md")},
+			guidanceImports: map[update.Harness]map[string]bool{
+				update.HarnessClaude: {"recall.md": true},
+			},
 			guidanceImported: true,
-			withGuidance:     false,
 			wantContains: []string{
 				"guidance refreshed: ~/.claude/engram/recall.md",
 				"@~/.claude/engram/delegate.md",
@@ -393,14 +437,7 @@ func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 				Home:             "/home/joe",
 				Source:           update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
 				GoInstall:        "go install ./cmd/engram/",
-				Harnesses: []update.HarnessReport{
-					{
-						Name:          update.HarnessClaude,
-						ProbeRoot:     ".claude",
-						SkillsRoot:    "/home/joe/.claude/skills",
-						GuidanceFiles: tc.guidanceFiles,
-					},
-				},
+				Harnesses:        tc.harnesses,
 			}
 
 			var buffer bytes.Buffer
@@ -619,6 +656,45 @@ func TestWriteUpdateReport_VocabMigrationHint(t *testing.T) {
 				g.Expect(out).NotTo(ContainSubstring(s))
 			}
 		})
+	}
+}
+
+// claudeHarnessReport builds a Claude Code HarnessReport with spec-derived
+// guidance paths, deploying the given guidance basenames.
+func claudeHarnessReport(guidanceFiles ...string) update.HarnessReport {
+	return update.HarnessReport{
+		Name:              update.HarnessClaude,
+		ProbeRoot:         ".claude",
+		SkillsRoot:        "/home/joe/.claude/skills",
+		GuidanceTargetRel: ".claude/engram",
+		ImportsFileRel:    ".claude/CLAUDE.md",
+		GuidanceFiles:     guidanceFiles,
+	}
+}
+
+// opencodeHarnessReport builds an OpenCode HarnessReport. ImportsFileRel is
+// empty — OpenCode has no guidance-import mechanism, so the renderer must
+// emit no guidance lines for it even if guidance files are listed.
+func opencodeHarnessReport(guidanceFiles ...string) update.HarnessReport {
+	return update.HarnessReport{
+		Name:          update.HarnessOpencode,
+		ProbeRoot:     ".config/opencode",
+		SkillsRoot:    "/home/joe/.config/opencode/skills",
+		CommandsRoot:  "/home/joe/.config/opencode/commands",
+		GuidanceFiles: guidanceFiles,
+	}
+}
+
+// piHarnessReport builds a Pi HarnessReport with spec-derived guidance paths,
+// deploying the given guidance basenames.
+func piHarnessReport(guidanceFiles ...string) update.HarnessReport {
+	return update.HarnessReport{
+		Name:              update.HarnessPi,
+		ProbeRoot:         ".pi",
+		SkillsRoot:        "/home/joe/.pi/agent/skills",
+		GuidanceTargetRel: ".pi/agent/guidance",
+		ImportsFileRel:    ".pi/agent/AGENTS.md",
+		GuidanceFiles:     guidanceFiles,
 	}
 }
 
