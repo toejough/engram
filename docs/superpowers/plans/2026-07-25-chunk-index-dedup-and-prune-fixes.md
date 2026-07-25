@@ -1,7 +1,12 @@
 # Plan: chunk-index deduplication + two ingest/prune bugfixes
 
-Cycle: /please, 2026-07-25. Ask (verbatim): "fix the two bugs you found, as well as
-implementing the full general fix". **Four units**, separately committed.
+Cycle: /please, 2026-07-25. **Five units**, separately committed.
+
+Two asks, both verbatim:
+
+1. "fix the two bugs you found, as well as implementing the full general fix" — Units 1-4.
+2. Mid-cycle addition: "We also need the update command to run the prune once for people
+   updating to this version from an old one that might have accumulated copies" — Unit 5.
 
 Unit 4 (retroactive cleanup) was flagged by Gate A's ask-alignment reviewer as beyond the ask.
 It was escalated to Joe with fold/split options and he chose **fold it in** — recorded here per
@@ -186,8 +191,8 @@ Deletion safety, all normative:
 
 ## Unit 5 — `engram update` runs the dedup prune once (Joe, mid-cycle addition)
 
-Requested verbatim: "the update command to run the prune once for people updating to this
-version from an old one that might have accumulated copies." Without it, only people who read
+Requested verbatim: "We also need the update command to run the prune once for people updating
+to this version from an old one that might have accumulated copies." Without it, only people who read
 the release notes and run `prune --duplicates` by hand ever get the cleanup — everyone else
 keeps the accumulated copies forever, which is the whole population this cycle is for.
 
@@ -208,6 +213,13 @@ explicitly.
 - **Loud, never silent.** Report the removed and retained counts through the existing update
   report (`internal/update/update.go`'s `Report`), in the same style as the harness sections —
   a deletion the user did not ask for individually must be visible in the output they do read.
+- **`engram update --dry-run` must preview, never delete.** `update` has its own `--dry-run`
+  flag, documented as "show what would change" (`README.md:37`) and "previews without writing"
+  (`docs/GLOSSARY.md:717`). Unit 5 must thread it through to the dedup pass and must not write
+  the sentinel on a dry run — otherwise the first `update --dry-run` after upgrading would
+  silently delete thousands of index files, which is the exact opposite of what that flag
+  promises. RED test: `update --dry-run` with duplicates present → removal not called, sentinel
+  not written, report still names what would be removed.
 - **Failure is non-fatal.** A dedup failure must not fail `engram update`'s primary job
   (binary + skills refresh). On error: report it, do NOT write the sentinel (so the next update
   retries), and continue. Exit code follows the update's own result.
@@ -248,10 +260,19 @@ alongside the existing update wiring, so the dependency direction stays cli → 
   entry present, source unchanged, index file absent → index is rebuilt (fails today; the cheap
   skip returns early).
 
-## Doc-surface disposition (author-grepped: `prune`, `sweep`, `manifest`, `ingest --auto`, `append-only`, `never delete`)
+## Doc-surface disposition
+
+Author-grepped: `prune`, `sweep`, `manifest`, `ingest --auto`, `append-only`, `never delete`,
+and — added after Gate A found it missing, since Unit 5 changes what `update` does — `engram
+update`.
 
 | File:line | Disposition |
 | --- | --- |
+| `README.md:44` | **update** — the notify-only upgrade convention for #694's empty files; Unit 5 makes update *act* for duplicates, so this section gains the dedup entry and the contrast is made explicit rather than left as a silent inconsistency |
+| `README.md:37`, `docs/GLOSSARY.md:717` | **update** — both document `update --dry-run` as preview-only; they stay true only because Unit 5 threads the flag through, and should say the dedup pass honours it |
+| `README.md:12,35-40,108` | **check** — general `update` descriptions; update only if they enumerate what update does step by step |
+| `docs/GLOSSARY.md:605-612` | **update** — the `engram update` entry gains the one-shot dedup behaviour and the sentinel |
+| `docs/architecture/adr.md` (ADR-0021) | **update** — ADR-0020 is the current highest, so ADR-0021 is free. It records the WHOLE decision cluster in one ADR: dedup by content hash + canonical precedence; the explicit narrowing of the cross-source append-only guarantee; the drifted-copy limitation; and update's new authority to delete on the user's behalf — which is only safe because of the twin-retained guarantee, so the two belong together rather than in separate ADRs |
 | `README.md:97` | **update** — the `ingest` row says "append-only … never deletes"; narrow per the invariant section above and add `--duplicates` to the `prune` row |
 | `docs/GLOSSARY.md:550-551` | **update** — `engram ingest` entry's "(append-only chunk history)" narrowed |
 | `docs/GLOSSARY.md` `engram prune` entry | **update** — currently says prune "KEEPS that source's per-source index file"; the new mode is the exception |
@@ -259,7 +280,6 @@ alongside the existing update wiring, so the dependency direction stays cli → 
 | `docs/architecture/c1-system-context.md:194,223` | **update** — both state "never deleting existing records"; the `:223` sequence-diagram note is a diagram label |
 | `docs/architecture/c2-containers.md` | **update** — manifest responsibilities gain dedup; prune flow gains the mode |
 | `docs/architecture/c3-components.md` | **update** — prune component description; the diagram shows prune's behavior, so the new mode is added as a branch, not a rewrite of the base flow |
-| `docs/architecture/adr.md` | **update** — add **ADR-0021** (ADR-0020 is the current highest): dedup by content hash + canonical precedence, explicitly narrowing the cross-source append-only guarantee and recording the drifted-copy limitation |
 | `docs/FEATURES.md` | **update** — new capability entry with `why:` (ADR-0021) and `validation:` (LEDGER row from this cycle) |
 | `docs/ROADMAP.md` | **update** — Provenance row on ship; verify no band row claims this open |
 | `agent-instructions/skills/learn/SKILL.md:36` | **update** — "existing chunks are never deleted (append-only history)" is the same over-broad claim, in deployed guidance |
