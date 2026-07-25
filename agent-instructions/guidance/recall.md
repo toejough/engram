@@ -1,4 +1,4 @@
-<!-- engram-owned: recall-firing guidance. Deployed by 'engram update --with-guidance' to ~/.claude/engram/recall.md; activate via '@~/.claude/engram/recall.md' in CLAUDE.md. Edit via writing-skills TDD. -->
+<!-- engram-owned: recall-firing guidance. Deployed by 'engram update --with-guidance' to ~/.claude/engram/recall.md (Claude Code) and ~/.pi/agent/guidance/recall.md (Pi); activate via '@~/.claude/engram/recall.md' in CLAUDE.md or '@~/.pi/agent/guidance/recall.md' in AGENTS.md. Edit via writing-skills TDD. -->
 
 ## Recall at the decision moments, not only at the start
 

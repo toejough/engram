@@ -19,7 +19,7 @@ flowchart TB
     cli["C2 · engram CLI<br/>Go binary — ingest/learn/query/embed/update"]
     model["C3 · Embedded model<br/>MiniLM-L6 384d, go:embed in C2"]
     vault[("C4 · Vault<br/>flat root: *.md + *.vec.json + .luhmann.lock")]
-    sessions(["S5 · Session stores (Claude .jsonl)"])
+    sessions(["S5 · Session stores (Claude + Pi .jsonl)"])
     gotool(["S6 · Go toolchain"])
 
     agent -->|"runs the 7-step /please, /learn, /recall"| skills
@@ -27,7 +27,7 @@ flowchart TB
     cli -->|"embeds note/query text"| model
     cli -->|"C2→C4: read/write notes+sidecars under flock"| vault
     cli -->|"C2→S5: read transcripts; re-chunk/re-embed changed content only (manifest.json staleness)"| sessions
-    cli -->|"engram update: go install + copy agent-instructions/{skills,commands}; --with-guidance adds agent-instructions/guidance (Claude Code)"| gotool
+    cli -->|"engram update: go install + copy agent-instructions/{skills,commands}; --with-guidance adds agent-instructions/guidance (Claude Code, Pi)"| gotool
 
     class agent person
     class skills,cli,model container
@@ -38,7 +38,7 @@ flowchart TB
 ## Container catalog
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
-| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow; `/write-memory` is the vault-write worker (executes learn/recall handoffs — parents judge, the worker writes; 2026-07-04). Deployed to `~/.claude/skills`, `~/.config/opencode` via `engram update`. | — |
+| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query` → agent-judged coverage → `amend`/`learn`), `/please` (7-step bracket). `/route` is also a skill here but is dispatch doctrine (agent/model/effort selection), not a judgment flow; `/write-memory` is the vault-write worker (executes learn/recall handoffs — parents judge, the worker writes; 2026-07-04). Deployed to `~/.claude/skills`, `~/.config/opencode`, `~/.pi/agent/skills` via `engram update`. | — |
 | C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; the manifest read-modify-write is serialized under `.manifest.lock` across `ingest` + `prune`, #660), note write (embed-on-write, Luhmann id under lock, vocab-tag assignment on every write — `vocab/<term>` entries in the shared `tags:` list since the 2026-07-10 tags migration, #678 — in-process vocab trigger check persisting `refit_pending` in `vocab.centroids.json` when thresholds trip — 2026-07-03), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster → `candidate_l2s` of within-cluster top-5 **plus tag-nominated notes** sharing a vocab term with top-3 delivered notes + superseded-note ride-alongs; recency channel = newest chunks un-clustered (`recentFillChunks`, default 25); optional `--lazy-chunks` renders matched+recent **chunk** items path/source-only (notes keep full content) for on-demand fetch via `show-chunk`), `vocab` subcommand family (bootstrap/propose/stats/refit), embed apply/status, update; read-only operator/audit surfaces — `check` (vault-invariant checks), `show`/`show-chunk` (note/chunk lookup), `prune` (chunk-index GC), `count` (frontmatter `--group-by`/`--filter` membership counts and `--backlinks-of` wikilink in-degree, ADR-0018) — all side-effect-free and off the query/similarity path. | houses G0, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: off-model sidecars dropped with only a non-fatal stderr advisory under partial migration (`warnModelMismatch` — results thin silently on stdout, no error); a full-vault mismatch errors (`errQueryNoEmbeddings`) |
 | C4 | Vault | filesystem | `<luhmann>.<date>.<slug>.md` at the flat vault root + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
@@ -50,17 +50,17 @@ flowchart TB
 | C1 → C2 | Each skill step subprocess-invokes `engram <subcommand>` (a fresh process per call). The **binary's** vault/marker I/O is entirely through C2; the **skill layer** no longer pokes vault files directly. Recall reads candidate/member content via `engram show` (notes), `engram show-chunk` (deferred chunk text under `--lazy-chunks`), and the payload's `items[]` (no direct file reads); writes go through `engram amend` (covered/near) and `engram learn` (absent). `engram amend` (`internal/cli/amend.go`) is the sync-preserving in-place edit subcommand, so the old "no `engram` edit subcommand" direct-write gap (INV-S1 write-half) is **resolved**. |
 | C2 → C3 | C2 embeds note text (on write) and query text (on read) via the bundled model. All notes embed the body — see [L3](c3-components.md) K5. |
 | C2 → C4 | Reads notes+sidecars at query time; writes notes+sidecars atomically (temp-file + rename) under the vault flock (`.luhmann.lock`) — every writer holds it: `learn` (id-compute→write, O_EXCL), `amend`, `resituate`, `activate`. The flock is acquired only at command entry points. The wikilink graph is built from note bodies at query time. `engram learn qa` writes Q&A pairs — Q-notes excluded from the query pipeline, A-notes competing as synthesis notes, machine-written edge lines (see [GLOSSARY](../GLOSSARY.md): qa-question / qa-answer / contributors). |
-| C2 → S5 | `engram ingest --auto` reads Claude `.jsonl`; re-chunks and re-embeds only sources whose mtime/size/hash changed vs the `manifest.json` written to `$XDG_DATA_HOME/engram/chunks`; strips harness noise; byte-capped with continuation signalling. `--auto` additionally skips session-log directories whose slugified project path starts with a non-persistent-workspace prefix (`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-` — slugified forms of `/private/tmp`, `/tmp`, and macOS `$TMPDIR`), preventing eval/test runs from bloating the main chunk index (configurable via the `non_persistent_prefixes` key in `.engram/sweep.json`). Two opt-in levers bypass the skip for deliberate test ingestion: explicit `--sweep <dir>` / `--transcript <file>` / `--markdown <file>` — manual sweep roots carry no prefix exclusion — or an isolated index + vault via `ENGRAM_CHUNKS_DIR` / `ENGRAM_VAULT_PATH`. |
-| C2 → S6 | `engram update` runs `go install`, then copies refreshed agent-instructions/{skills,commands} into each harness root; `--with-guidance` also deploys the guidance docs under `agent-instructions/guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` (Claude Code only; opt-in; OpenCode deferred). |
+| C2 → S5 | `engram ingest --auto` reads Claude and Pi `.jsonl`; re-chunks and re-embeds only sources whose mtime/size/hash changed vs the `manifest.json` written to `$XDG_DATA_HOME/engram/chunks`; strips harness noise; byte-capped with continuation signalling. `--auto` additionally skips session-log directories whose slugified project path starts with a non-persistent-workspace prefix (`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-` — slugified forms of `/private/tmp`, `/tmp`, and macOS `$TMPDIR`), preventing eval/test runs from bloating the main chunk index (configurable via the `non_persistent_prefixes` key in `.engram/sweep.json`). Two opt-in levers bypass the skip for deliberate test ingestion: explicit `--sweep <dir>` / `--transcript <file>` / `--markdown <file>` / `--pi-sessions <dir>` — manual sweep roots carry no prefix exclusion — or an isolated index + vault via `ENGRAM_CHUNKS_DIR` / `ENGRAM_VAULT_PATH`. |
+| C2 → S6 | `engram update` runs `go install`, then copies refreshed agent-instructions/{skills,commands} into each harness root; `--with-guidance` also deploys the guidance docs under `agent-instructions/guidance/` (`recall.md`, `delegate.md`, `learn.md`) to `~/.claude/engram/` (Claude Code) and `~/.pi/agent/guidance/` (Pi) (opt-in; OpenCode deferred). |
 
 ### Flowchart: ingest/chunking (C2→S5)
 
 ```mermaid
 flowchart TD
-    A["engram ingest --auto"] --> B["resolve default roots: repo markdown + ancestor .claude dirs + session logs (.engram/sweep.json)"]
+    A["engram ingest --auto"] --> B["resolve default roots: repo markdown + ancestor .claude and .pi dirs + session logs (.engram/sweep.json)"]
     B --> C{"session source path starts with a non-persistent-workspace prefix? (-private-tmp-, -tmp-, -var-folders-, -private-var-folders-)"}
     C -->|"yes, no explicit override"| SK["skip source (keeps eval/test runs out of the main chunk index)"]
-    C -->|"no, or explicit --sweep/--transcript/--markdown/isolated-env override"| D["stat source: mtime + size + hash vs manifest.json"]
+    C -->|"no, or explicit --sweep/--transcript/--markdown/--pi-sessions/isolated-env override"| D["stat source: mtime + size + hash vs manifest.json"]
     D --> E{"changed vs the manifest entry?"}
     E -->|no| SK2["skip: cheap mtime+size match, no read"]
     E -->|yes| F["strip harness noise (context.Strip)"]

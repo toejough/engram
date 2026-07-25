@@ -1,4 +1,4 @@
-<!-- engram-owned: delegation-firing guidance. Deployed by 'engram update --with-guidance' to ~/.claude/engram/delegate.md; activate via '@~/.claude/engram/delegate.md' in CLAUDE.md. Edit via writing-skills TDD. -->
+<!-- engram-owned: delegation-firing guidance. Deployed by 'engram update --with-guidance' to ~/.claude/engram/delegate.md (Claude Code) and ~/.pi/agent/guidance/delegate.md (Pi); activate via '@~/.claude/engram/delegate.md' in CLAUDE.md or '@~/.pi/agent/guidance/delegate.md' in AGENTS.md. Edit via writing-skills TDD. -->
 
 ## Delegate object-level work — plan it, route it, review it, report it
 

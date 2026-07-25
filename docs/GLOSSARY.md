@@ -106,9 +106,9 @@ fresh ground-truth review per measured escalation; upgrade path in
 `docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row).
 
 ### harness
-A coding-agent host that runs skills. Engram supports two: **Claude Code**
-and **OpenCode**. The plural is *harnesses*. Session transcripts are read by
-`internal/transcript` (Claude Code JSONL; consumed by `engram ingest`).
+A coding-agent host that runs skills. Engram supports three: **Claude Code**,
+**OpenCode**, and **Pi**. The plural is *harnesses*. Session transcripts are read by
+`internal/transcript` (Claude Code and Pi JSONL; consumed by `engram ingest`).
 
 ### binary
 The compiled `engram` Go program. It handles all I/O (vault read/write, chunk indexing,
@@ -606,7 +606,8 @@ separate executables.
 Installs/refreshes skills and commands into every detected harness, and
 reinstalls the binary via `go install`. `--dry-run` shows the diff
 without writing. `--with-guidance` additionally deploys the guidance docs
-(`recall.md`, `delegate.md`) to `~/.claude/engram/` (Claude Code only;
+(`recall.md`, `delegate.md`, `learn.md`) to `~/.claude/engram/` (Claude Code) and
+`~/.pi/agent/guidance/` (Pi; for `~/.pi/agent/AGENTS.md` `@import`;
 opt-in). OpenCode is deferred — its `AGENTS.md` import support is
 unverified. Plain `engram update` hints about `--with-guidance` until a
 guidance file is imported, then keeps it refreshed on every run. It also
@@ -634,14 +635,16 @@ that topic in frontmatter; `vocab.index.md` was a machine-generated instance of 
 "aggregate note (route)" and ADR-0019); audit only, never the routing read path.
 
 ### guidance file
-An always-loaded ambient doc under `agent-instructions/guidance/` in the engram repo, deployed
-to `~/.claude/engram/<name>.md` by `engram update --with-guidance`. Two ship
-today: `recall.md` (recall-firing) and `delegate.md` (delegation-firing).
+An always-loaded ambient doc under `agent-instructions/guidance/` in the engram repo,
+deployed by `engram update --with-guidance` to `~/.claude/engram/<name>.md` (Claude Code)
+and `~/.pi/agent/guidance/<name>.md` (Pi). Three ship today: `recall.md` (recall-firing),
+`delegate.md` (delegation-firing), and `learn.md` (learn-firing).
 Each is activated independently by adding its own
-`@~/.claude/engram/<name>.md` line to `~/.claude/CLAUDE.md` (Claude Code
+`@~/.claude/engram/<name>.md` line to `~/.claude/CLAUDE.md`, or
+`@~/.pi/agent/guidance/<name>.md` to `~/.pi/agent/AGENTS.md` (harness
 `@import`; always loaded). `--with-guidance` is a one-time opt-in per file —
-once CLAUDE.md imports a guidance file, plain `engram update` keeps it
-current (like skills). Claude Code only; OpenCode deferred.
+once the harness config imports a guidance file, plain `engram update` keeps it
+current (like skills). Claude Code + Pi; OpenCode deferred.
 
 ### XDG paths
 Engram follows XDG basedir conventions:

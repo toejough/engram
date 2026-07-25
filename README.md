@@ -7,9 +7,9 @@
 
 ## Overview
 
-Engram gives Claude Code and OpenCode agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand; at their write sites they hand off to `write-memory`, a worker skill that composes and executes the vault-write commands. A further skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other skills around a user's `<ask>`, and `route` encodes the delegate-everything doctrine `please` draws on to staff its subagents. `recall`, `learn`, and `write-memory` shell out to the `engram` binary; `please` and `route` are pure meta-orchestration.
+Engram gives Claude Code, OpenCode, and Pi agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand; at their write sites they hand off to `write-memory`, a worker skill that composes and executes the vault-write commands. A further skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other skills around a user's `<ask>`, and `route` encodes the delegate-everything doctrine `please` draws on to staff its subagents. `recall`, `learn`, and `write-memory` shell out to the `engram` binary; `please` and `route` are pure meta-orchestration.
 
-**Harness support is asymmetric.** `engram update` installs the skills into both Claude Code and OpenCode (plus the slash commands for OpenCode), and the vault is harness-agnostic — so `recall` and `learn` work the same on each. The gap is on the ingest side: automatic sweeping of raw session transcripts into the chunk index currently reads Claude Code JSONL only. OpenCode stores its sessions in a SQLite database that the file-based sweep can't see, so an OpenCode agent's own conversation history is not yet auto-ingested (tracked in [#644](https://github.com/toejough/engram/issues/644)).
+**Harness support is asymmetric.** `engram update` installs the skills into Claude Code, OpenCode, and Pi (plus the slash commands for OpenCode), and the vault is harness-agnostic — so `recall` and `learn` work the same on each. The remaining gap is on the ingest side: automatic sweeping of raw session transcripts into the chunk index reads Claude Code JSONL and Pi session files. OpenCode stores its sessions in a SQLite database that the file-based sweep can't see, so an OpenCode agent's own conversation history is not yet auto-ingested (tracked in [#644](https://github.com/toejough/engram/issues/644)).
 
 After a few months of use, the vault's wikilink graph looks like this in Obsidian — each dot is a note, each line a `[[wikilink]]`; dense clusters are groups of related notes, and the connective tissue reflects thematic proximity:
 
@@ -33,11 +33,11 @@ Requires Go 1.25+ on `PATH`.
 
    ```bash
    engram update                 # install / refresh
-   engram update --with-guidance # also deploy guidance docs (recall.md, delegate.md) to ~/.claude/engram/ (Claude Code; opt-in)
+   engram update --with-guidance # also deploy guidance docs (recall.md, delegate.md, learn.md) to ~/.claude/engram/ and ~/.pi/agent/guidance/ (Claude Code + Pi; opt-in)
    engram update --dry-run       # show what would change
    ```
 
-   `engram update` writes Claude Code skills to `~/.claude/skills/` and OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys the guidance docs under `agent-instructions/guidance/` (`recall.md`, `delegate.md`) to `~/.claude/engram/` for CLAUDE.md `@import` (Claude Code; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md imports a guidance file, plain `engram update` keeps it current (like skills). Until then, plain `engram update` prints a one-line hint.
+   `engram update` writes Claude Code skills to `~/.claude/skills/`, OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`, and Pi skills to `~/.pi/agent/skills/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys the guidance docs under `agent-instructions/guidance/` (`recall.md`, `delegate.md`, `learn.md`) to `~/.claude/engram/` for CLAUDE.md `@import` and to `~/.pi/agent/guidance/` for `~/.pi/agent/AGENTS.md` `@import` (Claude Code + Pi; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md (or AGENTS.md) imports a guidance file, plain `engram update` keeps it current (like skills). Until then, plain `engram update` prints a one-line hint.
 
 ## Upgrading
 
@@ -105,7 +105,7 @@ engram vocab bootstrap --seed <yaml> [--floor <f>]     Seed vocab definition fac
 engram vocab propose --term <t> --description <d>  LLM-gated: create a new vocab definition note if no existing term covers it and projected attachment ≤ 20% of vault (~$0.05/proposal). Both flags required.
 engram vocab stats                     Per-term member counts, vault untagged-rate, hub terms (> 25% of vault), orphan terms (< 2 members), version staleness.
 engram vocab refit                     LLM-judged: merge orphans, split hubs, rename terms; rewrites member `tags:` entries in the `vocab/<term>` namespace; major version bump on the family definition note (no index to regenerate — the index is emergent).
-engram update [--with-guidance]        Refresh binary and harness skills and commands ([--dry-run]); --with-guidance also deploys agent-instructions/guidance/*.md (recall.md, delegate.md) to ~/.claude/engram/ (Claude Code; opt-in; OpenCode deferred)
+engram update [--with-guidance]        Refresh binary and harness skills and commands ([--dry-run]); --with-guidance also deploys agent-instructions/guidance/*.md (recall.md, delegate.md, learn.md) to ~/.claude/engram/ and ~/.pi/agent/guidance/ (Claude Code + Pi; opt-in; OpenCode deferred)
 ```
 
 ## Semantic search & the embed-on-write pipeline
@@ -133,13 +133,13 @@ internal/            Business logic (DI boundaries)
   debuglog/          Structured debug logging
   embed/             Embedder interface + Hugot/GoMLX backend, sidecar I/O, state classification
   luhmann/           Luhmann-ID allocation under file lock
-  transcript/        Session transcript reading (Claude Code JSONL), read by engram ingest
+  transcript/        Session transcript reading (Claude Code + Pi JSONL), read by engram ingest
   update/            Self-refresh subcommand
   vaultgraph/        Vault traversal (wikilink graph, note scanning)
 agent-instructions/
   skills/            Source for the recall, learn, write-memory, please, and route skills
   commands/          Source for OpenCode slash commands
-  guidance/          Source for the deployable ambient guidance docs — recall-firing (recall.md) and delegation-firing (delegate.md)
+  guidance/          Source for the deployable ambient guidance docs — recall-firing (recall.md), delegation-firing (delegate.md), and learn-firing (learn.md)
 ```
 
 ## Development

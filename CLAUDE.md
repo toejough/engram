@@ -25,7 +25,7 @@ engram/
 ├── agent-instructions/
 │   ├── skills/        # Source for the recall, learn, write-memory, please, and route skills
 │   ├── commands/      # Source for OpenCode slash commands
-│   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`) and delegation-firing (`delegate.md`) — activated via CLAUDE.md `@import`
+│   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), and learn-firing (`learn.md`) — deployed to ~/.claude/engram/ (Claude Code) and ~/.pi/agent/guidance/ (Pi); activated via `@import` in CLAUDE.md / AGENTS.md
 ├── dev/               # Build tooling (targ definitions, linter configs)
 └── docs/              # Organized by charter — see docs/README.md
 ```
