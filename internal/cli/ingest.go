@@ -21,7 +21,7 @@ import (
 type IngestArgs struct {
 	Transcripts []string `targ:"flag,name=transcript,desc=session transcript (JSONL) to chunk+embed (repeatable)"`
 	Markdowns   []string `targ:"flag,name=markdown,desc=markdown file to chunk+embed (repeatable)"`
-	PiSessions       []string `targ:"flag,name=pi-sessions,desc=PI session transcript directory (JSONL; repeatable)"`
+	PiSessions  []string `targ:"flag,name=pi-sessions,desc=PI session transcript directory (JSONL; repeatable)"`
 	Sweep       []string `targ:"flag,name=sweep,desc=directory to scan for new/changed sources (.md + .jsonl; repeatable)"`
 	Auto        bool     `targ:"flag,name=auto,desc=sweep the declarative default roots: repo markdown + ancestor .claude dirs + session logs (see .engram/sweep.json)"` //nolint:lll // single unbreakable struct-tag string
 	ChunksDir   string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
@@ -41,7 +41,6 @@ type IngestDeps struct {
 	// release func. Wired to manifestLockFrom (MkdirAll + FileLocker flock) in newIngestDeps.
 	// Guards the manifest read-modify-write against concurrent ingest/prune (#660).
 	Lock func(chunksDir string) (func(), error)
-	ReadDir     func(path string) ([]os.DirEntry, error)
 	// Now returns the current wall-clock time for IngestedAt stamping. Nil-safe:
 	// callers guard with "if deps.Now != nil" before calling. Wired to deps.Now in
 	// newIngestDeps.
@@ -288,7 +287,7 @@ func gatherSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
 			for _, foundPath := range found {
 				ext := filepath.Ext(foundPath)
 				if ext == ".md" || ext == jsonlExt {
-					sources = append(sources, sourceRef{path: foundPath})
+					sources = append(sources, sourceRef{path: foundPath, explicit: true})
 				}
 			}
 		}

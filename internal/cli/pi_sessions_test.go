@@ -4,14 +4,17 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/onsi/gomega"
 
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/transcript"
 )
 
 // TestPiSessionsExplicitFlagIngestsPIDirectories verifies that explicit --pi-sessions
@@ -28,24 +31,11 @@ func TestPiSessionsExplicitFlagIngestsPIDirectories(t *testing.T) {
 
 	// Wire dependencies with proper directory walking for ListSources
 	deps := cli.IngestDeps{
-		ReadFile:  fs.read,
-		WriteFile: func(path string, data []byte) error { return fs.write(path, data) },
-		Stat:      func(_ string) (cli.SourceStat, error) { return cli.SourceStat{}, io.ErrUnexpectedEOF },
-		ListSources: func(root cli.SweepRoot) ([]string, error) {
-			var found []string
-			err := filepath.WalkDir(root.Path, func(path string, entry os.DirEntry, err error) error {
-				if err != nil {
-					return err
-				}
-				ext := filepath.Ext(path)
-				if ext == ".jsonl" || ext == ".md" {
-					found = append(found, path)
-				}
-				return nil
-			})
-			return found, err
-		},
-		ReadTranscript: transcriptReader(""),
+		ReadFile:       fs.read,
+		WriteFile:      func(path string, data []byte) error { return fs.write(path, data) },
+		Stat:           func(_ string) (cli.SourceStat, error) { return cli.SourceStat{}, io.ErrUnexpectedEOF },
+		ListSources:    memFSLister(fs),
+		ReadTranscript: transcriptReader("USER: pi session content long enough to clear the ingest noise floor easily\n\nASSISTANT: acknowledged, indexing this pi conversation for recall"),
 		Embedder:       fakeIngestEmbedder{},
 		IsDir: func(path string) bool {
 			base := filepath.Base(path)
@@ -69,27 +59,36 @@ func TestPiSessionsExplicitFlagIngestsPIDirectories(t *testing.T) {
 	}
 }
 
+// memFSLister returns a SweepRoot lister that walks the in-memory mock
+// filesystem — never the real disk. (An earlier version used
+// filepath.WalkDir here, which silently swept the machine's real root and
+// produced permission errors that looked like mock-persistence bugs.)
+func memFSLister(fs *memFS) func(cli.SweepRoot) ([]string, error) {
+	return func(root cli.SweepRoot) ([]string, error) {
+		prefix := strings.TrimSuffix(root.Path, "/") + "/"
+		var found []string
+		for path := range fs.files {
+			if path != root.Path && !strings.HasPrefix(path, prefix) {
+				continue
+			}
+			ext := filepath.Ext(path)
+			if ext == ".jsonl" || ext == ".md" {
+				found = append(found, path)
+			}
+		}
+		sort.Strings(found)
+		return found, nil
+	}
+}
+
 // ingestDeps creates test dependencies for PI session ingestion tests.
 func ingestDeps(fs *memFS) cli.IngestDeps {
 	return cli.IngestDeps{
-		ReadFile:  fs.read,
-		WriteFile: func(path string, data []byte) error { return fs.write(path, data) },
-		Stat:      func(_ string) (cli.SourceStat, error) { return cli.SourceStat{}, io.ErrUnexpectedEOF },
-		ListSources: func(root cli.SweepRoot) ([]string, error) {
-			var found []string
-			err := filepath.WalkDir(root.Path, func(path string, entry os.DirEntry, err error) error {
-				if err != nil {
-					return err
-				}
-				ext := filepath.Ext(path)
-				if ext == ".jsonl" || ext == ".md" {
-					found = append(found, path)
-				}
-				return nil
-			})
-			return found, err
-		},
-		ReadTranscript: transcriptReader(""),
+		ReadFile:       fs.read,
+		WriteFile:      func(path string, data []byte) error { return fs.write(path, data) },
+		Stat:           func(_ string) (cli.SourceStat, error) { return cli.SourceStat{}, io.ErrUnexpectedEOF },
+		ListSources:    memFSLister(fs),
+		ReadTranscript: transcriptReader("USER: pi session content long enough to clear the ingest noise floor easily\n\nASSISTANT: acknowledged, indexing this pi conversation for recall"),
 		Embedder:       fakeIngestEmbedder{},
 		IsDir: func(path string) bool {
 			base := filepath.Base(path)
@@ -111,6 +110,15 @@ func TestPiSessionsReadErrorPropagates(t *testing.T) {
 	}}
 
 	deps := ingestDeps(fs)
+	// The shared fake reader never fails; this test is specifically about
+	// error propagation, so wire a reader that rejects the bad file.
+	readErr := errors.New("transcript parse failure")
+	deps.ReadTranscript = func(path string, _ time.Time, _ int) (transcript.ReadResult, error) {
+		if strings.Contains(path, "bad") {
+			return transcript.ReadResult{}, readErr
+		}
+		return transcript.ReadResult{Content: "USER: valid"}, nil
+	}
 
 	args := cli.IngestArgs{
 		PiSessions: []string{"/.pi"},
@@ -180,8 +188,8 @@ func TestPiSessionsWithTranscriptsCombinesBothSources(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	fs := &memFS{files: map[string][]byte{
-		"/docs/markdown.md":   []byte("# Markdown\nSome content here.\n"),
-		"/.pi/session.jsonl":  []byte(`{"type":"user","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"USER: pi session"}}` + "\n"),
+		"/docs/markdown.md":  []byte("# Markdown\nSome content here that is long enough to clear the ingest noise floor comfortably for chunking.\n"),
+		"/.pi/session.jsonl": []byte(`{"type":"user","timestamp":"2026-01-01T00:00:00Z","message":{"role":"user","content":"USER: pi session"}}` + "\n"),
 	}}
 
 	deps := ingestDeps(fs)
@@ -238,9 +246,10 @@ func TestPiSessionsReadErrorOnDirScan(t *testing.T) {
 
 	fs := &memFS{files: map[string][]byte{}}
 
-	// Simulate ReadDir error on the .pi directory
+	// Simulate a directory-scan error on the .pi directory: ListSources is
+	// the seam through which --pi-sessions dirs are enumerated.
 	deps := ingestDeps(fs)
-	deps.ReadDir = func(_ string) ([]os.DirEntry, error) { return nil, errors.New("scan error") }
+	deps.ListSources = func(_ cli.SweepRoot) ([]string, error) { return nil, errors.New("scan error") }
 
 	args := cli.IngestArgs{
 		PiSessions: []string{"/.pi"},
@@ -265,7 +274,7 @@ func TestPiSessionsAutoSweepIngestsPISessionsFromAncestor(t *testing.T) {
 
 	// Use explicit --sweep with AncestorPiDirs=true to trigger PI directory sweeping
 	args := cli.IngestArgs{
-		Sweep: []string{"/"},
+		Sweep:     []string{"/"},
 		ChunksDir: "/chunks",
 	}
 
