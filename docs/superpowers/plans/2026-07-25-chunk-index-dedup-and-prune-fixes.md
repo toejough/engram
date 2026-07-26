@@ -107,8 +107,16 @@ against `entry.Name()` — not path prefixes. So this needs a sibling field, not
 - **GREEN:** add `NonPersistentPathPrefixes []string` to `SweepSpec` beside
   `NonPersistentPrefixes` (default `{"/tmp", "/private/tmp", "/var/folders",
   "/private/var/folders"}`); at the end of `ResolveSweepRoots` (`sweepspec.go:108-147`) drop
-  any root whose own `Path` is under one of them. Explicit `--sweep`/`--transcript`/`--markdown`
-  bypass this (`ingest.go:177-182`) — the documented escape hatch, unchanged.
+  any root whose own `Path` is under one of them. **Apply the drop only to the auto-derived root
+  groups (RepoMarkdown, AncestorClaudeDirs, AncestorPiDirs, SessionLogs), before `ExtraRoots` is
+  appended.** Three things bypass it, all deliberate configuration rather than accidental
+  sweeping: explicit `--sweep`/`--transcript`/`--markdown` (`ingest.go:177-182`, the documented
+  escape hatch), and `SweepSpec.ExtraRoots`, whose own doc comment at `sweepspec.go:51-52`
+  promises it is "swept verbatim". Gate B caught the first implementation filtering `ExtraRoots`
+  too — `DefaultSweepSpec()` plus an extra root under `/tmp` returned zero roots, silently. The
+  regression test must use `DefaultSweepSpec()`, not a bare `SweepSpec{}` literal: the existing
+  `TestResolveSweepRootsHonorsSpecToggles` uses a literal, so the new field is nil there and the
+  filter never engages, which is exactly why it masked the gap.
 - **VERIFY:** `targ test`; installed binary run with cwd under `/private/tmp` adds zero sources.
 
 ## Unit 3 — dedup at ingest (the general fix, forward-looking)
@@ -120,9 +128,25 @@ additions are required and are specified here.
 `gatherSources` (`ingest.go:268-324`) returns bare `sourceRef`s with no hash; `RunIngest`
 (`:103-120`) calls `ingestSource` per path with no cross-source view. So:
 
+0. **Prerequisite — carry origin on `sourceRef`.** Gate B on the baseline refactor established
+   that origin is currently LOST at the merge point: `piSessionSources` tags its files
+   `explicit: true` (indistinguishable from literal `--transcript`/`--markdown` flags) and
+   `sweptSources` tags repo-markdown, `.claude` ancestors, `.pi` ancestors and session logs all
+   `explicit: false`. `sourceRef{path, explicit}` therefore cannot answer the question
+   `selectCanonical` asks. Add an origin tag (explicit / repo / claude-ancestor / pi-ancestor /
+   session-log / manual-sweep) set by each stage helper at the point it constructs the
+   `sourceRef` — each helper already knows its own origin — and carry it through the merge.
+   Without this step the precedence rule below is unimplementable except by fragile
+   path-matching. While here, fold the duplicated `ListSources → filter by ext → append` loop
+   body shared by `piSessionSources` and `sweptSources` into one helper parameterised by origin
+   and the chunks-prefix skip (Gate B flagged the duplication; it becomes natural once origin is
+   a parameter).
 1. Build a `hash → []sourceRef` registry before the ingest loop, seeded from the manifest's
    cached `FileHash` (no extra reads for unchanged sources; only unknown/changed sources are
-   read and hashed).
+   read and hashed). **This seeding is load-bearing, not an optimisation:** `gatherSources`
+   never reads file bytes, and the pipeline's cheap-skip deliberately avoids re-reading
+   unchanged files, so a dedup pass that eagerly hashed every source would defeat the design it
+   sits in.
 2. Rank each hash group by `selectCanonical(candidates []sourceRef) sourceRef` — a **pure
    function**, first match wins, evaluated in this order:
    1. `explicit == true` (came from `--transcript`/`--markdown`/`--pi-sessions`);
