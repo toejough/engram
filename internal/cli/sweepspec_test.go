@@ -101,6 +101,59 @@ func TestResolveSweepRootsCoversRepoAncestorsAndSessions(t *testing.T) {
 		"repo sweeps keep only the general excludes")
 }
 
+func TestResolveSweepRootsDropsRootsUnderNonPersistentPaths(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// No VCS marker anywhere, so repoRootFor falls back to cwd itself — the
+	// exact shape of the confirmed-live bug: a sweep root (repo-markdown
+	// root here, but a session-log slug is symmetric) that IS a throwaway
+	// path, not merely a descendant of one. sweepListerFrom exempts a
+	// root's own path from every in-walk exclude check, so such a root is
+	// swept whole and permanently indexed unless it is dropped up front.
+	fs := specFS{dirs: map[string]bool{
+		"/private/tmp/work/proj/.claude": true,
+	}}
+
+	roots := cli.ResolveSweepRoots(cli.DefaultSweepSpec(), cli.SweepEnv{
+		Cwd: "/private/tmp/work/proj", SessionDir: "", IsDir: fs.isDir,
+	})
+
+	for _, root := range roots {
+		g.Expect(root.Path).NotTo(gomega.HavePrefix("/private/tmp"),
+			"a sweep root under a non-persistent path must be dropped outright")
+	}
+}
+
+func TestResolveSweepRootsExtraRootsBypassNonPersistentPathDrop(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// Deliberately DefaultSweepSpec(), not a bare cli.SweepSpec{} literal:
+	// a literal leaves NonPersistentPathPrefixes nil, so the filter never
+	// engages and the gap this test targets stays masked.
+	spec := cli.DefaultSweepSpec()
+	spec.RepoMarkdown = false
+	spec.AncestorClaudeDirs = false
+	spec.AncestorPiDirs = false
+	spec.SessionLogs = false
+	spec.ExtraRoots = []string{"/tmp/mydata"}
+
+	roots := cli.ResolveSweepRoots(spec, cli.SweepEnv{
+		Cwd: "/home/dev/proj", SessionDir: "", IsDir: func(string) bool { return false },
+	})
+
+	g.Expect(roots).To(gomega.HaveLen(1),
+		"extra_roots is explicit, deliberate config — the same bypass category as --sweep")
+
+	if len(roots) != 1 {
+		return
+	}
+
+	g.Expect(roots[0].Path).To(gomega.Equal("/tmp/mydata"),
+		"ExtraRoots must be swept verbatim even under a non-persistent path prefix")
+}
+
 func TestResolveSweepRootsHonorsSpecToggles(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -133,8 +186,11 @@ func TestResolveSweepRootsNoRepoFallsBackToCwd(t *testing.T) {
 
 	fs := specFS{dirs: map[string]bool{}}
 
+	// Cwd deliberately outside any non-persistent prefix: this test targets
+	// repoRootFor's cwd-fallback behavior, not the non-persistent-path drop
+	// (covered by TestResolveSweepRootsDropsRootsUnderNonPersistentPaths).
 	roots := cli.ResolveSweepRoots(cli.DefaultSweepSpec(), cli.SweepEnv{
-		Cwd: "/tmp/scratch", SessionDir: "", IsDir: fs.isDir,
+		Cwd: "/home/dev/scratch", SessionDir: "", IsDir: fs.isDir,
 	})
 
 	paths := make([]string, 0, len(roots))
@@ -142,7 +198,7 @@ func TestResolveSweepRootsNoRepoFallsBackToCwd(t *testing.T) {
 		paths = append(paths, root.Path)
 	}
 
-	g.Expect(paths).To(gomega.ContainElement("/tmp/scratch"), "no VCS marker: sweep cwd itself")
+	g.Expect(paths).To(gomega.ContainElement("/home/dev/scratch"), "no VCS marker: sweep cwd itself")
 }
 
 // specFS fakes the directory-existence checks spec resolution makes.

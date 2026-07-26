@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 // SweepEnv is the deterministic input to root resolution: where we are, where
@@ -64,7 +65,26 @@ type SweepSpec struct {
 	// session logs whose slugified cwd lives under a throwaway root
 	// (`/private/tmp`, `/tmp`, macOS `$TMPDIR` at `/var/folders`). Eval/test
 	// runs never bloat the main index; explicit --sweep/--transcript bypass it.
+	//
+	// This matches slugified directory NAMES (`-private-tmp-…`) against
+	// entry.Name() during a walk, and only ever gets attached to the
+	// session-logs root (see ResolveSweepRoots below) — it prunes
+	// throwaway *session* subdirectories found underneath a persistent
+	// root, not the root itself.
 	NonPersistentPrefixes []string `json:"non_persistent_prefixes"` //nolint:tagliatelle,lll // developer-facing config uses snake_case
+	// NonPersistentPathPrefixes name real filesystem PATH prefixes under
+	// which an entire sweep root is dropped, root and all — a sibling of
+	// NonPersistentPrefixes above, not an overload of it: that field
+	// matches slugified NAMES and only reaches the session-logs root's
+	// children, so it cannot catch a root whose own resolved Path sits
+	// under a throwaway tree (e.g. cwd is `/tmp/some-eval-pool/warm0` with
+	// no repo marker, so the repo-markdown root IS that path). sweepListerFrom
+	// exempts a root's own path from every in-walk exclude check
+	// (`if path == root.Path { return nil }`), so without this field such a
+	// root is swept whole and permanently indexed. Applies only to --auto's
+	// resolved roots; explicit --sweep/--transcript/--markdown bypass it, as
+	// documented for NonPersistentPrefixes.
+	NonPersistentPathPrefixes []string `json:"non_persistent_path_prefixes"` //nolint:tagliatelle,lll // developer-facing config uses snake_case
 }
 
 // DefaultSweepSpec is the compiled-in declaration: repo markdown + ancestor
@@ -86,6 +106,10 @@ func DefaultSweepSpec() SweepSpec {
 			"worktrees",
 		},
 		NonPersistentPrefixes: []string{"-private-tmp-", "-tmp-", "-var-folders-", "-private-var-folders-"},
+		NonPersistentPathPrefixes: []string{
+			nonPersistentPathTmp, nonPersistentPathPrivateTmp,
+			nonPersistentPathVarFolders, nonPersistentPathPrivateVarFolders,
+		},
 	}
 }
 
@@ -139,6 +163,13 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 		})
 	}
 
+	// Drop non-persistent-path roots BEFORE ExtraRoots is appended: ExtraRoots
+	// is an explicit, deliberate configuration choice (like --sweep), not an
+	// accidentally-swept throwaway tree, so it must bypass this filter and
+	// stay "swept verbatim" per the SweepSpec.ExtraRoots doc comment above —
+	// the same bypass NonPersistentPrefixes already gives it.
+	roots = dropNonPersistentRoots(roots, spec.NonPersistentPathPrefixes)
+
 	for _, extra := range spec.ExtraRoots {
 		roots = append(roots, SweepRoot{Path: extra, ExcludeDirs: spec.ExcludeDirs, SkipHidden: skipHidden})
 	}
@@ -148,7 +179,11 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 
 // unexported constants.
 const (
-	excludeDirProjects = "projects"
+	excludeDirProjects                 = "projects"
+	nonPersistentPathPrivateTmp        = "/private/tmp"
+	nonPersistentPathPrivateVarFolders = "/private/var/folders"
+	nonPersistentPathTmp               = "/tmp"
+	nonPersistentPathVarFolders        = "/var/folders"
 )
 
 // ancestorClaudeDirs collects every existing .claude directory from cwd up to
@@ -183,6 +218,45 @@ func ancestorPiDirs(env SweepEnv) []string {
 			return dirs
 		}
 	}
+}
+
+// dropNonPersistentRoots removes any root whose OWN resolved Path sits under
+// one of the given throwaway-filesystem prefixes. sweepListerFrom exempts a
+// root's own path from every in-walk exclude check, so a root that IS (or is
+// nested inside) a non-persistent path — not merely one that contains a
+// non-persistent subdirectory — would otherwise be swept in full and
+// permanently indexed. Only reached from --auto's resolved roots
+// (ResolveSweepRoots); manual --sweep roots are built separately in
+// assembleSweepRoots and never pass through here, preserving that escape hatch.
+func dropNonPersistentRoots(roots []SweepRoot, prefixes []string) []SweepRoot {
+	if len(prefixes) == 0 {
+		return roots
+	}
+
+	kept := make([]SweepRoot, 0, len(roots))
+
+	for _, root := range roots {
+		if isUnderPathPrefix(root.Path, prefixes) {
+			continue
+		}
+
+		kept = append(kept, root)
+	}
+
+	return kept
+}
+
+// isUnderPathPrefix reports whether path equals one of prefixes or is nested
+// under one, respecting path-segment boundaries (so "/tmpfoo" is not treated
+// as under "/tmp").
+func isUnderPathPrefix(path string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if path == prefix || strings.HasPrefix(path, prefix+string(filepath.Separator)) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // repoRootFor walks from cwd upward looking for a VCS marker; the nearest
