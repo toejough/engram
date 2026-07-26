@@ -151,6 +151,26 @@ func cheapSkipEligible(source string, prior manifestEntry, chunksDir string, dep
 	return indexFileExists(chunksDir, source, deps)
 }
 
+// chunkingClass reports which of chunkSource's dispatch branches path's
+// extension selects: ".jsonl" sources are stripped as transcripts
+// (ReadTranscript + chunk.Transcript); everything else — only ".md" ever
+// reaches this point, per gatherSources' extension filter — is chunked as
+// markdown directly off the raw bytes. Two sources must never be treated
+// as duplicates of each other across this boundary even when their raw
+// bytes are byte-identical: chunkSource produces genuinely different,
+// non-empty chunk records for each (Gate B: markdown yields the literal
+// bytes, transcript yields "USER: ..."-shaped text derived from them) — a
+// dedup pass keyed on hash alone would permanently delete one's distinct
+// chunking. groupByHash and groupManifestByHash both partition by this
+// alongside the hash for exactly that reason.
+func chunkingClass(path string) string {
+	if filepath.Ext(path) == jsonlExt {
+		return "jsonl"
+	}
+
+	return "markdown"
+}
+
 // dropVaultCopiesOutsideVault applies Rule B: an .md file with a sibling
 // .vec.json sidecar (embed/sidecar.go's SidecarPath; the vault is 1:1
 // .md/.vec.json) is a vault note, and is dropped from ingestion entirely
@@ -179,14 +199,16 @@ func dropVaultCopiesOutsideVault(sources []sourceRef, vault string, deps IngestD
 	return kept
 }
 
-// groupByHash buckets hashedSources by content hash. Map order does not
-// matter: every group is resolved independently, and selectCanonical is
-// itself order-independent within a group.
+// groupByHash buckets hashedSources by content hash AND chunkingClass —
+// never across it (see chunkingClass). Map order does not matter: every
+// group is resolved independently, and selectCanonical is itself
+// order-independent within a group.
 func groupByHash(hashed []hashedSource) map[string][]hashedSource {
 	groups := make(map[string][]hashedSource, len(hashed))
 
 	for _, hs := range hashed {
-		groups[hs.hash] = append(groups[hs.hash], hs)
+		key := hs.hash + "|" + chunkingClass(hs.ref.path)
+		groups[key] = append(groups[key], hs)
 	}
 
 	return groups

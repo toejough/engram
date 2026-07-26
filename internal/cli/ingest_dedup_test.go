@@ -66,6 +66,84 @@ func TestIngestDedupsExactContentByPrecedence(t *testing.T) {
 	g.Expect(hasDup).To(gomega.BeFalse(), "canonical entry must not carry duplicate_of")
 }
 
+// TestIngestDoesNotDedupAcrossChunkingClasses: a .md and a .jsonl source
+// with IDENTICAL raw bytes (so an identical file_hash) must NEVER be
+// treated as duplicates of each other. chunkSource dispatches by extension
+// — .jsonl goes through ReadTranscript + chunk.Transcript, everything else
+// through chunk.Markdown on the raw bytes directly — so the two sources
+// produce genuinely different, non-empty chunk records (Gate B: fed
+// identical bytes through both real production paths and got markdown's
+// literal JSON vs transcript's "USER: ..." text). Grouping by file_hash
+// alone would suppress one as a "duplicate" of the other and permanently
+// delete its distinct chunking; both must be indexed independently.
+func TestIngestDoesNotDedupAcrossChunkingClasses(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// Identical raw bytes at both paths: this is what buildHashedSources
+	// hashes, so file_hash is identical regardless of extension.
+	rawBytes := `{"literal":"json body, long enough on its own to form a real markdown chunk here"}`
+
+	fs := newSweepFS()
+	fs.put("/repo/a.md", rawBytes, 100)
+	fs.put("/repo/a.jsonl", rawBytes, 100)
+
+	emb := &countingEmbedder{}
+	deps := cli.IngestDeps{
+		ReadFile:  fs.read,
+		WriteFile: fs.write,
+		Stat:      fs.stat,
+		ListSources: func(cli.SweepRoot) ([]string, error) {
+			return []string{"/repo/a.md", "/repo/a.jsonl"}, nil
+		},
+		// Production ReadTranscript derives "USER:/ASSISTANT:"-shaped text
+		// from the .jsonl file's OWN bytes via real JSONL parsing — this
+		// fixed stub stands in for that transformation, deliberately shaped
+		// nothing like the raw markdown bytes above, matching Gate B's
+		// live finding.
+		ReadTranscript: transcriptReader(
+			"USER: stripped transcript content, shaped completely differently from the raw bytes.\n",
+		),
+		Embedder: emb,
+	}
+
+	args := cli.IngestArgs{Sweep: []string{"/repo"}, ChunksDir: "/chunks"}
+	err := cli.RunIngest(context.Background(), args, deps, io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	mdIdx := "/chunks/" + cli.ExportIndexFileName("/repo/a.md")
+	jsonlIdx := "/chunks/" + cli.ExportIndexFileName("/repo/a.jsonl")
+
+	_, mdIndexed := fs.files[mdIdx]
+	g.Expect(mdIndexed).To(gomega.BeTrue(), "the markdown source must be indexed")
+
+	_, jsonlIndexed := fs.files[jsonlIdx]
+	g.Expect(jsonlIndexed).To(gomega.BeTrue(),
+		"the jsonl source must ALSO be indexed — a .md/.jsonl pair with identical bytes must never "+
+			"dedup across chunking classes")
+
+	g.Expect(emb.calls).To(gomega.Equal(2),
+		"both distinct chunk sets must be embedded — cross-extension dedup would wrongly suppress one")
+
+	manifest := decodeManifest(g, fs.files)
+
+	mdEntry, mdPresent := manifest["/repo/a.md"]
+	g.Expect(mdPresent).To(gomega.BeTrue())
+
+	_, mdHasDup := mdEntry["duplicate_of"]
+	g.Expect(mdHasDup).To(gomega.BeFalse(), "the markdown entry must not be recorded as a duplicate")
+
+	jsonlEntry, jsonlPresent := manifest["/repo/a.jsonl"]
+	g.Expect(jsonlPresent).To(gomega.BeTrue())
+
+	_, jsonlHasDup := jsonlEntry["duplicate_of"]
+	g.Expect(jsonlHasDup).To(gomega.BeFalse(), "the jsonl entry must not be recorded as a duplicate")
+}
+
 // TestIngestDoesNotReReadUnchangedKnownSource pins Unit 3 step 1's
 // load-bearing seeding directly: a source already known to the manifest,
 // unchanged on disk, must NOT be re-read on a second ingest. This is
