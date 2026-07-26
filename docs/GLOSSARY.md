@@ -547,13 +547,31 @@ One conversation between a user and an agent in a harness. Plural:
 
 ### `engram ingest` (subcommand)
 Merge-appends session transcripts + markdown into the per-source chunk
-index — re-chunks/re-embeds only changed content, never deletes
-(append-only chunk history). `--auto` sweeps all known sources, skips
+index — re-chunks/re-embeds only changed content. **Within one source** this
+is still append-only: a re-chunk never drops a prior record
+(`mergeChunkRecords`, unchanged). **Across sources** the guarantee is
+narrower: content is deduplicated by content hash (grouped with the
+`chunkingClass` — a `.md` and a `.jsonl` with identical bytes never dedup
+against each other), keeping one canonical copy per group; a duplicate's
+index file is removed only once its retained twin's index file is verified
+to cover every one of the duplicate's own chunk records — never on
+hash-match alone, since a source's index file can hold historical records
+from a previous ingest that its current byte-identical twin's index does
+not. A later, higher-precedence copy of an already-indexed group evicts the
+lower-precedence one it replaces (ADR-0021). See the `engram prune` entry
+below for the retroactive `--duplicates` cleanup mode. `--auto` sweeps all known sources, skips
 session-log directories whose slugified project path starts with a
 **non-persistent-workspace prefix** (`-private-tmp-`, `-tmp-`,
-`-var-folders-`, `-private-var-folders-`), and is called by `/learn` and
-`/recall`. The skip keeps eval/test runs from bloating the main chunk index;
-configure it via `.engram/sweep.json` (`non_persistent_prefixes` key), or
+`-var-folders-`, `-private-var-folders-`), additionally drops any resolved
+sweep root whose own path sits under a throwaway filesystem root
+(`/tmp`, `/private/tmp`, `/var/folders`, `/private/var/folders`), and is
+called by `/learn` and `/recall`. An ancestor `.claude` dir's sweep also now
+excludes its `jobs/` subdirectory — agent-harness scratch that can include
+whole snapshot copies of the vault — matching the exclude the `.pi` ancestor
+sweep already carried (`piExcludes`); before this cycle only the `.pi` side
+had it, so `.claude/jobs` content was swept and indexed. The skip keeps eval/test runs from
+bloating the main chunk index; configure it via `.engram/sweep.json`
+(`non_persistent_prefixes` / `non_persistent_path_prefixes` keys), or
 bypass it with explicit `--sweep`/`--transcript`/`--markdown` or an isolated
 index via `ENGRAM_CHUNKS_DIR`.
 Chunks are the episodic layer (raw event memory); at recall they compete with
@@ -580,6 +598,22 @@ A separate `--empty` mode (with `--dry-run`) instead removes existing 0-byte
 chunk-index files left behind by a source that yielded zero records —
 ranking-neutral (empty files hold zero records), re-reading each file at
 delete time rather than deleting off a frozen enumeration.
+
+**Exception to "keeps the index file": `--duplicates` mode.** Retroactively
+collapses every exact-content-hash group in the manifest (grouped by
+`FileHash` + `chunkingClass`, the same partition `engram ingest`'s dedup
+uses) down to one canonical member, and DOES remove the other members' index
+files plus their manifest entries — cleanup for duplicates indexed before
+ingest-time dedup existed (ADR-0021). Safe by construction: a duplicate is
+removed only when the retained canonical's index file exists right now AND
+verifiably covers every one of the duplicate's own chunk records; otherwise
+the removal is refused and reported (structural refusals — the canonical has
+no index file at all, a zero-chunk source with nothing to lose — are
+summarized as one count; the rarer anomalous refusals, where a sibling's
+surviving index proves the group holds real content, are each named
+individually). A per-item removal failure is reported and does not stop the
+run, but the run exits non-zero. Convergent: a second run removes nothing.
+`--dry-run` reports the same counts without deleting anything.
 
 ### non-persistent workspace
 A project directory located under a throwaway filesystem root
@@ -612,8 +646,10 @@ opt-in). OpenCode is deferred — its `AGENTS.md` import support is
 unverified. Plain `engram update` hints about `--with-guidance` until a
 guidance file is imported, then keeps it refreshed on every run. It also
 prints a one-line notice pointing to the README Upgrading section when it
-detects old-format vocab files (#678) or leftover empty `.jsonl` chunk-index
-files (#694).
+detects old-format vocab files (#678), leftover empty `.jsonl` chunk-index
+files (#694), or a live duplicate hash group in the chunk-index manifest
+(ADR-0021) — the last of these only points at `engram prune --duplicates`;
+`update` never removes anything itself.
 
 ### `engram count` (subcommand)
 Read-only aggregation over the vault, deliberately off the query/similarity path

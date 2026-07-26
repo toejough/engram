@@ -119,6 +119,20 @@ against `entry.Name()` — not path prefixes. So this needs a sibling field, not
   filter never engages, which is exactly why it masked the gap.
 - **VERIFY:** `targ test`; installed binary run with cwd under `/private/tmp` adds zero sources.
 
+**Shipped addendum, 2026-07-26 (late addition — not in the RED/GREEN above).** A second,
+independent sweep gap was found and fixed alongside this one: the `.claude` ancestor sweep had no
+exclude for its own `jobs/` subdirectory — agent-harness scratch that can include whole snapshot
+copies of the vault — while the `.pi` ancestor sweep already excluded it
+(`piExcludes := []string{"jobs", "projects"}`, pre-existing, unchanged by this plan). `ClaudeExcludeDirs`
+now carries the matching `jobs` exclude, restoring parity between the two sweeps. This is
+name-based (a subdirectory name to prune during an ancestor `.claude` walk) and distinct from the
+`NonPersistentPathPrefixes` fix above, which is path-based (dropping a whole resolved root whose
+own path sits under a throwaway prefix) — the two together are what stops `.claude/jobs` content
+from being swept at all. Test: `TestResolveSweepRootsClaudeAncestorExcludesJobsScratch`
+(`internal/cli/sweepspec_test.go`). Real-world impact, measured via Unit 4's retroactive prune:
+forensics attributed 1,397 of the 1,960 removed duplicates (71%) to `~/.claude/jobs` alone — the
+single largest identifiable source of the whole backlog. See ADR-0021 decision 4.
+
 ## Unit 3 — dedup at ingest (the general fix, forward-looking)
 
 Gate A refuted the first draft's "minimal change behind existing DI seams". Two structural
@@ -193,6 +207,30 @@ vault path.
   dir — `engram ingest --auto` adds no new duplicate hash groups, and a chunk-query spot check
   returns the same live notes it did before.
 
+**Shipped addendum, 2026-07-26 (found and fixed after the initial ship of Units 3/4 in this same
+cycle — not in the RED/GREEN above; shipped together with Unit 4's matching addendum below).**
+"Structural change 2" above, and Unit 4's original gate below, assumed byte-hash identity of a
+source's CURRENT content is sufficient proof that evicting a duplicate's index loses nothing.
+That premise is FALSE: `mergeChunkRecords` is append-only WITHIN one source, so a source's
+`.jsonl` index file accumulates every chunk record from every past ingest of that path — not just
+its current content. Two sources can therefore be byte-identical RIGHT NOW (same hash group) while
+their index files hold entirely disjoint historical chunk records; evicting one on the strength of
+the other's mere existence can silently destroy real, unique content. The weaker, existence-only
+gate this replaces had already shipped and run against the real chunk index before the flaw was
+found; measured on that real corpus, 124 of 6,612 surviving index files carry chunk records from
+more than one ingest day — exactly the shape the weaker gate could not distinguish from a
+safe-to-delete duplicate. (This does not establish that any record was actually lost by the
+weaker gate — only that it was capable of losing one under exactly this condition, which is why
+it was replaced.) Shipped fix: a record-level subset gate
+(`canonicalCoversDuplicateRecords` / `duplicateRecordsCoveredBy`,
+`internal/cli/ingest_dedup.go`) additionally requires, immediately before any eviction, that the
+canonical's index file exists right now AND every one of the duplicate's own chunk records (by
+content hash) is already present among the canonical's; when this cannot be confirmed the eviction
+is refused (reported to stdout, pointing at `prune --duplicates` for later resolution) rather than
+performed. `reconcileGroupCanonicalFirst` reconciles the group's canonical member first, so its
+records are loaded once per group (not once per duplicate) and reused across every duplicate in
+it. See ADR-0021 decision 5.
+
 ## Unit 4 — `engram prune --duplicates` (retroactive cleanup; folded in with Joe's approval)
 
 Removes index files + manifest entries for non-canonical members of each hash group, keeping
@@ -213,51 +251,81 @@ Deletion safety, all normative:
   zero warnings, and confirms `engram query` on the copy returns the same live notes. Only then
   does it run against the live index.
 
-## Unit 5 — `engram update` runs the dedup prune once (Joe, mid-cycle addition)
+**Shipped addendum, 2026-07-26 (found and shipped alongside Unit 3's matching addendum above — not
+in the bullets above).** "Gate every delete on its retained twin existing now" above describes
+existence-only gating (`deps.Exists` on the canonical's index file). This was strengthened by the
+same post-ship finding Unit 3's addendum describes: existence of the canonical's index file
+is necessary but not sufficient, since a byte-identical twin's index file can hold different
+historical chunk records (`mergeChunkRecords` is append-only within a source). The shipped gate
+additionally requires every one of the duplicate's own chunk records to already be present among
+the canonical's records, via the same `canonicalCoversDuplicateRecords` / `duplicateRecordsCoveredBy`
+helpers Unit 3 uses. A group failing this check is refused, not removed. Refusals are classified
+for reporting, added after Gate B measured a real run printing 47,396 near-identical
+"canonical index missing" lines, burying genuine removals and anomalies in noise: a
+bulk-summarized STRUCTURAL refusal (the canonical has no index file at all — a zero-chunk source,
+nothing lost; ~88% of a real manifest) versus an individually-named ANOMALOUS refusal (a sibling's
+surviving index proves the group holds real content, worth a human look). See ADR-0021 decisions
+5 and 8.
+
+## Unit 5 — `engram update` detects the dedup backlog and notifies (reversed mid-cycle from an auto-run design)
 
 Requested verbatim: "We also need the update command to run the prune once for people updating
-to this version from an old one that might have accumulated copies." Without it, only people who read
-the release notes and run `prune --duplicates` by hand ever get the cleanup — everyone else
-keeps the accumulated copies forever, which is the whole population this cycle is for.
+to this version from an old one that might have accumulated copies." Without SOME signal, only
+people who read the release notes and run `prune --duplicates` by hand ever get the cleanup —
+everyone else keeps the accumulated copies forever, which is the whole population this cycle is
+for.
 
-**Divergence from precedent, stated once and then committed to.** The existing upgrade
-convention *notifies* rather than acts: for #694's empty files, `engram update` "prints a
-one-line notice pointing here" and the user runs `engram prune --empty` themselves
-(`README.md:44`). Unit 5 has update perform the deletion instead. That is defensible here —
-the removal is safe by construction (only a duplicate whose byte-identical twin is verifiably
-retained), and unlike the empty-file case there is no reason a user would want the copies —
-but it is a genuine change in what `update` is allowed to do, and it is Joe's call, made
-explicitly.
+**Reversed, 2026-07-26 (Joe, mid-cycle): detect-and-notify, not auto-run.** Everything below the
+next paragraph describes what actually shipped. This unit originally specified an idempotent
+AUTO-RUN design: `update` would run `prune --duplicates` itself, once, gated by a sentinel file
+`<chunks-dir>/.dedup-applied`; a dry run would thread through without writing the sentinel; a
+failure would be non-fatal and would not write the sentinel, so the next update retried. **That
+design was never implemented or committed at any point** (verified: no commit in this repo's
+history touches a `dedup-applied`/sentinel path for this feature) — Joe reversed it before any
+code was written, verbatim: "let's not auto run... we need to detect duplicates so that we know
+to tell the user." Reasoning, recorded authoritatively in ADR-0021 decision 9:
+removing index files is a destructive, one-shot migration over a user's memory store, and unlike
+#694's empty-file backlog (unconditionally safe — empty files hold zero records), a duplicate
+removal's safety depends on the record-subset gate (Unit 3/4's addenda above) holding at the
+moment it runs. A destructive migration should run only when the user asks for it, not silently
+as a side effect of a routine binary/skills refresh. This reversal is recorded here as history —
+the paragraph above and this one — precisely so a future reader does not mistake the sentinel/
+auto-run shape for what to build; do not implement a sentinel file or an auto-run removal path
+from anything in this unit.
 
-- **Once, not every run.** Idempotence marker: a sentinel file `<chunks-dir>/.dedup-applied`
-  containing the schema tag and the ISO date. Present → skip entirely (no manifest read, so no
-  cost on the common path). Absent → run the Unit 4 removal, then write it. A sentinel file
-  rather than a manifest key because `ingestManifest` is a bare `map[string]manifestEntry` and
-  adding a metadata key would change its type and break every existing reader.
-- **Loud, never silent.** Report the removed and retained counts through the existing update
-  report (`internal/update/update.go`'s `Report`), in the same style as the harness sections —
-  a deletion the user did not ask for individually must be visible in the output they do read.
-- **`engram update --dry-run` must preview, never delete.** `update` has its own `--dry-run`
-  flag, documented as "show what would change" (`README.md:37`) and "previews without writing"
-  (`docs/GLOSSARY.md:717`). Unit 5 must thread it through to the dedup pass and must not write
-  the sentinel on a dry run — otherwise the first `update --dry-run` after upgrading would
-  silently delete thousands of index files, which is the exact opposite of what that flag
-  promises. RED test: `update --dry-run` with duplicates present → removal not called, sentinel
-  not written, report still names what would be removed.
-- **Failure is non-fatal.** A dedup failure must not fail `engram update`'s primary job
-  (binary + skills refresh). On error: report it, do NOT write the sentinel (so the next update
-  retries), and continue. Exit code follows the update's own result.
-- **RED** (`internal/update/update_test.go`, memFS): sentinel absent + a manifest with a
-  duplicate group → removal called once, sentinel written, counts in the report; sentinel
-  present → removal never called; removal returns an error → sentinel NOT written, update still
-  succeeds.
-- **GREEN + REFACTOR + Gate B.**
-- **VERIFY:** installed binary, `engram update` against a **copy** of the chunks dir — first run
-  removes and writes the sentinel, second run reports nothing and leaves the index byte-identical.
+**What shipped: stateless detection + a notice, matching the #694 empty-file convention exactly.**
 
-Note the DI boundary: `internal/update` must not reach into `internal/cli` directly. Wire the
-dedup entry point as an injected function on the updater's deps, composed in `cli.NewDeps`
-alongside the existing update wiring, so the dependency direction stays cli → update.
+- `chunkIndexHasDuplicates` (`internal/cli/update.go`) reads `manifest.json` once — no per-source
+  `.jsonl` opens, so it stays cheap even against a large/decades-accreted index — groups it by
+  `(FileHash, chunkingClass)` (`groupManifestByHash`, the same partition `prune --duplicates`
+  uses, skipping entries already tagged `DuplicateOf`), and reports whether any group has ≥2 live
+  members. A missing/unreadable/malformed manifest is treated as false (self-silencing for a
+  fresh install, same convention as `chunkIndexHasEmptyFiles`) — a detection failure must never
+  fail `engram update`'s primary job.
+- `writeDuplicatesHint` prints one line when detected, silent otherwise: "duplicate chunk-index
+  files found — run `engram prune --duplicates` to clear them; see the Upgrading section in
+  README.md". No sentinel file: detection is stateless and idempotent by construction — it
+  re-notifies every run while duplicates remain and goes quiet the run after a human actually
+  clears them with `prune --duplicates`, so there is nothing to mark "done."
+- `update` never calls `prune --duplicates` and never removes anything itself, under any flag
+  combination including `--dry-run` — there is no removal path to gate on `--dry-run` in the
+  first place, so the dry-run-safety concern the original design bullets raised is moot by
+  construction rather than solved by threading a flag through.
+- **Tests, as actually shipped** (`internal/cli/update_test.go`): `TestChunkIndexHasDuplicates`
+  (a live duplicate group → true; distinct hashes, different chunking classes, or an
+  already-`DuplicateOf`-tagged entry → false; malformed manifest → false, no panic) and
+  `TestWriteUpdateReport_DuplicatesHint` (notice names `prune --duplicates`, "Upgrading", and
+  "README.md"; coexists with the empty-file notice; a clean report contains no mention of
+  "duplicate" at all). No sentinel test exists, because there is no sentinel.
+
+The DI boundary is unchanged from the original intent: `internal/update` does not reach into
+`internal/cli`. Detection lives entirely in `internal/cli` (`update.go`) and is surfaced to
+`internal/update`'s `Report` only as an opaque `ChunkIndexHasDuplicates bool` field the `cli`
+package sets after `Run` returns — mirroring `ChunkIndexHasEmptyFiles`'s existing convention
+exactly, rather than composing a new cli→update dependency injection point as the auto-run design
+would have needed.
+
+See ADR-0021 decision 9 for the authoritative rationale record; this unit only narrates it.
 
 ## Cross-unit coordination
 
@@ -287,16 +355,17 @@ alongside the existing update wiring, so the dependency direction stays cli → 
 ## Doc-surface disposition
 
 Author-grepped: `prune`, `sweep`, `manifest`, `ingest --auto`, `append-only`, `never delete`,
-and — added after Gate A found it missing, since Unit 5 changes what `update` does — `engram
-update`.
+and — added after Gate A found it missing, since Unit 5 was originally going to change what
+`update` does (reversed — see Unit 5's shipped-vs-superseded note above; `update` ends up only
+gaining a third notify-only line, not new authority) — `engram update`.
 
 | File:line | Disposition |
 | --- | --- |
-| `README.md:44` | **update** — the notify-only upgrade convention for #694's empty files; Unit 5 makes update *act* for duplicates, so this section gains the dedup entry and the contrast is made explicit rather than left as a silent inconsistency |
-| `README.md:37`, `docs/GLOSSARY.md:717` | **update** — both document `update --dry-run` as preview-only; they stay true only because Unit 5 threads the flag through, and should say the dedup pass honours it |
+| `README.md:44` | **update** — the notify-only upgrade convention for #694's empty files; Unit 5's shipped form (detect-and-notify, not the superseded auto-run) adds duplicates as a THIRD entry following the SAME notify-only convention — no contrast to make explicit, since update never acts for duplicates either |
+| `README.md:37`, `docs/GLOSSARY.md:717` | **check, not update, as shipped** — both document `update --dry-run` as preview-only; they stay true as-is, since Unit 5's shipped form has no removal path to gate on `--dry-run` in the first place (moot by construction, not solved by threading a flag through, per the superseded-design bullets originally here) |
 | `README.md:12,35-40,108` | **check** — general `update` descriptions; update only if they enumerate what update does step by step |
-| `docs/GLOSSARY.md:605-612` | **update** — the `engram update` entry gains the one-shot dedup behaviour and the sentinel |
-| `docs/architecture/adr.md` (ADR-0021) | **update** — ADR-0020 is the current highest, so ADR-0021 is free. It records the WHOLE decision cluster in one ADR: dedup by content hash + canonical precedence; the explicit narrowing of the cross-source append-only guarantee; the drifted-copy limitation; and update's new authority to delete on the user's behalf — which is only safe because of the twin-retained guarantee, so the two belong together rather than in separate ADRs |
+| `docs/GLOSSARY.md:605-612` | **update** — the `engram update` entry gains a third detect-and-notify line for the duplicate backlog (no one-shot behaviour, no sentinel — that design was reversed before shipping, see Unit 5) |
+| `docs/architecture/adr.md` (ADR-0021) | **update** — ADR-0020 is the current highest, so ADR-0021 is free. It records the WHOLE decision cluster in one ADR: dedup by content hash + canonical precedence; the explicit narrowing of the cross-source append-only guarantee; the drifted-copy limitation; and — as shipped — update's detect-and-notify surface for the duplicate backlog, explicitly NOT a delete-on-the-user's-behalf authority (that auto-run design was reversed before it shipped; decision 9 records why) |
 | `README.md:97` | **update** — the `ingest` row says "append-only … never deletes"; narrow per the invariant section above and add `--duplicates` to the `prune` row |
 | `docs/GLOSSARY.md:550-551` | **update** — `engram ingest` entry's "(append-only chunk history)" narrowed |
 | `docs/GLOSSARY.md` `engram prune` entry | **update** — currently says prune "KEEPS that source's per-source index file"; the new mode is the exception |

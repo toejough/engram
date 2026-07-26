@@ -191,8 +191,12 @@ sequenceDiagram
 Operator runs `/learn` (or the harness self-fires after substantive work). The
 harness first invokes `engram ingest --auto` to merge-append any new chunks from
 session transcripts (S5) and markdown sources into the chunk index — re-chunking
-and re-embedding only changed content, never deleting existing records (append-only,
-D5). It then writes any EXPLICIT lessons (corrections, explicit save-requests,
+and re-embedding only changed content. Within one source this is still append-only
+(D5): a re-chunk never drops a prior record. Across sources the guarantee is
+narrower: byte-identical content is deduplicated by content hash, keeping one
+canonical copy per hash group; a duplicate's index is removed only once its
+retained twin's index file is verified to cover every one of the duplicate's own
+records (ADR-0021), never on hash-match alone. It then writes any EXPLICIT lessons (corrections, explicit save-requests,
 self-discovered reversals, and confirmed approaches) into the vault via
 `engram learn {feedback|fact}`. Each write acquires a `flock`
 on the vault root before computing the Luhmann ID and emitting the new file.
@@ -220,7 +224,7 @@ sequenceDiagram
 
     H->>E: engram ingest --auto
     E->>V: stat known sources (session transcripts, markdown); re-chunk + re-embed changed content only
-    Note over E: merge-append new chunks by ContentHash; never delete existing records (D5)
+    Note over E: merge-append new chunks by ContentHash (D5, within-source append-only); across sources, dedup by content hash keeps one canonical copy per group, evicting a duplicate only when its retained twin verifiably covers its records (ADR-0021)
     V-->>E: written chunk count
     E-->>H: per-source chunk tally (or "memory index up to date")
 

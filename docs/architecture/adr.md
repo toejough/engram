@@ -536,6 +536,188 @@ primitives, real-os integration tests as internal `_test` files. A new I/O capab
 regression. `cmd/engram` carries no testable logic and stays coverage-exempt as an entry point.
 Seeded `math/rand/v2` stays legal (deterministic computation).
 
+## ADR-0021 — Chunk-index dedup by content hash + canonical precedence; the record-subset eviction gate; update notifies rather than acts
+
+**Status:** Accepted (shipped 2026-07-25/26)
+
+**Context.** `engram ingest --auto` sweeps every known source (repo markdown, ancestor `.claude`/`.pi`
+dirs, session logs) and, before this cycle, indexed each swept path independently — one `.jsonl`
+index file + manifest entry per path, with no cross-source view. The same content reachable from
+more than one path (a project file and a copy of it swept in from an ancestor `.claude` dir; a
+session transcript copied into a worktree; a vault note snapshotted into a job's scratch dir) was
+therefore indexed once per copy. Measured on a real ~62,000-source manifest: 79% of sources were
+exact-content duplicates of another source, and duplicated content made up a real share of
+`engram query`'s returned items (9.6% mean, 28.6% worst-case in a lazy-chunks production sample).
+A path-name blocklist (excluding known throwaway roots) cannot reach most of this, because the
+duplication comes from legitimately-swept roots (worktrees, ancestor `.claude` dirs, backup/restore
+trees), not from a fixed set of junk directories — one nameable exception is `.claude`'s own
+`jobs/` scratch subdirectory (decision 4 below), which the `.pi` ancestor sweep already excluded
+and the `.claude` sweep, until this cycle, did not.
+
+**Decision.**
+
+1. **Dedup key: content hash + chunking class.** Sources are grouped by `(FileHash, chunkingClass)`
+   — never by hash alone. A `.md` file and a `.jsonl` file can share identical bytes yet must never
+   be treated as duplicates of each other: `chunkSource` dispatches on extension and produces
+   genuinely different, non-empty chunk records for each (markdown chunks the literal bytes;
+   a transcript is stripped into `USER:`/`ASSISTANT:`-shaped text first). Groups are additionally
+   partitioned so this boundary can never be crossed by hash-match alone.
+
+2. **Canonical precedence, not arrival order.** Within a hash group, `selectCanonical` picks the
+   member to actually index, first match wins: (1) explicit `--transcript`/`--markdown`/
+   `--pi-sessions` sources, (2) the repo-markdown root, (3) an ancestor `.claude`/`.pi` dir —
+   closest ancestor first, (4) anything else (session logs, manual `--sweep`, extra roots); ties
+   break on fewest path separators then byte-wise lexicographic path. This is a pure function of
+   the candidate set (order-independent — `TestSelectCanonicalIsOrderIndependent`), so the same
+   group always resolves to the same canonical regardless of walk order. Every other group member
+   is recorded as a duplicate (`manifestEntry.DuplicateOf`) and never indexed; a later run does not
+   re-read a known duplicate to re-derive the same answer.
+
+3. **Eviction, not just skipping, on a later higher-precedence arrival.** A low-precedence copy
+   indexed on day 1 and a higher-precedence twin appearing on day 5 must converge: `engram ingest`
+   removes the stale copy's index file + manifest entry (index file first, then the manifest entry
+   — the reverse order would strand an unreferenced index file nothing cleans up) and re-indexes
+   under the new canonical.
+
+4. **Restoring `.pi`/`.claude` sweep parity — stop duplication at the source.** The `.pi` ancestor
+   sweep already excluded a `jobs/` subdirectory from its walk (agent-harness scratch — the same
+   subdirectory shape exists under both harnesses); the `.claude` ancestor sweep never carried the
+   matching exclude, so `~/.claude/jobs` — which can hold whole snapshot copies of the vault — was
+   swept and indexed like any other project content. `ClaudeExcludeDirs` now carries the same
+   `jobs` exclude the `.pi` side always had, restoring parity between the two sweeps. This
+   complements rather than substitutes for the hash-based dedup above: excluding `jobs/` stops one
+   large, nameable source of duplication before it is ever indexed, while content-hash dedup
+   remains necessary for duplication the sweep configuration cannot name (worktrees, ad hoc
+   backup/restore trees, deliberate `--sweep`/`ExtraRoots` overlaps).
+
+5. **The record-subset eviction gate — REQUIRED, not an optional safety margin.** The original
+   premise — "byte-identical sources are interchangeable, so it's always safe to keep one and
+   delete the other's index" — is FALSE, and was falsified during this cycle's own ship-readiness
+   review, not assumed correct going in. `mergeChunkRecords` is append-only WITHIN one source: a
+   source's `.jsonl` index file accumulates every chunk record from every past ingest of that path,
+   not just its current content. Two sources can therefore be byte-identical RIGHT NOW (same
+   `FileHash`, same hash group) while their index files hold entirely disjoint historical chunk
+   records — deleting one on the strength of the other's mere existence can silently destroy real,
+   unique content. So eviction (both the forward, ingest-time case and the retroactive
+   `prune --duplicates` case) additionally requires, immediately before removing a duplicate: the
+   retained canonical's index file exists **right now**, AND every one of the duplicate's own index
+   records (by content hash) is already present among the canonical's. When this cannot be
+   confirmed, the removal is refused rather than performed, and the refusal is reported (bulk-
+   summarized for the common structural case — the canonical has no index file at all, a
+   zero-chunk source with nothing to lose — and named individually for the rarer anomalous case,
+   where a sibling's surviving index proves the group holds real content). The risk is not
+   hypothetical: measured on the real corpus, 124 of 6,612 surviving index files carry chunk
+   records from more than one ingest day — exactly the shape a byte-hash-only gate cannot
+   distinguish from a safe-to-delete duplicate. The weaker, existence-only gate (a canonical index
+   file merely existing, with no check on its contents) shipped earlier in this same cycle and ran
+   once, live, against the real chunk index before this stronger gate replaced it, removing 1,960
+   index files (commit `cb6b9540`). **This is no longer an open question — a forensic
+   reconstruction resolved it.** Using a pre-migration manifest snapshot and file listings
+   preserved from that run (session scratch), cross-checked against the current live manifest and
+   on-disk state, every one of the 1,960 removed entries was classified into an exact partition:
+   **1,568 regenerable** (source present, unchanged — a later re-ingest reproduces the identical
+   content, nothing to recover). **380 with sources no longer present at their original path**:
+   280 `/tmp` eval-harness fixtures; 52 duplicate Claude Code subagent-workflow transcripts
+   recorded under two different project-slug directories for the same session (verified directly
+   — several such pairs still exist on disk today, byte-identical at matching relative paths under
+   both a main-repo project slug and a git-worktree's own project slug for the same session id);
+   46 repo files this repo's own earlier refactors had since relocated; and 2 deployed
+   `~/.claude/skills` copies whose content survives under a sibling file (unrelated to the 2
+   orphans below — these 2 do have surviving twins). **4 with sources whose content has changed**
+   since removal (neither gone nor unchanged). **8 unresolved**: the same subagent-workflow-
+   transcript naming pattern as the 52 above, but neither the pre-migration manifest snapshot nor
+   the current live manifest contains a source path whose slug matches any of these 8 filenames
+   (checked exhaustively — zero slug collisions across all 62,397 pre-manifest entries) — so,
+   unlike the 52, a surviving twin for these 8 is **not** independently confirmed here; they are
+   reported as an unresolved residual rather than asserted as safe. 1,568 + 380 + 4 + 8 = 1,960
+   exactly.
+
+   Of those same 1,960, **exactly 2 have no surviving byte-identical twin anywhere in the current
+   index** — a property of two specific entries, not an additional bucket: one of the 46 relocated
+   repo files (`skills/route/SKILL.md`, moved by #697's `agent-instructions/` restructure) and one
+   of the 4 changed-content entries (an ancestor `.pi` sweep copy of the same file,
+   `/Users/joe/.pi/agent/skills/route/SKILL.md`, whose source path still exists but has since been
+   overwritten with newer content rather than removed). Both are the same lost content — a
+   superseded draft of the route skill (content hash `sha256:de575213…`) — recoverable from git
+   history (`git show eb538e05:skills/route/SKILL.md`, verified to reproduce the exact removed
+   bytes). Commit `cb6b9540`'s "0 unsafe removals" claim is **superseded by this finding**: that
+   audit ran under the existence-only gate this decision replaces, so it measured the wrong thing —
+   a duplicate's mere presence under a surviving canonical, not whether every one of the
+   duplicate's own chunk records (its accumulated history, rule 6 below) was actually covered. It
+   happened to be right for 1,958 of the 1,960 (plus the 8 unresolved, not independently
+   re-checked here); it was wrong for these 2. The honest caveat that remains: finer-grained loss
+   *within* the 1,568 regenerable entries — a duplicate's accumulated history holding a record its
+   canonical twin never had — cannot be quantified without the deleted bytes; a read-only recheck
+   of the current, post-fix index (no eviction performed) found 0 of 9 residual duplicate groups
+   holding a record their canonical twin lacks, so it is empirically rare in this corpus, but it is
+   not provably zero.
+
+6. **The cross-source "never delete" guarantee is narrowed, not reversed.** Two distinct guarantees
+   previously hid under one phrase ("append-only, never deletes"). *Within* a source
+   (`mergeChunkRecords`), the guarantee is unchanged: a re-chunk never drops a prior record.
+   *Across* sources, the guarantee is now: a duplicate's index file may be removed, but only when
+   it is provably a subset of a retained twin's — so no content ever becomes unsearchable. The
+   user-facing promise — "deleting a source file never loses the recovered memory" — still holds
+   exactly; what changed is that a byte-identical *second copy* of a still-present source may no
+   longer carry its own index file once dedup runs.
+
+7. **Rule B — drifted vault copies are dropped, not deduped.** A swept `.md` file with a sibling
+   `.vec.json` sidecar is a vault-note copy (the vault is 1:1 `.md`/`.vec.json`). Exact-content
+   dedup (rules 1-3 above, "Rule A") cannot reach a *drifted* copy — a vault note amended since a
+   snapshot was taken hashes differently from the live note, so both would independently survive
+   dedup as distinct "canonical" content. Rule B instead drops any such file found outside the
+   resolved vault path, unconditionally, before dedup ever runs — measured live: 50 of 256 shadowed
+   vault-note copies had drifted from their live original. Rule B is vault-note-specific; a drifted
+   copy of a non-vault document (e.g. an edited fork of a doc in a worktree) is out of scope for
+   both rules and is not addressed by this ADR.
+
+8. **`engram prune --duplicates` — retroactive cleanup, not automatic.** The forward-looking dedup
+   above only prevents new duplication; it does nothing for the backlog already indexed before it
+   shipped. `engram prune --duplicates` (+ `--dry-run`) re-derives the live duplicate set from the
+   manifest at run time and applies the same canonical-selection + record-subset gate to clean it
+   up, convergently (a second run removes nothing).
+
+9. **`engram update` notifies; it does not run the cleanup itself.** An earlier design considered
+   having `engram update` run the retroactive prune automatically, once, on upgrade (a sentinel
+   file marking it done). This was reversed: `update` now only detects whether a live duplicate
+   group exists in the manifest (one cheap read + grouping pass, no per-file index opens) and
+   prints a one-line notice pointing at `engram prune --duplicates` and the README Upgrading
+   section — the same notify-only convention `update` already uses for the #694 empty-file
+   backlog. Reasoning: removing index files is a destructive, one-shot migration over a user's
+   memory store, and — unlike the empty-file case, which is unconditionally safe (empty files hold
+   zero records) — a duplicate removal's safety depends on the record-subset gate holding at the
+   moment it runs. A destructive migration should run only when the user asks for it, not silently
+   as a side effect of a routine binary/skills refresh. Detection is stateless: no sentinel file,
+   because there is nothing to mark "done" — the check simply reports the live count truthfully on
+   every run and goes quiet once the backlog is actually cleared.
+
+10. **One-time canonical-reselection churn is expected, and is bounded.** `prune --duplicates`
+    selects a group's canonical origin-blind, from whatever is in the manifest at that moment. A
+    later `engram ingest --auto` may then discover a higher-precedence copy of the same content
+    (e.g. the repo-markdown copy, swept after the retroactive prune already picked an ancestor
+    `.claude` copy as canonical) and evict the prune's canonical in favor of the new one. This is a
+    single, bounded re-selection per group when it happens — not an oscillation — because rule 2's
+    canonical-selection is deterministic and rule 3 only evicts a *lower*-precedence member in favor
+    of a *higher*-precedence one; there is no cycle back the other way.
+
+**Measured bound.** On a real ~62,000-source chunk index, `prune --duplicates` removed 1,960 of
+8,572 index files (−23%). Forensics on that removal attributed 1,397 of the 1,960 (71%) to the
+single `~/.claude/jobs` tree — decision 4's sweep-side fix stops that specific source from
+recurring, so a future retroactive prune on a freshly-ingested index should not need to repeat it
+at anywhere near that scale. Most of the remaining redundancy in that corpus sits in orphan index
+files with no manifest entry at all (index files left behind by prior ingests whose manifest entry
+was later dropped or never written) — a manifest-keyed dedup pass has no way to reach those; they
+are a distinct cleanup surface, out of scope here.
+
+**Consequences.** Ingest is no longer safely describable as unconditionally "append-only, never
+deletes" across sources — every doc surface making that claim (README, GLOSSARY, the L1 sequence
+diagram, the `learn` skill) is narrowed to say so accurately. A duplicate's manifest entry now
+carries an explicit `DuplicateOf` pointer rather than relying on "no index file" being an
+unambiguous signal (which was indistinguishable from a crash-window state). `engram prune
+--duplicates` and the forward dedup share one `removeDuplicateIndex` + record-subset-gate
+implementation, so their safety guarantee is identical by construction rather than by
+coincidence between two independent implementations.
+
 ## Decisions deliberately NOT made into ADRs
 
 - **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an

@@ -33,8 +33,12 @@ engram ingest --auto
 ```
 
 That's it. The binary stats every known source (repo markdown, `.claude` dirs, all session
-transcripts), re-chunks and re-embeds only what changed — existing chunks are never deleted (append-only history). Unchanged
-corpus → returns in seconds. Report the one-line tally it prints (or "memory index up to date").
+transcripts), re-chunks and re-embeds only what changed — within one source, existing chunks are
+never deleted (append-only history). Across sources, byte-identical content is deduplicated: only
+one canonical copy is indexed, and a duplicate's index is removed only once its retained twin is
+verified to cover its records (not on hash-match alone) — see `engram prune --duplicates` for the
+retroactive cleanup mode. Unchanged corpus → returns in seconds. Report the one-line tally it
+prints (or "memory index up to date").
 
 If the command fails, surface the error and continue to Step 2 — explicit lessons must not be
 lost to an ingest hiccup.

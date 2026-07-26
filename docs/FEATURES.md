@@ -171,18 +171,55 @@ query already surfaces it directly, making the recent-fill channel redundant the
 untestable via self-capture (`dev/eval/LEDGER.md#646-recency-recent-fill-selfcapture`, issue #646 closed
 2026-07-19)
 
+## Chunk-index dedup by content hash (ingest-time + retroactive `prune --duplicates`)
+
+The same content reachable from more than one path — a project file and a copy of it swept in from
+an ancestor `.claude` dir, a session transcript duplicated into a worktree — used to get its own
+`.jsonl` index file and manifest entry for every copy, wasting disk/scan time and letting the same
+content surface more than once in search results. `engram ingest --auto` now groups sources by
+content hash (partitioned so a markdown file and a transcript with identical bytes are never treated
+as duplicates of each other) and indexes only one canonical copy per group, picked by a fixed
+precedence (explicit flags > repo root > ancestor `.claude`/`.pi` dir, closest first > everything
+else); a later, higher-precedence copy evicts an already-indexed lower-precedence one. A duplicate's
+index file is removed only once its retained twin's index file is verified to cover every one of the
+duplicate's own chunk records — not on hash-match alone, since a source's index can hold historical
+records from a prior ingest that a byte-identical twin's index does not. `engram prune --duplicates`
+(+ `--dry-run`) applies the same rule retroactively to a chunk index that accumulated duplicates
+before this dedup existed, and `engram update` detects a live duplicate backlog and notifies the user
+of it (see README's Upgrading section) rather than removing anything on its own.
+
+why: `docs/architecture/adr.md` — ADR-0021
+validation: unit tests lock the behavior (`internal/cli/ingest_dedup_test.go`,
+`internal/cli/prune_duplicates_test.go` — canonical selection, order-independence, the record-subset
+eviction gate, structural-vs-anomalous refusal reporting, convergence on a second run); real-scale
+measurement on a ~62,000-source chunk index: `engram prune --duplicates` removed 1,960 of 8,572
+index files (−23%) — full figures, refusal split, and the forensic loss reconstruction in
+`dev/eval/LEDGER.md#chunk-index-dedup`. Honest bound: most of that corpus's remaining redundancy sits
+in orphan index files with no manifest entry, which a manifest-keyed dedup cannot reach — a distinct,
+unaddressed cleanup surface.
+
 ## Ingest auto-sweep with non-persistent-workspace skip
 
 `engram ingest --auto` keeps the chunk index current by mechanically sweeping every known
 session and markdown source, while skipping session logs whose project path lives under
 a throwaway filesystem root — so running evals or tests doesn't bloat the real vault's
-index. A source that yields zero chunk records no longer leaves a 0-byte `.jsonl`
+index. This now also covers a resolved sweep root whose own path sits under a throwaway
+root (e.g. a repo-markdown root resolving to a bare `/tmp/...` cwd with no VCS marker) —
+previously only a session log's own subdirectories were checked, so a root that itself
+lived under `/tmp`, `/private/tmp`, `/var/folders`, or `/private/var/folders` was swept
+whole and permanently indexed; explicit `--sweep`/`--transcript`/`--markdown` and
+`SweepSpec.ExtraRoots` are deliberately exempt from both checks. An ancestor `.claude`
+dir's sweep separately now excludes its `jobs/` subdirectory — agent-harness scratch that
+can include whole snapshot copies of the vault — restoring parity with the `.pi` ancestor
+sweep, which already excluded `jobs/`; `.claude/jobs` was previously swept whole and
+indexed like any other project content. A source that yields
+zero chunk records no longer leaves a 0-byte `.jsonl`
 chunk-index file behind — the read path previously had to open and enumerate one such file
 every query; `engram prune --empty` (+ `--dry-run`) additionally sweeps up any pre-existing
 empties, ranking-neutral (empty files hold zero records).
 
 why: `docs/architecture/adr.md` — ADR-0010
-validation: unmeasured as a capability — behavior is locked by `internal/cli` ingest/sweep unit tests, not an eval row; the 0-byte guard is `TestRunIngestSkipsEmptyIndexFile` (`internal/cli/ingest_test.go`), `prune --empty` is `TestRunPruneEmptyRemovesOnlyEmptyFiles`/`TestRunPruneEmptyDryRunDeletesNothing` (`internal/cli/prune_test.go`); real-scale copy-verified scan recovery: `dev/eval/LEDGER.md#chunk-empty-file-prune`
+validation: unmeasured as a capability — behavior is locked by `internal/cli` ingest/sweep unit tests, not an eval row; the 0-byte guard is `TestRunIngestSkipsEmptyIndexFile` (`internal/cli/ingest_test.go`), `prune --empty` is `TestRunPruneEmptyRemovesOnlyEmptyFiles`/`TestRunPruneEmptyDryRunDeletesNothing` (`internal/cli/prune_test.go`); the whole-root throwaway-path drop is `TestResolveSweepRootsDropsRootsUnderNonPersistentPaths`/`TestResolveSweepRootsExtraRootsBypassNonPersistentPathDrop` (`internal/cli/sweepspec_test.go`); the `.claude/jobs` exclude is `TestResolveSweepRootsClaudeAncestorExcludesJobsScratch` (`internal/cli/sweepspec_test.go`) — forensics on a real incident attributed 1,397 of the 1,960 duplicate index files `prune --duplicates` removed (71%) to that one tree, so this exclude stops that duplication at the source rather than indexing then deleting it; real-scale copy-verified scan recovery: `dev/eval/LEDGER.md#chunk-empty-file-prune`
 
 ## Prune preserves memory (detach on source deletion)
 
