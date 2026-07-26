@@ -29,6 +29,25 @@ type SweepRoot struct {
 	// deterministic rule covering .git, .claude, .layer-run, .obsidian, and
 	// whatever appears next, instead of an ever-growing name list.
 	SkipHidden bool
+	// Origin tags which category of root this is — repo-markdown, an
+	// ancestor .claude/.pi dir, a session-log root, a manual --sweep root,
+	// or (via SweepSpec.ExtraRoots) an explicitly-configured extra root.
+	// Propagated onto every sourceRef discovered under this root, feeding
+	// selectCanonical's precedence ranking (Unit 3 dedup). ResolveSweepRoots
+	// sets it per category below; assembleSweepRoots sets it for manual
+	// --sweep roots.
+	Origin sourceOrigin
+	// AncestorDepth is the number of directory levels climbed from cwd to
+	// reach this ancestor root (0 = cwd itself, 1 = parent, ...) — real
+	// physical proximity, not an ordinal position among found ancestor
+	// dirs. That distinction matters because selectCanonical's rule 3
+	// ("closest ancestor first") compares this value ACROSS origin types
+	// once both a claude-ancestor and a pi-ancestor candidate tie at rank
+	// 3: a .pi dir found immediately at cwd (level 0) must outrank a
+	// .claude dir found one level up (level 1), even though each is the
+	// "0th" hit within its own walk. Meaningless (left 0) for every
+	// non-ancestor origin.
+	AncestorDepth int
 }
 
 // SweepSpec declares what `engram ingest --auto` sweeps. It is deliberately
@@ -137,20 +156,29 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 	if spec.RepoMarkdown {
 		// Hidden dirs (.claude, .layer-run, ...) are pruned by SkipHidden;
 		// .claude content comes in via ancestor_claude_dirs with its own rules.
-		roots = append(roots, SweepRoot{Path: repoRootFor(env), ExcludeDirs: spec.ExcludeDirs, SkipHidden: skipHidden})
+		roots = append(roots, SweepRoot{
+			Path: repoRootFor(env), ExcludeDirs: spec.ExcludeDirs, SkipHidden: skipHidden,
+			Origin: originRepo,
+		})
 	}
 
 	if spec.AncestorClaudeDirs {
 		claudeExcludes := append(append([]string{}, spec.ExcludeDirs...), spec.ClaudeExcludeDirs...)
-		for _, dir := range ancestorClaudeDirs(env) {
-			roots = append(roots, SweepRoot{Path: dir, ExcludeDirs: claudeExcludes, SkipHidden: skipHidden})
+		for _, ancestor := range ancestorClaudeDirs(env) {
+			roots = append(roots, SweepRoot{
+				Path: ancestor.path, ExcludeDirs: claudeExcludes, SkipHidden: skipHidden,
+				Origin: originClaudeAncestor, AncestorDepth: ancestor.level,
+			})
 		}
 	}
 
 	if spec.AncestorPiDirs {
 		piExcludes := []string{"jobs", excludeDirProjects} // PI sessions have similar subdirs to Claude
-		for _, dir := range ancestorPiDirs(env) {
-			roots = append(roots, SweepRoot{Path: dir, ExcludeDirs: piExcludes, SkipHidden: skipHidden})
+		for _, ancestor := range ancestorPiDirs(env) {
+			roots = append(roots, SweepRoot{
+				Path: ancestor.path, ExcludeDirs: piExcludes, SkipHidden: skipHidden,
+				Origin: originPiAncestor, AncestorDepth: ancestor.level,
+			})
 		}
 	}
 
@@ -160,6 +188,7 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 			ExcludeDirs:     spec.ExcludeDirs,
 			ExcludePrefixes: spec.NonPersistentPrefixes,
 			SkipHidden:      skipHidden,
+			Origin:          originSessionLog,
 		})
 	}
 
@@ -171,7 +200,10 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 	roots = dropNonPersistentRoots(roots, spec.NonPersistentPathPrefixes)
 
 	for _, extra := range spec.ExtraRoots {
-		roots = append(roots, SweepRoot{Path: extra, ExcludeDirs: spec.ExcludeDirs, SkipHidden: skipHidden})
+		roots = append(roots, SweepRoot{
+			Path: extra, ExcludeDirs: spec.ExcludeDirs, SkipHidden: skipHidden,
+			Origin: originManualSweep,
+		})
 	}
 
 	return roots
@@ -186,15 +218,26 @@ const (
 	nonPersistentPathVarFolders        = "/var/folders"
 )
 
-// ancestorClaudeDirs collects every existing .claude directory from cwd up to
-// the filesystem root (closest first).
-func ancestorClaudeDirs(env SweepEnv) []string {
-	var dirs []string
+// ancestorDir pairs a found ancestor directory with its physical distance
+// from cwd — the number of directory levels climbed to reach it (0 = cwd
+// itself), NOT its ordinal position among found ancestor dirs. Levels are
+// climbed one at a time regardless of whether a match is found there, so
+// two callers walking different subdirectory names (.claude vs .pi) still
+// produce directly-comparable level numbers for the same physical distance.
+type ancestorDir struct {
+	path  string
+	level int
+}
 
-	for dir := env.Cwd; ; dir = filepath.Dir(dir) {
+// ancestorClaudeDirs collects every existing .claude directory from cwd up
+// to the filesystem root (closest first), tagged with its physical level.
+func ancestorClaudeDirs(env SweepEnv) []ancestorDir {
+	var dirs []ancestorDir
+
+	for dir, level := env.Cwd, 0; ; dir, level = filepath.Dir(dir), level+1 {
 		candidate := filepath.Join(dir, ".claude")
 		if env.IsDir(candidate) {
-			dirs = append(dirs, candidate)
+			dirs = append(dirs, ancestorDir{path: candidate, level: level})
 		}
 
 		if dir == filepath.Dir(dir) {
@@ -204,14 +247,14 @@ func ancestorClaudeDirs(env SweepEnv) []string {
 }
 
 // ancestorPiDirs collects every existing .pi directory from cwd up to
-// the filesystem root (closest first).
-func ancestorPiDirs(env SweepEnv) []string {
-	var dirs []string
+// the filesystem root (closest first), tagged with its physical level.
+func ancestorPiDirs(env SweepEnv) []ancestorDir {
+	var dirs []ancestorDir
 
-	for dir := env.Cwd; ; dir = filepath.Dir(dir) {
+	for dir, level := env.Cwd, 0; ; dir, level = filepath.Dir(dir), level+1 {
 		candidate := filepath.Join(dir, ".pi")
 		if env.IsDir(candidate) {
-			dirs = append(dirs, candidate)
+			dirs = append(dirs, ancestorDir{path: candidate, level: level})
 		}
 
 		if dir == filepath.Dir(dir) {

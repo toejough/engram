@@ -25,6 +25,10 @@ type IngestArgs struct {
 	Sweep       []string `targ:"flag,name=sweep,desc=directory to scan for new/changed sources (.md + .jsonl; repeatable)"`
 	Auto        bool     `targ:"flag,name=auto,desc=sweep the declarative default roots: repo markdown + ancestor .claude dirs + session logs (see .engram/sweep.json)"` //nolint:lll // single unbreakable struct-tag string
 	ChunksDir   string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
+	// Vault scopes Rule B's dedup exception: a swept .md file with a sibling
+	// .vec.json sidecar is a vault-note copy, and is skipped unless it sits
+	// under this resolved vault path (default $XDG_DATA_HOME/engram/vault).
+	Vault string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll // unbreakable env+desc struct-tag string
 }
 
 // IngestDeps holds injected dependencies for RunIngest. ReadTranscript
@@ -41,6 +45,9 @@ type IngestDeps struct {
 	// release func. Wired to manifestLockFrom (MkdirAll + FileLocker flock) in newIngestDeps.
 	// Guards the manifest read-modify-write against concurrent ingest/prune (#660).
 	Lock func(chunksDir string) (func(), error)
+	// Remove deletes a stale per-source index file during dedup eviction
+	// (removeDuplicateIndex). Nil-safe: eviction only calls it when non-nil.
+	Remove func(path string) error
 	// Now returns the current wall-clock time for IngestedAt stamping. Nil-safe:
 	// callers guard with "if deps.Now != nil" before calling. Wired to deps.Now in
 	// newIngestDeps.
@@ -78,11 +85,22 @@ func ResolveChunksDir(flagValue, home string, getenv func(string) string) string
 // changed source's index file is REBUILT wholesale — re-chunked with vectors
 // reused by chunk hash, so unchanged sections never re-embed and stale chunks
 // from edited content disappear. Zero-LLM; no agent involvement.
+//
+// Cross-source dedup (Unit 3): sources are hashed (buildHashedSources, cheaply
+// reusing the manifest's cached FileHash for unchanged ones), grouped by hash,
+// and within each group only selectCanonical's winner is indexed — the rest
+// are recorded as duplicates (manifestEntry.DuplicateOf), with a
+// higher-precedence late arrival evicting an already-indexed lower-precedence
+// twin. Rule B additionally drops swept vault-note copies (a .md with a
+// sibling .vec.json) found outside the resolved vault path, before any of
+// that.
 func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.Writer) error {
 	sources, err := gatherSources(args, deps)
 	if err != nil {
 		return err
 	}
+
+	sources = dropVaultCopiesOutsideVault(sources, args.Vault, deps)
 
 	// Acquire the manifest lock before any read-modify-write on manifest.json
 	// so concurrent ingest/prune runs cannot produce lost updates (#660).
@@ -98,25 +116,14 @@ func RunIngest(ctx context.Context, args IngestArgs, deps IngestDeps, stdout io.
 		return err
 	}
 
-	changed := false
+	hashed, err := buildHashedSources(sources, args.ChunksDir, deps, manifest, stdout)
+	if err != nil {
+		return err
+	}
 
-	for _, source := range sources {
-		didChange, err := ingestSource(ctx, source.path, args.ChunksDir, deps, manifest, stdout)
-		if err != nil {
-			// A swept source vanishing between walk and read is normal life
-			// (cleanup races, deleted sessions) — skip it and keep going so
-			// one ghost file can't abort the run or lose the manifest.
-			// Explicitly-named sources still error loudly.
-			if !source.explicit && errorsIsReadFailure(err) {
-				_, _ = fmt.Fprintf(stdout, "skip %s: %v\n", source.path, err)
-
-				continue
-			}
-
-			return err
-		}
-
-		changed = changed || didChange
+	changed, err := reconcileHashGroups(ctx, hashed, args.ChunksDir, deps, manifest, stdout)
+	if err != nil {
+		return err
 	}
 
 	if changed {
@@ -159,13 +166,21 @@ type manifestEntry struct {
 	SourceStat
 
 	FileHash string `json:"file_hash"` //nolint:tagliatelle // manifest schema uses snake_case like .vec.json
+	// DuplicateOf holds the canonical source's path when this entry is a
+	// byte-identical duplicate suppressed by Unit 3's dedup pass — empty for
+	// canonical (indexed) entries. A later run reads this cheaply so it
+	// never re-reads a known duplicate to re-derive the same answer.
+	DuplicateOf string `json:"duplicate_of,omitempty"` //nolint:tagliatelle // manifest schema uses snake_case
 }
 
 // sourceRef tags a source path with how it was selected: explicit flags must
-// fail loudly when unreadable; swept files may vanish benignly.
+// fail loudly when unreadable; swept files may vanish benignly. origin and
+// ancestorDepth feed selectCanonical's precedence ranking (Unit 3 dedup).
 type sourceRef struct {
-	path     string
-	explicit bool
+	path          string
+	explicit      bool
+	origin        sourceOrigin
+	ancestorDepth int
 }
 
 // assembleSweepRoots combines manual --sweep roots (default excludes, hidden
@@ -177,7 +192,7 @@ func assembleSweepRoots(args IngestArgs, deps IngestDeps) ([]SweepRoot, error) {
 	for _, manual := range args.Sweep {
 		roots = append(
 			roots,
-			SweepRoot{Path: manual, ExcludeDirs: defaultExcludes, SkipHidden: true},
+			SweepRoot{Path: manual, ExcludeDirs: defaultExcludes, SkipHidden: true, Origin: originManualSweep},
 		)
 	}
 
@@ -265,15 +280,16 @@ func errorsIsReadFailure(err error) bool {
 
 // explicitSources returns the explicitly-named --transcript and --markdown
 // sources: these must fail loudly (explicit: true) if they later prove
-// unreadable, unlike swept files which may vanish benignly.
+// unreadable, unlike swept files which may vanish benignly. Tagged
+// originExplicit — selectCanonical's top precedence tier (Unit 3 dedup).
 func explicitSources(args IngestArgs) []sourceRef {
 	sources := make([]sourceRef, 0, len(args.Transcripts)+len(args.Markdowns))
 	for _, path := range args.Transcripts {
-		sources = append(sources, sourceRef{path: path, explicit: true})
+		sources = append(sources, sourceRef{path: path, explicit: true, origin: originExplicit})
 	}
 
 	for _, path := range args.Markdowns {
-		sources = append(sources, sourceRef{path: path, explicit: true})
+		sources = append(sources, sourceRef{path: path, explicit: true, origin: originExplicit})
 	}
 
 	return sources
@@ -282,16 +298,12 @@ func explicitSources(args IngestArgs) []sourceRef {
 // gatherSources merges explicit flags, --auto's declarative roots, and manual
 // sweep roots into one source list. Each stage below contributes its own
 // []sourceRef, and this is where those stages merge — the single point
-// downstream code sees the union of every origin. It is NOT yet a seam
-// for cross-source dedup: sourceRef only carries path+explicit, so origin
-// (repo-markdown, .claude-ancestor, .pi-ancestor, session-log, manual
-// --sweep, SweepSpec.ExtraRoots) is already lost by the time
-// piSessionSources sets explicit:true identically to literal
-// --transcript/--markdown, and sweptSources sets explicit:false
-// for every sweep-derived origin alike. Nor is file content read here,
-// so no content hash exists yet either. A future dedup unit must add both
-// origin-tagging and hashing itself before it can resolve duplicates across
-// sources; neither prerequisite is in place today.
+// downstream code sees the union of every origin. Each sourceRef carries its
+// origin (explicit, repo, claude-ancestor, pi-ancestor, session-log,
+// manual-sweep) tagged by the stage that constructed it, feeding
+// RunIngest's cross-source dedup (selectCanonical, Unit 3). Content hashing
+// happens later, in buildHashedSources — gatherSources itself never reads
+// file bytes.
 func gatherSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
 	sources := explicitSources(args)
 
@@ -322,62 +334,6 @@ func hashBytes(raw []byte) string {
 	sum := sha256.Sum256(raw)
 
 	return "sha256:" + hex.EncodeToString(sum[:])
-}
-
-// ingestSource checks one source against the manifest and rebuilds its index
-// file when changed. Returns whether anything was written.
-func ingestSource(
-	ctx context.Context,
-	source, chunksDir string,
-	deps IngestDeps,
-	manifest ingestManifest,
-	stdout io.Writer,
-) (bool, error) {
-	prior, known := manifest[source]
-
-	if known && deps.Stat != nil {
-		stat, err := deps.Stat(source)
-		if err == nil && stat == prior.SourceStat {
-			return false, nil // cheap skip: mtime+size unchanged, no read
-		}
-	}
-
-	raw, err := deps.ReadFile(source)
-	if err != nil {
-		return false, fmt.Errorf("ingest: reading %s: %w", source, err)
-	}
-
-	fileHash := hashBytes(raw)
-	if known && fileHash == prior.FileHash {
-		manifest[source] = manifestEntry{SourceStat: statOrZero(deps, source), FileHash: fileHash}
-
-		return true, nil // touched but identical: refresh stat, keep index
-	}
-
-	chunks, sourceTS, err := chunkSource(source, raw, deps)
-	if err != nil {
-		return false, err
-	}
-
-	rebuilt, reused, embedded, err := rebuildIndex(
-		ctx,
-		source,
-		chunks,
-		chunksDir,
-		deps,
-		ingestTimeFor(sourceTS, deps),
-		manifestBackfill(manifest),
-	)
-	if err != nil {
-		return false, err
-	}
-
-	manifest[source] = manifestEntry{SourceStat: statOrZero(deps, source), FileHash: fileHash}
-
-	_, _ = fmt.Fprintf(stdout, "ingest %s: %d chunks (%d reused, %d embedded)\n",
-		source, rebuilt, reused, embedded)
-
-	return true, nil
 }
 
 // ingestTimeFor resolves the IngestedAt stamp for a source: the per-session
@@ -523,6 +479,7 @@ func newIngestDeps(d Deps) IngestDeps {
 	return IngestDeps{
 		Lock:     manifestLockFrom(d),
 		ReadFile: d.FS.ReadFile,
+		Remove:   d.FS.Remove,
 		WriteFile: func(path string, data []byte) error {
 			err := d.FS.MkdirAll(filepath.Dir(path), chunksDirPerm)
 			if err != nil {
@@ -559,7 +516,9 @@ func newIngestDeps(d Deps) IngestDeps {
 }
 
 // piSessionSources expands each --pi-sessions directory (default excludes for
-// jobs/projects) into its .md/.jsonl files, treated as explicit sources.
+// jobs/projects) into its .md/.jsonl files, treated as explicit sources
+// (origin originExplicit — selectCanonical's precedence rule 1 groups
+// --pi-sessions with --transcript/--markdown).
 func piSessionSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
 	var sources []sourceRef
 
@@ -568,19 +527,17 @@ func piSessionSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
 			continue
 		}
 
-		root := SweepRoot{Path: path, ExcludeDirs: []string{"jobs", excludeDirProjects}, SkipHidden: true}
+		root := SweepRoot{
+			Path: path, ExcludeDirs: []string{"jobs", excludeDirProjects}, SkipHidden: true,
+			Origin: originExplicit,
+		}
 
-		found, err := deps.ListSources(root)
+		found, err := sourceRefsFromRoot(root, deps, args.ChunksDir, false)
 		if err != nil {
-			return nil, fmt.Errorf("ingest: reading %s: %w", path, err)
+			return nil, err
 		}
 
-		for _, foundPath := range found {
-			ext := filepath.Ext(foundPath)
-			if ext == ".md" || ext == jsonlExt {
-				sources = append(sources, sourceRef{path: foundPath, explicit: true})
-			}
-		}
+		sources = append(sources, found...)
 	}
 
 	return sources, nil
@@ -615,7 +572,7 @@ func rebuildIndex(
 	ingestTime time.Time,
 	backfillTime func(source string) time.Time,
 ) (total, reused, embedded int, err error) {
-	indexPath := filepath.Join(chunksDir, sourceSlug(source)+jsonlExt)
+	indexPath := indexPathFor(chunksDir, source)
 	priorRecords := loadPriorRecords(indexPath, deps)
 
 	merged, reused, embedded, err := mergeChunkRecords(
@@ -627,8 +584,8 @@ func rebuildIndex(
 	// A source that yields zero records (fully-deduped or non-embeddable
 	// segment) would otherwise write a 0-byte .jsonl that the read path must
 	// still open and enumerate every query. Skip the empty write; manifest and
-	// dedup state are recorded independently in ingestSource, so nothing
-	// downstream needs the file.
+	// dedup state are recorded independently in reconcileCanonical, so
+	// nothing downstream needs the file.
 	if len(merged) == 0 {
 		return 0, 0, 0, nil
 	}
@@ -644,6 +601,40 @@ func rebuildIndex(
 	}
 
 	return len(merged), reused, embedded, nil
+}
+
+// reconcileHashGroups resolves every hash group's canonical winner and
+// reconciles each member against it (Unit 3 steps 2-3 + eviction), returning
+// whether anything in the manifest changed.
+func reconcileHashGroups(
+	ctx context.Context,
+	hashed []hashedSource,
+	chunksDir string,
+	deps IngestDeps,
+	manifest ingestManifest,
+	stdout io.Writer,
+) (bool, error) {
+	changed := false
+
+	for _, group := range groupByHash(hashed) {
+		refs := make([]sourceRef, len(group))
+		for i, member := range group {
+			refs[i] = member.ref
+		}
+
+		canonical := selectCanonical(refs)
+
+		for _, member := range group {
+			didChange, err := reconcileMember(ctx, member, canonical.path, chunksDir, deps, manifest, stdout)
+			if err != nil {
+				return false, err
+			}
+
+			changed = changed || didChange
+		}
+	}
+
+	return changed, nil
 }
 
 // resolveAutoSpec assembles the sweep environment and loads the repo's
@@ -780,28 +771,19 @@ func sweepListerFrom(
 
 // sweptSources expands manual --sweep and --auto's resolved roots into their
 // .md/.jsonl files, skipping the chunk index directory itself (a sweep root
-// that contains it must not self-ingest the index or manifest).
+// that contains it must not self-ingest the index or manifest). Each root's
+// Origin/AncestorDepth (set by assembleSweepRoots / ResolveSweepRoots)
+// propagates onto every sourceRef it yields.
 func sweptSources(args IngestArgs, deps IngestDeps, roots []SweepRoot) ([]sourceRef, error) {
 	var sources []sourceRef
 
-	chunksPrefix := filepath.Clean(args.ChunksDir) + string(filepath.Separator)
-
 	for _, root := range roots {
-		found, err := deps.ListSources(root)
+		found, err := sourceRefsFromRoot(root, deps, args.ChunksDir, true)
 		if err != nil {
-			return nil, fmt.Errorf("ingest: sweeping %s: %w", root.Path, err)
+			return nil, err
 		}
 
-		for _, path := range found {
-			if strings.HasPrefix(filepath.Clean(path), chunksPrefix) {
-				continue
-			}
-
-			ext := filepath.Ext(path)
-			if ext == ".md" || ext == jsonlExt {
-				sources = append(sources, sourceRef{path: path})
-			}
-		}
+		sources = append(sources, found...)
 	}
 
 	return sources, nil
