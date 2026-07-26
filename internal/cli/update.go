@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +23,8 @@ type UpdateArgs struct {
 
 // unexported constants.
 const (
+	duplicateChunksNotice = "duplicate chunk-index files found — run `engram prune --duplicates` to clear them; " +
+		"see the Upgrading section in README.md\n"
 	emptyChunkFilesNotice = "empty chunk-index files found — run `engram prune --empty` to clear them; " +
 		"see the Upgrading section in README.md\n"
 	oldVocabFilePrefix   = "vocab."
@@ -116,6 +119,43 @@ func (a *updateFSFromEdge) WriteFile(path string, data []byte, perm fs.FileMode)
 
 func anyHarnessFailed(report update.Report) bool {
 	return slices.ContainsFunc(report.Harnesses, harnessFailed)
+}
+
+// chunkIndexHasDuplicates reports whether the chunk index's manifest holds
+// any live hash+chunkingClass group with more than one canonical member —
+// the pre-Unit-3 backlog `engram prune --duplicates` exists to clean up
+// (Unit 5, detect-and-notify: the user's explicit call to reverse the
+// earlier auto-run design — "let's not auto run... we need to detect
+// duplicates so that we know to tell the user"). Detection is stateless and
+// idempotent: it re-notifies every run while duplicates remain and goes
+// quiet the run after they are cleared, with no sentinel file to go stale.
+//
+// Cost: ONE manifest.json read + JSON decode + an in-memory grouping pass,
+// O(sources) — unlike chunkIndexHasEmptyFiles above, it never opens a
+// per-source .jsonl index file, so it stays cheap even against a
+// large/decades-accreted index. A missing/unreadable/malformed manifest is
+// treated as false (self-silencing for a fresh install or first run, same
+// convention as oldVocabFilesPresent/chunkIndexHasEmptyFiles) — a detection
+// failure must never fail `engram update`'s primary job.
+func chunkIndexHasDuplicates(chunksDir string, fileSystem update.Filesystem) bool {
+	data, readErr := fileSystem.ReadFile(filepath.Join(chunksDir, manifestName))
+	if readErr != nil {
+		return false
+	}
+
+	manifest := ingestManifest{}
+
+	if json.Unmarshal(data, &manifest) != nil {
+		return false // a malformed manifest self-silences; must never fail update
+	}
+
+	for _, group := range groupManifestByHash(manifest) {
+		if len(group) >= minDuplicateGroupSize {
+			return true
+		}
+	}
+
+	return false
 }
 
 // chunkIndexHasEmptyFiles reports whether the chunk index holds any 0-byte
@@ -254,6 +294,7 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 		report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, deps.FS)
 		chunksDir := ResolveChunksDir("", report.Home, deps.Env.Getenv)
 		report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, deps.FS)
+		report.ChunkIndexHasDuplicates = chunkIndexHasDuplicates(chunksDir, deps.FS)
 	}
 
 	return finishUpdate(stdout, report, runErr)
@@ -276,6 +317,19 @@ func writeCommandRows(buffer *bytes.Buffer, harness update.HarnessReport, home s
 	for _, name := range harness.CommandFiles {
 		dst := filepath.Join(harness.CommandsRoot, name)
 		fmt.Fprintf(buffer, "    agent-instructions/commands/%s → %s\n", name, tildify(dst, home))
+	}
+}
+
+// writeDuplicatesHint prints a one-line pointer to `engram prune
+// --duplicates` and the README "Upgrading" section when the chunk index's
+// manifest still holds a live duplicate-hash backlog (Unit 5,
+// detect-and-notify). Silent otherwise — an index with no duplicate
+// backlog, or one already cleared, never sees it. Deliberately just a
+// notice: update never removes anything on the user's behalf here — that
+// is `engram prune --duplicates`' job, run explicitly.
+func writeDuplicatesHint(buffer *bytes.Buffer, report update.Report) {
+	if report.ChunkIndexHasDuplicates {
+		buffer.WriteString(duplicateChunksNotice)
 	}
 }
 
@@ -402,6 +456,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	writeGuidanceHints(&buffer, report)
 	writeVocabMigrationHint(&buffer, report)
 	writeEmptyChunkHint(&buffer, report)
+	writeDuplicatesHint(&buffer, report)
 
 	_, err := out.Write(buffer.Bytes())
 	if err != nil {

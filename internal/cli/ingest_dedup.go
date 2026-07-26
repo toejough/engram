@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/embed"
 )
 
@@ -83,6 +84,47 @@ func buildHashedSources(
 	}
 
 	return hashed, nil
+}
+
+// canonicalCoversDuplicateRecords is the record-level subset gate a
+// ship-readiness review found missing (2026-07-26): byte-hash identity of
+// a source's CURRENT content is necessary but not sufficient proof that
+// evicting its index loses nothing. mergeChunkRecords is append-only
+// WITHIN a source, so a source's .jsonl index file accumulates every
+// chunk record from every past ingest of that path — not just its current
+// content. Two sources can therefore be byte-identical RIGHT NOW (same
+// FileHash, same hash group) while their index files hold entirely
+// disjoint historical chunk records: deleting one on the strength of the
+// other's mere EXISTENCE can silently destroy real, unique content.
+//
+// Two conditions must both hold for it to be safe to remove
+// duplicatePath's index in favor of canonicalPath:
+//  1. canonicalPath must have an index file AT ALL. rebuildIndex writes
+//     nothing for zero-chunk content (ingest.go's empty-write guard), so a
+//     freshly-promoted canonical that chunks to nothing never gets a
+//     file — and a group must never be left with zero searchable members
+//     through this path.
+//  2. Every one of duplicatePath's OWN index records (by content hash)
+//     must already be present among canonicalPath's. If duplicatePath has
+//     no index file at all, there is nothing to lose, so it vacuously
+//     covers (handled by duplicateRecordsCoveredBy).
+//
+// Not the ingest hot-path's production call site (a Gate B finding,
+// 2026-07-26, ruled out re-reading and re-decoding canonicalPath's index
+// once per duplicate in a group): reconcileDuplicate instead takes an
+// already-loaded canonicalRecords/canonicalIndexExists pair, cached once
+// per group by reconcileGroupCanonicalFirst, and calls
+// duplicateRecordsCoveredBy directly. This function remains as the
+// single-call reference for the same two-condition semantics, pinned
+// directly by TestCanonicalCoversDuplicateRecords.
+func canonicalCoversDuplicateRecords(chunksDir, canonicalPath, duplicatePath string, deps IngestDeps) bool {
+	if !indexFileExists(chunksDir, canonicalPath, deps) {
+		return false
+	}
+
+	canonicalRecords := loadPriorRecords(indexPathFor(chunksDir, canonicalPath), deps)
+
+	return duplicateRecordsCoveredBy(chunksDir, duplicatePath, canonicalRecords, deps)
 }
 
 // canonicalLess reports whether a outranks b under selectCanonical's
@@ -197,6 +239,43 @@ func dropVaultCopiesOutsideVault(sources []sourceRef, vault string, deps IngestD
 	}
 
 	return kept
+}
+
+// duplicateRecordsCoveredBy reports whether every one of duplicatePath's
+// own index records (if it has an index file at all — absence is
+// vacuously covered, since there is then nothing to lose) has its content
+// hash present in canonicalRecords, an already-loaded canonical record
+// set (keyed by ContentHash, as loadPriorRecords returns). Split out from
+// canonicalCoversDuplicateRecords so a caller reconciling many duplicates
+// against the SAME canonical in one pass can load the canonical's records
+// ONCE per hash group and reuse them across every duplicate in it, rather
+// than re-reading and re-decoding the same canonical index file once per
+// duplicate. Two such callers: prune_duplicates.go's
+// reconcileOneDuplicateGroup (`prune --duplicates`) and ingest_dedup.go's
+// reconcileDuplicate (the ingest hot path, cached by
+// reconcileGroupCanonicalFirst — a Gate B finding, 2026-07-26).
+func duplicateRecordsCoveredBy(
+	chunksDir, duplicatePath string,
+	canonicalRecords map[string]chunk.Record,
+	deps IngestDeps,
+) bool {
+	dupData, err := deps.ReadFile(indexPathFor(chunksDir, duplicatePath))
+	if err != nil {
+		return true // nothing indexed for the duplicate: nothing to lose
+	}
+
+	dupRecords, decodeErr := chunk.DecodeRecords(dupData)
+	if decodeErr != nil {
+		return false // can't verify safety: refuse
+	}
+
+	for _, record := range dupRecords {
+		if _, covered := canonicalRecords[record.ContentHash]; !covered {
+			return false
+		}
+	}
+
+	return true
 }
 
 // groupByHash buckets hashedSources by content hash AND chunkingClass —
@@ -382,11 +461,35 @@ func reconcileCanonical(
 // stale index file and manifest entry are evicted first via
 // removeDuplicateIndex, then replaced with a fresh duplicate-of stub so a
 // later run does not re-read it (Unit 3 step 3).
+//
+// Eviction is gated on canonicalIndexExists && duplicateRecordsCoveredBy,
+// the record-level subset check (2026-07-26 ship-readiness finding):
+// byte-hash identity of the CURRENT content is not sufficient, since
+// mergeChunkRecords is append-only WITHIN a source and this member's own
+// index file may hold historical records the canonical's current index
+// does not. When the gate fails, the eviction — and the whole
+// reconciliation for this member — is refused: the manifest entry is left
+// exactly as it was (still canonical, still pointing at its own surviving
+// index file) so a later run reconsiders it once the canonical catches up,
+// rather than being silently marked a duplicate while its index file is
+// left orphaned.
+//
+// canonicalIndexExists/canonicalRecords are the group's canonical index
+// state, loaded at most ONCE per hash group by reconcileGroupCanonicalFirst
+// and threaded in here via reconcileMember (a Gate B finding, 2026-07-26:
+// this used to call canonicalCoversDuplicateRecords per duplicate, each
+// call re-reading and re-decoding the same canonical .jsonl — a cost that
+// recurs on every future ingest for a group that stays refused, since a
+// refusal leaves DuplicateOf==""). Mirrors prune_duplicates.go's
+// reconcileOneDuplicateGroup, which caches the same way.
 func reconcileDuplicate(
 	member hashedSource,
 	canonicalPath, chunksDir string,
 	deps IngestDeps,
 	manifest ingestManifest,
+	stdout io.Writer,
+	canonicalIndexExists bool,
+	canonicalRecords map[string]chunk.Record,
 ) (bool, error) {
 	prior, known := manifest[member.ref.path]
 	statNow := statOrZero(deps, member.ref.path)
@@ -398,6 +501,16 @@ func reconcileDuplicate(
 	}
 
 	if known && prior.DuplicateOf == "" {
+		covered := canonicalIndexExists && duplicateRecordsCoveredBy(chunksDir, member.ref.path, canonicalRecords, deps)
+		if !covered {
+			_, _ = fmt.Fprintf(stdout,
+				"ingest: refusing to evict %s: canonical %s does not verifiably cover its records "+
+					"(needs review — run `engram prune --duplicates` once resolved)\n",
+				member.ref.path, canonicalPath)
+
+			return false, nil
+		}
+
 		err := removeDuplicateIndex(chunksDir, member.ref.path, manifest, deps)
 		if err != nil {
 			return false, err
@@ -411,7 +524,10 @@ func reconcileDuplicate(
 
 // reconcileMember brings one hash-group candidate's manifest state (and, for
 // the canonical member, its index file) in line with the group's canonical
-// decision.
+// decision. canonicalIndexExists/canonicalRecords are only consumed by the
+// duplicate branch (reconcileDuplicate's eviction gate) — reconcileCanonical
+// ignores them — but are threaded through here uniformly so
+// reconcileGroupCanonicalFirst has one call shape for every member.
 func reconcileMember(
 	ctx context.Context,
 	member hashedSource,
@@ -419,12 +535,16 @@ func reconcileMember(
 	deps IngestDeps,
 	manifest ingestManifest,
 	stdout io.Writer,
+	canonicalIndexExists bool,
+	canonicalRecords map[string]chunk.Record,
 ) (bool, error) {
 	if member.ref.path == canonicalPath {
 		return reconcileCanonical(ctx, member, chunksDir, deps, manifest, stdout)
 	}
 
-	return reconcileDuplicate(member, canonicalPath, chunksDir, deps, manifest)
+	return reconcileDuplicate(
+		member, canonicalPath, chunksDir, deps, manifest, stdout, canonicalIndexExists, canonicalRecords,
+	)
 }
 
 // removeDuplicateIndex evicts one source's stale index file and manifest

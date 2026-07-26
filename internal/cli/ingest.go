@@ -528,7 +528,7 @@ func piSessionSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
 		}
 
 		root := SweepRoot{
-			Path: path, ExcludeDirs: []string{"jobs", excludeDirProjects}, SkipHidden: true,
+			Path: path, ExcludeDirs: []string{excludeDirJobs, excludeDirProjects}, SkipHidden: true,
 			Origin: originExplicit,
 		}
 
@@ -603,6 +603,72 @@ func rebuildIndex(
 	return len(merged), reused, embedded, nil
 }
 
+// reconcileGroupCanonicalFirst reconciles canonicalPath's own member before
+// any other member of group. This ordering is load-bearing, not
+// cosmetic: the record-level eviction gate reconcileDuplicate applies
+// compares a duplicate's records against the canonical's CURRENT index
+// file, so that file must be built fresh — or confirmed absent, for a
+// canonical that chunks to zero records — by reconcileCanonical before any
+// duplicate in the SAME run is considered for eviction, regardless of the
+// two members' relative order in group (which merely reflects
+// gatherSources' discovery order, not precedence).
+//
+// Between the two loops, the canonical's index records are loaded AT MOST
+// ONCE for the whole group — after the canonical-first loop above (so the
+// load sees the canonical's fresh state) and before the duplicate loop
+// below (so every duplicate reuses it) — and threaded through reconcileMember
+// to reconcileDuplicate's eviction gate. Without this, a group with N
+// duplicates re-read and re-decoded the same canonical .jsonl index N times
+// in one run (a Gate B finding, 2026-07-26): mirrors prune_duplicates.go's
+// reconcileOneDuplicateGroup, which already caches the same way.
+func reconcileGroupCanonicalFirst(
+	ctx context.Context,
+	group []hashedSource,
+	canonicalPath, chunksDir string,
+	deps IngestDeps,
+	manifest ingestManifest,
+	stdout io.Writer,
+) (bool, error) {
+	changed := false
+
+	for _, member := range group {
+		if member.ref.path != canonicalPath {
+			continue
+		}
+
+		didChange, err := reconcileMember(ctx, member, canonicalPath, chunksDir, deps, manifest, stdout, false, nil)
+		if err != nil {
+			return false, err
+		}
+
+		changed = changed || didChange
+	}
+
+	canonicalIndexExists := indexFileExists(chunksDir, canonicalPath, deps)
+
+	var canonicalRecords map[string]chunk.Record
+	if canonicalIndexExists {
+		canonicalRecords = loadPriorRecords(indexPathFor(chunksDir, canonicalPath), deps)
+	}
+
+	for _, member := range group {
+		if member.ref.path == canonicalPath {
+			continue
+		}
+
+		didChange, err := reconcileMember(
+			ctx, member, canonicalPath, chunksDir, deps, manifest, stdout, canonicalIndexExists, canonicalRecords,
+		)
+		if err != nil {
+			return false, err
+		}
+
+		changed = changed || didChange
+	}
+
+	return changed, nil
+}
+
 // reconcileHashGroups resolves every hash group's canonical winner and
 // reconciles each member against it (Unit 3 steps 2-3 + eviction), returning
 // whether anything in the manifest changed.
@@ -622,16 +688,14 @@ func reconcileHashGroups(
 			refs[i] = member.ref
 		}
 
-		canonical := selectCanonical(refs)
+		canonicalPath := selectCanonical(refs).path
 
-		for _, member := range group {
-			didChange, err := reconcileMember(ctx, member, canonical.path, chunksDir, deps, manifest, stdout)
-			if err != nil {
-				return false, err
-			}
-
-			changed = changed || didChange
+		didChange, err := reconcileGroupCanonicalFirst(ctx, group, canonicalPath, chunksDir, deps, manifest, stdout)
+		if err != nil {
+			return false, err
 		}
+
+		changed = changed || didChange
 	}
 
 	return changed, nil

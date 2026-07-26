@@ -8,6 +8,8 @@ import (
 	"io/fs"
 	"path/filepath"
 	"sort"
+
+	"github.com/toejough/engram/internal/chunk"
 )
 
 // unexported constants.
@@ -29,6 +31,32 @@ var (
 type duplicatePruneCounts struct {
 	removed, retained, failed           int
 	refusedStructural, refusedAnomalous int
+}
+
+// duplicateRefusalTracker lazily computes, at most once per hash group,
+// whether ANY group member has an index file — the fact that distinguishes
+// a structural refusal (the whole group is a zero-chunk source; nothing
+// was ever lost) from an anomalous one (a sibling's surviving index proves
+// the group has real content). Computed only the first time a refusal
+// actually occurs: the common case (Gate B: ~88% of the live manifest)
+// never needs it at all.
+type duplicateRefusalTracker struct {
+	args   PruneArgs
+	group  []string
+	deps   PruneDeps
+	known  bool
+	anyHas bool
+}
+
+// anyIndexExists returns (and caches) whether any member of the tracker's
+// group has an index file present right now.
+func (t *duplicateRefusalTracker) anyIndexExists() bool {
+	if !t.known {
+		t.anyHas = anyIndexFileExists(t.args, t.group, t.deps)
+		t.known = true
+	}
+
+	return t.anyHas
 }
 
 // anyIndexFileExists reports whether ANY path in group has an index file
@@ -138,18 +166,20 @@ func pruneDuplicatesLocked(args PruneArgs, deps PruneDeps, stdout io.Writer) err
 }
 
 // pruneOneDuplicate performs (or, in --dry-run, simulates) one duplicate's
-// removal, given whether its canonical twin's index file was already
-// verified present for the whole group. A removal error is reported via
-// deps.LogWarning and returned.
+// removal, given whether covered — canonicalCoversDuplicateRecords'
+// verdict for THIS specific duplicate against the group's canonical,
+// computed once per duplicate since two duplicates in the same hash group
+// can differ in whether their own records are covered — already confirmed
+// it safe. A removal error is reported via deps.LogWarning and returned.
 func pruneOneDuplicate(
 	args PruneArgs,
 	path string,
-	canonicalIndexExists bool,
+	covered bool,
 	manifest ingestManifest,
 	deps PruneDeps,
 	removeDeps IngestDeps,
 ) (removedOne, refusedOne bool, err error) {
-	if !canonicalIndexExists {
+	if !covered {
 		return false, true, nil
 	}
 
@@ -169,13 +199,16 @@ func pruneOneDuplicate(
 	return true, false, nil
 }
 
-// pruneRemoveDeps adapts PruneDeps to the minimal IngestDeps shape
-// removeDuplicateIndex needs (Stat, for its own index-file-exists check,
-// and Remove) — consuming Unit 3's shared eviction helper rather than
-// reimplementing it.
+// pruneRemoveDeps adapts PruneDeps to the minimal IngestDeps shape Unit 3's
+// shared helpers need: Stat (removeDuplicateIndex's own index-file-exists
+// check, and canonicalCoversDuplicateRecords'/duplicateRecordsCoveredBy's),
+// Remove, and ReadFile (loading canonical/duplicate index records for the
+// record-level subset gate) — consuming Unit 3's shared eviction+gate
+// helpers rather than reimplementing them.
 func pruneRemoveDeps(deps PruneDeps) IngestDeps {
 	return IngestDeps{
-		Remove: deps.Remove,
+		Remove:   deps.Remove,
+		ReadFile: deps.ReadFile,
 		Stat: func(path string) (SourceStat, error) {
 			if deps.Exists(path) {
 				return SourceStat{}, nil
@@ -214,12 +247,22 @@ func reconcileDuplicateGroups(
 
 // reconcileOneDuplicateGroup picks one hash group's canonical member via
 // Unit 3's selectCanonical, then reconciles every other member against it,
-// accumulating the outcome into counts. The canonical's index-file
-// existence (the deletion-safety gate) and, when that gate fails, whether
-// ANY group member has an index file (the structural/anomalous
-// classification) are each computed once per group rather than once per
-// duplicate — nothing changes either fact mid-loop, since only duplicate
-// index files are ever removed here, never the canonical's.
+// accumulating the outcome into counts. Whether the canonical safely
+// COVERS a given duplicate — canonicalCoversDuplicateRecords /
+// duplicateRecordsCoveredBy, the record-level subset gate (2026-07-26
+// ship-readiness finding: byte-hash identity of the CURRENT content is not
+// sufficient, since a source's index file may hold append-only historical
+// records the canonical's current index does not) — is computed PER
+// duplicate: two duplicates in the same hash group can differ in whether
+// their own records are covered, even though they share one canonical. The
+// canonical's own records are loaded from its index file at most ONCE per
+// group (not once per duplicate) when that file exists at all — reused
+// across every duplicate in the group via duplicateRecordsCoveredBy.
+// Whether ANY group member has an index file (the structural/anomalous
+// classification) is likewise computed at most once per group, lazily,
+// only the first time a refusal actually occurs — nothing changes either
+// fact mid-loop, since only duplicate index files are ever removed here,
+// never the canonical's.
 func reconcileOneDuplicateGroup(
 	args PruneArgs,
 	group []string,
@@ -239,33 +282,52 @@ func reconcileOneDuplicateGroup(
 
 	canonicalIndexExists := deps.Exists(indexPathFor(args.ChunksDir, canonical))
 
-	var groupHasAnyIndex bool
-	if !canonicalIndexExists {
-		groupHasAnyIndex = anyIndexFileExists(args, group, deps)
+	var canonicalRecords map[string]chunk.Record
+	if canonicalIndexExists {
+		canonicalRecords = loadPriorRecords(indexPathFor(args.ChunksDir, canonical), removeDeps)
 	}
 
-	prefix := dryRunPrefix(args.DryRun)
+	tracker := &duplicateRefusalTracker{args: args, group: group, deps: deps}
 
 	for _, path := range group {
 		if path == canonical {
 			continue
 		}
 
-		removedOne, refusedOne, failErr := pruneOneDuplicate(args, path, canonicalIndexExists, manifest, deps, removeDeps)
+		covered := canonicalIndexExists &&
+			duplicateRecordsCoveredBy(args.ChunksDir, path, canonicalRecords, removeDeps)
 
-		switch {
-		case failErr != nil:
-			counts.failed++
-		case refusedOne && groupHasAnyIndex:
-			counts.refusedAnomalous++
+		removedOne, refusedOne, failErr := pruneOneDuplicate(args, path, covered, manifest, deps, removeDeps)
 
-			_, _ = fmt.Fprintf(stdout, "%sprune: refusing to remove %s: canonical %s index missing "+
-				"(needs review — a sibling's content survives)\n", prefix, path, canonical)
-		case refusedOne:
-			counts.refusedStructural++
-		case removedOne:
-			counts.removed++
-		}
+		recordDuplicateOutcome(args, path, canonical, removedOne, refusedOne, failErr, tracker, stdout, counts)
+	}
+}
+
+// recordDuplicateOutcome tallies pruneOneDuplicate's outcome for one
+// duplicate into counts, printing the anomalous-refusal line when
+// applicable. Split out of reconcileOneDuplicateGroup to keep that
+// function's branching (and cyclomatic complexity) in one focused place.
+func recordDuplicateOutcome(
+	args PruneArgs,
+	path, canonical string,
+	removedOne, refusedOne bool,
+	failErr error,
+	tracker *duplicateRefusalTracker,
+	stdout io.Writer,
+	counts *duplicatePruneCounts,
+) {
+	switch {
+	case failErr != nil:
+		counts.failed++
+	case refusedOne && tracker.anyIndexExists():
+		counts.refusedAnomalous++
+
+		_, _ = fmt.Fprintf(stdout, "%sprune: refusing to remove %s: canonical %s does not verifiably cover "+
+			"its records (needs review — a sibling's content survives)\n", dryRunPrefix(args.DryRun), path, canonical)
+	case refusedOne:
+		counts.refusedStructural++
+	case removedOne:
+		counts.removed++
 	}
 }
 

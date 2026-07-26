@@ -161,6 +161,14 @@ type Report struct {
 	// ChunkIndexHasEmptyFiles is set by the cli package after Run returns
 	// (Updater.Run never touches chunk paths; this field is opaque data).
 	ChunkIndexHasEmptyFiles bool
+	// ChunkIndexHasDuplicates is set by the cli package after Run returns
+	// (Unit 5, detect-and-notify — Updater.Run never touches chunk paths or
+	// the manifest; this field is opaque data, same as
+	// ChunkIndexHasEmptyFiles above). update deliberately never removes
+	// anything on the strength of this field — it only surfaces the notice
+	// pointing at `engram prune --duplicates`, which the user runs
+	// explicitly.
+	ChunkIndexHasDuplicates bool
 
 	Harnesses []HarnessReport
 }

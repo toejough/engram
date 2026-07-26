@@ -45,6 +45,7 @@ var (
 	ExportBumpMajorVersion                 = bumpMajorVersion
 	ExportBumpMinorVersion                 = bumpMinorVersion
 	ExportCheckAndPersistVocabRefitTrigger = checkAndPersistVocabRefitTrigger
+	ExportChunkIndexHasDuplicates          = chunkIndexHasDuplicates
 	ExportChunkIndexHasEmptyFiles          = chunkIndexHasEmptyFiles
 	ExportClearRemovedTermsFromMembers     = clearRemovedTermsFromMembers
 	ExportCollectCurrentTermEntries        = collectCurrentTermEntries

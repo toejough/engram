@@ -3,11 +3,106 @@ package cli
 import (
 	"bytes"
 	"io"
+	"io/fs"
 	"testing"
 
 	"github.com/onsi/gomega"
 	"pgregory.net/rapid"
 )
+
+// TestCanonicalCoversDuplicateRecords pins the record-level subset gate
+// directly (2026-07-26 ship-readiness finding): mergeChunkRecords is
+// append-only WITHIN a source, so a source's .jsonl index file accumulates
+// every chunk record from every past ingest of that path — not just its
+// current content. Two sources can therefore be byte-identical RIGHT NOW
+// (same content hash, same hash group) while their index files hold
+// entirely disjoint historical chunk records. Byte-hash identity of the
+// CURRENT content — or even the mere EXISTENCE of the canonical's index
+// file — is necessary but not sufficient proof that evicting the
+// duplicate's index loses nothing; every one of the duplicate's own
+// record content-hashes must also appear in the canonical's.
+func TestCanonicalCoversDuplicateRecords(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const (
+		chunksDir = "/chunks"
+		canonical = "/repo/a.md"
+		duplicate = "/repo/.claude/a.md"
+	)
+
+	canonicalIdx := indexPathFor(chunksDir, canonical)
+	duplicateIdx := indexPathFor(chunksDir, duplicate)
+
+	record := func(contentHash string) string {
+		return `{"source":"x","anchor":"a","content_hash":"` + contentHash + `","text":"t"}` + "\n"
+	}
+
+	cases := []struct {
+		name  string
+		files map[string]string
+		want  bool
+	}{
+		{
+			name:  "canonical has no index file at all (zero-chunk canonical) -> refused",
+			files: map[string]string{duplicateIdx: record("sha256:a")},
+			want:  false,
+		},
+		{
+			name: "duplicate's records are all present in canonical's -> covered",
+			files: map[string]string{
+				canonicalIdx: record("sha256:a") + record("sha256:b"),
+				duplicateIdx: record("sha256:a"),
+			},
+			want: true,
+		},
+		{
+			name: "duplicate holds a record the canonical lacks -> refused",
+			files: map[string]string{
+				canonicalIdx: record("sha256:a"),
+				duplicateIdx: record("sha256:a") + record("sha256:unique-to-duplicate"),
+			},
+			want: false,
+		},
+		{
+			name:  "duplicate has no index file at all -> vacuously covered",
+			files: map[string]string{canonicalIdx: record("sha256:a")},
+			want:  true,
+		},
+		{
+			name: "canonical index file present but empty on disk -> refused (can't verify anything)",
+			files: map[string]string{
+				canonicalIdx: "",
+				duplicateIdx: record("sha256:a"),
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range cases {
+		files := tc.files
+		deps := IngestDeps{
+			ReadFile: func(path string) ([]byte, error) {
+				content, ok := files[path]
+				if !ok {
+					return nil, fs.ErrNotExist
+				}
+
+				return []byte(content), nil
+			},
+			Stat: func(path string) (SourceStat, error) {
+				if _, ok := files[path]; ok {
+					return SourceStat{}, nil
+				}
+
+				return SourceStat{}, fs.ErrNotExist
+			},
+		}
+
+		got := canonicalCoversDuplicateRecords(chunksDir, canonical, duplicate, deps)
+		g.Expect(got).To(gomega.Equal(tc.want), tc.name)
+	}
+}
 
 // TestIsVaultCopyOutsideVault pins Rule B's four early-outs plus its two
 // sidecar-presence outcomes, since the integration test only exercises the

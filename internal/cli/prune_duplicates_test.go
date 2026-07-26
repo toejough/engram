@@ -379,6 +379,129 @@ func TestPruneDuplicatesRefusesWhenCanonicalIndexMissing(t *testing.T) {
 	g.Expect(out.String()).To(gomega.ContainSubstring("refused 1 removal(s) listed above"))
 }
 
+// TestPruneDuplicatesRefusesWhenDuplicateRecordsNotSubsetOfCanonical asserts
+// the record-level subset gate a ship-readiness review found missing
+// (2026-07-26): the canonical's index file EXISTS (the old, insufficient
+// gate would have allowed removal), but the duplicate's own index holds a
+// record — presumably accumulated from a past ingest of this path, before
+// it became byte-identical to the canonical — whose content hash the
+// canonical's index does not have. Removing the duplicate would destroy
+// that record permanently, so the removal must be refused, classified as
+// the anomalous case (both files hold real content), and printed
+// individually rather than folded into the bulk structural summary.
+func TestPruneDuplicatesRefusesWhenDuplicateRecordsNotSubsetOfCanonical(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const (
+		canonical = "/repo/a.md"
+		duplicate = "/repo/sub/b.md"
+	)
+
+	canonicalIdx := "/chunks/" + cli.ExportIndexFileName(canonical)
+	duplicateIdx := "/chunks/" + cli.ExportIndexFileName(duplicate)
+
+	fs := newPruneFS()
+	fs.files[canonicalIdx] = []byte(
+		`{"source":"a","anchor":"x","content_hash":"sha256:shared","text":"t"}` + "\n")
+	fs.files[duplicateIdx] = []byte(
+		`{"source":"b","anchor":"x","content_hash":"sha256:shared","text":"t"}` + "\n" +
+			`{"source":"b","anchor":"y","content_hash":"sha256:unique-to-duplicate","text":"old"}` + "\n")
+	fs.exists[canonicalIdx] = true
+	fs.exists[duplicateIdx] = true
+
+	manifest := pruneDuplicatesManifest("sha256:x", canonical, duplicate)
+	manBytes, err := json.Marshal(manifest)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	fs.files["/chunks/manifest.json"] = manBytes
+
+	removeCalled := false
+	deps := fs.pruneDeps()
+	deps.Remove = func(path string) error {
+		removeCalled = true
+
+		return fs.pruneDeps().Remove(path)
+	}
+
+	out := &strings.Builder{}
+
+	err = cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks", Duplicates: true}, deps, out)
+	g.Expect(err).NotTo(gomega.HaveOccurred(), "a refusal is not a removal failure")
+
+	g.Expect(removeCalled).To(gomega.BeFalse(),
+		"the duplicate holds a record the canonical does not — removal must be refused even though "+
+			"the canonical's index file exists")
+
+	_, dupIdxPresent := fs.files[duplicateIdx]
+	g.Expect(dupIdxPresent).To(gomega.BeTrue(), "duplicate's index file must survive an unverified deletion")
+
+	var rewritten map[string]map[string]any
+	g.Expect(json.Unmarshal(fs.files["/chunks/manifest.json"], &rewritten)).To(gomega.Succeed())
+	g.Expect(rewritten).To(gomega.HaveKey(duplicate), "refused duplicate's manifest entry must survive")
+
+	g.Expect(out.String()).To(gomega.ContainSubstring("refusing to remove " + duplicate))
+	g.Expect(out.String()).To(gomega.ContainSubstring("refused 1 removal(s) listed above"))
+}
+
+// TestPruneDuplicatesRemovesWhenDuplicateRecordsAreSubsetOfCanonical asserts
+// the positive case with REALISTIC, distinct content hashes (not the
+// incidental empty-content-hash coincidence other fixtures share): the
+// canonical's index is a proper superset of the duplicate's — every one of
+// the duplicate's own records is present in the canonical's — so removal
+// proceeds normally.
+func TestPruneDuplicatesRemovesWhenDuplicateRecordsAreSubsetOfCanonical(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const (
+		canonical = "/repo/a.md"
+		duplicate = "/repo/sub/b.md"
+	)
+
+	canonicalIdx := "/chunks/" + cli.ExportIndexFileName(canonical)
+	duplicateIdx := "/chunks/" + cli.ExportIndexFileName(duplicate)
+
+	fs := newPruneFS()
+	fs.files[canonicalIdx] = []byte(
+		`{"source":"a","anchor":"x","content_hash":"sha256:shared","text":"t"}` + "\n" +
+			`{"source":"a","anchor":"y","content_hash":"sha256:extra-in-canonical","text":"t2"}` + "\n")
+	fs.files[duplicateIdx] = []byte(
+		`{"source":"b","anchor":"x","content_hash":"sha256:shared","text":"t"}` + "\n")
+	fs.exists[canonicalIdx] = true
+	fs.exists[duplicateIdx] = true
+
+	manifest := pruneDuplicatesManifest("sha256:x", canonical, duplicate)
+	manBytes, err := json.Marshal(manifest)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	fs.files["/chunks/manifest.json"] = manBytes
+
+	err = cli.RunPrune(context.Background(),
+		cli.PruneArgs{ChunksDir: "/chunks", Duplicates: true}, fs.pruneDeps(), io.Discard)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	_, dupIdxPresent := fs.files[duplicateIdx]
+	g.Expect(dupIdxPresent).To(gomega.BeFalse(),
+		"the duplicate's records are all covered by the canonical's — removal must proceed")
+
+	_, canonicalIdxPresent := fs.files[canonicalIdx]
+	g.Expect(canonicalIdxPresent).To(gomega.BeTrue(), "canonical's index file must survive")
+
+	var rewritten map[string]map[string]any
+	g.Expect(json.Unmarshal(fs.files["/chunks/manifest.json"], &rewritten)).To(gomega.Succeed())
+	g.Expect(rewritten).NotTo(gomega.HaveKey(duplicate), "duplicate's manifest entry must be dropped")
+}
+
 // TestPruneDuplicatesReportsFailureAndContinues asserts a removal error for
 // one duplicate is written to stderr as "[FAIL] <path>: <err>", does not
 // stop the run (a sibling duplicate in the same hash group still gets

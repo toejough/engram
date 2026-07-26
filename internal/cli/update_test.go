@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"maps"
@@ -31,6 +32,101 @@ func TestAnyHarnessFailed(t *testing.T) {
 	g.Expect(cli.ExportAnyHarnessFailed(update.Report{
 		Harnesses: []update.HarnessReport{{Err: errors.New("boom")}, {}},
 	})).To(BeTrue())
+}
+
+// TestChunkIndexHasDuplicates pins the Unit 5 detect-and-notify gate
+// directly, mirroring TestChunkIndexHasEmptyFiles's shape: `engram update`
+// must NOT run `prune --duplicates` itself (the user's explicit reversal
+// of the earlier auto-run design), only detect whether the pre-Unit-3
+// backlog exists so it can point the user at the command. Detection reads
+// manifest.json once and groups it (groupManifestByHash, the same
+// (FileHash, chunkingClass) partition `prune --duplicates` uses) — it never
+// opens a per-source .jsonl index file, unlike chunkIndexHasEmptyFiles.
+func TestChunkIndexHasDuplicates(t *testing.T) {
+	t.Parallel()
+
+	entry := func(hash string, dup ...string) map[string]any {
+		e := map[string]any{"mtime_unix_nano": 1, "size": 10, "file_hash": hash}
+		if len(dup) > 0 {
+			e["duplicate_of"] = dup[0]
+		}
+
+		return e
+	}
+
+	cases := []struct {
+		name     string
+		manifest map[string]map[string]any // nil = no manifest.json file at all
+		want     bool
+	}{
+		{
+			name:     "no manifest at all",
+			manifest: nil,
+			want:     false,
+		},
+		{
+			name: "two sources share a hash and extension: a live duplicate group",
+			manifest: map[string]map[string]any{
+				"/repo/a.md": entry("sha256:x"),
+				"/repo/b.md": entry("sha256:x"),
+			},
+			want: true,
+		},
+		{
+			name: "distinct hashes: nothing to clean up",
+			manifest: map[string]map[string]any{
+				"/repo/a.md": entry("sha256:x"),
+				"/repo/b.md": entry("sha256:y"),
+			},
+			want: false,
+		},
+		{
+			name: "shared hash but different chunking classes: never a duplicate group",
+			manifest: map[string]map[string]any{
+				"/repo/a.md":    entry("sha256:x"),
+				"/repo/a.jsonl": entry("sha256:x"),
+			},
+			want: false,
+		},
+		{
+			name: "already tagged duplicate_of by Unit 3's forward pass: nothing for the backlog to clean up",
+			manifest: map[string]map[string]any{
+				"/repo/a.md": entry("sha256:x"),
+				"/repo/b.md": entry("sha256:x", "/repo/a.md"),
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newU1FS()
+
+			if tc.manifest != nil {
+				data, err := json.Marshal(tc.manifest)
+				g.Expect(err).NotTo(HaveOccurred())
+
+				fileSystem.files["/chunks/manifest.json"] = data
+			}
+
+			g.Expect(cli.ExportChunkIndexHasDuplicates("/chunks", fileSystem)).To(Equal(tc.want))
+		})
+	}
+
+	t.Run("malformed manifest: detection failure must not panic or propagate an error", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		fileSystem := newU1FS()
+		fileSystem.files["/chunks/manifest.json"] = []byte("{not valid json")
+
+		g.Expect(cli.ExportChunkIndexHasDuplicates("/chunks", fileSystem)).To(BeFalse())
+	})
 }
 
 func TestChunkIndexHasEmptyFiles(t *testing.T) {
@@ -288,6 +384,43 @@ func TestTildify(t *testing.T) {
 	g.Expect(cli.ExportTildify("/home/joe/x", "/home/joe")).To(Equal("~/x"))
 	g.Expect(cli.ExportTildify("/other/x", "/home/joe")).To(Equal("/other/x"))
 	g.Expect(cli.ExportTildify("/home/joe/x", "")).To(Equal("/home/joe/x"))
+}
+
+// TestWriteUpdateReport_DuplicatesHint asserts Unit 5's detect-and-notify
+// surface: when duplicates were detected, the report names
+// `engram prune --duplicates` and points at the Upgrading section — the
+// same pattern #694's empty-file notice uses — and update NEVER performs
+// the removal itself (there is no removed/retained count to report; this
+// is purely a notice).
+func TestWriteUpdateReport_DuplicatesHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{ChunkIndexHasDuplicates: true})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("prune --duplicates"))
+	g.Expect(buffer.String()).To(ContainSubstring("Upgrading"))
+	g.Expect(buffer.String()).To(ContainSubstring("README.md"))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{ChunkIndexHasDuplicates: false})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("duplicate"))
+
+	// Coexists with the other upgrade notices.
+	var both bytes.Buffer
+
+	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
+		ChunkIndexHasEmptyFiles: true,
+		ChunkIndexHasDuplicates: true,
+	})
+	g.Expect(bothErr).NotTo(HaveOccurred())
+	g.Expect(both.String()).To(ContainSubstring("empty chunk-index"))
+	g.Expect(both.String()).To(ContainSubstring("prune --duplicates"))
 }
 
 func TestWriteUpdateReport_EmptyChunkHint(t *testing.T) {
