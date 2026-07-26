@@ -380,7 +380,7 @@ func TestHarnessSpecs_WellKnownPaths(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(detected).To(HaveLen(3))
 
-	claude, opencode, pi := detected[0], detected[1], detected[2]
+	claude, opencode, piHarness := detected[0], detected[1], detected[2]
 
 	g.Expect(claude.Name).To(Equal(update.HarnessClaude))
 	g.Expect(claude.ImportsFileRel).To(Equal(filepath.Join(".claude", "CLAUDE.md")))
@@ -388,11 +388,11 @@ func TestHarnessSpecs_WellKnownPaths(t *testing.T) {
 	g.Expect(opencode.Name).To(Equal(update.HarnessOpencode))
 	g.Expect(opencode.ImportsFileRel).To(BeEmpty())
 
-	g.Expect(pi.Name).To(Equal(update.HarnessPi))
-	g.Expect(pi.ProbeRel).To(Equal(".pi"))
-	g.Expect(pi.SkillsTargetRel).To(Equal(filepath.Join(".pi", "agent", "skills")))
-	g.Expect(pi.GuidanceTargetRel).To(Equal(filepath.Join(".pi", "agent", "guidance")))
-	g.Expect(pi.ImportsFileRel).To(Equal(filepath.Join(".pi", "agent", "AGENTS.md")))
+	g.Expect(piHarness.Name).To(Equal(update.HarnessPi))
+	g.Expect(piHarness.ProbeRel).To(Equal(".pi"))
+	g.Expect(piHarness.SkillsTargetRel).To(Equal(filepath.Join(".pi", "agent", "skills")))
+	g.Expect(piHarness.GuidanceTargetRel).To(Equal(filepath.Join(".pi", "agent", "guidance")))
+	g.Expect(piHarness.ImportsFileRel).To(Equal(filepath.Join(".pi", "agent", "AGENTS.md")))
 }
 
 func TestPlanGuidanceCopies_FilesUnderHome(t *testing.T) {
@@ -856,6 +856,16 @@ func (e *errRemoveFS) RemoveAll(path string) error {
 	return e.memFS.RemoveAll(path)
 }
 
+// guidanceDocSpec is a generated harness imports file plus the set of
+// guidance basenames a correct scanner must count for that harness (its own
+// prefix, outside any code fence). Everything else — foreign-harness
+// prefixes, the stale pre-guidance/ pi prefix, noise, fenced imports — must
+// never be counted.
+type guidanceDocSpec struct {
+	text    string
+	wantOwn map[string]bool
+}
+
 type memEntry struct {
 	name  string
 	isDir bool
@@ -1020,16 +1030,6 @@ func dirPrefix(path string) string {
 	}
 
 	return path + "/"
-}
-
-// guidanceDocSpec is a generated harness imports file plus the set of
-// guidance basenames a correct scanner must count for that harness (its own
-// prefix, outside any code fence). Everything else — foreign-harness
-// prefixes, the stale pre-guidance/ pi prefix, noise, fenced imports — must
-// never be counted.
-type guidanceDocSpec struct {
-	text    string
-	wantOwn map[string]bool
 }
 
 // drawGuidanceDoc generates an imports file for one harness out of blocks:

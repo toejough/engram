@@ -73,7 +73,7 @@ func DefaultSweepSpec() SweepSpec {
 	return SweepSpec{
 		RepoMarkdown:       true,
 		AncestorClaudeDirs: true,
-		AncestorPiDirs:      true,
+		AncestorPiDirs:     true,
 		SessionLogs:        true,
 		ExtraRoots:         nil,
 		ExcludeDirs: []string{
@@ -81,7 +81,7 @@ func DefaultSweepSpec() SweepSpec {
 			"target", ".venv", "venv", "__pycache__", ".next", ".cache", ".idea",
 		},
 		ClaudeExcludeDirs: []string{
-			"projects", "plugins", "cache", "todos", "shell-snapshots",
+			excludeDirProjects, "plugins", "cache", "todos", "shell-snapshots",
 			"file-history", "history", "ide", "statsig", "session-env", "debug",
 			"worktrees",
 		},
@@ -124,7 +124,7 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 	}
 
 	if spec.AncestorPiDirs {
-		piExcludes := []string{"jobs", "projects"} // PI sessions have similar subdirs to Claude
+		piExcludes := []string{"jobs", excludeDirProjects} // PI sessions have similar subdirs to Claude
 		for _, dir := range ancestorPiDirs(env) {
 			roots = append(roots, SweepRoot{Path: dir, ExcludeDirs: piExcludes, SkipHidden: skipHidden})
 		}
@@ -145,6 +145,11 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 
 	return roots
 }
+
+// unexported constants.
+const (
+	excludeDirProjects = "projects"
+)
 
 // ancestorClaudeDirs collects every existing .claude directory from cwd up to
 // the filesystem root (closest first).

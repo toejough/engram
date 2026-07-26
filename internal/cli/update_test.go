@@ -659,45 +659,6 @@ func TestWriteUpdateReport_VocabMigrationHint(t *testing.T) {
 	}
 }
 
-// claudeHarnessReport builds a Claude Code HarnessReport with spec-derived
-// guidance paths, deploying the given guidance basenames.
-func claudeHarnessReport(guidanceFiles ...string) update.HarnessReport {
-	return update.HarnessReport{
-		Name:              update.HarnessClaude,
-		ProbeRoot:         ".claude",
-		SkillsRoot:        "/home/joe/.claude/skills",
-		GuidanceTargetRel: ".claude/engram",
-		ImportsFileRel:    ".claude/CLAUDE.md",
-		GuidanceFiles:     guidanceFiles,
-	}
-}
-
-// opencodeHarnessReport builds an OpenCode HarnessReport. ImportsFileRel is
-// empty — OpenCode has no guidance-import mechanism, so the renderer must
-// emit no guidance lines for it even if guidance files are listed.
-func opencodeHarnessReport(guidanceFiles ...string) update.HarnessReport {
-	return update.HarnessReport{
-		Name:          update.HarnessOpencode,
-		ProbeRoot:     ".config/opencode",
-		SkillsRoot:    "/home/joe/.config/opencode/skills",
-		CommandsRoot:  "/home/joe/.config/opencode/commands",
-		GuidanceFiles: guidanceFiles,
-	}
-}
-
-// piHarnessReport builds a Pi HarnessReport with spec-derived guidance paths,
-// deploying the given guidance basenames.
-func piHarnessReport(guidanceFiles ...string) update.HarnessReport {
-	return update.HarnessReport{
-		Name:              update.HarnessPi,
-		ProbeRoot:         ".pi",
-		SkillsRoot:        "/home/joe/.pi/agent/skills",
-		GuidanceTargetRel: ".pi/agent/guidance",
-		ImportsFileRel:    ".pi/agent/AGENTS.md",
-		GuidanceFiles:     guidanceFiles,
-	}
-}
-
 // liveUpdateEnv adapts the real process environment to update.Env for the
 // dry-run smoke tests (production Env is composed from cli.Deps).
 type liveUpdateEnv struct{}
@@ -760,4 +721,43 @@ type stubCommander struct{}
 
 func (stubCommander) Run(context.Context, string, string, ...string) ([]byte, []byte, error) {
 	return nil, nil, nil
+}
+
+// claudeHarnessReport builds a Claude Code HarnessReport with spec-derived
+// guidance paths, deploying the given guidance basenames.
+func claudeHarnessReport(guidanceFiles ...string) update.HarnessReport {
+	return update.HarnessReport{
+		Name:              update.HarnessClaude,
+		ProbeRoot:         ".claude",
+		SkillsRoot:        "/home/joe/.claude/skills",
+		GuidanceTargetRel: ".claude/engram",
+		ImportsFileRel:    ".claude/CLAUDE.md",
+		GuidanceFiles:     guidanceFiles,
+	}
+}
+
+// opencodeHarnessReport builds an OpenCode HarnessReport. ImportsFileRel is
+// empty — OpenCode has no guidance-import mechanism, so the renderer must
+// emit no guidance lines for it even if guidance files are listed.
+func opencodeHarnessReport(guidanceFiles ...string) update.HarnessReport {
+	return update.HarnessReport{
+		Name:          update.HarnessOpencode,
+		ProbeRoot:     ".config/opencode",
+		SkillsRoot:    "/home/joe/.config/opencode/skills",
+		CommandsRoot:  "/home/joe/.config/opencode/commands",
+		GuidanceFiles: guidanceFiles,
+	}
+}
+
+// piHarnessReport builds a Pi HarnessReport with spec-derived guidance paths,
+// deploying the given guidance basenames.
+func piHarnessReport(guidanceFiles ...string) update.HarnessReport {
+	return update.HarnessReport{
+		Name:              update.HarnessPi,
+		ProbeRoot:         ".pi",
+		SkillsRoot:        "/home/joe/.pi/agent/skills",
+		GuidanceTargetRel: ".pi/agent/guidance",
+		ImportsFileRel:    ".pi/agent/AGENTS.md",
+		GuidanceFiles:     guidanceFiles,
+	}
 }

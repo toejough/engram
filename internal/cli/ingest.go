@@ -263,10 +263,11 @@ func errorsIsReadFailure(err error) bool {
 		strings.Contains(err.Error(), "ingest: stripping transcript ")
 }
 
-// gatherSources merges explicit flags, --auto's declarative roots, and manual
-// sweep roots into one source list.
-func gatherSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
-	sources := make([]sourceRef, 0, len(args.Transcripts)+len(args.Markdowns)+len(args.PiSessions))
+// explicitSources returns the explicitly-named --transcript and --markdown
+// sources: these must fail loudly (explicit: true) if they later prove
+// unreadable, unlike swept files which may vanish benignly.
+func explicitSources(args IngestArgs) []sourceRef {
+	sources := make([]sourceRef, 0, len(args.Transcripts)+len(args.Markdowns))
 	for _, path := range args.Transcripts {
 		sources = append(sources, sourceRef{path: path, explicit: true})
 	}
@@ -275,50 +276,43 @@ func gatherSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
 		sources = append(sources, sourceRef{path: path, explicit: true})
 	}
 
-	// Add explicit PI session directories as sweep roots (with default excludes for jobs/projects)
-	for _, path := range args.PiSessions {
-		if deps.IsDir(path) {
-			root := SweepRoot{Path: path, ExcludeDirs: []string{"jobs", "projects"}, SkipHidden: true}
-			found, err := deps.ListSources(root)
-			if err != nil {
-				return nil, fmt.Errorf("ingest: reading %s: %w", path, err)
-			}
+	return sources
+}
 
-			for _, foundPath := range found {
-				ext := filepath.Ext(foundPath)
-				if ext == ".md" || ext == jsonlExt {
-					sources = append(sources, sourceRef{path: foundPath, explicit: true})
-				}
-			}
-		}
+// gatherSources merges explicit flags, --auto's declarative roots, and manual
+// sweep roots into one source list. Each stage below contributes its own
+// []sourceRef, and this is where those stages merge — the single point
+// downstream code sees the union of every origin. It is NOT yet a seam
+// for cross-source dedup: sourceRef only carries path+explicit, so origin
+// (repo-markdown, .claude-ancestor, .pi-ancestor, session-log, manual
+// --sweep, SweepSpec.ExtraRoots) is already lost by the time
+// piSessionSources sets explicit:true identically to literal
+// --transcript/--markdown, and sweptSources sets explicit:false
+// for every sweep-derived origin alike. Nor is file content read here,
+// so no content hash exists yet either. A future dedup unit must add both
+// origin-tagging and hashing itself before it can resolve duplicates across
+// sources; neither prerequisite is in place today.
+func gatherSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
+	sources := explicitSources(args)
+
+	piSources, err := piSessionSources(args, deps)
+	if err != nil {
+		return nil, err
 	}
+
+	sources = append(sources, piSources...)
 
 	roots, err := assembleSweepRoots(args, deps)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, root := range roots {
-		found, err := deps.ListSources(root)
-		if err != nil {
-			return nil, fmt.Errorf("ingest: sweeping %s: %w", root.Path, err)
-		}
-
-		chunksPrefix := filepath.Clean(args.ChunksDir) + string(filepath.Separator)
-
-		for _, path := range found {
-			// Never self-ingest the chunk index files or manifest: a sweep
-			// root that contains the chunks dir must skip it.
-			if strings.HasPrefix(filepath.Clean(path), chunksPrefix) {
-				continue
-			}
-
-			ext := filepath.Ext(path)
-			if ext == ".md" || ext == jsonlExt {
-				sources = append(sources, sourceRef{path: path})
-			}
-		}
+	swept, err := sweptSources(args, deps, roots)
+	if err != nil {
+		return nil, err
 	}
+
+	sources = append(sources, swept...)
 
 	return sources, nil
 }
@@ -564,6 +558,34 @@ func newIngestDeps(d Deps) IngestDeps {
 	}
 }
 
+// piSessionSources expands each --pi-sessions directory (default excludes for
+// jobs/projects) into its .md/.jsonl files, treated as explicit sources.
+func piSessionSources(args IngestArgs, deps IngestDeps) ([]sourceRef, error) {
+	var sources []sourceRef
+
+	for _, path := range args.PiSessions {
+		if !deps.IsDir(path) {
+			continue
+		}
+
+		root := SweepRoot{Path: path, ExcludeDirs: []string{"jobs", excludeDirProjects}, SkipHidden: true}
+
+		found, err := deps.ListSources(root)
+		if err != nil {
+			return nil, fmt.Errorf("ingest: reading %s: %w", path, err)
+		}
+
+		for _, foundPath := range found {
+			ext := filepath.Ext(foundPath)
+			if ext == ".md" || ext == jsonlExt {
+				sources = append(sources, sourceRef{path: foundPath, explicit: true})
+			}
+		}
+	}
+
+	return sources, nil
+}
+
 // readManifest loads the chunks dir's manifest; absent = empty (first run).
 func readManifest(chunksDir string, deps IngestDeps) (ingestManifest, error) {
 	manifest := ingestManifest{}
@@ -754,6 +776,35 @@ func sweepListerFrom(
 
 		return paths, nil
 	}
+}
+
+// sweptSources expands manual --sweep and --auto's resolved roots into their
+// .md/.jsonl files, skipping the chunk index directory itself (a sweep root
+// that contains it must not self-ingest the index or manifest).
+func sweptSources(args IngestArgs, deps IngestDeps, roots []SweepRoot) ([]sourceRef, error) {
+	var sources []sourceRef
+
+	chunksPrefix := filepath.Clean(args.ChunksDir) + string(filepath.Separator)
+
+	for _, root := range roots {
+		found, err := deps.ListSources(root)
+		if err != nil {
+			return nil, fmt.Errorf("ingest: sweeping %s: %w", root.Path, err)
+		}
+
+		for _, path := range found {
+			if strings.HasPrefix(filepath.Clean(path), chunksPrefix) {
+				continue
+			}
+
+			ext := filepath.Ext(path)
+			if ext == ".md" || ext == jsonlExt {
+				sources = append(sources, sourceRef{path: path})
+			}
+		}
+	}
+
+	return sources, nil
 }
 
 // writeManifestFile persists the manifest next to the index files it covers.
