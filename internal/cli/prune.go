@@ -12,7 +12,14 @@ import (
 type PruneArgs struct {
 	ChunksDir string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
 	Empty     bool   `targ:"flag,name=empty,desc=remove 0-byte chunk-index files (regenerable; ranking-neutral)"`
-	DryRun    bool   `targ:"flag,name=dry-run,desc=report what would be removed without deleting"`
+	// Duplicates retroactively collapses every exact-content-hash group in
+	// the live manifest down to one canonical member (Unit 3's
+	// selectCanonical), removing the index files + manifest entries of the
+	// rest — cleanup for duplicates indexed before Unit 3's ingest-time
+	// dedup existed. Safe by construction: a duplicate is only removed once
+	// its retained twin's index file is verified present.
+	Duplicates bool `targ:"flag,name=duplicates,desc=remove non-canonical duplicate index files+manifest entries; keeps one per content hash"` //nolint:lll // single unbreakable struct-tag string
+	DryRun     bool `targ:"flag,name=dry-run,desc=report what would be removed without deleting"`
 }
 
 // PruneDeps holds injected dependencies for RunPrune.
@@ -26,6 +33,12 @@ type PruneDeps struct {
 	Exists      func(path string) bool
 	ListIndexes func(dir string) ([]string, error)
 	Remove      func(path string) error
+	// LogWarning reports a non-fatal failure without stopping the run — used
+	// by --duplicates for a per-item removal error ("[FAIL] <path>: <err>").
+	// Nil-safe: callers guard with "if deps.LogWarning != nil". Wired to
+	// logWarningTo(d.Stderr) in newPruneDeps, matching every other RunX
+	// command's warning-reporting convention (activate.go, amend.go).
+	LogWarning func(format string, args ...any)
 }
 
 // RunPrune detaches dead sources from the chunk index: every manifest source
@@ -37,7 +50,11 @@ type PruneDeps struct {
 // With --dry-run, the manifest is left unwritten and stdout is prefixed
 // "[dry-run] ". With --empty, RunPrune instead delegates to
 // pruneEmptyLocked, which DOES remove 0-byte .jsonl index files
-// (regenerable; ranking-neutral) — see that helper's doc comment.
+// (regenerable; ranking-neutral) — see that helper's doc comment. With
+// --duplicates, RunPrune delegates to pruneDuplicatesLocked, which DOES
+// remove non-canonical duplicate .jsonl index files (safe by construction —
+// see that helper's doc comment); per-item removal failures are reported via
+// deps.LogWarning and do not stop the run.
 func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Writer) error {
 	// Acquire the manifest lock before any read-modify-write on manifest.json
 	// so concurrent ingest/prune runs cannot produce lost updates (#660).
@@ -50,6 +67,10 @@ func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Write
 
 	if args.Empty {
 		return pruneEmptyLocked(args, deps, stdout)
+	}
+
+	if args.Duplicates {
+		return pruneDuplicatesLocked(args, deps, stdout)
 	}
 
 	manifest := ingestManifest{}
@@ -126,6 +147,7 @@ func newPruneDeps(d Deps) PruneDeps {
 		},
 		ListIndexes: listJSONLIndexes(d.FS),
 		Remove:      d.FS.Remove,
+		LogWarning:  logWarningTo(d.Stderr),
 	}
 }
 

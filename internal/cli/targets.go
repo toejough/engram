@@ -171,7 +171,8 @@ func ingestQueryTargets(
 			errHandler(RunPrune(withLog(ctx), a, newPruneDeps(deps), deps.Stdout))
 		}).Name("prune").Description(
 			"Detach chunk entries whose source file is gone: drop the stale manifest entry, " +
-				"keep the embedded chunks (still searchable)"),
+				"keep the embedded chunks (still searchable). --duplicates retroactively collapses " +
+				"exact-content-hash groups to one canonical member (safe by construction)"),
 		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
 			errHandler(RunChunkQuery(withLog(ctx), a, newChunkQueryDeps(deps), deps.Stdout))
