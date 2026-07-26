@@ -67,6 +67,36 @@ func TestResolveSweepRootsAttachesPrefixesToSessionRootOnly(t *testing.T) {
 		"repo-markdown root carries no non-persistent prefixes")
 }
 
+func TestResolveSweepRootsClaudeAncestorExcludesJobsScratch(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// ~/.claude/jobs is agent-harness scratch (whole snapshot copies of the
+	// user's engram vault included) — the .pi sweep already excludes "jobs"
+	// (piExcludes in ResolveSweepRoots, and again in ingest.go's
+	// piSessionSources) because PI has the same subdir shape as Claude. This
+	// asserts the Claude ancestor list carries the matching exclude.
+	fs := specFS{dirs: map[string]bool{
+		"/home/dev/proj/.git":    true,
+		"/home/dev/proj/.claude": true,
+	}}
+
+	roots := cli.ResolveSweepRoots(cli.DefaultSweepSpec(), cli.SweepEnv{
+		Cwd: "/home/dev/proj", SessionDir: "", IsDir: fs.isDir,
+	})
+
+	var claudeExcludes []string
+
+	for _, root := range roots {
+		if root.Path == "/home/dev/proj/.claude" {
+			claudeExcludes = root.ExcludeDirs
+		}
+	}
+
+	g.Expect(claudeExcludes).To(gomega.ContainElement("jobs"),
+		"jobs/ under .claude is agent scratch (whole vault snapshot copies), not user memory")
+}
+
 func TestResolveSweepRootsCoversRepoAncestorsAndSessions(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)

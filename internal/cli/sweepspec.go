@@ -75,7 +75,9 @@ type SweepSpec struct {
 	// ClaudeExcludeDirs are ADDITIONALLY skipped inside ancestor .claude dirs:
 	// harness state and third-party plugin content, not user memory. projects/
 	// holds EVERY project's transcripts — this project's sessions come in via
-	// session_logs instead.
+	// session_logs instead. jobs/ is agent-harness scratch (including whole
+	// snapshot copies of the vault) — the same reason the .pi sweep excludes
+	// it below.
 	ClaudeExcludeDirs []string `json:"claude_exclude_dirs"` //nolint:tagliatelle // developer-facing config uses snake_case
 	// IncludeHiddenDirs disables the default pruning of dot-directories
 	// (.git, .layer-run, .obsidian, ...) during sweep walks.
@@ -120,7 +122,7 @@ func DefaultSweepSpec() SweepSpec {
 			"target", ".venv", "venv", "__pycache__", ".next", ".cache", ".idea",
 		},
 		ClaudeExcludeDirs: []string{
-			excludeDirProjects, "plugins", "cache", "todos", "shell-snapshots",
+			excludeDirProjects, excludeDirJobs, "plugins", "cache", "todos", "shell-snapshots",
 			"file-history", "history", "ide", "statsig", "session-env", "debug",
 			"worktrees",
 		},
@@ -173,7 +175,7 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 	}
 
 	if spec.AncestorPiDirs {
-		piExcludes := []string{"jobs", excludeDirProjects} // PI sessions have similar subdirs to Claude
+		piExcludes := []string{excludeDirJobs, excludeDirProjects} // PI sessions have similar subdirs to Claude
 		for _, ancestor := range ancestorPiDirs(env) {
 			roots = append(roots, SweepRoot{
 				Path: ancestor.path, ExcludeDirs: piExcludes, SkipHidden: skipHidden,
@@ -211,6 +213,7 @@ func ResolveSweepRoots(spec SweepSpec, env SweepEnv) []SweepRoot {
 
 // unexported constants.
 const (
+	excludeDirJobs                     = "jobs"
 	excludeDirProjects                 = "projects"
 	nonPersistentPathPrivateTmp        = "/private/tmp"
 	nonPersistentPathPrivateVarFolders = "/private/var/folders"
