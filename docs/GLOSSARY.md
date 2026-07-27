@@ -96,6 +96,27 @@ by the closing `/learn`'s Step-2 scan, not here. Pre-registered upgrade: a wrong
 triggers a fresh-context lessons reviewer (an externalized audit; upgrade path in
 `docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row).
 
+### surprise harvest (Step 7 addition, #687)
+A small addition to the please skill's Step-7 lessons audit (see **lessons audit**, above):
+for each lesson the audit is about to capture, ask which already-existing artifact should
+have surfaced it, and search the vault for a note that already covers the situation before
+writing a new one — reword an existing note whose `situation:` line missed the moment rather
+than duplicating it. A vault note is the user's own and takes effect on their next recall;
+anything shipped from the repo instead (code, skills, guidance) makes the user wait on a
+release, so that path is proposed only as a last resort and never filed automatically.
+
+**Status:** staged and uncommitted — the change lives in
+`agent-instructions/skills/please/SKILL.md`, not yet deployed via `engram update`. The
+addition originally shipped alongside a much larger mechanism: a seven-marker surprise
+enumeration, a four-way counterfactual classification, and a two-remedy ladder, proposed on
+the premise that the *existing* Step-7 audit structurally cannot surface certain findings on
+its own. A controlled measurement refuted that premise — hand-read control trials of the
+*unmodified* audit already surfaced the target findings in 6/10 and 10/10 of trials, via the
+audit's own existing "unmapped items are reversal handoffs" instruction — so the larger
+mechanism was cut. What survived is the small addition above, kept as an unvalidated
+addition: no measurement supports it. Full figures in
+`dev/eval/LEDGER.md#687-surprise-harvest`.
+
 ### escalation provenance
 The please skill's rule that any measured claim (count, rate, cost, duration) in a
 mid-cycle escalation — an AskUserQuestion or STOP report — carries its evidence
@@ -737,7 +758,10 @@ sub-variant) · **C5** remember-recent-history · **C6** compounding / emergent 
 ### capture guards (G1–G6)
 The six proposed guards against the lesson-capture blind spot (a presented conclusion later
 overturned going uncaptured). Shipped 2026-07-04: **G1** reversals as a learn capture kind ·
-**G2** please step-7 lessons audit · **G6** escalation-provenance rule. Pre-registered upgrade
+**G2** please step-7 lessons audit · **G6** escalation-provenance rule. **G2** gained a small
+addition, the **surprise harvest** (see above) — staged and uncommitted, 2026-07-26 via #687,
+its larger premise refuted by measurement; extends G2's existing guard, not a new guard
+number. Pre-registered upgrade
 paths (in `docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row): **G3** fresh-context lessons reviewer (upgrade of G2) ·
 **G5** enforced escalation gating (upgrade of G6); **G4** crystallize-on-discovery stays parked.
 

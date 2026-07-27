@@ -780,3 +780,42 @@ D: commit messages (this plan's own commits, and any the executing cycle produce
 Commits: one per unit, `AI-Used: [claude]`, ff-only main, `targ check-full` green before each
 unit that touches Go-adjacent tooling (Unit 1's harness is Python, not Go — `targ` does not
 gate it; Units 0, 3-5 touch no Go source at all).
+
+## Outcome (2026-07-27, post-hoc — the plan body above is left as the historical record of what was intended and is not rewritten)
+
+The premise behind Units 1–3 — that the existing four-marker Step-7 audit is structurally
+unable to surface certain findings, which was this plan's whole justification for a
+seven-marker second pass — was **refuted by measurement**. A hand-read of the RED (unmodified
+audit) loaded arm found the *unmodified* text already surfacing both target findings and
+routing them to new vault notes in 6/10 and 10/10 of trials, using nothing but its own
+pre-existing "unmapped items are reversal handoffs for the closing learn" instruction. A
+separate defect compounded the original scorer-based measurement: the mechanical scorer's
+keyword/remedy vocabulary was drawn from the treatment text's own prescribed wording and had
+never been validated against the control's native idiom, so the scorer-reported gap between
+RED and GREEN could not distinguish a real behaviour change from adoption of the treatment's
+wording. Full figures: `dev/eval/LEDGER.md#687-surprise-harvest`; root-cause detail in vault
+notes 541 (scorer vocabulary aligned to treatment, not control) and 542 (marker-list silence
+is not agent blindness — the reasoning error behind the original "structurally cannot reach"
+claim).
+
+**What stands:** Unit 1's probe harness (`dev/eval/cumulative/please_step7_probe/`,
+`run_probe.py`, the self-contained `testdata/fixture_dedup_cycle/` fixture) and its corpus
+gate (the mandatory pre-flight check that a discriminator's keyword regex actually matches
+something in the fixture before any trial spends money) are sound, reusable eval
+infrastructure independent of this plan's premise — they correctly measured what they were
+built to measure. Unit 0's marker-set coverage analysis (widening S3 to cover a recurring
+cross-cycle signal, and S4 to cover a project health/CI baseline) stands as a valid piece of
+static author-side analysis, even though the S1–S7 marker set it widened was not shipped.
+
+**What was cut:** the GREEN edit Unit 3 drafted for `agent-instructions/skills/please/SKILL.md`
+Step 7 — a ~42-line insertion carrying the full seven-marker enumeration, the four-way
+counterfactual classification, the two-remedy ladder, and a closing-report table — was cut
+down to a ~10-line addition once the larger mechanism's premise was refuted. What survived:
+asking which existing artifact should have surfaced a captured lesson, and rewording a stale
+vault note rather than duplicating it (amend-beats-write). That small addition is staged and
+uncommitted in `agent-instructions/skills/please/SKILL.md` today, kept as an unvalidated
+addition — no measurement in the LEDGER row above validates it specifically.
+
+See `dev/eval/LEDGER.md#687-surprise-harvest` for the full measurement and its numbers, and
+vault notes 541/542 for the two root causes (scorer-vocabulary bias; the "trigger-list silence
+implies the procedure can't reach it" reasoning error).
