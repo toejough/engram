@@ -17,6 +17,7 @@ a strict whitelist (Gate B FIX 1), and the claude cwd is isolation-clean (Task 1
 sweep can't pollute the recency channel with operator-global memory.
 """
 import glob
+import importlib.util
 import json
 import os
 import sys
@@ -25,7 +26,24 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-import score
+
+
+def _load_sibling(name):
+    """Load a sibling module under a path-unique name.
+
+    A bare `import score` picks whichever score.py landed in sys.modules first. Under
+    `pytest dev/eval/` that is dev/eval/cumulative/score.py, so all 23 assertions here failed with
+    AttributeError while `pytest <this file>` alone passed — the suite was only ever green
+    file-by-file. Loading by explicit path is order-independent.
+    """
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{name}.py")
+    spec = importlib.util.spec_from_file_location(f"recency_value_{name}", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+score = _load_sibling("score")
 import recency_value as rv
 
 GOLDEN = os.path.abspath(os.path.join(
