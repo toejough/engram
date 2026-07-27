@@ -3,7 +3,7 @@
 **Charter:** one unified account of what engram is and is not proven to do. This is the single place
 to check a claim's status — proven, refuted, unmeasured, or superseded by a later measurement — instead
 of tracking several distinct per-harness docs that can silently rot out of sync with each other.
-**Updating this ledger is part of every eval's definition-of-done.** ROADMAP and FEATURES cite rows
+**Updating this ledger is part of every eval's definition-of-done.** ROADMAP and the openspec specs cite rows
 here (`dev/eval/LEDGER.md#<slug>`); they never restate a figure inline.
 
 **Row unit:** one tested claim/capability. **Verdict vocabulary (exactly four values):**

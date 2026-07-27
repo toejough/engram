@@ -67,6 +67,12 @@ text (e.g. "see the postscript for details") are unreliable — the referenced
 content may not be read in the target's actual deployed context; prefer
 inlining the content a skill needs directly in its own prose.
 
+### OpenSpec
+A spec-driven development framework (Fission-AI). The `openspec/specs/` tree in
+this repository is the primary behavior record (backfilled 2026-07-27): one
+specification per shipped capability, validated by `openspec validate --specs --strict`.
+Behavior conclusions graduate into `openspec/specs/<id>/spec.md` via the `/opsx:` commands.
+
 ### reversal (capture kind)
 A conclusion, design, or verdict that was presented (to the user, a review gate,
 or a committed plan) and later overturned — by the agent itself, a reviewer, or
