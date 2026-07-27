@@ -125,7 +125,7 @@ Expected: "OpenSpec structure created" + "Config: openspec/config.yaml (schema: 
 - [ ] **Step 3: GREEN — verify the root and integration**
 
 Run: `openspec list --specs` (expected: `No specs found.` — measured) and `git status --porcelain` (enumerate exactly what init generated).
-Expected generated set (verified by Gate A on a probe init 2026-07-27; re-verify against the actual output): `openspec/config.yaml`, empty `openspec/specs/` and `openspec/changes/archive/` dirs, 6 skills under `.claude/skills/openspec-*/`, 6 commands under `.claude/commands/opsx/` — no collision with the repo's tracked `.claude/skills/commit.md` or `.claude/commands/commit.md`. Note: git cannot commit empty directories, so `openspec/changes/archive/` will not appear in any commit — expected and harmless; the CLI degrades gracefully without it and recreates it when a change is first archived. Record the actual file list in the execution log for the commit and Gate B.
+Expected generated set (verified by Gate A on a probe init 2026-07-27; re-verify against the actual output): `openspec/config.yaml`, empty `openspec/specs/` and `openspec/changes/archive/` dirs, 6 skills under `.claude/skills/openspec-*/`, 6 commands under `.claude/commands/opsx/` — no collision with the repo's tracked `.claude/skills/commit.md` or `.claude/commands/commit.md`. Note: git cannot commit empty directories, so `openspec/changes/archive/` will not appear in any commit — expected and harmless; the CLI degrades gracefully without it and recreates it whenever a new change is created (re-tested by Gate A). Record the actual file list in the execution log for the commit and Gate B.
 
 - [ ] **Step 4: Fill `openspec/config.yaml` context**
 
