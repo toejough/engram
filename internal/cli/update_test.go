@@ -776,14 +776,15 @@ func TestWriteUpdateReport_VocabMigrationHint(t *testing.T) {
 		wantNotContains []string
 	}{
 		{
-			name:         "old-vocab-present",
-			hasOldVocab:  true,
-			wantContains: []string{"Upgrading", "README.md"},
+			name:            "old-vocab-present",
+			hasOldVocab:     true,
+			wantContains:    []string{"run `engram update --regen-vocab`"},
+			wantNotContains: []string{"Upgrading", "README.md"},
 		},
 		{
 			name:            "no-old-vocab",
 			hasOldVocab:     false,
-			wantNotContains: []string{"Upgrading"},
+			wantNotContains: []string{"old-format vocab"},
 		},
 	}
 
@@ -858,7 +859,7 @@ func TestWriteUpdateReport_VocabRegenReport(t *testing.T) {
 				"seeded 1 term(s)",
 				"reassigned 3 note(s)",
 			},
-			wantNotContains: []string{"see the Upgrading section", "would remove"},
+			wantNotContains: []string{"old-format vocab files found", "would remove"},
 		},
 		{
 			name: "dry-run-would-remove",
@@ -870,18 +871,18 @@ func TestWriteUpdateReport_VocabRegenReport(t *testing.T) {
 				VocabRegenTermsSeeded:     1,
 			},
 			wantContains:    []string{"[dry-run] update --regen-vocab: would remove 2 old-format file(s)"},
-			wantNotContains: []string{"see the Upgrading section", "removed 2"},
+			wantNotContains: []string{"old-format vocab files found", "removed 2"},
 		},
 		{
 			name:            "nothing-to-regenerate",
 			report:          update.Report{VocabRegenRan: true},
 			wantContains:    []string{"update --regen-vocab: nothing to regenerate"},
-			wantNotContains: []string{"see the Upgrading section"},
+			wantNotContains: []string{"old-format vocab files found"},
 		},
 		{
 			name:            "regen-ran-never-repeats-plain-notice",
 			report:          update.Report{VocabRegenRan: true, VaultHasOldVocabFiles: true},
-			wantNotContains: []string{"see the Upgrading section"},
+			wantNotContains: []string{"old-format vocab files found"},
 		},
 	}
 

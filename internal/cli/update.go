@@ -33,7 +33,8 @@ const (
 		"see the Upgrading section in README.md\n"
 	oldVocabFilePrefix   = "vocab."
 	oldVocabFileSuffix   = ".md"
-	vocabMigrationNotice = "old-format vocab files found — see the Upgrading section in README.md for migration steps\n"
+	vocabMigrationNotice = "old-format vocab files found — run `engram update --regen-vocab` to migrate them " +
+		"(preview with `engram update --regen-vocab --dry-run`)\n"
 )
 
 // unexported variables.
@@ -509,9 +510,9 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	return nil
 }
 
-// writeVocabMigrationHint prints a one-line pointer to the README
-// "Upgrading" section when the vault still holds pre-tags vocab files.
-// Silent otherwise — a vault that never had the old format never sees it.
+// writeVocabMigrationHint prints a one-line notice naming `engram update
+// --regen-vocab` when the vault still holds pre-tags vocab files. Silent
+// otherwise — a vault that never had the old format never sees it.
 func writeVocabMigrationHint(buffer *bytes.Buffer, report update.Report) {
 	if report.VocabRegenRan {
 		writeVocabRegenReport(buffer, report)
