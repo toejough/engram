@@ -131,4 +131,11 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Bracket the whole run, not just main()'s happy path: an early exit() still has to
+    # answer for the vault. The backstop for a write path the env vars do not cover — a
+    # subcommand resolving its own way, or a spawn site added later that skips isolated_env.
+    _vault_before = isolation.vault_fingerprint()
+    try:
+        main()
+    finally:
+        isolation.assert_vault_unchanged(_vault_before)
