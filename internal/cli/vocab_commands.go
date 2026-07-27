@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -100,6 +101,11 @@ type VocabStatsArgs struct {
 type VocabStatsDeps struct {
 	ListMD   func(vault string) ([]string, error)
 	ReadFile func(path string) ([]byte, error)
+}
+
+// VocabTagDefinitionsArgs holds parsed flags for `engram vocab tag-definitions`.
+type VocabTagDefinitionsArgs struct {
+	Vault string `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll
 }
 
 // RunVocabBootstrap mints a bare-vocab-tagged definition fact note per seed
@@ -288,6 +294,16 @@ func RunVocabStats(args VocabStatsArgs, deps VocabStatsDeps, stdout io.Writer) e
 		vocabVersion, refitPending, refitReason, qaPairs)
 
 	return nil
+}
+
+// RunVocabTagDefinitions adds the missing vocab/<term> self-tag to every
+// existing definition note that currently carries only the bare vocab marker.
+// It is idempotent: a second run reports "already present" for all definitions
+// and makes no changes. The family note (slug vocab-definition) is skipped and
+// reported as such. No sidecars are touched — vocab tags are not content-hash
+// inputs, so a tags-only rewrite does not stale a sidecar.
+func RunVocabTagDefinitions(ctx context.Context, args VocabTagDefinitionsArgs, deps VocabDeps, stdout io.Writer) error {
+	return runVocabTagDefinitions(ctx, args.Vault, deps, stdout)
 }
 
 // unexported constants.
@@ -717,10 +733,10 @@ func definitionNoteExistsForTerm(
 // factFields for a term's definition note (the brief's concrete shape:
 // situation "recalling what the <term> vocab term covers, or assigning vocab
 // terms", subject "the <term> vocab term", predicate "covers", object the
-// caller-supplied description). Tagged bare "vocab" only — never vocab/<term>
-// (a definition must never assign its own term). Luhmann is left unset:
-// callers (mintDefinitionNote for a fresh mint, renameDefinitionNote for a
-// rename) set it once the note's id is known.
+// caller-supplied description). Tagged bare vocab tag plus vocab/<term>
+// self-tag, appended in mintDefinitionNote via termFromDefinitionSlug. Luhmann
+// is left unset: callers (mintDefinitionNote for a fresh mint,
+// renameDefinitionNote for a rename) set it once the note's id is known.
 func definitionNoteFactFields(term, description, source string) factFields {
 	return factFields{
 		Situation: fmt.Sprintf("recalling what the %s vocab term covers, or assigning vocab terms", term),
@@ -970,8 +986,9 @@ func familyDefinitionFactFields(source string) factFields {
 		Subject:   "the vocab tag family",
 		Predicate: "covers",
 		Object: "the tags: convention for vocab terms: a definition note carries a bare vocab tag " +
-			"documenting one term's meaning, and a member note carries vocab/<term> tags assigning it " +
-			"to that term; this note's frontmatter carries the vault-wide vocab_version",
+			"and its own vocab/<term> self-tag documenting one term's meaning (the family note stays " +
+			"bare-only), and a member note carries vocab/<term> tags assigning it to that term; this " +
+			"note's frontmatter carries the vault-wide vocab_version",
 		Source: source,
 		Tier:   tierL2,
 		Tags:   []string{vocabDefinitionTag},
@@ -1192,6 +1209,12 @@ func mintDefinitionNote(
 	}
 
 	f.Luhmann = id
+
+	// For non-family definitions, append the self-tag (vocab/<term>) after bare marker.
+	if term, ok := termFromDefinitionSlug(slug); ok {
+		f.Tags = append(f.Tags, vocabTagPrefix+term)
+	}
+
 	path := learnPath(vault, id, slug, when)
 
 	writeErr := writeAndEmbedDefinitionNote(ctx, deps, path, f, vocabVersion, exemplars, when)
@@ -1330,6 +1353,66 @@ func printStatsReport(
 	} else {
 		_, _ = fmt.Fprintf(stdout, "qa round-2 gate: accumulating (%d/%d)\n", qaPairs, qaRound2MinPairs)
 	}
+}
+
+// processVocabDefinitionNote processes a single note for tag-definitions backfill.
+func processVocabDefinitionNote(name, vault string, deps VocabDeps, stdout io.Writer) {
+	notePath := filepath.Join(vault, name)
+
+	raw, readErr := deps.ReadFile(notePath)
+	if readErr != nil || len(raw) == 0 {
+		return
+	}
+
+	if !isVocabDefinitionNote(string(raw)) {
+		return
+	}
+
+	term, ok := termFromDefinitionSlug(slugFromNoteFilename(name))
+	if !ok {
+		if slugFromNoteFilename(name) == vocabFamilySlug {
+			_, _ = fmt.Fprintf(stdout, "%s: family note (skipped)\n", name)
+		} else {
+			_, _ = fmt.Fprintf(stdout, "%s: malformed definition slug (skipped)\n", name)
+		}
+
+		return
+	}
+
+	selfTag := vocabTagPrefix + term
+	frontmatter, body, ok := splitFrontmatterAndBody(string(raw))
+
+	if !ok {
+		_, _ = fmt.Fprintf(stdout, "%s: unparseable frontmatter (skipped)\n", name)
+
+		return
+	}
+
+	currentTags := parseTagsFromFrontmatter(frontmatter)
+	if slices.Contains(currentTags, selfTag) {
+		_, _ = fmt.Fprintf(stdout, "%s: already present\n", name)
+
+		return
+	}
+
+	updatedTags := make([]string, len(currentTags), len(currentTags)+1)
+	copy(updatedTags, currentTags)
+	updatedTags = append(updatedTags, selfTag)
+
+	updated := rewriteTagsFrontmatterSplit(frontmatter, body, updatedTags)
+
+	writeErr := deps.WriteFile(notePath, []byte(updated))
+	if writeErr != nil {
+		if deps.LogWarning != nil {
+			deps.LogWarning("vocab tag-definitions: writing %s: %v", notePath, writeErr)
+		}
+
+		_, _ = fmt.Fprintf(stdout, "%s: write failed (%v)\n", name, writeErr)
+
+		return
+	}
+
+	_, _ = fmt.Fprintf(stdout, "%s: added\n", name)
 }
 
 // readDefinitionNoteFields parses a definition note's minimal frontmatter
@@ -1558,6 +1641,28 @@ func rewriteVocabVersionKey(content, newVersion string) string {
 	frontmatter = insertYAMLBlock(frontmatter, renderVocabVersionLine(newVersion), insertAt)
 
 	return fmStart + frontmatter + fmEnd + body
+}
+
+// runVocabTagDefinitions is the implementation of RunVocabTagDefinitions,
+// factored for test injection.
+func runVocabTagDefinitions(_ context.Context, vault string, deps VocabDeps, stdout io.Writer) error {
+	names, listErr := deps.ListMD(vault)
+	if listErr != nil {
+		return fmt.Errorf("vocab tag-definitions: listing vault: %w", listErr)
+	}
+
+	unlock, lockErr := deps.Lock(vault)
+	if lockErr != nil {
+		return fmt.Errorf("vocab tag-definitions: acquiring lock: %w", lockErr)
+	}
+
+	defer unlock()
+
+	for _, name := range names {
+		processVocabDefinitionNote(name, vault, deps, stdout)
+	}
+
+	return nil
 }
 
 // slugFromNoteFilename extracts the <slug> segment from a note filename of

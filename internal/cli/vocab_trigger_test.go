@@ -210,6 +210,117 @@ func TestCheckAndPersistVocabRefitTrigger_NilDeps_NoOp(t *testing.T) {
 	g.Expect(written).To(BeFalse())
 }
 
+// TestCheckAndPersistVocabRefitTrigger_SelfTaggedDefinitionsLeaveTriggerMathUnchanged
+// verifies that the trigger stats collection produces identical results whether
+// definitions carry only the bare "vocab" tag or also carry self-tags (vocab/<term>).
+// This test runs the collection twice over the same fixture vault (member counts,
+// untagged counts, trigger outcomes) to ensure self-tags are display-only and
+// do not affect trigger logic.
+func TestCheckAndPersistVocabRefitTrigger_SelfTaggedDefinitionsLeaveTriggerMathUnchanged(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const (
+		taggedMemberContent   = "---\ntype: fact\ntags:\n    - vocab/retrieval-design\n---\n\nMember.\n"
+		untaggedMemberContent = "---\ntype: fact\n---\n\nUntagged.\n"
+		bareDefinitionContent = "---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines retrieval-design.\n"
+		selfTaggedContent     = "---\ntype: fact\ntags:\n    - vocab\n    - vocab/retrieval-design" +
+			"\n---\n\nDefines retrieval-design.\n"
+		familyNoteContent = "---\ntype: fact\ntags:\n    - vocab\nvocab_version: \"1.0\"\n---\n\nFamily.\n"
+	)
+
+	now := time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC)
+
+	// First pass: bare-only definitions
+	{
+		files1 := map[string][]byte{
+			"/vault/1.2026-07-10.tagged-member.md":                     []byte(taggedMemberContent),
+			"/vault/2.2026-07-10.untagged-member.md":                   []byte(untaggedMemberContent),
+			"/vault/3.2026-07-10.vocab-retrieval-design-definition.md": []byte(bareDefinitionContent),
+			"/vault/4.2026-07-10.vocab-definition.md":                  []byte(familyNoteContent),
+		}
+
+		var written1 []byte
+
+		cli.ExportCheckAndPersistVocabRefitTrigger(
+			"/vault",
+			func(string) ([]string, error) {
+				return []string{
+					"1.2026-07-10.tagged-member.md",
+					"2.2026-07-10.untagged-member.md",
+					"3.2026-07-10.vocab-retrieval-design-definition.md",
+					"4.2026-07-10.vocab-definition.md",
+				}, nil
+			},
+			func(path string) ([]byte, error) {
+				if data, ok := files1[path]; ok {
+					return data, nil
+				}
+
+				return nil, os.ErrNotExist
+			},
+			func(_ string, data []byte) error { written1 = data; return nil },
+			nil,
+			now,
+		)
+
+		g.Expect(written1).NotTo(BeNil())
+
+		var doc1 cli.ExportVocabCentroidsDoc
+		g.Expect(json.Unmarshal(written1, &doc1)).NotTo(HaveOccurred())
+
+		// Second pass: self-tagged definitions (all fields else identical)
+		files2 := map[string][]byte{
+			"/vault/1.2026-07-10.tagged-member.md":                     []byte(taggedMemberContent),
+			"/vault/2.2026-07-10.untagged-member.md":                   []byte(untaggedMemberContent),
+			"/vault/3.2026-07-10.vocab-retrieval-design-definition.md": []byte(selfTaggedContent),
+			"/vault/4.2026-07-10.vocab-definition.md":                  []byte(familyNoteContent),
+		}
+
+		var written2 []byte
+
+		cli.ExportCheckAndPersistVocabRefitTrigger(
+			"/vault",
+			func(string) ([]string, error) {
+				return []string{
+					"1.2026-07-10.tagged-member.md",
+					"2.2026-07-10.untagged-member.md",
+					"3.2026-07-10.vocab-retrieval-design-definition.md",
+					"4.2026-07-10.vocab-definition.md",
+				}, nil
+			},
+			func(path string) ([]byte, error) {
+				if data, ok := files2[path]; ok {
+					return data, nil
+				}
+
+				return nil, os.ErrNotExist
+			},
+			func(_ string, data []byte) error { written2 = data; return nil },
+			nil,
+			now,
+		)
+
+		g.Expect(written2).NotTo(BeNil())
+
+		var doc2 cli.ExportVocabCentroidsDoc
+		g.Expect(json.Unmarshal(written2, &doc2)).NotTo(HaveOccurred())
+
+		// Assert both runs produce identical results (member count, untagged count, trigger).
+		g.Expect(doc1.LastRefit).NotTo(BeNil())
+		g.Expect(doc2.LastRefit).NotTo(BeNil())
+
+		if doc1.LastRefit != nil && doc2.LastRefit != nil {
+			g.Expect(doc2.LastRefit.NoteCount).To(Equal(doc1.LastRefit.NoteCount),
+				"self-tagged definitions must not change member count")
+			g.Expect(doc2.RefitPending).To(Equal(doc1.RefitPending),
+				"self-tagged definitions must not change trigger outcome")
+			g.Expect(doc2.RefitReason).To(Equal(doc1.RefitReason),
+				"self-tagged definitions must not change trigger reason")
+		}
+	}
+}
+
 func TestCheckAndPersistVocabRefitTrigger_WriteError_LogsWarning(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

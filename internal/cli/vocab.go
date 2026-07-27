@@ -67,7 +67,7 @@ func AssignVocabTerms(bodyVec []float32, terms []TermWithVector, floor float32) 
 // call — never appended. When terms is empty, the vocab namespace is
 // removed; an emptied tags: key is removed entirely.
 func WriteVocabAssignment(content string, terms []string) string {
-	frontmatter, rest, ok := splitFrontmatterAndBody(content)
+	frontmatter, body, ok := splitFrontmatterAndBody(content)
 	if !ok {
 		return content
 	}
@@ -81,17 +81,7 @@ func WriteVocabAssignment(content string, terms []string) string {
 		merged = append(merged, vocabTagPrefix+term)
 	}
 
-	// Compute insertion index before removal shifts line positions: removal at
-	// insertAt places insertYAMLBlock at exactly the original tags: position
-	// (or appends at the end when tags: is absent).
-	insertAt := yamlKeyLineIndex(frontmatter, "tags") // -1 when absent → append
-	frontmatter = removeYAMLKey(frontmatter, "tags")  // removal at insertAt shifts followers into insertAt
-
-	if len(merged) > 0 {
-		frontmatter = insertYAMLBlock(frontmatter, renderTagsBlock(merged), insertAt)
-	}
-
-	return fmStart + frontmatter + fmEnd + rest
+	return rewriteTagsFrontmatterSplit(frontmatter, body, merged)
 }
 
 // unexported constants.
@@ -305,6 +295,24 @@ func renderTagsBlock(tags []string) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// rewriteTagsFrontmatterSplit rewrites a note's tags: frontmatter list to exactly tags,
+// given pre-split frontmatter and body parts. Preserves all other frontmatter and the
+// note body. Rewriting is not silent: an empty tags slice causes the tags: key to be
+// removed entirely.
+func rewriteTagsFrontmatterSplit(frontmatter, body string, tags []string) string {
+	// Compute insertion index before removal shifts line positions: removal at
+	// insertAt places insertYAMLBlock at exactly the original tags: position
+	// (or appends at the end when tags: is absent).
+	insertAt := yamlKeyLineIndex(frontmatter, "tags") // -1 when absent → append
+	frontmatter = removeYAMLKey(frontmatter, "tags")  // removal at insertAt shifts followers into insertAt
+
+	if len(tags) > 0 {
+		frontmatter = insertYAMLBlock(frontmatter, renderTagsBlock(tags), insertAt)
+	}
+
+	return fmStart + frontmatter + fmEnd + body
 }
 
 // sortTermScores sorts a termScore slice descending by score, with term name

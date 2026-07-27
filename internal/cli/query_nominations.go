@@ -22,10 +22,11 @@ const (
 // Fields use exported names for testability via the exported type alias.
 type AllVaultNotesMeta struct {
 	// TermIndex maps a vocab term name to the notes carrying that term
-	// (vocab/<term> tags). A bare-vocab-tagged definition note never carries a
-	// vocab/<term> tag on itself (loadVocabAssignmentBodyVector's exemption), so
-	// it is naturally absent from this map; qa-question notes are additionally
-	// excluded via isQueryExcludedKind.
+	// (vocab/<term> tags). Definitions now carry a display-only self-tag and CAN
+	// appear in TermIndex; exclusion from nomination is enforced downstream by
+	// the isVocabDefinitionNote filters in addNominationsForTerm and
+	// seedTermsFromTopNotes. Qa-question notes are additionally excluded via
+	// isQueryExcludedKind.
 	TermIndex map[string][]NominationEntry
 	// SupersedesInverse maps a superseded-note basename to the superseder entries,
 	// built from every note's supersedes: frontmatter block.
@@ -97,10 +98,14 @@ func addNominationsForTerm(
 		}
 
 		if isQueryExcludedKind(entry.Content) {
-			// Safety guard: the TermIndex builder excludes qa-question notes (a
-			// bare-vocab-tagged definition note is naturally absent — it never
-			// carries a vocab/<term> tag on itself), but double-check here so
-			// nomination is always safe to call.
+			// Safety guard: the TermIndex builder excludes qa-question notes, but
+			// double-check here so nomination is always safe to call.
+			continue
+		}
+
+		// Skip vocabulary definition notes unconditionally — definitions are
+		// filtered by the bare marker alone; their self-tags are display-only.
+		if isVocabDefinitionNote(entry.Content) {
 			continue
 		}
 
@@ -240,8 +245,8 @@ func applyTagNominationAndRideAlong(
 //     Truncation is not silent — the returned tally reports kept and dropped
 //     counts, emitted in the payload budget.
 //
-//   - A bare-vocab-tagged definition note is absent upstream from
-//     AllVaultNotesMeta.TermIndex (it carries no vocab/<term> tag on itself).
+//   - Definitions with self-tags may appear in TermIndex but are filtered
+//     downstream via isVocabDefinitionNote in addNominationsForTerm.
 //
 // Returns (nil, zero tally) when there is no vocab data (TermIndex is empty) or
 // no top-3 delivered notes — the no-op path for backward compatibility.
@@ -268,24 +273,7 @@ func buildTagNominations(
 		alreadyInResults[item.notePath] = true
 	}
 
-	nominations := make(map[int][]queryCandidateNote)
-	// nominated tracks paths already nominated to prevent cross-cluster duplicates.
-	nominated := make(map[string]bool)
-
-	for _, top := range top3 {
-		parsed := parseNoteQueryFrontmatter(top.content)
-
-		terms := vocabTermsFromTags(parsed.Tags)
-		if len(terms) == 0 {
-			continue
-		}
-
-		clusterID := noteClusterIDForPath(top.notePath, matchSet, report)
-
-		for _, term := range terms {
-			addNominationsForTerm(meta.TermIndex[term], clusterID, alreadyInResults, nominated, nominations)
-		}
-	}
+	nominations := seedTermsFromTopNotes(top3, meta, matchSet, report, alreadyInResults)
 
 	// Apply the per-cluster cap. Excess entries are dropped (not silently —
 	// the tally's added/dropped counts are emitted in the query budget as
@@ -345,7 +333,8 @@ func loadAllVaultNotesMeta(
 		terms := vocabTermsFromTags(meta.Tags)
 
 		// Populate TermIndex — qa-question notes are excluded via isQueryExcludedKind;
-		// a bare-vocab-tagged definition note is naturally absent (no vocab/<term> tag).
+		// definitions may carry self-tags and appear here, but are filtered
+		// downstream by isVocabDefinitionNote checks in nomination helpers.
 		if !isQueryExcludedKind(content) && len(terms) > 0 {
 			entry := NominationEntry{NotePath: notePath, Content: content}
 
@@ -424,6 +413,43 @@ func parseNoteQueryFrontmatter(content string) noteQueryFrontmatter {
 	}
 
 	return doc
+}
+
+// seedTermsFromTopNotes extracts nominations from the top-3 delivered notes' vocab tags.
+// It processes each note in top3, skips self-tagged definitions, and collects
+// nominations from their vocab term tags.
+func seedTermsFromTopNotes(
+	top3 []resolvedItem,
+	meta AllVaultNotesMeta,
+	matchSet matchedSet,
+	report clusterReport,
+	alreadyInResults map[string]bool,
+) map[int][]queryCandidateNote {
+	nominations := make(map[int][]queryCandidateNote)
+	nominated := make(map[string]bool)
+
+	for _, top := range top3 {
+		parsed := parseNoteQueryFrontmatter(top.content)
+
+		// Skip self-tagged definition notes; their presence in top-3 must not seed nominations.
+		// Definitions are filtered by the bare "vocab" marker alone.
+		if isVocabDefinitionNote(top.content) {
+			continue
+		}
+
+		terms := vocabTermsFromTags(parsed.Tags)
+		if len(terms) == 0 {
+			continue
+		}
+
+		clusterID := noteClusterIDForPath(top.notePath, matchSet, report)
+
+		for _, term := range terms {
+			addNominationsForTerm(meta.TermIndex[term], clusterID, alreadyInResults, nominated, nominations)
+		}
+	}
+
+	return nominations
 }
 
 // topDeliveredNotes returns the first n non-chunk, non-recent, non-ride_along

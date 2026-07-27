@@ -335,6 +335,65 @@ func TestEnsureVocabFamilyNote_MintFailureReturnsFalse(t *testing.T) {
 	g.Expect(minted).To(BeFalse(), "a failed family note mint must report false, never a false 'minted'")
 }
 
+// TestEnsureVocabFamilyNote_StaysBareOnly verifies that the family note
+// (slug vocab-definition) is minted with tags: [vocab] only, no self-tag.
+func TestEnsureVocabFamilyNote_StaysBareOnly(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := "/vault"
+	names := []string{}
+	written := map[string][]byte{}
+
+	deps := cli.VocabDeps{
+		Lock: func(string) (func(), error) {
+			return func() {}, nil
+		},
+		ListMD: func(string) ([]string, error) { return names, nil },
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := written[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile: func(path string, data []byte) error {
+			written[path] = data
+
+			return nil
+		},
+		LogWarning: func(string, ...any) {},
+		Now:        func() time.Time { return time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC) },
+	}
+
+	minted := cli.ExportEnsureVocabFamilyNote(context.Background(), deps, vault, &names, "1.0", deps.Now(), "test-site")
+	g.Expect(minted).To(BeTrue())
+
+	// Verify exactly one file was written
+	g.Expect(written).To(HaveLen(1))
+
+	// Extract the written content
+	var content []byte
+	for _, data := range written {
+		content = data
+	}
+
+	// Parse the frontmatter and verify tags: [vocab] only
+	frontmatter, ok := cli.ExportSplitFrontmatter(content)
+	g.Expect(ok).To(BeTrue())
+
+	var doc struct {
+		Tags []string `yaml:"tags"`
+	}
+
+	err := yaml.Unmarshal(frontmatter, &doc)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(doc.Tags).To(Equal([]string{"vocab"}),
+		"family note must carry [vocab] only, no self-tag")
+}
+
 // TestExtractNoteVocabTags_TypeFieldIsIrrelevant verifies that a note with
 // type: vocab in its frontmatter but ordinary tags: [vocab/foo] IS extracted
 // as a member note — extractNoteVocabTags no longer sniffs the legacy type:
@@ -723,6 +782,70 @@ func TestMemberScan_FilenamePrefixNoLongerSpecial(t *testing.T) {
 			"(isQAQuestionFilename)")
 }
 
+// ── Coverage: definition self-tags (Group 2) ────────────────────────────────
+
+// TestMintDefinitionNote_SelfTagOrder verifies that mintDefinitionNote writes
+// a definition note with tags: [vocab, vocab/<term>] in that exact order
+// (bare marker first, self-tag appended).
+func TestMintDefinitionNote_SelfTagOrder(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := "/vault"
+	names := []string{}
+	written := map[string][]byte{}
+
+	deps := cli.VocabDeps{
+		Lock: func(string) (func(), error) {
+			return func() {}, nil
+		},
+		ListMD: func(string) ([]string, error) { return names, nil },
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := written[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile: func(path string, data []byte) error {
+			written[path] = data
+
+			return nil
+		},
+		LogWarning: func(string, ...any) {},
+		Now:        func() time.Time { return time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC) },
+	}
+
+	f := cli.ExportDefinitionNoteFactFields("test-term", "A test term definition", "test source")
+	err := cli.ExportMintDefinitionNote(context.Background(), deps, vault, &names,
+		"vocab-test-term-definition", f, "", nil, deps.Now())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Verify exactly one file was written
+	g.Expect(written).To(HaveLen(1))
+
+	// Extract the written content
+	var content []byte
+	for _, data := range written {
+		content = data
+	}
+
+	// Parse the frontmatter and verify tags: [vocab, vocab/test-term]
+	frontmatter, ok := cli.ExportSplitFrontmatter(content)
+	g.Expect(ok).To(BeTrue())
+
+	var doc struct {
+		Tags []string `yaml:"tags"`
+	}
+
+	err = yaml.Unmarshal(frontmatter, &doc)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(doc.Tags).To(Equal([]string{"vocab", "vocab/test-term"}),
+		"definition note must carry [vocab, vocab/test-term] in that order")
+}
+
 // ── Coverage: newVocabDeps closures ──────────────────────────────────────────
 
 // TestNewVocabDeps_ClosuresCalled verifies that the ListMD, WriteFile, and
@@ -813,6 +936,44 @@ func TestPrintStatsReport_VerdictRefitPending(t *testing.T) {
 	cli.ExportPrintStatsReport(&buf, nil, nil, 10, 0, "1.0", true, "growth: 41 notes, 15 days", 0)
 
 	g.Expect(buf.String()).To(ContainSubstring("verdict: REFIT_PENDING (growth: 41 notes, 15 days)"))
+}
+
+// TestProcessVocabDefinitionNote_WriteError verifies that processVocabDefinitionNote
+// handles write failures gracefully, reporting "write failed" and not panicking
+// even when LogWarning is nil.
+func TestProcessVocabDefinitionNote_WriteError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := "/vault"
+	testErr := errors.New("disk full")
+	files := map[string][]byte{
+		"/vault/1.2026-07-10.vocab-test-definition.md": []byte(
+			"---\ntype: fact\ntags:\n    - vocab\n---\n\nTest definition.\n",
+		),
+	}
+
+	output := &bytes.Buffer{}
+
+	deps := cli.VocabDeps{
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile: func(string, []byte) error {
+			return testErr
+		},
+		LogWarning: nil, // Explicitly test the nil case
+	}
+
+	cli.ExportProcessVocabDefinitionNote("1.2026-07-10.vocab-test-definition.md", vault, deps, output)
+
+	outStr := output.String()
+	g.Expect(outStr).To(ContainSubstring("write failed"))
 }
 
 // TestRenderDefinitionNoteContent_NoDoublePeriod is TEST (c) from #678 Task
@@ -954,6 +1115,91 @@ func TestRetagAllNotesTwoPass_LoadMemberNoteVectors_SkipsDefinitionAndUnreadable
 
 	g.Expect(entry.MemberCount).To(Equal(1),
 		"only the one fully-readable member note may contribute to the centroid")
+}
+
+// TestRetagAllNotesTwoPass_PreservesDefinitionSelfTags verifies that when
+// retagAllNotesTwoPass is run over a vault containing self-tagged definition
+// notes (tags: [vocab, vocab/<term>]) plus member notes, the definition notes'
+// bytes remain byte-for-byte identical after the refit. Definition notes must
+// never be modified by the retagging operation.
+func TestRetagAllNotesTwoPass_PreservesDefinitionSelfTags(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Build closure-deps fixture with self-tagged definition notes and members.
+	definitionContent1 := "" +
+		"---\ntype: fact\ntags:\n    - vocab\n    - vocab/retrieval-design\n---\n\n" +
+		"retrieval-design is when you narrow vault searches to task-relevant regions.\n"
+	definitionContent2 := "" +
+		"---\ntype: fact\ntags:\n    - vocab\n    - vocab/token-budget\n---\n\n" +
+		"token-budget tracks payload size against context limits.\n"
+	memberContent1 := "" +
+		"---\ntype: feedback\nsituation: ctx\ntags:\n    - vocab/retrieval-design\n---\n\n" +
+		"Member of retrieval-design.\n"
+	memberContent2 := "" +
+		"---\ntype: feedback\nsituation: ctx\ntags:\n    - vocab/token-budget\n---\n\n" +
+		"Member of token-budget.\n"
+
+	files := map[string][]byte{
+		"/vault/210.2026-07-10.vocab-retrieval-design-definition.md": []byte(definitionContent1),
+		"/vault/211.2026-07-10.vocab-token-budget-definition.md":     []byte(definitionContent2),
+		"/vault/1aa.2026-07-10.member-retrieval.md":                  []byte(memberContent1),
+		"/vault/1ab.2026-07-10.member-token.md":                      []byte(memberContent2),
+	}
+
+	written := make(map[string][]byte)
+
+	deps := cli.VocabDeps{
+		Lock: func(string) (func(), error) { return func() {}, nil },
+		ListMD: func(string) ([]string, error) {
+			return []string{
+				"210.2026-07-10.vocab-retrieval-design-definition.md",
+				"211.2026-07-10.vocab-token-budget-definition.md",
+				"1aa.2026-07-10.member-retrieval.md",
+				"1ab.2026-07-10.member-token.md",
+			}, nil
+		},
+		ReadFile: func(path string) ([]byte, error) {
+			// Prefer written map so pass 2 sees pass-1 output.
+			if data, ok := written[path]; ok {
+				return data, nil
+			}
+
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile: func(path string, data []byte) error {
+			written[path] = data
+
+			return nil
+		},
+		WriteSidecar: func(string, []byte) error { return nil },
+		DeleteFile:   func(string) error { return nil },
+		LogWarning:   func(string, ...any) {},
+		Now:          func() time.Time { return time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC) },
+	}
+
+	terms := []cli.TermWithVector{
+		{Term: "retrieval-design", Vector: []float32{1, 0, 0}},
+		{Term: "token-budget", Vector: []float32{0, 1, 0}},
+	}
+
+	cli.ExportRetagAllNotesTwoPass(deps, "/vault", terms, 0.0, nil)
+
+	// Assert definition notes were never written, or if written, bytes are identical.
+	for defPath, originalBytes := range map[string][]byte{
+		"/vault/210.2026-07-10.vocab-retrieval-design-definition.md": []byte(definitionContent1),
+		"/vault/211.2026-07-10.vocab-token-budget-definition.md":     []byte(definitionContent2),
+	} {
+		if writtenBytes, wasWritten := written[defPath]; wasWritten {
+			g.Expect(writtenBytes).To(Equal(originalBytes),
+				fmt.Sprintf("definition note %s must not be rewritten; bytes must be identical", filepath.Base(defPath)))
+		}
+	}
 }
 
 // ── Task 4: retagAllNotesTwoPass seeds last_refit ────────────────────────────
@@ -3526,6 +3772,33 @@ func TestRunVocabStats_ReportsHubAndOrphan(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("scope-discipline"), "orphan term name must appear")
 }
 
+// TestRunVocabTagDefinitions_PublicAPI verifies that the public RunVocabTagDefinitions
+// function (with VocabTagDefinitionsArgs) works end-to-end through its closure, calling
+// the internal runVocabTagDefinitions implementation.
+func TestRunVocabTagDefinitions_PublicAPI(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	// Write test definition notes
+	bareDefinitionContent := "---\ntype: fact\ntags:\n    - vocab\n---\n\nTest definition.\n"
+	writeNote(t, vault, "1.2026-07-10.vocab-test-definition.md", bareDefinitionContent)
+
+	deps := cli.ExportNewVocabDeps(cli.ExportNewTestOsDeps())
+	args := cli.VocabTagDefinitionsArgs{Vault: vault}
+
+	var buf bytes.Buffer
+
+	err := cli.RunVocabTagDefinitions(context.Background(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("added"))
+	g.Expect(output).To(ContainSubstring("vocab-test-definition"))
+}
+
 // TestSlugFromNoteFilename table-tests the "<id>.<date>.<slug>.md" parser.
 func TestSlugFromNoteFilename(t *testing.T) {
 	t.Parallel()
@@ -3836,6 +4109,115 @@ func TestVocabFamilyNote_NeverEnumeratesTerms(t *testing.T) {
 		"the family note must never enumerate a term name")
 }
 
+// ── Coverage: backfill subcommand (Group 4) ─────────────────────────────────
+
+// TestVocabTagDefinitionsBackfill_AddsAndIsIdempotent verifies the backfill
+// subcommand adds missing self-tags to definitions and is idempotent.
+func TestVocabTagDefinitionsBackfill_AddsAndIsIdempotent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := "/vault"
+
+	// Bare-only definition (current state before backfill)
+	bareDefinitionContent := "---\ntype: fact\ntags:\n    - vocab\n---\n\nA test term.\n"
+	// Definition that already has the self-tag
+	selfTaggedContent := "---\ntype: fact\ntags:\n    - vocab\n    - vocab/already-tagged\n---\n\nAlready tagged.\n"
+	// Family note (should be skipped)
+	familyContent := "---\ntype: fact\ntags:\n    - vocab\nvocab_version: \"1.0\"\n---\n\nFamily note.\n"
+	// Non-definition note (should be skipped)
+	memberContent := "---\ntype: fact\ntags:\n    - other\n---\n\nMember note.\n"
+
+	files := map[string][]byte{
+		"/vault/1.2026-07-10.vocab-bare-term-definition.md":      []byte(bareDefinitionContent),
+		"/vault/2.2026-07-10.vocab-already-tagged-definition.md": []byte(selfTaggedContent),
+		"/vault/3.2026-07-10.vocab-definition.md":                []byte(familyContent),
+		"/vault/4.2026-07-10.member.md":                          []byte(memberContent),
+	}
+
+	written := map[string][]byte{}
+	output := &bytes.Buffer{}
+
+	// Call-counting stubs for the no-re-embed guard
+	sidecarWriteCount := 0
+	embedderCallCount := 0
+
+	deps := cli.VocabDeps{
+		Lock: func(string) (func(), error) {
+			return func() {}, nil
+		},
+		ListMD: func(string) ([]string, error) {
+			return []string{
+				"1.2026-07-10.vocab-bare-term-definition.md",
+				"2.2026-07-10.vocab-already-tagged-definition.md",
+				"3.2026-07-10.vocab-definition.md",
+				"4.2026-07-10.member.md",
+			}, nil
+		},
+		ReadFile: func(path string) ([]byte, error) {
+			if data, ok := files[path]; ok {
+				return data, nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+		WriteFile: func(path string, data []byte) error {
+			written[path] = data
+			files[path] = data // Update for second run
+
+			return nil
+		},
+		WriteSidecar: func(_ string, _ []byte) error {
+			sidecarWriteCount++
+			return nil
+		},
+		Embedder:   &testEmbedder{callCount: &embedderCallCount},
+		LogWarning: func(string, ...any) {},
+		Now:        func() time.Time { return time.Date(2026, 7, 27, 0, 0, 0, 0, time.UTC) },
+	}
+
+	// First run: should add self-tags
+	err := cli.ExportRunVocabTagDefinitions(context.Background(), vault, deps, output)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output1 := output.String()
+	g.Expect(output1).To(ContainSubstring("added"), "first run should report added self-tags")
+	g.Expect(output1).To(ContainSubstring("bare-term"), "should process bare-term definition")
+	g.Expect(output1).To(ContainSubstring("family"), "should report family note as skipped")
+
+	// No-re-embed guard: backfill should not trigger sidecar writes or embedding
+	g.Expect(sidecarWriteCount).To(Equal(0), "backfill must not create sidecars — self-tags are non-semantic")
+	g.Expect(embedderCallCount).To(Equal(0), "backfill must not invoke the embedder")
+
+	// Verify the bare-term definition was written with self-tag
+	g.Expect(written).To(HaveKey("/vault/1.2026-07-10.vocab-bare-term-definition.md"))
+	updatedContent := written["/vault/1.2026-07-10.vocab-bare-term-definition.md"]
+	frontmatter, ok := cli.ExportSplitFrontmatter(updatedContent)
+
+	g.Expect(ok).To(BeTrue())
+
+	var doc struct {
+		Tags []string `yaml:"tags"`
+	}
+
+	err = yaml.Unmarshal(frontmatter, &doc)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(doc.Tags).To(Equal([]string{"vocab", "vocab/bare-term"}))
+
+	// Second run: should be idempotent (already-present everywhere)
+
+	written = make(map[string][]byte) // reset write tracking
+
+	output.Reset()
+	err = cli.ExportRunVocabTagDefinitions(context.Background(), vault, deps, output)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output2 := output.String()
+	g.Expect(output2).To(ContainSubstring("already present"), "second run should report already-present")
+	g.Expect(written).To(BeEmpty(), "second run should not write anything")
+}
+
 // TestWriteVocabVersionToFamilyNote_ListMDError_ReturnsWrappedError covers the
 // listMD-error branch.
 func TestWriteVocabVersionToFamilyNote_ListMDError_ReturnsWrappedError(t *testing.T) {
@@ -3923,6 +4305,24 @@ func (f *fakeEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
 }
 
 func (f *fakeEmbedder) ModelID() string { return "fake-v1" }
+
+// testEmbedder is a no-op embedder that counts invocations.
+type testEmbedder struct {
+	callCount *int
+}
+
+func (te *testEmbedder) Dims() int {
+	return 384
+}
+
+func (te *testEmbedder) Embed(_ context.Context, _ string) ([]float32, error) {
+	*te.callCount++
+	return make([]float32, 384), nil // Return a dummy 384-dim vector
+}
+
+func (te *testEmbedder) ModelID() string {
+	return "test-model"
+}
 
 // testNotFoundError is a stub os.ErrNotExist-compatible error for test fakes.
 type testNotFoundError struct {

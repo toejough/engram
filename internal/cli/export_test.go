@@ -52,6 +52,7 @@ var (
 	ExportCollectTriggerVaultStats         = collectTriggerVaultStats
 	ExportCountQAPairs                     = countQAPairs
 	ExportDefaultRecencyParams             = defaultRecencyParams
+	ExportDefinitionNoteFactFields         = definitionNoteFactFields
 	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
 	ExportExtractLuhmannFromFilename       = extractLuhmannFromFilename
@@ -71,6 +72,7 @@ var (
 	ExportLoadTermVectors                  = loadTermVectors
 	ExportMarshalFrontmatter               = marshalFrontmatter
 	ExportMaxTurnBySource                  = maxTurnBySource
+	ExportMintDefinitionNote               = mintDefinitionNote
 	ExportMostRecentlyUsedNoteItems        = mostRecentlyUsedNoteItems
 	ExportNewActivateDeps                  = newActivateDeps
 	ExportNewAmendDeps                     = newAmendDeps
@@ -91,6 +93,7 @@ var (
 	ExportPrintLinkExamples           = printLinkExamples
 	ExportPrintNoteExamples           = printNoteExamples
 	ExportPrintStatsReport            = printStatsReport
+	ExportProcessVocabDefinitionNote  = processVocabDefinitionNote
 	ExportRecencyMultiplier           = recencyMultiplier
 	ExportRegenVocab                  = regenVocab
 	ExportRenderDefinitionNoteContent = renderDefinitionNoteContent
@@ -106,6 +109,7 @@ var (
 	ExportRunAmend                    = RunAmend
 	ExportRunLearn                    = runLearn
 	ExportRunUpdate                   = runUpdate
+	ExportRunVocabTagDefinitions      = runVocabTagDefinitions
 	ExportScanNonVocabNotes           = scanNonVocabNotes
 	ExportSelectStates                = selectStates
 	ExportShouldEmbed                 = func(args EmbedApplyArgs, state embed.State) bool {
@@ -113,6 +117,7 @@ var (
 	}
 	ExportShouldSkipDir                 = shouldSkipDir
 	ExportSlugFromNoteFilename          = slugFromNoteFilename
+	ExportSplitFrontmatter              = splitFrontmatter
 	ExportStripLegacyVocabChannel       = stripLegacyVocabChannel
 	ExportTermFromDefinitionSlug        = termFromDefinitionSlug
 	ExportTildify                       = tildify

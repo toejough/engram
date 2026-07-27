@@ -298,6 +298,12 @@ func vocabTargets(
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 				errHandler(RunVocabRefit(withLog(ctx), a, newVocabDeps(deps), deps.Stdout))
 			}).Name("refit").Description("Apply a refit plan: renames, removals, additions, re-tag, major version bump"),
+			targ.Targ(func(ctx context.Context, a VocabTagDefinitionsArgs) {
+				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				errHandler(RunVocabTagDefinitions(withLog(ctx), a, newVocabDeps(deps), deps.Stdout))
+			}).Name("tag-definitions").Description(
+				"Add missing vocab/<term> self-tags to existing definition notes (idempotent)",
+			),
 		),
 	}
 }

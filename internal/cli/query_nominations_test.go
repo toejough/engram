@@ -290,6 +290,45 @@ func TestBuildTagNominations_CapExceeded_ReportsAddedAndDropped(t *testing.T) {
 	g.Expect(total).To(Equal(expectedAdded), "the map must carry exactly the capped nominations")
 }
 
+// TestBuildTagNominations_DefinitionNoteExcludedFromNomination supersedes the
+// retired TestBuildTagNominations_VocabDefinitionNoteNotExcluded (#678-era:
+// definitions were never excluded). The vocab-definition-self-tags change
+// excludes definitions from nomination pools; this test drives the NOMINEE side
+// with a bare-only definition entry forced into TermIndex — the sibling
+// _NomineeSpec/_SeedSpec tests cover the self-tagged cases.
+func TestBuildTagNominations_DefinitionNoteExcludedFromNomination(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	top3Content := "---\ntype: fact\nsituation: ctx\ntags:\n    - vocab/eval-methodology\n---\n\nbody A\n"
+	resolved := []cli.ExportResolvedItem{
+		cli.ExportNewNoteResolvedItemWithContentAndProvenances(
+			"1aa.top-note.md", top3Content, 0.9, []string{"direct"},
+		),
+	}
+
+	const definitionPath = "211.2026-07-10.vocab-eval-methodology-definition.md"
+
+	definitionContent := "---\ntype: fact\ntags:\n    - vocab\n---\n\nhow we evaluate.\n"
+	meta := cli.ExportNewVaultNotesMetaWithTerms(map[string][]cli.ExportNominationEntry{
+		"eval-methodology": {{NotePath: definitionPath, Content: definitionContent}},
+	})
+
+	noms := cli.ExportBuildTagNominationsUnit(resolved, meta)
+
+	var foundPaths []string
+
+	for _, candidates := range noms {
+		for _, c := range candidates {
+			foundPaths = append(foundPaths, c.Path)
+		}
+	}
+
+	g.Expect(foundPaths).NotTo(ContainElement(definitionPath),
+		"definition notes must be excluded from tag-nomination pools per the spec change")
+}
+
 // TestBuildTagNominations_EmptyMeta_Nil verifies that buildTagNominations returns
 // nil when there is no vocab data — backward compat no-op.
 func TestBuildTagNominations_EmptyMeta_Nil(t *testing.T) {
@@ -380,6 +419,57 @@ func TestBuildTagNominations_NoTop3Notes_Nil(t *testing.T) {
 	g.Expect(noms).To(BeNil())
 }
 
+// TestBuildTagNominations_SelfTaggedDefinitionNotNominated_NomineeSpec is the RED
+// test for nominee-side filtering: a self-tagged definition note (tags: [vocab,
+// vocab/<term>]) sharing a vocab term with a cluster's top-3 delivered notes MUST
+// NOT appear in the cluster's nomination candidates. The definition should be
+// filtered out even though it carries the term tag, because definitions are
+// display affordances only and must not participate in nomination pools.
+func TestBuildTagNominations_SelfTaggedDefinitionNotNominated_NomineeSpec(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Top-3 delivered note with tags: [vocab/eval-methodology].
+	top3Content := "---\ntype: fact\nsituation: ctx\ntags:\n    - vocab/eval-methodology\n---\n\nbody A\n"
+	resolved := []cli.ExportResolvedItem{
+		cli.ExportNewNoteResolvedItemWithContentAndProvenances(
+			"1aa.top-note.md", top3Content, 0.9, []string{"direct"},
+		),
+	}
+
+	// The term's definition note: carries both bare vocab marker and self-tag.
+	definitionContent := "" +
+		"---\ntype: fact\ntags:\n    - vocab\n    - vocab/eval-methodology\n---\n\n" +
+		"evaluation methodology means...\n"
+	// Member note also tagged with the term.
+	memberContent := "" +
+		"---\ntype: feedback\nsituation: x\ntags:\n    - vocab/eval-methodology\n---\n\n" +
+		"member body\n"
+
+	meta := cli.ExportNewVaultNotesMetaWithTerms(map[string][]cli.ExportNominationEntry{
+		"eval-methodology": {
+			{NotePath: "vocab-definition.md", Content: definitionContent},
+			{NotePath: "member.md", Content: memberContent},
+		},
+	})
+
+	noms := cli.ExportBuildTagNominationsUnit(resolved, meta)
+
+	var foundPaths []string
+
+	for _, candidates := range noms {
+		for _, c := range candidates {
+			foundPaths = append(foundPaths, c.Path)
+		}
+	}
+
+	g.Expect(foundPaths).To(ContainElement("member.md"),
+		"regular members with the term must still be nominated")
+	g.Expect(foundPaths).NotTo(ContainElement("vocab-definition.md"),
+		"self-tagged definition notes must not be nominated (nominee-side filter)")
+}
+
 // TestBuildTagNominations_TagSharedNote_AppearsInNominations is the RED test for
 // tag-match nomination: a note absent from the ranked items but sharing a vocab
 // term with a top-3 note must appear in the nomination result.
@@ -419,51 +509,52 @@ func TestBuildTagNominations_TagSharedNote_AppearsInNominations(t *testing.T) {
 		"a note sharing a vocab term with a top-3 note must appear in nominations")
 }
 
-// TestBuildTagNominations_VocabDefinitionNoteNotExcluded verifies that a
-// bare-vocab-tagged definition note manually present in the term index (the
-// natural gate never puts one there — a definition never carries a
-// vocab/<term> tag on itself — this test drives addNominationsForTerm's own
-// isQueryExcludedKind safety-net check directly) is no longer filtered out.
-// Inverse of the retired TestBuildTagNominations_VocabNoteExcluded (#678 Task
-// 6: the vocab type-based query exclusion is retired; definitions are
-// ordinary recallable notes).
-func TestBuildTagNominations_VocabDefinitionNoteNotExcluded(t *testing.T) {
+// TestBuildTagNominations_TopThreeDefinition_NoSeedTerms_SeedSpec is the RED test
+// for seed-side filtering: when a self-tagged definition note (tags: [vocab,
+// vocab/<term>]) itself appears in the cluster's top-3 delivered notes, its
+// vocab/<term> self-tag MUST NOT contribute seed terms for nomination. The
+// definition's presence in top-3 should not nominate other members of the same
+// term family.
+func TestBuildTagNominations_TopThreeDefinition_NoSeedTerms_SeedSpec(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	top3Content := "---\ntype: fact\nsituation: ctx\ntags:\n    - vocab/eval-methodology\n---\n\nbody A\n"
+	// A self-tagged definition note in the top-3 delivered notes.
+	definitionContent := "" +
+		"---\ntype: fact\ntags:\n    - vocab\n    - vocab/eval-methodology\n---\n\n" +
+		"evaluation methodology means...\n"
+	// A regular note with the same term (not in resolved, should be nominated normally).
+	memberContent := "" +
+		"---\ntype: feedback\nsituation: x\ntags:\n    - vocab/eval-methodology\n---\n\n" +
+		"member body\n"
+
 	resolved := []cli.ExportResolvedItem{
 		cli.ExportNewNoteResolvedItemWithContentAndProvenances(
-			"1aa.top-note.md", top3Content, 0.9, []string{"direct"},
+			"vocab-definition.md", definitionContent, 0.9, []string{"direct"},
 		),
 	}
 
-	const definitionPath = "211.2026-07-10.vocab-eval-methodology-definition.md"
-
-	definitionContent := "---\ntype: fact\ntags:\n    - vocab\n---\n\nhow we evaluate.\n"
 	meta := cli.ExportNewVaultNotesMetaWithTerms(map[string][]cli.ExportNominationEntry{
-		"eval-methodology": {{NotePath: definitionPath, Content: definitionContent}},
+		"eval-methodology": {
+			{NotePath: "member.md", Content: memberContent},
+		},
 	})
 
 	noms := cli.ExportBuildTagNominationsUnit(resolved, meta)
 
-	var foundPaths []string
-
-	for _, candidates := range noms {
-		for _, c := range candidates {
-			foundPaths = append(foundPaths, c.Path)
-		}
-	}
-
-	g.Expect(foundPaths).To(ContainElement(definitionPath),
-		"a bare-vocab-tagged definition note is no longer excluded from nomination")
+	// When the definition is in top-3, it should NOT seed any nominations.
+	// The nominations map should be empty (or nil) because the definition's
+	// vocab/eval-methodology tag should not be used to seed the nomination.
+	g.Expect(noms).To(BeNil(),
+		"a self-tagged definition in top-3 must not contribute seed terms; no nominations should result")
 }
 
 // TestLoadAllVaultNotesMeta_BareVocabTag_ContributesNoTerms verifies that a note
 // tagged with bare "vocab" definition marker contributes NO terms to TermIndex
-// but is still nominatable (appears in ContentByBasename, not filtered out by
-// this task's code).
+// but is loaded into ContentByBasename (for other purposes like ride-along).
+// Per the vocab-definition-self-tags spec change, definitions are no longer
+// nominated to tag-nomination pools despite being ordinary recallable notes.
 func TestLoadAllVaultNotesMeta_BareVocabTag_ContributesNoTerms(t *testing.T) {
 	t.Parallel()
 
