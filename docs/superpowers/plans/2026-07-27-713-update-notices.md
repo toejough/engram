@@ -320,7 +320,7 @@ grep -rn "Upgrading" --include="*.go" --include="*.md" . \
   | grep -v "\.claude/worktrees\|docs/superpowers/plans/\|docs/ROADMAP\.md\|dev/eval/LEDGER\.md"
 ```
 
-Expected output after Tasks 1-4: EXACTLY the four proposed-follow-up rows (`docs/README.md:14`, `docs/GLOSSARY.md:670`, `docs/FEATURES.md:200`, `docs/architecture/adr.md:684`) — each awaiting Joe's yes/no below — and nothing else. (Pre-Task-4, the same command additionally shows README.md:42 and the update.go/update_test.go hits Tasks 1-3 remove, including the test doc comment at `update_test.go:428` handled in Task 3 Step 4.) Any other hit is a missed scrub: stop and report it.
+Expected output after Tasks 1-4: the four proposed-follow-up rows (`docs/README.md:14`, `docs/GLOSSARY.md:670`, `docs/FEATURES.md:200`, `docs/architecture/adr.md:684`) — each awaiting Joe's yes/no below — plus the absence-pinning assertion literals Tasks 1-3 themselves added in `internal/cli/update_test.go` (`NotTo(ContainSubstring("Upgrading"))` / `wantNotContains: []string{"Upgrading", ...}` lines; plan-mandated pins that the notices never say "Upgrading", not pointers — flagged by the Task 3 executor). Nothing else. Any other hit is a missed scrub: stop and report it.
 
 - [ ] **Step 3: Commit.**
 
