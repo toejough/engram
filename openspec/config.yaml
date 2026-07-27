@@ -1,0 +1,21 @@
+schema: spec-driven
+
+context: |
+  Engram: persistent memory for LLM agents (Go, pure-Go no-CGO, DI-everywhere —
+  no direct os/http/sql calls in internal/, all I/O through injected interfaces).
+  Specs in openspec/specs/ are the PRIMARY behavior record, backfilled 2026-07-27
+  from docs/FEATURES.md; why lives in docs/architecture/adr.md (ADR-0001..0021),
+  measurements in dev/eval/LEDGER.md. Build/test/lint via targ (targ test,
+  targ check-full), binary install via go install ./cmd/engram.
+  Conventions: behavioral claims are verified against code before being written;
+  status language only in the voice the evidence supports.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
