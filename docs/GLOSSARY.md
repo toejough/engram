@@ -227,17 +227,16 @@ Three fields written to `vocab.centroids.json` by the write-time trigger check (
 
 ### vocab definition note
 The current representation of a vocab term (shipped 2026-07-10, #678, superseding the vocab term-note,
-vocab-index, and `Vocab:` line below): an ordinary bare-`vocab`-tagged fact note (`tags: [vocab]`,
-dash-slug naming). Two shapes: a **per-term definition** (`vocab-<term>-definition`, e.g.
+vocab-index, and `Vocab:` line below): an ordinary `vocab`-tagged fact note, dash-slug naming. Two shapes: a **per-term definition** (`vocab-<term>-definition`, e.g.
 `vocab-retrieval-design-definition`) whose `subject`/`predicate`/`object` state the term's meaning and
 whose body carries the refit-maintained exemplar list (the body IS the term's embedding text — a
-`.vec.json` sidecar is written on embed like any fact note); and one **family note**
-(`vocab-definition`) carrying `vocab_version` in frontmatter, whose object documents the tagging
+`.vec.json` sidecar is written on embed like any fact note), carrying `tags: [vocab, vocab/<term>]`. The bare marker is the definition discriminator; the self-tag (added 2026-07-27) connects a definition to its member cluster in tag-based views and is display-only — member counts, trigger math, and tag-nomination pools all exclude definitions via the bare marker. The second shape is the **family note**
+(`vocab-definition`), which carries `vocab_version` in frontmatter and `tags: [vocab]` only and whose object documents the tagging
 convention WITHOUT enumerating terms (an enumerated term list is the stale-index problem the migration
 retired). Minted by `engram vocab bootstrap`/`propose`/`refit`. Unlike the retired vocab
 term-note, a definition note is an ordinary recallable fact — no query exclusion (the vocab-kind
 exclusion was deleted with the migration). A member note's own vocab terms live in its `tags:` list as
-`vocab/<term>` entries (see `--tag`, below); a definition note never carries its own term tag. A member note with no qualifying term carries no `vocab/` tag — absence = untagged, counted by `engram vocab stats`. Plural:
+`vocab/<term>` entries (see `--tag`, below). A member note with no qualifying term carries no `vocab/` tag — absence = untagged, counted by `engram vocab stats`. Plural:
 **vocab definition notes**.
 
 ### vocab nomination

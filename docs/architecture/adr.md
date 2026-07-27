@@ -226,6 +226,8 @@ the relational-retrieval mechanism.
 
 **Representation update (2026-07-10, #678, per ADR-0019):** the fixed term set now lives as bare-`vocab`-tagged definition fact notes (`vocab-<term>-definition`) and member terms as `tags: [vocab/<term>]`. The centroid-assignment and query-nomination mechanism is unchanged.
 
+**Representation update (2026-07-27, openspec change `vocab-definition-self-tags`):** per-term definition notes additionally carry their own `vocab/<term>` self-tag (display-only — connects each definition to its member cluster in tag-based views; the family note stays bare-`vocab`-only). Member semantics unchanged: assignment, stats/trigger math, and tag nomination all exclude definitions via the bare marker.
+
 **Context.** The wikilink graph (ADR-0007) is authored and walked by the binary, but resolves by
 basename against bare-Luhmann-id links — most edges never resolve (⚠ KNOWN G0/G5) — and even a
 healthy graph leaves open how a relational miss (a note topically related to the matched set but
