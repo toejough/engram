@@ -14,6 +14,10 @@ FIXTURES[kind] also carries the task prompt + the emergent conclusion C (for the
 import os
 import shutil
 import subprocess
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 
 # (slug, subject, predicate, object)
 _NOTES = {
@@ -69,8 +73,7 @@ FIXTURES = {
 
 
 def _learn(vault, slug, subj, pred, obj):
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = vault
+    env = isolation.engram_env(vault)
     subprocess.run(
         ["engram", "learn", "fact", "--slug", slug, "--position", "top",
          "--source", f"synth fixture: {slug}",

@@ -111,6 +111,42 @@ def test_assert_isolated_accepts_a_clean_trial(tmp_path):
     isolation.assert_isolated(env, cwd=str(cwd))  # must not raise
 
 
+def test_engram_env_sets_both_paths_and_defaults_chunks_to_the_sibling(tmp_path):
+    vault = str(tmp_path / "fixture-vault")
+
+    env = isolation.engram_env(vault, base={})
+
+    assert env["ENGRAM_VAULT_PATH"] == vault
+    assert env["ENGRAM_CHUNKS_DIR"] == vault + ".chunks"
+    assert os.path.isdir(env["ENGRAM_CHUNKS_DIR"])
+
+
+def test_engram_env_accepts_an_explicit_chunks_dir(tmp_path):
+    chunks = str(tmp_path / "elsewhere")
+
+    env = isolation.engram_env(str(tmp_path / "v"), chunks=chunks, base={})
+
+    assert env["ENGRAM_CHUNKS_DIR"] == chunks
+
+
+def test_engram_env_rejects_the_operators_real_vault(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    real = os.path.join(str(tmp_path), "engram", "vault")
+
+    with pytest.raises(isolation.IsolationError) as exc:
+        isolation.engram_env(real, base={})
+    assert "ENGRAM_VAULT_PATH" in str(exc.value)
+
+
+def test_assert_engram_isolated_ignores_claude_vars(tmp_path):
+    """A direct `engram` call has no CLAUDE_CONFIG_DIR or transcript dir — requiring them would
+    make the helper unusable for the fixture builders that only run the engram CLI."""
+    isolation.assert_engram_isolated({
+        "ENGRAM_VAULT_PATH": str(tmp_path / "v"),
+        "ENGRAM_CHUNKS_DIR": str(tmp_path / "c"),
+    })
+
+
 def test_vault_fingerprint_counts_notes_and_ignores_sidecars(tmp_path):
     vault = tmp_path / "vault"
     os.makedirs(vault)

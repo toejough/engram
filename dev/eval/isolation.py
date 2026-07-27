@@ -85,27 +85,55 @@ def _note_names(vault):
         return []
 
 
-def assert_isolated(env, cwd=None):
-    """Raise IsolationError unless env (and cwd, when given) keeps a trial off real memory."""
+def _assert_outside_data_dir(env, variables):
     data_dir = operator_data_dir()
-
-    if not env.get("CLAUDE_CONFIG_DIR"):
-        raise IsolationError(
-            "CLAUDE_CONFIG_DIR is unset — the trial would use the operator's real Claude config"
-        )
-
-    for var in ENGRAM_STATE_VARS:
+    for var in variables:
         value = env.get(var, "")
         if not value:
             raise IsolationError(
                 f"{var} is unset — engram would resolve it to the operator's real state under "
-                f"{data_dir}. Build the env with isolation.isolated_env()."
+                f"{data_dir}. Build the env with isolation.isolated_env() or engram_env()."
             )
         if _is_within(value, data_dir):
             raise IsolationError(
                 f"{var}={value} resolves to {os.path.realpath(value)}, inside the operator's "
                 f"engram data dir {data_dir}. Point it at a per-trial directory."
             )
+
+
+def assert_engram_isolated(env):
+    """The subset that applies to a direct `engram` CLI call — no claude -p, so no config dir or
+    transcript dir is in play, but the vault and the chunk index both still are.
+
+    A vault-only env is the #642 half-fix: `engram query` keeps ranking against the operator's
+    global chunk index, so a retrieval probe measures the operator's real memory competing with
+    its own fixture.
+    """
+    _assert_outside_data_dir(env, ("ENGRAM_VAULT_PATH", "ENGRAM_CHUNKS_DIR"))
+
+
+def engram_env(vault, chunks=None, base=None):
+    """Env for a direct `engram` CLI call from an eval harness.
+
+    chunks defaults to the `<vault>.chunks` sibling — the same convention harness.py already uses
+    when it promotes a chain's chunk index between apps.
+    """
+    env = dict(os.environ if base is None else base)
+    env["ENGRAM_VAULT_PATH"] = vault
+    env["ENGRAM_CHUNKS_DIR"] = chunks or os.path.abspath(vault) + ".chunks"
+    os.makedirs(env["ENGRAM_CHUNKS_DIR"], exist_ok=True)
+    assert_engram_isolated(env)
+    return env
+
+
+def assert_isolated(env, cwd=None):
+    """Raise IsolationError unless env (and cwd, when given) keeps a trial off real memory."""
+    if not env.get("CLAUDE_CONFIG_DIR"):
+        raise IsolationError(
+            "CLAUDE_CONFIG_DIR is unset — the trial would use the operator's real Claude config"
+        )
+
+    _assert_outside_data_dir(env, ENGRAM_STATE_VARS)
 
     if cwd is not None:
         marker = _ancestor_marker(cwd)

@@ -18,6 +18,10 @@ import re
 import shutil
 import subprocess
 import tempfile
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 
 SEED = 7
 
@@ -190,8 +194,7 @@ def seed_into(vault_path, variants):
     if os.path.realpath(vault_path) == os.path.realpath(real_vault()):
         raise RuntimeError(f"refusing to seed into the real vault: {vault_path}")
     os.makedirs(vault_path, exist_ok=True)
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = vault_path
+    env = isolation.engram_env(vault_path)
     for variant in variants:
         cmd = ["engram", "learn", variant["type"],
                "--slug", variant["slug"], "--position", "top",

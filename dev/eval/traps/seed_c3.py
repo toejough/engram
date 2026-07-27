@@ -7,6 +7,10 @@ CLI contract used by c4_idio.py) and RAISES on any non-zero exit — fail loud, 
 """
 import os
 import subprocess
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 
 SOURCE = "engram Go codebase convention"
 
@@ -43,8 +47,7 @@ def seed(vault_path):
     """Run `engram learn fact` for each C3 note into vault_path. Raise RuntimeError on any
     non-zero exit so a broken seed fails loud instead of silently leaving an empty vault."""
     os.makedirs(vault_path, exist_ok=True)
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = vault_path
+    env = isolation.engram_env(vault_path)
     for note in C3_NOTES:
         result = subprocess.run(
             ["engram", "learn", "fact",

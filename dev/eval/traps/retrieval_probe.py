@@ -11,6 +11,10 @@ import json
 import os
 import re
 import subprocess
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 
 # The phrases /recall would generate for each axis's task — Tier-1 runs the real multi-phrase
 # `engram query` with these (10 --phrase each). C3/C4i are the cfgload/Go convention framings;
@@ -93,8 +97,7 @@ def probe(vault_path, axis):
     cmd = ["engram", "query"]
     for phrase in phrases:
         cmd += ["--phrase", phrase]
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = vault_path
+    env = isolation.engram_env(vault_path)
     result = subprocess.run(cmd, env=env, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(

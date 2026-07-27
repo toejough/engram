@@ -15,8 +15,14 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 
+# `from qanchor_corpus import PAIRS` used to rely on being run with traps/ as cwd; the explicit
+# insert makes it work from anywhere, which is what the import check in dev/eval's suite needs.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 from qanchor_corpus import PAIRS
 
 ROOT = os.environ.get("TRAPS_ROOT", "/tmp/qanchor-eval")
@@ -32,8 +38,7 @@ def _split(note):
 
 
 def _learn(vault, slug, situation, lesson):
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = vault
+    env = isolation.engram_env(vault)
     subprocess.run(["engram", "learn", "fact", "--slug", slug, "--position", "top",
                     "--source", f"qanchor probe: {slug}", "--situation", situation,
                     "--subject", "the lesson", "--predicate", "states", "--object", lesson],
@@ -42,9 +47,7 @@ def _learn(vault, slug, situation, lesson):
 
 def _query_scores(vault, chunks, phrase, slugs):
     """Return {slug: score} for the given query phrase over the seeded vault."""
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = vault
-    env["ENGRAM_CHUNKS_DIR"] = chunks
+    env = isolation.engram_env(vault, chunks=chunks)
     r = subprocess.run(["engram", "query", "--lazy-chunks", "--phrase", phrase],
                        env=env, capture_output=True, text=True)
     scores = {}

@@ -19,6 +19,10 @@ The metric judges whether the answer reaches E (a conclusion, not a token) — u
 import os
 import shutil
 import subprocess
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 
 # Neutral recall trigger — invokes /recall and answers, but does NOT instruct the agent to
 # compose/synthesize (the recall skill itself never does). Used instead of wrun.RECALL_PREFIX
@@ -165,8 +169,7 @@ def build_ladder(depth, persist, dst, scatter=0):
 
 
 def _learn(vault, slug, subj, pred, obj):
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = vault
+    env = isolation.engram_env(vault)
     subprocess.run(
         ["engram", "learn", "fact", "--slug", slug, "--position", "top",
          "--source", f"compound fixture: {slug}",

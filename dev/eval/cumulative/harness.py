@@ -20,9 +20,11 @@ Usage:
   harness.py learn  (legacy only; real.full learns in-session — this mode remains for
       the cold/stub path which writes nothing)
 """
-import argparse, glob as _glob, json, os, re, subprocess, sys, time
+import argparse, glob as _glob, json, os, re, subprocess, sys, tempfile, time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 import score as scoremod
 
 # Single editable source of truth for the model registry — a new model is a one-line add (§1.5).
@@ -75,22 +77,39 @@ def loadj_str(txt):
     return best
 
 
+def _fallback_state_dir(vault, chunks):
+    """Scratch root for isolated_env's defaults.
+
+    Callers here usually supply their own vault and chunks (the harness promotes them between apps
+    in a chain) and those override the defaults, so this only has to be a writable dir outside the
+    operator's data dir. It matters for the cold path: `vault="none"` used to leave
+    ENGRAM_VAULT_PATH unset, which resolves to the operator's REAL vault. Now it gets a per-cell
+    one. ENGRAM_BIN_DIR is on PATH for every arm including cold, so engram was always reachable.
+    """
+    for supplied in (chunks, vault):
+        if supplied and supplied != "none":
+            return os.path.dirname(os.path.abspath(supplied))
+    return tempfile.mkdtemp(prefix="engram-eval-state-")
+
+
 def claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None, extra_env=None):
-    env = dict(os.environ)
-    env["CLAUDE_CONFIG_DIR"] = cfg
+    # Env construction lives in isolation.isolated_env so there is ONE implementation of the
+    # isolation contract rather than two drifting copies. It sets ENGRAM_TRANSCRIPT_DIR for the
+    # same reason the hand-rolled version did: `engram transcript` defaults to
+    # ~/.claude/projects/<slug> and IGNORES CLAUDE_CONFIG_DIR, so a headless cell would never find
+    # its own session and /learn would fall back to hand-written episodes, not real chunks.
+    env = isolation.isolated_env(cfg, _fallback_state_dir(vault, chunks), cwd=cwd, base=os.environ)
     env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "64000"
     env["PATH"] = ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
-    # `engram transcript` defaults to ~/.claude/projects/<slug> and IGNORES CLAUDE_CONFIG_DIR, so in a
-    # headless cell it never finds the session and /learn falls back to hand-written --transcript-text
-    # episodes (not real chunks). Point it at THIS cfg's session dir.
-    if cwd:
-        env["ENGRAM_TRANSCRIPT_DIR"] = os.path.join(cfg, "projects", _project_slug(cwd))
     if vault and vault != "none":
         env["ENGRAM_VAULT_PATH"] = vault
     if chunks:
         env["ENGRAM_CHUNKS_DIR"] = chunks  # the /recall chunk-variant skill reads this
     if extra_env:
         env.update(extra_env)  # caller overrides last (e.g. the C7 recheck stub PATH + stub env vars)
+    # Re-assert: the overrides above run AFTER isolated_env's own check, so a caller-supplied path
+    # inside the operator's data dir would otherwise slip through unnoticed.
+    isolation.assert_isolated(env)
     args = ["claude", "-p", prompt, "--output-format", "json",
             "--model", MODELS[model], "--permission-mode", "bypassPermissions"]
     if resume_sid:
@@ -100,14 +119,6 @@ def claude(cfg, model, vault, cwd, prompt, resume_sid=None, chunks=None, extra_e
         return json.loads(r.stdout)
     except Exception:
         return loadj_str(r.stdout)
-
-
-def _project_slug(cwd):
-    """Claude Code's project-dir name for a cwd: the realpath with every non-alphanumeric
-    character mapped to '-' (verified empirically: '.' becomes '-' too, so a workdir named
-    real.auto lands in ...-real-auto — a bare '/'-only replace MISSES the session dir)."""
-    import re
-    return re.sub(r"[^A-Za-z0-9-]", "-", os.path.realpath(cwd))
 
 
 def _find_session_transcript(cfg, sid):

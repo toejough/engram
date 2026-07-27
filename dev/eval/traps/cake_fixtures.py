@@ -3,6 +3,10 @@
 import os
 import shutil
 import subprocess
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 
 # (slug, subject, predicate, object) — the predicate/object encode the means-ends shared key:
 # a "needs <X>" note and a "provides <X>" note share the literal key X.
@@ -25,8 +29,7 @@ GIT_NOTES = [
 
 
 def _learn(vault, slug, subj, pred, obj):
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = vault
+    env = isolation.engram_env(vault)
     subprocess.run(
         ["engram", "learn", "fact", "--slug", slug, "--position", "top",
          "--source", f"cake fixture: {slug}",
@@ -45,8 +48,7 @@ def _basename(vault, slug):
 def _amend(vault, target_id, rel_basename, typed):
     # `engram amend --relation` renders a body "Related to:" wikilink, which
     # ParseWikilinks parses into Note.Outgoing (the graph BFS traverses these).
-    env = dict(os.environ)
-    env["ENGRAM_VAULT_PATH"] = vault
+    env = isolation.engram_env(vault)
     subprocess.run(["engram", "amend", "--target", target_id,
                     "--relation", f"{rel_basename}|{typed}"],
                    env=env, check=True, capture_output=True, text=True)
