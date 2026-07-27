@@ -45,8 +45,8 @@ var (
 	ExportBumpMajorVersion                 = bumpMajorVersion
 	ExportBumpMinorVersion                 = bumpMinorVersion
 	ExportCheckAndPersistVocabRefitTrigger = checkAndPersistVocabRefitTrigger
-	ExportChunkIndexHasDuplicates          = chunkIndexHasDuplicates
 	ExportChunkIndexHasEmptyFiles          = chunkIndexHasEmptyFiles
+	ExportChunkIndexHasPrunableDuplicates  = chunkIndexHasPrunableDuplicates
 	ExportClearRemovedTermsFromMembers     = clearRemovedTermsFromMembers
 	ExportCollectCurrentTermEntries        = collectCurrentTermEntries
 	ExportCollectTriggerVaultStats         = collectTriggerVaultStats
@@ -58,6 +58,7 @@ var (
 	ExportFillRecencyBand                  = fillRecencyBand
 	ExportFinishUpdate                     = finishUpdate
 	ExportIDAndDateFromNoteFilename        = idAndDateFromNoteFilename
+	ExportIndexPathFor                     = indexPathFor
 	ExportInitializeVault                  = initializeVault
 	ExportIsQAQuestionFilename             = isQAQuestionFilename
 	ExportIsQueryExcludedKind              = isQueryExcludedKind

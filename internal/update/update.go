@@ -161,14 +161,18 @@ type Report struct {
 	// ChunkIndexHasEmptyFiles is set by the cli package after Run returns
 	// (Updater.Run never touches chunk paths; this field is opaque data).
 	ChunkIndexHasEmptyFiles bool
-	// ChunkIndexHasDuplicates is set by the cli package after Run returns
-	// (Unit 5, detect-and-notify — Updater.Run never touches chunk paths or
-	// the manifest; this field is opaque data, same as
-	// ChunkIndexHasEmptyFiles above). update deliberately never removes
-	// anything on the strength of this field — it only surfaces the notice
-	// pointing at `engram prune --duplicates`, which the user runs
+	// ChunkIndexHasPrunableDuplicates is set by the cli package after Run
+	// returns: true when the chunk-index manifest holds at least one
+	// duplicate that `engram prune --duplicates` would actually remove
+	// right now (prune's own reconciliation, run in dry-run mode, reports
+	// removed > 0). Refusal-only backlogs — every group's canonical
+	// missing or not verifiably covering its siblings' records — stay
+	// silent (#713): there is no command that resolves them, and
+	// prune/ingest explain refusals when run. update deliberately never
+	// removes anything on the strength of this field — it only surfaces
+	// the notice naming `engram prune --duplicates`, which the user runs
 	// explicitly.
-	ChunkIndexHasDuplicates bool
+	ChunkIndexHasPrunableDuplicates bool
 
 	// VocabRegenRan is true when `engram update --regen-vocab` executed the
 	// regen path this run (set by the cli package after Run returns —

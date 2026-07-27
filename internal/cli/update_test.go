@@ -36,101 +36,6 @@ func TestAnyHarnessFailed(t *testing.T) {
 	})).To(BeTrue())
 }
 
-// TestChunkIndexHasDuplicates pins the Unit 5 detect-and-notify gate
-// directly, mirroring TestChunkIndexHasEmptyFiles's shape: `engram update`
-// must NOT run `prune --duplicates` itself (the user's explicit reversal
-// of the earlier auto-run design), only detect whether the pre-Unit-3
-// backlog exists so it can point the user at the command. Detection reads
-// manifest.json once and groups it (groupManifestByHash, the same
-// (FileHash, chunkingClass) partition `prune --duplicates` uses) — it never
-// opens a per-source .jsonl index file, unlike chunkIndexHasEmptyFiles.
-func TestChunkIndexHasDuplicates(t *testing.T) {
-	t.Parallel()
-
-	entry := func(hash string, dup ...string) map[string]any {
-		e := map[string]any{"mtime_unix_nano": 1, "size": 10, "file_hash": hash}
-		if len(dup) > 0 {
-			e["duplicate_of"] = dup[0]
-		}
-
-		return e
-	}
-
-	cases := []struct {
-		name     string
-		manifest map[string]map[string]any // nil = no manifest.json file at all
-		want     bool
-	}{
-		{
-			name:     "no manifest at all",
-			manifest: nil,
-			want:     false,
-		},
-		{
-			name: "two sources share a hash and extension: a live duplicate group",
-			manifest: map[string]map[string]any{
-				"/repo/a.md": entry("sha256:x"),
-				"/repo/b.md": entry("sha256:x"),
-			},
-			want: true,
-		},
-		{
-			name: "distinct hashes: nothing to clean up",
-			manifest: map[string]map[string]any{
-				"/repo/a.md": entry("sha256:x"),
-				"/repo/b.md": entry("sha256:y"),
-			},
-			want: false,
-		},
-		{
-			name: "shared hash but different chunking classes: never a duplicate group",
-			manifest: map[string]map[string]any{
-				"/repo/a.md":    entry("sha256:x"),
-				"/repo/a.jsonl": entry("sha256:x"),
-			},
-			want: false,
-		},
-		{
-			name: "already tagged duplicate_of by Unit 3's forward pass: nothing for the backlog to clean up",
-			manifest: map[string]map[string]any{
-				"/repo/a.md": entry("sha256:x"),
-				"/repo/b.md": entry("sha256:x", "/repo/a.md"),
-			},
-			want: false,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewWithT(t)
-
-			fileSystem := newU1FS()
-
-			if tc.manifest != nil {
-				data, err := json.Marshal(tc.manifest)
-				g.Expect(err).NotTo(HaveOccurred())
-
-				fileSystem.files["/chunks/manifest.json"] = data
-			}
-
-			g.Expect(cli.ExportChunkIndexHasDuplicates("/chunks", fileSystem)).To(Equal(tc.want))
-		})
-	}
-
-	t.Run("malformed manifest: detection failure must not panic or propagate an error", func(t *testing.T) {
-		t.Parallel()
-
-		g := NewWithT(t)
-
-		fileSystem := newU1FS()
-		fileSystem.files["/chunks/manifest.json"] = []byte("{not valid json")
-
-		g.Expect(cli.ExportChunkIndexHasDuplicates("/chunks", fileSystem)).To(BeFalse())
-	})
-}
-
 func TestChunkIndexHasEmptyFiles(t *testing.T) {
 	t.Parallel()
 
@@ -163,6 +68,160 @@ func TestChunkIndexHasEmptyFiles(t *testing.T) {
 			g.Expect(cli.ExportChunkIndexHasEmptyFiles("/chunks", fileSystem)).To(Equal(tc.want))
 		})
 	}
+}
+
+// TestChunkIndexHasPrunableDuplicates pins the Unit 5 detect-and-notify gate
+// directly: `engram update` must NOT run `prune --duplicates` itself (the
+// user's explicit reversal of the earlier auto-run design), only detect
+// whether running that command would actually remove anything, so the
+// notice fires exactly when the command works (#713). Detection re-runs
+// prune's own reconciliation (reconcileDuplicateGroups) in dry-run mode —
+// the same (FileHash, chunkingClass) grouping, canonical selection, and
+// record-level coverage gate — so a refusal-only backlog (every group's
+// canonical missing or not verifiably covering its siblings' records)
+// stays silent.
+func TestChunkIndexHasPrunableDuplicates(t *testing.T) {
+	t.Parallel()
+
+	entry := func(hash string, dup ...string) map[string]any {
+		e := map[string]any{"mtime_unix_nano": 1, "size": 10, "file_hash": hash}
+		if len(dup) > 0 {
+			e["duplicate_of"] = dup[0]
+		}
+
+		return e
+	}
+
+	rec := func(source, hash string) string {
+		return `{"source":"` + source + `","anchor":"turn-1","content_hash":"` + hash + `","text":"t","vector":[1]}` + "\n"
+	}
+
+	cases := []struct {
+		name     string
+		manifest map[string]map[string]any // nil = no manifest.json file at all
+		// indexFiles maps a source path to its per-source index file's
+		// content, installed at ExportIndexPathFor("/chunks", source).
+		indexFiles map[string]string
+		want       bool
+	}{
+		{
+			name:     "no manifest at all",
+			manifest: nil,
+			want:     false,
+		},
+		{
+			name: "distinct hashes: nothing to clean up",
+			manifest: map[string]map[string]any{
+				"/repo/a.md": entry("sha256:x"),
+				"/repo/b.md": entry("sha256:y"),
+			},
+			want: false,
+		},
+		{
+			name: "shared hash but different chunking classes: never a duplicate group",
+			manifest: map[string]map[string]any{
+				"/repo/a.md":    entry("sha256:x"),
+				"/repo/a.jsonl": entry("sha256:x"),
+			},
+			want: false,
+		},
+		{
+			name: "already tagged duplicate_of by Unit 3's forward pass: nothing for the backlog to clean up",
+			manifest: map[string]map[string]any{
+				"/repo/a.md": entry("sha256:x"),
+				"/repo/b.md": entry("sha256:x", "/repo/a.md"),
+			},
+			want: false,
+		},
+		{
+			name: "group would be removed: duplicate never indexed (vacuously covered)",
+			manifest: map[string]map[string]any{
+				"/repo/a.md": entry("sha256:x"),
+				"/repo/b.md": entry("sha256:x"),
+			},
+			indexFiles: map[string]string{
+				"/repo/a.md": rec("/repo/a.md", "sha256:aaa"),
+			},
+			want: true,
+		},
+		{
+			name: "group would be removed: duplicate's records covered by canonical",
+			manifest: map[string]map[string]any{
+				"/repo/a.md": entry("sha256:x"),
+				"/repo/b.md": entry("sha256:x"),
+			},
+			indexFiles: map[string]string{
+				"/repo/a.md": rec("/repo/a.md", "sha256:aaa") + rec("/repo/a.md", "sha256:bbb"),
+				"/repo/b.md": rec("/repo/b.md", "sha256:aaa"),
+			},
+			want: true,
+		},
+		{
+			name: "refusal-only, anomalous: canonical unindexed, sibling index survives",
+			manifest: map[string]map[string]any{
+				"/repo/a.md": entry("sha256:x"),
+				"/repo/b.md": entry("sha256:x"),
+			},
+			indexFiles: map[string]string{
+				"/repo/b.md": rec("/repo/b.md", "sha256:aaa"),
+			},
+			want: false,
+		},
+		{
+			name: "refusal-only, structural: no member indexed",
+			manifest: map[string]map[string]any{
+				"/repo/a.md": entry("sha256:x"),
+				"/repo/b.md": entry("sha256:x"),
+			},
+			want: false,
+		},
+		{
+			name: "refusal-only: duplicate holds a record the canonical lacks",
+			manifest: map[string]map[string]any{
+				"/repo/a.md": entry("sha256:x"),
+				"/repo/b.md": entry("sha256:x"),
+			},
+			indexFiles: map[string]string{
+				"/repo/a.md": rec("/repo/a.md", "sha256:aaa"),
+				"/repo/b.md": rec("/repo/b.md", "sha256:ccc"),
+			},
+			want: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newU1FS()
+
+			if tc.manifest != nil {
+				data, err := json.Marshal(tc.manifest)
+				g.Expect(err).NotTo(HaveOccurred())
+
+				fileSystem.files["/chunks/manifest.json"] = data
+			}
+
+			for source, content := range tc.indexFiles {
+				fileSystem.files[cli.ExportIndexPathFor("/chunks", source)] = []byte(content)
+			}
+
+			g.Expect(cli.ExportChunkIndexHasPrunableDuplicates("/chunks", fileSystem)).To(Equal(tc.want))
+		})
+	}
+
+	t.Run("malformed manifest: detection failure must not panic or propagate an error", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		fileSystem := newU1FS()
+		fileSystem.files["/chunks/manifest.json"] = []byte("{not valid json")
+
+		g.Expect(cli.ExportChunkIndexHasPrunableDuplicates("/chunks", fileSystem)).To(BeFalse())
+	})
 }
 
 func TestDescribeSource_UnknownMode(t *testing.T) {
@@ -424,11 +483,11 @@ func TestTildify(t *testing.T) {
 }
 
 // TestWriteUpdateReport_DuplicatesHint asserts Unit 5's detect-and-notify
-// surface: when duplicates were detected, the report names
-// `engram prune --duplicates` and points at the Upgrading section — the
-// same pattern #694's empty-file notice uses — and update NEVER performs
-// the removal itself (there is no removed/retained count to report; this
-// is purely a notice).
+// surface: when a prunable duplicate backlog was detected — one `engram
+// prune --duplicates` would actually remove something from — the report
+// names that command inline with no README pointer (#713), and update
+// NEVER performs the removal itself (there is no removed/retained count
+// to report; this is purely a notice).
 func TestWriteUpdateReport_DuplicatesHint(t *testing.T) {
 	t.Parallel()
 
@@ -436,15 +495,15 @@ func TestWriteUpdateReport_DuplicatesHint(t *testing.T) {
 
 	var buffer bytes.Buffer
 
-	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{ChunkIndexHasDuplicates: true})
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{ChunkIndexHasPrunableDuplicates: true})
 	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).To(ContainSubstring("prune --duplicates"))
-	g.Expect(buffer.String()).To(ContainSubstring("Upgrading"))
-	g.Expect(buffer.String()).To(ContainSubstring("README.md"))
+	g.Expect(buffer.String()).To(ContainSubstring("run `engram prune --duplicates`"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("Upgrading"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("README.md"))
 
 	var clean bytes.Buffer
 
-	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{ChunkIndexHasDuplicates: false})
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{ChunkIndexHasPrunableDuplicates: false})
 	g.Expect(cleanErr).NotTo(HaveOccurred())
 	g.Expect(clean.String()).NotTo(ContainSubstring("duplicate"))
 
@@ -452,8 +511,8 @@ func TestWriteUpdateReport_DuplicatesHint(t *testing.T) {
 	var both bytes.Buffer
 
 	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
-		ChunkIndexHasEmptyFiles: true,
-		ChunkIndexHasDuplicates: true,
+		ChunkIndexHasEmptyFiles:         true,
+		ChunkIndexHasPrunableDuplicates: true,
 	})
 	g.Expect(bothErr).NotTo(HaveOccurred())
 	g.Expect(both.String()).To(ContainSubstring("empty chunk-index"))
