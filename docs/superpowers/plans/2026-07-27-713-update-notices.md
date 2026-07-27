@@ -238,7 +238,7 @@ func chunkIndexHasDuplicates(chunksDir string, fileSystem update.Filesystem) boo
 
 (The `if json.Unmarshal(data, &manifest) != nil` form is the file's existing convention at :183. `io` is already imported at `update.go:9`.) `targ test` → PASS.
 
-- [ ] **Step 4: RED — notice text.** In `TestWriteUpdateReport_DuplicatesHint` (:426-461), replace the three positive assertions with:
+- [ ] **Step 4: RED — notice text.** In `TestWriteUpdateReport_DuplicatesHint` (:426-461), rewrite the test's doc comment (:426-431) to describe the new invariant ("when a prunable duplicate backlog was detected, the report names `engram prune --duplicates` with no README pointer, and update NEVER performs the removal itself") and replace the three positive assertions with:
 
 ```go
 g.Expect(buffer.String()).To(ContainSubstring("run `engram prune --duplicates`"))
@@ -313,15 +313,14 @@ git commit -m "feat(update): duplicates notice gated on prune's own dry-run cove
 
 - [ ] **Step 1: Delete the section.** Remove `README.md:42-51`. The removed content's only surviving guidance is the notices themselves — that's the point. (The preview-first guidance survives inside the new notice texts; see "Deliberate carry-over" above.)
 
-- [ ] **Step 2: Verify the remaining references are exactly the known ones.** Run:
+- [ ] **Step 2: Verify the remaining references are exactly the known ones.** Run (bare-word pattern — Gate A verified the earlier phrase-based pattern structurally missed `docs/README.md:14`, whose parenthetical says just "Upgrading", and `docs/architecture/adr.md:684`, where "README Upgrading / section" wraps across lines):
 
 ```bash
-grep -rn "Upgrading section\|## Upgrading\|see the README\|README's Upgrading" \
-  --include="*.go" --include="*.md" . \
+grep -rn "Upgrading" --include="*.go" --include="*.md" . \
   | grep -v "\.claude/worktrees\|docs/superpowers/plans/\|docs/ROADMAP\.md\|dev/eval/LEDGER\.md"
 ```
 
-Expected output after this step: ONLY the four proposed-follow-up rows (`docs/README.md:14`, `docs/GLOSSARY.md:~670`, `docs/FEATURES.md:~200`, `docs/architecture/adr.md:~684`) — each awaiting Joe's yes/no below — and nothing else. Any other hit is a missed scrub: stop and report it.
+Expected output after Tasks 1-4: EXACTLY the four proposed-follow-up rows (`docs/README.md:14`, `docs/GLOSSARY.md:670`, `docs/FEATURES.md:200`, `docs/architecture/adr.md:684`) — each awaiting Joe's yes/no below — and nothing else. (Pre-Task-4, the same command additionally shows README.md:42 and the update.go/update_test.go hits Tasks 1-3 remove, including the test doc comment at `update_test.go:428` handled in Task 3 Step 4.) Any other hit is a missed scrub: stop and report it.
 
 - [ ] **Step 3: Commit.**
 
