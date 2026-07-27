@@ -101,6 +101,16 @@ At the start of execution, push all seven steps below to the task list via `Task
 
    Map each item to the vault note that captures its lesson, or write the one-line "no lesson: <why>". Unmapped items are reversal handoffs for the closing learn (its Step-2 kind 3). The audit list (item → note-or-no-lesson) appears in the cycle's closing report to the user. The audit is failure-shaped by design; positive reinforcement (confirmed approaches, self-validated bets) has no mechanical marker and is captured by the closing `/learn`'s Step-2 kind-4 scan, not here.
 
+   For each lesson this cycle is about to capture, ask which artifact that already existed
+   should have surfaced it first. Before writing a new note, search the vault for one that
+   already covers the situation. If a note existed but did not surface at the moment it
+   was needed, check whether its `situation:` line matches how the moment actually
+   presented; if it doesn't, reword the note — that beats writing a second note on the
+   same lesson. A vault note is the user's own and takes effect on their next recall;
+   anything that ships from this repo instead — code, skills, guidance — makes the user
+   wait on a release, so propose that only as a last resort, and never file it
+   automatically.
+
    Then: Run the `learn` skill again to preserve the lessons from this session. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.
 
 ## Stop conditions
