@@ -27,7 +27,7 @@ Files:
 - `gate_log.txt`: synthetic but faithful gate record showing Gate B pass (before the defect was found)
   and Gate D findings
 - `plan_excerpt.txt`: two "Shipped addendum" sections from the 2026-07-25 plan, without gate attribution
-- `already_captured_lessons.txt`: six paraphrases of already-mapped findings, following a standard template
+- `already_captured_lessons.txt`: three paraphrases of already-mapped findings that the existing 4-marker audit genuinely reaches (Gate D items only), following a standard template
 - `GROUND_TRUTH.md`: the expected audit results, with the algorithm for computing reachability
 
 ## Ground Truth Table
@@ -41,10 +41,38 @@ Files:
 
 ## Scoring
 
-Scoring is mechanical (substring/regex match), not an LLM judge. A discriminator is marked as
-"surfaced" iff its keyword regex appears within a proximity window (200 chars) of an audit-context
-token (marker, classification, rung, S1–S7, surprise, harvest, counterfactual). Trials with
-`marker_seen: false` are discarded, never scored.
+Scoring is mechanical (substring/regex match), not an LLM judge, and runs in two stages.
+
+**1. Strip quoted/code material.** Before matching, fenced code blocks (` ```...``` `), inline
+code spans (`` `...` ``), and blockquote lines (leading `>`) are each replaced with a neutral
+placeholder. This is what stops a remedy verb sitting inside a quoted commit subject or a code
+snippet from being read as the agent's own proposal — an agent's proposal is in its own prose,
+not in the material it cites.
+
+**2. Score per block.** The stripped response is segmented into blocks — one block per
+non-blank line, which is the natural unit of "one item" for a markdown table row, a list item,
+or a plain paragraph line. A discriminator **HIT** (scored as surfaced) requires a single block
+that contains: (1) a keyword regex match, (2) a remedy token (write, amend, capture, establish,
+propose, recommend, suggest), AND (3) no exclusion token (no lesson, not mapped, already
+captured, outside, out of scope, eligible for, etc.). A discriminator **MISS** if no block
+satisfies all three — the keyword is absent everywhere, or every block that has the keyword also
+carries an exclusion token or lacks a remedy token.
+
+Block-scoping (rather than a character-distance window) is what makes cross-item bleed
+impossible by construction: an exclusion phrase in one table row or list item can never poison a
+remedy-based inclusion in the next row or item, because the two are different blocks and each is
+judged independently. A prior symmetric ±100-char window reached backward across item boundaries
+and both under-counted (an excluded neighbour's language bled forward into a genuinely remedied
+mention) and over-counted (a remedy verb inside quoted material scored as a live proposal);
+block-scoping plus quote-stripping closes both failure modes at once.
+
+The scorer is deliberately **NOT** keyed to S1–S7 markers or classification letters (present
+only in the post-edit skill text), which would score the RED arm at zero by construction and
+invalidate the instrument. The keyword sets are specific to each discriminator and written to
+capture the finding uniquely, while remedy/exclusion tokens are vocabulary available to both
+RED and GREEN arms.
+
+Trials with `marker_seen: false` are discarded, never scored.
 
 ## Usage
 
