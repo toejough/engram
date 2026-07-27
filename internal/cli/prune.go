@@ -116,12 +116,20 @@ func RunPrune(_ context.Context, args PruneArgs, deps PruneDeps, stdout io.Write
 	return nil
 }
 
+// unexported constants.
+const (
+	// dryRunLinePrefix marks a stdout line as reporting what a --dry-run WOULD
+	// do rather than what it did. Shared across prune and update's dry-run
+	// report lines (goconst: 3+ occurrences of the same literal).
+	dryRunLinePrefix = "[dry-run] "
+)
+
 // dryRunPrefix returns the stdout line prefix RunPrune's two modes — the
 // default dead-source detach and pruneEmptyLocked's empty-file removal —
 // both use to mark a --dry-run report: nothing was written or removed.
 func dryRunPrefix(dryRun bool) string {
 	if dryRun {
-		return "[dry-run] "
+		return dryRunLinePrefix
 	}
 
 	return ""

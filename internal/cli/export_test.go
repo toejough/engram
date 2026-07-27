@@ -91,6 +91,7 @@ var (
 	ExportPrintNoteExamples           = printNoteExamples
 	ExportPrintStatsReport            = printStatsReport
 	ExportRecencyMultiplier           = recencyMultiplier
+	ExportRegenVocab                  = regenVocab
 	ExportRenderDefinitionNoteContent = renderDefinitionNoteContent
 	ExportRenderFactBody              = renderFactBody
 	ExportRenderFactFrontmatter       = renderFactFrontmatter
@@ -111,6 +112,7 @@ var (
 	}
 	ExportShouldSkipDir                 = shouldSkipDir
 	ExportSlugFromNoteFilename          = slugFromNoteFilename
+	ExportStripLegacyVocabChannel       = stripLegacyVocabChannel
 	ExportTermFromDefinitionSlug        = termFromDefinitionSlug
 	ExportTildify                       = tildify
 	ExportTopDeliveredNotes             = topDeliveredNotes
@@ -598,6 +600,14 @@ func ExportNewShowDeps(fsys EdgeFS) ShowDeps { return newShowDeps(Deps{FS: fsys}
 // surfaces so black-box tests can drive runUpdate with test doubles.
 func ExportNewUpdateDepsFrom(fs update.Filesystem, cmd update.Commander, env update.Env) updateDeps {
 	return updateDeps{FS: fs, Cmd: cmd, Env: env}
+}
+
+// ExportNewUpdateDepsFromWithVocab is ExportNewUpdateDepsFrom plus an
+// explicit VocabDeps, for tests driving `engram update --regen-vocab`.
+func ExportNewUpdateDepsFromWithVocab(
+	fs update.Filesystem, cmd update.Commander, env update.Env, vocab VocabDeps,
+) updateDeps {
+	return updateDeps{FS: fs, Cmd: cmd, Env: env, Vocab: vocab}
 }
 
 // ExportNewVaultFS returns the pure EdgeFS→vaultgraph.VaultFS adapter.

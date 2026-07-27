@@ -170,6 +170,29 @@ type Report struct {
 	// explicitly.
 	ChunkIndexHasDuplicates bool
 
+	// VocabRegenRan is true when `engram update --regen-vocab` executed the
+	// regen path this run (set by the cli package after Run returns —
+	// Updater.Run never touches vault paths; this field is opaque data, same
+	// as VaultHasOldVocabFiles above). When true, the CLI report renders the
+	// regen summary below INSTEAD of the plain migration notice — a run that
+	// just regenerated never repeats the notice it acted on (#712).
+	VocabRegenRan bool
+	// VocabRegenOldFilesRemoved is the count of old-format vocab.*.md hub
+	// files removed (or, under --dry-run, that would be removed).
+	VocabRegenOldFilesRemoved int
+	// VocabRegenMembersCleaned is the count of member notes whose legacy
+	// vocab: frontmatter key / Vocab: body line were stripped (or, under
+	// --dry-run, would be stripped).
+	VocabRegenMembersCleaned int
+	// VocabRegenTermsSeeded is the count of current-format term definition
+	// notes harvested from old-format term notes (or, under --dry-run, that
+	// would be harvested).
+	VocabRegenTermsSeeded int
+	// VocabRegenNotesAssigned is the count of vocab-term assignments made by
+	// the post-regen re-tag pass. Always 0 under --dry-run, since nothing was
+	// actually regenerated to re-tag against.
+	VocabRegenNotesAssigned int
+
 	Harnesses []HarnessReport
 }
 

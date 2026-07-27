@@ -19,6 +19,10 @@ import (
 type UpdateArgs struct {
 	DryRun       bool `targ:"flag,name=dry-run,desc=print planned actions without executing them"`
 	WithGuidance bool `targ:"flag,name=with-guidance,desc=deploy guidance to .claude/engram/ for CLAUDE.md @import"`
+	// RegenVocab migrates a vault holding pre-tags vocab.<term>.md /
+	// vocab.index.md files to the current tags-based format (#712); honors
+	// --dry-run. See regenVocab (vocab_regen.go) for the mechanism.
+	RegenVocab bool `targ:"flag,name=regen-vocab,desc=migrate old-format vocab files to the current tags format"`
 }
 
 // unexported constants.
@@ -44,9 +48,10 @@ var (
 // updateDeps carries the injected surfaces Updater.Run needs. Composed
 // from the CLI-wide Deps by newUpdateDeps — pure plumbing, no I/O (#700).
 type updateDeps struct {
-	FS  update.Filesystem
-	Cmd update.Commander
-	Env update.Env
+	FS    update.Filesystem
+	Cmd   update.Commander
+	Env   update.Env
+	Vocab VocabDeps // used only when args.RegenVocab is set (#712)
 }
 
 // updateEnvFromDeps adapts cli.Deps' env funcs to update.Env.
@@ -119,6 +124,36 @@ func (a *updateFSFromEdge) WriteFile(path string, data []byte, perm fs.FileMode)
 
 func anyHarnessFailed(report update.Report) bool {
 	return slices.ContainsFunc(report.Harnesses, harnessFailed)
+}
+
+// applyVocabRegen runs regenVocab over vaultPath and copies its result onto
+// report (the cli-layer-only fields documented on update.Report). After a
+// successful non-dry-run regen it also re-checks VaultHasOldVocabFiles, so a
+// subsequent `engram update` (without --regen-vocab) prints no notice.
+func applyVocabRegen(
+	ctx context.Context,
+	vaultPath string,
+	vocabDeps VocabDeps,
+	dryRun bool,
+	fileSystem update.Filesystem,
+	report *update.Report,
+) error {
+	regenResult, regenErr := regenVocab(ctx, vaultPath, vocabDeps, dryRun)
+	if regenErr != nil {
+		return regenErr
+	}
+
+	report.VocabRegenRan = true
+	report.VocabRegenOldFilesRemoved = regenResult.OldFilesRemoved
+	report.VocabRegenMembersCleaned = regenResult.MembersCleaned
+	report.VocabRegenTermsSeeded = regenResult.TermsSeeded
+	report.VocabRegenNotesAssigned = regenResult.NotesAssigned
+
+	if !dryRun {
+		report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, fileSystem)
+	}
+
+	return nil
 }
 
 // chunkIndexHasDuplicates reports whether the chunk index's manifest holds
@@ -239,6 +274,7 @@ func newUpdateDeps(d Deps) updateDeps {
 			getwd:       d.Getwd,
 			userHomeDir: d.UserHomeDir,
 		},
+		Vocab: newVocabDeps(d),
 	}
 }
 
@@ -295,6 +331,13 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 		chunksDir := ResolveChunksDir("", report.Home, deps.Env.Getenv)
 		report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, deps.FS)
 		report.ChunkIndexHasDuplicates = chunkIndexHasDuplicates(chunksDir, deps.FS)
+
+		if args.RegenVocab {
+			regenErr := applyVocabRegen(ctx, vaultPath, deps.Vocab, args.DryRun, deps.FS, &report)
+			if regenErr != nil {
+				return fmt.Errorf("update: %w", regenErr)
+			}
+		}
 	}
 
 	return finishUpdate(stdout, report, runErr)
@@ -440,7 +483,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 
 	prefix := ""
 	if report.DryRun {
-		prefix = "[dry-run] "
+		prefix = dryRunLinePrefix
 	}
 
 	fmt.Fprintf(&buffer, "%sengram update\n", prefix)
@@ -470,7 +513,39 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 // "Upgrading" section when the vault still holds pre-tags vocab files.
 // Silent otherwise — a vault that never had the old format never sees it.
 func writeVocabMigrationHint(buffer *bytes.Buffer, report update.Report) {
+	if report.VocabRegenRan {
+		writeVocabRegenReport(buffer, report)
+
+		return
+	}
+
 	if report.VaultHasOldVocabFiles {
 		buffer.WriteString(vocabMigrationNotice)
 	}
+}
+
+// writeVocabRegenReport renders the --regen-vocab summary: a one-line
+// no-op notice when there was nothing to regenerate, else a removed/would-
+// remove line (prefixed "[dry-run]" and phrased "would remove" for a dry
+// run) with the file/member/note counts.
+func writeVocabRegenReport(buffer *bytes.Buffer, report update.Report) {
+	if report.VocabRegenOldFilesRemoved == 0 && report.VocabRegenMembersCleaned == 0 {
+		buffer.WriteString("update --regen-vocab: nothing to regenerate\n")
+
+		return
+	}
+
+	prefix := ""
+	verb := "removed"
+
+	if report.DryRun {
+		prefix = dryRunLinePrefix
+		verb = "would remove"
+	}
+
+	fmt.Fprintf(buffer,
+		"%supdate --regen-vocab: %s %d old-format file(s), cleaned %d member note(s), "+
+			"seeded %d term(s), reassigned %d note(s)\n",
+		prefix, verb, report.VocabRegenOldFilesRemoved, report.VocabRegenMembersCleaned,
+		report.VocabRegenTermsSeeded, report.VocabRegenNotesAssigned)
 }

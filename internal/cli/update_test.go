@@ -8,7 +8,9 @@ import (
 	"io/fs"
 	"maps"
 	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
@@ -358,6 +360,41 @@ func TestRunUpdate_DryRunFromCwd(t *testing.T) {
 
 	g.Expect(out).To(ContainSubstring("[dry-run] engram update"))
 	g.Expect(out).To(ContainSubstring("source: local clone at "))
+}
+
+// TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport verifies runUpdate
+// threads args.RegenVocab through to deps.Vocab (the updateDeps field
+// newUpdateDeps composes from newVocabDeps, #712), reporting a --dry-run
+// regen summary rather than the plain migration notice.
+func TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files := map[string][]byte{
+		"vocab.recall.md": []byte("---\ntype: fact\nterm: recall\ndescription: recall the vault\n---\n\nbody\n"),
+	}
+
+	vocabDeps := cli.VocabDeps{
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		ListMD:     func(string) ([]string, error) { return []string{"vocab.recall.md"}, nil },
+		ReadFile:   func(path string) ([]byte, error) { return files[filepath.Base(path)], nil },
+		WriteFile:  func(string, []byte) error { return nil },
+		DeleteFile: func(string) error { return nil },
+		LogWarning: func(string, ...any) {},
+		Now:        time.Now,
+	}
+
+	deps := cli.ExportNewUpdateDepsFromWithVocab(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{}, vocabDeps)
+
+	stdout := &bytes.Buffer{}
+	err := cli.ExportRunUpdate(
+		context.Background(), cli.UpdateArgs{DryRun: true, RegenVocab: true}, deps, stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("[dry-run] update --regen-vocab: would remove 1 old-format file(s)"))
+	g.Expect(out).NotTo(ContainSubstring("old-format vocab files found"))
 }
 
 func TestRunUpdate_WithGuidanceFlagMapsToOptions(t *testing.T) {
@@ -787,6 +824,85 @@ func TestWriteUpdateReport_VocabMigrationHint(t *testing.T) {
 
 			for _, s := range tc.wantNotContains {
 				g.Expect(out).NotTo(ContainSubstring(s))
+			}
+		})
+	}
+}
+
+// TestWriteUpdateReport_VocabRegenReport pins #712's --regen-vocab report
+// rendering: VocabRegenRan renders the regen summary INSTEAD of the plain
+// migration notice (a run that just regenerated never repeats the notice it
+// acted on), a --dry-run regen reports "would remove", a real regen reports
+// "removed", and a regen that found nothing to do prints a cheap no-op line.
+func TestWriteUpdateReport_VocabRegenReport(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name            string
+		report          update.Report
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name: "real-run-removed",
+			report: update.Report{
+				VocabRegenRan:             true,
+				VocabRegenOldFilesRemoved: 2,
+				VocabRegenMembersCleaned:  1,
+				VocabRegenTermsSeeded:     1,
+				VocabRegenNotesAssigned:   3,
+			},
+			wantContains: []string{
+				"update --regen-vocab: removed 2 old-format file(s)",
+				"cleaned 1 member note(s)",
+				"seeded 1 term(s)",
+				"reassigned 3 note(s)",
+			},
+			wantNotContains: []string{"see the Upgrading section", "would remove"},
+		},
+		{
+			name: "dry-run-would-remove",
+			report: update.Report{
+				DryRun:                    true,
+				VocabRegenRan:             true,
+				VocabRegenOldFilesRemoved: 2,
+				VocabRegenMembersCleaned:  1,
+				VocabRegenTermsSeeded:     1,
+			},
+			wantContains:    []string{"[dry-run] update --regen-vocab: would remove 2 old-format file(s)"},
+			wantNotContains: []string{"see the Upgrading section", "removed 2"},
+		},
+		{
+			name:            "nothing-to-regenerate",
+			report:          update.Report{VocabRegenRan: true},
+			wantContains:    []string{"update --regen-vocab: nothing to regenerate"},
+			wantNotContains: []string{"see the Upgrading section"},
+		},
+		{
+			name:            "regen-ran-never-repeats-plain-notice",
+			report:          update.Report{VocabRegenRan: true, VaultHasOldVocabFiles: true},
+			wantNotContains: []string{"see the Upgrading section"},
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			var buffer bytes.Buffer
+
+			writeErr := cli.ExportWriteUpdateReport(&buffer, tc.report)
+			g.Expect(writeErr).NotTo(HaveOccurred())
+
+			out := buffer.String()
+			for _, want := range tc.wantContains {
+				g.Expect(out).To(ContainSubstring(want))
+			}
+
+			for _, notWant := range tc.wantNotContains {
+				g.Expect(out).NotTo(ContainSubstring(notWant))
 			}
 		})
 	}
