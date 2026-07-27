@@ -28,9 +28,12 @@ WS="$(cat "$RESULTS/${ARM}-${PREV}.workspace")"
 FB="$(cat "$FB_FILE")"
 ENGRAM_DIR="$(dirname "$(command -v engram)")"
 
+CHUNKS="${VAULT}.chunks"
+mkdir -p "$CHUNKS"   # never leave ENGRAM_CHUNKS_DIR unset: it resolves to the
+                     # operator's global index ($XDG_DATA_HOME/engram/chunks), #642
 echo "[resume arm=$ARM ${PREV}->${NEW}] sid=$SID ws=$WS"
 cd "$WS"
-env CLAUDE_CONFIG_DIR="$CFG" ENGRAM_VAULT_PATH="$VAULT" PATH="$ENGRAM_DIR:$PATH" \
+env CLAUDE_CONFIG_DIR="$CFG" ENGRAM_VAULT_PATH="$VAULT" ENGRAM_CHUNKS_DIR="$CHUNKS" PATH="$ENGRAM_DIR:$PATH" \
   claude --resume "$SID" -p "$FB" \
     --output-format json --model "$MODEL" --add-dir "$WS" --permission-mode bypassPermissions \
   > "$RESULTS/${ARM}-${NEW}.json" 2> "$RESULTS/${ARM}-${NEW}.err" || {

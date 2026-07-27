@@ -38,6 +38,9 @@ PROMPT="$(cat "$VAULTS/contacts-build-prompt.txt")"
 WS="$(mktemp -d "/tmp/layer-${ARM}-${TRIAL}-XXXXXX")"
 mkdir -p "$RESULTS"
 
+CHUNKS="${VAULT}.chunks"
+mkdir -p "$CHUNKS"   # never leave ENGRAM_CHUNKS_DIR unset: it resolves to the
+                     # operator's global index ($XDG_DATA_HOME/engram/chunks), #642
 echo "[arm=$ARM trial=$TRIAL] vault=$VAULT"
 echo "  workspace=$WS"
 echo "  cfg=$CFG  model=$MODEL"
@@ -45,6 +48,7 @@ echo "  cfg=$CFG  model=$MODEL"
 cd "$WS"
 env CLAUDE_CONFIG_DIR="$CFG" \
     ENGRAM_VAULT_PATH="$VAULT" \
+    ENGRAM_CHUNKS_DIR="$CHUNKS" \
     PATH="$ENGRAM_DIR:$PATH" \
   claude -p "$PROMPT" \
     --output-format json \
