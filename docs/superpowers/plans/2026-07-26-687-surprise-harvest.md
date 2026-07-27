@@ -1,6 +1,6 @@
 # Plan: #687 — surprise harvest (prior-artifact residue) in `please` Step 7
 
-Cycle: `/please`, 2026-07-26. **Five units**, separately committed.
+Cycle: `/please`, 2026-07-26. **Six units**, separately committed.
 
 ## Verbatim ask
 
@@ -103,6 +103,17 @@ not eliminate it:
    extra Step-7 sub-pass, not a standing maintenance burden. There is no rung-2 auto-filing
    (D5, vault note 254) to compound a wrong call.
 
+**The acceptance criteria actually demand two separate validations, not one.** Unit 0 below
+asks "is the marker set complete?" — coverage, checked against the four historical surprises
+#687's own Problem section names. Units 1–3 ask "does the prose actually fire under load?" —
+behavior, checked against the 2026-07-25/26 dedup cycle. These test different things and the
+plan needs both: a complete marker set that never fires under load is inert prose, and prose
+that fires reliably but was built on an incomplete marker set will confidently miss a whole
+class of surprise it was never told to look for. The dedup cycle is the *behavioral* fixture
+because the issue's first comment nominated it as "a ready-made validation corpus" — it was
+never a substitute for the coverage check the AC's own "misses are gaps in the marker set,
+not shrugs" sentence names separately.
+
 Two secondary observations, not raised as blockers:
 
 - The doc-surface disposition list handed down by the orchestrator was independently
@@ -132,26 +143,46 @@ than beside it."
 **D2 — three-way partition, no double harvest.** Existing Step-7 lessons audit keeps: fired
 STOPs, gate FAIL verdicts, CORRECTION/supersede/instrument-invalid/redraw commits, mid-cycle
 escalations. Closing `/learn` Step 2 keeps: user corrections, explicit save-requests,
-reversals, confirmed approaches. The new surprise harvest takes only **prior-artifact
-residue**. The discriminating test, verbatim, ships into the skill text unchanged from the
-orchestrator's wording: *"did an artifact that existed before this cycle started contain — or
-fail to contain — what would have prevented this?"* A conclusion generated and overturned
+reversals, confirmed approaches. The new surprise harvest's INPUT is bounded to events
+matching S1–S7 that neither of those two already mapped; it then asks the counterfactual of
+EVERY such event, and (d) genuinely novel — no prior artifact could have helped — is one of
+the four valid answers to that question, not an excluded case. "Takes only prior-artifact
+residue" describes the input boundary (what the other two harvests already cover is
+out-of-scope here), not a pre-filter on the output classification — a surprise the harvest
+considers can still turn out, on asking, to be genuinely novel (classification d) rather than
+residue (a/b/c). The discriminating test, verbatim, ships into the skill text unchanged from
+the orchestrator's wording: *"did an artifact that existed before this cycle started contain —
+or fail to contain — what would have prevented this?"* A conclusion generated and overturned
 inside the cycle is a reversal (learn's job, unchanged). Something a gate caught is the
 lessons audit's job (unchanged).
 
-**D3 — mechanical marker set M1–M7** (verbatim from the orchestrator, reproduced in the skill
-edit): M1 a plan revision forced by a reviewer-discovered fact; M2 a mid-cycle plan amendment
-or scope change; M3 a discarded/never-pooled/re-run experiment or agent; M4 an orientation-time
-stop (issue body, roadmap row, briefing, LEDGER row found stale/superseded); M5 a premise
-falsified by data that existed before the cycle began; M6 a finding surfaced only by a
-reviewer or the user, not by tests or tooling; M7 a repo convention (LEDGER row, ADR, naming
-rule) the cycle failed to follow until caught.
+**D3 — mechanical marker set S1–S7** (the orchestrator's wording, as locked, relabeled M1–M7 →
+S1–S7 — see the warrant below): S1 a plan revision forced by a reviewer-discovered fact; S2 a
+mid-cycle plan amendment or scope change; S3 a discarded/never-pooled/re-run experiment or
+agent; S4 an orientation-time stop (issue body, roadmap row, briefing, LEDGER row found
+stale/superseded); S5 a premise falsified by data that existed before the cycle began; S6 a
+finding surfaced only by a reviewer or the user, not by tests or tooling; S7 a repo convention
+(LEDGER row, ADR, naming rule) the cycle failed to follow until caught. **This entry records
+the set as originally locked. Unit 0 (below) checks it for coverage gaps against the issue's
+own historical evidence and widens S3 and S4 to close two gaps it finds — the widened wording,
+not this original wording, is what Unit 3 ships.**
+
+**Warrant for the S-prefix (not M-prefix):** `docs/architecture/memory-invariants.md` already
+uses `M1`–`M8` as label codes for the embedding/ingest invariants (verified live: `M1`
+never-skip, `M2` never-past-unread, `M3` multi-source independence, `M4` embed-model
+homogeneity, `M5` situation-presence, `M6` learn idempotency, `M7` marker-monotonicity, `M8`
+luhmann-uniqueness). That file and `please/SKILL.md` are both recallable chunks in the same
+vault; shipping a second, unrelated `M1`–`M7` into the skill text would create a label
+collision an agent could hit at recall time — retrieving "M4" with nothing to disambiguate an
+ingest invariant from a surprise marker. `S` (for surprise) is free to adopt now; it stops
+being free once these labels ship and get quoted in reports, LEDGER rows, and vault notes.
 
 **D4 — four-way counterfactual classification**, asked per surprise: (a) present-but-not-
-recalled — first move is asking whether the note's own `situation:` line is the defect
-(fixable at rung 1 by the user); only a genuinely well-situated note that still fails to
-surface escalates toward rung 2. (b) present-but-stale → rung 1, amend. (c) never captured →
-rung 1, write. (d) genuinely novel → record, no action.
+recalled — first check whether the note's own `situation:` line states the lesson the way
+this moment actually presented; if it doesn't, that mismatch — not the note's content — is
+the defect, and rewording the note is the fix (rung 1); only a genuinely well-worded note
+that still fails to surface escalates toward rung 2. (b) present-but-stale → rung 1, amend.
+(c) never captured → rung 1, write. (d) genuinely novel → record, no action.
 
 **D5 — two-rung output ladder** (vault note 495, issue comment 2). Rung 1: amend or write a
 vault note — user-owned, takes effect on next recall, no release. Rung 2: everything else
@@ -163,7 +194,7 @@ disposes — a bar this plan does not relitigate). Rung-1 writes execute through
 warrant applies again — one worker, invoked from two call sites it already serves).
 
 **D6 — output artifact.** A table in the closing report, next to the existing lessons-audit
-list: `surprise · marker (M1-M7) · classification (a-d) · rung · action taken or recommended
+list: `surprise · marker (S1-S7) · classification (a-d) · rung · action taken or recommended
 · evidence pointer`. Every measured claim in it carries an evidence pointer + "verified how?"
 (please/SKILL.md's existing Escalation provenance rule, unchanged, reused).
 
@@ -210,6 +241,83 @@ instruction). #685's own precedent (a comparable please-Step-3 prose edit) did n
 ADR either. If the orchestrator judges a decision record is warranted, that is a call for
 whoever executes this plan, not this authoring unit.
 
+## Unit 0 — marker-set coverage over the four historical surprises (the AC's retro-run)
+
+**Goal:** satisfy the acceptance criterion's own definition of the retro-run — "a retro-run
+over the last ~3 closed cycles must rediscover the known surprises listed in this issue's
+Problem section — misses are gaps in the marker set, not shrugs." That sentence specifies a
+**marker-set coverage test**, not a behavioral trial: for each of the four surprises #687's
+own Problem section names, confirm S1–S7 can classify it, and if one doesn't fit, widen or
+add a marker rather than treat the miss as a shrug. This is separate from, and prerequisite
+to, Units 1–3's behavioral probe — see Assessment of the ask above for how the two divide the
+AC. This unit does not build headless fixtures for the three historical cycles (#657/#682/
+#684) — that is the expensive wrong answer the AC's own "misses are gaps in the marker set"
+sentence rules out; it asks for coverage, not trials.
+
+This unit is a **static author-side analysis over public issue and commit history**
+(`gh issue view 657/682/684`, `git log`) — no headless trials, no spend, no fixture. Its
+output (the final S1–S7 set) is an input to Unit 3: if a marker is widened here, Unit 3's
+shipped paragraph carries the widened wording, not the original D3 wording.
+
+**RED:** N/A — there is no code or prose to fail first. The finding this unit establishes in
+place of a RED is: the ORIGINAL S1–S7 set (D3, as locked before this unit ran) does **not**
+already cover all four historical surprises without widening — two gaps exist, closed below.
+
+**Corpus** — the four surprises verbatim from `gh issue view 687`'s Problem section:
+
+1. "#657's issue body carried a 350s premise that the LEDGER had superseded THE DAY AFTER
+   FILING — the stale body sat for ~2.5 weeks and the cycle's opening briefing repeated it."
+2. "#684's Task 1 depended on #657's trial transcripts, which were one `shutil.rmtree` from
+   deletion — a prior run should have made its own evidence durable (caught by a reviewer's
+   live probe, hours before the deleting run)."
+3. "#682's coverage-gate flake was tripped over in TWO cycles (#674, #678) before anyone
+   filed it; targ's own check-full baseline had been RED since Jan–Feb, discovered only
+   mid-planning." (two distinct failures bundled in one bullet — scored as 3a and 3b below)
+4. "#684's phase model broke on a transcript shape (multi-query, late-activate) that existed
+   in #657's own artifacts — the data to falsify the design predated the design."
+
+**GREEN — the coverage table:**
+
+| # | Surprise | Marker | Classification | Rung | Reasoning |
+|---|---|---|---|---|---|
+| 1 | #657 stale 350s premise repeated in a briefing | S4 | (c) never captured | 1 | Confirmed via `gh issue view 657`'s closing comment: the LEDGER row (`recall-time-mislabel`) was already correct the day after filing — the artifact that should have stopped this was current, not stale. But no vault note existed instructing "cross-check the LEDGER for a superseding row before repeating a measured figure from an issue body" — a LEDGER row carries no retrieval-shaped `situation:` line the way a vault note does, so its mere correctness doesn't substitute for a captured habit. Write that note. |
+| 2 | #684 Task 1 nearly lost #657's trial transcripts | S6 | (c) never captured | 1 | Per the issue's own text, only a reviewer's live probe caught this, hours before deletion — not a test, not tooling, not a gate. No vault note existed telling a prior run to make its own load-bearing eval evidence durable against routine cleanup; write one. |
+| 3a | #682's flake dismissed across #674 and #678 before being filed | **S3 (widened — see below)** | (c) never captured | 1 | The original S3 ("discarded/never-pooled/re-run experiment or agent") is written for single-cycle experiment handling; it names nothing for a signal that recurs *across* separate past cycles' records without ever being escalated. **Gap found and closed:** S3 is widened to cover this shape. No vault note said "a flake dismissed twice across two different cycles is a pattern — file it the second time"; write one. |
+| 3b | targ's check-full baseline RED since Jan–Feb, found only mid-planning | **S4 (widened — see below)** | (b) present-but-stale | 1 | The RED baseline was a real, checkable fact before the #682 cycle began (confirmed: `gh issue view 682`'s comment names "pre-existing lint debt... dating Jan–Feb 2026"). S4 as originally worded names only "an issue body, roadmap row, briefing, or LEDGER row" — a CI/lint health baseline is the same shape of orientation-time check (something checkable before starting that nobody checked) but not literally one of the four named artifact types. **Gap found and closed:** S4 is widened to include a project health/CI baseline. |
+| 4 | #684's phase model broken by a transcript shape already present in #657's artifacts | S5 | (c) never captured | 1 | This is S5's own definition almost verbatim ("a premise falsified by data that existed before the cycle began") — no widening needed. No vault note existed saying "before building a parsing/phase-detection design over transcripts, check prior real transcript artifacts for shape variance, not just the paradigm case"; write one. |
+
+**Pass condition:** every one of the four named surprises (five scored rows, since #3 bundles
+two) maps to at least one marker — met, after widening S3 and S4 as shown. No row is
+dispositioned as a shrug.
+
+**The widened S1–S7 set, final, after this unit — this is what Unit 3 ships:**
+
+- S1 — unchanged: a plan revision forced by a fact a reviewer discovered.
+- S2 — unchanged: a mid-cycle plan amendment or scope change.
+- **S3 — widened:** a discarded/never-pooled/re-run experiment or agent, **or a recurring
+  signal (a flake, an anomaly, a failure) independently hit across multiple past cycles
+  without ever being escalated into a filed issue.**
+- **S4 — widened:** an orientation-time stop — an issue body, roadmap row, briefing, LEDGER
+  row, **or project health/CI baseline** found stale, superseded, **or already failing**.
+- S5 — unchanged: a premise falsified by data that existed before the cycle began.
+- S6 — unchanged: a finding surfaced only by a reviewer or the user, not by tests or tooling.
+- S7 — unchanged: a repo convention (a LEDGER row, an ADR, a naming rule) the cycle failed to
+  follow until caught.
+
+Unit 1's dedup-cycle discriminators (`discriminator_1` = S5, `discriminator_2` = S6,
+`adr_hedge` = S6, `uncited_number` = S7) are unaffected by the S3/S4 widening and need no
+change.
+
+**REFACTOR:** N/A (no code, no prose shipped by this unit itself — its output is an input to
+Unit 3, not a standalone artifact).
+
+**VERIFY:** the coverage table above has exactly five scored rows (one per named surprise, #3
+split into 3a/3b) and every row's Marker column is non-empty; re-read `gh issue view 687`'s
+Problem section once more before executing to confirm it still names exactly four surprises
+(the count as fetched during this planning session) — if it has grown a fifth, this unit's
+corpus and coverage table are stale and must be re-run against the current text before Unit 3
+proceeds.
+
 ## Unit 1 — probe harness + self-contained fixture with a verified discriminator
 
 **Goal:** build `dev/eval/cumulative/please_step7_probe/` so Units 2–3 have a working,
@@ -231,10 +339,14 @@ during this planning session).
      REAL messages rather than paraphrases is what makes the discriminator check meaningful).
    - `already_captured_lessons.txt` — six one-line paraphrases (not the real vault note IDs —
      the fixture must not require the live vault) standing in for notes 486–490 and one
-     Gate-D-caught item, each tagged with which of the four existing markers (if any) produced
-     it, e.g.: `"ADR-0021 documentation commit contains 'superseded by name' -> Gate-D-caught,
-     mapped."` / `"ship-readiness review found the record-subset premise was false (no gate,
-     no STOP, no escalation) -> captured only because someone thought to ask."`
+     Gate-D-caught item. Every line follows the SAME template, no exceptions:
+     `"<what was found, one clause> -> <existing marker matched, or 'none'> -> <mapped to a
+     note already / not yet mapped>."` Two example lines, both following the template (the
+     level of detail is deliberately the same in both — a one-clause finding, then the two
+     template fields, nothing more): `"ADR-0021 documentation commit contains 'superseded by
+     name' -> supersede/superseded marker matched -> mapped already."` /
+     `"ship-readiness review found the record-subset premise was false -> none -> not yet
+     mapped."`
    - `plan_excerpt.txt` — the two "Shipped addendum" paragraphs from
      `docs/superpowers/plans/2026-07-25-chunk-index-dedup-and-prune-fixes.md` (Units 3 and 4's
      addenda, verbatim — already read in full during this planning session) describing the
@@ -249,15 +361,44 @@ during this planning session).
      matching notes 489/490).
 2. **Ground truth file** `testdata/fixture_dedup_cycle/GROUND_TRUTH.md` (author-only, never
    shown to a trial agent, read only by the scorer) recording, per surprise, its marker
-   (M1–M7), its classification (a–d), and — critically — a boolean
-   `reachable_by_existing_audit` computed from `commit_log.txt` + `gate_log.txt` alone (the
-   same literal-marker method used in Measured starting state above):
+   (S1–S7), its classification (a–d), and — critically — a boolean
+   `reachable_by_existing_audit`. This boolean is computed by the following exact procedure
+   over `commit_log.txt` and `gate_log.txt` as authored — never re-derived by judgment at
+   score time, so two people building the fixture from this spec produce the same booleans:
+   1. `commit_log.txt` is authored as one record per historical commit, each starting with a
+      line matching `^=== [0-9a-f]{8} ===$` (the commit's short SHA) and running to the next
+      such line or end-of-file.
+   2. Run these four checks, exactly, against each record's full text (subject + body):
+      - STOP: regex `\bSTOP\b`, case-sensitive.
+      - gate FAIL: regex `\bGate [A-D]\b[^\n]{0,60}\bFAIL\b`, case-sensitive on "Gate"/"FAIL",
+        OR a `gate_log.txt` entry whose `verdict:` field is exactly `FAIL` and whose `unit:`
+        field names the unit this surprise's record concerns.
+      - CORRECTION-class: regex `\bCORRECTION\b` (case-sensitive, all-caps) OR
+        `\bsupersede[ds]?\b` (case-insensitive) OR `\binstrument-invalid\b` (case-insensitive)
+        OR `\bredraw[n]?\b` (case-insensitive).
+      - escalation: regex `\bAskUserQuestion\b` OR `\bescalat(e|ed|ion)\b` (case-insensitive).
+   3. At fixture-build time, `GROUND_TRUTH.md` authors by hand exactly one originating record
+      ID (or `gate_log.txt` entry ID) per surprise — e.g. `discriminator_1` is authored as
+      originating from the record whose SHA line is the `fb2c9f45`-equivalent entry. This
+      attribution is fixed when the fixture is written; the scorer never infers it.
+   4. `reachable_by_existing_audit = true` for a surprise iff step 2's checks match at least
+      once, anywhere inside that surprise's authored originating record(s) from step 3;
+      `false` otherwise.
+   5. **Union rule for ties:** if a surprise's authored originating text spans more than one
+      commit record, a match in ANY of the spanned records is sufficient — union, not
+      intersection.
+   6. **Why no judgment call remains:** the regexes are written case-sensitively exactly where
+      the repo's real convention is case-sensitive (`STOP`, `CORRECTION` are always all-caps
+      in genuine use, confirmed against `06ed63a2 test(atoms-build): CORRECTION — 0/27...`),
+      so ordinary lowercase prose ("stops the duplication", "two corrections") never matches;
+      applying the regexes exactly as written IS the whole procedure, with nothing left to the
+      fixture-builder's discretion.
    | Surprise (fixture-local id) | Marker | Classification | Reachable by existing 4-marker audit? |
    |---|---|---|---|
-   | `discriminator_1` (record-subset premise false — note-487-equivalent) | M5 | (c) never captured until this cycle's own review | **NO** — no STOP/gate-FAIL/marker-commit/escalation in `commit_log.txt`/`gate_log.txt` |
-   | `discriminator_2` (live-index near-miss during Unit 5 verification — note-486-equivalent) | M6 | (c) never captured until this cycle's own review | **NO** — same check |
-   | `adr_hedge` (note-489-equivalent) | M6 | (b) present-but-stale (Gate D caught it) | YES — Gate D FAIL in `gate_log.txt`, "superseded" in `commit_log.txt` |
-   | `uncited_number` (note-490-equivalent) | M7 | (c) never captured before Gate D | YES — Gate D FAIL |
+   | `discriminator_1` (record-subset premise false — note-487-equivalent) | S5 | (c) never captured until this cycle's own review | **NO** — no STOP/gate-FAIL/marker-commit/escalation in `commit_log.txt`/`gate_log.txt` |
+   | `discriminator_2` (live-index near-miss during Unit 5 verification — note-486-equivalent) | S6 | (c) never captured until this cycle's own review | **NO** — same check |
+   | `adr_hedge` (note-489-equivalent) | S6 | (b) present-but-stale (Gate D caught it) | YES — Gate D FAIL in `gate_log.txt`, "superseded" in `commit_log.txt` |
+   | `uncited_number` (note-490-equivalent) | S7 | (c) never captured before Gate D | YES — Gate D FAIL |
 3. `run_probe.py`, cloned from `please_step3_probe/run_probe.py`'s structure (same
    `MODELS`/`KEYCHAIN`/`build_cfg`/backoff/marker-validity idioms, reused not imported per
    that script's own documented rationale):
@@ -304,7 +445,10 @@ Gate B still applies (design-fit review of the new harness code against
 **VERIFY:**
 1. `python3 dev/eval/cumulative/please_step7_probe/run_probe.py --role clean_auditor --n 1
    --out /tmp/smoke_clean.jsonl --model sonnet` — expect `marker_seen: true`; read
-   `raw_result` by hand (vault note 194's mandated manual read before trusting any aggregate).
+   `raw_result` by hand (vault note 194's mandated manual read before trusting any aggregate),
+   confirming specifically: the response engages with the fixture's actual record files
+   (not a generic template answer), and the harness's cost/session-id fields are populated
+   (not a silently-empty/errored trial that happened to still emit the marker).
 2. Same for `--role loaded_auditor --n 1`.
 3. `git status --porcelain` on the real repo immediately after both smoke trials — expect
    empty (vault note 160's standing contamination check; the fixture's flat-file design means
@@ -320,8 +464,8 @@ discriminators — establishing the RED this mechanism is meant to flip.
 prediction under test, stated up front per vault note 193's decision-procedure grade: because
 Unit 1's ground truth shows the discriminators are unreachable by the CURRENT four markers
 (no STOP/gate-FAIL/marker-commit/escalation names either one), the current Step-7 text has no
-mechanism that would make an agent report them — predicted RED is at or near 0/5 for both
-discriminators, in both roles.
+mechanism that would make an agent report them — predicted RED, pinned to the formal bar
+below, is **≤1/5 (≤20%)** for both discriminators, in both roles.
 
 **GREEN (of the measurement, not of code):**
 1. `python3 run_probe.py --skill-text ../../../../agent-instructions/skills/please/SKILL.md
@@ -332,7 +476,13 @@ discriminators, in both roles.
    --role loaded_auditor --pressure --n 5 --out results/red_loaded_pressure.jsonl --model
    sonnet`
 4. Manually read `raw_result` for every scored trial in all three files (not a sample — n=5×3
-   is small enough to read in full; vault note 194).
+   is small enough to read in full; vault note 194), confirming specifically: (a) a trial the
+   scorer marks as surfacing a discriminator genuinely names it with a marker/classification,
+   not a keyword coincidence in unrelated prose; (b) a trial the scorer marks as NOT surfacing
+   it isn't actually naming it in words the fixed keyword regex simply missed (a false
+   negative in the mechanical scorer itself); (c) the response is grounded in the fixture's
+   actual record files, not a fabricated surprise or evidence pointer the fixture never
+   contained.
 5. Report the real counts as a table: role × discriminator_1 rate × discriminator_2 rate ×
    marker_seen count.
 
@@ -359,8 +509,12 @@ regressing the existing four-marker audit.
 
 **RED:** Unit 2's `results/red_loaded*.jsonl`, already measured and HALT-gated above, stands
 as this unit's RED baseline — `superpowers:writing-skills` is invoked for the edit itself
-(its own RED→GREEN discipline governs the skill-text change), with the probe's RED serving as
-the *behavioral* RED this unit must flip.
+(its own RED→GREEN discipline governs the skill-text change). Two numbers govern two
+different things, and this unit must not conflate them: the **RED ceiling (≤20%, Unit 2's
+pre-registered bar)** already gated whether this unit is permitted to start at all (Unit 2's
+HALT condition); the **GREEN floor (≥80%, below)** gates whether this unit's edit is judged
+sufficient once written. The edit's job is to move the measured loaded-role discriminator
+rate from ≤20% to ≥80%.
 
 **GREEN — the exact edit** (decision-procedure grade: verbatim before/after, per vault note
 237 — this text is the actual prescription, not a description of one):
@@ -371,40 +525,56 @@ sub-paragraph immediately after the existing lessons-audit paragraph and before 
 the `learn` skill again...":
 
 ```markdown
-   **Surprise harvest (prior-artifact residue).** Enumerate this cycle's record for these
-   mechanical markers: a plan revision forced by a fact a reviewer discovered (M1); a
-   mid-cycle plan amendment or scope change (M2); a discarded/never-pooled/re-run experiment
-   or agent (M3); an orientation-time stop — an issue body, roadmap row, briefing, or LEDGER
-   row found stale or superseded (M4); a premise falsified by data that existed before the
-   cycle began (M5); a finding surfaced only by a reviewer or the user, not by tests or
-   tooling (M6); a repo convention (a LEDGER row, an ADR, a naming rule) the cycle failed to
-   follow until caught (M7). For each, ask the counterfactual: *did an artifact that existed
-   before this cycle started contain — or fail to contain — what would have prevented this?*
-   Classify: (a) present-but-not-recalled — first ask whether the note's own `situation:`
-   line is the defect (a lesson whose retrieval handle doesn't match how the moment presents
-   is a note defect, fixable by the user); only a genuinely well-situated note that still
-   doesn't surface escalates further. (b) present-but-stale. (c) never captured. (d)
-   genuinely novel — record, no action. For (a)/(b)/(c): the remedy is amending an existing
-   vault note or writing a new one — the user owns their vault, and the change takes effect
-   on their next recall. Amend beats write: search the vault for an existing note before
-   proposing a new one. Everything else (engram code, skills, ambient guidance) is a repo
-   change, ships only via `engram update`, and is a last resort — recommend it, never file it
-   automatically. This harvest must not re-enumerate items the lessons audit above already
-   maps (no double harvest) or items the closing `/learn`'s reversal/correction kinds already
-   cover. Rung-1 amendments/writes are handed to the closing `/learn` below, alongside the
-   session's other explicit lessons. The harvest appears in the closing report as a table:
-   surprise · marker · classification · rung · action taken or recommended · evidence
-   pointer, using the same escalation-provenance rule (below) for every measured claim in it.
+   **Second pass over the same record: which surprises should a prior artifact have caught?**
+   Run this every cycle, including one that felt clean — a cycle feeling clean, or "nothing
+   surprising happened this time," is your own self-assessment, not evidence there were no
+   surprises, and is never a reason to skip this pass.
+
+   1. **List every surprise this cycle hit**, using these markers:
+      a) S1 — a plan revision forced by a fact a reviewer discovered
+      b) S2 — a mid-cycle plan amendment or scope change
+      c) S3 — a discarded/never-pooled/re-run experiment or agent, or a recurring signal (a
+         flake, an anomaly, a failure) independently hit across multiple past cycles without
+         ever being escalated into a filed issue
+      d) S4 — an orientation-time stop: an issue body, roadmap row, briefing, LEDGER row, or
+         project health/CI baseline found stale, superseded, or already failing
+      e) S5 — a premise falsified by data that existed before the cycle began
+      f) S6 — a finding surfaced only by a reviewer or the user, not by tests or tooling
+      g) S7 — a repo convention (a LEDGER row, an ADR, a naming rule) the cycle failed to
+         follow until caught
+   2. **For each surprise, ask:** did an artifact that existed before this cycle started
+      contain — or fail to contain — what would have prevented this? Classify: (a)
+      present-but-not-recalled — first check whether the note's own `situation:` line
+      states the lesson the way this moment actually presented; if it doesn't, that mismatch
+      is the defect, and rewording the note is the fix — only escalate further when a
+      genuinely well-worded note still failed to surface. (b) present-but-stale. (c) never
+      captured. (d) genuinely novel — record it, take no further action.
+   3. **For (a), (b), and (c), fix it where the user can act on it immediately:** search the
+      vault for an existing note to amend before writing a new one (amending or writing a
+      vault note is rung 1) — the user owns their vault, and the fix takes effect on their
+      next recall, with no release and no upgrade to wait on. Everything else — engram code,
+      skills, ambient guidance — ships only through a future `engram update` (this is rung
+      2), so treat it as a last resort: recommend it, do not file it or edit it yourself.
+   4. **Stop here for anything the lessons audit above already mapped** (a STOP, a gate FAIL
+      verdict, a CORRECTION-class commit, an escalation) **or anything the closing `/learn`
+      captures as a reversal or correction** — this pass is only for what neither of those
+      two catches: something a prior-existing artifact should have surfaced, not something a
+      gate or a correction already caught.
+
+   Report the result as a table in the closing report, beside the lessons-audit list:
+   surprise · marker · classification · fix (rung 1 amend/write, or rung 2 recommend-only) ·
+   action taken or recommended · evidence pointer, using the Escalation provenance rule above
+   for every measured claim in it.
 ```
 
-Update the red-flag row at line 135 (`| You're closing the cycle without the step-7 lessons
-audit | ... |`) by adding a second row directly beneath it:
+Update the red-flag row containing `You're closing the cycle without the step-7 lessons
+audit` (as of 2026-07-26: line 135) by adding a second row directly beneath it:
 
 ```markdown
-| You're closing the cycle without the surprise harvest, or you re-enumerated an item the
-lessons audit or closing learn already covers | Run the harvest once, over prior-artifact
-residue only; ask the counterfactual per surprise; amend/write beats recommending a repo
-change |
+| You're closing the cycle without the second pass above, or you listed something in it that
+the lessons audit (STOPs, gate FAILs, CORRECTION-class commits, escalations) or the closing
+learn's reversal/correction capture already covers | Run the second pass every cycle,
+including one that felt clean; only list something neither of those two already caught |
 ```
 
 **Do not edit `dev/eval/guards/candidate/please.md`** — Measured starting state above confirms
@@ -438,7 +608,14 @@ below applies identically under pressure; a pass that only holds un-pressured is
    FAILs) — the new paragraph must not crowd out or replace the original audit. Mechanically:
    the same `score_loaded_auditor` extends to also check `adr_hedge`/`uncited_number` keyword
    presence, non-gating but reported.
-5. Manually read every `raw_result` in all three files (vault note 194).
+5. Manually read every `raw_result` in all three files (vault note 194), confirming
+   specifically the same three things Unit 2's read confirmed — (a) a claimed discriminator
+   surfacing is a genuine named marker/classification, not a keyword coincidence; (b) a
+   claimed miss isn't a scorer false negative; (c) the response is grounded in the fixture's
+   real files, not fabricated — **plus a fourth, GREEN-specific check: (d) the response still
+   correctly runs the ORIGINAL lessons audit (names the Gate D items from `gate_log.txt`) in
+   the same response that runs the new second pass — the two must coexist, not one replacing
+   the other.**
 
 **Pre-registered GREEN bar (n=5):** PASS requires **discriminator surfacing rate ≥4/5 (≥80%)**
 in `loaded_auditor` (un-pressured) **and** `loaded_auditor --pressure`, for both discriminators
@@ -467,29 +644,42 @@ guard`, `G2`, `counterfactual`, `surprise`, `retrospective`, `self-evaluation`, 
 against `*.md`/`*.go`, then re-run against `*.txt` after this planning session found the gap
 — see Assessment of the ask above).
 
-| File:line | Disposition | Reason |
+Every row below addresses its edit site by a **unique section header or exact quoted string**
+in the live file, not by line number — line numbers drift the moment anything lands. The
+line numbers shown are informational "as of 2026-07-26" annotations only. Before editing any
+row, run the pre-flight check in GREEN step 0 below to re-locate the real site.
+
+| File → anchor (unique string/header) | Disposition | Reason |
 |---|---|---|
-| `agent-instructions/skills/please/SKILL.md:96-106` | **rewrite** | Step 7 itself — see Unit 3's exact edit above |
-| `agent-instructions/skills/please/SKILL.md:135` | **update** | red-flag row — Unit 3 adds a second row beneath it, verbatim above |
-| `docs/GLOSSARY.md:87-97` (`### lessons audit`) | **rewrite** | verified live at these exact lines; the entry currently describes only the four-marker audit — add a paragraph naming the surprise harvest as Step 7's second sub-pass, its M1-M7 markers, the counterfactual test, and the two-rung ladder, cross-referencing the existing "Pre-registered upgrade" sentence rather than duplicating it |
-| `docs/GLOSSARY.md:737-742` (`### capture guards (G1–G6)`) | **update** | verified live at these exact lines; **decision: this is an extension of existing G2 ("please step-7 lessons audit"), not a new G-number** — D1's "extend Step 7 in place" warrant applies again: the surprise harvest is not a new class of capture-blind-spot guard, it is the same guard's scope widened to a second question over the same corpus. Add one clause to the G2 description noting it now also runs the surprise harvest; do not mint G7 |
-| `docs/FEATURES.md:134-141` | **update** | verified live at these exact lines; the "`please` audits each cycle's mechanical corpus" sentence gains a clause: "...and, over the same record, asks which prior artifact should have caught each surprise, recommending a vault-note amendment/write first and a repo change only as a last resort" |
-| `docs/architecture/c1-system-context.md:301` and `:510` | **update** | verified live, both identical `Note over H: Step 7 — lessons audit (...)`  lines; both gain the same appended clause: `, then the surprise harvest (prior-artifact residue: M1-M7 markers, four-way classification, two-rung note-first output)` — keep the two lines textually identical to each other, as they are today |
-| `docs/architecture/c2-containers.md:215` | **update** | verified live; the `P7["please Step 7 lessons audit: ..."]` node text gains the surprise-harvest markers, and gains a **second** dotted edge alongside the existing `-.->|"unmapped item"| REV`: `P7 -.->|"rung-1 surprise"| WM` (rung-1 amend/write recommendations feed the same write-memory node the existing CORR/SAVE/REV/CONF paths already feed — D5's "no new write path"); rung-2 recommendations are terminal (report-only, no edge into the write machinery — D5's "never auto-filed") |
-| `docs/ROADMAP.md:83` | **update** | verified live; "Generates follow-up issues mechanically" is STALE against the corrected two-rung ladder (D5/note 495), which makes issues the last resort, not the mechanism's output shape — reword to name the note-amendment-first ladder |
-| `docs/ROADMAP.md:187-189` (Parked backlog → Pre-registered guard upgrades) | **update** | verified live at these exact lines (the task's cited "185-190" spans two adjacent groups; the guard-upgrade rows themselves are 187-189); add D8's post-ship trigger row (Unit 5) beneath the existing three, and reconcile: the existing G2→G3 row ("a future capture-blindspot audit's 'no lesson' mapping is shown wrong") is about the EXISTING audit's mapping accuracy — unaffected by this extension, left as-is, not merged with the new row |
-| `dev/eval/guards/candidate/please.md` | **keep** | frozen G1/G2/G6 measurement snapshot at commit `e13c3c9f` (vault note 282) — updating it would corrupt the record of what was measured; this plan never touches it |
-| `dev/eval/guards/prompts/g2.txt`, `dev/eval/guards/prompts/g2-pressure.txt` | **keep — correction to the handed-down list** | these two files literally say "step 7 of the wplease workflow" and were missed by the original `*.md`/`*.go`-scoped grep (confirmed via a `*.txt`-inclusive re-grep during this planning session, see Assessment of the ask); disposition is keep for the same reason as the frozen candidate they test — they validate the frozen snapshot, not the live `please/SKILL.md`, and are unaffected by this unit's edit |
+| `agent-instructions/skills/please/SKILL.md` → the heading `7. **Capture (close) — `/learn`.**` (as of 2026-07-26: lines 96–106) | **rewrite** | Step 7 itself — see Unit 3's exact edit above |
+| `agent-instructions/skills/please/SKILL.md` → the red-flag table row containing the exact string `You're closing the cycle without the step-7 lessons audit` (as of 2026-07-26: line 135) | **update** | Unit 3 adds a second row directly beneath this one, verbatim above |
+| `docs/GLOSSARY.md` → the heading `### lessons audit` (as of 2026-07-26: lines 87–97) | **rewrite** | the entry currently describes only the four-marker audit — add a paragraph naming the second pass as Step 7's own extension, its S1-S7 markers, the counterfactual test, and the two-rung remedy, cross-referencing the existing "Pre-registered upgrade" sentence rather than duplicating it |
+| `docs/GLOSSARY.md` → the heading `### capture guards (G1–G6)` (as of 2026-07-26: lines 737–742) | **update** | **decision: this is an extension of existing G2 ("please step-7 lessons audit"), not a new G-number** — D1's "extend Step 7 in place" warrant applies again: the second pass is not a new class of capture-blind-spot guard, it is the same guard's scope widened to a second question over the same corpus. Add one clause to the G2 description noting it now also runs the second pass; do not mint G7 |
+| `docs/FEATURES.md` → the heading `## Write-memory worker + capture guards (reversals, lessons audit, escalation provenance)` (as of 2026-07-26: lines 134–141) | **update** | the "`please` audits each cycle's mechanical corpus" sentence gains a clause: "...and, over the same record, asks which prior artifact should have caught each surprise, recommending a vault-note amendment/write first and a repo change only as a last resort" |
+| `docs/architecture/c1-system-context.md` → the exact string `Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"), then closing /learn` — this string appears at **exactly two sites**, independently confirmed textually identical to each other by Gate A's docs-alignment reviewer (as of 2026-07-26: lines 301 and 510) | **update** | edit both occurrences identically; after editing, re-diff the two sites to confirm they are STILL textually identical to each other (Unit 4's own REFACTOR step below) |
+| `docs/architecture/c2-containers.md` → the exact string `P7["please Step 7 lessons audit: STOPs, gate FAILs, CORRECTION-commits, escalations"]` (as of 2026-07-26: line 215; the `WM` node id this edit adds a new edge to is independently confirmed present at line 217 by Gate A's docs-alignment reviewer, so the proposed edge is valid mermaid) | **update** | the node text gains the second-pass markers, and gains a **second** dotted edge alongside the existing `-.->|"unmapped item"| REV`: `P7 -.->|"rung-1 fix"| WM` (rung-1 amend/write recommendations feed the same write-memory node the existing CORR/SAVE/REV/CONF paths already feed — D5's "no new write path"); rung-2 recommendations are terminal (report-only, no edge into the write machinery — D5's "never auto-filed") |
+| `docs/ROADMAP.md` → the exact string `**#687** run-level self-evaluation (surprise-mining retrospective)` (as of 2026-07-26: line 83) | **update** | "Generates follow-up issues mechanically" is STALE against the corrected two-rung ladder (D5/note 495), which makes issues the last resort, not the mechanism's output shape — reword to name the note-amendment-first ladder |
+| `docs/ROADMAP.md` → the exact string `| Pre-registered guard upgrades | G4 (crystallize-on-discovery) |` (as of 2026-07-26: line 189) — insert the new row (Unit 5) immediately after this one | **update** | adds D8's post-ship trigger row beneath the existing three; reconcile: the existing G2→G3 row ("a future capture-blindspot audit's 'no lesson' mapping is shown wrong") is about the EXISTING audit's mapping accuracy — unaffected by this extension, left as-is, not merged with the new row |
+| `dev/eval/guards/candidate/please.md` (whole file — untouched, no anchor needed) | **keep** | frozen G1/G2/G6 measurement snapshot at commit `e13c3c9f` (vault note 282) — updating it would corrupt the record of what was measured; this plan never touches it |
+| `dev/eval/guards/prompts/g2.txt`, `dev/eval/guards/prompts/g2-pressure.txt` (whole files — untouched, no anchor needed) | **keep — correction to the handed-down list** | these two files literally say "step 7 of the wplease workflow" and were missed by the original `*.md`/`*.go`-scoped grep (confirmed via a `*.txt`-inclusive re-grep during this planning session, see Assessment of the ask); disposition is keep for the same reason as the frozen candidate they test — they validate the frozen snapshot, not the live `please/SKILL.md`, and are unaffected by this unit's edit |
+| `dev/eval/atoms/sandbox-texts/please-old.md` (whole file — untouched, no anchor needed) | **keep — added, missing from the handed-down list** | frozen please-skill snapshot from the atoms-build sandbox smoke batteries, commit `58ad18a4` ("test(atoms): O-A/O-B sandbox smoke batteries — results + tested texts"); verified during this planning session: 2 hits on "step 7"/"Step 7" (as of 2026-07-26: lines 90, 104), and a diff against the live `please/SKILL.md` confirms it predates #685 (missing the doc-enumeration-grep clause) and carries its own `SANDBOX-MARKER-OLD-PLEASE` fixture line — same rationale as the frozen guard candidate (vault note 282: an artifact validated by measurement stays byte-identical to what was measured). Note the distinct failure mode from the `g2.txt`/`g2-pressure.txt` row above: this file IS a `.md` file and its "step 7" hits WERE returned by the original `*.md`/`*.go` grep (confirmed by re-checking that run's raw output) — the gap here was a transcription drop into the disposition table, not a grep-scope gap |
 | `dev/eval/guards/prompts/g1.txt`, `g1-clean.txt`, `g1-saverequest.txt`, `g6.txt` | **N/A** | re-checked during this planning session — these test the `learn` skill's G1 kind and the escalation-provenance G6 guard; their "CORRECTION"/"G2" substring hits are fixture content about the *learn* skill, not references to the please Step-7 mechanism |
 | `docs/superpowers/plans/*.md` (older plans mentioning "Step 7") | **N/A** | historical cycle records, not live specification |
-| `dev/eval/LEDGER.md` | **update** | new row, Unit 5 |
+| `dev/eval/LEDGER.md` → append as the last row of the `| claim | verdict | figure (vintage) | superseded-by | raw data |` table (no line-number anchor — new rows append; the row's position in the table doesn't matter functionally) | **update** | new row, Unit 5 |
 | `docs/architecture/adr.md` | **N/A** | grepped live, zero hits on any of the search terms; no new ADR planned — see D10 |
 
 **RED:** N/A for a doc unit (there is no failing test for prose) — the RED is the verified
 staleness/absence shown in the table above, each line independently confirmed against the
 working tree during this planning session.
 
-**GREEN:** apply every **rewrite**/**update** row above.
+**GREEN:**
+0. **Pre-flight, per row above with a named anchor:** grep for the anchor string and confirm
+   it resolves to exactly one site — or, for the `c1-system-context.md` row specifically,
+   exactly the two sites the table states — before editing. If a grep resolves to a different
+   count than the table states, STOP: do not edit the line number given as the informational
+   annotation; re-derive the correct site(s) first and treat the mismatch as a sign this table
+   itself has drifted since 2026-07-26.
+1. Apply every **rewrite**/**update** row above, at the site step 0 located.
 
 **REFACTOR:** re-read each changed file end-to-end as a first-time reader (vault note 477);
 confirm the two `c1-system-context.md` lines stayed textually identical to each other after
@@ -540,6 +730,11 @@ text.
 
 ## Cross-unit coordination
 
+- Unit 0 must complete before Unit 1's fixture and Unit 3's shipped text are written — Unit
+  0's coverage table produces the authoritative S1–S7 set (S3 and S4 widened). Unit 1's
+  `GROUND_TRUTH.md` and Unit 3's shipped paragraph both carry the widened wording; neither
+  unit re-derives it independently. Unit 0 itself has no dependency on Units 1–3 and can be
+  committed first, on its own, since it is a pure text analysis with no fixture or code.
 - Unit 1 must land and pass its own VERIFY before Unit 2 can run (the probe is Unit 2's
   instrument). Unit 2 must produce a real RED (and clear its HALT bar) before Unit 3's GREEN
   edit is written — writing the GREEN text first and then discovering RED was already high
@@ -566,11 +761,13 @@ text.
 A (this plan): all four angles, one round — docs/diagrams-alignment independently re-verifies
 the doc-surface table above per please/SKILL.md's own charge, including running its own
 `*.txt`-inclusive grep rather than trusting this plan's.
-B: after each unit's refactor (Units 1, 3 have code/skill-text diffs to review; Units 2, 4, 5
-are measurement/doc-only and get Gate C/D coverage instead where applicable).
+B: after each unit's refactor (Units 1, 3 have code/skill-text diffs to review; Unit 0 is a
+static text analysis with no diff — Gate A's ask-alignment and code-alignment angles cover its
+output instead; Units 2, 4, 5 are measurement/doc-only and get Gate C/D coverage instead where
+applicable).
 C: every doc touched in Unit 4.
 D: commit messages (this plan's own commits, and any the executing cycle produces).
 
 Commits: one per unit, `AI-Used: [claude]`, ff-only main, `targ check-full` green before each
 unit that touches Go-adjacent tooling (Unit 1's harness is Python, not Go — `targ` does not
-gate it; Units 3-5 touch no Go source at all).
+gate it; Units 0, 3-5 touch no Go source at all).
