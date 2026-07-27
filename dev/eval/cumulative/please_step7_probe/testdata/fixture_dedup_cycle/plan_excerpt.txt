@@ -1,0 +1,39 @@
+Shipped addendum (Unit 3 — from 2026-07-25 plan):
+
+"Structural change 2" above, and Unit 4's original gate below, assumed byte-hash identity of a
+source's CURRENT content is sufficient proof that evicting a duplicate's index loses nothing.
+That premise is FALSE: `mergeChunkRecords` is append-only WITHIN one source, so a source's
+`.jsonl` index file accumulates every chunk record from every past ingest of that path — not just
+its current content. Two sources can therefore be byte-identical RIGHT NOW (same hash group) while
+their index files hold entirely disjoint historical chunk records; evicting one on the strength of
+the other's mere existence can silently destroy real, unique content. The weaker, existence-only
+gate this replaces had already shipped and run against the real chunk index before the flaw was
+found; measured on that real corpus, 124 of 6,612 surviving index files carry chunk records from
+more than one ingest day — exactly the shape the weaker gate could not distinguish from a
+safe-to-delete duplicate. (This does not establish that any record was actually lost by the
+weaker gate — only that it was capable of losing one under exactly this condition, which is why
+it was replaced.) Shipped fix: a record-level subset gate
+(`canonicalCoversDuplicateRecords` / `duplicateRecordsCoveredBy`,
+`internal/cli/ingest_dedup.go`) additionally requires, immediately before any eviction, that the
+canonical's index file exists right now AND every one of the duplicate's own chunk records (by
+content hash) is already present among the canonical's; when this cannot be confirmed the eviction
+is refused (reported to stdout, pointing at `prune --duplicates` for later resolution) rather than
+performed. `reconcileGroupCanonicalFirst` reconciles the group's canonical member first, so its
+records are loaded once per group (not once per duplicate) and reused across every duplicate in
+it.
+
+Shipped addendum (Unit 4 — from 2026-07-25 plan):
+
+"Gate every delete on its retained twin existing now" above describes existence-only gating
+(`deps.Exists` on the canonical's index file). This was strengthened by the same post-ship
+finding Unit 3's addendum describes: existence of the canonical's index file is necessary but not
+sufficient, since a byte-identical twin's index file can hold different historical chunk records
+(`mergeChunkRecords` is append-only within a source). The shipped gate additionally requires
+every one of the duplicate's own chunk records to already be present among the canonical's records,
+via the same `canonicalCoversDuplicateRecords` / `duplicateRecordsCoveredBy` helpers Unit 3 uses.
+A group failing this check is refused, not removed. Refusals are classified for reporting, added
+after Gate B measured a real run printing 47,396 near-identical "canonical index missing" lines,
+burying genuine removals and anomalies in noise: a bulk-summarized STRUCTURAL refusal (the
+canonical has no index file at all — a zero-chunk source, nothing lost; ~88% of a real manifest)
+versus an individually-named ANOMALOUS refusal (a sibling's surviving index proves the group
+holds real content, worth a human look).

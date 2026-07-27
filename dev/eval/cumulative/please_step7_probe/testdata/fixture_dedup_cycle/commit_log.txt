@@ -1,0 +1,247 @@
+=== 87243b43 ===
+docs(roadmap): place #706 and #707, filed but never scored
+Both were filed in the last two days and appeared in no band, which the
+roadmap's own keep-current rule says should not happen -- an unplaced
+issue is how the board stops being trustworthy.
+
+#706 (deploy as sync) goes to GATED beside #667, its exact precedent:
+the first step is establishing a harness behaviour we do not control
+(do Claude Code, OpenCode and Pi resolve symlinked skill dirs?) and the
+answer picks the architecture. Noted as partially overtaken -- update
+now detects and reports duplicates -- but its deploy-side gap stands.
+
+#707 (Shelley as a fourth harness) goes to NOW rank 8. Increment 1 is
+unblocked and verified hands-on, which keeps it out of LATER; it ranks
+last because reach to a harness whose adoption is unconfirmed is
+Corr-axis at Low-Med value, below the Meas item above it. The guidance
+fork (no home-level import mechanism, so a hook script rather than an
+import line) is inside the work, not before it.
+
+=== b0985c4d ===
+docs: chunk-index dedup — ADR-0021, narrowed append-only claims, LEDGER row
+Documents what shipped, including the parts that went wrong.
+
+ADR-0021 records the design (dedup by content hash + chunking class,
+canonical precedence, the record-subset eviction gate, Rule B for
+drifted vault copies, and update notifying rather than acting) and,
+deliberately, that the original premise was falsified mid-cycle rather
+than sound from the start: byte-identical sources are not
+interchangeable, because a per-source index file accumulates records
+from every past version of that path.
+
+It also records the forensic outcome of the defective gate running once
+against a real index: 1,960 index files removed, of which exactly 2 had
+no surviving byte-identical twin, both recoverable from git. An earlier
+'25 records lost' estimate is withdrawn as unreproducible, and an
+earlier '0 unsafe removals' claim in cb6b9540 is superseded by name,
+since that audit predates the stronger gate. Fine-grained loss inside
+the regenerable set remains unquantifiable and is stated as such.
+
+Six doc surfaces asserted the chunk index is append-only and never
+deletes. Each is narrowed rather than reversed: within a source nothing
+changed, across sources a duplicate's index may be removed only when its
+records are provably a subset of a retained twin's. That includes the
+deployed learn skill, which agents read.
+
+A new LEDGER row carries the measurements with their methods, and marks
+two figures honestly as one-time operational observations that were
+never re-measured after the fix -- including the duplicate-share metric
+that motivated the cycle.
+
+=== fb2c9f45 ===
+fix(dedup): gate eviction on record subset; update notifies, never deletes
+Two corrections to the dedup shipped earlier in this cycle, one of them
+a data-loss defect that reached a real index before it was found.
+
+The premise was false. Dedup gated deletion on source-byte identity, on
+the reasoning that byte-identical sources are interchangeable. They are
+not: mergeChunkRecords is append-only WITHIN a source, so each per-source
+.jsonl accumulates records from every past version of that path. Two
+sources identical today can hold disjoint historical records, and
+deleting either loses what the other never had. Measured on the real
+corpus: 124 of 6,612 surviving index files carry records from more than
+one ingest day.
+
+Eviction now requires, immediately before removing a duplicate: the
+canonical's index file exists, and every one of the duplicate's record
+content-hashes is already present in the canonical's. Anything else is
+refused and reported. Content hash is the right equivalence here -- it
+is sha256 of the record text, and the fields that differ between twins
+are the ones mergeChunkRecords already treats as immaterial when it
+keeps the older record on a hash match. The gate applies to both the
+retroactive prune and the ingest-time eviction, which previously had no
+canonical check at all.
+
+Reconciling a group now processes the canonical before its duplicates,
+so a same-run eviction compares against an index that has been written
+rather than one that has not. The canonical's records are loaded once
+per group instead of once per duplicate: a refused group keeps
+DuplicateOf empty and re-runs the gate on every future ingest, including
+every automatic learn sweep, so the re-read was unbounded.
+
+engram update no longer runs the cleanup. It detects whether a duplicate
+group exists -- one manifest read and an in-memory grouping, never
+opening an index file -- and prints a notice pointing at
+engram prune --duplicates, matching the notify-only convention already
+used for the empty-file backlog. The sentinel mechanism is deleted
+entirely: detection is stateless, so it re-notifies while duplicates
+remain and goes quiet when they do not, where a sentinel would claim
+done regardless. A destructive migration should run when the user asks
+for it, not as a side effect of refreshing a binary.
+
+=== 33481996 ===
+fix(ingest): exclude .claude/jobs from the --auto sweep
+The .claude ancestor sweep excluded projects, plugins, cache, todos and
+nine others, but not jobs -- so ~3GB of agent harness scratch, including
+whole snapshot copies of the vault, was swept and indexed on every run.
+The .pi sweep already excluded it, and its own comment noted Claude has
+the same subdir shape, so this was an oversight rather than a decision.
+
+Forensics on a real incident attributed 1,397 of 1,960 removed duplicate
+index files (71%) to that one tree. Excluding it stops the duplication
+at the source instead of indexing content and deleting it later.
+
+Deliberate access is unaffected: manual --sweep roots are built from
+ExcludeDirs, not ClaudeExcludeDirs, so sweeping a specific job output
+still works.
+
+=== cb6b9540 ===
+feat(prune): add --duplicates to clear already-indexed copies
+Unit 3 stops new duplicates entering the index but leaves every existing
+one in place, so the crowding it was built to fix persists until the
+index is cleaned once.
+
+prune --duplicates groups manifest entries by content hash and chunking
+class, keeps selectCanonical's winner in each group, and removes the
+rest. Deletion is gated on the retained twin's index file existing at
+the moment of removal, so a group whose canonical was never indexed is
+refused rather than collapsed. Removal failures are reported per item
+and exit non-zero; the run is convergent, and --dry-run reports without
+writing.
+
+Refusals are classified: the structural case -- a group where no member
+was ever indexed, because a zero-chunk source yields no index file --
+collapses into one summary line, while a refusal whose sibling IS
+indexed is printed individually, since only those indicate a real
+anomaly. On the live corpus that is 47,394 structural and 0 anomalous.
+
+Measured on a copy of the real index: 8,572 index files to 6,612
+(-1,960, -23%), manifest 62,506 entries to 60,546, converging on the
+second run. An audit written independently of this code confirmed all
+1,960 removed entries still have their content represented by a
+surviving entry whose index file exists -- 0 unsafe removals.
+
+=== 85413e9e ===
+fix(ingest): never dedup across chunking classes
+Unit 3 grouped sources by content hash alone, on the premise that
+byte-identical content is interchangeable. It isn't: chunkSource
+dispatches on extension, so a .jsonl goes through the transcript
+stripper and anything else through the markdown chunker. The same bytes
+therefore yield different records -- markdown keeps the literal JSON,
+the transcript path yields the stripped 'USER: ...' text -- and
+discarding either twin would permanently lose its distinct chunking.
+
+Grouping is now keyed on hash plus chunking class in both the ingest
+dedup path and the prune path, so a .md and a .jsonl with identical
+bytes are never duplicates of each other.
+
+No live hash group currently spans extensions (0 of 6,874), so this
+changes nothing about today's index -- it closes the gap before
+something lands in it. Verified by injecting a synthetic same-hash
+.md/.jsonl pair into a copy of the real index: both survive a full
+dry-run, delete and re-run cycle untouched, with every other count
+unchanged.
+
+=== 364e60bc ===
+feat(ingest): dedup byte-identical sources across the chunk index
+79% of manifest sources were byte-identical copies of another source --
+worktrees, backup-restore trees, /tmp config pools, job-dir vault
+snapshots -- each indexed separately and competing for the same result
+slots at query time.
+
+Sources are now grouped by content hash before indexing, and only
+selectCanonical's winner in each group is indexed; the rest are recorded
+as manifestEntry.DuplicateOf pointing at it. Precedence is explicit
+flags > repo root > closest .claude/.pi ancestor > other, tie-broken by
+fewest path separators then lexicographically, so the winner does not
+depend on walk order. A higher-precedence source arriving later evicts
+the already-indexed lower-precedence twin.
+
+Three supporting changes:
+- sourceRef and SweepRoot carry origin + physical ancestor depth, which
+  gatherSources previously discarded, so precedence has something real
+  to rank by.
+- The hash registry is seeded from the manifest's cached FileHash, so
+  unchanged sources are never re-read -- pinned by a ReadFile call
+  counter, since defeating it would otherwise pass every test.
+- ingestSource's cheap-skip now also requires the index file to exist.
+  It previously compared only the source's mtime+size, so a source whose
+  index file went missing stayed silently unsearchable until something
+  unrelated touched it.
+
+Rule B: a swept .md with a sibling .vec.json is a vault-note copy and is
+indexed only from the resolved vault path, catching drifted snapshots
+that hash differently from the live note.
+
+=== 5ec0ab2f ===
+docs(plans): record Gate B findings — origin prerequisite, ExtraRoots exemption
+
+=== 3307093a ===
+fix(ingest): drop --auto sweep roots that sit under a throwaway path
+NonPersistentPrefixes was attached only to the session-logs root, and it
+matches slugified directory NAMES against entries during the walk. But
+sweepListerFrom exempts a root's own path from every in-walk check
+(ingest.go: 'if path == root.Path { return nil }'), so an --auto root
+whose own resolved path sat under /tmp was swept whole and indexed
+permanently. That is how ~495 files under /tmp/cummatrix-*/cfgpool/
+reached the live manifest.
+
+Adds NonPersistentPathPrefixes: real path prefixes (/tmp, /private/tmp,
+/var/folders, /private/var/folders) checked against each auto-derived
+root's own path. Applied before ExtraRoots is appended, so a repo's
+declaratively-configured extra_roots keeps its documented 'swept
+verbatim' contract, alongside the existing --sweep/--transcript/
+--markdown bypasses.
+
+=== 2f7f03f4 ===
+refactor: green the check-full baseline — lint, decl order, gatherSources complexity
+targ check-full was failing on clean main: 24 lint findings and 4 files
+needing reorder-decls, all from the recently-landed pi-sessions work.
+Fixed with real restructuring, no suppressions:
+
+- gatherSources was cyclop 16/10; split into explicitSources,
+  piSessionSources and sweptSources, each owning one acquisition
+  mechanism, with gatherSources composing them. Its doc comment now
+  records what the merge point is NOT — origin and content hash are
+  both unavailable there — so a later dedup change does not assume a
+  seam that isn't built yet.
+- "projects" extracted to excludeDirProjects, shared by the claude and
+  pi exclude lists.
+- pi_sessions_test.go: JSONL fixture literals extracted to
+  piSessionTranscriptContent + piRecordLine, clearing 12 lll, 6 wsl_v5
+  and 2 nlreturn findings. All 8 tests and every assertion unchanged.
+- update_test.go / update/update_test.go: decl order, and pi -> piHarness
+  for varnamelen.
+
+check-full now passes 7/8, the only failure being check-uncommitted.
+
+=== 43aa09df ===
+fix(prune): honour --dry-run on the default path
+engram prune --dry-run reported what it would detach and then wrote the
+manifest anyway: args.DryRun was read only inside pruneEmptyLocked, so
+the default path's write at the end of RunPrune ran unconditionally.
+
+The manifest write now goes through writePrunedManifest, which returns
+early on a dry run, and the [dry-run] stdout prefix is shared with
+pruneEmptyLocked via dryRunPrefix instead of being duplicated. Verified
+with the installed binary: manifest.json is byte-identical (shasum)
+across a --dry-run invocation and changes without the flag.
+
+=== 00d59456 ===
+docs(plans): dedup plan rev 3 — Gate A closed on all four angles
+
+=== d8a95b91 ===
+docs(plans): dedup plan rev 2 — Gate A findings, Unit 4 approved, Unit 5 added
+
+=== 74c7dc07 ===
+docs(plans): chunk-index dedup + prune/sweep bugfixes — plan

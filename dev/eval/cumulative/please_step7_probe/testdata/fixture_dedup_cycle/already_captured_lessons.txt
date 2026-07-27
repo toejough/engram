@@ -1,0 +1,3 @@
+ADR-0021 documentation commit contains 'superseded by name' clause -> supersede/superseded marker matched -> mapped already.
+Gate D FAIL verdict on ADR hedge documentation -> Gate D FAIL marker matched -> mapped already.
+Gate D FAIL verdict on uncited duplicate-share figure -> Gate D FAIL marker matched -> mapped already.

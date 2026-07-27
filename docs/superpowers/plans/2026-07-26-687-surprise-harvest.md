@@ -337,16 +337,15 @@ during this planning session).
      cycle, `74c7dc07`..`87243b43` (already extracted verbatim during this planning session;
      copy them in as static text — they are public repo history, safe to embed, and using the
      REAL messages rather than paraphrases is what makes the discriminator check meaningful).
-   - `already_captured_lessons.txt` — six one-line paraphrases (not the real vault note IDs —
-     the fixture must not require the live vault) standing in for notes 486–490 and one
-     Gate-D-caught item. Every line follows the SAME template, no exceptions:
+   - `already_captured_lessons.txt` — three one-line paraphrases (not the real vault note IDs —
+     the fixture must not require the live vault) standing in for the Gate-D-caught items
+     that the existing four-marker audit genuinely reaches: the ADR hedge and the uncited
+     number (notes 489–490). Every line follows the SAME template, no exceptions:
      `"<what was found, one clause> -> <existing marker matched, or 'none'> -> <mapped to a
-     note already / not yet mapped>."` Two example lines, both following the template (the
-     level of detail is deliberately the same in both — a one-clause finding, then the two
-     template fields, nothing more): `"ADR-0021 documentation commit contains 'superseded by
-     name' -> supersede/superseded marker matched -> mapped already."` /
-     `"ship-readiness review found the record-subset premise was false -> none -> not yet
-     mapped."`
+     note already / not yet mapped>."` Do NOT include the discriminators (the unreachable
+     findings) in this file — they must appear only in the raw cycle record (`commit_log.txt`,
+     `plan_excerpt.txt`, `gate_log.txt`) so the trial agent mines them from the record, not by
+     reading a pre-built lessons list.
    - `plan_excerpt.txt` — the two "Shipped addendum" paragraphs from
      `docs/superpowers/plans/2026-07-25-chunk-index-dedup-and-prune-fixes.md` (Units 3 and 4's
      addenda, verbatim — already read in full during this planning session) describing the
@@ -425,18 +424,28 @@ during this planning session).
      (vault note 284 — never an echo instruction inside the treatment text); the `-p` prompt
      asks for it at the end of the response, matching `please_step3_probe`'s split exactly.
    - `score_clean_auditor(text)` / `score_loaded_auditor(text)`: mechanical substring/regex
-     match against `GROUND_TRUTH.md`'s per-surprise keyword sets (author-defined during this
-     unit, e.g. `discriminator_1` keywords: `r"(mergeChunkRecords|append-only within|more
-     than one ingest day|record.subset|disjoint historical)"`; `discriminator_2` keywords:
-     `r"(ENGRAM_CHUNKS_DIR|resolves.{0,20}own path|redirect.{0,30}not honou?red|isolation)"`).
-     `PASS` (discriminator surfaced) requires the response's surprise-harvest output to name
-     the surprise **and** attach a marker/classification/rung (not just mention the topic in
-     passing — passing prose that happens to reference "append-only" while discussing
-     something else does not count; require the match to occur within 200 chars of a
-     rung/marker/classification token, mirroring `please_step3_probe`'s
-     `_distractor_over_included` windowed-proximity technique).
+     match measuring **inclusion-with-remedy vs exclusion**, not topic mention. For each surprise's
+     keyword set, check: (a) keyword matches in the response, (b) remedy tokens appear within
+     100 chars of the keyword (write, amend, capture, fix, propose, suggest), (c) exclusion
+     tokens do NOT appear in that same 100-char window (no lesson, not mapped, already captured,
+     outside, out of scope, eligible for). **HIT** = keyword found + remedy in window + no
+     exclusion in window. **MISS** = keyword absent OR keyword found but exclusion in window.
+     Exclusion scope is critical: an exclusion phrase far away in a different section does not
+     count as excluding a nearby keyword. Example: mentioning "record-subset is already mapped"
+     in one section should not prevent scoring a "record-subset with a proposed vault-note fix"
+     in a separate later section.
 4. `README.md` documenting the two roles, the fixture's self-containment, and the
    ground-truth table (public summary, not the scorer's private keyword regexes).
+
+**Critical fixture and scorer design note:** The fixture must not pre-flag the discriminators
+in `already_captured_lessons.txt`; they must appear only in the raw cycle record so the trial
+agent mines them from commits/gates/plans rather than reading a pre-built list. The scorer
+must measure "inclusion with action" (remedy tokens present) vs "exclusion" (findings 
+dispositioned as already handled or out-of-scope), not keyword mention alone — this prevents
+false positives where a response discusses a discriminator only to exclude it from action.
+Scoping the exclusion check to a 100-char window around each keyword prevents cross-section
+interference where one section's exclusion of a different item doesn't poison a later section's
+remedy-based inclusion of the same topic.
 
 **REFACTOR:** none — this is new infrastructure with no prior version to reconcile against.
 Gate B still applies (design-fit review of the new harness code against

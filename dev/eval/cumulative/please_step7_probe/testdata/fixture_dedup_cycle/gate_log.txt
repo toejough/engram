@@ -1,0 +1,38 @@
+gate: A
+round: 1
+findings:
+  - ask-alignment: findings resolved in rev 2
+verdict: pass
+
+gate: A
+round: 2
+findings: []
+verdict: pass
+
+gate: B
+unit: 1
+verdict: ack
+
+gate: B
+unit: 2
+verdict: ack
+
+gate: B
+unit: 3
+verdict: ack
+
+gate: B
+unit: 4
+verdict: ack
+
+gate: D
+findings:
+  - id: adr_hedge
+    finding: ADR-0021 records an earlier narrowing but does not cite the decision that prompted it
+    verdict: FAIL
+    resolution: commit b0985c4d adds ADR-0021 entry and cites the narrowing explicitly
+  - id: uncited_number
+    finding: "LEDGER row reports '124 of 6,612' metric without citing the measurement method"
+    verdict: FAIL
+    resolution: commit b0985c4d adds full methodology and vintage to the LEDGER row
+verdict: fail-then-fixed
