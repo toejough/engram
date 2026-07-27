@@ -667,11 +667,12 @@ without writing. `--with-guidance` additionally deploys the guidance docs
 opt-in). OpenCode is deferred — its `AGENTS.md` import support is
 unverified. Plain `engram update` hints about `--with-guidance` until a
 guidance file is imported, then keeps it refreshed on every run. It also
-prints a one-line notice pointing to the README Upgrading section when it
-detects old-format vocab files (#678), leftover empty `.jsonl` chunk-index
-files (#694), or a live duplicate hash group in the chunk-index manifest
-(ADR-0021) — the last of these only points at `engram prune --duplicates`;
-`update` never removes anything itself.
+prints a one-line notice naming the exact command when it detects
+old-format vocab files (#678 — `engram update --regen-vocab`), leftover
+empty `.jsonl` chunk-index files (#694 — `engram prune --empty`), or a
+duplicate backlog that `engram prune --duplicates` would actually remove
+(ADR-0021, refined by #713: prune's dry-run coverage gate decides;
+refusal-only backlogs stay silent); `update` never removes anything itself.
 
 ### `engram count` (subcommand)
 Read-only aggregation over the vault, deliberately off the query/similarity path

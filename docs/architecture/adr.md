@@ -689,7 +689,10 @@ and the `.claude` sweep, until this cycle, did not.
    moment it runs. A destructive migration should run only when the user asks for it, not silently
    as a side effect of a routine binary/skills refresh. Detection is stateless: no sentinel file,
    because there is nothing to mark "done" — the check simply reports the live count truthfully on
-   every run and goes quiet once the backlog is actually cleared.
+   every run and goes quiet once the backlog is actually cleared. Refined by #713 (2026-07-27):
+   detection now runs prune's own dry-run coverage gate, so the notice fires only when a removal
+   would actually happen, and it names the command directly (the README Upgrading section it used
+   to point at is removed).
 
 10. **One-time canonical-reselection churn is expected, and is bounded.** `prune --duplicates`
     selects a group's canonical origin-blind, from whatever is in the manifest at that moment. A

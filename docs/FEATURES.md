@@ -197,7 +197,8 @@ duplicate's own chunk records — not on hash-match alone, since a source's inde
 records from a prior ingest that a byte-identical twin's index does not. `engram prune --duplicates`
 (+ `--dry-run`) applies the same rule retroactively to a chunk index that accumulated duplicates
 before this dedup existed, and `engram update` detects a live duplicate backlog and notifies the user
-of it (see README's Upgrading section) rather than removing anything on its own.
+with the exact command when `prune --duplicates` would actually remove something (#713) rather than
+removing anything on its own.
 
 why: `docs/architecture/adr.md` — ADR-0021
 validation: unit tests lock the behavior (`internal/cli/ingest_dedup_test.go`,
