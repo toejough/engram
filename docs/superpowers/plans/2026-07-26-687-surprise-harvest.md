@@ -812,8 +812,9 @@ Step 7 — a ~42-line insertion carrying the full seven-marker enumeration, the 
 counterfactual classification, the two-remedy ladder, and a closing-report table — was cut
 down to a ~10-line addition once the larger mechanism's premise was refuted. What survived:
 asking which existing artifact should have surfaced a captured lesson, and rewording a stale
-vault note rather than duplicating it (amend-beats-write). That small addition is staged and
-uncommitted in `agent-instructions/skills/please/SKILL.md` today, kept as an unvalidated
+vault note rather than duplicating it (amend-beats-write). That small addition was
+committed as `662e50ba` in `agent-instructions/skills/please/SKILL.md`; deployment and merge
+were separate decisions taken after this plan closed. It shipped as an unvalidated
 addition — no measurement in the LEDGER row above validates it specifically.
 
 See `dev/eval/LEDGER.md#687-surprise-harvest` for the full measurement and its numbers, and

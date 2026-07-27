@@ -298,7 +298,7 @@ sequenceDiagram
     end
 
     rect rgb(245,245,255)
-        Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"); a small, staged, unvalidated addition then asks which existing vault note should have surfaced each captured lesson, rewording a stale one rather than duplicating it (see GLOSSARY → surprise harvest); then closing /learn
+        Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"); a small addition — committed in `agent-instructions/skills/please/SKILL.md` (`662e50ba`), not deployed via `engram update`, unvalidated — then asks which existing vault note should have surfaced each captured lesson, rewording a stale one rather than duplicating it (see GLOSSARY → surprise harvest); then closing /learn
         H->>E: engram ingest --auto
         E-->>H: per-source chunk tally
         loop per explicit lesson
@@ -507,7 +507,7 @@ sequenceDiagram
     end
 
     rect rgb(245,245,255)
-        Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"); a small, staged, unvalidated addition then asks which existing vault note should have surfaced each captured lesson, rewording a stale one rather than duplicating it (see GLOSSARY → surprise harvest); then closing /learn
+        Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"); a small addition — committed in `agent-instructions/skills/please/SKILL.md` (`662e50ba`), not deployed via `engram update`, unvalidated — then asks which existing vault note should have surfaced each captured lesson, rewording a stale one rather than duplicating it (see GLOSSARY → surprise harvest); then closing /learn
     end
 
     H-->>Op: terminal report (commits made, paths written, gate audit, follow-ups offered)
