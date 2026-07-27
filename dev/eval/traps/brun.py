@@ -9,6 +9,8 @@ import argparse, json, os, shutil, subprocess, sys, tempfile, time
 import concurrent.futures as cf
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 import behavioral as B
 from run import build_cold_cfg, MODELS  # reuse the clean cold-cfg builder
 
@@ -35,13 +37,15 @@ def make_judge(cfg):
         m = re.search(r"Answer\s+([A-Z]+)\b.*?else\s+([A-Z]+)", rubric, re.S)
         trap_word = m.group(1) if m else "YES"
         prompt = (f"{rubric}\n\nRespond with EXACTLY ONE WORD.\n\n--- code ---\n{code_text[:6000]}")
-        env = dict(os.environ); env["CLAUDE_CONFIG_DIR"] = cfg
+        jwd = tempfile.mkdtemp(prefix="judge-", dir=os.path.join(ROOT, "ws"))
+        jstate = tempfile.mkdtemp(prefix="judge-state-", dir=os.path.join(ROOT, "ws"))
+        env = isolation.isolated_env(cfg, jstate, cwd=jwd)
         for backoff in (0, 15, 45):
             if backoff:
                 time.sleep(backoff)
             r = subprocess.run(["claude", "-p", prompt, "--output-format", "json",
                                 "--model", JUDGE_MODEL, "--permission-mode", "bypassPermissions"],
-                               env=env, capture_output=True, text=True)
+                               cwd=jwd, env=env, capture_output=True, text=True)
             try:
                 out = json.loads(r.stdout)
             except Exception:
@@ -57,8 +61,8 @@ def run_one(name, spec, model, cfg, judge, idx):
     wd = tempfile.mkdtemp(prefix=f"{name}-{idx}-", dir=os.path.join(ROOT, "ws"))
     if spec.get("setup"):
         spec["setup"](wd)
-    env = dict(os.environ)
-    env["CLAUDE_CONFIG_DIR"] = cfg
+    state = tempfile.mkdtemp(prefix=f"{name}-{idx}-state-", dir=os.path.join(ROOT, "ws"))
+    env = isolation.isolated_env(cfg, state, cwd=wd)
     env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "32000"
     args = ["claude", "-p", spec["prompt"], "--output-format", "json",
             "--model", MODELS[model], "--permission-mode", "bypassPermissions"]

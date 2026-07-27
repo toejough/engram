@@ -9,6 +9,8 @@ import argparse, json, os, shutil, subprocess, sys, tempfile, time
 import concurrent.futures as cf
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 import traps as T
 
 MODELS = {"opus": "claude-opus-4-8", "sonnet": "claude-sonnet-4-6", "haiku": "claude-haiku-4-5-20251001"}
@@ -37,8 +39,8 @@ def build_cold_cfg(dst):
 def run_one(name, spec, model, cfg, idx):
     """One cold trial of a trap. Returns (verdict, cost, sid)."""
     wd = tempfile.mkdtemp(prefix=f"{name}-{idx}-", dir=os.path.join(ROOT, "ws"))
-    env = dict(os.environ)
-    env["CLAUDE_CONFIG_DIR"] = cfg
+    state = tempfile.mkdtemp(prefix=f"{name}-{idx}-state-", dir=os.path.join(ROOT, "ws"))
+    env = isolation.isolated_env(cfg, state, cwd=wd)
     env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "32000"
     args = ["claude", "-p", spec["prompt"], "--output-format", "json",
             "--model", MODELS[model], "--permission-mode", "bypassPermissions"]

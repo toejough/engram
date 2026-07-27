@@ -42,6 +42,10 @@ import subprocess
 import tempfile
 import time
 import uuid
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+import isolation
 
 MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "opus": "claude-opus-4-8"}
 KEYCHAIN = 'security find-generic-password -s "Claude Code-credentials" -w'
@@ -338,8 +342,8 @@ def score_discriminator(text, discriminator_id):
 
 def run_one(cfg, role, skill_text, marker, model, pressure, idx):
     wd = build_trial_project(role, skill_text, marker)
-    env = dict(os.environ)
-    env["CLAUDE_CONFIG_DIR"] = cfg
+    state = tempfile.mkdtemp(prefix="please-step7-probe-state-")
+    env = isolation.isolated_env(cfg, state, cwd=wd)
     env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "8000"
 
     if role == "clean_auditor":

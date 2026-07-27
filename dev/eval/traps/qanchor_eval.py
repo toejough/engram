@@ -34,6 +34,8 @@ import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 from run import MODELS, build_cold_cfg
 from qanchor_corpus import PAIRS
 from qanchor_score import tally, verdict  # pure scoring (unit-tested in test_qanchor.py)
@@ -81,10 +83,10 @@ JUDGE = (
 
 def _claude(prompt, cfg, model, max_tokens=8000):
     """One isolated `claude -p` call with degraded-build retry (is_error + near-zero cost => transient)."""
-    env = dict(os.environ)
-    env["CLAUDE_CONFIG_DIR"] = cfg
-    env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = str(max_tokens)
     wd = tempfile.mkdtemp(dir=os.path.join(ROOT, "ws"))
+    state = tempfile.mkdtemp(dir=os.path.join(ROOT, "ws"))
+    env = isolation.isolated_env(cfg, state, cwd=wd)
+    env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = str(max_tokens)
     args = ["claude", "-p", prompt, "--output-format", "json", "--model", MODELS[model],
             "--permission-mode", "bypassPermissions"]
     out = {}

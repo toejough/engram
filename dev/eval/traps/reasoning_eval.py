@@ -19,6 +19,8 @@ import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import isolation
 from run import MODELS, build_cold_cfg
 
 ROOT = os.environ.get("TRAPS_ROOT", "/tmp/reasoning-eval")
@@ -90,9 +92,10 @@ JUDGE_TMPL = (
 
 
 def _run(prompt, cfg, model):
-    env = dict(os.environ); env["CLAUDE_CONFIG_DIR"] = cfg
-    env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "6000"
     wd = tempfile.mkdtemp(dir=os.path.join(ROOT, "ws"))
+    state = tempfile.mkdtemp(dir=os.path.join(ROOT, "ws"))
+    env = isolation.isolated_env(cfg, state, cwd=wd)
+    env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "6000"
     args = ["claude", "-p", prompt, "--output-format", "json", "--model", MODELS[model],
             "--permission-mode", "bypassPermissions"]
     out = {}

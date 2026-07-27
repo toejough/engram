@@ -42,6 +42,10 @@ import subprocess
 import tempfile
 import time
 import uuid
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+import isolation
 
 MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "opus": "claude-opus-4-8"}
 KEYCHAIN = 'security find-generic-password -s "Claude Code-credentials" -w'
@@ -146,8 +150,8 @@ def loadj_str(txt):
 
 def run_one(cfg, fixture_name, scenario_text, recall_md_text, marker, model, idx):
     wd = build_trial_project(recall_md_text, marker)
-    env = dict(os.environ)
-    env["CLAUDE_CONFIG_DIR"] = cfg
+    state = tempfile.mkdtemp(prefix="endorse-cue-state-", dir=os.path.join(ROOT, "ws"))
+    env = isolation.isolated_env(cfg, state, cwd=wd)
     env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "4000"
     prompt = PROMPT_PREFIX + scenario_text + PROMPT_SUFFIX
     args = ["claude", "-p", prompt, "--output-format", "json",
