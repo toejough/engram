@@ -6,7 +6,7 @@ require (
 	github.com/knights-analytics/hugot v0.7.4
 	github.com/onsi/gomega v1.39.1
 	github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e
-	github.com/toejough/targ v0.0.0-20260726010428-2473fce8c5c5
+	github.com/toejough/targ v0.0.0-20260727143339-55c6e48221b3
 	go.yaml.in/yaml/v3 v3.0.4
 	pgregory.net/rapid v1.2.0
 )
