@@ -594,8 +594,8 @@ sweep already carried (`piExcludes`); before this cycle only the `.pi` side
 had it, so `.claude/jobs` content was swept and indexed. The skip keeps eval/test runs from
 bloating the main chunk index; configure it via `.engram/sweep.json`
 (`non_persistent_prefixes` / `non_persistent_path_prefixes` keys), or
-bypass it with explicit `--sweep`/`--transcript`/`--markdown` or an isolated
-index via `ENGRAM_CHUNKS_DIR`.
+bypass it with explicit `--sweep`/`--transcript`/`--markdown`/`--pi-sessions` or an
+isolated index via `ENGRAM_CHUNKS_DIR`.
 Chunks are the episodic layer (raw event memory); at recall they compete with
 notes in the per-phrase ranking (matched set, Channel 1) and the newest
 (default 25, configurable via `--recent-fill` / `ENGRAM_RECENT_FILL`) also appear un-clustered in the recency channel (Channel 2). Chunk-grounding

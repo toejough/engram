@@ -218,8 +218,8 @@ index. This now also covers a resolved sweep root whose own path sits under a th
 root (e.g. a repo-markdown root resolving to a bare `/tmp/...` cwd with no VCS marker) —
 previously only a session log's own subdirectories were checked, so a root that itself
 lived under `/tmp`, `/private/tmp`, `/var/folders`, or `/private/var/folders` was swept
-whole and permanently indexed; explicit `--sweep`/`--transcript`/`--markdown` and
-`SweepSpec.ExtraRoots` are deliberately exempt from both checks. An ancestor `.claude`
+whole and permanently indexed; explicit `--sweep`/`--transcript`/`--markdown`/`--pi-sessions`
+and `SweepSpec.ExtraRoots` are deliberately exempt from both checks. An ancestor `.claude`
 dir's sweep separately now excludes its `jobs/` subdirectory — agent-harness scratch that
 can include whole snapshot copies of the vault — restoring parity with the `.pi` ancestor
 sweep, which already excluded `jobs/`; `.claude/jobs` was previously swept whole and

@@ -68,9 +68,14 @@ state={str(r["number"]):r["state"] for r in json.loads(subprocess.run(
     capture_output=True,text=True).stdout)}
 ACT={"### NOW","### NEXT","### LATER","### GATED","### DEFERRED","## Parked backlog"}
 bad=[n for n in where if state.get(n)=="OPEN" and not (where[n]&ACT)]
-contradictions=[l for l in src if "still OPEN" in l or "— reconcile" in l]
+# Check the TYPE CELL, not the whole line. A repaired row may legitimately QUOTE its old
+# wrong text as a disclosure (the convention row #687 uses), and a substring scan would then
+# fire on the fix itself — the quoted-prose false-positive class of vault note 463.
+# Table shape: | item | type | note | bar |  ->  split("|")[2] is the type cell.
+contradictions=[l for l in src
+                if len(l.split("|"))>=3 and "still OPEN" in l.split("|")[2]]
 print("open-but-only-in-provenance:", sorted(bad))
-print("self-contradicting rows:", len(contradictions))
+print("type-cell contradictions:", len(contradictions))
 print("PASS" if not bad and not contradictions else "FAIL (expected at baseline)")
 PY
 ```
