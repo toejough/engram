@@ -12,6 +12,7 @@ type AgentInvocation struct {
 	ConfigDir  string // CLAUDE_CONFIG_DIR
 	PathPrefix string // prepended to PATH (may be empty)
 	VaultPath  string // exported as ENGRAM_VAULT_PATH (the per-run vault clone)
+	ChunksDir  string // exported as ENGRAM_CHUNKS_DIR (the per-run chunk index)
 }
 
 // AgentResult is the raw output of a headless run.

@@ -89,6 +89,15 @@ func TestRun_Orchestrates_CurrentState(t *testing.T) {
 				if inv.VaultPath == "" {
 					return fmt.Errorf("VaultPath must not be empty")
 				}
+				// #708/#642: a vault without a chunks dir is the half-fix. An empty ChunksDir
+				// means agentEnv omits ENGRAM_CHUNKS_DIR, which engram resolves to the
+				// operator's global $XDG_DATA_HOME/engram/chunks — their live sessions.
+				if inv.ChunksDir == "" {
+					return fmt.Errorf("ChunksDir must not be empty")
+				}
+				if inv.ChunksDir == inv.VaultPath {
+					return fmt.Errorf("ChunksDir must be distinct from VaultPath, both %q", inv.ChunksDir)
+				}
 				return nil
 			}),
 		).Return(eval.AgentResult{

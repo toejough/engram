@@ -64,6 +64,11 @@ func runOne(
 	}
 
 	vaultDir := filepath.Join(workspace, ".vault")
+	chunksDir := filepath.Join(workspace, ".chunks")
+
+	if err := os.MkdirAll(chunksDir, 0o755); err != nil {
+		return RunResult{}, fmt.Errorf("creating chunk index dir: %w", err)
+	}
 
 	if err := deps.Cloner.Clone(ctx, cfg.VaultSrc, vaultDir); err != nil {
 		return RunResult{}, fmt.Errorf("cloning vault: %w", err)
@@ -76,6 +81,7 @@ func runOne(
 		ConfigDir:  configDir,
 		PathPrefix: pathPrefix,
 		VaultPath:  vaultDir,
+		ChunksDir:  chunksDir,
 	})
 	if err != nil {
 		return RunResult{}, fmt.Errorf("running agent: %w", err)

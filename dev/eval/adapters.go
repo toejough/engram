@@ -171,6 +171,12 @@ func agentEnv(inv AgentInvocation) []string {
 		env = append(env, "ENGRAM_VAULT_PATH="+inv.VaultPath)
 	}
 
+	// Without this, engram resolves the chunk index to the operator's global
+	// $XDG_DATA_HOME/engram/chunks — their live sessions, i.e. the eval answer key (#642).
+	if inv.ChunksDir != "" {
+		env = append(env, "ENGRAM_CHUNKS_DIR="+inv.ChunksDir)
+	}
+
 	if inv.PathPrefix != "" {
 		env = append(env, "PATH="+inv.PathPrefix+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}
