@@ -469,8 +469,9 @@ func TestWriteUpdateReport_EmptyChunkHint(t *testing.T) {
 
 	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{ChunkIndexHasEmptyFiles: true})
 	g.Expect(writeErr).NotTo(HaveOccurred())
-	g.Expect(buffer.String()).To(ContainSubstring("Upgrading"))
-	g.Expect(buffer.String()).To(ContainSubstring("README.md"))
+	g.Expect(buffer.String()).To(ContainSubstring("run `engram prune --empty`"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("Upgrading"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("README.md"))
 
 	var clean bytes.Buffer
 

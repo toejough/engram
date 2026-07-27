@@ -29,8 +29,8 @@ type UpdateArgs struct {
 const (
 	duplicateChunksNotice = "duplicate chunk-index files found — run `engram prune --duplicates` to clear them; " +
 		"see the Upgrading section in README.md\n"
-	emptyChunkFilesNotice = "empty chunk-index files found — run `engram prune --empty` to clear them; " +
-		"see the Upgrading section in README.md\n"
+	emptyChunkFilesNotice = "empty chunk-index files found — run `engram prune --empty` to clear them " +
+		"(preview with `engram prune --empty --dry-run`)\n"
 	oldVocabFilePrefix   = "vocab."
 	oldVocabFileSuffix   = ".md"
 	vocabMigrationNotice = "old-format vocab files found — run `engram update --regen-vocab` to migrate them " +
@@ -377,9 +377,9 @@ func writeDuplicatesHint(buffer *bytes.Buffer, report update.Report) {
 	}
 }
 
-// writeEmptyChunkHint prints a one-line pointer to the README "Upgrading"
-// section when the chunk index still holds 0-byte .jsonl files. Silent
-// otherwise — a vault whose index was already pruned never sees it.
+// writeEmptyChunkHint prints a one-line notice naming `engram prune --empty`
+// when the chunk index still holds 0-byte .jsonl files. Silent otherwise — a
+// vault whose index was already pruned never sees it.
 func writeEmptyChunkHint(buffer *bytes.Buffer, report update.Report) {
 	if report.ChunkIndexHasEmptyFiles {
 		buffer.WriteString(emptyChunkFilesNotice)
