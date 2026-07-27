@@ -18,7 +18,7 @@ This table encodes the expected audit verdicts per surprise. The `reachable_by_e
 | Surprise ID | Marker | Classification | Originating Record | Reachable by Existing Audit? |
 |---|---|---|---|---|
 | `discriminator_1` | S5 | (c) never captured until this cycle's own review | fb2c9f45 | NO |
-| `discriminator_2` | S6 | (c) never captured until this cycle's own review | 33481996 | NO |
+| `discriminator_2` | S6 | (c) never captured until this cycle's own review | gate_log.txt:verification-unit5 | NO |
 | `adr_hedge` | S6 | (b) present-but-stale (Gate D caught it) | gate_log.txt:adr_hedge | YES |
 | `uncited_number` | S7 | (c) never captured before Gate D | gate_log.txt:uncited_number | YES |
 
@@ -30,9 +30,9 @@ This table encodes the expected audit verdicts per surprise. The `reachable_by_e
 - Result: NO — the fix exists but carries no audit marker
 
 **discriminator_2** (live-index near-miss during Unit 5 verification):
-- Originating record: commit 33481996 (fix(ingest): exclude .claude/jobs from the --auto sweep)
-- Checks: STOP (no), Gate FAIL (no), CORRECTION-class (no), Escalation (no)
-- Result: NO — the fix exists but carries no audit marker
+- Originating record: `gate_log.txt`, the `verification: Unit 5` entry
+- Checks: STOP (no), Gate FAIL (no — this entry has no `verdict:` field and is not a `gate:` block, so the `unit:`+`verdict: FAIL` alternative does not apply either), CORRECTION-class (no), Escalation (no)
+- Result: NO — the event is recorded but carries no audit marker
 
 **adr_hedge** (ADR documentation hedge — Gate D FAIL):
 - Originating record: gate_log.txt entry with id "adr_hedge"

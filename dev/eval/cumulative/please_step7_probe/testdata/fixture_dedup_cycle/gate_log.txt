@@ -25,6 +25,13 @@ gate: B
 unit: 4
 verdict: ack
 
+verification: Unit 5
+target: engram update, run against a copy-isolated chunks index
+setup: the chunks directory was redirected to a scratch copy via ENGRAM_CHUNKS_DIR before running
+outcome: the command resolved the chunks directory through its own path resolution instead of
+  honouring the redirect, so the run executed against the live chunk index; the live index was
+  modified and a .dedup-applied sentinel file was written to it
+
 gate: D
 findings:
   - id: adr_hedge

@@ -22,9 +22,16 @@ Design (dev/eval/cumulative/please_step3_probe/run_probe.py's pattern, reused no
   - Scoring is MECHANICAL: substring/regex match for each discriminator's keyword set, scoped to a
     single markdown BLOCK (a table row, list item, or paragraph line of the response) rather than
     a character-distance window, so an adjacent item's remedy or exclusion language cannot bleed
-    into this item's verdict. Quoted/code material (fenced code blocks, inline code spans,
-    blockquote lines) is stripped before scoring, so a quoted commit subject can't be read as the
-    agent's own proposal.
+    into this item's verdict. Cited material (fenced code blocks / inline code spans whose content
+    is SHAPED like a commit subject or a shell command) is stripped before scoring, so a quoted
+    commit subject can't be read as the agent's own proposal. Prose blockquotes and other code
+    spans are left intact — an agent's own drafted proposal (a vault note as a blockquote, a
+    proposed filename as inline code) is the strongest true-positive signal available and must
+    survive scoring (vault note 510).
+  - The corpus gate (`--verify-corpus`, and run automatically before every trial) greps each
+    discriminator's keyword regex against the fixture files and aborts if any discriminator has
+    zero matches — a detector hunting for a finding that isn't in the corpus can never produce a
+    meaningful score (vault note 509).
 """
 import argparse
 import json
@@ -201,8 +208,26 @@ def loadj_str(txt):
 # Remedy tokens: actions the agent proposes in THIS pass, not past work
 # Exclude "fix" and "update" — too common in commit messages and past-tense descriptions
 # Keep only verbs that clearly indicate proposing NEW action in this cycle
+#
+# Word-form-tolerant (stem + \w*), matching the convention the discriminator keyword sets
+# already use (e.g. "hedg\w*", "narrow\w*", "supersed\w*"): a bare-verb \b...\b match misses
+# every inflection ("capturing", "proposing", "recommending", "suggests", "established"), which
+# silently zeroed the remedy channel for any agent phrasing that wasn't the bare infinitive.
+# "write" is irregular (wrote/written don't share the "writ" stem), so it gets its own
+# alternatives rather than a stem.
+#
+# Also includes this project's own idiom for routing a lesson to the closing learn step, found
+# by grepping the RED clean transcripts (2026-07-27): "crystallize" (this repo's verb-of-art for
+# writing a vault note — see recall/learn SKILL.md), "handoff" (as in "reversal handoff", "kind-3
+# handoff candidate" — the CURRENT/RED Step-7 text's own term for an unmapped item routed to
+# /learn), and "kind-3"/"kind-4" (that same text's routing-category labels). Added deliberately
+# even though it raises the RED arm and shrinks the measured GREEN-vs-RED gap: an agent using
+# this vocabulary while following the CURRENT text is genuinely proposing action, and excluding
+# it to keep the gap wide would bias the instrument toward the answer the eval is being run to
+# find out — not a defensible scoring choice.
 REMEDY_TOKENS_RE = re.compile(
-    r"\b(write|amend|capture|establish|propose|recommend|suggest)\b",
+    r"\b(writ\w*|wrote|written|amend\w*|captur\w*|establish\w*|propos\w*|recommend\w*|"
+    r"suggest\w*|crystalli[sz]\w*|handoff\w*)\b|kind[- ]?[34]\b",
     re.I,
 )
 
@@ -216,23 +241,53 @@ EXCLUSION_TOKENS_RE = re.compile(
     re.I,
 )
 
-# Quoted/code material the agent is CITING, not proposing: a fenced code block, an inline
-# code span, or a blockquote line. Each is replaced with a neutral placeholder before scoring
-# so a remedy verb or keyword sitting inside a quoted commit subject or code snippet can never
-# be read as the agent's own proposal, and so the stripped text's line offsets don't silently
-# bridge two unrelated blocks together.
-FENCED_CODE_BLOCK_RE = re.compile(r"```.*?```", re.DOTALL)
-INLINE_CODE_SPAN_RE = re.compile(r"`[^`\n]*?`")
-BLOCKQUOTE_LINE_RE = re.compile(r"^[ \t]*>.*$", re.MULTILINE)
+# Cited material — a fenced code block or inline code span whose content is SHAPED like a
+# quoted commit subject or a shell invocation — is what the agent is CITING, not proposing, and
+# is replaced with a neutral placeholder before scoring. Everything else (prose blockquotes,
+# and code spans that don't match either shape) is left INTACT.
+#
+# This is narrower than blanket-stripping every fenced block / code span / blockquote line
+# (the prior design). Vault note 510: agents conventionally present their OWN drafted output —
+# a proposed vault note as a blockquote, a proposed note filename as an inline code span — using
+# exactly that formatting, and that is the strongest true-positive evidence available. Blanket
+# stripping erased it (two trials lost). Real commit subjects and shell commands in this domain
+# are terse, past-tense, descriptive text ("fix(dedup): ...", "git commit -m ...") that doesn't
+# carry this scorer's remedy vocabulary ("write"/"amend"/"capture"/"propose"/"recommend"/
+# "suggest"), so narrowing the strip to citation-shaped code trades a large false-negative cost
+# for a small false-positive one. Blockquotes are never stripped at all under this design: they
+# are where an agent's own drafted proposal is most likely to appear, and this fixture's real
+# commit subjects (see commit_log.txt) don't use remedy verbs, so the residual false-positive
+# surface is judged negligible — validated in both directions in the case suite (see git history
+# / README) rather than assumed.
+FENCED_CODE_BLOCK_RE = re.compile(r"```(.*?)```", re.DOTALL)
+INLINE_CODE_SPAN_RE = re.compile(r"`([^`\n]*?)`")
+COMMIT_SUBJECT_RE = re.compile(
+    r"^\s*(?:feat|fix|docs|test|chore|refactor|perf|style|build|ci)(?:\([^)]*\))?:\s",
+    re.I | re.MULTILINE,
+)
+SHELL_COMMAND_RE = re.compile(r"^\s*(?:\$\s|git\s|python\s|python3\s)", re.MULTILINE)
+
+
+def _looks_like_citation(content):
+    """True if code content is SHAPED like a quoted commit subject or a shell invocation —
+    material the agent is citing, not its own drafted proposal. Checked line-by-line (a fenced
+    block may hold several lines; any one matching is enough to treat the whole block as cited)."""
+    return bool(COMMIT_SUBJECT_RE.search(content) or SHELL_COMMAND_RE.search(content))
+
+
+def _strip_cited_code(pattern, placeholder, text):
+    def repl(match):
+        return placeholder if _looks_like_citation(match.group(1)) else match.group(0)
+
+    return pattern.sub(repl, text)
 
 
 def _strip_quoted_material(text):
-    """Replace fenced code blocks, inline code spans, and blockquote lines with a neutral
-    placeholder, in that order (fenced blocks first so an inline-code pass can't partially
-    match inside one). The placeholders carry no keyword/remedy/exclusion vocabulary."""
-    text = FENCED_CODE_BLOCK_RE.sub("\n[CODE BLOCK]\n", text)
-    text = INLINE_CODE_SPAN_RE.sub("[CODE]", text)
-    text = BLOCKQUOTE_LINE_RE.sub("[QUOTED]", text)
+    """Replace ONLY citation-shaped fenced code blocks and inline code spans with a neutral
+    placeholder (see _looks_like_citation). Blockquote lines, and code spans/blocks that are NOT
+    citation-shaped, are left intact — see the module comment above FENCED_CODE_BLOCK_RE."""
+    text = _strip_cited_code(FENCED_CODE_BLOCK_RE, "\n[CODE BLOCK]\n", text)
+    text = _strip_cited_code(INLINE_CODE_SPAN_RE, "[CODE]", text)
     return text
 
 
@@ -337,17 +392,90 @@ def run_one(cfg, role, skill_text, marker, model, pressure, idx):
     return result
 
 
+def verify_corpus(fixture_dir=FIXTURE_DIR):
+    """Corpus gate (vault note 509): for every discriminator, grep its keyword regex against
+    every fixture file and report the match count + file(s) matched. A positive control on
+    synthetic text only proves a regex CAN fire; this is the separate, mandatory check that the
+    finding it hunts for is actually THERE, in the corpus the trial agent will read. See
+    README.md's "Corpus gate" section.
+
+    Returns (report, any_zero) where report is {disc_id: [(filename, match_count), ...]} and
+    any_zero is True iff at least one discriminator matched zero fixture files.
+    """
+    fixture_files = sorted(
+        f for f in os.listdir(fixture_dir) if os.path.isfile(os.path.join(fixture_dir, f))
+    )
+
+    print("Corpus gate: checking each discriminator's keyword regex against the fixture corpus")
+    print(f"Fixture dir: {fixture_dir}")
+    print(f"Fixture files: {', '.join(fixture_files)}\n")
+
+    report = {}
+    any_zero = False
+    for disc_id, spec in DISCRIMINATORS.items():
+        keyword_re = re.compile(spec["keywords"], re.I)
+        matches = []
+        for fname in fixture_files:
+            with open(os.path.join(fixture_dir, fname)) as f:
+                content = f.read()
+            count = len(keyword_re.findall(content))
+            if count:
+                matches.append((fname, count))
+        report[disc_id] = matches
+        total = sum(count for _, count in matches)
+        if total == 0:
+            any_zero = True
+            print(f"  {disc_id}: 0 matches — UNREACHABLE (no fixture file contains this finding)")
+        else:
+            files_str = ", ".join(f"{fname} x{count}" for fname, count in matches)
+            print(f"  {disc_id}: {total} match(es) — {files_str}")
+
+    print()
+    if any_zero:
+        print(
+            "FAIL: at least one discriminator has zero matches in the corpus. A detector "
+            "hunting for something that is not in the corpus can never produce a meaningful "
+            "score — see README.md's Corpus gate section."
+        )
+    else:
+        print("PASS: every discriminator is reachable in the fixture corpus.")
+
+    return report, any_zero
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--role", default="clean_auditor", choices=["clean_auditor", "loaded_auditor"])
     ap.add_argument("--skill-text", required=False,
                     help="path to the candidate please/SKILL.md text (defaults to live version)")
     ap.add_argument("--n", type=int, default=1)
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--out", required=False,
+                    help="required unless --verify-corpus (which exits before any trial runs)")
     ap.add_argument("--model", default="sonnet", choices=list(MODELS))
     ap.add_argument("--pressure", action="store_true",
                     help="loaded_auditor only: append pressure suffix")
+    ap.add_argument("--verify-corpus", action="store_true",
+                    help="run the corpus gate (see verify_corpus()) and exit — no trials run")
     a = ap.parse_args()
+
+    if a.verify_corpus:
+        _, any_zero = verify_corpus()
+        exit(1 if any_zero else 0)
+
+    if not a.out:
+        ap.error("--out is required (unless --verify-corpus)")
+
+    # Mandatory corpus gate — cannot be skipped by any run mode. Runs before the first trial so
+    # a detector hunting for a finding absent from the corpus never again consumes a paid run
+    # (vault note 509: discriminator_2 read 0/5 across six arms because its finding was never in
+    # the fixture, and nothing caught that before real spend).
+    _, any_zero = verify_corpus()
+    if any_zero:
+        print(
+            "\nABORT: corpus gate failed — see above. Fix the fixture (or the keyword set) "
+            "before spending on trials. Run with --verify-corpus for this report alone."
+        )
+        exit(1)
 
     # Enforce --pressure only for loaded_auditor
     if a.pressure and a.role != "loaded_auditor":

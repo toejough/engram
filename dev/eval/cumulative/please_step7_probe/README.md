@@ -39,24 +39,66 @@ Files:
 | `adr_hedge` | S6 | (b) present-but-stale (Gate D caught it) | YES |
 | `uncited_number` | S7 | (c) never captured before Gate D | YES |
 
+## Corpus gate
+
+Before any trial runs — `--verify-corpus` alone, or automatically as the first step of every
+other invocation, with no flag to skip it — the probe greps each discriminator's keyword regex
+against every file in `testdata/fixture_dedup_cycle/` and reports the match count and the
+file(s) matched. It exits non-zero (and, in the automatic case, aborts before spending on a
+single trial) if any discriminator matches zero fixture files.
+
+**Why:** a discriminator's regex passing a positive control on synthetic text proves the regex
+*can* fire — it says nothing about whether the finding it hunts for is actually present in the
+corpus the trial agent will read. `discriminator_2` read 0/5 across six paid arms — RED and
+GREEN alike — because its keywords matched nothing anywhere in the fixture; that 0 carried no
+information, and nothing caught it before real spend (vault note 509). The corpus gate is the
+separate, mandatory check that closes that gap: a positive control validates the detector, the
+corpus gate validates the corpus, and both are required before a discriminator's number means
+anything.
+
+```bash
+python3 run_probe.py --verify-corpus
+```
+
+`discriminator_2`'s finding — a live-index near-miss during Unit 5 verification (a chunks
+directory redirected for isolation, but the command resolved its own path instead of honouring
+the redirect, so the run reached the live index) — is real but was never captured in any
+committed artifact (the design that caused it was reverted before it was ever committed; see
+`gate_log.txt`'s `verification: Unit 5` entry, added to represent it faithfully per this file's
+own "synthetic but faithful" convention). `GROUND_TRUTH.md` attributes `discriminator_2` to that
+entry.
+
 ## Scoring
 
 Scoring is mechanical (substring/regex match), not an LLM judge, and runs in two stages.
 
-**1. Strip quoted/code material.** Before matching, fenced code blocks (` ```...``` `), inline
-code spans (`` `...` ``), and blockquote lines (leading `>`) are each replaced with a neutral
-placeholder. This is what stops a remedy verb sitting inside a quoted commit subject or a code
-snippet from being read as the agent's own proposal — an agent's proposal is in its own prose,
-not in the material it cites.
+**1. Strip cited material.** Before matching, a fenced code block (` ```...``` `) or inline code
+span (`` `...` ``) is replaced with a neutral placeholder ONLY when its content is SHAPED like a
+citation — a conventional-commit subject line (`feat(x):`, `fix:`, `docs:`, …) or a shell
+invocation (a line starting `$ `, `git `, `python `, `python3 `). This is what stops a remedy
+verb sitting inside a quoted commit subject or a shell command from being read as the agent's
+own proposal.
+
+Prose blockquotes, and code spans/blocks that are NOT citation-shaped, are left intact. Agents
+conventionally present their own drafted output — a proposed vault note as a blockquote, a
+proposed note filename as an inline code span — using exactly this formatting, and that is the
+strongest true-positive evidence available; blanket-stripping every blockquote and every code
+span erased it (vault note 510, two trials lost). Real commit subjects in this fixture's own
+corpus (`commit_log.txt`) are terse past-tense summaries that don't carry this scorer's remedy
+vocabulary, so narrowing the strip to citation-shaped code trades a large false-negative cost for
+a small, validated false-positive one (see `test_scorer_cases.py`).
 
 **2. Score per block.** The stripped response is segmented into blocks — one block per
 non-blank line, which is the natural unit of "one item" for a markdown table row, a list item,
 or a plain paragraph line. A discriminator **HIT** (scored as surfaced) requires a single block
-that contains: (1) a keyword regex match, (2) a remedy token (write, amend, capture, establish,
-propose, recommend, suggest), AND (3) no exclusion token (no lesson, not mapped, already
-captured, outside, out of scope, eligible for, etc.). A discriminator **MISS** if no block
-satisfies all three — the keyword is absent everywhere, or every block that has the keyword also
-carries an exclusion token or lacks a remedy token.
+that contains: (1) a keyword regex match, (2) a remedy token — word-form-tolerant (write/writes/
+writing/wrote/written, amend*, capture*, establish*, propose*, recommend*, suggest*), matching
+the same stem-tolerance convention the keyword sets already use, so an inflected phrasing
+("capturing", "proposing", "recommending", "suggests") is not silently missed — AND (3) no
+exclusion token (no lesson, not mapped, already captured, outside, out of scope, eligible for,
+etc.). A discriminator **MISS** if no block satisfies all three — the keyword is absent
+everywhere, or every block that has the keyword also carries an exclusion token or lacks a
+remedy token.
 
 Block-scoping (rather than a character-distance window) is what makes cross-item bleed
 impossible by construction: an exclusion phrase in one table row or list item can never poison a
