@@ -9,7 +9,11 @@ A vocabulary term's own definition SHALL be authored as a note carrying BOTH the
 
 #### Scenario: Minted definition carries its self-tag
 - **WHEN** `mintDefinitionNote` creates the definition for term `<term>` (bootstrap seed or refit-minted)
-- **THEN** the written note's `tags:` list contains both `vocab` and `vocab/<term>`
+- **THEN** the written note's `tags:` list is `[vocab, vocab/<term>]` (bare marker first, self-tag appended)
+
+#### Scenario: Family-note mint stays bare-only
+- **WHEN** `ensureVocabFamilyNote` mints or re-mints the family note (slug `vocab-definition`)
+- **THEN** the written note's `tags:` list contains `vocab` and no `vocab/` prefixed entry
 
 #### Scenario: Refit preserves definition self-tags
 - **WHEN** a refit (`retagAllNotesTwoPass`) runs over a vault whose definition notes carry self-tags
@@ -35,7 +39,7 @@ The vault SHALL check its own tag health on every write (via `checkAndPersistVoc
 - **THEN** `evaluateVocabTriggers()` produces identical member counts, untagged counts, and trigger outcomes in both states
 
 ### Requirement: Tag nomination in recall queries
-Recall's query path SHALL nominate cross-cluster candidate notes that share a vocabulary tag with the top-3 matched notes in a cluster. When a cluster's top-3 delivered notes carry tags in the `vocab/<term>` namespace, every non-definition vault note also tagged with any of those terms MUST be nominated into that cluster's candidate list (up to 40 per cluster, deduplicated across clusters). Definition notes SHALL be excluded from nomination pools — their `vocab/<term>` self-tag is a display affordance, not a membership claim. Nominated candidates SHALL carry cosine score 0 (tag-matched, not centroid-ranked).
+Recall's query path SHALL nominate cross-cluster candidate notes that share a vocabulary tag with the top-3 matched notes in a cluster. When a cluster's top-3 delivered notes carry tags in the `vocab/<term>` namespace, every non-definition vault note also tagged with any of those terms MUST be nominated into that cluster's candidate list (up to 40 per cluster, deduplicated across clusters). Definition notes SHALL be excluded from nomination on BOTH sides: a definition MUST never be nominated into a pool, and a definition appearing among a cluster's top-3 delivered notes MUST NOT contribute its self-tag as a nomination seed — its `vocab/<term>` self-tag is a display affordance, not a membership claim. Nominated candidates SHALL carry cosine score 0 (tag-matched, not centroid-ranked).
 
 #### Scenario: Tag nomination feeds candidate_l2s
 - **WHEN** a query cluster's top-3 delivered notes carry tags like `vocab/retrieval-design`
@@ -49,14 +53,18 @@ Recall's query path SHALL nominate cross-cluster candidate notes that share a vo
 - **WHEN** a cluster's top-3 delivered notes carry `vocab/<term>` and that term's definition note carries the same tag as its self-tag
 - **THEN** the definition note does not appear in the cluster's nominations
 
+#### Scenario: A top-3 definition seeds no nominations
+- **WHEN** a self-tagged definition note is itself among a cluster's top-3 delivered notes
+- **THEN** its `vocab/<term>` self-tag contributes no seed terms — the cluster's nominations are identical to what a bare-only definition in that position would produce
+
 ## ADDED Requirements
 
 ### Requirement: Definition self-tag backfill subcommand
-`engram vocab tag-definitions` SHALL be an explicit, idempotent one-shot subcommand that adds the missing `vocab/<term>` self-tag to every existing definition note, deriving each term from the `vocab-<term>-definition` slug. It MUST write through the vault's locked write path (refreshing each touched note's embedding sidecar so no sidecar is left stale), MUST leave already-self-tagged definitions untouched, MUST skip the family note (slug `vocab-definition`, empty term) reporting it as such, and MUST report per-note results (added vs already present vs skipped). The backfill MUST NOT run as a side effect of `engram update` or any other command.
+`engram vocab tag-definitions` SHALL be an explicit, idempotent one-shot subcommand that adds the missing `vocab/<term>` self-tag to every existing definition note, deriving each term via `termFromDefinitionSlug`. It MUST write through the vault's locked write path and MUST leave every touched note's sidecar valid without any refresh step — vocab tags are not content-hash inputs (the hash covers situation and body text only), so a tags-only rewrite cannot stale a sidecar. It MUST leave already-self-tagged definitions untouched, MUST skip the family note (slug `vocab-definition`, empty term) reporting it as such, and MUST report per-note results (added vs already present vs skipped). The backfill MUST NOT run as a side effect of `engram update` or any other command.
 
 #### Scenario: Backfill adds missing self-tags
 - **WHEN** `engram vocab tag-definitions` runs against a vault whose definitions carry only the bare `vocab` marker
-- **THEN** each definition note's `tags:` list gains `vocab/<term>` for its own term, its sidecar is refreshed (embed state clean), and the command reports one "added" line per touched note
+- **THEN** each per-term definition note's `tags:` list becomes `[vocab, vocab/<term>]`, its embed state remains clean (no `StateStale` — no re-embed occurred or was needed), and the command reports one "added" line per touched note
 
 #### Scenario: Backfill is idempotent
 - **WHEN** `engram vocab tag-definitions` runs a second time over the same vault
