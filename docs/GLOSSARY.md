@@ -105,8 +105,9 @@ than duplicating it. A vault note is the user's own and takes effect on their ne
 anything shipped from the repo instead (code, skills, guidance) makes the user wait on a
 release, so that path is proposed only as a last resort and never filed automatically.
 
-**Status:** staged and uncommitted — the change lives in
-`agent-instructions/skills/please/SKILL.md`, not yet deployed via `engram update`. The
+**Status:** committed on branch `worktree-chunk-dedup` (`662e50ba`) in
+`agent-instructions/skills/please/SKILL.md` — not yet merged to main, not yet deployed via
+`engram update`, and unvalidated (no measurement supports it). The
 addition originally shipped alongside a much larger mechanism: a seven-marker surprise
 enumeration, a four-way counterfactual classification, and a two-remedy ladder, proposed on
 the premise that the *existing* Step-7 audit structurally cannot surface certain findings on
@@ -759,7 +760,8 @@ sub-variant) · **C5** remember-recent-history · **C6** compounding / emergent 
 The six proposed guards against the lesson-capture blind spot (a presented conclusion later
 overturned going uncaptured). Shipped 2026-07-04: **G1** reversals as a learn capture kind ·
 **G2** please step-7 lessons audit · **G6** escalation-provenance rule. **G2** gained a small
-addition, the **surprise harvest** (see above) — staged and uncommitted, 2026-07-26 via #687,
+addition, the **surprise harvest** (see above) — committed on `worktree-chunk-dedup`, not yet
+merged or deployed, 2026-07-26 via #687,
 its larger premise refuted by measurement; extends G2's existing guard, not a new guard
 number. Pre-registered upgrade
 paths (in `docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row): **G3** fresh-context lessons reviewer (upgrade of G2) ·

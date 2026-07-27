@@ -131,7 +131,7 @@ time no longer corrupt notes, sidecars, or the chunk-index manifest.
 why: `docs/architecture/adr.md` — ADR-0013
 validation: concurrent-writers regression test + `targ check-full` (commit `f7f6b389`) — no eval-ledger row; correctness is test-locked, not eval-measured
 
-## Write-memory worker + capture guards (reversals, lessons audit + surprise harvest, escalation provenance)
+## Write-memory worker + capture guards (reversals, lessons audit, escalation provenance)
 
 A dedicated worker skill executes the actual vault-write commands on behalf of recall and
 learn, so the judgment of what to capture stays separate from the mechanics of writing
@@ -140,20 +140,19 @@ reinforcement, user-praised or self-validated) as their own lesson kinds, and `p
 audits each cycle's mechanical corpus — failed gates, corrections, escalations — against
 the vault to catch lessons that went uncaptured.
 
-Step 7's lessons audit also carries a small, staged-and-uncommitted addition (2026-07-26 via
-#687, lives in `agent-instructions/skills/please/SKILL.md`; see `docs/GLOSSARY.md` —
+Step 7's lessons audit also carries a small addition to support capture decisions (2026-07-26 via
+#687, committed as `662e50ba` on branch `worktree-chunk-dedup`; lives in `agent-instructions/skills/please/SKILL.md`; see `docs/GLOSSARY.md` —
 surprise harvest): for each captured lesson, ask which already-existing artifact should have
 surfaced it, and reword a stale-but-relevant vault note before writing a duplicate. The
 addition originally proposed a much larger seven-marker audit and four-way classification on
 the premise that the existing lessons audit could not reach certain findings on its own; a
 controlled measurement refuted that premise (hand-read control trials of the *unmodified*
 audit already surfaced the target findings in 6/10 and 10/10 of trials), so the larger
-mechanism was cut. What remains is unvalidated — no measurement supports it.
+mechanism was cut. The surviving addition is committed on branch `worktree-chunk-dedup`, not yet merged to main, not yet deployed via `engram update`, and unvalidated — no measurement supports it.
 
 why: `docs/architecture/adr.md` — ADR-0001
 validation: `dev/eval/LEDGER.md#write-memory-worker-fire-rates` (worker + G1/G2/G6);
-`dev/eval/LEDGER.md#687-surprise-harvest` (surprise harvest — premise refuted by measurement,
-not shipped)
+`dev/eval/LEDGER.md#687-surprise-harvest` (surprise harvest — committed on worktree-chunk-dedup, not merged or deployed)
 
 ## Embed-on-write + dual-vector sidecars
 
