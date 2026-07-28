@@ -115,24 +115,25 @@ var (
 	ExportShouldEmbed                 = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
-	ExportShouldSkipDir                 = shouldSkipDir
-	ExportSlugFromNoteFilename          = slugFromNoteFilename
-	ExportSplitFrontmatter              = splitFrontmatter
-	ExportStripLegacyVocabChannel       = stripLegacyVocabChannel
-	ExportTermFromDefinitionSlug        = termFromDefinitionSlug
-	ExportTildify                       = tildify
-	ExportTopDeliveredNotes             = topDeliveredNotes
-	ExportValidateContributors          = validateContributors
-	ExportValidateIssueID               = validateIssueID
-	ExportValidateLearnQAArgs           = validateLearnQAArgs
-	ExportValidateProjectSlug           = validateProjectSlug
-	ExportValidateSlug                  = validateSlug
-	ExportValidateTags                  = validateTags
-	ExportVocabTermsFromTags            = vocabTermsFromTags
-	ExportWriteCentroidsDocRaw          = writeCentroidsDocRaw
-	ExportWriteUpdateReport             = writeUpdateReport
-	ExportWriteVocabAssignment          = WriteVocabAssignment
-	ExportWriteVocabVersionToFamilyNote = writeVocabVersionToFamilyNote
+	ExportShouldSkipDir                   = shouldSkipDir
+	ExportSlugFromNoteFilename            = slugFromNoteFilename
+	ExportSplitFrontmatter                = splitFrontmatter
+	ExportStripLegacyVocabChannel         = stripLegacyVocabChannel
+	ExportTermFromDefinitionSlug          = termFromDefinitionSlug
+	ExportTildify                         = tildify
+	ExportTopDeliveredNotes               = topDeliveredNotes
+	ExportValidateContributors            = validateContributors
+	ExportValidateIssueID                 = validateIssueID
+	ExportValidateLearnQAArgs             = validateLearnQAArgs
+	ExportValidateProjectSlug             = validateProjectSlug
+	ExportValidateSlug                    = validateSlug
+	ExportValidateTags                    = validateTags
+	ExportVocabDefinitionsMissingSelfTags = vocabDefinitionsMissingSelfTags
+	ExportVocabTermsFromTags              = vocabTermsFromTags
+	ExportWriteCentroidsDocRaw            = writeCentroidsDocRaw
+	ExportWriteUpdateReport               = writeUpdateReport
+	ExportWriteVocabAssignment            = WriteVocabAssignment
+	ExportWriteVocabVersionToFamilyNote   = writeVocabVersionToFamilyNote
 )
 
 // ExportAllVaultNotesMeta aliases AllVaultNotesMeta for cli_test fixtures.

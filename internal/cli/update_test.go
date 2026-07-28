@@ -482,6 +482,93 @@ func TestTildify(t *testing.T) {
 	g.Expect(cli.ExportTildify("/home/joe/x", "")).To(Equal("/home/joe/x"))
 }
 
+// TestVocabDefinitionsMissingSelfTags pins the self-tag backfill detection
+// for the vocab-definition-self-tags upgrade (4f68fada): a vault holding a
+// definition note (bare `vocab` tag + "vocab-<term>-definition" slug) whose
+// tags lack the vocab/<term> self-tag triggers the notice; the FAMILY note
+// (slug "vocab-definition") is deliberately bare-vocab-only and must never
+// trigger it; fully-tagged and fresh vaults stay silent (idempotent-clean).
+func TestVocabDefinitionsMissingSelfTags(t *testing.T) {
+	t.Parallel()
+
+	untaggedDefinition := []byte("---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines recall-design.\n")
+	taggedDefinition := []byte(
+		"---\ntype: fact\ntags:\n    - vocab\n    - vocab/recall-design\n---\n\nDefines recall-design.\n")
+	familyNote := []byte("---\ntype: fact\ntags:\n    - vocab\n---\n\nFamily root.\n")
+	memberNote := []byte("---\ntype: fact\ntags:\n    - vocab/recall-design\n---\n\nMember mentions recall-design.\n")
+
+	table := []struct {
+		name  string
+		files map[string][]byte
+		want  bool
+	}{
+		{
+			name: "untagged-definition-present",
+			files: map[string][]byte{
+				"/vault/12.2026-07-27.vocab-recall-design-definition.md": untaggedDefinition,
+			},
+			want: true,
+		},
+		{
+			name: "fully-tagged-definition",
+			files: map[string][]byte{
+				"/vault/12.2026-07-27.vocab-recall-design-definition.md": taggedDefinition,
+			},
+			want: false,
+		},
+		{
+			name: "family-note-is-exempt",
+			files: map[string][]byte{
+				"/vault/1.2026-07-10.vocab-definition.md": familyNote,
+			},
+			want: false,
+		},
+		{
+			name: "member-note-is-not-a-definition",
+			files: map[string][]byte{
+				"/vault/3.2026-07-11.some-member.md": memberNote,
+			},
+			want: false,
+		},
+		{
+			name: "definition-slug-without-bare-vocab-tag",
+			files: map[string][]byte{
+				"/vault/12.2026-07-27.vocab-recall-design-definition.md": memberNote,
+			},
+			want: false,
+		},
+		{
+			name:  "missing-vault-dir",
+			files: map[string][]byte{},
+			want:  false,
+		},
+		{
+			name: "mixed-vault-with-one-untagged",
+			files: map[string][]byte{
+				"/vault/1.2026-07-10.vocab-definition.md":                familyNote,
+				"/vault/12.2026-07-27.vocab-recall-design-definition.md": taggedDefinition,
+				"/vault/13.2026-07-27.vocab-eval-design-definition.md": []byte(
+					"---\ntype: fact\ntags:\n    - vocab\n---\n\nDefines eval-design.\n"),
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newU1FS()
+			maps.Copy(fileSystem.files, tc.files)
+
+			got := cli.ExportVocabDefinitionsMissingSelfTags("/vault", fileSystem)
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
+}
+
 // TestWriteUpdateReport_DryRunContractSweep pins the unified D9 dry-run
 // output contract (openspec/changes/update-deploy-as-sync tasks 7.1/7.2) in
 // one pass over a fixture exercising every op class the sync/materialization
@@ -1233,6 +1320,42 @@ func TestWriteUpdateReport_VocabRegenReport(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestWriteUpdateReport_VocabSelfTagHint pins the detect-and-notify surface
+// for the vocab-definition-self-tags upgrade (4f68fada): when the vault
+// holds definition notes missing their vocab/<term> self-tag, the report
+// names `engram vocab tag-definitions` inline; a fully-tagged vault prints
+// nothing (idempotent-clean); the notice coexists with the other hints.
+func TestWriteUpdateReport_VocabSelfTagHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasUntaggedVocabDefinitions: true})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("run `engram vocab tag-definitions`"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("Upgrading"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("README.md"))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasUntaggedVocabDefinitions: false})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("self-tag"))
+
+	// Coexists with the other upgrade notices.
+	var both bytes.Buffer
+
+	bothErr := cli.ExportWriteUpdateReport(&both, update.Report{
+		VaultHasOldVocabFiles:            true,
+		VaultHasUntaggedVocabDefinitions: true,
+	})
+	g.Expect(bothErr).NotTo(HaveOccurred())
+	g.Expect(both.String()).To(ContainSubstring("old-format vocab"))
+	g.Expect(both.String()).To(ContainSubstring("vocab tag-definitions"))
 }
 
 // liveUpdateEnv adapts the real process environment to update.Env for the

@@ -273,6 +273,16 @@ type Report struct {
 	// oldVocabFilesPresent) — Updater.Run itself never touches vault paths;
 	// this field is opaque data.
 	VaultHasOldVocabFiles bool
+	// VaultHasUntaggedVocabDefinitions is true when the vault holds at least
+	// one vocab definition note (bare `vocab` tag + "vocab-<term>-definition"
+	// slug) missing its vocab/<term> self-tag — a vault minted before the
+	// vocab-definition-self-tags change (4f68fada), for which `engram vocab
+	// tag-definitions` is the backfill. The family note (slug
+	// "vocab-definition") is deliberately bare-vocab-only and never counts.
+	// Set by the cli package after Run returns (via
+	// vocabDefinitionsMissingSelfTags) — Updater.Run itself never touches
+	// vault paths; this field is opaque data.
+	VaultHasUntaggedVocabDefinitions bool
 	// ChunkIndexHasEmptyFiles is set by the cli package after Run returns
 	// (Updater.Run never touches chunk paths; this field is opaque data).
 	ChunkIndexHasEmptyFiles bool

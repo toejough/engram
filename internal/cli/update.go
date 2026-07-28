@@ -35,6 +35,8 @@ const (
 	oldVocabFileSuffix   = ".md"
 	vocabMigrationNotice = "old-format vocab files found — run `engram update --regen-vocab` to migrate them " +
 		"(preview with `engram update --regen-vocab --dry-run`)\n"
+	vocabSelfTagNotice = "vocab definition notes missing their vocab/<term> self-tag found — " +
+		"run `engram vocab tag-definitions` to backfill them\n"
 )
 
 // unexported variables.
@@ -367,6 +369,7 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 	if runErr == nil {
 		vaultPath := resolveVault("", report.Home, deps.Env.Getenv)
 		report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, deps.FS)
+		report.VaultHasUntaggedVocabDefinitions = vocabDefinitionsMissingSelfTags(vaultPath, deps.FS)
 		chunksDir := ResolveChunksDir("", report.Home, deps.Env.Getenv)
 		report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, deps.FS)
 		report.ChunkIndexHasPrunableDuplicates = chunkIndexHasPrunableDuplicates(chunksDir, deps.FS)
@@ -389,6 +392,54 @@ func tildify(path, home string) string {
 	}
 
 	return "~" + strings.TrimPrefix(path, home)
+}
+
+// vocabDefinitionsMissingSelfTags reports whether vaultPath holds at least
+// one vocab definition note missing its vocab/<term> self-tag — the signal
+// that the vault predates the vocab-definition-self-tags change (4f68fada),
+// for which `engram vocab tag-definitions` is the idempotent backfill. A
+// definition note is one whose slug parses to a term
+// (termFromDefinitionSlug — the family note's "vocab-definition" slug
+// deliberately does NOT, keeping it exempt: it stays bare-vocab-only by
+// design) AND whose tags carry the bare vocab marker (isVocabDefinitionNote
+// — the same both-sides gate tag-definitions itself uses). A missing or
+// unreadable vault directory, unreadable note, or unparseable frontmatter is
+// treated as no-signal (self-silencing, same convention as
+// oldVocabFilesPresent): a detection failure must never fail `engram
+// update`'s primary job. Fully tagged vaults return false, so
+// idempotent-clean vaults print nothing.
+func vocabDefinitionsMissingSelfTags(vaultPath string, fileSystem update.Filesystem) bool {
+	entries, readErr := fileSystem.ReadDir(vaultPath)
+	if readErr != nil {
+		return false
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		term, ok := termFromDefinitionSlug(slugFromNoteFilename(entry.Name()))
+		if !ok {
+			continue // family note, member notes, non-.md files
+		}
+
+		raw, fileErr := fileSystem.ReadFile(filepath.Join(vaultPath, entry.Name()))
+		if fileErr != nil || len(raw) == 0 || !isVocabDefinitionNote(string(raw)) {
+			continue
+		}
+
+		frontmatter, _, splitOK := splitFrontmatterAndBody(string(raw))
+		if !splitOK {
+			continue
+		}
+
+		if !slices.Contains(parseTagsFromFrontmatter(frontmatter), vocabTagPrefix+term) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func writeCommandRows(buffer *bytes.Buffer, harness update.HarnessReport, home string) {
@@ -588,6 +639,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 
 	writeGuidanceHints(&buffer, report)
 	writeVocabMigrationHint(&buffer, report)
+	writeVocabSelfTagHint(&buffer, report)
 	writeEmptyChunkHint(&buffer, report)
 	writeDuplicatesHint(&buffer, report)
 
@@ -637,4 +689,15 @@ func writeVocabRegenReport(buffer *bytes.Buffer, report update.Report) {
 			"seeded %d term(s), reassigned %d note(s)\n",
 		prefix, verb, report.VocabRegenOldFilesRemoved, report.VocabRegenMembersCleaned,
 		report.VocabRegenTermsSeeded, report.VocabRegenNotesAssigned)
+}
+
+// writeVocabSelfTagHint prints a one-line notice naming `engram vocab
+// tag-definitions` when the vault holds definition notes missing their
+// vocab/<term> self-tag (pre-4f68fada vaults). Silent otherwise — a fully
+// tagged vault never sees it (the backfill is idempotent-clean). Deliberately
+// just a notice: update never rewrites vault notes on the user's behalf here.
+func writeVocabSelfTagHint(buffer *bytes.Buffer, report update.Report) {
+	if report.VaultHasUntaggedVocabDefinitions {
+		buffer.WriteString(vocabSelfTagNotice)
+	}
 }
