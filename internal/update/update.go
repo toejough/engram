@@ -22,6 +22,10 @@ const (
 	HarnessOpencode Harness = "OpenCode"
 	HarnessPi       Harness = "Pi"
 	ModulePath              = "github.com/toejough/engram"
+	// ReexecSentinelEnvVar is the loop-guard environment variable set on a
+	// re-exec child so it skips source resolution/install and never
+	// re-execs again (design D2). Read via Env.Getenv; non-empty means set.
+	ReexecSentinelEnvVar = "ENGRAM_UPDATE_REEXEC"
 )
 
 // DeployMode selects how one harness's harness-visible artifact surfaces
@@ -166,6 +170,16 @@ type Filesystem interface {
 	Lstat(path string) (FileInfo, error)
 }
 
+// HandoffReporter writes the parent's install-result report BEFORE the
+// re-exec child is spawned (design D6/D8): the CLI wires this to flush that
+// report to stdout ahead of the child's inherited-stdio output, giving the
+// single-coherent-report ordering the spec requires (install result once,
+// first; sync/check report once, from the child). Formatting/writing is a
+// cli-layer concern — Updater has no stdout writer of its own.
+type HandoffReporter interface {
+	WriteHandoff(report Report) error
+}
+
 // Harness names a supported agent harness. The zero value is invalid.
 type Harness string
 
@@ -255,6 +269,11 @@ type HarnessSpec struct {
 type Options struct {
 	DryRun       bool
 	WithGuidance bool // deploy agent-instructions/guidance/*.md to the harness guidance dir
+	// ReexecArgs are the original `engram update` invocation's flags (e.g.
+	// "--with-guidance"), reconstructed by the CLI layer from UpdateArgs and
+	// passed after "update" when re-execing the freshly installed binary
+	// (design D2). Never includes --dry-run: a dry run never re-execs.
+	ReexecArgs []string
 }
 
 // Report is the final outcome of Updater.Run, suitable for formatting.
@@ -299,6 +318,30 @@ type Report struct {
 	// explicitly.
 	ChunkIndexHasPrunableDuplicates bool
 
+	// ReexecExitCode is set (non-nil) iff this run's install succeeded and
+	// re-exec of the freshly installed binary was spawned and awaited
+	// (design D8): the pointee is the re-execed child's exit code, and Run
+	// returned WITHOUT planning or applying anything — the child performed
+	// the sync/check phase. nil means either no install ran this call
+	// (sentinel set, or --dry-run) or re-exec was attempted and fell back
+	// in-process (see ReexecFallbackErr).
+	ReexecExitCode *int
+	// ReexecFallbackErr is set to a user-facing line ("re-exec failed,
+	// completed with pre-update logic: <err>") when an install succeeded
+	// but spawning the installed binary failed (design D5); the rest of
+	// this Report reflects the in-process fallback run that completed
+	// instead. Empty when no fallback occurred.
+	ReexecFallbackErr string
+	// ReexecChild is true when this run observed the loop-guard sentinel
+	// (design D2): it performed no install and its report must not claim
+	// one. The cli package's writeUpdateReport uses this to suppress the
+	// header block (source/binary lines) it already printed once as the
+	// PARENT's pre-spawn report — printing it again from the child would
+	// both duplicate the header (D6/spec Req 5) AND misattribute an
+	// install this run never performed (defect: sentinel run claiming
+	// "binary: go install ... ok").
+	ReexecChild bool
+
 	// VocabRegenRan is true when `engram update --regen-vocab` executed the
 	// regen path this run (set by the cli package after Run returns —
 	// Updater.Run never touches vault paths; this field is opaque data, same
@@ -339,16 +382,41 @@ type SourceInfo struct {
 	Version string // resolved version string (remote only)
 }
 
+// Spawner runs a binary with args and extra environment variables, with
+// stdio inherited from the parent process (used to re-exec the freshly
+// installed binary so the sync/check phase runs fresh code — design D1).
+// err is non-nil ONLY when the process could not be started (binary
+// missing or not executable); a started child's exit code — including a
+// non-zero code for a signal death — comes back via exitCode with err nil.
+type Spawner interface {
+	Run(name string, args []string, env []string) (exitCode int, err error)
+}
+
 // Updater applies an `engram update` operation against injected I/O.
 type Updater struct {
-	FS  Filesystem
-	Cmd Commander
-	Env Env
+	FS    Filesystem
+	Cmd   Commander
+	Env   Env
+	Spawn Spawner
+	// Handoff, when non-nil, is called immediately after a successful
+	// install — BEFORE Spawn.Run — with the report as it stands at that
+	// point (see HandoffReporter). Unlike Spawn (required control flow: a
+	// nil Spawn here is a programmer error, not a supported mode), Handoff
+	// is genuinely optional OUTPUT plumbing — a caller that doesn't care
+	// about the parent's pre-spawn report (most tests, non-CLI callers)
+	// can leave it nil and reexecAfterInstall simply skips writing it; the
+	// re-exec itself still proceeds unaffected. A non-nil error from
+	// Handoff IS a hard failure (a broken stdout means the whole run's
+	// output is compromised, and the same brokenness would just resurface
+	// on any in-process fallback write) — it aborts Run, it does not
+	// trigger the spawn-failure fallback.
+	Handoff HandoffReporter
 }
 
 // Run executes (or plans, when DryRun) the update flow.
 func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	report := Report{DryRun: opts.DryRun, WithGuidance: opts.WithGuidance}
+	report.ReexecChild = u.Env.Getenv(ReexecSentinelEnvVar) != ""
 
 	home, homeErr := u.Env.UserHomeDir()
 	if homeErr != nil {
@@ -367,7 +435,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 		return report, fmt.Errorf("%w at ~/.claude/ or ~/.config/opencode/", ErrNoHarness)
 	}
 
-	source, sourceErr := u.resolveSource(ctx, opts.DryRun)
+	source, sourceErr := u.resolveSource(ctx, opts.DryRun || report.ReexecChild)
 	if sourceErr != nil {
 		return report, sourceErr
 	}
@@ -376,44 +444,16 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	report.GoInstall = describeGoInstall(source)
 	report.BinaryVersion = source.Version // local mode leaves this empty
 
-	srcSkills := filepath.Join(source.Root, "agent-instructions", "skills")
-	srcCommands := filepath.Join(source.Root, "agent-instructions", "commands")
-	srcGuidance := filepath.Join(source.Root, "agent-instructions", "guidance")
-
-	skillOps, planErr := planSkillCopies(srcSkills, home, harnesses, u.FS)
-	if planErr != nil {
-		return report, planErr
+	report, handedOff, reexecErr := u.reexecAfterInstall(opts, report)
+	if reexecErr != nil {
+		return report, reexecErr
 	}
 
-	cmdOps, cmdPlanErr := planCommandCopies(srcCommands, home, harnesses, u.FS)
-	if cmdPlanErr != nil {
-		return report, cmdPlanErr
+	if handedOff {
+		return report, nil
 	}
 
-	report.GuidanceImports = u.detectGuidanceImports(home, harnesses)
-	report.GuidanceImported = len(report.GuidanceImports) > 0
-
-	var guidanceOps []CopyOp
-
-	// Deploy guidance when explicitly requested OR when the user already imports
-	// it. This makes --with-guidance a one-time opt-in: once imported, plain
-	// `engram update` keeps the guidance current on every run (like skills).
-	// guidanceManaged also gates the engram-root sync engine's guidance/
-	// subtree (D4): unmanaged means unmanaged, not deleted.
-	guidanceManaged := opts.WithGuidance || report.GuidanceImported
-
-	if guidanceManaged {
-		var guidancePlanErr error
-
-		guidanceOps, guidancePlanErr = planGuidanceCopies(srcGuidance, home, harnesses, u.FS)
-		if guidancePlanErr != nil {
-			return report, guidancePlanErr
-		}
-	}
-
-	report.Harnesses = u.applyOps(harnesses, home, skillOps, cmdOps, guidanceOps, guidanceManaged, opts.DryRun)
-
-	return report, nil
+	return u.planAndApply(home, source, harnesses, opts, report)
 }
 
 // applyCmdLinks materializes one symlink per command file for a
@@ -1057,6 +1097,106 @@ func (u *Updater) detectGuidanceImports(home string, harnesses []HarnessSpec) ma
 	return imports
 }
 
+// planAndApply is Run's post-install phase (D7: everything AFTER the
+// re-exec boundary, when this call didn't hand off to a re-execed child —
+// either it fell back, or the sentinel/dry-run skipped install in the first
+// place): plans skill/command/guidance copies and applies them per harness.
+// Split out of Run to keep Run's own branching within the complexity budget.
+func (u *Updater) planAndApply(
+	home string, source SourceInfo, harnesses []HarnessSpec, opts Options, report Report,
+) (Report, error) {
+	srcSkills := filepath.Join(source.Root, "agent-instructions", "skills")
+	srcCommands := filepath.Join(source.Root, "agent-instructions", "commands")
+	srcGuidance := filepath.Join(source.Root, "agent-instructions", "guidance")
+
+	skillOps, planErr := planSkillCopies(srcSkills, home, harnesses, u.FS)
+	if planErr != nil {
+		return report, planErr
+	}
+
+	cmdOps, cmdPlanErr := planCommandCopies(srcCommands, home, harnesses, u.FS)
+	if cmdPlanErr != nil {
+		return report, cmdPlanErr
+	}
+
+	report.GuidanceImports = u.detectGuidanceImports(home, harnesses)
+	report.GuidanceImported = len(report.GuidanceImports) > 0
+
+	var guidanceOps []CopyOp
+
+	// Deploy guidance when explicitly requested OR when the user already imports
+	// it. This makes --with-guidance a one-time opt-in: once imported, plain
+	// `engram update` keeps the guidance current on every run (like skills).
+	// guidanceManaged also gates the engram-root sync engine's guidance/
+	// subtree (D4): unmanaged means unmanaged, not deleted.
+	guidanceManaged := opts.WithGuidance || report.GuidanceImported
+
+	if guidanceManaged {
+		var guidancePlanErr error
+
+		guidanceOps, guidancePlanErr = planGuidanceCopies(srcGuidance, home, harnesses, u.FS)
+		if guidancePlanErr != nil {
+			return report, guidancePlanErr
+		}
+	}
+
+	report.Harnesses = u.applyOps(harnesses, home, skillOps, cmdOps, guidanceOps, guidanceManaged, opts.DryRun)
+
+	return report, nil
+}
+
+// reexecAfterInstall re-execs the freshly installed binary immediately
+// after a successful install (design D1/D4/D7/D8), returning the updated
+// report, true when the caller must return immediately (parent performs no
+// further planning/apply — the re-execed child completes the run), and a
+// non-nil error only when the run must abort outright.
+//
+// It is a no-op (handedOff false, report unchanged, nil error) when this
+// call never installed anything: --dry-run, or report.ReexecChild (the
+// loop-guard sentinel was set — resolveSource already skipped `go install`
+// in both cases). u.Spawn is required here — nil is a programmer error
+// (every caller that can reach this point wires a real Spawner or a fake),
+// never guarded.
+//
+// Before spawning, it calls Handoff.WriteHandoff (when Handoff is set) so
+// the parent's install-result header reaches stdout BEFORE the child's
+// inherited-stdio output begins (D6/spec Req 5 — install result once,
+// first; sync/check report once, from the child). A Handoff failure is a
+// HARD error — propagated to abort Run, not smoothed into the in-process
+// fallback: it is a stdout-write failure, not a re-exec failure (re-exec
+// was never attempted), and the same broken stdout would just resurface on
+// the fallback's own report write. On spawn success the child's exit code
+// is recorded on report.ReexecExitCode and handedOff is true. On spawn
+// failure the fallback note is recorded on report.ReexecFallbackErr (D5)
+// and handedOff is false, so the caller continues the rest of Run
+// in-process.
+func (u *Updater) reexecAfterInstall(opts Options, report Report) (Report, bool, error) {
+	if opts.DryRun || report.ReexecChild {
+		return report, false, nil
+	}
+
+	if u.Handoff != nil {
+		handoffErr := u.Handoff.WriteHandoff(report)
+		if handoffErr != nil {
+			return report, false, fmt.Errorf("writing re-exec handoff report: %w", handoffErr)
+		}
+	}
+
+	args := append([]string{"update"}, opts.ReexecArgs...)
+	env := []string{ReexecSentinelEnvVar + "=1"}
+
+	exitCode, spawnErr := u.Spawn.Run(report.BinaryPath, args, env)
+	if spawnErr != nil {
+		report.ReexecFallbackErr = fmt.Sprintf("re-exec failed, completed with pre-update logic: %v", spawnErr)
+
+		return report, false, nil
+	}
+
+	report.ReexecExitCode = &exitCode
+
+	return report, true, nil
+}
+
 // reportSurfaceStrays runs the D6/task-5.2 stray scan across every harness
 // surface dir this harness materializes into — the skills root, the
 // commands root (when present), and the guidance dir ONLY when it is a
@@ -1146,9 +1286,14 @@ func (u *Updater) resolveRemoteByClone(ctx context.Context, dryRun bool) (Source
 }
 
 // resolveSource picks between local clone and remote module by walking up
-// from cwd. On remote, runs `go install ...@latest` and `go list -m -json`
-// to locate the module cache dir.
-func (u *Updater) resolveSource(ctx context.Context, dryRun bool) (SourceInfo, error) {
+// from cwd. Local mode runs `go install ./cmd/engram/` in the discovered
+// module root; remote mode clones the repo and builds from the clone (never
+// `go install …@latest`, see resolveRemoteByClone). Both install legs are
+// skipped when skipInstall is true — true either for a plain --dry-run, or
+// because Run already determined this is a sentinel-bearing re-exec child
+// (report.ReexecChild, design D2/D7: only sync/checks run there — "skip
+// install" is the whole point).
+func (u *Updater) resolveSource(ctx context.Context, skipInstall bool) (SourceInfo, error) {
 	cwd, cwdErr := u.Env.Getwd()
 	if cwdErr != nil {
 		return SourceInfo{}, fmt.Errorf("getwd: %w", cwdErr)
@@ -1160,7 +1305,7 @@ func (u *Updater) resolveSource(ctx context.Context, dryRun bool) (SourceInfo, e
 	}
 
 	if found {
-		if !dryRun {
+		if !skipInstall {
 			_, _, runErr := u.Cmd.Run(ctx, root, "go", "install", "./cmd/engram/")
 			if runErr != nil {
 				return SourceInfo{}, classifyGoInstallErr("local", runErr)
@@ -1170,7 +1315,7 @@ func (u *Updater) resolveSource(ctx context.Context, dryRun bool) (SourceInfo, e
 		return SourceInfo{Mode: SourceLocal, Root: root}, nil
 	}
 
-	return u.resolveRemoteByClone(ctx, dryRun)
+	return u.resolveRemoteByClone(ctx, skipInstall)
 }
 
 // tempCloneDir is a deterministic scratch location for the remote-mode clone.

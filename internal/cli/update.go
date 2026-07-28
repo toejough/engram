@@ -41,12 +41,28 @@ const (
 
 // unexported variables.
 var (
-	_                      update.Env        = (*updateEnvFromDeps)(nil)
-	_                      update.Filesystem = (*updateFSFromEdge)(nil)
-	errSomeHarnessesFailed                   = errors.New(
+	_                      update.Env             = (*updateEnvFromDeps)(nil)
+	_                      update.Filesystem      = (*updateFSFromEdge)(nil)
+	_                      update.HandoffReporter = handoffReportWriter{}
+	errSomeHarnessesFailed                        = errors.New(
 		"update: one or more detected harnesses failed",
 	)
 )
+
+// handoffReportWriter adapts writeReexecHandoffReport to
+// update.HandoffReporter — the production Updater.Handoff (design D6/D8).
+type handoffReportWriter struct {
+	stdout io.Writer
+}
+
+// WriteHandoff writes the parent's install-result header to stdout, before
+// Updater.Run spawns the re-exec child: the child inherits this same
+// stdout and starts writing its own sync/check report strictly after,
+// giving "install result once, first; sync report once, from the child" —
+// never interleaved or reversed.
+func (h handoffReportWriter) WriteHandoff(report update.Report) error {
+	return writeReexecHandoffReport(h.stdout, report)
+}
 
 // updateDeps carries the injected surfaces Updater.Run needs. Composed
 // from the CLI-wide Deps by newUpdateDeps — pure plumbing, no I/O (#700).
@@ -54,6 +70,12 @@ type updateDeps struct {
 	FS    update.Filesystem
 	Cmd   update.Commander
 	Env   update.Env
+	Spawn update.Spawner // re-exec's post-install spawn (design D1); required — never nil in production
+	// Exit terminates the process with a status code (production: os.Exit,
+	// via cli.Deps.Exit). runUpdate calls it with the re-execed child's
+	// exit code BEFORE the vault/vocab/chunk-check block, so the parent
+	// never runs those checks after handing off (design D8).
+	Exit  func(int)
 	Vocab VocabDeps // used only when args.RegenVocab is set (#712)
 }
 
@@ -308,13 +330,15 @@ func harnessFailed(harness update.HarnessReport) bool { return harness.Err != ni
 // newUpdateDeps composes update's dependency surface from cli.Deps.
 func newUpdateDeps(d Deps) updateDeps {
 	return updateDeps{
-		FS:  &updateFSFromEdge{fs: d.FS},
-		Cmd: d.Commander,
+		FS:    &updateFSFromEdge{fs: d.FS},
+		Cmd:   d.Commander,
+		Spawn: d.Spawner,
 		Env: &updateEnvFromDeps{
 			getenv:      d.Getenv,
 			getwd:       d.Getwd,
 			userHomeDir: d.UserHomeDir,
 		},
+		Exit:  d.Exit,
 		Vocab: newVocabDeps(d),
 	}
 }
@@ -354,18 +378,54 @@ func pluralFile(n int) string {
 	return "files"
 }
 
+// reexecArgsFrom reconstructs the flags to pass to a re-execed `engram
+// update` invocation from the parsed args of THIS invocation (design D2:
+// "preserve the original update args"). --dry-run is deliberately excluded:
+// Updater.Run never re-execs on a dry run in the first place (resolveSource
+// skips install), so the flag would never reach here regardless.
+func reexecArgsFrom(args UpdateArgs) []string {
+	reexecArgs := make([]string, 0, 2) //nolint:mnd // WithGuidance + RegenVocab, the only re-execable flags
+
+	if args.WithGuidance {
+		reexecArgs = append(reexecArgs, "--with-guidance")
+	}
+
+	if args.RegenVocab {
+		reexecArgs = append(reexecArgs, "--regen-vocab")
+	}
+
+	return reexecArgs
+}
+
 // runUpdate invokes Updater.Run over the injected dependency surface.
 func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.Writer) error {
 	updater := &update.Updater{
-		FS:  deps.FS,
-		Cmd: deps.Cmd,
-		Env: deps.Env,
+		FS:      deps.FS,
+		Cmd:     deps.Cmd,
+		Env:     deps.Env,
+		Spawn:   deps.Spawn,
+		Handoff: handoffReportWriter{stdout: stdout},
 	}
 
 	report, runErr := updater.Run(ctx, update.Options{
 		DryRun:       args.DryRun,
 		WithGuidance: args.WithGuidance,
+		ReexecArgs:   reexecArgsFrom(args),
 	})
+
+	// D8: a non-nil ReexecExitCode means Run handed off to a re-execed
+	// child that already ran sync/checks — this parent process must exit
+	// with the child's code WITHOUT running the vault/vocab/chunk-check
+	// block below (that block belongs to whichever process actually ran
+	// the sync phase, and here that was the child, not us). The parent's
+	// own report was already written by Handoff.WriteHandoff above, before
+	// the child ever started — nothing left to print here.
+	if report.ReexecExitCode != nil {
+		deps.Exit(*report.ReexecExitCode)
+
+		return nil
+	}
+
 	if runErr == nil {
 		vaultPath := resolveVault("", report.Home, deps.Env.Getenv)
 		report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, deps.FS)
@@ -610,6 +670,25 @@ func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
 	return successes
 }
 
+// writeReexecHandoffReport renders the parent's contribution to the
+// combined report after a successful re-exec handoff (design D6): source
+// and binary lines only — never the harness/guidance/vocab/chunk sections,
+// which belong to the re-execed child's own writeUpdateReport call. This
+// keeps "install output in the parent, one sync/check report in the child"
+// true by construction rather than by suppressing fields.
+func writeReexecHandoffReport(out io.Writer, report update.Report) error {
+	var buffer bytes.Buffer
+
+	writeUpdateHeader(&buffer, report, "")
+
+	_, err := out.Write(buffer.Bytes())
+	if err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+
+	return nil
+}
+
 func writeSkillRows(buffer *bytes.Buffer, harness update.HarnessReport, home string) {
 	for _, dirCount := range harness.SkillDirs {
 		dst := filepath.Join(harness.SkillsRoot, dirCount.Name) + string(filepath.Separator)
@@ -622,14 +701,35 @@ func writeSkillRows(buffer *bytes.Buffer, harness update.HarnessReport, home str
 	}
 }
 
+// writeUpdateHeader writes the three-line header common to both full and
+// re-exec handoff reports: title, source, and binary lines. prefix is
+// prepended to the title line (empty for handoff, "[dry-run] " for full
+// reports under --dry-run).
+func writeUpdateHeader(buffer *bytes.Buffer, report update.Report, prefix string) {
+	fmt.Fprintf(buffer, "%sengram update\n", prefix)
+	fmt.Fprintf(buffer, "  source: %s\n", describeSource(report, report.Home))
+	fmt.Fprintf(buffer, "  binary: %s\n", describeBinary(report))
+}
+
 func writeUpdateReport(out io.Writer, report update.Report) error {
 	var buffer bytes.Buffer
 
 	prefix := dryRunPrefix(report.DryRun)
 
-	fmt.Fprintf(&buffer, "%sengram update\n", prefix)
-	fmt.Fprintf(&buffer, "  source: %s\n", describeSource(report, report.Home))
-	fmt.Fprintf(&buffer, "  binary: %s\n", describeBinary(report))
+	// ReexecChild: this run's report is the re-execed CHILD's — the parent
+	// already wrote the header (source/binary lines) via Handoff.WriteHandoff
+	// before spawning us, and this run never performed the install those
+	// lines describe. Printing it again here would both duplicate the
+	// header (defect: two "engram update" lines) and misattribute an
+	// install this run never ran (defect: child claiming "binary: go
+	// install ... ok").
+	if !report.ReexecChild {
+		writeUpdateHeader(&buffer, report, prefix)
+	}
+
+	if report.ReexecFallbackErr != "" {
+		fmt.Fprintf(&buffer, "  %s\n", report.ReexecFallbackErr)
+	}
 
 	successes := writeHarnessSections(&buffer, report)
 

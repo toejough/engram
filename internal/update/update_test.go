@@ -139,9 +139,10 @@ func TestGuidanceImportAttribution_PerHarness(t *testing.T) {
 			}
 
 			updater := &update.Updater{
-				FS:  fileSystem,
-				Cmd: &fakeCmd{},
-				Env: &fakeEnv{home: home, cwd: "/repo"},
+				FS:    fileSystem,
+				Cmd:   &fakeCmd{},
+				Env:   &fakeEnv{home: home, cwd: "/repo"},
+				Spawn: noopSpawner{},
 			}
 
 			report, err := updater.Run(context.Background(), update.Options{})
@@ -184,9 +185,10 @@ func TestGuidanceImportAttribution_Property(t *testing.T) {
 		fileSystem.files[home+"/.pi/agent/AGENTS.md"] = []byte(piDoc.text)
 
 		updater := &update.Updater{
-			FS:  fileSystem,
-			Cmd: &fakeCmd{},
-			Env: &fakeEnv{home: home, cwd: "/repo"},
+			FS:    fileSystem,
+			Cmd:   &fakeCmd{},
+			Env:   &fakeEnv{home: home, cwd: "/repo"},
+			Spawn: noopSpawner{},
 		}
 
 		report, err := updater.Run(context.Background(), update.Options{})
@@ -259,9 +261,10 @@ func TestGuidanceImportDetection(t *testing.T) {
 			const home = "/home/joe"
 
 			updater := &update.Updater{
-				FS:  fileSystem,
-				Cmd: &fakeCmd{},
-				Env: &fakeEnv{home: home, cwd: "/repo"},
+				FS:    fileSystem,
+				Cmd:   &fakeCmd{},
+				Env:   &fakeEnv{home: home, cwd: "/repo"},
+				Spawn: noopSpawner{},
 			}
 
 			fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
@@ -289,9 +292,10 @@ func TestGuidanceImportDetection_MissingClaudeMD(t *testing.T) {
 	// No CLAUDE.md → GuidanceImported should be false, no error
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -315,9 +319,10 @@ func TestGuidanceImportDetection_PerFileSet(t *testing.T) {
 	fileSystem.dirs[home+"/.claude"] = true
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -617,9 +622,10 @@ func TestManifestMode_CorruptManifestReturnsError(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
@@ -674,9 +680,10 @@ func TestManifestMode_DeletesObsoleteFilesOnNextRun(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
@@ -744,9 +751,10 @@ func TestManifestMode_DeletionErrorPropagates(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	// No files in the intended set: the only recorded path (oldFile) is
@@ -790,9 +798,10 @@ func TestManifestMode_DryRunPreviewsDelectionNoWrites(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	// dryRun=true, no files in skillOps
@@ -860,9 +869,10 @@ func TestManifestMode_WritesFilesAndRecordsManifest(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
@@ -1019,9 +1029,10 @@ func TestRun_PlainUpdate_DelegateOnlyImport_RefreshesAll(t *testing.T) {
 	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte("# joe\n\n@~/.claude/engram/delegate.md\n")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -1061,9 +1072,10 @@ func TestRun_PlainUpdate_WhenImported_RefreshesGuidance(t *testing.T) {
 	fileSystem.files[home+"/.claude/CLAUDE.md"] = []byte("# joe\n\n@~/.claude/engram/recall.md\n")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	// Plain update MUST refresh the guidance because it is already imported.
@@ -1097,9 +1109,10 @@ func TestRun_WithGuidance_BothHarnesses_OnlyClaudeGetsGuidance(t *testing.T) {
 	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
@@ -1132,9 +1145,10 @@ func TestRun_WithGuidance_DeploysToClaudeEngram(t *testing.T) {
 	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
@@ -1180,9 +1194,10 @@ func TestRun_WithGuidance_GuidanceCopyError(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
@@ -1207,9 +1222,10 @@ func TestRun_WithoutGuidance_SkipsGuidance(t *testing.T) {
 	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})

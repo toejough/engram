@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -31,9 +32,10 @@ func TestInvariant_U1_MissingGoSentinel(t *testing.T) {
 	// Commander fails the way the production adapter does when 'go' is absent:
 	// the update.ErrCommandNotFound chain is preserved through its %w wrap.
 	updater := &update.Updater{
-		FS:  memFS,
-		Cmd: &u1FailCmd{err: fmt.Errorf(`go [install ./cmd/engram/]: %w`, update.ErrCommandNotFound)},
-		Env: u1LocalEnv(),
+		FS:    memFS,
+		Cmd:   &u1FailCmd{err: fmt.Errorf(`go [install ./cmd/engram/]: %w`, update.ErrCommandNotFound)},
+		Env:   u1LocalEnv(),
+		Spawn: u1NoopSpawner{},
 	}
 
 	_, runErr := updater.Run(context.Background(), update.Options{})
@@ -60,7 +62,7 @@ func TestInvariant_U1_NoHarnessSentinel(t *testing.T) {
 	delete(memFS.dirs, filepath.Join(u1Home, ".claude"))
 	delete(memFS.dirs, filepath.Join(u1Home, ".config", "opencode"))
 
-	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv()}
+	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv(), Spawn: u1NoopSpawner{}}
 
 	_, runErr := updater.Run(context.Background(), update.Options{})
 	g.Expect(runErr).To(MatchError(update.ErrNoHarness))
@@ -85,7 +87,7 @@ func TestInvariant_U1_SkillsSrcMissingSentinel(t *testing.T) {
 	// planSkillCopies' walk hits the missing-root case and returns the sentinel.
 	memFS.removeSubtree(filepath.Join(u1RepoRoot, "agent-instructions", "skills"))
 
-	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv()}
+	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv(), Spawn: u1NoopSpawner{}}
 
 	_, runErr := updater.Run(context.Background(), update.Options{})
 	g.Expect(runErr).To(MatchError(update.ErrSkillsSrcMissing))
@@ -110,7 +112,7 @@ func TestInvariant_U1_UpdateIdempotent(t *testing.T) {
 	memFS := newU1FS()
 	memFS.seedLocalRepo()
 
-	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv()}
+	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv(), Spawn: u1NoopSpawner{}}
 
 	report1, err1 := updater.Run(context.Background(), update.Options{})
 	g.Expect(err1).NotTo(HaveOccurred())
@@ -434,6 +436,14 @@ type u1FileInfo struct {
 func (i u1FileInfo) IsDir() bool { return i.isDir }
 
 func (i u1FileInfo) Mode() fs.FileMode { return i.mode }
+
+// u1NoopSpawner is a test spawner that always fails, used for tests that
+// don't expect spawning (tests should route through the in-process path).
+type u1NoopSpawner struct{}
+
+func (u1NoopSpawner) Run(string, []string, []string) (int, error) {
+	return 0, errors.New("re-exec unavailable in tests")
+}
 
 // u1OKCmd is a Commander whose Run always succeeds (used to stand in for a
 // working `go install` / `go list`).

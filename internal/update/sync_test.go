@@ -154,9 +154,10 @@ func TestRun_EngramRoot_AbsentCreatesRootAndMarker(t *testing.T) {
 	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -192,9 +193,10 @@ func TestRun_EngramRoot_AllHarnessesGetOwnRoots(t *testing.T) {
 	fileSystem.dirs["/repo/agent-instructions/skills"] = true
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -231,9 +233,10 @@ func TestRun_EngramRoot_ApplyMarkerWriteError(t *testing.T) {
 	fileSystem := &engramFaultFS{memFS: base, writeFileErr: map[string]error{root + "/.engram-owned": writeErr}}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -261,9 +264,10 @@ func TestRun_EngramRoot_ApplyMkdirRootError(t *testing.T) {
 	fileSystem := &engramFaultFS{memFS: base, mkdirErr: map[string]error{root: mkdirErr}}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -296,9 +300,10 @@ func TestRun_EngramRoot_ApplySyncOpWriteError(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -323,9 +328,10 @@ func TestRun_EngramRoot_DryRun_NoWrites(t *testing.T) {
 	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("learn skill")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
@@ -366,9 +372,10 @@ func TestRun_EngramRoot_DryRun_PrunePreviewedNotApplied(t *testing.T) {
 	fileSystem.files[root+"/skills/oldskill/SKILL.md"] = []byte("stale content")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
@@ -416,9 +423,10 @@ func TestRun_EngramRoot_GuidanceNotOptedIn_SubtreeUntouched(t *testing.T) {
 	fileSystem.files[root+"/guidance/stale.md"] = []byte("leftover from a prior opted-in sync")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -452,9 +460,10 @@ func TestRun_EngramRoot_GuidanceOptedIn_SyncsIncludingDeletion(t *testing.T) {
 	fileSystem.files[root+"/guidance/stale.md"] = []byte("no longer in source")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
@@ -495,9 +504,10 @@ func TestRun_EngramRoot_MarkerAbsent_ClaudeFlatGuidanceIsAdoptableNotUnattributa
 	fileSystem.files[root+"/recall.md"] = []byte("old recall guidance")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
@@ -550,9 +560,10 @@ func TestRun_EngramRoot_MarkerAbsent_RefusesDeletionAndReportsUnattributable(t *
 	fileSystem.files[root+"/mystery.md"] = []byte("nobody knows")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -599,9 +610,10 @@ func TestRun_EngramRoot_MarkerPresent_SyncsIncludingDeletion(t *testing.T) {
 	fileSystem.files[root+"/skills/oldskill/SKILL.md"] = []byte("stale content")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -648,9 +660,10 @@ func TestRun_EngramRoot_MarkerStatError(t *testing.T) {
 	fileSystem := &engramFaultFS{memFS: base, statErr: map[string]error{root + "/.engram-owned": statErr}}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -682,9 +695,10 @@ func TestRun_EngramRoot_PlanReadDirError(t *testing.T) {
 	fileSystem := &engramFaultFS{memFS: base, readDirErr: map[string]error{root + "/skills": readDirErr}}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -719,9 +733,10 @@ func TestRun_EngramRoot_RemovedSkillPrunesSubtreeAndSurfaceLink(t *testing.T) {
 	fileSystem.files["/repo/agent-instructions/skills/please/SKILL.md"] = []byte("please skill")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	root := home + "/.claude/engram"
@@ -792,9 +807,10 @@ func TestRun_EngramRoot_RootStatError(t *testing.T) {
 	fileSystem := &engramFaultFS{memFS: base, statErr: map[string]error{root: statErr}}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -824,9 +840,10 @@ func TestRun_EngramRoot_UnattributableReadDirError(t *testing.T) {
 	fileSystem := &engramFaultFS{memFS: base, readDirErr: map[string]error{root: readDirErr}}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})

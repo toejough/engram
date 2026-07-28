@@ -768,6 +768,28 @@ coincidence between two independent implementations.
 
 ---
 
+## ADR-0023 — `engram update` re-execs the freshly installed binary for the sync phase
+
+**Status:** Accepted (2026-07-28)
+
+**Context.** `Updater.Run` installed the new binary via `go install ./cmd/engram/` (local clone) or a git-clone build (remote, #645) and then planned and applied harness sync using the *old, running* process's in-process logic — stale relative to the binary it just installed. There was no re-exec or self-restart mechanism anywhere in the repo.
+
+**Decision.** After a successful install, the parent process writes a handoff report (install result, attributed to the parent) via `HandoffReporter`, then spawns the freshly installed binary (at the resolved installed path, never `os.Args[0]`) as a child with inherited stdio and `ENGRAM_UPDATE_REEXEC=1` set in its environment, passing through the original update args (`reexecArgsFrom`). The parent waits and exits with the child's exit code (`deps.Exit(*report.ReexecExitCode)` in `runUpdate`, gated before the vault/vocab/chunk-index check block). The child observes the sentinel, skips `resolveSource` entirely (no install, no further re-exec — loop guard), suppresses the install-claim header, and performs all sync/checks with fresh logic. A `Handoff.WriteHandoff` failure is a hard error that aborts `Run` (a stdout-write failure, not a re-exec failure — smoothing it into the fallback would just resurface the same broken stdout there). If spawning the child fails (binary missing/not executable), the parent falls back to completing sync/checks in-process with the old logic and records the failure reason on the report (`ReexecFallbackErr`). `--dry-run` never installs and therefore never re-execs. Source: `internal/update/update.go` (`reexecAfterInstall`, `resolveSource`, `HandoffReporter`, `ReexecSentinelEnvVar`, `Spawner`) and `internal/cli/update.go` (`runUpdate`, `reexecArgsFrom`, `writeReexecHandoffReport`).
+
+**Consequences.**
+
+- **Fresh logic every run:** the sync/check phase always executes in the binary that was just installed, eliminating the stale-in-process-logic gap.
+- **The bootstrap run is the last stale one:** the very first `engram update` after this change ships still runs the *previous* binary's in-process logic end to end (it re-execs into the newly installed binary, but that binary is this change's own code — by the next invocation the loop is fully fresh).
+- **Version-skew adjacency (out of scope here):** local mode installs from the clone it runs against, not from a fresh pull — an old checkout still downgrades `~/go/bin/engram` on re-exec exactly as it did before this change (`git diff HEAD` / worktree parity is the operator's responsibility; see also the remote mode's clone-based build, ADR context above). A version-skew guard remains a separate, unscoped follow-up.
+- **Single coherent report:** install output is attributed to the parent and exactly one sync/check report is produced, by the re-execed child — never duplicated.
+
+**Risks / Trade-offs:**
+
+- [Recursion if the sentinel is dropped] → the sentinel is set explicitly on the child's env slice; a sentinel-bearing run never calls the installer.
+- [Spawn failure loses the install] → in-process fallback completes the run with pre-update logic and reports the failure reason; the update is not aborted.
+
+---
+
 ## Decisions deliberately NOT made into ADRs
 
 - **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an

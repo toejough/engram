@@ -166,7 +166,12 @@ func TestRun_Migration_ClaudeCompatLinkDeletedWhenGuidanceRemovedFromSource(t *t
 	symlinkErr := fileSystem.Symlink(root+"/guidance/gone.md", root+"/gone.md")
 	g.Expect(symlinkErr).NotTo(HaveOccurred())
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -202,7 +207,12 @@ func TestRun_Migration_ClaudeFlatGuidanceFileAdopted(t *testing.T) {
 	fileSystem.dirs[root] = true
 	fileSystem.files[root+"/recall.md"] = []byte("old recall guidance, flat-copied")
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -237,7 +247,12 @@ func TestRun_Migration_ClaudeGuidanceCompatSymlinkCreated(t *testing.T) {
 	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("claude recall guidance")
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -275,7 +290,12 @@ func TestRun_Migration_CopiedCommandFileAdoptsToSymlink(t *testing.T) {
 	fileSystem.dirs[home+"/.config/opencode/commands"] = true
 	fileSystem.files[home+"/.config/opencode/commands/recall.md"] = []byte("stale pre-migration cmd")
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -317,7 +337,12 @@ func TestRun_Migration_CopiedSkillDirAdoptsToSymlink(t *testing.T) {
 	fileSystem.dirs[home+"/.claude/skills/recall"] = true
 	fileSystem.files[home+"/.claude/skills/recall/SKILL.md"] = []byte("stale pre-migration copy")
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -358,7 +383,12 @@ func TestRun_Migration_DryRun_NeverSyncedHarness_LeavesNoTrace(t *testing.T) {
 	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	report, err := updater.Run(context.Background(), update.Options{DryRun: true, WithGuidance: true})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -395,7 +425,12 @@ func TestRun_Migration_DryRun_PreExistingMarkerlessRoot_LeavesNoTrace(t *testing
 	fileSystem.dirs[root] = true
 	fileSystem.files[root+"/mystery.md"] = []byte("nobody knows")
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -436,7 +471,12 @@ func TestRun_Migration_RootMarkerStampedAfterAdoptionPass(t *testing.T) {
 	fileSystem.dirs[root] = true
 	fileSystem.files[root+"/mystery.md"] = []byte("nobody knows")
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -472,7 +512,12 @@ func TestRun_Migration_SubsequentSyncTreatsAdoptedRootAsOwned(t *testing.T) {
 	fileSystem.dirs[root] = true
 	fileSystem.files[root+"/mystery.md"] = []byte("nobody knows")
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	// First run: adoption pass stamps the marker.
 	_, err := updater.Run(context.Background(), update.Options{})
@@ -526,7 +571,12 @@ func TestRun_Migration_SurfaceStrayOutsideIntendedSet_ReportedNeverDeleted(t *te
 	fileSystem.dirs[home+"/.claude/skills/user-own-tool"] = true
 	fileSystem.files[home+"/.claude/skills/user-own-tool/NOTES.md"] = []byte("not engram's")
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())

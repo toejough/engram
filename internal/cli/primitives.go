@@ -74,6 +74,9 @@ type Primitives struct {
 	// External command execution (consumed by primCommander).
 	Exec ExecPrims
 
+	// Process-spawn with inherited stdio (consumed by primSpawner).
+	Spawn SpawnPrims
+
 	// Process-scoped capabilities (consumed by NewDeps directly, the
 	// debug sink, and startForceExit).
 	Proc ProcPrims
@@ -96,6 +99,16 @@ type ProcPrims struct {
 	UserHomeDir       func() (string, error)                                   // os.UserHomeDir
 	OpenDebugFile     func(path string, perm fs.FileMode) (WriteSyncer, error) // os.OpenFile O_APPEND|O_CREATE|O_WRONLY
 	StartSignalPulses func(pulses chan<- struct{}, buffer int)                 // SIG-1 closure
+}
+
+// SpawnPrims groups the raw process-spawn capability: run a binary with
+// args and extra environment variables, stdio inherited from the parent
+// process (design D1, update-reexec-fresh-binary). The raw closure itself
+// splits spawn failure (process never started) from a started child's exit
+// code via cmd.Process/cmd.ProcessState (doctrine survivor SP-1); raw error
+// out (nolint:wrapcheck contract), primSpawner wraps it once.
+type SpawnPrims struct {
+	RunInherited func(name string, args []string, extraEnv []string) (exitCode int, err error)
 }
 
 // WriteSyncer is the debug-sink capability surface (*os.File satisfies it).
@@ -124,6 +137,7 @@ func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
 		FS:          primFS{prims: prims},
 		Lock:        primLocker{prims: prims},
 		Commander:   primCommander{prims: prims},
+		Spawner:     primSpawner{prims: prims},
 		DebugLog:    openDebugSink(envOrEmpty(prims.Proc.Getenv, debugLogEnvVar), prims.Proc.OpenDebugFile),
 	}
 

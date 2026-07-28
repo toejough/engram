@@ -33,6 +33,9 @@ type Deps struct {
 	Lock FileLocker
 	// Commander runs external commands for `engram update` (production: primCommander).
 	Commander update.Commander
+	// Spawner runs a binary with args + extra env, stdio inherited from the
+	// parent process, for `engram update`'s post-install re-exec (production: primSpawner).
+	Spawner update.Spawner
 	// Embed is the production embedder backend (hugot-backed lazy embedder).
 	Embed embed.Embedder
 	// DebugLog is the debug-log sink; nil disables debug logging (no-op logger).

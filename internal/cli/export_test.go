@@ -617,6 +617,15 @@ func ExportNewUpdateDepsFromWithVocab(
 	return updateDeps{FS: fs, Cmd: cmd, Env: env, Vocab: vocab}
 }
 
+// ExportNewUpdateDepsWithSpawn is ExportNewUpdateDepsFrom plus an explicit
+// Spawner and Exit, for tests driving runUpdate's re-exec handoff (design
+// D8): the parent-exits-early and fallback-continues control-flow branches.
+func ExportNewUpdateDepsWithSpawn(
+	fs update.Filesystem, cmd update.Commander, env update.Env, spawn update.Spawner, exit func(int),
+) updateDeps {
+	return updateDeps{FS: fs, Cmd: cmd, Env: env, Spawn: spawn, Exit: exit}
+}
+
 // ExportNewVaultFS returns the pure EdgeFS→vaultgraph.VaultFS adapter.
 func ExportNewVaultFS(fsys EdgeFS) interface {
 	ListMD(dir string) ([]string, error)

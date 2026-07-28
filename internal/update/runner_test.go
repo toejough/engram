@@ -105,9 +105,10 @@ func TestUpdater_Run_DryRun_NoWritesNoCommands(t *testing.T) {
 	cmd := &fakeCmd{}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
@@ -135,9 +136,10 @@ func TestUpdater_Run_GoInstallFails(t *testing.T) {
 	cmd := &fakeCmd{err: cmdErr}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	_, err := updater.Run(context.Background(), update.Options{})
@@ -162,9 +164,10 @@ func TestUpdater_Run_Local_BothHarnesses_CommandsOnlyOpencode(t *testing.T) {
 	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("c")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -211,9 +214,10 @@ func TestUpdater_Run_Local_CommandLinkRepointRemoveFailureIsHarnessError(t *test
 	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "commands/recall.md"}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -239,9 +243,10 @@ func TestUpdater_Run_Local_GoInstallRunsFromModuleRoot(t *testing.T) {
 	cmd := &fakeCmd{}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo/internal/update"},
+		FS:    fileSystem,
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo/internal/update"},
+		Spawn: noopSpawner{},
 	}
 
 	_, err := updater.Run(context.Background(), update.Options{})
@@ -272,9 +277,10 @@ func TestUpdater_Run_Local_HappyPath(t *testing.T) {
 	cmd := &fakeCmd{}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo/internal/update"},
+		FS:    fileSystem,
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo/internal/update"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -318,9 +324,10 @@ func TestUpdater_Run_Local_Idempotent_Property(t *testing.T) {
 		}
 
 		updater := &update.Updater{
-			FS:  fs1,
-			Cmd: &fakeCmd{},
-			Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+			FS:    fs1,
+			Cmd:   &fakeCmd{},
+			Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+			Spawn: noopSpawner{},
 		}
 
 		_, runErr := updater.Run(rapidCtx(), update.Options{})
@@ -361,9 +368,10 @@ func TestUpdater_Run_Local_OpencodeOnly_LinksCommands(t *testing.T) {
 	fileSystem.files["/repo/agent-instructions/commands/README.txt"] = []byte("readme")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -416,9 +424,10 @@ func TestUpdater_Run_Local_RealExistingCommandFile_AdoptsToSymlink(t *testing.T)
 	fileSystem.files["/home/joe/.config/opencode/commands/recall.md"] = []byte("old cmd")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -463,9 +472,10 @@ func TestUpdater_Run_Local_RealExistingSkillDir_AdoptsToSymlink(t *testing.T) {
 	fileSystem.files["/home/joe/.claude/skills/learn/stale.md"] = []byte("old")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -519,9 +529,10 @@ func TestUpdater_Run_Local_SkillLinkRepointRemoveFailureIsHarnessError(t *testin
 	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "skills/learn"}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -540,9 +551,10 @@ func TestUpdater_Run_NoCwdReturnsError(t *testing.T) {
 	fileSystem.dirs["/home/joe/.claude"] = true
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: "/home/joe"}, // empty cwd
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe"}, // empty cwd
+		Spawn: noopSpawner{},
 	}
 
 	_, err := updater.Run(context.Background(), update.Options{})
@@ -556,9 +568,10 @@ func TestUpdater_Run_NoHarness(t *testing.T) {
 	g := NewWithT(t)
 
 	updater := &update.Updater{
-		FS:  newMemFS(),
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: "/home/joe", cwd: "/anywhere"},
+		FS:    newMemFS(),
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/anywhere"},
+		Spawn: noopSpawner{},
 	}
 
 	_, err := updater.Run(context.Background(), update.Options{})
@@ -572,9 +585,10 @@ func TestUpdater_Run_NoHomeReturnsError(t *testing.T) {
 	g := NewWithT(t)
 
 	updater := &update.Updater{
-		FS:  newMemFS(),
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{}, // empty home
+		FS:    newMemFS(),
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{}, // empty home
+		Spawn: noopSpawner{},
 	}
 
 	_, err := updater.Run(context.Background(), update.Options{})
@@ -600,9 +614,10 @@ func TestUpdater_Run_PartialFailure_AllFail(t *testing.T) {
 	fileSystem := &failWriteFS{memFS: base, failOn: ".claude/engram/skills"}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -673,9 +688,10 @@ func TestUpdater_Run_RemoteClonesForLFSAndBuildsFromClone(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/elsewhere"},
+		FS:    fileSystem,
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/elsewhere"},
+		Spawn: noopSpawner{},
 	}
 
 	rep, err := updater.Run(context.Background(), update.Options{})
@@ -732,9 +748,10 @@ func TestUpdater_Run_RemoteModelStubFailsWithGuidance(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/elsewhere"},
+		FS:    fileSystem,
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/elsewhere"},
+		Spawn: noopSpawner{},
 	}
 
 	_, err := updater.Run(context.Background(), update.Options{})
@@ -774,9 +791,10 @@ func TestUpdater_Run_Remote_HappyPath(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/tmp"},
+		FS:    fileSystem,
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/tmp"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -822,9 +840,10 @@ func TestUpdater_Run_SkillsSrcMissing(t *testing.T) {
 
 	cmd := &fakeCmd{}
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: cmd,
-		Env: &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	_, err := updater.Run(context.Background(), update.Options{})
@@ -906,11 +925,16 @@ func (f *fakeCmd) Run(_ context.Context, dir, name string, args ...string) ([]by
 // --- fakes ---------------------------------------------------------------
 
 type fakeEnv struct {
-	home string
-	cwd  string
+	home     string
+	cwd      string
+	sentinel string
 }
 
-func (f *fakeEnv) Getenv(_ string) string {
+func (f *fakeEnv) Getenv(key string) string {
+	if key == update.ReexecSentinelEnvVar && f.sentinel != "" {
+		return f.sentinel
+	}
+
 	return ""
 }
 

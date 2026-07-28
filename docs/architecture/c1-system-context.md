@@ -23,7 +23,7 @@ flowchart LR
     harness -->|"R2: invokes /recall, /learn, /please; runs engram CLI"| engram
     engram -->|"R3: reads & writes notes + sidecars"| vault
     engram -->|"R4: reads session transcripts; re-chunks only mtime/size/hash-changed sources (manifest.json)"| sessions
-    engram -->|"R5: invokes go install / go list for self-update"| gotool
+    engram -->|"R5: invokes git clone + go install for self-update, then re-execs the fresh binary (ADR-0023)"| gotool
     engram -->|"R6: writes refreshed skill/command files during engram update; --with-guidance adds guidance (Claude Code, Pi)"| harness
 
     class user person
@@ -57,7 +57,7 @@ flowchart LR
 | <a id="r2"></a>R2 | S3 LLM coding harness | S2 Engram | Invokes `/recall`, `/learn`, `/please` slash commands; subprocess-executes the engram CLI for each invocation |
 | <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes plus their `.vec.json` embedding sidecars under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code `~/.claude/projects/<slug>/*.jsonl`; Pi session JSONL under ancestor `.pi` dirs or `--pi-sessions` dirs) for changed sources only |
-| <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go list -m -json` and `go install` to self-update |
+| <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go install` (local clone) or clones the repo and builds from the clone (remote mode, never `go install …@latest`; #645) to self-update, then re-execs the freshly installed binary to run the sync phase (ADR-0023) |
 | <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, syncs refreshed `agent-instructions/skills/` and `agent-instructions/commands/` to engram-owned roots (`~/.claude/engram/skills/`, `~/.config/opencode/engram/skills/`, etc.; ADR-0022 D1) and materializes them as symlinks in each harness's surface dirs (`~/.claude/skills/`, `~/.config/opencode/skills/`, `~/.pi/agent/skills/`); removals from the source propagate (sync-delete); first update performs dark migration of pre-existing copies to symlinks; dangling symlinks are cleaned up. `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (`~/.claude/engram/guidance/`, `~/.pi/agent/engram/guidance/`; canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) resolve existing `@import` lines (opt-in; OpenCode deferred). Manifest-mode fallback for harnesses whose discovery fails symlink verification (ADR-0022 D7) |
 
 ## Key flows
@@ -315,16 +315,23 @@ sequenceDiagram
 `engram update` refreshes both the engram binary (via Go) and the harness's
 deployed skills, commands, and (opt-in) guidance. It walks up from `cwd` to
 detect a local clone: on hit it runs `go install ./cmd/engram/` from the clone;
-on miss it runs `go install ...@latest` followed by `go list -m -json` to
-resolve the module root for the artifact source. The CLI then maintains
-per-harness engram-owned roots (containing the real artifacts) synced to match
-the intended deploy set: first update performs dark migration (adopts
-pre-existing copies to the root + symlinks), subsequent updates sync (create
-missing, overwrite changed, delete removed); symlink surfaces are materialized
-into each harness's discovery paths (`~/.claude/skills/`, etc.); dangling
-symlinks are cleaned up; dry-run previews every operation without writing.
+on miss it clones the repo (`git clone --depth 1`) and runs
+`go install ./cmd/engram/` from the clone — never `go install ...@latest`,
+which would miss the LFS-tracked embedder model (#645). On a successful
+install, the parent writes a handoff report and re-execs the freshly
+installed binary with a loop-guard sentinel (`ENGRAM_UPDATE_REEXEC=1`) to run
+all subsequent phases with fresh logic; the parent then exits with the
+child's exit code (ADR-0023). If re-exec fails to spawn, the parent falls
+back to completing in-process and reports why. The (re-execed, or fallback
+in-process) run then maintains per-harness engram-owned roots (containing the
+real artifacts) synced to match the intended deploy set: first update
+performs dark migration (adopts pre-existing copies to the root + symlinks),
+subsequent updates sync (create missing, overwrite changed, delete removed);
+symlink surfaces are materialized into each harness's discovery paths
+(`~/.claude/skills/`, etc.); dangling symlinks are cleaned up; dry-run skips
+install/re-exec and previews every operation without writing.
 Source: `internal/cli/update.go` (`runUpdate`) and `internal/update/update.go`
-(`Updater.Run`); design: ADR-0022.
+(`Updater.Run`, `reexecAfterInstall`); design: ADR-0022, ADR-0023.
 
 ```mermaid
 sequenceDiagram
@@ -344,11 +351,21 @@ sequenceDiagram
         Go-->>E: installed engram into GOBIN
         Note over E: read artifacts from the local module dir
     else no local clone
-        E->>Go: go install github.com/toejough/engram/cmd/engram@latest
+        E->>Go: git clone --depth 1 (LFS-safe, #645)
+        E->>Go: go install ./cmd/engram/ (from the clone)
         Go-->>E: installed engram into GOBIN
-        E->>Go: go list -m -json github.com/toejough/engram
-        Go-->>E: module Dir and Version JSON
-        Note over E: read artifacts from the resolved module dir
+        Note over E: read artifacts from the clone
+    end
+
+    alt install succeeded and not --dry-run
+        Note over E: write parent handoff report (install result)
+        E->>E: spawn installed binary as child (ENGRAM_UPDATE_REEXEC=1, inherited stdio)
+        alt spawn succeeded
+            Note over E: child observes sentinel, skips install, runs sync/checks with fresh logic
+            E-->>H: child's exit code propagates; parent exits, performs no further phases
+        else spawn failed
+            Note over E: fallback — complete sync/checks in-process, record failure reason on report
+        end
     end
 
     Note over E: detect each harness (Claude Code, OpenCode, Pi) and its deploy mode (symlink or manifest)

@@ -28,6 +28,7 @@ func main() {
 		FS:           fsPrimitives(),
 		Lock:         lockPrimitives(),
 		Exec:         execPrimitives(),
+		Spawn:        spawnPrimitives(),
 		Proc:         procPrimitives(),
 		EmbedRuntime: hugotRuntime{},
 	}, os.Stdout, os.Stderr, os.Exit))...)
@@ -121,6 +122,30 @@ func procPrimitives() cli.ProcPrims {
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 			go cli.ForwardAsPulses(sigCh, pulses)
+		},
+	}
+}
+
+// spawnPrimitives groups the raw process-spawn capability (design D1,
+// update-reexec-fresh-binary): construct the child command, inherit stdio
+// and extend the environment (field assignments, zero branching), then
+// split spawn failure from a started child's exit code via
+// cmd.Process/cmd.ProcessState (the single S5 error-guard shape).
+func spawnPrimitives() cli.SpawnPrims {
+	return cli.SpawnPrims{
+		RunInherited: func(name string, args []string, extraEnv []string) (int, error) {
+			cmd := exec.CommandContext(context.Background(), name, args...) //nolint:gosec // name/args from internal callers
+			cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+
+			cmd.Env = append(os.Environ(), extraEnv...)
+			runErr := cmd.Run()
+			state := cmd.ProcessState
+
+			if cmd.Process != nil {
+				return state.ExitCode(), nil
+			}
+
+			return -1, runErr //nolint:wrapcheck // raw error contract: internal/cli's primSpawner wraps once
 		},
 	}
 }

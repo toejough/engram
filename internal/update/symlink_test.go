@@ -46,7 +46,7 @@ func TestApplyOps_ManifestMode_CommandCopyErrorIsHarnessError(t *testing.T) {
 		},
 	}
 
-	updater := &update.Updater{FS: base, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{FS: base, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}, Spawn: noopSpawner{}}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, nil, cmdOps, nil, false, false)
 	g.Expect(reports).To(HaveLen(1))
@@ -85,7 +85,12 @@ func TestApplyOps_ManifestMode_DryRun_NoWrites(t *testing.T) {
 		},
 	}
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, nil, false, true)
 	g.Expect(reports).To(HaveLen(1))
@@ -161,7 +166,12 @@ func TestApplyOps_ManifestMode_FallsThroughToCopyBehavior(t *testing.T) {
 	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("recall cmd")
 	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	reports := update.ExportApplyOps(
 		updater, []update.HarnessSpec{spec}, home, skillOps, cmdOps, guidanceOps, true, false)
@@ -220,7 +230,7 @@ func TestApplyOps_ManifestMode_GuidanceCopyErrorIsHarnessError(t *testing.T) {
 		},
 	}
 
-	updater := &update.Updater{FS: base, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{FS: base, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}, Spawn: noopSpawner{}}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, nil, nil, guidanceOps, true, false)
 	g.Expect(reports).To(HaveLen(1))
@@ -262,7 +272,12 @@ func TestApplyOps_ManifestMode_SkillClearFailureIsHarnessError(t *testing.T) {
 
 	fileSystem := &failRemoveAllFS{memFS: base, failOn: ".claude/skills/learn"}
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, nil, false, false)
 	g.Expect(reports).To(HaveLen(1))
@@ -301,7 +316,12 @@ func TestApplyOps_ManifestMode_SkillCopyErrorIsHarnessError(t *testing.T) {
 		},
 	}
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, nil, false, false)
 	g.Expect(reports).To(HaveLen(1))
@@ -341,7 +361,12 @@ func TestApplyOps_ManifestMode_SkillMkdirErrorIsHarnessError(t *testing.T) {
 	mkdirErr := errors.New("mkdir boom")
 	fileSystem := &symlinkFaultFS{memFS: base, mkdirErr: map[string]error{home + "/.claude/skills/learn": mkdirErr}}
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, nil, false, false)
 	g.Expect(reports).To(HaveLen(1))
@@ -380,7 +405,12 @@ func TestApplyOps_ManifestMode_SkillWriteErrorIsHarnessError(t *testing.T) {
 
 	fileSystem := &failWriteFS{memFS: base, failOn: ".claude/skills/learn/SKILL.md"}
 
-	updater := &update.Updater{FS: fileSystem, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}}
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, nil, false, false)
 	g.Expect(reports).To(HaveLen(1))
@@ -979,9 +1009,10 @@ func TestRun_SymlinkFreeTree_CleanupAndMaterializationRecordNothingUnexpected(t 
 	fileSystem.files[home+"/.claude/skills/learn/SKILL.md"] = []byte("real copy, pre-migration")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -1031,9 +1062,10 @@ func TestRun_SymlinkMode_ClaudeGuidanceCreatesCompatSymlink(t *testing.T) {
 	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
@@ -1076,9 +1108,10 @@ func TestRun_SymlinkMode_DanglingLinkRemovedWhenSourceArtifactGone(t *testing.T)
 	g.Expect(symlinkErr).NotTo(HaveOccurred())
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -1107,9 +1140,10 @@ func TestRun_SymlinkMode_DryRun_NoLinksCreated(t *testing.T) {
 	fileSystem.files["/repo/agent-instructions/skills/recall/SKILL.md"] = []byte("recall skill")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{DryRun: true})
@@ -1143,9 +1177,10 @@ func TestRun_SymlinkMode_ForeignSymlinkNeverTouched(t *testing.T) {
 	g.Expect(symlinkErr).NotTo(HaveOccurred())
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -1178,9 +1213,10 @@ func TestRun_SymlinkMode_FreshSkillAndCommandLinksCreated(t *testing.T) {
 	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("recall cmd")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -1236,9 +1272,10 @@ func TestRun_SymlinkMode_PiGuidanceLinkError_IsHarnessError(t *testing.T) {
 	}
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
@@ -1267,9 +1304,10 @@ func TestRun_SymlinkMode_PiGuidanceLinksGuidanceFiles(t *testing.T) {
 	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
@@ -1325,9 +1363,10 @@ func TestRun_SymlinkMode_PiRealGuidanceFile_AdoptsToSymlink(t *testing.T) {
 	fileSystem.files[home+"/.pi/agent/guidance/recall.md"] = []byte("stale real copy")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
@@ -1375,9 +1414,10 @@ func TestRun_SymlinkMode_RealSkillDirAdoptsToSymlink(t *testing.T) {
 	fileSystem.files[home+"/.claude/skills/recall/SKILL.md"] = []byte("stale real copy")
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
@@ -1417,9 +1457,10 @@ func TestRun_SymlinkMode_WrongTargetLinkRepointed(t *testing.T) {
 	g.Expect(symlinkErr).NotTo(HaveOccurred())
 
 	updater := &update.Updater{
-		FS:  fileSystem,
-		Cmd: &fakeCmd{},
-		Env: &fakeEnv{home: home, cwd: "/repo"},
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
 	}
 
 	report, err := updater.Run(context.Background(), update.Options{})
