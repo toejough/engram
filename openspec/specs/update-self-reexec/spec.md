@@ -1,7 +1,9 @@
 # update-self-reexec Specification
 
 ## Purpose
-TBD - created by archiving change update-reexec-fresh-binary. Update Purpose after archive.
+
+The self-update lifecycle of `engram update`: after a successful binary install, the parent process writes a handoff report (the install result) and re-execs the freshly installed binary — loop-guarded by the `ENGRAM_UPDATE_REEXEC` environment sentinel — so planning, harness sync, and vault/index checks always run with the just-installed release's logic instead of the stale in-memory image. Spawn failure falls back to completing in-process with a reported reason; `--dry-run` never installs or re-execs; the combined output reads as a single coherent report. Why: docs/architecture/adr.md ADR-0023. Validation: internal/update/reexec_test.go, internal/cli/reexec_test.go, plus real-binary verification (header-once, sentinel-run-no-install-claim).
+
 ## Requirements
 ### Requirement: Sync phase runs in the freshly installed binary
 When `engram update`'s binary install step completes without error, it SHALL re-exec the installed binary (at the resolved installed path, not the running process's path) to perform all subsequent phases — planning, harness sync, and vault/index checks — and the parent process SHALL exit with the re-execed process's exit code without performing those phases itself.
