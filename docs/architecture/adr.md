@@ -790,6 +790,27 @@ coincidence between two independent implementations.
 
 ---
 
+## ADR-0024 — Derivational vocab refit: geometry-derived terms, growth-only trigger, plan flow removed
+
+**Status:** Accepted (2026-07-28)
+
+**Context.** The controlled vocabulary (ADR-0011) was maintained by a plan-based refit flow (`--emit-request`/`--plan`) that was an additive-only ratchet: an LLM judged merges/splits/renames against the *existing* term list, so terms accumulated and never tracked the vault's actual semantic geometry — observed as ~150-term drift on the production vault. The untagged-rate and hub-concentration triggers pushed more LLM-judged refits without addressing the ratchet.
+
+**Decision.** `engram vocab refit` derives the vocabulary from the vault's embedding geometry instead of editing the term list. Whole-vault k-means with silhouette-selected auto-K (argmax over K∈[2,40]); a floor of 0.02 acts as a noise-rejection bound only — K=0 (keep existing vocabulary) when no structure clears it. Cluster centroids are greedily matched to existing term vectors at cosine ≥ 0.80 (`vocabNameMatchThreshold`); matched terms survive with refreshed centroids, unmatched clusters are emitted as fingerprinted `naming_requests` JSON for the agent to answer via `--names <file>` (the echoed fingerprint proves the answer names this vault state), and unmatched *derived-origin* terms are retired. An `origin` field (`derived`/`proposed`) in `vocab.centroids.json` is a provenance shield: `origin: proposed` terms (operator-minted via `vocab propose`) are never auto-retired. The trigger becomes growth-only (≥40 new notes AND ≥14 days since last refit); untagged-rate and hub concentration remain `vocab stats` diagnostics but never set `refit_pending`. Silhouette hysteresis (ε = 0.02) keeps the previous K unless a new K clearly wins. Calibration is measured, not borrowed: the production 597-vector corpus peaks at silhouette 0.0987 (K=9), so recall's 0.10 query-subset floor does not transfer to whole-vault MiniLM geometry — hence the 0.02 noise bound. Source: `internal/cli/vocab_derive.go`, `internal/cli/vocab_apply.go`, `internal/cli/vocab_trigger.go`, `internal/cli/vocab_commands.go` (`RunVocabRefit`).
+
+**Consequences.**
+
+- **Plan flow removed (BREAKING):** `--emit-request` and `--plan` no longer exist; the refit CLI surface is `--dry-run` and `--names <file>`. The learn skill's Step 1.5 runs derive → answer naming requests → apply.
+- **Retirement semantics:** retired terms are demoted definition notes recorded as supersession entries on the family note (major version bump) — history preserved, no deletion; member `vocab/<term>` tags are rewritten.
+- **First-apply caveat:** measured K=9 vs 29 current terms means the first production apply would retire most existing derived terms — the `--dry-run` review before a real apply is load-bearing, not ceremonial.
+
+**Risks / Trade-offs:**
+
+- [Geometry churn renames stable vocabulary] → the ≥0.80 centroid match keeps semantically stable terms; hysteresis damps K flapping; `origin: proposed` shields operator intent.
+- [Stale naming answer applied to a moved vault] → the derivation-input fingerprint must be echoed verbatim or the `--names` run is rejected.
+
+---
+
 ## Decisions deliberately NOT made into ADRs
 
 - **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an

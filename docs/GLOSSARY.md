@@ -209,17 +209,22 @@ to avoid contention with note writes. `engram embed apply` re-embeds notes in bu
 
 ### vocab.centroids.json lifecycle fields
 
-Three fields written to `vocab.centroids.json` by the write-time trigger check (2026-07-03):
+Lifecycle fields written to `vocab.centroids.json` by the write-time trigger check
+(2026-07-03; growth-only + `origin` since the 2026-07-28 derivational refit):
 
 - **`refit_pending`** (`bool`, omitted when false): set by `checkAndPersistVocabRefitTrigger`
-  when any trigger trips; cleared by `engram vocab refit` and `engram vocab bootstrap`.
-- **`refit_reason`** (`string`): human-readable reason recorded with the flag, e.g.
-  `"growth: 42 notes, 15 days"`, `"untagged: 9.2%"`, or `"hub: token-budget (27%)"`
-  (the exact formats emitted by `evaluateVocabTriggers`). Present only when
-  `refit_pending` is true.
+  when the growth trigger trips (the sole trigger — untagged-rate and hub concentration are
+  `vocab stats` diagnostics only); cleared by `engram vocab refit` and `engram vocab bootstrap`.
+- **`refit_reason`** (`string`): human-readable reason recorded with the flag; only the growth
+  form remains, e.g. `"growth: 42 notes, 15 days"` (the exact format emitted by
+  `evaluateVocabTriggers`). Present only when `refit_pending` is true.
 - **`last_refit`** (`{note_count: int, date: YYYY-MM-DD}`): vault state at the time of the
   last bootstrap or refit — the baseline the growth trigger measures against. Seeded at
   bootstrap and refreshed on each refit.
+- **`origin`** (per-term, `"derived"` or `"proposed"`): provenance shield recorded on each
+  term entry — `derived` terms come from refit's whole-vault clustering and are eligible for
+  retirement when no cluster centroid matches them; `proposed` terms (minted via
+  `engram vocab propose`) are never auto-retired. Missing origin defaults to `derived`.
 
 ---
 
@@ -238,6 +243,16 @@ term-note, a definition note is an ordinary recallable fact — no query exclusi
 exclusion was deleted with the migration). A member note's own vocab terms live in its `tags:` list as
 `vocab/<term>` entries (see `--tag`, below). A member note with no qualifying term carries no `vocab/` tag — absence = untagged, counted by `engram vocab stats`. Plural:
 **vocab definition notes**.
+
+### naming request
+Emitted by derivational `engram vocab refit` (2026-07-28) for each derived cluster whose centroid
+matched no existing term vector (greedy match, cosine ≥ 0.80): structured JSON on stdout
+(`naming_requests`) carrying the cluster index, member count, and centroid-nearest exemplar snippets.
+The agent names each cluster (kebab-case term + one-line description) and re-runs
+`engram vocab refit --names <file>`; the answer must echo the payload's **fingerprint** — a hash of
+the derivation inputs proving the answer names *this* vault state's clusters (a moved vault rejects
+the stale answer). Every new cluster must be named; unclaimed derived-origin terms are retired on
+apply (family-note supersession + major version bump).
 
 ### vocab nomination
 The tag-match extension to `candidate_l2s` (shipped 2026-07-03): notes sharing ≥1 vocab term with the

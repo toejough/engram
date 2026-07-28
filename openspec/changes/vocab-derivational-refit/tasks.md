@@ -21,7 +21,7 @@
 ## 4. Skill + docs
 
 - [x] 4.1 Update `agent-instructions/skills/learn/SKILL.md` Step 1.5 to the run-refit-and-answer-naming flow (via `superpowers:writing-skills` RED→GREEN, pressure tests)
-- [ ] 4.2 Update GLOSSARY.md, ADR (new decision entry), and c1 diagrams referencing the plan-based refit; scrub stale references
+- [x] 4.2 Update GLOSSARY.md, ADR (new decision entry), and c1 diagrams referencing the plan-based refit; scrub stale references
 
 ## 5. Verification
 
