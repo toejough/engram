@@ -53,16 +53,31 @@ re-sweeping now on suspicion.
 
 Run `engram vocab stats`.
 
-If the output includes a line matching `verdict: REFIT_PENDING (<reason>)`, run the vocab
-refit flow autonomously — do not defer to the user:
-
-1. Run `engram vocab refit --emit-request`. Save its JSON output.
-2. Derive a YAML refit plan from the JSON (review terms, propose merges/splits/removals for
-   orphans < 2 members and hubs > 25%). Write the plan to `/tmp/vocab-refit-plan.yaml`.
-3. Run `engram vocab refit --plan /tmp/vocab-refit-plan.yaml` to apply the plan.
-4. **Report loudly:** "Vocab refit applied: <version bump>. Triggered by: <reason>."
-
 If the verdict is `verdict: OK`, continue to Step 2 with no further vocab action.
+
+If the output includes a line matching `verdict: REFIT_PENDING (<reason>)`, run the refit
+autonomously — do not defer to the user:
+
+1. Run `engram vocab refit`. The binary derives the clusters itself — there is no plan to
+   author. (`--dry-run` prints the derivation diff without writing; use it on the first refit
+   over a long-drifted vault if you want to sanity-check a mass retirement first.)
+2. If it prints `vocab refit: no structure found; vocabulary unchanged`, nothing was written
+   and there is no version bump — report exactly that ("Vocab refit ran: no structure found,
+   vocabulary unchanged.") and continue to Step 2. Do NOT claim an applied refit.
+   If every cluster matched an existing term, the run applies directly — skip to step 4.
+   If there are new clusters, the command prints a JSON payload
+   (`naming_requests` + `fingerprint`) and exits WITHOUT writing. Name each new cluster from
+   its exemplars, then write an answer file:
+
+   ```json
+   {"names": [{"cluster": 0, "term": "kebab-case-term", "description": "one line"}],
+    "fingerprint": "<echoed verbatim from the request payload>"}
+   ```
+
+   Cover every new cluster exactly once. Re-run: `engram vocab refit --names /path/answer.json`.
+3. If the re-run fails with a stale-names error (the vault changed between runs), the requests
+   are void — re-run `engram vocab refit` from scratch to regenerate them, and answer those.
+4. **Report loudly:** "Vocab refit applied: <version bump>. Triggered by: <reason>."
 
 Also check the QA round-2 gate line. If the output includes `qa round-2 gate: READY (...)`, report to Joe:
 "QA round-2 validation is due (≥20 pairs captured). Please schedule the round-2 gates recorded in
