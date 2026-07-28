@@ -15,10 +15,10 @@ const (
 	// refitGrowthMinNotes is the minimum new-note growth since the last refit
 	// to consider the growth trigger armed.
 	refitGrowthMinNotes = 40
-	// refitUntaggedRateMax is the vault-wide untagged rate above which the
-	// untagged trigger fires (exclusive: >8%).
+	// refitUntaggedRateMax is the vault-wide untagged rate above which
+	// `vocab stats` flags the rate as a [high] diagnostic (exclusive: >8%).
+	// Diagnostic only — it does not set refit_pending (growth is the sole trigger).
 	refitUntaggedRateMax = 0.08
-	// hubThreshold (0.25) is defined in vocab_commands.go and reused here.
 	// hoursPerDay (24) is defined in recency.go and reused here.
 )
 
@@ -44,7 +44,7 @@ func checkAndPersistVocabRefitTrigger(
 		return // already flagged — idempotent; no vault scan needed
 	}
 
-	totalNotes, untaggedCount, memberCounts := collectTriggerVaultStats(vault, listMD, readFile)
+	totalNotes := countTriggerVaultNotes(vault, listMD, readFile)
 
 	if doc.LastRefit == nil {
 		// Seed baseline — no trigger fires this call.
@@ -58,7 +58,7 @@ func checkAndPersistVocabRefitTrigger(
 		return
 	}
 
-	fired, reason := evaluateVocabTriggers(totalNotes, untaggedCount, memberCounts, doc.LastRefit, now)
+	fired, reason := evaluateVocabTriggers(totalNotes, doc.LastRefit, now)
 	if !fired {
 		return
 	}
@@ -69,114 +69,67 @@ func checkAndPersistVocabRefitTrigger(
 	writeWithWarn(vault, doc, writeFile, logWarn, "persisting refit_pending")
 }
 
-// collectTriggerVaultStats scans non-vocab note frontmatter for the trigger evaluation.
-// Returns (totalNotes, untaggedCount, perTermMemberCounts).
-// Unreadable or unparseable notes count as total but not tagged.
-func collectTriggerVaultStats(
+// countTriggerVaultNotes counts the vault's non-definition notes for the
+// growth-trigger evaluation. Returns 0 when listing fails.
+func countTriggerVaultNotes(
 	vault string,
 	listMD func(string) ([]string, error),
 	readFile func(string) ([]byte, error),
-) (int, int, map[string]int) {
+) int {
 	names, listErr := listMD(vault)
 	if listErr != nil {
-		return 0, 0, nil
+		return 0
 	}
 
-	return collectTriggerVaultStatsFromNames(vault, names, readFile)
+	return countTriggerVaultNotesFromNames(vault, names, readFile)
 }
 
-// collectTriggerVaultStatsFromNames is the names-in-hand form of
-// collectTriggerVaultStats, for callers that already listed the vault
-// (e.g. emitRefitRequest, buildLastRefitDoc) — avoids a second directory
-// pass. A bare-vocab DEFINITION note (isVocabDefinitionNote) contributes to
-// neither totalNotes nor untaggedCount — it is not a member note at all.
-// Member terms are read SOLELY from the tags: vocab/<term> namespace (#678
-// Task 5: the union with the legacy `vocab:` frontmatter key is retired — a
-// single read source means a term can never be double-counted from the same
-// note). This is the ONE content-based note-count measure shared by both the
-// refit-baseline seed (buildLastRefitDoc) and the trigger check itself
-// (checkAndPersistVocabRefitTrigger) — they must never diverge in units.
-func collectTriggerVaultStatsFromNames(
+// countTriggerVaultNotesFromNames is the names-in-hand form of
+// countTriggerVaultNotes, for callers that already listed the vault
+// (e.g. buildLastRefitDoc) — avoids a second directory pass. A bare-vocab
+// DEFINITION note (isVocabDefinitionNote) does not count — it is not a member
+// note at all; unreadable notes DO count. This is the ONE content-based
+// note-count measure shared by both the refit-baseline seed (buildLastRefitDoc)
+// and the trigger check itself (checkAndPersistVocabRefitTrigger) — they must
+// never diverge in units.
+func countTriggerVaultNotesFromNames(
 	vault string,
 	names []string,
 	readFile func(string) ([]byte, error),
-) (int, int, map[string]int) {
-	memberCounts := make(map[string]int)
-	totalNotes, untaggedCount := 0, 0
+) int {
+	totalNotes := 0
 
 	scanNonVocabNotes(vault, names, readFile, func(_ string, raw []byte, readErr error) {
-		if readErr != nil {
-			totalNotes++
-			untaggedCount++
-
-			return
-		}
-
-		if isVocabDefinitionNote(string(raw)) {
-			return // a definition note is neither a member nor untagged
+		if readErr == nil && isVocabDefinitionNote(string(raw)) {
+			return // a definition note is not a member note
 		}
 
 		totalNotes++
-
-		frontmatterBytes, ok := splitFrontmatter(raw)
-		if !ok {
-			untaggedCount++
-			return
-		}
-
-		tagTerms := vocabTermsFromTags(parseTagsFromFrontmatter(string(frontmatterBytes)))
-
-		if len(tagTerms) == 0 {
-			untaggedCount++
-			return
-		}
-
-		for _, term := range tagTerms {
-			memberCounts[term]++
-		}
 	})
 
-	return totalNotes, untaggedCount, memberCounts
+	return totalNotes
 }
 
-// evaluateVocabTriggers returns (fired, reason) for the in-process threshold checks.
+// evaluateVocabTriggers returns (fired, reason) for the in-process threshold check.
+// Growth is the SOLE trigger (vocab-derivational-refit): ≥refitGrowthMinNotes new
+// notes since last_refit AND ≥refitGrowthMinDays elapsed. Untagged rate and hub
+// concentration are `vocab stats` diagnostics only and never set refit_pending.
 // Returns (false, "") when lastRefit is nil (no baseline yet — caller seeds and returns).
-func evaluateVocabTriggers(
-	totalNotes, untaggedCount int,
-	memberCounts map[string]int,
-	lastRefit *vocabLastRefitDoc,
-	now time.Time,
-) (bool, string) {
+func evaluateVocabTriggers(totalNotes int, lastRefit *vocabLastRefitDoc, now time.Time) (bool, string) {
 	if lastRefit == nil {
 		return false, "" // no baseline — caller seeds and returns
 	}
 
-	// (a) growth trigger
 	lastRefitDate, parseErr := time.Parse(dateFormat, lastRefit.Date)
-	if parseErr == nil {
-		growth := totalNotes - lastRefit.NoteCount
-		daysSince := int(now.Sub(lastRefitDate).Hours() / hoursPerDay)
-
-		if growth >= refitGrowthMinNotes && daysSince >= refitGrowthMinDays {
-			return true, fmt.Sprintf("growth: %d notes, %d days", growth, daysSince)
-		}
+	if parseErr != nil {
+		return false, ""
 	}
 
-	// (b) untagged rate trigger
-	if totalNotes > 0 {
-		untaggedRate := float64(untaggedCount) / float64(totalNotes)
+	growth := totalNotes - lastRefit.NoteCount
+	daysSince := int(now.Sub(lastRefitDate).Hours() / hoursPerDay)
 
-		if untaggedRate > refitUntaggedRateMax {
-			return true, fmt.Sprintf("untagged: %.1f%%", untaggedRate*pctMultiplier)
-		}
-	}
-
-	// (c) hub trigger
-	for term, count := range memberCounts {
-		if totalNotes > 0 && float64(count)/float64(totalNotes) > hubThreshold {
-			return true, fmt.Sprintf("hub: %s (%.0f%%)",
-				term, float64(count)/float64(totalNotes)*pctMultiplier)
-		}
+	if growth >= refitGrowthMinNotes && daysSince >= refitGrowthMinDays {
+		return true, fmt.Sprintf("growth: %d notes, %d days", growth, daysSince)
 	}
 
 	return false, ""
@@ -185,7 +138,7 @@ func evaluateVocabTriggers(
 // scanNonVocabNotes calls visit for each .md file except QA question notes.
 // visit receives (name, raw bytes, readErr); raw is nil when readErr is non-nil.
 // Definition-note exclusion happens content-based in callers. Shared primitive
-// used by collectTriggerVaultStats (untaggedCount).
+// used by countTriggerVaultNotes.
 func scanNonVocabNotes(
 	vault string,
 	names []string,

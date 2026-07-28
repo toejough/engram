@@ -2674,7 +2674,51 @@ func TestRunVocabStats_ReportsHubAndOrphan(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("hub"), "hub term must be flagged")
 	g.Expect(output).To(ContainSubstring("orphan"), "orphan term must be flagged")
 	g.Expect(output).To(ContainSubstring("eval-methodology"), "hub term name must appear")
+	g.Expect(output).To(ContainSubstring("verdict: OK"),
+		"hub concentration is diagnostic-only — it must not force a REFIT_PENDING verdict")
 	g.Expect(output).To(ContainSubstring("scope-discipline"), "orphan term name must appear")
+}
+
+// TestRunVocabStats_UntaggedRateHigh_DiagnosticOnly verifies the trigger
+// collapse: an untagged rate above 8% is flagged [high] on the untagged-rate
+// line as a diagnostic, and the verdict stays OK — the rate carries no
+// REFIT_PENDING force.
+func TestRunVocabStats_UntaggedRateHigh_DiagnosticOnly(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	untaggedNote := "---\ntype: feedback\nsituation: ctx\nbehavior: b\nimpact: i\naction: a\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\nLesson learned: when ctx, a.\n\n"
+
+	deps := cli.VocabStatsDeps{
+		ListMD: func(string) ([]string, error) {
+			return []string{"1aa.2026-01-01.note.md", "2aa.2026-01-02.note.md"}, nil
+		},
+		ReadFile: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, ".md") {
+				return []byte(untaggedNote), nil
+			}
+
+			return nil, &testNotFoundError{path: path}
+		},
+	}
+
+	var buf strings.Builder
+
+	statsErr := cli.RunVocabStats(cli.VocabStatsArgs{Vault: "/vault"}, deps, &buf)
+	g.Expect(statsErr).NotTo(HaveOccurred())
+
+	if statsErr != nil {
+		return
+	}
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("untagged-rate: 100.0% [high]"),
+		"untagged rate above 8% must be flagged as a [high] diagnostic")
+	g.Expect(output).To(ContainSubstring("verdict: OK"),
+		"untagged rate is diagnostic-only — it must not force a REFIT_PENDING verdict")
+	g.Expect(output).NotTo(ContainSubstring("REFIT_PENDING"))
 }
 
 // TestRunVocabTagDefinitions_PublicAPI verifies that the public RunVocabTagDefinitions

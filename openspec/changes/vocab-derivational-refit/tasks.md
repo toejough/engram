@@ -16,7 +16,7 @@
 
 ## 3. Triggers
 
-- [ ] 3.1 TDD: `evaluateVocabTriggers` growth-only for `refit_pending`; untagged/hub demoted to diagnostics in `vocab stats` output (no REFIT_PENDING verdict); verify `refitUntaggedRateMax`/`hubThreshold` constants stay referenced by the diagnostics path in the same pass (unused-const lint)
+- [x] 3.1 TDD: `evaluateVocabTriggers` growth-only for `refit_pending`; untagged/hub demoted to diagnostics in `vocab stats` output (no REFIT_PENDING verdict); verify `refitUntaggedRateMax`/`hubThreshold` constants stay referenced by the diagnostics path in the same pass (unused-const lint)
 
 ## 4. Skill + docs
 

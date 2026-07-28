@@ -441,7 +441,7 @@ func assignVocabToNote(deps VocabDeps, vault, name string, terms []TermWithVecto
 
 // buildLastRefitDoc builds a vocabLastRefitDoc stamped with the current note
 // count and date. Callers pass the names they already listed and the vault's
-// ReadFile; the count is derived from collectTriggerVaultStatsFromNames — the
+// ReadFile; the count is derived from countTriggerVaultNotesFromNames — the
 // SAME content-based measure (bare-vocab definition notes and QA questions
 // excluded) the trigger check itself uses, so the seed and the check can
 // never diverge in units. Used by bootstrap and refit to seed last_refit so
@@ -453,7 +453,7 @@ func buildLastRefitDoc(
 	readFile func(string) ([]byte, error),
 	now time.Time,
 ) *vocabLastRefitDoc {
-	totalNotes, _, _ := collectTriggerVaultStatsFromNames(vault, names, readFile)
+	totalNotes := countTriggerVaultNotesFromNames(vault, names, readFile)
 
 	return &vocabLastRefitDoc{
 		NoteCount: totalNotes,
@@ -1091,7 +1091,14 @@ func printStatsReport(
 		untaggedRate = float64(untaggedCount) / float64(totalNotes) * pctMultiplier
 	}
 
-	_, _ = fmt.Fprintf(stdout, "untagged-rate: %.1f%%\n", untaggedRate)
+	// Diagnostic flag only — a high untagged rate never sets refit_pending
+	// (growth is the sole refit trigger; see evaluateVocabTriggers).
+	untaggedFlag := ""
+	if untaggedRate > refitUntaggedRateMax*pctMultiplier {
+		untaggedFlag = " [high]"
+	}
+
+	_, _ = fmt.Fprintf(stdout, "untagged-rate: %.1f%%%s\n", untaggedRate, untaggedFlag)
 
 	for _, term := range termNames {
 		count := memberCounts[term]

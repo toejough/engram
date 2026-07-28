@@ -107,11 +107,55 @@ func TestCheckAndPersistVocabRefitTrigger_GrowthTrigger_SetsPending(t *testing.T
 	g.Expect(got.RefitReason).To(ContainSubstring("growth"))
 }
 
+// TestCheckAndPersistVocabRefitTrigger_HubHigh_GrowthNotFired_StaysUnpending
+// verifies that a single term claiming far more than 25% of the vault MUST NOT
+// set refit_pending when the growth trigger has not fired — hub concentration
+// is a diagnostic reported by `vocab stats`, not a trigger.
+func TestCheckAndPersistVocabRefitTrigger_HubHigh_GrowthNotFired_StaysUnpending(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 10 notes, all tagged the same term (100% > 25%); growth 0 → no fire.
+	names := make([]string, 10)
+	for i := range names {
+		names[i] = fmt.Sprintf("%d.2026-01-01.note.md", i+1)
+	}
+
+	centroids := cli.ExportVocabCentroidsDoc{
+		LastRefit: &cli.ExportVocabLastRefitDoc{NoteCount: 10, Date: "2026-06-01"},
+	}
+
+	centroidsData, marshalErr := json.Marshal(centroids)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	var writeCount int
+
+	cli.ExportCheckAndPersistVocabRefitTrigger(
+		"/vault",
+		func(string) ([]string, error) { return names, nil },
+		func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				return centroidsData, nil
+			}
+
+			return []byte("---\ntype: fact\ntags:\n    - vocab/mega-hub\n---\n"), nil
+		},
+		func(string, []byte) error { writeCount++; return nil },
+		nil, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC),
+	)
+
+	g.Expect(writeCount).To(Equal(0), "hub concentration alone must not set refit_pending")
+}
+
 func TestCheckAndPersistVocabRefitTrigger_ListMDError_SeedsWithZeroCount(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// listMD returns an error → collectTriggerVaultStats returns (0,0,nil)
+	// listMD returns an error → countTriggerVaultNotes returns 0
 	// → checkAndPersist seeds last_refit with NoteCount: 0
 	var writtenData []byte
 
@@ -321,6 +365,50 @@ func TestCheckAndPersistVocabRefitTrigger_SelfTaggedDefinitionsLeaveTriggerMathU
 	}
 }
 
+// TestCheckAndPersistVocabRefitTrigger_UntaggedHigh_GrowthNotFired_StaysUnpending
+// verifies the vocab-derivational-refit trigger collapse: a vault-wide untagged
+// rate far above 8% MUST NOT set refit_pending when the growth trigger has not
+// fired — untagged rate is a diagnostic reported by `vocab stats`, not a trigger.
+func TestCheckAndPersistVocabRefitTrigger_UntaggedHigh_GrowthNotFired_StaysUnpending(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// 10 notes, all untagged (100% > 8%); baseline matches (growth 0) → no fire.
+	names := make([]string, 10)
+	for i := range names {
+		names[i] = fmt.Sprintf("%d.2026-01-01.note.md", i+1)
+	}
+
+	centroids := cli.ExportVocabCentroidsDoc{
+		LastRefit: &cli.ExportVocabLastRefitDoc{NoteCount: 10, Date: "2026-06-01"},
+	}
+
+	centroidsData, marshalErr := json.Marshal(centroids)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	var writeCount int
+
+	cli.ExportCheckAndPersistVocabRefitTrigger(
+		"/vault",
+		func(string) ([]string, error) { return names, nil },
+		func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, "vocab.centroids.json") {
+				return centroidsData, nil
+			}
+
+			return []byte("---\ntype: fact\n---\n"), nil
+		},
+		func(string, []byte) error { writeCount++; return nil },
+		nil, time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC),
+	)
+
+	g.Expect(writeCount).To(Equal(0), "untagged rate alone must not set refit_pending")
+}
+
 func TestCheckAndPersistVocabRefitTrigger_WriteError_LogsWarning(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -342,13 +430,10 @@ func TestCheckAndPersistVocabRefitTrigger_WriteError_LogsWarning(t *testing.T) {
 
 // ── Task 2: bare-vocab definition exemption ──────────────────────────────────
 
-// TestCollectTriggerVaultStats_DefinitionsAreNeitherMembersNorUntagged
-// verifies that a bare-vocab definition note contributes to neither the
-// member tally nor the untagged tally — it is excluded from vault stats
-// entirely, unlike a regular non-vocab-tagged note (which does count as
-// untagged). The tagged-member fixture uses the tags: vocab/<term>
-// convention, proving member detection also reads the new namespace.
-func TestCollectTriggerVaultStats_DefinitionsAreNeitherMembersNorUntagged(t *testing.T) {
+// TestCountTriggerVaultNotes_DefinitionsExcluded verifies that a bare-vocab
+// definition note is excluded from the trigger note count entirely — unlike
+// regular member notes (tagged or not), which count.
+func TestCountTriggerVaultNotes_DefinitionsExcluded(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -361,13 +446,12 @@ func TestCollectTriggerVaultStats_DefinitionsAreNeitherMembersNorUntagged(t *tes
 
 	osFS := cli.ExportNewVaultFS(realFSForTest())
 
-	totalNotes, untaggedCount, _ := cli.ExportCollectTriggerVaultStats(vault, osFS.ListMD, osFS.ReadFile)
+	totalNotes := cli.ExportCountTriggerVaultNotes(vault, osFS.ListMD, osFS.ReadFile)
 
 	g.Expect(totalNotes).To(Equal(2))
-	g.Expect(untaggedCount).To(Equal(1))
 }
 
-func TestCollectTriggerVaultStats_WithVocabTagsAndNoFrontmatter(t *testing.T) {
+func TestCountTriggerVaultNotes_MixedContentByContentNotFilename(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -389,7 +473,7 @@ func TestCollectTriggerVaultStats_WithVocabTagsAndNoFrontmatter(t *testing.T) {
 		}
 	}
 
-	totalNotes, untaggedCount, memberCounts := cli.ExportCollectTriggerVaultStats(
+	totalNotes := cli.ExportCountTriggerVaultNotes(
 		"/vault",
 		func(string) ([]string, error) { return names, nil },
 		readFile,
@@ -397,11 +481,6 @@ func TestCollectTriggerVaultStats_WithVocabTagsAndNoFrontmatter(t *testing.T) {
 
 	// def.vocab-x-definition.md is excluded by CONTENT (bare vocab tag), not filename.
 	g.Expect(totalNotes).To(Equal(3))
-	g.Expect(untaggedCount).To(Equal(2)) // untagged.md + no-fm.md
-
-	counts := memberCounts
-
-	g.Expect(counts["my-term"]).To(Equal(1))
 }
 
 // ── Coverage helpers ──────────────────────────────────────────────────────────
@@ -414,7 +493,7 @@ func TestEvaluateVocabTriggers_GrowthBelowDaysFloor(t *testing.T) {
 	last := &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-06-29"}
 	now := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) // 4 days
 
-	fired, _ := cli.ExportEvaluateVocabTriggers(141, 5, nil, last, now)
+	fired, _ := cli.ExportEvaluateVocabTriggers(141, last, now)
 
 	g.Expect(fired).To(BeFalse())
 }
@@ -429,26 +508,10 @@ func TestEvaluateVocabTriggers_GrowthFires(t *testing.T) {
 	last := &cli.ExportVocabLastRefitDoc{NoteCount: 100, Date: "2026-06-15"}
 	now := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) // 18 days later
 
-	fired, reason := cli.ExportEvaluateVocabTriggers(141, 5, nil, last, now)
+	fired, reason := cli.ExportEvaluateVocabTriggers(141, last, now)
 
 	g.Expect(fired).To(BeTrue())
 	g.Expect(reason).To(ContainSubstring("growth"))
-}
-
-func TestEvaluateVocabTriggers_HubFires(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	last := &cli.ExportVocabLastRefitDoc{NoteCount: 130, Date: "2026-06-01"}
-	now := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
-
-	// term "x" has 30/100 = 30% > 25%
-	counts := map[string]int{"x": 30, "y": 5}
-
-	fired, reason := cli.ExportEvaluateVocabTriggers(100, 0, counts, last, now)
-
-	g.Expect(fired).To(BeTrue())
-	g.Expect(reason).To(ContainSubstring("hub"))
 }
 
 func TestEvaluateVocabTriggers_NilLastRefit_NoFire(t *testing.T) {
@@ -457,29 +520,15 @@ func TestEvaluateVocabTriggers_NilLastRefit_NoFire(t *testing.T) {
 
 	now := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
 
-	fired, _ := cli.ExportEvaluateVocabTriggers(100, 5, nil, nil, now)
+	fired, _ := cli.ExportEvaluateVocabTriggers(100, nil, now)
 
 	g.Expect(fired).To(BeFalse())
-}
-
-func TestEvaluateVocabTriggers_UntaggedRateFires(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	last := &cli.ExportVocabLastRefitDoc{NoteCount: 130, Date: "2026-06-01"}
-	now := time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC)
-
-	// 10/100 = 10% > 8%
-	fired, reason := cli.ExportEvaluateVocabTriggers(100, 10, nil, last, now)
-
-	g.Expect(fired).To(BeTrue())
-	g.Expect(reason).To(ContainSubstring("untagged"))
 }
 
 // TestVocabRefitSeed_MatchesTriggerCheckUnits is the final-review blocking-fix
 // regression: RunVocabBootstrap seeds last_refit.NoteCount using the SAME
 // content-based measure the trigger check itself uses
-// (collectTriggerVaultStats) — both a bare-vocab DEFINITION note and a QA
+// (countTriggerVaultNotes) — both a bare-vocab DEFINITION note and a QA
 // question note must be excluded from both sides identically. Before the fix,
 // the seed used a filename-only count (countNonVocabNoteFiles) that included
 // bare-vocab definition notes (their filenames carry no vocab-kind prefix —
@@ -550,7 +599,7 @@ func TestVocabRefitSeed_MatchesTriggerCheckUnits(t *testing.T) {
 	// The trigger check's own content-based measure, run fresh against the
 	// vault's final on-disk state (seed-minted definition notes included).
 	osFS := cli.ExportNewVaultFS(realFSForTest())
-	wantTotal, _, _ := cli.ExportCollectTriggerVaultStats(vault, osFS.ListMD, osFS.ReadFile)
+	wantTotal := cli.ExportCountTriggerVaultNotes(vault, osFS.ListMD, osFS.ReadFile)
 
 	g.Expect(doc.LastRefit.NoteCount).To(Equal(wantTotal),
 		"seeded last_refit.NoteCount must match the trigger check's content-based totalNotes exactly")

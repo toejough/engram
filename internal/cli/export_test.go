@@ -54,8 +54,8 @@ var (
 	ExportChunkIndexHasEmptyFiles          = chunkIndexHasEmptyFiles
 	ExportChunkIndexHasPrunableDuplicates  = chunkIndexHasPrunableDuplicates
 	ExportClearRemovedTermsFromMembers     = clearRemovedTermsFromMembers
-	ExportCollectTriggerVaultStats         = collectTriggerVaultStats
 	ExportCountQAPairs                     = countQAPairs
+	ExportCountTriggerVaultNotes           = countTriggerVaultNotes
 	ExportDefaultRecencyParams             = defaultRecencyParams
 	ExportDefinitionNoteFactFields         = definitionNoteFactFields
 	ExportDeriveVocabClusters              = deriveVocabClusters
