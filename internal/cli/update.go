@@ -76,6 +76,16 @@ type updateFSFromEdge struct {
 	fs EdgeFS
 }
 
+func (a *updateFSFromEdge) Lstat(path string) (update.FileInfo, error) {
+	info, err := a.fs.Lstat(path)
+	if err != nil {
+		// Caller distinguishes fs.ErrNotExist via errors.Is.
+		return nil, err
+	}
+
+	return info, nil
+}
+
 func (a *updateFSFromEdge) MkdirAll(path string, perm fs.FileMode) error {
 	return a.fs.MkdirAll(path, perm) // pass-through; update core adds context
 }
@@ -105,6 +115,16 @@ func (a *updateFSFromEdge) ReadFile(path string) ([]byte, error) {
 	return data, nil
 }
 
+func (a *updateFSFromEdge) ReadLink(path string) (string, error) {
+	target, err := a.fs.Readlink(path)
+	if err != nil {
+		// Caller distinguishes fs.ErrNotExist via errors.Is.
+		return "", err
+	}
+
+	return target, nil
+}
+
 func (a *updateFSFromEdge) RemoveAll(path string) error {
 	return a.fs.RemoveAll(path) // pass-through; update core adds context
 }
@@ -117,6 +137,10 @@ func (a *updateFSFromEdge) Stat(path string) (update.FileInfo, error) {
 	}
 
 	return info, nil
+}
+
+func (a *updateFSFromEdge) Symlink(target, link string) error {
+	return a.fs.Symlink(target, link) // pass-through; update core adds context
 }
 
 func (a *updateFSFromEdge) WriteFile(path string, data []byte, perm fs.FileMode) error {
@@ -398,6 +422,47 @@ func writeEmptyChunkHint(buffer *bytes.Buffer, report update.Report) {
 	}
 }
 
+// writeEngramRootNotice renders one harness's engram-root sync findings
+// (D2/D4/D5/D6): every path the sync engine deleted (dry-run-prefixed, since
+// nothing was actually removed under --dry-run — an action line), a
+// refusal notice when the root exists without its `.engram-owned` marker,
+// any unattributable root-level files found there, every surface path
+// adopted (task 5.1, dry-run-prefixed — a preview under --dry-run), every
+// surface stray found outside the intended set (task 5.2 — never deleted,
+// listed here for manual review per the spec), and every dangling engram
+// symlink cleaned up (task 4.2/D5, dry-run-prefixed — a preview under
+// --dry-run). Silent when the harness has nothing to report.
+func writeEngramRootNotice(buffer *bytes.Buffer, report update.Report, harness update.HarnessReport) {
+	prefix := dryRunPrefix(report.DryRun)
+
+	for _, rel := range harness.EngramSyncDeleted {
+		fmt.Fprintf(buffer, "    %sengram root: deleted %s\n", prefix, filepath.ToSlash(rel))
+	}
+
+	if harness.EngramDeletionRefused {
+		fmt.Fprintf(buffer,
+			"    engram root %s exists without the .engram-owned marker — sync-deletion refused there\n",
+			tildify(harness.EngramRoot, report.Home),
+		)
+	}
+
+	for _, name := range harness.EngramUnattributable {
+		fmt.Fprintf(buffer, "    unattributable: %s\n", name)
+	}
+
+	for _, path := range harness.EngramAdopted {
+		fmt.Fprintf(buffer, "    %sadopted: %s\n", prefix, tildify(path, report.Home))
+	}
+
+	for _, path := range harness.SurfaceUnattributable {
+		fmt.Fprintf(buffer, "    stale artifact (not deleted): %s\n", tildify(path, report.Home))
+	}
+
+	for _, path := range harness.DanglingLinksRemoved {
+		fmt.Fprintf(buffer, "    %scleanup: removed dangling link %s\n", prefix, tildify(path, report.Home))
+	}
+}
+
 // writeGuidanceHints renders guidance deploy/wiring status per harness from
 // its spec-derived paths, then — when nothing was deployed anywhere and the
 // user has neither opted in nor imported — a one-line nudge.
@@ -422,29 +487,43 @@ func writeGuidanceHints(buffer *bytes.Buffer, report update.Report) {
 // writeHarnessGuidanceHints renders one harness's guidance lines — already
 // wired files as "refreshed", the rest with the @import line to add to the
 // harness's own config file — and reports whether anything was deployed.
-// Harnesses whose config cannot @import guidance (empty ImportsFileRel,
-// e.g. OpenCode) render nothing. Paths use forward slashes always: import
-// syntax is OS-independent.
+// Both lines are action lines (they describe a guidance file that was, or
+// under --dry-run WOULD BE, written/relinked — #709) and so carry the
+// dry-run prefix like every other action line in this report. Harnesses
+// whose config cannot @import guidance (empty ImportsFileRel, e.g.
+// OpenCode) render nothing. Paths use forward slashes always: import syntax
+// is OS-independent. When the harness's guidance surface IS its engram root
+// (Claude today — D1's guidance caveat), each line also states the
+// canonical guidance/ path (task 5.3): the flat @import path is now a
+// compat symlink, not where the real content lives, and the report must say
+// so.
 func writeHarnessGuidanceHints(buffer *bytes.Buffer, report update.Report, harness update.HarnessReport) bool {
 	if harness.ImportsFileRel == "" {
 		return false
 	}
 
+	prefix := dryRunPrefix(report.DryRun)
 	guidanceDir := "~/" + filepath.ToSlash(harness.GuidanceTargetRel)
 	importsFile := "~/" + filepath.ToSlash(harness.ImportsFileRel)
 	imported := report.GuidanceImports[harness.Name]
+	canonicalRoot := filepath.Join(report.Home, harness.GuidanceTargetRel) == harness.EngramRoot
 
 	for _, name := range harness.GuidanceFiles {
+		canonical := ""
+		if canonicalRoot {
+			canonical = fmt.Sprintf(" (canonical: %s/guidance/%s)", guidanceDir, name)
+		}
+
 		if imported[name] {
-			fmt.Fprintf(buffer, "guidance refreshed: %s/%s\n", guidanceDir, name)
+			fmt.Fprintf(buffer, "%sguidance refreshed: %s/%s%s\n", prefix, guidanceDir, name, canonical)
 
 			continue
 		}
 
 		fmt.Fprintf(buffer,
-			"guidance deployed to %s/%s — add '@%s/%s' to %s to activate it"+
-				" (%s will ask you to approve the import once)\n",
-			guidanceDir, name, guidanceDir, name, importsFile, harness.Name,
+			"%sguidance deployed to %s/%s — add '@%s/%s' to %s to activate it"+
+				" (%s will ask you to approve the import once)%s\n",
+			prefix, guidanceDir, name, guidanceDir, name, importsFile, harness.Name, canonical,
 		)
 	}
 
@@ -473,6 +552,7 @@ func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
 
 		writeSkillRows(buffer, harness, report.Home)
 		writeCommandRows(buffer, harness, report.Home)
+		writeEngramRootNotice(buffer, report, harness)
 		successes = append(successes, string(harness.Name))
 	}
 
@@ -494,10 +574,7 @@ func writeSkillRows(buffer *bytes.Buffer, harness update.HarnessReport, home str
 func writeUpdateReport(out io.Writer, report update.Report) error {
 	var buffer bytes.Buffer
 
-	prefix := ""
-	if report.DryRun {
-		prefix = dryRunLinePrefix
-	}
+	prefix := dryRunPrefix(report.DryRun)
 
 	fmt.Fprintf(&buffer, "%sengram update\n", prefix)
 	fmt.Fprintf(&buffer, "  source: %s\n", describeSource(report, report.Home))
@@ -548,11 +625,10 @@ func writeVocabRegenReport(buffer *bytes.Buffer, report update.Report) {
 		return
 	}
 
-	prefix := ""
+	prefix := dryRunPrefix(report.DryRun)
 	verb := "removed"
 
 	if report.DryRun {
-		prefix = dryRunLinePrefix
 		verb = "would remove"
 	}
 

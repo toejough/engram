@@ -507,6 +507,9 @@ func realFSPrims() cli.FSPrims {
 		OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
 			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 		},
+		Symlink:  os.Symlink,
+		Readlink: os.Readlink,
+		Lstat:    os.Lstat,
 	}
 }
 

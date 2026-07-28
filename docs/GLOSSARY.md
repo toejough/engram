@@ -700,12 +700,12 @@ that topic in frontmatter; `vocab.index.md` was a machine-generated instance of 
 
 ### guidance file
 An always-loaded ambient doc under `agent-instructions/guidance/` in the engram repo,
-deployed by `engram update --with-guidance` to `~/.claude/engram/<name>.md` (Claude Code)
-and `~/.pi/agent/guidance/<name>.md` (Pi). Three ship today: `recall.md` (recall-firing),
-`delegate.md` (delegation-firing), and `learn.md` (learn-firing).
+synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code)
+and `~/.pi/agent/engram/guidance/` (Pi). Three ship today: `recall.md` (recall-firing),
+`delegate.md` (delegation-firing), and `learn.md` (learn-firing). First-sync migration creates compat symlinks at old flat paths (`~/.claude/engram/<name>.md`) so existing `@import` lines keep working (ADR-0022 D9).
 Each is activated independently by adding its own
-`@~/.claude/engram/<name>.md` line to `~/.claude/CLAUDE.md`, or
-`@~/.pi/agent/guidance/<name>.md` to `~/.pi/agent/AGENTS.md` (harness
+`@~/.claude/engram/<name>.md` line to `~/.claude/CLAUDE.md` (resolves via compat symlink to canonical path), or
+`@~/.pi/agent/guidance/<name>.md` to `~/.pi/agent/AGENTS.md` (symlink surface path; detection matches this prefix; harness
 `@import`; always loaded). `--with-guidance` is a one-time opt-in per file —
 once the harness config imports a guidance file, plain `engram update` keeps it
 current (like skills). Claude Code + Pi; OpenCode deferred.

@@ -38,6 +38,9 @@ type FSPrims struct {
 	WalkDir      func(root string, fn fs.WalkDirFunc) error                  // filepath.WalkDir
 	Chmod        func(path string, mode fs.FileMode) error                   // os.Chmod
 	OpenFileExcl func(path string, perm fs.FileMode) (io.WriteCloser, error) // S-1 eraser
+	Symlink      func(target, link string) error                             // os.Symlink
+	Readlink     func(path string) (string, error)                           // os.Readlink
+	Lstat        func(path string) (fs.FileInfo, error)                      // os.Lstat
 }
 
 // LockPrims groups the raw advisory file-locking capabilities:

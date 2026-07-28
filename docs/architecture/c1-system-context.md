@@ -58,7 +58,7 @@ flowchart LR
 | <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes plus their `.vec.json` embedding sidecars under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code `~/.claude/projects/<slug>/*.jsonl`; Pi session JSONL under ancestor `.pi` dirs or `--pi-sessions` dirs) for changed sources only |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go list -m -json` and `go install` to self-update |
-| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, copies refreshed `agent-instructions/skills/` and `agent-instructions/commands/` files into each detected harness's install root (`~/.claude/`, `~/.config/opencode/`, `~/.pi/agent/`); `--with-guidance` additionally deploys the guidance docs under `agent-instructions/guidance/` (`recall.md`, `delegate.md`, `learn.md`) to `~/.claude/engram/` (Claude Code) and `~/.pi/agent/guidance/` (Pi) (opt-in; OpenCode deferred) |
+| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, syncs refreshed `agent-instructions/skills/` and `agent-instructions/commands/` to engram-owned roots (`~/.claude/engram/skills/`, `~/.config/opencode/engram/skills/`, etc.; ADR-0022 D1) and materializes them as symlinks in each harness's surface dirs (`~/.claude/skills/`, `~/.config/opencode/skills/`, `~/.pi/agent/skills/`); removals from the source propagate (sync-delete); first update performs dark migration of pre-existing copies to symlinks; dangling symlinks are cleaned up. `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (`~/.claude/engram/guidance/`, `~/.pi/agent/engram/guidance/`; canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) resolve existing `@import` lines (opt-in; OpenCode deferred). Manifest-mode fallback for harnesses whose discovery fails symlink verification (ADR-0022 D7) |
 
 ## Key flows
 
@@ -313,13 +313,18 @@ sequenceDiagram
 ### Flow: update
 
 `engram update` refreshes both the engram binary (via Go) and the harness's
-installed skills and commands. It walks up from `cwd` to detect a local clone:
-on hit it runs `go install ./cmd/engram/` from the clone; on miss it runs
-`go install ...@latest` followed by `go list -m -json` to resolve the module
-root for the skill source. The CLI then copies each skill file and command
-file into every detected harness install root. Source:
-`internal/cli/update.go` (`runUpdate`) and `internal/update/update.go`
-(`Updater.Run`).
+deployed skills, commands, and (opt-in) guidance. It walks up from `cwd` to
+detect a local clone: on hit it runs `go install ./cmd/engram/` from the clone;
+on miss it runs `go install ...@latest` followed by `go list -m -json` to
+resolve the module root for the artifact source. The CLI then maintains
+per-harness engram-owned roots (containing the real artifacts) synced to match
+the intended deploy set: first update performs dark migration (adopts
+pre-existing copies to the root + symlinks), subsequent updates sync (create
+missing, overwrite changed, delete removed); symlink surfaces are materialized
+into each harness's discovery paths (`~/.claude/skills/`, etc.); dangling
+symlinks are cleaned up; dry-run previews every operation without writing.
+Source: `internal/cli/update.go` (`runUpdate`) and `internal/update/update.go`
+(`Updater.Run`); design: ADR-0022.
 
 ```mermaid
 sequenceDiagram
@@ -337,30 +342,36 @@ sequenceDiagram
     alt local clone found
         E->>Go: go install ./cmd/engram/
         Go-->>E: installed engram into GOBIN
-        Note over E: read skills and commands from the local module dir
+        Note over E: read artifacts from the local module dir
     else no local clone
         E->>Go: go install github.com/toejough/engram/cmd/engram@latest
         Go-->>E: installed engram into GOBIN
         E->>Go: go list -m -json github.com/toejough/engram
         Go-->>E: module Dir and Version JSON
-        Note over E: read skills and commands from the resolved module dir
+        Note over E: read artifacts from the resolved module dir
     end
 
-    Note over E: plan copy ops for each detected harness (Claude Code, OpenCode, Pi)
+    Note over E: detect each harness (Claude Code, OpenCode, Pi) and its deploy mode (symlink or manifest)
 
-    loop per harness, per skill or command file
-        Note over E: write into the harness install root (~/.claude/skills, ~/.claude/commands, OpenCode and Pi equivalents)
+    Note over E: compute intended deploy set per harness (skills, commands, guidance if --with-guidance)
+
+    loop per harness: create/migrate/sync engram-owned root
+        Note over E: if first sync: create root + marker, migrate pre-existing copies to root + symlinks, report unknowns
+        Note over E: if subsequent: sync root to intended set (create missing, overwrite changed, delete removed)
+        Note over E: materialize symlinks (or manifest copies) into harness surface dirs (~/.claude/skills, ~/.config/opencode/skills, etc.)
+        Note over E: clean up dangling symlinks pointing into engram root
     end
+
     opt --with-guidance (opt-in; Claude Code + Pi)
-        Note over E: write each agent-instructions/guidance/*.md (recall.md, delegate.md, learn.md) → ~/.claude/engram/ (Claude Code) / ~/.pi/agent/guidance/ (Pi)
+        Note over E: sync guidance root (create root's guidance/ subtree with canonical paths); materialize symlinks; create Claude compat symlinks at flat paths (~/.claude/engram/*.md)
     end
 
-    E-->>H: per-harness report (skill paths, command paths, guidance paths if --with-guidance)
+    E-->>H: per-harness report (synced artifacts, removals, migrations, dry-run lines if --dry-run)
     H-->>Op: rendered report
 ```
 
-The copy loop and the Go-toolchain calls are modeled in the static L1 as
-relationships [R6](#r6) and [R5](#r5) respectively.
+The sync loop, symlink materialization, cleanup, and Go-toolchain calls are
+modeled in the static L1 as relationships [R6](#r6) and [R5](#r5) respectively.
 
 ### L1 decision flowcharts
 

@@ -177,7 +177,12 @@ func TestUpdater_Run_Local_BothHarnesses_CommandsOnlyOpencode(t *testing.T) {
 	g.Expect(report.Harnesses[1].CommandFiles).To(ContainElement("recall.md"))
 }
 
-func TestUpdater_Run_Local_CommandRemoveAllFailureIsHarnessError(t *testing.T) {
+// TestUpdater_Run_Local_CommandLinkRepointRemoveFailureIsHarnessError covers
+// the D3/D5 replacement for the old copy-mode "clear before write" failure:
+// symlink mode never RemoveAlls a fresh command surface (materializeSymlink's
+// absent branch just creates the link), so the only RemoveAll a command
+// surface sees is a REPOINT of an existing wrong-target symlink.
+func TestUpdater_Run_Local_CommandLinkRepointRemoveFailureIsHarnessError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -192,8 +197,18 @@ func TestUpdater_Run_Local_CommandRemoveAllFailureIsHarnessError(t *testing.T) {
 	mem.dirs["/repo/agent-instructions/commands"] = true
 	mem.files["/repo/agent-instructions/commands/recall.md"] = []byte("c")
 
-	// Fail RemoveAll for command path only (skill RemoveAll succeeds).
-	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "commands"}
+	// A pre-existing symlink at the command surface pointing at the WRONG
+	// target — triggers materializeSymlink's repoint branch, which RemoveAlls
+	// the stale link before recreating it.
+	mem.dirs["/home/joe/.config/opencode/commands"] = true
+	symlinkErr := mem.Symlink("/home/joe/.config/opencode/engram/commands/old-recall.md",
+		"/home/joe/.config/opencode/commands/recall.md")
+	g.Expect(symlinkErr).NotTo(HaveOccurred())
+
+	// Fail RemoveAll for the command surface path only (skill RemoveAll,
+	// which never fires here since the skill link is freshly created, is
+	// unaffected).
+	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "commands/recall.md"}
 
 	updater := &update.Updater{
 		FS:  fileSystem,
@@ -205,7 +220,7 @@ func TestUpdater_Run_Local_CommandRemoveAllFailureIsHarnessError(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(report.Harnesses).To(HaveLen(1))
 	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
-	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("clear"))
+	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("remove boom"))
 }
 
 func TestUpdater_Run_Local_GoInstallRunsFromModuleRoot(t *testing.T) {
@@ -271,10 +286,15 @@ func TestUpdater_Run_Local_HappyPath(t *testing.T) {
 	g.Expect(skillFileCount(report.Harnesses[0])).To(Equal(2))
 	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
 
-	// Confirm files written under home, not under repo.
-	_, ok := fileSystem.written["/home/joe/.claude/skills/learn/SKILL.md"]
+	// Claude is symlink-mode (D7): the surface is a SYMLINK into the
+	// engram-owned root, not a real copy — content lives under the root.
+	skillTarget, ok := fileSystem.symlinks["/home/joe/.claude/skills/learn"]
 	g.Expect(ok).To(BeTrue())
-	_, ok = fileSystem.written["/home/joe/.claude/skills/learn/tests/baseline.md"]
+	g.Expect(skillTarget).To(Equal("/home/joe/.claude/engram/skills/learn"))
+
+	_, ok = fileSystem.written["/home/joe/.claude/engram/skills/learn/SKILL.md"]
+	g.Expect(ok).To(BeTrue())
+	_, ok = fileSystem.written["/home/joe/.claude/engram/skills/learn/tests/baseline.md"]
 	g.Expect(ok).To(BeTrue())
 
 	// `go install ./cmd/engram/` should have been invoked.
@@ -322,7 +342,7 @@ func TestUpdater_Run_Local_Idempotent_Property(t *testing.T) {
 	})
 }
 
-func TestUpdater_Run_Local_OpencodeOnly_CopiesCommands(t *testing.T) {
+func TestUpdater_Run_Local_OpencodeOnly_LinksCommands(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -358,13 +378,25 @@ func TestUpdater_Run_Local_OpencodeOnly_CopiesCommands(t *testing.T) {
 	g.Expect(skillFileCount(report.Harnesses[0])).To(Equal(1))
 	g.Expect(report.Harnesses[0].CommandFiles).To(HaveLen(2))
 
-	_, ok := fileSystem.written["/home/joe/.config/opencode/commands/recall.md"]
+	// OpenCode is symlink-mode: the surface is a link into the engram root.
+	target, ok := fileSystem.symlinks["/home/joe/.config/opencode/commands/recall.md"]
 	g.Expect(ok).To(BeTrue())
-	_, ok = fileSystem.written["/home/joe/.config/opencode/commands/README.txt"]
+	g.Expect(target).To(Equal("/home/joe/.config/opencode/engram/commands/recall.md"))
+
+	// A non-.md source file never generates a CopyOp, so it is never even
+	// considered for materialization — no symlink, no report entry.
+	_, ok = fileSystem.symlinks["/home/joe/.config/opencode/commands/README.txt"]
+	g.Expect(ok).To(BeFalse())
+	_, ok = fileSystem.written["/home/joe/.config/opencode/engram/commands/README.txt"]
 	g.Expect(ok).To(BeFalse())
 }
 
-func TestUpdater_Run_Local_OverwritesExistingCommandFile(t *testing.T) {
+// TestUpdater_Run_Local_RealExistingCommandFile_AdoptsToSymlink covers
+// task 5.1: a real command file already occupying a symlink-mode harness's
+// command surface (a pre-migration copy) is REPLACED by a symlink into the
+// engram root's already-synced content, and reported via EngramAdopted —
+// never left in place, never merely reported as unattributable.
+func TestUpdater_Run_Local_RealExistingCommandFile_AdoptsToSymlink(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -379,7 +411,8 @@ func TestUpdater_Run_Local_OverwritesExistingCommandFile(t *testing.T) {
 	fileSystem.dirs["/repo/agent-instructions/commands"] = true
 	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("new cmd")
 
-	// Pre-existing command file at the destination (simulates a stale link).
+	// Pre-existing REAL command file at the destination (pre-migration copy).
+	fileSystem.dirs["/home/joe/.config/opencode/commands"] = true
 	fileSystem.files["/home/joe/.config/opencode/commands/recall.md"] = []byte("old cmd")
 
 	updater := &update.Updater{
@@ -393,12 +426,26 @@ func TestUpdater_Run_Local_OverwritesExistingCommandFile(t *testing.T) {
 	g.Expect(report.Harnesses).To(HaveLen(1))
 	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
 
-	g.Expect(fileSystem.removed).To(ContainElement("/home/joe/.config/opencode/commands/recall.md"))
-	g.Expect(fileSystem.files["/home/joe/.config/opencode/commands/recall.md"]).
-		To(Equal([]byte("new cmd")))
+	surfacePath := "/home/joe/.config/opencode/commands/recall.md"
+	engramPath := "/home/joe/.config/opencode/engram/commands/recall.md"
+
+	// Adopted: real copy removed, symlink created into the root.
+	g.Expect(fileSystem.removed).To(ContainElement(surfacePath))
+	target, isSymlink := fileSystem.symlinks[surfacePath]
+	g.Expect(isSymlink).To(BeTrue())
+	g.Expect(target).To(Equal(engramPath))
+	g.Expect(report.Harnesses[0].EngramAdopted).To(ConsistOf(surfacePath))
+	g.Expect(report.Harnesses[0].SurfaceUnattributable).To(BeEmpty())
+
+	// The intended content lives under the engram root.
+	g.Expect(fileSystem.written[engramPath]).To(Equal([]byte("new cmd")))
 }
 
-func TestUpdater_Run_Local_OverwritesExistingSkillDir(t *testing.T) {
+// TestUpdater_Run_Local_RealExistingSkillDir_AdoptsToSymlink covers task
+// 5.1: a real skill dir already occupying a symlink-mode harness's skills
+// surface (a pre-migration copy) is REPLACED by a symlink into the engram
+// root's already-synced content, and reported via EngramAdopted.
+func TestUpdater_Run_Local_RealExistingSkillDir_AdoptsToSymlink(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -411,7 +458,7 @@ func TestUpdater_Run_Local_OverwritesExistingSkillDir(t *testing.T) {
 	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
 	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("new")
 
-	// Pre-existing stale content at the destination.
+	// Pre-existing REAL content at the destination (pre-migration copy).
 	fileSystem.dirs["/home/joe/.claude/skills/learn"] = true
 	fileSystem.files["/home/joe/.claude/skills/learn/stale.md"] = []byte("old")
 
@@ -426,18 +473,31 @@ func TestUpdater_Run_Local_OverwritesExistingSkillDir(t *testing.T) {
 	g.Expect(report.Harnesses).To(HaveLen(1))
 	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
 
-	// Destination dir was removed before being recreated, so the stale
-	// file is gone and the new file is in place.
-	g.Expect(fileSystem.removed).To(ContainElement("/home/joe/.claude/skills/learn"))
+	surfacePath := "/home/joe/.claude/skills/learn"
+	engramPath := "/home/joe/.claude/engram/skills/learn"
+
+	// Adopted: real dir (and its stale content) removed, symlink created.
+	g.Expect(fileSystem.removed).To(ContainElement(surfacePath))
+	target, isSymlink := fileSystem.symlinks[surfacePath]
+	g.Expect(isSymlink).To(BeTrue())
+	g.Expect(target).To(Equal(engramPath))
+	g.Expect(report.Harnesses[0].EngramAdopted).To(ConsistOf(surfacePath))
+	g.Expect(report.Harnesses[0].SurfaceUnattributable).To(BeEmpty())
 
 	_, staleStillThere := fileSystem.files["/home/joe/.claude/skills/learn/stale.md"]
 	g.Expect(staleStillThere).To(BeFalse())
 
-	_, newPresent := fileSystem.files["/home/joe/.claude/skills/learn/SKILL.md"]
+	// The intended content lives under the engram root.
+	_, newPresent := fileSystem.written[engramPath+"/SKILL.md"]
 	g.Expect(newPresent).To(BeTrue())
 }
 
-func TestUpdater_Run_Local_RemoveAllFailureIsHarnessError(t *testing.T) {
+// TestUpdater_Run_Local_SkillLinkRepointRemoveFailureIsHarnessError covers
+// the D3/D5 replacement for the old copy-mode "clear before write" failure:
+// symlink mode never RemoveAlls a fresh skill surface (materializeSymlink's
+// absent branch just creates the link), so the only RemoveAll a skill
+// surface sees is a REPOINT of an existing wrong-target symlink.
+func TestUpdater_Run_Local_SkillLinkRepointRemoveFailureIsHarnessError(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -450,7 +510,13 @@ func TestUpdater_Run_Local_RemoveAllFailureIsHarnessError(t *testing.T) {
 	mem.dirs["/repo/agent-instructions/skills/learn"] = true
 	mem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
 
-	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "learn"}
+	// A pre-existing symlink at the skill surface pointing at the WRONG
+	// target — triggers materializeSymlink's repoint branch.
+	mem.dirs["/home/joe/.claude/skills"] = true
+	symlinkErr := mem.Symlink("/home/joe/.claude/engram/skills/old-learn", "/home/joe/.claude/skills/learn")
+	g.Expect(symlinkErr).NotTo(HaveOccurred())
+
+	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "skills/learn"}
 
 	updater := &update.Updater{
 		FS:  fileSystem,
@@ -529,7 +595,9 @@ func TestUpdater_Run_PartialFailure_AllFail(t *testing.T) {
 	base.dirs["/repo/agent-instructions/skills/learn"] = true
 	base.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
 
-	fileSystem := &failWriteFS{memFS: base, failOn: ".claude/skills"}
+	// Symlink mode writes real skill content under the engram root, not the
+	// harness surface (which only gets a symlink) — fail the write there.
+	fileSystem := &failWriteFS{memFS: base, failOn: ".claude/engram/skills"}
 
 	updater := &update.Updater{
 		FS:  fileSystem,
@@ -718,15 +786,25 @@ func TestUpdater_Run_Remote_HappyPath(t *testing.T) {
 	g.Expect(report.Source.Version).To(Equal("v0abc12"))
 	g.Expect(report.Harnesses).To(HaveLen(2))
 
-	// Both harnesses got the skill.
-	_, ok := fileSystem.written["/home/joe/.claude/skills/learn/SKILL.md"]
+	// Both harnesses got the skill — content under their engram root, a
+	// symlink at the surface (both are symlink-mode, D7).
+	_, ok := fileSystem.written["/home/joe/.claude/engram/skills/learn/SKILL.md"]
 	g.Expect(ok).To(BeTrue())
-	_, ok = fileSystem.written["/home/joe/.config/opencode/skills/learn/SKILL.md"]
+	_, ok = fileSystem.written["/home/joe/.config/opencode/engram/skills/learn/SKILL.md"]
 	g.Expect(ok).To(BeTrue())
 
-	// OpenCode also got the command file; Claude did not (no commands target).
-	_, ok = fileSystem.written["/home/joe/.config/opencode/commands/learn.md"]
+	skillTarget, ok := fileSystem.symlinks["/home/joe/.claude/skills/learn"]
 	g.Expect(ok).To(BeTrue())
+	g.Expect(skillTarget).To(Equal("/home/joe/.claude/engram/skills/learn"))
+
+	// OpenCode also got the command file; Claude did not (no commands target).
+	_, ok = fileSystem.written["/home/joe/.config/opencode/engram/commands/learn.md"]
+	g.Expect(ok).To(BeTrue())
+
+	cmdTarget, ok := fileSystem.symlinks["/home/joe/.config/opencode/commands/learn.md"]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(cmdTarget).To(Equal("/home/joe/.config/opencode/engram/commands/learn.md"))
+
 	_, ok = fileSystem.written["/home/joe/.claude/commands/learn.md"]
 	g.Expect(ok).To(BeFalse())
 }

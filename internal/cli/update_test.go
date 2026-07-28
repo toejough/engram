@@ -482,6 +482,84 @@ func TestTildify(t *testing.T) {
 	g.Expect(cli.ExportTildify("/home/joe/x", "")).To(Equal("/home/joe/x"))
 }
 
+// TestWriteUpdateReport_DryRunContractSweep pins the unified D9 dry-run
+// output contract (openspec/changes/update-deploy-as-sync tasks 7.1/7.2) in
+// one pass over a fixture exercising every op class the sync/materialization
+// engine reports: a sync deletion, a first-sync migration adoption, a
+// dangling-link cleanup deletion, an already-imported guidance refresh, and
+// a not-yet-imported guidance deploy hint. Every ACTION line (something that
+// was or would be done) must carry the "[dry-run] " prefix; every NOTICE
+// line (informational: refusal, unattributable, stray, or the static
+// skill-row mapping) must NOT — pinning both #709's fix and its generalized
+// sibling (the "guidance deployed to..." hint) without regressing the
+// existing unprefixed-notice/unprefixed-mapping-row conventions.
+func TestWriteUpdateReport_DryRunContractSweep(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		DryRun:           true,
+		WithGuidance:     true,
+		GuidanceImported: true,
+		Home:             "/home/joe",
+		Source:           update.SourceInfo{Mode: update.SourceLocal, Root: "/r"},
+		GoInstall:        "go install ./cmd/engram/",
+		GuidanceImports: map[update.Harness]map[string]bool{
+			update.HarnessClaude: {"recall.md": true},
+		},
+		Harnesses: []update.HarnessReport{
+			{
+				Name:                  update.HarnessClaude,
+				ProbeRoot:             ".claude",
+				SkillsRoot:            "/home/joe/.claude/skills",
+				GuidanceTargetRel:     ".claude/engram",
+				ImportsFileRel:        ".claude/CLAUDE.md",
+				EngramRoot:            "/home/joe/.claude/engram",
+				SkillDirs:             []update.SkillDirCount{{Name: "learn", Files: 2}},
+				EngramSyncDeleted:     []string{filepath.Join("guidance", "stale.md")},
+				EngramDeletionRefused: true,
+				EngramUnattributable:  []string{"stray.md"},
+				EngramAdopted:         []string{"/home/joe/.claude/skills/recall"},
+				SurfaceUnattributable: []string{"/home/joe/.claude/skills/legacy"},
+				DanglingLinksRemoved:  []string{"/home/joe/.claude/skills/old-dangling"},
+				GuidanceFiles:         []string{"recall.md", "learn.md"},
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+
+	actionLines := []string{
+		"engram update",
+		"installed: Claude Code",
+		"engram root: deleted guidance/stale.md",
+		"adopted: ~/.claude/skills/recall",
+		"cleanup: removed dangling link ~/.claude/skills/old-dangling",
+		"guidance refreshed: ~/.claude/engram/recall.md",
+		"guidance deployed to ~/.claude/engram/learn.md",
+	}
+	for _, line := range actionLines {
+		g.Expect(out).To(ContainSubstring("[dry-run] "+line), "action line must carry the dry-run prefix: %s", line)
+	}
+
+	noticeLines := []string{
+		"exists without the .engram-owned marker",
+		"unattributable: stray.md",
+		"stale artifact (not deleted): ~/.claude/skills/legacy",
+		"agent-instructions/skills/learn/ → ~/.claude/skills/learn/  (2 files)",
+	}
+	for _, line := range noticeLines {
+		g.Expect(out).To(ContainSubstring(line), "notice line must be present: %s", line)
+		g.Expect(out).NotTo(ContainSubstring("[dry-run] "+line), "notice line must NOT carry the dry-run prefix: %s", line)
+	}
+}
+
 // TestWriteUpdateReport_DuplicatesHint asserts Unit 5's detect-and-notify
 // surface: when a prunable duplicate backlog was detected — one `engram
 // prune --duplicates` would actually remove something from — the report
@@ -548,6 +626,140 @@ func TestWriteUpdateReport_EmptyChunkHint(t *testing.T) {
 	g.Expect(bothErr).NotTo(HaveOccurred())
 	g.Expect(both.String()).To(ContainSubstring("empty chunk-index"))
 	g.Expect(both.String()).To(ContainSubstring("old-format vocab"))
+}
+
+func TestWriteUpdateReport_EngramRootNotice(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		Home: "/home/joe",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:                  update.HarnessClaude,
+				ProbeRoot:             ".claude",
+				SkillsRoot:            "/home/joe/.claude/skills",
+				EngramRoot:            "/home/joe/.claude/engram",
+				EngramSyncDeleted:     []string{filepath.Join("skills", "oldskill", "SKILL.md")},
+				EngramUnattributable:  []string{"mystery.md"},
+				EngramDeletionRefused: true,
+			},
+		},
+	}
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("engram root: deleted skills/oldskill/SKILL.md"))
+	g.Expect(out).To(ContainSubstring("engram root ~/.claude/engram exists without the .engram-owned marker"))
+	g.Expect(out).To(ContainSubstring("unattributable: mystery.md"))
+}
+
+// TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray covers task
+// 5.1's EngramAdopted field and task 5.2's SurfaceUnattributable stray
+// listing — both must render (D6's spec requirement that a stray is
+// "listed in the update report", not just tracked internally).
+func TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		Home: "/home/joe",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:                  update.HarnessClaude,
+				ProbeRoot:             ".claude",
+				SkillsRoot:            "/home/joe/.claude/skills",
+				EngramRoot:            "/home/joe/.claude/engram",
+				EngramAdopted:         []string{"/home/joe/.claude/skills/recall"},
+				SurfaceUnattributable: []string{"/home/joe/.claude/skills/user-own-tool"},
+			},
+		},
+	}
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("adopted: ~/.claude/skills/recall"))
+	g.Expect(out).To(ContainSubstring("stale artifact (not deleted): ~/.claude/skills/user-own-tool"))
+}
+
+func TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray_DryRunPrefixesAdopted(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		DryRun: true,
+		Home:   "/home/joe",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:          update.HarnessClaude,
+				ProbeRoot:     ".claude",
+				SkillsRoot:    "/home/joe/.claude/skills",
+				EngramRoot:    "/home/joe/.claude/engram",
+				EngramAdopted: []string{"/home/joe/.claude/skills/recall"},
+			},
+		},
+	}
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("[dry-run] adopted: ~/.claude/skills/recall"))
+}
+
+func TestWriteUpdateReport_EngramRootNotice_DryRunPrefixesDeletions(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		DryRun: true,
+		Home:   "/home/joe",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:              update.HarnessClaude,
+				ProbeRoot:         ".claude",
+				SkillsRoot:        "/home/joe/.claude/skills",
+				EngramRoot:        "/home/joe/.claude/engram",
+				EngramSyncDeleted: []string{filepath.Join("guidance", "stale.md")},
+			},
+		},
+	}
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("[dry-run] engram root: deleted guidance/stale.md"))
+}
+
+func TestWriteUpdateReport_EngramRootNotice_SilentWhenNothingToReport(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	report := update.Report{
+		Home:      "/home/joe",
+		Harnesses: []update.HarnessReport{claudeHarnessReport()},
+	}
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).NotTo(ContainSubstring("engram root"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("unattributable"))
 }
 
 func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
@@ -686,6 +898,60 @@ func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestWriteUpdateReport_GuidanceCanonicalPathHint covers task 5.3: when a
+// harness's guidance surface IS its engram root (Claude today — D1's
+// guidance caveat), the report states the canonical guidance/ path
+// alongside the flat @import path, since the flat path is now a compat
+// symlink rather than where the real content lives.
+func TestWriteUpdateReport_GuidanceCanonicalPathHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Home:         "/home/joe",
+		WithGuidance: true,
+		Harnesses: []update.HarnessReport{
+			{
+				Name:              update.HarnessClaude,
+				ProbeRoot:         ".claude",
+				SkillsRoot:        "/home/joe/.claude/skills",
+				GuidanceTargetRel: ".claude/engram",
+				ImportsFileRel:    ".claude/CLAUDE.md",
+				EngramRoot:        "/home/joe/.claude/engram",
+				GuidanceFiles:     []string{"recall.md"},
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("(canonical: ~/.claude/engram/guidance/recall.md)"))
+}
+
+// TestWriteUpdateReport_GuidanceCanonicalPathHint_PiOmitted covers the
+// negative: Pi's guidance dir is a surface distinct from its engram root, so
+// no canonical-path suffix is rendered — the flat/deployed path already IS
+// the canonical one for Pi.
+func TestWriteUpdateReport_GuidanceCanonicalPathHint_PiOmitted(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Home:      "/home/joe",
+		Harnesses: []update.HarnessReport{piHarnessReport("recall.md")},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).NotTo(ContainSubstring("canonical:"))
 }
 
 func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
@@ -987,6 +1253,15 @@ func (liveUpdateEnv) UserHomeDir() (string, error) {
 // tests (dry-run never writes; write methods exist to satisfy the interface).
 type liveUpdateFS struct{}
 
+func (liveUpdateFS) Lstat(path string) (update.FileInfo, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err // errors.Is(fs.ErrNotExist) must survive
+	}
+
+	return info, nil
+}
+
 func (liveUpdateFS) MkdirAll(path string, perm fs.FileMode) error {
 	return os.MkdirAll(path, perm) // test adapter
 }
@@ -1009,6 +1284,10 @@ func (liveUpdateFS) ReadFile(path string) ([]byte, error) {
 	return os.ReadFile(path) // test adapter; test-chosen paths
 }
 
+func (liveUpdateFS) ReadLink(path string) (string, error) {
+	return os.Readlink(path) // test adapter
+}
+
 func (liveUpdateFS) RemoveAll(path string) error {
 	return os.RemoveAll(path) // test adapter
 }
@@ -1020,6 +1299,10 @@ func (liveUpdateFS) Stat(path string) (update.FileInfo, error) {
 	}
 
 	return info, nil
+}
+
+func (liveUpdateFS) Symlink(target, link string) error {
+	return os.Symlink(target, link) // test adapter
 }
 
 func (liveUpdateFS) WriteFile(path string, data []byte, perm fs.FileMode) error {

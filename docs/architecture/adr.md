@@ -723,6 +723,51 @@ unambiguous signal (which was indistinguishable from a crash-window state). `eng
 implementation, so their safety guarantee is identical by construction rather than by
 coincidence between two independent implementations.
 
+## ADR-0022 — Deployment as sync: engram-owned roots with symlinked surfaces and removals-propagate semantics
+
+**Status:** Accepted (shipped 2026-07-27 via #706)
+
+**Context.** Before this cycle, `engram update` copied harness artifacts (skills, commands, guidance) additively into user directories (`~/.claude/skills`, `~/.claude/engram`, `~/.config/opencode/{skills,commands}`, `~/.pi/agent/{skills,guidance}`). Deletion existed only within an artifact still present in the source (e.g., clearing a skill's target dir before re-copy); an artifact deleted from `agent-instructions/` generated no copy operation and was never removed from any harness, so deployed state drifted from intent. A stray metadata file (not a skill, but deployed as one) persisted across updates until manually deleted. The absence of removal propagation also meant skill/command discovery (both harness-native and verification harnesses) could not distinguish intentional deployments from orphans.
+
+**Decision.**
+
+1. **One engram-owned artifacts root per harness.** Each harness gets a single root managed by engram: `~/.claude/engram/` (Claude Code), `~/.config/opencode/engram/` (OpenCode), `~/.pi/agent/engram/` (Pi), each containing `skills/`, `commands/`, `guidance/` subtrees as applicable. Real artifact files live **only** in these roots; every harness-visible surface outside a root is either a symlink into one or a user-owned file left untouched. This preserves the existing `~/.claude/engram` directory (already used for guidance staging), reuses it as the structured root, and keeps other harnesses' roots inside their own config trees for survivability under harness-tree relocation.
+
+2. **Explicit ownership: the `.engram-owned` marker.** Every engram-owned root carries a marker file (`.engram-owned`, created at root creation or adoption). The sync-deletion engine runs only inside marker-stamped roots; a root lacking the marker is either not yet migrated (first-sync adoption path) or was explicitly unmarked by the user (fail-safe: refuses deletion, reports the state). This makes ownership inspectable and handles the edge case where a user happens to have a directory named `engram/` — the marker, not path convention alone, proves engram ownership.
+
+3. **Symlink materialization, granular by artifact type.** Skills surface as one symlink per skill directory (`~/.claude/skills/recall` → `~/.claude/engram/skills/recall`); commands and guidance surface per-file (their discovery units are individual files, not directories). This matches the discovery unit granularity and keeps symlink counts low. The `Filesystem` interface gains `Symlink`, `ReadLink`, and `Lstat`-shaped type probing, wired via DI through `cli.Primitives` and `cmd/engram`'s checker-thin adapter functions (ADR-0020).
+
+4. **Sync target is the intended deploy set, not the raw source tree.** The existing planners (`planSkillCopies`, `planCommandCopies`, `planGuidanceCopies`) compute the intended artifact set per harness, including the `--with-guidance` opt-in gate. The sync engine diffs the engram-owned root against that intended set: missing → create, different → overwrite, present-but-unintended → delete (removals propagate). Guidance opt-out means the root's `guidance/` subtree remains unmanaged and untouched; this preserves the `--with-guidance` opt-in semantics.
+
+5. **Dangling-link cleanup via lexical target identity.** On every update, the sync engine scans each harness's surface directory one level deep. For each symlink, it resolves the link's literal target against the link's parent directory (lexical `filepath.Clean`, no `EvalSymlinks`) and prefix-matches against the engram root path. Match + target missing → delete the link (dangling); match + target present → healthy engram link, leave; no match → foreign symlink (user-owned), never touched. Real files remain untouched. Lexical comparison is essential: `EvalSymlinks` on macOS rewrites `/var` → `/private/var`, breaking identity for symlink-free trees and defeating the ownership test. The owned root's path and written link targets are both logical paths; comparing them lexically is the identity transform (internal/update/update.go `planCleanupDanglingLinks`).
+
+6. **First-sync migration: adopt intended-set copies, report unknowns.** When syncing a harness for the first time (no marker present), the engine creates the root + marker, then iterates the intended deploy set. For each artifact, if a real file/dir already exists at the harness path (a pre-sync copy), the artifact is written into the root and the harness path is replaced with a symlink — the repo is source-of-truth, so no content comparison is needed. Real files at harness paths **not** in the intended set are left in place and listed in the update report; engram cannot prove ownership of what it never recorded writing, so it does not delete them. This is the only time the root is created and marked; subsequent runs are pure sync operations.
+
+7. **Per-harness deploy mode, gated by symlink-discovery verification; manifest fallback.** Every `HarnessSpec` carries a `DeployMode`: `DeployModeSymlink` (default, all three currently-supported harnesses per verification-verdicts.md tasks 1.1-1.3) or `DeployModeManifest`. Symlink mode writes the real files into the engram root and materializes symlinks at the harness surfaces (decisions 1-3 above). Manifest mode copies real files as before and records every written path in an internal manifest inside the engram root (`.engram-manifest.json`, opaque to the user); sync-deletion then operates on the recorded manifest instead of symlink identity, preserving all sync semantics without requiring symlink discovery to work. Before a harness ships in symlink mode, its native discovery (how it locates skills/commands/guidance) is verified against a real symlink: does the harness actually find and load a skill/command/guidance when it reaches that artifact through a symlink? All three currently-supported harnesses verified yes (internal/update/update.go `DeployMode` doc comment cites verification-verdicts.md). A harness that fails verification runs in manifest mode, which is equally sound from a sync/deletion perspective.
+
+8. **Dry-run contract: operation classification and preview rendering.** Every materialization and sync operation flows through the dry-run prefix discipline. Each planned action is classified (`create-link`, `sync-write`, `sync-delete`, `cleanup-link`, `migrate`, etc.) and rendered with the classification as a prefix when `--dry-run` is set. Dry-run does **not** create the root or marker — the full operation plan (including first-sync migration) is previewed without mutating the filesystem, supporting user review before any commit.
+
+9. **Claude guidance compat symlinks for import-line stability.** Claude guidance moves from `~/.claude/engram/*.md` (flat, next to CLAUDE.md imports) to `~/.claude/engram/guidance/*.md` (structured, inside the root). Migration creates compat symlinks at the old flat paths (`~/.claude/engram/recall.md` → `guidance/recall.md`) so user `@import` lines in `CLAUDE.md` continue to resolve without change; the update report tells the user the new canonical paths and that the compat symlinks exist. These compat links are part of the intended set and remain managed; a later change can retire them once imports are migrated.
+
+**Consequences.**
+
+- **Removals propagate:** an artifact deleted from `agent-instructions/` disappears from every harness on the next `engram update`. Deployed state matches intent, and orphaned files are cleaned up automatically.
+- **Ownership is bounded:** sync-deletion runs only inside marker-stamped roots engram created or adopted; a user-deleted marker degrades gracefully to refusing deletion (fail-safe). The update report lists every deletion so removal choices are visible.
+- **Symlink semantics are verifiable:** before a harness ships in symlink mode, its discovery through symlinks is tested; manifest mode provides a fallback without loss of sync semantics.
+- **First-sync is dark:** the first update after upgrade performs migration (adopts pre-existing intended-set copies to symlinks) in one pass, then proceeds with normal sync; no separate migration step or marker ceremony is visible to the user.
+- **Harness discovery becomes canonical:** symlinks provide the single source of truth for what is deployed — querying the harness (asking it to find a skill by name) and querying the symlinks (scanning what engram linked in) will always agree.
+- **Rollback is seamless:** the engram-owned root plus symlinks are functionally equivalent to the old real-file copies; reverting the binary and running the old `update` re-copies real files over the symlinks (the old code's `RemoveAll`-then-write path), restoring the status quo ante without data loss.
+
+**Risks / Trade-offs:**
+
+- [Symlinks at harness-visible paths break discovery] → D7's verification gate runs before each harness ships in symlink mode; manifest mode preserves all sync semantics if discovery fails.
+- [User deletes the `.engram-owned` marker] → deletion is then refused, reported, and the marker can be restored; this is a fail-safe, not a failure mode.
+- [Sync deletes a user-owned file inside an engram-owned root] → only possible if the user manually places a file inside a marked root after creation; the update report lists every deletion.
+- [Compat symlinks for Claude guidance linger indefinitely] → they live inside the engram-owned root and remain managed; a later change can retire them.
+- [`--dry-run` preview creates a root or marker] → dry-run renders the full operation plan including first-sync without writing; covered by scenario tests.
+
+---
+
 ## Decisions deliberately NOT made into ADRs
 
 - **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an

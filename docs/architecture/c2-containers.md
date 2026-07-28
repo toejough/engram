@@ -27,7 +27,7 @@ flowchart TB
     cli -->|"embeds note/query text"| model
     cli -->|"C2→C4: read/write notes+sidecars under flock"| vault
     cli -->|"C2→S5: read transcripts; re-chunk/re-embed changed content only (manifest.json staleness)"| sessions
-    cli -->|"engram update: go install + copy agent-instructions/{skills,commands}; --with-guidance adds agent-instructions/guidance (Claude Code, Pi)"| gotool
+    cli -->|"engram update: go install, then syncs agent-instructions/{skills,commands,guidance} to engram-owned roots and materializes symlinks; removals propagate; dark migration on first sync (ADR-0022)"| gotool
 
     class agent person
     class skills,cli,model container
@@ -51,7 +51,7 @@ flowchart TB
 | C2 → C3 | C2 embeds note text (on write) and query text (on read) via the bundled model. All notes embed the body — see [L3](c3-components.md) K5. |
 | C2 → C4 | Reads notes+sidecars at query time; writes notes+sidecars atomically (temp-file + rename) under the vault flock (`.luhmann.lock`) — every writer holds it: `learn` (id-compute→write, O_EXCL), `amend`, `resituate`, `activate`. The flock is acquired only at command entry points. The wikilink graph is built from note bodies at query time. `engram learn qa` writes Q&A pairs — Q-notes excluded from the query pipeline, A-notes competing as synthesis notes, machine-written edge lines (see [GLOSSARY](../GLOSSARY.md): qa-question / qa-answer / contributors). |
 | C2 → S5 | `engram ingest --auto` reads Claude and Pi `.jsonl`; re-chunks and re-embeds only sources whose mtime/size/hash changed vs the `manifest.json` written to `$XDG_DATA_HOME/engram/chunks`; strips harness noise; byte-capped with continuation signalling. `--auto` additionally skips session-log directories whose slugified project path starts with a non-persistent-workspace prefix (`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-` — slugified forms of `/private/tmp`, `/tmp`, and macOS `$TMPDIR`), preventing eval/test runs from bloating the main chunk index (configurable via the `non_persistent_prefixes` key in `.engram/sweep.json`). Two opt-in levers bypass the skip for deliberate test ingestion: explicit `--sweep <dir>` / `--transcript <file>` / `--markdown <file>` / `--pi-sessions <dir>` — manual sweep roots carry no prefix exclusion — or an isolated index + vault via `ENGRAM_CHUNKS_DIR` / `ENGRAM_VAULT_PATH`. |
-| C2 → S6 | `engram update` runs `go install`, then copies refreshed agent-instructions/{skills,commands} into each harness root; `--with-guidance` also deploys the guidance docs under `agent-instructions/guidance/` (`recall.md`, `delegate.md`, `learn.md`) to `~/.claude/engram/` (Claude Code) and `~/.pi/agent/guidance/` (Pi) (opt-in; OpenCode deferred). |
+| C2 → S6 | `engram update` runs `go install`, then syncs refreshed artifacts to engram-owned roots per harness (`~/.claude/engram/`, etc.; ADR-0022 D1) and materializes symlinks into each harness's surface dirs (`~/.claude/skills/`, etc.); removals from the source propagate on every update (sync-delete); first update performs dark migration of pre-existing copies; `--with-guidance` also syncs guidance docs to the root's `guidance/` subtree and materializes symlinks, plus compat symlinks at flat paths for existing `@import` lines (opt-in; OpenCode deferred); manifest-mode fallback for harnesses whose discovery fails symlink verification. |
 
 ### Flowchart: ingest/chunking (C2→S5)
 

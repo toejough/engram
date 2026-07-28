@@ -62,10 +62,19 @@ type EdgeFS interface {
 	MkdirAll(path string, perm fs.FileMode) error
 	MkdirTemp(dir, pattern string) (string, error)
 	Stat(path string) (fs.FileInfo, error)
+	// Lstat returns FileInfo for path without following a trailing symlink
+	// (D8: distinguishes symlink / real file / dir).
+	Lstat(path string) (fs.FileInfo, error)
 	ReadDir(path string) ([]fs.DirEntry, error)
 	Remove(path string) error
 	RemoveAll(path string) error
 	Rename(oldPath, newPath string) error
+	// Symlink creates link as a symbolic link to target (D1/D3: materializes
+	// the sync engine's engram-owned-root links).
+	Symlink(target, link string) error
+	// Readlink returns the destination that the symbolic link at path
+	// points to (D5: dangling-link cleanup).
+	Readlink(path string) (string, error)
 	WalkDir(root string, fn fs.WalkDirFunc) error
 }
 

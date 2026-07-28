@@ -2,7 +2,9 @@ package update_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"path/filepath"
 	"sort"
@@ -395,6 +397,491 @@ func TestHarnessSpecs_WellKnownPaths(t *testing.T) {
 	g.Expect(piHarness.ImportsFileRel).To(Equal(filepath.Join(".pi", "agent", "AGENTS.md")))
 }
 
+func TestManifestModeDeletion_DryRunNoWrites(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Setup: manifest records a path to be deleted
+	fileSystem := newMemFS()
+	manifestData := []string{"/home/joe/.claude/skills/recall/SKILL.md"}
+	manifestJSON, err := json.Marshal(manifestData)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = manifestJSON
+	fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"] = []byte("# Recall\n")
+	fileSystem.dirs["/home/joe/.claude/engram"] = true
+	fileSystem.dirs["/home/joe/.claude/skills"] = true
+	fileSystem.dirs["/home/joe/.claude/skills/recall"] = true
+
+	// In dry-run mode, nothing should be written
+	err = update.ExportApplyManifestModeDeletion(
+		fileSystem,
+		"/home/joe/.claude/engram",
+		[]string{}, // intended is empty, so recorded path would be deleted
+		true,       // dryRun=true
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// File should still exist after dry-run
+	_, exists := fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"]
+	g.Expect(exists).To(BeTrue(), "dry-run should not delete files")
+
+	// Manifest should also be unchanged
+	manifest, err := fileSystem.ReadFile("/home/joe/.claude/engram/.engram-manifest.json")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var paths []string
+	g.Expect(json.Unmarshal(manifest, &paths)).NotTo(HaveOccurred())
+	g.Expect(paths).To(HaveLen(1), "manifest should be unchanged in dry-run")
+}
+
+func TestManifestModeDeletion_MissingManifestIsEmpty(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Setup: no manifest file exists (first run)
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude/engram"] = true
+	fileSystem.dirs["/home/joe/.claude/skills"] = true
+
+	// Should not error; missing manifest is treated as empty
+	err := update.ExportApplyManifestModeDeletion(
+		fileSystem,
+		"/home/joe/.claude/engram",
+		[]string{},
+		false,
+	)
+	g.Expect(err).NotTo(HaveOccurred(), "missing manifest should not cause error")
+}
+
+func TestManifestModeDeletion_Property_OnlyRecordedPathsDeleted(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(t *rapid.T) {
+		g := NewWithT(t)
+
+		// Generate arbitrary manifest entries
+		recordedCount := rapid.IntRange(0, 5).Draw(t, "recordedCount")
+		recorded := make([]string, recordedCount)
+
+		for i := range recordedCount {
+			recorded[i] = fmt.Sprintf("/home/joe/.claude/skills/skill%d/SKILL.md", i)
+		}
+
+		// Generate arbitrary unrecorded files
+		unrecordedCount := rapid.IntRange(0, 5).Draw(t, "unrecordedCount")
+		unrecorded := make([]string, unrecordedCount)
+
+		for i := range unrecordedCount {
+			unrecorded[i] = fmt.Sprintf("/home/joe/.claude/skills/stray%d/SKILL.md", i)
+		}
+
+		// Setup: create filesystem with manifest + files
+		fileSystem := newMemFS()
+		manifestJSON, err := json.Marshal(recorded)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = manifestJSON
+		fileSystem.dirs["/home/joe/.claude/engram"] = true
+		fileSystem.dirs["/home/joe/.claude/skills"] = true
+
+		// Add recorded files
+		for _, p := range recorded {
+			fileSystem.files[p] = []byte("content")
+			parts := strings.Split(p, "/")
+			dir := strings.Join(parts[:len(parts)-1], "/")
+			fileSystem.dirs[dir] = true
+		}
+
+		// Add unrecorded files
+		for _, p := range unrecorded {
+			fileSystem.files[p] = []byte("content")
+			parts := strings.Split(p, "/")
+			dir := strings.Join(parts[:len(parts)-1], "/")
+			fileSystem.dirs[dir] = true
+		}
+
+		// Call deletion (no intended paths = all recorded should be deleted)
+		err = update.ExportApplyManifestModeDeletion(
+			fileSystem,
+			"/home/joe/.claude/engram",
+			[]string{},
+			false,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		// Invariant: only recorded paths should be deleted
+		for _, p := range recorded {
+			_, exists := fileSystem.files[p]
+			g.Expect(exists).To(BeFalse(), "recorded path %s should be deleted", p)
+		}
+
+		for _, p := range unrecorded {
+			_, exists := fileSystem.files[p]
+			g.Expect(exists).To(BeTrue(), "unrecorded path %s should survive", p)
+		}
+	})
+}
+
+func TestManifestModeDeletion_RemovalPropagates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Setup: manifest records a path whose source is gone
+	fileSystem := newMemFS()
+	manifestData := []string{"/home/joe/.claude/skills/recall/SKILL.md"}
+	manifestJSON, err := json.Marshal(manifestData)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = manifestJSON
+	fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"] = []byte("# Recall\n")
+	fileSystem.dirs["/home/joe/.claude/engram"] = true
+	fileSystem.dirs["/home/joe/.claude/skills"] = true
+	fileSystem.dirs["/home/joe/.claude/skills/recall"] = true
+
+	// Call the manifest deletion logic (exported for testing)
+	err = update.ExportApplyManifestModeDeletion(
+		fileSystem,
+		"/home/joe/.claude/engram",
+		[]string{}, // intended is empty: the recorded path's source is gone
+		false,      // not dryRun
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// After deletion, the recorded path should be gone
+	_, exists := fileSystem.files["/home/joe/.claude/skills/recall/SKILL.md"]
+
+	g.Expect(exists).To(BeFalse(), "recorded path should be deleted when source is gone")
+
+	// Manifest should be empty after deletion
+	manifest, err := fileSystem.ReadFile("/home/joe/.claude/engram/.engram-manifest.json")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var paths []string
+	g.Expect(json.Unmarshal(manifest, &paths)).NotTo(HaveOccurred())
+	g.Expect(paths).To(BeEmpty(), "manifest should be empty after deletion")
+}
+
+func TestManifestModeDeletion_UnrecordedFileSurvives(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Setup: manifest is empty, but there's an unrecorded stray file
+	fileSystem := newMemFS()
+	fileSystem.files["/home/joe/.claude/engram/.engram-manifest.json"] = []byte("[]")
+	fileSystem.files["/home/joe/.claude/skills/stray/SKILL.md"] = []byte("# Stray\n")
+	fileSystem.dirs["/home/joe/.claude/engram"] = true
+	fileSystem.dirs["/home/joe/.claude/skills"] = true
+	fileSystem.dirs["/home/joe/.claude/skills/stray"] = true
+
+	// Call the manifest deletion logic
+	err := update.ExportApplyManifestModeDeletion(
+		fileSystem,
+		"/home/joe/.claude/engram",
+		[]string{}, // no intended paths
+		false,      // not dryRun
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Unrecorded file should still exist
+	_, exists := fileSystem.files["/home/joe/.claude/skills/stray/SKILL.md"]
+	g.Expect(exists).To(BeTrue(), "unrecorded file should survive deletion pass")
+}
+
+// TestManifestMode_CorruptManifestReturnsError covers
+// applyManifestRecordingAndDeletion's loadManifestPaths error branch: a
+// manifest file that exists but fails to unmarshal must surface as a
+// per-harness error, not panic or silently proceed.
+func TestManifestMode_CorruptManifestReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	home := "/home/joe"
+	fileSystem := newMemFS()
+	fileSystem.dirs[home] = true
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.claude/engram"] = true
+	fileSystem.files[home+"/.claude/engram/.engram-manifest.json"] = []byte("not valid json")
+
+	spec := update.HarnessSpec{
+		Name:            update.HarnessClaude,
+		ProbeRel:        ".claude",
+		SkillsTargetRel: ".claude/skills",
+		EngramRootRel:   ".claude/engram",
+		DeployMode:      update.DeployModeManifest,
+	}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
+		nil, nil, nil, false, false)
+
+	g.Expect(reports).To(HaveLen(1))
+	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("unmarshaling manifest")))
+}
+
+func TestManifestMode_DeletesObsoleteFilesOnNextRun(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	home := "/home/joe"
+	fileSystem := newMemFS()
+	fileSystem.dirs[home] = true
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.claude/engram"] = true
+
+	// Setup: prior manifest with one file, new run only has a different file
+	oldFile := home + "/.claude/skills/recall/SKILL.md"
+	newFile := home + "/.claude/skills/learn/SKILL.md"
+
+	oldManifest := []string{oldFile}
+	oldManifestJSON, err := json.Marshal(oldManifest)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	fileSystem.files[home+"/.claude/engram/.engram-manifest.json"] = oldManifestJSON
+	fileSystem.files[oldFile] = []byte("# Old\n")
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("# Learn\n")
+	fileSystem.dirs[home+"/.claude/skills"] = true
+	fileSystem.dirs[home+"/.claude/skills/recall"] = true
+	fileSystem.dirs[home+"/.claude/skills/learn"] = true
+
+	spec := update.HarnessSpec{
+		Name:            update.HarnessClaude,
+		ProbeRel:        ".claude",
+		SkillsTargetRel: ".claude/skills",
+		EngramRootRel:   ".claude/engram",
+		DeployMode:      update.DeployModeManifest,
+	}
+
+	// Only the new file is in the intended set
+	skillOps := []update.CopyOp{
+		{
+			Harness:  update.HarnessClaude,
+			Src:      "/repo/agent-instructions/skills/learn/SKILL.md",
+			Dst:      newFile,
+			SkillDir: "learn",
+		},
+	}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
+		skillOps, nil, nil, false, false)
+
+	g.Expect(reports).To(HaveLen(1))
+	g.Expect(reports[0].Err).NotTo(HaveOccurred())
+
+	// Old file should be deleted
+	_, oldExists := fileSystem.files[oldFile]
+	g.Expect(oldExists).To(BeFalse(), "obsolete file should be deleted")
+
+	// New file should exist (copied)
+	_, newExists := fileSystem.files[newFile]
+	g.Expect(newExists).To(BeTrue(), "new file should be written")
+
+	// Manifest should only record the new file
+	manifestPath := home + "/.claude/engram/.engram-manifest.json"
+	manifestData, err := fileSystem.ReadFile(manifestPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var recorded []string
+	g.Expect(json.Unmarshal(manifestData, &recorded)).NotTo(HaveOccurred())
+	g.Expect(recorded).To(ContainElement(newFile))
+	g.Expect(recorded).NotTo(ContainElement(oldFile))
+}
+
+// TestManifestMode_DeletionErrorPropagates covers
+// applyManifestRecordingAndDeletion's applyManifestModeDeletion error
+// branch: a RemoveAll failure on an obsolete recorded path (not in the
+// intended set, dryRun=false) must surface as a per-harness error.
+func TestManifestMode_DeletionErrorPropagates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	home := "/home/joe"
+	base := newMemFS()
+	base.dirs[home] = true
+	base.dirs[home+"/.claude"] = true
+	base.dirs[home+"/.claude/engram"] = true
+
+	oldFile := home + "/.claude/skills/recall/SKILL.md"
+	oldManifestJSON, err := json.Marshal([]string{oldFile})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	base.files[home+"/.claude/engram/.engram-manifest.json"] = oldManifestJSON
+	base.files[oldFile] = []byte("# Old\n")
+	base.dirs[home+"/.claude/skills"] = true
+	base.dirs[home+"/.claude/skills/recall"] = true
+
+	removeErr := errors.New("disk full")
+	fileSystem := &errRemoveFS{
+		memFS:     base,
+		errPath:   oldFile,
+		removeErr: removeErr,
+	}
+
+	spec := update.HarnessSpec{
+		Name:            update.HarnessClaude,
+		ProbeRel:        ".claude",
+		SkillsTargetRel: ".claude/skills",
+		EngramRootRel:   ".claude/engram",
+		DeployMode:      update.DeployModeManifest,
+	}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	// No files in the intended set: the only recorded path (oldFile) is
+	// obsolete and must be deleted; the injected RemoveAll failure there
+	// must surface as a per-harness error.
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
+		nil, nil, nil, false, false)
+
+	g.Expect(reports).To(HaveLen(1))
+	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("disk full")))
+}
+
+func TestManifestMode_DryRunPreviewsDelectionNoWrites(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	home := "/home/joe"
+	fileSystem := newMemFS()
+	fileSystem.dirs[home] = true
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.claude/engram"] = true
+
+	// Setup: prior manifest with one file, new run has no files
+	oldFile := home + "/.claude/skills/recall/SKILL.md"
+	oldManifest := []string{oldFile}
+	oldManifestJSON, err := json.Marshal(oldManifest)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	fileSystem.files[home+"/.claude/engram/.engram-manifest.json"] = oldManifestJSON
+	fileSystem.files[oldFile] = []byte("# Recall\n")
+	fileSystem.dirs[home+"/.claude/skills"] = true
+	fileSystem.dirs[home+"/.claude/skills/recall"] = true
+
+	spec := update.HarnessSpec{
+		Name:            update.HarnessClaude,
+		ProbeRel:        ".claude",
+		SkillsTargetRel: ".claude/skills",
+		EngramRootRel:   ".claude/engram",
+		DeployMode:      update.DeployModeManifest,
+	}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	// dryRun=true, no files in skillOps
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
+		nil, nil, nil, false, true)
+
+	g.Expect(reports).To(HaveLen(1))
+	g.Expect(reports[0].Err).NotTo(HaveOccurred())
+
+	// File should still exist (dry-run didn't delete)
+	_, fileExists := fileSystem.files[oldFile]
+	g.Expect(fileExists).To(BeTrue(), "dry-run should not delete files")
+
+	// Old manifest should be unchanged (dry-run didn't write)
+	manifestData, err := fileSystem.ReadFile(home + "/.claude/engram/.engram-manifest.json")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var recorded []string
+
+	err = json.Unmarshal(manifestData, &recorded)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if recorded == nil {
+		recorded = []string{}
+	}
+
+	g.Expect(recorded).To(HaveLen(1))
+	g.Expect(recorded[0]).To(Equal(oldFile))
+}
+
+// Integration tests for manifest recording and deletion through the apply path.
+
+func TestManifestMode_WritesFilesAndRecordsManifest(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	home := "/home/joe"
+	fileSystem := newMemFS()
+	fileSystem.dirs[home] = true
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.dirs[home+"/.claude/engram"] = true
+
+	skillSrc := "/repo/agent-instructions/skills/recall/SKILL.md"
+	skillDst := home + "/.claude/skills/recall/SKILL.md"
+	fileSystem.files[skillSrc] = []byte("# Recall\n")
+	fileSystem.dirs[home+"/.claude/skills"] = true
+	fileSystem.dirs[home+"/.claude/skills/recall"] = true
+
+	spec := update.HarnessSpec{
+		Name:            update.HarnessClaude,
+		ProbeRel:        ".claude",
+		SkillsTargetRel: ".claude/skills",
+		EngramRootRel:   ".claude/engram",
+		DeployMode:      update.DeployModeManifest,
+	}
+
+	skillOps := []update.CopyOp{
+		{
+			Harness:  update.HarnessClaude,
+			Src:      skillSrc,
+			Dst:      skillDst,
+			SkillDir: "recall",
+		},
+	}
+
+	updater := &update.Updater{
+		FS:  fileSystem,
+		Cmd: &fakeCmd{},
+		Env: &fakeEnv{home: home, cwd: "/repo"},
+	}
+
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
+		skillOps, nil, nil, false, false)
+
+	g.Expect(reports).To(HaveLen(1))
+	g.Expect(reports[0].Err).NotTo(HaveOccurred())
+	g.Expect(reports[0].SkillDirs).To(HaveLen(1))
+
+	// Manifest should record the written skill path.
+	manifestPath := home + "/.claude/engram/.engram-manifest.json"
+	manifestData, err := fileSystem.ReadFile(manifestPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var recorded []string
+	g.Expect(json.Unmarshal(manifestData, &recorded)).NotTo(HaveOccurred())
+	g.Expect(recorded).To(ContainElement(skillDst))
+}
+
 func TestPlanGuidanceCopies_FilesUnderHome(t *testing.T) {
 	t.Parallel()
 
@@ -546,8 +1033,15 @@ func TestRun_PlainUpdate_DelegateOnlyImport_RefreshesAll(t *testing.T) {
 
 	g.Expect(report.GuidanceImported).To(BeTrue())
 	g.Expect(report.Harnesses[0].GuidanceFiles).To(ConsistOf("recall.md", "delegate.md"))
-	g.Expect(fileSystem.written[home+"/.claude/engram/delegate.md"]).NotTo(BeNil())
-	g.Expect(fileSystem.written[home+"/.claude/engram/recall.md"]).NotTo(BeNil())
+
+	// Canonical content lives under guidance/; the flat @import path is a
+	// compat symlink into it (task 5.3), not a flat copy.
+	g.Expect(fileSystem.written[home+"/.claude/engram/guidance/delegate.md"]).NotTo(BeNil())
+	g.Expect(fileSystem.written[home+"/.claude/engram/guidance/recall.md"]).NotTo(BeNil())
+	g.Expect(fileSystem.symlinks[home+"/.claude/engram/delegate.md"]).
+		To(Equal(home + "/.claude/engram/guidance/delegate.md"))
+	g.Expect(fileSystem.symlinks[home+"/.claude/engram/recall.md"]).
+		To(Equal(home + "/.claude/engram/guidance/recall.md"))
 }
 
 func TestRun_PlainUpdate_WhenImported_RefreshesGuidance(t *testing.T) {
@@ -578,9 +1072,11 @@ func TestRun_PlainUpdate_WhenImported_RefreshesGuidance(t *testing.T) {
 	g.Expect(report.GuidanceImported).To(BeTrue())
 	g.Expect(report.Harnesses[0].GuidanceFiles).To(ConsistOf("recall.md"))
 
-	written, ok := fileSystem.written[home+"/.claude/engram/recall.md"]
+	written, ok := fileSystem.written[home+"/.claude/engram/guidance/recall.md"]
 	g.Expect(ok).To(BeTrue())
 	g.Expect(written).To(Equal([]byte("fresh guidance content")))
+	g.Expect(fileSystem.symlinks[home+"/.claude/engram/recall.md"]).
+		To(Equal(home + "/.claude/engram/guidance/recall.md"))
 }
 
 func TestRun_WithGuidance_BothHarnesses_OnlyClaudeGetsGuidance(t *testing.T) {
@@ -648,11 +1144,18 @@ func TestRun_WithGuidance_DeploysToClaudeEngram(t *testing.T) {
 	claudeReport := report.Harnesses[0]
 	g.Expect(claudeReport.GuidanceFiles).To(ConsistOf("recall.md"))
 
-	written, ok := fileSystem.written[home+"/.claude/engram/recall.md"]
+	written, ok := fileSystem.written[home+"/.claude/engram/guidance/recall.md"]
 	g.Expect(ok).To(BeTrue())
 	g.Expect(written).To(Equal([]byte("recall guidance content")))
+	g.Expect(fileSystem.symlinks[home+"/.claude/engram/recall.md"]).
+		To(Equal(home + "/.claude/engram/guidance/recall.md"))
 }
 
+// TestRun_WithGuidance_GuidanceCopyError covers applyGuidanceCompatLinks'
+// adoption error branch (materializeOrAdopt's RemoveAll): a pre-existing
+// REAL flat guidance file (today's deployed state) at the compat-link path
+// forces the adopt-not-create branch, and the injected RemoveAll failure
+// there must surface as a per-harness error.
 func TestRun_WithGuidance_GuidanceCopyError(t *testing.T) {
 	t.Parallel()
 
@@ -666,6 +1169,8 @@ func TestRun_WithGuidance_GuidanceCopyError(t *testing.T) {
 	base.dirs["/repo/agent-instructions/skills"] = true
 	base.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
 	base.dirs["/repo/agent-instructions/guidance"] = true
+	// Pre-existing REAL flat guidance file — forces adoption, not creation.
+	base.files[home+"/.claude/engram/recall.md"] = []byte("old flat-copied guidance")
 
 	removeErr := errors.New("disk full")
 	fileSystem := &errRemoveFS{
@@ -816,6 +1321,10 @@ type errFS struct {
 	readErr error
 }
 
+func (*errFS) Lstat(_ string) (update.FileInfo, error) {
+	return nil, fs.ErrNotExist
+}
+
 func (*errFS) MkdirAll(_ string, _ fs.FileMode) error {
 	return nil
 }
@@ -828,12 +1337,20 @@ func (e *errFS) ReadFile(_ string) ([]byte, error) {
 	return nil, e.readErr
 }
 
+func (*errFS) ReadLink(_ string) (string, error) {
+	return "", fs.ErrNotExist
+}
+
 func (*errFS) RemoveAll(_ string) error {
 	return nil
 }
 
 func (*errFS) Stat(_ string) (update.FileInfo, error) {
 	return nil, fs.ErrNotExist
+}
+
+func (*errFS) Symlink(_, _ string) error {
+	return nil
 }
 
 func (*errFS) WriteFile(_ string, _ []byte, _ fs.FileMode) error {
@@ -878,14 +1395,42 @@ func (m *memEntry) Name() string { return m.name }
 // --- in-memory test doubles --------------------------------------------
 
 type memFS struct {
-	files   map[string][]byte
-	dirs    map[string]bool
-	written map[string][]byte
-	removed []string
+	files    map[string][]byte
+	dirs     map[string]bool
+	written  map[string][]byte
+	removed  []string
+	symlinks map[string]string
 }
 
+// Lstat returns FileInfo without following a trailing symlink: symlinked
+// paths report fs.ModeSymlink, everything else delegates to Stat.
+func (m *memFS) Lstat(path string) (update.FileInfo, error) {
+	if _, ok := m.symlinks[path]; ok {
+		return &memInfo{isDir: false, mode: fs.ModeSymlink}, nil
+	}
+
+	return m.Stat(path)
+}
+
+// MkdirAll marks path AND every ancestor as a dir, matching real
+// os.MkdirAll semantics: creating "a/b/c" also creates "a" and "a/b". This
+// matters once a caller Lstat/Stats an intermediate ancestor directly (e.g.
+// cleanupDanglingLinksInDir scanning an engram root whose only recorded
+// dir, before this fix, was the deepest path a sync write's MkdirAll named —
+// Stat on "<root>/skills" itself would wrongly report NotExist even though
+// "<root>/skills/recall" plainly exists under it.
 func (m *memFS) MkdirAll(path string, _ fs.FileMode) error {
-	m.dirs[path] = true
+	for p := filepath.Clean(path); p != "" && p != string(filepath.Separator) && p != "."; {
+		m.dirs[p] = true
+
+		parent := filepath.Dir(p)
+		if parent == p {
+			break
+		}
+
+		p = parent
+	}
+
 	return nil
 }
 
@@ -906,6 +1451,13 @@ func (m *memFS) ReadDir(path string) ([]update.DirEntry, error) {
 		addChild(dirPath, prefix, true, seen, &out)
 	}
 
+	// Symlinks are their OWN entry kind (real os.ReadDir reports a symlink's
+	// own Lstat-based type, never the type of whatever it points at), so
+	// they're listed with forceIsDir=false regardless of target shape.
+	for linkPath := range m.symlinks {
+		addChild(linkPath, prefix, false, seen, &out)
+	}
+
 	sort.Slice(out, func(i, j int) bool { return out[i].Name() < out[j].Name() })
 
 	return out, nil
@@ -920,10 +1472,20 @@ func (m *memFS) ReadFile(path string) ([]byte, error) {
 	return data, nil
 }
 
+func (m *memFS) ReadLink(path string) (string, error) {
+	target, ok := m.symlinks[path]
+	if !ok {
+		return "", fs.ErrNotExist
+	}
+
+	return target, nil
+}
+
 func (m *memFS) RemoveAll(path string) error {
 	m.removed = append(m.removed, path)
 	delete(m.dirs, path)
 	delete(m.files, path)
+	delete(m.symlinks, path)
 
 	prefix := dirPrefix(path)
 
@@ -939,19 +1501,46 @@ func (m *memFS) RemoveAll(path string) error {
 		}
 	}
 
+	for p := range m.symlinks {
+		if strings.HasPrefix(p, prefix) {
+			delete(m.symlinks, p)
+		}
+	}
+
 	return nil
 }
 
+// Stat reports a directory both when path was explicitly registered in
+// m.dirs AND when it is only IMPLIED by a nested file/dir fixture (e.g. a
+// test seeds "root/guidance/stale.md" directly without also seeding
+// "root/guidance") — dirExists already treats such a path as a directory
+// for ReadDir; Stat/Lstat must agree, or a caller that Lstats an entry
+// ReadDir just returned (e.g. cleanupDanglingLinksInDir scanning a dir one
+// level deep) sees a false NotExist for a path that plainly has children.
 func (m *memFS) Stat(path string) (update.FileInfo, error) {
 	if m.dirs[path] {
-		return &memInfo{isDir: true}, nil
+		return &memInfo{isDir: true, mode: fs.ModeDir}, nil
 	}
 
 	if _, ok := m.files[path]; ok {
 		return &memInfo{isDir: false}, nil
 	}
 
+	if m.dirExists(path) {
+		return &memInfo{isDir: true, mode: fs.ModeDir}, nil
+	}
+
 	return nil, fs.ErrNotExist
+}
+
+func (m *memFS) Symlink(target, link string) error {
+	if m.symlinks == nil {
+		m.symlinks = map[string]string{}
+	}
+
+	m.symlinks[link] = target
+
+	return nil
 }
 
 func (m *memFS) WriteFile(path string, data []byte, _ fs.FileMode) error {
@@ -983,9 +1572,14 @@ func (m *memFS) dirExists(path string) bool {
 	return false
 }
 
-type memInfo struct{ isDir bool }
+type memInfo struct {
+	isDir bool
+	mode  fs.FileMode
+}
 
 func (m *memInfo) IsDir() bool { return m.isDir }
+
+func (m *memInfo) Mode() fs.FileMode { return m.mode }
 
 func addChild(
 	fullPath, prefix string,

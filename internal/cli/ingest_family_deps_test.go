@@ -306,12 +306,17 @@ type fakeEdgeFS struct {
 	mkdirAll        func(string, fs.FileMode) error
 	mkdirTemp       func(string, string) (string, error)
 	stat            func(string) (fs.FileInfo, error)
+	lstat           func(string) (fs.FileInfo, error)
 	readDir         func(string) ([]fs.DirEntry, error)
 	remove          func(string) error
 	removeAll       func(string) error
 	rename          func(string, string) error
+	symlink         func(string, string) error
+	readlink        func(string) (string, error)
 	walkDir         func(string, fs.WalkDirFunc) error
 }
+
+func (f fakeEdgeFS) Lstat(path string) (fs.FileInfo, error) { return f.lstat(path) }
 
 func (f fakeEdgeFS) MkdirAll(path string, perm fs.FileMode) error { return f.mkdirAll(path, perm) }
 
@@ -323,6 +328,8 @@ func (f fakeEdgeFS) ReadDir(path string) ([]fs.DirEntry, error) { return f.readD
 
 func (f fakeEdgeFS) ReadFile(path string) ([]byte, error) { return f.readFile(path) }
 
+func (f fakeEdgeFS) Readlink(path string) (string, error) { return f.readlink(path) }
+
 func (f fakeEdgeFS) Remove(path string) error { return f.remove(path) }
 
 func (f fakeEdgeFS) RemoveAll(path string) error { return f.removeAll(path) }
@@ -330,6 +337,8 @@ func (f fakeEdgeFS) RemoveAll(path string) error { return f.removeAll(path) }
 func (f fakeEdgeFS) Rename(oldPath, newPath string) error { return f.rename(oldPath, newPath) }
 
 func (f fakeEdgeFS) Stat(path string) (fs.FileInfo, error) { return f.stat(path) }
+
+func (f fakeEdgeFS) Symlink(target, link string) error { return f.symlink(target, link) }
 
 func (f fakeEdgeFS) WalkDir(root string, fn fs.WalkDirFunc) error { return f.walkDir(root, fn) }
 

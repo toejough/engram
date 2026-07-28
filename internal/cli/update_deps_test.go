@@ -49,6 +49,52 @@ func TestNewUpdateDeps_EnvDelegatesToDepsFuncs(t *testing.T) {
 	g.Expect(home).To(Equal("/home/x"))
 }
 
+func TestNewUpdateDeps_FSAdapterLstatPreservesNotExist(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.ExportNewUpdateDeps(cli.Deps{FS: updateFakeEdgeFS{}})
+
+	_, lstatErr := deps.FS.Lstat("/missing")
+	g.Expect(errors.Is(lstatErr, fs.ErrNotExist)).To(BeTrue())
+}
+
+func TestNewUpdateDeps_FSAdapterLstatReadsThroughEdgeFS(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.ExportNewUpdateDeps(cli.Deps{FS: updateFakeEdgeFS{
+		"agent-instructions/skills/learn/SKILL.md": &fstest.MapFile{Data: []byte("learn")},
+	}})
+
+	info, lstatErr := deps.FS.Lstat("agent-instructions/skills/learn/SKILL.md")
+	g.Expect(lstatErr).NotTo(HaveOccurred())
+
+	if lstatErr != nil || info == nil {
+		return
+	}
+
+	g.Expect(info.IsDir()).To(BeFalse())
+}
+
+func TestNewUpdateDeps_FSAdapterPassesSymlinkFamilyThrough(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.ExportNewUpdateDeps(cli.Deps{FS: updateFakeEdgeFS{}})
+
+	// updateFakeEdgeFS's Symlink/Readlink always fail with errUnsupported;
+	// the adapter must pass that error through unwrapped, exactly like the
+	// write-side methods above.
+	g.Expect(deps.FS.Symlink("target", "link")).To(MatchError(errUnsupported))
+
+	_, readLinkErr := deps.FS.ReadLink("link")
+	g.Expect(readLinkErr).To(MatchError(errUnsupported))
+}
+
 func TestNewUpdateDeps_FSAdapterPassesWriteSideThrough(t *testing.T) {
 	t.Parallel()
 
@@ -78,6 +124,24 @@ func TestNewUpdateDeps_FSAdapterPreservesNotExist(t *testing.T) {
 
 	_, statErr := deps.FS.Stat("/missing")
 	g.Expect(errors.Is(statErr, fs.ErrNotExist)).To(BeTrue())
+}
+
+func TestNewUpdateDeps_FSAdapterReadLinkReadsThroughEdgeFS(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.ExportNewUpdateDeps(cli.Deps{FS: fakeEdgeFS{
+		readlink: func(path string) (string, error) {
+			g.Expect(path).To(Equal("link"))
+
+			return "target", nil
+		},
+	}})
+
+	target, readLinkErr := deps.FS.ReadLink("link")
+	g.Expect(readLinkErr).NotTo(HaveOccurred())
+	g.Expect(target).To(Equal("target"))
 }
 
 func TestNewUpdateDeps_FSAdapterReadsThroughEdgeFS(t *testing.T) {
@@ -124,6 +188,11 @@ var (
 // under test never invoke them.
 type updateFakeEdgeFS fstest.MapFS
 
+func (m updateFakeEdgeFS) Lstat(path string) (fs.FileInfo, error) {
+	// fstest.MapFS has no symlink concept; Lstat degrades to Stat.
+	return fs.Stat(fstest.MapFS(m), path) // fake passes chains through
+}
+
 func (m updateFakeEdgeFS) MkdirAll(string, fs.FileMode) error { return errUnsupported }
 
 func (m updateFakeEdgeFS) MkdirTemp(string, string) (string, error) { return "", errUnsupported }
@@ -136,6 +205,8 @@ func (m updateFakeEdgeFS) ReadFile(path string) ([]byte, error) {
 	return fs.ReadFile(fstest.MapFS(m), path) // fake passes chains through
 }
 
+func (m updateFakeEdgeFS) Readlink(string) (string, error) { return "", errUnsupported }
+
 func (m updateFakeEdgeFS) Remove(string) error { return errUnsupported }
 
 func (m updateFakeEdgeFS) RemoveAll(string) error { return errUnsupported }
@@ -145,6 +216,8 @@ func (m updateFakeEdgeFS) Rename(string, string) error { return errUnsupported }
 func (m updateFakeEdgeFS) Stat(path string) (fs.FileInfo, error) {
 	return fs.Stat(fstest.MapFS(m), path) // fake passes chains through
 }
+
+func (m updateFakeEdgeFS) Symlink(string, string) error { return errUnsupported }
 
 func (m updateFakeEdgeFS) WalkDir(root string, fn fs.WalkDirFunc) error {
 	return fs.WalkDir(fstest.MapFS(m), root, fn) // fake passes chains through

@@ -1,4 +1,4 @@
-<!-- engram-owned: learn-firing guidance. Deployed by 'engram update --with-guidance' to ~/.claude/engram/learn.md (Claude Code) and ~/.pi/agent/guidance/learn.md (Pi); activate via '@~/.claude/engram/learn.md' in CLAUDE.md or '@~/.pi/agent/guidance/learn.md' in AGENTS.md. Edit via writing-skills TDD. -->
+<!-- engram-owned: learn-firing guidance. Synced by 'engram update --with-guidance' to canonical paths ~/.claude/engram/guidance/learn.md (Claude Code) and ~/.pi/agent/engram/guidance/learn.md (Pi); compat symlinks at old flat paths keep existing imports working (ADR-0022 D9). Activate via '@~/.claude/engram/learn.md' in CLAUDE.md (resolves via compat symlink) or '@~/.pi/agent/guidance/learn.md' in AGENTS.md (symlink surface path; detection matches this prefix). Edit via writing-skills TDD. -->
 
 ## Capture at the correction moment — fire engram `/learn`, right then
 

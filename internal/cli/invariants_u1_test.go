@@ -127,10 +127,16 @@ func TestInvariant_U1_UpdateIdempotent(t *testing.T) {
 
 	// Guard against vacuity: the first run must actually have installed the
 	// skill files, else "no-op" is trivially true over an empty dest set.
+	// Claude Code is symlink-mode (D7): real content lands under the
+	// engram-owned root, and the harness-visible skills path becomes a
+	// symlink into it, not a real file.
 	g.Expect(afterFirst).NotTo(BeEmpty(), "U1: first update installed nothing")
 	g.Expect(afterFirst).To(HaveKey(
-		filepath.Join(u1Home, ".claude", "skills", "learn", "SKILL.md")),
-		"U1: first update did not install the learn skill")
+		filepath.Join(u1Home, ".claude", "engram", "skills", "learn", "SKILL.md")),
+		"U1: first update did not install the learn skill under the engram root")
+	g.Expect(afterFirst).To(HaveKey(
+		filepath.Join(u1Home, ".claude", "skills", "learn")),
+		"U1: first update did not link the learn skill's surface symlink")
 
 	report2, err2 := updater.Run(context.Background(), update.Options{})
 	g.Expect(err2).NotTo(HaveOccurred())
@@ -180,12 +186,38 @@ func (e *u1Env) UserHomeDir() (string, error) { return e.home, nil }
 // dirs records explicitly-existing directories. ReadDir synthesizes children
 // from both maps.
 type u1FS struct {
-	files map[string][]byte
-	dirs  map[string]bool
+	files    map[string][]byte
+	dirs     map[string]bool
+	symlinks map[string]string
 }
 
+// Lstat returns FileInfo without following a trailing symlink: symlinked
+// paths report fs.ModeSymlink, everything else delegates to Stat.
+func (m *u1FS) Lstat(path string) (update.FileInfo, error) {
+	clean := filepath.Clean(path)
+
+	if _, ok := m.symlinks[clean]; ok {
+		return u1FileInfo{isDir: false, mode: fs.ModeSymlink}, nil
+	}
+
+	return m.Stat(path)
+}
+
+// MkdirAll marks path AND every ancestor as a dir, matching real
+// os.MkdirAll semantics — needed once a caller Lstat/Stats an intermediate
+// ancestor directly (e.g. cleanupDanglingLinksInDir scanning the engram
+// root itself for Claude's root-level guidance compat links, task 5.3).
 func (m *u1FS) MkdirAll(path string, _ fs.FileMode) error {
-	m.dirs[filepath.Clean(path)] = true
+	for p := filepath.Clean(path); p != "" && p != string(filepath.Separator) && p != "."; {
+		m.dirs[p] = true
+
+		parent := filepath.Dir(p)
+		if parent == p {
+			break
+		}
+
+		p = parent
+	}
 
 	return nil
 }
@@ -247,24 +279,54 @@ func (m *u1FS) ReadFile(path string) ([]byte, error) {
 	return data, nil
 }
 
+func (m *u1FS) ReadLink(path string) (string, error) {
+	clean := filepath.Clean(path)
+
+	target, ok := m.symlinks[clean]
+	if !ok {
+		return "", fs.ErrNotExist
+	}
+
+	return target, nil
+}
+
 func (m *u1FS) RemoveAll(path string) error {
 	m.removeSubtree(path)
 
 	return nil
 }
 
+// Stat reports a directory both when path was explicitly registered in
+// m.dirs AND when it is only IMPLIED by a nested file/dir fixture — ReadDir
+// already treats such a path as a directory via hasChildren; Stat/Lstat
+// must agree, or a caller that Lstats an entry ReadDir just returned sees a
+// false NotExist for a path that plainly has children.
 func (m *u1FS) Stat(path string) (update.FileInfo, error) {
 	clean := filepath.Clean(path)
 
 	if m.dirs[clean] {
-		return u1FileInfo{isDir: true}, nil
+		return u1FileInfo{isDir: true, mode: fs.ModeDir}, nil
 	}
 
 	if _, ok := m.files[clean]; ok {
 		return u1FileInfo{isDir: false}, nil
 	}
 
+	if m.hasChildren(clean) {
+		return u1FileInfo{isDir: true, mode: fs.ModeDir}, nil
+	}
+
 	return nil, fs.ErrNotExist
+}
+
+func (m *u1FS) Symlink(target, link string) error {
+	if m.symlinks == nil {
+		m.symlinks = map[string]string{}
+	}
+
+	m.symlinks[filepath.Clean(link)] = target
+
+	return nil
 }
 
 func (m *u1FS) WriteFile(path string, data []byte, _ fs.FileMode) error {
@@ -276,8 +338,11 @@ func (m *u1FS) WriteFile(path string, data []byte, _ fs.FileMode) error {
 	return nil
 }
 
-// destSnapshot returns a copy of all files written outside the source repo
-// (i.e. the installed harness files under home), keyed by path.
+// destSnapshot returns a copy of all files AND symlinks written outside the
+// source repo (i.e. the installed harness files/links under home), keyed by
+// path. Symlink entries are prefixed to keep their target string out of the
+// real-file namespace, so a path that changes from real file to symlink (or
+// vice versa) between runs is still caught as a snapshot difference.
 func (m *u1FS) destSnapshot() map[string]string {
 	out := map[string]string{}
 	srcPrefix := u1RepoRoot + string(filepath.Separator)
@@ -288,6 +353,14 @@ func (m *u1FS) destSnapshot() map[string]string {
 		}
 
 		out[path] = string(data)
+	}
+
+	for path, target := range m.symlinks {
+		if strings.HasPrefix(path, srcPrefix) {
+			continue
+		}
+
+		out[path] = "SYMLINK:" + target
 	}
 
 	return out
@@ -353,9 +426,14 @@ func (c *u1FailCmd) Run(context.Context, string, string, ...string) ([]byte, []b
 }
 
 // u1FileInfo / u1DirEntry satisfy the update package's FileInfo / DirEntry.
-type u1FileInfo struct{ isDir bool }
+type u1FileInfo struct {
+	isDir bool
+	mode  fs.FileMode
+}
 
 func (i u1FileInfo) IsDir() bool { return i.isDir }
+
+func (i u1FileInfo) Mode() fs.FileMode { return i.mode }
 
 // u1OKCmd is a Commander whose Run always succeeds (used to stand in for a
 // working `go install` / `go list`).

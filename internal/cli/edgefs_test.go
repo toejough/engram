@@ -13,6 +13,29 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+func TestEdgeFS_LstatReturnsInfoUnwrapped(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	want := fakeFileInfo{size: lstatFakeSize}
+	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
+		Lstat: func(path string) (fs.FileInfo, error) {
+			g.Expect(path).To(gomega.Equal("link"))
+
+			return want, nil
+		},
+	}})
+
+	got, err := fsys.Lstat("link")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).To(gomega.Equal(want), "success value must pass through unwrapped")
+}
+
 func TestEdgeFS_PreservesSentinelChainsThroughWrapping(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -26,6 +49,42 @@ func TestEdgeFS_PreservesSentinelChainsThroughWrapping(t *testing.T) {
 	_, err := fsys.ReadFile("x")
 	g.Expect(err).To(gomega.MatchError(fs.ErrNotExist), "%w wrapping must preserve errors.Is chains")
 	g.Expect(err.Error()).To(gomega.ContainSubstring("x"), "wrap must add path context")
+}
+
+func TestEdgeFS_ReadlinkReturnsTargetUnwrapped(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
+		Readlink: func(path string) (string, error) {
+			g.Expect(path).To(gomega.Equal("link"))
+
+			return "target", nil
+		},
+	}})
+
+	got, err := fsys.Readlink("link")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(got).To(gomega.Equal("target"), "success value must pass through unwrapped")
+}
+
+func TestEdgeFS_SymlinkPassesArgsToPrimitive(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var gotTarget, gotLink string
+
+	fsys := fsFromPrims(cli.Primitives{FS: cli.FSPrims{
+		Symlink: func(target, link string) error {
+			gotTarget, gotLink = target, link
+
+			return nil
+		},
+	}})
+
+	g.Expect(fsys.Symlink("target", "link")).To(gomega.Succeed())
+	g.Expect(gotTarget).To(gomega.Equal("target"))
+	g.Expect(gotLink).To(gomega.Equal("link"))
 }
 
 func TestEdgeFS_WrapsEveryPrimitiveErrorWithContext(t *testing.T) {
@@ -47,6 +106,16 @@ func TestEdgeFS_WrapsEveryPrimitiveErrorWithContext(t *testing.T) {
 
 			return err
 		}, "read dir d"},
+		{"Lstat", func(f cli.EdgeFS) error {
+			_, err := f.Lstat("x")
+
+			return err
+		}, "lstat x"},
+		{"Readlink", func(f cli.EdgeFS) error {
+			_, err := f.Readlink("x")
+
+			return err
+		}, "readlink x"},
 		{"Remove", func(f cli.EdgeFS) error { return f.Remove("x") }, "remove x"},
 		{"RemoveAll", func(f cli.EdgeFS) error { return f.RemoveAll("x") }, "remove all x"},
 		{"Rename", func(f cli.EdgeFS) error { return f.Rename("a", "b") }, "rename a -> b"},
@@ -55,6 +124,7 @@ func TestEdgeFS_WrapsEveryPrimitiveErrorWithContext(t *testing.T) {
 
 			return err
 		}, "stat x"},
+		{"Symlink", func(f cli.EdgeFS) error { return f.Symlink("t", "x") }, "symlink x -> t"},
 		{"WalkDir", func(f cli.EdgeFS) error { return f.WalkDir("d", nil) }, "walk d"},
 		{"WriteFile", func(f cli.EdgeFS) error { return f.WriteFile("x", []byte("v"), atomicPerm) }, "write x"},
 	}
@@ -452,6 +522,9 @@ const (
 	// fakeDanceNanos is the fixed clock reading the dance fakes inject;
 	// candidate temp names embed it.
 	fakeDanceNanos = 12345
+	// lstatFakeSize is an arbitrary distinguishing value for the FileInfo
+	// pass-through test, unrelated to any real file size.
+	lstatFakeSize = 7
 )
 
 // callRecorder records call labels in order (single-goroutine use).
@@ -490,13 +563,16 @@ func (m *mockWriteCloser) Write(p []byte) (int, error) {
 // fails with the given error, for exercising primFS's error-wrap paths.
 func failingPrims(boom error) cli.Primitives {
 	return cli.Primitives{FS: cli.FSPrims{
+		Lstat:        func(string) (fs.FileInfo, error) { return nil, boom },
 		MkdirAll:     func(string, fs.FileMode) error { return boom },
 		MkdirTemp:    func(string, string) (string, error) { return "", boom },
 		ReadDir:      func(string) ([]fs.DirEntry, error) { return nil, boom },
+		Readlink:     func(string) (string, error) { return "", boom },
 		Remove:       func(string) error { return boom },
 		RemoveAll:    func(string) error { return boom },
 		Rename:       func(string, string) error { return boom },
 		Stat:         func(string) (fs.FileInfo, error) { return nil, boom },
+		Symlink:      func(string, string) error { return boom },
 		WalkDir:      func(string, fs.WalkDirFunc) error { return boom },
 		WriteFile:    func(string, []byte, fs.FileMode) error { return boom },
 		OpenFileExcl: func(string, fs.FileMode) (io.WriteCloser, error) { return nil, boom },

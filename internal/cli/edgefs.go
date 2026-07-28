@@ -29,6 +29,17 @@ type primFS struct {
 	prims Primitives
 }
 
+// Lstat returns the fs.FileInfo for path without following a trailing
+// symlink.
+func (f primFS) Lstat(path string) (fs.FileInfo, error) {
+	info, err := f.prims.FS.Lstat(path)
+	if err != nil {
+		return nil, fmt.Errorf("lstat %s: %w", path, err)
+	}
+
+	return info, nil
+}
+
 // MkdirAll creates path with any missing parents; no-op when path exists.
 func (f primFS) MkdirAll(path string, perm fs.FileMode) error {
 	err := f.prims.FS.MkdirAll(path, perm)
@@ -67,6 +78,16 @@ func (f primFS) ReadFile(path string) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// Readlink returns the destination that the symbolic link at path points to.
+func (f primFS) Readlink(path string) (string, error) {
+	target, err := f.prims.FS.Readlink(path)
+	if err != nil {
+		return "", fmt.Errorf("readlink %s: %w", path, err)
+	}
+
+	return target, nil
 }
 
 // Remove deletes the file or empty directory at path.
@@ -108,6 +129,16 @@ func (f primFS) Stat(path string) (fs.FileInfo, error) {
 	}
 
 	return info, nil
+}
+
+// Symlink creates link as a symbolic link to target.
+func (f primFS) Symlink(target, link string) error {
+	err := f.prims.FS.Symlink(target, link)
+	if err != nil {
+		return fmt.Errorf("symlink %s -> %s: %w", link, target, err)
+	}
+
+	return nil
 }
 
 // WalkDir walks the file tree rooted at root, calling fn for each entry.

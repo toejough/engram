@@ -33,11 +33,11 @@ Requires Go 1.25+ on `PATH`.
 
    ```bash
    engram update                 # install / refresh
-   engram update --with-guidance # also deploy guidance docs (recall.md, delegate.md, learn.md) to ~/.claude/engram/ and ~/.pi/agent/guidance/ (Claude Code + Pi; opt-in)
-   engram update --dry-run       # show what would change
+   engram update --with-guidance # also sync guidance docs (recall.md, delegate.md, learn.md) to engram-owned roots; --with-guidance is one-time opt-in per file
+   engram update --dry-run       # show what would change, without writing
    ```
 
-   `engram update` writes Claude Code skills to `~/.claude/skills/`, OpenCode skills + commands to `~/.config/opencode/{skills,commands}/`, and Pi skills to `~/.pi/agent/skills/`. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally deploys the guidance docs under `agent-instructions/guidance/` (`recall.md`, `delegate.md`, `learn.md`) to `~/.claude/engram/` for CLAUDE.md `@import` and to `~/.pi/agent/guidance/` for `~/.pi/agent/AGENTS.md` `@import` (Claude Code + Pi; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md (or AGENTS.md) imports a guidance file, plain `engram update` keeps it current (like skills). Until then, plain `engram update` prints a one-line hint.
+   `engram update` syncs engram artifacts to engram-owned roots per harness (`~/.claude/engram/`, `~/.config/opencode/engram/`, `~/.pi/agent/engram/`) and materializes them as symlinks in each harness's discovery paths (`~/.claude/skills/`, `~/.config/opencode/skills/`, `~/.pi/agent/skills/`, etc.). Removals from the source propagate on every update. First update performs a dark migration of pre-existing copies to symlinks. Run it again any time to upgrade — it also reinstalls the binary via `go install`. `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) keep existing `@import` lines in CLAUDE.md and AGENTS.md resolving (Claude Code + Pi; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md (or AGENTS.md) imports a guidance file, plain `engram update` keeps it current. Until then, plain `engram update` prints a one-line hint. See ADR-0022 for the deployment-as-sync design.
 
 ## Skills
 
@@ -98,7 +98,7 @@ engram vocab tag-definitions [--vault <dir>]  Idempotent backfill: adds the miss
 engram vocab propose --term <t> --description <d>  LLM-gated: create a new vocab definition note if no existing term covers it and projected attachment ≤ 20% of vault (~$0.05/proposal). Both flags required.
 engram vocab stats                     Per-term member counts, vault untagged-rate, hub terms (> 25% of vault), orphan terms (< 2 members), version staleness.
 engram vocab refit                     LLM-judged: merge orphans, split hubs, rename terms; rewrites member `tags:` entries in the `vocab/<term>` namespace; major version bump on the family definition note (no index to regenerate — the index is emergent).
-engram update [--with-guidance]        Refresh binary and harness skills and commands ([--dry-run]); --with-guidance also deploys agent-instructions/guidance/*.md (recall.md, delegate.md, learn.md) to ~/.claude/engram/ and ~/.pi/agent/guidance/ (Claude Code + Pi; opt-in; OpenCode deferred)
+engram update [--with-guidance]        Refresh binary; sync agents-instructions/{skills,commands,guidance} to engram-owned roots and materialize as symlinks; removals propagate; dark migration on first sync ([--dry-run] previews); --with-guidance includes guidance (canonical paths in guidance/, compat symlinks at flat paths) (Claude Code + Pi; opt-in; OpenCode deferred; see ADR-0022)
 ```
 
 ## Semantic search & the embed-on-write pipeline
