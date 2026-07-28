@@ -600,7 +600,9 @@ func buildTestFrontmatter(tags []string) string {
 		fmBuilder.WriteString("tags:\n")
 
 		for _, tag := range tags {
-			fmBuilder.WriteString("    - " + tag + "\n")
+			fmBuilder.WriteString("    - ")
+			fmBuilder.WriteString(tag)
+			fmBuilder.WriteString("\n")
 		}
 	}
 

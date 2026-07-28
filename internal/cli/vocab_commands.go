@@ -1566,7 +1566,9 @@ func renderDefinitionNoteContent(f factFields, vocabVersion string, exemplars []
 	body.WriteString("Exemplars:\n")
 
 	for _, exemplar := range exemplars {
-		body.WriteString("- " + exemplar + "\n")
+		body.WriteString("- ")
+		body.WriteString(exemplar)
+		body.WriteString("\n")
 	}
 
 	return content + body.String()

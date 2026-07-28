@@ -2,9 +2,9 @@
 
 ## 1. Derivation core
 
-- [ ] 1.1 TDD: derivation function clustering non-definition note vectors via `internal/cluster` silhouette-auto-K — AutoK returns flat `Assignments []int` over bare vectors, so this function owns the note↔vector correlation and groups members per cluster index (pure logic, DI'd inputs)
-- [ ] 1.2 TDD: greedy centroid-cosine name matching against existing terms (threshold constant; unmatched-cluster and unmatched-term outputs)
-- [ ] 1.3 TDD: silhouette hysteresis (prefer previous K within epsilon) and min-K floor decision from design open questions
+- [x] 1.1 TDD: derivation function clustering non-definition note vectors via `internal/cluster` silhouette-auto-K — AutoK returns flat `Assignments []int` over bare vectors, so this function owns the note↔vector correlation and groups members per cluster index (pure logic, DI'd inputs)
+- [x] 1.2 TDD: greedy centroid-cosine name matching against existing terms (threshold constant; unmatched-cluster and unmatched-term outputs)
+- [x] 1.3 TDD: silhouette hysteresis (prefer previous K within epsilon) and min-K floor decision from design open questions
 
 ## 2. Apply path
 

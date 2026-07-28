@@ -15,8 +15,12 @@ import (
 
 // Exported constants.
 const (
-	ExportDefaultContentBudget = defaultContentBudget
-	ExportDefaultRecentFill    = defaultRecentFill
+	ExportDefaultContentBudget    = defaultContentBudget
+	ExportDefaultRecentFill       = defaultRecentFill
+	ExportVocabNameMatchThreshold = vocabNameMatchThreshold
+	ExportVocabOriginDerived      = vocabOriginDerived
+	ExportVocabOriginProposed     = vocabOriginProposed
+	ExportVocabSilhouetteEpsilon  = vocabSilhouetteEpsilon
 )
 
 // Exported variables.
@@ -39,6 +43,7 @@ var (
 	ExportApplyVocabAssignmentAfterAmend   = applyVocabAssignmentAfterAmend
 	ExportApplyVocabAssignmentAfterLearn   = applyVocabAssignmentAfterLearn
 	ExportApplyVocabAssignmentCore         = applyVocabAssignmentCore
+	ExportApplyVocabKHysteresis            = applyVocabKHysteresis
 	ExportAutoEmbedNote                    = autoEmbedNote
 	ExportBuildSupersedesInverse           = BuildSupersedesInverse
 	ExportBumpLastUsed                     = bumpLastUsed
@@ -53,6 +58,7 @@ var (
 	ExportCountQAPairs                     = countQAPairs
 	ExportDefaultRecencyParams             = defaultRecencyParams
 	ExportDefinitionNoteFactFields         = definitionNoteFactFields
+	ExportDeriveVocabClusters              = deriveVocabClusters
 	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
 	ExportExtractLuhmannFromFilename       = extractLuhmannFromFilename
@@ -71,6 +77,7 @@ var (
 	ExportLoadCurrentVocabVersion          = loadCurrentVocabVersion
 	ExportLoadTermVectors                  = loadTermVectors
 	ExportMarshalFrontmatter               = marshalFrontmatter
+	ExportMatchClustersToTerms             = matchClustersToTerms
 	ExportMaxTurnBySource                  = maxTurnBySource
 	ExportMintDefinitionNote               = mintDefinitionNote
 	ExportMostRecentlyUsedNoteItems        = mostRecentlyUsedNoteItems
@@ -143,6 +150,11 @@ type ExportAllVaultNotesMeta = AllVaultNotesMeta
 // can construct hits slices via ExportNewCompatibleSidecars.
 type ExportCompatibleSidecar = compatibleSidecar
 
+// Exported derivation types (vocab-derivational-refit Task 1).
+type ExportDerivedCluster = derivedCluster
+
+type ExportExistingVocabTerm = existingVocabTerm
+
 type ExportFactFields = factFields
 
 type ExportFeedbackFields = feedbackFields
@@ -160,6 +172,8 @@ type ExportMergeClusterRepsEntry struct {
 
 // ExportNominationEntry aliases NominationEntry for cli_test struct literals.
 type ExportNominationEntry = NominationEntry
+
+type ExportNoteVector = noteVector
 
 // ExportQueriedCandidateNote aliases the unexported queryCandidateNote so
 // cli_test can construct nomination fixtures for ExportRenderClustersTagNominations.
@@ -189,7 +203,13 @@ type ExportVocabCentroidEntry = vocabCentroidEntry
 // Exported vocab schema types (Task 1).
 type ExportVocabCentroidsDoc = vocabCentroidsDoc
 
+type ExportVocabDerivation = vocabDerivation
+
 type ExportVocabLastRefitDoc = vocabLastRefitDoc
+
+type ExportVocabMatchResult = vocabMatchResult
+
+type ExportVocabNameMatch = vocabNameMatch
 
 // ExportAppendUniqueProvenance returns the provenances slice after adding
 // role twice via the helper; verifies idempotency in tests.
