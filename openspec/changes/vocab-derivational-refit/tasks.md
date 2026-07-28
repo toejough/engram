@@ -8,11 +8,11 @@
 
 ## 2. Apply path
 
-- [ ] 2.1 TDD: retirement flow — supersede unmatched derived terms' definition notes, strip their tags in the re-tag pass; `origin: proposed` terms exempt
-- [ ] 2.2 TDD: naming-request emission for unmatched clusters (structured output with centroid-nearest exemplar notes) and mint-on-answer path reusing `mintDefinitionNote`
-- [ ] 2.3 TDD: `vocab.centroids.json` gains `origin` per term + derivation metadata; atomic write via existing locked write path; readable by old binary (additive fields)
-- [ ] 2.4 TDD: stamp `origin: proposed` in `RunVocabPropose`'s centroid write path (provenance is NEW plumbing — nothing distinguishes proposed from minted terms today), and default existing/bootstrap terms to `origin: derived` on first derivation
-- [ ] 2.5 Rewire `RunVocabRefit` to the derivation flow; remove `--emit-request`/`--plan` and plan types; add `--dry-run` diff output
+- [x] 2.1 TDD: retirement flow — supersede unmatched derived terms' definition notes, strip their tags in the re-tag pass; `origin: proposed` terms exempt
+- [x] 2.2 TDD: naming-request emission for unmatched clusters (structured output with centroid-nearest exemplar notes) and mint-on-answer path reusing `mintDefinitionNote`
+- [x] 2.3 TDD: `vocab.centroids.json` gains `origin` per term + derivation metadata; atomic write via existing locked write path; readable by old binary (additive fields)
+- [x] 2.4 TDD: stamp `origin: proposed` in `RunVocabPropose`'s centroid write path (provenance is NEW plumbing — nothing distinguishes proposed from minted terms today), and default existing/bootstrap terms to `origin: derived` on first derivation
+- [x] 2.5 Rewire `RunVocabRefit` to the derivation flow; remove `--emit-request`/`--plan` and plan types; add `--dry-run` diff output
 
 ## 3. Triggers
 

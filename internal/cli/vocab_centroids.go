@@ -21,6 +21,12 @@ const (
 type vocabCentroidEntry struct {
 	Vector      []float32 `json:"vector"`
 	MemberCount int       `json:"member_count"`
+	// Origin is the term's provenance: vocabOriginDerived (produced or
+	// absorbed by derivation — the default when absent, covering pre-change
+	// docs and bootstrap-seeded terms) or vocabOriginProposed (minted via
+	// `vocab propose`; never retired by derivation). Additive: omitted when
+	// unset so an old binary still reads the file.
+	Origin string `json:"origin,omitempty"`
 }
 
 // vocabCentroidsDoc is the on-disk format of vocab.centroids.json — the
@@ -47,6 +53,18 @@ type vocabCentroidsDoc struct {
 	RefitPending bool               `json:"refit_pending,omitempty"`
 	RefitReason  string             `json:"refit_reason,omitempty"`
 	LastRefit    *vocabLastRefitDoc `json:"last_refit,omitempty"`
+	// Derivation carries the last derivational refit's metadata (K,
+	// silhouette, date). nil for docs written by bootstrap/retag paths.
+	Derivation *vocabDerivationMeta `json:"derivation,omitempty"`
+}
+
+// vocabDerivationMeta records the last derivation that produced the centroids:
+// the selected K, its silhouette score, and the derivation date. Additive
+// (omitempty pointer) — old binaries ignore it.
+type vocabDerivationMeta struct {
+	K          int     `json:"k"`
+	Silhouette float64 `json:"silhouette"`
+	Date       string  `json:"date"` // YYYY-MM-DD
 }
 
 // vocabLastRefitDoc holds the vault state at the time of the last bootstrap or refit.
@@ -258,7 +276,7 @@ func retagAllNotesTwoPass(
 		deps.LogWarning("vocab: pass-2 assignment: %v", assignErr)
 	}
 
-	writeCentroidsFile(deps, vault, entries, lastRefit)
+	writeCentroidsFile(deps, vault, entries, lastRefit, nil)
 
 	return memberCounts
 }
@@ -288,12 +306,15 @@ func uniformDimVectors(vecs [][]float32) [][]float32 {
 // for the storage rationale (separate derived file, survives embed apply).
 // When lastRefit is non-nil it is written into last_refit; bootstrap/refit
 // always pass a non-nil value so the trigger checker has a baseline.
+// derivation is non-nil only for the derivational refit path — it stamps the
+// last derivation's K/silhouette/date; bootstrap/retag callers pass nil.
 // RefitPending/RefitReason are intentionally zero: bootstrap/refit is a fresh start.
 func writeCentroidsFile(
 	deps VocabDeps,
 	vault string,
 	entries map[string]vocabCentroidEntry,
 	lastRefit *vocabLastRefitDoc,
+	derivation *vocabDerivationMeta,
 ) {
 	names, _ := deps.ListMD(vault)
 	modelID, dims := firstTermSidecarMeta(vault, names, deps.ReadFile)
@@ -304,6 +325,7 @@ func writeCentroidsFile(
 		Dims:             dims,
 		Terms:            entries,
 		LastRefit:        lastRefit,
+		Derivation:       derivation,
 	}
 
 	data, _ := json.Marshal(doc) //nolint:errchkjson // finite floats + string keys never fail to encode

@@ -45,6 +45,7 @@ var (
 	ExportApplyVocabAssignmentCore         = applyVocabAssignmentCore
 	ExportApplyVocabKHysteresis            = applyVocabKHysteresis
 	ExportAutoEmbedNote                    = autoEmbedNote
+	ExportBuildNamingRequests              = buildNamingRequests
 	ExportBuildSupersedesInverse           = BuildSupersedesInverse
 	ExportBumpLastUsed                     = bumpLastUsed
 	ExportBumpMajorVersion                 = bumpMajorVersion
@@ -53,7 +54,6 @@ var (
 	ExportChunkIndexHasEmptyFiles          = chunkIndexHasEmptyFiles
 	ExportChunkIndexHasPrunableDuplicates  = chunkIndexHasPrunableDuplicates
 	ExportClearRemovedTermsFromMembers     = clearRemovedTermsFromMembers
-	ExportCollectCurrentTermEntries        = collectCurrentTermEntries
 	ExportCollectTriggerVaultStats         = collectTriggerVaultStats
 	ExportCountQAPairs                     = countQAPairs
 	ExportDefaultRecencyParams             = defaultRecencyParams
@@ -81,6 +81,7 @@ var (
 	ExportMaxTurnBySource                  = maxTurnBySource
 	ExportMintDefinitionNote               = mintDefinitionNote
 	ExportMostRecentlyUsedNoteItems        = mostRecentlyUsedNoteItems
+	ExportNamedClustersToSeedTerms         = namedClustersToSeedTerms
 	ExportNewActivateDeps                  = newActivateDeps
 	ExportNewAmendDeps                     = newAmendDeps
 	ExportNewErrHandler                    = newErrHandler
@@ -93,6 +94,7 @@ var (
 	ExportOldVocabFilesPresent        = oldVocabFilesPresent
 	ExportParseCreatedFromNote        = parseCreatedFromNote
 	ExportParseNoteQueryFrontmatter   = parseNoteQueryFrontmatter
+	ExportParseRefitNames             = parseRefitNames
 	ExportParseSupersedesFlag         = parseSupersedesFlag
 	ExportParseTagsFromFrontmatter    = parseTagsFromFrontmatter
 	ExportParseTurnN                  = parseTurnN
@@ -101,6 +103,7 @@ var (
 	ExportPrintNoteExamples           = printNoteExamples
 	ExportPrintStatsReport            = printStatsReport
 	ExportProcessVocabDefinitionNote  = processVocabDefinitionNote
+	ExportReadCentroidsDoc            = readCentroidsDoc
 	ExportRecencyMultiplier           = recencyMultiplier
 	ExportRegenVocab                  = regenVocab
 	ExportRenderDefinitionNoteContent = renderDefinitionNoteContent
@@ -112,6 +115,7 @@ var (
 	ExportRenderQAQuestionNote        = renderQAQuestionNote
 	ExportResolveVault                = resolveVault
 	ExportRetagAllNotesTwoPass        = retagAllNotesTwoPass
+	ExportRetireVocabTerms            = retireVocabTerms
 	ExportRunActivate                 = RunActivate
 	ExportRunAmend                    = RunAmend
 	ExportRunLearn                    = runLearn
@@ -138,6 +142,7 @@ var (
 	ExportVocabDefinitionsMissingSelfTags = vocabDefinitionsMissingSelfTags
 	ExportVocabTermsFromTags              = vocabTermsFromTags
 	ExportWriteCentroidsDocRaw            = writeCentroidsDocRaw
+	ExportWriteCentroidsFile              = writeCentroidsFile
 	ExportWriteUpdateReport               = writeUpdateReport
 	ExportWriteVocabAssignment            = WriteVocabAssignment
 	ExportWriteVocabVersionToFamilyNote   = writeVocabVersionToFamilyNote
@@ -181,10 +186,6 @@ type ExportQueriedCandidateNote = queryCandidateNote
 
 type ExportRecencyParams = recencyParams
 
-// ExportRefitTermEntry aliases the unexported refitTermEntry so cli_test can
-// assert collectCurrentTermEntries results.
-type ExportRefitTermEntry = refitTermEntry
-
 // ExportResolvedItem aliases the unexported resolvedItem so cli_test can
 // construct test fixtures via ExportNewResolvedItem.
 type ExportResolvedItem = resolvedItem
@@ -203,13 +204,24 @@ type ExportVocabCentroidEntry = vocabCentroidEntry
 // Exported vocab schema types (Task 1).
 type ExportVocabCentroidsDoc = vocabCentroidsDoc
 
+type ExportVocabClusterName = vocabClusterName
+
 type ExportVocabDerivation = vocabDerivation
+
+// ExportVocabDerivationMeta aliases the centroids-file derivation metadata
+// (vocab-derivational-refit Task 2.3).
+type ExportVocabDerivationMeta = vocabDerivationMeta
 
 type ExportVocabLastRefitDoc = vocabLastRefitDoc
 
 type ExportVocabMatchResult = vocabMatchResult
 
 type ExportVocabNameMatch = vocabNameMatch
+
+type ExportVocabNamingExemplar = vocabNamingExemplar
+
+// Exported naming-request types (vocab-derivational-refit Task 2.2).
+type ExportVocabNamingRequest = vocabNamingRequest
 
 // ExportAppendUniqueProvenance returns the provenances slice after adding
 // role twice via the helper; verifies idempotency in tests.
