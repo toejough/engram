@@ -34,35 +34,24 @@ Every note written to the vault (via learn, amend, resituate) SHALL have its voc
 - **WHEN** `loadAssignmentTermVectors()` reads vocab.centroids.json and the embedding_model_id matches the loaded term sidecars
 - **THEN** terms whose centroid entry exists in the centroids file use the centroid vector; terms without a centroid entry fall back to their description vector (side-loaded from their sidecar)
 
-### Requirement: Two-pass refit with centroid derivation
-A refit operation SHALL run two passes over the vault's non-definition notes: pass 1 assigns terms against description vectors (or prior centroids), accumulating member-sets per term; pass 2 computes the mean vector of each term's accumulated members and re-assigns all notes against the new centroids. The derived centroids MUST be persisted to `vocab.centroids.json` alongside per-term member counts and the centroid derivation's timestamp.
-
-#### Scenario: Centroids are means of member vectors
-- **WHEN** `retagAllNotesTwoPass()` completes, pass-2 centroid assignment is applied, and `writeCentroidsFile()` persists the result
-- **THEN** `vocab.centroids.json` contains one entry per term with `member_count` (count of members) and `vector` (mean of all pass-1-assigned member vectors for that term)
-
-#### Scenario: Refit baseline seeds last_refit timestamp
-- **WHEN** `retagAllNotesTwoPass()` is called with a non-nil lastRefit parameter (bootstrap or scheduled refit)
-- **THEN** `vocab.centroids.json` includes `last_refit: {note_count: <total>, date: "YYYY-MM-DD"}` recording the vault state at refit time
-
 ### Requirement: Autonomous refit triggers
-The vault SHALL check its own tag health on every write (via `checkAndPersistVocabRefitTrigger`), evaluating three thresholds and setting `refit_pending: true` in `vocab.centroids.json` when any fires, without initiating refit itself. Triggers are: (a) growth—when notes added since last refit ≥ 40 AND days elapsed ≥ 14; (b) untagged rate—when fraction of notes without any vocab term > 8%; (c) hub concentration—when a single term claims > 25% of all notes. All trigger math SHALL derive member and untagged counts from non-definition notes only: a definition note's `vocab/<term>` self-tag MUST NOT count toward its term's membership, and definition notes MUST NOT count as untagged.
+The vault SHALL check its own tag health on every write (via `checkAndPersistVocabRefitTrigger`), setting `refit_pending: true` in `vocab.centroids.json` when the growth trigger fires, without initiating refit itself. The sole refit trigger is growth: notes added since last derivation ≥ 40 AND days elapsed ≥ 14. Untagged rate and hub concentration SHALL be reported by `vocab stats` as diagnostics only and MUST NOT set `refit_pending` or force a refit verdict. All trigger math SHALL derive counts from non-definition notes only: a definition note's `vocab/<term>` self-tag MUST NOT count toward its term's membership, and definition notes MUST NOT count as untagged.
 
 #### Scenario: Growth trigger armed by both constraints
 - **WHEN** `evaluateVocabTriggers()` finds `totalNotes - lastRefit.NoteCount ≥ 40` AND `daysSince ≥ 14`
 - **THEN** trigger fires with reason "growth: N notes, D days"
 
 #### Scenario: Untagged rate trigger
-- **WHEN** `evaluateVocabTriggers()` computes `untaggedCount / totalNotes > 0.08`
-- **THEN** trigger fires with reason "untagged: X.X%"
+- **WHEN** the fraction of non-definition notes without any vocab term exceeds 8% and the growth trigger has not fired
+- **THEN** `refit_pending` remains false and `vocab stats` reports the untagged rate (with a `[high]` diagnostic flag) without a REFIT_PENDING verdict
 
 #### Scenario: Hub concentration trigger
-- **WHEN** `evaluateVocabTriggers()` finds a term where `memberCount / totalNotes > 0.25`
-- **THEN** trigger fires with reason "hub: <term> (X%)"
+- **WHEN** a single term claims more than 25% of non-definition notes and the growth trigger has not fired
+- **THEN** `refit_pending` remains false and `vocab stats` reports the hub concentration without a REFIT_PENDING verdict
 
 #### Scenario: Self-tagged definitions leave trigger math unchanged
 - **WHEN** the same vault is evaluated before and after definitions gain `vocab/<term>` self-tags
-- **THEN** `evaluateVocabTriggers()` produces identical member counts, untagged counts, and trigger outcomes in both states
+- **THEN** the growth trigger's note count and outcome are identical in both states (definition notes are excluded from trigger math)
 
 ### Requirement: Tag nomination in recall queries
 Recall's query path SHALL nominate cross-cluster candidate notes that share a vocabulary tag with the top-3 matched notes in a cluster. When a cluster's top-3 delivered notes carry tags in the `vocab/<term>` namespace, every non-definition vault note also tagged with any of those terms MUST be nominated into that cluster's candidate list (up to 40 per cluster, deduplicated across clusters). Definition notes SHALL be excluded from nomination on BOTH sides: a definition MUST never be nominated into a pool, and a definition appearing among a cluster's top-3 delivered notes MUST NOT contribute its self-tag as a nomination seed — its `vocab/<term>` self-tag is a display affordance, not a membership claim. Nominated candidates SHALL carry cosine score 0 (tag-matched, not centroid-ranked).
@@ -104,4 +93,38 @@ When a note carries a `supersedes:` frontmatter block listing older notes it rep
 #### Scenario: Backfill is idempotent
 - **WHEN** `engram vocab tag-definitions` runs a second time over the same vault
 - **THEN** no note content changes and every definition is reported as already present
+
+### Requirement: Derivational refit with centroid derivation
+A refit operation SHALL derive the vocabulary from the vault's geometry: it clusters all non-definition note vectors using k-means with silhouette-based auto-K (reusing the recall clustering machinery), and the resulting clusters become the vocabulary's term set. Each derived cluster SHALL be matched to an existing term by greedy centroid cosine similarity above a match threshold; matched clusters keep the existing term's name and definition note. Unmatched clusters SHALL be surfaced as naming requests (structured output for agent-side LLM naming) and minted as new definition notes per the existing definition-note conventions. Existing derived terms left unmatched SHALL be retired: their definition notes superseded and their `vocab/<term>` tags stripped during the post-derivation re-tag pass. The derived centroids (mean of cluster member vectors) MUST be persisted to `vocab.centroids.json` with per-term member counts, an `origin: derived|proposed` provenance field, and the derivation timestamp. Refit MUST NOT accept an externally authored term plan.
+
+#### Scenario: Term count follows silhouette-optimal K
+- **WHEN** `engram vocab refit` runs over a vault of non-definition notes
+- **THEN** the resulting derived term count equals the K selected by silhouette-based auto-K over the note vectors, independent of the prior term count
+
+#### Scenario: Name stability across derivations
+- **WHEN** a derivation produces a cluster whose centroid cosine similarity to an existing term's centroid exceeds the match threshold
+- **THEN** the cluster keeps that term's name and definition note, and no new definition note is minted for it
+
+#### Scenario: Unmatched cluster is named, unmatched term is retired
+- **WHEN** a derivation produces a cluster matching no existing term, and an existing derived term matches no cluster
+- **THEN** the new cluster is emitted as a naming request and minted on answer with `tags: [vocab, vocab/<term>]`, and the unmatched term's definition note is superseded with its member tags stripped in the re-tag pass
+
+#### Scenario: Centroids are means of member vectors
+- **WHEN** derivation completes and `writeCentroidsFile` persists the result
+- **THEN** `vocab.centroids.json` contains one entry per term with `member_count`, `origin: derived` (for derivation-produced terms), and `vector` equal to the mean of that cluster's member vectors
+
+#### Scenario: Refit baseline seeds last_refit timestamp
+- **WHEN** a derivation applies (bootstrap or scheduled refit)
+- **THEN** `vocab.centroids.json` includes `last_refit: {note_count: <total non-definition notes>, date: "YYYY-MM-DD"}` recording the vault state at derivation time, and `refit_pending` is cleared
+
+#### Scenario: Dry run reports the derivation diff without writing
+- **WHEN** `engram vocab refit --dry-run` runs
+- **THEN** the matched/new/retired term sets, selected K, and silhouette score are printed and no vault file or centroids file is modified
+
+### Requirement: Proposed terms survive derivation
+Terms minted via `engram vocab propose` SHALL carry `origin: proposed` in `vocab.centroids.json` and MUST NOT be retired by a derivation that produces no matching cluster — they exist precisely to represent concepts the clustering cannot see. Proposed terms participate in write-time assignment normally.
+
+#### Scenario: Unmatched proposed term is kept
+- **WHEN** a derivation completes and a term with `origin: proposed` matches no derived cluster
+- **THEN** the term's definition note and centroid entry remain, marked `origin: proposed`, and member tags assigned to it are not stripped
 

@@ -22,9 +22,13 @@ A refit operation SHALL derive the vocabulary from the vault's geometry: it clus
 - **WHEN** a derivation produces a cluster matching no existing term, and an existing derived term matches no cluster
 - **THEN** the new cluster is emitted as a naming request and minted on answer with `tags: [vocab, vocab/<term>]`, and the unmatched term's definition note is superseded with its member tags stripped in the re-tag pass
 
-#### Scenario: Centroids are means of derived cluster members
+#### Scenario: Centroids are means of member vectors
 - **WHEN** derivation completes and `writeCentroidsFile` persists the result
-- **THEN** `vocab.centroids.json` contains one entry per term with `member_count`, `origin: derived` (for derivation-produced terms), and `vector` equal to the mean of that cluster's member vectors, plus `last_refit: {note_count, date}`
+- **THEN** `vocab.centroids.json` contains one entry per term with `member_count`, `origin: derived` (for derivation-produced terms), and `vector` equal to the mean of that cluster's member vectors
+
+#### Scenario: Refit baseline seeds last_refit timestamp
+- **WHEN** a derivation applies (bootstrap or scheduled refit)
+- **THEN** `vocab.centroids.json` includes `last_refit: {note_count: <total non-definition notes>, date: "YYYY-MM-DD"}` recording the vault state at derivation time, and `refit_pending` is cleared
 
 #### Scenario: Dry run reports the derivation diff without writing
 - **WHEN** `engram vocab refit --dry-run` runs
@@ -37,13 +41,17 @@ The vault SHALL check its own tag health on every write (via `checkAndPersistVoc
 - **WHEN** `evaluateVocabTriggers()` finds `totalNotes - lastRefit.NoteCount ≥ 40` AND `daysSince ≥ 14`
 - **THEN** trigger fires with reason "growth: N notes, D days"
 
-#### Scenario: Untagged rate is diagnostic only
+#### Scenario: Untagged rate trigger
 - **WHEN** the fraction of non-definition notes without any vocab term exceeds 8% and the growth trigger has not fired
-- **THEN** `refit_pending` remains false and `vocab stats` reports the untagged rate without a REFIT_PENDING verdict
+- **THEN** `refit_pending` remains false and `vocab stats` reports the untagged rate (with a `[high]` diagnostic flag) without a REFIT_PENDING verdict
 
-#### Scenario: Hub concentration is diagnostic only
+#### Scenario: Hub concentration trigger
 - **WHEN** a single term claims more than 25% of non-definition notes and the growth trigger has not fired
 - **THEN** `refit_pending` remains false and `vocab stats` reports the hub concentration without a REFIT_PENDING verdict
+
+#### Scenario: Self-tagged definitions leave trigger math unchanged
+- **WHEN** the same vault is evaluated before and after definitions gain `vocab/<term>` self-tags
+- **THEN** the growth trigger's note count and outcome are identical in both states (definition notes are excluded from trigger math)
 
 ## ADDED Requirements
 
