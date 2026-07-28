@@ -25,6 +25,6 @@
 
 ## 5. Verification
 
-- [ ] 5.1 `targ test` + `targ check-full` green
-- [ ] 5.2 Run `engram vocab refit --dry-run` against the real 574-note vault with the installed binary from a non-vault cwd; inspect matched/new/retired diff and K for sanity
-- [ ] 5.3 Update `openspec/specs/vault-vocab-lifecycle/spec.md` sync via delta; validate change with `openspec validate`
+- [x] 5.1 `targ test` + `targ check-full` green
+- [x] 5.2 Run `engram vocab refit --dry-run` against the real 574-note vault with the installed binary from a non-vault cwd; inspect matched/new/retired diff and K for sanity
+- [x] 5.3 Update `openspec/specs/vault-vocab-lifecycle/spec.md` sync via delta; validate change with `openspec validate`

@@ -64,4 +64,8 @@ Grep over `refit|emit-request|two-pass|refit_pending|new_terms|untagged` across 
 ## Open Questions
 
 - Exact name-match threshold and silhouette hysteresis epsilon — settle empirically during implementation on the two real vaults (574-note and 400-note states are ideal test corpora).
-- Whether K should be bounded below (e.g. min 5) for tiny vaults where silhouette degenerates.
+- Whether K should be bounded below (e.g. min 5) for tiny vaults where silhouette degenerates. RESOLVED during implementation: min-K stays 2 with K=0 (no derivation) for structureless data.
+
+## Measured calibration (2026-07-28, production vault probe)
+
+Whole-vault silhouette on the real 597-vector corpus peaks at 0.0987 (K=9); the full K∈[2,40] range spans 0.078–0.099. The initially chosen floor of 0.10 (borrowed from recall's query-subset clustering) made derivation a permanent K=0 no-op on real data — the recall floor does not transfer to whole-vault MiniLM geometry. The floor is therefore a noise-rejection bound only (0.02): argmax silhouette selects K; the floor exists solely to reject degenerate/no-structure data. Caveat for first production refit: measured K=9 vs 29 current terms means a first apply would retire most existing terms (subject to the 0.80 name-match threshold) — the `--dry-run` review before a real apply is load-bearing, not ceremonial.

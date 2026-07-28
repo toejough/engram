@@ -22,9 +22,21 @@ const (
 	// the caller keeps the existing vocabulary rather than forcing a floor of
 	// artificial clusters onto too little data.
 	vocabDeriveMinK = cluster.MinClustersK
-	// vocabDeriveSilhouetteFloor is the minimum silhouette for a derivation
-	// to count as structure, matching recall's clusterSilhouetteFloor.
-	vocabDeriveSilhouetteFloor = 0.10
+	// vocabDeriveSilhouetteFloor is a NOISE-REJECTION floor only: it rejects
+	// degenerate no-structure input (e.g. identical vectors, silhouette ~0)
+	// and never arbitrates between plausible clusterings — argmax silhouette
+	// decides K. Measured on the real 597-vector vault (2026-07-28 probe):
+	// silhouette peaks at 0.0987 (K=9) and the whole K∈[2,40] range spans
+	// 0.078–0.099, so a 0.10 floor (copied from recall's
+	// clusterSilhouetteFloor) made derivation a permanent K=0 no-op. The
+	// recall premise doesn't transfer: recall clusters ~30 tight
+	// query-matched notes, while whole-vault 384-d MiniLM clouds live in the
+	// 0.05–0.15 band. 0.02 sits well below that operating band. (The 0.0987
+	// figure is from a probe replica on a vault copy; the shipped AutoK's
+	// dry-run on the live vault derived K=33 at silhouette 0.100 — replica
+	// vs binary drift is expected, the binary is authoritative, and both
+	// sit in the same whole-vault band.)
+	vocabDeriveSilhouetteFloor = 0.02
 	// vocabNameMatchThreshold is the minimum centroid cosine similarity for a
 	// derived cluster to claim an existing term's name (design decision 2,
 	// starting value 0.80 — tune empirically on the real vaults).

@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"math"
+	"strconv"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -118,6 +119,50 @@ func TestDeriveVocabClusters_ConservesAllNotes(t *testing.T) {
 			g.Expect(count).To(Equal(1), "note %s assigned %d times", name, count)
 		}
 	})
+}
+
+// TestDeriveVocabClusters_DegenerateCorpusYieldsZero verifies the
+// noise-rejection floor still fires on truly structureless input: identical
+// vectors have silhouette 0, below even the lowered floor, so derivation
+// reports no structure.
+func TestDeriveVocabClusters_DegenerateCorpusYieldsZero(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	notes := make([]cli.ExportNoteVector, 0, degenerateCorpusSize)
+	for i := range degenerateCorpusSize {
+		name := "same-" + string(rune('a'+i)) + ".md"
+		notes = append(notes, cli.ExportNoteVector{Name: name, Vector: []float32{1, 0}})
+	}
+
+	derivation, err := cli.ExportDeriveVocabClusters(notes, noPreviousK, testDeriveSeed)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(derivation.K).To(BeZero())
+	g.Expect(derivation.Clusters).To(BeEmpty())
+}
+
+// TestDeriveVocabClusters_DiffuseCorpusYieldsNonZeroK pins the noise-floor
+// semantics of the silhouette floor: a diffuse-but-structured corpus whose
+// peak silhouette sits in the ~0.05-0.09 band (where the real 597-note vault
+// measured its 0.0987 peak) must yield a non-zero K — never a no-op. The floor
+// exists only to reject degenerate no-structure input, not to arbitrate
+// among plausible clusterings.
+func TestDeriveVocabClusters_DiffuseCorpusYieldsNonZeroK(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	derivation, err := cli.ExportDeriveVocabClusters(diffuseCorpusNotes(), noPreviousK, testDeriveSeed)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// The fixture's measured peak silhouette is ~0.074 — inside the real-vault
+	// operating band and below the refuted 0.10 floor that zeroed derivation.
+	g.Expect(derivation.Silhouette).To(BeNumerically("<", 0.10))
+	g.Expect(derivation.Silhouette).To(BeNumerically(">=", 0.02))
+	g.Expect(derivation.K).To(BeNumerically(">", 0), "diffuse corpus must derive a non-zero K, not no-op")
+	g.Expect(derivation.Clusters).To(HaveLen(derivation.K))
 }
 
 // ── Task 1.1: derivation core — cluster non-definition note vectors ──────────
@@ -360,6 +405,17 @@ const (
 	blobJitter = float32(0.05)
 	// centroidTolerance bounds float32 accumulation error in mean checks.
 	centroidTolerance = 1e-4
+	// degenerateCorpusSize is enough identical vectors to attempt clustering
+	// (well above minK) while guaranteeing silhouette 0.
+	degenerateCorpusSize = 10
+	// diffuseClusterBias is the weak per-cluster signal added on top of the
+	// pseudo-noise — tuned so the fixture's peak silhouette lands ~0.074,
+	// inside the real vault's measured operating band.
+	diffuseClusterBias = float32(0.25)
+	// diffuseCorpusDims spreads the noise over enough dimensions that cosine
+	// similarities stay diffuse, mimicking a whole-vault embedding cloud.
+	diffuseCorpusDims = 32
+	diffuseCorpusSize = 120
 	maxBlobSize       = 8
 	// maxMatchEntities bounds generated cluster/term counts in the matching
 	// property test; names stay within a single alphabetic suffix.
@@ -367,6 +423,11 @@ const (
 	minBlobSize      = 3
 	// noPreviousK signals a first derivation with no prior K to prefer.
 	noPreviousK = 0
+	// noiseHashScaleA/B/C parameterize the deterministic sin-hash noise
+	// (classic frac(sin(n)*large) generator) used instead of math/rand.
+	noiseHashScaleA = 12.9898
+	noiseHashScaleB = 78.233
+	noiseHashScaleC = 43758.5453
 	// testDeriveSeed keeps k-means deterministic across test runs.
 	testDeriveSeed = uint64(42)
 )
@@ -382,6 +443,37 @@ func blobNotes(prefix string, count int, center []float32) []cli.ExportNoteVecto
 		vector[0] += blobJitter * float32(i%3)
 
 		name := prefix + "-" + string(rune('a'+i)) + ".md"
+		notes = append(notes, cli.ExportNoteVector{Name: name, Vector: vector})
+	}
+
+	return notes
+}
+
+// diffuseCorpusNotes builds a deterministic diffuse-but-structured corpus:
+// unit pseudo-noise vectors with a weak two-cluster bias, whose peak
+// silhouette sits in the sub-0.10 band real vault embedding clouds occupy.
+func diffuseCorpusNotes() []cli.ExportNoteVector {
+	notes := make([]cli.ExportNoteVector, 0, diffuseCorpusSize)
+
+	for i := range diffuseCorpusSize {
+		vector := make([]float32, diffuseCorpusDims)
+
+		var norm float64
+
+		for dim := range diffuseCorpusDims {
+			noise := pseudoNoise(float64(i)*noiseHashScaleA + float64(dim)*noiseHashScaleB)
+			vector[dim] = float32(noise)
+			norm += noise * noise
+		}
+
+		norm = math.Sqrt(norm)
+		for dim := range vector {
+			vector[dim] /= float32(norm)
+		}
+
+		vector[i%2] += diffuseClusterBias
+
+		name := "diffuse-" + strconv.Itoa(i) + ".md"
 		notes = append(notes, cli.ExportNoteVector{Name: name, Vector: vector})
 	}
 
@@ -405,6 +497,14 @@ func meanOfNamed(vectorsByName map[string][]float32, names []string) []float32 {
 	}
 
 	return mean
+}
+
+// pseudoNoise maps n to a deterministic pseudo-random value in [-1, 1) via
+// the classic frac(sin(n)*large) hash — reproducible without math/rand.
+func pseudoNoise(n float64) float64 {
+	scaled := math.Sin(n) * noiseHashScaleC
+
+	return 2*(scaled-math.Floor(scaled)) - 1
 }
 
 // twoBlobNotes returns eight notes in two tight, well-separated groups.
