@@ -24,7 +24,7 @@ A refit operation SHALL derive the vocabulary from the vault's geometry: it clus
 
 #### Scenario: Centroids are means of derived cluster members
 - **WHEN** derivation completes and `writeCentroidsFile` persists the result
-- **THEN** `vocab.centroids.json` contains one entry per term with `member_count`, `origin`, and `vector` equal to the mean of that cluster's member vectors, plus `last_refit: {note_count, date}`
+- **THEN** `vocab.centroids.json` contains one entry per term with `member_count`, `origin: derived` (for derivation-produced terms), and `vector` equal to the mean of that cluster's member vectors, plus `last_refit: {note_count, date}`
 
 #### Scenario: Dry run reports the derivation diff without writing
 - **WHEN** `engram vocab refit --dry-run` runs

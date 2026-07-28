@@ -2,7 +2,7 @@
 
 ## 1. Derivation core
 
-- [ ] 1.1 TDD: derivation function clustering non-definition note vectors via `internal/cluster` silhouette-auto-K, returning clusters + centroids (pure logic, DI'd inputs)
+- [ ] 1.1 TDD: derivation function clustering non-definition note vectors via `internal/cluster` silhouette-auto-K — AutoK returns flat `Assignments []int` over bare vectors, so this function owns the note↔vector correlation and groups members per cluster index (pure logic, DI'd inputs)
 - [ ] 1.2 TDD: greedy centroid-cosine name matching against existing terms (threshold constant; unmatched-cluster and unmatched-term outputs)
 - [ ] 1.3 TDD: silhouette hysteresis (prefer previous K within epsilon) and min-K floor decision from design open questions
 
@@ -11,11 +11,12 @@
 - [ ] 2.1 TDD: retirement flow — supersede unmatched derived terms' definition notes, strip their tags in the re-tag pass; `origin: proposed` terms exempt
 - [ ] 2.2 TDD: naming-request emission for unmatched clusters (structured output with centroid-nearest exemplar notes) and mint-on-answer path reusing `mintDefinitionNote`
 - [ ] 2.3 TDD: `vocab.centroids.json` gains `origin` per term + derivation metadata; atomic write via existing locked write path; readable by old binary (additive fields)
-- [ ] 2.4 Rewire `RunVocabRefit` to the derivation flow; remove `--emit-request`/`--plan` and plan types; add `--dry-run` diff output
+- [ ] 2.4 TDD: stamp `origin: proposed` in `RunVocabPropose`'s centroid write path (provenance is NEW plumbing — nothing distinguishes proposed from minted terms today), and default existing/bootstrap terms to `origin: derived` on first derivation
+- [ ] 2.5 Rewire `RunVocabRefit` to the derivation flow; remove `--emit-request`/`--plan` and plan types; add `--dry-run` diff output
 
 ## 3. Triggers
 
-- [ ] 3.1 TDD: `evaluateVocabTriggers` growth-only for `refit_pending`; untagged/hub demoted to diagnostics in `vocab stats` output (no REFIT_PENDING verdict)
+- [ ] 3.1 TDD: `evaluateVocabTriggers` growth-only for `refit_pending`; untagged/hub demoted to diagnostics in `vocab stats` output (no REFIT_PENDING verdict); verify `refitUntaggedRateMax`/`hubThreshold` constants stay referenced by the diagnostics path in the same pass (unused-const lint)
 
 ## 4. Skill + docs
 

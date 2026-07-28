@@ -14,6 +14,14 @@ The current vocab refit loop is structurally additive-only: the untagged-rate tr
 - **`vocab propose` is retained** as the sole judgment-based escape hatch for geometrically scattered concepts the clustering cannot see. Proposed terms are marked as such and excluded from derivation-driven retirement.
 - Write-time top-3 cosine assignment, definition notes, `vocab.centroids.json`, and self-tag conventions are unchanged; centroids are now written by derivation (mean of cluster members) rather than two-pass refit.
 
+### Beyond the literal ask
+
+The ask was "vocab must not be purely additive; derive it from the global centroids." Three decisions here go further, as necessary consequences of derivation rather than direct requests — user-visible in the explore session that produced this change and re-flagged here for explicit sign-off:
+
+- **CLI plan-flow removal** (`--emit-request`/`--plan`): derivation cannot coexist with an externally authored term list; keeping the flow would preserve the additive path.
+- **Term retirement**: a derived term whose cluster disappears is actively superseded, not left dormant — dormant terms re-attract members at assignment time and defeat convergence.
+- **Trigger demotion** (untagged/hub → diagnostics): under derivation these signals no longer indicate "mint terms"; leaving them as refit-forcers would re-arm the ratchet's cadence without its mechanism.
+
 ## Capabilities
 
 ### New Capabilities
