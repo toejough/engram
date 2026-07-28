@@ -1,6 +1,6 @@
 ## Why
 
-`engram update` installs the new binary first (`resolveSource` → `go install ./cmd/engram/`, internal/update/update.go:370) and then the still-running old process performs all planning, harness sync, and vault checks with the previous release's logic. Any release that changes *how* update works (plan shape, deploy rules, new checks — e.g. the recent deploy-as-sync removal propagation) only takes effect on the run *after* the one that installed it, so users are always one update behind on update behavior itself.
+`engram update` installs the new binary first (`resolveSource` → `go install ./cmd/engram/`, internal/update/update.go:370) and then the still-running old process performs all planning, harness sync, and vault checks with the pre-install binary's compiled logic. Any release that changes *how* update works (plan shape, deploy rules, new checks — e.g. the recent deploy-as-sync removal propagation) only takes effect on the run *after* the one that installed it, so users are always one update behind on update behavior itself.
 
 ## What Changes
 

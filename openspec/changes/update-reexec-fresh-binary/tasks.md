@@ -1,6 +1,6 @@
 ## 1. Exec primitive and DI plumbing
 
-- [ ] 1.1 Add a process-spawn primitive (run binary with args + env, inherited stdio, returns exit code) to `cli.Primitives` and a thin adapter in `cli.NewDeps`; keep `cmd/engram/main.go` checker-thin (`targ check-thin-api` passes)
+- [ ] 1.1 Add a process-spawn primitive (run binary with args + env, inherited stdio; returns `(exitCode int, err error)` — err strictly for spawn failure, distinct from a started child's non-zero exit) to `cli.Primitives` and a thin adapter in `cli.NewDeps`; keep `cmd/engram/main.go` checker-thin (`targ check-thin-api` passes)
 - [ ] 1.2 Extend the update deps with the injected exec interface and an env-getter for the `ENGRAM_UPDATE_REEXEC` sentinel (imptest mock generated)
 
 ## 2. Re-exec in Updater.Run (TDD per spec scenarios)
@@ -8,8 +8,9 @@
 - [ ] 2.1 RED: tests for sentinel run — no install invoked, no spawn, sync/checks proceed in-process
 - [ ] 2.2 RED: tests for successful install → spawn of resolved installed path with original args + sentinel env, parent performs no plan/apply, parent returns child's exit code
 - [ ] 2.3 RED: tests for dry-run (no install, no spawn) and for spawn failure → in-process fallback with report line carrying the underlying error
-- [ ] 2.4 GREEN: implement sentinel check in `resolveSource`, re-exec boundary in `Updater.Run` after successful install, fallback path, report attribution (install output in parent, single sync report in child)
-- [ ] 2.5 REFACTOR: clean split of pre-/post-boundary phases; ensure vault/vocab/chunk checks in `internal/cli/update.go` run only on the child/fallback path
+- [ ] 2.4 GREEN: implement sentinel check in `resolveSource`, re-exec boundary in `Updater.Run` after successful install (recording `Report.ReexecExitCode` per design D8), fallback path, report attribution (install output in parent, single sync report in child)
+- [ ] 2.5 GREEN (control flow, D8): `runUpdate` in `internal/cli/update.go` branches on the report's handoff signal immediately after `updater.Run` returns and calls `deps.Exit(code)` BEFORE the vault/vocab/chunk-check block; tests cover parent-exits-early and fallback-continues paths
+- [ ] 2.6 REFACTOR: clean split of pre-/post-boundary phases; fix stale `go install ...@latest` comment at update.go:1149 (clone-based per #645)
 
 ## 3. Verification and close-out
 

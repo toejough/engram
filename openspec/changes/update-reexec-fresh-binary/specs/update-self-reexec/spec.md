@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Sync phase runs in the freshly installed binary
-When `engram update` successfully installs a new binary, it SHALL re-exec that installed binary (at the resolved installed path, not the running process's path) to perform all subsequent phases — planning, harness sync, and vault/index checks — and the parent process SHALL exit with the re-execed process's exit code without performing those phases itself.
+When `engram update`'s binary install step completes without error, it SHALL re-exec the installed binary (at the resolved installed path, not the running process's path) to perform all subsequent phases — planning, harness sync, and vault/index checks — and the parent process SHALL exit with the re-execed process's exit code without performing those phases itself.
 
 #### Scenario: Post-install phases execute in the new binary
 - **WHEN** `engram update` runs, the install step succeeds, and re-exec succeeds
@@ -12,7 +12,7 @@ When `engram update` successfully installs a new binary, it SHALL re-exec that i
 - **THEN** the re-exec invokes the resolved installed binary path
 
 ### Requirement: Loop-guard sentinel prevents repeated install
-The re-exec invocation SHALL carry a sentinel in its environment meaning "install already completed — sync only." A `engram update` run that observes the sentinel MUST NOT perform source resolution or binary install and MUST NOT re-exec again; it SHALL proceed directly to planning, sync, and checks.
+The re-exec invocation SHALL carry a sentinel in its environment (`ENGRAM_UPDATE_REEXEC=1`) meaning "install already completed — sync only." A `engram update` run that observes the sentinel MUST NOT perform source resolution or binary install and MUST NOT re-exec again; it SHALL proceed directly to planning, sync, and checks.
 
 #### Scenario: Sentinel run skips install and does not re-exec
 - **WHEN** `engram update` runs with the loop-guard sentinel set in its environment

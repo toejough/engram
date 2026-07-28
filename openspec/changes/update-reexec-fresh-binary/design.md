@@ -18,19 +18,21 @@ Constraints: DI-everywhere (internal/ may not touch `os.*`/`exec` directly — n
 
 ## Decisions
 
-**D1 — Re-exec as child process, not `syscall.Exec`.** After a successful install, the old process spawns the installed binary as a child with stdio inherited, waits, and exits with the child's exit code. Rationale: portable, testable through the existing `Cmd`-style runner interface, and keeps the DI seam trivial (`syscall.Exec` never returns, which is hostile to unit tests and to the thin-API pattern). Alternative rejected: process-image replacement via `syscall.Exec` — marginally cleaner process tree but untestable and unix-syscall-specific.
+**D1 — Re-exec as child process, not `syscall.Exec`.** After a successful install, the old process spawns the installed binary as a child with stdio inherited, waits, and exits with the child's exit code. This requires a NEW spawn primitive: the existing `Commander` interface (update.go:88-90) captures stdout/stderr to byte slices, cannot inherit stdio, and takes no environment — it is not reusable for this. The new primitive's signature distinguishes spawn failure from child exit: `(exitCode int, err error)`, where `err` is non-nil only when the process could not be started (binary missing/not executable) and `exitCode` carries a started child's result (signal death maps to non-zero). D5's fallback branches on `err != nil`; a started child's non-zero exit propagates verbatim, never falls back. Rationale: portable, testable, and keeps the DI seam trivial (`syscall.Exec` never returns, which is hostile to unit tests and to the thin-API pattern). Alternative rejected: process-image replacement via `syscall.Exec` — marginally cleaner process tree but untestable and unix-syscall-specific.
 
 **D2 — Loop guard via environment sentinel `ENGRAM_UPDATE_REEXEC=1`, not a CLI flag.** The child runs `engram update <original args>` with the sentinel set in its environment; a set sentinel makes the child skip `resolveSource` (no install, no further re-exec) and run sync/checks only. Rationale: keeps the sentinel out of the public CLI surface (a hidden `--sync-only` flag would be discoverable, shell-history-visible, and invocable by users in ways we'd have to define semantics for). Env read/set goes through the injected primitives (env-getter already exists for `$HOME` resolution; extended, not bypassed).
 
 **D3 — Re-exec whenever an install ran and succeeded; no version comparison.** `--dry-run` skips install and therefore never re-execs; a failed/skipped install also never re-execs. When install succeeds we re-exec unconditionally rather than comparing `BinaryVersion` to the running build. Rationale: deterministic, and the no-op case (binary unchanged) costs one process spawn of a local binary — not worth a version-equality code path plus its edge cases (dirty local builds share short-HEADs with different bytes).
 
-**D4 — Re-exec target is `resolveBinaryPath` (update.go:2375), the installed path — never `os.Args[0]`.** The running image may be a stale path or a different location; the point is to run what `go install` just wrote. If that path is missing or fails to spawn, fall back per D5.
+**D4 — Re-exec target is `resolveBinaryPath` (update.go:2377), the installed path — never `os.Args[0]`.** The running image may be a stale path or a different location; the point is to run what `go install` just wrote. If that path is missing or fails to spawn, fall back per D5.
 
 **D5 — Fallback: on re-exec failure, complete in-process and say so.** Spawn error → log a warning into the report ("re-exec failed, completed with pre-update logic: <err>") and continue with the old code path exactly as today. Rationale: an update that installed a new binary but failed to re-exec is still strictly better than an aborted update; next run is fresh anyway.
 
 **D6 — Report attribution.** The child's report notes it ran re-execed (sentinel present + recorded `BinaryVersion` handed over via the environment or re-derived); the parent contributes only install output before handing off. Avoids double-printing the sync report.
 
-**D7 — Split point is `Updater.Run`, not the CLI wrapper.** The re-exec happens inside `Run` immediately after a successful `resolveSource`; everything after (plan, applyOps) plus the CLI wrapper's vault checks then run only in the child (parent exits with child's code before reaching them). The sentinel check lives at the top of `resolveSource`.
+**D7 — Split point spans `Updater.Run` AND the CLI wrapper.** The re-exec spawn happens inside `Run` immediately after a successful `resolveSource`; the sentinel check lives at the top of `resolveSource`. But `Updater` (`internal/update`) has no process-exit authority — `Exit func(int)` lives on `cli.Deps` — and `runUpdate` (`internal/cli/update.go:358`) performs vault/vocab/chunk-index checks AFTER `Run` returns. So the handoff is signalled, not assumed:
+
+**D8 — Handoff signal in the Report.** `Updater.Run` records the handoff on the report (`Report.ReexecExitCode *int` — set iff a child was spawned and waited on) and returns without planning/applying. `runUpdate` branches on that field immediately after `Run` returns, BEFORE the vault-check block, and calls `deps.Exit(*code)` — so the parent never runs vault checks. On fallback (spawn error), the field stays nil, `Run` completes in-process, and `runUpdate` proceeds as today. This is a load-bearing control-flow change in `internal/cli/update.go`, listed as its own task, not a refactor cleanup.
 
 ## Risks / Trade-offs
 
@@ -59,7 +61,8 @@ Grep: `go install|resolveSource|update flow|engram update` over docs/, README.md
 | CLAUDE.md | keep | directory descriptions only, no flow invariant |
 | agent-instructions/guidance/*.md | N/A | no update-flow content (grep hits are unrelated uses of "update") |
 | docs/superpowers/plans/*.md | N/A | historical plan records, not living docs |
-| openspec/specs/update-deploy-sync/spec.md | keep | sync semantics unchanged; new capability gets its own spec on archive |
+| openspec/specs/update-deploy-sync/spec.md | keep | sync semantics unchanged; the new `update-self-reexec` delta spec in this change is synced into `openspec/specs/` by the openspec archive step |
+| internal/update/update.go:1149 (code comment) | update | comment still claims remote mode runs `go install ...@latest`; code is clone-based (#645) — fix while in the file |
 | docs/ROADMAP.md, memory-invariants.md, memory-system-rigor.md | keep | tangential mentions, no install-order invariant |
 
 ## Open Questions
