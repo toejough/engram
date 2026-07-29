@@ -15,12 +15,14 @@ import (
 
 // Exported constants.
 const (
-	ExportDefaultContentBudget    = defaultContentBudget
-	ExportDefaultRecentFill       = defaultRecentFill
-	ExportVocabNameMatchThreshold = vocabNameMatchThreshold
-	ExportVocabOriginDerived      = vocabOriginDerived
-	ExportVocabOriginProposed     = vocabOriginProposed
-	ExportVocabSilhouetteEpsilon  = vocabSilhouetteEpsilon
+	ExportDefaultContentBudget      = defaultContentBudget
+	ExportDefaultRecentFill         = defaultRecentFill
+	ExportExploreMatchEvidenceBonus = exploreMatchEvidenceBonus
+	ExportExploreTemperatureDefault = exploreTemperatureDefault
+	ExportVocabNameMatchThreshold   = vocabNameMatchThreshold
+	ExportVocabOriginDerived        = vocabOriginDerived
+	ExportVocabOriginProposed       = vocabOriginProposed
+	ExportVocabSilhouetteEpsilon    = vocabSilhouetteEpsilon
 )
 
 // Exported variables.
@@ -160,6 +162,12 @@ type ExportDerivedCluster = derivedCluster
 
 type ExportExistingVocabTerm = existingVocabTerm
 
+// ExportExploreCandidate exposes exploreCandidate for explore-sampling tests.
+type ExportExploreCandidate = exploreCandidate
+
+// ExportExplorePick exposes explorePick for explore-sampling tests.
+type ExportExplorePick = explorePick
+
 type ExportFactFields = factFields
 
 type ExportFeedbackFields = feedbackFields
@@ -232,6 +240,16 @@ func ExportAppendUniqueProvenance(initial []string, roles ...string) []string {
 	}
 
 	return item.provenances
+}
+
+// ExportApplyMatchEvidenceBonus exposes applyMatchEvidenceBonus for
+// explore-sampling tests.
+func ExportApplyMatchEvidenceBonus(
+	similarities map[string]float32,
+	evidenced map[string]bool,
+	bonus float32,
+) map[string]float32 {
+	return applyMatchEvidenceBonus(similarities, evidenced, bonus)
 }
 
 // ExportApplyVocabAssignmentAfterResituate exposes applyVocabAssignmentAfterResituate
@@ -360,6 +378,17 @@ func ExportClearChunkContent(kinds, contents []string) []string {
 // ExportCollectVaultStats exposes collectVaultStats for cli_test fixtures.
 func ExportCollectVaultStats(names []string, deps VocabStatsDeps, vault string) ([]string, map[string]int, int, int) {
 	return collectVaultStats(names, deps, vault)
+}
+
+// ExportDedupeAndBackfill exposes dedupeAndBackfill for explore-sampling
+// tests.
+func ExportDedupeAndBackfill(
+	allocated map[string]int,
+	order []string,
+	rankedByTerm map[string][]explorePick,
+	exploitPaths map[string]struct{},
+) []explorePick {
+	return dedupeAndBackfill(allocated, order, rankedByTerm, exploitPaths)
 }
 
 // Exported functions.
@@ -882,7 +911,32 @@ func ExportScoredChunkRecord(s scoredChunk) chunk.Record { return s.record }
 // ExportScoredChunkScore / Record expose the unexported fields for assertions.
 func ExportScoredChunkScore(s scoredChunk) float32 { return s.score }
 
+// ExportSelectWithinCluster exposes selectWithinCluster for explore-sampling
+// tests.
+func ExportSelectWithinCluster(
+	term string,
+	centroid []float32,
+	members []exploreCandidate,
+	k int,
+) []explorePick {
+	return selectWithinCluster(term, centroid, members, k)
+}
+
 // ExportSnippet exposes the snippet helper for the content-cap tests.
 func ExportSnippet(content string) string {
 	return snippet(content)
+}
+
+// ExportSoftmaxAllocate exposes softmaxAllocate for explore-sampling tests.
+func ExportSoftmaxAllocate(similarities map[string]float32, temperature float32, budget int) map[string]int {
+	return softmaxAllocate(similarities, temperature, budget)
+}
+
+// ExportTermsWithExploitEvidence exposes termsWithExploitEvidence for
+// explore-sampling tests.
+func ExportTermsWithExploitEvidence(
+	members map[string][]exploreCandidate,
+	exploitPaths map[string]struct{},
+) map[string]bool {
+	return termsWithExploitEvidence(members, exploitPaths)
 }
