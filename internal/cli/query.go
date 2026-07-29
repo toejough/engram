@@ -141,9 +141,13 @@ const (
 	// of the unified ranking entirely (measured: real-path note recall@5 0.19 vs
 	// 0.81 isolation). The reservation only ever promotes notes that already clear
 	// matchRelevanceFloor, so it never surfaces an irrelevant note.
-	noteFloorK               = 5
-	provenanceClusterRep     = "cluster_rep"
-	provenanceDirect         = "direct"
+	noteFloorK           = 5
+	provenanceClusterRep = "cluster_rep"
+	provenanceDirect     = "direct"
+	// provenanceExplore tags explore-half note items sampled from global vocab
+	// clusters (design.md Decision 6). Carries a source_term but no cluster_id
+	// — explore picks are not cluster members.
+	provenanceExplore        = "explore"
 	provenanceRankClusterRep = 2
 	provenanceRankDirect     = 3
 	// provenanceRecent tags un-clustered recency-channel chunks (Channel 2,
@@ -194,11 +198,10 @@ type aggregatedSummary struct {
 	limit          int
 	contentBudget  int
 	lazyChunks     bool
-	// tagNomsAdded/tagNomsDropped carry the tag-nomination tally into the
-	// payload budget (no-silent-caps rule: truncation is always reported).
-	tagNomsAdded   int
-	tagNomsDropped int
-	refitPending   bool
+	// exploreAllocated carries the explore-half per-term delivered counts
+	// into the payload budget (design.md Decision 6).
+	exploreAllocated map[string]int
+	refitPending     bool
 	// timer is nil-safe (#691 --timings instrumentation); nil when timing is
 	// disabled, in which case every phaseTimer method is a no-op.
 	timer *phaseTimer
@@ -319,10 +322,9 @@ func (p *phaseTimer) timings() *queryTimings {
 // phrasedCluster pairs a cluster report with the phrase that produced it,
 // so the payload can tag each cluster with its originating query phrase.
 type phrasedCluster struct {
-	phrase         string
-	report         clusterReport
-	matched        matchedSet
-	tagNominations map[int][]queryCandidateNote // tag-match nominations per cluster ID
+	phrase  string
+	report  clusterReport
+	matched matchedSet
 }
 
 // queryBudget reports the totals visible to the caller per the YAML schema.
@@ -336,13 +338,13 @@ type queryBudget struct {
 	Limit                int `yaml:"limit"`
 	ContentBudget        int `yaml:"content_budget"`
 	ChunksSnippeted      int `yaml:"chunks_snippeted"`
-	// TagNominationsAdded/Dropped surface the tag-match nomination tally
-	// (no-silent-caps rule): added = nominations OFFERED post-cap (render-time
-	// path-dedup may skip ones already present as candidates); dropped =
-	// nominations truncated by nominationCapPerCluster (exact, at the cap site).
-	TagNominationsAdded   int  `yaml:"tag_nominations_added,omitempty"`
-	TagNominationsDropped int  `yaml:"tag_nominations_dropped,omitempty"`
-	LazyChunks            bool `yaml:"lazy_chunks,omitempty"`
+	// ExploreAllocated surfaces the explore-half per-term delivered sample
+	// counts (design.md Decision 6). Always present, even when empty ({}) —
+	// e.g. missing/unreadable centroids or a zero exploit budget — so a
+	// silent explore-half absence is visible in the payload rather than
+	// omitted (spec: "Missing centroids degrade loudly").
+	ExploreAllocated map[string]int `yaml:"explore_allocated"`
+	LazyChunks       bool           `yaml:"lazy_chunks,omitempty"`
 }
 
 // queryCandidateNote is one candidate note for a cluster. The binary emits
@@ -382,6 +384,9 @@ type queryItem struct {
 	ClusterID   *int     `yaml:"cluster_id,omitempty"`
 	InDegree    *int     `yaml:"in_degree,omitempty"`
 	Content     string   `yaml:"content,omitempty"`
+	// SourceTerm names the vocab term an explore-half pick was sampled
+	// under (provenance=explore only; empty/omitted otherwise).
+	SourceTerm string `yaml:"source_term,omitempty"`
 }
 
 // queryPayload is the top-level YAML document.
@@ -399,7 +404,7 @@ type queryPayload struct {
 // query in-flight phase, emitted only under --timings.
 //   - scan_ms covers vault scan + sidecar load + chunk-index load (all I/O).
 //   - embed_ms covers phrase embedding + matching only (no chunk-index load).
-//   - nominate_ms covers tag nomination AND the post-cluster result assembly
+//   - nominate_ms covers explore-half sampling AND the post-cluster result assembly
 //     (chunk append + Channel-2 recency fill + aggregatedSummary build).
 //   - render_ms covers renderItems+renderClusters+content-capping+payload
 //     assembly; the final YAML encode is excluded (it cannot self-include its
@@ -427,6 +432,8 @@ type resolvedItem struct {
 	inDegree    *int
 	// kind overrides content-derived kind detection when set (chunk items).
 	kind string
+	// sourceTerm names the vocab term an explore-half pick was sampled under.
+	sourceTerm string
 }
 
 // scoredCandidate aggregates one note's match against the query vector.
@@ -557,22 +564,21 @@ func applyProjectFilter(items []resolvedItem, project string) []resolvedItem {
 	return out
 }
 
-// assembleResolvedItems runs the nominate-stage post-cluster assembly: tag
-// nomination + supersession ride-along (Slice 3), the matched-chunk append,
-// and the Channel-2 recency fill. Split out of runQuery so the "nominate"
-// phaseTimer stage (see stage boundaries, #691) maps onto a single named
-// unit of work rather than an inline block.
+// assembleResolvedItems runs the nominate-stage post-cluster assembly:
+// supersession ride-along, explore-half sampling (design.md), the
+// matched-chunk append, and the Channel-2 recency fill. Split out of runQuery
+// so the "nominate" phaseTimer stage (see stage boundaries, #691) maps onto a
+// single named unit of work rather than an inline block.
 func assembleResolvedItems(
 	noteUnion []scoredCandidate,
 	chunkUnion []scoredChunk,
 	chunkItems []resolvedItem,
 	chunkRecords []chunk.Record,
 	hits []compatibleSidecar,
-	matchSet matchedSet,
-	report clusterReport,
 	args QueryArgs,
 	deps QueryDeps,
-) ([]resolvedItem, map[int][]queryCandidateNote, tagNominationTally) {
+	queryVec []float32,
+) ([]resolvedItem, map[string]int) {
 	// mergeProvenances receives an empty matchedSet{} deliberately:
 	// mergeClusterReps must not promote cluster reps into items[] because
 	// the representative is agent-decided, not binary-computed (spec §2 step 4).
@@ -580,10 +586,29 @@ func assembleResolvedItems(
 	resolved := mergeProvenances(noteUnion, matchedSet{}, clusterReport{})
 	resolved = applyProjectFilter(resolved, args.Project)
 
-	// Slice 3 — tag nomination + supersession ride-along (tally → budget).
-	resolved, tagNominations, tagTally := applyTagNominationAndRideAlong(
-		resolved, hits, args.VaultPath, deps.Read, matchSet, report,
+	// Exploit half is fixed here: the distinct notes delivered post
+	// floor/cap/project-filter, before ride-along or explore append
+	// (design.md: "the existing cosine-nearest notes to the query, with
+	// floors and caps unchanged").
+	exploitPaths := make(map[string]struct{}, len(resolved))
+	for _, item := range resolved {
+		if item.kind != chunkItemKind {
+			exploitPaths[item.notePath] = struct{}{}
+		}
+	}
+
+	exploreBudget := len(exploitPaths)
+
+	vaultMeta := loadAllVaultNotesMeta(hits, args.VaultPath, deps.Read)
+
+	// Supersession ride-along: insert each superseding note directly after its
+	// superseded note in the ranked items (note items only; deduped).
+	resolved = applySupersedesRideAlong(resolved, vaultMeta)
+
+	explorePicks, exploreAllocated := computeExploreHalf(
+		args.VaultPath, deps.Read, queryVec, exploitPaths, exploreBudget, vaultMeta,
 	)
+	resolved = append(resolved, explorePicksToResolvedItems(explorePicks, contentByPath(vaultMeta))...)
 
 	resolved = append(resolved, chunkItems...)
 
@@ -594,7 +619,7 @@ func assembleResolvedItems(
 	recentItems := buildRecentFillItems(chunkRecords, chunkUnion, resolveRecentFill(args.RecentFill))
 	resolved = append(resolved, recentItems...)
 
-	return resolved, tagNominations, tagTally
+	return resolved, exploreAllocated
 }
 
 // basenameFromNotePath strips the directory and ".md" extension from a
@@ -671,15 +696,18 @@ func buildMatchedSetFromPhrases(
 	now time.Time,
 	maxTurnBySrc map[string]int,
 	deps QueryDeps,
-) ([]scoredCandidate, []scoredChunk, error) {
+) ([]scoredCandidate, []scoredChunk, [][]float32, error) {
 	recency := defaultRecencyParams()
 	byKey := make(map[string]matchedSetItem)
+	queryVecs := make([][]float32, 0, len(phrases))
 
 	for _, phrase := range phrases {
 		queryVec, embedErr := deps.Embedder.Embed(ctx, phrase)
 		if embedErr != nil {
-			return nil, nil, fmt.Errorf("query: embed: %w", embedErr)
+			return nil, nil, nil, fmt.Errorf("query: embed: %w", embedErr)
 		}
+
+		queryVecs = append(queryVecs, queryVec)
 
 		noteHits := rankCandidates(hits, vault, deps.Read, queryVec, now)
 		chunkHits := scoreChunkForPhrase(queryVec, records, now, maxTurnBySrc, recency)
@@ -691,7 +719,7 @@ func buildMatchedSetFromPhrases(
 
 	notes, chunks := splitMatchedSet(matched)
 
-	return notes, chunks, nil
+	return notes, chunks, queryVecs, nil
 }
 
 // buildRecentFillItems returns the un-clustered recency-channel items for
@@ -923,6 +951,21 @@ func collectClusterMembers(
 	return members
 }
 
+// contentByPath indexes vaultMeta's TermIndex members by note path so
+// explorePicksToResolvedItems can attach each pick's note content (the
+// pure sampling core in query_explore.go carries only path/term/cosine).
+func contentByPath(meta AllVaultNotesMeta) map[string]string {
+	out := make(map[string]string, len(meta.TermIndex))
+
+	for _, members := range meta.TermIndex {
+		for _, member := range members {
+			out[member.NotePath] = member.Content
+		}
+	}
+
+	return out
+}
+
 // countItemsWithContent reports how many rendered items carry a
 // non-empty Content field. Used to populate `items_with_full_content`.
 func countItemsWithContent(items []queryItem) int {
@@ -946,6 +989,27 @@ func eitherAxisCosine(centroid, sit, body []float32) float32 {
 	}
 
 	return sim
+}
+
+// explorePicksToResolvedItems converts explore-half picks into resolvedItems
+// carrying provenance=explore and the source term, for the note channel
+// (appended after ride-along insertion, before the chunk/recency channels —
+// NOT into any cluster's members[] and NOT into candidate_l2s).
+func explorePicksToResolvedItems(picks []explorePick, contentByPath map[string]string) []resolvedItem {
+	items := make([]resolvedItem, 0, len(picks))
+
+	for _, pick := range picks {
+		items = append(items, resolvedItem{
+			notePath:    pick.Path,
+			content:     contentByPath[pick.Path],
+			score:       pick.Cosine,
+			baseScore:   pick.Cosine,
+			provenances: []string{provenanceExplore},
+			sourceTerm:  pick.SourceTerm,
+		})
+	}
+
+	return items
 }
 
 // floorQualifyingNotes returns the relevance-qualified notes in items, order
@@ -1505,23 +1569,6 @@ func renderClusters(phraseClusters []phrasedCluster) []queryCluster {
 			clusterNotes := clusterNoteIndexFromMembers(pc.matched, pc.report.memberIDs[clusterID])
 			candidateL2s := topKCandidateNotes(centroid, clusterNotes)
 
-			// Merge tag-match nominations into candidate_l2s for this cluster.
-			// Nominations are deduped against the already-computed candidates.
-			if noms := pc.tagNominations[clusterID]; len(noms) > 0 {
-				existingPaths := make(map[string]bool, len(candidateL2s))
-
-				for _, candidate := range candidateL2s {
-					existingPaths[candidate.Path] = true
-				}
-
-				for _, nom := range noms {
-					if !existingPaths[nom.Path] {
-						candidateL2s = append(candidateL2s, nom)
-						existingPaths[nom.Path] = true
-					}
-				}
-			}
-
 			out = append(out, queryCluster{
 				ID:           clusterID,
 				Phrase:       pc.phrase,
@@ -1558,6 +1605,7 @@ func renderItems(resolved []resolvedItem) []queryItem {
 			ClusterID:   item.clusterID,
 			InDegree:    item.inDegree,
 			Content:     item.content,
+			SourceTerm:  item.sourceTerm,
 		}
 	}
 
@@ -1600,18 +1648,17 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 		Clusters:     clusters,
 		RefitPending: merged.refitPending,
 		Budget: queryBudget{
-			PhrasesQueried:        len(merged.phrases),
-			TotalNotes:            merged.totalNotes,
-			WithEmbeddings:        merged.withEmbeddings,
-			ClustersFound:         len(clusters),
-			DirectHitsReturned:    directCount,
-			ItemsWithFullContent:  contentful,
-			Limit:                 merged.limit,
-			ContentBudget:         resolveContentBudget(merged.contentBudget),
-			ChunksSnippeted:       snipped,
-			TagNominationsAdded:   merged.tagNomsAdded,
-			TagNominationsDropped: merged.tagNomsDropped,
-			LazyChunks:            merged.lazyChunks,
+			PhrasesQueried:       len(merged.phrases),
+			TotalNotes:           merged.totalNotes,
+			WithEmbeddings:       merged.withEmbeddings,
+			ClustersFound:        len(clusters),
+			DirectHitsReturned:   directCount,
+			ItemsWithFullContent: contentful,
+			Limit:                merged.limit,
+			ContentBudget:        resolveContentBudget(merged.contentBudget),
+			ChunksSnippeted:      snipped,
+			ExploreAllocated:     merged.exploreAllocated,
+			LazyChunks:           merged.lazyChunks,
 		},
 	}
 
@@ -1718,7 +1765,7 @@ func runQuery(
 
 	nowL2 := queryRecencyNow(timer, deps)
 
-	noteUnion, chunkUnion, matchErr := buildMatchedSetFromPhrases(
+	noteUnion, chunkUnion, queryVecs, matchErr := buildMatchedSetFromPhrases(
 		ctx, args.Phrases, hits, chunkRecords,
 		args.VaultPath, nowL2, maxTurnBySource(chunkRecords), deps,
 	)
@@ -1737,30 +1784,31 @@ func runQuery(
 
 	timer.mark(stageCluster)
 
-	resolved, tagNominations, tagTally := assembleResolvedItems(
-		noteUnion, chunkUnion, chunkItems, chunkRecords, hits, matchSet, report, args, deps,
+	queryVec := meanVector(queryVecs)
+
+	resolved, exploreAllocated := assembleResolvedItems(
+		noteUnion, chunkUnion, chunkItems, chunkRecords, hits, args, deps, queryVec,
 	)
 
 	merged := aggregatedSummary{
 		phrases:       args.Phrases,
 		resolvedItems: resolved,
 		phraseClusters: []phrasedCluster{
-			{phrase: singleClusterPhrase, report: report, matched: matchSet, tagNominations: tagNominations},
+			{phrase: singleClusterPhrase, report: report, matched: matchSet},
 		},
-		totalNotes:     len(notes),
-		withEmbeddings: len(hits),
-		limit:          limit,
-		contentBudget:  args.ContentBudget,
-		lazyChunks:     args.LazyChunks,
-		tagNomsAdded:   tagTally.added,
-		tagNomsDropped: tagTally.dropped,
-		refitPending:   readRefitPending(args.VaultPath, deps.Read),
-		timer:          timer,
+		totalNotes:       len(notes),
+		withEmbeddings:   len(hits),
+		limit:            limit,
+		contentBudget:    args.ContentBudget,
+		lazyChunks:       args.LazyChunks,
+		exploreAllocated: exploreAllocated,
+		refitPending:     readRefitPending(args.VaultPath, deps.Read),
+		timer:            timer,
 	}
 
-	// nominate mark fires AFTER the full post-cluster assembly (tag nomination
-	// + chunk append + Channel-2 fill + summary build), so render_ms measures
-	// only renderQueryPayload's render-prep.
+	// nominate mark fires AFTER the full post-cluster assembly (explore
+	// sampling + chunk append + Channel-2 fill + summary build), so render_ms
+	// measures only renderQueryPayload's render-prep.
 	timer.mark(stageNominate)
 
 	return renderQueryPayload(stdout, merged)

@@ -2,16 +2,16 @@
 
 ## 1. Sampling core (pure logic, TDD)
 
-- [ ] 1.1 TDD: softmax allocation over query→centroid cosine with temperature constant; totals equal explore budget; property tests (rapid) for: (a) monotonicity in similarity — sim_A ≥ sim_B ⇒ allocation(A) ≥ allocation(B) for un-boosted terms; (b) budget conservation — allocations sum to the explore budget exactly
-- [ ] 1.2 TDD: match-evidence bonus — bounded additive weight for clusters with members in the exploit half
-- [ ] 1.3 TDD: centroid-proximal within-cluster selection (members = notes carrying the term's `vocab/<term>` tag, definition notes excluded, descending centroid similarity)
-- [ ] 1.4 TDD: dedupe against exploit half + cross-cluster, with allocation-order backfill until budget met or candidates exhausted
+- [x] 1.1 TDD: softmax allocation over query→centroid cosine with temperature constant; totals equal explore budget; property tests (rapid) for: (a) monotonicity in similarity — sim_A ≥ sim_B ⇒ allocation(A) ≥ allocation(B) for un-boosted terms; (b) budget conservation — allocations sum to the explore budget exactly
+- [x] 1.2 TDD: match-evidence bonus — bounded additive weight for clusters with members in the exploit half
+- [x] 1.3 TDD: centroid-proximal within-cluster selection (members = notes carrying the term's `vocab/<term>` tag, definition notes excluded, descending centroid similarity)
+- [x] 1.4 TDD: dedupe against exploit half + cross-cluster, with allocation-order backfill until budget met or candidates exhausted
 
 ## 2. Query-path integration
 
-- [ ] 2.1 TDD: compose payload halves (exploit unchanged: floors/caps/local clustering); explore half from sampling core; missing/unreadable centroids → exploit-only + `explore_allocated: {}`
-- [ ] 2.2 Remove tag nomination with its full plumbing: `buildTagNominations` + helpers (`seedTermsFromTopNotes`, `addNominationsForTerm`, `nominationCapPerCluster`), the `tagNominationTally` type, `aggregatedSummary.tagNomsAdded/tagNomsDropped`, the `TagNominationsAdded/Dropped` YAML budget fields and their `renderQueryPayload`/`runQuery` assignments, and the nomination tests in `query_nominations_test.go` (delete or rewrite). Retire `applyTagNominationAndRideAlong` as a wrapper but KEEP `loadAllVaultNotesMeta` and `applySupersedesRideAlong` — the ride-along call is rewired directly into the resolved-items assembly. Add `provenance: explore` + source term per note and `explore_allocated` to budget
-- [ ] 2.3 Wire centroid loading through injected deps (reuse existing `vocab.centroids.json` reader; no new direct I/O). Schema compatibility with the post-refit producer verified 2026-07-28: production file is `schema_version: 1`, `terms: {name → {vector[384], member_count}}` — matches `readCentroidsDoc`'s types.
+- [x] 2.1 TDD: compose payload halves (exploit unchanged: floors/caps/local clustering); explore half from sampling core; missing/unreadable centroids → exploit-only + `explore_allocated: {}`
+- [x] 2.2 Remove tag nomination with its full plumbing: `buildTagNominations` + helpers (`seedTermsFromTopNotes`, `addNominationsForTerm`, `nominationCapPerCluster`), the `tagNominationTally` type, `aggregatedSummary.tagNomsAdded/tagNomsDropped`, the `TagNominationsAdded/Dropped` YAML budget fields and their `renderQueryPayload`/`runQuery` assignments, and the nomination tests in `query_nominations_test.go` (delete or rewrite). Retire `applyTagNominationAndRideAlong` as a wrapper but KEEP `loadAllVaultNotesMeta` and `applySupersedesRideAlong` — the ride-along call is rewired directly into the resolved-items assembly. Add `provenance: explore` + source term per note and `explore_allocated` to budget
+- [x] 2.3 Wire centroid loading through injected deps (reuse existing `vocab.centroids.json` reader; no new direct I/O). Schema compatibility with the post-refit producer verified 2026-07-28: production file is `schema_version: 1`, `terms: {name → {vector[384], member_count}}` — matches `readCentroidsDoc`'s types.
 
 ## 3. Calibration + validation
 
@@ -23,7 +23,7 @@
 
 - [ ] 4.1 Update `agent-instructions/skills/recall/SKILL.md` nomination references (lines 20, 110–111, 149–151 name tag nomination and the `tag_nominations_added/dropped` fields verbatim — a certain edit, not an audit; via `superpowers:writing-skills`). Replacement language: candidate pools gain explore-sampled notes (softmax centroid-proximity allocation); budget reporting is `explore_allocated` per term + per-note `provenance: explore`
 - [ ] 4.2 Update GLOSSARY.md / architecture docs mentioning tag nomination per the disposition list below
-- [ ] 4.3 Add missing spec deltas discovered by enumeration grep: `recall-two-channel-payload` (Channel 1 requirement + "Cross-cluster tag nomination" scenario name explore sampling instead) and `route-dispatch-evidence` (evidence aggregates surface "through tag nomination" → via vocab-tagged explore sampling)
+- [x] 4.3 Add missing spec deltas discovered by enumeration grep: `recall-two-channel-payload` (Channel 1 requirement + "Cross-cluster tag nomination" scenario name explore sampling instead) and `route-dispatch-evidence` (evidence aggregates surface "through tag nomination" → via vocab-tagged explore sampling)
 
 ### Doc-surface disposition list (enumeration grep: `tag.nomination|tag_nomination|nominat|explore_allocated`)
 

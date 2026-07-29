@@ -108,6 +108,60 @@ func applyMatchEvidenceBonus(
 	return boosted
 }
 
+// computeExploreHalf runs the query-path explore-sampling glue: load
+// vocab.centroids.json, compute query→centroid similarities, gather term
+// membership (vault notes carrying vocab/<term> tags, definition notes
+// excluded) with their sidecar BodyVectors, and run the sampling core
+// (match-evidence bonus -> softmax allocation -> within-cluster selection ->
+// dedupe+backfill). Missing/unreadable centroids or a zero budget degrade to
+// exploit-only: (nil, empty map).
+func computeExploreHalf(
+	vault string,
+	readFile func(string) ([]byte, error),
+	queryVec []float32,
+	exploitPaths map[string]struct{},
+	budget int,
+	meta AllVaultNotesMeta,
+) ([]explorePick, map[string]int) {
+	if budget <= 0 {
+		return nil, map[string]int{}
+	}
+
+	doc, ok := readCentroidsDoc(vault, readFile)
+	if !ok || len(doc.Terms) == 0 {
+		return nil, map[string]int{}
+	}
+
+	similarities := make(map[string]float32, len(doc.Terms))
+	centroids := make(map[string][]float32, len(doc.Terms))
+
+	for term, entry := range doc.Terms {
+		similarities[term] = embed.Cosine(queryVec, entry.Vector)
+		centroids[term] = entry.Vector
+	}
+
+	members := exploreMembersByTerm(meta)
+
+	evidenced := termsWithExploitEvidence(members, exploitPaths)
+	boosted := applyMatchEvidenceBonus(similarities, evidenced, exploreMatchEvidenceBonus)
+	allocated := softmaxAllocate(boosted, exploreTemperatureDefault, budget)
+	order := exploreAllocationOrder(boosted)
+
+	rankedByTerm := make(map[string][]explorePick, len(centroids))
+	for term, centroid := range centroids {
+		rankedByTerm[term] = selectWithinCluster(term, centroid, members[term], len(members[term]))
+	}
+
+	picks := dedupeAndBackfill(allocated, order, rankedByTerm, exploitPaths)
+
+	delivered := make(map[string]int, len(picks))
+	for _, pick := range picks {
+		delivered[pick.SourceTerm]++
+	}
+
+	return picks, delivered
+}
+
 // dedupeAndBackfill drops explore picks that duplicate an exploit-half note
 // or another cluster's selection, then refills freed slots following order
 // (the softmax allocation priority order) until each term's allocation is
@@ -183,6 +237,29 @@ func exploreAllocationOrder(similarities map[string]float32) []string {
 	})
 
 	return terms
+}
+
+// exploreMembersByTerm converts vaultMeta's TermIndex (vocab/<term>-tagged
+// notes with their BodyVectors) into the sampling core's exploreCandidate
+// shape, excluding definition notes and members with no sidecar vector.
+func exploreMembersByTerm(meta AllVaultNotesMeta) map[string][]exploreCandidate {
+	members := make(map[string][]exploreCandidate, len(meta.TermIndex))
+
+	for term, entries := range meta.TermIndex {
+		for _, entry := range entries {
+			if isVocabDefinitionNote(entry.Content) {
+				continue
+			}
+
+			if len(entry.Vector) == 0 {
+				continue
+			}
+
+			members[term] = append(members[term], exploreCandidate{Path: entry.NotePath, Vector: entry.Vector})
+		}
+	}
+
+	return members
 }
 
 // selectWithinCluster ranks a term's member candidates by descending cosine

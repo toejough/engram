@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/toejough/engram/internal/chunk"
-	"github.com/toejough/engram/internal/cluster"
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/update"
 	"github.com/toejough/engram/internal/vaultgraph"
@@ -134,7 +133,6 @@ var (
 	ExportStripLegacyVocabChannel         = stripLegacyVocabChannel
 	ExportTermFromDefinitionSlug          = termFromDefinitionSlug
 	ExportTildify                         = tildify
-	ExportTopDeliveredNotes               = topDeliveredNotes
 	ExportValidateContributors            = validateContributors
 	ExportValidateIssueID                 = validateIssueID
 	ExportValidateLearnQAArgs             = validateLearnQAArgs
@@ -183,13 +181,10 @@ type ExportMergeClusterRepsEntry struct {
 	ClusterID   *int
 }
 
-// ExportNominationEntry aliases NominationEntry for cli_test struct literals.
-type ExportNominationEntry = NominationEntry
-
 type ExportNoteVector = noteVector
 
 // ExportQueriedCandidateNote aliases the unexported queryCandidateNote so
-// cli_test can construct nomination fixtures for ExportRenderClustersTagNominations.
+// cli_test can construct candidate_l2s fixtures.
 type ExportQueriedCandidateNote = queryCandidateNote
 
 type ExportRecencyParams = recencyParams
@@ -206,6 +201,9 @@ type ExportSupersedesEntry = supersedesEntry
 
 // Exported types.
 type ExportVaultInitFS = VaultInitFS
+
+// ExportVaultTermMember aliases VaultTermMember for cli_test struct literals.
+type ExportVaultTermMember = VaultTermMember
 
 type ExportVocabCentroidEntry = vocabCentroidEntry
 
@@ -288,56 +286,6 @@ func ExportBuildChunkIDSet(
 	return buildChunkIDSet(chunksDir, listIndexes, readFile)
 }
 
-// ExportBuildTagNominationsUnit drives buildTagNominations with empty matchedSet
-// and clusterReport (cluster-0 fallback), so unit tests can assert nomination
-// results without wiring a full clustering pipeline. The tally is discarded;
-// tests asserting the tally use ExportBuildTagNominationsWithTally.
-func ExportBuildTagNominationsUnit(
-	resolved []resolvedItem,
-	meta AllVaultNotesMeta,
-) map[int][]queryCandidateNote {
-	nominations, _ := buildTagNominations(resolved, meta, matchedSet{}, clusterReport{})
-
-	return nominations
-}
-
-// ExportBuildTagNominationsWithClusters drives buildTagNominations with a REAL
-// matchedSet + clusterReport built from plain member paths and per-cluster
-// member-index lists, so tests can exercise the real clusterID assignment path
-// (noteClusterIDForPath) rather than the cluster-0 fallback.
-func ExportBuildTagNominationsWithClusters(
-	resolved []resolvedItem,
-	meta AllVaultNotesMeta,
-	memberPaths []string,
-	memberIDs [][]int,
-) map[int][]queryCandidateNote {
-	members := make([]matchedMember, len(memberPaths))
-	for i, path := range memberPaths {
-		members[i] = matchedMember{notePath: path}
-	}
-
-	nominations, _ := buildTagNominations(
-		resolved,
-		meta,
-		matchedSet{members: members},
-		clusterReport{memberIDs: memberIDs},
-	)
-
-	return nominations
-}
-
-// ExportBuildTagNominationsWithTally drives buildTagNominations (cluster-0
-// fallback path) and returns the nomination map plus the tally's added and
-// dropped counts, for no-silent-caps assertions.
-func ExportBuildTagNominationsWithTally(
-	resolved []resolvedItem,
-	meta AllVaultNotesMeta,
-) (map[int][]queryCandidateNote, int, int) {
-	nominations, tally := buildTagNominations(resolved, meta, matchedSet{}, clusterReport{})
-
-	return nominations, tally.added, tally.dropped
-}
-
 // ExportCapChunkContent builds queryItems from parallel kind/content slices,
 // applies capChunkContent, and returns the resulting contents + snipped count.
 func ExportCapChunkContent(kinds, contents []string, budget int) ([]string, int) {
@@ -378,6 +326,20 @@ func ExportClearChunkContent(kinds, contents []string) []string {
 // ExportCollectVaultStats exposes collectVaultStats for cli_test fixtures.
 func ExportCollectVaultStats(names []string, deps VocabStatsDeps, vault string) ([]string, map[string]int, int, int) {
 	return collectVaultStats(names, deps, vault)
+}
+
+// ExportComputeExploreHalf exposes computeExploreHalf for query-path
+// integration tests (task 2.1): the glue between vocab.centroids.json,
+// vault term membership, and the pure sampling core.
+func ExportComputeExploreHalf(
+	vault string,
+	readFile func(string) ([]byte, error),
+	queryVec []float32,
+	exploitPaths map[string]struct{},
+	budget int,
+	meta AllVaultNotesMeta,
+) ([]explorePick, map[string]int) {
+	return computeExploreHalf(vault, readFile, queryVec, exploitPaths, budget, meta)
 }
 
 // ExportDedupeAndBackfill exposes dedupeAndBackfill for explore-sampling
@@ -533,9 +495,22 @@ func ExportNewEmbedDeps(d Deps) EmbedDeps { return newEmbedDeps(d) }
 // empty (but non-nil) maps — the backward-compat no-op fixture.
 func ExportNewEmptyVaultNotesMeta() AllVaultNotesMeta {
 	return AllVaultNotesMeta{
-		TermIndex:         make(map[string][]NominationEntry),
+		TermIndex:         make(map[string][]VaultTermMember),
 		SupersedesInverse: make(SupersedesInverse),
 		ContentByBasename: make(map[string]string),
+	}
+}
+
+// ExportNewExploreResolvedItem builds an explore-half resolvedItem carrying
+// provenance=explore and a source term, for renderItems/renderQueryPayload
+// unit tests.
+func ExportNewExploreResolvedItem(notePath, content, sourceTerm string, score float32) resolvedItem {
+	return resolvedItem{
+		notePath:    notePath,
+		content:     content,
+		score:       score,
+		provenances: []string{provenanceExplore},
+		sourceTerm:  sourceTerm,
 	}
 }
 
@@ -561,7 +536,7 @@ func ExportNewNoteResolvedItem(notePath, lastUsed, created string) resolvedItem 
 }
 
 // ExportNewNoteResolvedItemWithContentAndProvenances builds a note-kind
-// resolvedItem with explicit content, score, and provenances for nomination
+// resolvedItem with explicit content, score, and provenances for explore
 // and ride-along unit tests.
 func ExportNewNoteResolvedItemWithContentAndProvenances(
 	notePath, content string,
@@ -704,15 +679,15 @@ func ExportNewVaultNotesMetaWithSupersedes(
 	contentByBasename map[string]string,
 ) AllVaultNotesMeta {
 	return AllVaultNotesMeta{
-		TermIndex:         make(map[string][]NominationEntry),
+		TermIndex:         make(map[string][]VaultTermMember),
 		SupersedesInverse: BuildSupersedesInverse(supersedersByNote),
 		ContentByBasename: contentByBasename,
 	}
 }
 
 // ExportNewVaultNotesMetaWithTerms builds an AllVaultNotesMeta that has only
-// TermIndex populated (no supersedes data), for tag-nomination unit tests.
-func ExportNewVaultNotesMetaWithTerms(terms map[string][]NominationEntry) AllVaultNotesMeta {
+// TermIndex populated (no supersedes data), for explore-membership unit tests.
+func ExportNewVaultNotesMetaWithTerms(terms map[string][]VaultTermMember) AllVaultNotesMeta {
 	return AllVaultNotesMeta{
 		TermIndex:         terms,
 		SupersedesInverse: make(SupersedesInverse),
@@ -725,76 +700,11 @@ func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 	return newestChunkItems(scored, n, provenanceDirect)
 }
 
-// ExportNoteClusterIDForPathFromPlain exercises noteClusterIDForPath with
-// plain-data inputs, for coverage of the note-finding and cluster-lookup paths.
-// memberPaths[i] is matched by notePath; memberIDs[c] is the set of member
-// indices belonging to cluster c.
-func ExportNoteClusterIDForPathFromPlain(
-	notePath string,
-	memberPaths []string,
-	memberIDs [][]int,
-) int {
-	members := make([]matchedMember, len(memberPaths))
-
-	for i, path := range memberPaths {
-		members[i] = matchedMember{notePath: path}
-	}
-
-	return noteClusterIDForPath(
-		notePath,
-		matchedSet{members: members},
-		clusterReport{memberIDs: memberIDs},
-	)
-}
-
 // ExportProvenanceRankFor exposes provenanceRankFor for whitebox testing.
 func ExportProvenanceRankFor(role string) int { return provenanceRankFor(role) }
 
 // ExportRecencyFloor exposes the floor field of recencyParams for tests.
 func ExportRecencyFloor(p recencyParams) int { return p.floor }
-
-// ExportRenderClustersTagNominations exercises the tag-nomination merging
-// path in renderClusters. It builds a minimal single-member, single-cluster
-// phrasedCluster with the given nominations and returns the CandidateL2s
-// of the first emitted cluster. Returns nil when no clusters are emitted.
-func ExportRenderClustersTagNominations(
-	nominations map[int][]queryCandidateNote,
-) []queryCandidateNote {
-	vec := []float32{1, 0}
-
-	member := matchedMember{
-		notePath: "test.md",
-		vector:   vec,
-		sitVec:   vec,
-		bodyVec:  vec,
-		score:    0.9,
-		content:  "# test member",
-	}
-
-	matched := matchedSet{members: []matchedMember{member}}
-
-	report := clusterReport{
-		autoK:           cluster.AutoKResult{K: 1, Centroids: [][]float32{vec}},
-		memberIDs:       [][]int{{0}},
-		representatives: []int{0},
-		silhouettesByID: []float64{0},
-	}
-
-	pc := phrasedCluster{
-		phrase:         "test phrase",
-		report:         report,
-		matched:        matched,
-		tagNominations: nominations,
-	}
-
-	clusters := renderClusters([]phrasedCluster{pc})
-
-	if len(clusters) == 0 {
-		return nil
-	}
-
-	return clusters[0].CandidateL2s
-}
 
 // ExportRenderQueryPayloadBudget builds an aggregatedSummary from parallel
 // kind/content slices, renders the YAML payload, and returns the encoded text.
@@ -820,27 +730,36 @@ func ExportRenderQueryPayloadBudget(
 	return buf.String(), err
 }
 
+// ExportRenderQueryPayloadExploreAllocated renders a minimal payload whose
+// aggregatedSummary carries the given explore_allocated map, so tests can
+// assert the budget's explore_allocated field is always present (even {}).
+func ExportRenderQueryPayloadExploreAllocated(allocated map[string]int) (string, error) {
+	var buf bytes.Buffer
+
+	err := renderQueryPayload(&buf, aggregatedSummary{
+		exploreAllocated: allocated,
+	})
+
+	return buf.String(), err
+}
+
+// ExportRenderQueryPayloadFromResolvedItems renders a minimal payload from
+// caller-built resolvedItems (e.g. explore-half items), for source_term and
+// provenance rendering assertions.
+func ExportRenderQueryPayloadFromResolvedItems(items []resolvedItem) (string, error) {
+	var buf bytes.Buffer
+
+	err := renderQueryPayload(&buf, aggregatedSummary{resolvedItems: items})
+
+	return buf.String(), err
+}
+
 // ExportRenderQueryPayloadRefitPending renders a minimal payload with refitPending set,
 // so tests can assert the refit_pending field's presence/omission.
 func ExportRenderQueryPayloadRefitPending(pending bool) (string, error) {
 	var buf bytes.Buffer
 
 	err := renderQueryPayload(&buf, aggregatedSummary{refitPending: pending})
-
-	return buf.String(), err
-}
-
-// ExportRenderQueryPayloadTagNominationBudget renders a minimal payload whose
-// aggregatedSummary carries the given tag-nomination tally, so tests can assert
-// the budget's tag_nominations_added / tag_nominations_dropped fields (and
-// their omitempty behavior at zero).
-func ExportRenderQueryPayloadTagNominationBudget(added, dropped int) (string, error) {
-	var buf bytes.Buffer
-
-	err := renderQueryPayload(&buf, aggregatedSummary{
-		tagNomsAdded:   added,
-		tagNomsDropped: dropped,
-	})
 
 	return buf.String(), err
 }
