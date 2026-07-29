@@ -12,8 +12,6 @@ import (
 	"sort"
 	"strings"
 
-	"go.yaml.in/yaml/v3"
-
 	"github.com/toejough/engram/internal/embed"
 )
 
@@ -39,19 +37,6 @@ var (
 		"vocab refit: the vault changed since the naming requests were emitted; " +
 			"re-run `engram vocab refit` to regenerate them")
 )
-
-// familySupersedesDoc is the minimal frontmatter shape read back from the
-// family note when merging retirement supersession records.
-type familySupersedesDoc struct {
-	Supersedes []supersedesEntry `yaml:"supersedes"`
-}
-
-// retiredDefinitionNote pairs a retired term with its (pre-demotion)
-// definition note basename, for the family-note supersession record.
-type retiredDefinitionNote struct {
-	Term     string
-	Basename string
-}
 
 // vocabClusterName is one entry in the --names answer: the cluster index from
 // the naming request plus the chosen kebab-case term and its description.
@@ -127,7 +112,7 @@ func applyVocabDerivation(
 	when := deps.Now()
 	newVersion := bumpAndPersistVocabVersion(deps, vault, bumpMajorVersion, "vocab refit")
 
-	retireVocabTerms(deps, vault, state.match.RetiredTerms, newVersion)
+	retireVocabTerms(deps, vault, state.match.RetiredTerms)
 
 	vaultNames, _ := deps.ListMD(vault)
 	applyRefitNewTerms(ctx, deps, vault, &vaultNames, namedClustersToSeedTerms(requests, names), newVersion, when)
@@ -213,6 +198,34 @@ func clusterExemplars(
 	return exemplars
 }
 
+// collectSupersedesEntryBlocks groups the indented list-item lines following
+// a supersedes: key into per-entry line blocks (each starting at a "- note:"
+// line), returning the blocks and the index of the first line past the list.
+func collectSupersedesEntryBlocks(lines []string, start int) ([][]string, int) {
+	entries := make([][]string, 0)
+	i := start
+
+	for i < len(lines) {
+		line := lines[i]
+		if strings.TrimSpace(line) == "" || !strings.HasPrefix(line, " ") {
+			break
+		}
+
+		switch {
+		case strings.HasPrefix(strings.TrimSpace(line), "- "):
+			entries = append(entries, []string{line})
+		case len(entries) > 0:
+			entries[len(entries)-1] = append(entries[len(entries)-1], line)
+		default:
+			return entries, i
+		}
+
+		i++
+	}
+
+	return entries, i
+}
+
 // computeDerivationFingerprint hashes the derivation inputs (note count plus
 // a SHA-256 over the sorted note names and their vector bytes). The naming
 // emission stamps it into the payload; the --names run recomputes it and
@@ -235,26 +248,18 @@ func computeDerivationFingerprint(notes []noteVector) string {
 	return fmt.Sprintf("n%d-%x", len(notes), hash.Sum(nil))
 }
 
-// demoteDefinitionNote rewrites a retired definition note in place with its
-// bare vocab marker and vocab/<term> self-tag removed (nonVocabTags), leaving
-// every other tag and the note content untouched.
-func demoteDefinitionNote(deps VocabDeps, notePath string) {
-	raw, readErr := deps.ReadFile(notePath)
-	if readErr != nil {
-		return
+// deleteDefinitionNote removes a retired definition note and its embedding
+// sidecar. Failures are warned about, not fatal — retirement proceeds so the
+// re-tag pass still converges the vocabulary.
+func deleteDefinitionNote(deps VocabDeps, notePath string) {
+	deleteErr := deps.DeleteFile(notePath)
+	if deleteErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("vocab refit: deleting %s: %v", notePath, deleteErr)
 	}
 
-	frontmatter, body, ok := splitFrontmatterAndBody(string(raw))
-	if !ok {
-		return
-	}
-
-	kept := nonVocabTags(parseTagsFromFrontmatter(frontmatter))
-	updated := rewriteTagsFrontmatterSplit(frontmatter, body, kept)
-
-	writeErr := deps.WriteFile(notePath, []byte(updated))
-	if writeErr != nil && deps.LogWarning != nil {
-		deps.LogWarning("vocab refit: demoting %s: %v", notePath, writeErr)
+	sidecarErr := deps.DeleteFile(embed.SidecarPath(notePath))
+	if sidecarErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("vocab refit: deleting sidecar for %s: %v", notePath, sidecarErr)
 	}
 }
 
@@ -397,44 +402,6 @@ func loadExistingTermsWithOrigins(deps VocabDeps, vault string) ([]existingVocab
 	}
 
 	return existing, nil
-}
-
-// mergeRetirementSupersedes merges retirement entries into the family note's
-// existing supersedes list, deduplicating by superseded-note basename.
-// changed is false when every retired note is already recorded.
-func mergeRetirementSupersedes(
-	raw []byte,
-	demoted []retiredDefinitionNote,
-	version string,
-) ([]supersedesEntry, bool) {
-	var doc familySupersedesDoc
-
-	if frontmatter, ok := splitFrontmatter(raw); ok {
-		_ = yaml.Unmarshal(frontmatter, &doc) // best-effort; empty list on parse failure
-	}
-
-	recorded := make(map[string]bool, len(doc.Supersedes))
-	for _, entry := range doc.Supersedes {
-		recorded[entry.Note] = true
-	}
-
-	merged := doc.Supersedes
-	changed := false
-
-	for _, note := range demoted {
-		if recorded[note.Basename] {
-			continue
-		}
-
-		merged = append(merged, supersedesEntry{
-			Note:  note.Basename,
-			Type:  supersedesTypeUpdates,
-			Claim: fmt.Sprintf("vocab term %q retired by derivational refit v%s", note.Term, version),
-		})
-		changed = true
-	}
-
-	return merged, changed
 }
 
 // namedClustersToSeedTerms converts naming answers into the SeedTerm shape
@@ -581,72 +548,43 @@ func proposedTermSidecarVector(deps VocabDeps, vault string, names []string, ter
 	return sidecar.BodyVector
 }
 
-// recordRetirementSupersession appends one supersedes entry per retired
-// definition note to the vocab-definition family note, reusing the amend
-// supersession write path (applyFieldReplacement renders the frontmatter
-// supersedes: list and the body "Supersedes: [[...]]" lines). Entries already
-// present (by note basename) are not duplicated. A missing family note is
-// warned about and skipped — demotion already happened.
-func recordRetirementSupersession(
-	deps VocabDeps,
-	vault string,
-	names []string,
-	demoted []retiredDefinitionNote,
-	version string,
-) {
-	if len(demoted) == 0 {
-		return
+// removeNoteReferences strips every reference to the deleted filenames from
+// one note's content, returning the updated content and whether it changed.
+func removeNoteReferences(content string, deleted map[string]bool) (string, bool) {
+	frontmatter, body, ok := splitFrontmatterAndBody(content)
+	if !ok {
+		scrubbed, changed := scrubBodyReferences(content, deleted)
+
+		return scrubbed, changed
 	}
 
-	notePath, raw, findErr := findVocabFamilyNote(vault, names, deps.ReadFile)
-	if findErr != nil {
-		if deps.LogWarning != nil {
-			deps.LogWarning("vocab refit: recording retirement supersession: %v", findErr)
-		}
+	newFrontmatter, frontChanged := scrubSupersedesFrontmatter(frontmatter, deleted)
 
-		return
+	newBody, bodyChanged := scrubBodyReferences(body, deleted)
+	if !frontChanged && !bodyChanged {
+		return content, false
 	}
 
-	merged, changed := mergeRetirementSupersedes(raw, demoted, version)
-	if !changed {
-		return
-	}
-
-	body := string(embed.ExtractBody(raw))
-
-	updated, _, amendErr := applyFieldReplacement(raw, AmendArgs{}, body, typeFact, merged)
-	if amendErr != nil {
-		if deps.LogWarning != nil {
-			deps.LogWarning("vocab refit: rendering retirement supersession: %v", amendErr)
-		}
-
-		return
-	}
-
-	writeErr := deps.WriteFile(notePath, []byte(updated))
-	if writeErr != nil && deps.LogWarning != nil {
-		deps.LogWarning("vocab refit: writing family note supersession: %v", writeErr)
-	}
+	return fmStart + newFrontmatter + fmEnd + newBody, true
 }
 
-// retireVocabTerms retires derivation-unmatched derived-origin terms (Task
-// 2.1; design decision 3 — dormant terms re-attract members and defeat
-// convergence, so retirement is active). For each retired term it:
+// retireVocabTerms retires derivation-unmatched derived-origin terms
+// (dormant terms re-attract members and defeat convergence, so retirement is
+// active). Vocab definition notes have no supersession story — they are term
+// identity, not preserved facts — so for each retired term it:
 //
-//  1. demotes the term's definition note in place — the bare vocab marker and
-//     vocab/<term> self-tag are stripped so the note stops being a definition
-//     note (no longer term identity, cannot re-attract members) while its
-//     fact content survives (superseded, not orphaned);
-//  2. records the retirement through the existing supersession/amend write
-//     path: the vocab-definition family note gains a supersedes entry naming
-//     the retired definition note;
+//  1. deletes the term's definition note and its .vec.json sidecar outright
+//     (no demoted note, no supersession record);
+//  2. scrubs every remaining reference to the deleted note vault-wide:
+//     frontmatter supersedes: entries, "Supersedes: [[...]]" body lines, and
+//     inline wikilinks naming the deleted basename;
 //  3. strips vocab/<term> from member notes (clearRemovedTermsFromMembers) —
 //     the post-derivation re-tag pass also replaces the vocab namespace, this
 //     covers notes without sidecars.
 //
 // origin: proposed terms never reach this function — matchClustersToTerms
-// excludes them from RetiredTerms (the provenance shield, design decision 4).
-func retireVocabTerms(deps VocabDeps, vault string, retired []string, version string) {
+// excludes them from RetiredTerms (the provenance shield).
+func retireVocabTerms(deps VocabDeps, vault string, retired []string) {
 	if len(retired) == 0 {
 		return
 	}
@@ -660,7 +598,7 @@ func retireVocabTerms(deps VocabDeps, vault string, retired []string, version st
 		return
 	}
 
-	demoted := make([]retiredDefinitionNote, 0, len(retired))
+	deleted := make([]string, 0, len(retired))
 
 	for _, term := range retired {
 		notePath, found := findDefinitionNotePathForTerm(vault, names, term, deps.ReadFile)
@@ -668,16 +606,125 @@ func retireVocabTerms(deps VocabDeps, vault string, retired []string, version st
 			continue
 		}
 
-		demoteDefinitionNote(deps, notePath)
-		demoted = append(demoted, retiredDefinitionNote{Term: term, Basename: filepath.Base(notePath)})
+		deleteDefinitionNote(deps, notePath)
+		deleted = append(deleted, filepath.Base(notePath))
 	}
 
-	recordRetirementSupersession(deps, vault, names, demoted, version)
+	scrubDeletedNoteReferences(deps, vault, names, deleted)
 
 	clearErr := clearRemovedTermsFromMembers(deps, vault, retired)
 	if clearErr != nil && deps.LogWarning != nil {
 		deps.LogWarning("vocab refit: stripping retired terms from members: %v", clearErr)
 	}
+}
+
+// scrubBodyReferences removes body references to the deleted filenames:
+// "Supersedes: [[...]]" lines linking a deleted note are dropped whole
+// (machine-written, content-hash-excluded), and inline wikilinks — with or
+// without the .md extension — are unlinked to their plain-text basename.
+func scrubBodyReferences(body string, deleted map[string]bool) (string, bool) {
+	lines := strings.Split(body, "\n")
+	kept := make([]string, 0, len(lines))
+	changed := false
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, supersedesBodyMarker) && supersedesLineTargetsDeleted(line, deleted) {
+			changed = true
+
+			continue
+		}
+
+		unlinked := unlinkDeletedWikilinks(line, deleted)
+		if unlinked != line {
+			changed = true
+		}
+
+		kept = append(kept, unlinked)
+	}
+
+	return strings.Join(kept, "\n"), changed
+}
+
+// scrubDeletedNoteReferences removes every remaining reference to the deleted
+// definition notes from the rest of the vault: frontmatter supersedes:
+// entries naming a deleted filename, "Supersedes: [[...]]" body lines linking
+// one, and inline wikilinks (with or without the .md extension), which are
+// unlinked to plain text. Notes without references are left byte-identical.
+func scrubDeletedNoteReferences(deps VocabDeps, vault string, names, deleted []string) {
+	if len(deleted) == 0 {
+		return
+	}
+
+	deletedSet := make(map[string]bool, len(deleted))
+	for _, filename := range deleted {
+		deletedSet[filename] = true
+	}
+
+	for _, name := range names {
+		if deletedSet[name] {
+			continue
+		}
+
+		notePath := filepath.Join(vault, name)
+
+		raw, readErr := deps.ReadFile(notePath)
+		if readErr != nil {
+			continue
+		}
+
+		updated, changed := removeNoteReferences(string(raw), deletedSet)
+		if !changed {
+			continue
+		}
+
+		writeErr := deps.WriteFile(notePath, []byte(updated))
+		if writeErr != nil && deps.LogWarning != nil {
+			deps.LogWarning("vocab refit: scrubbing references in %s: %v", notePath, writeErr)
+		}
+	}
+}
+
+// scrubSupersedesFrontmatter removes supersedes: list entries whose note:
+// value names a deleted filename, dropping the supersedes: key itself when
+// its last entry goes. All other frontmatter lines pass through verbatim.
+func scrubSupersedesFrontmatter(frontmatter string, deleted map[string]bool) (string, bool) {
+	lines := strings.Split(frontmatter, "\n")
+	kept := make([]string, 0, len(lines))
+	changed := false
+
+	for i := 0; i < len(lines); i++ {
+		if strings.TrimRight(lines[i], " ") != "supersedes:" {
+			kept = append(kept, lines[i])
+
+			continue
+		}
+
+		entries, next := collectSupersedesEntryBlocks(lines, i+1)
+		keptEntries := make([][]string, 0, len(entries))
+
+		for _, entry := range entries {
+			if deleted[supersedesEntryNoteValue(entry)] {
+				changed = true
+
+				continue
+			}
+
+			keptEntries = append(keptEntries, entry)
+		}
+
+		if len(keptEntries) > 0 {
+			kept = append(kept, lines[i])
+			for _, entry := range keptEntries {
+				kept = append(kept, entry...)
+			}
+		} else {
+			changed = true
+		}
+
+		i = next - 1
+	}
+
+	return strings.Join(kept, "\n"), changed
 }
 
 // stampProposedTermOrigin upserts an origin: proposed centroid entry for term
@@ -716,6 +763,44 @@ func stampProposedTermOrigin(deps VocabDeps, vault string, names []string, term 
 	if writeErr != nil && deps.LogWarning != nil {
 		deps.LogWarning("vocab propose: stamping origin for %s: %v", term, writeErr)
 	}
+}
+
+// supersedesEntryNoteValue extracts the note: filename from one supersedes
+// entry block, or "" when the block has no note: line.
+func supersedesEntryNoteValue(entry []string) string {
+	for _, line := range entry {
+		trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "- "))
+		if value, found := strings.CutPrefix(trimmed, "note:"); found {
+			return strings.TrimSpace(value)
+		}
+	}
+
+	return ""
+}
+
+// supersedesLineTargetsDeleted reports whether a Supersedes: body line's
+// wikilink targets one of the deleted filenames (either link form).
+func supersedesLineTargetsDeleted(line string, deleted map[string]bool) bool {
+	for filename := range deleted {
+		basename := strings.TrimSuffix(filename, ".md")
+		if strings.Contains(line, "[["+filename+"]]") || strings.Contains(line, "[["+basename+"]]") {
+			return true
+		}
+	}
+
+	return false
+}
+
+// unlinkDeletedWikilinks replaces inline wikilinks to deleted notes with
+// their plain-text basename, removing the graph edge but keeping the prose.
+func unlinkDeletedWikilinks(line string, deleted map[string]bool) string {
+	for filename := range deleted {
+		basename := strings.TrimSuffix(filename, ".md")
+		line = strings.ReplaceAll(line, "[["+filename+"]]", basename)
+		line = strings.ReplaceAll(line, "[["+basename+"]]", basename)
+	}
+
+	return line
 }
 
 // validateRefitNameEntry rejects a --names entry naming an unknown cluster,

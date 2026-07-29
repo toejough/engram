@@ -117,7 +117,9 @@ func parseSupersedesFlag(raw string) (supersedesEntry, error) {
 }
 
 // renderSupersedes produces the `Supersedes:` body lines for the supplied
-// entries. Returns "" when entries is empty.
+// entries. Returns "" when entries is empty. The wikilink target drops a
+// trailing .md — the graph resolves extension-less basenames — while the
+// frontmatter note: field (a file reference) keeps the full filename.
 func renderSupersedes(entries []supersedesEntry) string {
 	if len(entries) == 0 {
 		return ""
@@ -126,7 +128,8 @@ func renderSupersedes(entries []supersedesEntry) string {
 	lines := make([]string, len(entries))
 
 	for i, entry := range entries {
-		lines[i] = fmt.Sprintf("Supersedes: [[%s]] — %s: %s", entry.Note, entry.Type, entry.Claim)
+		target := strings.TrimSuffix(entry.Note, ".md")
+		lines[i] = fmt.Sprintf("Supersedes: [[%s]] — %s: %s", target, entry.Type, entry.Claim)
 	}
 
 	return strings.Join(lines, "\n") + "\n"

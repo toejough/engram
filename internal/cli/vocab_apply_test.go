@@ -172,27 +172,47 @@ func TestParseRefitNames_ValidCoversAllClusters(t *testing.T) {
 	g.Expect(names[3].Description).To(Equal("beta stuff"))
 }
 
-// TestRetireVocabTerms_DemotesDefinitionNoteAndStripsMemberTags verifies a
-// retired term's definition note loses its bare vocab marker and self-tag
-// (so it can no longer act as a term or re-attract members), and member notes
-// lose the vocab/<term> tag while keeping unrelated tags.
-func TestRetireVocabTerms_DemotesDefinitionNoteAndStripsMemberTags(t *testing.T) {
+// TestRemoveNoteReferences_FrontmatterlessContent verifies content without
+// frontmatter still gets its body references scrubbed, and reference-free
+// frontmatterless content reports unchanged.
+func TestRemoveNoteReferences_FrontmatterlessContent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deleted := map[string]bool{"5.2026-07-02.gone.md": true}
+
+	scrubbed, changed := cli.ExportRemoveNoteReferences("see [[5.2026-07-02.gone]] here\n", deleted)
+	g.Expect(changed).To(BeTrue())
+	g.Expect(scrubbed).To(Equal("see 5.2026-07-02.gone here\n"), "inline link unlinked to plain text")
+
+	same, unchanged := cli.ExportRemoveNoteReferences("nothing linked here\n", deleted)
+	g.Expect(unchanged).To(BeFalse())
+	g.Expect(same).To(Equal("nothing linked here\n"))
+}
+
+// TestRetireVocabTerms_DeletesDefinitionNoteAndSidecar verifies a retired
+// term's definition note and its .vec.json sidecar are deleted outright (no
+// demoted note left behind), while member notes lose the vocab/<term> tag and
+// keep unrelated tags.
+func TestRetireVocabTerms_DeletesDefinitionNoteAndSidecar(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	files, names := retirementFixtureFiles()
 	written := map[string][]byte{}
+
+	var deleted []string
+
 	deps := newCaptureVocabDeps(files, names, written)
+	deps.DeleteFile = func(path string) error { deleted = append(deleted, path); return nil }
 
-	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName}, retireTestVersion)
+	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName})
 
-	updatedDef := string(written[retiredDefPath])
-	g.Expect(updatedDef).NotTo(BeEmpty(), "retired definition note must be rewritten in place")
-	g.Expect(cli.ExportIsVocabDefinitionNote(updatedDef)).To(BeFalse(),
-		"a retired definition note must stop being a definition note (no dormant re-attraction)")
-	g.Expect(updatedDef).NotTo(ContainSubstring("vocab/old-term"), "self-tag stripped")
-	g.Expect(updatedDef).To(ContainSubstring("Information learned"), "fact content preserved, not deleted")
+	g.Expect(deleted).To(ContainElement(retiredDefPath), "definition note deleted")
+	g.Expect(deleted).To(ContainElement(embed.SidecarPath(retiredDefPath)), "sidecar deleted")
+	g.Expect(written).NotTo(HaveKey(retiredDefPath), "no demoted note written in place")
 
 	updatedMember := string(written[retireMemberPath])
 	g.Expect(updatedMember).NotTo(ContainSubstring("vocab/old-term"), "member tag stripped")
@@ -200,7 +220,7 @@ func TestRetireVocabTerms_DemotesDefinitionNoteAndStripsMemberTags(t *testing.T)
 }
 
 // TestRetireVocabTerms_ListError_Warns verifies a vault-listing failure aborts
-// retirement with a warning and no writes.
+// retirement with a warning and no writes or deletes.
 func TestRetireVocabTerms_ListError_Warns(t *testing.T) {
 	t.Parallel()
 
@@ -208,24 +228,29 @@ func TestRetireVocabTerms_ListError_Warns(t *testing.T) {
 
 	written := map[string][]byte{}
 
-	var warnings []string
+	var (
+		warnings []string
+		deleted  []string
+	)
 
 	deps := newCaptureVocabDeps(map[string][]byte{}, nil, written)
 	deps.ListMD = func(string) ([]string, error) { return nil, errors.New("list boom") }
+	deps.DeleteFile = func(path string) error { deleted = append(deleted, path); return nil }
 	deps.LogWarning = func(format string, args ...any) {
 		warnings = append(warnings, fmt.Sprintf(format, args...))
 	}
 
-	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName}, retireTestVersion)
+	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName})
 
 	g.Expect(warnings).NotTo(BeEmpty())
 	g.Expect(written).To(BeEmpty())
+	g.Expect(deleted).To(BeEmpty())
 }
 
-// TestRetireVocabTerms_MergesWithExistingFamilySupersedes verifies a second
-// retirement merges into the family note's existing supersedes list without
-// duplicating entries (idempotent per retired note).
-func TestRetireVocabTerms_MergesWithExistingFamilySupersedes(t *testing.T) {
+// TestRetireVocabTerms_NoSupersessionRecorded verifies retirement records no
+// supersession anywhere: vocab definition notes have no supersession story —
+// the family note gains no supersedes entry and no Supersedes body line.
+func TestRetireVocabTerms_NoSupersessionRecorded(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -234,97 +259,108 @@ func TestRetireVocabTerms_MergesWithExistingFamilySupersedes(t *testing.T) {
 	written := map[string][]byte{}
 	deps := newCaptureVocabDeps(files, names, written)
 
-	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName}, retireTestVersion)
+	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName})
 
-	// Second run over the same retired term: restore the definition note so
-	// retirement finds it again — the family record must not duplicate.
-	written[retiredDefPath] = files[retiredDefPath]
-
-	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName}, retireTestVersion)
-
-	updatedFamily := string(written[retireFamilyPath])
-	g.Expect(strings.Count(updatedFamily, retiredDefName)).To(Equal(2),
-		"one frontmatter entry + one body line — no duplicate records on re-run")
-}
-
-// TestRetireVocabTerms_MissingFamilyNote_StillDemotes verifies retirement
-// degrades gracefully without a family note: the definition note is still
-// demoted and a warning is logged.
-func TestRetireVocabTerms_MissingFamilyNote_StillDemotes(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	files, _ := retirementFixtureFiles()
-	delete(files, retireFamilyPath)
-
-	names := []string{retiredDefName, retireMemberName}
-	written := map[string][]byte{}
-
-	var warnings []string
-
-	deps := newCaptureVocabDeps(files, names, written)
-	deps.LogWarning = func(format string, args ...any) {
-		warnings = append(warnings, fmt.Sprintf(format, args...))
+	if familyRaw, rewritten := written[retireFamilyPath]; rewritten {
+		family := string(familyRaw)
+		g.Expect(family).NotTo(ContainSubstring("supersedes:"), "no frontmatter supersedes list")
+		g.Expect(family).NotTo(ContainSubstring("Supersedes: [["), "no body supersedes line")
 	}
-
-	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName}, retireTestVersion)
-
-	g.Expect(cli.ExportIsVocabDefinitionNote(string(written[retiredDefPath]))).To(BeFalse())
-	g.Expect(warnings).NotTo(BeEmpty(), "missing family note must be warned about")
 }
 
-// TestRetireVocabTerms_RecordsSupersessionOnFamilyNote verifies retirement is
-// recorded through the existing supersession write path: the family note
-// gains a supersedes entry naming the retired definition note.
-func TestRetireVocabTerms_RecordsSupersessionOnFamilyNote(t *testing.T) {
+// TestRetireVocabTerms_ScrubDropsEmptySupersedesKey verifies the frontmatter
+// supersedes: key itself is dropped when the scrub removes its last entry.
+func TestRetireVocabTerms_ScrubDropsEmptySupersedesKey(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	files, names := retirementFixtureFiles()
+	referrer := "---\ntype: fact\ntier: L2\nsituation: s\nsubject: x\npredicate: covers\nobject: o\n" +
+		"luhmann: \"7\"\ncreated: \"2026-01-01\"\nsource: test\nsupersedes:\n" +
+		"    - note: " + retiredDefName + "\n      type: updates\n      claim: old term retired\n" +
+		"tags:\n    - keep-me\n---\n\nInformation learned: x covers o.\n\n" +
+		"Supersedes: [[" + retiredDefName + "]] — updates: old term retired\n"
+
+	const referrerName = "7.2026-01-01.referrer.md"
+
+	files["/vault/"+referrerName] = []byte(referrer)
+	names = append(names, referrerName)
+
 	written := map[string][]byte{}
 	deps := newCaptureVocabDeps(files, names, written)
 
-	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName}, retireTestVersion)
+	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName})
 
-	updatedFamily := string(written[retireFamilyPath])
-	g.Expect(updatedFamily).NotTo(BeEmpty(), "family note must be rewritten with the supersession record")
-	g.Expect(updatedFamily).To(ContainSubstring("supersedes:"), "frontmatter supersedes list written")
-	g.Expect(updatedFamily).To(ContainSubstring(retiredDefName), "entry names the retired definition note")
-	g.Expect(updatedFamily).To(ContainSubstring("Supersedes: [["+retiredDefName+"]]"),
-		"body supersedes line rendered via the existing supersession path")
-	g.Expect(updatedFamily).To(ContainSubstring(retiredTermName), "claim names the retired term")
-	g.Expect(updatedFamily).To(ContainSubstring("vocab_version"), "family note fields preserved")
+	updatedReferrer := string(written["/vault/"+referrerName])
+	g.Expect(updatedReferrer).NotTo(BeEmpty(), "referrer must be rewritten")
+	g.Expect(updatedReferrer).NotTo(ContainSubstring("supersedes:"), "empty supersedes key dropped")
+	g.Expect(updatedReferrer).NotTo(ContainSubstring("Supersedes: [["), "body line removed")
+	g.Expect(updatedReferrer).To(ContainSubstring("tags:"), "rest of frontmatter intact")
 }
 
-// TestRetireVocabTerms_UnparseableFamilyCreated_Warns verifies the amend
-// render path's error (bad created date on the family note) is warned about.
-func TestRetireVocabTerms_UnparseableFamilyCreated_Warns(t *testing.T) {
+// TestRetireVocabTerms_ScrubsReferencesVaultWide verifies every reference to a
+// deleted definition note is removed: a frontmatter supersedes entry naming
+// its basename, the matching Supersedes body line (with .md inside the
+// wikilink), and an inline wikilink (without .md) elsewhere — while notes
+// without references stay untouched (not rewritten at all) and a scrubbed
+// note's content hash is unchanged when only hash-excluded lines were removed.
+func TestRetireVocabTerms_ScrubsReferencesVaultWide(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
 	files, names := retirementFixtureFiles()
-	files[retireFamilyPath] = []byte("---\ntype: fact\ntier: L2\nsituation: s\nsubject: the vocab tag family\n" +
-		"predicate: covers\nobject: o\nluhmann: \"9\"\ncreated: \"not-a-date\"\nsource: test\n" +
-		"vocab_version: \"6.0\"\ntags:\n    - vocab\n---\n\nInformation learned: stuff.\n")
+	referrer := "---\ntype: fact\ntier: L2\nsituation: s\nsubject: x\npredicate: covers\nobject: o\n" +
+		"luhmann: \"7\"\ncreated: \"2026-01-01\"\nsource: test\nsupersedes:\n" +
+		"    - note: " + retiredDefName + "\n      type: updates\n      claim: old term retired\n" +
+		"    - note: 8.2026-01-01.unrelated.md\n      type: narrows\n      claim: keep this one\n" +
+		"tags:\n    - keep-me\n---\n\nInformation learned: x covers o.\n\n" +
+		"Supersedes: [[" + retiredDefName + "]] — updates: old term retired\n" +
+		"Supersedes: [[8.2026-01-01.unrelated]] — narrows: keep this one\n"
+	inlineLinker := "---\ntype: feedback\nsituation: ctx\nbehavior: b\nimpact: i\naction: a\n" +
+		"luhmann: \"1ab\"\ncreated: 2026-01-01\nsource: test\ntags:\n    - keep-me\n---\n\n" +
+		"Lesson learned: see [[" + strings.TrimSuffix(retiredDefName, ".md") + "]] for the old term.\n"
+	untouched := "---\ntype: feedback\nsituation: ctx\nbehavior: b\nimpact: i\naction: a\n" +
+		"luhmann: \"1ac\"\ncreated: 2026-01-01\nsource: test\ntags:\n    - keep-me\n---\n\n" +
+		"Lesson learned: nothing to see here.\n"
 
-	var warnings []string
+	const (
+		referrerName  = "7.2026-01-01.referrer.md"
+		inlineName    = "1ab.2026-01-01.inline-linker.md"
+		untouchedName = "1ac.2026-01-01.untouched.md"
+	)
 
-	deps := newCaptureVocabDeps(files, names, map[string][]byte{})
-	deps.LogWarning = func(format string, args ...any) {
-		warnings = append(warnings, fmt.Sprintf(format, args...))
-	}
+	files["/vault/"+referrerName] = []byte(referrer)
+	files["/vault/"+inlineName] = []byte(inlineLinker)
+	files["/vault/"+untouchedName] = []byte(untouched)
+	names = append(names, referrerName, inlineName, untouchedName)
 
-	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName}, retireTestVersion)
+	written := map[string][]byte{}
+	deps := newCaptureVocabDeps(files, names, written)
 
-	g.Expect(warnings).To(ContainElement(ContainSubstring("retirement supersession")),
-		"the amend render failure must be warned about")
+	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName})
+
+	updatedReferrer := string(written["/vault/"+referrerName])
+	g.Expect(updatedReferrer).NotTo(BeEmpty(), "referrer must be rewritten")
+	g.Expect(updatedReferrer).NotTo(ContainSubstring(retiredDefName), "frontmatter entry + body line removed")
+	g.Expect(updatedReferrer).To(ContainSubstring("note: 8.2026-01-01.unrelated.md"), "other entries kept")
+	g.Expect(updatedReferrer).To(ContainSubstring("Supersedes: [[8.2026-01-01.unrelated]]"), "other body lines kept")
+	g.Expect(embed.ContentHash([]byte(updatedReferrer))).To(Equal(embed.ContentHash(files["/vault/"+referrerName])),
+		"removing hash-excluded supersedes machinery must not change the content hash")
+
+	updatedInline := string(written["/vault/"+inlineName])
+	g.Expect(updatedInline).NotTo(BeEmpty(), "inline linker must be rewritten")
+	g.Expect(updatedInline).NotTo(ContainSubstring("[["+strings.TrimSuffix(retiredDefName, ".md")+"]]"),
+		"inline wikilink removed")
+	g.Expect(updatedInline).To(ContainSubstring(strings.TrimSuffix(retiredDefName, ".md")),
+		"unlinked plain text preserved")
+
+	g.Expect(written).NotTo(HaveKey("/vault/"+untouchedName), "reference-free notes stay byte-identical")
 }
 
-// TestRetireVocabTerms_WriteErrors_Warn verifies demotion and family-note
-// write failures are warned about, not fatal.
+// TestRetireVocabTerms_WriteErrors_Warn verifies delete and scrub-write
+// failures are warned about, not fatal.
 func TestRetireVocabTerms_WriteErrors_Warn(t *testing.T) {
 	t.Parallel()
 
@@ -335,14 +371,15 @@ func TestRetireVocabTerms_WriteErrors_Warn(t *testing.T) {
 	var warnings []string
 
 	deps := newCaptureVocabDeps(files, names, map[string][]byte{})
+	deps.DeleteFile = func(string) error { return errors.New("delete boom") }
 	deps.WriteFile = func(string, []byte) error { return errors.New("write boom") }
 	deps.LogWarning = func(format string, args ...any) {
 		warnings = append(warnings, fmt.Sprintf(format, args...))
 	}
 
-	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName}, retireTestVersion)
+	cli.ExportRetireVocabTerms(deps, "/vault", []string{retiredTermName})
 
-	g.Expect(warnings).NotTo(BeEmpty(), "write failures must be surfaced as warnings")
+	g.Expect(warnings).NotTo(BeEmpty(), "delete/write failures must be surfaced as warnings")
 }
 
 // TestRunVocabPropose_StampCarriesSidecarVector verifies that when the minted
@@ -496,10 +533,9 @@ func TestRunVocabRefit_AppliesDerivationWithNames(t *testing.T) {
 	g.Expect(mintedNorth).To(ContainSubstring("- vocab\n"), "bare vocab marker")
 	g.Expect(mintedNorth).To(ContainSubstring("- vocab/north-term"), "self-tag")
 
-	// Retired term demoted; proposed term untouched.
-	staleDef := written["/vault/211.2026-01-01.vocab-stale-term-definition.md"]
-	g.Expect(staleDef).NotTo(BeNil(), "stale-term definition must be rewritten (demoted)")
-	g.Expect(cli.ExportIsVocabDefinitionNote(string(staleDef))).To(BeFalse())
+	// Retired term's definition note deleted outright; proposed term untouched.
+	g.Expect(written).NotTo(HaveKey("/vault/211.2026-01-01.vocab-stale-term-definition.md"),
+		"stale-term definition must be deleted, not rewritten")
 	g.Expect(written).NotTo(HaveKey("/vault/212.2026-01-01.vocab-prop-term-definition.md"),
 		"proposed term's definition note must not be touched")
 
@@ -755,14 +791,13 @@ func TestWriteCentroidsFile_PersistsOriginAndDerivationMetadata(t *testing.T) {
 
 // unexported constants.
 const (
-	retireFamilyName  = "9.2026-01-01.vocab-definition.md"
-	retireFamilyPath  = "/vault/" + retireFamilyName
-	retireMemberName  = "1aa.2026-01-01.member.md"
-	retireMemberPath  = "/vault/" + retireMemberName
-	retireTestVersion = "7.0"
-	retiredDefName    = "5.2026-07-02.vocab-old-term-definition.md"
-	retiredDefPath    = "/vault/" + retiredDefName
-	retiredTermName   = "old-term"
+	retireFamilyName = "9.2026-01-01.vocab-definition.md"
+	retireFamilyPath = "/vault/" + retireFamilyName
+	retireMemberName = "1aa.2026-01-01.member.md"
+	retireMemberPath = "/vault/" + retireMemberName
+	retiredDefName   = "5.2026-07-02.vocab-old-term-definition.md"
+	retiredDefPath   = "/vault/" + retiredDefName
+	retiredTermName  = "old-term"
 )
 
 // unexported variables.

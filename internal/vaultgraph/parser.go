@@ -40,7 +40,10 @@ func ParseWikilinks(body []byte) []string {
 		}
 
 		for _, match := range wikilinkPattern.FindAllStringSubmatch(line, -1) {
-			target := match[1]
+			// A .md-suffixed target (legacy machine-written form) normalizes to
+			// the extension-less basename — the canonical graph-node key —
+			// before dedup, matching Obsidian's resolution of [[note.md]].
+			target := strings.TrimSuffix(match[1], mdExt)
 			if target == "" {
 				continue
 			}

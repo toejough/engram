@@ -143,6 +143,35 @@ func TestParseWikilinks_IgnoresEmpty(t *testing.T) {
 	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"Real"}))
 }
 
+// TestParseWikilinks_MdNormalizationProperty verifies for any basename that
+// linking it bare and linking it .md-suffixed parse to identical target lists.
+func TestParseWikilinks_MdNormalizationProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
+
+		name := rapid.StringMatching(`[0-9]+[a-z0-9]*\.[a-z0-9-]+`).Draw(rt, "name")
+
+		bare := vaultgraph.ParseWikilinks([]byte("see [[" + name + "]] here"))
+		suffixed := vaultgraph.ParseWikilinks([]byte("see [[" + name + ".md]] here"))
+
+		g.Expect(suffixed).To(Equal(bare), "the two link forms must parse identically")
+	})
+}
+
+// TestParseWikilinks_MdSuffixDedupesWithBareForm verifies normalization runs
+// before dedup: the same target linked bare and .md-suffixed yields one entry.
+func TestParseWikilinks_MdSuffixDedupesWithBareForm(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	body := []byte("see [[x]] and [[x.md]] and [[y.md]] and [[y]].")
+
+	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"x", "y"}))
+}
+
 func TestParseWikilinks_MultipleLinksFirstAppearanceOrder(t *testing.T) {
 	t.Parallel()
 
@@ -170,6 +199,18 @@ func TestParseWikilinks_NoNesting(t *testing.T) {
 	}
 
 	g.Expect(result[0]).To(Equal("outer[[inner"))
+}
+
+// TestParseWikilinks_NormalizesMdSuffixedTargets verifies a wikilink written
+// with the .md extension resolves to the extension-less canonical basename.
+func TestParseWikilinks_NormalizesMdSuffixedTargets(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	body := []byte("Supersedes: [[210.2026-07-10.old-definition.md]] — updates: retired")
+
+	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"210.2026-07-10.old-definition"}))
 }
 
 func TestParseWikilinks_SingleLink(t *testing.T) {

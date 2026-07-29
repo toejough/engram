@@ -42,3 +42,28 @@ func TestUnresolvedTargets_IgnoresSelfLinksAndResolved(t *testing.T) {
 
 	g.Expect(vaultgraph.UnresolvedTargets(notes)).To(BeEmpty())
 }
+
+// TestUnresolvedTargets_MdSuffixedLinkResolvesViaParse verifies a legacy
+// .md-suffixed supersession link, parsed through ParseWikilinks, resolves to
+// an existing basename — while a truly missing target still reports, in
+// either link form.
+func TestUnresolvedTargets_MdSuffixedLinkResolvesViaParse(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	body := []byte("Supersedes: [[B.md]] — updates: legacy link\n\nAlso [[gone.md]] and [[missing]].")
+	notes := []vaultgraph.Note{
+		{Basename: "A", Outgoing: vaultgraph.ParseWikilinks(body)},
+		{Basename: "B"},
+	}
+
+	unresolved := vaultgraph.UnresolvedTargets(notes)
+	targets := make([]string, 0, len(unresolved))
+
+	for _, link := range unresolved {
+		targets = append(targets, link.Target)
+	}
+
+	g.Expect(targets).To(ConsistOf("gone", "missing"), "existing B resolves; truly missing targets still warn")
+}

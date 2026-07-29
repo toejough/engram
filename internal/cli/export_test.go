@@ -107,6 +107,7 @@ var (
 	ExportReadCentroidsDoc            = readCentroidsDoc
 	ExportRecencyMultiplier           = recencyMultiplier
 	ExportRegenVocab                  = regenVocab
+	ExportRemoveNoteReferences        = removeNoteReferences
 	ExportRenderDefinitionNoteContent = renderDefinitionNoteContent
 	ExportRenderFactBody              = renderFactBody
 	ExportRenderFactFrontmatter       = renderFactFrontmatter
@@ -114,6 +115,7 @@ var (
 	ExportRenderFeedbackFrontmatter   = renderFeedbackFrontmatter
 	ExportRenderQAAnswerNote          = renderQAAnswerNote
 	ExportRenderQAQuestionNote        = renderQAQuestionNote
+	ExportRenderSupersedes            = renderSupersedes
 	ExportResolveVault                = resolveVault
 	ExportRetagAllNotesTwoPass        = retagAllNotesTwoPass
 	ExportRetireVocabTerms            = retireVocabTerms
