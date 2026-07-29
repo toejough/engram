@@ -7,7 +7,7 @@ Recall's global reach currently comes from tag nomination: the top-3 query-neare
 ## What Changes
 
 - **Payload composition contract: 50% exploit / 50% explore.** The exploit half is the existing cosine top-n nearest notes (floors and caps unchanged). The explore half is sampled from global clusters: each cluster receives a sample allocation proportional to softmax(query→centroid cosine similarity), so near concepts contribute more, far concepts approach zero — no radius threshold to tune.
-- **Within-cluster sampling is centroid-proximal.** Explore samples are drawn weighted by closeness to the cluster centroid (the cluster's canonical core), since query-near members are already covered by the exploit half; the 0.35-fringe is naturally down-weighted.
+- **Within-cluster sampling is centroid-proximal.** Explore samples are drawn weighted by closeness to the cluster centroid (the cluster's canonical core), since query-near members are already covered by the exploit half; members near the write-time assignment floor (cosine 0.35, the minimum for a term stamp — "the 0.35-fringe") are naturally down-weighted.
 - **Dedupe and backfill.** Explore samples already present in the exploit half are deduplicated; freed slots backfill from the next-nearest cluster allocation so the explore half stays full.
 - **Tag nomination is removed** from the query path (`buildTagNominations`, `tag_nominations_added`/`_dropped` budget fields). **BREAKING** for payload consumers reading those budget fields. Explore provenance is reported instead (per-note `provenance: explore` + per-cluster allocation counts in the query budget).
 - **Supersession ride-along, local clustering of matches, matched-note floor, and the two-channel (notes+chunks) design are unchanged.** Explore sampling applies to the note channel only.
@@ -22,9 +22,12 @@ Recall's global reach currently comes from tag nomination: the top-3 query-neare
 ### Modified Capabilities
 
 - `vault-vocab-lifecycle`: the "Tag nomination in recall queries" requirement is removed (definition-note exclusion rules for nomination become moot; all other requirements unchanged).
+- `recall-two-channel-payload`: the Channel 1 requirement and "Cross-cluster tag nomination" scenario currently name tag-nominated notes as a candidate_l2s source; reworded to explore sampling (found by the doc-surface enumeration grep — these specs would state removed behavior otherwise).
+- `route-dispatch-evidence`: the requirement stating evidence aggregates surface "through tag nomination" is reworded to surface via vocab-tagged explore sampling (same grep finding; wording-only, the surfacing guarantee is unchanged).
 
 ## Impact
 
 - `internal/cli` query path (nomination removal, sampling insertion, budget fields), centroid loading (`vocab.centroids.json` reader reuse), payload/YAML output shape.
-- `agent-instructions/skills/recall/SKILL.md` if it names nomination fields (audit required; skill edits go through `superpowers:writing-skills`).
+- `agent-instructions/skills/recall/SKILL.md` (names nomination and the budget fields verbatim; skill edits go through `superpowers:writing-skills`).
+- Architecture docs and glossary naming tag nomination (`docs/architecture/adr.md`, `c1`–`c3`, `docs/GLOSSARY.md`, `docs/ROADMAP.md`, `README.md`) — a removal isn't done until docs naming the old path are updated; per-file dispositions enumerated in tasks.md.
 - Eval exposure: payload-composition change should be gated by the existing C3–C6 trap-harness style checks before deploy (per dev/eval/LEDGER.md conventions); a before/after payload comparison on the real vault is a cheap validity check.
