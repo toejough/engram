@@ -90,9 +90,12 @@ phrases with dedup keeping max score, drops items below a **relevance floor**
 (`matchSetCap`, 10×30 per phrase). This bounded matched set is the **only clustering
 input**: one AutoK pass over matched notes+chunks (D1 preserved).
 Each cluster carries `candidate_l2s: [{path, cosine, content}]` — the within-cluster top-5 notes by centroid
-cosine **plus tag-nominated notes** (notes sharing ≥1 vocab term with the top-3 delivered notes; budget fields
-`tag_nominations_added`/`dropped`; pool cap 40/cluster). Superseded-note ride-alongs are inserted at the next
-rank. The harness then, **inline and blocking**, reads the cluster's members and candidates and applies an
+cosine, and nothing else. Separately, an **explore half** samples additional notes from vocab-term
+centroids near the query (softmax allocation over per-term proximity, budget sized to the exploit-half
+note count) and delivers them as top-level `items[]` entries — never cluster members, never in
+`candidate_l2s` — carrying `provenance: explore` and `source_term`; the `explore_allocated` budget field
+(term → delivered count, always present, `{}` on missing/unreadable centroid data) reports the result.
+Superseded-note ride-alongs are inserted at the next rank. The harness then, **inline and blocking**, reads the cluster's members and candidates (plus the explore items) and applies an
 **agent-judged coverage decision**: **covered** (candidate already states the principle with no material
 omission, judged against the recency-weighted view) → `engram amend --activate --chunk-source <chunk ids>`
 (refresh recency + provenance, no content rewrite); **near** (same situation, ≥1 substantive claim omitted)

@@ -17,7 +17,7 @@ Memory has two layers retrieved in ONE call: raw chunks (every past conversation
 1. **Make your plan visible** before retrieving anything — an unstated plan cannot be tested against memory.
 2. **Sweep, then run ONE unified `engram query`.** Items tagged `kind: chunk` are raw fragments; `kind: fact`/`feedback` are crystallized lessons. They compete in the same top-N.
 3. **Crystallize** — when several near-match chunks evidence the same principle and no note states it yet, write the vault note now.
-4. **Tag-nominate and ride-along** — the binary nominates notes sharing a vocab term with the top-3 delivered notes and inserts superseded-note supersessors at the next rank; the agent judges the surfaced candidates, never links.
+4. **Explore-sample and ride-along** — the binary samples additional notes from vocab-term centroids near the query (budget sized to the matched-note count) and inserts superseded-note supersessors at the next rank; the agent judges the surfaced candidates, never links.
 5. **Synthesize impact on the plan** — confirm / adjust / contradict / silent, per planned action.
 6. **Re-enter for emergent recommendations** — a recommendation conceived mid-work gets its own
    lever-keyed query and a `Re-entry:` line directly above it before it ships (Step 3.5).
@@ -107,9 +107,12 @@ engram query --lazy-chunks \
 
 One call; the binary merges ranking server-side. `engram query` always runs the unified D1
 clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path, cosine, content}]`
-per cluster. The candidate pool includes the within-cluster top-5 **plus tag-nominated notes** — notes
-sharing a vocab term with the top-3 delivered notes (budget fields `tag_nominations_added`/`dropped`
-report the pool size). Do NOT collapse phrases, do NOT run per-phrase calls.
+per cluster — the within-cluster top-5 notes, and nothing else; explore-sampled notes are never
+cluster members. Separately, the binary samples explore notes from vocab-term centroids near the
+query and delivers them as top-level `items[]` entries (provenance `explore`, with `source_term`),
+budgeted to the count of matched notes and reported in `explore_allocated` (a term → delivered-count
+map, always present — `{}` on missing/unreadable centroid data, degrading visibly to exploit-only). Do NOT
+collapse phrases, do NOT run per-phrase calls.
 
 The payload has **two channels**:
 
@@ -124,6 +127,9 @@ judge coverage. The payload's `items` mix:
   invocation — confirm via `budget.lazy_chunks: true`) chunk items carry path + source/anchor
   but NO `content` field: `engram show-chunk <source#anchor>` to read a chunk's evidence on-demand.**
 - `kind: fact` / `feedback` — crystallized lessons; apply directly (notes always carry full content inline).
+- `provenance: explore` — notes sampled from vocab-term centroids rather than matched by a phrase
+  (see Step 2). Treat them as part of the delivered note set for judging Step 2.5/3; each carries
+  `source_term` naming the centroid it came from.
 
 **Channel 2 — Recent activity (un-clustered):** Items tagged `provenance: recent` — the newest
 chunks by ingest time, appended after the matched set, NOT cluster members. Read this block
@@ -146,12 +152,13 @@ for coverage purposes.)
 
 The query output's `clusters` list contains the unified clustering of matched chunks
 and notes. Each cluster carries `candidate_l2s: [{path, cosine, content}]` — the within-cluster
-top-5 notes ranked from the cluster's own matched members, **plus any tag-nominated notes** whose
-vocab terms overlap the top-3 delivered notes (nominated notes may cross cluster boundaries). A note
-that did not match any phrase AND was not nominated will never appear as a candidate. Superseded-note
-ride-alongs are inserted at the next rank after the note they supersede. A cluster with no note
-members yields an empty `candidate_l2s` list; skip to the next cluster when that happens.
-**Process every cluster.** For each:
+top-5 notes ranked from the cluster's own matched members, and nothing else. Explore-sampled notes
+(provenance `explore`, see Step 2) arrive as separate top-level `items[]` entries, not as cluster
+members and not in any `candidate_l2s` list — judge them alongside the clustered candidates using
+the same criteria. A note that did not match any phrase AND was not explore-sampled will never
+appear as a candidate. Superseded-note ride-alongs are inserted at the next rank after the note
+they supersede. A cluster with no note members yields an empty `candidate_l2s` list; skip to the
+next cluster when that happens. **Process every cluster, then the explore items.** For each:
 
 **A. Read candidates and members**
 
@@ -280,8 +287,8 @@ Hand ONE synthesis note per conclusion to the **write-memory** skill (kind=fact 
 - **If the synthesis conclusion CORRECTS, narrows, or refutes an existing surfaced note**, include
   the superseded note's basename, type (`updates|narrows|refutes`), and claim in the write-memory
   handoff — the binary maintains the inverse automatically. Otherwise no link ritual is needed; the
-  binary auto-assigns vocab tags at write time, and recall surfaces tag-sharing notes at query time
-  (tag nomination). Do not hand-author wikilinks to connect notes.
+  binary auto-assigns vocab tags at write time, and recall surfaces vocab-tagged notes via explore
+  sampling at query time. Do not hand-author wikilinks to connect notes.
 
 **Gate — do not rot the vault (notes 68/69):** persist ONLY conclusions you judge sound. If it is a
 hunch, you'd hedge below "probable", or it merely re-aggregates one note, do NOT persist. One synthesis

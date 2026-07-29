@@ -222,7 +222,10 @@ interface implementation, not a change to the read pipeline.
 ## ADR-0011 — Controlled-vocab tag nomination over graph traversal
 
 **Status:** Accepted (2026-07-02/03) · supersedes graph-traversal (PPR / spreading-activation) as
-the relational-retrieval mechanism.
+the relational-retrieval mechanism. **Superseded (2026-07-29) by ADR-0025** — tag nomination's
+candidate-side "join the pool on shared vocab term" mechanism is replaced by centroid-proximity
+explore sampling; this ADR's context/decision/consequences below remain the historical record of
+why candidate-side augmentation beat graph traversal in the first place.
 
 **Representation update (2026-07-10, #678, per ADR-0019):** the fixed term set now lives as bare-`vocab`-tagged definition fact notes (`vocab-<term>-definition`) and member terms as `tags: [vocab/<term>]`. The centroid-assignment and query-nomination mechanism is unchanged.
 
@@ -808,6 +811,66 @@ coincidence between two independent implementations.
 
 - [Geometry churn renames stable vocabulary] → the ≥0.80 centroid match keeps semantically stable terms; hysteresis damps K flapping; `origin: proposed` shields operator intent.
 - [Stale naming answer applied to a moved vault] → the derivation-input fingerprint must be echoed verbatim or the `--names` run is rejected.
+
+---
+
+## ADR-0025 — Centroid-proximity explore sampling replaces tag nomination in recall queries
+
+**Status:** Accepted (2026-07-29) · supersedes ADR-0011's candidate-side tag-nomination mechanism.
+
+**Context.** ADR-0011's tag nomination joined a note into a cluster's `candidate_l2s` pool whenever
+it shared a vocab term with the top-3 delivered notes in that cluster, regardless of the note's
+actual cosine to the query. This coupled candidate augmentation to an accident of which three notes
+happened to rank highest, gave every term-sharing note equal footing regardless of relevance within
+the term, and required per-cluster pool-cap bookkeeping (`nominationCapPerCluster`) to bound cost.
+`internal/cli/query_nominations.go` implemented the join; `openspec/changes/recall-centroid-sampling`
+proposed and specced the replacement.
+
+**Decision.** Replace tag nomination with an explore half sampled directly from vocab-term
+centroids, allocated by proximity to the query rather than by co-occurrence with top-ranked notes.
+The note channel is now exploit (unchanged: existing cosine-nearest matched notes, floors/caps as
+before) + explore (new). Explore budget B equals the count of distinct exploit-half NOTE items
+(chunks never count); B=0 skips explore entirely. Allocation across terms is
+`softmax(cosine(query vector, term centroid) / τ)`, where the query vector is the mean of the
+recall call's per-phrase embeddings and τ is set from calibration (task 3.1) — no radius cutoff, so
+every vocab term with a centroid is eligible, weighted by proximity. Terms with ≥1 member already in
+the exploit half get a flat additive similarity bonus δ=0.05 pre-softmax (a match-evidence boost;
+non-stacking — one bonus per term regardless of exploit-half member count). Within a term, members
+(notes carrying `vocab/<term>`, definition notes excluded) are selected core-first: descending
+cosine to the term centroid. Explore picks are deduped against the exploit half and across terms;
+freed slots backfill in allocation order. Delivery changed shape: explore notes are top-level
+`items[]` entries — inserted after ride-along assembly, before the chunk/recency channels — never
+cluster members and never in `candidate_l2s` (`candidate_l2s` is now purely within-cluster top-5,
+nothing else). Each explore item carries `provenance: explore` and `source_term`. The stage key
+`nominate` in `--timings` output is kept (renamed work, not renamed key) but now measures explore
+sampling + ride-along assembly. Source: `internal/cli/query_explore.go`,
+`internal/cli/query_vault_meta.go` (renamed from `query_nominations.go`).
+
+**Consequences (BREAKING).**
+
+- `tag_nominations_added`/`tag_nominations_dropped` budget fields are gone. The replacement is
+  `explore_allocated`, a term → delivered-count map (post-dedupe), ALWAYS present in the payload —
+  `{}` when `vocab.centroids.json` is missing or unreadable, a loud degrade to exploit-only rather
+  than a silent one.
+- `nominationCapPerCluster`/`topNForNomination` constants are gone; explore sizing is governed by
+  the exploit-half note count (B) and the softmax allocation, not a fixed per-cluster cap.
+- Consumers reading `candidate_l2s` for anything beyond within-cluster top-5 (e.g. treating it as
+  "all surfaced note candidates") must also read top-level `items[]` filtered to
+  `provenance: explore` to see the full candidate set — `agent-instructions/skills/recall/SKILL.md`
+  (task 4.1) and the two-channel payload spec (task 4.3) were updated accordingly.
+- Task 3.2 measures recovery: for each τ-calibration query, the fraction of before-arm
+  nomination-only deliveries still reachable somewhere in the after-arm payload (exploit, explore,
+  or ride-along); the keep/revert verdict is Joe's, evidenced by `dev/eval/LEDGER.md`.
+
+**Risks / Trade-offs:**
+
+- [τ mis-calibration flattens or spikes allocation] → task 3.1 calibrates τ against the production
+  vault before this ADR's decision ships to the default payload.
+- [Softmax-with-no-radius-cutoff always allocates something to every term] → the δ=0.05 bonus and
+  core-first within-term selection keep low-relevance terms from crowding out evidenced ones; B=0
+  (no exploit notes) skips explore outright.
+
+Link: `openspec/changes/recall-centroid-sampling`.
 
 ---
 

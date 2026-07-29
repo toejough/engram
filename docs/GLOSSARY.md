@@ -235,7 +235,7 @@ The current representation of a vocab term (shipped 2026-07-10, #678, supersedin
 vocab-index, and `Vocab:` line below): an ordinary `vocab`-tagged fact note, dash-slug naming. Two shapes: a **per-term definition** (`vocab-<term>-definition`, e.g.
 `vocab-retrieval-design-definition`) whose `subject`/`predicate`/`object` state the term's meaning and
 whose body carries the refit-maintained exemplar list (the body IS the term's embedding text — a
-`.vec.json` sidecar is written on embed like any fact note), carrying `tags: [vocab, vocab/<term>]`. The bare marker is the definition discriminator; the self-tag (added 2026-07-27) connects a definition to its member cluster in tag-based views and is display-only — member counts, trigger math, and tag-nomination pools all exclude definitions via the bare marker. The second shape is the **family note**
+`.vec.json` sidecar is written on embed like any fact note), carrying `tags: [vocab, vocab/<term>]`. The bare marker is the definition discriminator; the self-tag (added 2026-07-27) connects a definition to its member cluster in tag-based views and is display-only — member counts, trigger math, and explore-half membership all exclude definitions via the bare marker. The second shape is the **family note**
 (`vocab-definition`), which carries `vocab_version` in frontmatter and `tags: [vocab]` only and whose object documents the tagging
 convention WITHOUT enumerating terms (an enumerated term list is the stale-index problem the migration
 retired). Minted by `engram vocab bootstrap`/`propose`/`refit`. Unlike the retired vocab
@@ -254,13 +254,28 @@ the derivation inputs proving the answer names *this* vault state's clusters (a 
 the stale answer). Every new cluster must be named; unclaimed derived-origin terms are retired on
 apply (family-note supersession + major version bump).
 
-### vocab nomination
-The tag-match extension to `candidate_l2s` (shipped 2026-07-03): notes sharing ≥1 vocab term with the
-top-3 delivered notes are **nominated** into each cluster's candidate pool regardless of their cosine to
-the cluster centroid. Budget fields `tag_nominations_added` / `dropped` in the query payload report the
-count (pool cap 40/cluster). Zero collateral: notes with no shared vocab term are unaffected. A nominated
-note may cross cluster boundaries. Mechanism unchanged by the 2026-07-10 tags migration (#678) — only the
-term-membership representation moved, from `vocab:` frontmatter to `tags: [vocab/<term>]`.
+### explore sampling
+The recall-query mechanism (shipped 2026-07-29, `recall-centroid-sampling`, superseding **vocab
+nomination**/tag nomination below) that surfaces additional note candidates from vocab-term
+centroids by proximity to the query, instead of by shared vocab term with the top-3 delivered
+notes. Budget B equals the exploit half's (matched-note) count; allocation across terms is
+`softmax(cosine(query vector, term centroid) / τ)`, with a flat δ=0.05 additive bonus for terms
+already evidenced by ≥1 exploit-half member (non-stacking). Within a term, members (`vocab/<term>`
+notes, definitions excluded) are selected core-first by descending cosine to the term centroid.
+Explore picks dedupe against the exploit half and across terms, backfilling freed slots in
+allocation order. Delivered as top-level `items[]` entries — never cluster members, never in
+`candidate_l2s` — carrying `provenance: explore` and `source_term`; budget reported in
+`explore_allocated` (term → delivered-count map, always present, `{}` on missing/unreadable
+centroid data — degrading visibly to exploit-only rather than failing silently). See ADR-0025.
+
+### vocab nomination (retired)
+The tag-match extension to `candidate_l2s` (shipped 2026-07-03, retired 2026-07-29 by **explore
+sampling**, above): notes sharing ≥1 vocab term with the top-3 delivered notes were **nominated**
+into each cluster's candidate pool regardless of their cosine to the cluster centroid. Budget fields
+`tag_nominations_added` / `dropped` reported the count (pool cap 40/cluster). Zero collateral: notes
+with no shared vocab term were unaffected. A nominated note could cross cluster boundaries.
+Mechanism unchanged by the 2026-07-10 tags migration (#678) — only the term-membership
+representation moved, from `vocab:` frontmatter to `tags: [vocab/<term>]`.
 
 *The (retired)-marked entries below are the retired pre-#678 vocab representations (migrated to the tags convention 2026-07-10). Current form: **vocab definition note**, above.*
 
@@ -363,14 +378,16 @@ recalls, with on-target fetch when a chunk is the sole carrier of a needed fact)
 
 ### candidate_l2s
 The `[{path, cosine, content}]` field on each cluster in the query payload (content inlined per O2/#657).
-Nominates notes for the agent's covered/near/absent coverage decision via **two channels**:
-(1) **within-cluster top-5** by centroid cosine from the cluster's own matched note members;
-(2) **tag-nominated notes** — notes sharing ≥1 vocab term with the top-3 delivered notes join the pool
-regardless of cluster membership (budget fields `tag_nominations_added`/`dropped` track the count; pool cap
-40/cluster). A **superseded-note ride-along** inserts the superseder at the next rank when a delivered note
-has a superseder. A cluster with no members and no nominations has an empty `candidate_l2s`. Full-vault
-nomination was dropped in recall-v2 (DECISION-2, reversing D7) because it surfaced unrelated notes the agent
-had not matched; tag-nomination restores targeted cross-cluster reach on the shared-vocabulary axis.
+Surfaces candidates for the agent's covered/near/absent coverage decision from a **single source**:
+the **within-cluster top-5** by centroid cosine from the cluster's own matched note members. A
+**superseded-note ride-along** inserts the superseder at the next rank when a delivered note has a
+superseder. A cluster with no matched note members has an empty `candidate_l2s`. Since 2026-07-29
+(**explore sampling**, above), cross-cluster candidates no longer join `candidate_l2s` at all — they
+arrive as separate top-level `items[]` entries (`provenance: explore`). Full-vault nomination was
+dropped in recall-v2 (DECISION-2, reversing D7) because it surfaced unrelated notes the agent had
+not matched; tag nomination (retired, above) then restored targeted cross-cluster reach on the
+shared-vocabulary axis, and explore sampling in turn replaced tag nomination's co-occurrence join
+with proximity-weighted centroid sampling.
 
 ### cluster (query-time)
 A partition of the matched set produced by AutoK k-means (k=2..7 chosen
@@ -439,7 +456,7 @@ for O(1) ride-along at query; also renders a `Supersedes: [[<note>]] — <type>:
 Obsidian visibility. Repeatable. The `--relation` flag (which added `Related to:` bullets) was
 **removed 2026-07-03** — use `--supersedes` only when a note corrects, narrows, or refutes another;
 cross-note connections along a shared topic ride the binary's automatic vocab-tag assignment
-(`tags: [vocab/<term>]`), nominated at query time — not authored wikilinks.
+(`tags: [vocab/<term>]`), surfaced via explore sampling at query time — not authored wikilinks.
 
 ### `--tag`
 Repeatable categorical-tag flag on `engram learn fact` / `engram learn feedback` (not qa, not
@@ -490,7 +507,7 @@ both notes; auto-vocab assignment runs on the A-note only. Q-notes carry
 no `vocab/` tag (per D5′, below — Q-note wording loses retrieval against
 content; excluded from the main query set at all four query-pipeline seam
 points: the pre-clustering filter, the matched-set floor/cap, the
-tag-nomination gate, and the TermIndex builder). On A-write failure
+per-phrase union merge, and the explore-half TermIndex builder). On A-write failure
 the Q-note is removed (best-effort) and a descriptive error is returned.
 
 ### qa-question (note type)

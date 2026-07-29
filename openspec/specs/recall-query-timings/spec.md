@@ -2,13 +2,13 @@
 
 ## Purpose
 
-`engram query --timings` emits per-stage wall-clock timing blocks (scan / embed / cluster / nominate / render) for the query in-flight phase, computed through the injected clock (internal/cli/query.go `phaseTimer`) and gated so the default recall payload remains byte-identical. It is a measurement-only diagnostic (#691) for decomposing query speed to identify dominant stages before optimizing. Why: #691 (no dedicated ADR). Validation: dev/eval/LEDGER.md#query-inflight-split.
+`engram query --timings` emits per-stage wall-clock timing blocks (scan / embed / cluster / nominate / render) for the query in-flight phase, computed through the injected clock (internal/cli/query.go `phaseTimer`) and gated so the default recall payload remains byte-identical. The `nominate` stage key is retained from the tag-nomination era (ADR-0011) but now measures explore-half sampling (centroid-proximity softmax allocation, `internal/cli/query_explore.go`) plus supersession ride-along assembly — see ADR-0025. It is a measurement-only diagnostic (#691) for decomposing query speed to identify dominant stages before optimizing. Why: #691 (no dedicated ADR). Validation: dev/eval/LEDGER.md#query-inflight-split.
 
 ## Requirements
 
 ### Requirement: Timings block measures per-stage wall-clock durations
 
-When `--timings` is set, the query SHALL emit a `timings:` YAML block on the payload with separate millisecond measurements for scan, embed, cluster, nominate, and render stages.
+When `--timings` is set, the query SHALL emit a `timings:` YAML block on the payload with separate millisecond measurements for scan, embed, cluster, nominate (explore-half sampling + ride-along assembly), and render stages.
 
 #### Scenario: Timings block structure on normal query
 - **WHEN** running `engram query --timings` with valid phrases
