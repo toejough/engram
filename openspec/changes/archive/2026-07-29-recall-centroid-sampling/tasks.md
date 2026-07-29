@@ -59,5 +59,5 @@
 
 ## 5. Close-out
 
-- [ ] 5.1 `targ test` + `targ check-full` green
-- [ ] 5.2 `openspec validate` both delta specs; sync on archive
+- [x] 5.1 `targ test` + `targ check-full` green
+- [x] 5.2 `openspec validate` both delta specs; sync on archive

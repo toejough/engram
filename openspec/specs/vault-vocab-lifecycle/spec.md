@@ -53,25 +53,6 @@ The vault SHALL check its own tag health on every write (via `checkAndPersistVoc
 - **WHEN** the same vault is evaluated before and after definitions gain `vocab/<term>` self-tags
 - **THEN** the growth trigger's note count and outcome are identical in both states (definition notes are excluded from trigger math)
 
-### Requirement: Tag nomination in recall queries
-Recall's query path SHALL nominate cross-cluster candidate notes that share a vocabulary tag with the top-3 matched notes in a cluster. When a cluster's top-3 delivered notes carry tags in the `vocab/<term>` namespace, every non-definition vault note also tagged with any of those terms MUST be nominated into that cluster's candidate list (up to 40 per cluster, deduplicated across clusters). Definition notes SHALL be excluded from nomination on BOTH sides: a definition MUST never be nominated into a pool, and a definition appearing among a cluster's top-3 delivered notes MUST NOT contribute its self-tag as a nomination seed — its `vocab/<term>` self-tag is a display affordance, not a membership claim. Nominated candidates SHALL carry cosine score 0 (tag-matched, not centroid-ranked).
-
-#### Scenario: Tag nomination feeds candidate_l2s
-- **WHEN** a query cluster's top-3 delivered notes carry tags like `vocab/retrieval-design`
-- **THEN** `buildTagNominations()` collects all non-definition notes tagged `vocab/retrieval-design` and appends them to the cluster's `candidate_l2s` (up to cap 40), reported in the query budget as `tag_nominations_added`
-
-#### Scenario: Truncation reported in budget
-- **WHEN** nomination pool exceeds nominationCapPerCluster (40)
-- **THEN** the count is tracked in query budget as `tag_nominations_dropped` (the overflow count)
-
-#### Scenario: Definitions never nominated via self-tag
-- **WHEN** a cluster's top-3 delivered notes carry `vocab/<term>` and that term's definition note carries the same tag as its self-tag
-- **THEN** the definition note does not appear in the cluster's nominations
-
-#### Scenario: A top-3 definition seeds no nominations
-- **WHEN** a self-tagged definition note is itself among a cluster's top-3 delivered notes
-- **THEN** its `vocab/<term>` self-tag contributes no seed terms — the cluster's nominations are identical to what a bare-only definition in that position would produce
-
 ### Requirement: Supersession ride-along
 When a note carries a `supersedes:` frontmatter block listing older notes it replaces (via `type: updates|narrows|refutes`), the newer note SHALL be inserted directly after any delivered older note in the query results, regardless of whether the newer note itself matched the query. The inserted note MUST carry provenance `ride_along` so Gate-2 analysis can detect rank shifts from insertions.
 

@@ -51,7 +51,7 @@ engram count with --group-by tags filters SHALL recompute ground-truth tier tall
 - **THEN** orchestrator amends the aggregate's object field to match the recomputed count result
 
 ### Requirement: Route SHALL read dispatch evidence through plain recall, never special queries
-When determining the starting tier for a dispatch, the orchestrator SHALL invoke `/recall` with standard phrases; evidence aggregates (route-evidence-<work-kind>) surface as normal memory items through tag nomination, not through special `engram count` queries on the read path.
+When determining the starting tier for a dispatch, the orchestrator SHALL invoke `/recall` with standard phrases; evidence aggregates (route-evidence-<work-kind>) surface as normal memory items via vocab-tagged explore sampling (capability `recall-centroid-sampling`), not through special `engram count` queries on the read path.
 
 #### Scenario: Routing with recalled evidence
 - **WHEN** routing a unit and recall surfaces a route-evidence-<work-kind> aggregate
