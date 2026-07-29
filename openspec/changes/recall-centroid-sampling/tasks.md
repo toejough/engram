@@ -15,14 +15,14 @@
 
 ## 3. Calibration + validation
 
-- [ ] 3.1 Calibrate τ and the match-evidence bonus on the real vault; record method + values in dev/eval/LEDGER.md
-- [ ] 3.2 Before/after payload comparison on the production vault (same query set through old nomination path and new sampling path). Concrete procedure: build the "before" binary from a worktree at the last pre-implementation commit (`git worktree add <tmp> <commit> && GOBIN=<tmp>/bin go install ./cmd/engram` from the worktree); run the τ-calibration query set through both binaries; for each query, list notes delivered ONLY via nomination in the before-arm; measure the fraction of those reachable anywhere in the after-arm payload (exploit, explore, or ride-along). Report the recovery fraction and the per-note lost list to Joe with the payloads as evidence — the keep/revert verdict is Joe's, not auto-passed (no pre-registered threshold exists; inventing one here would be fake rigor)
-- [ ] 3.3 Verify with the installed binary + real query args from a non-vault cwd; inspect YAML output for provenance and budget fields
+- [x] 3.1 Calibrate τ and the match-evidence bonus on the real vault; record method + values in dev/eval/LEDGER.md
+- [x] 3.2 Before/after payload comparison on the production vault (same query set through old nomination path and new sampling path). Concrete procedure: build the "before" binary from a worktree at the last pre-implementation commit (`git worktree add <tmp> <commit> && GOBIN=<tmp>/bin go install ./cmd/engram` from the worktree); run the τ-calibration query set through both binaries; for each query, list notes delivered ONLY via nomination in the before-arm; measure the fraction of those reachable anywhere in the after-arm payload (exploit, explore, or ride-along). Report the recovery fraction and the per-note lost list to Joe with the payloads as evidence — the keep/revert verdict is Joe's, not auto-passed (no pre-registered threshold exists; inventing one here would be fake rigor)
+- [x] 3.3 Verify with the installed binary + real query args from a non-vault cwd; inspect YAML output for provenance and budget fields
 
 ## 4. Skill + docs
 
-- [ ] 4.1 Update `agent-instructions/skills/recall/SKILL.md` nomination references (lines 20, 110–111, 149–151 name tag nomination and the `tag_nominations_added/dropped` fields verbatim — a certain edit, not an audit; via `superpowers:writing-skills`). Replacement language: candidate pools gain explore-sampled notes (softmax centroid-proximity allocation); budget reporting is `explore_allocated` per term + per-note `provenance: explore`
-- [ ] 4.2 Update GLOSSARY.md / architecture docs mentioning tag nomination per the disposition list below
+- [x] 4.1 Update `agent-instructions/skills/recall/SKILL.md` nomination references (lines 20, 110–111, 149–151 name tag nomination and the `tag_nominations_added/dropped` fields verbatim — a certain edit, not an audit; via `superpowers:writing-skills`). Replacement language: candidate pools gain explore-sampled notes (softmax centroid-proximity allocation); budget reporting is `explore_allocated` per term + per-note `provenance: explore`
+- [x] 4.2 Update GLOSSARY.md / architecture docs mentioning tag nomination per the disposition list below
 - [x] 4.3 Add missing spec deltas discovered by enumeration grep: `recall-two-channel-payload` (Channel 1 requirement + "Cross-cluster tag nomination" scenario name explore sampling instead) and `route-dispatch-evidence` (evidence aggregates surface "through tag nomination" → via vocab-tagged explore sampling)
 
 ### Doc-surface disposition list (enumeration grep: `tag.nomination|tag_nomination|nominat|explore_allocated`)

@@ -15,11 +15,12 @@ const (
 	// alongside exploreTemperatureDefault via task 3.1.
 	exploreMatchEvidenceBonus = float32(0.05)
 	// exploreTemperatureDefault is the softmax temperature for explore-half
-	// centroid allocation. Placeholder pending empirical calibration
-	// (design.md Decision 1, task 3.1): run the representative query set
-	// against the production vault and solve
-	// exp(sim_top/tau)/exp(sim_med/tau) = 10 for tau.
-	exploreTemperatureDefault = float32(0.1)
+	// centroid allocation, calibrated per design.md Decision 1 (task 3.1):
+	// 10 real production-vault queries, sim_top=0.550 (median of per-query
+	// best centroid cosine), sim_med=0.307 (median of per-query median
+	// centroid cosine), tau=(sim_top-sim_med)/ln(10)=0.106. See
+	// dev/eval/LEDGER.md anchor recall-explore-tau-calibration.
+	exploreTemperatureDefault = float32(0.106)
 )
 
 // exploreBackfillState is dedupeAndBackfill's working state: which note
