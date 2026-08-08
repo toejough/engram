@@ -49,9 +49,9 @@ On the first sync for a harness (no ownership marker present), `engram update` S
 - **WHEN** the first sync runs for a harness whose skills dir holds skill `recall` as a real directory from a prior copy-mode deploy
 - **THEN** after update, the skill's content lives in the engram-owned root, the harness path is a symlink to it, and the skill remains discoverable
 
-#### Scenario: Unattributable stray is reported, not deleted
+#### Scenario: Unmanaged surface entry is reported, not deleted
 - **WHEN** the first sync finds a real file in a harness skills dir that is not part of the intended deploy set
-- **THEN** the file is left in place and the update report lists it as a possible stale artifact for manual review
+- **THEN** the file is left in place and the update report lists it as unmanaged, left alone, for manual review
 
 ### Requirement: Guidance opt-in gates management, not removal
 Guidance SHALL be part of the intended deploy set only when the `--with-guidance` flag is passed or the harness config file already imports the harness's guidance files. When guidance is not in the intended set, `engram update` MUST leave the root's guidance subtree and any harness-visible guidance surface untouched — unmanaged, not removed.

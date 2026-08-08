@@ -1035,7 +1035,7 @@ func TestRun_SymlinkFreeTree_CleanupAndMaterializationRecordNothingUnexpected(t 
 	g.Expect(isSymlink).To(BeTrue())
 	g.Expect(target).To(Equal(home + "/.claude/engram/skills/learn"))
 	g.Expect(harness.EngramAdopted).To(ConsistOf(home + "/.claude/skills/learn"))
-	g.Expect(harness.SurfaceUnattributable).To(BeEmpty())
+	g.Expect(harness.SurfaceUnmanaged).To(BeEmpty())
 
 	// EngramRoot and SkillsRoot are the exact logical Join(home, *Rel)
 	// strings, never a resolved/rewritten variant.
@@ -1245,7 +1245,7 @@ func TestRun_SymlinkMode_FreshSkillAndCommandLinksCreated(t *testing.T) {
 
 	g.Expect(skillFileCount(harness)).To(Equal(1))
 	g.Expect(harness.CommandFiles).To(ConsistOf("recall.md"))
-	g.Expect(harness.SurfaceUnattributable).To(BeEmpty())
+	g.Expect(harness.SurfaceUnmanaged).To(BeEmpty())
 }
 
 // TestRun_SymlinkMode_PiGuidanceLinkError_IsHarnessError covers
@@ -1385,7 +1385,7 @@ func TestRun_SymlinkMode_PiRealGuidanceFile_AdoptsToSymlink(t *testing.T) {
 	g.Expect(target).To(Equal(engramPath))
 
 	g.Expect(harness.EngramAdopted).To(ConsistOf(surfacePath))
-	g.Expect(harness.SurfaceUnattributable).To(BeEmpty())
+	g.Expect(harness.SurfaceUnmanaged).To(BeEmpty())
 	g.Expect(harness.GuidanceFiles).To(ConsistOf("recall.md"))
 
 	g.Expect(fileSystem.written[engramPath]).To(Equal([]byte("fresh pi guidance")))
@@ -1434,7 +1434,7 @@ func TestRun_SymlinkMode_RealSkillDirAdoptsToSymlink(t *testing.T) {
 	g.Expect(fileSystem.removed).To(ContainElement(home + "/.claude/skills/recall"))
 
 	g.Expect(harness.EngramAdopted).To(ConsistOf(home + "/.claude/skills/recall"))
-	g.Expect(harness.SurfaceUnattributable).To(BeEmpty())
+	g.Expect(harness.SurfaceUnmanaged).To(BeEmpty())
 	g.Expect(fileSystem.written[home+"/.claude/engram/skills/recall/SKILL.md"]).To(Equal([]byte("fresh")))
 }
 

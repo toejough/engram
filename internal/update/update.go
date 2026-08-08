@@ -211,17 +211,18 @@ type HarnessReport struct {
 	// `.engram-owned` marker: sync-deletion was refused there this run,
 	// though creates/overwrites still applied (D2).
 	EngramDeletionRefused bool
-	// SurfaceUnattributable lists the absolute harness-visible surface paths
+	// SurfaceUnmanaged lists the absolute harness-visible surface paths
 	// (skill dirs, command files, guidance files) where a REAL file or
 	// directory was found that matches NO intended-set artifact for that
-	// surface (D6/task 5.2) — a stray engram cannot prove ownership of,
-	// reported for manual review and left completely untouched. Populated
-	// only on the first sync for a harness (no marker present at the start
-	// of this run): once every intended-set path is a symlink, a stray
-	// surviving that conversion is not a new discovery a repeated scan would
-	// add value re-detecting. Contrast EngramAdopted: an intended-set real
-	// file/dir is adopted, never listed here.
-	SurfaceUnattributable []string
+	// surface (D6/task 5.2) — an unmanaged entry engram has no ownership
+	// signal for either way, reported for manual review and left completely
+	// untouched. Populated only on the first sync for a harness (no marker
+	// present at the start of this run): once every intended-set path is a
+	// symlink, an unmanaged entry surviving that conversion is not a new
+	// discovery a repeated scan would add value re-detecting. Contrast
+	// EngramAdopted: an intended-set real file/dir is adopted, never listed
+	// here.
+	SurfaceUnmanaged []string
 	// EngramAdopted lists the absolute harness-visible surface paths (skill
 	// dirs, command files, guidance files, and Claude's root-level guidance
 	// compat links) where an intended-set REAL file or directory — a
@@ -1226,12 +1227,12 @@ func (u *Updater) reportSurfaceStrays(
 	}
 
 	for _, scan := range scans {
-		strays, strayErr := surfaceStrays(u.FS, scan.dir, scan.intended)
+		unmanaged, strayErr := surfaceStrays(u.FS, scan.dir, scan.intended)
 		if strayErr != nil {
 			return strayErr
 		}
 
-		rep.SurfaceUnattributable = append(rep.SurfaceUnattributable, strays...)
+		rep.SurfaceUnmanaged = append(rep.SurfaceUnmanaged, unmanaged...)
 	}
 
 	return nil

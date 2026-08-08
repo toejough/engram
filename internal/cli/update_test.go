@@ -608,7 +608,7 @@ func TestWriteUpdateReport_DryRunContractSweep(t *testing.T) {
 				EngramDeletionRefused: true,
 				EngramUnattributable:  []string{"stray.md"},
 				EngramAdopted:         []string{"/home/joe/.claude/skills/recall"},
-				SurfaceUnattributable: []string{"/home/joe/.claude/skills/legacy"},
+				SurfaceUnmanaged:      []string{"/home/joe/.claude/skills/legacy"},
 				DanglingLinksRemoved:  []string{"/home/joe/.claude/skills/old-dangling"},
 				GuidanceFiles:         []string{"recall.md", "learn.md"},
 			},
@@ -638,7 +638,7 @@ func TestWriteUpdateReport_DryRunContractSweep(t *testing.T) {
 	noticeLines := []string{
 		"exists without the .engram-owned marker",
 		"unattributable: stray.md",
-		"stale artifact (not deleted): ~/.claude/skills/legacy",
+		"unmanaged (left alone): ~/.claude/skills/legacy",
 		"agent-instructions/skills/learn/ → ~/.claude/skills/learn/  (2 files)",
 	}
 	for _, line := range noticeLines {
@@ -747,7 +747,7 @@ func TestWriteUpdateReport_EngramRootNotice(t *testing.T) {
 }
 
 // TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray covers task
-// 5.1's EngramAdopted field and task 5.2's SurfaceUnattributable stray
+// 5.1's EngramAdopted field and task 5.2's SurfaceUnmanaged
 // listing — both must render (D6's spec requirement that a stray is
 // "listed in the update report", not just tracked internally).
 func TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray(t *testing.T) {
@@ -761,12 +761,12 @@ func TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray(t *testing.T)
 		Home: "/home/joe",
 		Harnesses: []update.HarnessReport{
 			{
-				Name:                  update.HarnessClaude,
-				ProbeRoot:             ".claude",
-				SkillsRoot:            "/home/joe/.claude/skills",
-				EngramRoot:            "/home/joe/.claude/engram",
-				EngramAdopted:         []string{"/home/joe/.claude/skills/recall"},
-				SurfaceUnattributable: []string{"/home/joe/.claude/skills/user-own-tool"},
+				Name:             update.HarnessClaude,
+				ProbeRoot:        ".claude",
+				SkillsRoot:       "/home/joe/.claude/skills",
+				EngramRoot:       "/home/joe/.claude/engram",
+				EngramAdopted:    []string{"/home/joe/.claude/skills/recall"},
+				SurfaceUnmanaged: []string{"/home/joe/.claude/skills/user-own-tool"},
 			},
 		},
 	}
@@ -776,7 +776,7 @@ func TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray(t *testing.T)
 
 	out := buffer.String()
 	g.Expect(out).To(ContainSubstring("adopted: ~/.claude/skills/recall"))
-	g.Expect(out).To(ContainSubstring("stale artifact (not deleted): ~/.claude/skills/user-own-tool"))
+	g.Expect(out).To(ContainSubstring("unmanaged (left alone): ~/.claude/skills/user-own-tool"))
 }
 
 func TestWriteUpdateReport_EngramRootNotice_AdoptedAndSurfaceStray_DryRunPrefixesAdopted(t *testing.T) {

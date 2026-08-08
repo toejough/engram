@@ -565,8 +565,8 @@ func writeEngramRootNotice(buffer *bytes.Buffer, report update.Report, harness u
 		fmt.Fprintf(buffer, "    %sadopted: %s\n", prefix, tildify(path, report.Home))
 	}
 
-	for _, path := range harness.SurfaceUnattributable {
-		fmt.Fprintf(buffer, "    stale artifact (not deleted): %s\n", tildify(path, report.Home))
+	for _, path := range harness.SurfaceUnmanaged {
+		fmt.Fprintf(buffer, "    unmanaged (left alone): %s\n", tildify(path, report.Home))
 	}
 
 	for _, path := range harness.DanglingLinksRemoved {

@@ -444,7 +444,7 @@ func TestUpdater_Run_Local_RealExistingCommandFile_AdoptsToSymlink(t *testing.T)
 	g.Expect(isSymlink).To(BeTrue())
 	g.Expect(target).To(Equal(engramPath))
 	g.Expect(report.Harnesses[0].EngramAdopted).To(ConsistOf(surfacePath))
-	g.Expect(report.Harnesses[0].SurfaceUnattributable).To(BeEmpty())
+	g.Expect(report.Harnesses[0].SurfaceUnmanaged).To(BeEmpty())
 
 	// The intended content lives under the engram root.
 	g.Expect(fileSystem.written[engramPath]).To(Equal([]byte("new cmd")))
@@ -492,7 +492,7 @@ func TestUpdater_Run_Local_RealExistingSkillDir_AdoptsToSymlink(t *testing.T) {
 	g.Expect(isSymlink).To(BeTrue())
 	g.Expect(target).To(Equal(engramPath))
 	g.Expect(report.Harnesses[0].EngramAdopted).To(ConsistOf(surfacePath))
-	g.Expect(report.Harnesses[0].SurfaceUnattributable).To(BeEmpty())
+	g.Expect(report.Harnesses[0].SurfaceUnmanaged).To(BeEmpty())
 
 	_, staleStillThere := fileSystem.files["/home/joe/.claude/skills/learn/stale.md"]
 	g.Expect(staleStillThere).To(BeFalse())

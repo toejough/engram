@@ -312,7 +312,7 @@ func TestRun_Migration_CopiedCommandFileAdoptsToSymlink(t *testing.T) {
 	g.Expect(fileSystem.written[engramPath]).To(Equal([]byte("fresh recall cmd")))
 
 	g.Expect(harness.EngramAdopted).To(ConsistOf(surfacePath))
-	g.Expect(harness.SurfaceUnattributable).To(BeEmpty())
+	g.Expect(harness.SurfaceUnmanaged).To(BeEmpty())
 	g.Expect(harness.CommandFiles).To(ConsistOf("recall.md"))
 }
 
@@ -362,7 +362,7 @@ func TestRun_Migration_CopiedSkillDirAdoptsToSymlink(t *testing.T) {
 
 	// Adopted, not merely reported.
 	g.Expect(harness.EngramAdopted).To(ConsistOf(surfacePath))
-	g.Expect(harness.SurfaceUnattributable).To(BeEmpty())
+	g.Expect(harness.SurfaceUnmanaged).To(BeEmpty())
 }
 
 // --- dry-run no-trace --------------------------------------------------------
@@ -585,7 +585,7 @@ func TestRun_Migration_SurfaceStrayOutsideIntendedSet_ReportedNeverDeleted(t *te
 	g.Expect(harness.Err).NotTo(HaveOccurred())
 
 	strayPath := home + "/.claude/skills/user-own-tool"
-	g.Expect(harness.SurfaceUnattributable).To(ConsistOf(strayPath))
+	g.Expect(harness.SurfaceUnmanaged).To(ConsistOf(strayPath))
 	g.Expect(harness.EngramAdopted).To(BeEmpty())
 
 	g.Expect(fileSystem.removed).NotTo(ContainElement(strayPath))
