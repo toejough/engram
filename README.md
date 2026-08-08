@@ -7,9 +7,9 @@
 
 ## Overview
 
-Engram gives Claude Code, OpenCode, and Pi agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand; at their write sites they hand off to `write-memory`, a worker skill that composes and executes the vault-write commands. A further skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other skills around a user's `<ask>`, and `route` encodes the delegate-everything doctrine `please` draws on to staff its subagents. `recall`, `learn`, and `write-memory` shell out to the `engram` binary; `please` and `route` are pure meta-orchestration.
+Engram gives Claude Code and Pi agents persistent memory via a zettelkasten-style vault. Two skills — `recall` and `learn` — read from and write to an agent-memory vault on demand; at their write sites they hand off to `write-memory`, a worker skill that composes and executes the vault-write commands. A further skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other skills around a user's `<ask>`, and `route` encodes the delegate-everything doctrine `please` draws on to staff its subagents. `recall`, `learn`, and `write-memory` shell out to the `engram` binary; `please` and `route` are pure meta-orchestration.
 
-**Harness support is asymmetric.** `engram update` installs the skills into Claude Code, OpenCode, and Pi (plus the slash commands for OpenCode), and the vault is harness-agnostic — so `recall` and `learn` work the same on each. The remaining gap is on the ingest side: automatic sweeping of raw session transcripts into the chunk index reads Claude Code JSONL and Pi session files. OpenCode stores its sessions in a SQLite database that the file-based sweep can't see, so an OpenCode agent's own conversation history is not yet auto-ingested (tracked in [#644](https://github.com/toejough/engram/issues/644)).
+`engram update` installs the skills into Claude Code and Pi, and the vault is harness-agnostic — so `recall` and `learn` work the same on each. Automatic sweeping of raw session transcripts into the chunk index reads Claude Code JSONL and Pi session files.
 
 After a few months of use, the vault's wikilink graph looks like this in Obsidian — each dot is a note, each line a `[[wikilink]]`; dense clusters are groups of related notes, and the connective tissue reflects thematic proximity:
 
@@ -29,7 +29,7 @@ Requires Go 1.25+ on `PATH`.
 
    Make sure `$GOBIN` (or `$GOPATH/bin`, default `~/go/bin`) is on your `PATH`.
 
-2. Copy the skills and commands into every detected harness's user directory:
+2. Copy the skills into every detected harness's user directory:
 
    ```bash
    engram update                 # install / refresh
@@ -37,7 +37,7 @@ Requires Go 1.25+ on `PATH`.
    engram update --dry-run       # show what would change, without writing
    ```
 
-   `engram update` syncs engram artifacts to engram-owned roots per harness (`~/.claude/engram/`, `~/.config/opencode/engram/`, `~/.pi/agent/engram/`) and materializes them as symlinks in each harness's discovery paths (`~/.claude/skills/`, `~/.config/opencode/skills/`, `~/.pi/agent/skills/`, etc.). Removals from the source propagate on every update. First update performs a dark migration of pre-existing copies to symlinks. Run it again any time to upgrade — it also reinstalls the binary via `go install`, then re-execs the fresh binary so the sync itself runs with the new logic (ADR-0023). `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) keep existing `@import` lines in CLAUDE.md and AGENTS.md resolving (Claude Code + Pi; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md (or AGENTS.md) imports a guidance file, plain `engram update` keeps it current. Until then, plain `engram update` prints a one-line hint. See ADR-0022 for the deployment-as-sync design.
+   `engram update` syncs engram artifacts to engram-owned roots per harness (`~/.claude/engram/`, `~/.pi/agent/engram/`) and materializes them as symlinks in each harness's discovery paths (`~/.claude/skills/`, `~/.pi/agent/skills/`, etc.). Removals from the source propagate on every update. First update performs a dark migration of pre-existing copies to symlinks. Run it again any time to upgrade — it also reinstalls the binary via `go install`, then re-execs the fresh binary so the sync itself runs with the new logic (ADR-0023). `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) keep existing `@import` lines in CLAUDE.md and AGENTS.md resolving (Claude Code + Pi; opt-in). It's a **one-time opt-in per file** — once your CLAUDE.md (or AGENTS.md) imports a guidance file, plain `engram update` keeps it current. Until then, plain `engram update` prints a one-line hint. See ADR-0022 for the deployment-as-sync design.
 
 ## Skills
 
@@ -98,7 +98,7 @@ engram vocab tag-definitions [--vault <dir>]  Idempotent backfill: adds the miss
 engram vocab propose --term <t> --description <d>  LLM-gated: create a new vocab definition note if no existing term covers it and projected attachment ≤ 20% of vault (~$0.05/proposal). Both flags required.
 engram vocab stats                     Per-term member counts, vault untagged-rate, hub terms (> 25% of vault), orphan terms (< 2 members), version staleness.
 engram vocab refit [--dry-run] [--names <file>]  Derivational: derives the vocabulary from the vault's note embeddings; matches clusters to existing terms, retires unmatched derived terms (proposed terms are never auto-retired), and emits naming requests for new clusters — answer via --names <file>. --dry-run previews the matched/new/retired diff. Rewrites member `tags:` entries in the `vocab/<term>` namespace; major version bump on the family definition note (no index to regenerate — the index is emergent). Triggered growth-only (≥40 new notes AND ≥14 days).
-engram update [--with-guidance]        Refresh binary, re-exec the fresh binary for the sync phase (ADR-0023); sync agents-instructions/{skills,commands,guidance} to engram-owned roots and materialize as symlinks; removals propagate; dark migration on first sync ([--dry-run] previews, never installs/re-execs); --with-guidance includes guidance (canonical paths in guidance/, compat symlinks at flat paths) (Claude Code + Pi; opt-in; OpenCode deferred; see ADR-0022)
+engram update [--with-guidance]        Refresh binary, re-exec the fresh binary for the sync phase (ADR-0023); sync agents-instructions/{skills,guidance} to engram-owned roots and materialize as symlinks; removals propagate; dark migration on first sync ([--dry-run] previews, never installs/re-execs); --with-guidance includes guidance (canonical paths in guidance/, compat symlinks at flat paths) (Claude Code + Pi; opt-in; see ADR-0022)
 ```
 
 ## Semantic search & the embed-on-write pipeline
@@ -131,7 +131,6 @@ internal/            Business logic (DI boundaries)
   vaultgraph/        Vault traversal (wikilink graph, note scanning)
 agent-instructions/
   skills/            Source for the recall, learn, write-memory, please, and route skills
-  commands/          Source for OpenCode slash commands
   guidance/          Source for the deployable ambient guidance docs — recall-firing (recall.md), delegation-firing (delegate.md), and learn-firing (learn.md)
 ```
 

@@ -14,46 +14,6 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
-// TestApplyOps_ManifestMode_CommandCopyErrorIsHarnessError covers
-// applyCmdOps's error branch, only reachable via the manifest-mode
-// fallthrough now that symlink-mode harnesses materialize commands through
-// applyCmdLinks instead.
-func TestApplyOps_ManifestMode_CommandCopyErrorIsHarnessError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	base := newMemFS()
-	base.dirs[home+"/.claude"] = true
-	// Source command file deliberately missing — applyCmdOne's ReadFile fails.
-
-	spec := update.HarnessSpec{
-		Name:              update.HarnessClaude,
-		ProbeRel:          ".claude",
-		CommandsTargetRel: filepath.Join(".claude", "commands"),
-		EngramRootRel:     filepath.Join(".claude", "engram"),
-		DeployMode:        update.DeployModeManifest,
-	}
-
-	cmdOps := []update.CopyOp{
-		{
-			Harness:     update.HarnessClaude,
-			Src:         "/repo/agent-instructions/commands/recall.md",
-			Dst:         home + "/.claude/commands/recall.md",
-			CommandFile: "recall.md",
-		},
-	}
-
-	updater := &update.Updater{FS: base, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}, Spawn: noopSpawner{}}
-
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, nil, cmdOps, nil, false, false)
-	g.Expect(reports).To(HaveLen(1))
-	g.Expect(reports[0].Err).To(HaveOccurred())
-	g.Expect(reports[0].CommandFiles).To(BeEmpty())
-}
-
 // TestApplyOps_ManifestMode_DryRun_NoWrites covers applyOne's dryRun branch,
 // only reachable via the manifest-mode fallthrough now that symlink mode
 // gates its own writes through materializeSymlink's separate dryRun checks.
@@ -92,7 +52,7 @@ func TestApplyOps_ManifestMode_DryRun_NoWrites(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, nil, false, true)
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, false, true)
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).NotTo(HaveOccurred())
 	g.Expect(fileSystem.written).To(BeEmpty())
@@ -115,7 +75,6 @@ func TestApplyOps_ManifestMode_FallsThroughToCopyBehavior(t *testing.T) {
 		Name:              update.HarnessClaude,
 		ProbeRel:          ".claude",
 		SkillsTargetRel:   filepath.Join(".claude", "skills"),
-		CommandsTargetRel: filepath.Join(".claude", "commands"),
 		GuidanceTargetRel: filepath.Join(".claude", "engram"),
 		EngramRootRel:     filepath.Join(".claude", "engram"),
 		DeployMode:        update.DeployModeManifest,
@@ -141,18 +100,10 @@ func TestApplyOps_ManifestMode_FallsThroughToCopyBehavior(t *testing.T) {
 		// An op for a DIFFERENT harness exercises applySkillOps'
 		// copyOp.Harness != name skip branch.
 		{
-			Harness:  update.HarnessOpencode,
+			Harness:  update.HarnessPi,
 			Src:      "/repo/agent-instructions/skills/learn/SKILL.md",
-			Dst:      "/home/joe/.config/opencode/skills/learn/SKILL.md",
+			Dst:      "/home/joe/.pi/agent/skills/learn/SKILL.md",
 			SkillDir: "learn",
-		},
-	}
-	cmdOps := []update.CopyOp{
-		{
-			Harness:     update.HarnessClaude,
-			Src:         "/repo/agent-instructions/commands/recall.md",
-			Dst:         home + "/.claude/commands/recall.md",
-			CommandFile: "recall.md",
 		},
 	}
 	guidanceOps := []update.CopyOp{
@@ -163,7 +114,6 @@ func TestApplyOps_ManifestMode_FallsThroughToCopyBehavior(t *testing.T) {
 			GuidanceFile: "recall.md",
 		},
 	}
-	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("recall cmd")
 	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
 
 	updater := &update.Updater{
@@ -174,7 +124,7 @@ func TestApplyOps_ManifestMode_FallsThroughToCopyBehavior(t *testing.T) {
 	}
 
 	reports := update.ExportApplyOps(
-		updater, []update.HarnessSpec{spec}, home, skillOps, cmdOps, guidanceOps, true, false)
+		updater, []update.HarnessSpec{spec}, home, skillOps, guidanceOps, true, false)
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).NotTo(HaveOccurred())
 
@@ -182,15 +132,13 @@ func TestApplyOps_ManifestMode_FallsThroughToCopyBehavior(t *testing.T) {
 	// directly at surface paths, never symlinks.
 	g.Expect(fileSystem.written[home+"/.claude/skills/learn/SKILL.md"]).To(Equal([]byte("learn skill")))
 	g.Expect(fileSystem.written[home+"/.claude/skills/learn/tests/baseline.md"]).To(Equal([]byte("baseline")))
-	g.Expect(fileSystem.written[home+"/.claude/commands/recall.md"]).To(Equal([]byte("recall cmd")))
 	g.Expect(fileSystem.written[home+"/.claude/engram/recall.md"]).To(Equal([]byte("recall guidance")))
-	g.Expect(reports[0].CommandFiles).To(ConsistOf("recall.md"))
 	g.Expect(reports[0].GuidanceFiles).To(ConsistOf("recall.md"))
 	g.Expect(skillFileCount(reports[0])).To(Equal(2))
 
-	// The OpenCode-targeted skill op was skipped for this (Claude-only) run.
-	_, opencodeWritten := fileSystem.written["/home/joe/.config/opencode/skills/learn/SKILL.md"]
-	g.Expect(opencodeWritten).To(BeFalse())
+	// The Pi-targeted skill op was skipped for this (Claude-only) run.
+	_, piWritten := fileSystem.written["/home/joe/.pi/agent/skills/learn/SKILL.md"]
+	g.Expect(piWritten).To(BeFalse())
 
 	g.Expect(fileSystem.symlinks).To(BeEmpty())
 }
@@ -232,7 +180,7 @@ func TestApplyOps_ManifestMode_GuidanceCopyErrorIsHarnessError(t *testing.T) {
 
 	updater := &update.Updater{FS: base, Cmd: &fakeCmd{}, Env: &fakeEnv{home: home, cwd: "/repo"}, Spawn: noopSpawner{}}
 
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, nil, nil, guidanceOps, true, false)
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, nil, guidanceOps, true, false)
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).To(HaveOccurred())
 	g.Expect(reports[0].GuidanceFiles).To(BeEmpty())
@@ -279,7 +227,7 @@ func TestApplyOps_ManifestMode_SkillClearFailureIsHarnessError(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, nil, false, false)
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, false, false)
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).To(HaveOccurred())
 	g.Expect(reports[0].Err.Error()).To(ContainSubstring("clear"))
@@ -323,7 +271,7 @@ func TestApplyOps_ManifestMode_SkillCopyErrorIsHarnessError(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, nil, false, false)
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, false, false)
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).To(HaveOccurred())
 }
@@ -368,7 +316,7 @@ func TestApplyOps_ManifestMode_SkillMkdirErrorIsHarnessError(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, nil, false, false)
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, false, false)
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("mkdir boom")))
 }
@@ -412,7 +360,7 @@ func TestApplyOps_ManifestMode_SkillWriteErrorIsHarnessError(t *testing.T) {
 		Spawn: noopSpawner{},
 	}
 
-	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, nil, false, false)
+	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home, skillOps, nil, false, false)
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("write boom")))
 }
@@ -1195,58 +1143,6 @@ func TestRun_SymlinkMode_ForeignSymlinkNeverTouched(t *testing.T) {
 }
 
 // --- Run()-level integration: symlink materialization + cleanup wired in ----
-
-func TestRun_SymlinkMode_FreshSkillAndCommandLinksCreated(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.config/opencode"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs["/repo/agent-instructions/skills/recall"] = true
-	fileSystem.files["/repo/agent-instructions/skills/recall/SKILL.md"] = []byte("recall skill")
-	fileSystem.dirs["/repo/agent-instructions/commands"] = true
-	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("recall cmd")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-
-	harness := report.Harnesses[0]
-	g.Expect(harness.Err).NotTo(HaveOccurred())
-
-	engramRoot := home + "/.config/opencode/engram"
-	g.Expect(harness.EngramRoot).To(Equal(engramRoot))
-
-	skillTarget, ok := fileSystem.symlinks[home+"/.config/opencode/skills/recall"]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(skillTarget).To(Equal(engramRoot + "/skills/recall"))
-
-	cmdTarget, ok := fileSystem.symlinks[home+"/.config/opencode/commands/recall.md"]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(cmdTarget).To(Equal(engramRoot + "/commands/recall.md"))
-
-	g.Expect(fileSystem.written[engramRoot+"/skills/recall/SKILL.md"]).To(Equal([]byte("recall skill")))
-	g.Expect(fileSystem.written[engramRoot+"/commands/recall.md"]).To(Equal([]byte("recall cmd")))
-
-	_, surfaceHasRealFile := fileSystem.files[home+"/.config/opencode/skills/recall/SKILL.md"]
-	g.Expect(surfaceHasRealFile).To(BeFalse())
-
-	g.Expect(skillFileCount(harness)).To(Equal(1))
-	g.Expect(harness.CommandFiles).To(ConsistOf("recall.md"))
-	g.Expect(harness.SurfaceUnmanaged).To(BeEmpty())
-}
 
 // TestRun_SymlinkMode_PiGuidanceLinkError_IsHarnessError covers
 // applyGuidanceLinks' materializeSymlink-error branch via a full Run(),

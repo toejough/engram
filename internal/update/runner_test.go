@@ -25,9 +25,9 @@ func TestDetectHarnesses_Property_ResultIsSubset(t *testing.T) {
 	for _, combo := range [][]string{
 		{},
 		{".claude"},
-		{".config/opencode"},
-		{".claude", ".config/opencode"},
-		{".config/opencode", ".claude"}, // order of insertion shouldn't matter
+		{".pi"},
+		{".claude", ".pi"},
+		{".pi", ".claude"}, // order of insertion shouldn't matter
 	} {
 		fileSystem := newMemFS()
 		for _, probe := range combo {
@@ -41,7 +41,7 @@ func TestDetectHarnesses_Property_ResultIsSubset(t *testing.T) {
 
 		// Order check.
 		for i := 1; i < len(got); i++ {
-			if got[i-1].Name == update.HarnessOpencode && got[i].Name == update.HarnessClaude {
+			if got[i-1].Name == update.HarnessPi && got[i].Name == update.HarnessClaude {
 				t.Fatalf("unexpected order: %v", got)
 			}
 		}
@@ -145,86 +145,6 @@ func TestUpdater_Run_GoInstallFails(t *testing.T) {
 	_, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, cmdErr)).To(BeTrue())
-}
-
-func TestUpdater_Run_Local_BothHarnesses_CommandsOnlyOpencode(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.claude"] = true
-	fileSystem.dirs["/home/joe/.config/opencode"] = true
-	fileSystem.dirs["/repo"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs["/repo/agent-instructions/skills/recall"] = true
-	fileSystem.files["/repo/agent-instructions/skills/recall/SKILL.md"] = []byte("r")
-	fileSystem.dirs["/repo/agent-instructions/commands"] = true
-	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("c")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(2))
-	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses[1].Err).NotTo(HaveOccurred())
-	// Only opencode receives the command file.
-	g.Expect(report.Harnesses[0].CommandFiles).To(BeEmpty())
-	g.Expect(report.Harnesses[1].CommandFiles).To(ContainElement("recall.md"))
-}
-
-// TestUpdater_Run_Local_CommandLinkRepointRemoveFailureIsHarnessError covers
-// the D3/D5 replacement for the old copy-mode "clear before write" failure:
-// symlink mode never RemoveAlls a fresh command surface (materializeSymlink's
-// absent branch just creates the link), so the only RemoveAll a command
-// surface sees is a REPOINT of an existing wrong-target symlink.
-func TestUpdater_Run_Local_CommandLinkRepointRemoveFailureIsHarnessError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	mem := newMemFS()
-	mem.dirs["/home/joe/.config/opencode"] = true
-	mem.dirs["/repo"] = true
-	mem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	mem.dirs["/repo/agent-instructions/skills"] = true
-	mem.dirs["/repo/agent-instructions/skills/recall"] = true
-	mem.files["/repo/agent-instructions/skills/recall/SKILL.md"] = []byte("r")
-	mem.dirs["/repo/agent-instructions/commands"] = true
-	mem.files["/repo/agent-instructions/commands/recall.md"] = []byte("c")
-
-	// A pre-existing symlink at the command surface pointing at the WRONG
-	// target — triggers materializeSymlink's repoint branch, which RemoveAlls
-	// the stale link before recreating it.
-	mem.dirs["/home/joe/.config/opencode/commands"] = true
-	symlinkErr := mem.Symlink("/home/joe/.config/opencode/engram/commands/old-recall.md",
-		"/home/joe/.config/opencode/commands/recall.md")
-	g.Expect(symlinkErr).NotTo(HaveOccurred())
-
-	// Fail RemoveAll for the command surface path only (skill RemoveAll,
-	// which never fires here since the skill link is freshly created, is
-	// unaffected).
-	fileSystem := &failRemoveAllFS{memFS: mem, failOn: "commands/recall.md"}
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-	g.Expect(report.Harnesses[0].Err).To(HaveOccurred())
-	g.Expect(report.Harnesses[0].Err.Error()).To(ContainSubstring("remove boom"))
 }
 
 func TestUpdater_Run_Local_GoInstallRunsFromModuleRoot(t *testing.T) {
@@ -347,107 +267,6 @@ func TestUpdater_Run_Local_Idempotent_Property(t *testing.T) {
 			rt.Fatalf("re-run not idempotent: %v vs %v", afterFirst, afterSecond)
 		}
 	})
-}
-
-func TestUpdater_Run_Local_OpencodeOnly_LinksCommands(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.config/opencode"] = true
-	fileSystem.dirs["/repo"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs["/repo/agent-instructions/skills/recall"] = true
-	fileSystem.files["/repo/agent-instructions/skills/recall/SKILL.md"] = []byte("recall")
-	fileSystem.dirs["/repo/agent-instructions/commands"] = true
-	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("recall cmd")
-	fileSystem.files["/repo/agent-instructions/commands/learn.md"] = []byte("learn cmd")
-	// Non-md should be ignored.
-	fileSystem.files["/repo/agent-instructions/commands/README.txt"] = []byte("readme")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-
-	if len(report.Harnesses) == 0 {
-		return
-	}
-
-	g.Expect(report.Harnesses[0].Name).To(Equal(update.HarnessOpencode))
-	g.Expect(skillFileCount(report.Harnesses[0])).To(Equal(1))
-	g.Expect(report.Harnesses[0].CommandFiles).To(HaveLen(2))
-
-	// OpenCode is symlink-mode: the surface is a link into the engram root.
-	target, ok := fileSystem.symlinks["/home/joe/.config/opencode/commands/recall.md"]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(target).To(Equal("/home/joe/.config/opencode/engram/commands/recall.md"))
-
-	// A non-.md source file never generates a CopyOp, so it is never even
-	// considered for materialization — no symlink, no report entry.
-	_, ok = fileSystem.symlinks["/home/joe/.config/opencode/commands/README.txt"]
-	g.Expect(ok).To(BeFalse())
-	_, ok = fileSystem.written["/home/joe/.config/opencode/engram/commands/README.txt"]
-	g.Expect(ok).To(BeFalse())
-}
-
-// TestUpdater_Run_Local_RealExistingCommandFile_AdoptsToSymlink covers
-// task 5.1: a real command file already occupying a symlink-mode harness's
-// command surface (a pre-migration copy) is REPLACED by a symlink into the
-// engram root's already-synced content, and reported via EngramAdopted —
-// never left in place, never merely reported as unattributable.
-func TestUpdater_Run_Local_RealExistingCommandFile_AdoptsToSymlink(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	fileSystem := newMemFS()
-	fileSystem.dirs["/home/joe/.config/opencode"] = true
-	fileSystem.dirs["/repo"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs["/repo/agent-instructions/skills/recall"] = true
-	fileSystem.files["/repo/agent-instructions/skills/recall/SKILL.md"] = []byte("recall")
-	fileSystem.dirs["/repo/agent-instructions/commands"] = true
-	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("new cmd")
-
-	// Pre-existing REAL command file at the destination (pre-migration copy).
-	fileSystem.dirs["/home/joe/.config/opencode/commands"] = true
-	fileSystem.files["/home/joe/.config/opencode/commands/recall.md"] = []byte("old cmd")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(1))
-	g.Expect(report.Harnesses[0].Err).NotTo(HaveOccurred())
-
-	surfacePath := "/home/joe/.config/opencode/commands/recall.md"
-	engramPath := "/home/joe/.config/opencode/engram/commands/recall.md"
-
-	// Adopted: real copy removed, symlink created into the root.
-	g.Expect(fileSystem.removed).To(ContainElement(surfacePath))
-	target, isSymlink := fileSystem.symlinks[surfacePath]
-	g.Expect(isSymlink).To(BeTrue())
-	g.Expect(target).To(Equal(engramPath))
-	g.Expect(report.Harnesses[0].EngramAdopted).To(ConsistOf(surfacePath))
-	g.Expect(report.Harnesses[0].SurfaceUnmanaged).To(BeEmpty())
-
-	// The intended content lives under the engram root.
-	g.Expect(fileSystem.written[engramPath]).To(Equal([]byte("new cmd")))
 }
 
 // TestUpdater_Run_Local_RealExistingSkillDir_AdoptsToSymlink covers task
@@ -771,7 +590,7 @@ func TestUpdater_Run_Remote_HappyPath(t *testing.T) {
 
 	fileSystem := newMemFS()
 	fileSystem.dirs["/home/joe/.claude"] = true
-	fileSystem.dirs["/home/joe/.config/opencode"] = true
+	fileSystem.dirs["/home/joe/.pi"] = true
 
 	// No go.mod under cwd → remote mode → clone-based build (#645).
 	const cloneDir = "/tmp/engram-update-clone"
@@ -785,8 +604,6 @@ func TestUpdater_Run_Remote_HappyPath(t *testing.T) {
 		if call[0] == "git" && call[1] == "clone" {
 			seedCloneFixture(fileSystem, cloneDir, bytes.Repeat([]byte{1}, 1<<20))
 			fileSystem.files[cloneDir+"/agent-instructions/skills/learn/SKILL.md"] = []byte("learn from clone")
-			fileSystem.dirs[cloneDir+"/agent-instructions/commands"] = true
-			fileSystem.files[cloneDir+"/agent-instructions/commands/learn.md"] = []byte("learn cmd")
 		}
 	}
 
@@ -808,23 +625,12 @@ func TestUpdater_Run_Remote_HappyPath(t *testing.T) {
 	// symlink at the surface (both are symlink-mode, D7).
 	_, ok := fileSystem.written["/home/joe/.claude/engram/skills/learn/SKILL.md"]
 	g.Expect(ok).To(BeTrue())
-	_, ok = fileSystem.written["/home/joe/.config/opencode/engram/skills/learn/SKILL.md"]
+	_, ok = fileSystem.written["/home/joe/.pi/agent/engram/skills/learn/SKILL.md"]
 	g.Expect(ok).To(BeTrue())
 
 	skillTarget, ok := fileSystem.symlinks["/home/joe/.claude/skills/learn"]
 	g.Expect(ok).To(BeTrue())
 	g.Expect(skillTarget).To(Equal("/home/joe/.claude/engram/skills/learn"))
-
-	// OpenCode also got the command file; Claude did not (no commands target).
-	_, ok = fileSystem.written["/home/joe/.config/opencode/engram/commands/learn.md"]
-	g.Expect(ok).To(BeTrue())
-
-	cmdTarget, ok := fileSystem.symlinks["/home/joe/.config/opencode/commands/learn.md"]
-	g.Expect(ok).To(BeTrue())
-	g.Expect(cmdTarget).To(Equal("/home/joe/.config/opencode/engram/commands/learn.md"))
-
-	_, ok = fileSystem.written["/home/joe/.claude/commands/learn.md"]
-	g.Expect(ok).To(BeFalse())
 }
 
 func TestUpdater_Run_SkillsSrcMissing(t *testing.T) {

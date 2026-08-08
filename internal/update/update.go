@@ -1,5 +1,5 @@
 // Package update implements the `engram update` subcommand: refresh the
-// engram binary via `go install` and copy harness skills/commands from
+// engram binary via `go install` and copy harness skills from
 // agent-instructions/ in either a local clone or the module cache into
 // per-harness user dirs.
 package update
@@ -18,10 +18,9 @@ import (
 
 // Exported constants.
 const (
-	HarnessClaude   Harness = "Claude Code"
-	HarnessOpencode Harness = "OpenCode"
-	HarnessPi       Harness = "Pi"
-	ModulePath              = "github.com/toejough/engram"
+	HarnessClaude Harness = "Claude Code"
+	HarnessPi     Harness = "Pi"
+	ModulePath            = "github.com/toejough/engram"
 	// ReexecSentinelEnvVar is the loop-guard environment variable set on a
 	// re-exec child so it skips source resolution/install and never
 	// re-execs again (design D2). Read via Env.Getenv; non-empty means set.
@@ -34,9 +33,9 @@ const (
 // root (D1), never as a harness-visible copy. DeployModeManifest copies real
 // files and records every written path in a manifest so sync can delete by
 // that record instead of by symlink identity. Per verification-verdicts.md's
-// symlink-discovery probes (tasks 1.1-1.3: Claude Code, OpenCode, and Pi
-// all discovered a skill, command, and/or guidance file through a symlinked
-// path), all three currently-supported harnesses run in DeployModeSymlink —
+// symlink-discovery probes (tasks 1.1-1.3: Claude Code and Pi both
+// discovered a skill and/or guidance file through a symlinked path), both
+// currently-supported harnesses run in DeployModeSymlink —
 // see supportedHarnesses. The zero value is invalid; every entry in
 // supportedHarnesses must set one explicitly.
 type DeployMode int
@@ -95,15 +94,13 @@ type Commander interface {
 
 // CopyOp describes a single source→target file copy planned for a harness.
 // SkillDir is the top-level skill subdir name (e.g. "learn") when the file
-// belongs to a skill, empty otherwise. CommandFile is the basename when the
-// file is a command .md, empty otherwise. GuidanceFile is the basename when
+// belongs to a skill, empty otherwise. GuidanceFile is the basename when
 // the file is a guidance .md, empty otherwise. Exactly one of these is set.
 type CopyOp struct {
 	Harness      Harness
 	Src          string
 	Dst          string
 	SkillDir     string
-	CommandFile  string
 	GuidanceFile string
 }
 
@@ -187,15 +184,13 @@ type Harness string
 type HarnessReport struct {
 	Name      Harness
 	ProbeRoot string // home-relative harness root, e.g. ".claude"
-	// SkillsRoot and CommandsRoot are pre-resolved ABSOLUTE paths (ready for
-	// direct use); the *Rel fields below stay HOME-RELATIVE because the CLI
-	// renders them into OS-independent forward-slash "@~/..." import syntax.
+	// SkillsRoot is a pre-resolved ABSOLUTE path (ready for direct use); the
+	// *Rel fields below stay HOME-RELATIVE because the CLI renders them into
+	// OS-independent forward-slash "@~/..." import syntax.
 	SkillsRoot        string // absolute skills install dir
-	CommandsRoot      string // absolute commands install dir (empty if harness has no commands)
 	GuidanceTargetRel string // home-relative guidance install dir (empty if harness takes no guidance)
 	ImportsFileRel    string // home-relative config file scanned for guidance imports (empty: no import support)
 	SkillDirs         []SkillDirCount
-	CommandFiles      []string // basenames of .md files copied
 	GuidanceFiles     []string // basenames of .md files copied into the guidance dir
 	// EngramRoot is the resolved absolute path to this harness's
 	// engram-owned root (D1), maintained by the sync engine below.
@@ -212,7 +207,7 @@ type HarnessReport struct {
 	// though creates/overwrites still applied (D2).
 	EngramDeletionRefused bool
 	// SurfaceUnmanaged lists the absolute harness-visible surface paths
-	// (skill dirs, command files, guidance files) where a REAL file or
+	// (skill dirs, guidance files) where a REAL file or
 	// directory was found that matches NO intended-set artifact for that
 	// surface (D6/task 5.2) — an unmanaged entry engram has no ownership
 	// signal for either way, reported for manual review and left completely
@@ -224,7 +219,7 @@ type HarnessReport struct {
 	// here.
 	SurfaceUnmanaged []string
 	// EngramAdopted lists the absolute harness-visible surface paths (skill
-	// dirs, command files, guidance files, and Claude's root-level guidance
+	// dirs, guidance files, and Claude's root-level guidance
 	// compat links) where an intended-set REAL file or directory — a
 	// pre-sync copy-mode deploy — was replaced by a symlink into the
 	// engram-owned root this run (D6/task 5.1). Under DryRun these are the
@@ -240,20 +235,19 @@ type HarnessReport struct {
 
 // HarnessSpec captures one harness's well-known paths (relative to home).
 type HarnessSpec struct {
-	Name              Harness
-	ProbeRel          string // dir to stat under home (e.g. ".claude")
-	SkillsTargetRel   string // skills install dir under home
-	CommandsTargetRel string // commands install dir under home (empty: skip commands)
+	Name            Harness
+	ProbeRel        string // dir to stat under home (e.g. ".claude")
+	SkillsTargetRel string // skills install dir under home
 	// GuidanceTargetRel and ImportsFileRel are a coupled pair: both set, or
 	// both empty. guidanceImportPrefixes assumes this — a harness with an
 	// imports file but no guidance dir would derive a nonsensical "@~//".
 	GuidanceTargetRel string // guidance install dir under home (empty: skip guidance)
 	ImportsFileRel    string // config file under home scanned for guidance @imports (empty: skip detection)
 	// EngramRootRel is the home-relative engram-owned root this harness's
-	// sync engine maintains (D1): real skill/command/guidance content lives
+	// sync engine maintains (D1): real skill/guidance content lives
 	// only here, synced to exactly match the intended deploy set (D4).
 	// Harness-visible copies/symlinks materializing FROM it are handled by
-	// applySkillLinks/applyCmdLinks/applyGuidanceLinks (symlink mode) or
+	// applySkillLinks/applyGuidanceLinks (symlink mode) or
 	// applyForHarnessManifestMode (manifest mode), plus first-sync migration
 	// adopting any pre-existing real files at those paths.
 	// supportedHarnesses sets this for every currently-supported harness;
@@ -433,7 +427,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	}
 
 	if len(harnesses) == 0 {
-		return report, fmt.Errorf("%w at ~/.claude/ or ~/.config/opencode/", ErrNoHarness)
+		return report, fmt.Errorf("%w at ~/.claude/ or ~/.pi/", ErrNoHarness)
 	}
 
 	source, sourceErr := u.resolveSource(ctx, opts.DryRun || report.ReexecChild)
@@ -457,38 +451,11 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 	return u.planAndApply(home, source, harnesses, opts, report)
 }
 
-// applyCmdLinks materializes one symlink per command file for a
-// symlink-mode harness (D3): <CommandsRoot>/<name>.md →
-// <EngramRoot>/commands/<name>.md, replacing applyCmdOne's copy. Real
-// content lives only under EngramRoot, already synced by
-// applyEngramRootSync (called before this in applyForHarnessSymlinkMode). A
-// real pre-migration copy at the link path is adopted (task 5.1), never
-// merely reported — see materializeOrAdopt.
-func (u *Updater) applyCmdLinks(rep *HarnessReport, spec HarnessSpec, cmdOps []CopyOp, dryRun bool) {
-	for _, copyOp := range cmdOps {
-		if copyOp.Harness != spec.Name {
-			continue
-		}
-
-		link := filepath.Join(rep.CommandsRoot, copyOp.CommandFile)
-		target := filepath.Join(rep.EngramRoot, "commands", copyOp.CommandFile)
-
-		adopted, linkErr := materializeOrAdopt(u.FS, link, target, dryRun)
-		if linkErr != nil {
-			rep.Err = linkErr
-
-			return
-		}
-
-		if adopted {
-			rep.EngramAdopted = append(rep.EngramAdopted, link)
-		}
-
-		rep.CommandFiles = append(rep.CommandFiles, copyOp.CommandFile)
-	}
-}
-
-func (u *Updater) applyCmdOne(copyOp CopyOp, dryRun bool) error {
+// applyClearedOne clears any real content at copyOp.Dst before copying —
+// used by manifest-mode harnesses' flat-copy fallthrough (applyGuidanceOps)
+// so a stale file, broken symlink, or a symlink pointing at the source repo
+// never survives the write.
+func (u *Updater) applyClearedOne(copyOp CopyOp, dryRun bool) error {
 	if !dryRun {
 		removeErr := u.FS.RemoveAll(copyOp.Dst)
 		if removeErr != nil {
@@ -497,23 +464,6 @@ func (u *Updater) applyCmdOne(copyOp CopyOp, dryRun bool) error {
 	}
 
 	return u.applyOne(copyOp, dryRun)
-}
-
-func (u *Updater) applyCmdOps(rep *HarnessReport, name Harness, cmdOps []CopyOp, dryRun bool) {
-	for _, copyOp := range cmdOps {
-		if copyOp.Harness != name {
-			continue
-		}
-
-		opErr := u.applyCmdOne(copyOp, dryRun)
-		if opErr != nil {
-			rep.Err = opErr
-
-			return
-		}
-
-		rep.CommandFiles = append(rep.CommandFiles, copyOp.CommandFile)
-	}
 }
 
 // applyEngramRootOps writes the marker (when writeMarker — a freshly-created
@@ -564,13 +514,13 @@ func (u *Updater) applyEngramRootSync(
 	rep *HarnessReport,
 	spec HarnessSpec,
 	home string,
-	skillOps, cmdOps, guidanceOps []CopyOp,
+	skillOps, guidanceOps []CopyOp,
 	guidanceManaged, dryRun bool,
 ) (isFirstSync bool) {
 	root := filepath.Join(home, spec.EngramRootRel)
 	rep.EngramRoot = root
 
-	intended := intendedRootFiles(spec, home, skillOps, cmdOps, guidanceOps)
+	intended := intendedRootFiles(spec, home, skillOps, guidanceOps)
 
 	ownership, ownErr := resolveEngramRootOwnership(root, intended, u.FS)
 	if ownErr != nil {
@@ -627,38 +577,32 @@ func (u *Updater) applyForHarness(
 	rep *HarnessReport,
 	spec HarnessSpec,
 	home string,
-	skillOps, cmdOps, guidanceOps []CopyOp,
+	skillOps, guidanceOps []CopyOp,
 	guidanceManaged, dryRun bool,
 ) {
 	if spec.DeployMode == DeployModeSymlink {
-		u.applyForHarnessSymlinkMode(rep, spec, home, skillOps, cmdOps, guidanceOps, guidanceManaged, dryRun)
+		u.applyForHarnessSymlinkMode(rep, spec, home, skillOps, guidanceOps, guidanceManaged, dryRun)
 
 		return
 	}
 
-	u.applyForHarnessManifestMode(rep, spec, home, skillOps, cmdOps, guidanceOps, guidanceManaged, dryRun)
+	u.applyForHarnessManifestMode(rep, spec, home, skillOps, guidanceOps, guidanceManaged, dryRun)
 }
 
 // applyForHarnessManifestMode implements copy-based materialization for
-// manifest-mode harnesses: every skill file, command file, and guidance file
+// manifest-mode harnesses: every skill file and guidance file
 // is copied directly into the harness's surface paths, then paths are
 // recorded in a manifest and obsolete recorded paths are deleted (#6.1).
 func (u *Updater) applyForHarnessManifestMode(
 	rep *HarnessReport,
 	spec HarnessSpec,
 	home string,
-	skillOps, cmdOps, guidanceOps []CopyOp,
+	skillOps, guidanceOps []CopyOp,
 	guidanceManaged, dryRun bool,
 ) {
 	name := spec.Name
 
 	u.applySkillOps(rep, name, skillOps, dryRun)
-
-	if rep.Err != nil {
-		return
-	}
-
-	u.applyCmdOps(rep, name, cmdOps, dryRun)
 
 	if rep.Err != nil {
 		return
@@ -671,19 +615,19 @@ func (u *Updater) applyForHarnessManifestMode(
 	}
 
 	// Record written paths in manifest and delete obsolete entries.
-	u.applyManifestRecordingAndDeletion(rep, home, spec, name, skillOps, cmdOps, guidanceOps, dryRun)
+	u.applyManifestRecordingAndDeletion(rep, home, spec, name, skillOps, guidanceOps, dryRun)
 
 	if rep.Err != nil {
 		return
 	}
 
-	u.applyEngramRootSync(rep, spec, home, skillOps, cmdOps, guidanceOps, guidanceManaged, dryRun)
+	u.applyEngramRootSync(rep, spec, home, skillOps, guidanceOps, guidanceManaged, dryRun)
 }
 
 // applyForHarnessSymlinkMode implements D3/D5/D6 for a symlink-mode harness:
 // the engram-owned root sync (D1/D4) runs FIRST so real content exists
 // under the root before any surface symlink is created against it, then
-// skill/command surfaces are materialized as symlinks (never copies) —
+// skill surfaces are materialized as symlinks (never copies) —
 // adopting any real pre-migration copy found there (task 5.1) — then, on
 // the first sync only, every surface dir is scanned for real strays outside
 // the intended set (task 5.2), and finally every run scans the harness's
@@ -698,22 +642,16 @@ func (u *Updater) applyForHarnessSymlinkMode(
 	rep *HarnessReport,
 	spec HarnessSpec,
 	home string,
-	skillOps, cmdOps, guidanceOps []CopyOp,
+	skillOps, guidanceOps []CopyOp,
 	guidanceManaged, dryRun bool,
 ) {
-	isFirstSync := u.applyEngramRootSync(rep, spec, home, skillOps, cmdOps, guidanceOps, guidanceManaged, dryRun)
+	isFirstSync := u.applyEngramRootSync(rep, spec, home, skillOps, guidanceOps, guidanceManaged, dryRun)
 
 	if rep.Err != nil {
 		return
 	}
 
 	u.applySkillLinks(rep, spec, skillOps, dryRun)
-
-	if rep.Err != nil {
-		return
-	}
-
-	u.applyCmdLinks(rep, spec, cmdOps, dryRun)
 
 	if rep.Err != nil {
 		return
@@ -730,7 +668,7 @@ func (u *Updater) applyForHarnessSymlinkMode(
 	}
 
 	if isFirstSync {
-		strayErr := u.reportSurfaceStrays(rep, spec, home, skillOps, cmdOps, guidanceOps)
+		strayErr := u.reportSurfaceStrays(rep, spec, home, skillOps, guidanceOps)
 		if strayErr != nil {
 			rep.Err = strayErr
 
@@ -828,7 +766,7 @@ func (u *Updater) applyGuidanceOps(rep *HarnessReport, name Harness, guidanceOps
 			continue
 		}
 
-		opErr := u.applyCmdOne(copyOp, dryRun)
+		opErr := u.applyClearedOne(copyOp, dryRun)
 		if opErr != nil {
 			rep.Err = opErr
 
@@ -846,10 +784,10 @@ func (u *Updater) applyManifestRecordingAndDeletion(
 	home string,
 	spec HarnessSpec,
 	name Harness,
-	skillOps, cmdOps, guidanceOps []CopyOp,
+	skillOps, guidanceOps []CopyOp,
 	dryRun bool,
 ) {
-	intendedPaths := collectWrittenPaths(skillOps, cmdOps, guidanceOps, name)
+	intendedPaths := collectWrittenPaths(skillOps, guidanceOps, name)
 	engramRoot := filepath.Join(home, spec.EngramRootRel)
 	manifestPath := filepath.Join(engramRoot, manifestFilename)
 
@@ -899,7 +837,7 @@ func (u *Updater) applyOne(copyOp CopyOp, dryRun bool) error {
 func (u *Updater) applyOps(
 	harnesses []HarnessSpec,
 	home string,
-	skillOps, cmdOps, guidanceOps []CopyOp,
+	skillOps, guidanceOps []CopyOp,
 	guidanceManaged, dryRun bool,
 ) []HarnessReport {
 	reports := make([]HarnessReport, 0, len(harnesses))
@@ -909,12 +847,11 @@ func (u *Updater) applyOps(
 			Name:              spec.Name,
 			ProbeRoot:         spec.ProbeRel,
 			SkillsRoot:        filepath.Join(home, spec.SkillsTargetRel),
-			CommandsRoot:      cmdRootFor(spec, home),
 			GuidanceTargetRel: spec.GuidanceTargetRel,
 			ImportsFileRel:    spec.ImportsFileRel,
 		}
 
-		u.applyForHarness(&rep, spec, home, skillOps, cmdOps, guidanceOps, guidanceManaged, dryRun)
+		u.applyForHarness(&rep, spec, home, skillOps, guidanceOps, guidanceManaged, dryRun)
 		reports = append(reports, rep)
 	}
 
@@ -1000,26 +937,21 @@ func (u *Updater) applySkillOps(rep *HarnessReport, name Harness, skillOps []Cop
 }
 
 // cleanupDanglingLinks runs the D5 dangling-link scan over every one of a
-// symlink-mode harness's surface dirs: the skills root, the commands root
-// (when the harness has one), and either the guidance dir (Pi today, a
-// surface distinct from EngramRootRel) or the engram root itself (Claude
-// today, GuidanceTargetRel == EngramRootRel — task 5.3's root-level compat
-// links live at the root's top level, so scanning the root here is what
-// finds and removes a compat link whose guidance file left the intended set;
-// the root's real top-level content — the marker, skills/, commands/,
-// guidance/ — is never a symlink, so cleanupDanglingLinksInDir's Lstat-mode
-// check skips it harmlessly).
+// symlink-mode harness's surface dirs: the skills root, and either the
+// guidance dir (Pi today, a surface distinct from EngramRootRel) or the
+// engram root itself (Claude today, GuidanceTargetRel == EngramRootRel —
+// task 5.3's root-level compat links live at the root's top level, so
+// scanning the root here is what finds and removes a compat link whose
+// guidance file left the intended set; the root's real top-level content —
+// the marker, skills/, guidance/ — is never a symlink, so
+// cleanupDanglingLinksInDir's Lstat-mode check skips it harmlessly).
 func (u *Updater) cleanupDanglingLinks(rep *HarnessReport, spec HarnessSpec, home string, dryRun bool) {
 	dirs := make([]string, 0, maxCleanupSurfaceDirs)
 	dirs = append(dirs, rep.SkillsRoot)
 
-	if rep.CommandsRoot != "" {
-		dirs = append(dirs, rep.CommandsRoot)
-	}
-
 	switch {
 	case spec.GuidanceTargetRel == "":
-		// no guidance surface for this harness (OpenCode) — nothing to add
+		// no guidance surface for this harness — nothing to add
 	case spec.GuidanceTargetRel != spec.EngramRootRel:
 		dirs = append(dirs, filepath.Join(home, spec.GuidanceTargetRel)) // Pi: separate guidance dir
 	default:
@@ -1072,7 +1004,7 @@ func (u *Updater) clearSkillDirOnce(
 // detectGuidanceImports scans each detected harness's config file (the
 // spec's ImportsFileRel) for active @import lines pointing at that harness's
 // own guidance dir, keyed by harness. Harnesses without an imports file
-// (empty ImportsFileRel, e.g. OpenCode) are skipped explicitly, as are
+// (empty ImportsFileRel) are skipped explicitly, as are
 // harnesses whose config file is missing or holds no imports — only
 // harnesses with at least one import get an entry.
 func (u *Updater) detectGuidanceImports(home string, harnesses []HarnessSpec) map[Harness]map[string]bool {
@@ -1101,23 +1033,17 @@ func (u *Updater) detectGuidanceImports(home string, harnesses []HarnessSpec) ma
 // planAndApply is Run's post-install phase (D7: everything AFTER the
 // re-exec boundary, when this call didn't hand off to a re-execed child —
 // either it fell back, or the sentinel/dry-run skipped install in the first
-// place): plans skill/command/guidance copies and applies them per harness.
-// Split out of Run to keep Run's own branching within the complexity budget.
+// place): plans skill/guidance copies and applies them per harness. Split
+// out of Run to keep Run's own branching within the complexity budget.
 func (u *Updater) planAndApply(
 	home string, source SourceInfo, harnesses []HarnessSpec, opts Options, report Report,
 ) (Report, error) {
 	srcSkills := filepath.Join(source.Root, "agent-instructions", "skills")
-	srcCommands := filepath.Join(source.Root, "agent-instructions", "commands")
 	srcGuidance := filepath.Join(source.Root, "agent-instructions", "guidance")
 
 	skillOps, planErr := planSkillCopies(srcSkills, home, harnesses, u.FS)
 	if planErr != nil {
 		return report, planErr
-	}
-
-	cmdOps, cmdPlanErr := planCommandCopies(srcCommands, home, harnesses, u.FS)
-	if cmdPlanErr != nil {
-		return report, cmdPlanErr
 	}
 
 	report.GuidanceImports = u.detectGuidanceImports(home, harnesses)
@@ -1141,7 +1067,7 @@ func (u *Updater) planAndApply(
 		}
 	}
 
-	report.Harnesses = u.applyOps(harnesses, home, skillOps, cmdOps, guidanceOps, guidanceManaged, opts.DryRun)
+	report.Harnesses = u.applyOps(harnesses, home, skillOps, guidanceOps, guidanceManaged, opts.DryRun)
 
 	return report, nil
 }
@@ -1199,25 +1125,21 @@ func (u *Updater) reexecAfterInstall(opts Options, report Report) (Report, bool,
 }
 
 // reportSurfaceStrays runs the D6/task-5.2 stray scan across every harness
-// surface dir this harness materializes into — the skills root, the
-// commands root (when present), and the guidance dir ONLY when it is a
-// surface distinct from EngramRootRel (Pi today; Claude's compat-link root
-// has no separate guidance surface to scan here — a stray flat file there
-// is caught by the root-level unattributableRootFiles scan instead, D1's
-// guidance caveat). Callers gate this to the first sync only (isFirstSync):
-// once every intended-set path is a symlink, repeating this ReadDir/Lstat
-// scan every run would not surface anything new.
+// surface dir this harness materializes into — the skills root, and the
+// guidance dir ONLY when it is a surface distinct from EngramRootRel (Pi
+// today; Claude's compat-link root has no separate guidance surface to scan
+// here — a stray flat file there is caught by the root-level
+// unattributableRootFiles scan instead, D1's guidance caveat). Callers gate
+// this to the first sync only (isFirstSync): once every intended-set path
+// is a symlink, repeating this ReadDir/Lstat scan every run would not
+// surface anything new.
 func (u *Updater) reportSurfaceStrays(
 	rep *HarnessReport,
 	spec HarnessSpec,
 	home string,
-	skillOps, cmdOps, guidanceOps []CopyOp,
+	skillOps, guidanceOps []CopyOp,
 ) error {
 	scans := []surfaceScan{{dir: rep.SkillsRoot, intended: intendedSkillDirNames(spec.Name, skillOps)}}
-
-	if rep.CommandsRoot != "" {
-		scans = append(scans, surfaceScan{dir: rep.CommandsRoot, intended: intendedCommandBasenames(spec.Name, cmdOps)})
-	}
 
 	if spec.GuidanceTargetRel != "" && spec.GuidanceTargetRel != spec.EngramRootRel {
 		scans = append(scans, surfaceScan{
@@ -1368,12 +1290,10 @@ const (
 	// symlink discovery fails verification.
 	manifestFilename = ".engram-manifest.json"
 	// maxCleanupSurfaceDirs bounds the surface-dir slice cleanupDanglingLinks
-	// builds: skills root, commands root, and one of {guidance dir (Pi), the
-	// engram root itself (Claude's root-level compat links, task 5.3} — no
-	// currently-supported harness has both a commands root AND a
-	// GuidanceTargetRel == EngramRootRel shape, so 3 stays the true bound.
-	maxCleanupSurfaceDirs = 3
-	maxSupportedHarnesses = 3
+	// builds: skills root, and one of {guidance dir (Pi), the engram root
+	// itself (Claude's root-level compat links, task 5.3)}.
+	maxCleanupSurfaceDirs = 2
+	maxSupportedHarnesses = 2
 	// modelMinBytes: the real MiniLM ONNX is ~90 MB; anything under a
 	// megabyte is certainly not it.
 	modelMinBytes = 1 << 20
@@ -1401,8 +1321,8 @@ type engramRootOwnership struct {
 
 // intendedRootFile pairs an engram-root-relative path with the absolute
 // source it should be synced from. Built from planSkillCopies /
-// planCommandCopies / planGuidanceCopies output, re-rooted under the
-// engram-owned root's skills/, commands/, guidance/ subtrees (D1/D4).
+// planGuidanceCopies output, re-rooted under the engram-owned root's
+// skills/, guidance/ subtrees (D1/D4).
 type intendedRootFile struct {
 	RelPath string // path relative to the engram-owned root
 	Src     string // absolute source path
@@ -1678,14 +1598,6 @@ func cleanupDanglingLinksInDir(fileSystem Filesystem, dir, root string, dryRun b
 	return removed, nil
 }
 
-func cmdRootFor(spec HarnessSpec, home string) string {
-	if spec.CommandsTargetRel == "" {
-		return ""
-	}
-
-	return filepath.Join(home, spec.CommandsTargetRel)
-}
-
 // collectGuidanceImports scans one harness config file's content for active
 // @import lines matching either derived prefix, returning the set of imported
 // guidance basenames. Lines inside fenced code blocks are ignored: a ```
@@ -1782,16 +1694,10 @@ func collectSkillDirs(order []string, counts map[string]int) []SkillDirCount {
 
 // collectWrittenPaths extracts all Dst (destination) paths from CopyOps
 // for a given harness, used to track written files in manifest mode.
-func collectWrittenPaths(skillOps, cmdOps, guidanceOps []CopyOp, name Harness) []string {
+func collectWrittenPaths(skillOps, guidanceOps []CopyOp, name Harness) []string {
 	out := make([]string, 0)
 
 	for _, op := range skillOps {
-		if op.Harness == name {
-			out = append(out, op.Dst)
-		}
-	}
-
-	for _, op := range cmdOps {
 		if op.Harness == name {
 			out = append(out, op.Dst)
 		}
@@ -1991,21 +1897,6 @@ func guidanceImportPrefixes(spec HarnessSpec, home string) (tildePrefix, expande
 	return tildePrefix, expandedPrefix
 }
 
-// intendedCommandBasenames collects the CommandFile basenames one harness's
-// planned command CopyOps intend to deploy — reportSurfaceStrays' (task 5.2)
-// "not a stray" set for a harness's commands root.
-func intendedCommandBasenames(name Harness, cmdOps []CopyOp) map[string]bool {
-	out := map[string]bool{}
-
-	for _, copyOp := range cmdOps {
-		if copyOp.Harness == name {
-			out[copyOp.CommandFile] = true
-		}
-	}
-
-	return out
-}
-
 // intendedGuidanceBasenames collects the GuidanceFile basenames one
 // harness's planned guidance CopyOps intend to deploy — reportSurfaceStrays'
 // (task 5.2) "not a stray" set for a harness's separate guidance dir (Pi).
@@ -2021,14 +1912,14 @@ func intendedGuidanceBasenames(name Harness, guidanceOps []CopyOp) map[string]bo
 	return out
 }
 
-// intendedRootFiles re-roots one harness's planned skill/command/guidance
-// CopyOps under its engram-owned root's skills/, commands/, guidance/
-// subtrees (D1/D4): the sync engine's "intended set" input. Ops belonging to
-// other harnesses are skipped. guidanceOps is already empty when guidance is
-// not part of the intended set this run (Run's opt-in gate), so no separate
-// guidance filter is needed here.
-func intendedRootFiles(spec HarnessSpec, home string, skillOps, cmdOps, guidanceOps []CopyOp) []intendedRootFile {
-	out := make([]intendedRootFile, 0, len(skillOps)+len(cmdOps)+len(guidanceOps))
+// intendedRootFiles re-roots one harness's planned skill/guidance CopyOps
+// under its engram-owned root's skills/, guidance/ subtrees (D1/D4): the
+// sync engine's "intended set" input. Ops belonging to other harnesses are
+// skipped. guidanceOps is already empty when guidance is not part of the
+// intended set this run (Run's opt-in gate), so no separate guidance filter
+// is needed here.
+func intendedRootFiles(spec HarnessSpec, home string, skillOps, guidanceOps []CopyOp) []intendedRootFile {
+	out := make([]intendedRootFile, 0, len(skillOps)+len(guidanceOps))
 
 	skillsPrefix := filepath.Join(home, spec.SkillsTargetRel) + string(filepath.Separator)
 
@@ -2039,14 +1930,6 @@ func intendedRootFiles(spec HarnessSpec, home string, skillOps, cmdOps, guidance
 
 		rel := strings.TrimPrefix(copyOp.Dst, skillsPrefix)
 		out = append(out, intendedRootFile{RelPath: filepath.Join("skills", rel), Src: copyOp.Src})
-	}
-
-	for _, copyOp := range cmdOps {
-		if copyOp.Harness != spec.Name {
-			continue
-		}
-
-		out = append(out, intendedRootFile{RelPath: filepath.Join("commands", copyOp.CommandFile), Src: copyOp.Src})
 	}
 
 	for _, copyOp := range guidanceOps {
@@ -2246,46 +2129,6 @@ func pathWithinRoot(path, root string) bool {
 	return strings.HasPrefix(path, cleanRoot+string(filepath.Separator))
 }
 
-// planCommandCopies enumerates .md files at the top level of srcCommands
-// and produces one CopyOp per harness that has a CommandsTargetRel.
-func planCommandCopies(
-	srcCommands, home string,
-	harnesses []HarnessSpec,
-	fileSystem Filesystem,
-) ([]CopyOp, error) {
-	entries, readErr := fileSystem.ReadDir(srcCommands)
-	if readErr != nil {
-		if isNotExist(readErr) {
-			return nil, nil
-		}
-
-		return nil, fmt.Errorf("read commands dir %s: %w", srcCommands, readErr)
-	}
-
-	cmdFiles := mdFilesIn(entries)
-
-	ops := make([]CopyOp, 0, len(cmdFiles)*len(harnesses))
-
-	for _, spec := range harnesses {
-		if spec.CommandsTargetRel == "" {
-			continue
-		}
-
-		dstRoot := filepath.Join(home, spec.CommandsTargetRel)
-
-		for _, name := range cmdFiles {
-			ops = append(ops, CopyOp{
-				Harness:     spec.Name,
-				Src:         filepath.Join(srcCommands, name),
-				Dst:         filepath.Join(dstRoot, name),
-				CommandFile: name,
-			})
-		}
-	}
-
-	return ops, nil
-}
-
 // The field names are PascalCase because that's the literal JSON `go list`
 // emits — not the Go-conventional camelCase a linter would prefer.
 
@@ -2342,7 +2185,7 @@ func planEngramRootSync(
 
 // planGuidanceCopies enumerates .md files at the top level of srcGuidance
 // and produces one CopyOp per harness that has a non-empty GuidanceTargetRel.
-// Mirrors planCommandCopies: flat *.md only, returns nil, nil when srcGuidance
+// Flat *.md only, returns nil, nil when srcGuidance
 // is absent (guidance is optional — contrast planSkillCopies which errors).
 func planGuidanceCopies(
 	srcGuidance, home string,
@@ -2595,18 +2438,6 @@ func supportedHarnesses() []HarnessSpec {
 			EngramRootRel:     filepath.Join(".claude", "engram"),
 			// Verified symlink-capable (skill discovered through a
 			// symlinked skill dir) — verification-verdicts.md.
-			DeployMode: DeployModeSymlink,
-		},
-		{
-			Name:              HarnessOpencode,
-			ProbeRel:          filepath.Join(".config", "opencode"),
-			SkillsTargetRel:   filepath.Join(".config", "opencode", "skills"),
-			CommandsTargetRel: filepath.Join(".config", "opencode", "commands"),
-			// OpenCode @import support unverified — GuidanceTargetRel and
-			// ImportsFileRel empty until confirmed (guidance + detection skipped).
-			EngramRootRel: filepath.Join(".config", "opencode", "engram"),
-			// Verified symlink-capable (skill discovered, command executed
-			// through symlinked paths) — verification-verdicts.md.
 			DeployMode: DeployModeSymlink,
 		},
 		{

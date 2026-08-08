@@ -18,7 +18,7 @@ The sync deployment model of `engram update`: each detected harness gets an engr
 - **THEN** the new skill appears in the engram-owned root with a harness-visible symlink, and the edited file's content in the root matches the source
 
 ### Requirement: Harness-visible paths are symlinks into the engram-owned root
-For harnesses in symlink deploy mode, `engram update` SHALL materialize harness-required artifact paths as symlinks into the engram-owned root — one symlink per skill directory, one per command file, one per guidance file — never as real copies.
+For harnesses in symlink deploy mode, `engram update` SHALL materialize harness-required artifact paths as symlinks into the engram-owned root — one symlink per skill directory, one per guidance file — never as real copies.
 
 #### Scenario: Skill deploys as a directory symlink
 - **WHEN** `engram update` deploys skill `recall` for a symlink-mode harness with skills root `~/.claude/skills`
@@ -68,11 +68,11 @@ Because user-authored `@import` lines reference `~/.claude/engram/<file>.md` ver
 - **THEN** `~/.claude/engram/recall.md` is a symlink to the canonical file and the import still resolves to the deployed content
 
 ### Requirement: Manifest fallback for harnesses without symlink discovery
-A harness whose skill or command discovery fails symlink verification SHALL run in manifest deploy mode: artifacts are materialized as real copies, every written path is recorded in a manifest inside the engram-owned root, and sync SHALL delete exactly those recorded paths whose source artifacts no longer exist. Paths not recorded in the manifest MUST NOT be deleted.
+A harness whose skill discovery fails symlink verification SHALL run in manifest deploy mode: artifacts are materialized as real copies, every written path is recorded in a manifest inside the engram-owned root, and sync SHALL delete exactly those recorded paths whose source artifacts no longer exist. Paths not recorded in the manifest MUST NOT be deleted.
 
 #### Scenario: Removal propagates via manifest
-- **WHEN** a manifest-mode harness has a deployed command recorded in the manifest and the command's source is deleted, and `engram update` runs
-- **THEN** the deployed command file is deleted, the manifest entry is dropped, and unrecorded files in the same directory are untouched
+- **WHEN** a manifest-mode harness has a deployed skill file recorded in the manifest and the skill's source is deleted, and `engram update` runs
+- **THEN** the deployed skill file is deleted, the manifest entry is dropped, and unrecorded files in the same directory are untouched
 
 ### Requirement: Dry-run previews every sync operation without writing
 With `--dry-run`, `engram update` SHALL emit one operation-classified, dry-run-prefixed line per planned action — sync writes, sync deletions, symlink creations, cleanup deletions, and migration steps — and MUST NOT create, modify, or delete any file, including the engram-owned root and its marker.

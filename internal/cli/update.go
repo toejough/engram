@@ -502,17 +502,6 @@ func vocabDefinitionsMissingSelfTags(vaultPath string, fileSystem update.Filesys
 	return false
 }
 
-func writeCommandRows(buffer *bytes.Buffer, harness update.HarnessReport, home string) {
-	if harness.CommandsRoot == "" {
-		return
-	}
-
-	for _, name := range harness.CommandFiles {
-		dst := filepath.Join(harness.CommandsRoot, name)
-		fmt.Fprintf(buffer, "    agent-instructions/commands/%s → %s\n", name, tildify(dst, home))
-	}
-}
-
 // writeDuplicatesHint prints a one-line notice naming `engram prune
 // --duplicates` when the chunk index holds a duplicate backlog that
 // command would actually remove (refusal-only backlogs stay silent —
@@ -601,8 +590,8 @@ func writeGuidanceHints(buffer *bytes.Buffer, report update.Report) {
 // Both lines are action lines (they describe a guidance file that was, or
 // under --dry-run WOULD BE, written/relinked — #709) and so carry the
 // dry-run prefix like every other action line in this report. Harnesses
-// whose config cannot @import guidance (empty ImportsFileRel, e.g.
-// OpenCode) render nothing. Paths use forward slashes always: import syntax
+// whose config cannot @import guidance (empty ImportsFileRel) render
+// nothing. Paths use forward slashes always: import syntax
 // is OS-independent. When the harness's guidance surface IS its engram root
 // (Claude today — D1's guidance caveat), each line also states the
 // canonical guidance/ path (task 5.3): the flat @import path is now a
@@ -662,7 +651,6 @@ func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
 		}
 
 		writeSkillRows(buffer, harness, report.Home)
-		writeCommandRows(buffer, harness, report.Home)
 		writeEngramRootNotice(buffer, report, harness)
 		successes = append(successes, string(harness.Name))
 	}

@@ -25,13 +25,13 @@ func TestDetectHarnesses_Both_StableOrder(t *testing.T) {
 
 	fileSystem := newMemFS()
 	fileSystem.dirs["/home/joe/.claude"] = true
-	fileSystem.dirs["/home/joe/.config/opencode"] = true
+	fileSystem.dirs["/home/joe/.pi"] = true
 
 	detected, err := update.ExportDetectHarnesses("/home/joe", fileSystem)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(detected).To(HaveLen(2))
 	g.Expect(detected[0].Name).To(Equal(update.HarnessClaude))
-	g.Expect(detected[1].Name).To(Equal(update.HarnessOpencode))
+	g.Expect(detected[1].Name).To(Equal(update.HarnessPi))
 }
 
 func TestDetectHarnesses_ClaudeOnly(t *testing.T) {
@@ -346,12 +346,11 @@ func TestGuidanceImportPrefixDerivation_AllHarnesses(t *testing.T) {
 
 	fileSystem := newMemFS()
 	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.dirs[home+"/.config/opencode"] = true
 	fileSystem.dirs[home+"/.pi"] = true
 
 	detected, err := update.ExportDetectHarnesses(home, fileSystem)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(detected).To(HaveLen(3))
+	g.Expect(detected).To(HaveLen(2))
 
 	want := map[update.Harness][2]string{
 		update.HarnessClaude: {"@~/.claude/engram/", "@" + home + "/.claude/engram/"},
@@ -359,14 +358,6 @@ func TestGuidanceImportPrefixDerivation_AllHarnesses(t *testing.T) {
 	}
 
 	for _, spec := range detected {
-		if spec.Name == update.HarnessOpencode {
-			// OpenCode has no imports file — detection (and thus prefix
-			// derivation) is skipped for it entirely.
-			g.Expect(spec.ImportsFileRel).To(BeEmpty())
-
-			continue
-		}
-
 		tilde, expanded := update.ExportGuidanceImportPrefixes(spec, home)
 		g.Expect(tilde).To(Equal(want[spec.Name][0]), string(spec.Name))
 		g.Expect(expanded).To(Equal(want[spec.Name][1]), string(spec.Name))
@@ -380,20 +371,16 @@ func TestHarnessSpecs_WellKnownPaths(t *testing.T) {
 
 	fileSystem := newMemFS()
 	fileSystem.dirs["/home/joe/.claude"] = true
-	fileSystem.dirs["/home/joe/.config/opencode"] = true
 	fileSystem.dirs["/home/joe/.pi"] = true
 
 	detected, err := update.ExportDetectHarnesses("/home/joe", fileSystem)
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(detected).To(HaveLen(3))
+	g.Expect(detected).To(HaveLen(2))
 
-	claude, opencode, piHarness := detected[0], detected[1], detected[2]
+	claude, piHarness := detected[0], detected[1]
 
 	g.Expect(claude.Name).To(Equal(update.HarnessClaude))
 	g.Expect(claude.ImportsFileRel).To(Equal(filepath.Join(".claude", "CLAUDE.md")))
-
-	g.Expect(opencode.Name).To(Equal(update.HarnessOpencode))
-	g.Expect(opencode.ImportsFileRel).To(BeEmpty())
 
 	g.Expect(piHarness.Name).To(Equal(update.HarnessPi))
 	g.Expect(piHarness.ProbeRel).To(Equal(".pi"))
@@ -629,7 +616,7 @@ func TestManifestMode_CorruptManifestReturnsError(t *testing.T) {
 	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
-		nil, nil, nil, false, false)
+		nil, nil, false, false)
 
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("unmarshaling manifest")))
@@ -687,7 +674,7 @@ func TestManifestMode_DeletesObsoleteFilesOnNextRun(t *testing.T) {
 	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
-		skillOps, nil, nil, false, false)
+		skillOps, nil, false, false)
 
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).NotTo(HaveOccurred())
@@ -761,7 +748,7 @@ func TestManifestMode_DeletionErrorPropagates(t *testing.T) {
 	// obsolete and must be deleted; the injected RemoveAll failure there
 	// must surface as a per-harness error.
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
-		nil, nil, nil, false, false)
+		nil, nil, false, false)
 
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).To(MatchError(ContainSubstring("disk full")))
@@ -806,7 +793,7 @@ func TestManifestMode_DryRunPreviewsDelectionNoWrites(t *testing.T) {
 
 	// dryRun=true, no files in skillOps
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
-		nil, nil, nil, false, true)
+		nil, nil, false, true)
 
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).NotTo(HaveOccurred())
@@ -876,7 +863,7 @@ func TestManifestMode_WritesFilesAndRecordsManifest(t *testing.T) {
 	}
 
 	reports := update.ExportApplyOps(updater, []update.HarnessSpec{spec}, home,
-		skillOps, nil, nil, false, false)
+		skillOps, nil, false, false)
 
 	g.Expect(reports).To(HaveLen(1))
 	g.Expect(reports[0].Err).NotTo(HaveOccurred())
@@ -903,9 +890,9 @@ func TestPlanGuidanceCopies_FilesUnderHome(t *testing.T) {
 			GuidanceTargetRel: ".claude/engram",
 		},
 		{
-			Name:              update.HarnessOpencode,
-			ProbeRel:          ".config/opencode",
-			SkillsTargetRel:   ".config/opencode/skills",
+			Name:              update.HarnessPi,
+			ProbeRel:          ".pi",
+			SkillsTargetRel:   ".pi/agent/skills",
 			GuidanceTargetRel: "",
 		},
 	}
@@ -916,7 +903,7 @@ func TestPlanGuidanceCopies_FilesUnderHome(t *testing.T) {
 		wantDst   string
 	}{
 		{
-			name:      "claude-code-gets-op-opencode-skipped",
+			name:      "claude-code-gets-op-no-guidance-target-skipped",
 			wantCount: 1,
 			wantDst:   "/home/joe/.claude/engram/recall.md",
 		},
@@ -931,6 +918,9 @@ func TestPlanGuidanceCopies_FilesUnderHome(t *testing.T) {
 			fileSystem := newMemFS()
 			fileSystem.files["/src/agent-instructions/guidance/recall.md"] = []byte("guidance")
 			fileSystem.dirs["/src/agent-instructions/guidance"] = true
+			// A subdirectory entry alongside the .md files must be skipped, not
+			// treated as a guidance file.
+			fileSystem.dirs["/src/agent-instructions/guidance/subdir"] = true
 
 			ops, err := update.ExportPlanGuidanceCopies("/src/agent-instructions/guidance", "/home/joe", harnesses, fileSystem)
 			g.Expect(err).NotTo(HaveOccurred())
@@ -1089,45 +1079,6 @@ func TestRun_PlainUpdate_WhenImported_RefreshesGuidance(t *testing.T) {
 	g.Expect(written).To(Equal([]byte("fresh guidance content")))
 	g.Expect(fileSystem.symlinks[home+"/.claude/engram/recall.md"]).
 		To(Equal(home + "/.claude/engram/guidance/recall.md"))
-}
-
-func TestRun_WithGuidance_BothHarnesses_OnlyClaudeGetsGuidance(t *testing.T) {
-	t.Parallel()
-
-	// Having both harnesses ensures applyGuidanceOps hits the
-	// "copyOp.Harness != name" continue branch for OpenCode.
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.dirs[home+"/.config/opencode"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("recall guidance")
-	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(2))
-
-	// Claude Code gets the guidance file.
-	claudeReport := report.Harnesses[0]
-	g.Expect(claudeReport.Name).To(Equal(update.HarnessClaude))
-	g.Expect(claudeReport.GuidanceFiles).To(ConsistOf("recall.md"))
-
-	// OpenCode guidance target is empty → no guidance files.
-	opencodeReport := report.Harnesses[1]
-	g.Expect(opencodeReport.Name).To(Equal(update.HarnessOpencode))
-	g.Expect(opencodeReport.GuidanceFiles).To(BeEmpty())
 }
 
 func TestRun_WithGuidance_DeploysToClaudeEngram(t *testing.T) {

@@ -14,7 +14,7 @@ flowchart LR
 
     user([S1 · Engram operator])
     engram[S2 · Engram]
-    harness("S3 · LLM coding harness<br/>(Claude Code, OpenCode, Pi)")
+    harness("S3 · LLM coding harness<br/>(Claude Code, Pi)")
     vault(S4 · Agent-memory vault)
     sessions(S5 · Harness session stores)
     gotool(S6 · Go toolchain)
@@ -24,7 +24,7 @@ flowchart LR
     engram -->|"R3: reads & writes notes + sidecars"| vault
     engram -->|"R4: reads session transcripts; re-chunks only mtime/size/hash-changed sources (manifest.json)"| sessions
     engram -->|"R5: invokes git clone + go install for self-update, then re-execs the fresh binary (ADR-0023)"| gotool
-    engram -->|"R6: writes refreshed skill/command files during engram update; --with-guidance adds guidance (Claude Code, Pi)"| harness
+    engram -->|"R6: writes refreshed skill files during engram update; --with-guidance adds guidance (Claude Code, Pi)"| harness
 
     class user person
     class harness,vault,sessions,gotool external
@@ -44,7 +44,7 @@ flowchart LR
 |---|---|---|---|---|
 | <a id="s1-engram-operator"></a>S1 | Engram operator | Person | Directs work through the LLM coding harness; configures engram via environment variables (`ENGRAM_VAULT_PATH`, `XDG_DATA_HOME`, etc.) | Human |
 | <a id="s2-engram"></a>S2 | Engram | System in scope | Persistent memory for LLM coding agents: reads & writes a Luhmann zettelkasten vault, reads per-harness session transcripts via markers, self-updates, and provides operator-run tools outside the recall/learn/please/update flows — `engram prune` (GC: detaches chunk-index manifest entries whose source file no longer exists, preserving the embedded chunks on disk; `--empty` removes existing 0-byte `.jsonl` index files left by zero-record sources, ranking-neutral) and `engram count` (frontmatter membership `--group-by`/`--filter` counts + `--backlinks-of` wikilink in-degree; ADR-0018) | This repo (`cmd/engram/`, `internal/`, `agent-instructions/`) |
-| <a id="s3-llm-coding-harness"></a>S3 | LLM coding harness | External system | Hosts engram's slash commands and subprocess-invokes the engram CLI. Engram skills are loaded by the harness's skill mechanism. | Claude Code (`~/.claude/`), OpenCode (`~/.config/opencode/`), Pi (`~/.pi/agent/`) |
+| <a id="s3-llm-coding-harness"></a>S3 | LLM coding harness | External system | Hosts engram's slash commands and subprocess-invokes the engram CLI. Engram skills are loaded by the harness's skill mechanism. | Claude Code (`~/.claude/`), Pi (`~/.pi/agent/`) |
 | <a id="s4-agent-memory-vault"></a>S4 | Agent-memory vault | External system | Luhmann zettelkasten on the local filesystem — a FLAT layout: notes live at the vault root (each with a sibling `.vec.json` embedding sidecar). The `Permanent/` and `MOCs/` tiers are retired (2026-06-12 flat-vault migration); subdirectories are ignored by the scanner | `$ENGRAM_VAULT_PATH` or `$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`) |
 | <a id="s5-harness-session-stores"></a>S5 | Harness session stores | External system | The LLM harness's per-session transcript storage; engram reads them at the filesystem level, not via a harness API | Claude Code: `~/.claude/projects/<slug>/*.jsonl`; Pi: session JSONL under swept ancestor `.pi` dirs or explicit `--pi-sessions` dirs (JSONL only; the OpenCode SQLite backend was never wired into production ingest and was removed in the 2026-06-20 deep clean) |
 | <a id="s6-go-toolchain"></a>S6 | Go toolchain | External system | Resolves module versions and installs the engram binary during `engram update` | `go` binary on `$PATH` |
@@ -58,7 +58,7 @@ flowchart LR
 | <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes plus their `.vec.json` embedding sidecars under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code `~/.claude/projects/<slug>/*.jsonl`; Pi session JSONL under ancestor `.pi` dirs or `--pi-sessions` dirs) for changed sources only |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go install` (local clone) or clones the repo and builds from the clone (remote mode, never `go install …@latest`; #645) to self-update, then re-execs the freshly installed binary to run the sync phase (ADR-0023) |
-| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, syncs refreshed `agent-instructions/skills/` and `agent-instructions/commands/` to engram-owned roots (`~/.claude/engram/skills/`, `~/.config/opencode/engram/skills/`, etc.; ADR-0022 D1) and materializes them as symlinks in each harness's surface dirs (`~/.claude/skills/`, `~/.config/opencode/skills/`, `~/.pi/agent/skills/`); removals from the source propagate (sync-delete); first update performs dark migration of pre-existing copies to symlinks; dangling symlinks are cleaned up. `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (`~/.claude/engram/guidance/`, `~/.pi/agent/engram/guidance/`; canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) resolve existing `@import` lines (opt-in; OpenCode deferred). Manifest-mode fallback for harnesses whose discovery fails symlink verification (ADR-0022 D7) |
+| <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, syncs refreshed `agent-instructions/skills/` to engram-owned roots (`~/.claude/engram/skills/`, `~/.pi/agent/engram/skills/`, etc.; ADR-0022 D1) and materializes them as symlinks in each harness's surface dirs (`~/.claude/skills/`, `~/.pi/agent/skills/`); removals from the source propagate (sync-delete); first update performs dark migration of pre-existing copies to symlinks; dangling symlinks are cleaned up. `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (`~/.claude/engram/guidance/`, `~/.pi/agent/engram/guidance/`; canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) resolve existing `@import` lines (opt-in). Manifest-mode fallback for harnesses whose discovery fails symlink verification (ADR-0022 D7) |
 
 ## Key flows
 
@@ -371,14 +371,14 @@ sequenceDiagram
         end
     end
 
-    Note over E: detect each harness (Claude Code, OpenCode, Pi) and its deploy mode (symlink or manifest)
+    Note over E: detect each harness (Claude Code, Pi) and its deploy mode (symlink or manifest)
 
-    Note over E: compute intended deploy set per harness (skills, commands, guidance if --with-guidance)
+    Note over E: compute intended deploy set per harness (skills, guidance if --with-guidance)
 
     loop per harness: create/migrate/sync engram-owned root
         Note over E: if first sync: create root + marker, migrate pre-existing copies to root + symlinks, report unknowns
         Note over E: if subsequent: sync root to intended set (create missing, overwrite changed, delete removed)
-        Note over E: materialize symlinks (or manifest copies) into harness surface dirs (~/.claude/skills, ~/.config/opencode/skills, etc.)
+        Note over E: materialize symlinks (or manifest copies) into harness surface dirs (~/.claude/skills, ~/.pi/agent/skills, etc.)
         Note over E: clean up dangling symlinks pointing into engram root
     end
 

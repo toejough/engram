@@ -187,7 +187,6 @@ func TestRun_EngramRoot_AllHarnessesGetOwnRoots(t *testing.T) {
 
 	fileSystem := newMemFS()
 	fileSystem.dirs[home+"/.claude"] = true
-	fileSystem.dirs[home+"/.config/opencode"] = true
 	fileSystem.dirs[home+"/.pi"] = true
 	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
 	fileSystem.dirs["/repo/agent-instructions/skills"] = true
@@ -201,12 +200,11 @@ func TestRun_EngramRoot_AllHarnessesGetOwnRoots(t *testing.T) {
 
 	report, err := updater.Run(context.Background(), update.Options{})
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(report.Harnesses).To(HaveLen(3))
+	g.Expect(report.Harnesses).To(HaveLen(2))
 
 	want := map[update.Harness]string{
-		update.HarnessClaude:   home + "/.claude/engram",
-		update.HarnessOpencode: home + "/.config/opencode/engram",
-		update.HarnessPi:       home + "/.pi/agent/engram",
+		update.HarnessClaude: home + "/.claude/engram",
+		update.HarnessPi:     home + "/.pi/agent/engram",
 	}
 
 	for _, harness := range report.Harnesses {

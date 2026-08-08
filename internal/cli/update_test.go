@@ -919,14 +919,6 @@ func TestWriteUpdateReport_GuidanceActivationHint(t *testing.T) {
 			wantNotContains: []string{"add '@~/.claude/engram/recall.md'"},
 		},
 		{
-			name:         "opencode-renders-nothing",
-			harnesses:    []update.HarnessReport{opencodeHarnessReport("recall.md")},
-			withGuidance: true,
-			wantNotContains: []string{
-				"guidance deployed", "guidance refreshed", "engram ships",
-			},
-		},
-		{
 			name:         "plain-update-not-imported",
 			harnesses:    []update.HarnessReport{claudeHarnessReport()},
 			wantContains: []string{"engram ships recall- and delegation-firing guidance"},
@@ -1062,15 +1054,13 @@ func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
 				},
 			},
 			{
-				Name:         update.HarnessOpencode,
-				ProbeRoot:    ".config/opencode",
-				SkillsRoot:   "/home/joe/.config/opencode/skills",
-				CommandsRoot: "/home/joe/.config/opencode/commands",
+				Name:       update.HarnessPi,
+				ProbeRoot:  ".pi",
+				SkillsRoot: "/home/joe/.pi/agent/skills",
 				SkillDirs: []update.SkillDirCount{
 					{Name: "learn", Files: 3},
 					{Name: "recall", Files: 1},
 				},
-				CommandFiles: []string{"learn.md", "recall.md"},
 			},
 		},
 	}
@@ -1087,8 +1077,8 @@ func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("Claude Code (~/.claude/):"))
 	g.Expect(out).To(ContainSubstring("agent-instructions/skills/learn/ → ~/.claude/skills/learn/  (3 files)"))
 	g.Expect(out).To(ContainSubstring("agent-instructions/skills/recall/ → ~/.claude/skills/recall/  (1 file)"))
-	g.Expect(out).To(ContainSubstring("agent-instructions/commands/learn.md → ~/.config/opencode/commands/learn.md"))
-	g.Expect(out).To(ContainSubstring("[dry-run] installed: Claude Code, OpenCode"))
+	g.Expect(out).To(ContainSubstring("Pi (~/.pi/):"))
+	g.Expect(out).To(ContainSubstring("[dry-run] installed: Claude Code, Pi"))
 }
 
 func TestWriteUpdateReport_RealRunLocalNoVersion(t *testing.T) {
@@ -1449,19 +1439,6 @@ func claudeHarnessReport(guidanceFiles ...string) update.HarnessReport {
 		GuidanceTargetRel: ".claude/engram",
 		ImportsFileRel:    ".claude/CLAUDE.md",
 		GuidanceFiles:     guidanceFiles,
-	}
-}
-
-// opencodeHarnessReport builds an OpenCode HarnessReport. ImportsFileRel is
-// empty — OpenCode has no guidance-import mechanism, so the renderer must
-// emit no guidance lines for it even if guidance files are listed.
-func opencodeHarnessReport(guidanceFiles ...string) update.HarnessReport {
-	return update.HarnessReport{
-		Name:          update.HarnessOpencode,
-		ProbeRoot:     ".config/opencode",
-		SkillsRoot:    "/home/joe/.config/opencode/skills",
-		CommandsRoot:  "/home/joe/.config/opencode/commands",
-		GuidanceFiles: guidanceFiles,
 	}
 }
 

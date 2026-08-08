@@ -769,6 +769,8 @@ coincidence between two independent implementations.
 - [Compat symlinks for Claude guidance linger indefinitely] → they live inside the engram-owned root and remain managed; a later change can retire them.
 - [`--dry-run` preview creates a root or marker] → dry-run renders the full operation plan including first-sync without writing; covered by scenario tests.
 
+**Update 2026-08-08:** harness scope narrowed to Claude Code + Pi; OpenCode support (and the commands-deploy mechanism, which OpenCode was the sole consumer of) removed — see issue #721.
+
 ---
 
 ## ADR-0023 — `engram update` re-execs the freshly installed binary for the sync phase

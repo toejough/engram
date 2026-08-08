@@ -4,7 +4,7 @@ A subagent is given a realistic non-trivial request, loaded with the current `ag
 
 ## Scenario prompt (verbatim, give to subagent)
 
-You are working on the `engram` repo at `/Users/joe/repos/personal/engram`. The user has asked you to wire OpenCode session transcripts into the `engram ingest` pipeline alongside the existing Claude Code JSONL reader, including per-harness progress markers. Before you start, the user wants you to run the `recall` skill.
+You are working on the `engram` repo at `/Users/joe/repos/personal/engram`. The user has asked you to add a `--since <date>` filter flag to `engram query` that restricts matched notes and chunks to those modified on or after the given date, including the flag's own progress/plumbing through the CLI wiring. Before you start, the user wants you to run the `recall` skill.
 
 Read `agent-instructions/skills/recall/SKILL.md` from the working directory and follow its instructions exactly. The vault is at the default location resolved by the binary. The `engram` binary is on `PATH`. Produce the user-facing reply the skill prescribes.
 

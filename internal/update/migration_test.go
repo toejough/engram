@@ -273,49 +273,6 @@ func TestRun_Migration_ClaudeGuidanceCompatSymlinkCreated(t *testing.T) {
 	g.Expect(fileSystem.files[root+"/recall.md"]).To(BeNil())
 }
 
-func TestRun_Migration_CopiedCommandFileAdoptsToSymlink(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const home = "/home/joe"
-
-	fileSystem := newMemFS()
-	fileSystem.dirs[home+"/.config/opencode"] = true
-	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
-	fileSystem.dirs["/repo/agent-instructions/skills"] = true
-	fileSystem.dirs["/repo/agent-instructions/commands"] = true
-	fileSystem.files["/repo/agent-instructions/commands/recall.md"] = []byte("fresh recall cmd")
-
-	fileSystem.dirs[home+"/.config/opencode/commands"] = true
-	fileSystem.files[home+"/.config/opencode/commands/recall.md"] = []byte("stale pre-migration cmd")
-
-	updater := &update.Updater{
-		FS:    fileSystem,
-		Cmd:   &fakeCmd{},
-		Env:   &fakeEnv{home: home, cwd: "/repo"},
-		Spawn: noopSpawner{},
-	}
-
-	report, err := updater.Run(context.Background(), update.Options{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	harness := report.Harnesses[0]
-	g.Expect(harness.Err).NotTo(HaveOccurred())
-
-	surfacePath := home + "/.config/opencode/commands/recall.md"
-	engramPath := home + "/.config/opencode/engram/commands/recall.md"
-
-	target, isSymlink := fileSystem.symlinks[surfacePath]
-	g.Expect(isSymlink).To(BeTrue())
-	g.Expect(target).To(Equal(engramPath))
-	g.Expect(fileSystem.written[engramPath]).To(Equal([]byte("fresh recall cmd")))
-
-	g.Expect(harness.EngramAdopted).To(ConsistOf(surfacePath))
-	g.Expect(harness.SurfaceUnmanaged).To(BeEmpty())
-	g.Expect(harness.CommandFiles).To(ConsistOf("recall.md"))
-}
-
 // --- 5.1: adoption via a full Run() -----------------------------------------
 
 func TestRun_Migration_CopiedSkillDirAdoptsToSymlink(t *testing.T) {

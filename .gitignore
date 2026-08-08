@@ -38,7 +38,7 @@ agent-instructions/skills/*/test-coverage.md
 .worktrees/
 chat.toml
 
-# Node deps (OpenCode plugin's resolved deps; package-lock pins versions)
+# Node deps (resolved deps under dev/eval tooling; package-lock pins versions)
 node_modules/
 .claude/scheduled_tasks.lock
 

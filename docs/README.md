@@ -12,7 +12,6 @@ One obvious place to go for each question. Start here; the answer to "where do I
 | see what's proven or refuted | [../dev/eval/LEDGER.md](../dev/eval/LEDGER.md) |
 | read or edit a skill's behavior | [../agent-instructions/skills/](../agent-instructions/skills/)`<skill>/SKILL.md` — edits require `superpowers:writing-skills` TDD; each skill's baseline scenarios are indexed in its `tests/README.md` |
 | install, upgrade, or look up a CLI flag | [../README.md](../README.md) (Installing + Binary commands) |
-| see the OpenCode slash-command wrappers | [../agent-instructions/commands/](../agent-instructions/commands/) |
 
 ## Subdirectories
 

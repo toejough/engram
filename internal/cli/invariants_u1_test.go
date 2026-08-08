@@ -60,7 +60,7 @@ func TestInvariant_U1_NoHarnessSentinel(t *testing.T) {
 	memFS.seedLocalRepo()
 	// Remove both harness probe dirs so detectHarnesses finds none.
 	delete(memFS.dirs, filepath.Join(u1Home, ".claude"))
-	delete(memFS.dirs, filepath.Join(u1Home, ".config", "opencode"))
+	delete(memFS.dirs, filepath.Join(u1Home, ".pi"))
 
 	updater := &update.Updater{FS: memFS, Cmd: &u1OKCmd{}, Env: u1LocalEnv(), Spawn: u1NoopSpawner{}}
 
@@ -415,9 +415,8 @@ func (m *u1FS) seedLocalRepo() {
 	m.dirs[filepath.Join(u1RepoRoot, "agent-instructions", "skills")] = true
 	m.dirs[filepath.Join(u1RepoRoot, "agent-instructions", "skills", "learn")] = true
 	m.dirs[filepath.Join(u1RepoRoot, "agent-instructions", "skills", "recall")] = true
-	// commands dir intentionally absent → planCommandCopies skips it.
 	m.dirs[filepath.Join(u1Home, ".claude")] = true
-	m.dirs[filepath.Join(u1Home, ".config", "opencode")] = true
+	m.dirs[filepath.Join(u1Home, ".pi")] = true
 }
 
 // u1FailCmd is a Commander whose Run always fails with a fixed error.

@@ -33,8 +33,10 @@ each harness's skills directory by `engram update`. Engram ships five:
 orchestration), `route` (delegation doctrine — agent/model/effort selection),
 and [`write-memory`](#write-memory-worker-skill) (vault-write execution on handoff).
 Distinct from **slash command** — the user-facing `/name` trigger that invokes
-a skill in a harness (Claude Code's term) — and **command** — an OpenCode-specific
-file under `agent-instructions/commands/` that wraps a skill invocation for that harness.
+a skill in a harness (Claude Code's term). (The `command` file/deploy mechanism —
+a per-harness wrapper under `agent-instructions/commands/` for a harness whose
+skill discovery required it — was removed along with OpenCode support, its
+sole consumer.)
 
 ### atom
 The skill-decomposition concept from the roadmap's guiding framing: one behavior, one skill
@@ -134,8 +136,8 @@ fresh ground-truth review per measured escalation; upgrade path in
 `docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row).
 
 ### harness
-A coding-agent host that runs skills. Engram supports three: **Claude Code**,
-**OpenCode**, and **Pi**. The plural is *harnesses*. Session transcripts are read by
+A coding-agent host that runs skills. Engram supports two: **Claude Code** and
+**Pi**. The plural is *harnesses*. Session transcripts are read by
 `internal/transcript` (Claude Code and Pi JSONL; consumed by `engram ingest`).
 
 ### binary
@@ -696,7 +698,7 @@ etc. The whole CLI is a single binary with subcommands, never a sprawl of
 separate executables.
 
 ### `engram update`
-Installs/refreshes skills and commands into every detected harness, and
+Installs/refreshes skills into every detected harness, and
 reinstalls the binary via `go install`. After a successful install it
 writes a handoff report (the install result — source and binary lines) and
 re-execs the freshly installed binary (loop-guarded via
@@ -707,8 +709,7 @@ the diff without writing (and never installs or re-execs). `--with-guidance`
 additionally deploys the guidance docs
 (`recall.md`, `delegate.md`, `learn.md`) to `~/.claude/engram/` (Claude Code) and
 `~/.pi/agent/guidance/` (Pi; for `~/.pi/agent/AGENTS.md` `@import`;
-opt-in). OpenCode is deferred — its `AGENTS.md` import support is
-unverified. Plain `engram update` hints about `--with-guidance` until a
+opt-in). Plain `engram update` hints about `--with-guidance` until a
 guidance file is imported, then keeps it refreshed on every run. It also
 prints a one-line notice naming the exact command when it detects
 old-format vocab files (#678 — `engram update --regen-vocab`), leftover
@@ -746,7 +747,7 @@ Each is activated independently by adding its own
 `@~/.pi/agent/guidance/<name>.md` to `~/.pi/agent/AGENTS.md` (symlink surface path; detection matches this prefix; harness
 `@import`; always loaded). `--with-guidance` is a one-time opt-in per file —
 once the harness config imports a guidance file, plain `engram update` keeps it
-current (like skills). Claude Code + Pi; OpenCode deferred.
+current (like skills). Claude Code + Pi.
 
 ### XDG paths
 Engram follows XDG basedir conventions:
