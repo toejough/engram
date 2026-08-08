@@ -19,6 +19,12 @@ import (
 type UpdateArgs struct {
 	DryRun       bool `targ:"flag,name=dry-run,desc=print planned actions without executing them"`
 	WithGuidance bool `targ:"flag,name=with-guidance,desc=deploy guidance to .claude/engram/ for CLAUDE.md @import"`
+	// AllowDowngrade bypasses the local-mode provable-downgrade gate
+	// (update-local-install-safety): pass it to install anyway when the
+	// module root's revision is not a descendant of what's currently
+	// installed (e.g. testing from a feature-branch worktree that hasn't
+	// merged main's tip).
+	AllowDowngrade bool `targ:"flag,name=allow-downgrade,desc=install even if it would downgrade the installed binary"`
 	// RegenVocab migrates a vault holding pre-tags vocab.<term>.md /
 	// vocab.index.md files to the current tags-based format (#712); honors
 	// --dry-run. See regenVocab (vocab_regen.go) for the mechanism.
@@ -299,7 +305,12 @@ func describeBinary(report update.Report) string {
 func describeSource(report update.Report, home string) string {
 	switch report.Source.Mode {
 	case update.SourceLocal:
-		return "local clone at " + tildify(report.Source.Root, home)
+		desc := "local clone at " + tildify(report.Source.Root, home)
+		if report.Source.Version != "" {
+			desc += " (rev " + report.Source.Version + ")"
+		}
+
+		return desc
 	case update.SourceRemote:
 		return "remote module " + update.ModulePath + " " + report.Source.Version
 	default:
@@ -408,9 +419,10 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 	}
 
 	report, runErr := updater.Run(ctx, update.Options{
-		DryRun:       args.DryRun,
-		WithGuidance: args.WithGuidance,
-		ReexecArgs:   reexecArgsFrom(args),
+		DryRun:         args.DryRun,
+		WithGuidance:   args.WithGuidance,
+		AllowDowngrade: args.AllowDowngrade,
+		ReexecArgs:     reexecArgsFrom(args),
 	})
 
 	// D8: a non-nil ReexecExitCode means Run handed off to a re-execed

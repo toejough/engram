@@ -32,7 +32,10 @@ func TestRun_DryRun_NeverInstallsOrSpawns(t *testing.T) {
 		return
 	}
 
-	g.Expect(cmd.calls).To(BeEmpty())
+	// Revision resolution (git rev-parse) still runs under --dry-run for
+	// report visibility (update-local-install-safety task 2.1); go install
+	// and the spawn never do.
+	g.Expect(cmd.calls).To(Equal([][]string{{"git", "rev-parse", "--short", "HEAD"}}))
 	g.Expect(spawner.calls).To(BeEmpty())
 	g.Expect(report.ReexecExitCode).To(BeNil())
 }
@@ -118,7 +121,8 @@ func TestRun_InstallSucceeds_SpawnsInstalledPathWithSentinelEnvAndOriginalArgs(t
 		return
 	}
 
-	g.Expect(cmd.calls).To(HaveLen(1), "install must run exactly once before the re-exec")
+	g.Expect(cmd.calls).To(HaveLen(2), "revision resolution, then install, exactly once before the re-exec")
+	g.Expect(cmd.calls[1]).To(Equal([]string{"go", "install", "./cmd/engram/"}))
 	g.Expect(spawner.calls).To(HaveLen(1))
 
 	call := spawner.calls[0]
@@ -207,7 +211,8 @@ func TestRun_SentinelSet_SkipsInstallAndSpawnRunsInProcess(t *testing.T) {
 		return
 	}
 
-	g.Expect(cmd.calls).To(BeEmpty(), "sentinel run must not invoke go install")
+	g.Expect(cmd.calls).To(Equal([][]string{{"git", "rev-parse", "--short", "HEAD"}}),
+		"sentinel run resolves revision for visibility but must not invoke go install")
 	g.Expect(spawner.calls).To(BeEmpty(), "sentinel run must not spawn again")
 	g.Expect(report.ReexecExitCode).To(BeNil())
 	g.Expect(report.Harnesses).To(HaveLen(1), "sentinel run completes sync/checks in-process")

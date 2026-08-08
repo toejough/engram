@@ -1081,6 +1081,37 @@ func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("[dry-run] installed: Claude Code, Pi"))
 }
 
+// TestWriteUpdateReport_LocalSourceIncludesRevision covers
+// update-local-install-safety task 1: local mode's resolved revision must
+// show up in the report's source description alongside the clone path.
+func TestWriteUpdateReport_LocalSourceIncludesRevision(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	report := update.Report{
+		Home:       "/home/joe",
+		Source:     update.SourceInfo{Mode: update.SourceLocal, Root: "/home/joe/src/engram", Version: "abc1234"},
+		GoInstall:  "go install ./cmd/engram/",
+		BinaryPath: "/home/joe/go/bin/engram",
+		Harnesses: []update.HarnessReport{
+			{
+				Name:       update.HarnessClaude,
+				ProbeRoot:  ".claude",
+				SkillsRoot: "/home/joe/.claude/skills",
+			},
+		},
+	}
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, report)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	out := buffer.String()
+	g.Expect(out).To(ContainSubstring("source: local clone at ~/src/engram (rev abc1234)"))
+}
+
 func TestWriteUpdateReport_RealRunLocalNoVersion(t *testing.T) {
 	t.Parallel()
 
@@ -1422,7 +1453,8 @@ func (liveUpdateFS) WriteFile(path string, data []byte, perm fs.FileMode) error 
 	return os.WriteFile(path, data, perm) // test adapter
 }
 
-// stubCommander satisfies update.Commander; dry-run local mode never runs it.
+// stubCommander satisfies update.Commander; dry-run local mode only uses it
+// for revision resolution (git rev-parse), never go install.
 type stubCommander struct{}
 
 func (stubCommander) Run(context.Context, string, string, ...string) ([]byte, []byte, error) {

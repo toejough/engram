@@ -78,6 +78,13 @@ var (
 	ErrEngramRootNotDir = errors.New("engram root exists and is not a directory")
 	ErrGitNotFound      = errors.New("git binary not found on PATH")
 	ErrGoNotFound       = errors.New("go binary not found on PATH")
+	// ErrLocalDowngrade means local-mode resolveSource found a pre-existing
+	// installed binary whose embedded VCS revision the module root's git
+	// history provably does NOT descend from (git merge-base
+	// --is-ancestor failed cleanly, not merely inconclusively) — installing
+	// would silently regress a newer binary to older code (update-local-
+	// install-safety). Refused unless Options.AllowDowngrade is set.
+	ErrLocalDowngrade = errors.New("local install would downgrade the installed binary")
 	// ErrModelLFSStub means the cloned model.onnx is a Git-LFS pointer file,
 	// not the real model — building from it would embed a 133-byte stub and
 	// every embedding call would fail (issue #645).
@@ -264,6 +271,12 @@ type HarnessSpec struct {
 type Options struct {
 	DryRun       bool
 	WithGuidance bool // deploy agent-instructions/guidance/*.md to the harness guidance dir
+	// AllowDowngrade bypasses the local-mode provable-downgrade gate
+	// (update-local-install-safety): when true, resolveSource never
+	// refuses an install on ancestry grounds — same behavior as before the
+	// gate existed. Has no effect in remote mode (re-cloning always builds
+	// the repo's current tip, so there is no analogous downgrade risk).
+	AllowDowngrade bool
 	// ReexecArgs are the original `engram update` invocation's flags (e.g.
 	// "--with-guidance"), reconstructed by the CLI layer from UpdateArgs and
 	// passed after "update" when re-execing the freshly installed binary
@@ -374,7 +387,7 @@ type SkillDirCount struct {
 type SourceInfo struct {
 	Mode    SourceMode
 	Root    string // repo root (local) or modcache dir (remote)
-	Version string // resolved version string (remote only)
+	Version string // resolved short git SHA (both local and remote modes; "unknown" if unresolvable)
 }
 
 // Spawner runs a binary with args and extra environment variables, with
@@ -430,7 +443,7 @@ func (u *Updater) Run(ctx context.Context, opts Options) (Report, error) {
 		return report, fmt.Errorf("%w at ~/.claude/ or ~/.pi/", ErrNoHarness)
 	}
 
-	source, sourceErr := u.resolveSource(ctx, opts.DryRun || report.ReexecChild)
+	source, sourceErr := u.resolveSource(ctx, opts.DryRun || report.ReexecChild, opts, report.BinaryPath)
 	if sourceErr != nil {
 		return report, sourceErr
 	}
@@ -936,6 +949,48 @@ func (u *Updater) applySkillOps(rep *HarnessReport, name Harness, skillOps []Cop
 	}
 }
 
+// checkLocalDowngrade gates a local-mode install against a provable
+// downgrade (update-local-install-safety, design decisions). It fails open
+// — returns nil, letting the install proceed — for every case where
+// provability can't be established: no prior binary at binaryPath, a
+// pre-VCS-embedding or unparseable installed revision, allowDowngrade set,
+// or a git-merge-base result that can't cleanly resolve ancestry either way
+// (installedRev unknown to root's history, e.g. shallow clone or divergent
+// repo — surfaced by git's "fatal:" stderr prefix, distinct from the plain
+// nonzero exit `--is-ancestor` uses to report "not an ancestor"). Only a
+// clean, resolvable "not an ancestor" result returns ErrLocalDowngrade.
+func (u *Updater) checkLocalDowngrade(
+	ctx context.Context, root, binaryPath, resolvedRev string, allowDowngrade bool,
+) error {
+	if !u.priorBinaryExists(binaryPath) {
+		return nil // no prior binary — nothing to compare against
+	}
+
+	installedRev := u.installedBinaryRevision(ctx, binaryPath)
+	if installedRev == "" {
+		return nil // pre-VCS-embedding binary, or its revision didn't parse
+	}
+
+	if allowDowngrade {
+		return nil
+	}
+
+	_, stderr, ancestorErr := u.Cmd.Run(ctx, root, "git", "merge-base", "--is-ancestor", installedRev, resolvedRev)
+	if ancestorErr == nil {
+		return nil // resolved commit descends from (or equals) installed — safe
+	}
+
+	if bytes.Contains(stderr, []byte("fatal:")) {
+		return nil // ancestry couldn't be determined (e.g. unknown commit) — fail open
+	}
+
+	return fmt.Errorf(
+		"installed binary %s is at revision %s, but %s resolves to %s, which is not a descendant of it — %w"+
+			" (pass --allow-downgrade to install anyway)",
+		binaryPath, installedRev, root, resolvedRev, ErrLocalDowngrade,
+	)
+}
+
 // cleanupDanglingLinks runs the D5 dangling-link scan over every one of a
 // symlink-mode harness's surface dirs: the skills root, and either the
 // guidance dir (Pi today, a surface distinct from EngramRootRel) or the
@@ -1030,6 +1085,38 @@ func (u *Updater) detectGuidanceImports(home string, harnesses []HarnessSpec) ma
 	return imports
 }
 
+// installedBinaryRevision reads the currently-installed binary's embedded
+// VCS revision via `go version -m`, defensively parsing the `vcs.revision=`
+// line Go's toolchain auto-embeds for binaries built from a version-
+// controlled module (no build flags required, default since Go 1.18).
+// Returns "" — never an error — for any failure to run the command or
+// locate/parse that line: a missing/unparseable revision means "unknown,"
+// which checkLocalDowngrade treats as fail-open, not a hard error.
+func (u *Updater) installedBinaryRevision(ctx context.Context, binaryPath string) string {
+	out, _, runErr := u.Cmd.Run(ctx, "", "go", "version", "-m", binaryPath)
+	if runErr != nil {
+		return ""
+	}
+
+	const revisionPrefix = "vcs.revision="
+
+	for line := range strings.SplitSeq(string(out), "\n") {
+		trimmed := strings.TrimSpace(line)
+
+		_, after, found := strings.Cut(trimmed, revisionPrefix)
+		if !found {
+			continue
+		}
+
+		rev := strings.TrimSpace(after)
+		if rev != "" {
+			return rev
+		}
+	}
+
+	return ""
+}
+
 // planAndApply is Run's post-install phase (D7: everything AFTER the
 // re-exec boundary, when this call didn't hand off to a re-execed child —
 // either it fell back, or the sentinel/dry-run skipped install in the first
@@ -1070,6 +1157,17 @@ func (u *Updater) planAndApply(
 	report.Harnesses = u.applyOps(harnesses, home, skillOps, guidanceOps, guidanceManaged, opts.DryRun)
 
 	return report, nil
+}
+
+// priorBinaryExists reports whether a file already exists at binaryPath —
+// checkLocalDowngrade's precondition for even attempting the downgrade
+// check (a first-ever install has nothing to compare against). The Stat
+// error itself is deliberately opaque here (missing vs. any other I/O
+// failure are both "nothing usable to compare" for this fail-open gate).
+func (u *Updater) priorBinaryExists(binaryPath string) bool {
+	_, statErr := u.FS.Stat(binaryPath)
+
+	return statErr == nil
 }
 
 // reexecAfterInstall re-execs the freshly installed binary immediately
@@ -1160,6 +1258,32 @@ func (u *Updater) reportSurfaceStrays(
 	return nil
 }
 
+// resolveLocal implements resolveSource's local-mode branch: resolve the
+// module root's revision, gate on checkLocalDowngrade, then install unless
+// skipInstall. Split out of resolveSource to keep that function's nesting
+// flat.
+func (u *Updater) resolveLocal(
+	ctx context.Context, root string, skipInstall bool, opts Options, binaryPath string,
+) (SourceInfo, error) {
+	version := resolveRevision(ctx, u.Cmd, root)
+
+	if skipInstall {
+		return SourceInfo{Mode: SourceLocal, Root: root, Version: version}, nil
+	}
+
+	gateErr := u.checkLocalDowngrade(ctx, root, binaryPath, version, opts.AllowDowngrade)
+	if gateErr != nil {
+		return SourceInfo{}, gateErr
+	}
+
+	_, _, runErr := u.Cmd.Run(ctx, root, "go", "install", "./cmd/engram/")
+	if runErr != nil {
+		return SourceInfo{}, classifyGoInstallErr("local", runErr)
+	}
+
+	return SourceInfo{Mode: SourceLocal, Root: root, Version: version}, nil
+}
+
 // resolveRemoteByClone implements remote mode by CLONING the repo and
 // building from the clone — never `go install …@latest`. The Go module proxy
 // serves raw repository blobs, so the LFS-tracked model.onnx arrives as a
@@ -1196,16 +1320,7 @@ func (u *Updater) resolveRemoteByClone(ctx context.Context, dryRun bool) (Source
 		}
 	}
 
-	version := "unknown"
-
-	out, _, revErr := u.Cmd.Run(ctx, cloneDir, "git", "rev-parse", "--short", "HEAD")
-	if revErr == nil {
-		if v := strings.TrimSpace(string(out)); v != "" {
-			version = v
-		}
-	}
-
-	return SourceInfo{Mode: SourceRemote, Root: cloneDir, Version: version}, nil
+	return SourceInfo{Mode: SourceRemote, Root: cloneDir, Version: resolveRevision(ctx, u.Cmd, cloneDir)}, nil
 }
 
 // resolveSource picks between local clone and remote module by walking up
@@ -1215,8 +1330,13 @@ func (u *Updater) resolveRemoteByClone(ctx context.Context, dryRun bool) (Source
 // skipped when skipInstall is true — true either for a plain --dry-run, or
 // because Run already determined this is a sentinel-bearing re-exec child
 // (report.ReexecChild, design D2/D7: only sync/checks run there — "skip
-// install" is the whole point).
-func (u *Updater) resolveSource(ctx context.Context, skipInstall bool) (SourceInfo, error) {
+// install" is the whole point). Local mode also resolves and reports the
+// module root's git revision unconditionally (update-local-install-safety
+// task 2.1) and, when actually installing, gates on checkLocalDowngrade
+// before running `go install` (task 4).
+func (u *Updater) resolveSource(
+	ctx context.Context, skipInstall bool, opts Options, binaryPath string,
+) (SourceInfo, error) {
 	cwd, cwdErr := u.Env.Getwd()
 	if cwdErr != nil {
 		return SourceInfo{}, fmt.Errorf("getwd: %w", cwdErr)
@@ -1228,14 +1348,7 @@ func (u *Updater) resolveSource(ctx context.Context, skipInstall bool) (SourceIn
 	}
 
 	if found {
-		if !skipInstall {
-			_, _, runErr := u.Cmd.Run(ctx, root, "go", "install", "./cmd/engram/")
-			if runErr != nil {
-				return SourceInfo{}, classifyGoInstallErr("local", runErr)
-			}
-		}
-
-		return SourceInfo{Mode: SourceLocal, Root: root}, nil
+		return u.resolveLocal(ctx, root, skipInstall, opts, binaryPath)
 	}
 
 	return u.resolveRemoteByClone(ctx, skipInstall)
@@ -2417,6 +2530,23 @@ func resolveEngramRootOwnership(
 	}
 
 	return engramRootOwnership{deletionRefused: true, writeMarker: true, unattributable: unattributable}, nil
+}
+
+// resolveRevision resolves dir's current git short SHA via `git rev-parse
+// --short HEAD`, returning "unknown" — never an error — when the command
+// fails or produces no usable output (used by both resolveRemoteByClone and
+// resolveLocal to report a revision unconditionally, for visibility).
+func resolveRevision(ctx context.Context, cmd Commander, dir string) string {
+	out, _, revErr := cmd.Run(ctx, dir, "git", "rev-parse", "--short", "HEAD")
+	if revErr != nil {
+		return "unknown"
+	}
+
+	if v := strings.TrimSpace(string(out)); v != "" {
+		return v
+	}
+
+	return "unknown"
 }
 
 // sortEngramSyncOps orders ops by RelPath for deterministic planning output.

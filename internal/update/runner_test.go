@@ -117,8 +117,8 @@ func TestUpdater_Run_DryRun_NoWritesNoCommands(t *testing.T) {
 	g.Expect(skillFileCount(report.Harnesses[0])).To(Equal(1))
 	// No real writes occurred.
 	g.Expect(fileSystem.written).To(BeEmpty())
-	// No commands invoked.
-	g.Expect(cmd.calls).To(BeEmpty())
+	// Revision resolution still runs for report visibility; go install does not.
+	g.Expect(cmd.calls).To(Equal([][]string{{"git", "rev-parse", "--short", "HEAD"}}))
 }
 
 func TestUpdater_Run_GoInstallFails(t *testing.T) {
@@ -173,8 +173,10 @@ func TestUpdater_Run_Local_GoInstallRunsFromModuleRoot(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	// go install must run from the module root, not from the process cwd.
-	g.Expect(cmd.calls).To(HaveLen(1))
+	g.Expect(cmd.calls).To(HaveLen(2))
+	g.Expect(cmd.calls[1]).To(Equal([]string{"go", "install", "./cmd/engram/"}))
 	g.Expect(cmd.dirs[0]).To(Equal("/repo"))
+	g.Expect(cmd.dirs[1]).To(Equal("/repo"))
 }
 
 func TestUpdater_Run_Local_HappyPath(t *testing.T) {
@@ -223,9 +225,10 @@ func TestUpdater_Run_Local_HappyPath(t *testing.T) {
 	_, ok = fileSystem.written["/home/joe/.claude/engram/skills/learn/tests/baseline.md"]
 	g.Expect(ok).To(BeTrue())
 
-	// `go install ./cmd/engram/` should have been invoked.
-	g.Expect(cmd.calls).To(HaveLen(1))
-	g.Expect(cmd.calls[0]).To(Equal([]string{"go", "install", "./cmd/engram/"}))
+	// `go install ./cmd/engram/` should have been invoked, after revision resolution.
+	g.Expect(cmd.calls).To(HaveLen(2))
+	g.Expect(cmd.calls[0]).To(Equal([]string{"git", "rev-parse", "--short", "HEAD"}))
+	g.Expect(cmd.calls[1]).To(Equal([]string{"go", "install", "./cmd/engram/"}))
 }
 
 func TestUpdater_Run_Local_Idempotent_Property(t *testing.T) {
@@ -319,6 +322,41 @@ func TestUpdater_Run_Local_RealExistingSkillDir_AdoptsToSymlink(t *testing.T) {
 	// The intended content lives under the engram root.
 	_, newPresent := fileSystem.written[engramPath+"/SKILL.md"]
 	g.Expect(newPresent).To(BeTrue())
+}
+
+// TestUpdater_Run_Local_ResolvesRevision covers update-local-install-safety
+// task 1: local-mode resolveSource must resolve and report a non-empty
+// SourceInfo.Version (short git SHA), the same way remote mode already does.
+func TestUpdater_Run_Local_ResolvesRevision(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.claude"] = true
+	fileSystem.dirs["/repo"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/skills/learn"] = true
+	fileSystem.files["/repo/agent-instructions/skills/learn/SKILL.md"] = []byte("x")
+
+	cmd := &fakeCmd{
+		responses: map[string][]byte{
+			"git rev-parse --short HEAD": []byte("abc1234\n"),
+		},
+	}
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   cmd,
+		Env:   &fakeEnv{home: "/home/joe", cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Source.Mode).To(Equal(update.SourceLocal))
+	g.Expect(report.Source.Version).To(Equal("abc1234"))
 }
 
 // TestUpdater_Run_Local_SkillLinkRepointRemoveFailureIsHarnessError covers
@@ -695,6 +733,15 @@ type fakeCmd struct {
 	// hook runs before each command resolves — lets a test materialize
 	// filesystem state as a side effect (e.g. `git clone` producing files).
 	hook func(call []string)
+	// errs and stderrs give per-command control (keyed by "name arg1 arg2…",
+	// same shape as responses' keys) for tests that need different commands
+	// in the same run to behave differently — e.g. the downgrade-gate tests,
+	// where `go install` must succeed while `git merge-base --is-ancestor`
+	// fails in a specific way. Checked before the blanket err/responses
+	// fields, so tests that need only one command's behavior tweaked can
+	// leave err/responses driving everything else.
+	errs    map[string]error
+	stderrs map[string][]byte
 }
 
 func (f *fakeCmd) Run(_ context.Context, dir, name string, args ...string) ([]byte, []byte, error) {
@@ -704,10 +751,6 @@ func (f *fakeCmd) Run(_ context.Context, dir, name string, args ...string) ([]by
 
 	if f.hook != nil {
 		f.hook(call)
-	}
-
-	if f.err != nil {
-		return nil, nil, f.err
 	}
 
 	var keyBuilder strings.Builder
@@ -720,6 +763,14 @@ func (f *fakeCmd) Run(_ context.Context, dir, name string, args ...string) ([]by
 	}
 
 	key := keyBuilder.String()
+
+	if callErr, ok := f.errs[key]; ok {
+		return nil, f.stderrs[key], callErr
+	}
+
+	if f.err != nil {
+		return nil, nil, f.err
+	}
 
 	if resp, ok := f.responses[key]; ok {
 		return resp, nil, nil
