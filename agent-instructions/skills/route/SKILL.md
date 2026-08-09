@@ -102,12 +102,12 @@ harness re-exposes them under other names without changing this table.
 The table row is the user-facing mini-report; the durable evidence is a vault write. After each
 dispatch resolves (review verdict in hand), do BOTH:
 
-**(a) Evidence note — hand off to write-memory.** kind=fact, tags carrying the three categoricals
-(low-cardinality only — duration/cost stay in the object prose with explicit units, never tags).
-This is a field handoff to the write-memory skill, not a CLI invocation you compose yourself — do
-not invent flags for these fields (there is no `--kind` flag; `engram learn fact` already fixes
-kind=fact, and write-memory maps the rest to the real `engram learn fact` flags). State the first
-field exactly as written below — `kind: fact` — verbatim, not retabled or turned into a flag:
+**(a) Evidence note — hand off to write-memory.** Tags carry the three categoricals (low-cardinality
+only — duration/cost stay in the object prose with explicit units, never tags). This is a field
+handoff to the write-memory skill, not a CLI invocation you compose yourself — do not invent flags
+for these fields (there is no `--kind` flag; write-memory maps the fields below to the real
+`engram learn fact` flags). State the fields exactly as written below, verbatim, not retabled or
+turned into flags — the first is `kind: fact`:
 
 - kind: fact
 - slug: `route-dispatch-<work-kind>`
@@ -124,7 +124,10 @@ Work-kind values are kebab-case, an open set — reuse a prior kind before minti
 ([[work-kind-definition]] documents the family; tier and outcome are closed sets, see
 [[tier-definition]] and [[outcome-definition]]).
 
-**(b) Aggregate update — amend or create `route-evidence-<work-kind>`.** Look it up:
+**(b) Aggregate update — amend or create `route-evidence-<work-kind>`.** Unlike (a), this write is
+composed and executed directly by you, the route-executing agent, not handed to write-memory —
+write-memory has no amend form, so this is a deliberate, structurally-forced exception to the
+write-site doctrine (parents judge, worker writes), not an oversight. Look it up:
 
 ```bash
 engram query --lazy-chunks --phrase "route evidence <work-kind> tier tally"
@@ -148,16 +151,31 @@ guessing which one applies — the real lookup result, once run, picks the one y
     evidence wikilinks, kept>]], [[<new evidence-note basename>]]"
   ```
 
-- **No match** → create it (NO tags — aggregates are prose summaries, not evidence rows):
+- **No match** → before creating a new aggregate, run a uniqueness check to rule out a missed
+  lookup (an embedding miss, or the ADR-0019 drowning case) rather than a genuinely absent
+  aggregate: list vault basenames matching `route-evidence-<work-kind>*`, applying the same
+  deterministic match rule as the lookup above (strip `.md`, split on `.`, final segment must
+  EQUAL `route-evidence-<work-kind>` exactly). This check runs at the same trigger moments as the
+  count audit below (periodic consolidation and doubted-tally checks), plus every no-match result
+  here.
 
-  ```bash
-  engram learn fact --slug route-evidence-<work-kind> --position top \
-    --source "route dispatch record, <project>, <date>" \
-    --situation "routing <work-kind> work: which tier the evidence supports" \
-    --subject "route evidence for <work-kind>" \
-    --predicate "tallies" \
-    --object "<tier> 1/1 as of <date> — evidence: [[<evidence-note basename>]]"
-  ```
+  - **Uniqueness check finds nothing** → create the aggregate (NO tags — aggregates are prose
+    summaries, not evidence rows):
+
+    ```bash
+    engram learn fact --slug route-evidence-<work-kind> --position top \
+      --source "route dispatch record, <project>, <date>" \
+      --situation "routing <work-kind> work: which tier the evidence supports" \
+      --subject "route evidence for <work-kind>" \
+      --predicate "tallies" \
+      --object "<tier> 1/1 as of <date> — evidence: [[<evidence-note basename>]]"
+    ```
+
+  - **Uniqueness check finds more than one match** → merge instead of creating: union the
+    evidence wikilinks from every matched aggregate's object text, recompute the tally via the
+    `engram count --group-by tags` commands documented below, `engram amend` one of them into the
+    merged aggregate, and record the incident as evidence for the ADR-0019 drowning-remedy
+    decision (see the drowning audit below).
 
 The wikilink list inside the object text is the aggregate's evidence trail — every evidence note
 it summarizes, append-only.
@@ -167,7 +185,9 @@ it summarizes, append-only.
 Aggregate tallies are LLM-maintained and WILL drift. `engram count` recomputes ground truth from
 the evidence notes' tags — use it to verify/repair an aggregate, never to route (routing reads
 are plain recall). Note `--group-by work-kind` would NOT work: work-kind is a tag value, not a
-frontmatter attribute.
+frontmatter attribute. Also note `--group-by tier` runs without error but groups the wrong
+attribute — the pre-existing L1/L2/L3 note-tier frontmatter field, not the `tier/<cheap|mid|deep>`
+evidence tag family route uses. Use `--group-by tags --filter tags=tier/<t>` instead.
 
 ```bash
 # numerators: passes per work-kind at tier <t> — read the work-kind/<k> rows
@@ -215,8 +235,12 @@ work that merely *feels* hard), and none has earned it yet.
 | Everything, by default | cheap | the posture |
 | Memory-backed unit (answer is recallable) | one tier down, floored at cheap | **evidence-backed** (note 135) |
 
-Current roster: cheap = haiku, mid = sonnet, deep = opus. A new model re-fills a tier without
-changing this table.
+Example roster (not a prescription): cheap = haiku, mid = sonnet, deep = opus. A new model re-fills
+a tier without changing this table. **Resolve the cheap tier against the CURRENT environment**,
+not this example: the cheap tier means the cheapest agent genuinely available right now. A free
+local model (e.g. an LMStudio provider) counts as cheaper than any paid API model and is tried
+first when one is available; paid models enter the roster only above free-local options. Absent a
+free-local option, cheap resolves to the cheapest paid model, as before.
 
 ## Two rules every dispatch obeys
 
@@ -242,5 +266,6 @@ changing this table.
 | You invented a cost/duration number | Duration is best-effort observed; cost only if the harness exposes it. Never fabricate. |
 | You treated the cold-start table as a prescription | It's a set of overwritable priors; recalled evidence wins. |
 | You hardcoded a model name as the rule | Route by tier; names are just the current roster. |
+| You dispatched cheap work to a paid API model while a free local model was available | Resolve the roster against the environment first — free-local beats any paid model at the cheap tier. |
 | "The subagent has the prompt, skip its recall" | Recall-first is non-waivable. |
 | "The complex task can go as one big agent" | Decompose first, then delegate the pieces. |

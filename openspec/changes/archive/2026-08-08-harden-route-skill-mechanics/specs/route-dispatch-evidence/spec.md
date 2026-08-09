@@ -1,13 +1,9 @@
-# Route Dispatch Evidence + Aggregates (tags-based) Specification
-
-## Purpose
-
-Every route dispatch is recorded as an ordinary recallable fact note tagged with three categorical tags (work-kind, tier, outcome in frontmatter tags:), and each work-kind keeps one aggregate fact note (route-evidence-<work-kind>) whose object text holds running tier tallies plus wikilinks to every evidence note. Route reads evidence by plain recall — aggregates surface as normal memories; engram count recomputes tallies from tags as the drift audit. Why: docs/architecture/adr.md — ADR-0019 (the 2026-07-10 decision on #669); issue #674. Validation: internal/cli/learn_test.go (TestLearnFact_Tags_WrittenToFrontmatter, TestLearnFact_InvalidTag_RejectedBeforeWrite, TestRenderFactFrontmatter_TagsRoundtripFidelity) and internal/cli/amend_test.go (TestRunAmend_PreservesTagsFrontmatter); scratch-vault drowning gauge PASS at 20 sibling evidence notes + count recompute parity.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Every route dispatch SHALL be recorded as a tagged fact note
-After each dispatch resolves, the orchestrator SHALL hand off a structured fact note to write-memory with three categorical tags (work-kind/<k>, tier/<cheap|mid|deep>, outcome/<pass|fail>) and provenance in the note's situation/subject/predicate/object fields.
+After each dispatch resolves, the orchestrator SHALL hand off a structured fact note to
+write-memory with three categorical tags (work-kind/<k>, tier/<cheap|mid|deep>,
+outcome/<pass|fail>) and provenance in the note's situation/subject/predicate/object fields.
 The evidence note and the aggregate update are written through two different paths: the
 evidence note goes through write-memory (parents judge, worker writes), while the aggregate
 amend-or-create is composed and executed directly by the route-executing agent — structurally
@@ -25,17 +21,6 @@ write-site doctrine, not an oversight, and the skill SHALL state it explicitly.
 #### Scenario: Write-path split is stated, not implicit
 - **WHEN** an orchestrator reads the aggregate-update procedure
 - **THEN** the skill text states that the evidence note goes through write-memory while the aggregate amend-or-create is composed directly by the route-executing agent, and names write-memory's lack of an amend form as the reason
-
-### Requirement: Tags SHALL be three closed families: work-kind, tier, outcome
-Tags SHALL use bare families (family only, no value) for definition notes, and family/value pairs (kebab-case segments) for evidence notes; only three tag families are valid: work-kind (open set, kebab-case), tier (closed: cheap, mid, deep), outcome (closed: pass, fail).
-
-#### Scenario: Valid tag format
-- **WHEN** recording dispatch evidence
-- **THEN** tags are formatted as work-kind/<k>, tier/<t>, outcome/<o> with only alphanumeric and hyphen in each segment
-
-#### Scenario: Invalid tag rejected
-- **WHEN** an invalid tag (wrong family, underscore, uppercase) is passed to engram learn
-- **THEN** internal/cli/learn.go's validateTags function rejects it before write (errTagInvalid)
 
 ### Requirement: Each work-kind SHALL have one aggregate fact note
 For each work-kind, an aggregate fact note (route-evidence-<work-kind>) SHALL maintain running
@@ -84,17 +69,3 @@ note-tier frontmatter field, not the `tier/<cheap|mid|deep>` tag family used by 
 #### Scenario: `--group-by tier` footgun is documented
 - **WHEN** an orchestrator reads the count-audit section
 - **THEN** the skill text warns that `--group-by tier` groups the pre-existing note-tier frontmatter attribute (L1/L2/L3), not the `tier/` evidence tag family, and that `--group-by tags --filter tags=tier/<t>` is the correct form
-
-### Requirement: Route SHALL read dispatch evidence through plain recall, never special queries
-When determining the starting tier for a dispatch, the orchestrator SHALL invoke `/recall` with standard phrases; evidence aggregates (route-evidence-<work-kind>) surface as normal memory items via vocab-tagged explore sampling (capability `recall-centroid-sampling`), not through special `engram count` queries on the read path.
-
-#### Scenario: Routing with recalled evidence
-- **WHEN** routing a unit and recall surfaces a route-evidence-<work-kind> aggregate
-- **THEN** the orchestrator reads the aggregate's object prose to extract tier tallies and uses it to inform the tier choice
-
-### Requirement: Aggregates SHALL use wikilinks to evidence notes, tags for categorization only
-Aggregates SHALL link evidence notes via wikilinks in the object field (for auditability and traversal) and SHALL NOT carry their own work-kind/tier/outcome tags — aggregates are prose summaries, not evidence rows.
-
-#### Scenario: Wikilink trail in aggregate
-- **WHEN** an aggregate is created or amended
-- **THEN** its object field contains wikilinks to every evidence note it summarizes, e.g., "cheap 14/16, mid 2/2 as of <date> — evidence: [[ev-note-1]], [[ev-note-2]], ..."
