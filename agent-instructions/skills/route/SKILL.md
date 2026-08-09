@@ -241,6 +241,7 @@ work that merely *feels* hard), and none has earned it yet.
 | --- | --- | --- |
 | Everything, by default | cheap | the posture |
 | Memory-backed unit (answer is recallable) | one tier down, floored at cheap | **evidence-backed** (note 135) |
+| work-kind/go-package-implementation | mid | **evidence-backed** (8/12 cheap vs 10/10 mid, 2026-08-09) |
 
 Example roster (not a prescription): cheap = haiku, mid = sonnet, deep = opus. A new model re-fills
 a tier without changing this table. **Resolve the cheap tier against the CURRENT environment**,

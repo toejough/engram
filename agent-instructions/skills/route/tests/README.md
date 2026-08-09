@@ -16,6 +16,8 @@ recall/learn indexes; the difference is what carries the baseline:
 - **Usage capture** — on Claude Code, the record's duration/cost come from the subagent's Task-completion `<usage>` block (`duration_ms`, `subagent_tokens`), unit-labeled, not `n/a`.
 - **Evidence loop** — records auto-ingest as recallable memory and crystallize via `/learn`.
 - **Memory-tier-discount** — a memory-backed unit routes one tier cheaper, floored at cheap.
+- **Go-package-implementation cold-start prior** — `work-kind/go-package-implementation` starts at
+  mid, not the blanket cheap default (evidence-backed, see the Cold-start priors table).
 
 RED/GREEN evidence records are **transient** (like the deleted `memory-discount-RED-GREEN.md`):
 `git log` recovers them. The 2026-07-06 evidence-based-rubric cycle's record
