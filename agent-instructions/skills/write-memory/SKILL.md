@@ -25,6 +25,9 @@ The parent provides:
   fact/feedback only), e.g. `work-kind/rename`, `tier/cheap`, `outcome/pass`
 - optional **supersedes** — `<basename>|<type>|<claim>` (types: `updates|narrows|refutes`),
   when the parent determined this write corrects a surfaced note
+- optional **position** / **target** — Luhmann placement (`top` (default), `continuation`, or
+  `sibling`) plus the target note ID (required when position is not `top`), when the parent made
+  a disposition decision. Omitted → `--position top` (today's default), fact/feedback only.
 
 If a required field is missing, ask for it from the in-session parent context — do not invent
 content on the parent's behalf.
@@ -34,7 +37,7 @@ content on the parent's behalf.
 kind=feedback:
 
 ```bash
-engram learn feedback --slug <kebab-slug> --position top \
+engram learn feedback --slug <kebab-slug> --position <top|continuation|sibling> [--target <id>] \
   --source "<source>" \
   --situation "<retrieval-shaped phrase: when does this apply>" \
   --behavior "<what was done>" --impact "<why it was wrong/costly>" --action "<what to do instead>" \
@@ -44,12 +47,16 @@ engram learn feedback --slug <kebab-slug> --position top \
 kind=fact:
 
 ```bash
-engram learn fact --slug <kebab-slug> --position top \
+engram learn fact --slug <kebab-slug> --position <top|continuation|sibling> [--target <id>] \
   --source "<source>" \
   --situation "<retrieval-shaped phrase: when does this apply>" \
   --subject "<the thing>" --predicate "<requires / must use / is>" --object "<the standard or value>" \
   [--tag <family>/<value> ...]
 ```
+
+`--position` defaults to `top` and `--target` is omitted whenever the parent's handoff doesn't
+include a position/target (today's behavior, unchanged). Include `--target <id>` only when
+position is `continuation` or `sibling`; never emit `--target` alongside `--position top`.
 
 kind=qa:
 

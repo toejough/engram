@@ -86,7 +86,24 @@ autonomously — it requires Joe's oversight.
 
 ## Step 2 — Crystallize explicit lessons (only when they exist)
 
-Scan THIS session for exactly four kinds of moments:
+Scan THIS session for exactly four kinds of moments. For each note you crystallize, first decide
+its Luhmann placement (below), then include the resulting `position`/`target` in the write-memory
+handoff alongside the kind-specific fields.
+
+**Disposition (placement) — decide before handing off:**
+
+Grounded in Niklas Luhmann's own Zettelkasten practice and Sönke Ahrens, *How to Take Smart
+Notes*: an ID's position encodes where a note sits in the thought tree, relative to notes written
+or recalled earlier in THIS session (not a full-vault search). Apply this test in order:
+
+1. Does the new note develop **one specific sub-point** raised inside an in-session note? →
+   `position=continuation`, `target=<that note's ID>`.
+2. Else, does it continue/extend the **same overall thought** as an in-session note, at the same
+   level (not a sub-point of it)? → `position=sibling`, `target=<that note's ID>`.
+3. Else → `position=top` (no target).
+
+No in-session candidate note exists → always `position=top`; do not search the rest of the vault
+for a placement target.
 
 1. **Corrections** — the user corrected your approach or behavior ("don't suppress lint warnings —
    fix the underlying issue", "never amend pushed commits").
