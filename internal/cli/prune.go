@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -124,6 +125,11 @@ const (
 	dryRunLinePrefix = "[dry-run] "
 )
 
+// unexported variables.
+var (
+	errChunkManifestMalformed = errors.New("malformed chunk manifest")
+)
+
 // dryRunPrefix returns the stdout line prefix RunPrune's two modes — the
 // default dead-source detach and pruneEmptyLocked's empty-file removal —
 // both use to mark a --dry-run report: nothing was written or removed.
@@ -148,11 +154,7 @@ func newPruneDeps(d Deps) PruneDeps {
 
 			return nil
 		},
-		Exists: func(path string) bool {
-			_, statErr := d.FS.Stat(path)
-
-			return statErr == nil
-		},
+		Exists:      func(path string) bool { return statExists(d.FS.Stat, path) },
 		ListIndexes: listJSONLIndexes(d.FS),
 		Remove:      d.FS.Remove,
 		LogWarning:  logWarningTo(d.Stderr),
@@ -201,6 +203,40 @@ func pruneEmptyLocked(args PruneArgs, deps PruneDeps, stdout io.Writer) error {
 		prefix, removed, len(paths))
 
 	return nil
+}
+
+// readChunkManifest reads and decodes chunksDir's manifest.json via the
+// injected readFile func, returning the raw (ingestManifest, error) with no
+// imposed error policy — chunkIndexHasPrunableDuplicates treats any error as
+// silent-false (a detection failure must never fail `engram update`), while
+// pruneDuplicatesLocked distinguishes "no manifest yet" (nilerr, first-run)
+// from a malformed manifest (wrapped error) — each caller decides (#714).
+func readChunkManifest(chunksDir string, readFile func(string) ([]byte, error)) (ingestManifest, error) {
+	data, readErr := readFile(filepath.Join(chunksDir, manifestName))
+	if readErr != nil {
+		return nil, readErr
+	}
+
+	manifest := ingestManifest{}
+
+	unmarshalErr := json.Unmarshal(data, &manifest)
+	if unmarshalErr != nil {
+		return nil, fmt.Errorf("%w: %w", errChunkManifestMalformed, unmarshalErr)
+	}
+
+	return manifest, nil
+}
+
+// statExists reports whether path exists by calling the injected stat func
+// and treating any error (not found, permission, or otherwise) as absence —
+// the shared Exists-via-Stat pattern used by update's dry-run duplicate
+// detection and prune's production deps. Generic over the stat func's info
+// type (update.FileInfo, fs.FileInfo, ...) so callers don't need to adapt
+// return types just to check existence (#714).
+func statExists[T any](stat func(string) (T, error), path string) bool {
+	_, statErr := stat(path)
+
+	return statErr == nil
 }
 
 // writePrunedManifest marshals and writes the detached manifest, unless

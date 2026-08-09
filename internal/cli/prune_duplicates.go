@@ -1,12 +1,10 @@
 package cli
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"path/filepath"
 	"sort"
 
 	"github.com/toejough/engram/internal/chunk"
@@ -133,18 +131,15 @@ func groupManifestByHash(manifest ingestManifest) map[string][]string {
 // many of how many removals failed. --dry-run performs every computation
 // and reports the same counts without calling Remove or WriteFile.
 func pruneDuplicatesLocked(args PruneArgs, deps PruneDeps, stdout io.Writer) error {
-	manifest := ingestManifest{}
-
-	data, err := deps.ReadFile(filepath.Join(args.ChunksDir, manifestName))
+	manifest, err := readChunkManifest(args.ChunksDir, deps.ReadFile)
 	if err != nil {
+		if errors.Is(err, errChunkManifestMalformed) {
+			return fmt.Errorf("prune: reading manifest: %w", err)
+		}
+
 		_, _ = fmt.Fprintln(stdout, "prune: no manifest, nothing to prune")
 
-		return nil //nolint:nilerr // absence is the expected first-run case
-	}
-
-	err = json.Unmarshal(data, &manifest)
-	if err != nil {
-		return fmt.Errorf("prune: reading manifest: %w", err)
+		return nil
 	}
 
 	counts := reconcileDuplicateGroups(args, manifest, deps, stdout)

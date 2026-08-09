@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -255,15 +254,9 @@ func chunkIndexHasEmptyFiles(chunksDir string, fileSystem update.Filesystem) boo
 // same convention as chunkIndexHasEmptyFiles) — a detection failure must
 // never fail `engram update`'s primary job.
 func chunkIndexHasPrunableDuplicates(chunksDir string, fileSystem update.Filesystem) bool {
-	data, readErr := fileSystem.ReadFile(filepath.Join(chunksDir, manifestName))
+	manifest, readErr := readChunkManifest(chunksDir, fileSystem.ReadFile)
 	if readErr != nil {
-		return false
-	}
-
-	manifest := ingestManifest{}
-
-	if json.Unmarshal(data, &manifest) != nil {
-		return false // a malformed manifest self-silences; must never fail update
+		return false // missing/unreadable/malformed manifest self-silences; must never fail update
 	}
 
 	// DryRun guarantees reconcileDuplicateGroups never removes or writes:
@@ -276,11 +269,7 @@ func chunkIndexHasPrunableDuplicates(chunksDir string, fileSystem update.Filesys
 		manifest,
 		PruneDeps{
 			ReadFile: fileSystem.ReadFile,
-			Exists: func(path string) bool {
-				_, statErr := fileSystem.Stat(path)
-
-				return statErr == nil
-			},
+			Exists:   func(path string) bool { return statExists(fileSystem.Stat, path) },
 		},
 		io.Discard,
 	)
