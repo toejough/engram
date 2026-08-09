@@ -88,7 +88,7 @@ reuses prior dispatches' evidence.
 | **outcome** | **the review/gate verdict** — PASS/FAIL. Never the subagent's self-report (it confabulates — vault notes 148, 162). |
 | **escalation** | if it failed and escalated, the tier it finally passed at |
 | **duration** | the harness's reported wall-clock if it exposes one (see *Harness signals* below); else best-effort observed |
-| **cost** | the harness's usage signal if it exposes one (see *Harness signals* below). Record the **unit explicitly** — never a bare number under a column named cost: e.g. `45,231 tok (~$0.68 @ opus)` or `45,231 tok (no rate on hand)`. Tokens→$ needs a real per-model rate and is a blended estimate, not a bill; mark "n/a" only when genuinely unexposed; never invent a number |
+| **cost** | the harness's usage signal if it exposes one (see *Harness signals* below), converted to a dollar estimate via the maintained price table (`price-table.md`, this directory) keyed by the dispatch's concrete model. **Look up the model in `price-table.md`:** a match → compute the $ estimate from `subagent_tokens` and that row's rate, e.g. `45,231 tok (~$0.68 @ opus)`; no match (model not in the table, or priced by a different platform — see the table's platform note) → fall back to the raw unit-labeled token count, e.g. `45,231 tok (no rate on hand)` — never fabricate a $ figure. Record the **unit explicitly** either way — never a bare number under a column named cost. Tokens→$ is a blended estimate from a maintained table, not a bill; mark "n/a" only when the harness exposes no usage signal at all (see *Harness signals* below) |
 
 Produce this record per-dispatch and collect the rows into a compact table in your user-facing
 report (the mini-report). The table is the audit trail for route's own tier guidance over time.
@@ -96,6 +96,13 @@ report (the mini-report). The table is the audit trail for route's own tier guid
 **Harness signals:** Claude Code, for example, exposes both signals in every subagent's
 Task-completion `<usage>` block — `duration_ms` and `subagent_tokens` (the cost basis). Another
 harness re-exposes them under other names without changing this table.
+
+**Pi** (`~/.pi/agent/` — the other harness this skill deploys to, per
+`docs/architecture/c1-system-context.md` S3) has **no documented per-subagent usage or duration
+signal** as of this writing. Dispatches routed on Pi show `n/a` for both cost and duration, with
+that reason stated (e.g. `n/a — Pi exposes no per-subagent usage signal`) — never a fabricated
+number. If Pi later exposes such a signal, wire it in here the same way Claude Code's `<usage>`
+block is wired in above; until then this is a genuine, documented gap, not an oversight.
 
 ### The structured write (one evidence note + one aggregate update per dispatch)
 
