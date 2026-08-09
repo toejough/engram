@@ -1,7 +1,6 @@
 package cli_test
 
 import (
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -520,9 +519,17 @@ func TestWriteVocabAssignment_StripsBareVocabMarkerTag(t *testing.T) {
 }
 
 // TestWriteVocabAssignment_TagsRoundtripFidelity is a property test: for
-// random non-vocab tag lists and term lists, parseTagsFromFrontmatter of the
-// writer's output equals tags ++ map("vocab/"+_, terms), and a second
-// application with the same terms is byte-identical (idempotency).
+// random non-vocab tag lists, term lists, and 0-2 trailing frontmatter keys
+// after tags:, the writer's full output is byte-exact against the expected
+// bytes built inline from the drawn input (tags block at the original tags:
+// index, trailing keys — including a key literally named "vocab" if drawn,
+// which is just an ordinary untouched trailing key since legacy vocab:
+// support has been consolidated into tags: — intact and untouched), and a
+// second application with the same terms is byte-identical (idempotency).
+// This closes the position-blind gap a parse-equality oracle left open: the
+// #678 cycle's insert-index off-by-one (b19e3a5d) and content-anchor
+// regression (e7882530) were both parse-identical and idempotent, so only a
+// full byte oracle catches their class of bug.
 func TestWriteVocabAssignment_TagsRoundtripFidelity(t *testing.T) {
 	t.Parallel()
 
@@ -530,21 +537,38 @@ func TestWriteVocabAssignment_TagsRoundtripFidelity(t *testing.T) {
 		tagGen := rapid.StringMatching(`[a-z][a-z0-9-]{0,10}/[a-z][a-z0-9-]{0,10}`).
 			Filter(func(s string) bool { return !strings.HasPrefix(s, "vocab/") })
 		termGen := rapid.StringMatching(`[a-z][a-z0-9-]{0,10}`)
+		trailingKeyGen := rapid.StringMatching(`[a-z][a-z0-9]{0,8}`).
+			Filter(func(s string) bool { return s != "type" && s != "tags" })
+		trailingValGen := rapid.StringMatching(`[a-z][a-z0-9-]{0,10}`)
 
 		const maxGenLen = 4
 
 		tags := rapid.SliceOfN(tagGen, 0, maxGenLen).Draw(rt, "tags")
 		terms := rapid.SliceOfN(termGen, 0, maxGenLen).Draw(rt, "terms")
 
-		frontmatterStr := buildTestFrontmatter(tags)
+		const maxTrailingKeys = 2
+
+		trailingKeyCount := rapid.IntRange(0, maxTrailingKeys).Draw(rt, "trailingKeyCount")
+
+		trailingKeys := make([]string, trailingKeyCount)
+		trailingVals := make([]string, trailingKeyCount)
+
+		for i := range trailingKeyCount {
+			// Suffix each drawn key with its index to guarantee distinctness
+			// across the 0-2 draws (rapid can draw the same string twice).
+			trailingKeys[i] = trailingKeyGen.Draw(rt, "trailingKey"+strconv.Itoa(i)) + strconv.Itoa(i)
+			trailingVals[i] = trailingValGen.Draw(rt, "trailingVal"+strconv.Itoa(i))
+		}
+
+		frontmatterStr := buildTestFrontmatter(tags) + buildTrailingKeysFrontmatter(trailingKeys, trailingVals)
 		content := "---\n" + frontmatterStr + "---\n\nBody.\n"
 		got := cli.WriteVocabAssignment(content, terms)
 
-		frontmatter := parseAndVerifyFrontmatterDelimiters(rt, got)
-		want := buildExpectedTagsForVocabAssignment(tags, terms)
-		gotTags := cli.ExportParseTagsFromFrontmatter(frontmatter)
+		expected := buildExpectedWriteVocabAssignmentBytes(tags, terms, trailingKeys, trailingVals)
+		if got != expected {
+			rt.Fatalf("byte-exact mismatch:\ngot:\n%q\nwant:\n%q", got, expected)
+		}
 
-		verifyTagsMatch(rt, gotTags, want)
 		verifyIdempotency(rt, got, terms)
 	})
 }
@@ -590,6 +614,46 @@ func buildExpectedTagsForVocabAssignment(tags []string, terms []string) []string
 	return want
 }
 
+// buildExpectedWriteVocabAssignmentBytes builds the fully expected byte-exact
+// output of WriteVocabAssignment for the given inputs, inline (no diffing
+// helper — see design decision #683): "type: fact\n" first, then the merged
+// tags: block (kept tags ++ vocab/<term> for each term). When the original
+// input already had a tags: key (len(tags) > 0), the merged block lands at
+// that ORIGINAL position — right after "type: fact\n", before any trailing
+// keys, mirroring buildTestFrontmatter's layout. When the original had no
+// tags: key (tags empty) but terms is non-empty, WriteVocabAssignment's
+// insertAt is -1 (absent key) and insertYAMLBlock appends at the very end of
+// the frontmatter, i.e. AFTER the trailing keys — so the block must be built
+// there instead. Trailing keys are always verbatim in their original order,
+// since WriteVocabAssignment only ever touches the tags: key.
+func buildExpectedWriteVocabAssignmentBytes(tags, terms, trailingKeys, trailingVals []string) string {
+	var b strings.Builder
+
+	b.WriteString("---\ntype: fact\n")
+
+	want := buildExpectedTagsForVocabAssignment(tags, terms)
+	tagsBlockAtOriginalPosition := len(tags) > 0 && len(want) > 0
+
+	if tagsBlockAtOriginalPosition {
+		b.WriteString(renderTestTagsBlock(want))
+	}
+
+	for i, key := range trailingKeys {
+		b.WriteString(key)
+		b.WriteString(": ")
+		b.WriteString(trailingVals[i])
+		b.WriteString("\n")
+	}
+
+	if !tagsBlockAtOriginalPosition && len(want) > 0 {
+		b.WriteString(renderTestTagsBlock(want))
+	}
+
+	b.WriteString("---\n\nBody.\n")
+
+	return b.String()
+}
+
 // buildTestFrontmatter constructs test frontmatter carrying the given tags:
 // list. Returns the frontmatter string (without YAML delimiters).
 func buildTestFrontmatter(tags []string) string {
@@ -609,18 +673,36 @@ func buildTestFrontmatter(tags []string) string {
 	return fmBuilder.String()
 }
 
-// parseAndVerifyFrontmatterDelimiters extracts frontmatter from the output and verifies delimiters.
-func parseAndVerifyFrontmatterDelimiters(rt *rapid.T, got string) string {
-	const delim = "---\n"
+// buildTrailingKeysFrontmatter renders trailing scalar frontmatter keys
+// ("key: value\n" per pair) in order, for appending after the tags: block.
+func buildTrailingKeysFrontmatter(keys, vals []string) string {
+	var b strings.Builder
 
-	afterDelim := strings.TrimPrefix(got, delim)
-
-	frontmatter, _, found := strings.Cut(afterDelim, "\n"+delim)
-	if !found {
-		rt.Fatalf("no closing delimiter in %q", got)
+	for i, key := range keys {
+		b.WriteString(key)
+		b.WriteString(": ")
+		b.WriteString(vals[i])
+		b.WriteString("\n")
 	}
 
-	return frontmatter
+	return b.String()
+}
+
+// renderTestTagsBlock renders the block-style tags: list exactly as
+// WriteVocabAssignment's own renderTagsBlock does (4-space "- " indent),
+// with a trailing newline since it is followed by more frontmatter content.
+func renderTestTagsBlock(tags []string) string {
+	var b strings.Builder
+
+	b.WriteString("tags:\n")
+
+	for _, tag := range tags {
+		b.WriteString("    - ")
+		b.WriteString(tag)
+		b.WriteString("\n")
+	}
+
+	return b.String()
 }
 
 // verifyIdempotency checks that a second application with the same terms is byte-identical.
@@ -628,16 +710,5 @@ func verifyIdempotency(rt *rapid.T, got string, terms []string) {
 	twice := cli.WriteVocabAssignment(got, terms)
 	if twice != got {
 		rt.Fatalf("second application not idempotent:\nfirst:\n%q\nsecond:\n%q", got, twice)
-	}
-}
-
-// verifyTagsMatch asserts that the parsed tags match the expected tags.
-func verifyTagsMatch(rt *rapid.T, gotTags []string, want []string) {
-	if len(want) == 0 && len(gotTags) != 0 {
-		rt.Fatalf("want no tags, got %v", gotTags)
-	}
-
-	if len(want) > 0 && !slices.Equal(gotTags, want) {
-		rt.Fatalf("tags: got %v want %v", gotTags, want)
 	}
 }
