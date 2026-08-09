@@ -310,8 +310,6 @@ func autoEmbedNote(ctx context.Context, deps LearnDeps, notePath, content string
 // luhmann.FromBasename — the canonical extractor (see #626). Returns
 // ("", false) for any non-`.md` filename or one without a valid leading ID.
 func extractLuhmannFromFilename(name string) (string, bool) {
-	const mdExt = ".md"
-
 	if !strings.HasSuffix(name, mdExt) {
 		return "", false
 	}

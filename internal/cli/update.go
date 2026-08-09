@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/toejough/engram/internal/luhmann"
 	"github.com/toejough/engram/internal/update"
 )
 
@@ -36,8 +37,14 @@ const (
 		"(preview with `engram prune --duplicates --dry-run`)\n"
 	emptyChunkFilesNotice = "empty chunk-index files found — run `engram prune --empty` to clear them " +
 		"(preview with `engram prune --empty --dry-run`)\n"
-	oldVocabFilePrefix   = "vocab."
-	oldVocabFileSuffix   = ".md"
+	luhmannBranchingNotice = "vault holds only top-level notes — run `engram update --reparent-luhmann` " +
+		"to derive and apply branching\n"
+	oldVocabFilePrefix = "vocab."
+	oldVocabFileSuffix = ".md"
+	// topLevelLuhmannDepth is the segment count of a top-level (unbranched)
+	// Luhmann ID: just the leading digit run, e.g. "12" — no letter/digit
+	// branch segments appended.
+	topLevelLuhmannDepth = 1
 	vocabMigrationNotice = "old-format vocab files found — run `engram update --regen-vocab` to migrate them " +
 		"(preview with `engram update --regen-vocab --dry-run`)\n"
 	vocabSelfTagNotice = "vocab definition notes missing their vocab/<term> self-tag found — " +
@@ -431,6 +438,7 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 		vaultPath := resolveVault("", report.Home, deps.Env.Getenv)
 		report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, deps.FS)
 		report.VaultHasUntaggedVocabDefinitions = vocabDefinitionsMissingSelfTags(vaultPath, deps.FS)
+		report.VaultHasOnlyTopLevelNotes = vaultHasOnlyTopLevelNotes(vaultPath, deps.FS)
 		chunksDir := ResolveChunksDir("", report.Home, deps.Env.Getenv)
 		report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, deps.FS)
 		report.ChunkIndexHasPrunableDuplicates = chunkIndexHasPrunableDuplicates(chunksDir, deps.FS)
@@ -453,6 +461,45 @@ func tildify(path, home string) string {
 	}
 
 	return "~" + strings.TrimPrefix(path, home)
+}
+
+// vaultHasOnlyTopLevelNotes reports whether vaultPath holds at least one
+// note AND every note's Luhmann ID is top-level (depth 1 — no letter/digit
+// branch segments) — the signal that `engram update --reparent-luhmann`
+// (derive/answer/apply) has genuine work to consider. A missing or
+// unreadable vault directory, or an empty vault, is treated as false
+// (self-silencing, same convention as oldVocabFilesPresent): a detection
+// failure must never fail `engram update`'s primary job. Entries that
+// idAndDateFromNoteFilename rejects (non-note files, e.g. .vec.json
+// sidecars) are skipped. An unparseable Luhmann ID is treated as
+// non-top-level (conservative: never claim "flat" on a malformed vault).
+func vaultHasOnlyTopLevelNotes(vaultPath string, fileSystem update.Filesystem) bool {
+	entries, readErr := fileSystem.ReadDir(vaultPath)
+	if readErr != nil {
+		return false
+	}
+
+	foundNote := false
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		id, _, ok := idAndDateFromNoteFilename(entry.Name())
+		if !ok {
+			continue
+		}
+
+		foundNote = true
+
+		segments, parseErr := luhmann.ParseID(id)
+		if parseErr != nil || len(segments) != topLevelLuhmannDepth {
+			return false
+		}
+	}
+
+	return foundNote
 }
 
 // vocabDefinitionsMissingSelfTags reports whether vaultPath holds at least
@@ -659,6 +706,17 @@ func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
 	return successes
 }
 
+// writeLuhmannBranchingNotice prints a one-line notice naming `engram update
+// --reparent-luhmann` when the vault holds only top-level (unbranched)
+// notes. Silent otherwise — a vault that already has branched notes never
+// sees it. Deliberately just a notice: update never renames or rewrites
+// vault notes on the user's behalf here.
+func writeLuhmannBranchingNotice(buffer *bytes.Buffer, report update.Report) {
+	if report.VaultHasOnlyTopLevelNotes {
+		buffer.WriteString(luhmannBranchingNotice)
+	}
+}
+
 // writeReexecHandoffReport renders the parent's contribution to the
 // combined report after a successful re-exec handoff (design D6): source
 // and binary lines only — never the harness/guidance/vocab/chunk sections,
@@ -729,6 +787,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	writeGuidanceHints(&buffer, report)
 	writeVocabMigrationHint(&buffer, report)
 	writeVocabSelfTagHint(&buffer, report)
+	writeLuhmannBranchingNotice(&buffer, report)
 	writeEmptyChunkHint(&buffer, report)
 	writeDuplicatesHint(&buffer, report)
 

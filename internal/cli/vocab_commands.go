@@ -858,8 +858,6 @@ func idAndDateFromNoteFilename(name string) (id, date string, ok bool) {
 		return "", "", false
 	}
 
-	const mdExt = ".md"
-
 	parts := strings.SplitN(strings.TrimSuffix(name, mdExt), ".", definitionNoteSlugSegments)
 	if len(parts) != definitionNoteSlugSegments {
 		return "", "", false
@@ -1314,8 +1312,6 @@ func runVocabTagDefinitions(_ context.Context, vault string, deps VocabDeps, std
 // slug even if the slug itself contains dots. Returns "" for a non-.md
 // filename or one with fewer than three dot-separated segments.
 func slugFromNoteFilename(name string) string {
-	const mdExt = ".md"
-
 	if !strings.HasSuffix(name, mdExt) {
 		return ""
 	}

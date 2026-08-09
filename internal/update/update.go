@@ -310,6 +310,14 @@ type Report struct {
 	// vocabDefinitionsMissingSelfTags) — Updater.Run itself never touches
 	// vault paths; this field is opaque data.
 	VaultHasUntaggedVocabDefinitions bool
+	// VaultHasOnlyTopLevelNotes is true when the vault holds at least one
+	// note and every note's Luhmann ID is top-level (no letter/digit branch
+	// segments) — the signal that `engram update --reparent-luhmann`
+	// (derive/answer/apply, not yet built when this field was added) has
+	// genuine work to consider. Set by the cli package after Run returns
+	// (via vaultHasOnlyTopLevelNotes) — Updater.Run itself never touches
+	// vault paths; this field is opaque data.
+	VaultHasOnlyTopLevelNotes bool
 	// ChunkIndexHasEmptyFiles is set by the cli package after Run returns
 	// (Updater.Run never touches chunk paths; this field is opaque data).
 	ChunkIndexHasEmptyFiles bool

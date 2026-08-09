@@ -482,6 +482,76 @@ func TestTildify(t *testing.T) {
 	g.Expect(cli.ExportTildify("/home/joe/x", "")).To(Equal("/home/joe/x"))
 }
 
+// TestVaultHasOnlyTopLevelNotes pins vaultHasOnlyTopLevelNotes (task 1.1):
+// true only when the vault holds at least one note and every note's Luhmann
+// ID is depth 1 (top-level, no letter/digit branch segments); false for an
+// empty or unreadable vault (self-silencing, same convention as
+// oldVocabFilesPresent).
+func TestVaultHasOnlyTopLevelNotes(t *testing.T) {
+	t.Parallel()
+
+	table := []struct {
+		name  string
+		files map[string][]byte
+		want  bool
+	}{
+		{
+			name: "all-top-level",
+			files: map[string][]byte{
+				"/vault/1.2026-07-01.first-note.md":  []byte("note one"),
+				"/vault/2.2026-07-02.second-note.md": []byte("note two"),
+			},
+			want: true,
+		},
+		{
+			name: "mixed-one-branched-note",
+			files: map[string][]byte{
+				"/vault/1.2026-07-01.first-note.md":   []byte("note one"),
+				"/vault/1a.2026-07-02.branch-note.md": []byte("branched note"),
+			},
+			want: false,
+		},
+		{
+			name:  "empty-vault",
+			files: map[string][]byte{},
+			want:  false,
+		},
+		{
+			name: "non-note-files-skipped",
+			files: map[string][]byte{
+				"/vault/1.2026-07-01.first-note.md":       []byte("note one"),
+				"/vault/1.2026-07-01.first-note.vec.json": []byte(`{}`),
+			},
+			want: true,
+		},
+	}
+
+	for _, tc := range table {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			fileSystem := newU1FS()
+			maps.Copy(fileSystem.files, tc.files)
+
+			got := cli.ExportVaultHasOnlyTopLevelNotes("/vault", fileSystem)
+			g.Expect(got).To(Equal(tc.want))
+		})
+	}
+
+	t.Run("unreadable-vault-dir", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewWithT(t)
+
+		fileSystem := newU1FS()
+
+		got := cli.ExportVaultHasOnlyTopLevelNotes("/missing-vault", fileSystem)
+		g.Expect(got).To(BeFalse())
+	})
+}
+
 // TestVocabDefinitionsMissingSelfTags pins the self-tag backfill detection
 // for the vocab-definition-self-tags upgrade (4f68fada): a vault holding a
 // definition note (bare `vocab` tag + "vocab-<term>-definition" slug) whose
@@ -1110,6 +1180,29 @@ func TestWriteUpdateReport_LocalSourceIncludesRevision(t *testing.T) {
 
 	out := buffer.String()
 	g.Expect(out).To(ContainSubstring("source: local clone at ~/src/engram (rev abc1234)"))
+}
+
+// TestWriteUpdateReport_LuhmannBranchingHint pins the detect-and-notify
+// surface for a flat (all-top-level) vault: when VaultHasOnlyTopLevelNotes
+// is true, the report names `engram update --reparent-luhmann` inline; a
+// vault that already has branched notes prints nothing. This is a read-only
+// notice — nothing here ever mutates a vault note.
+func TestWriteUpdateReport_LuhmannBranchingHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasOnlyTopLevelNotes: true})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("engram update --reparent-luhmann"))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasOnlyTopLevelNotes: false})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("reparent-luhmann"))
 }
 
 func TestWriteUpdateReport_RealRunLocalNoVersion(t *testing.T) {

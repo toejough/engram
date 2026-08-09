@@ -333,7 +333,7 @@ func indexPathFor(chunksDir, source string) string {
 // a non-explicit .md file, outside the resolved vault path, with a sibling
 // .vec.json sidecar present.
 func isVaultCopyOutsideVault(src sourceRef, vault string, deps IngestDeps) bool {
-	if src.explicit || filepath.Ext(src.path) != ".md" {
+	if src.explicit || filepath.Ext(src.path) != mdExt {
 		return false
 	}
 

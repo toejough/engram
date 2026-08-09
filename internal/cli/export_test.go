@@ -141,6 +141,7 @@ var (
 	ExportValidateProjectSlug             = validateProjectSlug
 	ExportValidateSlug                    = validateSlug
 	ExportValidateTags                    = validateTags
+	ExportVaultHasOnlyTopLevelNotes       = vaultHasOnlyTopLevelNotes
 	ExportVocabDefinitionsMissingSelfTags = vocabDefinitionsMissingSelfTags
 	ExportVocabTermsFromTags              = vocabTermsFromTags
 	ExportWriteCentroidsDocRaw            = writeCentroidsDocRaw

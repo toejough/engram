@@ -89,6 +89,9 @@ const (
 	fmEnd = "\n---\n"
 	// fmStart/fmEnd delimit YAML frontmatter in a note's raw content.
 	fmStart = "---\n"
+	// mdExt is the vault note file extension, shared across the package to
+	// keep goconst from flagging repeated ".md" literals.
+	mdExt = ".md"
 	// topVocabTermCount is the maximum number of top-ranked terms selected
 	// (plain top-3 — the sweep-chosen K; see AssignVocabTerms).
 	topVocabTermCount = 3
