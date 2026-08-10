@@ -76,15 +76,18 @@
 
 ## 7. Verification
 
-- [ ] 7.1 Run `targ check-full`.
-- [ ] 7.2 Build a scratch fixture vault (several top-level notes, some genuinely related, some
+- [x] 7.1 Run `targ check-full`.
+- [x] 7.2 Build a scratch fixture vault (several top-level notes, some genuinely related, some
       not, with existing wikilinks between a subset) and run the full derive → answer → dry-run
       → apply cycle end to end; confirm renamed files, updated frontmatter IDs, and rewritten
       wikilinks all land correctly, and that unrelated notes/links are untouched.
-- [ ] 7.3 Resolve design.md Open Question 2 empirically: run `engram ingest --auto` after an
+- [x] 7.3 Resolve design.md Open Question 2 empirically: run `engram ingest --auto` after an
       apply and confirm the chunk index self-heals (old path's chunks age out via existing
       prune, new path indexes cleanly) — if it does not, file a follow-up issue rather than
-      silently expanding this change's scope.
+      silently expanding this change's scope. Result: does NOT self-heal on ingest alone — old
+      path's manifest entry + index file linger until a manual `engram prune` (not
+      `--duplicates`, which no-ops since renamed content isn't byte-identical). Filed
+      https://github.com/toejough/engram/issues/724.
 - [x] 7.4 Resolve design.md Open Question 3 with Joe: does `--reparent-luhmann` need an
       uncommitted-git-changes guard rail? Resolved — no, not needed.
 
