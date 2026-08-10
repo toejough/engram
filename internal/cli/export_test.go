@@ -649,10 +649,10 @@ func ExportNewUpdateDepsFrom(fs update.Filesystem, cmd update.Commander, env upd
 }
 
 // ExportNewUpdateDepsFromWithReparent is ExportNewUpdateDepsFrom plus an
-// explicit RenameRewriteDeps, for tests driving `engram update
+// explicit ReparentDeps, for tests driving `engram update
 // --reparent-luhmann`.
 func ExportNewUpdateDepsFromWithReparent(
-	fs update.Filesystem, cmd update.Commander, env update.Env, reparent RenameRewriteDeps,
+	fs update.Filesystem, cmd update.Commander, env update.Env, reparent ReparentDeps,
 ) updateDeps {
 	return updateDeps{FS: fs, Cmd: cmd, Env: env, Reparent: reparent}
 }

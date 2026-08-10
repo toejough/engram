@@ -469,11 +469,13 @@ func TestRunUpdate_ReparentLuhmannFlag_ShortCircuitsToDeriveOnly(t *testing.T) {
 		"/vault/1.2026-01-01.alpha.md": []byte("---\ntype: fact\nluhmann: \"1\"\ncreated: 2026-01-01\n---\n\nbody\n"),
 	}
 
-	reparentDeps := cli.RenameRewriteDeps{
-		ListMD:    func(string) ([]string, error) { return []string{"1.2026-01-01.alpha.md"}, nil },
-		ReadFile:  func(path string) ([]byte, error) { return files[path], nil },
-		WriteFile: func(string, []byte) error { return nil },
-		Rename:    func(string, string) error { return nil },
+	reparentDeps := cli.ReparentDeps{
+		Rename: cli.RenameRewriteDeps{
+			ListMD:    func(string) ([]string, error) { return []string{"1.2026-01-01.alpha.md"}, nil },
+			ReadFile:  func(path string) ([]byte, error) { return files[path], nil },
+			WriteFile: func(string, []byte) error { return nil },
+			Rename:    func(string, string) error { return nil },
+		},
 	}
 
 	deps := cli.ExportNewUpdateDepsFromWithReparent(nil, nil, fixedHomeUpdateEnv{vault: "/vault"}, reparentDeps)

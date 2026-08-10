@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,17 @@ import (
 	"github.com/toejough/engram/internal/luhmann"
 )
 
+// ReparentDeps bundles every capability RunReparentLuhmann's apply phase
+// needs across its full mechanical pipeline (design.md Decision 1): the
+// existing rename/rewrite primitive, plus in-process RunIngest/RunPrune
+// composition so a successful apply never leaves a manual `engram ingest
+// --auto` / `engram prune` step required.
+type ReparentDeps struct {
+	Rename RenameRewriteDeps
+	Ingest IngestDeps
+	Prune  PruneDeps
+}
+
 // RunReparentLuhmann implements `engram update --reparent-luhmann`'s
 // derive/answer/apply/dry-run flow (design.md, specs/update-reparent-luhmann-batch).
 //
@@ -21,20 +33,30 @@ import (
 //
 // answersFile set: apply phase — validates the echoed fingerprint against the
 // vault's current state, computes new Luhmann IDs, and (dryRun==false) calls
-// RenameAndRewriteReferences once with the full rename map. dryRun==true
-// prints the rename/rewrite preview instead of writing.
+// RenameAndRewriteReferences once with the full rename map, then (design.md
+// Decision 1, only when the rename map is non-empty) re-indexes the renamed
+// notes via RunIngest and detaches their stale old-path chunk-manifest
+// entries via RunPrune, and finally reports whether further above-floor
+// candidates remain (design.md Decision 3). dryRun==true prints the
+// rename/rewrite preview instead of writing or touching the chunk index.
 //
 // dryRun with no answersFile is rejected as a usage error (nothing to preview).
-func RunReparentLuhmann(vault, answersFile string, dryRun bool, deps RenameRewriteDeps, stdout io.Writer) error {
+func RunReparentLuhmann(
+	ctx context.Context,
+	vault, chunksDir, answersFile string,
+	dryRun bool,
+	deps ReparentDeps,
+	stdout io.Writer,
+) error {
 	if answersFile == "" {
 		if dryRun {
 			return errReparentDryRunNeedsAnswers
 		}
 
-		return runReparentDerive(vault, deps, stdout)
+		return runReparentDerive(vault, deps.Rename, stdout)
 	}
 
-	return runReparentApply(vault, answersFile, dryRun, deps, stdout)
+	return runReparentApply(ctx, vault, chunksDir, answersFile, dryRun, deps, stdout)
 }
 
 // unexported constants.
@@ -95,9 +117,12 @@ type reparentCandidate struct {
 }
 
 // reparentDerivePayload is the stdout JSON payload the derive phase emits.
+//
+//nolint:tagliatelle // payload keys follow the vault's snake_case contract
 type reparentDerivePayload struct {
 	Candidates  []reparentCandidate `json:"candidates"`
 	Instruction string              `json:"instruction"`
+	NextCommand string              `json:"next_command"`
 	Fingerprint string              `json:"fingerprint"`
 }
 
@@ -377,14 +402,22 @@ func reparentSidecarVector(
 // runReparentApply validates the --answers file's fingerprint, computes the
 // full rename map (design.md Decision 3), and either previews it (dryRun) or
 // applies it via a single RenameAndRewriteReferences call (design.md
-// Decision 4).
-func runReparentApply(vault, answersFile string, dryRun bool, deps RenameRewriteDeps, stdout io.Writer) error {
-	notes, listErr := loadTopLevelReparentNotes(vault, deps)
+// Decision 4) followed by the automatic chunk-index reconciliation pipeline
+// (RunIngest then RunPrune, design.md Decision 1) and a further-candidates
+// report (design.md Decision 3).
+func runReparentApply(
+	ctx context.Context,
+	vault, chunksDir, answersFile string,
+	dryRun bool,
+	deps ReparentDeps,
+	stdout io.Writer,
+) error {
+	notes, listErr := loadTopLevelReparentNotes(vault, deps.Rename)
 	if listErr != nil {
 		return listErr
 	}
 
-	answersData, readErr := deps.ReadFile(answersFile)
+	answersData, readErr := deps.Rename.ReadFile(answersFile)
 	if readErr != nil {
 		return fmt.Errorf("update --reparent-luhmann: reading --answers: %w", readErr)
 	}
@@ -402,23 +435,66 @@ func runReparentApply(vault, answersFile string, dryRun bool, deps RenameRewrite
 			errReparentStaleAnswers, doc.Fingerprint, wantFingerprint)
 	}
 
-	renameMap, buildErr := buildReparentRenameMap(vault, doc.Reparenting, deps)
+	renameMap, buildErr := buildReparentRenameMap(vault, doc.Reparenting, deps.Rename)
 	if buildErr != nil {
 		return buildErr
 	}
 
 	if dryRun {
-		printReparentPreview(stdout, vault, deps, renameMap)
+		printReparentPreview(stdout, vault, deps.Rename, renameMap)
 
 		return nil
 	}
 
-	applyErr := RenameAndRewriteReferences(deps, vault, renameMap)
+	applyErr := RenameAndRewriteReferences(deps.Rename, vault, renameMap)
 	if applyErr != nil {
 		return fmt.Errorf("update --reparent-luhmann: applying renames: %w", applyErr)
 	}
 
 	_, _ = fmt.Fprintf(stdout, "update --reparent-luhmann: renamed %d note(s)\n", len(renameMap))
+
+	if len(renameMap) > 0 {
+		pipelineErr := runReparentChunkPipeline(ctx, vault, chunksDir, deps, stdout)
+		if pipelineErr != nil {
+			return pipelineErr
+		}
+	}
+
+	return runReparentFurtherCandidatesReport(vault, deps.Rename, stdout)
+}
+
+// runReparentChunkPipeline re-indexes the renamed notes (RunIngest) and then
+// detaches the renamed notes' old-path chunk-manifest entries (RunPrune,
+// plain mode) — design.md Decision 1's call order. A failure in either stage
+// does NOT roll back the already-applied rename (design.md Decision 2): the
+// vault mutation is authoritative, and a manual `engram ingest --auto` /
+// `engram prune` remains a safe fallback to finish reconciling the chunk
+// index. The failure is reported (which stage, and the fallback) before the
+// wrapped error is returned.
+func runReparentChunkPipeline(ctx context.Context, vault, chunksDir string, deps ReparentDeps, stdout io.Writer) error {
+	ingestArgs := IngestArgs{Sweep: []string{vault}, Vault: vault, ChunksDir: chunksDir}
+
+	ingestErr := RunIngest(ctx, ingestArgs, deps.Ingest, stdout)
+	if ingestErr != nil {
+		_, _ = fmt.Fprintf(stdout,
+			"update --reparent-luhmann: re-indexing renamed notes failed: %v\n"+
+				"the vault rename above is intact and authoritative; run `engram ingest --auto` and "+
+				"`engram prune` manually to finish reconciling the chunk index\n", ingestErr)
+
+		return fmt.Errorf("update --reparent-luhmann: re-indexing renamed notes: %w", ingestErr)
+	}
+
+	pruneArgs := PruneArgs{ChunksDir: chunksDir}
+
+	pruneErr := RunPrune(ctx, pruneArgs, deps.Prune, stdout)
+	if pruneErr != nil {
+		_, _ = fmt.Fprintf(stdout,
+			"update --reparent-luhmann: pruning stale chunk-manifest entries failed: %v\n"+
+				"the vault rename above is intact and authoritative; run `engram prune` manually to finish "+
+				"reconciling the chunk index\n", pruneErr)
+
+		return fmt.Errorf("update --reparent-luhmann: pruning stale chunk-manifest entries: %w", pruneErr)
+	}
 
 	return nil
 }
@@ -445,6 +521,7 @@ func runReparentDerive(vault string, deps RenameRewriteDeps, stdout io.Writer) e
 			`Write an answers file: {"reparenting":[{"note":"<id>","position":"top|continuation|sibling",` +
 			`"target":"<id>"}],"fingerprint":"<echoed>"}, one entry per candidate note, then re-run ` +
 			"`engram update --reparent-luhmann --answers <file>` echoing this payload's fingerprint verbatim.",
+		NextCommand: "engram update --reparent-luhmann --answers <path-to-answers-file>",
 		Fingerprint: reparentFingerprint(notes),
 	}
 
@@ -455,6 +532,30 @@ func runReparentDerive(vault string, deps RenameRewriteDeps, stdout io.Writer) e
 	if encErr != nil {
 		return fmt.Errorf("update --reparent-luhmann: encoding candidates: %w", encErr)
 	}
+
+	return nil
+}
+
+// runReparentFurtherCandidatesReport re-derives candidates against the
+// vault's now-current state (read-only — never emits the full payload) and
+// reports either the count with the literal next-command to loop, or that
+// the vault is fully evaluated (design.md Decision 3).
+func runReparentFurtherCandidatesReport(vault string, deps RenameRewriteDeps, stdout io.Writer) error {
+	notes, listErr := loadTopLevelReparentNotes(vault, deps)
+	if listErr != nil {
+		return listErr
+	}
+
+	candidates := deriveReparentCandidates(vault, notes, deps)
+	if len(candidates) == 0 {
+		_, _ = fmt.Fprintln(stdout, "update --reparent-luhmann: no further candidates — vault fully evaluated")
+
+		return nil
+	}
+
+	_, _ = fmt.Fprintf(stdout,
+		"update --reparent-luhmann: %d further candidate(s) found — run `engram update --reparent-luhmann` again\n",
+		len(candidates))
 
 	return nil
 }

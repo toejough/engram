@@ -98,8 +98,8 @@ type updateDeps struct {
 	// exit code BEFORE the vault/vocab/chunk-check block, so the parent
 	// never runs those checks after handing off (design D8).
 	Exit     func(int)
-	Vocab    VocabDeps         // used only when args.RegenVocab is set (#712)
-	Reparent RenameRewriteDeps // used only when args.ReparentLuhmann is set
+	Vocab    VocabDeps    // used only when args.RegenVocab is set (#712)
+	Reparent ReparentDeps // used only when args.ReparentLuhmann is set
 }
 
 // updateEnvFromDeps adapts cli.Deps' env funcs to update.Env.
@@ -371,9 +371,13 @@ func newUpdateDeps(d Deps) updateDeps {
 			getwd:       d.Getwd,
 			userHomeDir: d.UserHomeDir,
 		},
-		Exit:     d.Exit,
-		Vocab:    newVocabDeps(d),
-		Reparent: newRenameRewriteDeps(d),
+		Exit:  d.Exit,
+		Vocab: newVocabDeps(d),
+		Reparent: ReparentDeps{
+			Rename: newRenameRewriteDeps(d),
+			Ingest: newIngestDeps(d),
+			Prune:  newPruneDeps(d),
+		},
 	}
 }
 
@@ -444,8 +448,9 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 		}
 
 		vaultPath := resolveVault("", home, deps.Env.Getenv)
+		chunksDir := ResolveChunksDir("", home, deps.Env.Getenv)
 
-		reparentErr := RunReparentLuhmann(vaultPath, args.Answers, args.DryRun, deps.Reparent, stdout)
+		reparentErr := RunReparentLuhmann(ctx, vaultPath, chunksDir, args.Answers, args.DryRun, deps.Reparent, stdout)
 		if reparentErr != nil {
 			return fmt.Errorf("update: %w", reparentErr)
 		}

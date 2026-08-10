@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -35,7 +36,7 @@ func TestRunReparentLuhmann_ApplyAnswersFileUnreadable(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann("/vault", "/missing-answers.json", false, deps, &stdout)
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/missing-answers.json", false, deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(renames).To(BeEmpty())
 }
@@ -53,7 +54,7 @@ func TestRunReparentLuhmann_ApplyBadAnswersJSONRejected(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann("/vault", "/answers.json", false, deps, &stdout)
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(renames).To(BeEmpty())
 }
@@ -76,7 +77,7 @@ func TestRunReparentLuhmann_ApplyUnknownNoteRejected(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann("/vault", "/answers.json", false, deps, &stdout)
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
 	g.Expect(err).To(MatchError(ContainSubstring("unknown note")))
 	g.Expect(renames).To(BeEmpty())
 }
@@ -97,7 +98,7 @@ func TestRunReparentLuhmann_DeriveExcerptUnreadableNoteIsEmpty(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.RunReparentLuhmann("/vault", "", false, deps, &stdout)
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).NotTo(BeEmpty())
 }
