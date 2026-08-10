@@ -40,13 +40,13 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run `targ check-full`.
-- [ ] 4.2 Re-run the `update-flags-flat-vault-luhmann-reeval` task-7.3-style fixture-vault
+- [x] 4.1 Run `targ check-full`.
+- [x] 4.2 Re-run the `update-flags-flat-vault-luhmann-reeval` task-7.3-style fixture-vault
       verification end to end: derive → judge → apply. Confirm the new path is indexed, the old
       path's manifest entry is gone, WITHOUT running `engram prune`/`engram ingest --auto`
       separately. Confirm the "further candidates?" message is accurate for the fixture (should
       report none remain, or correctly identify any that do).
-- [ ] 4.3 Verify the pipeline-failure path (design.md Decision 2 / task 1.4) against a real
+- [x] 4.3 Verify the pipeline-failure path (design.md Decision 2 / task 1.4) against a real
       induced failure (e.g. a read-only chunks dir) — confirm the vault rename is genuinely
       intact and the error message correctly names the manual fallback.
 
