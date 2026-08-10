@@ -93,9 +93,9 @@
 
 ## 8. Docs + close-out
 
-- [ ] 8.1 Update `docs/GLOSSARY.md`'s `engram update` list to include both the notice and
+- [x] 8.1 Update `docs/GLOSSARY.md`'s `engram update` list to include both the notice and
       `--reparent-luhmann` (derive/answer/apply/dry-run flags), matching existing entries'
       level of detail.
-- [ ] 8.2 Sync `openspec/specs/` with both `update-flat-vault-luhmann-notice` and
+- [x] 8.2 Sync `openspec/specs/` with both `update-flat-vault-luhmann-notice` and
       `update-reparent-luhmann-batch` capabilities via `openspec-sync-specs`, then archive this
       change.

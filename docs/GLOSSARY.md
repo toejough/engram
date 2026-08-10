@@ -713,10 +713,48 @@ opt-in). Plain `engram update` hints about `--with-guidance` until a
 guidance file is imported, then keeps it refreshed on every run. It also
 prints a one-line notice naming the exact command when it detects
 old-format vocab files (#678 — `engram update --regen-vocab`), leftover
-empty `.jsonl` chunk-index files (#694 — `engram prune --empty`), or a
+empty `.jsonl` chunk-index files (#694 — `engram prune --empty`), a
 duplicate backlog that `engram prune --duplicates` would actually remove
 (ADR-0021, refined by #713: prune's dry-run coverage gate decides;
-refusal-only backlogs stay silent); `update` never removes anything itself.
+refusal-only backlogs stay silent), or a vault holding only top-level
+Luhmann IDs — no `continuation`/`sibling` (child) note anywhere (#701's
+`restore-luhmann-branching-disposition` only fixed disposition for new
+notes going forward; a vault flat since f620bfaf has no signal that
+branching restarted, or a remedy for its existing notes) — naming
+`engram update --reparent-luhmann`; `update` never removes anything
+itself.
+
+`engram update --reparent-luhmann` is a standalone, opt-in, one-shot
+migration (never run as part of a routine `engram update`) that
+re-parents existing top-level notes, modeled on `vocab refit`'s
+derive → naming_requests → answers → apply flow since "is note B a
+sub-point of note A" is a content judgment the binary cannot make from
+embeddings alone (the same boundary #701 drew for per-capture
+disposition):
+- **Derive** (`--reparent-luhmann`, no `--answers`): proposes candidate
+  parent/sibling relationships among top-level notes by embedding-sidecar
+  cosine similarity (top-3 neighbors above a 0.75 floor), printed as a
+  JSON payload (`candidates` + `fingerprint`); never writes.
+- **Answer**: the `learn` skill's batch mode (see `agent-instructions/skills/learn/SKILL.md`,
+  "Batch mode — Luhmann re-eval answers") applies the same
+  continuation/sibling/top disposition test as its per-capture Step 2 to
+  each candidate pair, from content excerpts rather than the similarity
+  score alone, and writes a `reparenting` + `fingerprint` answers file.
+- **Apply** (`--reparent-luhmann --answers <file>`): validates the
+  fingerprint against current vault state (stale → rejected, no writes),
+  computes new Luhmann IDs, and renames each affected note file + its
+  `.vec.json` sidecar, updates its `luhmann:` frontmatter field, and
+  rewrites every incoming wikilink/`supersedes` reference vault-wide —
+  including cascading renames (a renamed note referencing another note
+  renamed in the same run).
+- `--dry-run` requires `--answers` (rejected as a usage error without it,
+  since derive never writes regardless of the flag) and previews the
+  exact rename/rewrite the apply would perform.
+- Known gap (#724): the chunk index does not self-heal automatically
+  after a rename — `engram ingest --auto` indexes the new path cleanly
+  but leaves the old path's manifest entry behind; run plain
+  `engram prune` (not `--duplicates` — a renamed note's content hash
+  differs, so it isn't a byte-identical duplicate) to detach it.
 
 ### `engram count` (subcommand)
 Read-only aggregation over the vault, deliberately off the query/similarity path
