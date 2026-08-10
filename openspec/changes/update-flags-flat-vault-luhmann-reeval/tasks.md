@@ -65,12 +65,12 @@
 
 ## 6. Learn skill batch-answer mode
 
-- [ ] 6.1 Using `superpowers:writing-skills` TDD, add a batch-re-eval mode to
+- [x] 6.1 Using `superpowers:writing-skills` TDD, add a batch-re-eval mode to
       `agent-instructions/skills/learn/SKILL.md` (or a small new skill, if a distinct trigger
       makes more sense — decide during implementation) that, given a derive-phase candidate
       payload, applies the same disposition test as #701's per-capture Step 2 to each candidate
       pair and writes the answers file.
-- [ ] 6.2 RED: baseline an agent given only the current (pre-this-change) skill text and a
+- [x] 6.2 RED: baseline an agent given only the current (pre-this-change) skill text and a
       candidate payload — confirm it has no instructed way to produce an answers file. GREEN:
       re-run with the new batch-answer instructions present.
 

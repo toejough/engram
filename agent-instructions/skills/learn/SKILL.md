@@ -190,6 +190,51 @@ If no `[[...]]` wikilinks appear in the answer and no note was crystallized, ski
 **Gate — do not duplicate:** if a QA pair was already written (e.g. by recall's Step 4 during
 this session), do not write it again here. One pair per distinct answered question.
 
+## Batch mode — Luhmann re-eval answers (`--reparent-luhmann`)
+
+**Trigger:** you were handed a derive-phase candidate JSON payload from
+`engram update --reparent-luhmann` (fields: `candidates` — each with `note`, `note_excerpt`,
+`target`, `target_excerpt`, `similarity` — plus `instruction` and `fingerprint`), and asked to
+produce its answers file. This is a deliberate, explicitly-invoked mode — NOT part of the normal
+Step 1→2.5 sequence a per-capture `learn` run walks; it runs standalone, once, over a batch.
+
+For EACH candidate pair, apply the **same disposition test as Step 2's placement decision above**
+— read `note_excerpt` and `target_excerpt` and judge the content relationship, not the
+`similarity` score alone (a high score can still be an unrelated false positive: two notes can
+share vocabulary while addressing different problems):
+
+1. `note_excerpt` develops one specific sub-point of `target_excerpt`? → `position=continuation`.
+2. Else, same overall thought as `target_excerpt`, at the same level? → `position=sibling`.
+3. Else (unrelated despite the similarity score) → `position=top`.
+
+In all three cases, `target` is only meaningful for `continuation`/`sibling`; a `top` verdict
+still needs a full answer entry.
+
+**Coverage requirement:** every candidate's `note` MUST get exactly one entry in the answers file
+— there is no "skip this one" option. If a note appears as `note` in more than one candidate
+(multiple targets above the floor), judge each candidate independently and answer with the ONE
+`target`/`position` you find most correct; still exactly one output entry per distinct `note`.
+
+Write the answers file as JSON, matching this shape exactly — do not rename fields or add others:
+
+```json
+{
+  "reparenting": [
+    {"note": "<id>", "position": "continuation|sibling|top", "target": "<id>"}
+  ],
+  "fingerprint": "<echoed VERBATIM from the input payload's fingerprint field>"
+}
+```
+
+Save it to a file (e.g. `/tmp/reparent-answers.json`) and tell the user to run:
+
+```
+engram update --reparent-luhmann --answers <file> --dry-run
+```
+
+to review the resulting renames, then re-run the same command without `--dry-run` to apply. This
+skill does not invoke either command itself — that is the acting agent's (or user's) next step.
+
 ## Red flags — STOP and re-read
 
 | Sign you're off-script | What you should be doing |
