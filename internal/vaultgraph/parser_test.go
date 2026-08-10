@@ -145,13 +145,35 @@ func TestParseWikilinks_IgnoresEmpty(t *testing.T) {
 
 // TestParseWikilinks_MdNormalizationProperty verifies for any basename that
 // linking it bare and linking it .md-suffixed parse to identical target lists.
+//
+// The generator excludes basenames whose final dot-segment is literally "md"
+// (e.g. "0.md"): for that one case the property provably cannot hold, not
+// because of a parser defect. The raw wikilink text for the bare form,
+// "[[0.md]]", is byte-identical whether the author meant a legacy
+// .md-suffixed link to a note named "0" or a literal link to a note whose
+// own basename is "0.md" — there is no information in the raw text to
+// disambiguate, and Obsidian has the same limitation. ParseWikilinks
+// resolves that ambiguity by always treating a trailing ".md" as the
+// legacy-suffixed form (see TestParseWikilinks_MdSuffixLiteralBasenameEdgeCase),
+// which is correct per vault-wikilink-resolution's normalization spec but
+// necessarily breaks the bare/suffixed equivalence for this input. Real
+// vault basenames (`<id>.<date>.<slug>.md` — kebab-case slugs) don't produce
+// this case, so excluding it from the generator does not narrow real
+// coverage. Do not remove this exclusion without also changing how
+// ParseWikilinks resolves the ambiguity.
 func TestParseWikilinks_MdNormalizationProperty(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(rt)
 
-		name := rapid.StringMatching(`[0-9]+[a-z0-9]*\.[a-z0-9-]+`).Draw(rt, "name")
+		name := rapid.StringMatching(`[0-9]+[a-z0-9]*\.[a-z0-9-]+`).
+			Filter(func(s string) bool {
+				segments := strings.Split(s, ".")
+
+				return segments[len(segments)-1] != "md"
+			}).
+			Draw(rt, "name")
 
 		bare := vaultgraph.ParseWikilinks([]byte("see [[" + name + "]] here"))
 		suffixed := vaultgraph.ParseWikilinks([]byte("see [[" + name + ".md]] here"))
@@ -170,6 +192,26 @@ func TestParseWikilinks_MdSuffixDedupesWithBareForm(t *testing.T) {
 	body := []byte("see [[x]] and [[x.md]] and [[y.md]] and [[y]].")
 
 	g.Expect(vaultgraph.ParseWikilinks(body)).To(Equal([]string{"x", "y"}))
+}
+
+// TestParseWikilinks_MdSuffixLiteralBasenameEdgeCase documents the accepted,
+// intended behavior for the one input the property test above excludes: a
+// bare link whose final dot-segment is literally "md" (e.g. "[[0.md]]").
+// ParseWikilinks always resolves this as the legacy .md-suffixed form,
+// yielding the extension-less basename "0" — never a literal target named
+// "0.md". This matches vault-wikilink-resolution's normalization
+// requirement ("Parser normalizes .md-suffixed wikilink targets"), which
+// gives .md-suffix stripping priority with no exception. If this test ever
+// needs to change to accept a literal "0.md" target, the property test's
+// generator exclusion above must be revisited too.
+func TestParseWikilinks_MdSuffixLiteralBasenameEdgeCase(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	got := vaultgraph.ParseWikilinks([]byte("see [[0.md]] here"))
+
+	g.Expect(got).To(Equal([]string{"0"}))
 }
 
 func TestParseWikilinks_MultipleLinksFirstAppearanceOrder(t *testing.T) {
