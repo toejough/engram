@@ -734,7 +734,8 @@ disposition):
 - **Derive** (`--reparent-luhmann`, no `--answers`): proposes candidate
   parent/sibling relationships among top-level notes by embedding-sidecar
   cosine similarity (top-3 neighbors above a 0.75 floor), printed as a
-  JSON payload (`candidates` + `fingerprint`); never writes.
+  JSON payload (`candidates` + `fingerprint` + a `next_command` field
+  naming the literal follow-up command); never writes.
 - **Answer**: the `learn` skill's batch mode (see `agent-instructions/skills/learn/SKILL.md`,
   "Batch mode — Luhmann re-eval answers") applies the same
   continuation/sibling/top disposition test as its per-capture Step 2 to
@@ -746,15 +747,25 @@ disposition):
   `.vec.json` sidecar, updates its `luhmann:` frontmatter field, and
   rewrites every incoming wikilink/`supersedes` reference vault-wide —
   including cascading renames (a renamed note referencing another note
-  renamed in the same run).
+  renamed in the same run). When ≥1 note was renamed, apply then also
+  runs `engram ingest`'s and `engram prune`'s logic in-process against
+  the vault, so the new path is indexed and the renamed note's old-path
+  chunk-manifest entry is detached in the same invocation — no separate
+  `engram ingest --auto`/`engram prune` step is needed (closes #724's
+  gap; a mid-pipeline ingest/prune failure does NOT roll back the
+  already-completed rename — it's reported as which stage failed, with
+  the vault rename called out as intact and the same two commands named
+  as a manual fallback). Apply's final output also reports whether
+  further above-floor candidates remain in the vault's new state (with
+  the next `--reparent-luhmann` command to run) or that the vault is
+  fully evaluated — so an agent can drive the whole derive→judge→apply
+  loop from one initial ask to a fully re-evaluated vault without any
+  further manual step.
 - `--dry-run` requires `--answers` (rejected as a usage error without it,
   since derive never writes regardless of the flag) and previews the
-  exact rename/rewrite the apply would perform.
-- Known gap (#724): the chunk index does not self-heal automatically
-  after a rename — `engram ingest --auto` indexes the new path cleanly
-  but leaves the old path's manifest entry behind; run plain
-  `engram prune` (not `--duplicates` — a renamed note's content hash
-  differs, so it isn't a byte-identical duplicate) to detach it.
+  exact rename/rewrite the apply would perform, without touching the
+  chunk index. It's an optional inspection tool, not a required step —
+  a normal apply run's own fingerprint-gating is the safety net.
 
 ### `engram count` (subcommand)
 Read-only aggregation over the vault, deliberately off the query/similarity path

@@ -52,9 +52,9 @@
 
 ## 5. Docs + close-out
 
-- [ ] 5.1 Update `docs/GLOSSARY.md`'s `--reparent-luhmann` entry: replace the "known gap (#724)"
+- [x] 5.1 Update `docs/GLOSSARY.md`'s `--reparent-luhmann` entry: replace the "known gap (#724)"
       language with a description of the automatic mechanical pipeline (ingest + prune folded
       into apply) and the next-command/loop-until-done output contract.
-- [ ] 5.2 Sync `openspec/specs/update-reparent-luhmann-batch/spec.md` with this change's delta
+- [x] 5.2 Sync `openspec/specs/update-reparent-luhmann-batch/spec.md` with this change's delta
       (MODIFIED requirements + the REMOVED "manual prune step" requirement), then archive.
 - [ ] 5.3 Close GitHub issue #724, referencing this change.
