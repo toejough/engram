@@ -29,6 +29,16 @@ type UpdateArgs struct {
 	// vocab.index.md files to the current tags-based format (#712); honors
 	// --dry-run. See regenVocab (vocab_regen.go) for the mechanism.
 	RegenVocab bool `targ:"flag,name=regen-vocab,desc=migrate old-format vocab files to the current tags format"`
+	// ReparentLuhmann runs the derive/answer/apply batch re-evaluation of
+	// existing top-level notes (see luhmann_reparent_apply.go). No --answers:
+	// derive-only, prints candidates, writes nothing. --answers <file>:
+	// applies the disposition judgments (or, with --dry-run, previews them).
+	// Short-circuits the rest of `engram update` entirely — this is a
+	// standalone one-shot command, not a step folded into a routine refresh.
+	ReparentLuhmann bool `targ:"flag,name=reparent-luhmann,desc=derive/apply batch re-parenting of top-level notes"`
+	// Answers names the --answers JSON file for --reparent-luhmann's apply
+	// phase (design.md Decision 2). Empty means derive-only.
+	Answers string `targ:"flag,name=answers,desc=JSON answer file for --reparent-luhmann (see the emitted payload)"`
 }
 
 // unexported constants.
@@ -87,8 +97,9 @@ type updateDeps struct {
 	// via cli.Deps.Exit). runUpdate calls it with the re-execed child's
 	// exit code BEFORE the vault/vocab/chunk-check block, so the parent
 	// never runs those checks after handing off (design D8).
-	Exit  func(int)
-	Vocab VocabDeps // used only when args.RegenVocab is set (#712)
+	Exit     func(int)
+	Vocab    VocabDeps         // used only when args.RegenVocab is set (#712)
+	Reparent RenameRewriteDeps // used only when args.ReparentLuhmann is set
 }
 
 // updateEnvFromDeps adapts cli.Deps' env funcs to update.Env.
@@ -334,6 +345,21 @@ func finishUpdate(stdout io.Writer, report update.Report, runErr error) error {
 
 func harnessFailed(harness update.HarnessReport) bool { return harness.Err != nil }
 
+// newRenameRewriteDeps composes RenameRewriteDeps from the injected edge Deps
+// (pure composition — no direct I/O; #700).
+func newRenameRewriteDeps(d Deps) RenameRewriteDeps {
+	vfs := newVaultFS(d.FS)
+
+	return RenameRewriteDeps{
+		ListMD:   vfs.ListMD,
+		ReadFile: vfs.ReadFile,
+		WriteFile: func(path string, data []byte) error {
+			return d.FS.WriteFileAtomic(path, data, vocabNotePerm)
+		},
+		Rename: d.FS.Rename,
+	}
+}
+
 // newUpdateDeps composes update's dependency surface from cli.Deps.
 func newUpdateDeps(d Deps) updateDeps {
 	return updateDeps{
@@ -345,8 +371,9 @@ func newUpdateDeps(d Deps) updateDeps {
 			getwd:       d.Getwd,
 			userHomeDir: d.UserHomeDir,
 		},
-		Exit:  d.Exit,
-		Vocab: newVocabDeps(d),
+		Exit:     d.Exit,
+		Vocab:    newVocabDeps(d),
+		Reparent: newRenameRewriteDeps(d),
 	}
 }
 
@@ -406,6 +433,26 @@ func reexecArgsFrom(args UpdateArgs) []string {
 
 // runUpdate invokes Updater.Run over the injected dependency surface.
 func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.Writer) error {
+	// --reparent-luhmann is a standalone one-shot command (design.md): it
+	// short-circuits the rest of `engram update` (binary install, harness
+	// sync, vocab/chunk checks) entirely rather than folding in as an extra
+	// step the way --regen-vocab does.
+	if args.ReparentLuhmann {
+		home, homeErr := deps.Env.UserHomeDir()
+		if homeErr != nil {
+			return fmt.Errorf("update --reparent-luhmann: resolving home: %w", homeErr)
+		}
+
+		vaultPath := resolveVault("", home, deps.Env.Getenv)
+
+		reparentErr := RunReparentLuhmann(vaultPath, args.Answers, args.DryRun, deps.Reparent, stdout)
+		if reparentErr != nil {
+			return fmt.Errorf("update: %w", reparentErr)
+		}
+
+		return nil
+	}
+
 	updater := &update.Updater{
 		FS:      deps.FS,
 		Cmd:     deps.Cmd,

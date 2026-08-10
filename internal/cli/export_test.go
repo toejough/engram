@@ -648,6 +648,15 @@ func ExportNewUpdateDepsFrom(fs update.Filesystem, cmd update.Commander, env upd
 	return updateDeps{FS: fs, Cmd: cmd, Env: env}
 }
 
+// ExportNewUpdateDepsFromWithReparent is ExportNewUpdateDepsFrom plus an
+// explicit RenameRewriteDeps, for tests driving `engram update
+// --reparent-luhmann`.
+func ExportNewUpdateDepsFromWithReparent(
+	fs update.Filesystem, cmd update.Commander, env update.Env, reparent RenameRewriteDeps,
+) updateDeps {
+	return updateDeps{FS: fs, Cmd: cmd, Env: env, Reparent: reparent}
+}
+
 // ExportNewUpdateDepsFromWithVocab is ExportNewUpdateDepsFrom plus an
 // explicit VocabDeps, for tests driving `engram update --regen-vocab`.
 func ExportNewUpdateDepsFromWithVocab(
@@ -766,6 +775,10 @@ func ExportRenderQueryPayloadRefitPending(pending bool) (string, error) {
 
 	return buf.String(), err
 }
+
+// ExportReparentIDLess exposes reparentIDLess for direct unit testing of its
+// numeric and non-numeric-fallback ordering branches.
+func ExportReparentIDLess(a, b string) bool { return reparentIDLess(a, b) }
 
 // ExportResolveContentBudget exposes resolveContentBudget for tests.
 func ExportResolveContentBudget(raw int) int {

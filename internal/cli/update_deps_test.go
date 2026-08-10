@@ -178,6 +178,32 @@ func TestNewUpdateDeps_FSAdapterReadsThroughEdgeFS(t *testing.T) {
 	g.Expect(info.IsDir()).To(BeFalse())
 }
 
+// TestNewUpdateDeps_ReparentDepsWireThrough verifies newUpdateDeps composes
+// deps.Reparent (RenameRewriteDeps) from the injected edge FS: ListMD/
+// ReadFile read through fstest.MapFS, and WriteFile/Rename delegate to the
+// FS's WriteFileAtomic/Rename (both unimplemented on this fake, so both
+// error rather than silently no-op).
+func TestNewUpdateDeps_ReparentDepsWireThrough(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	deps := cli.ExportNewUpdateDeps(cli.Deps{FS: updateFakeEdgeFS{
+		"vault/1.2026-01-01.alpha.md": &fstest.MapFile{Data: []byte("body")},
+	}})
+
+	names, listErr := deps.Reparent.ListMD("vault")
+	g.Expect(listErr).NotTo(HaveOccurred())
+	g.Expect(names).To(ContainElement("1.2026-01-01.alpha.md"))
+
+	data, readErr := deps.Reparent.ReadFile("vault/1.2026-01-01.alpha.md")
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(data).To(Equal([]byte("body")))
+
+	g.Expect(deps.Reparent.WriteFile("vault/x.md", []byte("x"))).To(MatchError(errUnsupported))
+	g.Expect(deps.Reparent.Rename("vault/a.md", "vault/b.md")).To(MatchError(errUnsupported))
+}
+
 // unexported variables.
 var (
 	errUnsupported = errors.New("updateFakeEdgeFS: write path not supported")

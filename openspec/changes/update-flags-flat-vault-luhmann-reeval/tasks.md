@@ -39,27 +39,27 @@
 
 ## 4. Derive phase
 
-- [ ] 4.1 Write failing tests for candidate derivation: for each top-level note, top-K
+- [x] 4.1 Write failing tests for candidate derivation: for each top-level note, top-K
       (K=3, revisit if needed) nearest neighbors by embedding-sidecar cosine similarity above a
       similarity floor (pick and document a starting floor value; make it easy to tune).
       Cover: no candidates above floor → empty payload; candidates found → payload includes
       note IDs, similarity scores, and enough content excerpt for an agent to judge relation.
-- [ ] 4.2 Implement derive. Include a `fingerprint` of vault state (mirror `vocab refit`'s
+- [x] 4.2 Implement derive. Include a `fingerprint` of vault state (mirror `vocab refit`'s
       fingerprint mechanism/format if reusable).
-- [ ] 4.3 Wire `--reparent-luhmann` (no `--answers`) to run derive-only and print the payload,
+- [x] 4.3 Wire `--reparent-luhmann` (no `--answers`) to run derive-only and print the payload,
       writing nothing.
 
 ## 5. Apply phase
 
-- [ ] 5.1 Write failing tests for answer parsing: `{"reparenting": [...], "fingerprint": "..."}`
+- [x] 5.1 Write failing tests for answer parsing: `{"reparenting": [...], "fingerprint": "..."}`
       → for each entry, position `continuation`/`sibling` computes a new ID via the existing
       `nextChild`/`nextSibling` (from `internal/cli/luhmann.go`, unmodified) against the
       vault's current ID set, applied in ascending original-ID order (design.md Decision 3);
       position `top` is a no-op (no rename).
-- [ ] 5.2 Wire the apply phase to: validate the fingerprint against current vault state (stale
+- [x] 5.2 Wire the apply phase to: validate the fingerprint against current vault state (stale
       → reject with a clear error, no writes — mirrors `vocab refit`'s stale-names handling);
       compute the full rename map; call the Section 3 helper to rename + rewrite backlinks.
-- [ ] 5.3 Wire `--dry-run` (requires `--answers`; reject with a usage error otherwise) to print
+- [x] 5.3 Wire `--dry-run` (requires `--answers`; reject with a usage error otherwise) to print
       the same rename/rewrite map the apply phase would produce, without calling the writing
       path.
 

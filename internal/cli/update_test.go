@@ -456,6 +456,34 @@ func TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport(t *testing.T) {
 	g.Expect(out).NotTo(ContainSubstring("old-format vocab files found"))
 }
 
+// TestRunUpdate_ReparentLuhmannFlag_ShortCircuitsToDeriveOnly verifies
+// runUpdate routes --reparent-luhmann to RunReparentLuhmann BEFORE running
+// Updater.Run (a nil update.Filesystem/Commander here would panic if the
+// normal install/sync flow ran) and that derive-only output reaches stdout.
+func TestRunUpdate_ReparentLuhmannFlag_ShortCircuitsToDeriveOnly(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files := map[string][]byte{
+		"/vault/1.2026-01-01.alpha.md": []byte("---\ntype: fact\nluhmann: \"1\"\ncreated: 2026-01-01\n---\n\nbody\n"),
+	}
+
+	reparentDeps := cli.RenameRewriteDeps{
+		ListMD:    func(string) ([]string, error) { return []string{"1.2026-01-01.alpha.md"}, nil },
+		ReadFile:  func(path string) ([]byte, error) { return files[path], nil },
+		WriteFile: func(string, []byte) error { return nil },
+		Rename:    func(string, string) error { return nil },
+	}
+
+	deps := cli.ExportNewUpdateDepsFromWithReparent(nil, nil, fixedHomeUpdateEnv{vault: "/vault"}, reparentDeps)
+
+	stdout := &bytes.Buffer{}
+	err := cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{ReparentLuhmann: true}, deps, stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stdout.String()).To(ContainSubstring("no candidates found"))
+}
+
 func TestRunUpdate_WithGuidanceFlagMapsToOptions(t *testing.T) {
 	t.Parallel()
 
@@ -1471,6 +1499,23 @@ func TestWriteUpdateReport_VocabSelfTagHint(t *testing.T) {
 	g.Expect(both.String()).To(ContainSubstring("old-format vocab"))
 	g.Expect(both.String()).To(ContainSubstring("vocab tag-definitions"))
 }
+
+// fixedHomeUpdateEnv is a fake update.Env with a fixed home dir and
+// ENGRAM_VAULT_PATH override, so --reparent-luhmann wiring tests don't touch
+// the real filesystem or home directory.
+type fixedHomeUpdateEnv struct{ vault string }
+
+func (e fixedHomeUpdateEnv) Getenv(key string) string {
+	if key == "ENGRAM_VAULT_PATH" {
+		return e.vault
+	}
+
+	return ""
+}
+
+func (fixedHomeUpdateEnv) Getwd() (string, error) { return "/cwd", nil }
+
+func (fixedHomeUpdateEnv) UserHomeDir() (string, error) { return "/home/test", nil }
 
 // liveUpdateEnv adapts the real process environment to update.Env for the
 // dry-run smoke tests (production Env is composed from cli.Deps).
