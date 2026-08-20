@@ -15,7 +15,8 @@ import (
 // CommonLearnArgs holds shared flags for learn subcommands.
 type CommonLearnArgs struct {
 	Slug       string   `targ:"flag,name=slug,desc=kebab-case tag for the filename"`
-	Vault      string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"` //nolint:lll // unbreakable env+desc struct-tag string
+	Vault      string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                          //nolint:lll // unbreakable env+desc struct-tag string
+	VaultName  string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on the note's vault: field (default \"personal\")"` //nolint:lll // unbreakable env+desc struct-tag string
 	Target     string   `targ:"flag,name=target,desc=Luhmann ID this note relates to (empty for top-level)"`
 	Position   string   `targ:"flag,name=position,desc=top|continuation|sibling"`
 	Source     string   `targ:"flag,name=source,required,desc=provenance string for the source field (required)"`
@@ -111,6 +112,7 @@ func amendResituateTargets(
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 		targ.Targ(func(ctx context.Context, a AmendArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
 			errHandler(RunAmend(withLog(ctx), a, newAmendDeps(deps), deps.Stdout))
 		}).Name("amend").Description("Amend a note in place: supersedes, provenance-merge, field-replacement, activate"),
@@ -215,10 +217,12 @@ func learnUpdateTargets(
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, deps, deps.Stdout))
 			}).Name("feedback").Description("Write a feedback note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, deps, deps.Stdout))
 			}).Name("fact").Description("Write a fact note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnQAArgs) {

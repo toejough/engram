@@ -25,7 +25,9 @@ func TestAutoEmbedNote_EmbedFailureWarnsButReturns(t *testing.T) {
 	var wroteSidecar bool
 
 	deps := cli.LearnDeps{
-		Embedder: failingEmbedder{},
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Embedder:   failingEmbedder{},
 		WriteSidecar: func(string, []byte) error {
 			wroteSidecar = true
 
@@ -52,7 +54,9 @@ func TestAutoEmbedNote_HappyPathWritesValidSidecar(t *testing.T) {
 	var capturedBytes []byte
 
 	deps := cli.LearnDeps{
-		Embedder: successEmbedder{},
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Embedder:   successEmbedder{},
 		WriteSidecar: func(path string, data []byte) error {
 			capturedPath = path
 			capturedBytes = data
@@ -85,6 +89,8 @@ func TestAutoEmbedNote_NilEmbedderIsNoOp(t *testing.T) {
 	t.Parallel()
 
 	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		WriteSidecar: func(string, []byte) error {
 			t.Fatal("WriteSidecar should not be called when Embedder is nil")
 
@@ -101,7 +107,9 @@ func TestAutoEmbedNote_NilWriterIsNoOp(t *testing.T) {
 	t.Parallel()
 
 	deps := cli.LearnDeps{
-		Embedder: failingEmbedder{},
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Embedder:   failingEmbedder{},
 	}
 
 	cli.ExportAutoEmbedNote(t.Context(), deps, "1.foo.md", "body")
@@ -117,6 +125,8 @@ func TestAutoEmbedNote_WriteFailureLoggedButSwallowed(t *testing.T) {
 	var warned bool
 
 	deps := cli.LearnDeps{
+		DetectRepo:   func(context.Context) string { return "" },
+		DetectUser:   func(context.Context) string { return "" },
 		Embedder:     successEmbedder{},
 		WriteSidecar: func(string, []byte) error { return errors.New("disk full") },
 		LogWarning:   func(string, ...any) { warned = true },

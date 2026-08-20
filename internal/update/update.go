@@ -333,6 +333,15 @@ type Report struct {
 	// the notice naming `engram prune --duplicates`, which the user runs
 	// explicitly.
 	ChunkIndexHasPrunableDuplicates bool
+	// VaultHasNotesMissingIdentity is true when the vault holds at least one
+	// note with no repo:/user:/vault: provenance fields (both user: and
+	// vault: empty — the unambiguous signal that the note predates the
+	// note-origin-identity capability, since every note written since always
+	// gets a non-empty user: and vault:, even when repo: is legitimately
+	// omitted for a non-git working directory). Set by the cli package after
+	// Run returns (via notesMissingIdentityFields) — Updater.Run itself
+	// never touches vault paths; this field is opaque data.
+	VaultHasNotesMissingIdentity bool
 
 	// ReexecExitCode is set (non-nil) iff this run's install succeeded and
 	// re-exec of the freshly installed binary was spawned and awaited
@@ -380,6 +389,16 @@ type Report struct {
 	// the post-regen re-tag pass. Always 0 under --dry-run, since nothing was
 	// actually regenerated to re-tag against.
 	VocabRegenNotesAssigned int
+
+	// IdentityBackfillRan is true when `engram update --backfill-identity`
+	// executed the backfill path this run (set by the cli package after Run
+	// returns, same as VocabRegenRan above). When true, the CLI report
+	// renders the backfill summary below INSTEAD of the plain notice — a run
+	// that just backfilled never repeats the notice it acted on.
+	IdentityBackfillRan bool
+	// IdentityBackfillNotesStamped is the count of notes stamped with fresh
+	// repo:/user:/vault: fields (or, under --dry-run, that would be stamped).
+	IdentityBackfillNotesStamped int
 
 	Harnesses []HarnessReport
 }

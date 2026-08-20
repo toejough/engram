@@ -27,6 +27,10 @@ type Deps struct {
 	Getwd func() (string, error)
 	// UserHomeDir returns the user's home directory (production: os.UserHomeDir).
 	UserHomeDir func() (string, error)
+	// Username returns the OS username of the process running engram
+	// (production: os/user.Current().Username). Used as the fallback when
+	// git config user.email resolves to nothing.
+	Username func() (string, error)
 	// FS is the filesystem edge (production: cmd/engram's osFS).
 	FS EdgeFS
 	// Lock acquires exclusive cross-process file locks (production: flockLocker).

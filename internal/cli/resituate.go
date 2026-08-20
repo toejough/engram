@@ -239,6 +239,9 @@ func rerenderFact(frontmatter, body []byte, situation string) (string, error) {
 		Luhmann:   string(doc.Luhmann),
 		Source:    doc.Source,
 		Project:   doc.Project,
+		Repo:      doc.Repo,
+		User:      doc.User,
+		Vault:     doc.Vault,
 		Issue:     string(doc.Issue),
 		Tier:      doc.Tier,
 	}
@@ -269,6 +272,9 @@ func rerenderFeedback(frontmatter, body []byte, situation string) (string, error
 		Luhmann:   string(doc.Luhmann),
 		Source:    doc.Source,
 		Project:   doc.Project,
+		Repo:      doc.Repo,
+		User:      doc.User,
+		Vault:     doc.Vault,
 		Issue:     string(doc.Issue),
 		Tier:      doc.Tier,
 	}

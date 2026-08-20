@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"syscall"
 	"time"
@@ -107,6 +108,17 @@ func procPrimitives() cli.ProcPrims {
 		Now:         time.Now,
 		Getwd:       os.Getwd,
 		UserHomeDir: os.UserHomeDir,
+		Username: func() (string, error) {
+			// Doctrine survivor: single call + the one field extraction
+			// (*user.User -> string) that a func() (string, error)
+			// signature requires; raw error out, internal/cli wraps.
+			u, err := user.Current()
+			if err != nil {
+				return "", err //nolint:wrapcheck // raw error contract: internal/cli wraps once
+			}
+
+			return u.Username, nil
+		},
 		OpenDebugFile: func(path string, perm fs.FileMode) (cli.WriteSyncer, error) {
 			// Path comes from operator-set ENGRAM_DEBUG_LOG, not user input.
 			//nolint:gosec // operator-controlled path

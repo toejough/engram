@@ -1331,7 +1331,9 @@ func TestRunAmend_VocabAssignment_SkipsWhenSidecarMissing(t *testing.T) {
 	var written []byte
 
 	deps := cli.AmendDeps{
-		Lock: func(string) (func(), error) { return func() {}, nil },
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -1407,7 +1409,9 @@ func TestRunAmend_VocabAssignment_WritesVocabWhenTermsPresent(t *testing.T) {
 	var written []byte
 
 	deps := cli.AmendDeps{
-		Lock: func(string) (func(), error) { return func() {}, nil },
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -1461,6 +1465,8 @@ func TestRunLearn_VocabAssignment_SkipsWhenDepsNotWired(t *testing.T) {
 	g := NewWithT(t)
 
 	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
 		StatDir:       func(string) error { return nil },
@@ -1500,6 +1506,8 @@ func TestRunLearn_VocabAssignment_SkipsWhenNoTerms(t *testing.T) {
 	writeNoteCalled := false
 
 	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
 		StatDir:       func(string) error { return nil },
@@ -1548,6 +1556,8 @@ func TestRunLearn_VocabAssignment_SkipsWhenSidecarMissing(t *testing.T) {
 	writeNoteCalled := false
 
 	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
 		StatDir:       func(string) error { return nil },
@@ -1617,6 +1627,8 @@ func TestRunLearn_VocabAssignment_WritesVocabWhenTermsPresent(t *testing.T) {
 	var updatedContent []byte
 
 	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
 		StatDir:       func(string) error { return nil },

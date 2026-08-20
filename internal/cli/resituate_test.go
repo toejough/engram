@@ -541,6 +541,9 @@ object: gomega calls as nil guards
 luhmann: "9aa"
 created: "2026-05-10"
 source: agent
+repo: git@github.com:example/vault.git
+user: agent@example.com
+vault: personal
 issue: "642"
 ---
 
@@ -559,6 +562,9 @@ action: add an explicit nil guard before the field access
 luhmann: "9ac"
 created: "2026-05-12"
 source: agent
+repo: git@github.com:example/vault.git
+user: agent@example.com
+vault: personal
 ---
 
 Lesson learned: when debugging a flaky nilaway guard, add an explicit nil guard before the field access.

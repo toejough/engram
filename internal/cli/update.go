@@ -39,6 +39,11 @@ type UpdateArgs struct {
 	// Answers names the --answers JSON file for --reparent-luhmann's apply
 	// phase (design.md Decision 2). Empty means derive-only.
 	Answers string `targ:"flag,name=answers,desc=JSON answer file for --reparent-luhmann (see the emitted payload)"`
+	// BackfillIdentity stamps repo:/user:/vault: provenance onto notes
+	// written before the note-origin-identity capability existed (detected
+	// via notesMissingIdentityFields); honors --dry-run. See backfillIdentity
+	// (identity.go) for the mechanism.
+	BackfillIdentity bool `targ:"flag,name=backfill-identity,desc=stamp repo:/user:/vault: provenance onto notes missing it"` //nolint:lll // unbreakable struct-tag string
 }
 
 // unexported constants.
@@ -47,6 +52,9 @@ const (
 		"(preview with `engram prune --duplicates --dry-run`)\n"
 	emptyChunkFilesNotice = "empty chunk-index files found — run `engram prune --empty` to clear them " +
 		"(preview with `engram prune --empty --dry-run`)\n"
+	identityBackfillNotice = "notes missing repo:/user:/vault: provenance found — run " +
+		"`engram update --backfill-identity` to stamp them " +
+		"(preview with `engram update --backfill-identity --dry-run`)\n"
 	luhmannBranchingNotice = "vault holds only top-level notes — run `engram update --reparent-luhmann` " +
 		"to derive and apply branching\n"
 	oldVocabFilePrefix = "vocab."
@@ -100,6 +108,7 @@ type updateDeps struct {
 	Exit     func(int)
 	Vocab    VocabDeps    // used only when args.RegenVocab is set (#712)
 	Reparent ReparentDeps // used only when args.ReparentLuhmann is set
+	Identity IdentityDeps // used only when args.BackfillIdentity is set
 }
 
 // updateEnvFromDeps adapts cli.Deps' env funcs to update.Env.
@@ -378,6 +387,7 @@ func newUpdateDeps(d Deps) updateDeps {
 			Ingest: newIngestDeps(d),
 			Prune:  newPruneDeps(d),
 		},
+		Identity: newIdentityDeps(d),
 	}
 }
 
@@ -422,7 +432,8 @@ func pluralFile(n int) string {
 // Updater.Run never re-execs on a dry run in the first place (resolveSource
 // skips install), so the flag would never reach here regardless.
 func reexecArgsFrom(args UpdateArgs) []string {
-	reexecArgs := make([]string, 0, 2) //nolint:mnd // WithGuidance + RegenVocab, the only re-execable flags
+	//nolint:mnd // WithGuidance + RegenVocab + BackfillIdentity, the only re-execable flags
+	reexecArgs := make([]string, 0, 3)
 
 	if args.WithGuidance {
 		reexecArgs = append(reexecArgs, "--with-guidance")
@@ -432,7 +443,43 @@ func reexecArgsFrom(args UpdateArgs) []string {
 		reexecArgs = append(reexecArgs, "--regen-vocab")
 	}
 
+	if args.BackfillIdentity {
+		reexecArgs = append(reexecArgs, "--backfill-identity")
+	}
+
 	return reexecArgs
+}
+
+// runPostUpdateChecks runs the vault/vocab/chunk-check detector battery and
+// the opt-in --regen-vocab/--backfill-identity actions, mutating report in
+// place. Split out of runUpdate to keep the "belongs to whichever process
+// actually ran the sync phase" block (see runUpdate's D8 comment) within the
+// house per-function length/nesting budget.
+func runPostUpdateChecks(ctx context.Context, args UpdateArgs, deps updateDeps, report *update.Report) error {
+	vaultPath := resolveVault("", report.Home, deps.Env.Getenv)
+	report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, deps.FS)
+	report.VaultHasUntaggedVocabDefinitions = vocabDefinitionsMissingSelfTags(vaultPath, deps.FS)
+	report.VaultHasOnlyTopLevelNotes = vaultHasOnlyTopLevelNotes(vaultPath, deps.FS)
+	chunksDir := ResolveChunksDir("", report.Home, deps.Env.Getenv)
+	report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, deps.FS)
+	report.ChunkIndexHasPrunableDuplicates = chunkIndexHasPrunableDuplicates(chunksDir, deps.FS)
+	report.VaultHasNotesMissingIdentity = notesMissingIdentityFields(vaultPath, deps.FS)
+
+	if args.RegenVocab {
+		regenErr := applyVocabRegen(ctx, vaultPath, deps.Vocab, args.DryRun, deps.FS, report)
+		if regenErr != nil {
+			return fmt.Errorf("update: %w", regenErr)
+		}
+	}
+
+	if args.BackfillIdentity {
+		backfillErr := applyIdentityBackfill(ctx, vaultPath, deps.Identity, args.DryRun, deps.FS, report)
+		if backfillErr != nil {
+			return fmt.Errorf("update: %w", backfillErr)
+		}
+	}
+
+	return nil
 }
 
 // runUpdate invokes Updater.Run over the injected dependency surface.
@@ -487,19 +534,9 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 	}
 
 	if runErr == nil {
-		vaultPath := resolveVault("", report.Home, deps.Env.Getenv)
-		report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, deps.FS)
-		report.VaultHasUntaggedVocabDefinitions = vocabDefinitionsMissingSelfTags(vaultPath, deps.FS)
-		report.VaultHasOnlyTopLevelNotes = vaultHasOnlyTopLevelNotes(vaultPath, deps.FS)
-		chunksDir := ResolveChunksDir("", report.Home, deps.Env.Getenv)
-		report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, deps.FS)
-		report.ChunkIndexHasPrunableDuplicates = chunkIndexHasPrunableDuplicates(chunksDir, deps.FS)
-
-		if args.RegenVocab {
-			regenErr := applyVocabRegen(ctx, vaultPath, deps.Vocab, args.DryRun, deps.FS, &report)
-			if regenErr != nil {
-				return fmt.Errorf("update: %w", regenErr)
-			}
+		checksErr := runPostUpdateChecks(ctx, args, deps, &report)
+		if checksErr != nil {
+			return checksErr
 		}
 	}
 
@@ -758,6 +795,44 @@ func writeHarnessSections(buffer *bytes.Buffer, report update.Report) []string {
 	return successes
 }
 
+// writeIdentityBackfillHint prints the `engram update --backfill-identity`
+// notice when the vault holds notes missing repo:/user:/vault: provenance,
+// or — when this run just backfilled — the summary instead (never both, so
+// a run that just acted never repeats the notice it acted on).
+func writeIdentityBackfillHint(buffer *bytes.Buffer, report update.Report) {
+	if report.IdentityBackfillRan {
+		writeIdentityBackfillReport(buffer, report)
+
+		return
+	}
+
+	if report.VaultHasNotesMissingIdentity {
+		buffer.WriteString(identityBackfillNotice)
+	}
+}
+
+// writeIdentityBackfillReport renders the --backfill-identity summary: a
+// one-line no-op notice when there was nothing to backfill, else a
+// stamped/would-stamp line (prefixed "[dry-run]" and phrased "would stamp"
+// for a dry run) with the note count.
+func writeIdentityBackfillReport(buffer *bytes.Buffer, report update.Report) {
+	if report.IdentityBackfillNotesStamped == 0 {
+		buffer.WriteString("update --backfill-identity: nothing to backfill\n")
+
+		return
+	}
+
+	prefix := dryRunPrefix(report.DryRun)
+	verb := "stamped"
+
+	if report.DryRun {
+		verb = "would stamp"
+	}
+
+	fmt.Fprintf(buffer, "%supdate --backfill-identity: %s %d note(s) with repo:/user:/vault: provenance\n",
+		prefix, verb, report.IdentityBackfillNotesStamped)
+}
+
 // writeLuhmannBranchingNotice prints a one-line notice naming `engram update
 // --reparent-luhmann` when the vault holds only top-level (unbranched)
 // notes. Silent otherwise — a vault that already has branched notes never
@@ -842,6 +917,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	writeLuhmannBranchingNotice(&buffer, report)
 	writeEmptyChunkHint(&buffer, report)
 	writeDuplicatesHint(&buffer, report)
+	writeIdentityBackfillHint(&buffer, report)
 
 	_, err := out.Write(buffer.Bytes())
 	if err != nil {

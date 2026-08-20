@@ -48,8 +48,10 @@ func TestApplyVocabAssignmentAfterAmend_TriggerFires(t *testing.T) {
 	var centroidsWritten []byte
 
 	deps := cli.AmendDeps{
-		Now:    func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
-		ListMD: func(string) ([]string, error) { return names, nil },
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		ListMD:     func(string) ([]string, error) { return names, nil },
 		Read: func(path string) ([]byte, error) {
 			if strings.HasSuffix(path, "vocab.centroids.json") {
 				return centroidsData, nil
@@ -163,6 +165,8 @@ func TestRunAmend_Activate_BumpsLastUsed(t *testing.T) {
 	var writtenPaths []string
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -228,6 +232,8 @@ func TestRunAmend_Activate_PreservesLastUsedAcrossReEmbed(t *testing.T) {
 
 	embedCalled := false
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -282,6 +288,48 @@ func TestRunAmend_Activate_PreservesLastUsedAcrossReEmbed(t *testing.T) {
 		"activate must stamp today's LastUsed on the re-embedded sidecar")
 }
 
+// TestRunAmend_AddsIdentityFieldsToPreExistingNote verifies amending a note
+// written before this capability existed (no repo:/user:/vault: fields at
+// all) adds them, same as any other amend.
+func TestRunAmend_AddsIdentityFieldsToPreExistingNote(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := makeFactNote("ctx", "A") // no repo:/user:/vault: at all
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal"}
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got := string(written)
+	g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"))
+	g.Expect(got).To(ContainSubstring("user: agent@example.com"))
+	g.Expect(got).To(ContainSubstring("vault: personal"))
+}
+
 func TestRunAmend_FieldReplacement_Fact_SubjectOnly(t *testing.T) {
 	t.Parallel()
 
@@ -294,6 +342,8 @@ func TestRunAmend_FieldReplacement_Fact_SubjectOnly(t *testing.T) {
 	var written []byte
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -347,6 +397,8 @@ func TestRunAmend_FieldReplacement_Feedback_ActionAndProvMerge(t *testing.T) {
 	var written []byte
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -395,6 +447,8 @@ func TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
 
 	embedCalled := false
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -424,6 +478,48 @@ func TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
 	g.Expect(embedCalled).To(BeFalse(), "no-content-change amend must not trigger re-embed")
 }
 
+// TestRunAmend_IdentityOnlyReStamp_DoesNotTriggerReEmbed verifies that an
+// amend with no content-changing flags — one that only re-stamps identity —
+// is a provenance-only change and never triggers a re-embed (matches the
+// existing supersedes-only/provenance-only category, amend.go:171).
+func TestRunAmend_IdentityOnlyReStamp_DoesNotTriggerReEmbed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := makeFactNote("ctx", "A")
+
+	embedCalled := false
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now:      func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+		Embedder: &spyEmbedder{called: &embedCalled},
+	}
+	// No content flags set — this amend only re-stamps identity.
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal"}
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(embedCalled).To(BeFalse(), "identity-only re-stamp is provenance-only and must not trigger re-embed")
+}
+
 // TestRunAmend_LocksVaultAroundReadModifyWrite asserts that RunAmend acquires
 // the vault lock BEFORE reading the note and releases it AFTER writing, so
 // concurrent amend/resituate/learn runs cannot produce lost updates.
@@ -438,6 +534,8 @@ func TestRunAmend_LocksVaultAroundReadModifyWrite(t *testing.T) {
 	var order []string
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Lock: func(string) (func(), error) {
 			order = append(order, "lock")
 
@@ -505,6 +603,8 @@ func TestRunAmend_MalformedCreated_Errors(t *testing.T) {
 	)
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -531,6 +631,8 @@ func TestRunAmend_NoFrontmatter_Errors(t *testing.T) {
 	const basename = "1aa.2026-01-01.raw.md"
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -555,6 +657,8 @@ func TestRunAmend_NoteNotFound(t *testing.T) {
 	g := NewWithT(t)
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{}, nil
 		},
@@ -594,6 +698,8 @@ func TestRunAmend_PreservesTagsFrontmatter(t *testing.T) {
 	var written []byte
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -636,6 +742,8 @@ func TestRunAmend_ProvMerge_ChunkSources_Written(t *testing.T) {
 	var written []byte
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -673,6 +781,8 @@ func TestRunAmend_ProvMerge_UnresolvedChunkSource_Errors(t *testing.T) {
 	const basename = "1aa.2026-01-01.test.md"
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -707,6 +817,8 @@ func TestRunAmend_ReEmbedFailure_WarnsAndContinues(t *testing.T) {
 	var logged string
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},
@@ -734,6 +846,103 @@ func TestRunAmend_ReEmbedFailure_WarnsAndContinues(t *testing.T) {
 	g.Expect(logged).To(ContainSubstring("embed failed"))
 }
 
+// TestRunAmend_ReStampsIdentityFields verifies amend overwrites a note's
+// repo:/user:/vault: with the current environment's freshly detected
+// values, even when the note's existing values differ — identity fields
+// track the last writer, not the note's origin.
+func TestRunAmend_ReStampsIdentityFields(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := []byte(
+		"---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: B\n" +
+			"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n" +
+			"repo: git@github.com:other/repo.git\nuser: someone-else@example.com\nvault: other-vault\n" +
+			"---\n\nInformation learned: when in ctx, A has B.\n\n",
+	)
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal"}
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got := string(written)
+	g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"))
+	g.Expect(got).To(ContainSubstring("user: agent@example.com"))
+	g.Expect(got).To(ContainSubstring("vault: personal"))
+	g.Expect(got).NotTo(ContainSubstring("other/repo.git"))
+	g.Expect(got).NotTo(ContainSubstring("someone-else"))
+}
+
+// TestRunAmend_RepoReStamp_IgnoresProjectField verifies amend's repo:
+// re-stamp always uses fresh detection from the current working directory,
+// never the note's project: field — unlike backfill, an amend is assumed to
+// run from the repo it's actually about (design.md).
+func TestRunAmend_RepoReStamp_IgnoresProjectField(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := []byte(
+		"---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: B\n" +
+			"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nproject: other-project\n" +
+			"---\n\nInformation learned: when in ctx, A has B.\n\n",
+	)
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal"}
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got := string(written)
+	g.Expect(got).To(ContainSubstring("repo: git@github.com:example/vault.git"),
+		"amend's repo: is always fresh detection, ignoring project:")
+	g.Expect(got).NotTo(ContainSubstring("repo: other-project"))
+}
+
 // TestRunAmend_ResolvesTargetWithMdSuffix asserts that RunAmend resolves a
 // --target passed as "basename.md" (the form emitted by the recall skill's
 // Step-2.5C amend calls) rather than returning "note not found".
@@ -748,6 +957,8 @@ func TestRunAmend_ResolvesTargetWithMdSuffix(t *testing.T) {
 	writeCalled := false
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1"}}, nil
 		},
@@ -864,6 +1075,8 @@ func TestRunAmend_UnknownNoteType_Errors(t *testing.T) {
 	)
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
 		},

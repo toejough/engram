@@ -1133,6 +1133,63 @@ func TestWriteUpdateReport_GuidanceCanonicalPathHint_PiOmitted(t *testing.T) {
 	g.Expect(buffer.String()).NotTo(ContainSubstring("canonical:"))
 }
 
+// TestWriteUpdateReport_LuhmannBranchingHint pins the detect-and-notify
+// surface for a flat (all-top-level) vault: when VaultHasOnlyTopLevelNotes
+// is true, the report names `engram update --reparent-luhmann` inline; a
+// vault that already has branched notes prints nothing. This is a read-only
+// notice — nothing here ever mutates a vault note.
+func TestWriteUpdateReport_IdentityBackfillHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasNotesMissingIdentity: true})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("engram update --backfill-identity"))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasNotesMissingIdentity: false})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("backfill-identity"))
+}
+
+// TestWriteUpdateReport_IdentityBackfillReport verifies the --backfill-identity
+// summary (run) supersedes the plain notice, mirroring
+// TestWriteUpdateReport_VocabRegenReport's shape.
+func TestWriteUpdateReport_IdentityBackfillReport(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var nothing bytes.Buffer
+
+	nothingErr := cli.ExportWriteUpdateReport(&nothing, update.Report{
+		IdentityBackfillRan: true, VaultHasNotesMissingIdentity: true,
+	})
+	g.Expect(nothingErr).NotTo(HaveOccurred())
+	g.Expect(nothing.String()).To(ContainSubstring("update --backfill-identity: nothing to backfill"))
+	g.Expect(nothing.String()).NotTo(ContainSubstring("provenance found"))
+
+	var stamped bytes.Buffer
+
+	stampedErr := cli.ExportWriteUpdateReport(&stamped, update.Report{
+		IdentityBackfillRan: true, IdentityBackfillNotesStamped: 3,
+	})
+	g.Expect(stampedErr).NotTo(HaveOccurred())
+	g.Expect(stamped.String()).To(ContainSubstring("update --backfill-identity: stamped 3 note(s)"))
+
+	var dryRun bytes.Buffer
+
+	dryRunErr := cli.ExportWriteUpdateReport(&dryRun, update.Report{
+		DryRun: true, IdentityBackfillRan: true, IdentityBackfillNotesStamped: 3,
+	})
+	g.Expect(dryRunErr).NotTo(HaveOccurred())
+	g.Expect(dryRun.String()).To(ContainSubstring("[dry-run] update --backfill-identity: would stamp 3 note(s)"))
+}
+
 func TestWriteUpdateReport_LocalDryRunWithBothHarnesses(t *testing.T) {
 	t.Parallel()
 
@@ -1212,11 +1269,6 @@ func TestWriteUpdateReport_LocalSourceIncludesRevision(t *testing.T) {
 	g.Expect(out).To(ContainSubstring("source: local clone at ~/src/engram (rev abc1234)"))
 }
 
-// TestWriteUpdateReport_LuhmannBranchingHint pins the detect-and-notify
-// surface for a flat (all-top-level) vault: when VaultHasOnlyTopLevelNotes
-// is true, the report names `engram update --reparent-luhmann` inline; a
-// vault that already has branched notes prints nothing. This is a read-only
-// notice — nothing here ever mutates a vault note.
 func TestWriteUpdateReport_LuhmannBranchingHint(t *testing.T) {
 	t.Parallel()
 

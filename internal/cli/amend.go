@@ -18,8 +18,9 @@ import (
 // chunk indexes live (like IngestArgs.ChunksDir — path config belongs on Args,
 // not Deps).
 type AmendArgs struct {
-	Vault        string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                          //nolint:lll // single unbreakable struct-tag string
-	Target       string   `targ:"flag,name=target,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"` //nolint:lll // single unbreakable struct-tag string
+	Vault        string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                             //nolint:lll // single unbreakable struct-tag string
+	VaultName    string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name re-stamped on the note's vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
+	Target       string   `targ:"flag,name=target,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"`    //nolint:lll // single unbreakable struct-tag string
 	Supersedes   []string `targ:"flag,name=supersedes,desc=supersession: <note>|<type>|<claim> (updates/narrows/refutes)"`
 	ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk id (source#anchor) merged into sources: (repeatable)"`
 	ChunksDir    string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
@@ -48,12 +49,19 @@ type AmendDeps struct {
 	// Acquire only at the RunAmend entry point — shared helpers (reEmbedAndActivate,
 	// bumpLastUsed) must NOT re-acquire (RunAmend already holds it, re-acquiring would
 	// self-deadlock on a per-fd flock).
-	Lock         func(vault string) (func(), error)
-	Scan         func(vault string) ([]vaultgraph.Note, error)
-	Read         func(path string) ([]byte, error)
-	Write        func(path string, data []byte) error
-	Embedder     embed.Embedder
-	Now          func() time.Time
+	Lock     func(vault string) (func(), error)
+	Scan     func(vault string) ([]vaultgraph.Note, error)
+	Read     func(path string) ([]byte, error)
+	Write    func(path string, data []byte) error
+	Embedder embed.Embedder
+	Now      func() time.Time
+	// DetectRepo and DetectUser resolve the repo:/user: identity fields
+	// fresh on every amend call (see internal/cli/identity.go) — amend
+	// re-stamps them unconditionally, it never preserves the note's prior
+	// values. Vault: is resolved from args.VaultName by the caller
+	// (targets.go), same as args.Vault's path resolution.
+	DetectRepo   func(ctx context.Context) string
+	DetectUser   func(ctx context.Context) string
 	LoadChunkIDs func(
 		chunksDir string,
 		listIndexes func(dir string) ([]string, error),
@@ -115,7 +123,13 @@ func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Wri
 		return fmt.Errorf("amend: %w", supErr)
 	}
 
-	amended, contentChanged, amendErr := amendContent(raw, args, parsedSupersedes)
+	identity := identityStamp{
+		Repo:  deps.DetectRepo(ctx),
+		User:  deps.DetectUser(ctx),
+		Vault: args.VaultName,
+	}
+
+	amended, contentChanged, amendErr := amendContent(raw, args, parsedSupersedes, identity)
 	if amendErr != nil {
 		return amendErr
 	}
@@ -162,14 +176,16 @@ type fieldOverride struct {
 type typedAmend[T any] struct {
 	kind     string
 	created  func(doc T) string
-	override func(doc *T, args AmendArgs, parsedSupersedes []supersedesEntry) bool
+	override func(doc *T, args AmendArgs, parsedSupersedes []supersedesEntry, identity identityStamp) bool
 	render   func(doc T, when time.Time, body string, contentChanged bool) string
 }
 
 // amendContent applies all amendments to raw note bytes. Returns the
 // updated content, whether the semantic content changed (triggers re-embed),
 // and any error. Provenance-only or supersedes-only changes do NOT set contentChanged.
-func amendContent(raw []byte, args AmendArgs, parsedSupersedes []supersedesEntry) (string, bool, error) {
+func amendContent(
+	raw []byte, args AmendArgs, parsedSupersedes []supersedesEntry, identity identityStamp,
+) (string, bool, error) {
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
 		return "", false, errAmendNoFrontmatter
@@ -179,7 +195,9 @@ func amendContent(raw []byte, args AmendArgs, parsedSupersedes []supersedesEntry
 	body := embed.ExtractBody(raw)
 
 	// Merge chunk sources into frontmatter + apply field overrides + supersedes.
-	updated, contentChanged, fieldErr := applyFieldReplacement(raw, args, string(body), noteType, parsedSupersedes)
+	updated, contentChanged, fieldErr := applyFieldReplacement(
+		raw, args, string(body), noteType, parsedSupersedes, identity,
+	)
 	if fieldErr != nil {
 		return "", false, fieldErr
 	}
@@ -203,8 +221,9 @@ func applyFactAmend(
 	args AmendArgs,
 	body string,
 	parsedSupersedes []supersedesEntry,
+	identity identityStamp,
 ) (string, bool, error) {
-	return applyTypedAmend(frontmatter, args, body, parsedSupersedes, typedAmend[factFrontmatterDoc]{
+	return applyTypedAmend(frontmatter, args, body, parsedSupersedes, identity, typedAmend[factFrontmatterDoc]{
 		kind:     "fact",
 		created:  func(doc factFrontmatterDoc) string { return doc.Created },
 		override: overrideFactFields,
@@ -219,8 +238,9 @@ func applyFeedbackAmend(
 	args AmendArgs,
 	body string,
 	parsedSupersedes []supersedesEntry,
+	identity identityStamp,
 ) (string, bool, error) {
-	return applyTypedAmend(frontmatter, args, body, parsedSupersedes, typedAmend[feedbackFrontmatterDoc]{
+	return applyTypedAmend(frontmatter, args, body, parsedSupersedes, identity, typedAmend[feedbackFrontmatterDoc]{
 		kind:     "feedback",
 		created:  func(doc feedbackFrontmatterDoc) string { return doc.Created },
 		override: overrideFeedbackFields,
@@ -251,14 +271,15 @@ func applyFieldReplacement(
 	args AmendArgs,
 	body, noteType string,
 	parsedSupersedes []supersedesEntry,
+	identity identityStamp,
 ) (string, bool, error) {
 	frontmatter, _ := splitFrontmatter(raw) // already validated upstream
 
 	switch noteType {
 	case typeFact:
-		return applyFactAmend(frontmatter, args, body, parsedSupersedes)
+		return applyFactAmend(frontmatter, args, body, parsedSupersedes, identity)
 	case typeFeedback:
-		return applyFeedbackAmend(frontmatter, args, body, parsedSupersedes)
+		return applyFeedbackAmend(frontmatter, args, body, parsedSupersedes, identity)
 	default:
 		return "", false, fmt.Errorf("%w: %q", errAmendUnknownType, noteType)
 	}
@@ -274,6 +295,7 @@ func applyTypedAmend[T any](
 	args AmendArgs,
 	body string,
 	parsedSupersedes []supersedesEntry,
+	identity identityStamp,
 	spec typedAmend[T],
 ) (string, bool, error) {
 	var doc T
@@ -288,7 +310,7 @@ func applyTypedAmend[T any](
 		return "", false, createdErr
 	}
 
-	contentChanged := spec.override(&doc, args, parsedSupersedes)
+	contentChanged := spec.override(&doc, args, parsedSupersedes, identity)
 
 	return spec.render(doc, when, body, contentChanged), contentChanged, nil
 }
@@ -345,10 +367,16 @@ func newAmendDeps(d Deps) AmendDeps {
 		Scan: func(vault string) ([]vaultgraph.Note, error) {
 			return vaultgraph.ScanVault(vfs, vault)
 		},
-		Read:         vfs.ReadFile,
-		Write:        writeAtomicWithPathFromFS(d.FS),
-		Embedder:     d.Embed,
-		Now:          d.Now,
+		Read:     vfs.ReadFile,
+		Write:    writeAtomicWithPathFromFS(d.FS),
+		Embedder: d.Embed,
+		Now:      d.Now,
+		DetectRepo: func(ctx context.Context) string {
+			return detectRepo(ctx, d.Getwd, d.Commander)
+		},
+		DetectUser: func(ctx context.Context) string {
+			return detectUser(ctx, d.Commander, d.Username)
+		},
 		LoadChunkIDs: buildChunkIDSet,
 		// listJSONLIndexes(d.FS) lists *.jsonl chunk indexes, treats an absent
 		// dir as empty (not an error), and never matches manifest.json.
@@ -370,8 +398,11 @@ func newAmendDeps(d Deps) AmendDeps {
 // overrideFactFields merges provenance into the fact doc and applies any
 // supplied situation/subject/predicate/object overrides, reporting whether a
 // semantic field changed. Supersedes is written to doc.Supersedes when non-nil.
-func overrideFactFields(doc *factFrontmatterDoc, args AmendArgs, parsedSupersedes []supersedesEntry) bool {
+func overrideFactFields(
+	doc *factFrontmatterDoc, args AmendArgs, parsedSupersedes []supersedesEntry, identity identityStamp,
+) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
+	doc.Repo, doc.User, doc.Vault = identity.Repo, identity.User, identity.Vault
 
 	if parsedSupersedes != nil {
 		doc.Supersedes = parsedSupersedes
@@ -392,8 +423,10 @@ func overrideFeedbackFields(
 	doc *feedbackFrontmatterDoc,
 	args AmendArgs,
 	parsedSupersedes []supersedesEntry,
+	identity identityStamp,
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
+	doc.Repo, doc.User, doc.Vault = identity.Repo, identity.User, identity.Vault
 
 	if parsedSupersedes != nil {
 		doc.Supersedes = parsedSupersedes

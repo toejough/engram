@@ -46,6 +46,7 @@ var (
 	ExportApplyVocabAssignmentCore         = applyVocabAssignmentCore
 	ExportApplyVocabKHysteresis            = applyVocabKHysteresis
 	ExportAutoEmbedNote                    = autoEmbedNote
+	ExportBackfillIdentity                 = backfillIdentity
 	ExportBuildNamingRequests              = buildNamingRequests
 	ExportBuildSupersedesInverse           = BuildSupersedesInverse
 	ExportBumpLastUsed                     = bumpLastUsed
@@ -60,6 +61,8 @@ var (
 	ExportDefaultRecencyParams             = defaultRecencyParams
 	ExportDefinitionNoteFactFields         = definitionNoteFactFields
 	ExportDeriveVocabClusters              = deriveVocabClusters
+	ExportDetectRepo                       = detectRepo
+	ExportDetectUser                       = detectUser
 	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
 	ExportExtractLuhmannFromFilename       = extractLuhmannFromFilename
@@ -92,6 +95,7 @@ var (
 	ExportNextLuhmannID               = nextLuhmannID
 	ExportNoteAgeDays                 = noteAgeDays
 	ExportNoteContainsAnyRemoval      = noteContainsAnyRemoval
+	ExportNotesMissingIdentityFields  = notesMissingIdentityFields
 	ExportOldVocabFilesPresent        = oldVocabFilesPresent
 	ExportParseCreatedFromNote        = parseCreatedFromNote
 	ExportParseNoteQueryFrontmatter   = parseNoteQueryFrontmatter
@@ -116,7 +120,9 @@ var (
 	ExportRenderQAAnswerNote          = renderQAAnswerNote
 	ExportRenderQAQuestionNote        = renderQAQuestionNote
 	ExportRenderSupersedes            = renderSupersedes
+	ExportRepoWithProjectFallback     = repoWithProjectFallback
 	ExportResolveVault                = resolveVault
+	ExportResolveVaultName            = resolveVaultName
 	ExportRetagAllNotesTwoPass        = retagAllNotesTwoPass
 	ExportRetireVocabTerms            = retireVocabTerms
 	ExportRunActivate                 = RunActivate
@@ -646,6 +652,15 @@ func ExportNewShowDeps(fsys EdgeFS) ShowDeps { return newShowDeps(Deps{FS: fsys}
 // surfaces so black-box tests can drive runUpdate with test doubles.
 func ExportNewUpdateDepsFrom(fs update.Filesystem, cmd update.Commander, env update.Env) updateDeps {
 	return updateDeps{FS: fs, Cmd: cmd, Env: env}
+}
+
+// ExportNewUpdateDepsFromWithIdentity is ExportNewUpdateDepsFrom plus an
+// explicit IdentityDeps, for tests driving `engram update
+// --backfill-identity`.
+func ExportNewUpdateDepsFromWithIdentity(
+	fs update.Filesystem, cmd update.Commander, env update.Env, identity IdentityDeps,
+) updateDeps {
+	return updateDeps{FS: fs, Cmd: cmd, Env: env, Identity: identity}
 }
 
 // ExportNewUpdateDepsFromWithReparent is ExportNewUpdateDepsFrom plus an

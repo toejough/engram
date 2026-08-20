@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,8 @@ func TestAmendFactNote_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
 	var written []byte
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1cc"}}, nil
 		},
@@ -85,6 +88,8 @@ func TestAmend_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
 	var written []byte
 
 	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
 		Scan: func(string) ([]vaultgraph.Note, error) {
 			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1bb"}}, nil
 		},
@@ -163,6 +168,8 @@ func TestLearnFeedback_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
 		Supersedes: []string{"9a.2026-01-01.old-note|updates|old action was insufficient"},
 	}
 	deps := cli.LearnDeps{
+		DetectRepo:    func(context.Context) string { return "" },
+		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
 		StatDir:       func(string) error { return nil },

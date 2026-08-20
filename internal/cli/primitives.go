@@ -97,6 +97,7 @@ type ProcPrims struct {
 	Now               func() time.Time                                         // time.Now
 	Getwd             func() (string, error)                                   // os.Getwd
 	UserHomeDir       func() (string, error)                                   // os.UserHomeDir
+	Username          func() (string, error)                                   // os/user.Current().Username
 	OpenDebugFile     func(path string, perm fs.FileMode) (WriteSyncer, error) // os.OpenFile O_APPEND|O_CREATE|O_WRONLY
 	StartSignalPulses func(pulses chan<- struct{}, buffer int)                 // SIG-1 closure
 }
@@ -134,6 +135,7 @@ func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
 		Now:         prims.Proc.Now,
 		Getwd:       prims.Proc.Getwd,
 		UserHomeDir: prims.Proc.UserHomeDir,
+		Username:    prims.Proc.Username,
 		FS:          primFS{prims: prims},
 		Lock:        primLocker{prims: prims},
 		Commander:   primCommander{prims: prims},

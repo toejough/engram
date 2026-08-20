@@ -18,15 +18,16 @@ import (
 
 // LearnArgs holds the parsed flags for the learn subcommand.
 type LearnArgs struct {
-	Type     string
-	Slug     string
-	Vault    string
-	Target   string
-	Position string
-	Source   string
-	Project  string
-	Issue    string
-	Tier     string
+	Type      string
+	Slug      string
+	Vault     string
+	VaultName string
+	Target    string
+	Position  string
+	Source    string
+	Project   string
+	Issue     string
+	Tier      string
 
 	// Supersedes carries `--supersedes "<basename>|<type>|<claim>"` flags. Each
 	// entry is validated and written to both the frontmatter supersedes: list and
@@ -74,9 +75,15 @@ type LearnDeps struct {
 	ListBasenames func(vault string) ([]string, error)
 	Lock          func(vault string) (release func(), err error)
 	WriteNew      func(path string, data []byte) error
-	Embedder      embed.Embedder
-	WriteSidecar  func(path string, data []byte) error
-	LogWarning    func(format string, args ...any)
+	// DetectRepo and DetectUser resolve the repo:/user: identity fields
+	// fresh at learn time (see internal/cli/identity.go). Vault: is
+	// resolved from args.VaultName by the caller (targets.go), same as
+	// args.Vault's path resolution.
+	DetectRepo   func(ctx context.Context) string
+	DetectUser   func(ctx context.Context) string
+	Embedder     embed.Embedder
+	WriteSidecar func(path string, data []byte) error
+	LogWarning   func(format string, args ...any)
 	// Vocab assignment — optional; all three must be non-nil to activate.
 	// LoadTermVectors returns vocab term→vector pairs from the vault.
 	// Returns nil/empty when no term notes exist (no-op, backward compat).
@@ -126,6 +133,9 @@ type factFields struct {
 	Luhmann      string
 	Source       string
 	Project      string
+	Repo         string
+	User         string
+	Vault        string
 	Issue        string
 	Tier         string
 	ChunkSources []string
@@ -150,6 +160,9 @@ type factFrontmatterDoc struct {
 	Created      string            `yaml:"created"`
 	Source       string            `yaml:"source"`
 	Project      string            `yaml:"project,omitempty"`
+	Repo         string            `yaml:"repo,omitempty"`
+	User         string            `yaml:"user"`
+	Vault        string            `yaml:"vault"`
 	Issue        quotedString      `yaml:"issue,omitempty"`
 	Sources      []string          `yaml:"sources,omitempty"`
 	VocabVersion string            `yaml:"vocab_version,omitempty"`
@@ -165,6 +178,9 @@ type feedbackFields struct {
 	Luhmann      string
 	Source       string
 	Project      string
+	Repo         string
+	User         string
+	Vault        string
 	Issue        string
 	Tier         string
 	ChunkSources []string
@@ -184,6 +200,9 @@ type feedbackFrontmatterDoc struct {
 	Created    string            `yaml:"created"`
 	Source     string            `yaml:"source"`
 	Project    string            `yaml:"project,omitempty"`
+	Repo       string            `yaml:"repo,omitempty"`
+	User       string            `yaml:"user"`
+	Vault      string            `yaml:"vault"`
 	Issue      quotedString      `yaml:"issue,omitempty"`
 	Sources    []string          `yaml:"sources,omitempty"`
 	Tags       []string          `yaml:"tags,omitempty"`
@@ -240,7 +259,7 @@ func applyVocabAssignmentAfterLearn(deps LearnDeps, vault, notePath, content str
 	)
 }
 
-func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (string, error) {
+func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, identity identityStamp) (string, error) {
 	tierErr := validateTier(args.Tier)
 	if tierErr != nil {
 		return "", tierErr
@@ -260,7 +279,8 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 		f := feedbackFields{
 			Situation: args.Situation, Behavior: args.Behavior, Impact: args.Impact,
 			Action: args.Action, Luhmann: luhmann, Source: args.Source,
-			Project: args.Project, Issue: args.Issue, Tier: tierOrDefault(args.Tier),
+			Project: args.Project, Repo: identity.Repo, User: identity.User, Vault: identity.Vault,
+			Issue: args.Issue, Tier: tierOrDefault(args.Tier),
 			ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
 		}
 
@@ -273,7 +293,8 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time) (strin
 		f := factFields{
 			Situation: args.Situation, Subject: args.Subject, Predicate: args.Predicate,
 			Object: args.Object, Luhmann: luhmann, Source: args.Source,
-			Project: args.Project, Issue: args.Issue, Tier: tierOrDefault(args.Tier),
+			Project: args.Project, Repo: identity.Repo, User: identity.User, Vault: identity.Vault,
+			Issue: args.Issue, Tier: tierOrDefault(args.Tier),
 			ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
 		}
 
@@ -346,9 +367,15 @@ func newLearnDeps(d Deps) LearnDeps {
 		ListBasenames: listBasenamesFromFS(d.FS),
 		Lock:          vaultLockFromLocker(d.Lock),
 		WriteNew:      writeNewFromFS(d.FS),
-		Embedder:      d.Embed,
-		WriteSidecar:  writeAtomicFromFS(d.FS, "write sidecar"),
-		LogWarning:    logWarningTo(d.Stderr),
+		DetectRepo: func(ctx context.Context) string {
+			return detectRepo(ctx, d.Getwd, d.Commander)
+		},
+		DetectUser: func(ctx context.Context) string {
+			return detectUser(ctx, d.Commander, d.Username)
+		},
+		Embedder:     d.Embed,
+		WriteSidecar: writeAtomicFromFS(d.FS, "write sidecar"),
+		LogWarning:   logWarningTo(d.Stderr),
 		// Vocab assignment wiring: no-op when the vault has no term notes.
 		// Uses stored member centroids (vocab.centroids.json) when present,
 		// falling back to description embeddings per term.
@@ -385,6 +412,9 @@ func renderFactFrontmatter(f factFields, when time.Time) string {
 		Created:      when.Format(dateFormat),
 		Source:       f.Source,
 		Project:      f.Project,
+		Repo:         f.Repo,
+		User:         f.User,
+		Vault:        f.Vault,
 		Issue:        quotedString(f.Issue),
 		Sources:      f.ChunkSources,
 		VocabVersion: f.VocabVersion,
@@ -414,6 +444,9 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 		Created:    when.Format(dateFormat),
 		Source:     f.Source,
 		Project:    f.Project,
+		Repo:       f.Repo,
+		User:       f.User,
+		Vault:      f.Vault,
 		Issue:      quotedString(f.Issue),
 		Sources:    f.ChunkSources,
 		Tags:       f.Tags,
@@ -486,6 +519,7 @@ func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, d Deps, stdout i
 		Type:         typeFact,
 		Slug:         a.Slug,
 		Vault:        a.Vault,
+		VaultName:    a.VaultName,
 		Target:       a.Target,
 		Position:     a.Position,
 		Source:       a.Source,
@@ -507,6 +541,7 @@ func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, d Deps, 
 		Type:         typeFeedback,
 		Slug:         a.Slug,
 		Vault:        a.Vault,
+		VaultName:    a.VaultName,
 		Target:       a.Target,
 		Position:     a.Position,
 		Source:       a.Source,
@@ -656,7 +691,13 @@ func writeLearnUnderLock(
 	when := deps.Now()
 	path := learnPath(vault, luhmann, args.Slug, when)
 
-	content, contentErr := assembleLearnContent(args, luhmann, when)
+	identity := identityStamp{
+		Repo:  deps.DetectRepo(ctx),
+		User:  deps.DetectUser(ctx),
+		Vault: args.VaultName,
+	}
+
+	content, contentErr := assembleLearnContent(args, luhmann, when, identity)
 	if contentErr != nil {
 		return "", fmt.Errorf("learn: %w", contentErr)
 	}

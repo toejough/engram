@@ -6,9 +6,12 @@ package cli
 // the single composition root — no hand-rolled adapter mirrors anywhere.
 
 import (
+	"context"
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
+	"os/user"
 	"path/filepath"
 	"syscall"
 	"time"
@@ -39,6 +42,15 @@ func ExportNewTestOsDeps() Deps {
 				return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 			},
 		},
+		Exec: ExecPrims{
+			RunCommand: func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error {
+				cmd := exec.CommandContext(ctx, name, args...)
+				cmd.Dir, cmd.Stdout, cmd.Stderr = dir, stdout, stderr
+
+				return cmd.Run()
+			},
+			NotFoundErr: exec.ErrNotFound,
+		},
 		Lock: LockPrims{
 			OpenLockFile: func(path string, perm fs.FileMode) (uintptr, error) {
 				fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_RDWR, uint32(perm))
@@ -60,6 +72,14 @@ func ExportNewTestOsDeps() Deps {
 			Now:         time.Now,
 			Getwd:       os.Getwd,
 			UserHomeDir: os.UserHomeDir,
+			Username: func() (string, error) {
+				u, err := user.Current()
+				if err != nil {
+					return "", err
+				}
+
+				return u.Username, nil
+			},
 			OpenDebugFile: func(path string, perm fs.FileMode) (WriteSyncer, error) {
 				// Operator-controlled path; gosec is path-excluded for _test files.
 				return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
