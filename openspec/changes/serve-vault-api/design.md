@@ -27,6 +27,7 @@ See `proposal.md` - Why. Relevant existing shape, verified against code and hist
 - No numeric/cosine auto-accept threshold for curation — covered/near/absent stays fully agent-judged, matching recall's existing doctrine.
 - No cross-vault federated query, no multi-team/org topology — [#725](https://github.com/toejough/engram/issues/725)'s broader graph model stays out of scope beyond receiving and curating offers from one calling environment.
 - `vault:` is not part of the server-authenticated override — only `user:` is. `repo:`/`vault:` keep exactly the resolution `note-origin-identity` already shipped.
+- No scope/audience frontmatter field — decided to ship as its own sibling change (`note-scope-audience`, mirroring `note-origin-identity`'s split), not folded in here.
 
 ## Decisions
 
@@ -42,21 +43,27 @@ See `proposal.md` - Why. Relevant existing shape, verified against code and hist
 
 **Cloudflare Access header trusted directly; JWT verification deferred.** Explicit trade-off, decided this cycle ("header is fine"). This only holds if the origin is unreachable by any path that doesn't go through Access — see Risks.
 
+**Read-only routes are GET with query params; writes are POST with a body.** Resolved from an open question: the split is by mutation, not by URL-friendliness. See the API Contract section below for the concrete route table.
+
+**`queryPayload` now includes `model_id`.** Resolved from an open question — decided yes. Lands as its own small capability (`vault-query-model-provenance`) rather than folded into `vault-serve-api`, matching how this codebase already ships focused capabilities per `queryPayload` field addition (e.g. `recall-query-timings` for `--timings`). Applies to `engram query` generally, local or served — it's a `queryPayload` shape change, not a serving-specific one.
+
 **`activate` commits directly — it never becomes an offer.** `bumpLastUsed` only touches a sidecar's `LastUsed` timestamp; it never mutates note content or frontmatter, so there is no new claim for curation to judge covered/near/absent about. Treating `activate` as a direct write (same as the read set, just under the existing lock) avoids inventing a curation step with nothing to curate. It stays in the served set — per [#720](https://github.com/toejough/engram/issues/720)'s own table — but not in the offer/curation path the other two writes (`learn`/`amend`) go through.
 
 ## API Contract
 
 Concrete shape for the served command set — the "how" behind the seven `vault-serve-api` requirements above. Grounded in the existing CLI argument/output shapes (`QueryArgs`, `queryPayload`, etc.), not a separate bespoke design.
 
-| Route | Method | Request body | Response |
+| Route | Method | Request | Response |
 |---|---|---|---|
-| `/query` | POST | `QueryArgs`-shaped JSON | `queryPayload` — byte-identical to a local `engram query` invocation |
-| `/query-chunks` | POST | `ChunkQueryArgs`-shaped JSON | same payload shape as local `engram query-chunks` |
+| `/query` | GET | `QueryArgs`-shaped query params (repeatable `?phrase=...`) | `queryPayload` — byte-identical to a local `engram query` invocation, includes `model_id` (see `vault-query-model-provenance`) |
+| `/query-chunks` | GET | `ChunkQueryArgs`-shaped query params | same payload shape as local `engram query-chunks` |
 | `/show` | GET | `?note=<ref>` | same as local `engram show` |
 | `/show-chunk` | GET | `?id=<source#anchor>` | same as local `engram show-chunk` |
 | `/activate` | POST | `{notes: [...]}` | ok/error — commits directly, no offer (see Decisions) |
 | `/learn` | POST | `LearnArgs`-shaped JSON | `{status: "offer received", luhmann: "<id>"}` — never the note content |
 | `/amend` | POST | `AmendArgs`-shaped JSON | `{status: "offer received", luhmann: "<id>"}` |
+
+Split by whether the command mutates the vault, not by whether a given command's flags happen to fit in a URL: the four read-only commands are GET with query params; the three writes are POST with a JSON body. `learn`/`amend` are POST out of necessity (repeatable flags — `--supersedes`/`--chunk-source`/`--tag` — and free-text fields don't fit cleanly in a URL); `activate` follows the same split because it's a write, even though its body (`{notes: [...]}`) is small enough it could have gone either way.
 
 Every request carries `Cf-Access-Authenticated-User-Email` (injected by Cloudflare Access after edge SSO). Only the `/learn` and `/amend` handlers read it, to stamp `user:` — per the "only `user:` is server-overridden" decision above; every other route ignores it.
 
@@ -67,7 +74,7 @@ sequenceDiagram
     participant R as remote engram
     participant CF as Cloudflare Access
     participant S as host engram serve
-    R->>CF: POST /query (QueryArgs body)
+    R->>CF: GET /query?phrase=...
     CF->>CF: validates SSO session
     CF->>S: forwards + Cf-Access-...-Email header
     S->>S: RunQuery (existing code path, read-only, no lock needed)
@@ -126,5 +133,3 @@ No existing command's local-file behavior changes — `engram serve` and `ENGRAM
 - Exact frontmatter field name/shape for the pending-offer marker (e.g. `status: pending` vs. a dedicated `offer: true` key) — either satisfies the spec's "carries a pending-offer marker" requirement; pick at implementation time.
 - Whether the curation skill runs on a fixed schedule, purely on-demand, or is invoked reactively by whoever notices the `update` notice or the `query` payload flag — deferred to the skill's own design, out of this change's Go-code scope (see proposal.md - Impact).
 - HTTP framework/library choice for `internal/serve/` — implementation detail, doesn't affect the spec.
-- Whether to expose the embedding `model_id` in `queryPayload` now, ahead of any consumer. [#725](https://github.com/toejough/engram/issues/725)'s own next-work-item note says rank fusion "requires the embedding model version to stay consistent across every node, or fused scores aren't comparable." Cheap to add (the value already exists internally, just never surfaced), but not required for this change to function, and nothing consumes it yet. Not decided.
-- Whether `note-scope-audience` — the scope/audience frontmatter field [#720](https://github.com/toejough/engram/issues/720) itself asks to fold in alongside origin identity ("Still to fold into the note-write path while it's being built here... a scope/audience field on notes") — ships as its own sibling change now (mirroring `note-origin-identity`'s split), folds into this change, or waits until a concrete consumer needs it. Not decided — also flagged in proposal.md.
