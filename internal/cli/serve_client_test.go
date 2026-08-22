@@ -13,6 +13,7 @@ import (
 	"github.com/toejough/targ"
 
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/embed"
 )
 
 // TestEngramServer_Activate_RoutesThroughFetch covers `engram activate`
@@ -37,6 +38,30 @@ func TestEngramServer_Activate_RoutesThroughFetch(t *testing.T) {
 	g.Expect(got.method).To(Equal("POST"))
 	g.Expect(got.url).To(Equal("http://vault-host:8420/activate"))
 	g.Expect(string(got.body)).To(ContainSubstring("1.a.md"))
+}
+
+// TestEngramServer_Amend_DiscardRefusedLocally covers the client-side guard:
+// `--discard` is refused before any network call when ENGRAM_SERVER is set,
+// rather than being POSTed to a server that would silently force it off
+// (serveAmend) and re-pend the target note instead of discarding it.
+func TestEngramServer_Amend_DiscardRefusedLocally(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
+
+	fetchCalled := false
+
+	_, stderr := executeCapturingBoth(t,
+		[]string{"engram", "amend", "--target", "1", "--discard"},
+		func(d *cli.Deps) {
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetchCalled = true
+
+				return cli.FetchResponse{}, nil
+			}
+		})
+
+	g.Expect(stderr).To(ContainSubstring("host-local"))
+	g.Expect(fetchCalled).To(BeFalse())
 }
 
 // TestEngramServer_Amend_StampsRepoAndPrintsReceipt mirrors
@@ -303,6 +328,53 @@ func TestEngramServer_Unset_RunsLocally(t *testing.T) {
 
 	g.Expect(stderr).To(BeEmpty())
 	g.Expect(fetchCalled).To(BeFalse())
+}
+
+// TestLocalAmend_ClearPendingClearsTheMarker covers the curation skill's
+// core mechanism: `engram amend --clear-pending` is the only CLI-facing way
+// to clear a pending-offer note's marker (local amend never sets it —
+// TestLocalAmend_NeverSetsPendingMarker — but must be able to clear one a
+// served write left behind).
+func TestLocalAmend_ClearPendingClearsTheMarker(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := filepath.Join(vault, "1.2026-01-01.offer.md")
+	g.Expect(os.WriteFile(notePath, []byte(pendingFactNote), 0o600)).To(Succeed())
+
+	stderr := executeForTest(t, []string{"engram", "amend", "--vault", vault, "--target", "1", "--clear-pending"})
+	g.Expect(stderr).To(BeEmpty())
+
+	raw, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(raw)).NotTo(ContainSubstring("pending: true"))
+}
+
+// TestLocalAmend_DiscardDeletesNoteAndSidecar covers the curation skill's
+// "covered" outcome (vault-offer-curation): `engram amend --discard` removes
+// both the note and its sidecar rather than amending content.
+func TestLocalAmend_DiscardDeletesNoteAndSidecar(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := writeServeVaultFile(t, vault, "1.2026-01-01.offer.md")
+	sidecarPath := embed.SidecarPath(notePath)
+	g.Expect(os.WriteFile(
+		sidecarPath, embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion}), 0o600,
+	)).To(Succeed())
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "amend", "--vault", vault, "--target", "1", "--discard"}, func(*cli.Deps) {})
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal(notePath + "\n"))
+
+	_, noteErr := os.Stat(notePath)
+	g.Expect(os.IsNotExist(noteErr)).To(BeTrue())
+
+	_, sidecarErr := os.Stat(sidecarPath)
+	g.Expect(os.IsNotExist(sidecarErr)).To(BeTrue())
 }
 
 func TestLocalAmend_NeverSetsPendingMarker(t *testing.T) {

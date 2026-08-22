@@ -308,6 +308,10 @@ func serveAmend(deps Deps, vault, vaultName, chunksDir string) ServeHandler {
 		args.ChunksDir = chunksDir
 		pending := true
 		args.Pending = &pending
+		// Discard is host-local only (vault-offer-curation's design: curation
+		// "never crosses the wire") — force false so a client body can never
+		// turn a served amend into a delete of an arbitrary vault note.
+		args.Discard = false
 
 		clientRepo := args.Repo
 		amendDeps := newAmendDeps(deps)

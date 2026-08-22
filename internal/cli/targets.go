@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -100,6 +101,17 @@ func Targets(deps Deps) []any {
 	)
 }
 
+// unexported variables.
+var (
+	// errDiscardOverServer guards amend --discard: curation runs host-local
+	// only (vault-offer-curation's design: it "never crosses the wire"), so
+	// routing a discard through ENGRAM_SERVER is refused locally rather than
+	// silently POSTed — the server forces Discard=false on any served amend
+	// (see serveAmend), which would otherwise re-stamp and re-pend the target
+	// note instead of doing what the caller asked.
+	errDiscardOverServer = errors.New("amend --discard is host-local only; unset ENGRAM_SERVER to discard a note")
+)
+
 // amendResituateTargets returns the amend and resituate subcommands. Split out
 // of maintenanceTargets to stay within the per-function length budget.
 func amendResituateTargets(
@@ -115,6 +127,12 @@ func amendResituateTargets(
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 		targ.Targ(func(ctx context.Context, a AmendArgs) {
 			if base := serverBase(deps); base != "" {
+				if a.Discard {
+					errHandler(errDiscardOverServer)
+
+					return
+				}
+
 				errHandler(fetchAmend(withLog(ctx), deps, base, a, deps.Stdout))
 
 				return
@@ -123,8 +141,15 @@ func amendResituateTargets(
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+
+			if a.ClearPending {
+				notPending := false
+				a.Pending = &notPending
+			}
+
 			errHandler(RunAmend(withLog(ctx), a, newAmendDeps(deps), deps.Stdout))
-		}).Name("amend").Description("Amend a note in place: supersedes, provenance-merge, field-replacement, activate"),
+		}).Name("amend").Description(
+			"Amend a note in place: supersedes, provenance-merge, field-replacement, activate, discard"),
 	}
 }
 

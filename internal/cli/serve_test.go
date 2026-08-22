@@ -96,6 +96,37 @@ func TestServeActivate_CommitsDirectly(t *testing.T) {
 	g.Expect(sidecar.LastUsed).To(Equal(time.Now().Format("2006-01-02")))
 }
 
+// TestServeAmend_DiscardIsAlwaysBlocked covers the server-side half of the
+// vault-offer-curation discard guard: a client-supplied "discard": true in
+// the POST body must never delete an arbitrary vault note — serveAmend
+// forces Discard false after decode (discard is host-local curation only,
+// per design.md's "never crosses the wire" decision), so the note survives
+// and is instead handled as a normal served amend (pending offer).
+func TestServeAmend_DiscardIsAlwaysBlocked(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := writeServeVaultFile(t, vault, "5.2026-01-01.existing.md")
+
+	deps := newTestDeps(io.Discard, io.Discard)
+	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
+
+	body, marshalErr := json.Marshal(map[string]any{"target": "5", "discard": true})
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	resp := routeFor(t, routes, "/amend").Serve(t.Context(), cli.ServeRequest{
+		Header: map[string][]string{cloudflareHeader: {"cloudflare-user@example.com"}},
+		Body:   body,
+	})
+
+	g.Expect(resp.Status).To(Equal(200))
+
+	raw, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(raw)).To(ContainSubstring("pending: true"))
+}
+
 // TestServeAmend_StampsIdentityAndPendingMarker covers POST /amend: same
 // identity/pending contract as learn, applied to an existing note.
 func TestServeAmend_StampsIdentityAndPendingMarker(t *testing.T) {

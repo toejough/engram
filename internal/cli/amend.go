@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"path/filepath"
 	"time"
 
@@ -33,12 +34,26 @@ type AmendArgs struct {
 	Impact    string `json:"impact"    targ:"flag,name=impact,desc=replace impact (feedback; optional)"`
 	Action    string `json:"action"    targ:"flag,name=action,desc=replace action (feedback; optional)"`
 	Activate  bool   `json:"activate"  targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
-	// Pending sets/clears the pending-offer marker (vault-offer-curation).
-	// nil (the CLI default — no targ tag, never a flag) leaves the note's
-	// existing marker unchanged; a served amend handler sets &true to keep
-	// an offer pending, curation sets &false to clear it. Never set over
-	// the wire by a client — the server always assigns it after decode.
+	// ClearPending is the CLI-facing surface for clearing the pending-offer
+	// marker (vault-offer-curation) — the curation skill's only real use of
+	// it. Local `engram amend` never needs to SET pending (only served
+	// writes do that), so a one-way clear flag is all the CLI exposes;
+	// targets.go translates ClearPending=true into Pending=&false before
+	// calling RunAmend, local-only (never touches the served /amend path).
+	ClearPending bool `json:"clearPending" targ:"flag,name=clear-pending,desc=clear the pending-offer marker set by a served write (vault-offer-curation)"` //nolint:lll // single unbreakable struct-tag string
+	// Pending sets/clears the pending-offer marker directly. nil (the CLI
+	// default — no targ tag, never a flag) leaves the note's existing
+	// marker unchanged; a served amend handler sets &true to keep an offer
+	// pending. Never set over the wire by a client — the server always
+	// assigns it after decode.
 	Pending *bool `json:"pending"`
+	// Discard deletes the target note and its sidecar under the vault lock,
+	// instead of amending content — the curation skill's "covered" outcome
+	// (vault-offer-curation): the pending offer's content is already covered
+	// by an existing note, so the offer is removed rather than folded in.
+	// RunAmend short-circuits to delete-and-return as soon as the target is
+	// resolved; every content-amend flag is ignored when this is set.
+	Discard bool `json:"discard" targ:"flag,name=discard,desc=delete the note and its sidecar instead of amending (vault-offer-curation)"` //nolint:lll // single unbreakable struct-tag string
 
 	// Repo carries a served write's client-detected repo: value across the
 	// wire. See LearnArgs.Repo for the full rationale — same
@@ -66,6 +81,10 @@ type AmendDeps struct {
 	Write    func(path string, data []byte) error
 	Embedder embed.Embedder
 	Now      func() time.Time
+	// Remove deletes a file at path — used only by --discard to remove the
+	// note and its sidecar (vault-offer-curation's "covered" outcome). Never
+	// called by the content-amend path.
+	Remove func(path string) error
 	// DetectRepo and DetectUser resolve the repo:/user: identity fields
 	// fresh on every amend call (see internal/cli/identity.go) — amend
 	// re-stamps them unconditionally, it never preserves the note's prior
@@ -118,6 +137,10 @@ func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Wri
 	}
 
 	full := filepath.Join(args.Vault, relPath)
+
+	if args.Discard {
+		return discardNote(deps, full, stdout)
+	}
 
 	raw, readErr := deps.Read(full)
 	if readErr != nil {
@@ -347,6 +370,28 @@ func applyVocabAssignmentAfterAmend(deps AmendDeps, vault, notePath, amended str
 	warnIfPendingOffers(vault, deps.ListMD, deps.Read, deps.LogWarning)
 }
 
+// discardNote deletes the note and its sidecar under the vault lock RunAmend
+// already holds — the curation skill's "covered" outcome
+// (vault-offer-curation): the pending offer's content is already covered by
+// an existing note, so the offer is removed rather than folded in. A missing
+// sidecar (a note that predates embed-on-write, or already lacks one) is not
+// an error.
+func discardNote(deps AmendDeps, full string, stdout io.Writer) error {
+	removeErr := deps.Remove(full)
+	if removeErr != nil {
+		return fmt.Errorf("amend: discard: %w", removeErr)
+	}
+
+	sidecarErr := deps.Remove(embed.SidecarPath(full))
+	if sidecarErr != nil && !errors.Is(sidecarErr, fs.ErrNotExist) {
+		return fmt.Errorf("amend: discard: %w", sidecarErr)
+	}
+
+	_, _ = fmt.Fprintln(stdout, full)
+
+	return nil
+}
+
 // mergeChunkSources returns a deduped union of existing and incoming chunk ids.
 func mergeChunkSources(existing, incoming []string) []string {
 	seen := make(map[string]struct{}, len(existing)+len(incoming))
@@ -384,6 +429,7 @@ func newAmendDeps(d Deps) AmendDeps {
 		Write:    writeAtomicWithPathFromFS(d.FS),
 		Embedder: d.Embed,
 		Now:      d.Now,
+		Remove:   d.FS.Remove,
 		DetectRepo: func(ctx context.Context) string {
 			return detectRepo(ctx, d.Getwd, d.Commander)
 		},
