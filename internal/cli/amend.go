@@ -18,21 +18,32 @@ import (
 // chunk indexes live (like IngestArgs.ChunksDir — path config belongs on Args,
 // not Deps).
 type AmendArgs struct {
-	Vault        string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                             //nolint:lll // single unbreakable struct-tag string
-	VaultName    string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name re-stamped on the note's vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
-	Target       string   `targ:"flag,name=target,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"`    //nolint:lll // single unbreakable struct-tag string
-	Supersedes   []string `targ:"flag,name=supersedes,desc=supersession: <note>|<type>|<claim> (updates/narrows/refutes)"`
-	ChunkSources []string `targ:"flag,name=chunk-source,desc=chunk id (source#anchor) merged into sources: (repeatable)"`
-	ChunksDir    string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
+	Vault        string   `json:"vault"        targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                             //nolint:lll // single unbreakable struct-tag string
+	VaultName    string   `json:"vaultName"    targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name re-stamped on the note's vault: field (default \"personal\")"` //nolint:lll // single unbreakable struct-tag string
+	Target       string   `json:"target"       targ:"flag,name=target,required,desc=note ref: full basename | [[wikilink]] | trailing .md | or bare Luhmann id (required)"`    //nolint:lll // single unbreakable struct-tag string
+	Supersedes   []string `json:"supersedes"   targ:"flag,name=supersedes,desc=supersession: <note>|<type>|<claim> (updates/narrows/refutes)"`                                 //nolint:lll // single unbreakable struct-tag string
+	ChunkSources []string `json:"chunkSources" targ:"flag,name=chunk-source,desc=chunk id (source#anchor) merged into sources: (repeatable)"`                                  //nolint:lll // single unbreakable struct-tag string
+	ChunksDir    string   `json:"chunksDir"    targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`                                        //nolint:lll // single unbreakable struct-tag string
 	// Content flags — only supplied fields are overwritten.
-	Situation string `targ:"flag,name=situation,desc=replace situation (optional)"`
-	Subject   string `targ:"flag,name=subject,desc=replace subject (fact; optional)"`
-	Predicate string `targ:"flag,name=predicate,desc=replace predicate (fact; optional)"`
-	Object    string `targ:"flag,name=object,desc=replace object (fact; optional)"`
-	Behavior  string `targ:"flag,name=behavior,desc=replace behavior (feedback; optional)"`
-	Impact    string `targ:"flag,name=impact,desc=replace impact (feedback; optional)"`
-	Action    string `targ:"flag,name=action,desc=replace action (feedback; optional)"`
-	Activate  bool   `targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
+	Situation string `json:"situation" targ:"flag,name=situation,desc=replace situation (optional)"`
+	Subject   string `json:"subject"   targ:"flag,name=subject,desc=replace subject (fact; optional)"`
+	Predicate string `json:"predicate" targ:"flag,name=predicate,desc=replace predicate (fact; optional)"`
+	Object    string `json:"object"    targ:"flag,name=object,desc=replace object (fact; optional)"`
+	Behavior  string `json:"behavior"  targ:"flag,name=behavior,desc=replace behavior (feedback; optional)"`
+	Impact    string `json:"impact"    targ:"flag,name=impact,desc=replace impact (feedback; optional)"`
+	Action    string `json:"action"    targ:"flag,name=action,desc=replace action (feedback; optional)"`
+	Activate  bool   `json:"activate"  targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
+	// Pending sets/clears the pending-offer marker (vault-offer-curation).
+	// nil (the CLI default — no targ tag, never a flag) leaves the note's
+	// existing marker unchanged; a served amend handler sets &true to keep
+	// an offer pending, curation sets &false to clear it. Never set over
+	// the wire by a client — the server always assigns it after decode.
+	Pending *bool `json:"pending"`
+
+	// Repo carries a served write's client-detected repo: value across the
+	// wire. See LearnArgs.Repo for the full rationale — same
+	// pass-through-not-redetect reasoning.
+	Repo string `json:"repo"`
 }
 
 // AmendDeps holds injected I/O dependencies for RunAmend. Path configuration
@@ -332,6 +343,8 @@ func applyVocabAssignmentAfterAmend(deps AmendDeps, vault, notePath, amended str
 		deps.LogWarning,
 		deps.Now(),
 	)
+
+	warnIfPendingOffers(vault, deps.ListMD, deps.Read, deps.LogWarning)
 }
 
 // mergeChunkSources returns a deduped union of existing and incoming chunk ids.
@@ -404,6 +417,10 @@ func overrideFactFields(
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
 	doc.Repo, doc.User, doc.Vault = identity.Repo, identity.User, identity.Vault
 
+	if args.Pending != nil {
+		doc.Pending = *args.Pending
+	}
+
 	if parsedSupersedes != nil {
 		doc.Supersedes = parsedSupersedes
 	}
@@ -427,6 +444,10 @@ func overrideFeedbackFields(
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
 	doc.Repo, doc.User, doc.Vault = identity.Repo, identity.User, identity.Vault
+
+	if args.Pending != nil {
+		doc.Pending = *args.Pending
+	}
 
 	if parsedSupersedes != nil {
 		doc.Supersedes = parsedSupersedes

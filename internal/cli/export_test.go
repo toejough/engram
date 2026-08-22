@@ -39,6 +39,7 @@ var (
 	ErrResituateNoteNotFoundForTest        = errResituateNoteNotFound
 	ErrVocabFamilyNoteMissing              = errVocabFamilyNoteMissing
 	ExportAnyHarnessFailed                 = anyHarnessFailed
+	ExportApplyIdentityBackfill            = applyIdentityBackfill
 	ExportApplyProjectFilter               = applyProjectFilter
 	ExportApplySupersedesRideAlong         = applySupersedesRideAlong
 	ExportApplyVocabAssignmentAfterAmend   = applyVocabAssignmentAfterAmend
@@ -65,6 +66,7 @@ var (
 	ExportDetectUser                       = detectUser
 	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
+	ExportExcludePendingOffers             = excludePendingOffers
 	ExportExtractLuhmannFromFilename       = extractLuhmannFromFilename
 	ExportFillRecencyBand                  = fillRecencyBand
 	ExportFinishUpdate                     = finishUpdate
@@ -89,12 +91,14 @@ var (
 	ExportNewActivateDeps                  = newActivateDeps
 	ExportNewAmendDeps                     = newAmendDeps
 	ExportNewErrHandler                    = newErrHandler
+	ExportNewIdentityDeps                  = newIdentityDeps
 	// ExportNewUpdateDeps exposes the production pure composition for tests.
 	ExportNewUpdateDeps               = newUpdateDeps
 	ExportNewVocabDeps                = newVocabDeps
 	ExportNextLuhmannID               = nextLuhmannID
 	ExportNoteAgeDays                 = noteAgeDays
 	ExportNoteContainsAnyRemoval      = noteContainsAnyRemoval
+	ExportNoteHasPendingMarker        = noteHasPendingMarker
 	ExportNotesMissingIdentityFields  = notesMissingIdentityFields
 	ExportOldVocabFilesPresent        = oldVocabFilesPresent
 	ExportParseCreatedFromNote        = parseCreatedFromNote
@@ -127,11 +131,12 @@ var (
 	ExportRetireVocabTerms            = retireVocabTerms
 	ExportRunActivate                 = RunActivate
 	ExportRunAmend                    = RunAmend
-	ExportRunLearn                    = runLearn
+	ExportRunLearn                    = RunLearn
 	ExportRunUpdate                   = runUpdate
 	ExportRunVocabTagDefinitions      = runVocabTagDefinitions
 	ExportScanNonVocabNotes           = scanNonVocabNotes
 	ExportSelectStates                = selectStates
+	ExportServerBase                  = serverBase
 	ExportShouldEmbed                 = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
@@ -148,8 +153,10 @@ var (
 	ExportValidateSlug                    = validateSlug
 	ExportValidateTags                    = validateTags
 	ExportVaultHasOnlyTopLevelNotes       = vaultHasOnlyTopLevelNotes
+	ExportVaultHasPendingOffers           = vaultHasPendingOffers
 	ExportVocabDefinitionsMissingSelfTags = vocabDefinitionsMissingSelfTags
 	ExportVocabTermsFromTags              = vocabTermsFromTags
+	ExportWarnIfPendingOffers             = warnIfPendingOffers
 	ExportWriteCentroidsDocRaw            = writeCentroidsDocRaw
 	ExportWriteCentroidsFile              = writeCentroidsFile
 	ExportWriteUpdateReport               = writeUpdateReport

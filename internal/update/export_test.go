@@ -17,6 +17,7 @@ var (
 	ExportPlanGuidanceCopies            = planGuidanceCopies
 	ExportPlanSkillCopies               = planSkillCopies
 	ExportPruneEmptyDirs                = pruneEmptyDirs
+	ExportResolveBinaryPath             = resolveBinaryPath
 	ExportSurfaceStrays                 = surfaceStrays
 	ExportWalkUpForModule               = walkUpForModule
 )

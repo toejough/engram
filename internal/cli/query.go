@@ -86,6 +86,8 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return fmt.Errorf("query: scan: %w", scanErr)
 	}
 
+	notes, pendingOffers := excludePendingOffers(notes, args.VaultPath, deps.Read)
+
 	modelID := deps.Embedder.ModelID()
 	loaded := loadCompatibleSidecars(notes, args.VaultPath, deps.Read, modelID)
 	hits := loaded.hits
@@ -97,7 +99,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return errQueryNoEmbeddings
 	}
 
-	return runQuery(ctx, args, notes, hits, limit, deps, timer, stdout)
+	return runQuery(ctx, args, notes, hits, limit, deps, timer, stdout, pendingOffers, modelID)
 }
 
 // unexported constants.
@@ -202,9 +204,36 @@ type aggregatedSummary struct {
 	// into the payload budget (design.md Decision 6).
 	exploreAllocated map[string]int
 	refitPending     bool
+	// pendingOffers is true when the vault holds at least one fact/feedback
+	// note carrying the pending-offer marker (vault-offer-curation).
+	// Computed fresh every call (stateless/unbatched — design.md Decisions),
+	// unlike refitPending's persisted-flag read.
+	pendingOffers bool
+	// modelID is the embedding model that produced this query's results
+	// (vault-query-model-provenance) — read from deps.Embedder.ModelID(),
+	// already computed internally for sidecar matching, now surfaced.
+	modelID string
 	// timer is nil-safe (#691 --timings instrumentation); nil when timing is
 	// disabled, in which case every phaseTimer method is a no-op.
 	timer *phaseTimer
+}
+
+// aggregatedSummaryInputs bundles runQuery's post-cluster locals for
+// buildAggregatedSummary — kept as a single struct so runQuery's own
+// parameter/local count stays within the per-function length budget.
+type aggregatedSummaryInputs struct {
+	args             QueryArgs
+	notes            []vaultgraph.Note
+	hits             []compatibleSidecar
+	limit            int
+	deps             QueryDeps
+	timer            *phaseTimer
+	resolved         []resolvedItem
+	matchSet         matchedSet
+	report           clusterReport
+	exploreAllocated map[string]int
+	pendingOffers    bool
+	modelID          string
 }
 
 // candidateNoteIndex holds the note paths and BOTH sidecar vectors for the
@@ -397,7 +426,14 @@ type queryPayload struct {
 	Clusters     []queryCluster `yaml:"clusters"`
 	Budget       queryBudget    `yaml:"budget"`
 	RefitPending bool           `yaml:"refit_pending,omitempty"`
-	Timings      *queryTimings  `yaml:"timings,omitempty"`
+	// PendingOffers is true when the vault holds at least one pending-offer
+	// note awaiting curation (vault-offer-curation) — computed fresh on
+	// every call, local and served alike.
+	PendingOffers bool `yaml:"pending_offers,omitempty"`
+	// ModelID is the embedding model that produced this query's results
+	// (vault-query-model-provenance) — applies locally and served alike.
+	ModelID string        `yaml:"model_id"`
+	Timings *queryTimings `yaml:"timings,omitempty"`
 }
 
 // queryTimings holds per-stage wall-clock durations (milliseconds) for the
@@ -509,6 +545,18 @@ func appendUniqueProvenance(item *resolvedItem, role string) {
 	}
 
 	item.provenances = append(item.provenances, role)
+}
+
+// applyContentPolicy caps or clears chunk content per merged's lazy-chunks/
+// content-budget settings, returning the adjusted items and the snippeted
+// count (0 under lazy mode — capChunkContent never runs on already-cleared
+// chunks).
+func applyContentPolicy(items []queryItem, merged aggregatedSummary) ([]queryItem, int) {
+	if merged.lazyChunks {
+		return clearChunkContent(items), 0
+	}
+
+	return capChunkContent(items, resolveContentBudget(merged.contentBudget))
 }
 
 // applyFloorAndCap filters matched set items by the relevance floor on
@@ -659,6 +707,29 @@ func breakRepresentativeTie(matchSet matchedSet, a, b int) int {
 		return a
 	default:
 		return b
+	}
+}
+
+// buildAggregatedSummary assembles runQuery's aggregatedSummary from its
+// post-cluster locals. Split out of runQuery to stay within the
+// per-function length budget.
+func buildAggregatedSummary(inputs aggregatedSummaryInputs) aggregatedSummary {
+	return aggregatedSummary{
+		phrases:       inputs.args.Phrases,
+		resolvedItems: inputs.resolved,
+		phraseClusters: []phrasedCluster{
+			{phrase: singleClusterPhrase, report: inputs.report, matched: inputs.matchSet},
+		},
+		totalNotes:       len(inputs.notes),
+		withEmbeddings:   len(inputs.hits),
+		limit:            inputs.limit,
+		contentBudget:    inputs.args.ContentBudget,
+		lazyChunks:       inputs.args.LazyChunks,
+		exploreAllocated: inputs.exploreAllocated,
+		refitPending:     readRefitPending(inputs.args.VaultPath, inputs.deps.Read),
+		pendingOffers:    inputs.pendingOffers,
+		modelID:          inputs.modelID,
+		timer:            inputs.timer,
 	}
 }
 
@@ -964,6 +1035,19 @@ func contentByPath(meta AllVaultNotesMeta) map[string]string {
 	}
 
 	return out
+}
+
+// countDirectHits counts items carrying the direct-match provenance role.
+func countDirectHits(items []queryItem) int {
+	directCount := 0
+
+	for _, item := range items {
+		if slices.Contains(item.Provenances, provenanceDirect) {
+			directCount++
+		}
+	}
+
+	return directCount
 }
 
 // countItemsWithContent reports how many rendered items carry a
@@ -1617,36 +1701,20 @@ func renderItems(resolved []resolvedItem) []queryItem {
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems)
 	clusters := renderClusters(merged.phraseClusters)
-
-	// Lazy-chunk mode (opt-in): empty chunk content so the agent pages a
-	// chunk's evidence on-demand via `engram show-chunk`. Notes are untouched.
-	// When lazy, capChunkContent is skipped entirely (ChunksSnippeted reports 0)
-	// rather than run on the already-cleared chunks.
-	var snipped int
-
-	if merged.lazyChunks {
-		items = clearChunkContent(items)
-	} else {
-		items, snipped = capChunkContent(items, resolveContentBudget(merged.contentBudget))
-	}
+	items, snipped := applyContentPolicy(items, merged)
 	// Full content = items still carrying their complete text — snippeted
 	// chunks retain (truncated) content, so exclude them from the count.
 	contentful := countItemsWithContent(items) - snipped
-
-	directCount := 0
-
-	for _, item := range items {
-		if slices.Contains(item.Provenances, provenanceDirect) {
-			directCount++
-		}
-	}
+	directCount := countDirectHits(items)
 
 	payload := queryPayload{
-		Version:      1,
-		Phrases:      merged.phrases,
-		Items:        items,
-		Clusters:     clusters,
-		RefitPending: merged.refitPending,
+		Version:       1,
+		Phrases:       merged.phrases,
+		Items:         items,
+		Clusters:      clusters,
+		RefitPending:  merged.refitPending,
+		PendingOffers: merged.pendingOffers,
+		ModelID:       merged.modelID,
 		Budget: queryBudget{
 			PhrasesQueried:       len(merged.phrases),
 			TotalNotes:           merged.totalNotes,
@@ -1755,6 +1823,8 @@ func runQuery(
 	deps QueryDeps,
 	timer *phaseTimer,
 	stdout io.Writer,
+	pendingOffers bool,
+	modelID string,
 ) error {
 	chunkRecords, loadErr := loadClusterChunkRecords(args, deps)
 	if loadErr != nil {
@@ -1790,21 +1860,11 @@ func runQuery(
 		noteUnion, chunkUnion, chunkItems, chunkRecords, hits, args, deps, queryVec,
 	)
 
-	merged := aggregatedSummary{
-		phrases:       args.Phrases,
-		resolvedItems: resolved,
-		phraseClusters: []phrasedCluster{
-			{phrase: singleClusterPhrase, report: report, matched: matchSet},
-		},
-		totalNotes:       len(notes),
-		withEmbeddings:   len(hits),
-		limit:            limit,
-		contentBudget:    args.ContentBudget,
-		lazyChunks:       args.LazyChunks,
-		exploreAllocated: exploreAllocated,
-		refitPending:     readRefitPending(args.VaultPath, deps.Read),
-		timer:            timer,
-	}
+	merged := buildAggregatedSummary(aggregatedSummaryInputs{
+		args: args, notes: notes, hits: hits, limit: limit, deps: deps, timer: timer,
+		resolved: resolved, matchSet: matchSet, report: report, exploreAllocated: exploreAllocated,
+		pendingOffers: pendingOffers, modelID: modelID,
+	})
 
 	// nominate mark fires AFTER the full post-cluster assembly (explore
 	// sampling + chunk append + Channel-2 fill + summary build), so render_ms

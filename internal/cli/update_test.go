@@ -398,6 +398,44 @@ func TestPluralFile(t *testing.T) {
 	g.Expect(cli.ExportPluralFile(2)).To(Equal("files"))
 }
 
+// TestRunUpdate_BackfillIdentityFlag_RunsBackfillAndUpdatesReport mirrors
+// TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport for
+// --backfill-identity: verifies runUpdate threads args.BackfillIdentity
+// through runPostUpdateChecks to deps.Identity (composed by newIdentityDeps
+// in production, injected directly here), reporting the --dry-run backfill
+// summary rather than the plain notice.
+func TestRunUpdate_BackfillIdentityFlag_RunsBackfillAndUpdatesReport(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const missingIdentityNote = "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\n" +
+		"luhmann: \"1\"\ncreated: 2026-01-01\nsource: agent\n---\n\nbody\n"
+
+	files := map[string][]byte{"1.2026-01-01.a.md": []byte(missingIdentityNote)}
+
+	identityDeps := cli.IdentityDeps{
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		ListMD:     func(string) ([]string, error) { return []string{"1.2026-01-01.a.md"}, nil },
+		ReadFile:   func(path string) ([]byte, error) { return files[filepath.Base(path)], nil },
+		WriteFile:  func(string, []byte) error { return nil },
+		DetectRepo: func(context.Context) string { return "repo" },
+		DetectUser: func(context.Context) string { return "user" },
+		Getenv:     func(string) string { return "" },
+	}
+
+	deps := cli.ExportNewUpdateDepsFromWithIdentity(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{}, identityDeps)
+
+	stdout := &bytes.Buffer{}
+	err := cli.ExportRunUpdate(
+		context.Background(), cli.UpdateArgs{DryRun: true, BackfillIdentity: true}, deps, stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	out := stdout.String()
+	g.Expect(out).To(ContainSubstring("[dry-run] update --backfill-identity: would stamp 1 note(s)"))
+	g.Expect(out).NotTo(ContainSubstring("notes missing repo:/user:/vault: provenance found"))
+}
+
 func TestRunUpdate_DryRunFromCwd(t *testing.T) {
 	t.Parallel()
 
@@ -1285,6 +1323,28 @@ func TestWriteUpdateReport_LuhmannBranchingHint(t *testing.T) {
 	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasOnlyTopLevelNotes: false})
 	g.Expect(cleanErr).NotTo(HaveOccurred())
 	g.Expect(clean.String()).NotTo(ContainSubstring("reparent-luhmann"))
+}
+
+// TestWriteUpdateReport_PendingOfferHint covers vault-offer-curation's
+// engram-update notice: VaultHasPendingOffers=true names the pending_offers
+// query flag; false prints nothing. Unlike backfill-identity, there is no
+// CLI fix command to name — curation is a skill, not an update flag.
+func TestWriteUpdateReport_PendingOfferHint(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	var buffer bytes.Buffer
+
+	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasPendingOffers: true})
+	g.Expect(writeErr).NotTo(HaveOccurred())
+	g.Expect(buffer.String()).To(ContainSubstring("pending_offers"))
+
+	var clean bytes.Buffer
+
+	cleanErr := cli.ExportWriteUpdateReport(&clean, update.Report{VaultHasPendingOffers: false})
+	g.Expect(cleanErr).NotTo(HaveOccurred())
+	g.Expect(clean.String()).NotTo(ContainSubstring("pending offer"))
 }
 
 func TestWriteUpdateReport_RealRunLocalNoVersion(t *testing.T) {

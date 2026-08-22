@@ -8,12 +8,19 @@ relative-path-mode = 'gomod'
 [linters]
 default = 'all'
 disable = [
+	# 'exhaustruct'/'wsl' are deprecated but under default='all' still run as
+	# their OWN separate registered linter identity alongside their '_v5'
+	# successor — disabling only the new name leaves the old one enabled (and
+	# vice versa). Both names must be listed until golangci-lint drops the
+	# deprecated aliases entirely (see #700 R12).
 	'exhaustruct',    # too noisy for zero value structs
+	'exhaustruct_v5', # successor to 'exhaustruct' — same reasoning
 	'godot',          # has a bug that causes panics on some files
 	'godox',          # saving todos till another validation step
 	'ireturn',        # I like generic return types
 	'nonamedreturns', # I like named returns
 	'wsl',            # deprecated
+	'wsl_v5',         # successor to 'wsl' — same reasoning
 ]
 
 # Exclude certain linters from test files

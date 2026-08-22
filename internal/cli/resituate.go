@@ -132,6 +132,8 @@ func applyVocabAssignmentAfterResituate(deps ResituateDeps, vault, notePath, con
 	checkAndPersistVocabRefitTrigger(
 		vault, deps.ListMD, deps.Read, deps.Write, deps.LogWarning, deps.Now(),
 	)
+
+	warnIfPendingOffers(vault, deps.ListMD, deps.Read, deps.LogWarning)
 }
 
 // findNote locates the note whose leading luhmann id OR full basename matches

@@ -16,50 +16,70 @@ import (
 	"github.com/toejough/engram/internal/luhmann"
 )
 
-// LearnArgs holds the parsed flags for the learn subcommand.
+// LearnArgs holds the parsed flags for the learn subcommand. JSON tags
+// (musttag-enforced) define the wire shape POST /learn decodes into
+// (design.md API Contract: "LearnArgs-shaped JSON") — the same struct
+// serves both the CLI flag path and the served-write path.
 type LearnArgs struct {
-	Type      string
-	Slug      string
-	Vault     string
-	VaultName string
-	Target    string
-	Position  string
-	Source    string
-	Project   string
-	Issue     string
-	Tier      string
+	Type      string `json:"type"`
+	Slug      string `json:"slug"`
+	Vault     string `json:"vault"`
+	VaultName string `json:"vaultName"`
+	Target    string `json:"target"`
+	Position  string `json:"position"`
+	Source    string `json:"source"`
+	Project   string `json:"project"`
+	Issue     string `json:"issue"`
+	Tier      string `json:"tier"`
 
 	// Supersedes carries `--supersedes "<basename>|<type>|<claim>"` flags. Each
 	// entry is validated and written to both the frontmatter supersedes: list and
 	// the body Supersedes: wikilink lines.
-	Supersedes []string
+	Supersedes []string `json:"supersedes"`
 
 	// ChunkSources carries chunk-index ids (source#anchor) to record as frontmatter
 	// provenance. Written to `sources:` when non-empty. Passed via --chunk-source.
 	// learn records these unvalidated by design — at create time the just-written
 	// chunks may not yet be in the index. (engram amend, by contrast, validates
 	// --chunk-source ids against the index because it runs after ingestion.)
-	ChunkSources []string
+	ChunkSources []string `json:"chunkSources"`
 
 	// Tags carries repeatable `--tag` categorical tags: a bare family
 	// ([a-z0-9-]+ — by convention marks a family definition note) or a
 	// family/value pair ([a-z0-9-]+/[a-z0-9-]+ — marks a member). Written to
 	// the frontmatter tags: list; validated by validateTags before any write.
-	Tags []string
+	Tags []string `json:"tags"`
 
 	// feedback / fact share these
-	Situation string
+	Situation string `json:"situation"`
 	// feedback only
-	Behavior string
-	Impact   string
-	Action   string
+	Behavior string `json:"behavior"`
+	Impact   string `json:"impact"`
+	Action   string `json:"action"`
 	// fact only
-	Subject   string
-	Predicate string
-	Object    string
+	Subject   string `json:"subject"`
+	Predicate string `json:"predicate"`
+	Object    string `json:"object"`
+
+	// Pending marks the note a pending offer (vault-offer-curation): set
+	// only by a served `learn` handler, never by a CLI flag — a note
+	// written with Pending true is excluded from normal query results
+	// until curation clears it. json tag present for musttag; the server
+	// always overwrites this after decode, so a client-supplied value is
+	// never trusted.
+	Pending bool `json:"pending"`
+
+	// Repo carries a served write's client-detected repo: value across the
+	// wire. repo: carries no privilege (design.md Decisions), so a served
+	// learn handler passes it through via LearnDeps.DetectRepo unchanged
+	// rather than re-detecting it server-side, which would resolve to the
+	// server process's own repo context instead of the remote client's.
+	// Unused/empty for local (non-served) learn — RunLearn always calls
+	// deps.DetectRepo(ctx), never reads this field directly.
+	Repo string `json:"repo"`
 }
 
-// LearnDeps holds injected dependencies for runLearn. All fields are
+// LearnDeps holds injected dependencies for RunLearn. All fields are
 // required except Embedder / WriteSidecar / LogWarning, which together
 // drive the auto-embed step. A nil Embedder skips auto-embed entirely
 // (used by tests that don't exercise the embedding pipeline).
@@ -101,6 +121,48 @@ type LearnDeps struct {
 	ListMD func(vault string) ([]string, error)
 }
 
+// RunLearn orchestrates the learn subcommand: validates inputs, ensures the
+// vault directory exists (creating it on first use), acquires the lock,
+// computes the next Luhmann ID, and writes the file. args.Vault must
+// already be resolved by the caller via resolveVault.
+func RunLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Writer) error {
+	slugErr := validateSlug(args.Slug)
+	if slugErr != nil {
+		return fmt.Errorf("learn: %w", slugErr)
+	}
+
+	projectErr := validateProjectSlug(args.Project)
+	if projectErr != nil {
+		return fmt.Errorf("learn: %w", projectErr)
+	}
+
+	issueErr := validateIssueID(args.Issue)
+	if issueErr != nil {
+		return fmt.Errorf("learn: %w", issueErr)
+	}
+
+	tagErr := validateTags(args.Tags)
+	if tagErr != nil {
+		return fmt.Errorf("learn: %w", tagErr)
+	}
+
+	vault := args.Vault
+
+	vaultErr := ensureVaultDir(deps.StatDir, deps.InitVault, vault, "learn")
+	if vaultErr != nil {
+		return vaultErr
+	}
+
+	path, writeErr := writeLearnUnderLock(ctx, args, deps, vault)
+	if writeErr != nil {
+		return writeErr
+	}
+
+	_, _ = fmt.Fprintln(stdout, path)
+
+	return nil
+}
+
 // unexported constants.
 const (
 	dateFormat   = "2006-01-02"
@@ -136,6 +198,7 @@ type factFields struct {
 	Repo         string
 	User         string
 	Vault        string
+	Pending      bool
 	Issue        string
 	Tier         string
 	ChunkSources []string
@@ -163,6 +226,7 @@ type factFrontmatterDoc struct {
 	Repo         string            `yaml:"repo,omitempty"`
 	User         string            `yaml:"user"`
 	Vault        string            `yaml:"vault"`
+	Pending      bool              `yaml:"pending,omitempty"`
 	Issue        quotedString      `yaml:"issue,omitempty"`
 	Sources      []string          `yaml:"sources,omitempty"`
 	VocabVersion string            `yaml:"vocab_version,omitempty"`
@@ -181,6 +245,7 @@ type feedbackFields struct {
 	Repo         string
 	User         string
 	Vault        string
+	Pending      bool
 	Issue        string
 	Tier         string
 	ChunkSources []string
@@ -203,6 +268,7 @@ type feedbackFrontmatterDoc struct {
 	Repo       string            `yaml:"repo,omitempty"`
 	User       string            `yaml:"user"`
 	Vault      string            `yaml:"vault"`
+	Pending    bool              `yaml:"pending,omitempty"`
 	Issue      quotedString      `yaml:"issue,omitempty"`
 	Sources    []string          `yaml:"sources,omitempty"`
 	Tags       []string          `yaml:"tags,omitempty"`
@@ -257,6 +323,8 @@ func applyVocabAssignmentAfterLearn(deps LearnDeps, vault, notePath, content str
 		deps.LogWarning,
 		deps.Now(),
 	)
+
+	warnIfPendingOffers(vault, deps.ListMD, deps.ReadSidecar, deps.LogWarning)
 }
 
 func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, identity identityStamp) (string, error) {
@@ -280,7 +348,8 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, identi
 			Situation: args.Situation, Behavior: args.Behavior, Impact: args.Impact,
 			Action: args.Action, Luhmann: luhmann, Source: args.Source,
 			Project: args.Project, Repo: identity.Repo, User: identity.User, Vault: identity.Vault,
-			Issue: args.Issue, Tier: tierOrDefault(args.Tier),
+			Pending: args.Pending,
+			Issue:   args.Issue, Tier: tierOrDefault(args.Tier),
 			ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
 		}
 
@@ -294,7 +363,8 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, identi
 			Situation: args.Situation, Subject: args.Subject, Predicate: args.Predicate,
 			Object: args.Object, Luhmann: luhmann, Source: args.Source,
 			Project: args.Project, Repo: identity.Repo, User: identity.User, Vault: identity.Vault,
-			Issue: args.Issue, Tier: tierOrDefault(args.Tier),
+			Pending: args.Pending,
+			Issue:   args.Issue, Tier: tierOrDefault(args.Tier),
 			ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
 		}
 
@@ -336,6 +406,54 @@ func extractLuhmannFromFilename(name string) (string, bool) {
 	}
 
 	return luhmann.FromBasename(strings.TrimSuffix(name, mdExt))
+}
+
+// learnArgsFromFact converts LearnFactArgs to LearnArgs — shared by local
+// (runLearnFromFactArgs) and ENGRAM_SERVER-mode (fetchLearn) dispatch, so
+// the field mapping lives in exactly one place.
+func learnArgsFromFact(a LearnFactArgs) LearnArgs {
+	return LearnArgs{
+		Type:         typeFact,
+		Slug:         a.Slug,
+		Vault:        a.Vault,
+		VaultName:    a.VaultName,
+		Target:       a.Target,
+		Position:     a.Position,
+		Source:       a.Source,
+		Project:      a.Project,
+		Issue:        a.Issue,
+		Tier:         a.Tier,
+		Supersedes:   a.Supersedes,
+		ChunkSources: a.ChunkSources,
+		Tags:         a.Tags,
+		Situation:    a.Situation,
+		Subject:      a.Subject,
+		Predicate:    a.Predicate,
+		Object:       a.Object,
+	}
+}
+
+// learnArgsFromFeedback mirrors learnArgsFromFact for feedback notes.
+func learnArgsFromFeedback(a LearnFeedbackArgs) LearnArgs {
+	return LearnArgs{
+		Type:         typeFeedback,
+		Slug:         a.Slug,
+		Vault:        a.Vault,
+		VaultName:    a.VaultName,
+		Target:       a.Target,
+		Position:     a.Position,
+		Source:       a.Source,
+		Project:      a.Project,
+		Issue:        a.Issue,
+		Tier:         a.Tier,
+		Supersedes:   a.Supersedes,
+		ChunkSources: a.ChunkSources,
+		Tags:         a.Tags,
+		Situation:    a.Situation,
+		Behavior:     a.Behavior,
+		Impact:       a.Impact,
+		Action:       a.Action,
+	}
 }
 
 func learnPath(vault, luhmann, slug string, when time.Time) string {
@@ -415,6 +533,7 @@ func renderFactFrontmatter(f factFields, when time.Time) string {
 		Repo:         f.Repo,
 		User:         f.User,
 		Vault:        f.Vault,
+		Pending:      f.Pending,
 		Issue:        quotedString(f.Issue),
 		Sources:      f.ChunkSources,
 		VocabVersion: f.VocabVersion,
@@ -447,6 +566,7 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 		Repo:       f.Repo,
 		User:       f.User,
 		Vault:      f.Vault,
+		Pending:    f.Pending,
 		Issue:      quotedString(f.Issue),
 		Sources:    f.ChunkSources,
 		Tags:       f.Tags,
@@ -472,90 +592,12 @@ func resolveVault(flagValue, home string, getenv func(string) string) string {
 	return filepath.Join(DataDirFromHome(home, getenv), "vault")
 }
 
-// runLearn orchestrates the learn subcommand: validates inputs, ensures the
-// vault directory exists (creating it on first use), acquires the lock,
-// computes the next Luhmann ID, and writes the file. args.Vault must
-// already be resolved by the caller via resolveVault.
-func runLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Writer) error {
-	slugErr := validateSlug(args.Slug)
-	if slugErr != nil {
-		return fmt.Errorf("learn: %w", slugErr)
-	}
-
-	projectErr := validateProjectSlug(args.Project)
-	if projectErr != nil {
-		return fmt.Errorf("learn: %w", projectErr)
-	}
-
-	issueErr := validateIssueID(args.Issue)
-	if issueErr != nil {
-		return fmt.Errorf("learn: %w", issueErr)
-	}
-
-	tagErr := validateTags(args.Tags)
-	if tagErr != nil {
-		return fmt.Errorf("learn: %w", tagErr)
-	}
-
-	vault := args.Vault
-
-	vaultErr := ensureVaultDir(deps.StatDir, deps.InitVault, vault, "learn")
-	if vaultErr != nil {
-		return vaultErr
-	}
-
-	path, writeErr := writeLearnUnderLock(ctx, args, deps, vault)
-	if writeErr != nil {
-		return writeErr
-	}
-
-	_, _ = fmt.Fprintln(stdout, path)
-
-	return nil
-}
-
 func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, d Deps, stdout io.Writer) error {
-	return runLearn(ctx, LearnArgs{
-		Type:         typeFact,
-		Slug:         a.Slug,
-		Vault:        a.Vault,
-		VaultName:    a.VaultName,
-		Target:       a.Target,
-		Position:     a.Position,
-		Source:       a.Source,
-		Project:      a.Project,
-		Issue:        a.Issue,
-		Tier:         a.Tier,
-		Supersedes:   a.Supersedes,
-		ChunkSources: a.ChunkSources,
-		Tags:         a.Tags,
-		Situation:    a.Situation,
-		Subject:      a.Subject,
-		Predicate:    a.Predicate,
-		Object:       a.Object,
-	}, newLearnDeps(d), stdout)
+	return RunLearn(ctx, learnArgsFromFact(a), newLearnDeps(d), stdout)
 }
 
 func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, d Deps, stdout io.Writer) error {
-	return runLearn(ctx, LearnArgs{
-		Type:         typeFeedback,
-		Slug:         a.Slug,
-		Vault:        a.Vault,
-		VaultName:    a.VaultName,
-		Target:       a.Target,
-		Position:     a.Position,
-		Source:       a.Source,
-		Project:      a.Project,
-		Issue:        a.Issue,
-		Tier:         a.Tier,
-		Supersedes:   a.Supersedes,
-		ChunkSources: a.ChunkSources,
-		Tags:         a.Tags,
-		Situation:    a.Situation,
-		Behavior:     a.Behavior,
-		Impact:       a.Impact,
-		Action:       a.Action,
-	}, newLearnDeps(d), stdout)
+	return RunLearn(ctx, learnArgsFromFeedback(a), newLearnDeps(d), stdout)
 }
 
 // stripLeadingWhen removes a case-insensitive leading "When " or "when " from

@@ -464,6 +464,7 @@ func runPostUpdateChecks(ctx context.Context, args UpdateArgs, deps updateDeps, 
 	report.ChunkIndexHasEmptyFiles = chunkIndexHasEmptyFiles(chunksDir, deps.FS)
 	report.ChunkIndexHasPrunableDuplicates = chunkIndexHasPrunableDuplicates(chunksDir, deps.FS)
 	report.VaultHasNotesMissingIdentity = notesMissingIdentityFields(vaultPath, deps.FS)
+	report.VaultHasPendingOffers = vaultHasPendingOffers(vaultPath, deps.FS)
 
 	if args.RegenVocab {
 		regenErr := applyVocabRegen(ctx, vaultPath, deps.Vocab, args.DryRun, deps.FS, report)
@@ -844,6 +845,17 @@ func writeLuhmannBranchingNotice(buffer *bytes.Buffer, report update.Report) {
 	}
 }
 
+// writePendingOfferHint prints a one-line notice naming the pending_offers
+// query flag when the vault holds at least one pending-offer note awaiting
+// curation. Silent otherwise. Deliberately just a notice: update never
+// curates offers itself — that's the offer-curation skill's job, off this
+// process entirely.
+func writePendingOfferHint(buffer *bytes.Buffer, report update.Report) {
+	if report.VaultHasPendingOffers {
+		buffer.WriteString(pendingOfferUpdateNotice)
+	}
+}
+
 // writeReexecHandoffReport renders the parent's contribution to the
 // combined report after a successful re-exec handoff (design D6): source
 // and binary lines only — never the harness/guidance/vocab/chunk sections,
@@ -918,6 +930,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	writeEmptyChunkHint(&buffer, report)
 	writeDuplicatesHint(&buffer, report)
 	writeIdentityBackfillHint(&buffer, report)
+	writePendingOfferHint(&buffer, report)
 
 	_, err := out.Write(buffer.Bytes())
 	if err != nil {

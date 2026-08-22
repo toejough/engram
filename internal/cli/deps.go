@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"io"
 	"io/fs"
 	"time"
@@ -44,6 +45,27 @@ type Deps struct {
 	Embed embed.Embedder
 	// DebugLog is the debug-log sink; nil disables debug logging (no-op logger).
 	DebugLog io.Writer
+	// NewServeMux creates one opaque server-side route table (production:
+	// http.NewServeMux(), composed in cmd/engram — internal/ never imports
+	// net/http directly, depguard #700's internal-purity rule; RawServeMux
+	// is an erased handle internal/ only ever holds and passes back,
+	// mirroring embed.RawSession's erasure pattern).
+	NewServeMux func() RawServeMux
+	// RegisterRoute registers one method+pattern route on mux (production:
+	// a single mux.HandleFunc call). Called once per route by RunServe —
+	// the per-route loop lives here in internal/cli, never in cmd/engram
+	// (targ check-thin-api forbids loops in cmd/engram's declarations).
+	RegisterRoute func(mux RawServeMux, method, pattern string, handler ServeHandler)
+	// ListenAndServe blocks serving mux on addr until ctx is canceled or an
+	// unrecoverable listen error occurs (production: real http.Server).
+	ListenAndServe func(ctx context.Context, mux RawServeMux, addr string) error
+	// Fetch issues one HTTP request against a fully-formed URL (query
+	// percent-encoding happens in internal/cli — depguard #700's
+	// internal-purity rule disallows net/url under internal/, so the raw
+	// primitive takes a plain string) and returns its response reduced to
+	// primitive types (production: real net/http.Client, composed in
+	// cmd/engram). Used by CLI targets when ENGRAM_SERVER is set.
+	Fetch func(ctx context.Context, method, url string, body []byte) (FetchResponse, error)
 }
 
 // EdgeFS is the filesystem capability surface for production wiring. All

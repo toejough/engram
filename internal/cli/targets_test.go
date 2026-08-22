@@ -156,8 +156,8 @@ func TestTargets(t *testing.T) {
 		targets := cli.Targets(newTestDeps(&bytes.Buffer{}, &bytes.Buffer{}))
 		// learn (group), update, embed (group), query, ingest, query-chunks,
 		// activate, count, show, show-chunk, check, resituate, amend, prune,
-		// vocab (group)
-		g.Expect(targets).To(gomega.HaveLen(15))
+		// vocab (group), serve
+		g.Expect(targets).To(gomega.HaveLen(16))
 	})
 
 	t.Run("show parses positional ref through targ", func(t *testing.T) {
@@ -330,11 +330,18 @@ func TestTargets(t *testing.T) {
 // TestTargets_ActivateNoNotes exercises the activate closure end-to-end
 // through Targets() with no --note flags so newActivateDeps wiring is
 // covered. The empty-notes fast path returns nil (0 failures, 0 notes).
+// --vault points at a real temp dir: RunActivate always acquires the vault
+// lock before its empty-notes fast path, even with zero notes, so it needs
+// an existing directory to flock — omitting --vault would silently depend
+// on $XDG_DATA_HOME/engram/vault (or $HOME/.local/share/engram/vault)
+// already existing on whatever machine runs the test.
 func TestTargets_ActivateNoNotes(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	stderr := executeForTest(t, []string{"engram", "activate"})
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{"engram", "activate", "--vault", vault})
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 

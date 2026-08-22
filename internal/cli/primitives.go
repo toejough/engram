@@ -43,6 +43,21 @@ type FSPrims struct {
 	Lstat        func(path string) (fs.FileInfo, error)                      // os.Lstat
 }
 
+// HTTPPrims groups the raw HTTP capabilities: opaque mux creation, one
+// route registration, a blocking listen-and-serve call, and a
+// single-request client fetch. cmd/engram supplies all four as real
+// net/http-backed closures, each reduced to a single call/simple-wrapper
+// body (targ check-thin-api); internal/ only ever sees the primitive
+// RawServeMux/ServeRequest/ServeResponse/FetchResponse shapes — the
+// per-route registration loop lives in internal/cli (cli.RunServe), never
+// in cmd/engram.
+type HTTPPrims struct {
+	NewServeMux    func() RawServeMux
+	RegisterRoute  func(mux RawServeMux, method, pattern string, handler ServeHandler)
+	ListenAndServe func(ctx context.Context, mux RawServeMux, addr string) error
+	Fetch          func(ctx context.Context, method, url string, body []byte) (FetchResponse, error)
+}
+
 // LockPrims groups the raw advisory file-locking capabilities:
 // single-syscall closures over a raw fd; the lock lifecycle lives internal
 // in primLocker (design flags P-2/P-3: semantic per-op funcs over a raw
@@ -85,6 +100,13 @@ type Primitives struct {
 	// methods; all lifecycle/config/cache policy is internal — doctrine
 	// flags D-1/E-1/E-2).
 	EmbedRuntime embed.Runtime
+
+	// HTTP server-listen and client-fetch capabilities for `engram serve`
+	// and `ENGRAM_SERVER`-mode CLI targets (consumed directly by NewDeps —
+	// internal/ never imports net/http, depguard #700's internal-purity
+	// rule; ServeRoute/ServeRequest/ServeResponse are the primitive-typed
+	// boundary cmd/engram's real net/http.ServeMux translates against).
+	HTTP HTTPPrims
 }
 
 // ProcPrims groups the raw process-scoped capabilities: env, clock,
@@ -128,19 +150,23 @@ func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
 	startForceExit(prims, exit)
 
 	deps := Deps{
-		Stdout:      stdout,
-		Stderr:      stderr,
-		Exit:        exit,
-		Getenv:      prims.Proc.Getenv,
-		Now:         prims.Proc.Now,
-		Getwd:       prims.Proc.Getwd,
-		UserHomeDir: prims.Proc.UserHomeDir,
-		Username:    prims.Proc.Username,
-		FS:          primFS{prims: prims},
-		Lock:        primLocker{prims: prims},
-		Commander:   primCommander{prims: prims},
-		Spawner:     primSpawner{prims: prims},
-		DebugLog:    openDebugSink(envOrEmpty(prims.Proc.Getenv, debugLogEnvVar), prims.Proc.OpenDebugFile),
+		Stdout:         stdout,
+		Stderr:         stderr,
+		Exit:           exit,
+		Getenv:         prims.Proc.Getenv,
+		Now:            prims.Proc.Now,
+		Getwd:          prims.Proc.Getwd,
+		UserHomeDir:    prims.Proc.UserHomeDir,
+		Username:       prims.Proc.Username,
+		FS:             primFS{prims: prims},
+		Lock:           primLocker{prims: prims},
+		Commander:      primCommander{prims: prims},
+		Spawner:        primSpawner{prims: prims},
+		DebugLog:       openDebugSink(envOrEmpty(prims.Proc.Getenv, debugLogEnvVar), prims.Proc.OpenDebugFile),
+		NewServeMux:    prims.HTTP.NewServeMux,
+		RegisterRoute:  prims.HTTP.RegisterRoute,
+		ListenAndServe: prims.HTTP.ListenAndServe,
+		Fetch:          prims.HTTP.Fetch,
 	}
 
 	// The lazy embedder is constructed exactly once, here: NewDeps is the

@@ -32,6 +32,7 @@ func main() {
 		Spawn:        spawnPrimitives(),
 		Proc:         procPrimitives(),
 		EmbedRuntime: hugotRuntime{},
+		HTTP:         httpPrimitives(),
 	}, os.Stdout, os.Stderr, os.Exit))...)
 }
 

@@ -92,8 +92,11 @@ func Targets(deps Deps) []any {
 	}
 
 	return append(
-		coreTargets(deps, withLog, errHandler),
-		maintenanceTargets(deps, withLog, errHandler)...,
+		append(
+			coreTargets(deps, withLog, errHandler),
+			maintenanceTargets(deps, withLog, errHandler)...,
+		),
+		serveTargets(deps, withLog, errHandler)...,
 	)
 }
 
@@ -111,6 +114,12 @@ func amendResituateTargets(
 			errHandler(RunResituate(withLog(ctx), a, newResituateDeps(deps), deps.Stdout))
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 		targ.Targ(func(ctx context.Context, a AmendArgs) {
+			if base := serverBase(deps); base != "" {
+				errHandler(fetchAmend(withLog(ctx), deps, base, a, deps.Stdout))
+
+				return
+			}
+
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
@@ -148,8 +157,9 @@ func homeOrEmpty(deps Deps) string {
 }
 
 // ingestQueryTargets returns the read/write-vault subcommands (query, ingest,
-// query-chunks, activate, show, check). Split from coreTargets to stay within
-// the per-function length budget.
+// prune, query-chunks, plus activate/count/show/show-chunk/check via
+// showActivateTargets). Split from coreTargets to stay within the
+// per-function length budget.
 func ingestQueryTargets(
 	deps Deps,
 	withLog func(context.Context) context.Context,
@@ -157,8 +167,14 @@ func ingestQueryTargets(
 ) []any {
 	home := homeOrEmpty(deps)
 
-	return []any{
+	return append([]any{
 		targ.Targ(func(ctx context.Context, a QueryArgs) {
+			if base := serverBase(deps); base != "" {
+				errHandler(fetchQuery(withLog(ctx), deps, base, a, deps.Stdout))
+
+				return
+			}
+
 			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
 			errHandler(RunQuery(withLog(ctx), a, newQueryDeps(deps), deps.Stdout))
@@ -176,31 +192,16 @@ func ingestQueryTargets(
 				"keep the embedded chunks (still searchable). --duplicates retroactively collapses " +
 				"exact-content-hash groups to one canonical member (safe by construction)"),
 		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
+			if base := serverBase(deps); base != "" {
+				errHandler(fetchQueryChunks(withLog(ctx), deps, base, a, deps.Stdout))
+
+				return
+			}
+
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
 			errHandler(RunChunkQuery(withLog(ctx), a, newChunkQueryDeps(deps), deps.Stdout))
 		}).Name("query-chunks").Description("Semantic search over the chunk index (YAML output)"),
-		targ.Targ(func(_ context.Context, a ActivateArgs) {
-			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			errHandler(RunActivate(a, newActivateDeps(deps)))
-		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
-		targ.Targ(func(_ context.Context, a CountArgs) {
-			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			errHandler(RunCount(a, newCountDeps(deps), deps.Stdout))
-		}).Name("count").Description(
-			"Count notes by a frontmatter attribute or a note's wikilink in-degree (read-only)"),
-		targ.Targ(func(ctx context.Context, a ShowArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-			errHandler(RunShow(withLog(ctx), a, newShowDeps(deps), deps.Stdout))
-		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
-		targ.Targ(func(ctx context.Context, a ShowChunkArgs) {
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-			errHandler(RunShowChunk(withLog(ctx), a, newShowChunkDeps(deps), deps.Stdout))
-		}).Name("show-chunk").Description("Print a chunk's text by its source#anchor id (read-only)"),
-		targ.Targ(func(ctx context.Context, a CheckArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-			errHandler(RunCheck(withLog(ctx), a, newCheckDeps(deps), deps.Stdout))
-		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
-	}
+	}, showActivateTargets(deps, withLog, errHandler, home)...)
 }
 
 // learnUpdateTargets returns the learn and update subcommands (learn group,
@@ -216,11 +217,23 @@ func learnUpdateTargets(
 	return []any{
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
+				if base := serverBase(deps); base != "" {
+					errHandler(fetchLearn(withLog(ctx), deps, base, learnArgsFromFeedback(a), deps.Stdout))
+
+					return
+				}
+
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, deps, deps.Stdout))
 			}).Name("feedback").Description("Write a feedback note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
+				if base := serverBase(deps); base != "" {
+					errHandler(fetchLearn(withLog(ctx), deps, base, learnArgsFromFact(a), deps.Stdout))
+
+					return
+				}
+
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, deps, deps.Stdout))
@@ -273,6 +286,79 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 		_, _ = fmt.Fprintln(stderr, err)
 
 		exit(1)
+	}
+}
+
+// serveTargets returns the `engram serve` subcommand (vault-serve-api).
+// Split out of Targets to stay within the per-function length budget.
+func serveTargets(
+	deps Deps,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+) []any {
+	home := homeOrEmpty(deps)
+
+	return []any{
+		targ.Targ(func(ctx context.Context, a ServeArgs) {
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+			errHandler(RunServe(withLog(ctx), a, deps))
+		}).Name("serve").Description(
+			"Serve query/query-chunks/show/show-chunk/activate/learn/amend over HTTP " +
+				"(explicit bind address required; writes land as pending offers)"),
+	}
+}
+
+// showActivateTargets returns the activate/count/show/show-chunk/check
+// subcommands. Split out of ingestQueryTargets to stay within the
+// per-function length budget.
+func showActivateTargets(
+	deps Deps,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+	home string,
+) []any {
+	return []any{
+		targ.Targ(func(ctx context.Context, a ActivateArgs) {
+			if base := serverBase(deps); base != "" {
+				errHandler(fetchActivate(withLog(ctx), deps, base, a))
+
+				return
+			}
+
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			errHandler(RunActivate(a, newActivateDeps(deps)))
+		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
+		targ.Targ(func(_ context.Context, a CountArgs) {
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			errHandler(RunCount(a, newCountDeps(deps), deps.Stdout))
+		}).Name("count").Description(
+			"Count notes by a frontmatter attribute or a note's wikilink in-degree (read-only)"),
+		targ.Targ(func(ctx context.Context, a ShowArgs) {
+			if base := serverBase(deps); base != "" {
+				errHandler(fetchShow(withLog(ctx), deps, base, a, deps.Stdout))
+
+				return
+			}
+
+			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+			errHandler(RunShow(withLog(ctx), a, newShowDeps(deps), deps.Stdout))
+		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
+		targ.Targ(func(ctx context.Context, a ShowChunkArgs) {
+			if base := serverBase(deps); base != "" {
+				errHandler(fetchShowChunk(withLog(ctx), deps, base, a, deps.Stdout))
+
+				return
+			}
+
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+			errHandler(RunShowChunk(withLog(ctx), a, newShowChunkDeps(deps), deps.Stdout))
+		}).Name("show-chunk").Description("Print a chunk's text by its source#anchor id (read-only)"),
+		targ.Targ(func(ctx context.Context, a CheckArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+			errHandler(RunCheck(withLog(ctx), a, newCheckDeps(deps), deps.Stdout))
+		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
 	}
 }
 

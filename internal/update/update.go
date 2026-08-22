@@ -343,6 +343,15 @@ type Report struct {
 	// never touches vault paths; this field is opaque data.
 	VaultHasNotesMissingIdentity bool
 
+	// VaultHasPendingOffers is true when the vault holds at least one
+	// fact/feedback note carrying the pending-offer marker (vault-offer-
+	// curation) — a served `learn`/`amend` write awaiting curation. Set by
+	// the cli package after Run returns (via vaultHasPendingOffers) —
+	// Updater.Run itself never touches vault paths; this field is opaque
+	// data. Detection is stateless/unbatched (a fresh scan every check),
+	// unlike the vocab-refit trigger.
+	VaultHasPendingOffers bool
+
 	// ReexecExitCode is set (non-nil) iff this run's install succeeded and
 	// re-exec of the freshly installed binary was spawned and awaited
 	// (design D8): the pointee is the re-execed child's exit code, and Run

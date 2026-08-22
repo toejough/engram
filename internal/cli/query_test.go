@@ -410,6 +410,34 @@ func TestQuery_OldSchemaSidecars_EmitSchemaAdvisory(t *testing.T) {
 		"old-schema sidecars must be counted and surfaced via the mismatch advisory, not silently dropped")
 }
 
+// TestQuery_PayloadIncludesModelID covers vault-query-model-provenance for
+// the LOCAL query path (the served path is covered separately by
+// TestServeQuery_ExcludesPendingOffersAndSetsModelID): model_id always
+// matches deps.Embedder.ModelID(), even against an empty vault.
+func TestQuery_PayloadIncludesModelID(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"anything"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed struct {
+		ModelID string `yaml:"model_id"`
+	}
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+	g.Expect(parsed.ModelID).To(Equal("m@4"))
+}
+
 func TestQuery_PhrasesFlag_AcceptsMultiplePhrases(t *testing.T) {
 	t.Parallel()
 
