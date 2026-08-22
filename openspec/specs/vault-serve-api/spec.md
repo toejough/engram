@@ -1,6 +1,6 @@
 ## Purpose
 
-Lets remote environments with no local checkout or binary path use the vault over HTTP, reusing the CLI's existing command behavior, locks, and code paths rather than a parallel implementation, with writes attributed to a server-verified caller identity instead of a client-supplied one.
+Lets remote environments with no local checkout or binary path use the vault over HTTP, reusing the CLI's existing command behavior, locks, and code paths rather than a parallel implementation, with writes attributed to the calling instance's own client-declared identity.
 
 ## Requirements
 
@@ -36,12 +36,25 @@ When the `ENGRAM_SERVER` environment variable is set, the CLI SHALL issue HTTP r
 - **WHEN** the same `query` invocation is run once against a local vault and once with `ENGRAM_SERVER` pointed at a server serving the same vault content
 - **THEN** the two invocations produce byte-identical output
 
-### Requirement: Served writes are attributed to the server-verified caller identity
-For a served `learn` or `amend` request, the server SHALL stamp the note's `user:` field from the caller's Cloudflare Access-authenticated identity on the inbound request. The server SHALL NOT use a client-supplied `user:` value for this field, regardless of what the calling instance's own local detection would have produced.
+### Requirement: Served writes are attributed to the client-declared caller identity
+For a served `learn` or `amend` request, the server SHALL stamp the note's `user:` field from
+the identity value the calling `engram` instance declared in the request body — the same
+locally-detected value that instance would have used for a local write. The server SHALL NOT
+require or consult any edge-authentication header (Cloudflare Access or otherwise) to resolve
+this field. The server SHALL reject a served `learn` or `amend` request whose declared
+identity is empty, and SHALL perform no vault write in that case.
 
-#### Scenario: A client cannot spoof its identity
-- **WHEN** a served `learn` or `amend` request arrives from a caller authenticated by Cloudflare Access as identity A, carrying a self-detected `user:` value naming a different identity B
-- **THEN** the resulting note's `user:` field is A, never B
+#### Scenario: A caller's declared identity is stamped as-is
+- **WHEN** a served `learn` or `amend` request arrives with a self-detected `user:` value naming identity A
+- **THEN** the resulting pending-offer note's `user:` field is A
+
+#### Scenario: An empty declared identity is rejected
+- **WHEN** a served `learn` or `amend` request arrives with an empty `user:` value
+- **THEN** the server returns an error and performs no vault write
+
+#### Scenario: No edge-authentication header is required
+- **WHEN** a served `learn` or `amend` request arrives with a non-empty declared `user:` value and no Cloudflare Access (or other edge-authentication) header at all
+- **THEN** the request succeeds and the resulting note's `user:` field is the declared value
 
 ### Requirement: repo: is not server-overridden on served writes
 For a served `learn` or `amend` request, the server SHALL resolve `repo:` the same way local `learn`/`amend` already does (client/caller-detected) — SHALL NOT substitute a server-derived value for `repo:`.
