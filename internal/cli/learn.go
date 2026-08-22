@@ -77,6 +77,14 @@ type LearnArgs struct {
 	// Unused/empty for local (non-served) learn — RunLearn always calls
 	// deps.DetectRepo(ctx), never reads this field directly.
 	Repo string `json:"repo"`
+
+	// User carries a served write's client-detected user: value across the
+	// wire — same pass-through-not-redetect treatment as Repo (serve-
+	// client-declared-identity). A served learn handler passes it through
+	// via LearnDeps.DetectUser unchanged, rejecting the request first if
+	// it's empty. Unused/empty for local (non-served) learn — RunLearn
+	// always calls deps.DetectUser(ctx), never reads this field directly.
+	User string `json:"user"`
 }
 
 // LearnDeps holds injected dependencies for RunLearn. All fields are

@@ -88,9 +88,10 @@ func fetchActivate(ctx context.Context, deps Deps, base string, args ActivateArg
 }
 
 // fetchAmend routes `engram amend` through ENGRAM_SERVER. Same
-// repo-stamping and offer-receipt handling as fetchLearn.
+// repo/user-stamping and offer-receipt handling as fetchLearn.
 func fetchAmend(ctx context.Context, deps Deps, base string, args AmendArgs, stdout io.Writer) error {
 	args.Repo = detectRepo(ctx, deps.Getwd, deps.Commander)
+	args.User = detectUser(ctx, deps.Commander, deps.Username)
 
 	//nolint:errchkjson // AmendArgs is all strings/[]string/bool/*bool fields — never fails to encode
 	body, _ := json.Marshal(args)
@@ -124,12 +125,14 @@ func fetchAndCopy(
 }
 
 // fetchLearn routes `engram learn` through ENGRAM_SERVER: stamps args.Repo
-// with this client's own detected repo (client-detected, no privilege —
-// design.md Decisions), lands as a pending offer on the host, and prints
-// the offer receipt rather than a note path — the response deliberately
-// never carries note content.
+// and args.User with this client's own detected repo/user (client-detected,
+// no privilege/verification — design.md Decisions, serve-client-declared-
+// identity), lands as a pending offer on the host, and prints the offer
+// receipt rather than a note path — the response deliberately never carries
+// note content.
 func fetchLearn(ctx context.Context, deps Deps, base string, args LearnArgs, stdout io.Writer) error {
 	args.Repo = detectRepo(ctx, deps.Getwd, deps.Commander)
+	args.User = detectUser(ctx, deps.Commander, deps.Username)
 
 	//nolint:errchkjson // LearnArgs is all strings/[]string/bool fields — never fails to encode
 	body, _ := json.Marshal(args)

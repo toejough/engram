@@ -112,13 +112,10 @@ func TestServeAmend_DiscardIsAlwaysBlocked(t *testing.T) {
 	deps := newTestDeps(io.Discard, io.Discard)
 	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
 
-	body, marshalErr := json.Marshal(map[string]any{"target": "5", "discard": true})
+	body, marshalErr := json.Marshal(map[string]any{"target": "5", "discard": true, "user": "declared@example.com"})
 	g.Expect(marshalErr).NotTo(HaveOccurred())
 
-	resp := routeFor(t, routes, "/amend").Serve(t.Context(), cli.ServeRequest{
-		Header: map[string][]string{cloudflareHeader: {"cloudflare-user@example.com"}},
-		Body:   body,
-	})
+	resp := routeFor(t, routes, "/amend").Serve(t.Context(), cli.ServeRequest{Body: body})
 
 	g.Expect(resp.Status).To(Equal(200))
 
@@ -127,9 +124,36 @@ func TestServeAmend_DiscardIsAlwaysBlocked(t *testing.T) {
 	g.Expect(string(raw)).To(ContainSubstring("pending: true"))
 }
 
-// TestServeAmend_StampsIdentityAndPendingMarker covers POST /amend: same
-// identity/pending contract as learn, applied to an existing note.
-func TestServeAmend_StampsIdentityAndPendingMarker(t *testing.T) {
+// TestServeAmend_EmptyDeclaredIdentity_Rejected covers the identity floor
+// (serve-client-declared-identity): a served amend whose body carries no
+// (or an empty) user: value is refused before any write happens — no
+// edge-authentication header is consulted at all.
+func TestServeAmend_EmptyDeclaredIdentity_Rejected(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := writeServeVaultFile(t, vault, "5.2026-01-01.existing.md")
+
+	deps := newTestDeps(io.Discard, io.Discard)
+	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
+
+	body, marshalErr := json.Marshal(cli.AmendArgs{Target: "5", Object: "amended-object"})
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	resp := routeFor(t, routes, "/amend").Serve(t.Context(), cli.ServeRequest{Body: body})
+	g.Expect(resp.Status).To(Equal(400))
+
+	raw, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(raw)).NotTo(ContainSubstring("amended-object"), "no write happens when identity is empty")
+}
+
+// TestServeAmend_StampsClientDeclaredIdentityAndPendingMarker covers POST
+// /amend: same identity/pending contract as learn, applied to an existing
+// note. No edge-authentication header is sent at all — the declared user:
+// value in the body is trusted directly (serve-client-declared-identity).
+func TestServeAmend_StampsClientDeclaredIdentityAndPendingMarker(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -139,14 +163,14 @@ func TestServeAmend_StampsIdentityAndPendingMarker(t *testing.T) {
 	deps := newTestDeps(io.Discard, io.Discard)
 	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
 
-	args := cli.AmendArgs{Target: "5", Object: "amended-object", Repo: "git@github.com:example/remote.git"}
+	args := cli.AmendArgs{
+		Target: "5", Object: "amended-object",
+		Repo: "git@github.com:example/remote.git", User: "declared-user@example.com",
+	}
 	body, marshalErr := json.Marshal(args)
 	g.Expect(marshalErr).NotTo(HaveOccurred())
 
-	resp := routeFor(t, routes, "/amend").Serve(t.Context(), cli.ServeRequest{
-		Header: map[string][]string{cloudflareHeader: {"cloudflare-user@example.com"}},
-		Body:   body,
-	})
+	resp := routeFor(t, routes, "/amend").Serve(t.Context(), cli.ServeRequest{Body: body})
 
 	g.Expect(resp.Status).To(Equal(200))
 
@@ -154,7 +178,7 @@ func TestServeAmend_StampsIdentityAndPendingMarker(t *testing.T) {
 	g.Expect(readErr).NotTo(HaveOccurred())
 
 	written := string(raw)
-	g.Expect(written).To(ContainSubstring("user: cloudflare-user@example.com"))
+	g.Expect(written).To(ContainSubstring("user: declared-user@example.com"))
 	g.Expect(written).To(ContainSubstring("repo: git@github.com:example/remote.git"))
 	g.Expect(written).To(ContainSubstring("pending: true"))
 	g.Expect(written).To(ContainSubstring("object: amended-object"))
@@ -211,14 +235,11 @@ func TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate(t *testing.T) {
 			body, marshalErr := json.Marshal(cli.LearnArgs{
 				Type: "fact", Slug: fmt.Sprintf("served-%d", i), Position: "top", Source: "race",
 				Situation: fmt.Sprintf("served writer %d", i), Subject: "the vault write-lock",
-				Predicate: "prevents", Object: "lost updates under concurrency",
+				Predicate: "prevents", Object: "lost updates under concurrency", User: "racer@example.com",
 			})
 			g.Expect(marshalErr).NotTo(HaveOccurred())
 
-			resp := learnRoute.Serve(context.Background(), cli.ServeRequest{
-				Header: map[string][]string{cloudflareHeader: {"racer@example.com"}},
-				Body:   body,
-			})
+			resp := learnRoute.Serve(context.Background(), cli.ServeRequest{Body: body})
 
 			if resp.Status != 200 {
 				errs[workersPerKind+i] = fmt.Errorf("served learn %d: status %d: %s", i, resp.Status, resp.Body)
@@ -258,10 +279,11 @@ func TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate(t *testing.T) {
 	g.Expect(ids).To(HaveLen(total), "expected %d distinct luhmann ids, no collisions", total)
 }
 
-// TestServeLearn_MissingIdentity_Returns401 covers the identity gate: a
-// served learn/amend with no Cloudflare Access header is refused before
-// any write happens.
-func TestServeLearn_MissingIdentity_Returns401(t *testing.T) {
+// TestServeLearn_EmptyDeclaredIdentity_Rejected covers the identity floor
+// (serve-client-declared-identity): a served learn whose body carries no
+// (or an empty) user: value is refused before any write happens — no
+// edge-authentication header is consulted at all.
+func TestServeLearn_EmptyDeclaredIdentity_Rejected(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -270,20 +292,21 @@ func TestServeLearn_MissingIdentity_Returns401(t *testing.T) {
 	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
 
 	resp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{Body: []byte(`{}`)})
-	g.Expect(resp.Status).To(Equal(401))
+	g.Expect(resp.Status).To(Equal(400))
 
 	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
 	g.Expect(globErr).NotTo(HaveOccurred())
-	g.Expect(matches).To(BeEmpty(), "no note written when identity is missing")
+	g.Expect(matches).To(BeEmpty(), "no note written when declared identity is empty")
 }
 
-// TestServeLearn_StampsCloudflareIdentityAndPendingMarker covers the core
-// offer-write contract: the server's own configured Vault wins over
-// anything in the request, user: comes from the Cloudflare header (never
-// trusted from the body), repo: passes through the client-supplied value
+// TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker covers the
+// core offer-write contract (serve-client-declared-identity): the server's
+// own configured Vault wins over anything in the request, user: comes from
+// the request body's client-declared value (no edge-authentication header
+// involved at all), repo: passes through the client-supplied value
 // unchanged, the note lands pending: true, and the response is a
 // {status, luhmann} receipt that never carries note content.
-func TestServeLearn_StampsCloudflareIdentityAndPendingMarker(t *testing.T) {
+func TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -294,15 +317,12 @@ func TestServeLearn_StampsCloudflareIdentityAndPendingMarker(t *testing.T) {
 	args := cli.LearnArgs{
 		Type: "fact", Slug: "served-fact", Position: "top", Source: "remote",
 		Situation: "a served write", Subject: "engram", Predicate: "serves", Object: "writes",
-		Repo: "git@github.com:example/remote.git",
+		Repo: "git@github.com:example/remote.git", User: "declared-user@example.com",
 	}
 	body, marshalErr := json.Marshal(args)
 	g.Expect(marshalErr).NotTo(HaveOccurred())
 
-	resp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{
-		Header: map[string][]string{cloudflareHeader: {"cloudflare-user@example.com"}},
-		Body:   body,
-	})
+	resp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{Body: body})
 
 	g.Expect(resp.Status).To(Equal(200))
 
@@ -327,7 +347,7 @@ func TestServeLearn_StampsCloudflareIdentityAndPendingMarker(t *testing.T) {
 	g.Expect(readErr).NotTo(HaveOccurred())
 
 	written := string(raw)
-	g.Expect(written).To(ContainSubstring("user: cloudflare-user@example.com"))
+	g.Expect(written).To(ContainSubstring("user: declared-user@example.com"))
 	g.Expect(written).To(ContainSubstring("repo: git@github.com:example/remote.git"))
 	g.Expect(written).To(ContainSubstring("pending: true"))
 	g.Expect(written).To(ContainSubstring("vault: personal"),
@@ -376,13 +396,11 @@ func TestServeQuery_ExcludesPendingOffersAndSetsModelID(t *testing.T) {
 	learnBody, marshalErr := json.Marshal(cli.LearnArgs{
 		Type: "fact", Slug: "pending-note", Position: "top", Source: "remote",
 		Situation: "a pending note about coverage", Subject: "engram", Predicate: "covers", Object: "offers",
+		User: "u@example.com",
 	})
 	g.Expect(marshalErr).NotTo(HaveOccurred())
 
-	learnResp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{
-		Header: map[string][]string{cloudflareHeader: {"u@example.com"}},
-		Body:   learnBody,
-	})
+	learnResp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{Body: learnBody})
 	g.Expect(learnResp.Status).To(Equal(200))
 
 	resp := routeFor(t, routes, "/query").Serve(t.Context(), cli.ServeRequest{
@@ -467,11 +485,6 @@ func TestServeShow_MatchesLocalOutput(t *testing.T) {
 	g.Expect(resp.Status).To(Equal(200))
 	g.Expect(string(resp.Body)).To(ContainSubstring("subject: a"))
 }
-
-// unexported constants.
-const (
-	cloudflareHeader = "Cf-Access-Authenticated-User-Email"
-)
 
 // learnLocal writes a note directly (not through the served offer path)
 // for query-test fixtures — same shape a local `engram learn` produces.

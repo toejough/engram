@@ -93,6 +93,34 @@ func TestEngramServer_Amend_StampsRepoAndPrintsReceipt(t *testing.T) {
 	g.Expect(sent.Object).To(Equal("amended"))
 }
 
+// TestEngramServer_Amend_StampsUser mirrors
+// TestEngramServer_Learn_StampsUser for `engram amend`.
+func TestEngramServer_Amend_StampsUser(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "amend", "--target", "1", "--object", "amended"},
+		func(d *cli.Deps) {
+			d.Commander = fakeGitCommander{configOut: "agent@example.com\n"}
+			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url, body: body}
+				receipt, _ := json.Marshal(map[string]string{"status": "offer received", "luhmann": "1"})
+
+				return cli.FetchResponse{Status: 200, Body: receipt}, nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal("offer received: 1\n"))
+
+	var sent cli.AmendArgs
+	g.Expect(json.Unmarshal(got.body, &sent)).To(Succeed())
+	g.Expect(sent.User).To(Equal("agent@example.com"))
+}
+
 // TestEngramServer_Learn_StampsRepoAndPrintsReceipt covers task 8.1 for a
 // write command: `engram learn fact` with ENGRAM_SERVER set POSTs
 // LearnArgs-shaped JSON (including this client's own detected repo:) and
@@ -125,6 +153,39 @@ func TestEngramServer_Learn_StampsRepoAndPrintsReceipt(t *testing.T) {
 	g.Expect(json.Unmarshal(got.body, &sent)).To(Succeed())
 	g.Expect(sent.Situation).To(Equal("a served write"))
 	g.Expect(sent.Type).To(Equal("fact"))
+}
+
+// TestEngramServer_Learn_StampsUser covers the client-side half of
+// serve-client-declared-identity: `engram learn` with ENGRAM_SERVER set
+// populates the outgoing LearnArgs body's User field via the same
+// detectUser call the local (non-served) path already uses, mirroring how
+// Repo is already populated via detectRepo.
+func TestEngramServer_Learn_StampsUser(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t, []string{
+		"engram", "learn", "fact",
+		"--slug", "served", "--source", "test",
+		"--situation", "a served write", "--subject", "engram", "--predicate", "serves", "--object", "writes",
+	}, func(d *cli.Deps) {
+		d.Commander = fakeGitCommander{configOut: "agent@example.com\n"}
+		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
+			got = fakeFetchCall{method: method, url: url, body: body}
+			receipt, _ := json.Marshal(map[string]string{"status": "offer received", "luhmann": "9"})
+
+			return cli.FetchResponse{Status: 200, Body: receipt}, nil
+		}
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal("offer received: 9\n"))
+
+	var sent cli.LearnArgs
+	g.Expect(json.Unmarshal(got.body, &sent)).To(Succeed())
+	g.Expect(sent.User).To(Equal("agent@example.com"))
 }
 
 // TestEngramServer_MalformedReceipt_SurfacesDecodeError covers

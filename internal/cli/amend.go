@@ -59,6 +59,10 @@ type AmendArgs struct {
 	// wire. See LearnArgs.Repo for the full rationale — same
 	// pass-through-not-redetect reasoning.
 	Repo string `json:"repo"`
+
+	// User carries a served write's client-detected user: value across the
+	// wire. See LearnArgs.User for the full rationale.
+	User string `json:"user"`
 }
 
 // AmendDeps holds injected I/O dependencies for RunAmend. Path configuration

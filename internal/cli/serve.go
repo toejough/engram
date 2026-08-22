@@ -124,10 +124,6 @@ func ServeRoutes(deps Deps, vault, vaultName, chunksDir string) []ServeRoute {
 
 // unexported constants.
 const (
-	// cloudflareIdentityHeader is the header Cloudflare Access injects after
-	// edge SSO validates the caller's session (design.md API Contract).
-	// Trusted directly in v1 — no JWT verification (design.md Non-Goals).
-	cloudflareIdentityHeader  = "Cf-Access-Authenticated-User-Email"
 	methodGet                 = "GET"
 	methodPost                = "POST"
 	offerReceivedStatus       = "offer received"
@@ -135,14 +131,15 @@ const (
 	statusBadRequest          = 400
 	statusInternalServerError = 500
 	statusOK                  = 200
-	statusUnauthorized        = 401
 )
 
 // unexported variables.
 var (
-	errServeMissingIdentity = errors.New(
-		"serve: missing " + cloudflareIdentityHeader + " header — request did not come through Cloudflare Access",
-	)
+	// errServeEmptyIdentity guards the identity floor (serve-client-
+	// declared-identity): a served learn/amend must claim SOME identity —
+	// the server trusts whatever is declared (no edge-authentication header
+	// required or consulted), but an empty claim is refused outright.
+	errServeEmptyIdentity = errors.New("serve: user: must be non-empty")
 )
 
 // activateRequest is the JSON body shape for POST /activate.
@@ -185,16 +182,6 @@ func boolQueryParam(query map[string][]string, key string) bool {
 	value, _ := strconv.ParseBool(firstQueryParam(query, key))
 
 	return value
-}
-
-// firstHeaderValue returns key's first header value, or "" when absent.
-func firstHeaderValue(header map[string][]string, key string) string {
-	values := header[key]
-	if len(values) == 0 {
-		return ""
-	}
-
-	return values[0]
 }
 
 // firstQueryParam returns key's first query value, or "" when absent.
@@ -288,16 +275,16 @@ func serveActivate(deps Deps, vault string) ServeHandler {
 // marked a pending offer (Pending=&true) rather than left immediately live.
 func serveAmend(deps Deps, vault, vaultName, chunksDir string) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
-		identity := firstHeaderValue(req.Header, cloudflareIdentityHeader)
-		if identity == "" {
-			return jsonErrorResponse(statusUnauthorized, errServeMissingIdentity)
-		}
-
 		var args AmendArgs
 
 		unmarshalErr := json.Unmarshal(req.Body, &args)
 		if unmarshalErr != nil {
 			return jsonErrorResponse(statusBadRequest, unmarshalErr)
+		}
+
+		identity := args.User
+		if identity == "" {
+			return jsonErrorResponse(statusBadRequest, errServeEmptyIdentity)
 		}
 
 		args.Vault = vault
@@ -329,10 +316,11 @@ func serveAmend(deps Deps, vault, vaultName, chunksDir string) ServeHandler {
 	})
 }
 
-// serveLearn handles POST /learn: a LearnArgs-shaped JSON body. Only the
-// Cloudflare-authenticated identity stamps user: — the body's own Repo
-// field (client-detected, no privilege) passes through unchanged rather
-// than being re-detected server-side, which would resolve to the server
+// serveLearn handles POST /learn: a LearnArgs-shaped JSON body. The body's
+// own User field (client-detected, no verification — serve-client-declared-
+// identity) stamps user:, rejected outright when empty; its Repo field
+// (also client-detected, no privilege) passes through unchanged rather than
+// being re-detected server-side, which would resolve to the server
 // process's own repo context instead of the remote caller's (design.md
 // Decisions). Vault is forced to this server's configured value; VaultName
 // falls back to it when the client didn't supply one. Always lands as a
@@ -341,16 +329,16 @@ func serveAmend(deps Deps, vault, vaultName, chunksDir string) ServeHandler {
 // Contract).
 func serveLearn(deps Deps, vault, vaultName string) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
-		identity := firstHeaderValue(req.Header, cloudflareIdentityHeader)
-		if identity == "" {
-			return jsonErrorResponse(statusUnauthorized, errServeMissingIdentity)
-		}
-
 		var args LearnArgs
 
 		unmarshalErr := json.Unmarshal(req.Body, &args)
 		if unmarshalErr != nil {
 			return jsonErrorResponse(statusBadRequest, unmarshalErr)
+		}
+
+		identity := args.User
+		if identity == "" {
+			return jsonErrorResponse(statusBadRequest, errServeEmptyIdentity)
 		}
 
 		args.Vault = vault

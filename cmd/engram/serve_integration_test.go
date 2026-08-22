@@ -16,11 +16,10 @@ import (
 )
 
 // TestServeAndFetch_LearnRoundTrip drives POST /learn over a real TCP
-// connection with the Cloudflare Access header set (realFetch carries no
-// header parameter by design — the client never sets this header in
-// production, Cloudflare Access injects it at the edge — so this test
-// builds the request directly with net/http to exercise the server's
-// header-reading path end to end).
+// connection via realFetch (serve-client-declared-identity: no edge-
+// authentication header involved anywhere — identity travels as the
+// LearnArgs body's own User field, proving the served handler needs
+// nothing beyond the body to accept and attribute a write).
 func TestServeAndFetch_LearnRoundTrip(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -35,36 +34,19 @@ func TestServeAndFetch_LearnRoundTrip(t *testing.T) {
 	body, marshalErr := json.Marshal(cli.LearnArgs{
 		Type: "fact", Slug: "round-trip", Position: "top", Source: "test",
 		Situation: "a round trip", Subject: "engram", Predicate: "serves", Object: "http",
+		User: "roundtrip@example.com",
 	})
 	g.Expect(marshalErr).NotTo(HaveOccurred())
 
-	req, reqErr := http.NewRequestWithContext(
-		context.Background(), http.MethodPost, server.URL+"/learn", bytes.NewReader(body),
-	)
-	g.Expect(reqErr).NotTo(HaveOccurred())
-
-	if req == nil {
-		return
-	}
-
-	req.Header.Set("Cf-Access-Authenticated-User-Email", "roundtrip@example.com")
-
-	resp, doErr := http.DefaultClient.Do(req)
-	g.Expect(doErr).NotTo(HaveOccurred())
-
-	if resp == nil {
-		return
-	}
-
-	defer func() { _ = resp.Body.Close() }()
-
-	g.Expect(resp.StatusCode).To(Equal(http.StatusOK))
+	resp, fetchErr := realFetch(context.Background(), http.MethodPost, server.URL+"/learn", body)
+	g.Expect(fetchErr).NotTo(HaveOccurred())
+	g.Expect(resp.Status).To(Equal(http.StatusOK))
 
 	var receipt struct {
 		Status  string `json:"status"`
 		Luhmann string `json:"luhmann"`
 	}
-	g.Expect(json.NewDecoder(resp.Body).Decode(&receipt)).To(Succeed())
+	g.Expect(json.Unmarshal(resp.Body, &receipt)).To(Succeed())
 	g.Expect(receipt.Status).To(Equal("offer received"))
 
 	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
