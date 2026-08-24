@@ -104,6 +104,7 @@ func TestIsQueryExcludedKind(t *testing.T) {
 		{"qa_answer_competes", "---\ntype: qa-answer\n---\n", false},
 		{"fact_competes", "---\ntype: fact\n---\n", false},
 		{"feedback_competes", "---\ntype: feedback\n---\n", false},
+		{"runbook_competes", "---\ntype: runbook\n---\n", false},
 	}
 
 	for _, tc := range cases {

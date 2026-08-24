@@ -123,6 +123,8 @@ var (
 	ExportRenderFeedbackFrontmatter   = renderFeedbackFrontmatter
 	ExportRenderQAAnswerNote          = renderQAAnswerNote
 	ExportRenderQAQuestionNote        = renderQAQuestionNote
+	ExportRenderRunbookBody           = renderRunbookBody
+	ExportRenderRunbookFrontmatter    = renderRunbookFrontmatter
 	ExportRenderSupersedes            = renderSupersedes
 	ExportRepoWithProjectFallback     = repoWithProjectFallback
 	ExportResolveVault                = resolveVault
@@ -208,6 +210,8 @@ type ExportRecencyParams = recencyParams
 // ExportResolvedItem aliases the unexported resolvedItem so cli_test can
 // construct test fixtures via ExportNewResolvedItem.
 type ExportResolvedItem = resolvedItem
+
+type ExportRunbookFields = runbookFields
 
 type ExportScoredCandidate = scoredCandidate
 
@@ -861,6 +865,16 @@ func ExportRunLearnFromFeedbackArgs(
 	stdout io.Writer,
 ) error {
 	return runLearnFromFeedbackArgs(ctx, a, d, stdout)
+}
+
+// ExportRunLearnFromRunbookArgs invokes the unexported runLearnFromRunbookArgs for testing.
+func ExportRunLearnFromRunbookArgs(
+	ctx context.Context,
+	a LearnRunbookArgs,
+	d Deps,
+	stdout io.Writer,
+) error {
+	return runLearnFromRunbookArgs(ctx, a, d, stdout)
 }
 
 func ExportScoredChunkRecord(s scoredChunk) chunk.Record { return s.record }

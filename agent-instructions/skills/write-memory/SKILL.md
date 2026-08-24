@@ -17,17 +17,18 @@ parent's judgment; do not decide WHETHER to write.
 
 The parent provides:
 
-- **kind** — `fact`, `feedback`, or `qa`
+- **kind** — `fact`, `feedback`, `qa`, or `runbook`
 - **content fields** — by kind, per the blocks below
 - **source** — human-readable provenance string
 - optional **chunk-sources** — `<source#anchor>` chunk IDs (provenance)
 - optional **tags** — categorical `<family>` or `<family>/<value>` strings (kebab-case;
-  fact/feedback only), e.g. `work-kind/rename`, `tier/cheap`, `outcome/pass`
+  fact/feedback/runbook only), e.g. `work-kind/rename`, `tier/cheap`, `outcome/pass`
 - optional **supersedes** — `<basename>|<type>|<claim>` (types: `updates|narrows|refutes`),
   when the parent determined this write corrects a surfaced note
 - optional **position** / **target** — Luhmann placement (`top` (default), `continuation`, or
   `sibling`) plus the target note ID (required when position is not `top`), when the parent made
-  a disposition decision. Omitted → `--position top` (today's default), fact/feedback only.
+  a disposition decision. Omitted → `--position top` (today's default), fact/feedback/runbook
+  only.
 
 If a required field is missing, ask for it from the in-session parent context — do not invent
 content on the parent's behalf.
@@ -58,6 +59,19 @@ engram learn fact --slug <kebab-slug> --position <top|continuation|sibling> [--t
 include a position/target (today's behavior, unchanged). Include `--target <id>` only when
 position is `continuation` or `sibling`; never emit `--target` alongside `--position top`.
 
+kind=runbook:
+
+```bash
+engram learn runbook --slug <kebab-slug> --position <top|continuation|sibling> [--target <id>] \
+  --source "<source>" \
+  --situation "<retrieval-shaped phrase: when should this runbook be used>" \
+  --done-when "<what should be true when the procedure is complete>" \
+  --body "<numbered steps, may [[wikilink]] fact/feedback notes to consider>" \
+  [--tag <family>/<value> ...]
+```
+
+Same `--position`/`--target` disposition rules as fact/feedback above.
+
 kind=qa:
 
 ```bash
@@ -73,16 +87,17 @@ engram learn qa \
 Append to any kind:
 
 - one `--chunk-source <source#anchor>` per provided chunk ID
-- one `--tag <t>` per provided tag (fact/feedback only — `engram learn qa` and `engram amend`
-  take no `--tag`; a qa handoff carrying tags → drop them and say so: append the exact line
-  `tags dropped: qa takes no tag flags` to whatever you output, even command-only output)
+- one `--tag <t>` per provided tag (fact/feedback/runbook only — `engram learn qa` and
+  `engram amend` take no `--tag`; a qa handoff carrying tags → drop them and say so: append the
+  exact line `tags dropped: qa takes no tag flags` to whatever you output, even command-only
+  output)
 - `--supersedes "<basename>|<type>|<claim>"` if provided (repeatable)
 - for qa: one `--contributors <full-basename>` per basename the parent provided
 
 Rules:
 
-- Never mix fact flags (`--subject/--predicate/--object`) with feedback flags
-  (`--behavior/--impact/--action`) in one command.
+- Never mix fact flags (`--subject/--predicate/--object`), feedback flags
+  (`--behavior/--impact/--action`), or runbook flags (`--done-when/--body`) in one command.
 - Never hand-author vocab tags or wikilinks — the binary assigns vocab terms automatically as
   `vocab/<term>` entries in the `tags:` list. Handed-off --tag categoricals ride the same list but
   are NOT vocab: pass them through exactly as provided; never invent tags and never write the

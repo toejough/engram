@@ -60,6 +60,9 @@ type LearnArgs struct {
 	Subject   string `json:"subject"`
 	Predicate string `json:"predicate"`
 	Object    string `json:"object"`
+	// runbook only
+	DoneWhen string `json:"doneWhen"`
+	Body     string `json:"body"`
 
 	// Pending marks the note a pending offer (vault-offer-curation): set
 	// only by a served `learn` handler, never by a CLI flag — a note
@@ -178,6 +181,7 @@ const (
 	tierL2       = "L2"
 	typeFact     = "fact"
 	typeFeedback = "feedback"
+	typeRunbook  = "runbook"
 )
 
 // unexported variables.
@@ -186,8 +190,10 @@ var (
 	errFeedbackSituationRequired = errors.New("feedback: --situation is required")
 	errIssueIDInvalid            = errors.New("issue must be non-empty with no whitespace")
 	errLearnBadTier              = errors.New("tier must be L2 (active) or L1/L3 (legacy backward-compat)")
-	errLearnUnknownType          = errors.New("learn: type must be feedback or fact")
+	errLearnUnknownType          = errors.New("learn: type must be feedback, fact, or runbook")
 	errProjectSlugInvalid        = errors.New("project slug must match [a-z0-9-]+")
+	errRunbookDoneWhenRequired   = errors.New("runbook: --done-when is required")
+	errRunbookSituationRequired  = errors.New("runbook: --situation is required")
 	errSlugEmpty                 = errors.New("slug is required")
 	errSlugInvalid               = errors.New("slug must match [a-z0-9-]+")
 	errTagInvalid                = errors.New("tag must be <family> or <family>/<value>, each segment matching [a-z0-9-]+")
@@ -304,6 +310,44 @@ func (q quotedString) MarshalYAML() (any, error) {
 	}, nil
 }
 
+type runbookFields struct {
+	Situation    string
+	DoneWhen     string
+	Body         string
+	Luhmann      string
+	Source       string
+	Project      string
+	Repo         string
+	User         string
+	Vault        string
+	Pending      bool
+	Issue        string
+	Tier         string
+	ChunkSources []string
+	Tags         []string
+	Supersedes   []supersedesEntry
+}
+
+// runbookFrontmatterDoc is the YAML shape of a runbook note's frontmatter.
+type runbookFrontmatterDoc struct {
+	Type       string            `yaml:"type"`
+	Tier       string            `yaml:"tier,omitempty"`
+	Situation  string            `yaml:"situation"`
+	DoneWhen   string            `yaml:"done_when"`
+	Luhmann    quotedString      `yaml:"luhmann"`
+	Created    string            `yaml:"created"`
+	Source     string            `yaml:"source"`
+	Project    string            `yaml:"project,omitempty"`
+	Repo       string            `yaml:"repo,omitempty"`
+	User       string            `yaml:"user"`
+	Vault      string            `yaml:"vault"`
+	Pending    bool              `yaml:"pending,omitempty"`
+	Issue      quotedString      `yaml:"issue,omitempty"`
+	Sources    []string          `yaml:"sources,omitempty"`
+	Tags       []string          `yaml:"tags,omitempty"`
+	Supersedes []supersedesEntry `yaml:"supersedes,omitempty"`
+}
+
 // applyLearnVocabAssignment performs only the term-assignment part of
 // applyVocabAssignmentAfterLearn, keeping the trigger check outside this
 // early-return chain.
@@ -377,9 +421,38 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, identi
 		}
 
 		return renderFactFrontmatter(f, when) + renderFactBody(f), nil
+	case typeRunbook:
+		return assembleRunbookContent(args, luhmann, when, identity, parsedSupersedes)
 	default:
 		return "", fmt.Errorf("%w: got %q", errLearnUnknownType, args.Type)
 	}
+}
+
+// assembleRunbookContent builds a runbook note's content — split out of
+// assembleLearnContent's switch to keep that function's cyclomatic
+// complexity within budget (runbook has two required-field checks, one more
+// than fact/feedback's single --situation check).
+func assembleRunbookContent(
+	args LearnArgs, luhmann string, when time.Time, identity identityStamp, parsedSupersedes []supersedesEntry,
+) (string, error) {
+	if strings.TrimSpace(args.Situation) == "" {
+		return "", errRunbookSituationRequired
+	}
+
+	if strings.TrimSpace(args.DoneWhen) == "" {
+		return "", errRunbookDoneWhenRequired
+	}
+
+	f := runbookFields{
+		Situation: args.Situation, DoneWhen: args.DoneWhen, Body: args.Body,
+		Luhmann: luhmann, Source: args.Source,
+		Project: args.Project, Repo: identity.Repo, User: identity.User, Vault: identity.Vault,
+		Pending: args.Pending,
+		Issue:   args.Issue, Tier: tierOrDefault(args.Tier),
+		ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
+	}
+
+	return renderRunbookFrontmatter(f, when) + renderRunbookBody(f), nil
 }
 
 // autoEmbedNote writes a sidecar for the newly-created note. Failure is
@@ -461,6 +534,28 @@ func learnArgsFromFeedback(a LearnFeedbackArgs) LearnArgs {
 		Behavior:     a.Behavior,
 		Impact:       a.Impact,
 		Action:       a.Action,
+	}
+}
+
+// learnArgsFromRunbook mirrors learnArgsFromFact/learnArgsFromFeedback for runbook notes.
+func learnArgsFromRunbook(a LearnRunbookArgs) LearnArgs {
+	return LearnArgs{
+		Type:         typeRunbook,
+		Slug:         a.Slug,
+		Vault:        a.Vault,
+		VaultName:    a.VaultName,
+		Target:       a.Target,
+		Position:     a.Position,
+		Source:       a.Source,
+		Project:      a.Project,
+		Issue:        a.Issue,
+		Tier:         a.Tier,
+		Supersedes:   a.Supersedes,
+		ChunkSources: a.ChunkSources,
+		Tags:         a.Tags,
+		Situation:    a.Situation,
+		DoneWhen:     a.DoneWhen,
+		Body:         a.Body,
 	}
 }
 
@@ -582,6 +677,36 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 	})
 }
 
+// renderRunbookBody renders the caller-authored numbered-steps body verbatim
+// (unlike fact/feedback, whose bodies are synthesized sentences) — a
+// runbook's steps are free-form text the caller composes, not a formula.
+func renderRunbookBody(f runbookFields) string {
+	body := strings.TrimRight(f.Body, "\n") + "\n"
+
+	return body + "\n" + renderSupersedes(f.Supersedes)
+}
+
+func renderRunbookFrontmatter(f runbookFields, when time.Time) string {
+	return marshalFrontmatter(runbookFrontmatterDoc{
+		Type:       typeRunbook,
+		Tier:       f.Tier,
+		Situation:  f.Situation,
+		DoneWhen:   f.DoneWhen,
+		Luhmann:    quotedString(f.Luhmann),
+		Created:    when.Format(dateFormat),
+		Source:     f.Source,
+		Project:    f.Project,
+		Repo:       f.Repo,
+		User:       f.User,
+		Vault:      f.Vault,
+		Pending:    f.Pending,
+		Issue:      quotedString(f.Issue),
+		Sources:    f.ChunkSources,
+		Tags:       f.Tags,
+		Supersedes: f.Supersedes,
+	})
+}
+
 // resolveVault returns the vault path. Flag wins, then env, then the XDG
 // default ($XDG_DATA_HOME/engram/vault, falling back to
 // $HOME/.local/share/engram/vault). home and getenv are injected so callers
@@ -606,6 +731,10 @@ func runLearnFromFactArgs(ctx context.Context, a LearnFactArgs, d Deps, stdout i
 
 func runLearnFromFeedbackArgs(ctx context.Context, a LearnFeedbackArgs, d Deps, stdout io.Writer) error {
 	return RunLearn(ctx, learnArgsFromFeedback(a), newLearnDeps(d), stdout)
+}
+
+func runLearnFromRunbookArgs(ctx context.Context, a LearnRunbookArgs, d Deps, stdout io.Writer) error {
+	return RunLearn(ctx, learnArgsFromRunbook(a), newLearnDeps(d), stdout)
 }
 
 // stripLeadingWhen removes a case-insensitive leading "When " or "when " from

@@ -457,6 +457,15 @@ func TestRenderBody_Feedback(t *testing.T) {
 	))
 }
 
+func TestRenderBody_Runbook(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	got := cli.ExportRenderRunbookBody(cli.ExportRunbookFields{
+		Body: "1. Run the tests\n2. Tag the release\n3. Push the tag",
+	})
+	g.Expect(got).To(HavePrefix("1. Run the tests\n2. Tag the release\n3. Push the tag\n"))
+}
+
 // TestRenderFactBody_StripsLeadingWhenFromSituation is the fact-type variant of
 // the double-"when" bug guard.
 func TestRenderFactBody_StripsLeadingWhenFromSituation(t *testing.T) {
@@ -760,6 +769,29 @@ func TestRenderFrontmatter_Feedback(t *testing.T) {
 	}))
 }
 
+func TestRenderFrontmatter_Runbook(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Luhmann:   "7a",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+	}, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed).To(Equal(map[string]string{
+		"type":      "runbook",
+		"situation": "releasing a new Go module version",
+		"done_when": "the tag is pushed and the changelog is updated",
+		"luhmann":   "7a",
+		"created":   "2026-05-09",
+		"source":    "session log foo, 2026-05-09 12:00 UTC",
+		"user":      "",
+		"vault":     "",
+	}))
+}
+
 func TestRunLearn_BootstrapsVaultWhenMissing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -991,6 +1023,56 @@ func TestRunLearn_RejectsInvalidSlug(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestRunLearn_RejectsMissingRunbookDoneWhen(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        time.Now,
+		Getenv:     func(string) string { return "" },
+		StatDir:    func(string) error { return nil },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(string, []byte) error { return nil },
+	}
+	args := cli.LearnArgs{
+		Type: "runbook", Slug: "x", Vault: "/v", Position: "top",
+		Source: "test", Situation: "releasing a module",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("done-when")))
+}
+
+func TestRunLearn_RejectsMissingRunbookSituation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        time.Now,
+		Getenv:     func(string) string { return "" },
+		StatDir:    func(string) error { return nil },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(string, []byte) error { return nil },
+	}
+	args := cli.LearnArgs{
+		Type: "runbook", Slug: "x", Vault: "/v", Position: "top",
+		Source: "test", DoneWhen: "the tag is pushed",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).To(MatchError(ContainSubstring("situation")))
+}
+
 func TestRunLearn_RejectsUnknownType(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1011,6 +1093,57 @@ func TestRunLearn_RejectsUnknownType(t *testing.T) {
 
 	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
+}
+
+func TestRunLearn_Runbook_WritesExpectedFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		writtenPath    string
+		writtenContent []byte
+	)
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		StatDir:    func(string) error { return nil },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(path string, data []byte) error {
+			writtenPath = path
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	args := cli.LearnArgs{
+		Type:      "runbook",
+		Slug:      "release-go-module",
+		Vault:     "/vault",
+		Position:  "top",
+		Source:    "test",
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Body:      "1. Run the tests\n2. Tag the release\n3. Push the tag",
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(writtenPath).To(Equal("/vault/1.2026-05-09.release-go-module.md"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("type: runbook"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("done_when: the tag is pushed and the changelog is updated"))
+	g.Expect(string(writtenContent)).To(ContainSubstring("1. Run the tests"))
 }
 
 // TestRunLearn_StampsIdentityFields verifies RunLearn stamps repo:/user:/

@@ -15,7 +15,7 @@ Surface relevant memories — raw conversation/doc chunks AND crystallized vault
 Memory has two layers retrieved in ONE call: raw chunks (every past conversation and doc, embedded mechanically) and vault notes (lessons crystallized from them). Recall's jobs, in order:
 
 1. **Make your plan visible** before retrieving anything — an unstated plan cannot be tested against memory.
-2. **Sweep, then run ONE unified `engram query`.** Items tagged `kind: chunk` are raw fragments; `kind: fact`/`feedback` are crystallized lessons. They compete in the same top-N.
+2. **Sweep, then run ONE unified `engram query`.** Items tagged `kind: chunk` are raw fragments; `kind: fact`/`feedback`/`runbook` are crystallized lessons. They compete in the same top-N.
 3. **Crystallize** — when several near-match chunks evidence the same principle and no note states it yet, write the vault note now.
 4. **Explore-sample and ride-along** — the binary samples additional notes from vocab-term centroids near the query (budget sized to the matched-note count) and inserts superseded-note supersessors at the next rank; the agent judges the surfaced candidates, never links.
 5. **Synthesize impact on the plan** — confirm / adjust / contradict / silent, per planned action.
@@ -126,7 +126,10 @@ judge coverage. The payload's `items` mix:
   stated standard); never quote them wholesale. **Under `--lazy-chunks` (recall's default
   invocation — confirm via `budget.lazy_chunks: true`) chunk items carry path + source/anchor
   but NO `content` field: `engram show-chunk <source#anchor>` to read a chunk's evidence on-demand.**
-- `kind: fact` / `feedback` — crystallized lessons; apply directly (notes always carry full content inline).
+- `kind: fact` / `feedback` / `runbook` — crystallized lessons; apply directly (notes always carry
+  full content inline). A `runbook` note is a task-type-keyed "how to approach X" procedure
+  (`situation`, numbered steps, `done_when`) — it competes and ranks purely by situation-similarity
+  like `fact`/`feedback`, with no dedicated Step-1 phrase or query flag of its own.
 - `provenance: explore` — notes sampled from vocab-term centroids rather than matched by a phrase
   (see Step 2). Treat them as part of the delivered note set for judging Step 2.5/3; each carries
   `source_term` naming the centroid it came from.

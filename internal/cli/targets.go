@@ -50,6 +50,15 @@ type LearnFeedbackArgs struct {
 	Action    string `targ:"flag,name=action,desc=recommended action"`
 }
 
+// LearnRunbookArgs holds parsed flags for the learn runbook subcommand.
+type LearnRunbookArgs struct {
+	CommonLearnArgs
+
+	Situation string `targ:"flag,name=situation,required,desc=when should you use this runbook (required)"`
+	DoneWhen  string `targ:"flag,name=done-when,required,desc=what should be true when you're done (required)"`
+	Body      string `targ:"flag,name=body,desc=the numbered steps"`
+}
+
 // CacheDirFromHome returns the engram model cache directory for a given home path
 // and model ID. It respects $XDG_CACHE_HOME if set, otherwise defaults to
 // $HOME/.cache/engram/models/<modelID>. getenv is injected so callers control
@@ -263,6 +272,17 @@ func learnUpdateTargets(
 				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, deps, deps.Stdout))
 			}).Name("fact").Description("Write a fact note to the vault"),
+			targ.Targ(func(ctx context.Context, a LearnRunbookArgs) {
+				if base := serverBase(deps); base != "" {
+					errHandler(fetchLearn(withLog(ctx), deps, base, learnArgsFromRunbook(a), deps.Stdout))
+
+					return
+				}
+
+				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+				errHandler(runLearnFromRunbookArgs(withLog(ctx), a, deps, deps.Stdout))
+			}).Name("runbook").Description("Write a runbook note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnQAArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 				errHandler(RunLearnQA(withLog(ctx), a, newQaDeps(deps), deps.Stdout))

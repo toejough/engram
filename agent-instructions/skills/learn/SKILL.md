@@ -140,8 +140,7 @@ for a placement target.
    - **4a — user-confirmed:** the user explicitly praised or thanked a SPECIFIC behavior you could
      restate as a reusable tactic ("thanks for attaching the file — easier to read from my phone" →
      "attach deliverable files instead of inlining them"). A bare pleasantry naming no behavior
-     ("thanks!", "great work") does NOT qualify. (If the user also instructs "do that going
-     forward", that is additionally a save-request — kind 2.)
+     ("thanks!", "great work") does NOT qualify.
    - **4b — self-validated bet:** you made a genuine guess, or were uncertain about a plan, concept,
      or idea, ACTED on it (embodied it in the work — a chosen approach, an implementation, a plan
      step, a command run), and an OBSERVABLE, session-recorded outcome then confirmed it worked (a
@@ -152,12 +151,32 @@ for a placement target.
    success with no bet behind it, or an unconfirmed guess is never the signal — just as a repo-doc
    CORRECTION does not count as reversal-capture, a routine success does not count as
    reinforcement-capture; the signal is a resolved uncertainty or an explicit specific
-   confirmation, never "it worked". For each confirmed approach, **REQUIRED SUB-SKILL:** invoke the
-   **write-memory** skill with this handoff — kind=feedback, slug, source ("session <date>,
-   context: <one-line what-was-happening>"), situation (retrieval-shaped: when would this approach
-   apply again), behavior = what worked, impact = the confirming evidence (the user's quote for 4a,
-   or the observed outcome that resolved the uncertainty for 4b), action = keep doing it + its
-   trigger conditions; plus supersedes details if this confirmation corrects an existing vault note.
+   confirmation, never "it worked".
+
+   **Runbook vs. feedback — pick by shape, not by trigger:** a confirmed approach that is a
+   reusable, ordered, multi-step procedure for a recurring task (e.g. "run tests → tag the release
+   → push the tag → update the changelog" for releasing a Go module; running an eval harness; a
+   recall-moment discovery sequence) → **kind=runbook**. A confirmed approach that is a single
+   behavioral tweak with no natural step structure (e.g. "attach deliverable files instead of
+   inlining them") → **kind=feedback**, as before.
+
+   For a **runbook**, **REQUIRED SUB-SKILL:** invoke the **write-memory** skill with this
+   handoff — kind=runbook, slug, source ("session <date>, context: <one-line what-was-happening>"),
+   situation (retrieval-shaped: when would this approach apply again), done_when = what should be
+   true once the procedure is complete, body = the numbered steps (may `[[wikilink]]` fact/feedback
+   notes worth reading along the way); plus supersedes details if this confirmation corrects an
+   existing vault note. The runbook note itself already is the "remember to do it this way"
+   capture — if the user also instructs "do that going forward," do NOT additionally fire a
+   kind=fact save-request (kind 2) for the same content; that redundancy-avoidance is specific to
+   the runbook case.
+
+   For **feedback**, **REQUIRED SUB-SKILL:** invoke the **write-memory** skill with this handoff —
+   kind=feedback, slug, source ("session <date>, context: <one-line what-was-happening>"), situation
+   (retrieval-shaped: when would this approach apply again), behavior = what worked, impact = the
+   confirming evidence (the user's quote for 4a, or the observed outcome that resolved the
+   uncertainty for 4b), action = keep doing it + its trigger conditions; plus supersedes details if
+   this confirmation corrects an existing vault note. (If the user also instructs "do that going
+   forward", that is additionally a save-request — kind 2.)
 
 Rules:
 - **State the general principle**, not the session-specific instance — future-you recalls by

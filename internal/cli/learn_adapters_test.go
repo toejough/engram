@@ -266,3 +266,78 @@ func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).NotTo(BeEmpty())
 }
+
+func TestRunLearnFromRunbookArgs_RequiresSituation(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name      string
+		situation string
+	}{
+		{name: "empty", situation: ""},
+		{name: "whitespace", situation: "   "},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
+
+			args := cli.LearnRunbookArgs{
+				CommonLearnArgs: cli.CommonLearnArgs{
+					Slug:     "runbook-slug",
+					Vault:    vault,
+					Position: "top",
+					Source:   "test",
+				},
+				Situation: tc.situation,
+				DoneWhen:  "the tag is pushed",
+				Body:      "1. Do the thing",
+			}
+
+			err := cli.ExportRunLearnFromRunbookArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
+			g.Expect(err).To(MatchError(ContainSubstring("situation")))
+
+			entries, readErr := os.ReadDir(vault)
+			g.Expect(readErr).NotTo(HaveOccurred())
+
+			for _, entry := range entries {
+				// the luhmann lock lives at the vault root; only NOTE files count
+				g.Expect(entry.Name()).NotTo(HaveSuffix(".md"), "no note may be written")
+			}
+		})
+	}
+}
+
+func TestRunLearnFromRunbookArgs_WritesFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
+
+	args := cli.LearnRunbookArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "runbook-slug",
+			Vault:    vault,
+			Position: "top",
+		},
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Body:      "1. Run the tests\n2. Tag the release",
+	}
+
+	err := cli.ExportRunLearnFromRunbookArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	entries, readErr := os.ReadDir(vault)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(entries).NotTo(BeEmpty())
+}

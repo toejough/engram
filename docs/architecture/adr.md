@@ -876,6 +876,79 @@ Link: `openspec/changes/recall-centroid-sampling`.
 
 ---
 
+## ADR-0026 — `runbook`: a fourth content kind for task-shaped strategies, symmetric with fact/feedback
+
+**Status:** Accepted (2026-08-24).
+
+**Context.** Kind-4 confirmed-approaches ("what worked, do it again") lived awkwardly inside
+`feedback` notes' `action` field as a single sentence — no structural way to represent an ordered,
+multi-step procedure or a distinct ending condition. SPL (optillm's System Prompt Learning plugin)
+research showed procedural-strategy injection lifts weak-model performance materially
+(OptiLLMBench +4%, AIME24 +7%, Arena-Hard +8.6%), motivating a first-class kind rather than a tag
+convention on `feedback`. Two design-review corrections during implementation (both driven by
+inline comments on the openspec change's design.md, `.review/events.jsonl` threads
+`6c7d2c3de70a93ece18b99c0d6cd5e75` and `01727d1c429bb66e76a439e1167ff005`) materially changed the
+shipped shape from the original proposal:
+
+1. A `task_type` classification field + `engram query --task-type` pre-filter was originally
+   planned, justified by the SPL numbers above. Those numbers measure SPL's whole bundled system
+   (type-classification + strategy injection + refinement/pruning) — no ablation in the source
+   material isolates type-classification's own contribution, so they don't specifically justify a
+   new ranking mechanism and its regression risk to existing retrieval. Dropped entirely (not just
+   the pre-filter — the schema field too).
+2. `runbook` was originally going to use a kind-prefixed flat filename (`runbook.<date>.<slug>.md`,
+   no Luhmann ID), modeled on `qa.*`, on the reasoning that runbooks lack a natural parent idea.
+   That reasoning didn't hold: `nextLuhmannID`'s `position=top` branch mints a fresh top-level ID
+   with no target required (`internal/cli/luhmann.go`), so "no relationship yet" was never a real
+   blocker — every `fact`/`feedback` note already handles that case the same way. `qa` turned out to
+   be the wrong template entirely: it's the one kind that deliberately skips Luhmann disposition
+   (`internal/cli/qa.go`) and gets partially retrieval-excluded (`isQueryExcludedKind`) — neither of
+   which applies to `runbook`.
+
+**Decision.** `type: runbook` (Joe, 2026-08-23, vault note 789 — chosen over `procedure`, `function`,
+`strategy`; deliberately non-consonant with `fact`/`feedback`, the ops vibe is intended; `procedure`
+collides with existing "recall procedure" prose, `function` with tool-calling vocabulary). Schema
+answers exactly three questions: *when should you use this runbook* (`situation`, embedded as the
+situation vector exactly like fact/feedback), *what are the steps* (body, numbered, may
+`[[wikilink]]` fact/feedback notes to consider), *what should be true when you're done*
+(`done_when`, required — also makes runbooks scorable for #718's future efficacy tracking, deferred,
+not shipped here). No `inputs`/calling-convention field (considered during the #728 adapter
+experiment, rejected). Capture reuses the existing `fact`/`feedback` pipeline as a third `learn`
+targ.Group subcommand (`internal/cli/targets.go`/`learn.go`: `LearnRunbookArgs` embeds
+`CommonLearnArgs`, gets `--target`/`--position` Luhmann disposition for free) — not a bespoke
+standalone implementation. Filename/ID: `<luhmann-id>.<date>.<slug>.md`, identical to fact/feedback,
+assigned via the same top/continuation/sibling disposition judgment; `--reparent-luhmann` covers
+runbook notes automatically, with no code change, since it operates on Luhmann IDs generically.
+Retrieval: no exclusion treatment (`isQueryExcludedKind` untouched — a mechanism only `qa-question`
+uses), ranks purely by situation-similarity in the main matched set, identical to fact/feedback — no
+new query flag, no new ranking mechanism, no recall Step-1 changes. `learn`'s Step 2 kind-4
+(confirmed approaches) now routes by shape: a reusable multi-step procedure for a recurring task →
+`kind=runbook`; a single behavioral tweak with no step structure → `kind=feedback`, as before. A
+runbook capture is itself the "remember to do it this way" note — it does not also fire a redundant
+kind=fact save-request when the user says "do that going forward."
+
+**Consequences.**
+
+- Four content kinds now exist: `fact | feedback | qa | runbook`. `qa`'s asymmetric
+  capture-and-exclude shape remains a special case for that kind alone, not a template other kinds
+  should follow.
+- Migrating the vault's *existing* kind-4 feedback content into `runbook` notes is explicitly out of
+  scope here — tracked separately as #730 (untriaged: mechanism, disposition, and timing are all
+  still open).
+- No validation gate (vault supply check / A/B recall test / SPL methodology cross-check) shipped —
+  the originally-planned gate existed specifically to de-risk the now-dropped `task_type` pre-filter;
+  with that mechanism gone, `runbook` is structurally identical to how `fact`/`feedback` already
+  work, so there was no novel ranking mechanism left to de-risk.
+- `internal/cli/qa_test.go`'s `TestIsQueryExcludedKind` and a new
+  `TestRunQuery_RunbookCompetesInMainMatchedSet` (`internal/cli/query_runbook_test.go`) both passed
+  on first run with zero production-code changes for the retrieval side — the "no exclusion"
+  property was already true by construction once capture landed (Decision 2 is an omission, not an
+  addition).
+
+Link: `openspec/changes/runbook-note-kind`.
+
+---
+
 ## Decisions deliberately NOT made into ADRs
 
 - **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an
