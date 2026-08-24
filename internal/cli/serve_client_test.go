@@ -121,6 +121,40 @@ func TestEngramServer_Amend_StampsUser(t *testing.T) {
 	g.Expect(sent.User).To(Equal("agent@example.com"))
 }
 
+// TestEngramServer_Learn_Runbook_PrintsReceipt mirrors
+// TestEngramServer_Learn_StampsRepoAndPrintsReceipt for the runbook kind: a
+// served `engram learn runbook` POSTs LearnArgs-shaped JSON and prints the
+// offer receipt rather than a note path.
+func TestEngramServer_Learn_Runbook_PrintsReceipt(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t, []string{
+		"engram", "learn", "runbook",
+		"--slug", "served-runbook", "--source", "test",
+		"--situation", "a served write", "--done-when", "the write completes",
+	}, func(d *cli.Deps) {
+		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
+			got = fakeFetchCall{method: method, url: url, body: body}
+			receipt, _ := json.Marshal(map[string]string{"status": "offer received", "luhmann": "9"})
+
+			return cli.FetchResponse{Status: 200, Body: receipt}, nil
+		}
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal("offer received: 9\n"))
+	g.Expect(got.method).To(Equal("POST"))
+	g.Expect(got.url).To(Equal("http://vault-host:8420/learn"))
+
+	var sent cli.LearnArgs
+	g.Expect(json.Unmarshal(got.body, &sent)).To(Succeed())
+	g.Expect(sent.Situation).To(Equal("a served write"))
+	g.Expect(sent.Type).To(Equal("runbook"))
+}
+
 // TestEngramServer_Learn_StampsRepoAndPrintsReceipt covers task 8.1 for a
 // write command: `engram learn fact` with ENGRAM_SERVER set POSTs
 // LearnArgs-shaped JSON (including this client's own detected repo:) and

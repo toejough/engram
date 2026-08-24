@@ -64,6 +64,7 @@ var (
 	ExportDeriveVocabClusters              = deriveVocabClusters
 	ExportDetectRepo                       = detectRepo
 	ExportDetectUser                       = detectUser
+	ExportDiscardNote                      = discardNote
 	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
 	ExportExcludePendingOffers             = excludePendingOffers

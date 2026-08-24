@@ -241,6 +241,25 @@ func TestTargets(t *testing.T) {
 		_ = stderr
 	})
 
+	t.Run("invokes learn runbook closure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		vault := t.TempDir()
+		g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
+
+		stderr := executeForTest(t, []string{
+			"engram", "learn", "runbook",
+			"--slug", "test-slug",
+			"--vault", vault,
+			"--source", "agent",
+			"--situation", "running tests",
+			"--done-when", "the tests pass",
+		})
+		// May or may not error; goal is to invoke the closure.
+		_ = stderr
+	})
+
 	t.Run("invokes learn qa closure", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)

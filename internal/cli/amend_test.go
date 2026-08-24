@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -139,6 +141,75 @@ func TestBuildChunkIDSet_ReturnsSourceAnchorKeys(t *testing.T) {
 	g.Expect(ids["/docs/b.md#Heading"]).To(BeTrue(), "r2 source#anchor must be in set")
 	g.Expect(ids["sha256:aaa"]).To(BeFalse(), "content hash must NOT be in set")
 	g.Expect(ids["nonexistent#anchor"]).To(BeFalse(), "absent id must not be in set")
+}
+
+// TestDiscardNote_PropagatesNoteRemoveError asserts discardNote wraps and
+// returns an error when removing the note file itself fails — the sidecar is
+// never attempted in this case.
+func TestDiscardNote_PropagatesNoteRemoveError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	removeErr := errors.New("permission denied")
+	deps := cli.AmendDeps{
+		Remove: func(string) error { return removeErr },
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportDiscardNote(deps, "/vault/1.note.md", &buf)
+	g.Expect(err).To(MatchError(removeErr))
+	g.Expect(buf.String()).To(BeEmpty(), "no path is printed when the discard fails")
+}
+
+// TestDiscardNote_PropagatesSidecarRemoveError asserts discardNote returns an
+// error when removing the sidecar fails with something other than
+// fs.ErrNotExist (a missing sidecar is tolerated; a real removal failure is
+// not).
+func TestDiscardNote_PropagatesSidecarRemoveError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	sidecarErr := errors.New("disk full")
+	deps := cli.AmendDeps{
+		Remove: func(path string) error {
+			if strings.HasSuffix(path, ".vec.json") {
+				return sidecarErr
+			}
+
+			return nil
+		},
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportDiscardNote(deps, "/vault/1.note.md", &buf)
+	g.Expect(err).To(MatchError(sidecarErr))
+	g.Expect(buf.String()).To(BeEmpty(), "no path is printed when the discard fails")
+}
+
+// TestDiscardNote_TreatsMissingSidecarAsSuccess asserts discardNote succeeds
+// when the note itself is removed but its sidecar is already gone
+// (fs.ErrNotExist) — a missing sidecar is not a discard failure.
+func TestDiscardNote_TreatsMissingSidecarAsSuccess(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.AmendDeps{
+		Remove: func(path string) error {
+			if strings.HasSuffix(path, ".vec.json") {
+				return fs.ErrNotExist
+			}
+
+			return nil
+		},
+	}
+
+	var buf strings.Builder
+
+	err := cli.ExportDiscardNote(deps, "/vault/1.note.md", &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(Equal("/vault/1.note.md\n"))
 }
 
 func TestRunAmend_Activate_BumpsLastUsed(t *testing.T) {
