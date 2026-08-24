@@ -15,7 +15,7 @@ Three content kinds exist today: `fact | feedback | qa` (`qa` splits into `qa-qu
 - Per-note efficacy/outcome tracking (success_count/total_attempts, SPL-style ranking formula) — that's #718, explicitly deferred. (`done_when` is kept partly because it makes runbooks scorable for #718 later, but no scoring ships here.)
 - An `inputs` signature / full calling convention — considered during the #728 adapter-experiment debate and rejected by Joe (2026-08-23); #728 tests its provisional `function` schema in isolated fixtures only, independent of this change.
 - Any `task_type` classification field or taxonomy (fixed or free-form) — considered and rejected (2026-08-24 design review). The SPL benchmark numbers that motivated it measure SPL's whole bundled system (classification + strategy injection + refinement/pruning), not type-classification in isolation — no ablation in the source material isolates that lever, so it doesn't specifically justify adding one. Retrieval relies on situation-similarity alone, same as `fact`/`feedback`.
-- Retrofitting existing `feedback` notes into `runbook` notes — this change adds the new kind; migrating the vault's existing kind-4 content is a follow-up, not part of this change's acceptance criteria.
+- Retrofitting existing `feedback` notes into `runbook` notes — this change adds the new kind; migrating the vault's existing kind-4 content is tracked separately as #730, not part of this change's acceptance criteria.
 
 ## Decisions
 
@@ -42,7 +42,7 @@ None currently identified — with `qa.go` no longer the template (Decision 1/Co
 
 ## Migration Plan
 
-No data migration — this is purely additive (new kind, no changes to existing `fact`/`feedback`/`qa` handling). Rollback is a revert of the four touch-point changes; no vault content needs to be un-migrated since existing kind-4 content stays in `feedback` notes unless a future, separate change proposes migrating it.
+No data migration — this is purely additive (new kind, no changes to existing `fact`/`feedback`/`qa` handling). Rollback is a revert of the four touch-point changes; no vault content needs to be un-migrated since existing kind-4 content stays in `feedback` notes unless #730 (tracked separately) proposes migrating it.
 
 ## Open Questions
 
