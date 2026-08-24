@@ -5,16 +5,16 @@ Kind-4 confirmed-approaches ("what worked, do it again") currently live awkwardl
 ## What Changes
 
 - Add a new `runbook` note kind (frontmatter `type: runbook`), distinct from `fact | feedback | qa`, for "how to approach X" strategy notes.
-- Wire `runbook` through all four existing touch points, mirroring how `qa` was added end-to-end:
-  - `engram learn` — capture path accepts/produces `runbook` notes.
-  - `write-memory` — composes and executes the vault-write command for `runbook` notes.
+- Wire `runbook` through all four existing touch points, mirroring how `fact`/`feedback` were added (a third `engram learn` subcommand reusing the shared capture pipeline — Luhmann disposition, lock, embed, vocab), NOT `qa`'s bespoke standalone implementation:
+  - `engram learn` — a third subcommand in the `learn` targ.Group, `engram learn runbook`, reusing `RunLearn`'s shared pipeline as-is.
+  - `write-memory` — composes and executes the vault-write command for `runbook` notes, including the `--target`/`--position` disposition judgment fact/feedback handoffs already carry.
   - `recall` / `query` — retrieval surfaces `runbook` notes; they compete in the main matched set purely on situation-similarity, identical to `fact`/`feedback` (no new query flag, no exclusion treatment).
-- Runbook schema = the three questions (design.md Decision 1): `situation` (when to use — the retrieval handle, embedded as the situation vector like fact/feedback), body of numbered steps that may `[[wikilink]]` fact/feedback notes to read and consider, and required `done_when` (ending expectations). No `inputs` signature, no `task_type` field.
+- Runbook schema = the three questions (design.md Decision 1): `situation` (when to use — the retrieval handle, embedded as the situation vector like fact/feedback), body of numbered steps that may `[[wikilink]]` fact/feedback notes to read and consider, and required `done_when` (ending expectations). No `inputs` signature, no `task_type` field. Filename/ID is `<luhmann-id>.<date>.<slug>.md`, identical to `fact`/`feedback` and assigned via the same disposition judgment — not a kind-prefixed flat name.
 
 ## Capabilities
 
 ### New Capabilities
-- `learn-runbook-capture`: `engram learn` capture path + frontmatter schema for the new `runbook` note kind, and the write-memory compose/execute wiring for it — mirrors `learn-qa-capture`'s role for `qa`.
+- `learn-runbook-capture`: `engram learn` capture path + frontmatter schema for the new `runbook` note kind (a third `learn` subcommand reusing the shared fact/feedback pipeline — Luhmann disposition, embed, vocab), and the write-memory compose/execute wiring for it.
 - `recall-runbook-surfacing`: `runbook` notes retrieve and rank in `recall`/`query` purely by situation-similarity, symmetric with `fact`/`feedback` — no exclusion treatment, no task-type mechanism.
 
 ### Modified Capabilities
@@ -22,8 +22,9 @@ Kind-4 confirmed-approaches ("what worked, do it again") currently live awkwardl
 
 ## Impact
 
-- `internal/cli` — frontmatter schema and `engram learn runbook` capture wiring.
-- `agent-instructions/skills/write-memory/SKILL.md` — compose/execute support for `runbook` writes (per `superpowers:writing-skills` TDD).
-- `agent-instructions/skills/learn/SKILL.md` — capture guidance (when a runbook vs a feedback note).
+- `internal/cli` — frontmatter schema and a third `learn` subcommand (`engram learn runbook`) reusing the existing `RunLearn`/`nextLuhmannID`/`learnPath` pipeline.
+- `agent-instructions/skills/write-memory/SKILL.md` — compose/execute support for `runbook` writes, including the target/position disposition judgment (per `superpowers:writing-skills` TDD).
+- `agent-instructions/skills/learn/SKILL.md` — capture guidance (when a runbook vs a feedback note; Luhmann disposition judgment).
 - `agent-instructions/skills/recall/SKILL.md` — retrieval/ranking guidance for `runbook` notes (situation-similarity only, same treatment as fact/feedback).
 - `internal/cli` query path — new kind participates in `candidate_l2s`.
+- No changes needed to `--reparent-luhmann`/`update-flat-vault-luhmann-notice` — both operate on Luhmann IDs generically regardless of kind, so runbook notes are covered automatically.
