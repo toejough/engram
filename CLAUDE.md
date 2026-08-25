@@ -85,3 +85,17 @@ When working through issues, the preferred default is:
 - **ALWAYS use the `superpowers:writing-skills` skill when editing any SKILL.md file.** No exceptions.
 - This enforces TDD: baseline behavior test (RED), update skill (GREEN), verify behavioral change.
 - Run pressure tests before marking skill edits complete.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues (`gh` CLI) — this repo's issues live at github.com/toejough/engram. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix), label string equals role name. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context, but not the CONTEXT.md/docs/adr/ default — engram has its own documentation system (docs/README.md as index, docs/architecture/adr.md, openspec/specs/). See `docs/agents/domain.md`.
