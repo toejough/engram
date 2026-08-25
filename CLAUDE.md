@@ -59,6 +59,7 @@ Authority: `docs/architecture/adr.md` (ADR-0001..0020) — the bullets below are
   - Install the binary: `go install ./cmd/engram` (there is no `targ build` target — targ covers test/lint/check, not binary install)
   - Don't reverse-engineer targ's behavior — treat it as a black box
 - Use `targ check-full` to get ALL errors at once — `targ check` stops early and you'll play whack-a-mole
+- If `check-nils-for-fail` or `check-coverage-for-fail` fail flakily (e.g. `signal: killed`, or coverage numbers that look corrupted/inconsistent across identical runs) in a long-lived sandbox, check `df -h /tmp` and `du -sh /tmp/engram-e2e-bin* 2>/dev/null` first — `/tmp` here is often a RAM-backed tmpfs, and a leaked `engram-e2e-bin*` dir from a prior `go test` run can fill it. `GOMEMLIMIT`/`GOGC` tuning is not the fix (confirmed wrong; `internal/cli/testbinary_test.go`'s `TestMain` already cleans this up on a normal exit) — don't reach for it.
 - Minimal code that solves the problem — don't over-engineer
 - Use `make([]T, 0, capacity)` when size is known
 
