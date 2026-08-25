@@ -364,6 +364,18 @@ func TestTargets_ActivateNoNotes(t *testing.T) {
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
+// TestTargets_CheckEmptyVault exercises the check closure's local
+// (non-served) dispatch through Targets() against an empty vault.
+func TestTargets_CheckEmptyVault(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{"engram", "check", "--vault", vault})
+	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
 // TestTargets_EmbedApplyDryRun exercises the embed apply closure with
 // --dry-run against an empty vault. newTestDeps.Embed is nil by design
 // (R11), and RunEmbedApply dereferences Embedder.ModelID(), so the test

@@ -9,10 +9,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // unexported constants.
 const (
+	envParentBase = "ENGRAM_PARENT"
 	envServerBase = "ENGRAM_SERVER"
 	// httpStatusMultipleChoices is the first non-2xx status code — used to
 	// bound the "success" range without importing net/http here.
@@ -21,8 +24,31 @@ const (
 
 // unexported variables.
 var (
-	errServeClientNonOK = errors.New("serve client: non-OK response")
+	// errParentNotConfigured is returned when --parent is passed to
+	// show/show-chunk but ENGRAM_PARENT is not set.
+	errParentNotConfigured = errors.New("--parent requires ENGRAM_PARENT to be configured")
+	errServeClientNonOK    = errors.New("serve client: non-OK response")
 )
+
+// buildQueryParams builds /query's query-string params from args, shared by
+// fetchQuery (byte-copy, ENGRAM_SERVER-exclusive mode) and
+// fetchQueryPayload (parsed, ENGRAM_PARENT merge fetch).
+func buildQueryParams(args QueryArgs) map[string][]string {
+	query := map[string][]string{}
+
+	if len(args.Phrases) > 0 {
+		query["phrase"] = args.Phrases
+	}
+
+	setIntParam(query, "limit", args.Limit)
+	setStringParam(query, "project", args.Project)
+	setIntParam(query, "content-budget", args.ContentBudget)
+	setIntParam(query, "recent-fill", args.RecentFill)
+	setBoolParam(query, "lazy-chunks", args.LazyChunks)
+	setBoolParam(query, "timings", args.Timings)
+
+	return query
+}
 
 // buildURL joins base+path and appends query as a percent-encoded query
 // string. internal/ may not import net/url (depguard #700's
@@ -147,20 +173,7 @@ func fetchLearn(ctx context.Context, deps Deps, base string, args LearnArgs, std
 
 // fetchQuery routes `engram query` through ENGRAM_SERVER.
 func fetchQuery(ctx context.Context, deps Deps, base string, args QueryArgs, stdout io.Writer) error {
-	query := map[string][]string{}
-
-	if len(args.Phrases) > 0 {
-		query["phrase"] = args.Phrases
-	}
-
-	setIntParam(query, "limit", args.Limit)
-	setStringParam(query, "project", args.Project)
-	setIntParam(query, "content-budget", args.ContentBudget)
-	setIntParam(query, "recent-fill", args.RecentFill)
-	setBoolParam(query, "lazy-chunks", args.LazyChunks)
-	setBoolParam(query, "timings", args.Timings)
-
-	return fetchAndCopy(ctx, deps, base, "/query", query, stdout)
+	return fetchAndCopy(ctx, deps, base, "/query", buildQueryParams(args), stdout)
 }
 
 // fetchQueryChunks routes `engram query-chunks` through ENGRAM_SERVER.
@@ -174,6 +187,27 @@ func fetchQueryChunks(ctx context.Context, deps Deps, base string, args ChunkQue
 	setIntParam(query, "limit", args.Limit)
 
 	return fetchAndCopy(ctx, deps, base, "/query-chunks", query, stdout)
+}
+
+// fetchQueryPayload routes a parent query (ENGRAM_PARENT merge mode)
+// through the same /query route fetchQuery uses, but decodes the response
+// into the same queryPayload type the local pipeline produces — instead of
+// piping bytes to stdout — so the merge orchestrator can combine it with
+// the local payload before a single render.
+func fetchQueryPayload(ctx context.Context, deps Deps, base string, args QueryArgs) (queryPayload, error) {
+	resp, fetchErr := fetchRaw(ctx, deps, base, methodGet, "/query", buildQueryParams(args), nil)
+	if fetchErr != nil {
+		return queryPayload{}, fetchErr
+	}
+
+	var payload queryPayload
+
+	unmarshalErr := yaml.Unmarshal(resp.Body, &payload)
+	if unmarshalErr != nil {
+		return queryPayload{}, fmt.Errorf("serve client: parent query: decoding payload: %w", unmarshalErr)
+	}
+
+	return payload, nil
 }
 
 // fetchRaw issues one ENGRAM_SERVER-mode request and returns its response,
@@ -217,6 +251,18 @@ func isURLUnreserved(c byte) bool {
 	}
 }
 
+// parentBase returns the ENGRAM_PARENT base URL (e.g. "http://host:port"),
+// or "" when unset — mirrors serverBase, but additive rather than
+// exclusive: unlike ENGRAM_SERVER, a set ENGRAM_PARENT does not replace
+// local behavior, it adds a merge step on top of it (design.md Decision 5).
+func parentBase(deps Deps) string {
+	if deps.Getenv == nil {
+		return ""
+	}
+
+	return deps.Getenv(envParentBase)
+}
+
 // percentEncode RFC 3986-escapes s for use as a URL query key or value.
 func percentEncode(s string) string {
 	var b strings.Builder
@@ -253,6 +299,18 @@ func printOfferReceipt(body []byte, stdout io.Writer) error {
 	}
 
 	return nil
+}
+
+// resolveParentOrError returns ENGRAM_PARENT's base URL, or
+// errParentNotConfigured when unset — the shared guard for show/show-chunk's
+// --parent flag.
+func resolveParentOrError(deps Deps) (string, error) {
+	parent := parentBase(deps)
+	if parent == "" {
+		return "", errParentNotConfigured
+	}
+
+	return parent, nil
 }
 
 // serverBase returns the ENGRAM_SERVER base URL (e.g. "http://host:port"),

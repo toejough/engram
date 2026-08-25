@@ -69,6 +69,7 @@ var (
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
 	ExportExcludePendingOffers             = excludePendingOffers
 	ExportExtractLuhmannFromFilename       = extractLuhmannFromFilename
+	ExportFetchQueryPayload                = fetchQueryPayload
 	ExportFillRecencyBand                  = fillRecencyBand
 	ExportFinishUpdate                     = finishUpdate
 	ExportIDAndDateFromNoteFilename        = idAndDateFromNoteFilename
@@ -102,6 +103,7 @@ var (
 	ExportNoteHasPendingMarker        = noteHasPendingMarker
 	ExportNotesMissingIdentityFields  = notesMissingIdentityFields
 	ExportOldVocabFilesPresent        = oldVocabFilesPresent
+	ExportParentBase                  = parentBase
 	ExportParseCreatedFromNote        = parseCreatedFromNote
 	ExportParseNoteQueryFrontmatter   = parseNoteQueryFrontmatter
 	ExportParseRefitNames             = parseRefitNames
@@ -323,6 +325,25 @@ func ExportCapChunkContent(kinds, contents []string, budget int) ([]string, int)
 	}
 
 	return out, snipped
+}
+
+// ExportCapItemsToLimit builds queryItems from a paths slice (Path used as
+// the identifying field), applies capItemsToLimit, and returns the
+// resulting paths in order.
+func ExportCapItemsToLimit(paths []string, limit int) []string {
+	items := make([]queryItem, len(paths))
+	for i := range paths {
+		items[i] = queryItem{Path: paths[i]}
+	}
+
+	capped := capItemsToLimit(items, limit)
+
+	out := make([]string, len(capped))
+	for i := range capped {
+		out[i] = capped[i].Path
+	}
+
+	return out
 }
 
 // ExportClearChunkContent builds queryItems from parallel kind/content slices,
@@ -741,6 +762,10 @@ func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 
 // ExportProvenanceRankFor exposes provenanceRankFor for whitebox testing.
 func ExportProvenanceRankFor(role string) int { return provenanceRankFor(role) }
+
+// ExportQueryPayloadModelID exposes queryPayload.ModelID for whitebox
+// testing of fetchQueryPayload's decode result.
+func ExportQueryPayloadModelID(p queryPayload) string { return p.ModelID }
 
 // ExportRecencyFloor exposes the floor field of recencyParams for tests.
 func ExportRecencyFloor(p recencyParams) int { return p.floor }

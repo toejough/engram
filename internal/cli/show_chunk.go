@@ -13,6 +13,11 @@ import (
 type ShowChunkArgs struct {
 	Ref       string `targ:"positional,required,desc=chunk id: source#anchor"`
 	ChunksDir string `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks)"`
+	// Parent routes this lookup to ENGRAM_PARENT instead of the local
+	// chunk index (vault-merged-recall) — errors if ENGRAM_PARENT is not
+	// configured; inert when ENGRAM_SERVER is also set (that takes
+	// precedence).
+	Parent bool `targ:"flag,name=parent,desc=resolve this id against ENGRAM_PARENT instead of the local chunk index"` //nolint:lll // single struct-tag string
 }
 
 // ShowChunkDeps holds injected dependencies for RunShowChunk. The command is

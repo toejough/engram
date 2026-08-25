@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -425,6 +426,71 @@ func TestEngramServer_Unset_RunsLocally(t *testing.T) {
 	g.Expect(fetchCalled).To(BeFalse())
 }
 
+// TestFetchQueryPayload_DecodesSuccessfulResponse covers the happy path: a
+// parent's /query YAML response decodes into the same queryPayload type
+// RunQuery's own rendering produces.
+func TestFetchQueryPayload_DecodesSuccessfulResponse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.Deps{Fetch: func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+		return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nmodel_id: m@4\nitems: []\n")}, nil
+	}}
+
+	payload, err := cli.ExportFetchQueryPayload(
+		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{Phrases: []string{"x"}})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(cli.ExportQueryPayloadModelID(payload)).To(Equal("m@4"))
+}
+
+// TestFetchQueryPayload_MalformedBodyErrors covers a response body that
+// isn't valid YAML.
+func TestFetchQueryPayload_MalformedBodyErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.Deps{Fetch: func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+		return cli.FetchResponse{Status: 200, Body: []byte("not: [valid: yaml")}, nil
+	}}
+
+	_, err := cli.ExportFetchQueryPayload(
+		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{})
+
+	g.Expect(err).To(HaveOccurred())
+}
+
+// TestFetchQueryPayload_NonOKStatusErrors covers a non-2xx response.
+func TestFetchQueryPayload_NonOKStatusErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.Deps{Fetch: func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+		return cli.FetchResponse{Status: 500, Body: []byte(`{"error":"boom"}`)}, nil
+	}}
+
+	_, err := cli.ExportFetchQueryPayload(
+		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{})
+
+	g.Expect(err).To(MatchError(ContainSubstring("boom")))
+}
+
+// TestFetchQueryPayload_TransportErrorPropagates covers a transport-level
+// failure (e.g. connection refused).
+func TestFetchQueryPayload_TransportErrorPropagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.Deps{Fetch: func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+		return cli.FetchResponse{}, errors.New("connection refused")
+	}}
+
+	_, err := cli.ExportFetchQueryPayload(
+		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{})
+
+	g.Expect(err).To(MatchError(ContainSubstring("connection refused")))
+}
+
 // TestLocalAmend_ClearPendingClearsTheMarker covers the curation skill's
 // core mechanism: `engram amend --clear-pending` is the only CLI-facing way
 // to clear a pending-offer note's marker (local amend never sets it —
@@ -516,6 +582,35 @@ func TestLocalLearn_NeverSetsPendingMarker(t *testing.T) {
 	g.Expect(string(raw)).NotTo(ContainSubstring("pending:"))
 }
 
+// TestParentBase_NilGetenv covers parentBase's nil-safety guard, mirroring
+// TestServerBase_NilGetenv.
+func TestParentBase_NilGetenv(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportParentBase(cli.Deps{})).To(Equal(""))
+}
+
+// TestParentBase_ReadsEngramParentEnv covers parentBase resolving from the
+// ENGRAM_PARENT environment variable, mirroring how serverBase resolves
+// ENGRAM_SERVER — a separate env var, not a QueryArgs flag (design.md
+// Decision 5's precedent: ENGRAM_SERVER is dispatch-level, not threaded
+// through args).
+func TestParentBase_ReadsEngramParentEnv(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deps := cli.Deps{Getenv: func(key string) string {
+		if key == "ENGRAM_PARENT" {
+			return "http://parent-host:8420"
+		}
+
+		return ""
+	}}
+
+	g.Expect(cli.ExportParentBase(deps)).To(Equal("http://parent-host:8420"))
+}
+
 // TestServeTarget_RequiresAddr covers tasks.md 3.1/10.2: `engram serve`
 // with no explicit bind address refuses to start rather than silently
 // binding a default (targ's own required-flag validation enforces this —
@@ -575,6 +670,72 @@ func TestServerBase_NilGetenv(t *testing.T) {
 	g.Expect(cli.ExportServerBase(cli.Deps{})).To(Equal(""))
 }
 
+// TestShowChunkParent_InertWhenEngramServerSet mirrors
+// TestShowParent_InertWhenEngramServerSet for show-chunk.
+func TestShowChunkParent_InertWhenEngramServerSet(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show-chunk", "src.md#anchor", "--parent"}, func(d *cli.Deps) {
+			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url, body: body}
+
+				return cli.FetchResponse{Status: 200, Body: []byte("server chunk text\n")}, nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal("server chunk text\n"))
+	g.Expect(got.url).To(Equal("http://vault-host:8420/show-chunk?id=src.md%23anchor"))
+}
+
+// TestShowChunkParent_RoutesThroughFetch mirrors TestShowParent_RoutesThroughFetch
+// for `engram show-chunk --parent`.
+func TestShowChunkParent_RoutesThroughFetch(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show-chunk", "src.md#anchor", "--parent"}, func(d *cli.Deps) {
+			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url, body: body}
+
+				return cli.FetchResponse{Status: 200, Body: []byte("parent chunk text\n")}, nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal("parent chunk text\n"))
+	g.Expect(got.url).To(Equal("http://parent-host:8420/show-chunk?id=src.md%23anchor"))
+}
+
+// TestShowChunkParent_WithoutEngramParentErrors mirrors
+// TestShowParent_WithoutEngramParentErrors for show-chunk.
+func TestShowChunkParent_WithoutEngramParentErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fetchCalled := false
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show-chunk", "src.md#anchor", "--parent"},
+		func(d *cli.Deps) {
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetchCalled = true
+
+				return cli.FetchResponse{}, nil
+			}
+		})
+
+	g.Expect(stderr).NotTo(BeEmpty())
+	g.Expect(fetchCalled).To(BeFalse())
+}
+
 // TestShowChunkTarget_LocalDispatch covers show-chunk's local (non-served)
 // branch through Targets() — the ENGRAM_SERVER-set branch is covered by
 // TestEngramServer_ShowChunk_RoutesThroughFetch.
@@ -584,6 +745,70 @@ func TestShowChunkTarget_LocalDispatch(t *testing.T) {
 
 	stderr := executeForTest(t, []string{"engram", "show-chunk", "missing#anchor", "--chunks-dir", t.TempDir()})
 	g.Expect(stderr).To(ContainSubstring("chunk not found"))
+}
+
+// TestShowParent_InertWhenEngramServerSet covers the precedence rule: with
+// both ENGRAM_SERVER and ENGRAM_PARENT set, `--parent` is ignored — the
+// command routes to ENGRAM_SERVER exactly as it would without --parent.
+func TestShowParent_InertWhenEngramServerSet(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent"}, func(d *cli.Deps) {
+		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
+			got = fakeFetchCall{method: method, url: url, body: body}
+
+			return cli.FetchResponse{Status: 200, Body: []byte("server note content\n")}, nil
+		}
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal("server note content\n"))
+	g.Expect(got.url).To(Equal("http://vault-host:8420/show?note=1.hub"))
+}
+
+// TestShowParent_RoutesThroughFetch covers `engram show <ref> --parent`
+// routing to ENGRAM_PARENT via the same fetchShow path ENGRAM_SERVER uses.
+func TestShowParent_RoutesThroughFetch(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent"}, func(d *cli.Deps) {
+		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
+			got = fakeFetchCall{method: method, url: url, body: body}
+
+			return cli.FetchResponse{Status: 200, Body: []byte("parent note content\n")}, nil
+		}
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout).To(Equal("parent note content\n"))
+	g.Expect(got.url).To(Equal("http://parent-host:8420/show?note=1.hub"))
+}
+
+// TestShowParent_WithoutEngramParentErrors covers --parent passed with
+// ENGRAM_PARENT unset: an error, no fetch attempted, no local fallback.
+func TestShowParent_WithoutEngramParentErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fetchCalled := false
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent"}, func(d *cli.Deps) {
+		d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+			fetchCalled = true
+
+			return cli.FetchResponse{}, nil
+		}
+	})
+
+	g.Expect(stderr).NotTo(BeEmpty())
+	g.Expect(fetchCalled).To(BeFalse())
 }
 
 // fakeFetchCall records one deps.Fetch invocation for ENGRAM_SERVER-mode

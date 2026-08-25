@@ -211,6 +211,13 @@ func ingestQueryTargets(
 
 			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+
+			if parent := parentBase(deps); parent != "" {
+				errHandler(runMergedQuery(withLog(ctx), deps, parent, a, deps.Stdout))
+
+				return
+			}
+
 			errHandler(RunQuery(withLog(ctx), a, newQueryDeps(deps), deps.Stdout))
 		}).Name("query").Description("Semantic search over vault + chunk index (YAML output)"),
 		targ.Targ(func(ctx context.Context, a IngestArgs) {
@@ -357,16 +364,16 @@ func serveTargets(
 	}
 }
 
-// showActivateTargets returns the activate/count/show/show-chunk/check
-// subcommands. Split out of ingestQueryTargets to stay within the
-// per-function length budget.
+// showActivateTargets returns the activate/count/check subcommands (plus
+// show/show-chunk via showTargets). Split out of ingestQueryTargets to
+// stay within the per-function length budget.
 func showActivateTargets(
 	deps Deps,
 	withLog func(context.Context) context.Context,
 	errHandler func(error),
 	home string,
 ) []any {
-	return []any{
+	return append([]any{
 		targ.Targ(func(ctx context.Context, a ActivateArgs) {
 			if base := serverBase(deps); base != "" {
 				errHandler(fetchActivate(withLog(ctx), deps, base, a))
@@ -382,9 +389,39 @@ func showActivateTargets(
 			errHandler(RunCount(a, newCountDeps(deps), deps.Stdout))
 		}).Name("count").Description(
 			"Count notes by a frontmatter attribute or a note's wikilink in-degree (read-only)"),
+		targ.Targ(func(ctx context.Context, a CheckArgs) {
+			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
+			errHandler(RunCheck(withLog(ctx), a, newCheckDeps(deps), deps.Stdout))
+		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
+	}, showTargets(deps, withLog, errHandler, home)...)
+}
+
+// showTargets returns the show/show-chunk subcommands. Split out of
+// showActivateTargets (vault-merged-recall's --parent branch pushed it over
+// the per-function length budget).
+func showTargets(
+	deps Deps,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+	home string,
+) []any {
+	return []any{
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
 			if base := serverBase(deps); base != "" {
 				errHandler(fetchShow(withLog(ctx), deps, base, a, deps.Stdout))
+
+				return
+			}
+
+			if a.Parent {
+				parent, parentErr := resolveParentOrError(deps)
+				if parentErr != nil {
+					errHandler(parentErr)
+
+					return
+				}
+
+				errHandler(fetchShow(withLog(ctx), deps, parent, a, deps.Stdout))
 
 				return
 			}
@@ -399,13 +436,22 @@ func showActivateTargets(
 				return
 			}
 
+			if a.Parent {
+				parent, parentErr := resolveParentOrError(deps)
+				if parentErr != nil {
+					errHandler(parentErr)
+
+					return
+				}
+
+				errHandler(fetchShowChunk(withLog(ctx), deps, parent, a, deps.Stdout))
+
+				return
+			}
+
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
 			errHandler(RunShowChunk(withLog(ctx), a, newShowChunkDeps(deps), deps.Stdout))
 		}).Name("show-chunk").Description("Print a chunk's text by its source#anchor id (read-only)"),
-		targ.Targ(func(ctx context.Context, a CheckArgs) {
-			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-			errHandler(RunCheck(withLog(ctx), a, newCheckDeps(deps), deps.Stdout))
-		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
 	}
 }
 

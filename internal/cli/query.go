@@ -13,8 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"go.yaml.in/yaml/v3"
-
 	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cluster"
 	"github.com/toejough/engram/internal/embed"
@@ -416,6 +414,15 @@ type queryItem struct {
 	// SourceTerm names the vocab term an explore-half pick was sampled
 	// under (provenance=explore only; empty/omitted otherwise).
 	SourceTerm string `yaml:"source_term,omitempty"`
+	// ModelID names the embedding model of the node that produced this
+	// item (vault-merged-recall) — set only in a merged payload; empty
+	// otherwise (non-merged payloads carry model_id at the payload level
+	// only, via queryPayload.ModelID).
+	ModelID string `yaml:"model_id,omitempty"`
+	// FromParent is true when this item was produced by ENGRAM_PARENT
+	// rather than the local vault (vault-merged-recall) — always false,
+	// omitted from non-merged payloads.
+	FromParent bool `yaml:"from_parent,omitempty"`
 }
 
 // queryPayload is the top-level YAML document.
@@ -865,6 +872,17 @@ func capChunkContent(items []queryItem, budget int) ([]queryItem, int) {
 	}
 
 	return items, snipped
+}
+
+// capItemsToLimit truncates items to the first limit entries, assuming the
+// caller has already sorted items into final rank order. limit <= 0 is a
+// no-op (unbounded), matching capChunkContent's convention.
+func capItemsToLimit(items []queryItem, limit int) []queryItem {
+	if limit <= 0 || len(items) <= limit {
+		return items
+	}
+
+	return items[:limit]
 }
 
 // capWithNoteFloor caps perPhrase to limit items by score, but guarantees up to
@@ -1701,6 +1719,14 @@ func renderItems(resolved []resolvedItem) []queryItem {
 func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	items := renderItems(merged.resolvedItems)
 	clusters := renderClusters(merged.phraseClusters)
+	// Real enforcement of --limit (recall-payload-cuts): before this, limit
+	// was report-only metadata (Budget.Limit below) and never truncated
+	// items[]. Applied BEFORE content-budget capping, so "the first N
+	// chunks" content-budget counts are relative to what's actually
+	// returned — not a larger pre-truncation candidate set that would
+	// snippet chunks limit later discards entirely, while double-counting
+	// against the budget chunks that do make the final cut.
+	items = capItemsToLimit(items, merged.limit)
 	items, snipped := applyContentPolicy(items, merged)
 	// Full content = items still carrying their complete text — snippeted
 	// chunks retain (truncated) content, so exclude them from the count.
@@ -1732,22 +1758,7 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 
 	payload.Timings = renderTimings(merged.timer)
 
-	const yamlIndent = 2
-
-	encoder := yaml.NewEncoder(stdout)
-	encoder.SetIndent(yamlIndent)
-
-	err := encoder.Encode(payload)
-	if err != nil {
-		return fmt.Errorf("query: encode: %w", err)
-	}
-
-	closeErr := encoder.Close()
-	if closeErr != nil {
-		return fmt.Errorf("query: close encoder: %w", closeErr)
-	}
-
-	return nil
+	return encodeQueryPayload(stdout, payload)
 }
 
 // renderTimings marks the render stage complete and returns the accumulated
