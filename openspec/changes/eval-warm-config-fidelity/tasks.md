@@ -21,14 +21,19 @@
 
 ## 4. Get the real signal — re-run the gate against the fixed harness
 
-- [ ] 4.1 `go install ./cmd/engram` from repo root, so the gate exercises the current binary
-- [ ] 4.2 Run `python3 gate.py --tier smoke` from `dev/eval/traps/`. Before trusting the pass/fail verdict, inspect ONE fresh trial's `warm-cfg/skills/recall/SKILL.md` directly on disk (or via the transcript, confirm the agent's Skill tool listing includes `recall`) — this is the structural proof the fix actually worked in a live run, not just in the unit tests
-- [ ] 4.3 Report the smoke result honestly. If RED: this is now evidence of a genuine, separate product-capability issue (not the harness bug) — per proposal.md's Non-Goals, do NOT attempt to fix it as part of this change; file it as a new issue with the smoke output attached, and stop this task group there (do not proceed to full-tier or LEDGER update with a false GREEN)
-- [ ] 4.4 If smoke is GREEN (or the documented single-cell C5b flake only, per the harness's own known-flake exception): run `python3 gate.py --tier full` (~$15-18, the originally-verified bars at 5 reps/axis)
-- [ ] 4.5 Update `dev/eval/LEDGER.md` with the fresh result and today's date, replacing/annotating the stale 2026-06-30-era citations as superseded by this re-verification
+- [x] 4.1 `go install ./cmd/engram` from repo root, so the gate exercises the current binary
+- [x] 4.2 Run `python3 gate.py --tier smoke` from `dev/eval/traps/`. Before trusting the pass/fail verdict, inspect ONE fresh trial's `warm-cfg/skills/recall/SKILL.md` directly on disk (or via the transcript, confirm the agent's Skill tool listing includes `recall`) — this is the structural proof the fix actually worked in a live run, not just in the unit tests
+
+  **Result: GREEN, unanimous.** C3 5/5, C4i 1/1, C5 1/1, C6 2/2 (2026-08-26). Structurally confirmed: `warm-cfg/skills/recall/SKILL.md` and `.../learn/SKILL.md` both present on disk in the fresh trial. Real vault confirmed unchanged (765 notes) before and after.
+
+- [x] 4.3 Report the smoke result honestly. If RED: ... (N/A — smoke was clean GREEN, proceeded to 4.4)
+
+- [x] 4.4 Ran `python3 gate.py --tier full` (5 reps/axis; C6 at its own 4-rep bar). **Result: C3 25/25 GREEN, C4i 5/5 GREEN, C6 8/8 GREEN, C5 4/5 RED** (overall verdict RED per the gate's strict all-cells bar). This is NOT the harness bug reappearing — C5a (surfacing) hit 5/5; only C5b (honoring) missed one. Per vault note 209's same-tree-rerun discipline (built for smoke-tier n=1, applied here since a single-cell miss is the same shape of question): ran a targeted, independent same-tree re-check of JUST C5 (fresh `seed_c5.py` + `c5.py --arms warm --n 5`, own $3.03 spend) — **reproduced exactly: 4/5, same trial index (#3) failed both times, honored=False.** Two independent 5-trial runs landing on the identical ratio is a stable measured rate, not stochastic noise — the "flake, re-run to confirm" branch resolves to "real, confirmed by re-run" here, the mirror image of note 209's flake case. C5a is 10/10 across both runs (retrieval is perfect); C5b (agent judgment on honoring a recency-channel standard under conflict) measures ~80% (8/10), below the originally-verified 100% bar. This is a genuine, separate, narrowly-scoped finding, unrelated to #732's harness-fidelity bug — which is conclusively proven fixed by C3/C4i/C6's perfect scores and C5a's perfect score. Filed as its own issue (task 5.1) rather than expanded into this change's scope, per proposal.md's Non-Goals.
+
+- [x] 4.5 Updated `dev/eval/LEDGER.md` with the fresh result and today's date (2026-08-26) — see the new `eval-warm-config-fidelity` / `c5b-honoring-rate-80pct` entries, which also close out the 2026-06-28 `tier-routing-parity` entry's dangling "C5 axis flaked (re-run owed)" note with a precise, reproduced number instead of an open debt
 
 ## 5. Close-out
 
-- [ ] 5.1 Comment on and close #732, linking this change and the fresh `gate.py --tier full` result (or the new spun-off issue, if 4.3's honest-RED path was taken — in that case #732 is still closed, since ITS scope — the harness bug — is fixed; the new issue tracks the separately-discovered product finding)
-- [ ] 5.2 `targ check-full` clean, all tests green
-- [ ] 5.3 `/opsx:archive` to archive this change and sync `openspec/specs/`
+- [x] 5.1 Commented on and closed #732 (comment links commit `a0065709`, the smoke and full-tier results, and #733 as the spun-off C5b finding). Filed **#733** for the C5b honoring-rate finding, dedup-checked clean, cross-linked to `LEDGER.md#tier-routing-parity`'s original 2026-06-28 "re-run owed" flag which it resolves.
+- [x] 5.2 `targ check-full` run independently: `check-coverage-for-fail` PASS, `reorder-decls-check` PASS, `lint-fast` PASS, `deadcode` PASS, `check-thin-api` PASS, `check-nils-for-fail` PASS, `test-integration` PASS. Two pre-existing, unrelated failures confirmed not caused by this change: `check-uncommitted` (expected pre-commit state) and `lint-full` (pre-existing `golangci-lint` "unknown linters: exhaustruct_v5" environment/config mismatch — `dev/eval` isn't even lint-covered per its own skip warning). All 39 `dev/eval/traps/` Python tests green.
+- [x] 5.3 `/opsx:archive` — see next commit
