@@ -22,29 +22,34 @@
       resolved value (unchanged metadata behavior), a recency-channel item
       survives even when Channel 1 alone already reaches `--limit`
       (regression test for the Decision-10 fix) — `query_limit_test.go`
-- [ ] 1.4 Re-run the recall-quality eval gates named in design.md's
-      Migration Plan (`dev/eval/LEDGER.md` `#matched-note-floor`,
-      `#payload-cut-lazy-chunks`, `#payload-cut-recent-fill`,
-      `#crowded-vault-capability-robustness`) against the newly-enforced
-      cap; if any regress, raise `defaultQueryLimit` rather than reverting
-      the cap. **Blocked in the sandbox this change was implemented in —
-      needs to run from a host with the real, populated engram vault.**
-      `dev/eval/traps/crowded_gate.py --tier1-only` is the free, no-LLM
-      first step: it sweeps a real-vault-derived crowd (0→400 notes) and
-      checks via real `engram query` calls whether the C3/C4i/C6 targets
-      still rank within top-10 (comfortably inside `--limit`=20) —
-      requires `ENGRAM_VAULT_PATH` (or the `$XDG_DATA_HOME`/`$HOME/
-      .local/share/engram/vault` default) to point at the real vault,
-      which this sandbox doesn't have (`crowd.load_real_notes` reads it
-      directly). Rebuild the `engram` binary first (`go install
-      ./cmd/engram`) so the sweep exercises this change's actual fix, not
-      a stale build. C5 (the recency-channel axis — directly relevant to
-      the Decision-10 fix) isn't covered by Tier-1 at all (it's
-      recency-invariant by design, per `traps/README.md`); it only gets
-      checked in Tier-2, which costs real LLM spend
-      (`python3 gate.py --tier smoke` ~$2-3, `--tier full` ~$15-18;
-      `crowded_gate.py` Tier-2 adds more on top) — run at the
-      maintainer's discretion after Tier-1's free check
+- [x] 1.4 Re-run the recall-quality eval gates named in design.md's Migration Plan
+      against the newly-enforced cap, from a host with the real, populated engram
+      vault (2026-08-25).
+
+      Tier-1 (free, no-LLM) — `crowded_gate.py --tier1-only`: CLEAN. All three
+      covered axes (C3/C4i/C6) held rank <=10 at every crowd size 0->400 —
+      break_point=None on all three, comfortably inside `--limit`=20. Real vault
+      (763 notes) confirmed unchanged before and after (`crowd.py`'s `seed_into`
+      refuses to write the real vault; verified in code, not just trusted).
+
+      Tier-2 (costed, Joe-approved) — `gate.py --tier smoke` (~$2): RED on
+      C3 (1/5), C4i (0/1), C5 (0/1); C6 GREEN (2/2). This did NOT trigger the
+      "raise `defaultQueryLimit`" fix below, because a bisect proved it unrelated
+      to this change: checked out the commit immediately preceding this change's
+      query.go work (`319bfed8`, parent of `2d03233c`), rebuilt the binary, and
+      re-ran the identical smoke gate there — it reproduced the SAME C3/C4i/C5
+      failures (C6 flipped RED too on that run, 1/2, likely n=1 sampling noise on
+      that cell only). The regression pre-dates this change and is unrelated to
+      the `--limit` enforcement specifically. Returned to `main` HEAD, rebuilt.
+
+      Disposition: `defaultQueryLimit`=20 does NOT need raising — Tier-1's clean
+      rank-survival plus the bisect together confirm this change's `--limit` cap
+      does not regress recall quality. The separately-discovered, pre-existing
+      C3/C4i(/C5) smoke-gate regression is filed as **#732** for dedicated
+      investigation — out of scope for this change (task 1.4's own bar is whether
+      THIS change's `--limit` enforcement regresses recall quality; it does not,
+      independent of #732's finding). Full methodology and lesson captured in
+      vault notes 791/792.
 
 ## 2. Config surface
 
