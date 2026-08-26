@@ -15,7 +15,6 @@ import traps as T
 from run import build_cold_cfg, MODELS
 
 REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-REPO = "/Users/joe/repos/personal/engram"
 ROOT = os.environ.get("TRAPS_ROOT", "/tmp/opus-traps-warm")
 
 RECALL_PREFIX = (
@@ -27,9 +26,21 @@ RECALL_PREFIX = (
 def build_warm_cfg(dst):
     build_cold_cfg(dst)  # clean base + creds
     for skill in ("recall", "learn"):
-        src = os.path.join(REPO, "skills", skill)
-        if os.path.isdir(src):
-            shutil.copytree(src, os.path.join(dst, "skills", skill), dirs_exist_ok=True)
+        src = os.path.join(REPO, "agent-instructions", "skills", skill)
+        # Verify source exists and contains SKILL.md
+        if not os.path.isdir(src):
+            raise RuntimeError(f"skill source missing: {skill} not found at {src}")
+        skill_md = os.path.join(src, "SKILL.md")
+        if not os.path.exists(skill_md):
+            raise RuntimeError(f"skill source invalid: {skill} at {src} has no SKILL.md")
+
+        # Copy the skill
+        dst_skill = os.path.join(dst, "skills", skill)
+        shutil.copytree(src, dst_skill, dirs_exist_ok=True)
+
+        # Verify destination content was actually copied
+        if not os.path.exists(os.path.join(dst_skill, "SKILL.md")):
+            raise RuntimeError(f"skill installation failed: {skill} SKILL.md not found at destination {dst_skill}")
 
 
 def _slug(cwd):
