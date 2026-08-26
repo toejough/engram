@@ -27,7 +27,24 @@
       `#payload-cut-lazy-chunks`, `#payload-cut-recent-fill`,
       `#crowded-vault-capability-robustness`) against the newly-enforced
       cap; if any regress, raise `defaultQueryLimit` rather than reverting
-      the cap
+      the cap. **Blocked in the sandbox this change was implemented in —
+      needs to run from a host with the real, populated engram vault.**
+      `dev/eval/traps/crowded_gate.py --tier1-only` is the free, no-LLM
+      first step: it sweeps a real-vault-derived crowd (0→400 notes) and
+      checks via real `engram query` calls whether the C3/C4i/C6 targets
+      still rank within top-10 (comfortably inside `--limit`=20) —
+      requires `ENGRAM_VAULT_PATH` (or the `$XDG_DATA_HOME`/`$HOME/
+      .local/share/engram/vault` default) to point at the real vault,
+      which this sandbox doesn't have (`crowd.load_real_notes` reads it
+      directly). Rebuild the `engram` binary first (`go install
+      ./cmd/engram`) so the sweep exercises this change's actual fix, not
+      a stale build. C5 (the recency-channel axis — directly relevant to
+      the Decision-10 fix) isn't covered by Tier-1 at all (it's
+      recency-invariant by design, per `traps/README.md`); it only gets
+      checked in Tier-2, which costs real LLM spend
+      (`python3 gate.py --tier smoke` ~$2-3, `--tier full` ~$15-18;
+      `crowded_gate.py` Tier-2 adds more on top) — run at the
+      maintainer's discretion after Tier-1's free check
 
 ## 2. Config surface
 
