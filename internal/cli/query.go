@@ -1721,12 +1721,17 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	clusters := renderClusters(merged.phraseClusters)
 	// Real enforcement of --limit (recall-payload-cuts): before this, limit
 	// was report-only metadata (Budget.Limit below) and never truncated
-	// items[]. Applied BEFORE content-budget capping, so "the first N
-	// chunks" content-budget counts are relative to what's actually
-	// returned — not a larger pre-truncation candidate set that would
-	// snippet chunks limit later discards entirely, while double-counting
-	// against the budget chunks that do make the final cut.
-	items = capItemsToLimit(items, merged.limit)
+	// items[]. Applied to Channel 1 (relevance-ranked) only, BEFORE
+	// content-budget capping, so "the first N chunks" content-budget
+	// counts are relative to what's actually returned. Channel 2 (recency,
+	// provenanceRecent) is deliberately exempt — it already has its own
+	// dedicated budget (--recent-fill) and is capped during pipeline
+	// assembly (buildRecentFillItems); capping the combined list here
+	// would silently displace the whole recency channel whenever Channel 1
+	// alone already reaches --limit, which defeats --recent-fill entirely
+	// in any non-trivial vault.
+	main, recent := splitRecencyChannel(items)
+	items = append(capItemsToLimit(main, merged.limit), recent...)
 	items, snipped := applyContentPolicy(items, merged)
 	// Full content = items still carrying their complete text — snippeted
 	// chunks retain (truncated) content, so exclude them from the count.

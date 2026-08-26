@@ -9,11 +9,19 @@
       exclusive, and (once wired) merged mode alike. Applied BEFORE
       `capChunkContent`, not after (design note added inline in
       query.go): content-budget's "first N chunks" must count against
-      what's actually returned, not a larger pre-truncation set
+      what's actually returned, not a larger pre-truncation set.
+      **Corrected post-implementation (design.md Decision 10):** applied
+      only to Channel 1 (relevance-ranked) items, not the combined
+      Channel-1+Channel-2 list — the first version silently wiped out the
+      entire recency channel whenever Channel 1 alone reached `--limit`
+      (routine in a non-trivial vault), defeating `--recent-fill`'s own
+      independent budget entirely
 - [x] 1.3 Unit tests: default limit (20) truncates a larger result set,
       explicit `--limit N` truncates to N, a result set smaller than the
       limit is returned unchanged, `Budget.Limit` still reports the
-      resolved value (unchanged metadata behavior) — `query_limit_test.go`
+      resolved value (unchanged metadata behavior), a recency-channel item
+      survives even when Channel 1 alone already reaches `--limit`
+      (regression test for the Decision-10 fix) — `query_limit_test.go`
 - [ ] 1.4 Re-run the recall-quality eval gates named in design.md's
       Migration Plan (`dev/eval/LEDGER.md` `#matched-note-floor`,
       `#payload-cut-lazy-chunks`, `#payload-cut-recent-fill`,
@@ -94,7 +102,12 @@
       once, using the *user's actually-requested* `--content-budget` and
       `--limit`, as the single final pass over the merged, re-ranked set;
       cap the merged recency-channel items to the user's requested
-      `--recent-fill` the same way, before combining with the main list
+      `--recent-fill` the same way, before combining with the main list.
+      **Corrected post-implementation (design.md Decision 10):** `--limit`
+      applies to the merged Channel 1 (main) items only, capped *before*
+      appending the separately `--recent-fill`-capped Channel 2 items —
+      the first version applied `--limit` to the two channels already
+      combined, which could wipe out Channel 2 entirely
 - [x] 5.5 On parent fetch failure, fall back to plain `RunQuery` with the
       user's real args (no merge, no unbounded dance needed since parent
       is checked first) and emit a non-fatal warning via the existing
@@ -106,7 +119,9 @@
       from_parent tagging, limit/content-budget/recent-fill each cap the
       merged set correctly (not per-source), mismatched `model_id` does
       not block the merge, clusters stay local-only, advisory flags OR
-      together. `runMergedQuery`'s own fetch/fallback wiring (not
+      together, a merged recency-channel item survives even when merged
+      Channel 1 alone already reaches `--limit` (regression test for the
+      Decision-10 fix). `runMergedQuery`'s own fetch/fallback wiring (not
       `mergeQueryPayloads` itself) is exercised at the CLI-dispatch level
       in section 6's integration test instead — `inMemoryFS` (the
       existing `cli_test`-package vault double) doesn't implement the

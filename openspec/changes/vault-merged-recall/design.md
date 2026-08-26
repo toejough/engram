@@ -168,6 +168,29 @@ See proposal.md - Why for motivation. Two relevant existing shapes:
    is marked **BREAKING** in proposal.md — existing local/served callers
    will see fewer items by default than they do today. See Migration Plan.
 
+10. **`--limit` caps Channel 1 only, never Channel 2 — found and fixed
+    post-implementation, before this shipped as "done."** The first
+    implementation of Decision 9 applied `capItemsToLimit` to the whole
+    combined items list (Channel 1 + Channel 2 appended). Caught by a
+    direct question ("don't we need to run the eval gates before calling
+    this done?") that prompted re-deriving the risk from the code instead
+    of just accepting "defer to the eval run": Channel 2 (recency) is
+    appended *after* Channel 1 in the resolved list, so any vault where
+    Channel 1 alone reaches `--limit` (routine — matchSetCap alone allows
+    up to 300 Channel 1 candidates) would see the entire recency channel
+    silently discarded, even though `--recent-fill` already governs its
+    size independently. Confirmed with a 25-matched-note test before
+    touching code: 20 items back, recency channel included, zero. Fixed
+    in both `renderQueryPayload` and `mergeQueryPayloads`: split
+    Channel 1/2 first, apply `--limit` to Channel 1 only, recombine, then
+    apply `--content-budget` across both (unchanged — content-budget
+    genuinely is meant to span both channels, only `--limit` needed the
+    split). This is exactly the kind of gap task 1's own eval re-run
+    (Migration Plan) was meant to catch — finding and fixing it directly
+    removes it from that eval run's risk surface, it doesn't replace the
+    need to still run that eval for what's left (the *default value* of
+    20, not this correctness bug).
+
 ## Migration Plan
 
 `--limit`'s new enforcement (Decision 9) changes already-shipped behavior
@@ -184,7 +207,10 @@ absorbed:
   the default `--limit`=20 doesn't regress recall quality. `defaultQuery
   Limit`=20 was chosen and reported as metadata only; it was never
   validated as an actual coverage floor, because until now nothing
-  enforced it.
+  enforced it. (Decision 10's fix already removes one specific risk this
+  re-run would have caught — the recency channel being silently wiped
+  out — but doesn't validate whether 20 is the right number for Channel 1
+  itself; that question still needs this re-run, not just the code fix.)
 - If those evals regress, the fix is raising the default, not reverting
   the cap — the cap itself is what makes merged mode's size bound (and
   `content-budget`/`recent-fill`'s post-merge reapplication, Decision 7)

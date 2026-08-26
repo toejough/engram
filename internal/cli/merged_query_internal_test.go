@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -102,6 +103,42 @@ func TestMergeQueryPayloads_LimitCapsTotalMergedSet(t *testing.T) {
 	g.Expect(merged.Items[0].Path).To(Equal("l1"))
 	g.Expect(merged.Items[1].Path).To(Equal("p1"))
 	g.Expect(merged.Items[2].Path).To(Equal("l2"))
+}
+
+// TestMergeQueryPayloads_LimitDoesNotStarveRecencyChannel verifies --limit
+// caps only the merged relevance-ranked (Channel 1) portion — a merged
+// recency-channel item must survive even when Channel 1 alone already
+// reaches --limit, mirroring TestRunQuery_LimitDoesNotStarveRecencyChannel
+// for the single-source path.
+func TestMergeQueryPayloads_LimitDoesNotStarveRecencyChannel(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const mainCount = 25
+
+	items := make([]queryItem, 0, mainCount+1)
+	for i := range mainCount {
+		items = append(items, queryItem{Path: fmt.Sprintf("l%d", i), Score: float32(mainCount - i)})
+	}
+
+	items = append(items, queryItem{Path: "recent-item", Score: 0, Provenances: []string{provenanceRecent}})
+
+	local := queryPayload{Items: items}
+	parent := queryPayload{}
+
+	merged := mergeQueryPayloads(local, parent, QueryArgs{Limit: 20})
+
+	found := false
+
+	for _, item := range merged.Items {
+		if item.Path == "recent-item" {
+			found = true
+		}
+	}
+
+	g.Expect(found).To(BeTrue(),
+		"recency-channel item must survive --limit even when Channel 1 alone already reaches it")
 }
 
 // TestMergeQueryPayloads_MismatchedModelIDStillMerges verifies the merge

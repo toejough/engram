@@ -101,12 +101,16 @@ func mergeQueryPayloads(local, parent queryPayload, args QueryArgs) queryPayload
 	localMain, localRecent := splitRecencyChannel(tagItems(local.Items, local.ModelID, false))
 	parentMain, parentRecent := splitRecencyChannel(tagItems(parent.Items, parent.ModelID, true))
 
+	// --limit caps Channel 1 (relevance-ranked) only — Channel 2 (recency)
+	// has its own dedicated budget (--recent-fill) and must not be
+	// displaced just because Channel 1 alone already reaches --limit
+	// (mirrors renderQueryPayload's same fix for the single-source path).
+	mainMerged := capItemsToLimit(mergeByScoreDesc(localMain, parentMain), resolveLimit(args.Limit))
 	recentMerged := capItemsToLimit(
 		interleaveAlternating(localRecent, parentRecent), resolveRecentFill(args.RecentFill))
 
-	items := append(mergeByScoreDesc(localMain, parentMain), recentMerged...)
-	items = capItemsToLimit(items, resolveLimit(args.Limit))
-	items, _ = capChunkContent(items, resolveContentBudget(args.ContentBudget))
+	mainMerged = append(mainMerged, recentMerged...)
+	items, _ := capChunkContent(mainMerged, resolveContentBudget(args.ContentBudget))
 
 	return queryPayload{
 		Version:       1,

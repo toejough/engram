@@ -5,10 +5,12 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 	"go.yaml.in/yaml/v3"
 
+	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 )
 
@@ -158,4 +160,72 @@ func TestRunQuery_FewerItemsThanLimitReturnsAllUnchanged(t *testing.T) {
 	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).To(Succeed())
 
 	g.Expect(parsed.Items).To(HaveLen(1))
+}
+
+// TestRunQuery_LimitDoesNotStarveRecencyChannel verifies that --limit caps
+// the relevance-ranked (Channel 1) portion of items[] only — the recency
+// channel (Channel 2, provenance "recent") is independently governed by
+// --recent-fill and must not be entirely displaced just because Channel 1
+// alone already reaches --limit. Regression check: a crowded vault with
+// >= --limit matched notes previously wiped out the whole recency channel,
+// since the two channels shared one combined truncation.
+func TestRunQuery_LimitDoesNotStarveRecencyChannel(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	// 25 matched notes — Channel 1 alone already exceeds the default
+	// --limit (20), the scenario that starved Channel 2 before the fix.
+	const noteCount = 25
+	for i := range noteCount {
+		relPath := fmt.Sprintf("%d.fact.md", i+1)
+		body := fmt.Sprintf("---\ntype: fact\ntier: L2\nsituation: x\n---\n\nbody %d\n", i)
+		plantWithFixedVector(t, memFS, vault, relPath, body, []float32{1, 0, 0, 0})
+	}
+
+	// A recency-channel chunk: orthogonal vector (cosine ~0 against the
+	// query, well below matchRelevanceFloor) so it can only appear via
+	// Channel 2, not by matching. buildRecentFillItems doesn't gate on
+	// relevance — it pulls from the full chunk index by IngestedAt.
+	records := []chunk.Record{{
+		Source:      "/s/a.jsonl",
+		Anchor:      "recent-1",
+		ContentHash: chunk.HashText("unrelated recent chunk"),
+		Text:        "unrelated recent chunk",
+		Vector:      []float32{0, 1, 0, 0},
+		IngestedAt:  time.Date(2026, 8, 25, 0, 0, 0, 0, time.UTC),
+	}}
+
+	data, err := chunk.EncodeRecords(records)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	memFS.files["/chunks/s1.jsonl"] = data
+
+	deps := unifiedQueryDeps(memFS, "/chunks/s1.jsonl")
+	deps.Embedder = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+
+	var out bytes.Buffer
+
+	err = cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"x"}, VaultPath: vault, ChunksDir: "/chunks"}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var parsed queryParsed
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).To(Succeed())
+
+	foundRecent := false
+
+	for _, item := range parsed.Items {
+		for _, p := range item.Provenances {
+			if p == "recent" {
+				foundRecent = true
+			}
+		}
+	}
+
+	g.Expect(foundRecent).To(BeTrue(),
+		"recency-channel item must survive --limit even when Channel 1 alone already reaches it")
 }

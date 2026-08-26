@@ -38,9 +38,12 @@ enforcement.)
 When `ENGRAM_PARENT` is set, `engram query` SHALL apply `--content-budget`,
 `--recent-fill`, and `--limit` as a single final pass over the merged
 local+parent item set, not independently to each source before merging.
-(`--limit`'s enforcement as a real item-count cap is owned by
-`recall-payload-cuts`; this requirement governs only where in the merge
-pipeline that cap — and the other two budgets — apply.)
+`--content-budget` applies across both channels combined; `--recent-fill`
+governs Channel 2 (recency) only; `--limit` governs Channel 1 (relevance)
+only and never displaces Channel 2 — the two budgets are independent, not
+stacked into one combined cap (`recall-payload-cuts` owns `--limit`'s base
+enforcement; this requirement governs only where in the merge pipeline
+these budgets apply).
 
 #### Scenario: content-budget caps full-content chunk items across the merged set
 - **WHEN** `engram query` runs with `ENGRAM_PARENT` set and
@@ -56,11 +59,13 @@ pipeline that cap — and the other two budgets — apply.)
   newest-by-ingest items drawn from both sources combined, not N from each
   source independently
 
-#### Scenario: limit caps the merged set, not each source
+#### Scenario: limit caps the merged Channel 1, not each source
 - **WHEN** `engram query` runs with `ENGRAM_PARENT` set and `--limit N`
-- **THEN** the returned payload contains at most N items total, drawn from
-  the combined, score-ranked local+parent set — not N from each source
-  independently before merging
+- **THEN** the returned payload's Channel 1 (relevance-ranked) items total
+  at most N, drawn from the combined, score-ranked local+parent set — not
+  N from each source independently before merging, and not counting the
+  merged recency channel (which `--limit` never displaces — see
+  `recall-payload-cuts`)
 
 ### Requirement: Merge does not gate on model_id
 `engram query` SHALL merge local and parent results into the ranked list
