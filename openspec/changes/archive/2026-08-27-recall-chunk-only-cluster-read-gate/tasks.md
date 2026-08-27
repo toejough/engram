@@ -54,6 +54,10 @@
       to reflect fix shipped 2026-08-27, added forward-reference to `733-c5-threshold-decision` row
       documenting post-fix 100% rate (20/20 honored); updated figure narrative to document SKILL.md
       edit shipped and deployment via `engram update --with-guidance`.
-- [ ] 3.3 Close GitHub issue #733, referencing the merged spec, the SKILL.md commit, and the
-      final measured rate.
-- [ ] 3.4 Archive this change (`openspec archive recall-chunk-only-cluster-read-gate`).
+- [x] 3.3 Closed GitHub issue #733 (2026-08-27), referencing the merged spec
+      (`openspec/specs/recall-payload-cuts/spec.md`), the SKILL.md commit (f803c7eb), and the
+      final measured rate (20/20 honored, 100%, combined across the n=5 and n=15 runs).
+- [x] 3.4 Archived this change (2026-08-27, `openspec archive recall-chunk-only-cluster-read-gate --skip-specs`
+      — specs were already synced manually in task 3.1, so `--skip-specs` avoided a duplicate-header
+      conflict on re-apply; `openspec validate recall-payload-cuts --strict --type spec` confirmed
+      the live spec is valid with exactly one copy of the added requirement).
