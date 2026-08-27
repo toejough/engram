@@ -28,7 +28,7 @@ Verified live against this working tree and the live GitHub issue before writing
   the chunk's path/title alone (raw query payload: `budget.items_with_full_content: 0`, chunk
   items never carry content under `--lazy-chunks`). This directly matches `recall/SKILL.md` Step
   2.5A's own documented anti-pattern ("judged coverage before reading the candidate content"),
-  occurring on a **zero-note, chunks-only cluster** specifically.
+  occurring on a **zero-note cluster (chunks-only membership)** specifically.
 - R matched via `provenances: [direct]` (cosine 0.348), not the recency channel the harness's own
   docstring assumes it's isolated to — confirmed against vault note 295, a previously-documented
   property (recall's own query angles can cosine-match a "topically distant" planted item), not a
@@ -92,7 +92,7 @@ the miss is not a capability ceiling: the agent's recall query matched the load-
 into a cluster with zero note candidates, made zero `engram show-chunk` calls, and judged the
 cluster's relevance from the chunk's title alone — the recall skill's own documented
 "judged coverage before reading the candidate content" anti-pattern, occurring specifically
-on a zero-note, chunks-only cluster. `recall/SKILL.md` Step 2.5A already requires reading
+on a zero-note cluster (chunks-only membership). `recall/SKILL.md` Step 2.5A already requires reading
 chunk content before judging, but the wording is easy to read as "nothing to write ⇒ nothing
 to read" when a cluster carries no notes. This change specs the requirement precisely enough
 to close that reading.
@@ -327,6 +327,11 @@ requirement.
       `dev/eval/LEDGER.md`.
 - [ ] 2.3 If the gate criterion changes, update `dev/eval/traps/gate_verdict.py`
       (`_norm_c5` / `axis_verdict`) and its unit tests in `test_gate.py` accordingly.
+- [ ] 2.4 Using the rate from 2.1, update `docs/GLOSSARY.md`'s lazy-chunks entry (lines 372-379)
+      and both architecture diagram comments (`docs/architecture/c2-containers.md:126`,
+      `docs/architecture/c1-system-context.md:165-166`) to add the zero-note-cluster
+      mandatory-read case explicitly and re-state the fetch-frequency figure against the
+      post-fix measurement rather than the pre-fix "0/13".
 
 ## 3. Close out
 
@@ -373,7 +378,9 @@ Traced this to the actual trial data. The 5 workdirs + full JSONL transcripts fr
 directly off the failing trial's own transcript.
 
 **C5a (retrieval) is clean in all 5 trials, including the miss.** `R-decision.md` (the
-ZÖRBAX convention) matched Channel 1 (`provenances: [direct]`, cosine 0.348) in every trial —
+recency-channel decision this trap plants — a team convention that every new inline code
+comment must open with the marker token `ZÖRBAX`) matched Channel 1 (`provenances: [direct]`,
+cosine 0.348) in every trial —
 rules out a retrieval problem, confirming this issue's own framing that C5a and C5b are
 separate mechanisms. (One correction to the harness's own docstring: R matched via
 **direct/cosine**, not the recency channel it's designed to be isolated to — the agent's own
@@ -396,10 +403,22 @@ occurring specifically on a cluster with no note candidates. Its own synthesis t
 if it treated "0 notes to write" as license to skip reading the chunks at all.
 
 This means:
-- The original 2026-06-26/06-30 100% result wasn't wrong or lucky — this is a real,
-  reproducible, but *fixable* gap in the recall procedure, not a stable capability ceiling.
+- On this issue's own dichotomy (small-n artifact of a real ~80% rate, vs. something that
+  regressed since 2026-06-26/06-30): this finding is a **mechanistic explanation consistent
+  with the first branch**, not a third option. Nothing here identifies a change over time — no
+  wording/model/payload diff between the original verification and now — so there's no positive
+  evidence for "something regressed." What it does show is *why* a true rate near 80% is
+  plausible: a specific, reproducible procedural miss (below) that fires on a specific
+  cluster-composition pattern. Treat this as a strong lean toward "small-n artifact," not a
+  closed case — this session didn't bisect history to rule out a regression outright.
 - It's **not** the model trading off the marker against Go's idiomatic doc-comment convention
   — the failing trial never engaged with R's content to make that trade-off at all.
+- **Acceptance criterion 1** (a larger-n, n=15-20 measurement to narrow the confidence interval
+  on the *current, unfixed* rate) is not run this cycle. With the mechanism now identified,
+  spending more n against the *old* wording measures a number this fix intends to change —
+  lower value than fixing first. Repurposed as `tasks.md` task 2.1: measure the *post-fix* rate
+  at n=15-20 once the follow-up cycle lands the wording change, which is what actually resolves
+  ACs 2-4.
 
 **Side question, checked and cleared:** the failing trial's cluster marked the *lower-scoring*
 co-matched chunk (`hiring-update.md`, 0.273) as `is_representative`, not R (0.348). Traced to
@@ -460,9 +479,24 @@ in `design.md` and a follow-up task, not silently assumed solved by the wording 
 Unit 1's commit will be pushed before Unit 2's GH comment is posted, so the comment's reference
 to the OpenSpec change resolves to real, visible content rather than a dead link.
 
-**Doc-surface enumeration grep (please Step 3, non-waivable) — N/A, stated explicitly.** This
-plan does not alter any existing repeated invariant (a payload shape, a sweep cadence, a command
-set, a count, or a naming convention already echoed across docs/diagrams/skills) — it only ADDS
-a brand-new requirement to `recall-payload-cuts` and posts a GH comment. Nothing existing is
-renamed, resized, or reworded elsewhere. The grep is therefore not triggered; this line names
-that explicitly rather than silently omitting the check.
+**Doc-surface enumeration grep (please Step 3, non-waivable) — RUN, not N/A.** Gate A's
+docs/diagrams-alignment reviewer correctly rejected an initial "N/A" judgement on this section;
+the actual grep (`grep -rn "show-chunk" docs/ openspec/specs/`) surfaces three locations that
+describe the `show-chunk` fetch mechanism's frequency, which this change's new requirement
+elaborates on:
+
+| location | current text | disposition |
+|---|---|---|
+| `docs/GLOSSARY.md:372-379` (lazy-chunks entry) | "chunks are supplementary, notes load-bearing — measured 0 chunk fetches in 13/13 realistic recalls, with on-target fetch when a chunk is the sole carrier of a needed fact" | UPDATE once the fix ships — add the zero-note-cluster mandatory-read sub-case explicitly; re-check whether the 0/13 figure still holds once real-world zero-note-cluster rates are known |
+| `docs/architecture/c2-containers.md:126` (sequence diagram comment) | `opt a chunk is the sole carrier of a needed fact (rare — notes are load-bearing; measured 0 fetches in 13/13 realistic recalls, on-target fetch when sole-source)` | UPDATE — same reason as above |
+| `docs/architecture/c1-system-context.md:165-166` (sequence diagram comment) | `opt a needed fact lives only in a chunk (rare — notes are load-bearing)` | UPDATE — same reason as above |
+
+None of these three are logically contradicted by the new requirement — "sole carrier of a needed
+fact" is exactly the judgment a zero-note cluster's chunk requires, and the new requirement only
+makes explicit that this judgment cannot be made from a title alone. But all three currently omit
+the zero-note-cluster case and cite a pre-fix "0/13" figure that this change's own fix could move.
+Tracked as `tasks.md` task 2.4 (added below) rather than done in this cycle, since it depends on
+the post-fix measured rate from task 2.1 — updating the docs before that data exists would be
+guessing the number, not reporting it. All other `show-chunk` matches (subcommand-reference
+mentions, `--parent` routing in `vault-merged-recall`, `serve` API exposure) describe unrelated
+mechanics and need no change.
