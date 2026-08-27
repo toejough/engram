@@ -379,14 +379,16 @@ directly off the failing trial's own transcript.
 
 **C5a (retrieval) is clean in all 5 trials, including the miss.** `R-decision.md` (the
 recency-channel decision this trap plants — a team convention that every new inline code
-comment must open with the marker token `ZÖRBAX`) matched Channel 1 (`provenances: [direct]`,
-cosine 0.348) in every trial —
-rules out a retrieval problem, confirming this issue's own framing that C5a and C5b are
-separate mechanisms. (One correction to the harness's own docstring: R matched via
-**direct/cosine**, not the recency channel it's designed to be isolated to — the agent's own
-"comment style above Go function" query phrase naturally cosine-matches R's content. Not a new
-anomaly — a previously-documented property of how recall's own query angles work; doesn't
-change the diagnosis below.)
+comment must open with the marker token `ZÖRBAX`) matched Channel 1 (recall's relevance-ranked
+match channel, tagged `provenances: [direct]`) in every trial — this is the harness's own
+`surfaced=true` result for all 5, not just the miss — ruling out a retrieval problem and
+confirming this issue's own framing that C5a and C5b are separate mechanisms. (One correction
+to the harness's own docstring, freshly confirmed this session on the failing trial's raw
+query payload: R matched via **direct/cosine** (score 0.348), not the recency channel it's
+designed to be isolated to — the agent's own "comment style above Go function" query phrase
+naturally cosine-matches R's content. The general mechanism behind this — recall's query
+angles can cosine-match a "topically distant" planted item — is previously documented (engram
+vault note 295), so this isn't a new anomaly; doesn't change the diagnosis below.)
 
 **The miss (trial idx=3) is a located, mechanical compliance gap:**
 
@@ -395,12 +397,11 @@ change the diagnosis below.)
 | warm-0,1,2,4 (honored) | 1 each | recognized R as a load-bearing, topic-independent convention | `// ZÖRBAX Timestamp returns...` |
 | warm-3 (miss) | **0** | *"Query surfaced 2 matched chunks (0 notes...)... unrelated seed content... Memory holds no Go conventions"* | `// Timestamp returns...` (idiomatic Go, no marker) |
 
-R matched into a 2-member cluster with zero note candidates. All 4 passing trials called
-`engram show-chunk` on it before judging relevance. The one failing trial made **zero**
-show-chunk calls and judged relevance from the chunk's path/title alone — exactly the recall
-skill's own documented anti-pattern ("judged coverage before reading the candidate content"),
-occurring specifically on a cluster with no note candidates. Its own synthesis text reads as
-if it treated "0 notes to write" as license to skip reading the chunks at all.
+R matched into a 2-member cluster with zero note candidates. The pattern above is exactly the
+recall skill's own documented anti-pattern ("judged coverage before reading the candidate
+content"), occurring specifically on a cluster with no note candidates — the failing trial's
+own synthesis text reads as if it treated "0 notes to write" as license to skip reading the
+chunks at all.
 
 This means:
 - On this issue's own dichotomy (small-n artifact of a real ~80% rate, vs. something that
@@ -427,14 +428,15 @@ query-match score, confirmed working as designed against `docs/GLOSSARY.md`. Not
 the failing trial's own reasoning never referenced "representative" anyway — not a
 contributing factor.
 
-**Fix proposed:** `openspec/changes/recall-chunk-only-cluster-read-gate` specs an explicit
+**Fix proposed:** [`openspec/changes/recall-chunk-only-cluster-read-gate`](https://github.com/toejough/engram/tree/main/openspec/changes/recall-chunk-only-cluster-read-gate) specs an explicit
 requirement that the agent must read every chunk member via `show-chunk` before judging a
 cluster's relevance, even (especially) when the cluster carries zero note candidates. The
 actual `SKILL.md` wording edit is deferred to a follow-up implementation cycle (requires
 `writing-skills` TDD against this trial's transcript as the RED baseline — see the change's
 `tasks.md`). The design doc also flags that a wording-only fix is expected to *raise*, not
-*guarantee*, compliance (a prior measurement found skill-text wording plateaus below ~95%
-per-trial adherence), which has a direct implication for `gate_verdict.py`'s exact-bar C5
+*guarantee*, compliance (engram vault note 198: a prior, unrelated skill-text mechanism
+measured to plateau below ~95% per-trial adherence after 3 rounds of wording iteration), which
+has a direct implication for `gate_verdict.py`'s exact-bar C5
 verdict — left as an explicit open question for the follow-up cycle, to be decided from the
 actual post-fix measured rate.
 
