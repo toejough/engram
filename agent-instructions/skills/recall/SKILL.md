@@ -171,6 +171,8 @@ members, the content is NOT in the payload (chunks carry path/source only under 
 the cluster's `members` list never carries content) — `engram show-chunk <source#anchor>` to read the
 evidence on-demand. Do not judge coverage before you have read the candidate content.
 
+**For zero-note clusters (empty `candidate_l2s` list):** The absence of note candidates does NOT skip the chunk-reading requirement. You MUST still call `engram show-chunk` on every chunk member before stating any relevance or coverage judgment about the cluster. A metadata-only judgment (path/title alone, no fetched content) is a violation even when `candidate_l2s` is empty.
+
 **B. Apply the recency weight to resolve conflicts**
 
 Evidence **conflicts** when a newer member explicitly negates or reverses an older claim. Reversal

@@ -31,12 +31,6 @@ Exit 0 only on GREEN (so it works as a pre-merge check). Writes `gate-verdict.js
 - **GREEN** — every axis hits its exact bar over *valid* trials (the verified results were 100%, so
   any valid-trial miss is a real capability drop).
 - **RED** — an axis has a valid-trial miss → a regression. Stop; the edit eroded a win.
-  **Exception, interim (#733):** C5b (honoring) is currently measured at ~80%, not 100% — root-caused
-  to a recall-procedure compliance gap (agent skips reading a chunk before judging it, on zero-note
-  clusters), fix proposed but not yet shipped (`openspec/changes/recall-chunk-only-cluster-read-gate`,
-  `dev/eval/LEDGER.md#733-c5b-honoring-rate`). Until that fix lands, a solo C5-only RED on an
-  otherwise-unrelated edit is NOT automatically a fresh regression — same-tree re-check discipline
-  (below) still applies, but do not treat every C5 miss as new.
 - **INCONCLUSIVE** — an axis's contamination rate (degraded builds / judge errors / exhausted
   retries) exceeded 20%; the run can't be trusted. Re-run (transient infra trouble, not a signal).
 

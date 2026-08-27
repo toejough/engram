@@ -123,7 +123,7 @@ sequenceDiagram
     E-->>Sk: stdout YAML — items[matched+recent], clusters[].candidate_l2s {path, cosine, content} (top-5 within-cluster), budget (lazy_chunks: true → chunk items path/source-only; notes keep full content)
     loop per cluster (BLOCKING — inline, not fire-and-forget) — coverage from matched clusters only
         Note over Sk: read candidate_l2s + note members' content inline (no engram show)
-        opt a chunk is the sole carrier of a needed fact (rare — notes are load-bearing; measured 0 fetches in 13/13 realistic recalls, on-target fetch when sole-source)
+        opt a chunk is the sole carrier of a needed fact (rare across general recalls — notes are load-bearing; measured 0 fetches in 13/13 realistic recalls, on-target fetch when sole-source; MANDATORY exception: zero-note clusters must read all chunk members regardless of general rarity)
             Sk->>E: shell engram show-chunk <source#anchor> (fetch deferred chunk text under --lazy-chunks)
             E-->>Sk: chunk text
         end

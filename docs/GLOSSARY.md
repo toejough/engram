@@ -377,6 +377,10 @@ field — while notes (`fact`/`feedback`) keep full content inline. Surfaced as
 `engram show-chunk <source#anchor>`. Shrinks the query payload ~−34% (chunks are
 supplementary, notes load-bearing — measured 0 chunk fetches in 13/13 realistic
 recalls, with on-target fetch when a chunk is the sole carrier of a needed fact).
+**Exception: zero-note clusters (matched set containing no notes) are a mandatory
+read case — the agent must call `engram show-chunk` for every cluster-member chunk
+regardless of general rarity** (C5 compliance, verified 20/20 honored post-fix,
+2026-08-27).
 
 ### candidate_l2s
 The `[{path, cosine, content}]` field on each cluster in the query payload (content inlined per O2/#657).

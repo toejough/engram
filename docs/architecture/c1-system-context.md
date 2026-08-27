@@ -162,7 +162,7 @@ sequenceDiagram
     Note over H: Step 2.5 — per-cluster coverage synthesis (loop below)
     loop per cluster (blocking inline) — coverage judged from matched clusters only
         Note over H: read candidate_l2s + note members' content inline from the payload (no engram show)
-        opt a needed fact lives only in a chunk (rare — notes are load-bearing)
+        opt a needed fact lives only in a chunk (rare across general recalls — notes are load-bearing; MANDATORY exception: zero-note clusters must read all chunk members regardless of general rarity)
             H->>E: engram show-chunk <source#anchor> (fetch deferred chunk text under --lazy-chunks)
             E-->>H: chunk text
         end
