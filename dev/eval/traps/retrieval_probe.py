@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import sys
+from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import isolation
@@ -107,3 +108,65 @@ def probe(vault_path, axis):
     all_surfaced = bool(per_target) and all(r["surfaced"] for r in per_target.values())
     worst_rank = max(r["rank"] for r in per_target.values()) if all_surfaced else None
     return {"targets": per_target, "all_surfaced": all_surfaced, "worst_rank": worst_rank}
+
+
+# ============================================================================
+# Generalized runbook probe functions (Task 2.1/2.2/2.4)
+# ============================================================================
+
+def load_runbook_corpus(path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Load the runbook target corpus (list of {luhmann_id, slug, phrasings}).
+
+    Defaults to the runbook_corpus.json sibling of this file."""
+    if path is None:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "runbook_corpus.json")
+    with open(path) as f:
+        return json.load(f)
+
+
+def probe_runbook_batched(vault_path: str, target: Dict[str, Any]) -> Dict[str, Any]:
+    """One batched multi-phrase `engram query` call for a single runbook target.
+
+    target: {"luhmann_id": str, "slug": str, "phrasings": [str, ...]}.
+    Mirrors probe()'s isolation and payload-parsing exactly (isolation.engram_env, _parse_payload,
+    rank_in_payload) but takes an explicit target dict instead of a hardcoded axis name — this is
+    the per-runbook generalization of probe()'s fixed AXIS_PHRASES/AXIS_TARGETS shape.
+    Returns {"luhmann_id", "slug", "surfaced": bool, "rank": int|None}."""
+    cmd = ["engram", "query"]
+    for phrase in target["phrasings"]:
+        cmd += ["--phrase", phrase]
+    env = isolation.engram_env(vault_path)
+    result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"engram query failed for runbook {target['luhmann_id']!r} (exit {result.returncode}): {result.stderr.strip()}")
+    payload = _parse_payload(result.stdout)
+    rank_result = rank_in_payload(payload, target["slug"])
+    return {"luhmann_id": target["luhmann_id"], "slug": target["slug"], **rank_result}
+
+
+def probe_runbook_escalation(vault_path: str, target: Dict[str, Any]) -> Dict[str, Any]:
+    """Per-phrase isolated `engram query` calls for a target that missed the batched check —
+    one call per phrasing, to diagnose which specific phrasing(s) failed. Opt-in: callers invoke
+    this only for a runbook probe_runbook_batched already reported as not surfaced.
+    Returns {"luhmann_id", "slug", "per_phrasing": [{"phrasing", "surfaced", "rank"}, ...]}."""
+    per_phrasing = []
+    for phrase in target["phrasings"]:
+        cmd = ["engram", "query", "--phrase", phrase]
+        env = isolation.engram_env(vault_path)
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"engram query failed for runbook {target['luhmann_id']!r} phrasing {phrase!r} "
+                f"(exit {result.returncode}): {result.stderr.strip()}")
+        payload = _parse_payload(result.stdout)
+        rank_result = rank_in_payload(payload, target["slug"])
+        per_phrasing.append({"phrasing": phrase, **rank_result})
+    return {"luhmann_id": target["luhmann_id"], "slug": target["slug"], "per_phrasing": per_phrasing}
+
+
+def probe_all_runbooks(vault_path: str, corpus_path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Run the batched probe across every runbook in the corpus. Returns a list of
+    probe_runbook_batched results, one per corpus entry."""
+    corpus = load_runbook_corpus(corpus_path)
+    return [probe_runbook_batched(vault_path, target) for target in corpus]

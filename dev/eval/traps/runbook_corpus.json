@@ -1,0 +1,245 @@
+[
+  {
+    "luhmann_id": "820",
+    "slug": "skill-edits-validated-by-baseline-pressure-tests",
+    "phrasings": [
+      "I tweaked the SKILL.md wording to close the gap a reviewer flagged, and I'm about to mark this done since the new phrasing reads clearly to me now.",
+      "The skill edit is in and the one test case I tried passes \u2014 should I stop here, or try to find a sneakier way an agent could still rationalize around the new wording?",
+      "Before I touch this SKILL.md file, let me first write a test that reproduces the old broken behavior, so I have proof the edit actually fixes something real."
+    ]
+  },
+  {
+    "luhmann_id": "821",
+    "slug": "llm-spec-vetting-alignment-gate",
+    "phrasings": [
+      "This generated plan reads thoroughly and covers everything I'd expect \u2014 I'm ready to start coding straight from it.",
+      "The plan includes migrating three extra config modules the user never brought up in their original ask.",
+      "The user listed five things they wanted, but I only count four of them addressed anywhere in this plan document."
+    ]
+  },
+  {
+    "luhmann_id": "822",
+    "slug": "tier1-gate-before-tier2-stressor-eval",
+    "phrasings": [
+      "I want to test whether retrieval degrades once the vault hits 10,000 notes, but building a real 10k-note fixture would take hours \u2014 is there a cheaper way to see if this even bites first?",
+      "I ran a quick Tier-1 sweep at 50 notes and found zero cases of a competing note outranking the target \u2014 is that enough to conclude the crowding stressor doesn't bite, or do I still need to build the expensive stub-based Tier-2 setup?",
+      "I built a stub binary that reproduces the 'buried at scale' failure and logs its calls, then went straight to running Tier-2 against it \u2014 should I have first confirmed the stub's output lines up with what actually happens on live data?"
+    ]
+  },
+  {
+    "luhmann_id": "823",
+    "slug": "verify-payload-bulk-location-before-labeling-a-lever",
+    "phrasings": [
+      "I'm about to start rewriting the clustering algorithm because I'm assuming that's where most of the token cost is coming from.",
+      "I shrunk the recentFill window from 200 down to 25 and payload dropped 28% on the trap gate \u2014 do I still need to go do the bigger, riskier restructure I originally scoped?",
+      "I finished the small, safe fix, but I'm tempted to write it up in the ticket as if it solved the whole optimization problem I originally set out to fix."
+    ]
+  },
+  {
+    "luhmann_id": "824",
+    "slug": "measure-ceiling-and-pin-fire-unit-before-proposing-do-x-more",
+    "phrasings": [
+      "I want to propose firing the recall check on every tool call instead of just at task-init, but I haven't pinned down whether my 'fires' count means per-turn or per-tool-call yet.",
+      "Looking at these failures, about half of them happened because no matching note existed in the vault at all \u2014 would firing the check more often even have helped those?",
+      "This trigger is a static doc that gets loaded automatically via a hook, not something an agent chooses to invoke \u2014 does it still need to be gated on the over-fire budget the same way a discretionary check would?"
+    ]
+  },
+  {
+    "luhmann_id": "825",
+    "slug": "validate-cheap-tier-vs-gold-framing-beats-model-tier",
+    "phrasings": [
+      "I need to classify 5,000 transcripts for hidden corrections \u2014 should I just run the whole batch through the top-tier model to be safe about accuracy?",
+      "My 'find corrections' prompt on the cheap model is only catching the obvious cases and missing the subtle cases \u2014 do I need a bigger model, or should I try a different prompt framing first?",
+      "I spot-checked the cheap model's calls against 50 examples I labeled myself, and it caught the same subtle cases the expensive model did \u2014 should I keep running everything through the expensive model anyway, or is cheap good enough for the bulk now?"
+    ]
+  },
+  {
+    "luhmann_id": "826",
+    "slug": "one-shot-destructive-migrations-gate-deletes-and-verify-on-a-full-copy",
+    "phrasings": [
+      "My migration script deletes the old notes after converting them, and it passed cleanly on my three-file test fixture \u2014 ready to point it at the real vault?",
+      "The migration run exited with status 0, but scrolling the log I notice two items whose conversion step looks like it silently produced nothing.",
+      "I wrote this deletion script myself and I've reviewed it twice and I'm confident it's correct \u2014 is my own read-through enough sign-off, or does someone besides the author specifically need to be the one who live-runs it before it ever touches production?"
+    ]
+  },
+  {
+    "luhmann_id": "827",
+    "slug": "verify-plan-prescriptions-implement-run-revert-report",
+    "phrasings": [
+      "I'm reviewing a plan that says 'add this gate command and confirm it fails RED first' \u2014 can I just read the diff and reason through whether that would work, without actually running it?",
+      "I actually built and executed the gate command this plan calls for against the real codebase, and it turned up a Critical the author never saw coming \u2014 now I need to clean up before I write the review.",
+      "I finished poking at the plan's proposed changes in the working tree \u2014 before I report back, did I check git status to make sure nothing I touched is still sitting there?"
+    ]
+  },
+  {
+    "luhmann_id": "828",
+    "slug": "same-day-rebaseline-pre-treatment-surfaces",
+    "phrasings": [
+      "This morning's new binary is already installed and the new skill's already deployed \u2014 can I just reuse last week's before-numbers instead of re-measuring baseline today?",
+      "I switched onto the code as it stood before this morning's build to run the old baseline, but I'm second-guessing whether just being on that old code is enough, or whether I also need to physically reinstall the prior binary and redeploy the prior skill before the numbers count.",
+      "I just finished measuring the pre-treatment baseline in the old worktree \u2014 did I remember to reinstall the new binary and redeploy the new skill before running the after-measurement?"
+    ]
+  },
+  {
+    "luhmann_id": "829",
+    "slug": "tdd-phases-separate-agents",
+    "phrasings": [
+      "I just spun up a subagent to write the failing tests for this feature \u2014 should the same subagent then go implement it, or do I need a fresh one for the GREEN phase?",
+      "The implementation subagent finished, but I notice it edited two assertions in the test file it was handed to make things pass \u2014 is that acceptable here?",
+      "Tests are green now after the implementation phase; before I close this out, is there supposed to be a separate reviewer looking at the diff?"
+    ]
+  },
+  {
+    "luhmann_id": "830",
+    "slug": "gitignore-narrowing-anchor-and-visible-set",
+    "phrasings": [
+      "I'm narrowing .gitignore from 'testdata/' to 'testdata/rapid/' so nested rapid-generated corpora become tracked \u2014 I want to make sure the new pattern doesn't just stop matching once you go into subdirectories.",
+      "My .gitignore edit just exposed a batch of previously-ignored files as untracked, and I'm tempted to run `git add -A` to sweep them all into the commit in one shot.",
+      "I wrote the new ignore pattern and it reads correctly to me, but I haven't actually run anything against a real path yet \u2014 is eyeballing the pattern enough before I ship it?"
+    ]
+  },
+  {
+    "luhmann_id": "831",
+    "slug": "hermetic-go-module-proxy-test-fixture",
+    "phrasings": [
+      "My test's cleanup keeps failing with 'unlinkat .../modcache/.../go.mod: permission denied' when it tries to remove the temp module cache directory.",
+      "I set GOPRIVATE to the module under test thinking it would help isolate the fixture, but now I'm second-guessing whether that's actually routing resolution around my local file:// proxy.",
+      "A byte-identical assertion on the generated go.mod require line keeps failing because `go get` appended '// indirect' to it, even though I thought my fixture module was hermetic."
+    ]
+  },
+  {
+    "luhmann_id": "832",
+    "slug": "deadcode-gate-cascade-delete-subtree",
+    "phrasings": [
+      "I ran `deadcode -test ./...` and it came back clean, so I'm about to conclude this package has no more dead code to remove.",
+      "I just deleted one unused exported function, and now running golangci-lint flags a pile of unexported helpers as unused too \u2014 they turn out to have only ever been called by the function I removed.",
+      "I deleted the one dead function I found and I'm ready to call this cleanup done \u2014 should I be checking for anything downstream of it first?"
+    ]
+  },
+  {
+    "luhmann_id": "833",
+    "slug": "prove-a-fix-with-a-counterfactual-rebuild-of-the-pre-fix-binary",
+    "phrasings": [
+      "My fix stops a stray temp file from being written, and my test just checks the file doesn't exist afterward \u2014 that feels like weak proof the fix did anything versus the check simply never running.",
+      "To get a RED reproduction of the bug, I'm about to `git stash` the entire file that contains the fix rather than reverting just the specific lines.",
+      "The ticket that first flagged this bug included a hash of the corrupted output as evidence \u2014 should my counterfactual rebuild try to reproduce that exact hash, or is a plain pass/fail check enough?"
+    ]
+  },
+  {
+    "luhmann_id": "834",
+    "slug": "roadmap-issue-reconcile-section-membership",
+    "phrasings": [
+      "Issue #412 is still open in the tracker, but the only place I found its number was buried in another row's prose, under a heading for work that's already shipped \u2014 does that count as it being covered?",
+      "My script flagged 40 issue-number mentions in the roadmap as drift, but on a skim most of those look like one row cross-referencing another issue, not an actual missing or misplaced entry.",
+      "The roadmap row for issue #88 says 'done' \u2014 before I act on that, should I trust the row text, or actually go run the current build myself since the issue could have changed since the row was written?"
+    ]
+  },
+  {
+    "luhmann_id": "835",
+    "slug": "tdd-behavior-first-rename-as-refactor",
+    "phrasings": [
+      "I want to rename `ComputeScore` to `ComputeWeightedScore` and also change what it returns, in the same piece of work \u2014 should the rename land before or after I actually change the return value?",
+      "My RED test won't compile because I already renamed the function it exercises, so I'm tempted to just flip the expected 'want' value to force some kind of failure instead.",
+      "Tests are green after I changed the behavior; now I'm renaming the field everywhere including in the test file \u2014 does this rename need its own RED/GREEN cycle too?"
+    ]
+  },
+  {
+    "luhmann_id": "836",
+    "slug": "openspec-install-init-backfill",
+    "phrasings": [
+      "This repo has no openspec/ directory yet but Joe wants spec-driven work going forward here \u2014 what's the setup sequence before I can even propose a change?",
+      "I want backfill specs covering this codebase's existing features, grouped sensibly by domain, but I'm not sure exactly what to ask the agent to produce to get that.",
+      "Someone mentioned passing `--store <id>` to this openspec command \u2014 do I need that flag for a normal repo setup, or only in some other configuration?"
+    ]
+  },
+  {
+    "luhmann_id": "837",
+    "slug": "settle-linter-forced-refactor-via-scratch-clone",
+    "phrasings": [
+      "This PR splits a 60-line function into three smaller ones, and the author never explained why \u2014 I want to know for certain whether a linter actually required it, not just guess based on how the code looks.",
+      "I'm about to manually eyeball this function and estimate its cyclomatic complexity to decide whether the extraction was actually required by the linter.",
+      "I want to check whether golangci-lint would flag the original, un-refactored version of this function, but I don't want to mutate the branch under review just to find out."
+    ]
+  },
+  {
+    "luhmann_id": "838",
+    "slug": "make-the-test-bite-before-trusting-it",
+    "phrasings": [
+      "I wrote a test that calls SaveUser and asserts err == nil \u2014 but that would also pass if the function silently skipped writing the last_login column to the database. I need to actually query for the persisted value.",
+      "This test for the retry-backoff logic passes because the mocked HTTP client never errors \u2014 but I never checked whether the retry count itself actually got decremented anywhere. Let me comment out the decrement and see if the test still goes green.",
+      "Before trusting this new test for the audit-logging middleware, I should mutate out the log-emission line and rerun \u2014 if the test still passes, the assertion isn't actually watching for the log entry."
+    ]
+  },
+  {
+    "luhmann_id": "839",
+    "slug": "recover-lost-uncommitted-work-from-transcripts",
+    "phrasings": [
+      "I just realized `git stash drop` wiped 200 lines of a config file I never committed. Before I start rewriting it from memory, let me check whether Claude Code's session transcripts still have the content.",
+      "The uncommitted refactor got deleted when I ran `git clean -fd` by accident. I want to reconstruct the file rather than redo the work \u2014 is there a way to pull it out of a prior session's Write/Edit tool calls?",
+      "I found a transcript hit that looks like the deleted service.go \u2014 the toolResult shows what looks like the complete file. Before I copy that back in and move on, is there another way to independently confirm it's complete?"
+    ]
+  },
+  {
+    "luhmann_id": "840",
+    "slug": "safe-git-history-rewrite-and-force-push",
+    "phrasings": [
+      "About to run `git filter-branch --index-filter ... -- --all` to strip a committed secret from history. I made a `backup-before-rewrite` branch first, but I should double check that --all won't just rewrite that too.",
+      "The filter-branch finished and now I'm about to `git push --force-with-lease origin main` \u2014 but I haven't fetched since before the rewrite, so the lease might compare against a stale tracking ref and fail.",
+      "We just scrubbed an API key from git history and force-pushed. Is that actually enough to make it unrecoverable, or does GitHub still hold onto the old blob somewhere?"
+    ]
+  },
+  {
+    "luhmann_id": "841",
+    "slug": "cap-reasoning-budget-for-compressed-thinking-models",
+    "phrasings": [
+      "Running the compressed-model eval, sample 7's reasoning_content ballooned to 12k tokens but the final answer field came back empty \u2014 same as the last four samples in a row.",
+      "I diffed the tail of a runaway reasoning trace and the self-similarity between the last two chunks is only ~0.15 \u2014 that doesn't look like a repetition loop, more like it just never decided to stop.",
+      "Before I add a --reasoning-budget cap on llama-server and call the fix confirmed, should I be worried about mixing this capped rerun with the original uncapped numbers in the same comparison table?"
+    ]
+  },
+  {
+    "luhmann_id": "842",
+    "slug": "orbstack-restart-dns-fix",
+    "phrasings": [
+      "Right after `orbctl restart`, every curl in my env is failing DNS resolution \u2014 `curl: (6) Could not resolve host` \u2014 for github.com, npm registry, everything. But my tailnet peer can still hit the env's exposed service just fine.",
+      "`host.orb.internal` stopped resolving inside my container right after an `orbctl restart`. I suspect tailscaled rewrote /etc/resolv.conf again with MagicDNS pointing somewhere that doesn't know about orb hostnames.",
+      "DNS lookups work again after I fixed resolv.conf, but the nginx proxy container is still throwing upstream connection refused \u2014 it probably resolved and cached the broken address before I applied the fix."
+    ]
+  },
+  {
+    "luhmann_id": "843",
+    "slug": "propagate-decision-as-pointer-not-duplicate",
+    "phrasings": [
+      "I just wrote up why we chose Postgres over DynamoDB in service-A's README. Service-B's README also has a paragraph explaining the same decision \u2014 should I paste this new reasoning into both, or just link one to the other?",
+      "Before adding a note about the rate-limit decision to project-Y's architecture doc, let me check whether it groups content into subsections or keeps everything flat \u2014 I don't want to invent a new subsection style just for one cross-reference.",
+      "Two of our postmortems independently explain the same root cause for last week's outage. Which one should become the canonical writeup, and how do I turn the other into a one-line pointer instead of a duplicate?"
+    ]
+  },
+  {
+    "luhmann_id": "844",
+    "slug": "work-through-questions-one-at-a-time-with-options-and-decision-log",
+    "phrasings": [
+      "I've got 6 things still undecided before I can write this proposal \u2014 cache TTL, retry count, auth scheme, and three more. Should I list all 6 at once for Joe to react to, or handle it some other way?",
+      "Joe and I just decided on question 2 of the brainstorm \u2014 where do I write that decision down before moving to question 3?",
+      "For 'should the cache be per-request or per-session,' I'm about to just describe the tradeoffs in prose \u2014 should I instead lay out 3-5 named options for Joe to pick between?"
+    ]
+  },
+  {
+    "luhmann_id": "845",
+    "slug": "subagents-cant-survive-their-own-background-task-boundary",
+    "phrasings": [
+      "I'm about to hand a subagent a task: kick off this ~40-minute data migration script and report back once it finishes. Is that actually going to work given how the harness handles background tasks?",
+      "A subagent just messaged me 'the build's still running, I'll ping you when it wraps up.' That doesn't sit right given how it was dispatched \u2014 can it actually get notified once its own long Bash call finishes?",
+      "This docker build usually finishes in about 90 seconds. Do I need to detach it with nohup and poll a log file, or can the orchestrator just run it directly with a longer Bash timeout?"
+    ]
+  },
+  {
+    "luhmann_id": "846",
+    "slug": "bisect-before-attributing-a-gate-regression-to-the-change-under-review",
+    "phrasings": [
+      "crowded_gate.py just came back RED on my PR branch and the failure looks exactly like what my change's own fix note describes \u2014 I'm about to apply that fix without checking whether main was already red.",
+      "The smoke gate failed on this branch's HEAD. Before I write this up as something my branch broke, should I check out the parent commit and rerun the same gate first?",
+      "I fixed the RED gate by applying my change's prescribed patch, but I never verified the base commit against the gate before my changes even existed \u2014 did I just paper over a pre-existing issue?"
+    ]
+  }
+]
