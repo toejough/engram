@@ -1,0 +1,45 @@
+> Landscape research (docs/README.md `design/`-charter sibling rule: conclusions graduate to ADR/specs/ROADMAP; file is deletable once extracted). Produced 2026-08-30 by the memory-taxonomy research workflow (4 parallel researchers + critic), explore session on #735 → memory north star. Adversarial completeness critique of the four briefings.
+
+# Completeness Critique of the Four Briefings
+
+## 1. Material gaps — covered by NONE of the four
+
+**a. Memory poisoning / adversarial writes.** Engram's `ingest --auto` persists raw transcripts with zero LLM judgment, and `serve`/`curate` accepts offers from other vaults. Nothing in any briefing addresses persisted prompt-injection, trust tiers on write provenance, or quarantine-before-integration (an active literature: AgentPoison-style attacks; MemEvoBench "safety risks from memory misevolution," arXiv 2604.15774 surfaced during verification). This materially affects write-gate and curate design, not just retrieval.
+
+**b. Multi-agent memory routing (transactive memory).** Joe's operating doctrine is delegate-everything: subagents do the object-level work, but recall fires in the orchestrator's context. No briefing addresses how retrieved memory reaches the subagent that needs it, how subagent-discovered lessons flow back to the vault (the learn cue fires in a context that gets discarded), or shared-vs-private store boundaries. The HUMAN briefing even *prescribes* subagent-per-procedure delegation as the automaticity substitute without noting it moves the memory across a context boundary. Wegner's transactive-memory work and LEGOMem-style per-role memory assignment are the obvious anchors; neither is covered.
+
+**c. Hybrid lexical+dense retrieval.** The encoding-specificity prescription (keep idiosyncratic tokens verbatim — error strings, flag names) has a known mechanical implementation gap: dense MiniLM embeddings are weak at exact rare-token matching, which is precisely what BM25/hybrid retrieval + reranking exists for. If verbatim idiosyncratic cues are load-bearing (qanchor finding), a lexical channel is the direct fix, and no briefing mentions it despite "ranking policy is the lever" being a stated conclusion.
+
+**d. Metamemory / feeling-of-knowing.** The firing problem is framed purely as prospective memory, but the human mechanism that makes frequent cheap checking affordable is metamemory — a fast "do I know something about this?" judgment made *without* full retrieval. An engram analog (tiny always-loaded index scan, or a calibrated "vault likely has this" signal) would attack the 147x over-fire economics directly. Ericsson & Kintsch LTWM is cited for context hygiene but not for this gating role.
+
+**e. Source monitoring / confabulation.** Bartlett schema-bias is cited for summarization, but nothing covers the retrieval-side twin: the agent cannot attribute whether an assertion came from the vault or its priors (Johnson's source-monitoring framework). This bears on the apply gap — "retrieved-but-misattributed" — and argues for quote-with-provenance injection formats rather than paraphrase.
+
+## 2. Claims double-checked (WebSearch)
+
+**WRONG / oversold — "nobody has published staleness invalidation for procedures; genuinely open niche" (LLM briefing).** Memp (arXiv 2508.06433) explicitly ships an update phase that "continuously updates, corrects, and deprecates" procedural memories — dynamic discarding and revision on execution feedback. The same briefing cites Memp for its gains two claims earlier, so this is also internally inconsistent. The narrower claim "no *bi-temporal/mechanical* staleness detection for procedures" may survive (Memp's is outcome-driven, not time/validity-driven), but "genuinely open (and novel)" should be cut. A 2026 paper "Managing Procedural Memory in LLM Agents: Control, Adaptation, and Evaluation" (arXiv 2606.23127) erodes it further.
+
+**VERIFIED — AWM numbers.** +24.6% Mind2Web, +51.1% relative WebArena, +7.9% over human-written workflows, +8.9–14.0 absolute as distribution gaps widen — all match arXiv 2409.07429 (ICML 2025).
+
+**VERIFIED with a reframe — 13% @ 2,400 records vs 39% @ 248.** Real (arXiv 2505.16067, "How Memory Management Impacts LLM Agents"), but the paper's mechanism is **experience-following** — agents replicate the style/quality of whatever they retrieve, so flawed/outdated entries propagate — not raw capacity degradation, and the domain is medical reasoning. Using it as "curation beats accumulation" is fine; using it as evidence about *size* rather than *quality/deletion-of-bad-entries* is an overread. Notably, the mechanism strengthens the invalidation-pruning prescription and cuts against engram's keep-everything stance.
+
+**VERIFIED — Mem2ActBench exists** (Shen et al., ACL 2026) and matches the described purpose (task-driven memory application, not factual recall).
+
+**Unchecked but flagged as overconfident:** (i) "with frozen weights the agent can *never* reach the associative stage within inference" — overstated; within-session in-context practice measurably speeds up and de-errors repeated procedures, which is exactly the associative-stage signature, even though it doesn't persist; (ii) "model-initiated tool recall *chronically* under-fires" stated absolutely, while engram's own headless evals show guidance wording flipping behavior 0/5→4/5 and 3/3 — the local evidence contradicts the absolutism; (iii) "A-MEM (NeurIPS 2025)" venue worth confirming.
+
+## 3. Tensions between briefings
+
+1. **Two runbooks in context.** HUMAN: worst dual-task case, delegate each to a subagent. COMPOSITION: in-context blending suffices for the common case; only *same-slot* pairs are dangerous. These prescribe opposite defaults for the same design decision (what recall does when a cluster returns 2+ runbooks); COMPOSITION's same-slot restriction is the reconciliation, but neither briefing performs it.
+
+2. **Idiosyncratic-only economics vs generic-procedure gains.** HUMAN (and the C1–C6 ledger): recording what the model already knows adds interference and cost. LLM: the best-replicated wins store *generic* procedures — AWM workflows for ordinary websites, Dynamic Cheatsheet's Game-of-24 solver (10%→99%) — content the model can derive but expensively. The idiosyncratic-only rule appears to be validated for *facts* and may not bind for *procedures*; no briefing notices this scope limit.
+
+3. **Verbatim-specific keys vs abstraction-for-transfer.** Encoding specificity says abstracting destroys cues; AWM's cross-task gains (+8.9–14.0) come precisely from abstracting workflows. Resolution (abstract steps under concrete situation keys) is available but unstated.
+
+4. **Ride-along supersession vs retirement.** ENGRAM presents superseded-notes-persist-and-surface as a strong belief-revision fit. HUMAN (cue overload/RIF: "explicit retirement of superseded runbooks"), COMPOSITION (#1 mechanism: "supersession at curation time so same-slot conflicts never reach context"), and the experience-following result (deleting outdated entries drove the 39%) all vote the other way. Three briefings implicitly indict engram's current design; none says so.
+
+5. **Is background consolidation mandatory or unproven?** HUMAN: CLS makes a replay/ingest job computationally mandatory ("append-only pile is a log, not memory"). LLM: the closest engineering analog (sleep-time compute) has thin third-party replication and audits flag unreported maintenance costs. ENGRAM: consolidation is pull/moment-triggered only. The briefings jointly leave engram's biggest architectural absence with contradictory guidance.
+
+6. **PE-gated update-on-use vs rot risk.** HUMAN prescribes amending recalled notes in-turn on mismatch; LLM warns A-MEM-style automatic evolution rots and GEPA self-rewriting collapses rationale, favoring judged curation. Where automated rewrite ends and rot begins is undefined.
+
+7. **Self-undercut A-MEM validation.** LLM claim 14 leans on "vault = A-MEM-validated form," but claims 4 and 6 of the same briefing establish that A-MEM was validated only on conversational-QA benchmarks that are in a credibility crisis. The vault form's real support is engram's own ledger, not A-MEM.
+
+Sources: [AWM arXiv 2409.07429](https://arxiv.org/abs/2409.07429) · [AWM ICML 2025](https://proceedings.mlr.press/v267/wang25bx.html) · [Experience-Following study arXiv 2505.16067](https://arxiv.org/pdf/2505.16067) · [Memp arXiv 2508.06433](https://arxiv.org/abs/2508.06433) · [Managing Procedural Memory arXiv 2606.23127](https://arxiv.org/pdf/2606.23127) · [Mem2ActBench ACL 2026](https://aclanthology.org/2026.acl-long.370.pdf) · [MemEvoBench arXiv 2604.15774](https://arxiv.org/pdf/2604.15774) · [The Forgetting Problem (tianpan.co)](https://tianpan.co/blog/2026-04-12-the-forgetting-problem-when-agent-memory-becomes-a-liability)

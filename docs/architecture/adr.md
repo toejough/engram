@@ -949,6 +949,53 @@ Link: `openspec/changes/runbook-note-kind`.
 
 ---
 
+## ADR-0027 — The human-memory taxonomy as coverage checklist (not architecture): north star for memory-system decisions
+
+**Status:** Accepted (2026-08-30).
+
+**Context.** Engram's mechanisms accumulated capability-by-capability (chunks, fact/feedback notes, runbooks, supersession, activation, curate) without a stated model of what a *complete* memory system covers, so direction questions (what is #735's firing cue really for? should runbooks absorb skills? does composition need machinery?) were being decided ad hoc per issue. Joe's stated north star: recognize/record/retrieve/use the memory categories humans have — episodic (this happened), semantic (what it means), procedural (how to apply it) — because matching human memory categories matches user expectations of the agent. A four-briefing research sweep (human memory science; LLM agent-memory field survey; procedure-composition mechanisms; a repo-verified engram inventory) plus an adversarial critic pass was run 2026-08-30 to test that north star against the literature and against engram's actual mechanisms (`docs/research/2026-08-30-memory-taxonomy-*.md`; per the `design/`-charter those files are extractable — this ADR is the durable record and is written to survive their deletion). Findings that shaped the decision:
+
+1. The episodic/semantic/procedural frame is now the *mainstream descriptive taxonomy* of the LLM agent-memory field (2025–26 surveys organize by it; LangMem/MIRIX ship it as SDKs) — but **no published ablation shows the store-split itself causes wins**. Its value is as a completeness checklist, not a partitioning scheme.
+2. Mining procedural memory from experience is the **best-replicated positive result in the field** (AWM: mined workflows beat human-authored by 7.9%, +51% relative on WebArena; Memp: strong-model-built procedures transfer to weaker models — independently replicating engram's tier-routing finding; ReasoningBank; Voyager). The runbook direction stands in the proven corner.
+3. Strictly, a retrieved runbook is **declarative memory *about* a procedure**, not procedural memory (which in humans is compiled and automatic; in an agent stack only model weights and executable code are procedural in that sense). The agent re-enters the novice "reading the recipe" stage on every retrieval — predicting the field's best-documented failure mode ("retrieved-but-not-applied", now a named benchmark category = #738 link (c)) and the expected error profile (step-skipping and mis-ordering, not habit errors).
+4. Firing is **prospective memory**: cues work when *focal* (part of what the agent is already processing) and phrased as implementation intentions ("when X → do Y", action named); strategic monitoring ("check every step whether recall is warranted") is the architecture whose cost signature engram already measured as the rejected 147×–380× hook (`recall-overfire-hook-rejected`).
+5. Retrieval keying is **encoding specificity**: retrieval succeeds when the cue at retrieval matches what was encoded — the `situation:` field is this, and the qanchor result (idiosyncratic tokens load-bearing, `qanchor-park`) is what that literature predicts.
+6. Composition of simultaneously-applicable procedures decomposes into three classes — **constraint-like** (blend safely by conjunction), **plan-like** (need sequencing at seams), **same-slot** (need arbitration; LLMs measurably resolve these conflicts *silently*, picking one side unflagged). Read-time composition of prose procedures is unsolved field-wide; the proven mechanisms are write-time and retrieval-time (supersession, scope-specificity, conflict-surfacing, merge-then-supersede) — exactly the points a zettelkasten controls.
+7. A scope limit in existing doctrine: "memory pays only on idiosyncratic content" (`c1-c2-warm-op-negatives`, `crowded-vault-capability-robustness` vintage evals) was measured on *facts and conventions*; the field's procedural wins are mostly *generic* procedures. Whether the rule binds for runbooks is unmeasured.
+
+**Decision.** Adopt the human-memory taxonomy as engram's **coverage checklist and decision lens — explicitly not as an architecture mandate**. No store re-partitioning, no new kinds motivated by taxonomy symmetry alone. Concretely:
+
+- **Vocabulary:** "runbook = declarative memory about a procedure" is the sanctioned framing; runbooks are permanent novice-stage scaffolding whose value concentrates where the model lacks priors, and whose failure profile (step-skipping, mis-ordering — not habit errors) is what apply-side evals (#736) should score. Keep the name `runbook`.
+- **Gap map (the actionable half of the checklist).** Each human-memory function maps to owned work; new memory-direction proposals should locate themselves on this map before proposing mechanisms:
+  - *Prospective memory (firing)* → #735: cue framed as **situation-recognition, broadened** — implementation-intention wording naming the action, "the vault may hold a runbook for this **or a similar** situation" (no exact-match implication), recurring-routine as a positive example inside the cue, fixtures spanning named-routine + situational-bind + near-match shapes, fire-unit pinned at task-init.
+  - *Apply (declarative→enacted)* → #736, scoring the cognitive-stage failure profile; decision-point injection (retrieved runbook as instructions at task start, not reference material) is the field's best mitigation and belongs in #736's option set.
+  - *Procedural value + capture scope* → #737 gains a **generic-vs-idiosyncratic fixture dimension** (some migrated-pair fixtures idiosyncratic, some generic-but-multi-step); runbook capture policy follows the measurement, not the fact-scoped doctrine.
+  - *Strength & forgetting* → #718: two-variable design — storage strength (validated correctness; never self-decays) separate from retrieval strength (recency **and frequency**: use-count history per ACT-R base-level activation, not the current single `last_used` date where ten activations equal one).
+  - *Reconsolidation (update-on-use)* → **flag-and-queue**: glance stays read-only for content; an observed mismatch (note said X, in-context evidence shows Y) records a pending flag on the note; the closing learn or next deep recall processes the queue with full judgment. The prediction-error gate is the principle: update on mismatch, strengthen (activate) on confirmation, never churn on mere surfacing. Mirrors the curate gate's judged-write pattern; avoids opening the cheap fast mode as an auto-evolution rot surface.
+  - *Interference (supersession)* → **probe before build**: today `applySupersedesRideAlong` delivers the superseded note in full and inserts the superseder after it, relying on the agent's recency-weight rule every time. Three convergent external lines (cue-overload, write-time conflict resolution as the field's proven composition mechanism #1, the experience-following 13%-vs-39% curation result) say suppress instead. Hypothesis registered: suppression (supersessor-only or tombstone) wins; a cheap A/B with the C4i recency-supersession trap as regression guard decides. No ship without the measurement.
+  - *Composition* → a tracked mechanism set (conflict-surfacing rule; scope-specificity metadata; merge-then-supersede after adjudication), **hard-gated on #737 proving the runbook kind carries value**. No read-time auto-merge, no numeric priorities — both unsupported by evidence.
+  - *Promotion/demotion (loading-tier migration)* ↔ #728's adapter probe (vault-ward direction); the hot-runbook→always-loaded direction is future work contingent on #737.
+- **Deferred, with rationale (revisit conditions named, not silently dropped):**
+  - *Background consolidation (replay over never-queried episodes):* complementary-learning-systems theory calls it mandatory; the engineering evidence (sleep-time compute) is first-party and thin. Engram's consolidation stays pull/moment-triggered. Revisit when third-party replications land or a measured gap (valuable episodes provably never consolidating) appears.
+  - *Memory poisoning / write-provenance trust tiers:* `ingest --auto` persists transcripts unjudged and `serve` accepts external offers; unaddressed by design for today's single-operator vault. Revisit as the vault graph (ADR-topology, note 784) grows beyond one trusted operator. Known unowned gap, deliberately not an issue yet (Joe, 2026-08-30).
+
+**Consequences.**
+
+- Three new issues filed alongside this ADR: #739 multi-agent memory routing (lessons discovered in discarded subagent contexts; recalled memory not reaching dispatched subagents), #740 a lexical exact-token retrieval channel probe (dense MiniLM is weak at rare-token matching while verbatim idiosyncratic tokens are the proven value carrier; no lexical channel exists in `internal/` today), and #741 the gated composition mechanism set. Plus #742, the supersession-suppression probe. #735/#737/#718 updated with their decisions above.
+- The idiosyncratic-only doctrine is downgraded from "rule" to "fact-scoped finding" pending #737's generic dimension.
+- Evaluation continuity: every gap-map item keeps the house eval discipline (pre-registered bars, headless arms where behavior is measured, LEDGER rows) — the taxonomy adds *what to cover*, never a pass on *how to prove it*.
+- The research docs under `docs/research/2026-08-30-memory-taxonomy-*` follow the `design/` charter (extractable once conclusions graduate); this ADR carries every load-bearing conclusion so their later deletion loses nothing decision-relevant.
+
+**Risks / Trade-offs:**
+
+- [Taxonomy-as-checklist drifts into taxonomy-as-architecture (new kinds/stores for symmetry)] → the "coverage checklist, not architecture" clause is the explicit test: a proposal must name the *measured gap* on the map, not the unfilled box.
+- [Human-analogy overreach — importing decorative analogies (capacity constants, neuroanatomy mappings, decay-curve mimicry) as requirements] → the research synthesis's load-bearing-vs-decorative table is the reference; only computational rationales (CLS, encoding specificity, PM multiprocess, two-variable strength) ground decisions.
+- [Deferred items rot silently] → each carries a named revisit condition here; the ROADMAP cites this ADR rather than restating.
+
+Link: `docs/research/2026-08-30-memory-taxonomy-synthesis.md` (+ 5 sibling briefings); #735 #736 #737 #718 #728 #738; `dev/eval/LEDGER.md` anchors `recall-overfire-hook-rejected`, `qanchor-park`, `c1-c2-warm-op-negatives`, `734-runbook-retrieval-probe`.
+
+---
+
 ## Decisions deliberately NOT made into ADRs
 
 - **"Curate, don't regenerate" → full rebuild** (B10): a reversed operational decision, not an
