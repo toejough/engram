@@ -1,0 +1,63 @@
+{
+  "label": "ESTIMATE",
+  "caveat": "Hit counts come from the AUDITED SAMPLE only: 150 detected moments across 54 audited transcripts, of which 98 no-search moments were measured here (96 judged, 2 skipped). Corpus-wide hit numbers extrapolate the per-transcript sample rate to the 568-transcript corpus (x10.52) and assume the audited transcripts are representative -- they are labeled ESTIMATE, not measured. Detected moments are themselves a lower bound (the moment detector is not exhaustive). Per-failure-event fires corpus-wide are also extrapolated (moments exist only for the audited sample).",
+  "corpus": {
+    "transcripts": 568,
+    "transcripts_provenance": "DERIVED (transcript-events.jsonl record count)",
+    "dispatch_events": 290,
+    "dispatch_events_provenance": "DERIVED (sum of dispatch_events lengths)"
+  },
+  "audited_sample": {
+    "transcripts": 54,
+    "moments": 150,
+    "no_search_moments_measured": 98,
+    "judged": 96,
+    "skipped": 2,
+    "cue_present_missed": 22,
+    "failure_ish_moments": 50,
+    "dispatch_events_in_sample": 115
+  },
+  "cue_name_tally_among_cue_present_missed": {
+    "task_init_recall": 16,
+    "unexplained_failure": 5,
+    "pre_build": 1
+  },
+  "fire_units": {
+    "task_init": {
+      "fires_sample": 54,
+      "fires_sample_provenance": "DERIVED (one fire per audited transcript)",
+      "fires_corpus": 568,
+      "fires_corpus_provenance": "DERIVED (one fire per corpus transcript)",
+      "hits_sample": 16,
+      "hits_definition": "cue_present_missed moments with cue_name == task_init_recall",
+      "hit_rate_sample": 0.2962962962962963,
+      "over_fire_sample": 3.375,
+      "hits_corpus_estimate": 168.2962962962963,
+      "over_fire_corpus_estimate": 3.375
+    },
+    "per_failure_event": {
+      "fires_sample": 50,
+      "fires_sample_provenance": "DERIVED (failure/rework/correction moments in the 150-moment sample; itself a lower bound on real failure events)",
+      "fires_corpus": 525.925925925926,
+      "fires_corpus_provenance": "ESTIMATE (sample rate x 10.52 -- no corpus-wide failure-event count exists)",
+      "hits_sample": 5,
+      "hits_definition": "cue_present_missed moments with cue_name == unexplained_failure",
+      "hit_rate_sample": 0.1,
+      "over_fire_sample": 10.0,
+      "hits_corpus_estimate": 52.592592592592595,
+      "over_fire_corpus_estimate": 10.0
+    },
+    "per_dispatch_event": {
+      "fires_sample": 115,
+      "fires_sample_provenance": "DERIVED (dispatch_events in the audited transcripts, transcript-events.jsonl)",
+      "fires_corpus": 290,
+      "fires_corpus_provenance": "DERIVED (dispatch_events corpus-wide)",
+      "hits_sample": 7,
+      "hits_definition": "cue_present_missed moments of moment_type == dispatch (no dispatch-specific cue exists in the current guidance; this counts missed-cue moments a dispatch-time fire would reach)",
+      "hit_rate_sample": 0.06086956521739131,
+      "over_fire_sample": 16.428571428571427,
+      "hits_corpus_estimate": 73.62962962962963,
+      "over_fire_corpus_estimate": 3.938631790744467
+    }
+  }
+}

@@ -1,0 +1,764 @@
+{
+  "meta": {
+    "source_file": "/Users/joe/repos/personal/engram/dev/eval/audit/results/moments.jsonl",
+    "total_moments": 150,
+    "moment_type_counts": {
+      "success": 72,
+      "failure": 27,
+      "rework": 17,
+      "dispatch": 28,
+      "correction": 6
+    },
+    "source_stage_counts": {
+      "pilot": 32,
+      "full_run": 22,
+      "refill": 96
+    },
+    "role_counts": {
+      "main": 36,
+      "fork": 25,
+      "fresh": 39,
+      "workflow": 50
+    },
+    "counting_unit_authority": "dev/eval/audit/REPORT_TEMPLATE.md (task 4.1) + design.md D-G(a)",
+    "computed_by": "dev/eval/audit/build_scorecard.py (task 5.2), all numbers DERIVED programmatically from moments.jsonl",
+    "ci95_note": "ci95 = percentile bootstrap (n=2000, seed=739) over per-moment resamples; NOT valid for the D1 per-dispatch n=4 or supersession n=4 counts -- too few units, reported without CIs deliberately.",
+    "excludes": "D1 dispatch-handoff-gap (handoff.memories_orchestrator_had_but_left_out) -- computed by a parallel agent per task instructions; that field is null for all 28 dispatch moments in this file (deferred to this full-corpus runner per audit_moments.py's own code comments -- now being computed for real elsewhere, not part of this file's output)"
+  },
+  "F1_memory_existence": {
+    "question": "Was a relevant memory in the vault at the moment's timestamp?",
+    "counting_unit": "per-moment",
+    "label": "DERIVED (150/150 point-in-time checks used the exact git-checkout method; 0 fell back to ESTIMATE; 3 were re-run 2026-09-04 from chunk-derived search phrases after the original checks failed silently)",
+    "denominator": {
+      "n": 150,
+      "definition": "all 150 audited moments"
+    },
+    "numerator": {
+      "n": 150,
+      "definition": "finding_side.memory_existed == true"
+    },
+    "rate_pct": 100.0,
+    "ci95": {
+      "lo_pct": 100.0,
+      "hi_pct": 100.0
+    },
+    "extra": {
+      "existed_false_n": 0,
+      "existed_null_n": 0,
+      "data_quality_note": "0/150 moments have memory_existed == null. The original run left 3 unexplained nulls; the 2026-09-04 full-null closeout re-ran the REAL point-in-time check for all 3 (DERIVED mode, isolated scratch vault, search phrases generated from chunk-index context since all 3 transcripts were retention-deleted) -- all 3 returned memory_existed=true, independently reproduced byte-for-byte by an adversarial verifier. Zero nulls remain.",
+      "derived_vs_estimate_among_existed_true": {
+        "derived": 150,
+        "estimate": 0,
+        "note": "Every completed existence check in this corpus used the exact (DERIVED) git-checkout method (D-C); the ESTIMATE fallback (date-filter, used when git history doesn't reach the moment's timestamp) was never actually needed -- 0/147. This means the vault's git history covers this whole corpus's time range."
+      },
+      "surprising_finding": "0/150 moments have memory_existed == false -- now a perfect 150/150 (100%). This must be read with the check's verified semantics in view: memory_existed flips true whenever the isolated point-in-time query returns ANY non-empty result (len(items) > 0, no similarity threshold) -- the 2026-09-04 recheck verifier confirmed this concretely (each recheck returned ~45 items whose TOP hit was topically unrelated to the moment). The rate measures 'the vault had something matching these phrases', not 'a relevant memory existed'. Flagged for the report's Limits section; the scorecard reports the rate as measured."
+    }
+  },
+  "F2_search_ran": {
+    "question": "Did a search actually run? (quick glance, full recall, injected prompt, or none)",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "denominator": {
+      "n": 150,
+      "definition": "F1-passing moments: finding_side.memory_existed == true (150 after the 2026-09-04 existence rechecks)"
+    },
+    "numerator": {
+      "n": 52,
+      "definition": "finding_side.search_ran != 'none' (quick_glance, full_recall, or injected)"
+    },
+    "rate_pct": 34.7,
+    "ci95": {
+      "lo_pct": 27.3,
+      "hi_pct": 42.0
+    },
+    "extra": {
+      "search_ran_breakdown_within_f1_true": {
+        "none": 98,
+        "injected": 25,
+        "full_recall": 16,
+        "quick_glance": 11
+      },
+      "gating_rationale": "Gated on F1 (memory existed) rather than reported over all 150: a search that didn't run costs nothing when there was no memory to find. This is the funnel's first real loss point -- of 150 moments with a matching memory available, only 52 (35.4%) had any search (quick_glance/full_recall/injected) run at all."
+    }
+  },
+  "F3_search_targeted_correctly": {
+    "question": "Did the search target the right thing? (judged separately from whether a search ran)",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "denominator": {
+      "n": 52,
+      "definition": "F2-passing moments: memory_existed==true AND search_ran != 'none' (52)"
+    },
+    "numerator": {
+      "n": 38,
+      "definition": "finding_side.search_targeted_right_thing == true"
+    },
+    "rate_pct": 73.1,
+    "ci95": {
+      "lo_pct": 59.6,
+      "hi_pct": 84.6
+    },
+    "extra": {
+      "false_n": 0,
+      "null_n": 14,
+      "null_reason_breakdown": {
+        "judged_not_applicable": 14
+      },
+      "null_note": "Every null carries an explicit reason as of the 2026-09-04 full-null closeout: all remaining F3-gate nulls are 'judged_not_applicable' -- re-asked for real with the surfaced/inherited content in view (rejudge-all-nulls.jsonl, rationale each), and the judge explicitly answered the question does not sensibly apply (largely injected/fork moments where no agent-initiated search ran and the inherited content had no bearing). 2 previously-null moments gained real 'true' verdicts.",
+      "rate_among_non_null_only": {
+        "question": "(secondary) targeted-right rate restricted to F2-passing moments where the judge actually rendered a verdict",
+        "counting_unit": "per-moment",
+        "label": "DERIVED",
+        "denominator": {
+          "n": 38,
+          "definition": "F2-passing moments where search_targeted_right_thing is non-null"
+        },
+        "numerator": {
+          "n": 38,
+          "definition": "search_targeted_right_thing == true"
+        },
+        "rate_pct": 100.0
+      },
+      "data_quality_note": "The auditor's judge ALSO rendered search_targeted_right_thing opinions for 49/98 moments where search_ran == 'none' (true=43, false=6, null=49) -- these are the judge's counterfactual read of the window's content (design D-D: the field is explicitly judged independently of whether a search mechanically ran), NOT an evaluation of an actual search event. Reported here for transparency; excluded from F3's own rate above, which is gated strictly on F2 (a search did run)."
+    }
+  },
+  "F4_memory_surfaced": {
+    "question": "Was the memory surfaced to the agent? (with rank; did an outdated note out-rank its replacement)",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "denominator": {
+      "n": 38,
+      "definition": "F3-passing moments: memory_existed==true AND search_ran!='none' AND search_targeted_right_thing==true (36)"
+    },
+    "numerator": {
+      "n": 36,
+      "definition": "finding_side.surfaced == true"
+    },
+    "rate_pct": 94.7,
+    "ci95": {
+      "lo_pct": 86.8,
+      "hi_pct": 100.0
+    },
+    "extra": {
+      "alt_view_gated_on_f1_only": {
+        "question": "(secondary) surfaced rate over ALL moments where a memory existed, regardless of whether/how a search ran",
+        "counting_unit": "per-moment",
+        "label": "DERIVED",
+        "denominator": {
+          "n": 150,
+          "definition": "F1-passing moments: memory_existed==true (147)"
+        },
+        "numerator": {
+          "n": 50,
+          "definition": "surfaced == true"
+        },
+        "rate_pct": 33.3
+      },
+      "outdated_outranked_replacement": {
+        "true_n": 1,
+        "false_n": 17,
+        "null_n": 132,
+        "denominator_note": "raw counts over all 150; this field is only meaningfully populated when something surfaced (surfaced_true n=50); denom for a rate would be surfaced==true (50), giving 1/50 = 2.0% observed outdated-outranking."
+      },
+      "surfaced_rank_1_n": 25
+    }
+  },
+  "F5_memory_followed": {
+    "question": "Was the surfaced memory actually followed? (or how it deviated)",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "denominator": {
+      "n": 50,
+      "definition": "all moments with finding_side.surfaced == true (50) -- global, not chained through F1-F4"
+    },
+    "numerator": {
+      "n": 26,
+      "definition": "finding_side.followed == 'yes'"
+    },
+    "rate_pct": 52.0,
+    "ci95": {
+      "lo_pct": 38.0,
+      "hi_pct": 66.0
+    },
+    "extra": {
+      "deviation_n": 1,
+      "deviation_breakdown": {
+        "skipped_step": 1
+      },
+      "null_n": 23,
+      "null_reason_breakdown": {
+        "not_applicable_dispatch_moment": 5,
+        "judged_not_applicable": 18
+      },
+      "data_quality_note": "23/50 surfaced==true moments have followed==null, but as of the 2026-09-04 followed-nulls closeout every null carries an explicit followed_null_reason: 'not_applicable_dispatch_moment' (followed is structurally N/A for dispatch-type moments -- D1 measures them) or 'judged_not_applicable' (re-judged for real with the surfaced/inherited content in view -- rejudge-followed-nulls.jsonl, one-sentence rationale each -- and the judge explicitly answered that the content does not bear on this specific moment; largely fork moments whose D-E structural surfaced credit covered topically-unrelated inherited content). ZERO unexplained nulls remain. Among the 27 moments with a followed/deviation verdict, 96.3% were followed.",
+      "rate_among_non_null_only": {
+        "question": "(secondary) followed rate restricted to surfaced==true moments where the judge rendered a non-null verdict",
+        "counting_unit": "per-moment",
+        "label": "DERIVED",
+        "denominator": {
+          "n": 27,
+          "definition": "surfaced==true AND followed is non-null"
+        },
+        "numerator": {
+          "n": 26,
+          "definition": "followed == 'yes'"
+        },
+        "rate_pct": 96.3
+      }
+    }
+  },
+  "W1_worth_learning": {
+    "question": "Was this moment worth learning from?",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "denominator": {
+      "n": 150,
+      "definition": "all 150 audited moments"
+    },
+    "numerator": {
+      "n": 71,
+      "definition": "writing_side.worth_learning_from == true"
+    },
+    "rate_pct": 47.3,
+    "ci95": {
+      "lo_pct": 39.3,
+      "hi_pct": 55.3
+    },
+    "extra": {
+      "false_n": 79,
+      "null_n_data_gap": 0,
+      "data_quality_note": "0/150 moments have worth_learning_from == null (a data gap, same 2 records that also have finding_side.memory_existed == null -- see notes_and_data_quality_gaps). Excluded from both true and false counts."
+    }
+  },
+  "W2_learn_fired": {
+    "question": "Did a learn/write-memory step actually execute?",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "denominator": {
+      "n": 71,
+      "definition": "W1-passing moments: worth_learning_from == true (71)"
+    },
+    "numerator": {
+      "n": 4,
+      "definition": "writing_side.learn_fired == true"
+    },
+    "rate_pct": 5.6,
+    "ci95": {
+      "lo_pct": 1.4,
+      "hi_pct": 11.3
+    }
+  },
+  "W3_note_written": {
+    "question": "Did a new or updated note get written to the vault?",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "denominator": {
+      "n": 4,
+      "definition": "W2-passing moments: learn_fired == true (4)"
+    },
+    "numerator": {
+      "n": 4,
+      "definition": "writing_side.note_written == true"
+    },
+    "rate_pct": 100.0,
+    "ci95": {
+      "lo_pct": 100.0,
+      "hi_pct": 100.0
+    },
+    "extra": {
+      "note_quality_among_all_note_written_true": {
+        "denom_n": 7,
+        "denom_def": "ALL moments with note_written==true (7 total -- 4 via W2 chain + 3 mechanical-only, see below)",
+        "well_targeted_true_n": 6,
+        "not_duplicate_true_n": 6,
+        "note_superseded_correctly_populated_n": 4
+      },
+      "data_quality_note_mechanical_notes": "3/150 moments have note_written==true despite learn_fired==false -- a note landed via a mechanically-detected 'engram learn'/'amend' command without the recall/learn Skill invocation being detected in the transcript (extract.py detects engram_commands and Skill-invocations separately). These are real, valid note-writes; they are NOT counted in W3's primary rate above (which is gated on the W2 chain, learn_fired==true) to keep the funnel's numerator strictly nested inside its denominator. Moment IDs: agent-a427a4df64476d6c0.jsonl#40, agent-a427a4df64476d6c0.jsonl#46, agent-a427a4df64476d6c0.jsonl#51",
+      "supersession_correctness": {
+        "true_n": 3,
+        "false_n": 1,
+        "judged_not_applicable_n": 3,
+        "note": "The original run left this field null for ALL 150 moments (a complete gap, flagged in earlier report drafts). The 2026-09-04 full-null closeout judged it for real over the 7 note_written==true moments: 3 supersessions judged correct, 1 judged incorrect, 3 judged not-applicable (no supersession occurred). Supersession-correctness among actual supersessions: 3/4 = 75%. The other 143 moments carry the mechanical reason not_applicable_no_note_written."
+      }
+    }
+  },
+  "W4_strength_updated": {
+    "question": "Was the used note's strength updated? (with any mismatch flagged)",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "denominator": {
+      "n": 26,
+      "definition": "'used note' moments: finding_side.surfaced==true AND finding_side.followed=='yes'"
+    },
+    "numerator": {
+      "n": 6,
+      "definition": "writing_side.strength_updated == true"
+    },
+    "rate_pct": 23.1,
+    "ci95": {
+      "lo_pct": 7.7,
+      "hi_pct": 38.5
+    },
+    "extra": {
+      "gating_rationale": "Gated on 'used note' (surfaced AND followed=='yes'), not on W3's note_written -- the data shows these are different actions: strength_updated tracks activating an EXISTING note that was found and used, independent of whether a NEW note was written this same moment (3 of the corpus's 7 strength_updated==true records have note_written==false, and conversely 3 of 7 note_written==true records have strength_updated==false -- writing a new note and reinforcing a used one are largely disjoint events here).",
+      "strength_mismatch_flagged_true_n": 6,
+      "cross_check": {
+        "all_strength_updated_true_n_globally": 7,
+        "within_used_notes_definition_n": 6,
+        "outside_used_notes_definition_n": 1,
+        "note": "1 of the 7 global strength_updated==true records falls just outside this gate's definition (surfaced==true but followed==null, not 'yes') -- listed for transparency: agent-ad3f5d4aa55408741.jsonl#32"
+      }
+    }
+  },
+  "failure_category_breakdown": {
+    "question": "Breakdown by failure_category (runbook 824 classification)",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "true_denominator": {
+      "n": 50,
+      "definition": "moments with moment_type in {failure, correction, rework} (27+6+17=50) -- success (72) and dispatch (28) moments are NOT failure-type and legitimately carry failure_category==null; they are excluded from this denominator entirely, not counted in the null/uncategorized bucket below."
+    },
+    "buckets": {
+      "fixable": {
+        "n": 11,
+        "pct_of_denom": 22.0
+      },
+      "nothing_could_have_caught_it": {
+        "n": 36,
+        "pct_of_denom": 72.0
+      },
+      "found_but_not_followed": {
+        "n": 2,
+        "pct_of_denom": 4.0
+      },
+      "null_uncategorized": {
+        "n": 1,
+        "pct_of_denom": 2.0
+      }
+    },
+    "by_moment_type": {
+      "failure": {
+        "total": 27,
+        "fixable": 9,
+        "nothing_could_have_caught_it": 18,
+        "found_but_not_followed": 0,
+        "null_uncategorized": 0
+      },
+      "correction": {
+        "total": 6,
+        "fixable": 1,
+        "nothing_could_have_caught_it": 2,
+        "found_but_not_followed": 2,
+        "null_uncategorized": 1
+      },
+      "rework": {
+        "total": 17,
+        "fixable": 1,
+        "nothing_could_have_caught_it": 16,
+        "found_but_not_followed": 0,
+        "null_uncategorized": 0
+      }
+    },
+    "honesty_note": "PROVENANCE (2026-09-03/04 rescope): the original run's judgment prompt scoped failure_category to moment_type=='failure' only, leaving 22/50 failure-family moments and 45 success/dispatch lost-lessons null. Per Joe's direction the prompt was widened (audit_moments.py, type-appropriate question per moment_type) and all 67 affected moments were re-judged for real: 57 from their raw transcripts (rejudge-failure-category.jsonl, provenance 'rejudge-transcript'), 9 from engram's chunk index after retention had deleted their transcripts (rejudge-failure-category-from-chunks.jsonl, provenance 'rejudge-chunks' -- stripped turn text, lower fidelity, judge self-reported context sufficiency), and 1 (a correction moment) remains honestly null because the judge self-reported the surviving chunk context was insufficient ('rejudge-chunks-insufficient-context'). Remaining nulls outside the failure-family are legitimate non-targets (success/dispatch moments that are not lost lessons). Interpretation caveats from the rescope's independent verification: all 14 judged rework moments came back uniformly nothing_could_have_caught_it (a pattern to weigh -- the prevention-question framing may under-assign fixable to rework); one chunk-judged rework (3d697973...#27, nothing_could_have_caught_it) conflicts with its own moment record's memory_existed=true, because neither rejudge prompt passed finding_side.memory_existed to the judge -- plausibly miscategorized, would shift fixable by 1."
+  },
+  "memory_kind_breakdown": {
+    "question": "Among moments with memory_existed==true, breakdown by memory_kind and generic-vs-specific",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "denominator": {
+      "n": 150,
+      "definition": "finding_side.memory_existed == true (147)"
+    },
+    "memory_kind_counts": {
+      "fact": 72,
+      "feedback": 74,
+      "runbook": 4,
+      "chunk": 0,
+      "qa": 0
+    },
+    "memory_kind_pct": {
+      "fact": 48.0,
+      "feedback": 49.3,
+      "runbook": 2.7
+    },
+    "generic_or_specific_counts": {
+      "generic": 147,
+      "specific": 3
+    },
+    "generic_or_specific_pct": {
+      "generic": 98.0,
+      "specific": 2.0
+    },
+    "kind_x_generic_specific": {
+      "fact/generic": 71,
+      "feedback/generic": 72,
+      "runbook/generic": 4,
+      "feedback/specific": 2,
+      "fact/specific": 1
+    },
+    "notes": "chunk and qa kinds never appear as the matched memory_kind anywhere in this 147-moment corpus (0 each), despite being valid schema values (D-D: 'chunk, fact, feedback, runbook, or qa'). Generic memories dominate overwhelmingly: 144/147 (98.0%) vs. only 3/147 (2.0%) specific -- the vault's matched content for these moments was almost entirely broad/reusable lessons, rarely a note tied to the exact situation."
+  },
+  "per_repo_breakdown": {
+    "question": "Per-repo counts and loss rates (D-A single-repo-skew check)",
+    "counting_unit": "per-moment (per-transcript count included as secondary context, per REPORT_TEMPLATE.md section 6)",
+    "label": "DERIVED",
+    "loss_definitions": {
+      "finding_side_loss": "memory_existed==true AND NOT (surfaced==true AND followed=='yes'). This is a SIMPLIFIED single-number-per-repo indicator for skew-checking only -- it deliberately folds 'not surfaced', 'surfaced but not followed', AND 'surfaced with followed==null (no judgment)' all into 'loss', which is more conservative than the F1-F5 funnel above (which keeps null as its own separate, non-loss bucket). Do not substitute this simplified number for the primary F1-F5 funnel; it exists only to compare repos on one axis.",
+      "writing_side_loss": "worth_learning_from==true AND learn_fired==false -- identical definition to the #739 'lost lesson' slice below, applied per-repo."
+    },
+    "skew_finding": "2 of 7 repos (-Users-joe-repos-personal-engram, -Users-joe-repos-personal-phone-llm) account for 115/150 moments (76.7%) -- notable two-repo concentration, though this reflects D-A's deliberate multi-repo sampling design (7 repos represented, not a single-repo sample like the prior near-inverted-result precedent vault note 'feedback_verify_mined_corpus_is_representative' warns against). The 2 smallest repos (-Users-joe, n=3; -Users-joe-repos-personal-local-llm-optimization, n=1) are too small for their per-repo loss rates to be meaningful on their own -- reported for completeness, not for comparison.",
+    "per_repo": {
+      "-Users-joe-repos-personal-phone-llm": {
+        "n_moments": 59,
+        "n_distinct_transcripts_with_moments": 23,
+        "moment_type_counts": {
+          "failure": 9,
+          "correction": 2,
+          "rework": 10,
+          "success": 24,
+          "dispatch": 14
+        },
+        "finding_side_loss": {
+          "denom_n": 59,
+          "denom_def": "moments with memory_existed==true in this repo",
+          "loss_n": 40,
+          "loss_pct": 67.8
+        },
+        "writing_side_loss": {
+          "denom_n": 27,
+          "denom_def": "moments with worth_learning_from==true in this repo",
+          "loss_n": 23,
+          "loss_pct": 85.2
+        },
+        "n_dispatch_moments": 14
+      },
+      "-Users-joe-repos-personal-engram": {
+        "n_moments": 56,
+        "n_distinct_transcripts_with_moments": 19,
+        "moment_type_counts": {
+          "success": 31,
+          "dispatch": 12,
+          "failure": 9,
+          "rework": 4
+        },
+        "finding_side_loss": {
+          "denom_n": 56,
+          "denom_def": "moments with memory_existed==true in this repo",
+          "loss_n": 50,
+          "loss_pct": 89.3
+        },
+        "writing_side_loss": {
+          "denom_n": 30,
+          "denom_def": "moments with worth_learning_from==true in this repo",
+          "loss_n": 30,
+          "loss_pct": 100.0
+        },
+        "n_dispatch_moments": 12
+      },
+      "-Users-joe-repos-personal-llmcpp": {
+        "n_moments": 16,
+        "n_distinct_transcripts_with_moments": 4,
+        "moment_type_counts": {
+          "success": 10,
+          "correction": 2,
+          "failure": 3,
+          "rework": 1
+        },
+        "finding_side_loss": {
+          "denom_n": 16,
+          "denom_def": "moments with memory_existed==true in this repo",
+          "loss_n": 16,
+          "loss_pct": 100.0
+        },
+        "writing_side_loss": {
+          "denom_n": 7,
+          "denom_def": "moments with worth_learning_from==true in this repo",
+          "loss_n": 7,
+          "loss_pct": 100.0
+        },
+        "n_dispatch_moments": 0
+      },
+      "-Users-joe-repos-personal-targ": {
+        "n_moments": 8,
+        "n_distinct_transcripts_with_moments": 4,
+        "moment_type_counts": {
+          "failure": 3,
+          "rework": 1,
+          "success": 3,
+          "dispatch": 1
+        },
+        "finding_side_loss": {
+          "denom_n": 8,
+          "denom_def": "moments with memory_existed==true in this repo",
+          "loss_n": 7,
+          "loss_pct": 87.5
+        },
+        "writing_side_loss": {
+          "denom_n": 4,
+          "denom_def": "moments with worth_learning_from==true in this repo",
+          "loss_n": 4,
+          "loss_pct": 100.0
+        },
+        "n_dispatch_moments": 1
+      },
+      "-Users-joe-dotfiles": {
+        "n_moments": 7,
+        "n_distinct_transcripts_with_moments": 2,
+        "moment_type_counts": {
+          "success": 3,
+          "failure": 2,
+          "rework": 1,
+          "correction": 1
+        },
+        "finding_side_loss": {
+          "denom_n": 7,
+          "denom_def": "moments with memory_existed==true in this repo",
+          "loss_n": 7,
+          "loss_pct": 100.0
+        },
+        "writing_side_loss": {
+          "denom_n": 3,
+          "denom_def": "moments with worth_learning_from==true in this repo",
+          "loss_n": 3,
+          "loss_pct": 100.0
+        },
+        "n_dispatch_moments": 0
+      },
+      "-Users-joe": {
+        "n_moments": 3,
+        "n_distinct_transcripts_with_moments": 1,
+        "moment_type_counts": {
+          "failure": 1,
+          "correction": 1,
+          "success": 1
+        },
+        "finding_side_loss": {
+          "denom_n": 3,
+          "denom_def": "moments with memory_existed==true in this repo",
+          "loss_n": 3,
+          "loss_pct": 100.0
+        },
+        "writing_side_loss": {
+          "denom_n": 0,
+          "denom_def": "moments with worth_learning_from==true in this repo",
+          "loss_n": 0,
+          "loss_pct": null
+        },
+        "n_dispatch_moments": 0
+      },
+      "-Users-joe-repos-personal-local-llm-optimization": {
+        "n_moments": 1,
+        "n_distinct_transcripts_with_moments": 1,
+        "moment_type_counts": {
+          "dispatch": 1
+        },
+        "finding_side_loss": {
+          "denom_n": 1,
+          "denom_def": "moments with memory_existed==true in this repo",
+          "loss_n": 1,
+          "loss_pct": 100.0
+        },
+        "writing_side_loss": {
+          "denom_n": 0,
+          "denom_def": "moments with worth_learning_from==true in this repo",
+          "loss_n": 0,
+          "loss_pct": null
+        },
+        "n_dispatch_moments": 1
+      }
+    }
+  },
+  "sec739_writing_side_lost_lessons": {
+    "question": "Writing side: of moments worth_learning_from==true where the learn step didn't fire, how many are realistically reachable by a mandatory completion-report-lessons step?",
+    "counting_unit": "per-moment",
+    "label": "DERIVED",
+    "lost_lesson_definition": "worth_learning_from == true AND learn_fired == false",
+    "total_lost_lessons": {
+      "n": 67,
+      "denom_n": 150,
+      "denom_def": "all 150 audited moments",
+      "pct_of_all_moments": 44.7,
+      "pct_of_worth_learning_from_true": 94.4
+    },
+    "reachability_breakdown": {
+      "fixable": {
+        "n": 40,
+        "pct_of_lost": 59.7,
+        "ci95": {
+          "lo_pct": 47.8,
+          "hi_pct": 71.6
+        },
+        "interpretation": "realistically reachable by a mandatory completion-report-lessons step"
+      },
+      "nothing_could_have_caught_it": {
+        "n": 26,
+        "pct_of_lost": 38.8,
+        "ci95": {
+          "lo_pct": 26.9,
+          "hi_pct": 50.7
+        },
+        "interpretation": "not reachable by this or likely any memory-loop fix"
+      },
+      "found_but_not_followed": {
+        "n": 1,
+        "pct_of_lost": 1.5,
+        "ci95": {
+          "lo_pct": 0.0,
+          "hi_pct": 4.5
+        },
+        "interpretation": "memory was found but not followed -- an application gap, not a capture gap; not reachable by a capture-side completion-report-lessons step. Bucket added with the ci95 pass: 1 lost lesson carries this category and was previously absent from this breakdown (the prior buckets summed to 66/67)."
+      },
+      "null_uncategorized": {
+        "n": 0,
+        "pct_of_lost": 0.0,
+        "interpretation": "reachability UNKNOWN -- do not force into fixable or nothing_could_have_caught_it"
+      }
+    },
+    "moment_type_breakdown_of_lost_lessons": {
+      "success": 39,
+      "failure": 14,
+      "rework": 6,
+      "dispatch": 6,
+      "correction": 2
+    },
+    "honesty_note": "0/67 lost lessons (0.0%) now have NO failure_category. PROVENANCE (2026-09-03/04 rescope): the original run's prompt scoped failure_category to moment_type=='failure' only, leaving 53/67 lost lessons with no reachability judgment; per Joe's direction the prompt was widened and every affected moment was re-judged for real (57 from raw transcripts, 9 from engram's chunk index after retention deleted their transcripts -- see failure_category_provenance on each record and the rejudge-*.jsonl files, each judgment carrying a one-sentence rationale). Any remaining null among lost lessons is either the one judge-self-reported insufficient-chunk-context case or a genuine not-applicable verdict, not an unasked question."
+  },
+  "d1_handoff_gap_note": {
+    "in_scope_of_this_file": false,
+    "note": "handoff.memories_orchestrator_had_but_left_out is null for 28/28 dispatch moments in moments.jsonl, confirmed by direct inspection -- matches the task's stated data-quality fact exactly. D1 (the per-dispatch finding-side handoff gap, REPORT_TEMPLATE.md section 2) is computed by a parallel agent using moments.jsonl joined against transcript-events.jsonl's cross-transcript visibility, and is intentionally NOT computed in this file."
+  },
+  "tier1_no_search_decomposition": {
+    "question": "Tier-1 measurement: for the 98 moments where search_ran=='none' (no agent-initiated memory search), what is the grade distribution for the relevance of existing vault memories? Two-stage judgment: (1) sonnet relevance grading, (2) strict counterfactual arbitration to verify the initial grades would have changed the agent's action.",
+    "counting_unit": "per-moment",
+    "label": "DERIVED (audited sample measurements from 54 transcripts; Tier-1 provenance 'sonnet relevance-grading-v3')",
+    "denominator": {
+      "n": 98,
+      "definition": "all moments with search_ran=='none' (no search was invoked; memory may or may not have existed)",
+      "breakdown": {
+        "judged": 96,
+        "skipped": 2
+      }
+    },
+    "relevance": {
+      "initial_grades": {
+        "relevant_top1": 4,
+        "relevant_in_top5": 2,
+        "nothing_relevant": 90,
+        "total_initial_relevant": 6,
+        "note": "Initial judgment: relevance grade assigned by sonnet over the retrieved top-5 search results for the moment's window. Grades: relevant_top1 (the best match directly answers the need), relevant_in_top5 (a relevant hit exists but not rank 1), nothing_relevant (top-5 contains no memory that bears on the moment's question). Counted among the 96 judged moments (2 were skipped due to data unavailability)."
+      },
+      "post_arbitration": {
+        "relevant_after_arbitration_true": 1,
+        "relevant_after_arbitration_false_or_null": 5,
+        "total_survived_arbitration": 1,
+        "note": "Strict counterfactual arbitration: an initial 'relevant' grade was overturned if an adversarial verifier judged that the memory, had it been surfaced to the agent, would NOT have changed the agent's action (false would_have_changed_action). All 6 initially-relevant moments were subject to arbitration: 1 survived (would_have_changed_action==true), 5 were overturned (would_have_changed_action==false). This is a strict measure of 'memory whose absence directly caused loss', not a looser 'relevance to the general topic' measure."
+      }
+    },
+    "fire_cue": {
+      "breakdown": {
+        "not_a_recall_moment": 65,
+        "cue_present_missed": 22,
+        "no_cue_exists": 9
+      },
+      "cue_name_among_cue_present_missed": {
+        "task_init_recall": 16,
+        "unexplained_failure": 5,
+        "pre_build": 1
+      },
+      "note": "fire_cue classifies WHY no search ran. 'not_a_recall_moment': the moment is not a decision point where a recall fire-unit should trigger (e.g., success moments, dispatch moments). 'cue_present_missed': a recall fire-unit SHOULD have fired (e.g., task initialization, failure diagnosis) but the cue was not detected in the transcript. 'no_cue_exists': no appropriate recall fire-unit exists for this moment type. Among the 22 cue_present_missed moments, the cue_name breakdown shows which fire-unit types were missed."
+    },
+    "joint_note": "All 6 initially-relevant moments (relevant_top1 or relevant_in_top5) were classified fire_cue='cue_present_missed' -- they are moments where the recall system should have fired a memory search but did not (task-initialization, failure-diagnosis, etc.). Post-arbitration, exactly 1 of the full corpus (1/150 total moments) qualifies as 'relevant memory existed, cue was missed, AND it would have changed the action' -- labeled DERIVED in the above findings. The other 5 initially-relevant moments are classified as 'high-quality memory exists, but surfacing it would not have altered the agent's decision' (verdict: not a loss boundary; interesting for understanding vault coverage, not for measuring recall efficacy against the primary gate in #739).",
+    "fire_unit": {
+      "label": "ESTIMATE",
+      "caveat": "Hit counts come from the AUDITED SAMPLE only: 150 detected moments across 54 audited transcripts, of which 98 no-search moments were measured here (96 judged, 2 skipped). Corpus-wide hit numbers extrapolate the per-transcript sample rate to the 568-transcript corpus (x10.52) and assume the audited transcripts are representative -- they are labeled ESTIMATE, not measured. Detected moments are themselves a lower bound (the moment detector is not exhaustive). Per-failure-event fires corpus-wide are also extrapolated (moments exist only for the audited sample).",
+      "corpus": {
+        "transcripts": 568,
+        "transcripts_provenance": "DERIVED (transcript-events.jsonl record count)",
+        "dispatch_events": 290,
+        "dispatch_events_provenance": "DERIVED (sum of dispatch_events lengths)"
+      },
+      "audited_sample": {
+        "transcripts": 54,
+        "moments": 150,
+        "no_search_moments_measured": 98,
+        "judged": 96,
+        "skipped": 2,
+        "cue_present_missed": 22,
+        "failure_ish_moments": 50,
+        "dispatch_events_in_sample": 115
+      },
+      "cue_name_tally_among_cue_present_missed": {
+        "task_init_recall": 16,
+        "unexplained_failure": 5,
+        "pre_build": 1
+      },
+      "fire_units": {
+        "task_init": {
+          "fires_sample": 54,
+          "fires_sample_provenance": "DERIVED (one fire per audited transcript)",
+          "fires_corpus": 568,
+          "fires_corpus_provenance": "DERIVED (one fire per corpus transcript)",
+          "hits_sample": 16,
+          "hits_definition": "cue_present_missed moments with cue_name == task_init_recall",
+          "hit_rate_sample": 0.2962962962962963,
+          "over_fire_sample": 3.375,
+          "hits_corpus_estimate": 168.2962962962963,
+          "over_fire_corpus_estimate": 3.375
+        },
+        "per_failure_event": {
+          "fires_sample": 50,
+          "fires_sample_provenance": "DERIVED (failure/rework/correction moments in the 150-moment sample; itself a lower bound on real failure events)",
+          "fires_corpus": 525.925925925926,
+          "fires_corpus_provenance": "ESTIMATE (sample rate x 10.52 -- no corpus-wide failure-event count exists)",
+          "hits_sample": 5,
+          "hits_definition": "cue_present_missed moments with cue_name == unexplained_failure",
+          "hit_rate_sample": 0.1,
+          "over_fire_sample": 10.0,
+          "hits_corpus_estimate": 52.592592592592595,
+          "over_fire_corpus_estimate": 10.0
+        },
+        "per_dispatch_event": {
+          "fires_sample": 115,
+          "fires_sample_provenance": "DERIVED (dispatch_events in the audited transcripts, transcript-events.jsonl)",
+          "fires_corpus": 290,
+          "fires_corpus_provenance": "DERIVED (dispatch_events corpus-wide)",
+          "hits_sample": 7,
+          "hits_definition": "cue_present_missed moments of moment_type == dispatch (no dispatch-specific cue exists in the current guidance; this counts missed-cue moments a dispatch-time fire would reach)",
+          "hit_rate_sample": 0.06086956521739131,
+          "over_fire_sample": 16.428571428571427,
+          "hits_corpus_estimate": 73.62962962962963,
+          "over_fire_corpus_estimate": 3.938631790744467
+        }
+      }
+    }
+  },
+  "notes_and_data_quality_gaps": [
+    {
+      "gap": "failure_category: originally null for 22/50 failure-family moments + 45 success/dispatch lost-lessons -- CLOSED 2026-09-04 by the Joe-directed rescope",
+      "detail": "PROVENANCE (2026-09-03/04 rescope): the original run's judgment prompt scoped failure_category to moment_type=='failure' only, leaving 22/50 failure-family moments and 45 success/dispatch lost-lessons null. Per Joe's direction the prompt was widened (audit_moments.py, type-appropriate question per moment_type) and all 67 affected moments were re-judged for real: 57 from their raw transcripts (rejudge-failure-category.jsonl, provenance 'rejudge-transcript'), 9 from engram's chunk index after retention had deleted their transcripts (rejudge-failure-category-from-chunks.jsonl, provenance 'rejudge-chunks' -- stripped turn text, lower fidelity, judge self-reported context sufficiency), and 1 (a correction moment) remains honestly null because the judge self-reported the surviving chunk context was insufficient ('rejudge-chunks-insufficient-context'). Remaining nulls outside the failure-family are legitimate non-targets (success/dispatch moments that are not lost lessons). Interpretation caveats from the rescope's independent verification: all 14 judged rework moments came back uniformly nothing_could_have_caught_it (a pattern to weigh -- the prevention-question framing may under-assign fixable to rework); one chunk-judged rework (3d697973...#27, nothing_could_have_caught_it) conflicts with its own moment record's memory_existed=true, because neither rejudge prompt passed finding_side.memory_existed to the judge -- plausibly miscategorized, would shift fixable by 1."
+    },
+    {
+      "gap": "finding_side existence-check fields null for 3/150 moments -- CLOSED 2026-09-04: all 3 re-run for real in DERIVED mode from chunk-derived search phrases (transcripts retention-deleted), all returned memory_existed=true, independently reproduced by an adversarial verifier. Caveat: 'existed' means the isolated query returned >=1 item (no similarity threshold) -- see F1's surprising_finding.",
+      "recheck_provenance": "rejudge-all-nulls.jsonl memory_existed_recheck entries"
+    },
+    {
+      "gap": "writing_side.worth_learning_from null for 2/150 moments -- CLOSED 2026-09-04: both judged for real from chunk context (judged_from='chunks'), both false."
+    },
+    {
+      "gap": "writing_side.note_superseded_correctly: originally null for ALL 150/150 -- CLOSED 2026-09-04: judged for real over the 7 note_written moments (3 correct / 1 incorrect / 3 no-supersession-occurred; correctness among actual supersessions 3/4 = 75%); the other 143 carry not_applicable_no_note_written."
+    },
+    {
+      "gap": "finding_side.followed null for 23/50 surfaced==true moments (46.0%) -- CLOSED as a data-quality gap 2026-09-04: every null now carries an explicit followed_null_reason (see F5's null_reason_breakdown); zero unexplained nulls remain",
+      "note": "reported as its own bucket in F5 above, not folded into 'yes' or 'deviation'."
+    },
+    {
+      "gap": "finding_side.search_targeted_right_thing rendered (non-null) for 49/98 moments where search_ran=='none' -- counterfactual judgments outside F3's own gated denominator, reported as a footnote in F3 above, not included in F3's rate. The other 49 search_ran=='none' nulls carry the mechanical reason not_applicable_no_search_ran (2026-09-04 closeout)."
+    },
+    {
+      "gap": "GLOBAL NULL STATUS (2026-09-04 full-null closeout): zero bare nulls remain across all 10 judged fields x 150 moments -- every null carries a verdict, a judged_not_applicable with rationale, a mechanical structural reason (not_applicable_no_search_ran / nothing_surfaced / no_note_written / dispatch_moment / not_failure_family_nor_lost_lesson), or an honest insufficient-context record."
+    },
+    {
+      "gap": "handoff.memories_orchestrator_had_but_left_out null for 28/28 dispatch moments -- explicitly out of scope for this file; a parallel agent computes D1 for real."
+    }
+  ]
+}

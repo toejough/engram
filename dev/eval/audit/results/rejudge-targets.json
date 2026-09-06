@@ -1,0 +1,538 @@
+[
+ {
+  "moment_id": "e5ccd18d-c5d3-4593-9c41-61394832e987.jsonl#31",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/e5ccd18d-c5d3-4593-9c41-61394832e987.jsonl",
+  "location": 31,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "e5ccd18d-c5d3-4593-9c41-61394832e987.jsonl#89",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/e5ccd18d-c5d3-4593-9c41-61394832e987.jsonl",
+  "location": 89,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "3d697973-ee50-42a8-9657-f57181ca991a.jsonl#27",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/3d697973-ee50-42a8-9657-f57181ca991a.jsonl",
+  "location": 27,
+  "moment_type": "rework",
+  "is_lost_lesson": true,
+  "transcript_exists": false
+ },
+ {
+  "moment_id": "3d697973-ee50-42a8-9657-f57181ca991a.jsonl#34",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/3d697973-ee50-42a8-9657-f57181ca991a.jsonl",
+  "location": 34,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": false
+ },
+ {
+  "moment_id": "agent-a5e3cc9e58c463d77.jsonl#2",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/a19cc352-75cc-4a0d-9dcc-a5504357df38/subagents/agent-a5e3cc9e58c463d77.jsonl",
+  "location": 2,
+  "moment_type": "dispatch",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a5e3cc9e58c463d77.jsonl#5",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/a19cc352-75cc-4a0d-9dcc-a5504357df38/subagents/agent-a5e3cc9e58c463d77.jsonl",
+  "location": 5,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-ad3f5d4aa55408741.jsonl#35",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-ad3f5d4aa55408741.jsonl",
+  "location": 35,
+  "moment_type": "correction",
+  "is_lost_lesson": false,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-ad3f5d4aa55408741.jsonl#40",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-ad3f5d4aa55408741.jsonl",
+  "location": 40,
+  "moment_type": "rework",
+  "is_lost_lesson": false,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a62dcb4d0c1554476.jsonl#1",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/32505058-365d-47b0-94bf-d1ccc8d53326/subagents/agent-a62dcb4d0c1554476.jsonl",
+  "location": 1,
+  "moment_type": "dispatch",
+  "is_lost_lesson": true,
+  "transcript_exists": false
+ },
+ {
+  "moment_id": "agent-a6faba7b1e62b8aad.jsonl#13",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/d1c5ca03-5b70-4f46-a448-fe53fd79406b/subagents/agent-a6faba7b1e62b8aad.jsonl",
+  "location": 13,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": false
+ },
+ {
+  "moment_id": "agent-a839afe56971d95b7.jsonl#12",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4a464ec7-990b-48cd-88f3-10828ee999af/subagents/workflows/wf_443f907f-6d1/agent-a839afe56971d95b7.jsonl",
+  "location": 12,
+  "moment_type": "dispatch",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a839afe56971d95b7.jsonl#14",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4a464ec7-990b-48cd-88f3-10828ee999af/subagents/workflows/wf_443f907f-6d1/agent-a839afe56971d95b7.jsonl",
+  "location": 14,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-ac2925d5bb0aa269d.jsonl#35",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/e3890148-ed3d-40f2-90b3-87404e6411e4/subagents/workflows/wf_213ed371-055/agent-ac2925d5bb0aa269d.jsonl",
+  "location": 35,
+  "moment_type": "correction",
+  "is_lost_lesson": false,
+  "transcript_exists": false
+ },
+ {
+  "moment_id": "agent-ac2925d5bb0aa269d.jsonl#40",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/e3890148-ed3d-40f2-90b3-87404e6411e4/subagents/workflows/wf_213ed371-055/agent-ac2925d5bb0aa269d.jsonl",
+  "location": 40,
+  "moment_type": "correction",
+  "is_lost_lesson": false,
+  "transcript_exists": false
+ },
+ {
+  "moment_id": "agent-ac2925d5bb0aa269d.jsonl#57",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/e3890148-ed3d-40f2-90b3-87404e6411e4/subagents/workflows/wf_213ed371-055/agent-ac2925d5bb0aa269d.jsonl",
+  "location": 57,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": false
+ },
+ {
+  "moment_id": "6eecc514-5a9e-469d-8fa9-7fed249fb9b8.jsonl#46",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-dotfiles/6eecc514-5a9e-469d-8fa9-7fed249fb9b8.jsonl",
+  "location": 46,
+  "moment_type": "rework",
+  "is_lost_lesson": false,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a89cbbb396928d46a.jsonl#13",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-dotfiles/b6851e89-26ad-4051-8a5b-34f0d1e59e4f/subagents/agent-a89cbbb396928d46a.jsonl",
+  "location": 13,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a89cbbb396928d46a.jsonl#1",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-dotfiles/b6851e89-26ad-4051-8a5b-34f0d1e59e4f/subagents/agent-a89cbbb396928d46a.jsonl",
+  "location": 1,
+  "moment_type": "correction",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "3b5def4d-a702-417e-afc7-40547be72d43.jsonl#68",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/3b5def4d-a702-417e-afc7-40547be72d43.jsonl",
+  "location": 68,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": false
+ },
+ {
+  "moment_id": "b1ffad9e-5318-418a-8719-442cdffe06c1.jsonl#53",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/b1ffad9e-5318-418a-8719-442cdffe06c1.jsonl",
+  "location": 53,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a5f13c6128d39ec08.jsonl#58",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/95d68770-85ed-489f-874f-f576f32d0630/subagents/agent-a5f13c6128d39ec08.jsonl",
+  "location": 58,
+  "moment_type": "rework",
+  "is_lost_lesson": false,
+  "transcript_exists": false
+ },
+ {
+  "moment_id": "agent-a5f13c6128d39ec08.jsonl#64",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/95d68770-85ed-489f-874f-f576f32d0630/subagents/agent-a5f13c6128d39ec08.jsonl",
+  "location": 64,
+  "moment_type": "failure",
+  "is_lost_lesson": false,
+  "transcript_exists": false
+ },
+ {
+  "moment_id": "agent-aa1fe140de6bdf75f.jsonl#8",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/8a544d16-5d1c-4d29-bfea-7ade7cf98f81/subagents/workflows/wf_98d221e2-e5a/agent-aa1fe140de6bdf75f.jsonl",
+  "location": 8,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a427a4df64476d6c0.jsonl#46",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/8a544d16-5d1c-4d29-bfea-7ade7cf98f81/subagents/workflows/wf_2400b04e-5bb/agent-a427a4df64476d6c0.jsonl",
+  "location": 46,
+  "moment_type": "rework",
+  "is_lost_lesson": false,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-ac2971510a7adecdf.jsonl#46",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/669289d1-46e5-4897-a541-8b52749701e5/subagents/workflows/wf_0acdf678-3b8/agent-ac2971510a7adecdf.jsonl",
+  "location": 46,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-ac2971510a7adecdf.jsonl#50",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/669289d1-46e5-4897-a541-8b52749701e5/subagents/workflows/wf_0acdf678-3b8/agent-ac2971510a7adecdf.jsonl",
+  "location": 50,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-ac2971510a7adecdf.jsonl#60#rework-1",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/669289d1-46e5-4897-a541-8b52749701e5/subagents/workflows/wf_0acdf678-3b8/agent-ac2971510a7adecdf.jsonl",
+  "location": 60,
+  "moment_type": "rework",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "7fa0ee08-4191-46a0-985e-e21af514c450.jsonl#35",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/7fa0ee08-4191-46a0-985e-e21af514c450.jsonl",
+  "location": 35,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "7fa0ee08-4191-46a0-985e-e21af514c450.jsonl#39",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/7fa0ee08-4191-46a0-985e-e21af514c450.jsonl",
+  "location": 39,
+  "moment_type": "rework",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "7c95676b-a345-466d-a782-7f9c8df6647b.jsonl#31",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/7c95676b-a345-466d-a782-7f9c8df6647b.jsonl",
+  "location": 31,
+  "moment_type": "rework",
+  "is_lost_lesson": false,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a98aa3776b49be8ce.jsonl#9",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/agent-a98aa3776b49be8ce.jsonl",
+  "location": 9,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a98aa3776b49be8ce.jsonl#116",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/agent-a98aa3776b49be8ce.jsonl",
+  "location": 116,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a53c98dac1552d0d9.jsonl#15",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/agent-a53c98dac1552d0d9.jsonl",
+  "location": 15,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a53c98dac1552d0d9.jsonl#16",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/agent-a53c98dac1552d0d9.jsonl",
+  "location": 16,
+  "moment_type": "correction",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a53c98dac1552d0d9.jsonl#21",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/agent-a53c98dac1552d0d9.jsonl",
+  "location": 21,
+  "moment_type": "rework",
+  "is_lost_lesson": false,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-aa9bb69295f0f3e48.jsonl#1",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-aa9bb69295f0f3e48.jsonl",
+  "location": 1,
+  "moment_type": "dispatch",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a5a8a3513b296c3ab.jsonl#8",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-a5a8a3513b296c3ab.jsonl",
+  "location": 8,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a5a8a3513b296c3ab.jsonl#14",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-a5a8a3513b296c3ab.jsonl",
+  "location": 14,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a8a8155f08868de5d.jsonl#22",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/workflows/wf_a714fbc5-61c/agent-a8a8155f08868de5d.jsonl",
+  "location": 22,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a64467fe6c8268fdd.jsonl#10",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/733c8e5a-3ef8-40f9-87a6-ef294db6755b/subagents/workflows/wf_f82e1862-ed5/agent-a64467fe6c8268fdd.jsonl",
+  "location": 10,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-aa0a29568578223b9.jsonl#20",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/385dfc60-5fda-4ebe-be4c-50e4f2fa9d10/subagents/workflows/wf_c1210de2-eea/agent-aa0a29568578223b9.jsonl",
+  "location": 20,
+  "moment_type": "rework",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-aa0a29568578223b9.jsonl#51",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/385dfc60-5fda-4ebe-be4c-50e4f2fa9d10/subagents/workflows/wf_c1210de2-eea/agent-aa0a29568578223b9.jsonl",
+  "location": 51,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-aa0a29568578223b9.jsonl#56",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/385dfc60-5fda-4ebe-be4c-50e4f2fa9d10/subagents/workflows/wf_c1210de2-eea/agent-aa0a29568578223b9.jsonl",
+  "location": 56,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a6493eb381d2089cc.jsonl#2",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/d6e0c7ea-0f20-4554-ae54-0d4f5c175473/subagents/agent-a6493eb381d2089cc.jsonl",
+  "location": 2,
+  "moment_type": "dispatch",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a6493eb381d2089cc.jsonl#18",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/d6e0c7ea-0f20-4554-ae54-0d4f5c175473/subagents/agent-a6493eb381d2089cc.jsonl",
+  "location": 18,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a6493eb381d2089cc.jsonl#20",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/d6e0c7ea-0f20-4554-ae54-0d4f5c175473/subagents/agent-a6493eb381d2089cc.jsonl",
+  "location": 20,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a6493eb381d2089cc.jsonl#22",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/d6e0c7ea-0f20-4554-ae54-0d4f5c175473/subagents/agent-a6493eb381d2089cc.jsonl",
+  "location": 22,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a6493eb381d2089cc.jsonl#24",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/d6e0c7ea-0f20-4554-ae54-0d4f5c175473/subagents/agent-a6493eb381d2089cc.jsonl",
+  "location": 24,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a6493eb381d2089cc.jsonl#26",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/d6e0c7ea-0f20-4554-ae54-0d4f5c175473/subagents/agent-a6493eb381d2089cc.jsonl",
+  "location": 26,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a6493eb381d2089cc.jsonl#28",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/d6e0c7ea-0f20-4554-ae54-0d4f5c175473/subagents/agent-a6493eb381d2089cc.jsonl",
+  "location": 28,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "f4dbacdc-2279-458d-bfd4-22d35c0b01e9.jsonl#35",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/f4dbacdc-2279-458d-bfd4-22d35c0b01e9.jsonl",
+  "location": 35,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a870083ab336f40d9.jsonl#18",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/84f3265c-9e5e-4caa-a5ae-1941cd41c308/subagents/agent-a870083ab336f40d9.jsonl",
+  "location": 18,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a870083ab336f40d9.jsonl#20",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/84f3265c-9e5e-4caa-a5ae-1941cd41c308/subagents/agent-a870083ab336f40d9.jsonl",
+  "location": 20,
+  "moment_type": "dispatch",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a898d11986e0f5882.jsonl#24",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/30801ffa-792d-4dd2-ac81-62df91b6c534/subagents/agent-a898d11986e0f5882.jsonl",
+  "location": 24,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a96aadd41edf00c3d.jsonl#43",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/7048c38b-4550-4c6b-8d2c-8391ead37672/subagents/workflows/wf_3a74510a-d99/agent-a96aadd41edf00c3d.jsonl",
+  "location": 43,
+  "moment_type": "rework",
+  "is_lost_lesson": false,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-aa31ba62ae2e98519.jsonl#36",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/cb0a24a8-014c-4101-843d-de226d7d0557/subagents/agent-aa31ba62ae2e98519.jsonl",
+  "location": 36,
+  "moment_type": "rework",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-aa31ba62ae2e98519.jsonl#38",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/cb0a24a8-014c-4101-843d-de226d7d0557/subagents/agent-aa31ba62ae2e98519.jsonl",
+  "location": 38,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a255a361f26705438.jsonl#42",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/cb0a24a8-014c-4101-843d-de226d7d0557/subagents/workflows/wf_b8a87d24-24d/agent-a255a361f26705438.jsonl",
+  "location": 42,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a255a361f26705438.jsonl#51",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/cb0a24a8-014c-4101-843d-de226d7d0557/subagents/workflows/wf_b8a87d24-24d/agent-a255a361f26705438.jsonl",
+  "location": 51,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a255a361f26705438.jsonl#63",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/cb0a24a8-014c-4101-843d-de226d7d0557/subagents/workflows/wf_b8a87d24-24d/agent-a255a361f26705438.jsonl",
+  "location": 63,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a8ce598d27fa736b9.jsonl#9",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a8ce598d27fa736b9.jsonl",
+  "location": 9,
+  "moment_type": "rework",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a8ce598d27fa736b9.jsonl#23",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a8ce598d27fa736b9.jsonl",
+  "location": 23,
+  "moment_type": "rework",
+  "is_lost_lesson": false,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a8ce598d27fa736b9.jsonl#24",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a8ce598d27fa736b9.jsonl",
+  "location": 24,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a81b80335e1cdd38e.jsonl#9",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a81b80335e1cdd38e.jsonl",
+  "location": 9,
+  "moment_type": "rework",
+  "is_lost_lesson": false,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a81b80335e1cdd38e.jsonl#14",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a81b80335e1cdd38e.jsonl",
+  "location": 14,
+  "moment_type": "rework",
+  "is_lost_lesson": false,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a3240fc2aeddcbe93.jsonl#13",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-a3240fc2aeddcbe93.jsonl",
+  "location": 13,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ },
+ {
+  "moment_id": "agent-a585df274fee7ca19.jsonl#27",
+  "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/07fae373-78cb-40b1-8a2d-763f18f63bb2/subagents/workflows/wf_51670ab6-4ac/agent-a585df274fee7ca19.jsonl",
+  "location": 27,
+  "moment_type": "success",
+  "is_lost_lesson": true,
+  "transcript_exists": true
+ }
+]

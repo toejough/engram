@@ -1,0 +1,91 @@
+{
+  "task": "memory-loop-audit D1 extension (Joe-directed 2026-09-03): recover the 2 genuine dispatches previously classified genuine_dispatch_parent_transcript_missing in scorecard-handoff-gap.json, using engram's append-only chunk index as the retention fallback (vault note 901)",
+  "method_note": "Mirrors the original D1 method (scorecard-handoff-gap.json genuine_dispatch_checked entries) adapted to chunk text. Both parent transcripts AND both child subagent transcripts were deleted by Claude Code retention, but all four survive in ~/.local/share/engram/chunks as stripped USER:/ASSISTANT: turn text under turn-N anchors. For each target: (a) the dispatch prompt was recovered from the CHILD's chunk file (its turn-1 is the received prompt) and identity-confirmed against the audited moment's description; (b) pre-dispatch recall activity and its matched vault-note paths were located in the PARENT's chunk file; (c) structural found-in-prompt check plus the same three-way paraphrase judgment (genuinely_missing / ambiguous / confirmed_paraphrased_in) as the original n=2 sample, judging against each note's current vault content. LIMITS vs the original method: chunk stripping truncates long tool-call arguments and outputs, so the full ranked recall candidate list (the original method's 10-or-12-candidate denominators) is NOT recoverable -- each target's candidate list is a verified FLOOR (the notes visible in surviving engram activate/amend/learn text), not the complete set; chunks carry no timestamps, so recall-before-dispatch ordering is established from narrated workflow structure (task numbering, step sequence), not timestamp correlation; conservative rule retained (ambiguous counts as left-out). Every judgment carries judged_from: chunks (the audit's DERIVED/ESTIMATE honesty pattern) to distinguish it from raw-transcript judgments.",
+  "targets": [
+    {
+      "moment_id": "agent-a62dcb4d0c1554476.jsonl#1",
+      "parent_session": "32505058-365d-47b0-94bf-d1ccc8d53326",
+      "repo": "-Users-joe-repos-personal-engram",
+      "dispatch_timestamp": "2026-07-28T23:05:44.200Z",
+      "recoverable": true,
+      "missing_piece_if_not": null,
+      "judged_from": "chunks",
+      "dispatch_prompt_recovered_from": "chunks/agent-a62dcb4d0c1554476-35a5a783.jsonl (3 chunks, all turn-1; prompt text appears complete)",
+      "prompt_identity_check": "Recovered prompt is a writing-skills dry-run pressure test: 'Do NOT read any files or run any commands -- this is a dry simulation' over the learn skill's rewritten Step 1.5 vocab-refit procedure, with simulated observations including a stale-names retry branch -- matches the moment's description ('dry-run simulate the multi-branch engram vocab refit skill procedure (including a stale-names retry branch) without executing real commands') on content, not just filename.",
+      "pre_dispatch_recall": "Parent turn-14 (the /please execution turn), Step 2 Orient: repeated `engram query --lazy-chunks --phrase \"implementing engram vocab refit derivation\" --phrase \"k-mea...\"` calls (outputs truncated by chunk stripping) followed by `engram activate --note \"300.2026-07-19.go-tests-follow-parallel-and-declaration-order.md\" --note [truncated]`. This is the only orchestrator recall episode visible before the dispatch; the dispatch (a pressure test during task 4.1, the learn-skill Step 1.5 rewrite) occurs later in the same turn's narrated workflow (Step 4 execution).",
+      "candidate_list_completeness": "FLOOR, not complete: the activate call's note list is truncated after the first --note, and the recall query outputs are truncated, so further candidate paths existed but are unrecoverable from chunks. 1 candidate verified.",
+      "attribution": "Recall-to-dispatch attribution is clean at the session level (single pre-dispatch recall episode) but structural, not timestamp-correlated. One further ambiguity: the parent narrates dispatching a skill-rewrite executor for task 4.1, and the pressure-test subagent may have been dispatched by that executor rather than by the main orchestrator directly; chunks cannot pin the immediate dispatcher. The original audit's parent attribution (session 32505058) is retained.",
+      "candidates": [
+        {
+          "path": "300.2026-07-19.go-tests-follow-parallel-and-declaration-order.md",
+          "attribution": "explicitly activated by the orchestrator at recall Step 2.7, pre-dispatch (sole surviving path from the truncated activate call)",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "The dispatch prompt is a skill-procedure dry simulation (engram vocab stats/refit command sequencing, naming-request answer files, stale-names retry); it contains no Go-test content of any kind, so the note's t.Parallel/declaration-order guidance is neither referenced nor paraphrased. Task-irrelevant to this dispatch (same reasoning class as the original sample's mapping-task judgments) -- left out structurally, and its absence plausibly cost nothing here."
+        }
+      ],
+      "memories_left_out": [
+        "300.2026-07-19.go-tests-follow-parallel-and-declaration-order.md"
+      ],
+      "at_least_one_memory_left_out": true,
+      "additional_notes": "Pre-dispatch the orchestrator also WROTE note 643 (opening learn) -- excluded from candidates because method (a) scopes candidates to notes attributable to a pre-dispatch recall, not orchestrator-authored writes. Notes 651/652/653 were written at the closing learn, post-dispatch."
+    },
+    {
+      "moment_id": "agent-a6faba7b1e62b8aad.jsonl#1",
+      "parent_session": "d1c5ca03-5b70-4f46-a448-fe53fd79406b",
+      "repo": "-Users-joe-repos-personal-targ",
+      "dispatch_timestamp": "2026-07-24T14:30:00.330Z",
+      "recoverable": true,
+      "missing_piece_if_not": null,
+      "judged_from": "chunks",
+      "dispatch_prompt_recovered_from": "chunks/agent-a6faba7b1e62b8aad-5925cfda.jsonl (4 chunks, all turn-1; prompt text appears complete)",
+      "prompt_identity_check": "Recovered prompt is the Task 4 spec+quality review brief (targ #26: ParallelDepsRespectConcurrencyCap subtest, brief/report/diff paths, base f37d5ab head 8d9f9ef) -- matches the moment's description ('code-review subagent to verify Task 4's spec compliance ... against the brief, report, and diff') on content. Parent turn-10 narrates this exact dispatch ('Task 4 done (8d9f9ef...). Dispatching its reviewers -- routed to haiku').",
+      "pre_dispatch_recall": "Parent turn-2 (the /please Step 2 Orient for targ#26 Option B): `engram query --lazy-chunks --phrase \"implementing concurrency cap in Go build tool dep runner\"` with payload read from a scratchpad recall-query file (clusters + candidate_l2s -- content not preserved in chunks); a second query `--phrase \"serial collect-all dep runner in targ preserving CollectAllErrors\"`; Step 2.5 cluster synthesis wrote note 401; `engram amend --target 371... --activat[e]`; Step 2.7 `engram activate --note \"131...\" --note \"359.2026-07-22.tar[truncated]\"`. Dispatch is 8 turns later (turn-10), after Gate A closed -- ordering established by workflow narration.",
+      "candidate_list_completeness": "FLOOR, not complete: the recall payload (clusters/candidate_l2s read from a scratchpad file) is not preserved in chunks, and the Step 2.7 activate list is truncated after its second --note. 4 candidates verified. The truncated '359.2026-07-22.tar...' path was resolved to its full name by unique prefix match against the vault (exactly one note numbered 359).",
+      "attribution": "Clean: all four candidates are explicitly tied to the Step 2 recall episode by surviving activate/amend/learn text; the dispatch event itself is narrated in the parent (turn-10). Same structural-ordering caveat as target 1 (no timestamps in chunks).",
+      "candidates": [
+        {
+          "path": "131.2026-06-28.parallel-test-shared-state.md",
+          "attribution": "explicitly activated at recall Step 2.7, pre-dispatch",
+          "found_in_prompt": false,
+          "paraphrase_status": "ambiguous",
+          "note": "Note: never drop t.Parallel() to silence a flaky parallel test; give each subtest its own data. Prompt: mandates t.Parallel() in the subtest, forbids equality-on-concurrency as scheduling-dependent, and directs the reviewer at the 'mutex+atomic high-water pattern' -- i.e. the prompt's constraints inhabit the note's theme (parallel-test determinism and shared-state safety) without stating the note's specific rule. Cannot confidently call it transferred (the constraints trace to the Gate-A-reviewed plan, and Joe's global CLAUDE.md carries a similar parallel-test rule) nor absent. Same judgment class as the original sample's note-546 ambiguous call."
+        },
+        {
+          "path": "359.2026-07-22.targ-run-in-wrong-checkout-syncs-gomod-pin.md",
+          "attribution": "explicitly activated at recall Step 2.7, pre-dispatch (path recovered from truncated text by unique vault prefix match)",
+          "found_in_prompt": false,
+          "paraphrase_status": "ambiguous",
+          "note": "Note: verify cwd before build-runner invocations in multi-checkout repos; gate runs in the wrong tree dirty it. Prompt adds 'Do NOT run tree-wide gates in this shared checkout' -- a constraint in the note's exact hazard domain that is NOT in the current SDD reviewer template (checked 6.2.0/6.3.0: read-only/no-git/focused-check language is template-derived, 'shared checkout'/'tree-wide gates' is not), so it is plausibly the note's lesson applied as a prophylactic. But the note's stated action (verify cwd / git -C) is absent and the 2026-07-24 template version (6.1.1) is no longer on disk to rule template origin out. Ambiguous."
+        },
+        {
+          "path": "371.2026-07-23.replace-directive-probes-must-bypass-targ-bootstrap-cache.md",
+          "attribution": "activated via `engram amend --target 371... --activate` during recall Step 2, pre-dispatch",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Note: probe gate changes with --no-binary-cache and verify patch-liveness. The read-only review prompt contains nothing about replace directives, binary caches, or probes. Notably the ORCHESTRATOR applied this note itself pre-dispatch (`targ --no-binary-cache check-full` at turn-9) rather than handing it to the reviewer -- for a read-only reviewer forbidden from running gates, the omission plausibly cost nothing, but structurally it was left out."
+        },
+        {
+          "path": "401.2026-07-23.targ-dep-execution-prior-art-and-code-map.md",
+          "attribution": "written by the orchestrator at recall Step 2.5 (cluster synthesis) pre-dispatch -- a recall-episode product, included as a memory the orchestrator demonstrably had",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Note: dep-execution prior-art pointers and code map (runDeps dispatch, four runners, three callers). The prompt scopes the reviewer to the diff only; none of the map content appears (the prompt's cap formula max(2, GOMAXPROCS(0)/2) traces to the plan's user-decided formula, not this note). CAVEAT: the note's current vault content includes post-#26 amendments ('since #26', 'found by #26 final review'), so this paraphrase judgment runs against a later revision than what existed at dispatch time -- the judgment (no code-map content in the prompt) holds for both revisions."
+        }
+      ],
+      "memories_left_out": [
+        "131.2026-06-28.parallel-test-shared-state.md",
+        "359.2026-07-22.targ-run-in-wrong-checkout-syncs-gomod-pin.md",
+        "371.2026-07-23.replace-directive-probes-must-bypass-targ-bootstrap-cache.md",
+        "401.2026-07-23.targ-dep-execution-prior-art-and-code-map.md"
+      ],
+      "at_least_one_memory_left_out": true,
+      "additional_notes": "Conservative rule from the original scorecard retained: the two ambiguous candidates stay in memories_left_out (an unconfirmed ambiguous case is kept as a gap, not cleared). Mid-cycle learn writes 403/404/406 also predate the dispatch but are orchestrator-authored corrections, not recall candidates -- excluded per method (a); notes 408/415/416/417 postdate the dispatch."
+    }
+  ],
+  "resulting_d1_denominator_if_merged": 4,
+  "merged_view_if_accepted": {
+    "note": "IF these chunk-derived judgments are merged with the original n=2 raw-transcript sample (they carry judged_from: chunks and are floors on candidates, so merging mixes provenances -- flag in any headline): dispatches checked 2 -> 4 (of 4 genuine non-fork dispatches, i.e. every genuine dispatch in the corpus is now checked); dispatches with at least one memory left out 2/2 -> 4/4; candidate memories 12 -> 17+ (17 is a floor: both chunk-side candidate lists are truncated); paraphrase sample genuinely_missing 11 -> 14, ambiguous 1 -> 3, confirmed_paraphrased_in 0 -> 0.",
+    "does_not_modify": "scorecard-handoff-gap.json is untouched; this file is the extension record."
+  }
+}

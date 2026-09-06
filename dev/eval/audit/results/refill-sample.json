@@ -1,0 +1,310 @@
+{
+  "metadata": {
+    "timestamp": "2026-09-02",
+    "task": "memory-loop-audit task 5.1 refill: re-run set for the 40 windows (of the original 47-window full run) whose claude -p calls silently failed due to a sustained stale-credential outage starting at full-run window 8 (20:36:55) and continuing through window 47 -- confirmed via full_run_status.json (cumulative_cost_usd frozen at $14.3204077 across all of windows 8-47) and full_run.log timestamps",
+    "incident": "Windows 1-7 of the original 47-window full run succeeded normally (real detection, real moments; preserved as-is in full-run-moments.jsonl / full-run-transcript-events.jsonl, NOT touched by this refill). Starting at window 8, every claude -p call exhausted its retry budget due to stale Claude Code keychain credentials (a genuine login-session expiry fixed by a human `/login`), but the driver logged each as a normal '0 moments' result instead of a hard error, so this went undetected for ~4 hours across all 40 remaining windows. Part 1 of this refill hardens audit_moments.py (_run_claude_p / detect_moments / judge_moment) to raise audit_moments.ExhaustedRetriesError instead, and the refill driver halts the entire run on first occurrence rather than silently continuing.",
+    "source_files_lost": "22 of the 40 failed windows' SOURCE TRANSCRIPT FILES have since been deleted by Claude Code's own session-log retention (~1-2 days after original sampling; confirmed via direct os.path.isfile re-check against every one of full-run-sample.json's windows 8-47, not trusted from any prior partial list). 18 of the 40 survive.",
+    "unplanned_finding": "Beyond the per-window losses, the ENTIRE local transcript corpora for two repos have been purged since original sampling: -Users-joe-repos-personal-targ now has 0 .jsonl files under ~/.claude/projects/ (confirmed via `find ... -name '*.jsonl' | wc -l` => 0), and -Users-joe-repos-personal-pi-vim-mode's project directory no longer exists at all. This matches (and explains) why ALL 12 targ-sourced and ALL 4 pi-vim-mode-sourced windows in the gone-list came up missing -- it was not a coincidental cluster, it was two full-repo purges. Their combined 16-window replacement quota was redistributed to engram (+8) and phone-llm (+8), the two other repos originally weighted equally to targ (16 each in corpus.json's per_repo_targets), to avoid concentrating replacement volume in the small remaining repos (llmcpp/dotfiles/local-llm-optimization/Users-joe) and re-creating the single-repo skew risk documented in design.md D-A / vault note feedback_verify_mined_corpus_is_representative.",
+    "fork_scarcity_finding": "Using extract.py's real determine_dispatch_type() classifier (not the looser content-keyword heuristic corpus.json's original dispatch_type_sample used), only 3 true 'fork' transcripts (subagent_type==fork, confirmed via .meta.json) remain anywhere in the unused corpus across all repos (engram: 1, phone-llm: 2, llmcpp: 0). All 3 were used in this replacement set. Where a lost window's expected_dispatch_type was 'fork' and no true-fork file remained, a fresh-context subagent was substituted instead (honestly labeled 'fresh' in expected_dispatch_type, not mislabeled as fork) -- each such substitution is called out explicitly in that entry's rationale.",
+    "survivor_count": 18,
+    "replacement_count": 22,
+    "target_sample_size": 40,
+    "actual_sample_size": 40,
+    "excluded_paths_count": 60,
+    "excluded_paths_note": "all 13 pilot-sample.json paths + all 47 full-run-sample.json paths (survivors AND gone) were excluded from replacement selection",
+    "repo_breakdown": {
+      "-Users-joe-repos-personal-engram": 15,
+      "-Users-joe-repos-personal-phone-llm": 22,
+      "-Users-joe-repos-personal-llmcpp": 2,
+      "-Users-joe-repos-personal-local-llm-optimization": 1
+    },
+    "dispatch_type_breakdown": {
+      "fork": 9,
+      "workflow": 15,
+      "main": 9,
+      "fresh": 7
+    }
+  },
+  "sample": [
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/b1ffad9e-5318-418a-8719-442cdffe06c1/subagents/agent-a1eb7ebc0b91dbdf0.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "fork",
+      "size_kb": 511.9,
+      "rationale": "survivor: full-run window 10; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/8a544d16-5d1c-4d29-bfea-7ade7cf98f81/subagents/workflows/wf_98d221e2-e5a/agent-aa1fe140de6bdf75f.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 265.1,
+      "rationale": "survivor: full-run window 12; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/8a544d16-5d1c-4d29-bfea-7ade7cf98f81/subagents/workflows/wf_2400b04e-5bb/agent-a427a4df64476d6c0.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 122.5,
+      "rationale": "survivor: full-run window 13; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/669289d1-46e5-4897-a541-8b52749701e5/subagents/workflows/wf_0acdf678-3b8/agent-ac2971510a7adecdf.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 348.7,
+      "rationale": "survivor: full-run window 14; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "main",
+      "size_kb": 23276.9,
+      "rationale": "survivor: full-run window 18; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/7fa0ee08-4191-46a0-985e-e21af514c450.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "main",
+      "size_kb": 2565.3,
+      "rationale": "survivor: full-run window 19; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/385dfc60-5fda-4ebe-be4c-50e4f2fa9d10.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "main",
+      "size_kb": 3496.5,
+      "rationale": "survivor: full-run window 20; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/7c95676b-a345-466d-a782-7f9c8df6647b.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "main",
+      "size_kb": 568.8,
+      "rationale": "survivor: full-run window 21; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/agent-a98aa3776b49be8ce.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 330.6,
+      "rationale": "survivor: full-run window 22; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/agent-a53c98dac1552d0d9.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 166.4,
+      "rationale": "survivor: full-run window 23; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-aa9bb69295f0f3e48.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 431.8,
+      "rationale": "survivor: full-run window 24; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a62a32262f2a7a4b2.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 407.3,
+      "rationale": "survivor: full-run window 25; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/30545ac3-772a-4044-a49c-ba3c2164a9a3/subagents/agent-a6668b73a8057dd96.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 683.9,
+      "rationale": "survivor: full-run window 26; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-ae96e991d50f060c0.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 308.9,
+      "rationale": "survivor: full-run window 27; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-a5a8a3513b296c3ab.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 275.5,
+      "rationale": "survivor: full-run window 28; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/workflows/wf_a714fbc5-61c/agent-a8a8155f08868de5d.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 244.7,
+      "rationale": "survivor: full-run window 29; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/733c8e5a-3ef8-40f9-87a6-ef294db6755b/subagents/workflows/wf_f82e1862-ed5/agent-a64467fe6c8268fdd.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 30.8,
+      "rationale": "survivor: full-run window 30; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/385dfc60-5fda-4ebe-be4c-50e4f2fa9d10/subagents/workflows/wf_c1210de2-eea/agent-aa0a29568578223b9.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 159.1,
+      "rationale": "survivor: full-run window 31; source transcript file confirmed still present as of 2026-09-02 refill re-verification (re-checked with os.path.isfile, not trusted from the original briefing list)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/d6e0c7ea-0f20-4554-ae54-0d4f5c175473/subagents/agent-a6493eb381d2089cc.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "fork",
+      "size_kb": 174.2,
+      "rationale": "replacement-for-window-8: engram gone window 8 was fork; direct match"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/32629d8c-395d-4665-adeb-88508611c8c9/subagents/agent-a96d1cce74aa48aba.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "fresh",
+      "size_kb": 43.7,
+      "rationale": "replacement-for-window-9: engram gone window 9 was fork; no true-fork transcripts remain in engram corpus (only 1 total, used for window 8), substituted a fresh-context subagent"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/742482f5-3942-450f-a916-c3dcbfab7b98/subagents/workflows/wf_19dd4967-edf/agent-a412444fbec37ada8.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 82.7,
+      "rationale": "replacement-for-window-11: engram gone window 11 was workflow; direct match"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/cafbb0e8-95db-4129-ad69-9acb9ebcb7f4.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "main",
+      "size_kb": 768.1,
+      "rationale": "replacement-for-window-37: redistributed from targ (targ gone window 37, main): targ's entire session corpus has been purged by Claude Code retention since original sampling, redistributed to engram"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/f4dbacdc-2279-458d-bfd4-22d35c0b01e9.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "main",
+      "size_kb": 386.0,
+      "rationale": "replacement-for-window-38: redistributed from targ (targ gone window 38, main): targ's entire session corpus has been purged by Claude Code retention since original sampling, redistributed to engram"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/081fcd56-c5b6-4ea0-b8eb-6001fbed1f44/subagents/agent-a9b6cc5ad1398eb75.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "fresh",
+      "size_kb": 292.4,
+      "rationale": "replacement-for-window-35: redistributed from pi-vim-mode (gone window 35, fork): pi-vim-mode's entire session directory no longer exists (purged), redistributed to engram; substituted fresh for fork since no true-fork transcripts remain anywhere in the corpus beyond the 3 already used"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/84f3265c-9e5e-4caa-a5ae-1941cd41c308/subagents/agent-a870083ab336f40d9.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "fresh",
+      "size_kb": 933.5,
+      "rationale": "replacement-for-window-39: redistributed from targ (gone window 39, fork): targ's entire corpus purged, redistributed to engram; substituted fresh for fork (no true-fork transcripts remain)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/30801ffa-792d-4dd2-ac81-62df91b6c534/subagents/agent-a898d11986e0f5882.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "fresh",
+      "size_kb": 179.2,
+      "rationale": "replacement-for-window-40: redistributed from targ (gone window 40, fork): targ's entire corpus purged, redistributed to engram; substituted fresh for fork (no true-fork transcripts remain)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/7048c38b-4550-4c6b-8d2c-8391ead37672/subagents/workflows/wf_3a74510a-d99/agent-a96aadd41edf00c3d.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 211.4,
+      "rationale": "replacement-for-window-43: redistributed from targ (gone window 43, workflow): targ's entire corpus purged, redistributed to engram"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4a464ec7-990b-48cd-88f3-10828ee999af/subagents/workflows/wf_443f907f-6d1/agent-ae25e9cfd3d5fcc81.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 85.7,
+      "rationale": "replacement-for-window-44: redistributed from targ (gone window 44, workflow): targ's entire corpus purged, redistributed to engram"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/8a544d16-5d1c-4d29-bfea-7ade7cf98f81/subagents/workflows/wf_98d221e2-e5a/agent-acd84b1d9027b66ae.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 232.8,
+      "rationale": "replacement-for-window-45: redistributed from targ (gone window 45, workflow): targ's entire corpus purged, redistributed to engram"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/cb0a24a8-014c-4101-843d-de226d7d0557/subagents/agent-aa31ba62ae2e98519.jsonl",
+      "repo": "-Users-joe-repos-personal-llmcpp",
+      "expected_dispatch_type": "fresh",
+      "size_kb": 362.6,
+      "rationale": "replacement-for-window-15: llmcpp gone window 15 was fork; no true-fork transcripts remain in llmcpp corpus (0 available), substituted a fresh-context subagent"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/cb0a24a8-014c-4101-843d-de226d7d0557/subagents/workflows/wf_b8a87d24-24d/agent-a255a361f26705438.jsonl",
+      "repo": "-Users-joe-repos-personal-llmcpp",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 253.6,
+      "rationale": "replacement-for-window-16: llmcpp gone window 16 was workflow; direct match"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-local-llm-optimization/ecc84443-5a36-45f9-9d0b-3553550a585c.jsonl",
+      "repo": "-Users-joe-repos-personal-local-llm-optimization",
+      "expected_dispatch_type": "main",
+      "size_kb": 399.9,
+      "rationale": "replacement-for-window-17: local-llm-optimization gone window 17 was main; direct match"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/07fae373-78cb-40b1-8a2d-763f18f63bb2.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "main",
+      "size_kb": 8011.1,
+      "rationale": "replacement-for-window-32: redistributed from pi-vim-mode (gone window 32, main): pi-vim-mode's entire session directory no longer exists (purged), redistributed to phone-llm"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/bfc172bd-e1d6-47e2-8976-f1eaaad82588.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "main",
+      "size_kb": 1468.3,
+      "rationale": "replacement-for-window-36: redistributed from targ (gone window 36, main): targ's entire corpus purged, redistributed to phone-llm"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a8ce598d27fa736b9.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 239.7,
+      "rationale": "replacement-for-window-33: redistributed from pi-vim-mode (gone window 33, fork): pi-vim-mode's entire corpus purged, redistributed to phone-llm; direct fork match (one of only 3 true-fork transcripts left in the entire corpus)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a81b80335e1cdd38e.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 400.0,
+      "rationale": "replacement-for-window-34: redistributed from pi-vim-mode (gone window 34, fork): pi-vim-mode's entire corpus purged, redistributed to phone-llm; direct fork match (one of only 3 true-fork transcripts left in the entire corpus)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/98333257-838b-40f7-bb81-e705c7bc1355/subagents/agent-afdea369b5bac50d9.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fresh",
+      "size_kb": 121.5,
+      "rationale": "replacement-for-window-41: redistributed from targ (gone window 41, fork): targ's entire corpus purged, redistributed to phone-llm; substituted fresh for fork (no true-fork transcripts remain)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/fd4ca914-b135-4dde-a8a3-4a3bfe084b97/subagents/agent-a43a7f83d85200a7f.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fresh",
+      "size_kb": 383.0,
+      "rationale": "replacement-for-window-42: redistributed from targ (gone window 42, fork): targ's entire corpus purged, redistributed to phone-llm; substituted fresh for fork (no true-fork transcripts remain)"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-a3240fc2aeddcbe93.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 369.3,
+      "rationale": "replacement-for-window-46: redistributed from targ (gone window 46, workflow): targ's entire corpus purged, redistributed to phone-llm"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/07fae373-78cb-40b1-8a2d-763f18f63bb2/subagents/workflows/wf_51670ab6-4ac/agent-a585df274fee7ca19.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 116.7,
+      "rationale": "replacement-for-window-47: redistributed from targ (gone window 47, workflow): targ's entire corpus purged, redistributed to phone-llm"
+    }
+  ]
+}

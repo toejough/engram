@@ -1,0 +1,563 @@
+{
+  "task": "memory-loop-audit task 5.2 -- #739 finding-side slice: per-dispatch memory-handoff gap (design.md D-E, spec.md \"Dispatch moment measures the handoff on the orchestrator side\" + \"Checking for paraphrased content\")",
+  "counting_unit": "per-dispatch (REPORT_TEMPLATE.md stage D1 -- the sole per-dispatch-counted stage in the scorecard)",
+  "derived_or_estimate": "DERIVED (real records + a real hand-judged paraphrase sample; zero estimates)",
+  "input_files": {
+    "moments": "/Users/joe/repos/personal/engram/dev/eval/audit/results/moments.jsonl",
+    "transcript_events": "/Users/joe/repos/personal/engram/dev/eval/audit/results/transcript-events.jsonl"
+  },
+  "summary": {
+    "total_dispatch_moments": 28,
+    "fork_dispatch_moments": 3,
+    "non_fork_dispatch_moments": 25,
+    "non_fork_breakdown": {
+      "not_a_genuine_subagent_prompt_dispatch": 21,
+      "not_a_genuine_subagent_prompt_dispatch_reasons": {
+        "bash_tool_call": 4,
+        "same_context_skill_invocation": 16,
+        "workflow_tool_launch_not_captured_by_extractor": 1
+      },
+      "genuine_dispatch_parent_transcript_missing": 2,
+      "genuine_dispatch_checked": 2
+    },
+    "structural_check": {
+      "denominator_dispatches_checked": 2,
+      "denominator_candidate_memories": 12,
+      "candidates_left_out_raw_structural": 12,
+      "raw_structural_gap_rate": "12/12 = 100.0%"
+    },
+    "paraphrase_sample": {
+      "sample_size": 12,
+      "sample_coverage_rule": "ALL left-out flags sampled (count 12 is small enough to check exhaustively -- an ad-hoc call made during this computation, not a pre-registered threshold in design.md/spec.md/tasks.md)",
+      "genuinely_missing": 11,
+      "ambiguous": 1,
+      "confirmed_paraphrased_in": 0
+    },
+    "paraphrase_adjusted_gap_rate": {
+      "confirmed_paraphrased_deducted": 0,
+      "conservative_ambiguous_counted_as_gap": "12/12 = 100.0%",
+      "generous_ambiguous_excluded_from_gap": "11/12 = 91.7%",
+      "headline_rate_used": "12/12 = 100.0% (conservative: an unconfirmed ambiguous case is kept as a gap, not cleared)"
+    },
+    "per_dispatch_gap_rate": {
+      "definition": "fraction of CHECKED dispatches with at least one memory left out (conservative: ambiguous counts as left-out)",
+      "dispatches_with_at_least_one_memory_left_out": 2,
+      "dispatches_checked": 2,
+      "rate": "2/2 = 100%"
+    },
+    "critical_limitation": "The structural check only has a real, checkable denominator of n=2 dispatches (and 12 candidate memories total) out of 28 total dispatch moments / 25 non-fork moments. This is because most \"dispatch\"-type moments in the sampled corpus are NOT actual subagent launches with a separately-constructed prompt (spec.md defines dispatch as \"a subagent launch\"), but same-context Skill invocations (recall/please/opsx:apply/writing-skills/claude-api/openspec-sync-specs), raw Bash tool calls, or one Workflow-tool launch the mechanical extractor does not parse -- none of these construct an isolable prompt a memory could be \"left out\" of. Two further genuine dispatches could not be checked because their PARENT main-session transcript no longer exists on disk. This n=2 rate should NOT be read as a representative measurement of the true handoff gap across all dispatches; it is the honest, fully-checkable subset given the real data."
+  },
+  "per_dispatch_moment_detail": [
+    {
+      "moment_id": "agent-a5e3cc9e58c463d77.jsonl#2",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/a19cc352-75cc-4a0d-9dcc-a5504357df38/subagents/agent-a5e3cc9e58c463d77.jsonl",
+      "role": "fork",
+      "location": 2,
+      "timestamp": "2026-08-30T02:01:51.740Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Agent dispatches work to a fork subagent with directive to return 'noop' as placeholder while another background dispatch (spec-sync) continues running.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "fork_trivially_handed_over",
+      "classification_reason": "role=='fork': forked subagents inherit the whole parent conversation (D-E); confirmed by matching dispatch_events entry with subagent_type=='fork' at the same location.",
+      "memories_orchestrator_had_but_left_out": []
+    },
+    {
+      "moment_id": "agent-a62dcb4d0c1554476.jsonl#1",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/32505058-365d-47b0-94bf-d1ccc8d53326/subagents/agent-a62dcb4d0c1554476.jsonl",
+      "role": "fresh",
+      "location": 1,
+      "timestamp": "2026-07-28T23:05:44.200Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Parent session dispatches a subagent to dry-run simulate the multi-branch 'engram vocab refit' skill procedure (including a stale-names retry branch) without executing real commands.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "genuine_dispatch_parent_transcript_missing",
+      "classification_reason": "This is a genuine subagent launch (role fresh/workflow, its own transcript begins with the received prompt), but the PARENT main-session transcript file no longer exists on disk (rotated/cleared by Claude Code session retention) while this orphaned subagent sub-file survived -- confirmed by filesystem check, not merely absent from the sample.",
+      "memories_orchestrator_had_but_left_out": null
+    },
+    {
+      "moment_id": "agent-a6faba7b1e62b8aad.jsonl#1",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/d1c5ca03-5b70-4f46-a448-fe53fd79406b/subagents/agent-a6faba7b1e62b8aad.jsonl",
+      "role": "fresh",
+      "location": 1,
+      "timestamp": "2026-07-24T14:30:00.330Z",
+      "repo": "-Users-joe-repos-personal-targ",
+      "description": "Orchestrator dispatches a code-review subagent to verify Task 4's spec compliance and code quality against the brief, report, and diff.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "genuine_dispatch_parent_transcript_missing",
+      "classification_reason": "This is a genuine subagent launch (role fresh/workflow, its own transcript begins with the received prompt), but the PARENT main-session transcript file no longer exists on disk (rotated/cleared by Claude Code session retention) while this orphaned subagent sub-file survived -- confirmed by filesystem check, not merely absent from the sample.",
+      "memories_orchestrator_had_but_left_out": null
+    },
+    {
+      "moment_id": "agent-a839afe56971d95b7.jsonl#5",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4a464ec7-990b-48cd-88f3-10828ee999af/subagents/workflows/wf_443f907f-6d1/agent-a839afe56971d95b7.jsonl",
+      "role": "workflow",
+      "location": 5,
+      "timestamp": "2026-08-23T01:30:13.522Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Agent dispatches first Bash call to view issue 719 with comments",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "bash_tool_call",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a839afe56971d95b7.jsonl#7",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4a464ec7-990b-48cd-88f3-10828ee999af/subagents/workflows/wf_443f907f-6d1/agent-a839afe56971d95b7.jsonl",
+      "role": "workflow",
+      "location": 7,
+      "timestamp": "2026-08-23T01:30:17.702Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Agent dispatches search for issues containing 'strategy'",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "bash_tool_call",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a839afe56971d95b7.jsonl#8",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4a464ec7-990b-48cd-88f3-10828ee999af/subagents/workflows/wf_443f907f-6d1/agent-a839afe56971d95b7.jsonl",
+      "role": "workflow",
+      "location": 8,
+      "timestamp": "2026-08-23T01:30:17.948Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Agent dispatches search for issues containing 'note kind'",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "bash_tool_call",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a839afe56971d95b7.jsonl#12",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/4a464ec7-990b-48cd-88f3-10828ee999af/subagents/workflows/wf_443f907f-6d1/agent-a839afe56971d95b7.jsonl",
+      "role": "workflow",
+      "location": 12,
+      "timestamp": "2026-08-23T01:30:26.614Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Agent proactively dispatches two additional searches for 'procedure' and 'skills from memory' beyond the user's initial three requests",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "bash_tool_call",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "95d68770-85ed-489f-874f-f576f32d0630.jsonl#36",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/95d68770-85ed-489f-874f-f576f32d0630.jsonl",
+      "role": "main",
+      "location": 36,
+      "timestamp": "2026-07-22T23:28:40.860Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Agent invokes recall skill to surface relevant vault memories for resuming #700 cleanup work and targ updates.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:recall",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a5f13c6128d39ec08.jsonl#1",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/95d68770-85ed-489f-874f-f576f32d0630/subagents/agent-a5f13c6128d39ec08.jsonl",
+      "role": "fresh",
+      "location": 1,
+      "timestamp": "2026-07-22T23:35:32.862Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Main agent dispatches a read-only exploration task to an Explore-type subagent to map five specific areas of the engram codebase refactor.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "genuine_dispatch_checked",
+      "classification_reason": "Genuine subagent launch with parent transcript present; recall_call and dispatch_event correlated via timestamp proximity (parent dispatch_event timestamp within milliseconds of this moment's own spawn timestamp).",
+      "parent_transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/95d68770-85ed-489f-874f-f576f32d0630.jsonl",
+      "recall_call_location_in_parent": 36,
+      "dispatch_event_location_in_parent": 176,
+      "dispatch_event_description": "Map #700 decomposition targets",
+      "candidates": [
+        {
+          "path": "301.2026-07-19.golangci-depguard-forbidigo-confirmed-semantics.md",
+          "rank": 1,
+          "kind": "fact",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Prompt is a read-only file:line mapping task (\"Do NOT modify anything...No recommendations - just the map\"); no lint-policy content requested or referenced."
+        },
+        {
+          "path": "334.2026-07-20.closing-requires-explicit-ok-on-every-failing-check.md",
+          "rank": 2,
+          "kind": "feedback",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Same reasoning: mapping task, no closing-bar content."
+        },
+        {
+          "path": "327.2026-07-20.engram-cmd-main-funlen-cap-compress-not-nolint.md",
+          "rank": 3,
+          "kind": "feedback",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Prompt item 1 mentions \"funlen's 60-line cap\" as a fact to compare main() against, but requests no guidance on HOW to fix a violation (the note's actual content) - coincidental shared vocabulary, not the note's content transferred."
+        },
+        {
+          "path": "333.2026-07-20.golangci-issues-fix-true-is-deliberate-policy.md",
+          "rank": 4,
+          "kind": "fact",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "No lint-fix-policy content in the read-only mapping prompt."
+        },
+        {
+          "path": "278.2026-07-15.reproduce-a-real-failure-before-abandoning-a-fix.md",
+          "rank": 5,
+          "kind": "feedback",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Not a fix/debug task at all; pure mapping."
+        },
+        {
+          "path": "303.2026-07-19.cmd-wiring-is-primitive-references-logic-stays-internal.md",
+          "rank": 6,
+          "kind": "feedback",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Prompt asks to MAP existing wiring facts (New*Prims call sites) but states no wiring-vs-logic-placement guidance."
+        },
+        {
+          "path": "247.2026-07-11.plan-prescribed-gates-get-run-and-dep-traced-at-plan-time.md",
+          "rank": 7,
+          "kind": "feedback",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "No gate/plan-tracing content in prompt."
+        },
+        {
+          "path": "274.2026-07-14.found-issue-fix-or-file-not-a-report-aside.md",
+          "rank": 8,
+          "kind": "feedback",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Prompt explicitly forbids recommendations (\"No recommendations - just the map\"), the opposite instruction from this note's guidance - not present."
+        },
+        {
+          "path": "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var.md",
+          "rank": 9,
+          "kind": "feedback",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Same funlen-vocabulary-coincidence reasoning as rank 3; no scope-lift guidance requested or given."
+        },
+        {
+          "path": "285.2026-07-16.literal-echo-detector-fp-swamped-on-mirror-heavy-repo.md",
+          "rank": 10,
+          "kind": "feedback",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Prompt DOES ask about a \"mirror-test doctrine\" (item 3) but that is asking the subagent to locate and report the mirror-fidelity test in code, not applying this note's echo-detector lesson - different subject, coincidental \"mirror\" word overlap."
+        }
+      ],
+      "memories_orchestrator_had_but_left_out": [
+        "301.2026-07-19.golangci-depguard-forbidigo-confirmed-semantics.md",
+        "334.2026-07-20.closing-requires-explicit-ok-on-every-failing-check.md",
+        "327.2026-07-20.engram-cmd-main-funlen-cap-compress-not-nolint.md",
+        "333.2026-07-20.golangci-issues-fix-true-is-deliberate-policy.md",
+        "278.2026-07-15.reproduce-a-real-failure-before-abandoning-a-fix.md",
+        "303.2026-07-19.cmd-wiring-is-primitive-references-logic-stays-internal.md",
+        "247.2026-07-11.plan-prescribed-gates-get-run-and-dep-traced-at-plan-time.md",
+        "274.2026-07-14.found-issue-fix-or-file-not-a-report-aside.md",
+        "43.2026-06-17.funlen-wsl-scope-lift-inline-instead-of-var.md",
+        "285.2026-07-16.literal-echo-detector-fp-swamped-on-mirror-heavy-repo.md"
+      ]
+    },
+    {
+      "moment_id": "c74b4a61-5225-4b75-b65f-e99b47605fd7.jsonl#22",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7.jsonl",
+      "role": "main",
+      "location": 22,
+      "timestamp": "2026-07-30T01:40:04.322Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent invokes the recall skill to surface relevant memories before proceeding with planning.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:recall",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "c74b4a61-5225-4b75-b65f-e99b47605fd7.jsonl#26",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7.jsonl",
+      "role": "main",
+      "location": 26,
+      "timestamp": "2026-07-30T01:40:05.880Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent invokes the please skill to drive the user's multi-step ask end-to-end through planning and execution.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:please",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "7fa0ee08-4191-46a0-985e-e21af514c450.jsonl#24",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/7fa0ee08-4191-46a0-985e-e21af514c450.jsonl",
+      "role": "main",
+      "location": 24,
+      "timestamp": "2026-08-08T20:27:49.109Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Assistant launches a Workflow to parallelize survey of open issues and OpenSpec changes, dispatching two independent agents to collect data concurrently.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "workflow_tool_launch_not_captured_by_extractor",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "7c95676b-a345-466d-a782-7f9c8df6647b.jsonl#35",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/7c95676b-a345-466d-a782-7f9c8df6647b.jsonl",
+      "role": "main",
+      "location": 35,
+      "timestamp": "2026-08-23T14:57:10.677Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent invokes the opsx:apply skill to delegate implementation of the OpenSpec change tasks.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:opsx_apply",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a98aa3776b49be8ce.jsonl#6",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/agent-a98aa3776b49be8ce.jsonl",
+      "role": "fresh",
+      "location": 6,
+      "timestamp": "2026-07-30T02:11:44.528Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent dispatches engram recall query to external memory system to surface prior lessons about verification procedures.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:recall",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-aa9bb69295f0f3e48.jsonl#1",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-aa9bb69295f0f3e48.jsonl",
+      "role": "fresh",
+      "location": 1,
+      "timestamp": "2026-08-08T14:03:05.231Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "User dispatches a safety-focused code review task to a subagent, requesting verification that specific fixes in a revised plan actually hold by reading and comparing plan claims against real source files.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "genuine_dispatch_checked",
+      "classification_reason": "Genuine subagent launch with parent transcript present; recall_call and dispatch_event correlated via timestamp proximity (parent dispatch_event timestamp within milliseconds of this moment's own spawn timestamp).",
+      "parent_transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd.jsonl",
+      "recall_call_location_in_parent": 835,
+      "dispatch_event_location_in_parent": 1009,
+      "dispatch_event_description": "Verify the safety fixes in the revised fixture plan",
+      "candidates": [
+        {
+          "path": "546.2026-07-27.instruct-subagents-to-stop-rather-than-invent-missing-inputs.md",
+          "rank": 1,
+          "kind": "feedback",
+          "found_in_prompt": false,
+          "paraphrase_status": "ambiguous",
+          "note": "Prompt item 5 asks the reviewer to check the PLAN avoids \"inventing rationale\" / comparative framing in its own wording - a different subject (doc-wording honesty) than the note's guidance (telling a SUBAGENT to stop rather than invent missing inputs), but both share a \"don't invent\" theme. Judged ambiguous, not confidently either way."
+        },
+        {
+          "path": "712.2026-08-02.enumerate-before-probing-for-exposure.md",
+          "rank": 1,
+          "kind": "feedback",
+          "found_in_prompt": false,
+          "paraphrase_status": "genuinely_missing",
+          "note": "Prompt item 4 asks to verify a machine-exclusion/enumeration logic for a specific security check, topically adjacent to \"enumerate before probing for exposure\" but the note's guidance is not referenced or applied as an instruction - the orchestrator asked about specific code facts, not this principle."
+        }
+      ],
+      "memories_orchestrator_had_but_left_out": [
+        "546.2026-07-27.instruct-subagents-to-stop-rather-than-invent-missing-inputs.md",
+        "712.2026-08-02.enumerate-before-probing-for-exposure.md"
+      ]
+    },
+    {
+      "moment_id": "agent-a62a32262f2a7a4b2.jsonl#5",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a62a32262f2a7a4b2.jsonl",
+      "role": "fresh",
+      "location": 5,
+      "timestamp": "2026-08-08T18:07:27.601Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent invokes recall skill in glance mode with three phrases about empirical safety verification, probe-boundary coupling, and target-direct vs third-party queries.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:recall_glance",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a6668b73a8057dd96.jsonl#5",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/30545ac3-772a-4044-a49c-ba3c2164a9a3/subagents/agent-a6668b73a8057dd96.jsonl",
+      "role": "fresh",
+      "location": 5,
+      "timestamp": "2026-08-11T19:35:29.573Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent invokes the recall skill to surface relevant memories before implementing the daemon currency check tasks.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:recall",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-ae96e991d50f060c0.jsonl#5",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-ae96e991d50f060c0.jsonl",
+      "role": "workflow",
+      "location": 5,
+      "timestamp": "2026-08-04T02:48:39.968Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent invokes recall skill to surface relevant memories before conducting adversarial spec review.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:recall",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a5a8a3513b296c3ab.jsonl#5",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-a5a8a3513b296c3ab.jsonl",
+      "role": "workflow",
+      "location": 5,
+      "timestamp": "2026-08-04T03:10:55.830Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent correctly dispatches to recall skill as first action, following user's explicit instruction 'Your FIRST action must be `/recall`'",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:recall",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a6493eb381d2089cc.jsonl#2",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/d6e0c7ea-0f20-4554-ae54-0d4f5c175473/subagents/agent-a6493eb381d2089cc.jsonl",
+      "role": "fork",
+      "location": 2,
+      "timestamp": "2026-08-30T15:52:36.561Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Parent agent launches a worker fork to author capture artifacts (ADR draft, research docs, and issue templates) with explicit directive and inherited context.",
+      "memories_in_dispatch_prompt_from_moment_record": [
+        "You inherit the full explore-session context: the memory-taxonomy research, the synthesis, and decis"
+      ],
+      "classification": "fork_trivially_handed_over",
+      "classification_reason": "role=='fork': forked subagents inherit the whole parent conversation (D-E); confirmed by matching dispatch_events entry with subagent_type=='fork' at the same location.",
+      "memories_orchestrator_had_but_left_out": []
+    },
+    {
+      "moment_id": "f4dbacdc-2279-458d-bfd4-22d35c0b01e9.jsonl#52",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/f4dbacdc-2279-458d-bfd4-22d35c0b01e9.jsonl",
+      "role": "main",
+      "location": 52,
+      "timestamp": "2026-08-09T00:07:39.199Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Agent invokes the superpowers:writing-skills skill to drive the TDD-based implementation of the SKILL.md edits, per the recalled CLAUDE.md rule.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:writing_skills",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a870083ab336f40d9.jsonl#20",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/84f3265c-9e5e-4caa-a5ae-1941cd41c308/subagents/agent-a870083ab336f40d9.jsonl",
+      "role": "fresh",
+      "location": 20,
+      "timestamp": "2026-08-09T00:57:12.467Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Agent dispatches to claude-api skill to fetch current per-token pricing for Claude models (Sonnet 5, Opus 5, Haiku 4.5), recognizing this data is required for the price-table implementation.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:claude_api",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a898d11986e0f5882.jsonl#5",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/30801ffa-792d-4dd2-ac81-62df91b6c534/subagents/agent-a898d11986e0f5882.jsonl",
+      "role": "fresh",
+      "location": 5,
+      "timestamp": "2026-08-09T16:47:57.749Z",
+      "repo": "-Users-joe-repos-personal-engram",
+      "description": "Agent dispatches to superpowers:writing-skills skill with clear RED/GREEN/REFACTOR task description for editing the Cold-start priors table.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:writing_skills",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "ecc84443-5a36-45f9-9d0b-3553550a585c.jsonl#30",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-local-llm-optimization/ecc84443-5a36-45f9-9d0b-3553550a585c.jsonl",
+      "role": "main",
+      "location": 30,
+      "timestamp": "2026-08-20T21:09:25.225Z",
+      "repo": "-Users-joe-repos-personal-local-llm-optimization",
+      "description": "Agent dispatches to recall skill to gather context on machine specs and local LLM goals before answering the model updates question.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:recall",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "07fae373-78cb-40b1-8a2d-763f18f63bb2.jsonl#23",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/07fae373-78cb-40b1-8a2d-763f18f63bb2.jsonl",
+      "role": "main",
+      "location": 23,
+      "timestamp": "2026-08-07T21:39:47.985Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent dispatches to recall skill to surface relevant memories before substantive work",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:recall",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a81b80335e1cdd38e.jsonl#2",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a81b80335e1cdd38e.jsonl",
+      "role": "fork",
+      "location": 2,
+      "timestamp": "2026-08-08T15:25:58.635Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Main agent spawns a fork to process large recall output file and synthesize notes.",
+      "memories_in_dispatch_prompt_from_moment_record": [
+        "You're continuing the /please + /opsx:apply workflow for implementing OpenSpec change \"only-owner-de"
+      ],
+      "classification": "fork_trivially_handed_over",
+      "classification_reason": "role=='fork': forked subagents inherit the whole parent conversation (D-E); confirmed by matching dispatch_events entry with subagent_type=='fork' at the same location.",
+      "memories_orchestrator_had_but_left_out": []
+    },
+    {
+      "moment_id": "agent-afdea369b5bac50d9.jsonl#4",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/98333257-838b-40f7-bb81-e705c7bc1355/subagents/agent-afdea369b5bac50d9.jsonl",
+      "role": "fresh",
+      "location": 4,
+      "timestamp": "2026-08-17T11:28:20.868Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent invokes the openspec-sync-specs skill to delegate spec syncing work.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:openspec_sync_specs",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    },
+    {
+      "moment_id": "agent-a3240fc2aeddcbe93.jsonl#5",
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-a3240fc2aeddcbe93.jsonl",
+      "role": "workflow",
+      "location": 5,
+      "timestamp": "2026-08-04T02:48:44.387Z",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "description": "Agent invokes the recall skill with three adversarial-review-focused phrases for memory-guided analysis before reading artifacts.",
+      "memories_in_dispatch_prompt_from_moment_record": [],
+      "classification": "not_a_genuine_subagent_prompt_dispatch",
+      "classification_reason": "same_context_skill_invocation:recall",
+      "memories_orchestrator_had_but_left_out": null,
+      "note": "No separate, isolated prompt is constructed for this event (it is a same-context skill/tool invocation, or -- for the one Workflow-tool launch -- an event type extract.py does not capture), so the \"left out of the dispatch prompt\" failure mode this metric measures is structurally inapplicable. Excluded from the structural-check denominator, not counted as either handed-over or left-out."
+    }
+  ]
+}

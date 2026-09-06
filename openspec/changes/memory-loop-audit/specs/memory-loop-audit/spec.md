@@ -68,13 +68,13 @@ The audit SHALL emit draft outcome records — `{moment_id, note_ref, situation_
 - **WHEN** an audit run finishes over a corpus containing applied-hurt evidence for a note
 - **THEN** an outcome record for that note exists in the output files, and the note itself is byte-identical to before the run
 
-### Requirement: Go/no-go thresholds SHALL be agreed in advance, and #739 Phase 2 waits on this audit's result
+### Requirement: The #739 Phase 2 go/no-go decision SHALL be made via critical joint review of the real results, not a pre-set automatic formula
 
-Any threshold that decides something based on the audit's numbers — including the #739 Phase 2 go/no-go decision (on the writing side: what fraction of lost lessons a completion-report step could realistically catch; on the finding side: what fraction of dispatch-time losses a prompt-injection step could realistically catch) — SHALL be committed in writing, along with what result counts as green, yellow, or red, before the full run starts. The final decision SHALL be read straight off that pre-agreed mapping, never re-decided after seeing the actual numbers. Phase 2 (injecting memories into dispatch prompts, plus a completion-report lessons step) SHALL NOT be proposed unless the result is green.
+The counting unit for every rate SHALL be fixed in writing before the full run starts (see the counting-unit requirement above) — that commitment stands. The #739 Phase 2 go/no-go decision itself SHALL NOT be read off a pre-agreed numeric mapping computed in advance of seeing results; Joe explicitly declined pre-committing automatic green/yellow/red thresholds (2026-09-01). Instead, once the audit's real per-moment records and the #739-specific writing-side and finding-side rates exist, Joe and the agent SHALL review them critically together, at the same gate where results are first shown to Joe, and decide Phase 2's fate as a considered judgment call. Phase 2 (injecting memories into dispatch prompts, plus a completion-report lessons step) SHALL NOT be proposed unless that joint review reaches a go decision.
 
-#### Scenario: The pre-agreed threshold decides
+#### Scenario: Results are reviewed critically before any decision
 - **WHEN** the full run's #739-specific numbers are in
-- **THEN** the decision is whatever the pre-agreed mapping says for those numbers, and it's recorded on #739 with the ledger row linked
+- **THEN** Joe and the agent examine the writing-side and finding-side rates together, including their failure-category breakdown and DERIVED/ESTIMATE labels, before Phase 2's fate is decided — the decision is not read off a formula computed before the numbers existed
 
 ### Requirement: Results SHALL land as LEDGER rows plus the coverage-map index, additively
 

@@ -1,0 +1,40 @@
+{
+  "disputed": [
+    {
+      "moment_id": "f4dbacdc-2279-458d-bfd4-22d35c0b01e9.jsonl#52",
+      "existed_at_judgment_time": true,
+      "would_have_changed_action": false,
+      "rationale": "The note is a vocabulary/classification definition for tagging purposes, not guidance that would alter the decision to invoke superpowers:writing-skills for TDD-based SKILL.md edits."
+    },
+    {
+      "moment_id": "agent-aa31ba62ae2e98519.jsonl#47",
+      "existed_at_judgment_time": true,
+      "would_have_changed_action": false,
+      "rationale": "The note is about LM Studio vs llama-server prefix caching behavior on local hosts, unrelated to the moment's action of retrieving Anthropic's v0.31.2 release notes about system prompt/user message caching for hybrid models."
+    },
+    {
+      "moment_id": "agent-a255a361f26705438.jsonl#42",
+      "existed_at_judgment_time": true,
+      "would_have_changed_action": false,
+      "rationale": "The note describes Joe's existing local-LLM router/model stack and doesn't contain the specific Gemma 4 12B quantization metrics (MLX OptiQ 4-bit size/capability comparison) needed to inform that particular retrieval."
+    }
+  ],
+  "undisputed_top1": [
+    "agent-afdea369b5bac50d9.jsonl#4"
+  ],
+  "final_relevant_top1_count": 1,
+  "in_top5_arbitration": [
+    {
+      "moment_id": "agent-aa31ba62ae2e98519.jsonl#38",
+      "would_have_changed_action": false,
+      "rationale": "The note is about prompt prefix caching behavior differences between LM Studio and llama-server, which is unrelated to the moment's action of discovering an mlx-lm server-hang GitHub issue."
+    },
+    {
+      "moment_id": "agent-a255a361f26705438.jsonl#51",
+      "would_have_changed_action": false,
+      "rationale": "The note describes Joe's local-LLM hardware/router setup, which is unrelated to retrieving the Artificial Analysis leaderboard for open-weight model Intelligence Index scores."
+    }
+  ],
+  "final_relevant_any_count": 1,
+  "note": "arbitration of verifier dispute, 2026-09-05; extended with strict counterfactual re-judgment of 2 relevant_in_top5 records"
+}

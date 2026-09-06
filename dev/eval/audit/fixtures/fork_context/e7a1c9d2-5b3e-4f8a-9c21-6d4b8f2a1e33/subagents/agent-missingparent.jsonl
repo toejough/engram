@@ -1,0 +1,2 @@
+{"type": "fork-context-ref", "agentId": "missingparent", "parentSessionId": "deleted-by-retention-9999", "parentLastUuid": "does-not-matter-uuid", "contextLength": 10}
+{"type": "user", "uuid": "m-u2", "parentUuid": "", "isSidechain": false, "sessionId": "fork-missingparent", "timestamp": "2026-08-31T09:00:04Z", "message": {"role": "user", "content": "This fork's parent transcript was already reaped by retention."}}

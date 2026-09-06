@@ -1,0 +1,340 @@
+{
+  "metadata": {
+    "timestamp": "2026-09-01",
+    "task": "full-run sample selection for memory-loop-audit",
+    "pilot_files_excluded": 13,
+    "target_sample_size": 47,
+    "actual_sample_size": 47
+  },
+  "sample": [
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe/1df64b43-aa52-402f-a852-0534776b788e.jsonl",
+      "repo": "-Users-joe",
+      "expected_dispatch_type": "main",
+      "size_kb": 71.1,
+      "rationale": "Sampled from -Users-joe main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-dotfiles/6eecc514-5a9e-469d-8fa9-7fed249fb9b8.jsonl",
+      "repo": "-Users-joe-dotfiles",
+      "expected_dispatch_type": "main",
+      "size_kb": 95.5,
+      "rationale": "Sampled from -Users-joe-dotfiles main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-dotfiles/b6851e89-26ad-4051-8a5b-34f0d1e59e4f/subagents/agent-a89cbbb396928d46a.jsonl",
+      "repo": "-Users-joe-dotfiles",
+      "expected_dispatch_type": "fork",
+      "size_kb": 54.6,
+      "rationale": "Sampled from -Users-joe-dotfiles fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/95d68770-85ed-489f-874f-f576f32d0630.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "main",
+      "size_kb": 2859.5,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/3b5def4d-a702-417e-afc7-40547be72d43.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "main",
+      "size_kb": 892.0,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/b1ffad9e-5318-418a-8719-442cdffe06c1.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "main",
+      "size_kb": 2405.2,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/95d68770-85ed-489f-874f-f576f32d0630/subagents/agent-a5f13c6128d39ec08.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "fork",
+      "size_kb": 297.7,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/f813e37f-6aea-440d-8726-3144ce4dffcc/subagents/agent-a587008e943630d10.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "fork",
+      "size_kb": 433.3,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/32505058-365d-47b0-94bf-d1ccc8d53326/subagents/agent-a3559439b909876dd.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "fork",
+      "size_kb": 739.1,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/b1ffad9e-5318-418a-8719-442cdffe06c1/subagents/agent-a1eb7ebc0b91dbdf0.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "fork",
+      "size_kb": 511.9,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/ab662746-d7ea-4998-8e01-11bfa07b75f3/subagents/workflows/wf_9880fc0e-a52/agent-ad4b871709b8ce771.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 167.5,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/8a544d16-5d1c-4d29-bfea-7ade7cf98f81/subagents/workflows/wf_98d221e2-e5a/agent-aa1fe140de6bdf75f.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 265.1,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/8a544d16-5d1c-4d29-bfea-7ade7cf98f81/subagents/workflows/wf_2400b04e-5bb/agent-a427a4df64476d6c0.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 122.5,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram/669289d1-46e5-4897-a541-8b52749701e5/subagents/workflows/wf_0acdf678-3b8/agent-ac2971510a7adecdf.jsonl",
+      "repo": "-Users-joe-repos-personal-engram",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 348.7,
+      "rationale": "Sampled from -Users-joe-repos-personal-engram workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/e3890148-ed3d-40f2-90b3-87404e6411e4/subagents/agent-a4aaa8d0faef73ccb.jsonl",
+      "repo": "-Users-joe-repos-personal-llmcpp",
+      "expected_dispatch_type": "fork",
+      "size_kb": 142.5,
+      "rationale": "Sampled from -Users-joe-repos-personal-llmcpp fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-llmcpp/e3890148-ed3d-40f2-90b3-87404e6411e4/subagents/workflows/wf_314311b8-dba/agent-ab2630e09d328969b.jsonl",
+      "repo": "-Users-joe-repos-personal-llmcpp",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 43.5,
+      "rationale": "Sampled from -Users-joe-repos-personal-llmcpp workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-local-llm-optimization/8e5d9c50-1bca-469d-a118-a838f5ce307f.jsonl",
+      "repo": "-Users-joe-repos-personal-local-llm-optimization",
+      "expected_dispatch_type": "main",
+      "size_kb": 89.5,
+      "rationale": "Sampled from -Users-joe-repos-personal-local-llm-optimization main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "main",
+      "size_kb": 23276.9,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/7fa0ee08-4191-46a0-985e-e21af514c450.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "main",
+      "size_kb": 2565.3,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/385dfc60-5fda-4ebe-be4c-50e4f2fa9d10.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "main",
+      "size_kb": 3496.5,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/7c95676b-a345-466d-a782-7f9c8df6647b.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "main",
+      "size_kb": 568.8,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/agent-a98aa3776b49be8ce.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 330.6,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/agent-a53c98dac1552d0d9.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 166.4,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-aa9bb69295f0f3e48.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 431.8,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/agent-a62a32262f2a7a4b2.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 407.3,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/30545ac3-772a-4044-a49c-ba3c2164a9a3/subagents/agent-a6668b73a8057dd96.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "fork",
+      "size_kb": 683.9,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-ae96e991d50f060c0.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 308.9,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/c74b4a61-5225-4b75-b65f-e99b47605fd7/subagents/workflows/wf_826923c5-d92/agent-a5a8a3513b296c3ab.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 275.5,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/57207951-9497-464c-9230-4c7f263390cd/subagents/workflows/wf_a714fbc5-61c/agent-a8a8155f08868de5d.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 244.7,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/733c8e5a-3ef8-40f9-87a6-ef294db6755b/subagents/workflows/wf_f82e1862-ed5/agent-a64467fe6c8268fdd.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 30.8,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/385dfc60-5fda-4ebe-be4c-50e4f2fa9d10/subagents/workflows/wf_c1210de2-eea/agent-aa0a29568578223b9.jsonl",
+      "repo": "-Users-joe-repos-personal-phone-llm",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 159.1,
+      "rationale": "Sampled from -Users-joe-repos-personal-phone-llm workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-pi-vim-mode/5b0f28f7-8f7b-4fa6-837c-2a877e49c9dd.jsonl",
+      "repo": "-Users-joe-repos-personal-pi-vim-mode",
+      "expected_dispatch_type": "main",
+      "size_kb": 2626.1,
+      "rationale": "Sampled from -Users-joe-repos-personal-pi-vim-mode main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-pi-vim-mode/5b0f28f7-8f7b-4fa6-837c-2a877e49c9dd/subagents/agent-a60f52782155b9ef0.jsonl",
+      "repo": "-Users-joe-repos-personal-pi-vim-mode",
+      "expected_dispatch_type": "fork",
+      "size_kb": 174.6,
+      "rationale": "Sampled from -Users-joe-repos-personal-pi-vim-mode fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-pi-vim-mode/5b0f28f7-8f7b-4fa6-837c-2a877e49c9dd/subagents/agent-a2318cf188b4dd9d2.jsonl",
+      "repo": "-Users-joe-repos-personal-pi-vim-mode",
+      "expected_dispatch_type": "fork",
+      "size_kb": 415.6,
+      "rationale": "Sampled from -Users-joe-repos-personal-pi-vim-mode fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-pi-vim-mode/5b0f28f7-8f7b-4fa6-837c-2a877e49c9dd/subagents/agent-a354a35a2e7a4def8.jsonl",
+      "repo": "-Users-joe-repos-personal-pi-vim-mode",
+      "expected_dispatch_type": "fork",
+      "size_kb": 122.2,
+      "rationale": "Sampled from -Users-joe-repos-personal-pi-vim-mode fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/af8b6c87-39b7-4a95-9bc8-c16cad509c87.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "main",
+      "size_kb": 1937.3,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/d1c5ca03-5b70-4f46-a448-fe53fd79406b.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "main",
+      "size_kb": 3104.3,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/2cd2bf0c-e152-4766-a6b1-1ac9e2457f68.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "main",
+      "size_kb": 4314.5,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ main transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/2cd2bf0c-e152-4766-a6b1-1ac9e2457f68/subagents/agent-aa229a4070e2969f6.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "fork",
+      "size_kb": 586.3,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/d1c5ca03-5b70-4f46-a448-fe53fd79406b/subagents/agent-aa350e2abbb79ea09.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "fork",
+      "size_kb": 233.9,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/1ad2fbb5-120e-4fca-9525-fd94fcf75014/subagents/agent-ac2b229951ad8fce4.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "fork",
+      "size_kb": 695.6,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/bd6efada-9acb-4081-bc1e-695596ea4550/subagents/agent-afafe4244d508553b.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "fork",
+      "size_kb": 473.5,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ fork transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/2cd2bf0c-e152-4766-a6b1-1ac9e2457f68/subagents/workflows/wf_612ff1a5-d16/agent-a8f3b70c756f57b00.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 51.1,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/2cd2bf0c-e152-4766-a6b1-1ac9e2457f68/subagents/workflows/wf_ecd28628-d67/agent-a1ce960405c2fc2de.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 316.7,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/2cd2bf0c-e152-4766-a6b1-1ac9e2457f68/subagents/workflows/wf_70f7d382-037/agent-af25add4ef5f3b044.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 305.6,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/af8b6c87-39b7-4a95-9bc8-c16cad509c87/subagents/workflows/wf_b29c44b8-e8d/agent-ad7ad81fc3fa360b4.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 90.6,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ workflow transcripts to meet per-repo targets"
+    },
+    {
+      "path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-targ/1ad2fbb5-120e-4fca-9525-fd94fcf75014/subagents/workflows/wf_6a142336-a52/agent-a4b57efebbfc106f1.jsonl",
+      "repo": "-Users-joe-repos-personal-targ",
+      "expected_dispatch_type": "workflow",
+      "size_kb": 98.6,
+      "rationale": "Sampled from -Users-joe-repos-personal-targ workflow transcripts to meet per-repo targets"
+    }
+  ]
+}

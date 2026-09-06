@@ -1,0 +1,3585 @@
+{
+  "version": "1.0",
+  "generated_date": "2026-08-31",
+  "task": "memory-loop-audit corpus discovery (tasks 1.1, 1.2, 1.3)",
+  "transcript_location_inventory": {
+    "description": "Enumeration of real project repositories with their transcript counts, grouped by base repo and categorizing worktree variants",
+    "repositories_by_base": {
+      "-Users-joe": {
+        "bases": [
+          [
+            "-Users-joe",
+            {
+              "main_sessions": 2,
+              "subagent_transcripts": 1,
+              "workflow_transcripts": 0,
+              "total": 3
+            }
+          ]
+        ],
+        "worktrees": []
+      },
+      "-Users-joe-dotfiles": {
+        "bases": [
+          [
+            "-Users-joe-dotfiles",
+            {
+              "main_sessions": 2,
+              "subagent_transcripts": 2,
+              "workflow_transcripts": 0,
+              "total": 4
+            }
+          ]
+        ],
+        "worktrees": []
+      },
+      "-Users-joe-repos-personal-engram": {
+        "bases": [
+          [
+            "-Users-joe-repos-personal-engram",
+            {
+              "main_sessions": 29,
+              "subagent_transcripts": 241,
+              "workflow_transcripts": 88,
+              "total": 358
+            }
+          ]
+        ],
+        "worktrees": [
+          [
+            "-Users-joe-repos-personal-engram--claude-worktrees-700-internal-purity",
+            {
+              "main_sessions": 1,
+              "subagent_transcripts": 88,
+              "workflow_transcripts": 17,
+              "total": 106
+            }
+          ],
+          [
+            "-Users-joe-repos-personal-engram--claude-worktrees-chunk-dedup",
+            {
+              "main_sessions": 2,
+              "subagent_transcripts": 68,
+              "workflow_transcripts": 67,
+              "total": 137
+            }
+          ]
+        ]
+      },
+      "-Users-joe-repos-personal-llmcpp": {
+        "bases": [
+          [
+            "-Users-joe-repos-personal-llmcpp",
+            {
+              "main_sessions": 3,
+              "subagent_transcripts": 14,
+              "workflow_transcripts": 56,
+              "total": 73
+            }
+          ]
+        ],
+        "worktrees": []
+      },
+      "-Users-joe-repos-personal-local-llm-optimization": {
+        "bases": [
+          [
+            "-Users-joe-repos-personal-local-llm-optimization",
+            {
+              "main_sessions": 2,
+              "subagent_transcripts": 0,
+              "workflow_transcripts": 0,
+              "total": 2
+            }
+          ]
+        ],
+        "worktrees": []
+      },
+      "-Users-joe-repos-personal-phone-llm": {
+        "bases": [
+          [
+            "-Users-joe-repos-personal-phone-llm",
+            {
+              "main_sessions": 14,
+              "subagent_transcripts": 131,
+              "workflow_transcripts": 148,
+              "total": 293
+            }
+          ]
+        ],
+        "worktrees": []
+      },
+      "-Users-joe-repos-personal-pi-vim-mode": {
+        "bases": [
+          [
+            "-Users-joe-repos-personal-pi-vim-mode",
+            {
+              "main_sessions": 1,
+              "subagent_transcripts": 31,
+              "workflow_transcripts": 0,
+              "total": 32
+            }
+          ]
+        ],
+        "worktrees": []
+      },
+      "-Users-joe-repos-personal-targ": {
+        "bases": [
+          [
+            "-Users-joe-repos-personal-targ",
+            {
+              "main_sessions": 6,
+              "subagent_transcripts": 159,
+              "workflow_transcripts": 132,
+              "total": 297
+            }
+          ]
+        ],
+        "worktrees": [
+          [
+            "-Users-joe-repos-personal-targ--claude-worktrees-issue-40",
+            {
+              "main_sessions": 4,
+              "subagent_transcripts": 74,
+              "workflow_transcripts": 19,
+              "total": 97
+            }
+          ]
+        ]
+      }
+    },
+    "excluded_directories": {
+      "-private-tmp-arm-wnf-adjacent-1": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-arm-wnf-adjacent-2": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-arm-wnf-adjacent-3": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-claude-501--Users-joe-repos-personal-engram-ed0c8f2b-9088-458f-8cdc-af8926544975-scratchpad": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t1-app1-real-lazy": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t1-app1-real.lazy": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t1-app2-real.eager": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t1-app3-real.eager": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t2-app1-real-eager": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t2-app1-real.lazy": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t2-app3-real.eager": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t3-app1-real-eager": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t3-app1-real.eager": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t3-app2-real.eager": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t3-app2-real.lazy": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t4-app3-real.lazy": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t5-app1-real.eager": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t5-app1-real.lazy": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-cummatrix-real-ws-opus-t5-app3-real.eager": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-gate-lazy2-ws": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-greenb-work-1": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-greenb-work-4": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-greenb-work-6": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-oa-t3-adjacent-1": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-oa-t3-adjacent-2": "Ephemeral test/eval directory (created for eval runs, not a real repo)",
+      "-private-tmp-oa-t3-adjacent-3": "Ephemeral test/eval directory (created for eval runs, not a real repo)"
+    },
+    "excluded_directories_rationale": "All directories starting with -private-tmp- are ephemeral test/eval directories created for evaluation runs and reused across sessions. They are not real development repositories.",
+    "summary": {
+      "real_repos_with_transcripts": 8,
+      "total_repos_including_worktrees": 11,
+      "excluded_ephemeral_dirs": 26
+    }
+  },
+  "pi_transcripts": {
+    "found": true,
+    "location": "/Users/joe/.pi/agent",
+    "structure": "Directory of per-session .jsonl files at ~/.pi/agent/sessions/**/*.jsonl, analogous to Claude Code project structure but without per-repo grouping",
+    "session_files_count": 52,
+    "also_has_run_history": true,
+    "note": "Pi transcripts exist and are structured differently from Claude Code: there is no per-repo grouping (no ~source directory mapping like ~/.claude/projects); all sessions are flat-listed in ~/.pi/agent/sessions/. For this audit, Pi sessions should be included if analysis scope covers multiple harnesses.",
+    "extractor_support": "added in task 2.3 — dev/eval/audit/extract.py now auto-detects Pi format (by checking first line for {type: session, version: 3}), parses JSONL message structure with bash/subagent tool calls, and extracts recall calls, dispatch events with multiple tasks per subagent call, and engram commands. See extract_transcript_pi() for implementation and extract.py for format-detection logic."
+  },
+  "sampling_plan": {
+    "description": "Representative sample design for memory-loop-audit, ensuring coverage across all repos and transcript types",
+    "repo_transcript_counts": {
+      "-Users-joe": {
+        "main": 2,
+        "subagent": 1,
+        "workflow": 0,
+        "total": 3
+      },
+      "-Users-joe-dotfiles": {
+        "main": 2,
+        "subagent": 2,
+        "workflow": 0,
+        "total": 4
+      },
+      "-Users-joe-repos-personal-engram": {
+        "main": 32,
+        "subagent": 397,
+        "workflow": 172,
+        "total": 601
+      },
+      "-Users-joe-repos-personal-llmcpp": {
+        "main": 3,
+        "subagent": 14,
+        "workflow": 56,
+        "total": 73
+      },
+      "-Users-joe-repos-personal-local-llm-optimization": {
+        "main": 2,
+        "subagent": 0,
+        "workflow": 0,
+        "total": 2
+      },
+      "-Users-joe-repos-personal-phone-llm": {
+        "main": 14,
+        "subagent": 131,
+        "workflow": 148,
+        "total": 293
+      },
+      "-Users-joe-repos-personal-pi-vim-mode": {
+        "main": 1,
+        "subagent": 31,
+        "workflow": 0,
+        "total": 32
+      },
+      "-Users-joe-repos-personal-targ": {
+        "main": 10,
+        "subagent": 233,
+        "workflow": 151,
+        "total": 394
+      }
+    },
+    "dispatch_type_sample": {
+      "sample_size": 26,
+      "classification_method": "Read first 50 lines of each sampled subagent transcript; check for fork boilerplate (\"inherit\", \"inherited\", \"conversation context\", \"parent\", \"prior turn\"); check file path for workflow indicator (/subagents/workflows/); classify accordingly",
+      "results": {
+        "fork_subagents": {
+          "count": 19,
+          "percentage": 73.1
+        },
+        "workflow_subagents": {
+          "count": 7,
+          "percentage": 26.9
+        },
+        "fresh_context_subagents": {
+          "count": 0,
+          "percentage": 0.0
+        }
+      },
+      "note": "SAMPLE-BASED ESTIMATE. Fresh-context subagents may exist but were not found in the 26-file sample across all repos; a full scan of all subagent files may reveal some."
+    },
+    "proposed_sample": {
+      "reasoning": "Must span EVERY repo (to avoid single-repo bias per vault note 110) with both main and subagent/workflow transcripts. Precedent used 40 transcripts (25 subagent + 15 main) across 5 repos; scaled to 8 repos: ~64 transcripts (40 subagent + 24 main), sampled to ensure each repo appears. Main repos with heavy transcripts (engram, phone-llm, targ) sampled proportionally more heavily.",
+      "target_sample_size": 64,
+      "composition": {
+        "main_agent_transcripts": 24,
+        "subagent_plus_workflow_transcripts": 40
+      },
+      "per_repo_targets": {
+        "-Users-joe": {
+          "main": 1,
+          "subagent": 0,
+          "total": 1
+        },
+        "-Users-joe-dotfiles": {
+          "main": 1,
+          "subagent": 1,
+          "total": 2
+        },
+        "-Users-joe-repos-personal-engram": {
+          "main": 4,
+          "subagent": 12,
+          "total": 16
+        },
+        "-Users-joe-repos-personal-llmcpp": {
+          "main": 1,
+          "subagent": 3,
+          "total": 4
+        },
+        "-Users-joe-repos-personal-local-llm-optimization": {
+          "main": 1,
+          "subagent": 0,
+          "total": 1
+        },
+        "-Users-joe-repos-personal-phone-llm": {
+          "main": 4,
+          "subagent": 12,
+          "total": 16
+        },
+        "-Users-joe-repos-personal-pi-vim-mode": {
+          "main": 1,
+          "subagent": 3,
+          "total": 4
+        },
+        "-Users-joe-repos-personal-targ": {
+          "main": 4,
+          "subagent": 12,
+          "total": 16
+        }
+      },
+      "dispatch_type_sample_estimate": "SAMPLE-BASED ESTIMATE from 26 sampled subagent transcripts across all repos: fork 73.1% (19/26), workflow 26.9% (7/26), fresh-context 0% (0/26). Note: Fresh-context subagents may exist but were not found in this sample; may need targeted search if important for analysis."
+    },
+    "oversized_files_requiring_windowing": {
+      "-Users-joe-repos-personal-engram": [
+        {
+          "filename": "69bed969-14fd-4e2e-9850-3b31798b9642.jsonl",
+          "size_kb": 7380.0439453125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 49,
+            "approx_window_size_kb": 150.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 945 estimated turns, create 49 windows of ~151KB each."
+          }
+        },
+        {
+          "filename": "9b6e137d-a45f-40b1-bfeb-89b23df2ae9b.jsonl",
+          "size_kb": 5837.71484375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 39,
+            "approx_window_size_kb": 149.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 747 estimated turns, create 39 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "f813e37f-6aea-440d-8726-3144ce4dffcc.jsonl",
+          "size_kb": 3993.4345703125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 27,
+            "approx_window_size_kb": 147.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 511 estimated turns, create 27 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "4a464ec7-990b-48cd-88f3-10828ee999af.jsonl",
+          "size_kb": 3775.177734375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 25,
+            "approx_window_size_kb": 151.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 483 estimated turns, create 25 windows of ~151KB each."
+          }
+        },
+        {
+          "filename": "5f3fdafd-4a20-4e86-8534-b4b95ec0281c.jsonl",
+          "size_kb": 3704.9345703125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 25,
+            "approx_window_size_kb": 148.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 474 estimated turns, create 25 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "5dc2c0c1-ced4-4000-a6bd-a1c604311e92.jsonl",
+          "size_kb": 3671.2412109375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 24,
+            "approx_window_size_kb": 153.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 470 estimated turns, create 24 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "c1fb4363-4ee4-440c-a711-ce83560ba8b4.jsonl",
+          "size_kb": 2898.2646484375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 19,
+            "approx_window_size_kb": 152.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 371 estimated turns, create 19 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "95d68770-85ed-489f-874f-f576f32d0630.jsonl",
+          "size_kb": 2859.45703125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 19,
+            "approx_window_size_kb": 150.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 366 estimated turns, create 19 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "b1ffad9e-5318-418a-8719-442cdffe06c1.jsonl",
+          "size_kb": 2405.1865234375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 16,
+            "approx_window_size_kb": 150.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 308 estimated turns, create 16 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "ab662746-d7ea-4998-8e01-11bfa07b75f3.jsonl",
+          "size_kb": 2216.44921875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 15,
+            "approx_window_size_kb": 147.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 284 estimated turns, create 15 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "ed0c8f2b-9088-458f-8cdc-af8926544975.jsonl",
+          "size_kb": 2157.4501953125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 14,
+            "approx_window_size_kb": 154.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 276 estimated turns, create 14 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-ad69578fbc7abd922.jsonl",
+          "size_kb": 2056.5712890625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 14,
+            "approx_window_size_kb": 146.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 263 estimated turns, create 14 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-a233f00a19ed915c0.jsonl",
+          "size_kb": 2034.705078125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 14,
+            "approx_window_size_kb": 145.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 260 estimated turns, create 14 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-ad40e43199f0f4300.jsonl",
+          "size_kb": 1991.5341796875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 13,
+            "approx_window_size_kb": 153.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 255 estimated turns, create 13 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-ad7e13525fee555ea.jsonl",
+          "size_kb": 1983.0771484375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 13,
+            "approx_window_size_kb": 152.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 254 estimated turns, create 13 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "32505058-365d-47b0-94bf-d1ccc8d53326.jsonl",
+          "size_kb": 1964.181640625,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 13,
+            "approx_window_size_kb": 151.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 251 estimated turns, create 13 windows of ~151KB each."
+          }
+        },
+        {
+          "filename": "agent-aafb00f4d04974f77.jsonl",
+          "size_kb": 1953.1953125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 13,
+            "approx_window_size_kb": 150.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 250 estimated turns, create 13 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-aabf3f5956834349d.jsonl",
+          "size_kb": 1918.498046875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 13,
+            "approx_window_size_kb": 147.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 246 estimated turns, create 13 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "agent-a840be1ea9333773a.jsonl",
+          "size_kb": 1802.7998046875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 12,
+            "approx_window_size_kb": 150.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 231 estimated turns, create 12 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "a19cc352-75cc-4a0d-9dcc-a5504357df38.jsonl",
+          "size_kb": 1758.9140625,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 12,
+            "approx_window_size_kb": 146.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 225 estimated turns, create 12 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "2ede3f9b-f89b-4fce-b891-04132b1f296a.jsonl",
+          "size_kb": 1705.5556640625,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 11,
+            "approx_window_size_kb": 155.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 218 estimated turns, create 11 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-a6018c367ed837d77.jsonl",
+          "size_kb": 1682.556640625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 11,
+            "approx_window_size_kb": 153.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 215 estimated turns, create 11 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "100a34e6-3fb7-4c6b-b7d6-4f8b05db012d.jsonl",
+          "size_kb": 1629.8525390625,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 11,
+            "approx_window_size_kb": 148.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 209 estimated turns, create 11 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "agent-a40708139461b85f9.jsonl",
+          "size_kb": 1614.419921875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 11,
+            "approx_window_size_kb": 146.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 207 estimated turns, create 11 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "d6e0c7ea-0f20-4554-ae54-0d4f5c175473.jsonl",
+          "size_kb": 1589.76171875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 11,
+            "approx_window_size_kb": 144.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 203 estimated turns, create 11 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "7048c38b-4550-4c6b-8d2c-8391ead37672.jsonl",
+          "size_kb": 1494.5751953125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 10,
+            "approx_window_size_kb": 149.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 191 estimated turns, create 10 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-ae1201ffd7a975e95.jsonl",
+          "size_kb": 1421.576171875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 158.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 182 estimated turns, create 9 windows of ~158KB each."
+          }
+        },
+        {
+          "filename": "8a544d16-5d1c-4d29-bfea-7ade7cf98f81.jsonl",
+          "size_kb": 1410.4990234375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 156.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 181 estimated turns, create 9 windows of ~157KB each."
+          }
+        },
+        {
+          "filename": "de299ba5-cb7b-467e-ae4c-0aee5606e7cd.jsonl",
+          "size_kb": 1383.78125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 153.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 177 estimated turns, create 9 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-a9e0be13ea6228edb.jsonl",
+          "size_kb": 1382.603515625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 153.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 177 estimated turns, create 9 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-a71d1f003f0de6320.jsonl",
+          "size_kb": 1368.4658203125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 152.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 175 estimated turns, create 9 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "agent-ab5c5676046f66c57.jsonl",
+          "size_kb": 1368.3603515625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 152.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 175 estimated turns, create 9 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "agent-a4493ba2c2008a7cf.jsonl",
+          "size_kb": 1341.4462890625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 149.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 172 estimated turns, create 9 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-a336438ab0532c2af.jsonl",
+          "size_kb": 1333.7177734375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 148.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 171 estimated turns, create 9 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "32629d8c-395d-4665-adeb-88508611c8c9.jsonl",
+          "size_kb": 1325.0595703125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 147.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 170 estimated turns, create 9 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "84f3265c-9e5e-4caa-a5ae-1941cd41c308.jsonl",
+          "size_kb": 1309.455078125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 145.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 168 estimated turns, create 9 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-a17b3ba89085494f1.jsonl",
+          "size_kb": 1308.994140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 145.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 168 estimated turns, create 9 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-a0d2f58c08942d793.jsonl",
+          "size_kb": 1303.6435546875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 144.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 167 estimated turns, create 9 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-a0682012b386953db.jsonl",
+          "size_kb": 1300.6015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 144.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 166 estimated turns, create 9 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-a202a7a27d33fb7b0.jsonl",
+          "size_kb": 1296.6982421875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 144.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 166 estimated turns, create 9 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-a7ea28929f73ef721.jsonl",
+          "size_kb": 1283.87109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 142.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 164 estimated turns, create 9 windows of ~143KB each."
+          }
+        },
+        {
+          "filename": "agent-a203dc97026263535.jsonl",
+          "size_kb": 1273.6328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 159.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 163 estimated turns, create 8 windows of ~159KB each."
+          }
+        },
+        {
+          "filename": "agent-acc4a20c552f44948.jsonl",
+          "size_kb": 1260.2451171875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 157.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 161 estimated turns, create 8 windows of ~158KB each."
+          }
+        },
+        {
+          "filename": "agent-ae9d48761da0d6691.jsonl",
+          "size_kb": 1254.6806640625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 156.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 161 estimated turns, create 8 windows of ~157KB each."
+          }
+        },
+        {
+          "filename": "agent-a2ecfe7d454b5a614.jsonl",
+          "size_kb": 1235.4609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 154.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 158 estimated turns, create 8 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-aecf9f62dc8370d1d.jsonl",
+          "size_kb": 1198.861328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 149.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 153 estimated turns, create 8 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-a0b6bbd53f7cebbdc.jsonl",
+          "size_kb": 1195.51953125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 149.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 153 estimated turns, create 8 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-a24a60674e73ea600.jsonl",
+          "size_kb": 1162.7919921875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 145.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 149 estimated turns, create 8 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-ac151fa71f7b05042.jsonl",
+          "size_kb": 1158.2822265625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 144.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 148 estimated turns, create 8 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-a0d1573b968090d73.jsonl",
+          "size_kb": 1139.96875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 142.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 146 estimated turns, create 8 windows of ~142KB each."
+          }
+        },
+        {
+          "filename": "agent-a75f790a02fe0d2c6.jsonl",
+          "size_kb": 1129.8974609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 141.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 145 estimated turns, create 8 windows of ~141KB each."
+          }
+        },
+        {
+          "filename": "agent-ab13032c82c1d75c8.jsonl",
+          "size_kb": 1120.28125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 160.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 143 estimated turns, create 7 windows of ~160KB each."
+          }
+        },
+        {
+          "filename": "agent-adc695e6a4524686e.jsonl",
+          "size_kb": 1102.705078125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 157.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 141 estimated turns, create 7 windows of ~158KB each."
+          }
+        },
+        {
+          "filename": "agent-a4ce12a2f4b477eb1.jsonl",
+          "size_kb": 1081.5283203125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 154.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 138 estimated turns, create 7 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-a36ca642b7055ecf9.jsonl",
+          "size_kb": 1077.310546875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 153.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 138 estimated turns, create 7 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-a487ca80b87e22bda.jsonl",
+          "size_kb": 1057.0556640625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 151.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 135 estimated turns, create 7 windows of ~151KB each."
+          }
+        },
+        {
+          "filename": "agent-a5fba81c2a04d5ed9.jsonl",
+          "size_kb": 1048.26953125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 149.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 134 estimated turns, create 7 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-ac8e2eab3ec86c88c.jsonl",
+          "size_kb": 1035.7685546875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 148.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 133 estimated turns, create 7 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "agent-a542c54b7ef133580.jsonl",
+          "size_kb": 1035.6435546875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 147.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 133 estimated turns, create 7 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "agent-af2f15e7a5e909ea3.jsonl",
+          "size_kb": 1021.419921875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 145.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 131 estimated turns, create 7 windows of ~146KB each."
+          }
+        },
+        {
+          "filename": "agent-a33899e9a47a7037b.jsonl",
+          "size_kb": 1017.0771484375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 145.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 130 estimated turns, create 7 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-aa024d34f6cb58580.jsonl",
+          "size_kb": 1006.263671875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 143.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 129 estimated turns, create 7 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-ad4cbabdfd0365169.jsonl",
+          "size_kb": 1004.8271484375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 143.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 129 estimated turns, create 7 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-a1258b4831aae9ec8.jsonl",
+          "size_kb": 993.0234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 141.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 127 estimated turns, create 7 windows of ~142KB each."
+          }
+        },
+        {
+          "filename": "agent-ab3ca08455f37aedb.jsonl",
+          "size_kb": 985.7041015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 140.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 126 estimated turns, create 7 windows of ~141KB each."
+          }
+        },
+        {
+          "filename": "agent-a37ee4cd83e7c62de.jsonl",
+          "size_kb": 963.5859375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 160.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 123 estimated turns, create 6 windows of ~161KB each."
+          }
+        },
+        {
+          "filename": "agent-a2e3d5b6bcc1d2fbf.jsonl",
+          "size_kb": 956.7216796875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 159.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 122 estimated turns, create 6 windows of ~159KB each."
+          }
+        },
+        {
+          "filename": "agent-a0ea42ffd09c2a909.jsonl",
+          "size_kb": 952.37109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 158.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 122 estimated turns, create 6 windows of ~159KB each."
+          }
+        },
+        {
+          "filename": "agent-a870083ab336f40d9.jsonl",
+          "size_kb": 933.4873046875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 155.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 119 estimated turns, create 6 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-a84b063ca1119248a.jsonl",
+          "size_kb": 927.3046875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 154.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 119 estimated turns, create 6 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-a9f6d77cbbcb761b3.jsonl",
+          "size_kb": 926.1806640625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 154.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 119 estimated turns, create 6 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-a1801d2df62c05b6b.jsonl",
+          "size_kb": 925.4365234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 154.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 118 estimated turns, create 6 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-ae96def70e886c906.jsonl",
+          "size_kb": 919.7861328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 153.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 118 estimated turns, create 6 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-a81138807defb055e.jsonl",
+          "size_kb": 918.7734375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 153.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 118 estimated turns, create 6 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-a3d33d0cb59a9954c.jsonl",
+          "size_kb": 915.01171875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 152.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 117 estimated turns, create 6 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-ab5a3c89643df65e0.jsonl",
+          "size_kb": 901.3505859375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 150.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 115 estimated turns, create 6 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-aeb8a4c66c71abe1a.jsonl",
+          "size_kb": 899.4208984375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 149.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 115 estimated turns, create 6 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "3b5def4d-a702-417e-afc7-40547be72d43.jsonl",
+          "size_kb": 892.021484375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 148.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 114 estimated turns, create 6 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-af6ae056e37a9a071.jsonl",
+          "size_kb": 879.5380859375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 146.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 113 estimated turns, create 6 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-a86b479a213abef36.jsonl",
+          "size_kb": 870.4853515625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 145.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 111 estimated turns, create 6 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-a86b479a213abef36.jsonl",
+          "size_kb": 870.4853515625,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 145.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 111 estimated turns, create 6 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-a2dd5ec03d2859121.jsonl",
+          "size_kb": 869.8525390625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 145.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 111 estimated turns, create 6 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-a0a7757aeff963462.jsonl",
+          "size_kb": 849.5810546875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 141.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 109 estimated turns, create 6 windows of ~142KB each."
+          }
+        },
+        {
+          "filename": "agent-a722b1d4b550aafd7.jsonl",
+          "size_kb": 837.1396484375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 139.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 107 estimated turns, create 6 windows of ~140KB each."
+          }
+        },
+        {
+          "filename": "agent-ae8327728f0e48cad.jsonl",
+          "size_kb": 834.30078125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 139.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 107 estimated turns, create 6 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "30801ffa-792d-4dd2-ac81-62df91b6c534.jsonl",
+          "size_kb": 833.2109375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 138.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 107 estimated turns, create 6 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-aa765e6cf7e9fa162.jsonl",
+          "size_kb": 831.9384765625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 138.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 106 estimated turns, create 6 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-a9021415ac6037520.jsonl",
+          "size_kb": 829.396484375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 138.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 106 estimated turns, create 6 windows of ~138KB each."
+          }
+        },
+        {
+          "filename": "agent-a95c7a8500e4c81c7.jsonl",
+          "size_kb": 829.099609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 138.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 106 estimated turns, create 6 windows of ~138KB each."
+          }
+        },
+        {
+          "filename": "742482f5-3942-450f-a916-c3dcbfab7b98.jsonl",
+          "size_kb": 818.1865234375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 163.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 105 estimated turns, create 5 windows of ~164KB each."
+          }
+        },
+        {
+          "filename": "agent-a46ae6558f50d9345.jsonl",
+          "size_kb": 817.8291015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 163.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 105 estimated turns, create 5 windows of ~164KB each."
+          }
+        },
+        {
+          "filename": "agent-abe8695d7e0407754.jsonl",
+          "size_kb": 809.4912109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 161.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 104 estimated turns, create 5 windows of ~162KB each."
+          }
+        },
+        {
+          "filename": "agent-a19866fd85689deb1.jsonl",
+          "size_kb": 804.8701171875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 161.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 103 estimated turns, create 5 windows of ~161KB each."
+          }
+        },
+        {
+          "filename": "agent-a8c1695aa47cb3954.jsonl",
+          "size_kb": 798.884765625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 159.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 102 estimated turns, create 5 windows of ~160KB each."
+          }
+        },
+        {
+          "filename": "agent-a96038d74a01cd42e.jsonl",
+          "size_kb": 794.8984375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 159.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 102 estimated turns, create 5 windows of ~159KB each."
+          }
+        },
+        {
+          "filename": "669289d1-46e5-4897-a541-8b52749701e5.jsonl",
+          "size_kb": 794.466796875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 158.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 102 estimated turns, create 5 windows of ~159KB each."
+          }
+        },
+        {
+          "filename": "agent-a72183552bba70116.jsonl",
+          "size_kb": 791.845703125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 158.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 101 estimated turns, create 5 windows of ~158KB each."
+          }
+        },
+        {
+          "filename": "agent-a7d9d404a3334fa62.jsonl",
+          "size_kb": 787.6611328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 157.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 101 estimated turns, create 5 windows of ~158KB each."
+          }
+        },
+        {
+          "filename": "agent-a8f05266873225b64.jsonl",
+          "size_kb": 783.2626953125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 156.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 100 estimated turns, create 5 windows of ~157KB each."
+          }
+        },
+        {
+          "filename": "agent-a555bb1cca626d82a.jsonl",
+          "size_kb": 781.0693359375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 156.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 100 estimated turns, create 5 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-ad2c6c78c30dbf415.jsonl",
+          "size_kb": 779.6005859375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 155.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 100 estimated turns, create 5 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-ad2c6c78c30dbf415.jsonl",
+          "size_kb": 779.6005859375,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 155.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 100 estimated turns, create 5 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-aa0889f0790a7e397.jsonl",
+          "size_kb": 778.240234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 155.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 100 estimated turns, create 5 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-aa0889f0790a7e397.jsonl",
+          "size_kb": 778.240234375,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 155.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 100 estimated turns, create 5 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-a3e417ee0e70ebd48.jsonl",
+          "size_kb": 777.701171875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 155.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 100 estimated turns, create 5 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-a20e3e25e7515a6c4.jsonl",
+          "size_kb": 775.3134765625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 155.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 99 estimated turns, create 5 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-ac7aa903ea3c9ff6b.jsonl",
+          "size_kb": 769.8271484375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 154.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 99 estimated turns, create 5 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-a4bd6c5e8880cbf1b.jsonl",
+          "size_kb": 768.8916015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 153.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 98 estimated turns, create 5 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-aa7058be5d2e72539.jsonl",
+          "size_kb": 768.20703125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 153.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 98 estimated turns, create 5 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "cafbb0e8-95db-4129-ad69-9acb9ebcb7f4.jsonl",
+          "size_kb": 768.052734375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 153.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 98 estimated turns, create 5 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-a37c32e8b57742b70.jsonl",
+          "size_kb": 766.0517578125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 153.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 98 estimated turns, create 5 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-a946db42c09dac13d.jsonl",
+          "size_kb": 761.87890625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 152.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 98 estimated turns, create 5 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "agent-ac561ad574639ee98.jsonl",
+          "size_kb": 759.748046875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 151.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 97 estimated turns, create 5 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "agent-a7378be46de358196.jsonl",
+          "size_kb": 753.798828125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 150.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 96 estimated turns, create 5 windows of ~151KB each."
+          }
+        },
+        {
+          "filename": "agent-a6a3d9fcf159e0d5e.jsonl",
+          "size_kb": 752.0732421875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 150.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 96 estimated turns, create 5 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-a0d72ade24b680fb5.jsonl",
+          "size_kb": 749.216796875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 149.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 96 estimated turns, create 5 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-a3559439b909876dd.jsonl",
+          "size_kb": 739.1357421875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 147.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 95 estimated turns, create 5 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "agent-a388bc58e96ae2c87.jsonl",
+          "size_kb": 736.54296875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 147.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 94 estimated turns, create 5 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-a69dbe913c05694e6.jsonl",
+          "size_kb": 732.984375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 146.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 94 estimated turns, create 5 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-a971f35b8ecbbc621.jsonl",
+          "size_kb": 731.4072265625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 146.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 94 estimated turns, create 5 windows of ~146KB each."
+          }
+        },
+        {
+          "filename": "agent-a5c806e459aab14b6.jsonl",
+          "size_kb": 707.7783203125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 141.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 91 estimated turns, create 5 windows of ~142KB each."
+          }
+        },
+        {
+          "filename": "agent-a49e1133b4c2052ee.jsonl",
+          "size_kb": 704.0380859375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 140.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 90 estimated turns, create 5 windows of ~141KB each."
+          }
+        },
+        {
+          "filename": "agent-a8980bf3ddf08f39a.jsonl",
+          "size_kb": 702.4755859375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 140.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 90 estimated turns, create 5 windows of ~140KB each."
+          }
+        },
+        {
+          "filename": "agent-acb6477352f24d834.jsonl",
+          "size_kb": 696.5869140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 139.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 89 estimated turns, create 5 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-a53b5c2744200f795.jsonl",
+          "size_kb": 682.138671875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 136.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 87 estimated turns, create 5 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-ae34748203a7e71c2.jsonl",
+          "size_kb": 669.3896484375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 167.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 86 estimated turns, create 4 windows of ~167KB each."
+          }
+        },
+        {
+          "filename": "agent-a5e6faa4e26319214.jsonl",
+          "size_kb": 668.2060546875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 167.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 86 estimated turns, create 4 windows of ~167KB each."
+          }
+        },
+        {
+          "filename": "agent-adfe849221a5544c4.jsonl",
+          "size_kb": 655.1416015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 163.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 84 estimated turns, create 4 windows of ~164KB each."
+          }
+        },
+        {
+          "filename": "agent-a986b89add288ad7a.jsonl",
+          "size_kb": 644.0322265625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 161.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 82 estimated turns, create 4 windows of ~161KB each."
+          }
+        },
+        {
+          "filename": "agent-ac4454c8cc8b5bf7b.jsonl",
+          "size_kb": 641.9462890625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 160.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 82 estimated turns, create 4 windows of ~160KB each."
+          }
+        },
+        {
+          "filename": "agent-a00d583a1f4a02cea.jsonl",
+          "size_kb": 640.265625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 160.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 82 estimated turns, create 4 windows of ~160KB each."
+          }
+        },
+        {
+          "filename": "agent-a8837dcfdf41877ed.jsonl",
+          "size_kb": 638.0947265625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 159.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 82 estimated turns, create 4 windows of ~160KB each."
+          }
+        },
+        {
+          "filename": "agent-ab56b926239c338e4.jsonl",
+          "size_kb": 637.5615234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 159.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 82 estimated turns, create 4 windows of ~159KB each."
+          }
+        },
+        {
+          "filename": "agent-ac38bb7ba6bc4f70e.jsonl",
+          "size_kb": 635.05078125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 158.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 81 estimated turns, create 4 windows of ~159KB each."
+          }
+        },
+        {
+          "filename": "agent-adaf30abf725e7a3e.jsonl",
+          "size_kb": 627.375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 156.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 80 estimated turns, create 4 windows of ~157KB each."
+          }
+        },
+        {
+          "filename": "agent-aa5e3c3fa5b366f30.jsonl",
+          "size_kb": 624.599609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 156.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 80 estimated turns, create 4 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-a60c4954d2c604a2a.jsonl",
+          "size_kb": 624.31640625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 156.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 80 estimated turns, create 4 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "081fcd56-c5b6-4ea0-b8eb-6001fbed1f44.jsonl",
+          "size_kb": 623.982421875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 156.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 80 estimated turns, create 4 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-a034663f58a9ba131.jsonl",
+          "size_kb": 622.6806640625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 155.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 80 estimated turns, create 4 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-a3710cc77538c1c4c.jsonl",
+          "size_kb": 621.0595703125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 155.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 79 estimated turns, create 4 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-abaf7277f53870119.jsonl",
+          "size_kb": 614.9208984375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 153.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 79 estimated turns, create 4 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-acd0241d0174b7f21.jsonl",
+          "size_kb": 613.373046875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 153.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 79 estimated turns, create 4 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-a51b3781a367cfad5.jsonl",
+          "size_kb": 611.1845703125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 152.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-ac34218941672df40.jsonl",
+          "size_kb": 611.1650390625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 152.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-a51be248c88348d19.jsonl",
+          "size_kb": 610.955078125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 152.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-a4e3b79794c13dedf.jsonl",
+          "size_kb": 610.9013671875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 152.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-a4e3b79794c13dedf.jsonl",
+          "size_kb": 610.9013671875,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 152.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-aa6a90e9ffda42261.jsonl",
+          "size_kb": 607.599609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 151.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "agent-a10ee138c1202e146.jsonl",
+          "size_kb": 607.5244140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 151.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "agent-a5b0e3768a9ab758e.jsonl",
+          "size_kb": 606.6328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 151.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "agent-a5b0e3768a9ab758e.jsonl",
+          "size_kb": 606.6328125,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 151.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "agent-a65bc6a56a70e6482.jsonl",
+          "size_kb": 596.74609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 149.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 76 estimated turns, create 4 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-a826600d972412069.jsonl",
+          "size_kb": 594.189453125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 148.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 76 estimated turns, create 4 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-a79d83fe65079b8ad.jsonl",
+          "size_kb": 593.0732421875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 148.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 76 estimated turns, create 4 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "agent-a28d1a92258a653b4.jsonl",
+          "size_kb": 591.01171875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 147.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 76 estimated turns, create 4 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "agent-acfff867ca4c06dd7.jsonl",
+          "size_kb": 589.185546875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 147.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 75 estimated turns, create 4 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-a6143e81d343e9367.jsonl",
+          "size_kb": 584.3798828125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 146.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 75 estimated turns, create 4 windows of ~146KB each."
+          }
+        },
+        {
+          "filename": "agent-a0a4948da9d0ed726.jsonl",
+          "size_kb": 572.330078125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 143.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 73 estimated turns, create 4 windows of ~143KB each."
+          }
+        },
+        {
+          "filename": "agent-ae7f18f6e9cb0a6c6.jsonl",
+          "size_kb": 570.7568359375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 142.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 73 estimated turns, create 4 windows of ~143KB each."
+          }
+        },
+        {
+          "filename": "agent-a469a18b8f1ae2390.jsonl",
+          "size_kb": 563.615234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 140.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 72 estimated turns, create 4 windows of ~141KB each."
+          }
+        },
+        {
+          "filename": "agent-a3cedbd5cba78beee.jsonl",
+          "size_kb": 560.1640625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 140.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 72 estimated turns, create 4 windows of ~140KB each."
+          }
+        },
+        {
+          "filename": "agent-ab16d87224541c1e7.jsonl",
+          "size_kb": 558.4560546875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 139.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 71 estimated turns, create 4 windows of ~140KB each."
+          }
+        },
+        {
+          "filename": "agent-a821e16e21b416004.jsonl",
+          "size_kb": 555.037109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 138.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 71 estimated turns, create 4 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-aa5f1efdee54537f0.jsonl",
+          "size_kb": 550.5283203125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 137.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~138KB each."
+          }
+        },
+        {
+          "filename": "agent-a39a39fab77eca176.jsonl",
+          "size_kb": 547.9599609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 137.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~137KB each."
+          }
+        },
+        {
+          "filename": "agent-a21d96ae9a6121a2e.jsonl",
+          "size_kb": 542.1123046875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 135.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 69 estimated turns, create 4 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-a7a6190594b4dcd62.jsonl",
+          "size_kb": 540.908203125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 135.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 69 estimated turns, create 4 windows of ~135KB each."
+          }
+        },
+        {
+          "filename": "agent-a00f558241286bef5.jsonl",
+          "size_kb": 539.962890625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 135.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 69 estimated turns, create 4 windows of ~135KB each."
+          }
+        },
+        {
+          "filename": "agent-a77635b710e07d9dc.jsonl",
+          "size_kb": 536.5869140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 134.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 69 estimated turns, create 4 windows of ~134KB each."
+          }
+        },
+        {
+          "filename": "agent-afd60a30d3b92871c.jsonl",
+          "size_kb": 532.2744140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 133.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 68 estimated turns, create 4 windows of ~133KB each."
+          }
+        },
+        {
+          "filename": "agent-a90a896cf86d11cb3.jsonl",
+          "size_kb": 531.4755859375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 132.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 68 estimated turns, create 4 windows of ~133KB each."
+          }
+        },
+        {
+          "filename": "agent-a90a896cf86d11cb3.jsonl",
+          "size_kb": 531.4755859375,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 132.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 68 estimated turns, create 4 windows of ~133KB each."
+          }
+        },
+        {
+          "filename": "agent-ab3da7782377018c4.jsonl",
+          "size_kb": 524.0791015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 174.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 67 estimated turns, create 3 windows of ~175KB each."
+          }
+        },
+        {
+          "filename": "agent-a6ef005f6ba54d4bd.jsonl",
+          "size_kb": 522.3798828125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 174.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 67 estimated turns, create 3 windows of ~174KB each."
+          }
+        },
+        {
+          "filename": "agent-a3dfadabaf859ea42.jsonl",
+          "size_kb": 519.431640625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 173.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 66 estimated turns, create 3 windows of ~173KB each."
+          }
+        },
+        {
+          "filename": "agent-a3dfadabaf859ea42.jsonl",
+          "size_kb": 519.431640625,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 173.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 66 estimated turns, create 3 windows of ~173KB each."
+          }
+        },
+        {
+          "filename": "agent-a6d0ca430a2cd6af8.jsonl",
+          "size_kb": 517.8251953125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 172.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 66 estimated turns, create 3 windows of ~173KB each."
+          }
+        },
+        {
+          "filename": "agent-a87ab778921ac1cd3.jsonl",
+          "size_kb": 515.38671875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 171.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 66 estimated turns, create 3 windows of ~172KB each."
+          }
+        },
+        {
+          "filename": "agent-af8ad587f00d6e32f.jsonl",
+          "size_kb": 513.146484375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 171.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 66 estimated turns, create 3 windows of ~171KB each."
+          }
+        },
+        {
+          "filename": "agent-af9ced862f1bcc5f0.jsonl",
+          "size_kb": 512.98828125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 171.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 66 estimated turns, create 3 windows of ~171KB each."
+          }
+        },
+        {
+          "filename": "agent-a1eb7ebc0b91dbdf0.jsonl",
+          "size_kb": 511.8603515625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 170.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 66 estimated turns, create 3 windows of ~171KB each."
+          }
+        },
+        {
+          "filename": "agent-a3217bbac36a9a968.jsonl",
+          "size_kb": 510.5390625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 170.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 65 estimated turns, create 3 windows of ~170KB each."
+          }
+        },
+        {
+          "filename": "agent-a6cbcc94e4233124b.jsonl",
+          "size_kb": 507.8115234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 169.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 65 estimated turns, create 3 windows of ~169KB each."
+          }
+        },
+        {
+          "filename": "agent-acb91d56ee8b0f384.jsonl",
+          "size_kb": 506.654296875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 168.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 65 estimated turns, create 3 windows of ~169KB each."
+          }
+        }
+      ],
+      "-Users-joe-repos-personal-llmcpp": [
+        {
+          "filename": "e3890148-ed3d-40f2-90b3-87404e6411e4.jsonl",
+          "size_kb": 6074.962890625,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 40,
+            "approx_window_size_kb": 151.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 778 estimated turns, create 40 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "cb0a24a8-014c-4101-843d-de226d7d0557.jsonl",
+          "size_kb": 5252.9404296875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 35,
+            "approx_window_size_kb": 150.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 672 estimated turns, create 35 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-ab1429cb01df9cd77.jsonl",
+          "size_kb": 849.0341796875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 141.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 109 estimated turns, create 6 windows of ~142KB each."
+          }
+        },
+        {
+          "filename": "agent-a8f862c55519f2dea.jsonl",
+          "size_kb": 735.1826171875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 147.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 94 estimated turns, create 5 windows of ~147KB each."
+          }
+        }
+      ],
+      "-Users-joe-repos-personal-phone-llm": [
+        {
+          "filename": "c74b4a61-5225-4b75-b65f-e99b47605fd7.jsonl",
+          "size_kb": 23276.9248046875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 155,
+            "approx_window_size_kb": 150.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 2979 estimated turns, create 155 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "57207951-9497-464c-9230-4c7f263390cd.jsonl",
+          "size_kb": 10657.9443359375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 71,
+            "approx_window_size_kb": 150.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 1364 estimated turns, create 71 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "07fae373-78cb-40b1-8a2d-763f18f63bb2.jsonl",
+          "size_kb": 8011.1103515625,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 53,
+            "approx_window_size_kb": 151.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 1025 estimated turns, create 53 windows of ~151KB each."
+          }
+        },
+        {
+          "filename": "30545ac3-772a-4044-a49c-ba3c2164a9a3.jsonl",
+          "size_kb": 7155.142578125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 48,
+            "approx_window_size_kb": 149.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 916 estimated turns, create 48 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "733c8e5a-3ef8-40f9-87a6-ef294db6755b.jsonl",
+          "size_kb": 6084.78515625,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 41,
+            "approx_window_size_kb": 148.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 779 estimated turns, create 41 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "98333257-838b-40f7-bb81-e705c7bc1355.jsonl",
+          "size_kb": 3511.4521484375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 23,
+            "approx_window_size_kb": 152.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 449 estimated turns, create 23 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "385dfc60-5fda-4ebe-be4c-50e4f2fa9d10.jsonl",
+          "size_kb": 3496.52734375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 23,
+            "approx_window_size_kb": 152.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 448 estimated turns, create 23 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "7fa0ee08-4191-46a0-985e-e21af514c450.jsonl",
+          "size_kb": 2565.2802734375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 17,
+            "approx_window_size_kb": 150.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 328 estimated turns, create 17 windows of ~151KB each."
+          }
+        },
+        {
+          "filename": "agent-ad9ac1ce46ebceaa3.jsonl",
+          "size_kb": 1479.193359375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 10,
+            "approx_window_size_kb": 147.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 189 estimated turns, create 10 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "bfc172bd-e1d6-47e2-8976-f1eaaad82588.jsonl",
+          "size_kb": 1468.298828125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 10,
+            "approx_window_size_kb": 146.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 188 estimated turns, create 10 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "25160873-e3e4-4248-8d9f-b4ffc1788557.jsonl",
+          "size_kb": 1100.9482421875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 157.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 141 estimated turns, create 7 windows of ~157KB each."
+          }
+        },
+        {
+          "filename": "agent-a3e8ad8c81c3f1d0d.jsonl",
+          "size_kb": 1009.8662109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 144.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 129 estimated turns, create 7 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-ae615f78bffd77f7e.jsonl",
+          "size_kb": 897.71875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 149.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 115 estimated turns, create 6 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "fd4ca914-b135-4dde-a8a3-4a3bfe084b97.jsonl",
+          "size_kb": 858.7216796875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 143.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 110 estimated turns, create 6 windows of ~143KB each."
+          }
+        },
+        {
+          "filename": "agent-a5840db5cf5d52cc7.jsonl",
+          "size_kb": 794.5595703125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 158.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 102 estimated turns, create 5 windows of ~159KB each."
+          }
+        },
+        {
+          "filename": "agent-a89240690abe339f5.jsonl",
+          "size_kb": 778.7236328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 155.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 100 estimated turns, create 5 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "2101ada3-9857-4f54-bbf4-1eb348ba52fb.jsonl",
+          "size_kb": 751.8505859375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 150.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 96 estimated turns, create 5 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-a274e6f057d9b0d68.jsonl",
+          "size_kb": 751.3896484375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 150.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 96 estimated turns, create 5 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-a70eb8395c6e8c58f.jsonl",
+          "size_kb": 735.615234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 147.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 94 estimated turns, create 5 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-a6668b73a8057dd96.jsonl",
+          "size_kb": 683.927734375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 136.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 88 estimated turns, create 5 windows of ~137KB each."
+          }
+        },
+        {
+          "filename": "agent-a5619998c49093c87.jsonl",
+          "size_kb": 680.966796875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 136.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 87 estimated turns, create 5 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-a5619998c49093c87.jsonl",
+          "size_kb": 680.966796875,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 136.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 87 estimated turns, create 5 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-ad3e5c1b320224938.jsonl",
+          "size_kb": 651.58203125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 162.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 83 estimated turns, create 4 windows of ~163KB each."
+          }
+        },
+        {
+          "filename": "agent-ac034163dc07faa8f.jsonl",
+          "size_kb": 606.740234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 151.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "agent-adbc99e461681bc5d.jsonl",
+          "size_kb": 602.962890625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 150.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 77 estimated turns, create 4 windows of ~151KB each."
+          }
+        },
+        {
+          "filename": "7c95676b-a345-466d-a782-7f9c8df6647b.jsonl",
+          "size_kb": 568.787109375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 142.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 73 estimated turns, create 4 windows of ~142KB each."
+          }
+        },
+        {
+          "filename": "agent-a27d25a5f1e9d768c.jsonl",
+          "size_kb": 555.9208984375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 139.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 71 estimated turns, create 4 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-a27d25a5f1e9d768c.jsonl",
+          "size_kb": 555.9208984375,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 139.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 71 estimated turns, create 4 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-af7e87289be9db961.jsonl",
+          "size_kb": 555.7099609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 138.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 71 estimated turns, create 4 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-af7e87289be9db961.jsonl",
+          "size_kb": 555.7099609375,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 138.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 71 estimated turns, create 4 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-a7311461769181181.jsonl",
+          "size_kb": 554.0625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 138.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 71 estimated turns, create 4 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-a46a0711daa33e748.jsonl",
+          "size_kb": 546.3525390625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 136.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~137KB each."
+          }
+        },
+        {
+          "filename": "agent-ad297c12ba4f9c5fa.jsonl",
+          "size_kb": 546.22265625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 136.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~137KB each."
+          }
+        },
+        {
+          "filename": "agent-ac638f1638ea8f2dc.jsonl",
+          "size_kb": 544.705078125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 136.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-ac638f1638ea8f2dc.jsonl",
+          "size_kb": 544.705078125,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 136.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-a5582ec8622fcab69.jsonl",
+          "size_kb": 514.19921875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 171.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 66 estimated turns, create 3 windows of ~171KB each."
+          }
+        },
+        {
+          "filename": "agent-a21a00d2894bdf3a9.jsonl",
+          "size_kb": 512.8662109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 171.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 66 estimated turns, create 3 windows of ~171KB each."
+          }
+        }
+      ],
+      "-Users-joe-repos-personal-pi-vim-mode": [
+        {
+          "filename": "5b0f28f7-8f7b-4fa6-837c-2a877e49c9dd.jsonl",
+          "size_kb": 2626.107421875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 18,
+            "approx_window_size_kb": 145.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 336 estimated turns, create 18 windows of ~146KB each."
+          }
+        },
+        {
+          "filename": "agent-af2da8dff980cd562.jsonl",
+          "size_kb": 550.6337890625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 137.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~138KB each."
+          }
+        }
+      ],
+      "-Users-joe-repos-personal-targ": [
+        {
+          "filename": "1ad2fbb5-120e-4fca-9525-fd94fcf75014.jsonl",
+          "size_kb": 7677.4072265625,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 51,
+            "approx_window_size_kb": 150.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 983 estimated turns, create 51 windows of ~151KB each."
+          }
+        },
+        {
+          "filename": "2cd2bf0c-e152-4766-a6b1-1ac9e2457f68.jsonl",
+          "size_kb": 4314.505859375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 29,
+            "approx_window_size_kb": 148.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 552 estimated turns, create 29 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "1f932b6f-1616-4fa3-8f9d-bb59efd3901c.jsonl",
+          "size_kb": 4294.947265625,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 29,
+            "approx_window_size_kb": 148.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 550 estimated turns, create 29 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "bd6efada-9acb-4081-bc1e-695596ea4550.jsonl",
+          "size_kb": 4203.39453125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 28,
+            "approx_window_size_kb": 150.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 538 estimated turns, create 28 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "668993ba-24c6-4a26-bfdb-1b664037b8f5.jsonl",
+          "size_kb": 4144.4501953125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 28,
+            "approx_window_size_kb": 148.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 530 estimated turns, create 28 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "d1c5ca03-5b70-4f46-a448-fe53fd79406b.jsonl",
+          "size_kb": 3104.33203125,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 21,
+            "approx_window_size_kb": 147.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 397 estimated turns, create 21 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "176f8d7a-b9ad-4d56-a6d8-157fe9a8e728.jsonl",
+          "size_kb": 3085.9951171875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 21,
+            "approx_window_size_kb": 147.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 395 estimated turns, create 21 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-ae6caa187e68ee6c1.jsonl",
+          "size_kb": 2239.9228515625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 15,
+            "approx_window_size_kb": 149.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 287 estimated turns, create 15 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "c15a8b3b-85b0-4860-b0d5-84e3ce202696.jsonl",
+          "size_kb": 2084.4755859375,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 14,
+            "approx_window_size_kb": 148.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 267 estimated turns, create 14 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-ace7374309e1127f1.jsonl",
+          "size_kb": 1987.3994140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 13,
+            "approx_window_size_kb": 152.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 254 estimated turns, create 13 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "af8b6c87-39b7-4a95-9bc8-c16cad509c87.jsonl",
+          "size_kb": 1937.34765625,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 13,
+            "approx_window_size_kb": 149.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 248 estimated turns, create 13 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-a8c3fdb5788ef9502.jsonl",
+          "size_kb": 1584.869140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 11,
+            "approx_window_size_kb": 144.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 203 estimated turns, create 11 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-a1ec95e32c49d5de4.jsonl",
+          "size_kb": 1477.4765625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 10,
+            "approx_window_size_kb": 147.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 189 estimated turns, create 10 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "3d697973-ee50-42a8-9657-f57181ca991a.jsonl",
+          "size_kb": 1444.8623046875,
+          "type": "main",
+          "proposed_windows": {
+            "number_of_windows": 10,
+            "approx_window_size_kb": 144.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 185 estimated turns, create 10 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-ae24360306b9a0afa.jsonl",
+          "size_kb": 1392.1240234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 154.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 178 estimated turns, create 9 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-a8a5eb351b9da2b0c.jsonl",
+          "size_kb": 1322.576171875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 147.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 169 estimated turns, create 9 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-a43a576db56f4eeae.jsonl",
+          "size_kb": 1302.5234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 144.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 167 estimated turns, create 9 windows of ~145KB each."
+          }
+        },
+        {
+          "filename": "agent-a391c71e01266c89a.jsonl",
+          "size_kb": 1292.1337890625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 143.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 165 estimated turns, create 9 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-a23ff9c02ac1c3889.jsonl",
+          "size_kb": 1291.2841796875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 143.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 165 estimated turns, create 9 windows of ~143KB each."
+          }
+        },
+        {
+          "filename": "agent-a327eed3e96123c33.jsonl",
+          "size_kb": 1289.9111328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 9,
+            "approx_window_size_kb": 143.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 165 estimated turns, create 9 windows of ~143KB each."
+          }
+        },
+        {
+          "filename": "agent-a6f7e991d6aa81fe2.jsonl",
+          "size_kb": 1250.2109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 156.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 160 estimated turns, create 8 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-ad22e9fecfe4f9620.jsonl",
+          "size_kb": 1238.5625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 154.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 159 estimated turns, create 8 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-a1a0e66585b4a4e8e.jsonl",
+          "size_kb": 1237.0986328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 154.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 158 estimated turns, create 8 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-ac94083cf51eba76a.jsonl",
+          "size_kb": 1198.11328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 149.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 153 estimated turns, create 8 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-a4840299c0f527994.jsonl",
+          "size_kb": 1191.2880859375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 148.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 152 estimated turns, create 8 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-a7a2de99df2076443.jsonl",
+          "size_kb": 1186.166015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 148.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 152 estimated turns, create 8 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "agent-a95ada2daafc85f1c.jsonl",
+          "size_kb": 1147.5771484375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 8,
+            "approx_window_size_kb": 143.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 147 estimated turns, create 8 windows of ~143KB each."
+          }
+        },
+        {
+          "filename": "agent-a94e6056cc88cff7e.jsonl",
+          "size_kb": 1098.791015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 157.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 141 estimated turns, create 7 windows of ~157KB each."
+          }
+        },
+        {
+          "filename": "agent-a096a2887b06e50c0.jsonl",
+          "size_kb": 1077.857421875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 154.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 138 estimated turns, create 7 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-a1361fd921ad496ab.jsonl",
+          "size_kb": 1057.703125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 151.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 135 estimated turns, create 7 windows of ~151KB each."
+          }
+        },
+        {
+          "filename": "agent-a2612cdda402c6eb0.jsonl",
+          "size_kb": 1043.6416015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 149.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 134 estimated turns, create 7 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-a0e99e9de506401e9.jsonl",
+          "size_kb": 1023.8994140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 146.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 131 estimated turns, create 7 windows of ~146KB each."
+          }
+        },
+        {
+          "filename": "agent-a8cda430a15969eae.jsonl",
+          "size_kb": 1008.736328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 7,
+            "approx_window_size_kb": 144.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 129 estimated turns, create 7 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-a8314888cd838f7e5.jsonl",
+          "size_kb": 951.6865234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 158.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 122 estimated turns, create 6 windows of ~159KB each."
+          }
+        },
+        {
+          "filename": "agent-a2e10627c0d0c5d72.jsonl",
+          "size_kb": 936.6220703125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 156.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 120 estimated turns, create 6 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-a79f4098cf1219a2f.jsonl",
+          "size_kb": 928.0732421875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 154.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 119 estimated turns, create 6 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-ae40c07de5a022b62.jsonl",
+          "size_kb": 927.0419921875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 154.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 119 estimated turns, create 6 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-affdfba32b68bf801.jsonl",
+          "size_kb": 923.8916015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 154.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 118 estimated turns, create 6 windows of ~154KB each."
+          }
+        },
+        {
+          "filename": "agent-a5c3facd05224716f.jsonl",
+          "size_kb": 894.669921875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 149.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 115 estimated turns, create 6 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-a56f246d28ee11aa4.jsonl",
+          "size_kb": 878.0634765625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 146.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 112 estimated turns, create 6 windows of ~146KB each."
+          }
+        },
+        {
+          "filename": "agent-a3622c7aeb5e66ab4.jsonl",
+          "size_kb": 833.5185546875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 138.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 107 estimated turns, create 6 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-a317c28459be80032.jsonl",
+          "size_kb": 830.115234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 138.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 106 estimated turns, create 6 windows of ~138KB each."
+          }
+        },
+        {
+          "filename": "agent-aa68d52f282c84ce8.jsonl",
+          "size_kb": 825.0673828125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 6,
+            "approx_window_size_kb": 137.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 106 estimated turns, create 6 windows of ~138KB each."
+          }
+        },
+        {
+          "filename": "agent-a2704f43503ccb666.jsonl",
+          "size_kb": 824.5166015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 164.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 106 estimated turns, create 5 windows of ~165KB each."
+          }
+        },
+        {
+          "filename": "agent-a796ba1a72d11d077.jsonl",
+          "size_kb": 808.322265625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 161.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 103 estimated turns, create 5 windows of ~162KB each."
+          }
+        },
+        {
+          "filename": "agent-a8ebdf2058d276a15.jsonl",
+          "size_kb": 806.4208984375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 161.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 103 estimated turns, create 5 windows of ~161KB each."
+          }
+        },
+        {
+          "filename": "agent-ae3a716cb7b6183e4.jsonl",
+          "size_kb": 765.1337890625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 153.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 98 estimated turns, create 5 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-aa6579aa0a435df2f.jsonl",
+          "size_kb": 757.87109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 151.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 97 estimated turns, create 5 windows of ~152KB each."
+          }
+        },
+        {
+          "filename": "agent-aa5ef135372f3b3b6.jsonl",
+          "size_kb": 747.7421875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 149.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 96 estimated turns, create 5 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-a5f7efd20584d8bf0.jsonl",
+          "size_kb": 735.11328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 147.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 94 estimated turns, create 5 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-a859903054a4f5881.jsonl",
+          "size_kb": 727.78125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 145.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 93 estimated turns, create 5 windows of ~146KB each."
+          }
+        },
+        {
+          "filename": "agent-acf6a0ad171d518dc.jsonl",
+          "size_kb": 721.228515625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 144.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 92 estimated turns, create 5 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-aaf174081bb8128a1.jsonl",
+          "size_kb": 712.36328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 142.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 91 estimated turns, create 5 windows of ~142KB each."
+          }
+        },
+        {
+          "filename": "agent-a048ab0115ad10372.jsonl",
+          "size_kb": 696.3828125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 139.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 89 estimated turns, create 5 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-ac2b229951ad8fce4.jsonl",
+          "size_kb": 695.6494140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 139.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 89 estimated turns, create 5 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-a7e2ea25add802f8d.jsonl",
+          "size_kb": 685.001953125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 137.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 88 estimated turns, create 5 windows of ~137KB each."
+          }
+        },
+        {
+          "filename": "agent-a24a07df45bede0c9.jsonl",
+          "size_kb": 681.1611328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 136.2,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 87 estimated turns, create 5 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-a1bdad6d5ee8789ae.jsonl",
+          "size_kb": 680.3828125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 136.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 87 estimated turns, create 5 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-aa80379b70f11b517.jsonl",
+          "size_kb": 677.7421875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 5,
+            "approx_window_size_kb": 135.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 87 estimated turns, create 5 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-a70c97d20d390bf05.jsonl",
+          "size_kb": 672.5419921875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 168.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 86 estimated turns, create 4 windows of ~168KB each."
+          }
+        },
+        {
+          "filename": "agent-a349235306b113a16.jsonl",
+          "size_kb": 672.109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 168.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 86 estimated turns, create 4 windows of ~168KB each."
+          }
+        },
+        {
+          "filename": "agent-a42f3eff187d69a91.jsonl",
+          "size_kb": 624.2275390625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 156.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 80 estimated turns, create 4 windows of ~156KB each."
+          }
+        },
+        {
+          "filename": "agent-af4a68bb3beed0b5c.jsonl",
+          "size_kb": 619.5166015625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 154.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 79 estimated turns, create 4 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-af624bd766c9d079b.jsonl",
+          "size_kb": 618.6689453125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 154.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 79 estimated turns, create 4 windows of ~155KB each."
+          }
+        },
+        {
+          "filename": "agent-a410e0494d97095ce.jsonl",
+          "size_kb": 611.9892578125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 153.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 78 estimated turns, create 4 windows of ~153KB each."
+          }
+        },
+        {
+          "filename": "agent-a5c631a763961acb6.jsonl",
+          "size_kb": 601.400390625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 150.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 77 estimated turns, create 4 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-a8652a456e9a28438.jsonl",
+          "size_kb": 599.3037109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 149.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 77 estimated turns, create 4 windows of ~150KB each."
+          }
+        },
+        {
+          "filename": "agent-ac436f1a7a789091a.jsonl",
+          "size_kb": 597.4599609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 149.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 76 estimated turns, create 4 windows of ~149KB each."
+          }
+        },
+        {
+          "filename": "agent-a0ce7344cb0ef09d9.jsonl",
+          "size_kb": 593.9599609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 148.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 76 estimated turns, create 4 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "agent-aff2111aec22e387c.jsonl",
+          "size_kb": 593.29296875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 148.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 76 estimated turns, create 4 windows of ~148KB each."
+          }
+        },
+        {
+          "filename": "agent-ac64315202e4db925.jsonl",
+          "size_kb": 586.7490234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 146.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 75 estimated turns, create 4 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-aa229a4070e2969f6.jsonl",
+          "size_kb": 586.3115234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 146.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 75 estimated turns, create 4 windows of ~147KB each."
+          }
+        },
+        {
+          "filename": "agent-ac5020a8cea83a973.jsonl",
+          "size_kb": 584.244140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 146.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 75 estimated turns, create 4 windows of ~146KB each."
+          }
+        },
+        {
+          "filename": "agent-a3f991ac400f2f56f.jsonl",
+          "size_kb": 577.15234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 144.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 74 estimated turns, create 4 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-a1b38deda4c9847f9.jsonl",
+          "size_kb": 575.44140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 143.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 74 estimated turns, create 4 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-ab702ff7502dad036.jsonl",
+          "size_kb": 575.0986328125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 143.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 74 estimated turns, create 4 windows of ~144KB each."
+          }
+        },
+        {
+          "filename": "agent-a88c5de8cec849429.jsonl",
+          "size_kb": 570.3955078125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 142.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 73 estimated turns, create 4 windows of ~143KB each."
+          }
+        },
+        {
+          "filename": "agent-a780fab942242da07.jsonl",
+          "size_kb": 569.4375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 142.4,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 73 estimated turns, create 4 windows of ~142KB each."
+          }
+        },
+        {
+          "filename": "agent-a27c830e3cc473a16.jsonl",
+          "size_kb": 559.109375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 139.8,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 72 estimated turns, create 4 windows of ~140KB each."
+          }
+        },
+        {
+          "filename": "agent-a3395f10637a608d2.jsonl",
+          "size_kb": 555.9208984375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 139.0,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 71 estimated turns, create 4 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-a9d8535125b0d00e2.jsonl",
+          "size_kb": 554.26171875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 138.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 71 estimated turns, create 4 windows of ~139KB each."
+          }
+        },
+        {
+          "filename": "agent-a39e575ace0670fd4.jsonl",
+          "size_kb": 550.64453125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 137.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~138KB each."
+          }
+        },
+        {
+          "filename": "agent-ab008b43a7caf4905.jsonl",
+          "size_kb": 550.4326171875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 137.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~138KB each."
+          }
+        },
+        {
+          "filename": "agent-ad169a567e2e41a7c.jsonl",
+          "size_kb": 546.9931640625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 136.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~137KB each."
+          }
+        },
+        {
+          "filename": "agent-a8d2eb7c6a0502ff5.jsonl",
+          "size_kb": 543.4501953125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 135.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 70 estimated turns, create 4 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-a17075db616feea0f.jsonl",
+          "size_kb": 542.6513671875,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 135.7,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 69 estimated turns, create 4 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-a35ba59268214ce21.jsonl",
+          "size_kb": 542.4990234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 135.6,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 69 estimated turns, create 4 windows of ~136KB each."
+          }
+        },
+        {
+          "filename": "agent-a5b0e54281a509599.jsonl",
+          "size_kb": 536.4765625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 134.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 69 estimated turns, create 4 windows of ~134KB each."
+          }
+        },
+        {
+          "filename": "agent-ade974e9fcece7f11.jsonl",
+          "size_kb": 533.3369140625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 133.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 68 estimated turns, create 4 windows of ~133KB each."
+          }
+        },
+        {
+          "filename": "agent-ade974e9fcece7f11.jsonl",
+          "size_kb": 533.3369140625,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 133.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 68 estimated turns, create 4 windows of ~133KB each."
+          }
+        },
+        {
+          "filename": "agent-ad6f430122d4f4391.jsonl",
+          "size_kb": 527.42578125,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 131.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 68 estimated turns, create 4 windows of ~132KB each."
+          }
+        },
+        {
+          "filename": "agent-ad6f430122d4f4391.jsonl",
+          "size_kb": 527.42578125,
+          "type": "workflow",
+          "proposed_windows": {
+            "number_of_windows": 4,
+            "approx_window_size_kb": 131.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 68 estimated turns, create 4 windows of ~132KB each."
+          }
+        },
+        {
+          "filename": "agent-a64fde727b18abcca.jsonl",
+          "size_kb": 524.8212890625,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 174.9,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 67 estimated turns, create 3 windows of ~175KB each."
+          }
+        },
+        {
+          "filename": "agent-a2fc517eb6a32e6e3.jsonl",
+          "size_kb": 513.9990234375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 171.3,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 66 estimated turns, create 3 windows of ~171KB each."
+          }
+        },
+        {
+          "filename": "agent-a795bd05fa11c110c.jsonl",
+          "size_kb": 508.599609375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 169.5,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 65 estimated turns, create 3 windows of ~170KB each."
+          }
+        },
+        {
+          "filename": "agent-ac0f84bfa6dbaa471.jsonl",
+          "size_kb": 504.1943359375,
+          "type": "subagent",
+          "proposed_windows": {
+            "number_of_windows": 3,
+            "approx_window_size_kb": 168.1,
+            "strategy": "Split at turn boundaries; each window \u2264 150KB. With 65 estimated turns, create 3 windows of ~168KB each."
+          }
+        }
+      ]
+    },
+    "window_sizing_strategy": "Each window maximum 150KB, split at natural turn boundaries (JSON turn objects). For files under 500KB, no windowing needed. For files over 500KB, split into multiple windows with boundaries written to this file."
+  },
+  "point_in_time_check_preconditions": {
+    "vault_git_history": {
+      "is_git_repo": true,
+      "total_commits": 42,
+      "first_commit_date": "2026-06-02 21:47:30 -0400",
+      "last_commit_date": "2026-08-29 09:41:07 -0400",
+      "commit_frequency_by_month_last_12_months": {
+        "2026-06": 9,
+        "2026-07": 3,
+        "2026-08": 30
+      }
+    },
+    "vault_git_history_interpretation": "The vault has 42 commits with densest activity in 2026-08 (30 commits on a single day 2026-08-29). For moments dated 2026-06-02 through 2026-08-29, an EXACT (DERIVED) point-in-time check is possible. For moments predating 2026-06-02, fall back to APPROXIMATE (ESTIMATE) check using chunk ingestion date filtering.",
+    "chunk_ingestion_timestamp": {
+      "file": "/Users/joe/repos/personal/engram/internal/chunk/index.go",
+      "struct": "Record",
+      "field_name": "IngestedAt",
+      "field_type": "time.Time",
+      "json_tag": "ingested_at,omitzero",
+      "code_snippet": "IngestedAt time.Time `json:\"ingested_at,omitzero\"` //nolint:tagliatelle // index schema uses snake_case like .vec.json",
+      "comment": "IngestedAt is the wall-clock time this chunk was first written to the index. Zero for legacy records (pre-D5); backfilled on first merge. Tag is omitzero, not omitempty: omitempty has no effect on a struct like time.Time, so a zero value would serialize; omitzero (Go 1.24+) omits it, letting legacy records decode IngestedAt=zero (the migration sentinel).",
+      "source_file_location_in_repo": "internal/chunk/index.go, lines 26-31",
+      "test_file": "internal/chunk/ingestedat_test.go (validates round-trip serialization and legacy record handling)"
+    }
+  }
+}

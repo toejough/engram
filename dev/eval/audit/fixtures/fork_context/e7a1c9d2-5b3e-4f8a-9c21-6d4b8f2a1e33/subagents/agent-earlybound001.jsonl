@@ -1,0 +1,3 @@
+{"type": "fork-context-ref", "agentId": "earlybound001", "parentSessionId": "e7a1c9d2-5b3e-4f8a-9c21-6d4b8f2a1e33", "parentLastUuid": "3c1a7e4d-220b-4a9b-8e33-1b2c3d4e5f60", "contextLength": 40}
+{"type": "user", "uuid": "e-u2", "parentUuid": "", "isSidechain": false, "sessionId": "fork-earlybound001", "timestamp": "2026-08-31T09:00:04Z", "message": {"role": "user", "content": "Quick tangent while the main thread is still gathering context."}}
+{"type": "assistant", "uuid": "e-a3", "parentUuid": "e-u2", "isSidechain": false, "sessionId": "fork-earlybound001", "timestamp": "2026-08-31T09:00:06Z", "message": {"model": "claude-sonnet-5", "role": "assistant", "content": [{"type": "text", "text": "Sure, on it."}]}}

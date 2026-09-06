@@ -1,0 +1,7 @@
+{
+  "sample_size": 47,
+  "stages": ["extract", "audit", "scorecard"],
+  "output_dir": "results-rerun",
+  "model_tiers": {"detect": "haiku", "judge": "sonnet"},
+  "seed": 739
+}
