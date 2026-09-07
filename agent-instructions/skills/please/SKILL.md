@@ -91,6 +91,12 @@ At the start of execution, push all seven steps below to the task list via `Task
    - **GREEN:** make the test pass with the minimal change.
    - **REFACTOR:** keep the result DRY, SRP-respecting, YAGNI-compliant — updates must fit as if written as part of the whole from the start, not layered on at the end. Each refactor then passes **gate B** before the unit is declared done.
    Drive the plan from step 3 with a plan-execution skill if one is installed (otherwise work the plan task by task), and verify before declaring any unit done — via a verification skill if installed, otherwise by running the actual commands and reading their output before claiming success.
+
+   Every dispatched unit's completion report ends with a `LESSONS:` line (route's completion-report
+   contract). The moment a unit's result comes back — before moving to the next unit — record that
+   line verbatim in a running list for this cycle, including `LESSONS: none` entries. This list is
+   separate from the lessons audit (step 7) and is not judged in-flight; it is handed to the closing
+   `/learn` as-is.
 5. **Document.** Update every piece of documentation the changes touch — `README.md`, `CLAUDE.md`, `docs/`, glossaries, skill references — so the docs match the new reality. The step completes only when **gate C** closes over every touched doc.
 6. **Complete.** If the work originated from an issue, close it. Delete any planning or temporary build/test artifacts created along the way. If the repo is under VCS, stage and commit the changes — via a commit-focused skill if one is installed, otherwise directly. Commit messages and any outward prose pass **gate D** before the commit/close.
 7. **Capture (close) — `/learn`.** Before invoking the closing `/learn`, run the **lessons audit** over the cycle's mechanical corpus:
@@ -111,7 +117,10 @@ At the start of execution, push all seven steps below to the task list via `Task
    wait on a release, so propose that only as a last resort, and never file it
    automatically.
 
-   Then: Run the `learn` skill again to preserve the lessons from this session. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.
+   Then: Run the `learn` skill again to preserve the lessons from this session, handing it the
+   full list of `LESSONS:` lines collected across step 4's dispatches (including any `none`
+   entries) alongside the lessons-audit map above — `/learn`'s Step 2 curates that list against
+   its own quality bar; step 7 does not pre-filter it. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.
 
 ## Stop conditions
 
@@ -143,4 +152,5 @@ At the start of execution, push all seven steps below to the task list via `Task
 | You resolved a finding by silently dropping it | Every finding is fixed or rebutted to reviewer ACK; deadlock escalates via AskUserQuestion. |
 | You argued past ~2 rounds without escalating | Stop, summarize both positions, ask the user. |
 | You're closing the cycle without the step-7 lessons audit | Enumerate STOPs, gate FAILs, CORRECTION-class commits, escalations — map each to a note or a "no lesson: why" line |
+| You reached step 7 without a running list of step 4's `LESSONS:` lines | Go back and collect them from each dispatch's completion report — step 7 hands the full list to the closing `/learn`, not just the audit |
 | You're about to ship a measured claim without an evidence pointer + "verified how?" line | Escalation provenance — verify it, or label it an unverified hypothesis |

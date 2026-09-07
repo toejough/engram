@@ -86,6 +86,14 @@ autonomously — it requires Joe's oversight.
 
 ## Step 2 — Crystallize explicit lessons (only when they exist)
 
+**Collected LESSONS lines are an explicit scan input.** When the orchestrator (`please`) hands
+you the session's collected `LESSONS:` lines from dispatched work (route's completion-report
+contract), scan that list alongside the raw session content — every line, `none` entries
+included (skip those trivially). Judge each line against the same four kinds and the same
+quality bar below (confirmed, not hypothesized; a general reusable principle, not a
+session-specific narrative). A line that doesn't clear the bar is discarded silently — no vault
+note, no logged discard — the line is a low-bar offer, not a pre-judged lesson.
+
 Scan THIS session for exactly four kinds of moments. For each note you crystallize, first decide
 its Luhmann placement (below), then include the resulting `position`/`target` in the write-memory
 handoff alongside the kind-specific fields.
@@ -146,6 +154,24 @@ for a placement target.
      step, a command run), and an OBSERVABLE, session-recorded outcome then confirmed it worked (a
      test passed, the user confirmed it, an artifact functioned, a blocker cleared). The exact
      positive mirror of a reversal: a bet that succeeded instead of failing.
+
+   **Completion-moment anchor:** scan for kind-4 specifically at the moment a unit of work's
+   outcome is CONFIRMED — a review or gate verdict lands, a check or test passes, or the user
+   explicitly confirms something. That includes the moment you read a dispatched subagent's
+   completion report (and its `LESSONS:` line) once its outcome is known — not only your own
+   direct work. Anchor on that concrete event, not on "did the session feel successful overall."
+
+   **Real-world exemplars** (kind-4 under-fires more than any other kind in practice — use these
+   to calibrate what counts, since the pattern is easy to walk past):
+   - Unsure whether a design assumption held; ran a targeted code search to check it before
+     finalizing the design; the search confirmed it → confirmed approach (the check-before-you-
+     commit method), not "just design work."
+   - Suspected a defect existed; wrote and ran a targeted reproduction test that confirmed it →
+     confirmed approach (the targeted-reproduction method), not "just found a bug."
+   - A vendor's documented capability claim mattered to a decision; verified it directly against
+     evidence (a real call, a test, a spec) instead of trusting the docs → confirmed approach
+     ("verify vendor claims against evidence, don't assume"), regardless of which way the
+     verification came out.
 
    The action is capturing what WORKED — NOT logging every success. A bare pleasantry, a routine
    success with no bet behind it, or an unconfirmed guess is never the signal — just as a repo-doc
