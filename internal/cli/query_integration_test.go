@@ -19,6 +19,12 @@ import (
 // via the bundled embedder, then queries with one theme's own text.
 // Verifies that the YAML payload includes the clusters[] section and budget
 // fields, and that the matching theme's notes actually surface.
+//
+// Both subprocess runs use envWithoutEngramParent(): this is a plain local
+// vault test, but exec.Command inherits the test process's real
+// environment by default, so on any machine where ENGRAM_PARENT happens to
+// be set, the query subprocess would attempt a vault-merge against that
+// host instead of just querying the local vault this test built.
 func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -51,6 +57,7 @@ func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 	binPath := sharedEngramBinary(t)
 
 	embedRun := exec.Command(binPath, "embed", "apply", "--missing", "--vault", vault)
+	embedRun.Env = envWithoutEngramParent()
 
 	var embedOut bytes.Buffer
 
@@ -59,6 +66,7 @@ func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 	g.Expect(embedRun.Run()).To(Succeed(), "embed apply failed: %s", embedOut.String())
 
 	run := exec.Command(binPath, "query", "--phrase", clusterThemes[1], "--vault", vault, "--limit", "5")
+	run.Env = envWithoutEngramParent()
 
 	var stdout bytes.Buffer
 
@@ -110,6 +118,24 @@ func buildSyntheticBody(theme string, clusterID, members int) string {
 	}
 
 	return sb.String()
+}
+
+// envWithoutEngramParent returns the current process environment with any
+// ENGRAM_PARENT entry stripped, for subprocess tests that must not inherit
+// an ambient parent-merge configuration from the host running the test.
+func envWithoutEngramParent() []string {
+	base := os.Environ()
+	filtered := make([]string, 0, len(base))
+
+	for _, kv := range base {
+		if strings.HasPrefix(kv, "ENGRAM_PARENT=") {
+			continue
+		}
+
+		filtered = append(filtered, kv)
+	}
+
+	return filtered
 }
 
 // writeSyntheticNote plants a note under permDir with no sidecar — the

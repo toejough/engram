@@ -716,7 +716,10 @@ func TestShowChunkParent_RoutesThroughFetch(t *testing.T) {
 }
 
 // TestShowChunkParent_WithoutEngramParentErrors mirrors
-// TestShowParent_WithoutEngramParentErrors for show-chunk.
+// TestShowParent_WithoutEngramParentErrors for show-chunk. Getenv is
+// stubbed to "" for the same reason: t.Parallel() forbids t.Setenv, so
+// this can't force ENGRAM_PARENT unset that way, and must not depend on
+// the ambient environment actually leaving it unset.
 func TestShowChunkParent_WithoutEngramParentErrors(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -725,6 +728,7 @@ func TestShowChunkParent_WithoutEngramParentErrors(t *testing.T) {
 
 	_, stderr := executeCapturingBoth(t, []string{"engram", "show-chunk", "src.md#anchor", "--parent"},
 		func(d *cli.Deps) {
+			d.Getenv = func(string) string { return "" }
 			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
 				fetchCalled = true
 
@@ -793,6 +797,9 @@ func TestShowParent_RoutesThroughFetch(t *testing.T) {
 
 // TestShowParent_WithoutEngramParentErrors covers --parent passed with
 // ENGRAM_PARENT unset: an error, no fetch attempted, no local fallback.
+// Getenv is stubbed to "" (rather than t.Setenv, which panics after
+// t.Parallel()) so this doesn't depend on ENGRAM_PARENT actually being
+// unset in the ambient environment running the test.
 func TestShowParent_WithoutEngramParentErrors(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -800,6 +807,7 @@ func TestShowParent_WithoutEngramParentErrors(t *testing.T) {
 	fetchCalled := false
 
 	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent"}, func(d *cli.Deps) {
+		d.Getenv = func(string) string { return "" }
 		d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
 			fetchCalled = true
 

@@ -455,6 +455,16 @@ func TestTargets_PruneEmpty(t *testing.T) {
 // ModelID()/Embed() dereferences (#700 T6 finding: the query cluster's
 // newQueryDeps(d) conversion surfaces this one task earlier than R11's
 // embed-cluster enumeration anticipated).
+//
+// Getenv is also stubbed to "" here: newTestDeps wires the real os.Getenv
+// (by design — merged_query_dispatch_test.go and serve_client_test.go rely
+// on that plus t.Setenv to test ENGRAM_PARENT/ENGRAM_SERVER for real), so
+// on any machine where ENGRAM_PARENT happens to be set in the ambient
+// environment, parentBase(deps) would pick it up and route into the
+// ENGRAM_PARENT-merge path — which needs deps.Fetch, never wired here —
+// instead of the local-only path this test means to exercise. This test
+// can't use t.Setenv to force it empty (t.Parallel() forbids Setenv), so
+// it stubs Getenv directly via the same customize hook used for Embed.
 func TestTargets_QueryEmptyVault(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -465,7 +475,10 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 
 	stderr := executeForTestWithDeps(t,
 		[]string{"engram", "query", "--phrase", "anything", "--vault", vault},
-		func(d *cli.Deps) { d.Embed = stubEmbedder{modelID: "test-model", dims: 8} })
+		func(d *cli.Deps) {
+			d.Embed = stubEmbedder{modelID: "test-model", dims: 8}
+			d.Getenv = func(string) string { return "" }
+		})
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
