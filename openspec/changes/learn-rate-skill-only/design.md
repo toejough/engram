@@ -37,6 +37,39 @@ Existing context:
 
 - **D-F — Parked escalations, gated on re-measure:** Three directions are explicitly parked, each with the same revisit condition: post-v1 re-measure via `run_audit.py` (D-E). Escalate only if re-measure shows W2 still below Joe's bar. (1) **Watcher/metacognition layer:** v1 batch mining of the append-only chunk index → offers; v2 streaming transcript tail + watcher-salience channel in recall's payload (harness-agnostic but code). (2) **Mechanical validator on the LESSONS contract:** the guarantee layer per note 198's prose-caps finding (prose mechanisms cap below ~95% adherence). (3) **Hooks/harness push:** out for Claude Code entirely; Pi-era. Why gate on re-measure, not pre-build: Joe's constraints were "md-only test" for v1; escalations require code + harness changes, which stay parked until measured data shows they're needed. Note 198 documents the ceiling (~95%); if v1 hits that naturally, validators waste effort. If v1 undershoots, the re-measure will show it.
 
+## Alternatives Considered
+
+- **Subagents run `recall`/`learn` themselves, instead of a completion-report LESSONS line the
+  orchestrator curates** (raised in review — `.review/events.jsonl` thread
+  `30e58008b5de8bf3a398c48d25f6a7a5`, anchored `proposal.md:25-33`: "Are the learning
+  opportunities mostly in the subagent work, or in the main agent's work? ... does it make sense
+  to try just making subagents use the recall and learn flows directly?"). Recomputing the
+  audit's 40 fixable lost lessons (`dev/eval/audit/results/moments.jsonl`,
+  `worth_learning_from==true AND learn_fired==false AND failure_category=="fixable"`) by `role`
+  confirms the premise: workflow 14 (35%), fresh 11 (27.5%), fork 8 (20%), main 7 (17.5%) —
+  **82.5% (33/40) sit in dispatched work, not the main agent's own direct work** — so D-A's
+  target (dispatched-subagent completion reports) is the right place to aim. Rejected the
+  "subagent self-serves" mechanism anyway, for three reasons: (1) it already exists on the read
+  side — route's "Two rules every dispatch obeys" already instructs every subagent to run
+  `/recall` first — and the audit's D1 finding measured that exact mechanism failing (4/4
+  checkable dispatches, 100% of relevant memories left out); this isn't an untested alternative,
+  it's the status quo recall mechanism the audit caught not working. (2) route already distrusts
+  subagent self-judgment for the adjacent case — outcome must be "the review/gate verdict...
+  never the subagent's self-report (it confabulates — vault notes 148, 162)" — and learn's
+  Step-2 bar (kind-4, confirmed-not-hypothesized) is the same kind of self-judgment call about
+  the subagent's own just-finished work; the LESSONS-line design routes around this by having
+  the subagent supply raw content only, with the actual quality judgment made centrally at the
+  closing learn (D-B), never delegated to the subagent that produced the content. (3) it's
+  structurally unavailable for a large share of real dispatch targets: several concrete subagent
+  types in current use (e.g. `feature-dev:code-reviewer`, `claude-security:explore`,
+  `pr-review-toolkit:*`, some `code-modernization:*` agents) don't carry the `Skill` tool in
+  their toolset at all, so "run learn yourself" would be impossible, not merely unheeded — and
+  `fresh`/`workflow` roles (25/40, 62.5% of the fixable count) are exactly this class of agent.
+  Caveat: `fork` role (8/40, 20%) is different — a fork inherits the parent's full context and
+  toolset, so self-serve learn is plausible there; v1 keeps the uniform LESSONS-line contract
+  across all three dispatched roles for simplicity and defers a fork-specific carve-out to a
+  later revision if the re-measure (D-E) warrants it.
+
 ## Risks / Trade-offs
 
 - [Prose mechanisms alone might not sustain >95% LESSONS adherence] → this is not a blocker for v1 (test of whether md-only works) but will trigger escalation design if the re-measure shows it (D-F). Measured precedent (#655) is ~93%, within acceptable range for a first iteration.
