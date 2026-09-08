@@ -27,6 +27,15 @@ notes**); **29 moments are no-fix-needed** (7 original + 22 rescope); **2 moment
 scope** for this audit (a phone-llm repo tooling bug, unchanged). Full detail and justification
 for each group below; see the Summary at the end for the same tally restated with group letters.
 
+**Disposition (2026-09-08):** Joe accepted all 5 proposed notes at the gate; they are now vault
+notes 933–937 (`safe-read-chunk-sizing`, `git-add-cant-stage-untracked-deletes`,
+`git-pull-rebase-needs-clean-tree`, `macos-has-no-timeout-command` — renamed from
+`macos-timeout-is-bsd-not-gnu` because macOS ships no `timeout` at all; it is GNU coreutils, not a
+BSD variant — and `transient-auth-failure-retry-not-reconfigure`). Each note's `source:` line
+states that it was mined from transcripts by the audit rather than captured at a live correction,
+names the backing incidents, and (for Group F) that n=1 establishes no frequency. The two
+individually-flagged judgments (`e5ccd18d…#31`, `3d697973…#27`) remain open for Joe.
+
 ## Group A — User-initiated interruptions (3 moments)
 
 - `agent-ac7ec7f863667110d.jsonl#7` (repo: targ) — User interrupts the request before the agent can
