@@ -6,7 +6,7 @@ cd "$REPO_PATH"
 
 # Check 1: Registry entry exists with correct format
 # Accept ANY name column: pressure_v2:<digits.dots><TAB><non-empty-name><TAB><YYYY-*>
-if ! awk -F'\t' '/^pressure_v2:[0-9]+(\.[0-9]+)*/ && NF >= 3 && $3 ~ /^[0-9]{4}-/ { found=1 } END { exit !found }' lib/sensors/registry.txt; then
+if ! awk -F'\t' '/^pressure_v2:[0-9]+(\.[0-9]+)*/ && NF >= 3 && $2 != "" && $3 ~ /^[0-9]{4}-/ { found=1 } END { exit !found }' lib/sensors/registry.txt; then
   echo "FAIL: pressure_v2 registry entry not found or malformed"
   exit 1
 fi

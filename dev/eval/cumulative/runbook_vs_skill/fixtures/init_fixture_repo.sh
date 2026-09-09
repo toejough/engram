@@ -2,10 +2,13 @@
 set -e
 
 TARGET_DIR="${1:-.}"
+TEMPLATE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/fixture-repo-template"
+
+# Create target directory if it doesn't exist
+mkdir -p "$TARGET_DIR"
 
 # Copy template files to target directory
-cp -r dev/eval/cumulative/runbook_vs_skill/fixture-repo-template/* "$TARGET_DIR/"
-cp dev/eval/cumulative/runbook_vs_skill/fixture-repo-template/.gitignore "$TARGET_DIR/"
+cp -r "$TEMPLATE/." "$TARGET_DIR/"
 
 # Initialize git repo
 cd "$TARGET_DIR"

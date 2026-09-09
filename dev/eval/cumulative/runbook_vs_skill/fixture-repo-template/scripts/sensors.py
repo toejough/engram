@@ -15,7 +15,7 @@ with open(registry_file) as f:
     for line in f:
         parts = line.strip().split('\t')
         if len(parts) >= 2:
-            sensors.append(parts[0])
+            sensors.append(parts[0].split(':')[0])
 
 # Generate types.go
 with open(output_file, 'w') as f:
