@@ -1,0 +1,2 @@
+temp_v1	temperature	2024-01-15
+humidity_v1	humidity	2024-01-16
