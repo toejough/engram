@@ -100,6 +100,31 @@ async/background and framed as savings (a lateral move, not a cut). *(Historical
 | **#701** richer Luhmann IDs + parent/child crosslinks | Corr / mover / Med | The "we lost that somewhere" question is fully answered: commit `f620bfaf` (2026-06-12) deliberately deleted the `--target <id> --position continuation\|sibling` placement step from the learn and recall skills, leaving `--position top` as the only write path; the binary still implements continuation/sibling placement, only the skills stopped calling it. What remains is the wish itself, and it lands under the Standing constraint below: this would be a SECOND typed edge (supersession already ships), so it must carry its own retrieval-value evidence first — a demonstration that branched IDs or crosslinks improve retrieval, or an explicit decision not to pursue one | the retrieval-value demonstration the standing constraint requires |
 | **#656** gate analytical recommendations as outcome-keyed artifacts | Dev/Corr / mover / Med | **Scope narrowed (2026-07-24):** the mechanism shipped via #655 — recall Step 3.5's recommendation-keyed re-entry query, measured at a 93% fire-rate (`LEDGER.md#c7-reentry-query-green`) — and #677 closed the enforcement residual won't-do, so what remains is only the second `/please`-side reviewer layer over that baseline. Validating that layer still needs a `/please`-orchestration harness variant of #654 (our work, not an external gate) | build the harness variant |
 
+### Memory north-star track (ADR-0027 / ADR-0028) — order ratified by Joe 2026-09-09
+
+Context: the memory-loop audit (#739; archived change `memory-loop-audit`; `dev/eval/audit/REPORT-2026-09-02.md`,
+LEDGER rows `739-audit-*`) measured the whole recall→act→learn loop over 150 real moments. Its headline: write loss
+dominates (learn fired for 4/71 = 5.6% of worth-learning moments; 40 of 67 lost lessons reachable by a
+completion-report step), the dispatch handoff gap is total on the checkable sample (4/4), and blanket "search more"
+is not the lever (1/96 findable-and-missed; 3.4–16× over-fire). The write-side fix shipped 2026-09-07 as
+`learn-rate-skill-only` v1. The items below are rank-ordered **among themselves**; they run alongside the NOW table
+above, which predates ADR-0027 and has not been re-ranked against them. Parent for the runbook chain: #738.
+
+| Rank | Item | Why here | Deps / gate |
+|---|---|---|---|
+| 1 | **#735** recall firing cue for the runbook moment (chain link a) | Cheapest open link (a guidance edit under headless RED/GREEN). The audit hands it its evidence base: of 98 no-search moments, 22 had a cue that should have fired (16 at task-init), 9 had no cue at all, and blanket task-init firing measures 3.4× over-fire — the cue must thread that (`LEDGER.md#739-audit-fire-cue-decomposition`, `#739-audit-fire-unit-over-fire`). Framing already decided: situation-recognition, broadened (ADR-0027 D1) | none; runs in parallel with rank 2 |
+| 2 | **#736** measure runbook step-following + `done_when` verification (link c) | Measurement-first: if agents already follow steps, close with the number, no edit. ADR-0027 reframed the apply gap as decision-point injection | none; runs in parallel with rank 1 |
+| 3 | **#739** dispatch-side matched-notes injection (the remaining Phase 2 half) | Closes the measured D1 gap (4/4 checkable dispatches had the orchestrator's relevant notes left out). A route-handoff skill edit under writing-skills TDD; validated by the audit instrument's D1 view on real dispatches. Decision recorded in REPORT §9 | none; independent of ranks 1–2, interleave freely |
+| 4 | **learn-rate re-measure** (`learn-rate-skill-only` tasks 3.2–3.4) | Pre-registered: same instrument (`run_audit.py` v2), primary metric W2, ~$35. Decides whether the parked mechanical validator / watcher / hooks escalate | date-gated: target 2026-09-28, window 2026-09-21..28 (`dev/eval/audit/re-measure-plan.md`) |
+| 5 | **#737** runbook-vs-original efficacy A/B on the migrated pairs (link d) | The expensive link that decides whether the runbook kind carries value. Build its headless harness with #728's needs in mind — same shape (three-arm headless trials, real engram on fixture vaults, delivery gates) — so #728 becomes mostly fixture work. Note the kind's current footprint is small: runbooks were 4 of ~150 memories the audit found relevant (vs 72 fact / 74 feedback) — keep the power honest | #734 GREEN (done 2026-08-29); runs with whatever ranks 1–2 shipped, applied identically to both arms |
+| 6 | **#728** adapter skill + vault function notes vs static skills — parity A/B (microkernel spike) | The "skills shrink to a microkernel" question: can one adapter skill resolving vault procedure notes match static SKILL.md on fire rate and execution fidelity? Fully specified (pre-registered bars, delivery gates, the 166-watch); explicitly decoupled from the shipped runbook kind | after #737 has a measured answer (#738's rule: if runbooks don't carry value end-to-end, migrating skill content into the vault is moot) |
+| 7 | **#741** composition mechanisms for co-applicable procedures | | hard-gated on #737 |
+
+Unranked follow-ons filed 2026-09-07: **#747** judged consumer for the audit's outcome records (feeds #718's
+experience records — ADR-0028 D4), **#748** replay/mining modes for `run_audit.py` (produces the recorded moments
+#718's v2 multiplier must be proven on; the parked watcher's data pipeline). Parked behind rank 4's result:
+mechanical LESSONS validator, watcher/metacognition layer, hooks (`learn-rate-skill-only` design D-F).
+
 ### GATED — external / date / validation trigger
 | Item | Axis | Trigger |
 |---|---|---|
