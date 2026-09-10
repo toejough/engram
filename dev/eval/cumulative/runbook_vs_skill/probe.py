@@ -8,10 +8,19 @@ full design and dev/eval/cumulative/runbook_vs_skill/README.md for the decision 
 harness's --summarize mode applies.
 
 Reused plumbing (never reinvented):
-  * isolation.py — per-trial ENGRAM_VAULT_PATH/ENGRAM_CHUNKS_DIR/ENGRAM_TRANSCRIPT_DIR, the
-    isolated_env()/assert_isolated() contract, and the real-vault fingerprint guard.
+  * isolation.py — per-trial ENGRAM_VAULT_PATH/ENGRAM_CHUNKS_DIR/ENGRAM_TRANSCRIPT_DIR and the
+    isolated_env()/assert_isolated() contract. The operator-real-vault abort-report guard
+    (`_real_vault_fingerprint` below) is a LOCAL reimplementation, not `isolation.vault_fingerprint`
+    — a deliberate choice: `isolation.vault_fingerprint` hashes the sorted set of note BASENAMES,
+    which catches additions/removals/renames but would miss a same-filename in-place content
+    mutation; `_real_vault_fingerprint`'s (file count, newest mtime) also catches that case.
   * harness.py — MODELS registry and ENGRAM_BIN_DIR (so `engram` is reachable on PATH exactly
     the way every other dev/eval harness resolves it).
+  * matrix.py — `refresh_creds` (the keychain seam). Its per-worker cfg-pool PATTERN (not its
+    code — `make_pools`'s cfg dirs are shaped for its own op-DAG scheduler) is mirrored by
+    `build_cfg_pool` below: concurrent trial workers never share one `CLAUDE_CONFIG_DIR` /
+    `cfg/.claude.json`, for the same contention reason `make_pools` gives every worker its own
+    cfg copy.
   * The underload_repro/endorse_cue family's marker-validity-gate pattern: a per-run UUID marker
     proves the fixture CLAUDE.md actually reached the trial's context. Verified directly against
     the plumbing trial's real transcript (see report): a fresh headless `claude -p` project cwd
@@ -49,6 +58,7 @@ import concurrent.futures as cf
 import glob
 import json
 import os
+import queue
 import re
 import shutil
 import subprocess
@@ -100,8 +110,19 @@ FIFTH_CUE = (
     "from scratch) — the vault may hold a runbook for this or a similar situation.\n"
 )
 
-PROC_PATH_NEEDLES = ("lib/sensors/registry.txt", "scripts/sensors.py", "migrations/", "TELEMETRY_CHANGELOG.log")
-PROC_BASH_EXTRA_NEEDLES = ("git add", "make validate")
+PROC_PATH_NEEDLES = ("lib/sensors/registry.txt", "lib/sensors/types.go", "migrations/", "TELEMETRY_CHANGELOG.log")
+PROC_BASH_UNCONDITIONAL_NEEDLES = ("make validate", "git add")
+# Write constructs that make a Bash command a mutation WHEN a procedure path also appears in it
+# (round-1 review, RULING: read-only Bash — ls/cat without redirect/head/grep/find/git
+# status/log/diff — must never count as a procedure step, or a later recall/skill call gets
+# wrongly marked "after the first procedure step"). ">" alone covers both ">" and ">>" (a
+# substring check for ">" matches ">>" too) and covers "echo/printf ... > file" without a
+# separate printf/echo-specific check (echo/printf with no redirect is correctly excluded, since
+# it then has no ">"). Known, accepted limitation: a pure-read command whose UNRELATED redirect
+# happens to co-occur with a procedure-path argument (e.g. `cat migrations/*.go 2>/dev/null`)
+# would still be misclassified as a mutation — no shell parser here, just the reviewed heuristic.
+PROC_BASH_WRITE_MARKERS = (">", "tee", "sed -i", "touch", "cp ", "mv ", "<<")
+_CODEGEN_CMD_RE = re.compile(r"\bpython3?\s+scripts/sensors\.py\b")
 
 
 # ----- CLAUDE.md construction (Ruling 1) -----
@@ -149,6 +170,25 @@ def build_cfg_template(dst):
             shutil.copytree(src, os.path.join(dst, "skills", skill))
 
 
+def build_cfg_pool(run_root, n):
+    """Build the warm cfg template ONCE, then copy it into `n` separate `cfg-<i>` directories —
+    one per concurrent worker. Fix (round 1 review): concurrent `run_batch` workers previously
+    shared one `CLAUDE_CONFIG_DIR`, contending on the same `cfg/.claude.json` and `cfg/projects/`
+    tree exactly the way matrix.py's own `make_pools` exists to avoid (it gives every worker its
+    own cfg copy for the same reason). Each returned dir is a full, independent, already-`warm`
+    cfg (its own `skills/recall`, `skills/learn`, `.claude.json`) — safe for one worker's
+    exclusive use for the life of the run."""
+    template = os.path.join(run_root, "cfg_template")
+    build_cfg_template(template)
+    dirs = []
+    for i in range(n):
+        dst = os.path.join(run_root, f"cfg-{i}")
+        shutil.rmtree(dst, ignore_errors=True)
+        shutil.copytree(template, dst)
+        dirs.append(dst)
+    return dirs
+
+
 # ----- per-trial isolation env (Ruling 2) -----
 
 def trial_env(cfg, trial_dir, repo_path):
@@ -163,7 +203,9 @@ def trial_env(cfg, trial_dir, repo_path):
 
 def _real_vault_fingerprint():
     """(file count, newest mtime) for the operator's real vault dir — the abort-report guard
-    (Ruling 2). Returns (0, None) if the vault doesn't exist (nothing to change)."""
+    (Ruling 2). A LOCAL reimplementation, not `isolation.vault_fingerprint` (see module
+    docstring for why: mtime also catches a same-filename in-place content mutation that a
+    basename-hash would miss). Returns (0, None) if the vault doesn't exist (nothing to change)."""
     vault = isolation.operator_vault()
     try:
         names = os.listdir(vault)
@@ -285,11 +327,15 @@ def transcript_raw_text(paths):
 
 def parse_transcript_events(paths):
     """Chronologically ordered tool_use/tool_result events across every transcript file for a
-    trial, sorted by the record's `timestamp` field (falls back to file-then-line order when a
-    timestamp is missing, which keeps single-file trials — the common case here — exactly in
-    line order). Each event: idx (position in the returned order), kind, name (tool_use only),
-    input (tool_use only), id (tool_use only, its tool_use_id), tool_use_id (tool_result only),
-    content (tool_result only, stringified)."""
+    trial, sorted by the record's `timestamp` field, with (path, line_no) as a same-timestamp
+    tie-break. A record with an empty/missing timestamp sorts BEFORE every timestamped record
+    (`"" < "2026-..."` lexicographically) — correct for the common, verified case (a single
+    transcript file where every line IS timestamped, so the tie-break alone yields exact line
+    order), but this is NOT a general "falls back to file/line order" guarantee: a file that
+    mixes timestamped and non-timestamped lines will sort every non-timestamped line first, not
+    interleaved at its true chronological position. Each event: idx (position in the returned
+    order), kind, name (tool_use only), input (tool_use only), id (tool_use only, its
+    tool_use_id), tool_use_id (tool_result only), content (tool_result only, stringified)."""
     raw = []
     for path in paths:
         try:
@@ -344,7 +390,25 @@ def _tool_result_text(events, tool_use_id):
     return ""
 
 
-# ----- procedure-step detection (Ruling 5) -----
+# ----- procedure-step detection (Ruling 5; mutation-only per round-1 review) -----
+
+def _bash_mutates(command):
+    """True only for a Bash command that MUTATES — never a bare read (ls, cat without redirect,
+    head, grep, find, git status/log/diff). Three verbs always count (they're inherently
+    mutating regardless of arguments): the codegen script, `make validate` (the pipeline's own
+    completion gate), `git add`. Anything else counts only when a write construct (redirect,
+    tee, sed -i, touch, cp, mv, a heredoc) co-occurs with one of the four procedure paths in the
+    SAME command string."""
+    if not command:
+        return False
+    if _CODEGEN_CMD_RE.search(command):
+        return True
+    if any(needle in command for needle in PROC_BASH_UNCONDITIONAL_NEEDLES):
+        return True
+    has_write_marker = any(marker in command for marker in PROC_BASH_WRITE_MARKERS)
+    has_proc_path = any(needle in command for needle in PROC_PATH_NEEDLES)
+    return has_write_marker and has_proc_path
+
 
 def is_procedure_step(event):
     if event["kind"] != "tool_use":
@@ -355,8 +419,7 @@ def is_procedure_step(event):
         file_path = inp.get("file_path", "") or ""
         return any(needle in file_path for needle in PROC_PATH_NEEDLES)
     if name == "Bash":
-        command = inp.get("command", "") or ""
-        return any(needle in command for needle in PROC_PATH_NEEDLES + PROC_BASH_EXTRA_NEEDLES)
+        return _bash_mutates(inp.get("command", "") or "")
     return False
 
 
@@ -561,21 +624,32 @@ def run_batch(args):
     run_id = f"{args.model}-{int(time.time())}-{uuid.uuid4().hex[:6]}"
     run_root = os.path.join(DEFAULT_RUN_ROOT, run_id)
     os.makedirs(run_root, exist_ok=True)
-    cfg = os.path.join(run_root, "cfg")
-    build_cfg_template(cfg)
-    matrix.refresh_creds(cfg)
+
+    # Round-1 review fix: one cfg dir PER WORKER (never shared) — see build_cfg_pool's docstring.
+    cfg_dirs = build_cfg_pool(run_root, args.workers)
+    for cfg_dir in cfg_dirs:
+        matrix.refresh_creds(cfg_dir)
+    cfg_pool = queue.Queue()
+    for cfg_dir in cfg_dirs:
+        cfg_pool.put(cfg_dir)
 
     marker = f"RUNBOOK-VS-SKILL-PROBE-{uuid.uuid4().hex[:8]}"
     before_fp = _real_vault_fingerprint()
 
     jobs = [(arm, i) for arm in arms for i in range(args.n)]
     print(f"run_id={run_id} arms={arms} n={args.n} model={args.model} "
-          f"trials={len(jobs)} timeout={args.timeout}s root={run_root}")
+          f"trials={len(jobs)} timeout={args.timeout}s workers={args.workers} root={run_root}")
+
+    def _run_pooled(arm, i):
+        cfg_dir = cfg_pool.get()
+        try:
+            return run_one_trial(run_root, cfg_dir, arm, args.model, i, marker, args.timeout)
+        finally:
+            cfg_pool.put(cfg_dir)
 
     try:
         with cf.ThreadPoolExecutor(max_workers=args.workers) as ex:
-            futs = {ex.submit(run_one_trial, run_root, cfg, arm, args.model, i, marker, args.timeout): (arm, i)
-                    for arm, i in jobs}
+            futs = {ex.submit(_run_pooled, arm, i): (arm, i) for arm, i in jobs}
             for fut in cf.as_completed(futs):
                 arm, i = futs[fut]
                 record = fut.result()
@@ -715,16 +789,18 @@ def decision_frame(agg):
 def format_table(agg):
     arms = [a for a in ARMS if a in agg]
     lines = []
-    header = "metric".ljust(20) + "".join(a.ljust(16) for a in arms)
+    label_width = 24  # widest label, "FOLLOWED (trial-equiv)", plus a margin
+    header = "metric".ljust(label_width) + "".join(a.ljust(16) for a in arms)
     lines.append(header)
     lines.append("-" * len(header))
 
     def row(label, fmt):
         cells = [fmt(agg[a]) for a in arms]
-        lines.append(label.ljust(20) + "".join(c.ljust(16) for c in cells))
+        lines.append(label.ljust(label_width) + "".join(c.ljust(16) for c in cells))
 
     row("FOUND (k/n)", lambda a: f"{a['found_n']}/{a['valid_n']}")
     row("FOLLOWED (mean k/6)", lambda a: f"{a['followed_mean']*6:.2f}/6")
+    row("FOLLOWED (trial-equiv)", lambda a: f"{a['followed_trial_equiv']:.2f}/{a['valid_n']}")
     row("END-STATE (k/n)", lambda a: f"{a['end_state_n']}/{a['valid_n']}")
     row("recall_fired (k/n)", lambda a: f"{a['recall_fired_n']}/{a['valid_n']}")
     row("cost (mean USD)", lambda a: f"${a['cost_mean']:.2f}")
@@ -768,7 +844,7 @@ def main(argv=None):
     if args.plumbing:
         run_plumbing(args.model or "sonnet")
         return
-    if not (args.model and args.n and args.out):
+    if not (args.model and args.n is not None and args.out):
         build_argparser().error("--model, --n, and --out are required for a normal run")
     run_batch(args)
 

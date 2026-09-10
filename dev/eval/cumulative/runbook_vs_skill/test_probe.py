@@ -147,6 +147,62 @@ def test_recall_fired_false_when_absent(tmp_path):
     assert p.score_recall_fired(events) is False
 
 
+# ----- per-worker cfg pool (round-1 review: no shared CLAUDE_CONFIG_DIR across workers) -----
+
+def test_build_cfg_pool_creates_distinct_dirs_from_one_template(tmp_path):
+    dirs = p.build_cfg_pool(str(tmp_path), 3)
+    assert len(dirs) == 3
+    assert len(set(dirs)) == 3  # three DISTINCT paths, not the same dir repeated
+    for d in dirs:
+        assert os.path.isdir(os.path.join(d, "skills", "recall"))
+        assert os.path.isdir(os.path.join(d, "skills", "learn"))
+        assert os.path.exists(os.path.join(d, ".claude.json"))
+    # independent copies, not the same underlying directory or a symlink to the template
+    template = os.path.join(str(tmp_path), "cfg_template")
+    for d in dirs:
+        assert os.path.realpath(d) != os.path.realpath(template)
+
+
+# ----- procedure-step detection: mutation-only (round-1 review) -----
+
+def test_procedure_step_ls_read_only_not_a_step():
+    ev = {"idx": 0, "kind": "tool_use", "name": "Bash", "input": {"command": "ls migrations/"}, "id": "tu1"}
+    assert p.is_procedure_step(ev) is False
+
+
+def test_procedure_step_cat_without_redirect_not_a_step():
+    ev = {"idx": 0, "kind": "tool_use", "name": "Bash",
+          "input": {"command": "cat lib/sensors/registry.txt"}, "id": "tu1"}
+    assert p.is_procedure_step(ev) is False
+
+
+def test_procedure_step_echo_append_redirect_is_a_step():
+    ev = {"idx": 0, "kind": "tool_use", "name": "Bash",
+          "input": {"command": 'echo "pressure_v2:1.0\tpressure\t2024-02-01" >> lib/sensors/registry.txt'},
+          "id": "tu1"}
+    assert p.is_procedure_step(ev) is True
+
+
+def test_procedure_step_edit_on_registry_is_a_step():
+    ev = {"idx": 0, "kind": "tool_use", "name": "Edit",
+          "input": {"file_path": "/repo/lib/sensors/registry.txt", "old_string": "a", "new_string": "b"},
+          "id": "tu1"}
+    assert p.is_procedure_step(ev) is True
+
+
+def test_procedure_step_codegen_command_is_a_step():
+    ev = {"idx": 0, "kind": "tool_use", "name": "Bash",
+          "input": {"command": "python3 scripts/sensors.py"}, "id": "tu1"}
+    assert p.is_procedure_step(ev) is True
+
+
+def test_procedure_step_head_grep_find_git_status_not_steps():
+    for command in ("head lib/sensors/registry.txt", "grep pressure_v2 lib/sensors/registry.txt",
+                     "find migrations/ -name '*.go'", "git status", "git log --oneline", "git diff"):
+        ev = {"idx": 0, "kind": "tool_use", "name": "Bash", "input": {"command": command}, "id": "tu1"}
+        assert p.is_procedure_step(ev) is False, command
+
+
 # ----- FOLLOWED: per-step detection on a synthetic repo dir -----
 
 def _init_repo(tmp_path):

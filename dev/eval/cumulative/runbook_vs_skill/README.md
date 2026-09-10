@@ -65,7 +65,7 @@ Expected: 3 results (one per arm), each `valid: true`.
 - Marker delivery: 3/3 `marker_seen=true` (validity gate works)
 - Plumbing: ≥1/3 `end_state=true` (at least one arm registers the sensor end-to-end)
 - Recall delivery: Arm R transcript contains a `Skill` tool_use with `skill=recall` (proves the
-  recall+learn skills were copied from the repo into the shared trial cfg, never from the
+  recall+learn skills were copied from the repo into that trial's worker cfg, never from the
   operator's real `~/.claude/`) — checkable directly via `recall_fired=true` in the result record
 - Cost: ≤$0.80 total across the 3 sonnet trials
 
@@ -152,9 +152,12 @@ Each trial gets:
 - `ENGRAM_VAULT_PATH`/`ENGRAM_CHUNKS_DIR` under a per-trial scratch directory (never the
   operator's real vault/chunks) — Arm R/F get a copy of `fixture-vaults/{runbook,fact}/vault`;
   Arm S gets an empty vault dir.
-- A shared, per-run `CLAUDE_CONFIG_DIR` (built via `probe.py::build_cfg_template`, which copies
-  the repo's real recall+learn skills from `agent-instructions/skills/` — never the operator's
-  `~/.claude/skills/`) with `ENGRAM_TRANSCRIPT_DIR` pointed at that trial's own project slug.
+- One `CLAUDE_CONFIG_DIR` PER WORKER, not one shared across the whole run — `probe.py::build_cfg_pool`
+  builds a single warm cfg template (copying the repo's real recall+learn skills from
+  `agent-instructions/skills/` — never the operator's `~/.claude/skills/`) once, then copies it
+  into `--workers` independent `cfg-<i>` directories so concurrent trials never contend on the
+  same `cfg/.claude.json` / `cfg/projects/` tree. Each trial's `ENGRAM_TRANSCRIPT_DIR` points at
+  its own project slug under its checked-out worker's cfg dir.
 
 All trials for one run live under one scratch root
 (`$RUNBOOK_VS_SKILL_ROOT`, defaulting to a path under the harness's scratchpad directory) and are
