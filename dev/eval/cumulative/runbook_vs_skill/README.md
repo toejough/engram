@@ -92,6 +92,53 @@ Prints a labeled table (arms as columns; rows FOUND k/n, FOLLOWED mean k/6, END-
 recall_fired k/n, cost mean USD, duration mean s, valid n) followed by the decision frame below,
 computed from that file's `valid: true` records.
 
+## Results (opus, 2026-09-09)
+
+| metric (unit) | S skill | R runbook | F fact |
+|---|---|---|---|
+| FOUND (trials, k/5) | 5/5 | 5/5 | 5/5 |
+| FOLLOWED (mean steps of 6) | 6.00 | 5.80 | 5.80 |
+| FOLLOWED (trial-equivalent, of 5) | 5.00 | 4.83 | 4.83 |
+| END-STATE (trials, k/5) | 5/5 | 5/5 | 5/5 |
+| recall fired (trials, k/5) | 5/5 | 5/5 | 5/5 |
+| cost (mean USD/trial) | 0.74 | 0.64 | 0.75 |
+| duration (mean s/trial) | 104 | 104 | 125 |
+| valid (marker seen) | 5/5 | 5/5 | 5/5 |
+
+**Decision Frame Output:** `parity found/followed/end_state = indistinguishable`; `baseline_uninterpretable = false`; `fact verdict = cant_distinguish` (followed_gap 0.0, end_state_gap 0).
+
+### Deductions
+
+Two trials (R trial 0, F trial 2) wrote the changelog line without the `:1.0` version suffix the procedure specified. END-STATE still passed because the mechanical check does not require the suffix. Both vault arms fired recall every trial (cue fires regardless of procedure location).
+
+### Caveats
+
+1. **Rescored from fixture ambiguity.** Results were rescored offline from kept trial dirs after a fixture ambiguity made all 15 opus trials fail END-STATE on the original checker (the procedure's `NNNN_sensor_<name>.go` was read by opus as column `<name>` registry name, by sonnet as id). The rescore accepts both readings; nothing about FOUND/recall/cost changed; the procedure text was fixed for future runs.
+
+2. **Sample size.** n=5 per arm — a gap ≤1 trial is "can't distinguish", not a tie.
+
+3. **Drafted cue.** Both vault arms included the drafted fifth task-start cue in CLAUDE.md, which is **not** deployed — this measures what runbooks could do with that cue, not today's guidance.
+
+4. **Single-note vault.** The fixture vault held ONE note, so retrieval precision at scale is untested (firing ≈ surfacing).
+
+5. **Recall fired in skill arm too.** Recall also fired in the skill arm every time (the drafted cue fires regardless of where the procedure lives).
+
+### Reproduction
+
+Controller-verified figures from `results/opus_results.rescored.jsonl`.
+
+```bash
+# Rescore from trial dirs (if re-running the checker):
+python3 probe.py --rescore --run-id opus-1789002029-6f1b03 --fixture-out results/opus_results.rescored.jsonl
+
+# Summarize:
+python3 probe.py --summarize --fixture results/opus_results.rescored.jsonl --arms S R F
+```
+
+Sonnet smoke (1 trial/arm, 2026-09-09): FOUND 3/3, FOLLOWED 6/6 all, END-STATE 3/3, cost $0.32–0.38/trial.
+
+**Total spend:** opus ≈ $10.7 (15 trials + smoke/calibration ≈ $1.6).
+
 ## Joe's Decision Frame
 
 Two questions, honest n (no rounding; report exact k/n per arm):
