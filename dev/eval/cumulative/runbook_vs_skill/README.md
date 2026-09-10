@@ -113,7 +113,7 @@ Two trials (R trial 0, F trial 2) wrote the changelog line without the `:1.0` ve
 
 ### Positive control (fixture leak check)
 
-The fixture template leaks only the filename shape (`*_sensor_*.go`) and the registry version format (`:1.0`), but does NOT leak the specific idiosyncratic names: `registerSensor`, `func init()`, `NNNN_` migration prefix (e.g., `0001_sensor_pressure_v2.go`), changelog `:version` suffix, or `stage-don't-commit` instruction. Yet all 15 trials (5 each across S, R, F arms) produced all six: registry entry, codegen, migration file with `0001_sensor_pressure_v2.go` naming, func init() with registerSensor, changelog entry, and git staging — proof that each arm consulted its carrier (skill, runbook, or fact), not just the template. Parity is not an artifact of fixture leakage.
+`registerSensor`, `func init()`, the `NNNN_`/`0001` migration prefix, and stage-without-committing appear nowhere in `fixture-repo-template/` (greps empty; the Makefile leaks only the `*_sensor_*.go` shape). Yet 15/15 trials produced a migration containing `func init()` + `registerSensor`, 15/15 staged without committing, and 13/15 wrote the changelog `:1.0` version suffix against the template's own seeded precedent (`[2024-01-15 09:30:00] system Added sensor temp_v1`, no suffix). The un-leaked evidence is the migration's contents and the changelog suffix chosen over repo precedent, not the migration filename (which was ambiguous, see caveat 1). This is direct evidence each arm consulted its carrier, so parity is not a ceiling artifact.
 
 ### Caveats
 
