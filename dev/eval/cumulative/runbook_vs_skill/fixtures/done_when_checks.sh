@@ -11,8 +11,8 @@ if ! awk -F'\t' '/^pressure_v2:[0-9]+(\.[0-9]+)*/ && NF >= 3 && $2 != "" && $3 ~
   exit 1
 fi
 
-# Check 2: Migration file exists
-MIGRATION=$(ls migrations/*_sensor_pressure_v2.go 2>/dev/null | head -1)
+# Check 2: Migration file exists (accept either _sensor_pressure.go or _sensor_pressure_v2.go)
+MIGRATION=$(ls migrations/*_sensor_pressure*.go 2>/dev/null | head -1)
 if [ -z "$MIGRATION" ]; then
   echo "FAIL: Migration file for pressure_v2 not found"
   exit 1

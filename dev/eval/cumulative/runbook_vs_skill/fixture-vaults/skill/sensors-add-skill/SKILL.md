@@ -13,7 +13,7 @@ Register a new sensor type in the telemetry system following the project's estab
 
 2. Run the codegen script to update type definitions: `python3 scripts/sensors.py`
 
-3. Create a migration file in migrations/ with naming pattern NNNN_sensor_<name>.go where NNNN is the next 4-digit sequence number (the first migration is 0001; use the next 4-digit number after the highest existing one). The migration must contain a func init() block that calls registerSensor(<sensor_id>).
+3. Create a migration file in migrations/ with naming pattern NNNN_sensor_<sensor_id>.go where NNNN is the next 4-digit sequence number (the first migration is 0001; use the next 4-digit number after the highest existing one). Example: for sensor_id pressure_v2 with no prior migrations, create 0001_sensor_pressure_v2.go. The migration must contain a func init() block that calls registerSensor(<sensor_id>).
 
 4. Add an entry to TELEMETRY_CHANGELOG.log with exact format: `[YYYY-MM-DD HH:MM:SS] <operator> Added sensor <id>:<version>`
 

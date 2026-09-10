@@ -492,7 +492,8 @@ def step2_codegen(repo_path, events):
 
 
 def step3_migration(repo_path):
-    matches = glob.glob(os.path.join(repo_path, "migrations", "*_sensor_pressure_v2.go"))
+    # Accept either _sensor_pressure.go or _sensor_pressure_v2.go
+    matches = glob.glob(os.path.join(repo_path, "migrations", "*_sensor_pressure*.go"))
     if not matches:
         return False
     try:
@@ -820,6 +821,58 @@ def summarize_file(path):
     return agg, frame
 
 
+def rescore_file(in_path, out_path):
+    """Re-run score_followed and check_end_state on kept trial directories.
+
+    For each record with a repo_path that still exists, re-compute followed_steps,
+    followed_k, end_state, and end_state_output. Keep all other fields. If repo_path
+    is missing, add error: "rescore: repo missing".
+    """
+    records = load_jsonl(in_path)
+    rescored = []
+
+    for record in records:
+        repo_path = record.get("repo_path")
+        transcript_path = record.get("transcript_path")
+
+        if not repo_path or not os.path.exists(repo_path):
+            # Repo dir is gone; mark as error but keep the record
+            record["error"] = "rescore: repo missing"
+            rescored.append(record)
+            continue
+
+        # Re-run the scoring
+        try:
+            # Parse events from transcript using the same logic as during the run
+            events = []
+            if transcript_path and os.path.exists(transcript_path):
+                events = parse_transcript_events([transcript_path])
+
+            # Re-compute FOLLOWED
+            followed_steps, followed_k = score_followed(repo_path, events)
+            record["followed_steps"] = followed_steps
+            record["followed_k"] = followed_k
+
+            # Re-compute END-STATE
+            end_state, end_state_output = check_end_state(repo_path)
+            record["end_state"] = end_state
+            record["end_state_output"] = end_state_output
+
+            # Mark that this record was rescored
+            record["rescored_from"] = in_path
+        except Exception as e:
+            record["error"] = f"rescore exception: {str(e)}"
+
+        rescored.append(record)
+
+    # Write the rescored results
+    with open(out_path, "w") as f:
+        for record in rescored:
+            f.write(json.dumps(record) + "\n")
+
+    print(f"Rescored {len(rescored)} records from {in_path} to {out_path}")
+
+
 # ----- CLI -----
 
 def build_argparser():
@@ -833,6 +886,7 @@ def build_argparser():
     ap.add_argument("--keep", action="store_true", help="keep the run root instead of deleting it on exit")
     ap.add_argument("--plumbing", action="store_true")
     ap.add_argument("--summarize")
+    ap.add_argument("--rescore", help="re-score an existing results.jsonl file using kept trial directories")
     return ap
 
 
@@ -840,6 +894,11 @@ def main(argv=None):
     args = build_argparser().parse_args(argv)
     if args.summarize:
         summarize_file(args.summarize)
+        return
+    if args.rescore:
+        if not args.out:
+            build_argparser().error("--rescore requires --out")
+        rescore_file(args.rescore, args.out)
         return
     if args.plumbing:
         run_plumbing(args.model or "sonnet")

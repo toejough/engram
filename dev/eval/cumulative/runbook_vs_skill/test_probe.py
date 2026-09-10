@@ -263,6 +263,23 @@ def test_step3_migration_false_when_missing(tmp_path):
     assert p.step3_migration(repo) is False
 
 
+def test_step3_migration_accepts_both_filenames(tmp_path):
+    """Verify step3_migration detector accepts both _sensor_pressure.go and _sensor_pressure_v2.go"""
+    repo = _init_repo(tmp_path)
+    # Test 1: _sensor_pressure_v2.go (the id-based reading)
+    mig_v2 = os.path.join(repo, "migrations", "0001_sensor_pressure_v2.go")
+    with open(mig_v2, "w") as f:
+        f.write('package migrations\n\nfunc init() {\n\tregisterSensor("pressure_v2")\n}\n')
+    assert p.step3_migration(repo) is True
+    os.remove(mig_v2)
+
+    # Test 2: _sensor_pressure.go (the name-based reading)
+    mig_name = os.path.join(repo, "migrations", "0001_sensor_pressure.go")
+    with open(mig_name, "w") as f:
+        f.write('package migrations\n\nfunc init() {\n\tregisterSensor("pressure_v2")\n}\n')
+    assert p.step3_migration(repo) is True
+
+
 def test_step4_changelog_true_when_well_formed(tmp_path):
     repo = _init_repo(tmp_path)
     with open(os.path.join(repo, "TELEMETRY_CHANGELOG.log"), "a") as f:
@@ -336,6 +353,53 @@ def test_end_state_fails_on_untouched_clone(tmp_path):
     passed, output = p.check_end_state(repo)
     assert passed is False
     assert "FAIL" in output
+
+
+def test_rescore_flips_end_state_false_to_true(tmp_path):
+    """Verify rescore_file re-runs check_end_state and score_followed on kept trial dirs."""
+    repo = _complete_repo(tmp_path)
+
+    # Create a transcript with the required tool use for step 6
+    transcript_path = tmp_path / "session.jsonl"
+    with open(transcript_path, "w") as f:
+        f.write(json.dumps({
+            "type": "assistant", "timestamp": "2026-09-09T00:00:00.000Z",
+            "message": {"content": [{"type": "tool_use", "id": "tu1", "name": "Bash",
+                                      "input": {"command": "make validate"}}]}
+        }) + "\n")
+
+    # Create a synthetic results.jsonl with end_state=False and followed_k=5
+    # This simulates what happened in the broken opus run
+    results_path = tmp_path / "results.jsonl"
+    record = {
+        "arm": "S",
+        "trial_index": 0,
+        "repo_path": repo,
+        "transcript_path": str(transcript_path),
+        "end_state": False,
+        "end_state_output": "FAIL: Migration file for pressure_v2 not found",
+        "followed_steps": {"1": True, "2": True, "3": False, "4": True, "5": True, "6": True},
+        "followed_k": 5,
+    }
+    with open(results_path, "w") as f:
+        f.write(json.dumps(record) + "\n")
+
+    # Rescore
+    rescored_path = tmp_path / "rescored.jsonl"
+    p.rescore_file(str(results_path), str(rescored_path))
+
+    # Verify the rescored record
+    rescored_records = p.load_jsonl(str(rescored_path))
+    assert len(rescored_records) == 1
+    rescored = rescored_records[0]
+    # After rescore, end_state should be True (the fixture is complete)
+    assert rescored["end_state"] is True, f"Expected end_state=True, got {rescored['end_state']}"
+    # followed_k should be 6 (all steps pass now with the fixed detector)
+    assert rescored["followed_k"] >= 5, f"Expected followed_k>=5, got {rescored['followed_k']}"
+    assert rescored["rescored_from"] == str(results_path)
+    # Verify other fields are preserved
+    assert rescored["arm"] == "S"
+    assert rescored["trial_index"] == 0
 
 
 # ----- summarize's decision-frame outputs -----

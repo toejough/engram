@@ -1,0 +1,17 @@
+ABORT-REPORT: operator's real vault fingerprint changed! before=(1762, 1789001019.0935855) after=(1790, 1789002152.0255291). A trial may have reached real memory. Investigate before trusting any result in this run.
+run_id=opus-1789002029-6f1b03 arms=['S', 'R', 'F'] n=5 model=opus trials=15 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/opus-1789002029-6f1b03
+  [S#0] valid found=True followed=5/6 end_state=False cost=$0.50 timed_out=False
+  [S#2] valid found=True followed=5/6 end_state=False cost=$0.58 timed_out=False
+  [S#1] valid found=True followed=5/6 end_state=False cost=$1.41 timed_out=False
+  [S#4] valid found=True followed=5/6 end_state=False cost=$0.56 timed_out=False
+  [S#3] valid found=True followed=5/6 end_state=False cost=$0.65 timed_out=False
+  [R#1] valid found=True followed=5/6 end_state=False cost=$0.60 timed_out=False
+  [R#0] valid found=True followed=4/6 end_state=False cost=$0.65 timed_out=False
+  [R#3] valid found=True followed=5/6 end_state=False cost=$0.59 timed_out=False
+  [R#2] valid found=True followed=5/6 end_state=False cost=$0.64 timed_out=False
+  [R#4] valid found=True followed=5/6 end_state=False cost=$0.73 timed_out=False
+  [F#0] valid found=True followed=5/6 end_state=False cost=$1.12 timed_out=False
+  [F#1] valid found=True followed=5/6 end_state=False cost=$0.68 timed_out=False
+  [F#3] valid found=True followed=5/6 end_state=False cost=$0.60 timed_out=False
+  [F#2] valid found=True followed=4/6 end_state=False cost=$0.71 timed_out=False
+  [F#4] valid found=True followed=5/6 end_state=False cost=$0.64 timed_out=False
