@@ -232,7 +232,6 @@ def test_step1_registry_false_when_absent(tmp_path):
 
 def test_step2_codegen_true_from_bash_command(tmp_path):
     repo = _init_repo(tmp_path)
-    events = p.parse_transcript_events([])
     events = [{"idx": 0, "kind": "tool_use", "name": "Bash",
                "input": {"command": "python3 scripts/sensors.py"}, "id": "tu1"}]
     assert p.step2_codegen(repo, events) is True
@@ -392,10 +391,10 @@ def test_rescore_flips_end_state_false_to_true(tmp_path):
     rescored_records = p.load_jsonl(str(rescored_path))
     assert len(rescored_records) == 1
     rescored = rescored_records[0]
-    # After rescore, end_state should be True (the fixture is complete)
+    # After rescore, end_state should flip from False to True (the fixture is complete)
     assert rescored["end_state"] is True, f"Expected end_state=True, got {rescored['end_state']}"
-    # followed_k should be 6 (all steps pass now with the fixed detector)
-    assert rescored["followed_k"] >= 5, f"Expected followed_k>=5, got {rescored['followed_k']}"
+    # followed_k should flip from 5 to 6 (all steps pass now with the fixed detector)
+    assert rescored["followed_k"] == 6, f"Expected followed_k=6, got {rescored['followed_k']}"
     assert rescored["rescored_from"] == str(results_path)
     # Verify other fields are preserved
     assert rescored["arm"] == "S"

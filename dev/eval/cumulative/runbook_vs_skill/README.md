@@ -111,9 +111,13 @@ computed from that file's `valid: true` records.
 
 Two trials (R trial 0, F trial 2) wrote the changelog line without the `:1.0` version suffix the procedure specified. END-STATE still passed because the mechanical check does not require the suffix. Both vault arms fired recall every trial (cue fires regardless of procedure location).
 
+### Positive control (fixture leak check)
+
+The fixture template leaks only the filename shape (`*_sensor_*.go`) and the registry version format (`:1.0`), but does NOT leak the specific idiosyncratic names: `registerSensor`, `func init()`, `NNNN_` migration prefix (e.g., `0001_sensor_pressure_v2.go`), changelog `:version` suffix, or `stage-don't-commit` instruction. Yet all 15 trials (5 each across S, R, F arms) produced all six: registry entry, codegen, migration file with `0001_sensor_pressure_v2.go` naming, func init() with registerSensor, changelog entry, and git staging — proof that each arm consulted its carrier (skill, runbook, or fact), not just the template. Parity is not an artifact of fixture leakage.
+
 ### Caveats
 
-1. **Rescored from fixture ambiguity.** Results were rescored offline from kept trial dirs after a fixture ambiguity made all 15 opus trials fail END-STATE on the original checker (the procedure's `NNNN_sensor_<name>.go` was read by opus as column `<name>` registry name, by sonnet as id). The rescore accepts both readings; nothing about FOUND/recall/cost changed; the procedure text was fixed for future runs.
+1. **Rescored from fixture ambiguity.** Results were rescored offline from kept trial dirs after a fixture ambiguity made all 15 opus trials fail END-STATE on the original checker (the procedure's `NNNN_sensor_<name>.go` was read by opus as column `<name>` registry name, by sonnet as id). The rescore accepts both readings; nothing about FOUND/recall/cost changed; the procedure text was fixed for future runs. Re-running the harness as committed will not reproduce this table: the three procedure encodings and `done_when_checks.sh` check 2 were changed after these trials ran; the committed `results/opus_results.jsonl` (original) and `.rescored.jsonl` are the record.
 
 2. **Sample size.** n=5 per arm — a gap ≤1 trial is "can't distinguish", not a tie.
 
@@ -128,11 +132,9 @@ Two trials (R trial 0, F trial 2) wrote the changelog line without the `:1.0` ve
 Controller-verified figures from `results/opus_results.rescored.jsonl`.
 
 ```bash
-# Rescore from trial dirs (if re-running the checker):
-python3 probe.py --rescore --run-id opus-1789002029-6f1b03 --fixture-out results/opus_results.rescored.jsonl
-
-# Summarize:
-python3 probe.py --summarize --fixture results/opus_results.rescored.jsonl --arms S R F
+cd dev/eval/cumulative/runbook_vs_skill
+python3 probe.py --rescore results/opus_results.jsonl --out results/opus_results.rescored.jsonl
+python3 probe.py --summarize results/opus_results.rescored.jsonl
 ```
 
 Sonnet smoke (1 trial/arm, 2026-09-09): FOUND 3/3, FOLLOWED 6/6 all, END-STATE 3/3, cost $0.32–0.38/trial.
