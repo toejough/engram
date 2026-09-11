@@ -32,7 +32,7 @@
 
 ### Source Materials (Read-Only, Exact Paths)
 
-- **Commit skill (LIVE):** `/Users/joe/.claude/plugins/cache/skills/commit/49ce826094da/skills/commit/SKILL.md` — the active /commit skill that trials discover; Workflow steps 1–5 (lines 24–41) and Commit Message Format (lines 43–104). A-S arm uses this skill as-is without conversion.
+- **Commit skill (LIVE):** `/Users/joe/repos/personal/engram/.claude/skills/commit.md` — the project's /commit skill (repo source, not plugin). Description: "Core: Stages specific files and creates conventional commits with AI-Used trailer and proper message formatting." A-S arm uses this skill as-is without conversion. Trial deployment: file is copied exactly to trial `.claude/skills/commit.md` so it's discovered identically to the repo. Trial isolation: cold cfg has no plugin skills, so the plugin commit skill cannot leak into any arm.
 - **Runbook 830:** `/Users/joe/.local/share/engram/vault/830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md` (situation, done_when, steps 1–6 verbatim text; exact line numbers shift per YAML). B-R arm uses this note as-is without conversion.
 - **Phase-1 harness:** `/Users/joe/repos/personal/engram/.claude/worktrees/runbook-vs-skill/dev/eval/cumulative/runbook_vs_skill/{README.md, probe.py, fixtures/, fixture-vaults/}` (reuse structure; extend probe.py only).
 - **Isolation contract:** `/Users/joe/repos/personal/engram/dev/eval/isolation.py` (isolated_env, assert_isolated, project_slug, NEVER edit).
@@ -70,7 +70,7 @@ dev/eval/cumulative/runbook_vs_skill/
 ```
 
 **Carrier setup paths (for reference; not created by plan, just discovered):**
-- A-S carrier: `/Users/joe/.claude/plugins/cache/skills/commit/49ce826094da/skills/commit/SKILL.md` (copied into trial .claude/skills for discovery)
+- A-S carrier: `/Users/joe/repos/personal/engram/.claude/skills/commit.md` (copied into trial .claude/skills for discovery)
 - B-R carrier: `/Users/joe/.local/share/engram/vault/830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md` (copied into trial vault with .vec.json sidecar)
 
 ---
@@ -81,7 +81,7 @@ dev/eval/cumulative/runbook_vs_skill/
 
 **Files:**
 - Create: `phase2/SOURCE_MATERIALS.md` (verbatim quotes, covering notes list)
-- Read: `/Users/joe/.claude/plugins/cache/skills/commit/49ce826094da/skills/commit/SKILL.md` (live /commit skill)
+- Read: `/Users/joe/repos/personal/engram/.claude/skills/commit.md` (live /commit skill)
 - Read: `/Users/joe/.local/share/engram/vault/830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md` (runbook 830)
 
 **Interfaces:**
@@ -89,12 +89,26 @@ dev/eval/cumulative/runbook_vs_skill/
 
 - [ ] **Step 1: Extract live /commit skill steps verbatim**
 
-Read `/Users/joe/.claude/plugins/cache/skills/commit/49ce826094da/skills/commit/SKILL.md` (the active skill trials discover). Quote:
-- Workflow section (steps 1–5, lines 24–41): "Inspect the working tree", "Partition into atomic units", "Stage precisely", "Write the commit message", "Verify"
-- Commit Message Format section (lines 43–104): subject line rules, body structure, footers, example
-- Note: this skill says "No AI attribution trailers" (line 88); no AI-Used trailer is prescribed
+Read `/Users/joe/repos/personal/engram/.claude/skills/commit.md`. Quote the 7 Process steps and Rules:
 
-Record: A-S arm uses this skill as-is; conversions (A-R, A-F) source from this exact text.
+**Process (7 steps):**
+1. Check VCS type (look for `.jj` directory; if jj repo, use `jj` commands, not `git`)
+2. Check state (`git status`, `git diff --staged`, `git diff`; if nothing to commit, report and stop)
+3. Review recent commits for style (`git log --oneline -5`)
+4. Stage changes (stage files relevant to current change; prefer specific paths over `git add -A`; do not stage unrelated files)
+5. Compose message (format: `<type>(scope): <description>` + body explaining why + trailer `AI-Used: [claude]`)
+6. Commit (use HEREDOC: `git commit -m "$(cat <<'EOF' ... EOF )"` with message and `AI-Used: [claude]` trailer)
+7. Verify (`git log -1` and `git status`)
+
+**Rules:**
+- AI-Used trailer is `AI-Used: [claude]` — NOT Co-Authored-By
+- Never amend pushed commits; check `git status` for "ahead of" first
+- Separate concerns; don't mix functional changes with lint/style fixes
+- First line under 72 chars; body wrapped at 72 chars
+- Stage specific files; don't use `git add -A` or `git add .`
+- Never use dangerous commands (no `git checkout -- .`, `git restore .`, `git reset --hard`)
+
+Record: A-S arm uses this skill as-is (source deployed to trial `.claude/skills/commit.md` exactly as in repo); conversions (A-R, A-F) source from this exact text.
 
 - [ ] **Step 2: Extract runbook 830 verbatim (situation, done_when, steps)**
 
@@ -516,10 +530,10 @@ Citation: probe.py phase-1 pattern (cite lines where marker is generated and app
 - Rdirect: n/a (no retrieval attempted; marker_seen is delivery check)
 
 **FOLLOWED-all-steps:** 
-- Task A: mechanical checklist derived from live /commit skill's 5 Workflow steps (steps 1–5); each trial records k of 5
+- Task A: mechanical checklist derived from repo /commit skill's 7 Process steps (Check VCS type, Check state, Review recent commits, Stage changes, Compose message, Commit, Verify); each trial records k of 7
 - Task B: mechanical checklist derived from runbook 830's 6 steps (steps 1–6 verbatim from Task 1); each trial records k of 6
 
-Record: FOLLOWED-all-steps as binary (every step completed = k=N, or k<N). Compute per-task N_A=5 (commit), N_B=6 (gitignore). Parity uses FOLLOWED-all-steps (trials with every step, k/5), not mean steps.
+Record: FOLLOWED-all-steps as binary (every step completed = k=N, or k<N). Compute per-task N_A=7 (commit), N_B=6 (gitignore). Parity uses FOLLOWED-all-steps (trials with every step, k/5), not mean steps.
 
 - [ ] **Step 7: Output record structure**
 
