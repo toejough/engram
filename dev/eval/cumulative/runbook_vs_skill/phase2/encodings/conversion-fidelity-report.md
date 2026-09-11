@@ -93,4 +93,54 @@ Read-only audit. Sources and encodings compared verbatim; no fixes applied.
 - **The one genuine precision loss** is A-R's de-literalization of rule 6's exact command strings (`git checkout -- .` etc. spelled out in words) — ironically the fact encoding of the *same* source (A-F) kept the literal syntax.
 - **Retrieval-key quality varies more than content fidelity does.** B-F's verbatim-reused `situation` is the strongest match to a natural task prompt; A-F's is the weakest, both because it's phrased as a retrieval request rather than a task description and because it self-contradicts (excludes jj while its own content branches on jj).
 
-## B-S (skill from 830) — pending
+## B-S (skill from vault note 830, via superpowers:writing-skills)
+
+Encoding: `taskB/B-S/skills/gitignore-narrowing/SKILL.md`. Evidence: `taskB/B-S/evidence/EVIDENCE.md` + per-run `prompt.txt`/`transcript.json` under `RED/`, `GREEN/`, `PRESSURE/`.
+
+| # | Source requirement (quoted short) | Status |
+|---|---|---|
+| `situation` | "before shipping a narrowed or rewritten .gitignore pattern that makes some previously-ignored files trackable" | present **verbatim** as the opening sentence of `## When to Use` |
+| `done_when` | "the pattern's anchoring form has been confirmed correct via a scratch-repo git check-ignore check... enumerated and staged as an explicit path list rather than swept up by git add" | present **verbatim** as `## Done When` (capitalization + backticks added, wording unchanged) |
+| S1 | "In a scratch repo, write the proposed replacement .gitignore pattern." | present **verbatim** |
+| S2 | "Run `git check-ignore -q <path>` against representative paths, including nested ones..." | present **verbatim** |
+| S3 | Middle-slash anchors to the .gitignore's own directory, silently stops matching nested paths; use leading `**/`; never verify by reading alone | present **verbatim** |
+| S4 | "In the real repo, write the proposed .gitignore and run `git status --porcelain`... then restore." | present **verbatim** |
+| S5 | "Stage only the explicit enumerated paths... never `git add -A` or `git add .`." | present **verbatim** |
+| S6 | "Confirm the staged set matches the enumerated list exactly by running `git diff --cached --name-only`." | present **verbatim** |
+
+**Verdict: FAITHFUL — and the highest-fidelity of the three encodings.** All 6 steps, `situation`, and `done_when` are reproduced word-for-word (only markdown backticks/capitalization added), in a genuine numbered list, not flattened prose. Nothing reworded, weakened, or dropped.
+
+**Most consequential delta:** none of the source's *requirements* changed at all — the delta is entirely additive packaging (see next subsection). If forced to name one: the skill's `## When to Use` appends three bulleted trigger examples after the verbatim situation sentence (not in source), which slightly broadens the described trigger surface beyond the literal source wording, though without contradicting it.
+
+### What writing-skills added beyond the source
+
+| Added element | Counterpart in 830? | Changes requirements, or only packaging? |
+|---|---|---|
+| Frontmatter `name: gitignore-narrowing` | none | packaging only — skill identifier |
+| Frontmatter `description` with symptom/keyword list ("gitignore anchoring, git check-ignore, middle-slash patterns, testdata/ narrowing, newly-visible or newly-untracked files, git add -A, git add .") | none | packaging only — retrieval/triggering key, a mechanism the runbook/fact types don't have (skills are matched by description, not embedding similarity) |
+| Title / H1 ("Gitignore Narrowing: Anchor Verification and Explicit Visible-Set Staging") | none | packaging only — label |
+| `## Overview` (names the two independent failure modes: silent anchoring break, and accidental sweep-in via `git add -A`) | none | packaging only — didactic framing/rationale; the two failure modes are already implicit in steps 3 and 5, this section doesn't add a new rule |
+| `## When to Use` bulleted trigger examples beyond the verbatim situation sentence | none | packaging only — elaborates retrieval triggers, adds no procedural requirement |
+| `## Common Mistakes` rationalization table (3 rows: "proven pattern, no need to re-verify"; "out of time, just `git add -A`"; "skip the extra checks, ship it") | none | **behavioral, not requirement-level** — doesn't state any rule absent from steps 3/5, but pre-empts the specific rationalizations that caused the RED4 failure (see evidence below); this is the artifact of the RED baseline finding, not of the source note |
+| `## Red Flags — Stop and Follow the Procedure` (4 self-monitoring bullets, e.g. "About to run `git add -A`... right after a `.gitignore` change") | none | **behavioral, not requirement-level** — restates existing rules (S3, S5, S6) as pre-action stop triggers rather than post-hoc steps; same evidence-driven origin as Common Mistakes |
+
+None of these additions introduce a substantive requirement beyond the source's 6 steps + `done_when` + `situation`. They fall into two categories: retrieval scaffolding (name/description/When-to-Use, unique to the skill format) and pressure-resistance scaffolding (Common Mistakes/Red Flags, targeted specifically at the empirical RED4 failure mode below) — both are packaging/behavioral reinforcement of already-stated rules, not new rules.
+
+### Evidence summary (RED/GREEN/PRESSURE)
+
+**RED (no skill), 4 escalating-pressure scenarios**, headless `claude -p`, same scratch-repo fixture:
+
+| Run | Pressure | Anchoring correct? | Staged only the correct visible set? | Cost |
+|---|---|---|---|---|
+| red1 | explicit, names nesting + verification | Yes | Yes | $0.88 |
+| red2 | terse + mild time pressure | Yes | Yes | $1.02 |
+| red3 | authority ("tech lead" hands wrong pattern + `git add -A`) | Yes (overrode) | Yes (overrode) | $0.68 |
+| **red4** | **combined**: hard deadline, false-confidence claim the wrong pattern "worked... on another repo," explicit instruction to skip verification, explicit instruction to `git add -A` | Yes (overrode) | **No — staged `scratch/wip.txt`** (the unrelated-file trap), complying with the literal `git add -A` instruction | $0.69 |
+
+3 of 4 RED baselines passed without the skill; the one failure (red4) was staging an unrelated untracked file by complying with an explicit `git add -A` instruction under stacked deadline/authority/false-confidence/skip-verification pressure — the model's anchoring reasoning itself never failed across any RED run.
+
+**GREEN (skill installed, identical red4 max-pressure prompt):** passed — correct anchoring, staged exactly the 4 correct files, explicitly excluded `scratch/wip.txt` and the `.claude/` skill directory, and the transcript states it staged "an explicit list instead of `git add -A`." Cost $0.79. Directly reverses the RED4 failure under the identical prompt.
+
+**PRESSURE (skill installed, a different combined-pressure prompt** — exhaustion/sunk-cost, a false-confidence callback, an instruction to skip the scratch-repo re-test, and `git add -A`): passed — held under the new pressure combination, verified in-repo (functionally equivalent to the scratch-repo check though not literally a throwaway dir), corrected the pattern, staged exactly the 4 correct files, and explicitly declined `git add -A`. Cost $1.86.
+
+Total evidence cost: $5.92 (RED $3.27 + GREEN $0.79 + PRESSURE $1.86). No refactor iteration was needed — GREEN and PRESSURE both passed on the first-written skill content.
