@@ -166,14 +166,15 @@ tags:
 ### Task B: gitignore-related grepping
 **Grep pattern:** `gitignore|check-ignore|git check-ignore`
 
-**Removal list (notes that teach agents how to narrow .gitignore):**
-None identified. (Note 830 itself is the source and is kept only in arm B-R as specified.)
+**Removal list (notes whose content reveals the gitignore procedure or related conventions):**
+- `420.2026-07-24.folder-move-surface-gitignore-anchors-and-silent-optional-consumers.md` — teaches ".gitignore anchored glob patterns rooted at the old path silently stop matching after the move" (830's step-2 anchored-glob insight)
+- `447.2026-07-24.framework-owned-testdata-not-dead-just-because-app-code-ignores-it.md` — records targ#33 ".gitignore narrowing + tracked fixtures" episode and framework-interaction analysis
+- `448.2026-07-24.route-dispatch-design-fit-review.md` — records targ#33 ".gitignore narrowing + tracked fixtures" episode outcomes and learnings
+
+**Note 830 status:** Removed from every arm except B-R (kept only in B-R background vault per spec).
 
 **Mentions only, keep (notes that mention gitignore terms in passing):**
 - `360.2026-07-22.scope-review-checks-complete-file-list-not-expected-files.md` — feedback on scope review; mentions .gitignore as backstop for cache dirs but focuses on commit file-list checking, not .gitignore narrowing
-- `420.2026-07-24.folder-move-surface-gitignore-anchors-and-silent-optional-consumers.md` — feedback on directory moves; mentions .gitignore anchored patterns and effects of moves on them, but is not a .gitignore narrowing procedure
-- `447.2026-07-24.framework-owned-testdata-not-dead-just-because-app-code-ignores-it.md` — feedback on removing tracked files; mentions git rm --cached and framework conventions but is not a .gitignore narrowing procedure
-- `448.2026-07-24.route-dispatch-design-fit-review.md` — dispatch outcome fact; documents the .gitignore narrowing gate review process and outcome, not a narrowing procedure
 
 ---
 
