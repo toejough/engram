@@ -344,6 +344,135 @@ def test_evaluate_steps_commit_message_format_checker_false_wrong_trailer(tmp_pa
     assert pp.default_repo_checker("commit_message_format", repo) is False
 
 
+# ----- gitignore_narrowed_to_generated checker (Task B step 3) -----
+
+def _write_gitignore(repo, lines):
+    os.makedirs(repo, exist_ok=True)
+    with open(os.path.join(repo, ".gitignore"), "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def test_gitignore_narrowed_to_generated_true_when_narrowed_correctly(tmp_path):
+    repo = str(tmp_path / "repo")
+    _write_gitignore(repo, ["testdata/generated/", "*.o"])
+    assert pp.default_repo_checker("gitignore_narrowed_to_generated", repo) is True
+
+
+def test_gitignore_narrowed_to_generated_true_with_leading_globstar_form(tmp_path):
+    repo = str(tmp_path / "repo")
+    _write_gitignore(repo, ["**/testdata/generated", "*.o"])
+    assert pp.default_repo_checker("gitignore_narrowed_to_generated", repo) is True
+
+
+def test_gitignore_narrowed_to_generated_false_when_bare_testdata_still_present(tmp_path):
+    repo = str(tmp_path / "repo")
+    _write_gitignore(repo, ["testdata/", "testdata/generated/"])
+    assert pp.default_repo_checker("gitignore_narrowed_to_generated", repo) is False
+
+
+def test_gitignore_narrowed_to_generated_false_when_bare_scripts_still_present(tmp_path):
+    repo = str(tmp_path / "repo")
+    _write_gitignore(repo, ["testdata/generated/", "scripts/"])
+    assert pp.default_repo_checker("gitignore_narrowed_to_generated", repo) is False
+
+
+def test_gitignore_narrowed_to_generated_false_when_narrowed_target_missing(tmp_path):
+    repo = str(tmp_path / "repo")
+    _write_gitignore(repo, ["*.o"])
+    assert pp.default_repo_checker("gitignore_narrowed_to_generated", repo) is False
+
+
+def test_gitignore_narrowed_to_generated_false_when_gitignore_missing(tmp_path):
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo, exist_ok=True)
+    assert pp.default_repo_checker("gitignore_narrowed_to_generated", repo) is False
+
+
+# ----- real steps.json files: valid JSON, evaluable, every repo_state pattern registered -----
+
+def test_both_real_steps_json_files_are_valid_json_and_loadable():
+    for task in ("A", "B"):
+        steps = pp.load_steps(task)
+        assert isinstance(steps, list)
+        assert len(steps) > 0
+        for step in steps:
+            assert "n" in step and "signal" in step and "pattern" in step
+
+
+def test_real_steps_json_task_a_evaluates_against_a_synthetic_transcript_and_repo(tmp_path):
+    import subprocess
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Trial"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "--allow-empty", "-m",
+                     "feat(pkg): bump version\n\nwhy\n\nAI-Used: [claude]"],
+                    cwd=repo, check=True, capture_output=True)
+    events = [
+        _tool_use("Bash", {"command": "ls -la .jj 2>/dev/null || true"}, idx=0),
+        _tool_use("Bash", {"command": "git status"}, idx=1),
+        _tool_use("Bash", {"command": "git diff --staged"}, idx=2),
+        _tool_use("Bash", {"command": "git log --oneline -5"}, idx=3),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=4),
+        _tool_use("Bash", {"command": "git commit -m 'feat: bump'"}, idx=5),
+        _tool_use("Bash", {"command": "git log -1"}, idx=6),
+    ]
+    steps = pp.load_steps("A")
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path=repo)
+    assert k == len(steps)
+    assert all_ is True
+
+
+def test_real_steps_json_task_b_evaluates_against_a_synthetic_transcript_and_repo(tmp_path):
+    repo = str(tmp_path / "repo")
+    _write_gitignore(repo, ["testdata/generated/", "*.o"])
+    events = [
+        _tool_use("Bash", {"command": "cat .gitignore"}, idx=0),
+        _tool_use("Bash", {"command": "git check-ignore -q testdata/generated/big.bin"}, idx=1),
+        _tool_use("Bash", {"command": "git status --porcelain"}, idx=2),
+        _tool_use("Bash", {"command": "git add scripts/build.sh"}, idx=3),
+        _tool_use("Bash", {"command": "git diff --cached"}, idx=4),
+    ]
+    steps = pp.load_steps("B")
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path=repo)
+    assert k == len(steps)
+    assert all_ is True
+
+
+def test_every_repo_state_pattern_in_real_steps_json_is_registered():
+    for task in ("A", "B"):
+        for step in pp.load_steps(task):
+            if step["signal"] == "repo_state":
+                assert step["pattern"] in pp.REPO_STATE_CHECKERS, (
+                    f"Task {task} step {step['n']} names repo_state pattern "
+                    f"{step['pattern']!r}, which has no registered checker"
+                )
+
+
+# ----- non-fatal scoring: one trial's scoring exception must not lose sibling results -----
+
+def test_score_trial_scoring_exception_is_captured_not_raised(monkeypatch, tmp_path):
+    def _boom(*args, **kwargs):
+        raise ValueError("synthetic scoring failure")
+
+    monkeypatch.setattr(pp, "score_found_phase2", _boom)
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo, exist_ok=True)
+    scored = pp._score_trial("A", "R", events=[], repo_path=repo, carrier_basename="x")
+    assert scored["scoring_error"] is not None
+    assert "synthetic scoring failure" in scored["scoring_error"]
+    # safe defaults, not a raised exception
+    assert scored["found"] is None
+    assert scored["end_state"] is False
+    assert scored["followed_k"] == 0
+
+
+def test_score_trial_no_exception_leaves_scoring_error_none():
+    scored = pp._score_trial("A", "S", events=[], repo_path="/does/not/exist", carrier_basename=None)
+    assert scored["scoring_error"] is None
+
+
 # ----- starting-state assertion (real fixture init scripts, no claude calls) -----
 
 def test_setup_trial_repo_task_a_preserves_unstaged_and_decoy(tmp_path):
@@ -413,19 +542,49 @@ def test_decomposition_baseline_uninterpretable_false_when_s_end_state_at_least_
     assert frame["baseline_uninterpretable"] is False
 
 
-def test_decomposition_shim_loss_is_rdirect_minus_r_end_state():
-    agg = {"S": _agg(5, 5, 4, 4, 4), "R": _agg(5, 5, 3, 2, 2), "F": _agg(5, 5, 3, 2, 2),
-           "Rdirect": _agg(5, 5, None, 5, 5)}
+def test_decomposition_shim_loss_reports_both_populations_when_they_diverge():
+    """Controller ruling (final): shim_loss must report BOTH the total population (all valid R
+    trials, incl. not-found) and the given_found population (only R's found=true subset) — these
+    must be observably different, not aliased. R's found_n=3 < valid_n=5, and
+    end_state_given_found_n(0) != end_state_n(3), by construction."""
+    agg = {
+        "S": _agg(5, 5, 4, 4, 4),
+        "R": _agg(5, 5, 3, 3, 3, end_state_given_found_n=0, followed_all_given_found_n=0),
+        "F": _agg(5, 5, 4, 4, 4, end_state_given_found_n=2, followed_all_given_found_n=2),
+        "Rdirect": _agg(5, 5, None, 4, 4),
+    }
     frame = pp.decomposition(agg)
-    assert frame["shim_loss"] == 5 - 2
+    assert frame["shim_loss_total"] == 4 - 3
+    assert frame["shim_loss_given_found"] == 4 - 0
+    assert frame["shim_loss_total"] != frame["shim_loss_given_found"]
 
 
-def test_decomposition_type_effect_is_r_minus_f():
-    agg = {"S": _agg(5, 5, 4, 4, 4), "R": _agg(5, 5, 5, 5, 5), "F": _agg(5, 5, 2, 2, 2),
-           "Rdirect": _agg(5, 5, None, 3, 3)}
+def test_decomposition_note_quality_f_reports_both_populations_when_they_diverge():
+    agg = {
+        "R": _agg(5, 5, 3, 3, 3, end_state_given_found_n=0, followed_all_given_found_n=0),
+        "F": _agg(5, 5, 4, 4, 4, end_state_given_found_n=2, followed_all_given_found_n=2),
+        "Rdirect": _agg(5, 5, None, 4, 4),
+    }
     frame = pp.decomposition(agg)
-    assert frame["type_effect"]["end_state"] == 5 - 2
-    assert frame["type_effect"]["followed_all"] == 5 - 2
+    assert frame["note_quality_F_total"] == 4 - 4
+    assert frame["note_quality_F_given_found"] == 2 - 4
+    assert frame["note_quality_F_total"] != frame["note_quality_F_given_found"]
+
+
+def test_decomposition_type_effect_reports_both_populations_when_they_diverge():
+    agg = {
+        "R": _agg(5, 5, 3, 3, 3, end_state_given_found_n=0, followed_all_given_found_n=0),
+        "F": _agg(5, 5, 4, 4, 4, end_state_given_found_n=2, followed_all_given_found_n=2),
+        "Rdirect": _agg(5, 5, None, 4, 4),
+    }
+    frame = pp.decomposition(agg)
+    assert frame["type_effect"]["end_state_total"] == 3 - 4
+    assert frame["type_effect"]["end_state_given_found"] == 0 - 2
+    assert frame["type_effect"]["followed_all_total"] == 3 - 4
+    assert frame["type_effect"]["followed_all_given_found"] == 0 - 2
+    assert frame["type_effect"]["end_state_total"] != frame["type_effect"]["end_state_given_found"]
+    assert (frame["type_effect"]["followed_all_total"]
+            != frame["type_effect"]["followed_all_given_found"])
 
 
 def test_decomposition_parity_cant_distinguish_within_one_trial():

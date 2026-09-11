@@ -79,7 +79,7 @@ TASKS = {
         "carrier_r_src": os.path.join(ENCODINGS_DIR, "taskA", "A-R", "vault"),
         "carrier_f_src": os.path.join(ENCODINGS_DIR, "taskA", "A-F", "vault"),
         "skill_name": "commit",
-        "skill_src": "/Users/joe/repos/personal/engram/.claude/skills/commit.md",
+        "skill_src": os.path.join(p1.REPO, ".claude", "skills", "commit.md"),
     },
     "B": {
         "init_script": os.path.join(FIXTURES_DIR, "gitignore", "init_fixture_repo.sh"),
@@ -383,8 +383,32 @@ def _check_commit_message_format(repo_path):
     return bool(non_empty) and non_empty[-1] == "AI-Used: [claude]"
 
 
+_BARE_TESTDATA_RE = re.compile(r"^testdata/$")
+_NARROWED_TESTDATA_RE = re.compile(r"^(\*\*/)?testdata/generated/?$")
+_BARE_SCRIPTS_RE = re.compile(r"^scripts/$")
+
+
+def _check_gitignore_narrowed_to_generated(repo_path):
+    """Task B step 3 ('gitignore_narrowed_to_generated' repo_state signal): the .gitignore no
+    longer over-broadly ignores all of testdata/ or all of scripts/ — narrowed to just the
+    generated artifacts directory. True iff:
+      (1) no bare 'testdata/' line remains,
+      (2) a line matches '^(**/)?testdata/generated/?$' (the narrowed target), and
+      (3) the bare 'scripts/' line is gone (removed or narrowed to something more specific)."""
+    path = os.path.join(repo_path, ".gitignore")
+    try:
+        lines = [line.strip() for line in open(path).read().splitlines()]
+    except OSError:
+        return False
+    has_bare_testdata = any(_BARE_TESTDATA_RE.match(line) for line in lines)
+    has_narrowed_testdata = any(_NARROWED_TESTDATA_RE.match(line) for line in lines)
+    has_bare_scripts = any(_BARE_SCRIPTS_RE.match(line) for line in lines)
+    return (not has_bare_testdata) and has_narrowed_testdata and (not has_bare_scripts)
+
+
 REPO_STATE_CHECKERS = {
     "commit_message_format": _check_commit_message_format,
+    "gitignore_narrowed_to_generated": _check_gitignore_narrowed_to_generated,
 }
 
 
@@ -456,6 +480,41 @@ def check_end_state_phase2(task_key, repo_path):
 
 # ----- one trial -----
 
+def _score_trial(task_key, arm, events, repo_path, carrier_basename):
+    """Run all trial scoring (FOUND, recall_fired, FOLLOWED, END-STATE) and NEVER raise — an
+    exception here is caught and recorded as `scoring_error`, with safe defaults for the rest of
+    the fields. Round-1 review finding: an unhandled exception in scoring propagates through the
+    ThreadPoolExecutor future in run_batch's `for fut in cf.as_completed(futs): record =
+    fut.result()` loop, aborting the WHOLE batch and losing every sibling trial's already-scored
+    result that hadn't been collected yet — one bad trial (e.g. an unregistered repo_state
+    pattern) must not cost the rest of the run."""
+    steps = load_steps(task_key)
+    n_steps = len(steps)
+    scored = {
+        "found": None, "found_method": found_method(arm, None), "found_index": None,
+        "recall_fired": False,
+        "followed_steps": {}, "followed_k": 0, "followed_all": False, "n_steps": n_steps,
+        "end_state": False, "end_state_output": "",
+        "scoring_error": None,
+    }
+    try:
+        found, found_idx = score_found_phase2(task_key, arm, events, carrier_basename)
+        scored["found"] = found
+        scored["found_method"] = found_method(arm, found)
+        scored["found_index"] = found_idx
+        scored["recall_fired"] = p1.score_recall_fired(events)
+        followed_steps, followed_k, followed_all = evaluate_steps(steps, events, repo_path)
+        scored["followed_steps"] = followed_steps
+        scored["followed_k"] = followed_k
+        scored["followed_all"] = followed_all
+        end_state, end_state_output = check_end_state_phase2(task_key, repo_path)
+        scored["end_state"] = end_state
+        scored["end_state_output"] = end_state_output
+    except Exception as exc:  # noqa: BLE001 — record and let the trial (and batch) continue
+        scored["scoring_error"] = str(exc)
+    return scored
+
+
 def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, marker, timeout_s):
     trial_dir = os.path.join(run_root, "trials", f"{task_key}-{arm}-{trial_index}")
     os.makedirs(trial_dir, exist_ok=True)
@@ -479,11 +538,10 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
     events = p1.parse_transcript_events(transcript_paths)
 
     marker_seen = p1.is_marker_seen(raw_text, marker)
-    found, found_idx = score_found_phase2(task_key, arm, events, carrier_basename)
-    recall_fired = p1.score_recall_fired(events)
-    steps = load_steps(task_key)
-    followed_steps, followed_k, followed_all = evaluate_steps(steps, events, repo_path)
-    end_state, end_state_output = check_end_state_phase2(task_key, repo_path)
+    scored = _score_trial(task_key, arm, events, repo_path, carrier_basename)
+    if scored["scoring_error"]:
+        scoring_msg = f"scoring exception: {scored['scoring_error']}"
+        error = f"{error}; {scoring_msg}" if error else scoring_msg
 
     record = {
         "task": task_key, "arm": arm, "trial": trial_index, "model": model,
@@ -491,11 +549,12 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
         "transcript_path": transcript_paths[0] if transcript_paths else None,
         "valid": marker_seen, "timed_out": timed_out, "error": error,
         "marker_seen": marker_seen,
-        "found": found, "found_method": found_method(arm, found), "found_index": found_idx,
-        "recall_fired": recall_fired,
-        "followed_steps": followed_steps, "followed_k": followed_k, "followed_all": followed_all,
-        "n_steps": len(steps),
-        "end_state": end_state, "end_state_output": end_state_output,
+        "found": scored["found"], "found_method": scored["found_method"],
+        "found_index": scored["found_index"],
+        "recall_fired": scored["recall_fired"],
+        "followed_steps": scored["followed_steps"], "followed_k": scored["followed_k"],
+        "followed_all": scored["followed_all"], "n_steps": scored["n_steps"],
+        "end_state": scored["end_state"], "end_state_output": scored["end_state_output"],
         "carrier_basename": carrier_basename,
         "vault_copy_s": vault_copy_s,
         "total_cost_usd": p1._call_cost(result),
@@ -723,8 +782,12 @@ def _gap_verdict(baseline_val, other_val):
 
 
 def decomposition(agg):
-    """PLAN-2 line 27 / task-3-brief Step 8 decomposition, computed exactly as ruled (controller
-    ruling 7)."""
+    """PLAN-2 line 27 / task-3-brief Step 8 decomposition. shim_loss and note_quality_F are
+    reported over BOTH populations per the controller's final ruling: `_total` (all valid trials
+    — the retrieval path's full cost, including R's not-found trials) and `_given_found` (only
+    R's found=true subset). type_effect reports both populations for END-STATE and FOLLOWED-all.
+    These two populations are only equal when found_n == valid_n (retrieval never missed) — tests
+    must use an aggregate where they diverge to prove the split is real, not aliased."""
     s, r, f, rd = agg.get("S"), agg.get("R"), agg.get("F"), agg.get("Rdirect")
     out = {}
 
@@ -750,13 +813,26 @@ def decomposition(agg):
             "followed_all": f"{rd['followed_all_n']}/{rd['valid_n']}",
         }
 
+    # shim_loss: the retrieval path's total cost vs. the no-retrieval ceiling, reported over BOTH
+    # populations — total (all valid trials, incl. R's not-found trials) and given_found (R's
+    # found=true subset only) — since these are observably different whenever found_n < valid_n.
     if rd and r:
-        out["shim_loss"] = rd["end_state_n"] - r["end_state_n"]
+        out["shim_loss_total"] = rd["end_state_n"] - r["end_state_n"]
+        out["shim_loss_given_found"] = rd["end_state_n"] - r["end_state_given_found_n"]
+
+    # note_quality_F: how much the fact note adds over the shim/no-retrieval ceiling, same
+    # total/given_found split.
+    if f and rd:
+        out["note_quality_F_total"] = f["end_state_n"] - rd["end_state_n"]
+        out["note_quality_F_given_found"] = f["end_state_given_found_n"] - rd["end_state_n"]
 
     if r and f:
         out["type_effect"] = {
-            "end_state": r["end_state_n"] - f["end_state_n"],
-            "followed_all": r["followed_all_n"] - f["followed_all_n"],
+            "end_state_total": r["end_state_n"] - f["end_state_n"],
+            "end_state_given_found": r["end_state_given_found_n"] - f["end_state_given_found_n"],
+            "followed_all_total": r["followed_all_n"] - f["followed_all_n"],
+            "followed_all_given_found": (r["followed_all_given_found_n"]
+                                          - f["followed_all_given_found_n"]),
         }
 
     parity = {}

@@ -3,7 +3,7 @@
     "n": 1,
     "name": "Inspect .gitignore pattern (read/edit the file to understand current pattern)",
     "signal": "bash_regex",
-    "pattern": "(cat|less|head|sed|grep|awk|vi|nano|Read)(\\s+.*)?\.gitignore\\b"
+    "pattern": "(cat|less|head|sed|grep|awk|vi|nano|Read)(\\s+.*)?\\.gitignore\\b"
   },
   {
     "n": 2,
