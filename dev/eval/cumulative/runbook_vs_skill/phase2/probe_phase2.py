@@ -477,7 +477,14 @@ def load_steps(task_key):
 
 def _check_commit_message_format(repo_path):
     """Task A step 5 ('commit_message_format' repo_state signal): conventional-commit subject
-    plus a final 'AI-Used: [claude]' trailer line, mirroring done_when_checks.sh checks 2/3."""
+    form (`<type>(<scope>): ` or `<type>: `) plus a non-empty body line — NOT the trailer.
+
+    Round-4 ruling (Joe): the trailer (AI-Used: [claude] vs. Co-Authored-By:) is REPORTED, not
+    SCORED, here — the harness's own commit-attribution injection (task-3-report.md's BLOCKED
+    finding) overrides whatever trailer a carrier/skill instructs, identically across every arm,
+    making trailer content an uninformative pass/fail signal for this detector. See
+    `classify_trailer` for the reported (not scored) field. Task 2's thread is removing the
+    trailer requirement from done_when_checks.sh/steps.json in parallel (not touched here)."""
     r = subprocess.run(["git", "-C", repo_path, "log", "-1", "--format=%B"],
                         capture_output=True, text=True)
     msg = r.stdout
@@ -485,8 +492,26 @@ def _check_commit_message_format(repo_path):
         return False
     if not re.match(r"^[a-z]+(\([a-zA-Z0-9/_-]+\))?:", msg):
         return False
-    non_empty = [line for line in msg.splitlines() if line.strip()]
-    return bool(non_empty) and non_empty[-1] == "AI-Used: [claude]"
+    lines = msg.splitlines()
+    body_lines = [line for line in lines[1:] if line.strip()]
+    return bool(body_lines)
+
+
+def classify_trailer(repo_path):
+    """Task A only: classify the newest commit's trailer as 'ai_used' | 'co_authored' | 'both' |
+    'none' — REPORTED, not scored (round-4 ruling). Never affects FOUND/FOLLOWED/END-STATE."""
+    r = subprocess.run(["git", "-C", repo_path, "log", "-1", "--format=%B"],
+                        capture_output=True, text=True)
+    msg = r.stdout
+    has_ai_used = bool(re.search(r"(?m)^AI-Used:\s*\[claude\]\s*$", msg))
+    has_co_authored = bool(re.search(r"(?m)^Co-Authored-By:", msg))
+    if has_ai_used and has_co_authored:
+        return "both"
+    if has_ai_used:
+        return "ai_used"
+    if has_co_authored:
+        return "co_authored"
+    return "none"
 
 
 _BARE_TESTDATA_RE = re.compile(r"^testdata/$")
@@ -513,7 +538,10 @@ def _check_gitignore_narrowed_to_generated(repo_path):
 
 
 REPO_STATE_CHECKERS = {
-    "commit_message_format": _check_commit_message_format,
+    # Task 2's thread renamed the fixtures/commit/steps.json pattern to
+    # "commit_message_format_and_body" (round-4 ruling: trailer requirement removed from the
+    # checker's name as well as its behavior) — registered under that name to match.
+    "commit_message_format_and_body": _check_commit_message_format,
     "gitignore_narrowed_to_generated": _check_gitignore_narrowed_to_generated,
 }
 
@@ -601,6 +629,7 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename):
         "recall_fired": False,
         "followed_steps": {}, "followed_k": 0, "followed_all": False, "n_steps": 0,
         "end_state": False, "end_state_output": "",
+        "trailer": "n/a",
         "scoring_error": None,
     }
     try:
@@ -618,6 +647,8 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename):
         end_state, end_state_output = check_end_state_phase2(task_key, repo_path)
         scored["end_state"] = end_state
         scored["end_state_output"] = end_state_output
+        if task_key == "A":
+            scored["trailer"] = classify_trailer(repo_path)
     except Exception as exc:  # noqa: BLE001 — record and let the trial (and batch) continue
         scored["scoring_error"] = str(exc)
     return scored
@@ -664,6 +695,7 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
         "followed_steps": scored["followed_steps"], "followed_k": scored["followed_k"],
         "followed_all": scored["followed_all"], "n_steps": scored["n_steps"],
         "end_state": scored["end_state"], "end_state_output": scored["end_state_output"],
+        "trailer": scored["trailer"],
         "carrier_basename": carrier_basename,
         "vault_copy_s": vault_copy_s,
         "total_cost_usd": p1._call_cost(result),
@@ -936,6 +968,9 @@ def aggregate(records, task, arm):
     cost_mean = (sum(r.get("total_cost_usd") or 0 for r in valid) / valid_n) if valid_n else 0.0
     durations = [r.get("duration_ms") for r in valid if r.get("duration_ms")]
     duration_mean_s = (sum(durations) / len(durations) / 1000.0) if durations else 0.0
+    # Task A only; reported not scored (round-4 ruling) — see classify_trailer.
+    trailer_ai_used_n = sum(1 for r in valid if r.get("trailer") in ("ai_used", "both"))
+    trailer_co_authored_n = sum(1 for r in valid if r.get("trailer") in ("co_authored", "both"))
     return {
         "n": n, "valid_n": valid_n,
         "found_n": found_n, "found_given_n": found_given_n,
@@ -943,6 +978,7 @@ def aggregate(records, task, arm):
         "followed_all_n": followed_all_n, "followed_all_given_found_n": followed_all_given_found_n,
         "recall_fired_n": recall_fired_n, "followed_mean_k": followed_mean_k, "n_steps": n_steps,
         "cost_mean": cost_mean, "duration_mean": duration_mean_s,
+        "trailer_ai_used_n": trailer_ai_used_n, "trailer_co_authored_n": trailer_co_authored_n,
     }
 
 
@@ -1044,6 +1080,10 @@ def format_table(task, agg):
     row("cost (mean USD)", lambda arm, a: f"${a['cost_mean']:.2f}")
     row("duration (mean s)", lambda arm, a: f"{a['duration_mean']:.0f}")
     row("valid (n)", lambda arm, a: f"{a['valid_n']}/{a['n']}")
+    if task == "A":
+        row("trailer AI-Used (k/n)", lambda arm, a: f"{a['trailer_ai_used_n']}/{a['valid_n']}")
+        row("trailer Co-Authored-By (k/n)", lambda arm, a: f"{a['trailer_co_authored_n']}/{a['valid_n']}")
+        lines.append("  ^ reported, not scored — harness attribution injection overrides carriers")
     return "\n".join(lines)
 
 
@@ -1064,12 +1104,12 @@ def summarize_file(path):
 
 def rescore_file(in_path, out_path):
     """Re-run FOUND (round-3: extended to cover it, per the mutating-regex fix), steps.json
-    evaluation, and END-STATE on kept trial directories/transcripts. `repo_path` is required (for
-    steps.json's repo_state signals and END-STATE); `transcript_path` is required for FOUND and
-    bash_regex steps — if the transcript is also missing, those recompute against an empty event
-    list (found stays at its arm-appropriate default, e.g. None for Rdirect / False otherwise).
-    Provenance (`arm`, `carrier_basename`, `task`) is read from the kept record, never
-    re-derived."""
+    evaluation, END-STATE, and the Task A `trailer` field (round 4) on kept trial
+    directories/transcripts. `repo_path` is required (for steps.json's repo_state signals,
+    END-STATE, and `trailer`); `transcript_path` is required for FOUND and bash_regex steps — if
+    the transcript is also missing, those recompute against an empty event list (found stays at
+    its arm-appropriate default, e.g. None for Rdirect / False otherwise). Provenance (`arm`,
+    `carrier_basename`, `task`) is read from the kept record, never re-derived."""
     records = load_jsonl(in_path)
     rescored = []
 
@@ -1105,6 +1145,8 @@ def rescore_file(in_path, out_path):
             end_state, end_state_output = check_end_state_phase2(task_key, repo_path)
             record["end_state"] = end_state
             record["end_state_output"] = end_state_output
+
+            record["trailer"] = classify_trailer(repo_path) if task_key == "A" else "n/a"
 
             record["rescored_from"] = in_path
         except Exception as e:  # noqa: BLE001

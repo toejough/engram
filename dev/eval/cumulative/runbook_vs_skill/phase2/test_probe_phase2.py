@@ -497,7 +497,7 @@ def test_evaluate_steps_repo_state_signal_uses_provided_checker():
     assert k == 1
 
 
-def test_evaluate_steps_commit_message_format_checker_true_on_conforming_message(tmp_path):
+def test_commit_message_format_and_body_true_on_conforming_message(tmp_path):
     import subprocess
     repo = str(tmp_path / "repo")
     os.makedirs(repo)
@@ -507,10 +507,14 @@ def test_evaluate_steps_commit_message_format_checker_true_on_conforming_message
     subprocess.run(["git", "commit", "--allow-empty", "-m",
                      "feat(pkg): bump version\n\nwhy we did this\n\nAI-Used: [claude]"],
                     cwd=repo, check=True, capture_output=True)
-    assert pp.default_repo_checker("commit_message_format", repo) is True
+    assert pp.default_repo_checker("commit_message_format_and_body", repo) is True
 
 
-def test_evaluate_steps_commit_message_format_checker_false_wrong_trailer(tmp_path):
+def test_commit_message_format_and_body_true_even_with_only_co_authored_trailer(tmp_path):
+    """Round-4 ruling: the checker no longer scores the trailer at all — a body line's CONTENT
+    is never inspected, only that one exists. A message whose only 'body' line is a
+    Co-Authored-By trailer (the harness's own injected convention, not AI-Used) must still PASS
+    this checker; trailer classification is reported separately via classify_trailer."""
     import subprocess
     repo = str(tmp_path / "repo")
     os.makedirs(repo)
@@ -519,7 +523,69 @@ def test_evaluate_steps_commit_message_format_checker_false_wrong_trailer(tmp_pa
     subprocess.run(["git", "config", "user.name", "Trial"], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "commit", "--allow-empty", "-m", "feat(pkg): bump version\n\nCo-Authored-By: x"],
                     cwd=repo, check=True, capture_output=True)
-    assert pp.default_repo_checker("commit_message_format", repo) is False
+    assert pp.default_repo_checker("commit_message_format_and_body", repo) is True
+
+
+def test_commit_message_format_and_body_false_when_no_body_at_all(tmp_path):
+    import subprocess
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Trial"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "--allow-empty", "-m", "feat(pkg): bump version"],
+                    cwd=repo, check=True, capture_output=True)
+    assert pp.default_repo_checker("commit_message_format_and_body", repo) is False
+
+
+def test_commit_message_format_and_body_false_when_subject_form_missing(tmp_path):
+    import subprocess
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Trial"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "--allow-empty", "-m", "bumped the version\n\nsome body text"],
+                    cwd=repo, check=True, capture_output=True)
+    assert pp.default_repo_checker("commit_message_format_and_body", repo) is False
+
+
+# ----- classify_trailer: reported, not scored (round 4) -----
+
+def _commit_with_message(repo, message):
+    import subprocess
+    os.makedirs(repo, exist_ok=True)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Trial"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "--allow-empty", "-m", message], cwd=repo, check=True, capture_output=True)
+
+
+def test_classify_trailer_ai_used(tmp_path):
+    repo = str(tmp_path / "repo")
+    _commit_with_message(repo, "feat(pkg): bump version\n\nwhy\n\nAI-Used: [claude]")
+    assert pp.classify_trailer(repo) == "ai_used"
+
+
+def test_classify_trailer_co_authored(tmp_path):
+    repo = str(tmp_path / "repo")
+    _commit_with_message(repo, "feat(pkg): bump version\n\nwhy\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>")
+    assert pp.classify_trailer(repo) == "co_authored"
+
+
+def test_classify_trailer_both(tmp_path):
+    repo = str(tmp_path / "repo")
+    _commit_with_message(
+        repo,
+        "feat(pkg): bump version\n\nwhy\n\nAI-Used: [claude]\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+    )
+    assert pp.classify_trailer(repo) == "both"
+
+
+def test_classify_trailer_none(tmp_path):
+    repo = str(tmp_path / "repo")
+    _commit_with_message(repo, "feat(pkg): bump version\n\nwhy we made this change")
+    assert pp.classify_trailer(repo) == "none"
 
 
 # ----- gitignore_narrowed_to_generated checker (Task B step 3) -----
@@ -649,6 +715,18 @@ def test_score_trial_scoring_exception_is_captured_not_raised(monkeypatch, tmp_p
 def test_score_trial_no_exception_leaves_scoring_error_none():
     scored = pp._score_trial("A", "S", events=[], repo_path="/does/not/exist", carrier_basename=None)
     assert scored["scoring_error"] is None
+
+
+def test_score_trial_populates_trailer_for_task_a(tmp_path):
+    repo = str(tmp_path / "repo")
+    _commit_with_message(repo, "feat(pkg): bump version\n\nwhy\n\nAI-Used: [claude]")
+    scored = pp._score_trial("A", "S", events=[], repo_path=repo, carrier_basename=None)
+    assert scored["trailer"] == "ai_used"
+
+
+def test_score_trial_trailer_is_na_for_task_b():
+    scored = pp._score_trial("B", "S", events=[], repo_path="/does/not/exist", carrier_basename=None)
+    assert scored["trailer"] == "n/a"
 
 
 def test_score_trial_load_steps_exception_is_captured_not_raised(monkeypatch, tmp_path):
