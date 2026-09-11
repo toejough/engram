@@ -155,14 +155,13 @@ tags:
 ### Task A: commit-related grepping
 **Grep pattern:** `AI-Used|conventional commit|commit message format|commit trailer`
 
-**Removal list (notes that teach agents how to make commits):**
-None identified.
+**Removal list (notes whose content reveals the convention the source teaches):**
+- `354.2026-07-22.subagent-briefs-state-commit-invariants-not-per-commit.md` — quotes "EVERY commit you create ends with AI-Used: [claude]" (reveals the trailer convention)
+- `392.2026-07-23.route-dispatch-doc-review-gate.md` — states "Conventional Commits format, AI-Used trailer (no Co-Authored-By)" as repo rule (reveals the trailer and format conventions)
+- `672.2026-07-29.route-dispatch-doc-review-gate.md` — states "Conventional Commits format, AI-Used trailer (no Co-Authored-By)" as repo rule (reveals the trailer and format conventions)
 
 **Mentions only, keep (notes that mention commit terms in passing):**
-- `354.2026-07-22.subagent-briefs-state-commit-invariants-not-per-commit.md` — feedback on briefing subagents; mentions AI-Used trailer rule but is about how to frame standing invariants in briefs, not how to create commits
-- `392.2026-07-23.route-dispatch-doc-review-gate.md` — dispatch outcome fact; mentions verification of commit message format and AI-Used trailer but records a gate result, not a commit procedure
-- `459.2026-07-25.route-dispatch-plan-gate-review.md` — dispatch outcome fact; mentions commit trailer principles (Closes vs Refs) in context of a gate review finding, not a commit procedure
-- `672.2026-07-29.route-dispatch-doc-review-gate.md` — dispatch outcome fact; mentions Conventional Commits format and AI-Used trailer in context of a gate verification, not a commit procedure
+- `459.2026-07-25.route-dispatch-plan-gate-review.md` — dispatch outcome fact; mentions commit trailer principles (Closes vs Refs) in context of a gate review finding, not the repo's own trailer convention
 
 ### Task B: gitignore-related grepping
 **Grep pattern:** `gitignore|check-ignore|git check-ignore`
