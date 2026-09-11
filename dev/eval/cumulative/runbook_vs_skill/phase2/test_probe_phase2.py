@@ -109,6 +109,78 @@ def test_add_carrier_s_and_rdirect_add_nothing(tmp_path):
     assert sorted(os.listdir(vault)) == before_listing
 
 
+# ----- eval-session note exclusion (luhmann >= EXCLUDE_LUHMANN_MIN), every arm and task -----
+
+def _write_note(vault, basename, content="body"):
+    with open(os.path.join(vault, basename + ".md"), "w") as f:
+        f.write(content)
+    with open(os.path.join(vault, basename + ".vec.json"), "w") as f:
+        f.write("{}")
+
+
+def test_remove_eval_session_notes_keeps_below_floor_removes_at_or_above_floor(tmp_path):
+    vault = str(tmp_path / "vault")
+    os.makedirs(vault)
+    _write_note(vault, "100.2026-01-01.old-fact")
+    _write_note(vault, "954.2026-09-08.just-below-floor")
+    _write_note(vault, "955.2026-09-10.at-floor")
+    _write_note(vault, "1200.2026-09-11.well-above-floor")
+    _write_note(vault, "qa.2026-09-11.some-question")
+
+    removed = pp.remove_eval_session_notes(vault, min_luhmann=955)
+
+    assert removed == 2
+    remaining_md = sorted(n for n in os.listdir(vault) if n.endswith(".md"))
+    assert remaining_md == [
+        "100.2026-01-01.old-fact.md",
+        "954.2026-09-08.just-below-floor.md",
+        "qa.2026-09-11.some-question.md",
+    ]
+    # sidecars removed alongside their notes
+    assert not os.path.exists(os.path.join(vault, "955.2026-09-10.at-floor.vec.json"))
+    assert not os.path.exists(os.path.join(vault, "1200.2026-09-11.well-above-floor.vec.json"))
+    assert os.path.exists(os.path.join(vault, "954.2026-09-08.just-below-floor.vec.json"))
+    assert os.path.exists(os.path.join(vault, "qa.2026-09-11.some-question.vec.json"))
+
+
+def test_remove_eval_session_notes_respects_custom_floor(tmp_path):
+    vault = str(tmp_path / "vault")
+    os.makedirs(vault)
+    _write_note(vault, "100.2026-01-01.old-fact")
+    _write_note(vault, "200.2026-01-02.also-old")
+    removed = pp.remove_eval_session_notes(vault, min_luhmann=150)
+    assert removed == 1
+    assert os.path.exists(os.path.join(vault, "100.2026-01-01.old-fact.md"))
+    assert not os.path.exists(os.path.join(vault, "200.2026-01-02.also-old.md"))
+
+
+def test_leading_luhmann_number_parses_integer_prefix_and_ignores_qa():
+    assert pp._leading_luhmann_number("955.2026-09-10.at-floor") == 955
+    assert pp._leading_luhmann_number("1.2026-09-11.commit-conventional-message") == 1
+    assert pp._leading_luhmann_number("qa.2026-09-11.some-question") is None
+
+
+def test_setup_trial_vault_applies_eval_session_note_exclusion_for_every_arm_and_task(tmp_path, monkeypatch):
+    """The exclusion must run inside setup_trial_vault (every arm, every task) — not just be a
+    standalone function nobody calls. verify_vault_health is stubbed out: this test's fake
+    REAL_VAULT has placeholder (non-real) .vec.json sidecars, so it is not meant to pass a real
+    `engram embed status` check — that plumbing is covered separately by the dry-run against the
+    real vault (see task-3-report.md)."""
+    fake_real_vault = str(tmp_path / "real_vault")
+    os.makedirs(fake_real_vault)
+    _write_note(fake_real_vault, "100.2026-01-01.old-fact")
+    _write_note(fake_real_vault, "960.2026-09-11.this-session-note")
+    monkeypatch.setattr(pp, "REAL_VAULT", fake_real_vault)
+    monkeypatch.setattr(pp, "verify_vault_health", lambda vault: {})
+
+    for task, arm in (("A", "S"), ("A", "R"), ("B", "F"), ("B", "Rdirect")):
+        trial_vault = str(tmp_path / f"trial_{task}_{arm}")
+        env = {"ENGRAM_VAULT_PATH": trial_vault}
+        pp.setup_trial_vault(env, task, arm)
+        remaining_md = [n for n in os.listdir(trial_vault) if n.endswith(".md")]
+        assert "960.2026-09-11.this-session-note.md" not in remaining_md, (task, arm)
+
+
 # ----- Rdirect CLAUDE.md: procedure section + marker -----
 
 def test_build_claude_md_phase2_no_extra_matches_phase1_shape():
@@ -471,6 +543,24 @@ def test_score_trial_scoring_exception_is_captured_not_raised(monkeypatch, tmp_p
 def test_score_trial_no_exception_leaves_scoring_error_none():
     scored = pp._score_trial("A", "S", events=[], repo_path="/does/not/exist", carrier_basename=None)
     assert scored["scoring_error"] is None
+
+
+def test_score_trial_load_steps_exception_is_captured_not_raised(monkeypatch, tmp_path):
+    """Round-2 review: load_steps() itself must be inside the try — a missing/invalid steps.json
+    must not break the 'never raises' contract either. n_steps stays at its 0 default since it
+    is set only after a successful load_steps() call."""
+    def _boom(task_key):
+        raise FileNotFoundError("synthetic missing steps.json")
+
+    monkeypatch.setattr(pp, "load_steps", _boom)
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo, exist_ok=True)
+    scored = pp._score_trial("A", "R", events=[], repo_path=repo, carrier_basename="x")
+    assert scored["scoring_error"] is not None
+    assert "synthetic missing steps.json" in scored["scoring_error"]
+    assert scored["n_steps"] == 0
+    assert scored["found"] is None
+    assert scored["end_state"] is False
 
 
 # ----- starting-state assertion (real fixture init scripts, no claude calls) -----

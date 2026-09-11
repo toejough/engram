@@ -49,6 +49,15 @@ ARMS = ("S", "R", "F", "Rdirect")
 
 NOTE_830_BASENAME = "830.2026-08-29.gitignore-narrowing-anchor-and-visible-set"
 
+# Controller ruling: the real vault now contains notes written by THIS eval session (955-961 at
+# ruling time: fixture-placeholder, real-vault-fingerprint, rebuild-whole-note, parity-mapping,
+# nested-gitignore-template, and force-add/staged-diff lessons; more route-evidence notes will
+# land later) that post-date the covering-note grep (SOURCE_MATERIALS.md) and mention the
+# fixtures' own methods — a background-vault leak that would apply to every arm and task, not
+# just the task-specific removal lists. Every note whose leading luhmann number is >= this floor
+# is excluded from EVERY trial's background vault (see remove_eval_session_notes below).
+EXCLUDE_LUHMANN_MIN = 955
+
 # Covering-note removal lists (SOURCE_MATERIALS.md §3). Note 830 is handled separately (kept
 # in every arm EXCEPT B/R — it is B/R's carrier, present because it is NEVER deleted there).
 TASK_A_REMOVAL = (
@@ -154,6 +163,36 @@ def remove_covering_notes(vault, task_key, arm):
                 os.remove(path)
 
 
+def _leading_luhmann_number(basename):
+    """The integer luhmann id from a note basename's leading segment (before the first '.'), or
+    None if that segment isn't a plain integer — e.g. 'qa.2026-...' notes carry no luhmann number
+    and are never subject to the eval-session-notes exclusion rule."""
+    first_segment = basename.split(".", 1)[0]
+    return int(first_segment) if first_segment.isdigit() else None
+
+
+def remove_eval_session_notes(vault, min_luhmann=EXCLUDE_LUHMANN_MIN):
+    """Delete every note (+ .vec.json sidecar) whose leading luhmann number is >= min_luhmann —
+    this eval session's own vault notes, which post-date the covering-note grep and mention the
+    fixtures' own methods (see EXCLUDE_LUHMANN_MIN). Applied to EVERY arm and task. `qa.*` notes
+    (no leading luhmann number) are never removed by this rule. Returns the count of notes
+    removed (sidecars not counted separately)."""
+    removed = 0
+    for name in sorted(os.listdir(vault)):
+        if not name.endswith(".md"):
+            continue
+        basename = name[: -len(".md")]
+        luhmann_number = _leading_luhmann_number(basename)
+        if luhmann_number is None or luhmann_number < min_luhmann:
+            continue
+        os.remove(os.path.join(vault, name))
+        sidecar = os.path.join(vault, basename + ".vec.json")
+        if os.path.exists(sidecar):
+            os.remove(sidecar)
+        removed += 1
+    return removed
+
+
 def add_carrier(vault, task_key, arm):
     """R/F: copy the arm's converted-note vault dir into the trial vault, returning the note's
     basename (no .md). Task B/R is special: 830 is the carrier and was already NOT deleted by
@@ -199,16 +238,20 @@ def verify_vault_health(vault):
     return stats
 
 
-def setup_trial_vault(env, task_key, arm):
+def setup_trial_vault(env, task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN):
     """Background vault for EVERY arm (Ruling 3): a per-trial copytree of the real vault, with
-    the task's covering notes removed, then the arm's carrier added (R/F only). Returns
-    (carrier_basename, copy_seconds)."""
+    the task's covering notes removed, this eval session's own notes removed (luhmann >=
+    exclude_luhmann_min), then the arm's carrier added (R/F only). Returns (carrier_basename,
+    copy_seconds)."""
     vault = env["ENGRAM_VAULT_PATH"]
     t0 = time.time()
     shutil.rmtree(vault, ignore_errors=True)
     shutil.copytree(REAL_VAULT, vault)
     copy_s = round(time.time() - t0, 2)
     remove_covering_notes(vault, task_key, arm)
+    eval_notes_removed = remove_eval_session_notes(vault, exclude_luhmann_min)
+    print(f"setup_trial_vault: removed {eval_notes_removed} eval-session note(s) "
+          f"(luhmann >= {exclude_luhmann_min}) from {vault}")
     carrier_basename = add_carrier(vault, task_key, arm)
     verify_vault_health(vault)
     return carrier_basename, copy_s
@@ -487,17 +530,19 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename):
     ThreadPoolExecutor future in run_batch's `for fut in cf.as_completed(futs): record =
     fut.result()` loop, aborting the WHOLE batch and losing every sibling trial's already-scored
     result that hadn't been collected yet — one bad trial (e.g. an unregistered repo_state
-    pattern) must not cost the rest of the run."""
-    steps = load_steps(task_key)
-    n_steps = len(steps)
+    pattern) must not cost the rest of the run. `load_steps` itself is inside the try (round-2
+    review: it can raise too — a missing/invalid steps.json must not break the "never raises"
+    contract either), so n_steps defaults to 0 until steps are loaded successfully."""
     scored = {
         "found": None, "found_method": found_method(arm, None), "found_index": None,
         "recall_fired": False,
-        "followed_steps": {}, "followed_k": 0, "followed_all": False, "n_steps": n_steps,
+        "followed_steps": {}, "followed_k": 0, "followed_all": False, "n_steps": 0,
         "end_state": False, "end_state_output": "",
         "scoring_error": None,
     }
     try:
+        steps = load_steps(task_key)
+        scored["n_steps"] = len(steps)
         found, found_idx = score_found_phase2(task_key, arm, events, carrier_basename)
         scored["found"] = found
         scored["found_method"] = found_method(arm, found)
@@ -515,14 +560,15 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename):
     return scored
 
 
-def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, marker, timeout_s):
+def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, marker, timeout_s,
+                          exclude_luhmann_min=EXCLUDE_LUHMANN_MIN):
     trial_dir = os.path.join(run_root, "trials", f"{task_key}-{arm}-{trial_index}")
     os.makedirs(trial_dir, exist_ok=True)
     t0 = time.time()
 
     repo_path = setup_trial_repo(trial_dir, task_key, arm, marker)
     env = p1.trial_env(cfg_dir, trial_dir, repo_path)
-    carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, arm)
+    carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, arm, exclude_luhmann_min)
 
     prompt = open(TASKS[task_key]["task_prompt"]).read().strip()
 
@@ -599,7 +645,8 @@ def run_batch(args):
     def _run_pooled(arm, i):
         cfg_dir = cfg_pool.get()
         try:
-            return run_one_trial_phase2(run_root, cfg_dir, args.task, arm, args.model, i, marker, args.timeout)
+            return run_one_trial_phase2(run_root, cfg_dir, args.task, arm, args.model, i, marker,
+                                         args.timeout, args.exclude_luhmann_min)
         finally:
             cfg_pool.put(cfg_dir)
 
@@ -690,7 +737,7 @@ def run_plumbing(task_key, model):
 
 # ----- setup-only mode: dry run, no claude call -----
 
-def run_setup_only(task_key, arm):
+def run_setup_only(task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN):
     """Build the trial repo + background vault + CLAUDE.md for one (task, arm) pair, print the
     starting-state checks, and clean up — no claude call. For confirming a fixture change against
     the harness's own starting-state assertion without spending on a trial."""
@@ -726,8 +773,10 @@ def run_setup_only(task_key, arm):
         print("starting-state assertion: PASSED")
 
         env = p1.trial_env(cfg, trial_dir, repo_path)
-        carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, arm)
+        carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, arm, exclude_luhmann_min)
+        md_count = len([n for n in os.listdir(env["ENGRAM_VAULT_PATH"]) if n.endswith(".md")])
         print(f"carrier_basename={carrier_basename} vault_copy_s={vault_copy_s}")
+        print(f"vault .md count after setup: {md_count}")
     except Exception as exc:  # noqa: BLE001 — report and re-raise, still clean up in finally
         print(f"setup-only FAILED: {exc}", file=sys.stderr)
         raise
@@ -951,6 +1000,9 @@ def build_argparser():
                           "the starting-state checks — no claude call")
     ap.add_argument("--summarize")
     ap.add_argument("--rescore", help="re-score an existing results.jsonl file using kept trial directories")
+    ap.add_argument("--exclude-luhmann-min", type=int, default=EXCLUDE_LUHMANN_MIN,
+                     help="delete any background-vault note whose leading luhmann number is >= "
+                          "this floor (this eval session's own notes) from every trial's vault")
     return ap
 
 
@@ -973,7 +1025,7 @@ def main(argv=None):
         if not args.task:
             build_argparser().error("--setup-only requires --task")
         arm = [a.strip() for a in args.arms.split(",") if a.strip()][0]
-        run_setup_only(args.task, arm)
+        run_setup_only(args.task, arm, args.exclude_luhmann_min)
         return
     if not args.task:
         build_argparser().error("--task is required (unless --summarize/--rescore)")
