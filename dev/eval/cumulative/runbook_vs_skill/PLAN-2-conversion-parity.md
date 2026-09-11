@@ -197,20 +197,27 @@ EOF
 git add pkg/version.go
 git commit -m "initial: add version constant"
 
-# Now make a change and STAGE it (but don't commit)
+# Now make an UNSTAGED change
 cat > pkg/version.go <<'EOF'
 package pkg
 
 const Version = "1.1.0"
 EOF
 
-git add pkg/version.go
-# STOP here — leave it staged, not committed
+# DO NOT stage it — leave it as a working-tree modification
+
+# Also create an unrelated decoy file that must NOT be committed
+mkdir -p notes
+cat > notes/scratch.txt <<'EOF'
+wip
+EOF
+
+# Verify: git status should show pkg/version.go as modified (unstaged) and notes/scratch.txt as untracked
 ```
 
-After running this, verify: `git status` should show the file as "staged for commit" and there should be no committed changes since the version bump.
+After running this, verify: `git status` should show `pkg/version.go` as "modified" (unstaged, not staged), and `notes/scratch.txt` as untracked. The decoy file must NOT be committed by the agent.
 
-**Rationale:** The task is idiosyncratic (specific change to stage+commit), but the commit convention itself is generic (conventional-commit format, trailers). The trial agent must discover the convention from the arm's carrier (skill/runbook/fact), not infer it from repo history.
+**Rationale:** The task is idiosyncratic (specific unstaged change to commit), but the commit convention itself is generic (conventional-commit format, trailers). The decoy file tests that the agent stages only the actual change, not all untracked files. The trial agent must discover the convention from the arm's carrier (skill/runbook/fact), not infer it from repo history.
 
 - [ ] **Step 2: Create commit-task init_fixture_repo.sh**
 
@@ -249,7 +256,7 @@ echo "Fixture repo initialized at $REPO_DIR"
 
 - [ ] **Step 3: Create commit-task done_when_checks.sh**
 
-Create `phase2/fixtures/commit/done_when_checks.sh`. This script validates the end-state per the commit skill's requirements (see Task 1 extract): one new commit on the branch, message in conventional-commit format with `AI-Used: [claude]` trailer, working tree clean.
+Create `phase2/fixtures/commit/done_when_checks.sh`. This script validates the end-state per the commit skill's requirements: exactly one new commit on pkg/version.go (not the decoy), message in conventional-commit format with `AI-Used: [claude]` trailer, decoy file still untracked, nothing amended, no push.
 
 ```bash
 #!/bin/bash
@@ -259,10 +266,10 @@ REPO_DIR="$1"       # trial's repo after agent runs
 
 cd "$REPO_DIR"
 
-# Check 1: Exactly one new commit since setup (version bump commit only)
-COMMIT_COUNT=$(git log --oneline pkg/version.go | head -1 | grep -c "1.1.0" || echo "0")
-if [ "$COMMIT_COUNT" != "1" ]; then
-  echo "FAIL: Expected exactly one version.go commit; found $COMMIT_COUNT"
+# Check 1: Exactly one new commit since setup, touching ONLY pkg/version.go
+COMMIT_COUNT=$(git log --oneline -- pkg/version.go | wc -l)
+if [ "$COMMIT_COUNT" != "2" ]; then  # fixture commit + new commit = 2
+  echo "FAIL: Expected exactly one new commit on pkg/version.go; found $((COMMIT_COUNT - 1))"
   exit 1
 fi
 
@@ -279,24 +286,51 @@ if ! echo "$COMMIT_MSG" | grep -q "AI-Used: \[claude\]"; then
   exit 1
 fi
 
-# Check 4: Working tree is clean
-if ! git status --porcelain | grep -q "^$"; then
-  echo "FAIL: Working tree not clean"
+# Check 4: Latest commit touches ONLY pkg/version.go (not notes/scratch.txt)
+FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD | wc -l)
+if [ "$FILES_CHANGED" != "1" ]; then
+  echo "FAIL: Latest commit touches $FILES_CHANGED files, expected 1 (only pkg/version.go)"
+  git diff-tree --no-commit-id --name-only -r HEAD
+  exit 1
+fi
+
+if ! git diff-tree --no-commit-id --name-only -r HEAD | grep -q "^pkg/version.go$"; then
+  echo "FAIL: Latest commit does not touch pkg/version.go"
+  exit 1
+fi
+
+# Check 5: Decoy file (notes/scratch.txt) is still untracked
+if ! git status --porcelain | grep -q "^?? notes/scratch.txt"; then
+  echo "FAIL: notes/scratch.txt is not untracked (was it staged/committed?)"
   git status
   exit 1
 fi
 
-# Check 5: Nothing was amended or force-pushed (log integrity)
-if git log --oneline | grep -qE "amend|force"; then
-  echo "FAIL: Log shows amendment or force-push"
+# Check 6: Fixture commit hash unchanged (no amendments)
+FIXTURE_HASH=$(git log --oneline -- pkg/version.go | tail -1 | awk '{print $1}')
+if [ -z "$FIXTURE_HASH" ]; then
+  echo "FAIL: Cannot find fixture commit"
   exit 1
 fi
+echo "OK: Fixture commit $FIXTURE_HASH unchanged"
 
 echo "PASS: Commit task end-state verified"
 exit 0
 ```
 
-**Acceptance:** Script exits 0 on a trial repo that has: (1) one new commit on the staged version bump, (2) conventional-commit message, (3) `AI-Used: [claude]` trailer, (4) clean working tree.
+**Acceptance:** Script exits 0 on a trial repo that has: (1) exactly one new commit on pkg/version.go only, (2) conventional-commit message, (3) `AI-Used: [claude]` trailer, (4) notes/scratch.txt still untracked, (5) fixture commit unchanged, (6) no push.
+
+**FOLLOWED checklist (Task A: 7 steps from /commit skill):**
+Each trial records which of these 7 steps produced evidence in the transcript:
+1. Check VCS type (e.g., "is this a git repo?", git status call visible)
+2. Check state (e.g., git status output showing unstaged changes)
+3. Review recent commits (e.g., git log call visible)
+4. Stage changes (e.g., git add command for pkg/version.go)
+5. Compose message (e.g., message text appearing in transcript or commit)
+6. Commit (e.g., git commit call visible)
+7. Verify (e.g., git status call after commit, or inspection of result)
+
+Binary scoring: FOLLOWED-all-steps = 1 if all 7 steps detected, 0 if any step missing.
 
 - [ ] **Step 4: Create commit-task task-prompt.txt**
 
@@ -323,13 +357,20 @@ git init
 git config user.email "test@example.com"
 git config user.name "Test User"
 
-# Create a realistic project structure with some ignored files
-mkdir -p src testdata scripts
+# Create a realistic project structure with nested testdata and needed files
+mkdir -p src testdata/generated scripts
 cat > src/main.go <<'EOF'
 package main
 func main() { }
 EOF
 
+# Nested generated directory (should remain ignored after narrowing)
+mkdir -p testdata/generated
+cat > testdata/generated/.placeholder <<'EOF'
+This directory is generated and should remain ignored.
+EOF
+
+# Needed files that must be tracked after fixing .gitignore
 cat > testdata/fixture.json <<'EOF'
 {"id": 1, "name": "test"}
 EOF
@@ -353,6 +394,11 @@ scripts/
 *.so
 EOF
 
+# Decoy file that must remain untracked/unstaged
+cat > tmp.log <<'EOF'
+temporary log file
+EOF
+
 # Initial commit with the over-broad .gitignore
 git add -A
 git commit -m "initial: add project with over-broad gitignore"
@@ -361,7 +407,7 @@ git commit -m "initial: add project with over-broad gitignore"
 git status --porcelain  # should NOT list testdata/ or scripts/ (they are ignored)
 ```
 
-After this, `git status` should show testdata/ and scripts/ as untracked but NOT listed (because .gitignore hides them).
+After this, `git status` should show testdata/ and scripts/ as untracked but NOT listed (because .gitignore hides them). The decoy file tmp.log is untracked.
 
 - [ ] **Step 6: Create gitignore-task init_fixture_repo.sh**
 
@@ -401,22 +447,32 @@ REPO_DIR="$1"
 
 cd "$REPO_DIR"
 
-# Check 1: .gitignore has been narrowed (not identical to original over-broad version)
-if git show HEAD:.gitignore | grep -q "^testdata/$" && ! grep -q "^testdata/rapid/" .gitignore; then
+# Check 1: .gitignore has been narrowed (now ignores testdata/generated/ but not whole testdata/)
+if grep -q "^testdata/$" .gitignore && ! grep -q "^testdata/generated/" .gitignore; then
   echo "FAIL: .gitignore was not narrowed; still has over-broad testdata/"
   exit 1
 fi
 
 # Check 2: Verify narrowed pattern works with git check-ignore (anchor test from 830 step 2)
-# Narrow testdata/ to testdata/rapid/
-if ! git check-ignore -q testdata/rapid/ 2>/dev/null; then
-  echo "FAIL: Narrowed pattern does not match testdata/rapid/ at any depth (anchor issue)"
+# Narrow testdata/ to testdata/generated/ — generated dir should still be ignored
+if ! git check-ignore -q testdata/generated/ 2>/dev/null; then
+  echo "FAIL: Narrowed pattern does not match testdata/generated/ (anchor issue)"
   exit 1
 fi
 
-# Check 3: Newly-visible files have been staged explicitly (830 step 5: enumerate, then stage only those)
-# The visible files should be: testdata/fixture.json, scripts/build.sh (and possibly others)
-# Verify they are staged (in git index)
+# Check 3: Verify needed files are NOT ignored (830 step 2: anchor check for needed files)
+if git check-ignore -q testdata/fixture.json 2>/dev/null; then
+  echo "FAIL: testdata/fixture.json is still ignored (narrowing failed)"
+  exit 1
+fi
+
+if git check-ignore -q scripts/build.sh 2>/dev/null; then
+  echo "FAIL: scripts/build.sh is still ignored (narrowing failed)"
+  exit 1
+fi
+
+# Check 4: Newly-visible files have been staged explicitly (830 step 5: enumerate, then stage only those)
+# Verify testdata/fixture.json and scripts/build.sh are staged (in git index)
 if ! git ls-files --cached | grep -q "testdata/fixture.json"; then
   echo "FAIL: testdata/fixture.json not explicitly staged"
   exit 1
@@ -427,22 +483,37 @@ if ! git ls-files --cached | grep -q "scripts/build.sh"; then
   exit 1
 fi
 
-# Check 4: Staged set matches enumerated visible files (830 step 6: verify staged == enumerated)
-# Get the list of newly-visible files as a baseline
-VISIBLE_FILES=$(git status --porcelain | grep "^??" | awk '{print $2}' | sort)
-STAGED_FILES=$(git diff --cached --name-only | sort)
-
-# For this simple fixture, testdata/fixture.json and scripts/build.sh should be visible and staged
-if ! echo "$STAGED_FILES" | grep -q "testdata/fixture.json"; then
-  echo "FAIL: testdata/fixture.json not in staged set"
+# Check 5: Decoy file (tmp.log) is still untracked and NOT staged
+if git ls-files --cached | grep -q "tmp.log"; then
+  echo "FAIL: tmp.log was staged (decoy should remain untracked)"
   exit 1
 fi
+
+if ! git status --porcelain | grep -q "^?? tmp.log"; then
+  echo "FAIL: tmp.log is not untracked"
+  exit 1
+fi
+
+# Check 6: Verify git check-ignore was actually called (procedural check for 830 step 2)
+# This is validated by probe.py checking for git check-ignore in transcript
+echo "OK: git check-ignore call expected in transcript (probe.py will verify)"
 
 echo "PASS: Gitignore task end-state verified"
 exit 0
 ```
 
-**Rationale:** Checks derive from 830's done_when ("pattern's anchoring form confirmed" + "exact set of newly-visible files enumerated"). Verify anchor (check-ignore) and explicit staging (not git add -A).
+**Rationale:** Checks derive from 830's done_when ("pattern's anchoring form confirmed" + "exact set of newly-visible files enumerated"). Verify anchor (check-ignore for both ignored and now-visible), explicit staging (not git add -A), and decoy file remains untracked. Probe.py will verify git check-ignore appears in the transcript.
+
+**FOLLOWED checklist (Task B: 6 steps from runbook 830):**
+Each trial records which of these 6 steps produced evidence in the transcript:
+1. Inspect .gitignore pattern (e.g., cat or opening .gitignore; showing the over-broad `testdata/`)
+2. Test with git check-ignore (e.g., `git check-ignore testdata/` command visible; anchoring test per 830 line 19)
+3. Enumerate newly-visible files (e.g., listing or showing files that were hidden, now visible after narrowing)
+4. Design narrowed pattern (e.g., proposing or explaining the new pattern to target only generated/)
+5. Update and stage (e.g., git add step, staging the specific needed files: testdata/fixture.json, scripts/build.sh)
+6. Verify result (e.g., git status, git check-ignore re-test, or final inspection)
+
+Binary scoring: FOLLOWED-all-steps = 1 if all 6 steps detected, 0 if any step missing.
 
 - [ ] **Step 8: Create gitignore-task task-prompt.txt**
 
