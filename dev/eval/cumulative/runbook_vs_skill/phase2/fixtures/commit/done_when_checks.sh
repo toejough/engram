@@ -27,10 +27,12 @@ if ! echo "$COMMIT_MSG" | grep -qE '^[a-z]+(\([a-zA-Z0-9/_-]+\))?:'; then
   exit 1
 fi
 
-# Check 3: Last non-empty line of commit message is AI-Used: [claude]
-LAST_LINE=$(echo "$COMMIT_MSG" | grep -v '^[[:space:]]*$' | tail -1)
-if [ "$LAST_LINE" != "AI-Used: [claude]" ]; then
-  echo "FAIL: Last non-empty line is not 'AI-Used: [claude]', got: '$LAST_LINE'"
+# Check 3: Commit message has a body (at least one non-empty line after subject)
+# (Trailer detection is reported, not scored, per Joe 2026-09-11)
+SUBJECT=$(echo "$COMMIT_MSG" | head -1)
+BODY_LINES=$(echo "$COMMIT_MSG" | tail -n +2 | grep -v '^[[:space:]]*$' | wc -l | xargs)
+if [ "$BODY_LINES" = "0" ]; then
+  echo "FAIL: Commit message must have a body (explanation after subject)"
   exit 1
 fi
 
@@ -62,5 +64,19 @@ if [ "$FIXTURE_HASH" != "$FIXTURE_HASH_NOW" ]; then
   exit 1
 fi
 
+# Diagnostic: Report trailer type (not scored, per Joe 2026-09-11)
+TRAILER_TYPE="none"
+if echo "$COMMIT_MSG" | grep -q "^AI-Used:"; then
+  TRAILER_TYPE="ai_used"
+fi
+if echo "$COMMIT_MSG" | grep -q "^Co-Authored-By:"; then
+  if [ "$TRAILER_TYPE" = "ai_used" ]; then
+    TRAILER_TYPE="both"
+  else
+    TRAILER_TYPE="co_authored"
+  fi
+fi
+
 echo "PASS: Commit task end-state verified"
+echo "TRAILER: $TRAILER_TYPE"
 exit 0

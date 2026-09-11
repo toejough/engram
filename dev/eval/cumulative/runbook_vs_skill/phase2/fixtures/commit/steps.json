@@ -1,5 +1,6 @@
 [
   {
+    "_note": "Trailer (AI-Used, Co-Authored-By) is reported but not scored (Joe 2026-09-11): Claude Code injects session attribution that overrides the carrier. Trailer detection is moved to done_when diagnostic output only.",
     "n": 1,
     "name": "Check VCS type (look for .jj directory; may legitimately score false on git-only repos)",
     "signal": "bash_regex",
@@ -25,9 +26,9 @@
   },
   {
     "n": 5,
-    "name": "Compose message (conventional-commit format + AI-Used: [claude] trailer)",
+    "name": "Compose message (conventional-commit format: subject + body, no trailer requirement)",
     "signal": "repo_state",
-    "pattern": "commit_message_format"
+    "pattern": "commit_message_format_and_body"
   },
   {
     "n": 6,
