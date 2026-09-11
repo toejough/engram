@@ -1,9 +1,9 @@
 [
   {
     "n": 1,
-    "name": "Inspect .gitignore pattern (write proposed replacement pattern)",
+    "name": "Inspect .gitignore pattern (read/edit the file to understand current pattern)",
     "signal": "bash_regex",
-    "pattern": "cat|vi|nano|edit.*\\.gitignore"
+    "pattern": "(cat|less|head|sed|grep|awk|vi|nano|Read)(\\s+.*)?\.gitignore\\b"
   },
   {
     "n": 2,
@@ -13,9 +13,9 @@
   },
   {
     "n": 3,
-    "name": "Understand middle-slash anchoring (pattern depth rules)",
-    "signal": "bash_regex",
-    "pattern": "slash|anchor|depth|nested"
+    "name": "Narrow pattern to allow needed files (e.g., testdata/generated/ instead of testdata/)",
+    "signal": "repo_state",
+    "pattern": "gitignore_narrowed_to_generated"
   },
   {
     "n": 4,

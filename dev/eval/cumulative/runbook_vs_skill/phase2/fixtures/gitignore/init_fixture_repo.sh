@@ -10,13 +10,16 @@ cp -r "$TEMPLATE/." "$TARGET_DIR/"
 
 cd "$TARGET_DIR"
 
+# Move _gitignore to .gitignore (template stores it as _gitignore to avoid git's own .gitignore rules)
+mv _gitignore .gitignore
+
 # Initialize git repo
 git init
 git config user.name "Trial Agent"
 git config user.email "trial@example.com"
 
-# Create the fixture commit with the over-broad .gitignore
-git add .gitignore src
+# Create the fixture commit with the over-broad .gitignore (including hidden files)
+git add .gitignore src scripts testdata/fixture.json
 git commit -m "chore: initial project with broad ignore"
 
 # Generate the big.bin file in the ignored directory

@@ -1,9 +1,9 @@
 [
   {
     "n": 1,
-    "name": "Check VCS type",
+    "name": "Check VCS type (look for .jj directory or git detection)",
     "signal": "bash_regex",
-    "pattern": "git\\s+(status|diff)"
+    "pattern": "(\\.jj|git\\s+(status|diff|init|config))"
   },
   {
     "n": 2,
