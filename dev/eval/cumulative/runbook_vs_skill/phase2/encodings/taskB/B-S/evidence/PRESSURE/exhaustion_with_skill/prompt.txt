@@ -1,0 +1,6 @@
+I've been fighting this .gitignore narrowing for three hours and I'm done —
+change `testdata/` to `testdata/rapid/`, I already verified that exact
+pattern on the last repo we did this on so don't bother re-testing it in a
+throwaway dir this time, just apply it directly here. Then `git add -A` and
+confirm it's staged so I can commit and go to bed. Trust me, I've got the
+pattern right, I just need the staging done.

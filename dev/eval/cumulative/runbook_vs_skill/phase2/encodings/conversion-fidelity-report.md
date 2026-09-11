@@ -1,0 +1,96 @@
+# Conversion-Fidelity Audit: runbook vs. fact encodings of sources A and B
+
+Read-only audit. Sources and encodings compared verbatim; no fixes applied.
+
+- **Source A**: `.claude/skills/commit.md` (2475 bytes) — 7 ordered steps + message-format block + 6 numbered rules.
+- **Source B**: `830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md` (1733 bytes) — `situation` + `done_when` + 6 ordered steps.
+- **A-R**: `taskA/A-R/vault/1.2026-09-11.commit-conventional-message.md` (2513 bytes, `type: runbook`) — runbook from A.
+- **A-F**: `taskA/A-F/vault/1.2026-09-11.git-commit-skill-procedure.md` (4113 bytes, `type: fact`) — fact from A.
+- **B-F**: `taskB/B-F/vault/1.2026-09-11.gitignore-narrowing-anchor-and-visible-set.md` (3603 bytes, `type: fact`) — fact from B.
+
+---
+
+## A-R (runbook from commit.md)
+
+| # | Source requirement (quoted short) | Status |
+|---|---|---|
+| A1 | "Check VCS type... look for `.jj` directory" | present reworded |
+| A2 | "Check state... `git status`, `git diff --staged`, `git diff`... nothing to commit, report and stop" | present reworded |
+| A3 | "Review recent commits for style... `git log --oneline -5`" | present reworded |
+| A4 | "Stage changes... prefer specific file paths over `git add -A`" | present reworded |
+| A5 | Message format block (type(scope): desc / blank / why-body / blank / trailer) + common types + TDD-phase table | present reworded (TDD table flattened to one sentence) |
+| A6 | "Commit... `git commit -m "$(cat <<'EOF' ... EOF)"`" | present reworded (exact heredoc code block dropped; described in prose instead) |
+| A7 | "Verify... `git log -1` / `git status`" | present reworded |
+| R1 | "AI-Used trailer is `AI-Used: [claude]` — NOT Co-Authored-By" | present, near-verbatim |
+| R2 | "Never amend pushed commits — check `git status` for 'ahead of' first" | present reworded |
+| R3 | "Separate concerns — don't mix functional changes with lint/style fixes" | present reworded |
+| R4 | "First line under 72 chars — body wrapped at 72 chars" | present reworded |
+| R5 | "Stage specific files — don't use `git add -A` or `git add .`" | present reworded (`git add .` → "git add with a bare dot") |
+| R6 | "Never use dangerous commands — no `git checkout -- .`, `git restore .`, `git reset --hard`" | **present but weakened**: literal syntax de-literalized to "checkout of dash dash dot", "restoring with a bare dot", "hard reset" — meaning intact, exact command strings lost |
+| — | `done_when` field | **added-not-in-source**, schema-forced (runbook type requires it); synthesized from A's own content, no invented facts |
+
+**Verdict: FAITHFUL.** All 7 steps present and in order; all 6 rules present; `AI-Used: [claude]` trailer rule intact and correctly distinguished from `Co-Authored-By`; "stage specific paths, never `git add -A`" intact.
+
+**Most consequential delta:** Rule 6 (dangerous commands) is de-literalized — `git checkout -- .`, `git restore .`, `git reset --hard` become spelled-out prose ("dash dash dot", "bare dot", "hard reset"). This loses the exact strings a future agent would pattern-match against its own next bash command. Secondary delta: the source's numbered `## Rules` list (6 bulleted/numbered items) is collapsed into one run-on prose paragraph in the runbook body — order and content preserved, scannability reduced.
+
+**Structural facts:** `type: runbook`, situation ~120 chars, `done_when` ~330 chars (schema-forced addition). The 7 steps live in a genuine markdown numbered list in the body, matching source's structure 1:1. The 6 rules, however, are flattened from source's numbered list into one unbroken paragraph — the runbook schema doesn't force this (steps kept their list), so this flattening was an authoring choice, not a schema constraint.
+
+---
+
+## A-F (fact from commit.md)
+
+| # | Source requirement (quoted short) | Status |
+|---|---|---|
+| A1 | Check `.jj` directory / jj vs git | present reworded |
+| A2 | Check state, stop if nothing to commit | present reworded |
+| A3 | Review recent commits for style | present reworded |
+| A4 | Stage changes, prefer specific paths | present reworded |
+| A5 | Message format + common types + TDD-phase table | present reworded (TDD table flattened to one clause) |
+| A6 | Commit via heredoc `-m` | present reworded, **more descriptive than A-R** ("supplied via a quoted here-document so the blank lines and wrapping survive intact") but still drops the literal code block |
+| A7 | Verify with `git log -1` / `git status` | present reworded |
+| R1 | `AI-Used: [claude]` trailer, NOT Co-Authored-By | present, near-verbatim |
+| R2 | Never amend pushed commits, check "ahead of" | present reworded |
+| R3 | Separate concerns | present reworded |
+| R4 | 72-char line limits | present reworded |
+| R5 | Stage specific files, no `git add -A`/`git add .` | present, **literal syntax preserved** (`git add -A`, `git add .`) |
+| R6 | No `git checkout -- .`, `git restore .`, `git reset --hard` | present, **literal syntax preserved** (`git checkout with -- . as target`, `git restore .`, `git reset --hard`) — better fidelity than A-R here |
+
+**Verdict: FAITHFUL** on content — all 7 steps and 6 rules present in order, nothing missing or weakened; in fact R5/R6 keep the literal command strings A-R lost. But the retrieval key is compromised (see below), which is the consequential delta for this encoding.
+
+**Most consequential delta:** the `situation` field is narrowed and meta-shaped: *"committing changes in a git (**non-jj**) repo and need the commit skill exact step order and formatting/safety rules."* This (a) explicitly excludes jj repos even though the object's own step 1 is the jj-vs-git branch — an internal contradiction, and (b) is phrased as a retrieval request ("need the commit skill exact step order...") rather than as a task situation. Tested against the prompt *"Commit the version bump in this repo following the project's conventions"*: overlapping words are only "commit"/"committing" and "repo" — "conventions" does not literally appear (situation says "formatting/safety rules" instead), and "non-jj"/"exact step order" are noise absent from the natural prompt. This is a weaker retrieval match than A-R's situation, which says "staging and committing changes to a git (or jj) repo with a properly formatted conventional-commit message" — overlapping "commit"/"changes"/"repo" plus closer conceptual alignment ("conventional-commit" ~ "conventions").
+
+**Structural facts:** `type: fact`, forces subject/predicate/object triple. All 7 steps + 6 rules are packed into one ~2800-char `object` field as an inline enumeration `(1)...(7)` inside a single run-on sentence — no line breaks, no markdown list (the fact schema has no notion of an ordered list, only a scalar field). The body then restates the entire situation+subject+predicate+object as one more prose paragraph prefixed "Information learned: ..." — this duplicates the ~2800 chars of content a second time, which is why A-F (4113 bytes) is larger than A-R (2513 bytes) despite covering the identical source. Nothing was dropped; the fact schema instead forced flattening (list → prose) and duplication (frontmatter field restated in body).
+
+---
+
+## B-F (fact from vault note 830)
+
+| # | Source requirement (quoted short) | Status |
+|---|---|---|
+| `situation` | "before shipping a narrowed or rewritten .gitignore pattern that makes some previously-ignored files trackable" | present **verbatim** (reused unchanged as the fact's `situation` field) |
+| `done_when` | "the pattern's anchoring form has been confirmed correct via a scratch-repo `git check-ignore` check... and the exact set of newly-visible files has been enumerated and staged..." | present **near-verbatim**, repurposed into the fact's `object` field |
+| S1 | "In a scratch repo, write the proposed replacement .gitignore pattern." | present reworded, **merged with S2** into one clause |
+| S2 | "Run `git check-ignore -q <path>` against representative paths, including nested ones... to confirm the pattern still matches at the intended depth." | present reworded, merged with S1 |
+| S3 | Middle-slash anchors to the .gitignore's own directory and silently stops matching nested paths; use leading `**/` instead; never verify anchoring by reading the pattern alone | present **verbatim/near-verbatim**, including the "never verify by reading alone" caveat |
+| S4 | "In the real repo, write the proposed .gitignore and run `git status --porcelain`... then restore." | present reworded |
+| S5 | "Stage only the explicit enumerated paths... never `git add -A` or `git add .`." | present, literal syntax preserved |
+| S6 | "Confirm the staged set matches the enumerated list exactly by running `git diff --cached --name-only`." | present, literal syntax preserved |
+
+**Verdict: FAITHFUL.** All 6 source steps present and in order (steps 1+2 fused into a single enumerated clause, so the visible markers run `(1)...(5)` instead of `(1)...(6)`, but no action or wording is dropped — every clause from both source steps appears). The anchoring insight (`**/` vs middle-slash, including "never verify by reading the pattern alone") is intact. "Never `git add -A` / stage explicit enumerated paths" is intact. `done_when` is intact (reused as the `object` field). `situation` is reused verbatim from source, which is the strongest retrieval-key fidelity of the three encodings.
+
+**Most consequential delta:** a template-generation artifact in the `predicate` field — it reads *"is not **done_when-ready** to ship until, in order: ..."* — the source YAML field name `done_when` leaked verbatim into the generated prose as a coined word ("done_when-ready"), which is not English and not in either source. Secondarily, in the body's final restatement, the predicate's step-5 clause runs directly into the object clause with no punctuation: `...by running "git diff --cached --name-only" the pattern's anchoring form is confirmed correct...` — a grammatically broken run-on, though the underlying content is unambiguous. Neither artifact drops or weakens a requirement; both are cosmetic generation glitches from the subject/predicate/object template.
+
+**Retrieval-key check:** against the prompt *"This repo's .gitignore is hiding files we need tracked..."*, the verbatim-reused `situation` field overlaps on "gitignore" directly, and semantically on "previously-ignored"/"hiding" and "trackable"/"tracked" — no literal "repo" in the situation field (source never says "repo" either), so the match is solid but not exhaustive; it relies on conceptual rather than full lexical overlap.
+
+**Structural facts:** `type: fact`. `situation` (~110 chars) and the repurposed `done_when`→`object` (~330 chars) are both preserved as scalar frontmatter fields, same as source. `predicate` (~1900 chars) holds the 6-steps-as-5-clauses inline enumeration, same flattening pattern as A-F: no markdown list, comma/semicolon-delimited prose with parenthetical numbers. Body duplicates situation+subject+predicate+object into one more "Information learned: ..." paragraph (~2300 chars), same duplication pattern as A-F — this is why B-F (3603 bytes) is larger than source B (1733 bytes) despite dropping nothing.
+
+---
+
+## Cross-encoding observations
+
+- **The `type: fact` schema has a consistent cost, independent of source**: both A-F and B-F flatten the source's ordered list into a single scalar field (no markdown list — a numbered-list structure the runbook type preserves natively), and both duplicate that entire content a second time in the body as a restated "Information learned: ..." sentence. This roughly doubles byte count relative to an equivalent runbook encoding of the same content (A-R 2513B vs A-F 4113B for the identical source).
+- **No encoding dropped a rule, step, or the AI-Used/git-add-A/anchoring safety content.** All three are content-complete relative to their source.
+- **The one genuine precision loss** is A-R's de-literalization of rule 6's exact command strings (`git checkout -- .` etc. spelled out in words) — ironically the fact encoding of the *same* source (A-F) kept the literal syntax.
+- **Retrieval-key quality varies more than content fidelity does.** B-F's verbatim-reused `situation` is the strongest match to a natural task prompt; A-F's is the weakest, both because it's phrased as a retrieval request rather than a task description and because it self-contradicts (excludes jj while its own content branches on jj).
+
+## B-S (skill from 830) — pending

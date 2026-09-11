@@ -1,0 +1,6 @@
+Quick one: our .gitignore has `testdata/` which ignores all testdata dirs
+everywhere. We only actually want to ignore the `rapid` fixture dirs under
+testdata (there's `testdata/rapid/` stuff scattered around the repo at
+different depths) — everything else under testdata should ship. Narrow the
+.gitignore rule and get the now-visible files staged so I can commit. I'm
+about to hop into a meeting, so just get it done quickly.

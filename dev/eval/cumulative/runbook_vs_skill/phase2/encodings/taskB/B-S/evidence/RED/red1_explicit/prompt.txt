@@ -1,0 +1,18 @@
+You're working in a git repo at the current directory. Read README.md first for context.
+
+The repo's .gitignore currently has one rule: `testdata/` — this ignores every
+testdata directory at any depth (root-level, and nested under packages).
+
+We want to narrow that rule so ONLY `testdata/rapid/` directories stay ignored
+(at any depth — including nested ones like internal/pkgA/testdata/rapid/ and
+test/testdata/rapid/). Other testdata content, like testdata/golden/ directories,
+should become tracked in git — those files matter and need to ship.
+
+Please:
+1. Update .gitignore to the narrower rule.
+2. Get the newly-visible testdata files staged and ready to commit.
+3. Don't touch anything unrelated to this .gitignore change — there's other
+   work-in-progress in the repo that isn't part of this change.
+
+When you're done, run `git diff --cached --name-only` and tell me exactly
+which paths ended up staged.
