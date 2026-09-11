@@ -1,0 +1,44 @@
+[
+  {
+    "n": 1,
+    "name": "Check VCS type",
+    "signal": "bash_regex",
+    "pattern": "git\\s+(status|diff)"
+  },
+  {
+    "n": 2,
+    "name": "Check state (git status, git diff --staged, git diff)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+(status|diff)"
+  },
+  {
+    "n": 3,
+    "name": "Review recent commits (git log --oneline -5)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+log"
+  },
+  {
+    "n": 4,
+    "name": "Stage changes (git add pkg/version.go, not git add -A)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+add\\s+pkg/version\\.go"
+  },
+  {
+    "n": 5,
+    "name": "Compose message (conventional-commit format + AI-Used: [claude] trailer)",
+    "signal": "repo_state",
+    "pattern": "commit_message_format"
+  },
+  {
+    "n": 6,
+    "name": "Commit (git commit call visible)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+commit"
+  },
+  {
+    "n": 7,
+    "name": "Verify (git log -1 or git status after commit)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+(log\\s+-1|status)"
+  }
+]

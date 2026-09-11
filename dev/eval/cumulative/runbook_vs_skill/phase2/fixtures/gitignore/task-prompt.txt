@@ -1,0 +1,1 @@
+This repo's .gitignore is hiding files we need tracked. Fix it properly so the needed files are tracked without exposing generated artifacts, and stage the result.

@@ -1,0 +1,10 @@
+# Hide all testdata — too broad!
+testdata/
+
+# Hide all scripts — too broad!
+scripts/
+
+# Ignore common artifacts
+*.o
+*.a
+*.so

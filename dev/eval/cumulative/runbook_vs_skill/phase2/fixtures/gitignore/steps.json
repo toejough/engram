@@ -1,0 +1,38 @@
+[
+  {
+    "n": 1,
+    "name": "Inspect .gitignore pattern (write proposed replacement pattern)",
+    "signal": "bash_regex",
+    "pattern": "cat|vi|nano|edit.*\\.gitignore"
+  },
+  {
+    "n": 2,
+    "name": "Test with git check-ignore (anchor check on representative paths)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+check-ignore"
+  },
+  {
+    "n": 3,
+    "name": "Understand middle-slash anchoring (pattern depth rules)",
+    "signal": "bash_regex",
+    "pattern": "slash|anchor|depth|nested"
+  },
+  {
+    "n": 4,
+    "name": "Enumerate newly-visible files (git status --porcelain)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+status"
+  },
+  {
+    "n": 5,
+    "name": "Stage explicit enumerated paths (git add .gitignore scripts/build.sh testdata/fixture.json, not git add -A)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+add\\s+(scripts/build\\.sh|testdata/fixture\\.json|\\.gitignore)"
+  },
+  {
+    "n": 6,
+    "name": "Verify result (git diff --cached or git status)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+(diff\\s+--cached|status)"
+  }
+]
