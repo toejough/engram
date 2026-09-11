@@ -60,11 +60,20 @@ if git diff --cached --name-only | grep -q "tmp\\.log"; then
   exit 1
 fi
 
-# Check 9: tmp.log is untracked
+# Check 9: tmp.log is neither staged nor committed (decoy file must not be swept in)
 # Source: runbook 830 done_when quote: "exact set of newly-visible files has been enumerated and staged"
-if ! git status --porcelain | grep -q '^?? tmp.log'; then
-  echo "FAIL: tmp.log is not untracked"
-  git status --porcelain
+# (tmp.log is decoy to test that only ENUMERATED files are staged, not a sweep)
+# Regardless of whether tmp.log is ignored or untracked, it must NOT be in the commit
+if git ls-files tmp.log | grep -q .; then
+  echo "FAIL: tmp.log should not be in git index (not staged)"
+  exit 1
+fi
+if git diff --cached --name-only | grep -q "^tmp\\.log$"; then
+  echo "FAIL: tmp.log should not be staged (decoy file)"
+  exit 1
+fi
+if git log --all --oneline -- tmp.log | grep -q .; then
+  echo "FAIL: tmp.log should not be committed (decoy file)"
   exit 1
 fi
 
