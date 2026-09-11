@@ -2,8 +2,10 @@
   {
     "n": 1,
     "name": "Inspect .gitignore pattern (read/edit the file to understand current pattern)",
-    "signal": "bash_regex",
-    "pattern": "(cat|less|head|sed|grep|awk|vi|nano|Read)(\\s+.*)?\\.gitignore\\b"
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "(cat|less|head|sed|grep|awk|vi|nano|Read)(\\s+.*)?\\.gitignore\\b"},
+      {"signal": "tool_path", "tools": ["Read", "Edit", "Write"], "pattern": "\\.gitignore$"}
+    ]
   },
   {
     "n": 2,

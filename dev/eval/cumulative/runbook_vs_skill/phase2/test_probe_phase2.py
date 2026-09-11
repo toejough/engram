@@ -497,6 +497,87 @@ def test_evaluate_steps_repo_state_signal_uses_provided_checker():
     assert k == 1
 
 
+# ----- tool_path signal + any_of (round 5: native Read/Edit/Write credit) -----
+
+def test_evaluate_steps_tool_path_credits_native_read_on_matching_path():
+    steps = [{"n": 1, "name": "inspect via native tool", "signal": "tool_path",
+              "tools": ["Read", "Edit", "Write"], "pattern": r"\.gitignore$"}]
+    events = [_tool_use("Read", {"file_path": "/repo/.gitignore"}, idx=0)]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is True
+    assert k == 1
+
+
+def test_evaluate_steps_tool_path_false_when_wrong_tool():
+    steps = [{"n": 1, "name": "inspect via native tool", "signal": "tool_path",
+              "tools": ["Read", "Edit", "Write"], "pattern": r"\.gitignore$"}]
+    events = [_tool_use("Bash", {"command": "cat .gitignore"}, idx=0)]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is False
+
+
+def test_evaluate_steps_tool_path_false_when_path_does_not_match():
+    steps = [{"n": 1, "name": "inspect via native tool", "signal": "tool_path",
+              "tools": ["Read", "Edit", "Write"], "pattern": r"\.gitignore$"}]
+    events = [_tool_use("Read", {"file_path": "/repo/README.md"}, idx=0)]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is False
+
+
+def test_evaluate_steps_tool_path_matches_edit_and_write_too():
+    steps = [{"n": 1, "name": "inspect via native tool", "signal": "tool_path",
+              "tools": ["Read", "Edit", "Write"], "pattern": r"\.gitignore$"}]
+    for tool_name in ("Edit", "Write"):
+        events = [_tool_use(tool_name, {"file_path": "/repo/.gitignore"}, idx=0)]
+        results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+        assert results["1"] is True, tool_name
+
+
+def test_evaluate_steps_any_of_satisfied_by_either_alternative():
+    steps = [{
+        "n": 1, "name": "inspect .gitignore",
+        "any_of": [
+            {"signal": "bash_regex", "pattern": r"cat\s+\.gitignore"},
+            {"signal": "tool_path", "tools": ["Read"], "pattern": r"\.gitignore$"},
+        ],
+    }]
+    # only the tool_path alternative is satisfied
+    events = [_tool_use("Read", {"file_path": "/repo/.gitignore"}, idx=0)]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is True
+
+    # only the bash_regex alternative is satisfied
+    events2 = [_tool_use("Bash", {"command": "cat .gitignore"}, idx=0)]
+    results2, k2, all2_ = pp.evaluate_steps(steps, events2, repo_path="/does/not/matter")
+    assert results2["1"] is True
+
+
+def test_evaluate_steps_any_of_false_when_neither_alternative_matches():
+    steps = [{
+        "n": 1, "name": "inspect .gitignore",
+        "any_of": [
+            {"signal": "bash_regex", "pattern": r"cat\s+\.gitignore"},
+            {"signal": "tool_path", "tools": ["Read"], "pattern": r"\.gitignore$"},
+        ],
+    }]
+    events = [_tool_use("Bash", {"command": "git status"}, idx=0)]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is False
+
+
+def test_real_gitignore_steps_json_step_1_credits_synthetic_native_read():
+    """Round-5 finding: hand-verifying B-R showed an agent that inspects .gitignore via the
+    native Read tool (not `cat .gitignore` in Bash) got no credit for step 1. The real fixture's
+    step 1 is now any_of(bash_regex, tool_path) — a synthetic Read-only transcript must credit
+    it."""
+    steps = pp.load_steps("B")
+    step1 = next(s for s in steps if s["n"] == 1)
+    assert "any_of" in step1
+    events = [_tool_use("Read", {"file_path": "/repo/.gitignore"}, idx=0)]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is True
+
+
 def test_commit_message_format_and_body_true_on_conforming_message(tmp_path):
     import subprocess
     repo = str(tmp_path / "repo")
@@ -634,13 +715,21 @@ def test_gitignore_narrowed_to_generated_false_when_gitignore_missing(tmp_path):
 
 # ----- real steps.json files: valid JSON, evaluable, every repo_state pattern registered -----
 
+def _step_signals(step):
+    """A step's list of signal definitions — its own top-level signal, or every entry in
+    `any_of`."""
+    return step["any_of"] if "any_of" in step else [step]
+
+
 def test_both_real_steps_json_files_are_valid_json_and_loadable():
     for task in ("A", "B"):
         steps = pp.load_steps(task)
         assert isinstance(steps, list)
         assert len(steps) > 0
         for step in steps:
-            assert "n" in step and "signal" in step and "pattern" in step
+            assert "n" in step
+            for sig in _step_signals(step):
+                assert "signal" in sig and "pattern" in sig
 
 
 def test_real_steps_json_task_a_evaluates_against_a_synthetic_transcript_and_repo(tmp_path):
@@ -687,11 +776,12 @@ def test_real_steps_json_task_b_evaluates_against_a_synthetic_transcript_and_rep
 def test_every_repo_state_pattern_in_real_steps_json_is_registered():
     for task in ("A", "B"):
         for step in pp.load_steps(task):
-            if step["signal"] == "repo_state":
-                assert step["pattern"] in pp.REPO_STATE_CHECKERS, (
-                    f"Task {task} step {step['n']} names repo_state pattern "
-                    f"{step['pattern']!r}, which has no registered checker"
-                )
+            for sig in _step_signals(step):
+                if sig["signal"] == "repo_state":
+                    assert sig["pattern"] in pp.REPO_STATE_CHECKERS, (
+                        f"Task {task} step {step['n']} names repo_state pattern "
+                        f"{sig['pattern']!r}, which has no registered checker"
+                    )
 
 
 # ----- non-fatal scoring: one trial's scoring exception must not lose sibling results -----

@@ -553,15 +553,64 @@ def default_repo_checker(pattern_name, repo_path):
     return fn(repo_path)
 
 
+def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx):
+    """Evaluate ONE signal definition against the trial's events/repo state. Returns
+    (matched: bool, idx: int|None).
+
+    bash_regex: `pattern` matched against Bash tool_use commands, in transcript order; an
+      optional `not_pattern` on the SAME command disqualifies a match (the "not -A" rule).
+    tool_path: `tools` (a list of tool names, e.g. ["Read", "Edit", "Write"]) + `pattern` matched
+      against that tool_use's `file_path` input — credits a step satisfiable via a native
+      file tool (Read/Edit/Write) that a bash_regex alone can never see (round-5 finding: an
+      agent that inspects .gitignore via the native Read tool, rather than `cat .gitignore`,
+      got no credit for an "inspect the file" step).
+    repo_state: `pattern` names a key in `repo_checker`'s registry, called with repo_path (no
+      event index — repo_state steps carry no ordering point for `after`).
+    """
+    signal = sig["signal"]
+    pattern = re.compile(sig["pattern"])
+    not_pattern = re.compile(sig["not_pattern"]) if sig.get("not_pattern") else None
+
+    if signal == "bash_regex":
+        for ev in bash_events:
+            if ev["idx"] <= min_idx:
+                continue
+            command = (ev.get("input") or {}).get("command", "") or ""
+            if not pattern.search(command):
+                continue
+            if not_pattern and not_pattern.search(command):
+                continue
+            return True, ev["idx"]
+        return False, None
+
+    if signal == "tool_path":
+        tools = set(sig.get("tools") or ())
+        for ev in events:
+            if ev["kind"] != "tool_use" or ev.get("name") not in tools:
+                continue
+            if ev["idx"] <= min_idx:
+                continue
+            file_path = (ev.get("input") or {}).get("file_path", "") or ""
+            if not pattern.search(file_path):
+                continue
+            return True, ev["idx"]
+        return False, None
+
+    if signal == "repo_state":
+        return bool(repo_checker(sig["pattern"], repo_path)), None
+
+    raise ValueError(f"unknown steps.json signal {signal!r}")
+
+
 def evaluate_steps(steps, events, repo_path, repo_checker=default_repo_checker):
     """Evaluate a task's steps.json against a trial's transcript events + final repo state.
 
-    bash_regex: `pattern` matched against Bash tool_use commands, in transcript order; an
-      optional `not_pattern` on the SAME command disqualifies a match (the "not -A" rule);
-      an optional `after: <step n>` requires the matching command to occur strictly after the
-      tool_use event that satisfied step n (a bash_regex step only — repo_state steps carry no
-      event index to order against).
-    repo_state: `pattern` names a key in `repo_checker`'s registry, called with repo_path.
+    A step is either a single signal (top-level `signal`/`pattern`/[`not_pattern`]/[`tools`]
+    keys — see `_evaluate_signal`) or an `any_of` list of alternative signal definitions, any ONE
+    of which satisfies the step (e.g. Task B step 1: inspecting .gitignore via `cat`/`grep`/etc.
+    in Bash, OR via the native Read/Edit/Write tool — either counts). An optional `after: <step n>`
+    requires the matching event to occur strictly after the tool_use event that satisfied step n
+    (bash_regex/tool_path only — repo_state signals carry no event index to order against).
 
     Returns (results: {n: bool}, followed_k: int, followed_all: bool).
     """
@@ -571,29 +620,18 @@ def evaluate_steps(steps, events, repo_path, repo_checker=default_repo_checker):
 
     for step in sorted(steps, key=lambda s: s["n"]):
         n = step["n"]
-        signal = step["signal"]
-        pattern = re.compile(step["pattern"])
-        not_pattern = re.compile(step["not_pattern"]) if step.get("not_pattern") else None
         after_n = step.get("after")
         min_idx = match_idx.get(after_n, -1) if after_n is not None else -1
 
+        sub_signals = step["any_of"] if "any_of" in step else [step]
         matched = False
         idx = None
-        if signal == "bash_regex":
-            for ev in bash_events:
-                if ev["idx"] <= min_idx:
-                    continue
-                command = (ev.get("input") or {}).get("command", "") or ""
-                if not pattern.search(command):
-                    continue
-                if not_pattern and not_pattern.search(command):
-                    continue
-                matched, idx = True, ev["idx"]
+        for sig in sub_signals:
+            sig_matched, sig_idx = _evaluate_signal(sig, events, bash_events, repo_path,
+                                                     repo_checker, min_idx)
+            if sig_matched:
+                matched, idx = True, sig_idx
                 break
-        elif signal == "repo_state":
-            matched = bool(repo_checker(step["pattern"], repo_path))
-        else:
-            raise ValueError(f"unknown steps.json signal {signal!r} for step {n}")
 
         results[str(n)] = matched
         if idx is not None:
