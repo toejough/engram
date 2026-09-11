@@ -463,3 +463,60 @@ Decoy check is now robust:
 - ✓ All 4 validation cases pass from fresh archive extraction
 
 **Status:** PHASE 2 FIXTURES READY (decoy check hardened)
+
+---
+
+## JOE'S RULING: TRAILER REPORTED, NOT SCORED (2026-09-11)
+
+### Issue & Resolution
+**Finding:** AI-Used trailer cannot be tested in trials because Claude Code injects a session attribution instruction that overrides every carrier.
+
+**Solution:** Remove trailer validation from done_when check, but report trailer type as diagnostic (non-failing output).
+
+### Changes to Task A
+
+**done_when_checks.sh:**
+- Removed: "last non-empty line is AI-Used: [claude]" check
+- Kept: subject format, body presence, one commit, only pkg/version.go, decoy untracked, fixture hash unchanged
+- Added: body presence check (≥1 non-empty line after subject explaining why)
+- Added: NON-FAILING diagnostic line printed at end: `TRAILER: none|ai_used|co_authored|both`
+
+**steps.json:**
+- Added: `_note` field at top documenting trailer change
+- Updated: step 5 name to remove trailer requirement (still requires subject format + body)
+- Updated: step 5 pattern to `commit_message_format_and_body`
+
+### Validation: Four Cases (Fresh Archive Extraction)
+
+**Case 1: Positive WITHOUT trailer**
+```
+Commit message: subject + body (no trailer)
+Result: ✓ PASS with output "TRAILER: none"
+```
+
+**Case 2: Positive WITH Co-Authored-By only**
+```
+Commit message: subject + body + Co-Authored-By
+Result: ✓ PASS with output "TRAILER: co_authored"
+```
+
+**Case 3: Negative - git add -A (includes decoy)**
+```
+Staged: pkg/version.go AND notes/scratch.txt
+Result: ✓ FAIL (expected 1 file, got 2)
+```
+
+**Case 4: Negative - subject without type prefix**
+```
+Subject: "bump version to 1.1.0" (no type/scope)
+Result: ✓ FAIL (does not match conventional-commit format)
+```
+
+### Summary
+Trailer is now reported (diagnostic) not scored:
+- ✓ No breaking change to passing commits with trailers
+- ✓ Passes commits without trailers (as Claude Code may inject)
+- ✓ Maintains format/body quality checks
+- ✓ All 4 validation cases pass
+
+**Status:** PHASE 2 COMMIT TASK ALIGNED WITH JOE'S RULING
