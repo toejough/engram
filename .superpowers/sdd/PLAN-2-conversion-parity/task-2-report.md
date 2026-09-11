@@ -284,3 +284,53 @@ Claude-Session: https://claude.ai/code/session_01EjcpQGGpmLtqFiVEd5AA9j
 **Cleanliness:** ✓ No stray files, no procedure hints in prompts  
 
 **Status:** READY FOR PHASE 2 EVAL
+
+---
+
+## ROUND 2 FIXES (Defect: Files Force-Added to Fixture)
+
+### Defect Identified
+Round 1 commit `ce8d9a73` force-added `scripts/build.sh` and `testdata/fixture.json` into the fixture's initial commit via `git add -f`. This destroyed the task: those files must START IGNORED and UNTRACKED, so the agent's job is to narrow the ignore and make them trackable.
+
+### Fix Applied
+**Commit `b098afa1`:** Removed force-adds from fixture init script. Changed:
+```bash
+git add -f scripts/build.sh testdata/fixture.json
+```
+to:
+```bash
+git add -A  # respects .gitignore, leaves testdata/ and scripts/ untracked
+```
+
+**Commit `7f895cbb`:** Removed `tmp.log` from template. The decoy file must be created by init AFTER fixture commit, not included in template.
+
+### Verification (from `git archive HEAD` extraction)
+
+**Initial fixture state:**
+```
+git ls-files output: .gitignore, src/main.go
+(scripts/build.sh and testdata/fixture.json NOT tracked)
+
+git check-ignore output:
+  .gitignore:2:testdata/   testdata/fixture.json (IGNORED)
+  .gitignore:5:scripts/    scripts/build.sh (IGNORED)
+```
+
+✓ Files are correctly ignored and untracked — task is real
+
+**Positive case (narrowing .gitignore):**
+- Narrow to `testdata/generated/` instead of `testdata/`
+- Stage: `.gitignore`, `scripts/build.sh`, `testdata/fixture.json`
+- done_when check: PASS (via manual stepping, git ls-files confirms correct staged set)
+
+**Negative case (git add -A):**
+- Would stage decoy `tmp.log` in addition to the 3 needed files
+- done_when check: FAIL (correct rejection)
+
+### Summary
+Round 2 fixes ensure the fixture starts with needed files IGNORED and UNTRACKED,
+allowing the agent to legitimately narrow the ignore and stage them. The outer
+repo's template files remain tracked (as they must be for copying), but the
+fixture init now correctly respects the .gitignore during its own initialization.
+
+Status: FIXTURE TASK IS NOW REAL
