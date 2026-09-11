@@ -75,8 +75,41 @@ TASK_B_REMOVAL = (
 # command matching one of these constructs. Kept as a per-task table (both tasks currently share
 # the same rule — a fixture repo has no files outside the task's own tree, so no task-specific
 # path-scoping is needed the way phase-1's PROC_PATH_NEEDLES scoped to the sensor fixture).
-_MUTATING_BASH_RE = re.compile(r"git\s+(add|commit|rm|mv)|>|tee|sed\s+-i")
+#
+# Smoke-run-1 finding #1: a bare `>` matched `2>&1` in the recall skill's own diagnostic call
+# (`engram ingest --auto 2>&1 | tail -5`) — a read-only stderr-redirect-to-stdout-then-pipe, never
+# a mutation — making first_mutating_step_index fire on turn 1 of every trial and masking FOUND
+# for R/F even when the carrier WAS in the query result. The redirect clause now: (a) excludes a
+# `>` immediately preceded by a digit or `&` (a fd-redirect/duplication like `2>&1`, `>&2`), (b)
+# excludes a `>` immediately followed by `&` (`>&1`), and (c) requires a real path-ish token after
+# the redirect (`\s*\S` — `>` alone or `> ` with nothing after it doesn't count either).
+#
+# Smoke-run-1 finding #2 (surfaced re-verifying via --rescore against the real kept smoke
+# transcripts): `git\s+(add|commit|rm|mv)` also matched the LITERAL WORDS "git commit" inside an
+# `engram query --phrase "git commit message conventions for this repo"` argument — the recall
+# skill's own retrieval phrasing, never a real git invocation — at the SAME event index as the
+# query call itself, making the query never count as strictly "before" the first mutation. Quoted
+# substrings (engram query's --phrase arguments are always quoted) are stripped before matching,
+# so text inside quotes can never trigger a false mutation; the verb of a REAL git/redirect
+# invocation is never itself inside quotes, so genuine mutations are unaffected (verified:
+# `git commit -m "$(cat <<'EOF'` still matches — "git commit" sits before the first quote char).
+_MUTATING_REDIRECT_RE = r"(?<![\d&])>(?!&)\s*\S"
+_MUTATING_BASH_RE = re.compile(rf"git\s+(add|commit|rm|mv)|{_MUTATING_REDIRECT_RE}|tee|sed\s+-i")
 TASK_MUTATING_BASH_RE = {"A": _MUTATING_BASH_RE, "B": _MUTATING_BASH_RE}
+_QUOTED_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
+
+
+def _strip_quoted(command):
+    """Remove single- and double-quoted substrings before mutation matching — an engram query
+    --phrase argument (always quoted) that happens to contain words like 'git commit' must never
+    be mistaken for a real command invocation."""
+    return _QUOTED_RE.sub("", command)
+
+
+# Belt-and-suspenders alongside quote-stripping (controller hint): engram's own recall/retrieval
+# plumbing commands are read-only by construction and must never count as a mutation, regardless
+# of what their (quoted) arguments contain.
+_ENGRAM_READONLY_RE = re.compile(r"^\s*engram\s+(query|show-chunk|activate|ingest)\b")
 
 TASKS = {
     "A": {
@@ -259,12 +292,39 @@ def setup_trial_vault(env, task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MI
 
 # ----- trial repo setup (Ruling 5) -----
 
+def _skill_body_with_name(text, skill_name):
+    """`text` (a skill file's full content) with `name: <skill_name>` ensured in its YAML
+    frontmatter — added only if no `name:` key is already present. Otherwise byte-identical,
+    including the body."""
+    if not text.startswith("---\n"):
+        return text
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return text
+    frontmatter = parts[1]
+    if re.search(r"(?m)^name:\s*\S", frontmatter):
+        return text
+    frontmatter = frontmatter.rstrip("\n") + f"\nname: {skill_name}\n"
+    return "---" + frontmatter + "---" + parts[2]
+
+
 def deploy_skill(repo_path, task_key):
     cfg = TASKS[task_key]
     if task_key == "A":
-        dst = os.path.join(repo_path, ".claude", "skills", "commit.md")
+        # Deployed as a DIRECTORY (<repo>/.claude/skills/commit/SKILL.md), not the flat file the
+        # live repo carries at .claude/skills/commit.md — smoke-run-1 finding: Claude Code's own
+        # skill listing did NOT discover the flat-file form the way it discovered the directory-
+        # form gitignore-narrowing skill. Body is byte-identical to the repo's live
+        # .claude/skills/commit.md; frontmatter is the file's own frontmatter plus `name: commit`
+        # only if that key is absent (the live file already carries `name: commit`, so this is a
+        # no-op today — kept for robustness if the source file changes). This packaging change is
+        # the ONLY deviation from "live artifact unchanged" anywhere in this harness — see
+        # task-3-report.md for why it was necessary (the skill must be discoverable to be FOUND).
+        dst = os.path.join(repo_path, ".claude", "skills", "commit", "SKILL.md")
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.copy2(cfg["skill_src"], dst)
+        original = open(cfg["skill_src"]).read()
+        with open(dst, "w") as f:
+            f.write(_skill_body_with_name(original, cfg["skill_name"]))
     else:
         dst = os.path.join(repo_path, ".claude", "skills", "gitignore-narrowing")
         os.makedirs(os.path.dirname(dst), exist_ok=True)
@@ -353,7 +413,10 @@ def is_first_mutating_step(event, task_key):
         return True
     if name == "Bash":
         command = (event.get("input") or {}).get("command", "") or ""
-        return bool(TASK_MUTATING_BASH_RE[task_key].search(command))
+        stripped = _strip_quoted(command)
+        if _ENGRAM_READONLY_RE.match(stripped):
+            return False
+        return bool(TASK_MUTATING_BASH_RE[task_key].search(stripped))
     return False
 
 
@@ -567,7 +630,7 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
     t0 = time.time()
 
     repo_path = setup_trial_repo(trial_dir, task_key, arm, marker)
-    env = p1.trial_env(cfg_dir, trial_dir, repo_path)
+    env = trial_env_phase2(cfg_dir, trial_dir, repo_path)
     carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, arm, exclude_luhmann_min)
 
     prompt = open(TASKS[task_key]["task_prompt"]).read().strip()
@@ -614,6 +677,66 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
     return record
 
 
+# ----- cfg settings: suppress Claude Code's own commit/PR attribution injection -----
+
+# Smoke-run-1 finding: every trial transcript carries a `remote_session_change` `attachment`
+# (system-reminder text "Attribution for git commits and pull requests you create from here on
+# ... End git commit messages with: Co-Authored-By: <model> ...") injected by Claude Code ITSELF
+# — not via CLAUDE.md, not attributable to any arm's carrier — and every arm followed it over the
+# carrier/skill's own AI-Used: [claude] convention, contaminating done_when_checks.sh's trailer
+# check identically across arms. `attribution.commit`/`attribution.pr` is the CURRENT (non-
+# deprecated) settings.json key per code.claude.com/docs/en/settings-reference.md — verified via
+# WebFetch on the official docs (the older `includeCoAuthoredBy: false` is explicitly documented
+# there as deprecated in favor of `attribution`) and decisively confirmed by a plumbing trial (see
+# task-3-report.md): `false` hides the trailer/PR line entirely.
+CFG_SETTINGS = {"attribution": {"commit": False, "pr": False}}
+
+
+def _write_cfg_settings(cfg_dir):
+    with open(os.path.join(cfg_dir, "settings.json"), "w") as f:
+        json.dump(CFG_SETTINGS, f)
+
+
+def build_cfg_template_phase2(dst):
+    """p1.build_cfg_template(dst) (warm recall+learn skills), plus a settings.json suppressing
+    Claude Code's own commit/PR attribution injection."""
+    p1.build_cfg_template(dst)
+    _write_cfg_settings(dst)
+
+
+def build_cfg_pool_phase2(run_root, n):
+    """p1.build_cfg_pool(run_root, n) (per-worker cfg pool, never reimplemented here), with the
+    attribution-suppressing settings.json written into every resulting cfg dir afterward."""
+    dirs = p1.build_cfg_pool(run_root, n)
+    for cfg_dir in dirs:
+        _write_cfg_settings(cfg_dir)
+    return dirs
+
+
+# Root-cause finding (settings.json's `attribution.commit: false` was verified via plumbing trial
+# to have NO effect — see task-3-report.md): the injected `remote_session_change` attachment is
+# NOT a local-settings-driven behavior at all. `env | grep -i claude` in THIS orchestrator session
+# shows CLAUDE_CODE_BRIDGE_SESSION_ID matching this session's own bridge session id, plus
+# CLAUDE_CODE_CHILD_SESSION=1 and the messaging socket/token — p1.trial_env(..., base=os.environ)
+# inherits these into the spawned trial subprocess, which then relays the ORCHESTRATOR session's
+# own attribution config into the trial's transcript as a "remote session change" — a session-
+# bridge relay, not a settings read. Stripped from every trial's env below.
+_BRIDGE_ENV_VARS = (
+    "CLAUDE_CODE_BRIDGE_SESSION_ID", "CLAUDE_CODE_CHILD_SESSION",
+    "CLAUDE_CODE_MESSAGING_SOCKET", "CLAUDE_CODE_MESSAGING_TOKEN",
+)
+
+
+def trial_env_phase2(cfg, trial_dir, repo_path):
+    """p1.trial_env(cfg, trial_dir, repo_path), with the orchestrator-session bridge env vars
+    stripped so a spawned trial does not inherit — and relay into its own transcript — the
+    ORCHESTRATOR session's commit/PR attribution config."""
+    env = p1.trial_env(cfg, trial_dir, repo_path)
+    for var in _BRIDGE_ENV_VARS:
+        env.pop(var, None)
+    return env
+
+
 # ----- batch run -----
 
 def run_batch(args):
@@ -628,7 +751,7 @@ def run_batch(args):
     run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
     os.makedirs(run_root, exist_ok=True)
 
-    cfg_dirs = p1.build_cfg_pool(run_root, args.workers)
+    cfg_dirs = build_cfg_pool_phase2(run_root, args.workers)
     for cfg_dir in cfg_dirs:
         p1.matrix.refresh_creds(cfg_dir)
     cfg_pool = queue.Queue()
@@ -683,7 +806,7 @@ def run_plumbing(task_key, model):
     run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
     os.makedirs(run_root, exist_ok=True)
     cfg = os.path.join(run_root, "cfg")
-    p1.build_cfg_template(cfg)
+    build_cfg_template_phase2(cfg)
     p1.matrix.refresh_creds(cfg)
 
     before_fp = p1._real_vault_fingerprint()
@@ -691,7 +814,7 @@ def run_plumbing(task_key, model):
     trial_dir = os.path.join(run_root, "trials", "plumbing-0")
     os.makedirs(trial_dir, exist_ok=True)
     repo_path = setup_trial_repo(trial_dir, task_key, "R", marker)
-    env = p1.trial_env(cfg, trial_dir, repo_path)
+    env = trial_env_phase2(cfg, trial_dir, repo_path)
     carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, "R")
 
     result, timed_out = p1.spawn_claude(env, model, repo_path, plumbing_prompt(task_key), p1.DEFAULT_TIMEOUT_S)
@@ -772,7 +895,7 @@ def run_setup_only(task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN):
         # here means it passed.
         print("starting-state assertion: PASSED")
 
-        env = p1.trial_env(cfg, trial_dir, repo_path)
+        env = trial_env_phase2(cfg, trial_dir, repo_path)
         carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, arm, exclude_luhmann_min)
         md_count = len([n for n in os.listdir(env["ENGRAM_VAULT_PATH"]) if n.endswith(".md")])
         print(f"carrier_basename={carrier_basename} vault_copy_s={vault_copy_s}")
@@ -940,7 +1063,13 @@ def summarize_file(path):
 
 
 def rescore_file(in_path, out_path):
-    """Re-run steps.json evaluation and END-STATE on kept trial directories."""
+    """Re-run FOUND (round-3: extended to cover it, per the mutating-regex fix), steps.json
+    evaluation, and END-STATE on kept trial directories/transcripts. `repo_path` is required (for
+    steps.json's repo_state signals and END-STATE); `transcript_path` is required for FOUND and
+    bash_regex steps — if the transcript is also missing, those recompute against an empty event
+    list (found stays at its arm-appropriate default, e.g. None for Rdirect / False otherwise).
+    Provenance (`arm`, `carrier_basename`, `task`) is read from the kept record, never
+    re-derived."""
     records = load_jsonl(in_path)
     rescored = []
 
@@ -948,6 +1077,8 @@ def rescore_file(in_path, out_path):
         repo_path = record.get("repo_path")
         transcript_path = record.get("transcript_path")
         task_key = record.get("task")
+        arm = record.get("arm")
+        carrier_basename = record.get("carrier_basename")
 
         if not repo_path or not os.path.exists(repo_path):
             record["error"] = "rescore: repo missing"
@@ -958,6 +1089,12 @@ def rescore_file(in_path, out_path):
             events = []
             if transcript_path and os.path.exists(transcript_path):
                 events = p1.parse_transcript_events([transcript_path])
+
+            found, found_idx = score_found_phase2(task_key, arm, events, carrier_basename)
+            record["found"] = found
+            record["found_index"] = found_idx
+            record["found_method"] = found_method(arm, found)
+            record["first_procedure_step_index"] = first_mutating_step_index(events, task_key)
 
             steps = load_steps(task_key)
             followed_steps, followed_k, followed_all = evaluate_steps(steps, events, repo_path)

@@ -217,13 +217,40 @@ def test_rdirect_procedure_text_task_b_reads_real_830_note_body_verbatim():
 
 # ----- S skill deployment path per task -----
 
-def test_deploy_skill_task_a_places_flat_commit_md(tmp_path):
+def test_deploy_skill_task_a_places_directory_form_skill(tmp_path):
+    """Round-3 fix: Claude Code's skill listing did not discover the flat .claude/skills/commit.md
+    file the way it discovered the directory-form gitignore-narrowing skill (smoke run 1
+    finding), so Task A's skill is deployed as .claude/skills/commit/SKILL.md instead. Body must
+    still be byte-identical to the live repo skill file (the frontmatter already carries `name:
+    commit`, so no injection is needed here — see the dedicated frontmatter-injection test)."""
     repo_path = str(tmp_path / "repo")
     os.makedirs(repo_path)
     pp.deploy_skill(repo_path, "A")
-    dst = os.path.join(repo_path, ".claude", "skills", "commit.md")
+    dst = os.path.join(repo_path, ".claude", "skills", "commit", "SKILL.md")
     assert os.path.isfile(dst)
     assert open(dst).read() == open(pp.TASKS["A"]["skill_src"]).read()
+    # the old flat-file path must NOT exist — this harness deploys the directory form only
+    assert not os.path.exists(os.path.join(repo_path, ".claude", "skills", "commit.md"))
+
+
+def test_skill_body_with_name_is_noop_when_name_already_present():
+    text = "---\nname: commit\ndescription: x\n---\n\n# Commit\n\nbody text\n"
+    assert pp._skill_body_with_name(text, "commit") == text
+
+
+def test_skill_body_with_name_injects_when_absent():
+    text = "---\ndescription: x\n---\n\n# Commit\n\nbody text\n"
+    result = pp._skill_body_with_name(text, "commit")
+    assert "name: commit" in result
+    # body content after the frontmatter is unchanged
+    assert result.endswith("\n\n# Commit\n\nbody text\n")
+    # only one name key was added, not a duplicate
+    assert result.count("name:") == 1
+
+
+def test_skill_body_with_name_leaves_non_frontmatter_text_unchanged():
+    text = "no frontmatter here, just body text\n"
+    assert pp._skill_body_with_name(text, "commit") == text
 
 
 def test_deploy_skill_task_b_places_skill_dir(tmp_path):
@@ -233,6 +260,85 @@ def test_deploy_skill_task_b_places_skill_dir(tmp_path):
     dst = os.path.join(repo_path, ".claude", "skills", "gitignore-narrowing", "SKILL.md")
     assert os.path.isfile(dst)
     assert "name: gitignore-narrowing" in open(dst).read()
+
+
+# ----- mutating-step regex (smoke-run-1 finding: bare '>' matched '2>&1') -----
+
+def _mut_ev(command, idx=0):
+    return {"idx": idx, "kind": "tool_use", "name": "Bash", "input": {"command": command}, "id": "tu"}
+
+
+def test_mutating_step_stderr_redirect_pipe_is_not_mutating():
+    """engram ingest --auto 2>&1 | tail -5 — the recall skill's own diagnostic call — must NOT be
+    treated as a mutation. Smoke run 1: this false-positive fired on turn 1 of every trial,
+    masking FOUND for R/F even when the carrier was genuinely in the query result."""
+    ev = _mut_ev("engram ingest --auto 2>&1 | tail -5")
+    assert pp.is_first_mutating_step(ev, "A") is False
+
+
+def test_mutating_step_echo_redirect_to_file_is_mutating():
+    ev = _mut_ev("echo x > file")
+    assert pp.is_first_mutating_step(ev, "A") is True
+
+
+def test_mutating_step_heredoc_redirect_to_gitignore_is_mutating():
+    ev = _mut_ev("cat <<EOF > .gitignore")
+    assert pp.is_first_mutating_step(ev, "B") is True
+
+
+def test_mutating_step_git_commit_heredoc_is_mutating():
+    ev = _mut_ev("git commit -m \"$(cat <<'EOF'")
+    assert pp.is_first_mutating_step(ev, "A") is True
+
+
+def test_mutating_step_plain_read_only_bash_not_mutating():
+    for command in ("git status", "git diff --staged", "git log --oneline -5", "ls -la",
+                     "cat pkg/version.go", "2>/dev/null"):
+        ev = _mut_ev(command)
+        assert pp.is_first_mutating_step(ev, "A") is False, command
+
+
+def test_mutating_step_append_redirect_after_fd_dup_is_still_mutating():
+    """A real append AFTER an fd-duplication (e.g. `2>&1 >> out.log`) must still count — only the
+    fd-dup/duplication redirect itself is excluded, not every redirect in the command."""
+    ev = _mut_ev("some_cmd 2>&1 >> out.log")
+    assert pp.is_first_mutating_step(ev, "A") is True
+
+
+def test_mutating_step_engram_query_phrase_containing_git_commit_words_not_mutating():
+    """Smoke-run-1 finding #2: the recall skill's own retrieval phrasing can legitimately contain
+    the words 'git commit' inside a quoted --phrase argument. This exact A-R smoke transcript
+    command must not be treated as a mutation."""
+    ev = _mut_ev(
+        'engram query --lazy-chunks \\\n'
+        '  --phrase "commit a version bump following project conventions" \\\n'
+        '  --phrase "git commit message conventions for this repo" \\\n'
+        '  --phrase "staging files for a version release commit"'
+    )
+    assert pp.is_first_mutating_step(ev, "A") is False
+
+
+def test_mutating_step_git_commit_heredoc_still_mutating_despite_quote_stripping():
+    """The real invocation verb ('git commit') sits BEFORE the first quote character, so quote-
+    stripping must not blind the detector to a genuine commit."""
+    ev = _mut_ev("git commit -m \"$(cat <<'EOF'")
+    assert pp.is_first_mutating_step(ev, "A") is True
+
+
+def test_mutating_step_git_add_inside_echoed_quotes_not_mutating():
+    ev = _mut_ev('echo "git add"')
+    assert pp.is_first_mutating_step(ev, "A") is False
+
+
+def test_mutating_step_engram_readonly_verbs_never_mutating_even_with_redirect_looking_text():
+    for command in (
+        'engram query --lazy-chunks --phrase "some > thing"',
+        "engram show-chunk source#anchor",
+        "engram activate --note 1.2026-01-01.some-note.md",
+        "engram ingest --auto",
+    ):
+        ev = _mut_ev(command)
+        assert pp.is_first_mutating_step(ev, "A") is False, command
 
 
 # ----- FOUND: Arm S (skill: commit) -----
@@ -596,7 +702,7 @@ def test_setup_trial_repo_task_b_preserves_decoy_and_ignored_dirs(tmp_path):
 
 def test_setup_trial_repo_task_a_arm_s_deploys_skill_and_commits_it(tmp_path):
     repo_path = pp.setup_trial_repo(str(tmp_path), "A", "S", marker="RUNBOOK-VS-SKILL-PROBE2-z")
-    assert os.path.isfile(os.path.join(repo_path, ".claude", "skills", "commit.md"))
+    assert os.path.isfile(os.path.join(repo_path, ".claude", "skills", "commit", "SKILL.md"))
     import subprocess
     log = subprocess.run(["git", "-C", repo_path, "log", "--oneline"], capture_output=True, text=True).stdout
     assert "add project config" in log
@@ -732,3 +838,79 @@ def test_aggregate_rdirect_found_n_is_zero_when_found_is_none():
     agg = pp.aggregate(records, "A", "Rdirect")
     assert agg["found_n"] == 0
     assert agg["end_state_n"] == 1
+
+
+# ----- --rescore also recomputes FOUND (round 3) -----
+
+def test_rescore_recomputes_found_from_kept_transcript(tmp_path):
+    """Simulates the smoke-run-1 scenario: an original record was scored found=False by the
+    pre-fix mutating regex (a bare '>' falsely matched '2>&1' in the recall skill's own
+    diagnostic call, making that turn 0 count as 'the first mutation'), even though the carrier
+    basename genuinely appeared in the engram query result before any real mutation. Rescoring
+    with the fixed detector must flip found to True."""
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo)
+
+    transcript_path = tmp_path / "session.jsonl"
+    lines = [
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:00.000Z",
+            "message": {"content": [{"type": "tool_use", "id": "tu1", "name": "Bash",
+                                      "input": {"command": "engram ingest --auto 2>&1 | tail -5"}}]}
+        }),
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:01.000Z",
+            "message": {"content": [{"type": "tool_use", "id": "tu2", "name": "Bash",
+                                      "input": {"command": "engram query --phrase x"}}]}
+        }),
+        json.dumps({
+            "type": "user", "timestamp": "2026-09-11T00:00:02.000Z",
+            "message": {"content": [{"type": "tool_result", "tool_use_id": "tu2",
+                                      "content": "1.2026-09-11.commit-conventional-message.md"}]}
+        }),
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:03.000Z",
+            "message": {"content": [{"type": "tool_use", "id": "tu3", "name": "Bash",
+                                      "input": {"command": "git add pkg/version.go"}}]}
+        }),
+    ]
+    with open(transcript_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+    record = {
+        "task": "A", "arm": "R", "repo_path": repo, "transcript_path": str(transcript_path),
+        "carrier_basename": "1.2026-09-11.commit-conventional-message",
+        "found": False, "found_index": None,  # the pre-fix (buggy) scoring
+        "followed_steps": {}, "followed_k": 0, "followed_all": False,
+        "end_state": False, "end_state_output": "",
+    }
+    results_path = tmp_path / "results.jsonl"
+    with open(results_path, "w") as f:
+        f.write(json.dumps(record) + "\n")
+
+    rescored_path = tmp_path / "rescored.jsonl"
+    pp.rescore_file(str(results_path), str(rescored_path))
+
+    rescored = pp.load_jsonl(str(rescored_path))[0]
+    assert rescored["found"] is True
+    assert rescored["found_index"] == 1
+    assert rescored["found_method"] == "engram query"
+    assert rescored["first_procedure_step_index"] == 3  # the git add, not the 2>&1 diagnostic call
+    assert rescored["rescored_from"] == str(results_path)
+
+
+def test_rescore_preserves_provenance_fields_from_kept_record():
+    """arm/carrier_basename/task provenance must be READ from the kept record, never re-derived —
+    a missing repo_path is the only thing that should short-circuit to an error."""
+    record = {"task": "A", "arm": "S", "repo_path": "/does/not/exist", "transcript_path": None,
+              "carrier_basename": None}
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        results_path = os.path.join(td, "results.jsonl")
+        with open(results_path, "w") as f:
+            f.write(json.dumps(record) + "\n")
+        rescored_path = os.path.join(td, "rescored.jsonl")
+        pp.rescore_file(results_path, rescored_path)
+        rescored = pp.load_jsonl(rescored_path)[0]
+    assert rescored["error"] == "rescore: repo missing"
+    assert rescored["arm"] == "S"
