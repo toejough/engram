@@ -1,0 +1,9 @@
+run_id=B-opus-1789137038-0966ec task=B arms=['S', 'R', 'F', 'Rdirect'] n=1 model=opus trials=4 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/B-opus-1789137038-0966ec
+setup_trial_vault: removed 7 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/B-opus-1789137038-0966ec/trials/B-R-0/vault
+setup_trial_vault: removed 7 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/B-opus-1789137038-0966ec/trials/B-S-0/vault
+  [B-S#0] valid found=True followed=6/6 end_state=False cost=$0.54 timed_out=False
+setup_trial_vault: removed 7 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/B-opus-1789137038-0966ec/trials/B-F-0/vault
+  [B-R#0] valid found=False followed=5/6 end_state=False cost=$0.58 timed_out=False
+setup_trial_vault: removed 7 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/B-opus-1789137038-0966ec/trials/B-Rdirect-0/vault
+  [B-F#0] valid found=False followed=5/6 end_state=False cost=$0.66 timed_out=False
+  [B-Rdirect#0] valid found=None followed=5/6 end_state=False cost=$0.64 timed_out=False
