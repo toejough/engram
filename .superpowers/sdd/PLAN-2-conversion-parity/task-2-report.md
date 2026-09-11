@@ -334,3 +334,77 @@ repo's template files remain tracked (as they must be for copying), but the
 fixture init now correctly respects the .gitignore during its own initialization.
 
 Status: FIXTURE TASK IS NOW REAL
+
+---
+
+## ROUND 3 VALIDATION (Fresh Archive Extraction, End-to-End)
+
+### Extraction & Initialization
+```
+Extracted fixtures from: git archive HEAD
+Initialized Task A repo: bash fixtures/commit/init_fixture_repo.sh <repo>
+Initialized Task B repo: bash fixtures/gitignore/init_fixture_repo.sh <repo>
+```
+
+### Task A: Commit Init State (After Fresh Init)
+```
+git status --porcelain output:
+ M pkg/version.go
+?? notes/
+
+✓ Correct: pkg/version.go is unstaged, notes directory is untracked
+```
+
+### Task B: Gitignore Init State (After Fresh Init)
+```
+git status --porcelain output:
+?? tmp.log
+
+git ls-files output:
+.gitignore
+src/main.go
+
+git check-ignore output:
+.gitignore:2:testdata/     testdata/fixture.json
+.gitignore:5:scripts/      scripts/build.sh
+
+✓ Correct: tmp.log is untracked, scripts/ and testdata/ are ignored and not tracked
+```
+
+### Task A: Positive Case
+```
+Procedure: git add pkg/version.go, commit with conventional format + AI-Used trailer
+Result: ✓ PASS — done_when_checks.sh exits 0
+```
+
+### Task A: Negative Case (git add -A)
+```
+Procedure: git add -A (includes notes/scratch.txt decoy)
+Result: ✓ FAIL — done_when_checks.sh correctly rejects (2 files in commit, expects 1)
+Output: "FAIL: Latest commit touches 2 files, expected 1"
+```
+
+### Task B: Positive Case
+```
+Procedure: Narrow .gitignore from testdata/ to testdata/generated/, stage 3 files
+Result: ✓ PASS — done_when_checks.sh exits 0
+Staged: .gitignore, scripts/build.sh, testdata/fixture.json
+```
+
+### Task B: Negative Case (git add -A)
+```
+Procedure: git add -A (includes tmp.log decoy)
+Result: ✓ FAIL — done_when_checks.sh correctly rejects (includes decoy + missing required files)
+Output: "FAIL: scripts/build.sh not staged"
+```
+
+### Verification Summary
+All four core scenarios validated end-to-end from fresh archive extraction:
+- ✓ Task A init: correct unstaged/untracked state
+- ✓ Task A positive: conventional commit passes
+- ✓ Task A negative: git add -A correctly rejected
+- ✓ Task B init: correct ignored/untracked state with tmp.log created post-fixture
+- ✓ Task B positive: narrowed ignore + explicit staging passes
+- ✓ Task B negative: git add -A correctly rejected
+
+**Status:** READY FOR PHASE 2 EVAL (all defects fixed, full validation passed)
