@@ -819,6 +819,60 @@ def test_score_trial_trailer_is_na_for_task_b():
     assert scored["trailer"] == "n/a"
 
 
+# ----- live scoring vs --rescore: same field set (round 6) -----
+
+def test_live_scoring_and_rescore_emit_the_same_scored_field_set(tmp_path):
+    """The live scoring path (_score_trial, feeding run_one_trial_phase2's persisted record) and
+    --rescore must emit the SAME set of scored fields — round-6 finding: first_procedure_step_index
+    was computed by --rescore but never by the live path, so base result files lacked it.
+    `rescored_from` is the one expected rescore-only addition (provenance marking that a record
+    was rescored) — everything else must match exactly."""
+    repo_path = pp.setup_trial_repo(str(tmp_path / "trial"), "A", "R",
+                                     marker="RUNBOOK-VS-SKILL-PROBE2-parity")
+    carrier = "1.2026-09-11.commit-conventional-message"
+
+    transcript_path = tmp_path / "session.jsonl"
+    lines = [
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:00.000Z",
+            "message": {"content": [{"type": "tool_use", "id": "tu1", "name": "Bash",
+                                      "input": {"command": "engram query --phrase x"}}]}
+        }),
+        json.dumps({
+            "type": "user", "timestamp": "2026-09-11T00:00:01.000Z",
+            "message": {"content": [{"type": "tool_result", "tool_use_id": "tu1",
+                                      "content": f"{carrier}.md"}]}
+        }),
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:02.000Z",
+            "message": {"content": [{"type": "tool_use", "id": "tu2", "name": "Bash",
+                                      "input": {"command": "git add pkg/version.go"}}]}
+        }),
+    ]
+    with open(transcript_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+    # --- live path: _score_trial's scored keys (minus scoring_error, a live-only diagnostic
+    # never persisted as a scored field name in the record schema itself) ---
+    events = pp.p1.parse_transcript_events([str(transcript_path)])
+    scored = pp._score_trial("A", "R", events, repo_path, carrier)
+    live_scored_keys = set(scored.keys()) - {"scoring_error"}
+
+    # --- rescore path: whatever keys rescore_file adds/overwrites onto a minimal provenance-only
+    # record ---
+    minimal_record = {"task": "A", "arm": "R", "repo_path": repo_path,
+                       "transcript_path": str(transcript_path), "carrier_basename": carrier}
+    results_path = tmp_path / "minimal.jsonl"
+    with open(results_path, "w") as f:
+        f.write(json.dumps(minimal_record) + "\n")
+    rescored_path = tmp_path / "minimal.rescored.jsonl"
+    pp.rescore_file(str(results_path), str(rescored_path))
+    rescored_record = pp.load_jsonl(str(rescored_path))[0]
+    rescore_added_keys = set(rescored_record.keys()) - set(minimal_record.keys())
+
+    assert rescore_added_keys - {"rescored_from"} == live_scored_keys
+
+
 def test_score_trial_load_steps_exception_is_captured_not_raised(monkeypatch, tmp_path):
     """Round-2 review: load_steps() itself must be inside the try — a missing/invalid steps.json
     must not break the 'never raises' contract either. n_steps stays at its 0 default since it

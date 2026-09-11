@@ -664,6 +664,7 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename):
     contract either), so n_steps defaults to 0 until steps are loaded successfully."""
     scored = {
         "found": None, "found_method": found_method(arm, None), "found_index": None,
+        "first_procedure_step_index": None,
         "recall_fired": False,
         "followed_steps": {}, "followed_k": 0, "followed_all": False, "n_steps": 0,
         "end_state": False, "end_state_output": "",
@@ -677,6 +678,7 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename):
         scored["found"] = found
         scored["found_method"] = found_method(arm, found)
         scored["found_index"] = found_idx
+        scored["first_procedure_step_index"] = first_mutating_step_index(events, task_key)
         scored["recall_fired"] = p1.score_recall_fired(events)
         followed_steps, followed_k, followed_all = evaluate_steps(steps, events, repo_path)
         scored["followed_steps"] = followed_steps
@@ -729,6 +731,7 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
         "marker_seen": marker_seen,
         "found": scored["found"], "found_method": scored["found_method"],
         "found_index": scored["found_index"],
+        "first_procedure_step_index": scored["first_procedure_step_index"],
         "recall_fired": scored["recall_fired"],
         "followed_steps": scored["followed_steps"], "followed_k": scored["followed_k"],
         "followed_all": scored["followed_all"], "n_steps": scored["n_steps"],
@@ -1141,13 +1144,17 @@ def summarize_file(path):
 
 
 def rescore_file(in_path, out_path):
-    """Re-run FOUND (round-3: extended to cover it, per the mutating-regex fix), steps.json
-    evaluation, END-STATE, and the Task A `trailer` field (round 4) on kept trial
-    directories/transcripts. `repo_path` is required (for steps.json's repo_state signals,
-    END-STATE, and `trailer`); `transcript_path` is required for FOUND and bash_regex steps — if
-    the transcript is also missing, those recompute against an empty event list (found stays at
-    its arm-appropriate default, e.g. None for Rdirect / False otherwise). Provenance (`arm`,
-    `carrier_basename`, `task`) is read from the kept record, never re-derived."""
+    """Re-run FOUND + `first_procedure_step_index` + `recall_fired` (round-3: extended to cover
+    FOUND, per the mutating-regex fix), steps.json evaluation (incl. `n_steps`), END-STATE, and
+    the Task A `trailer` field (round 4) on kept trial directories/transcripts — round 6: this
+    field set is kept IDENTICAL to what the live scoring path (`_score_trial`) emits, so a
+    rescored record is directly comparable, field for field, to a live one (see
+    `test_live_scoring_and_rescore_emit_the_same_scored_field_set`). `repo_path` is required (for
+    steps.json's repo_state signals, END-STATE, and `trailer`); `transcript_path` is required for
+    FOUND and bash_regex steps — if the transcript is also missing, those recompute against an
+    empty event list (found stays at its arm-appropriate default, e.g. None for Rdirect / False
+    otherwise). Provenance (`arm`, `carrier_basename`, `task`) is read from the kept record,
+    never re-derived."""
     records = load_jsonl(in_path)
     rescored = []
 
@@ -1173,8 +1180,10 @@ def rescore_file(in_path, out_path):
             record["found_index"] = found_idx
             record["found_method"] = found_method(arm, found)
             record["first_procedure_step_index"] = first_mutating_step_index(events, task_key)
+            record["recall_fired"] = p1.score_recall_fired(events)
 
             steps = load_steps(task_key)
+            record["n_steps"] = len(steps)
             followed_steps, followed_k, followed_all = evaluate_steps(steps, events, repo_path)
             record["followed_steps"] = followed_steps
             record["followed_k"] = followed_k
