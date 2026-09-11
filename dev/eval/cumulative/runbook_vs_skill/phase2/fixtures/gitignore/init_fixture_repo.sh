@@ -25,6 +25,7 @@ git add -A
 git commit -m "chore: initial project with broad ignore"
 
 # Generate the big.bin file in the ignored directory
+mkdir -p testdata/generated
 dd if=/dev/zero bs=1024 count=64 2>/dev/null > testdata/generated/big.bin
 
 # Create decoy file (untracked)
