@@ -408,3 +408,58 @@ All four core scenarios validated end-to-end from fresh archive extraction:
 - ✓ Task B negative: git add -A correctly rejected
 
 **Status:** READY FOR PHASE 2 EVAL (all defects fixed, full validation passed)
+
+---
+
+## ROUND 4: DECOY CHECK ROBUSTNESS (*.log Tolerance)
+
+### Smoke Finding & Fix
+**Issue:** Agents reasonably add `*.log` to .gitignore (a generalization), causing `tmp.log` to become IGNORED rather than untracked. Previous check (`?? tmp.log` in porcelain) failed because it required untracked status.
+
+**Solution:** Updated check to verify tmp.log is neither staged nor committed, regardless of ignored/untracked status:
+```bash
+git ls-files tmp.log | grep -q .           # NOT in index
+git diff --cached --name-only | grep -q tmp.log  # NOT staged
+git log --all --oneline -- tmp.log | grep -q .  # NOT committed
+```
+
+This matches 830's intent: don't sweep the decoy in (cite: "exact set of newly-visible files has been enumerated and staged").
+
+### Validation: Four Cases (Fresh Archive Extraction)
+
+**Case 1: Positive with *.log in .gitignore (tmp.log IGNORED)**
+```
+Staged: .gitignore, scripts/build.sh, testdata/fixture.json (3 files)
+tmp.log status: ignored by *.log pattern
+Result: ✓ PASS — done_when_checks.sh exits 0
+```
+
+**Case 2: Positive without *.log (tmp.log UNTRACKED)**
+```
+Staged: .gitignore, scripts/build.sh, testdata/fixture.json (3 files)
+tmp.log status: untracked (not ignored)
+Result: ✓ PASS — done_when_checks.sh exits 0
+```
+
+**Case 3: Negative - git add -A without *.log (tmp.log STAGED)**
+```
+git add -A stages all unignored files
+Staged: .gitignore, scripts/build.sh, testdata/fixture.json, tmp.log (4 files)
+tmp.log is included because *.log is not in .gitignore
+Result: ✓ FAIL — done_when_checks.sh correctly rejects (expected 3, found 4)
+```
+
+**Case 4: Negative - tmp.log force-added**
+```
+git add -f tmp.log forces staging of tmp.log
+Staged: .gitignore, scripts/build.sh, testdata/fixture.json, tmp.log (4 files)
+Result: ✓ FAIL — done_when_checks.sh correctly rejects (expected 3, found 4)
+```
+
+### Summary
+Decoy check is now robust:
+- ✓ Handles agents adding `*.log` to .gitignore (common generalization)
+- ✓ Still catches both untracked and staged decoy attempts
+- ✓ All 4 validation cases pass from fresh archive extraction
+
+**Status:** PHASE 2 FIXTURES READY (decoy check hardened)
