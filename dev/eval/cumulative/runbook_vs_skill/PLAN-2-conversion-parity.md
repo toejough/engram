@@ -176,7 +176,7 @@ git commit -m "docs(eval/phase2): source materials task 1 — live /commit skill
 
 Create the directory: `phase2/fixtures/fixture-repo-templates/commit-task/`
 
-This is a minimal git repo where a change is ALREADY STAGED (not committed), ready for the trial agent to commit. Use a simple, realistic scenario: a small code file with a one-liner change that is staged but uncommitted.
+This is a minimal git repo where a change is UNSTAGED (modified in working tree, not staged), plus an unrelated untracked decoy file, ready for the trial agent to commit the real change. Use a simple, realistic scenario: a small code file with a one-liner change, left modified but not staged.
 
 ```bash
 mkdir -p phase2/fixtures/fixture-repo-templates/commit-task
@@ -252,7 +252,7 @@ CLAUSENDMD
 echo "Fixture repo initialized at $REPO_DIR"
 ```
 
-**Acceptance:** Script exits 0; `$REPO_DIR/pkg/version.go` is staged (git status shows "staged"), CLAUDE.md contains the trial's guidance.
+**Acceptance:** Script exits 0; `$REPO_DIR/pkg/version.go` is modified but unstaged (`git status --porcelain` shows ` M pkg/version.go`), `notes/scratch.txt` shows as `?? notes/scratch.txt`, and `git diff --cached` is empty.
 
 - [ ] **Step 3: Create commit-task done_when_checks.sh**
 
@@ -337,9 +337,7 @@ Binary scoring: FOLLOWED-all-steps = 1 if all 7 steps detected, 0 if any step mi
 Create `phase2/fixtures/commit/task-prompt.txt`. Natural language, no procedure hints.
 
 ```
-Commit the staged work in this repo.
-
-The staged change is ready; you must create a commit following the project's conventions.
+Commit the version bump in this repo following the project's conventions.
 ```
 
 **Rationale:** Minimal, idiosyncratic detail absent (no mention of `AI-Used` trailer, conventional-commit format, or the version field). The agent must discover these from the arm's carrier.
