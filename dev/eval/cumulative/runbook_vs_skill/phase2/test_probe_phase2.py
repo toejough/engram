@@ -356,17 +356,23 @@ def test_setup_trial_repo_task_a_preserves_unstaged_and_decoy(tmp_path):
 
 
 def test_setup_trial_repo_task_b_preserves_decoy_and_ignored_dirs(tmp_path):
-    """scripts/build.sh and testdata/fixture.json are force-added into the fixture's initial
-    commit (init_fixture_repo.sh, commit ce8d9a73) — tracked, not ignored, from trial start.
-    Only testdata/generated/big.bin (created after) is actually ignored. See task-3-report.md's
-    concerns section for the fixture-design issue this surfaced."""
+    """Task B's fixture (init_fixture_repo.sh, fixed at commit b098afa1) commits only .gitignore
+    + src/main.go; scripts/build.sh and testdata/fixture.json start ignored AND untracked (not
+    in the index), and tmp.log is created as an untracked decoy after the fixture commit."""
     repo_path = pp.setup_trial_repo(str(tmp_path), "B", "F", marker="RUNBOOK-VS-SKILL-PROBE2-y")
     import subprocess
     status = subprocess.run(["git", "-C", repo_path, "status", "--porcelain"],
                              capture_output=True, text=True, check=True).stdout
     assert "?? tmp.log" in status
-    ignored = subprocess.run(["git", "-C", repo_path, "check-ignore", "-q", "testdata/generated/big.bin"])
-    assert ignored.returncode == 0
+
+    for rel_path in ("testdata/generated/big.bin", "scripts/build.sh", "testdata/fixture.json"):
+        ignored = subprocess.run(["git", "-C", repo_path, "check-ignore", "-q", rel_path])
+        assert ignored.returncode == 0, f"{rel_path} should be ignored"
+
+    ls_files = subprocess.run(["git", "-C", repo_path, "ls-files"],
+                               capture_output=True, text=True, check=True).stdout
+    assert "scripts/build.sh" not in ls_files
+    assert "testdata/fixture.json" not in ls_files
 
 
 def test_setup_trial_repo_task_a_arm_s_deploys_skill_and_commits_it(tmp_path):

@@ -238,15 +238,18 @@ _START_STATE_CHECKS = {
     ),
 }
 _START_STATE_IGNORED_PATHS = {
-    # NOTE: scripts/build.sh and testdata/fixture.json are force-added into the fixture's
-    # INITIAL commit by init_fixture_repo.sh (commit ce8d9a73) — they are tracked, not ignored,
-    # from trial start. Only testdata/generated/big.bin (created after the initial commit) is
-    # actually ignored at start. See task-3-report.md's "concerns" section: this appears to make
-    # done_when_checks.sh's checks 5/6 ("scripts/build.sh staged" / "testdata/fixture.json
-    # staged") unsatisfiable by ANY agent, since `git add` on an already-tracked, unmodified file
-    # produces no entry in `git diff --cached --name-only`. Flagged for the fixture owner
-    # (out of this task's scope per Ruling 10 — fixtures are not edited here).
-    "B": ("testdata/generated/big.bin",),
+    # Task B's fixture init (gitignore/init_fixture_repo.sh, commit b098afa1 — the round-2 fix
+    # for ce8d9a73's regression) commits ONLY .gitignore + src/main.go; scripts/build.sh and
+    # testdata/fixture.json are covered by the over-broad .gitignore and stay ignored+untracked,
+    # matching done_when_checks.sh's "staged" checks (satisfiable: they have real content to
+    # stage). testdata/generated/big.bin is the generated artifact created after the fixture
+    # commit and must also stay ignored throughout.
+    "B": ("testdata/generated/big.bin", "scripts/build.sh", "testdata/fixture.json"),
+}
+_START_STATE_UNTRACKED_PATHS = {
+    # These must be absent from the index (never committed) at trial start — the whole point of
+    # the task is to make them trackable, so the fixture must not pre-track them.
+    "B": ("scripts/build.sh", "testdata/fixture.json"),
 }
 
 
@@ -264,6 +267,14 @@ def assert_starting_state(repo_path, task_key):
         if r.returncode != 0:
             raise RuntimeError(
                 f"Task {task_key} starting-state check failed: expected {rel_path} to be ignored"
+            )
+    for rel_path in _START_STATE_UNTRACKED_PATHS.get(task_key, ()):
+        tracked = subprocess.run(["git", "-C", repo_path, "ls-files", "--", rel_path],
+                                  capture_output=True, text=True, check=True).stdout.strip()
+        if tracked:
+            raise RuntimeError(
+                f"Task {task_key} starting-state check failed: expected {rel_path} to be "
+                f"untracked (absent from the index), but git ls-files reports it tracked"
             )
 
 
@@ -618,6 +629,59 @@ def run_plumbing(task_key, model):
               f"after={after_fp}.", file=sys.stderr)
 
 
+# ----- setup-only mode: dry run, no claude call -----
+
+def run_setup_only(task_key, arm):
+    """Build the trial repo + background vault + CLAUDE.md for one (task, arm) pair, print the
+    starting-state checks, and clean up — no claude call. For confirming a fixture change against
+    the harness's own starting-state assertion without spending on a trial."""
+    run_id = f"setup-only-{task_key}-{arm}-{int(time.time())}"
+    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
+    trial_dir = os.path.join(run_root, "trials", "setup-only-0")
+    os.makedirs(trial_dir, exist_ok=True)
+    cfg = os.path.join(run_root, "cfg")
+    os.makedirs(cfg, exist_ok=True)
+    marker = f"RUNBOOK-VS-SKILL-PROBE2-{uuid.uuid4().hex[:8]}"
+
+    before_fp = p1._real_vault_fingerprint()
+    env = None
+    try:
+        repo_path = setup_trial_repo(trial_dir, task_key, arm, marker)
+        print(f"setup_trial_repo: OK ({task_key}/{arm}) repo_path={repo_path}")
+
+        status = subprocess.run(["git", "-C", repo_path, "status", "--porcelain"],
+                                 capture_output=True, text=True, check=True).stdout
+        print("git status --porcelain:")
+        print(status.rstrip("\n") if status.strip() else "(clean)")
+
+        ls_files = subprocess.run(["git", "-C", repo_path, "ls-files"],
+                                   capture_output=True, text=True, check=True).stdout
+        print("git ls-files:", ", ".join(ls_files.split()) or "(none)")
+
+        for rel_path in _START_STATE_IGNORED_PATHS.get(task_key, ()):
+            r = subprocess.run(["git", "-C", repo_path, "check-ignore", "-q", rel_path])
+            print(f"check-ignore {rel_path}: {'ignored' if r.returncode == 0 else 'NOT ignored'}")
+
+        # assert_starting_state already ran inside setup_trial_repo (raises on failure); reaching
+        # here means it passed.
+        print("starting-state assertion: PASSED")
+
+        env = p1.trial_env(cfg, trial_dir, repo_path)
+        carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, arm)
+        print(f"carrier_basename={carrier_basename} vault_copy_s={vault_copy_s}")
+    except Exception as exc:  # noqa: BLE001 — report and re-raise, still clean up in finally
+        print(f"setup-only FAILED: {exc}", file=sys.stderr)
+        raise
+    finally:
+        if env is not None:
+            shutil.rmtree(env["ENGRAM_VAULT_PATH"], ignore_errors=True)
+        after_fp = p1._real_vault_fingerprint()
+        if after_fp != before_fp:
+            print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
+                  f"after={after_fp}.", file=sys.stderr)
+        shutil.rmtree(run_root, ignore_errors=True)
+
+
 # ----- summarize / decomposition (Ruling 7) -----
 
 def load_jsonl(path):
@@ -806,6 +870,9 @@ def build_argparser():
     ap.add_argument("--timeout", type=int, default=p1.DEFAULT_TIMEOUT_S)
     ap.add_argument("--keep", action="store_true", help="keep the run root instead of deleting it on exit")
     ap.add_argument("--plumbing", action="store_true")
+    ap.add_argument("--setup-only", action="store_true",
+                     help="build repo+vault+CLAUDE.md for one arm (first of --arms) and print "
+                          "the starting-state checks — no claude call")
     ap.add_argument("--summarize")
     ap.add_argument("--rescore", help="re-score an existing results.jsonl file using kept trial directories")
     return ap
@@ -825,6 +892,12 @@ def main(argv=None):
         if not args.task:
             build_argparser().error("--plumbing requires --task")
         run_plumbing(args.task, args.model or "sonnet")
+        return
+    if args.setup_only:
+        if not args.task:
+            build_argparser().error("--setup-only requires --task")
+        arm = [a.strip() for a in args.arms.split(",") if a.strip()][0]
+        run_setup_only(args.task, arm)
         return
     if not args.task:
         build_argparser().error("--task is required (unless --summarize/--rescore)")
