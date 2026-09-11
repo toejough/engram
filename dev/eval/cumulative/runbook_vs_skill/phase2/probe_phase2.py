@@ -1,0 +1,837 @@
+#!/usr/bin/env python3
+"""Phase-2 conversion-parity eval harness (Task 3 of PLAN-2-conversion-parity.md).
+
+Extends phase-1's probe.py to two tasks (A: commit, B: gitignore-narrowing) and four arms each
+(S: original skill, R: runbook note, F: fact note, Rdirect: procedure text inlined into CLAUDE.md
+with no vault carrier). Measures whether a runbook note earns its keep over a fact note, and
+whether either earns its keep over the original skill, for GENERIC (non-idiosyncratic) procedures,
+at real-vault scale (per-trial background vault = a copy of the operator's real vault with the
+task's covering notes removed, per SOURCE_MATERIALS.md).
+
+This module IMPORTS phase-1's probe.py (as `p1`) for transcript parsing, the marker-validity gate,
+the per-worker cfg pool, `spawn_claude`, the isolation env builder, the real-vault fingerprint
+guard, and the CLAUDE.md builder (`p1.build_claude_md`, extended here to append an optional
+"## Project procedure" section for Arm Rdirect). See PLAN-2-conversion-parity.md's Global
+Constraints and Controller rulings (task-3-brief.md) for the design this file implements; probe.py
+and its own module docstring for the plumbing this file reuses without reimplementing.
+
+Usage:
+  python3 probe_phase2.py --task A --model sonnet --n 1 --out results/smoke_A.jsonl
+  python3 probe_phase2.py --task A --model opus --n 5 --out results/opus_A.jsonl [--arms S,R,F,Rdirect]
+      [--workers N] [--timeout 900] [--keep]
+  python3 probe_phase2.py --plumbing --task A --model sonnet
+  python3 probe_phase2.py --summarize results/opus_A.jsonl
+  python3 probe_phase2.py --rescore results/opus_A.jsonl --out results/opus_A_rescored.jsonl
+"""
+import argparse
+import concurrent.futures as cf
+import json
+import os
+import queue
+import re
+import shutil
+import subprocess
+import sys
+import time
+import uuid
+
+HERE = os.path.dirname(os.path.abspath(__file__))          # phase2/
+PARENT = os.path.dirname(HERE)                              # dev/eval/cumulative/runbook_vs_skill/
+
+sys.path.insert(0, PARENT)
+import probe as p1                    # noqa: E402  (phase-1 harness — transcript parsing, isolation, cfg pool, spawn)
+
+FIXTURES_DIR = os.path.join(HERE, "fixtures")
+ENCODINGS_DIR = os.path.join(HERE, "encodings")
+REAL_VAULT = p1.isolation.operator_vault()
+
+ARMS = ("S", "R", "F", "Rdirect")
+
+NOTE_830_BASENAME = "830.2026-08-29.gitignore-narrowing-anchor-and-visible-set"
+
+# Covering-note removal lists (SOURCE_MATERIALS.md §3). Note 830 is handled separately (kept
+# in every arm EXCEPT B/R — it is B/R's carrier, present because it is NEVER deleted there).
+TASK_A_REMOVAL = (
+    "354.2026-07-22.subagent-briefs-state-commit-invariants-not-per-commit",
+    "392.2026-07-23.route-dispatch-doc-review-gate",
+    "672.2026-07-29.route-dispatch-doc-review-gate",
+)
+TASK_B_REMOVAL = (
+    "420.2026-07-24.folder-move-surface-gitignore-anchors-and-silent-optional-consumers",
+    "447.2026-07-24.framework-owned-testdata-not-dead-just-because-app-code-ignores-it",
+    "448.2026-07-24.route-dispatch-design-fit-review",
+)
+
+# First-mutating-step detector (Ruling 6): Edit/Write/MultiEdit anywhere in the repo, or a Bash
+# command matching one of these constructs. Kept as a per-task table (both tasks currently share
+# the same rule — a fixture repo has no files outside the task's own tree, so no task-specific
+# path-scoping is needed the way phase-1's PROC_PATH_NEEDLES scoped to the sensor fixture).
+_MUTATING_BASH_RE = re.compile(r"git\s+(add|commit|rm|mv)|>|tee|sed\s+-i")
+TASK_MUTATING_BASH_RE = {"A": _MUTATING_BASH_RE, "B": _MUTATING_BASH_RE}
+
+TASKS = {
+    "A": {
+        "init_script": os.path.join(FIXTURES_DIR, "commit", "init_fixture_repo.sh"),
+        "done_when_script": os.path.join(FIXTURES_DIR, "commit", "done_when_checks.sh"),
+        "task_prompt": os.path.join(FIXTURES_DIR, "commit", "task-prompt.txt"),
+        "steps_json": os.path.join(FIXTURES_DIR, "commit", "steps.json"),
+        "removal_basenames": TASK_A_REMOVAL,
+        "carrier_r_src": os.path.join(ENCODINGS_DIR, "taskA", "A-R", "vault"),
+        "carrier_f_src": os.path.join(ENCODINGS_DIR, "taskA", "A-F", "vault"),
+        "skill_name": "commit",
+        "skill_src": "/Users/joe/repos/personal/engram/.claude/skills/commit.md",
+    },
+    "B": {
+        "init_script": os.path.join(FIXTURES_DIR, "gitignore", "init_fixture_repo.sh"),
+        "done_when_script": os.path.join(FIXTURES_DIR, "gitignore", "done_when_checks.sh"),
+        "task_prompt": os.path.join(FIXTURES_DIR, "gitignore", "task-prompt.txt"),
+        "steps_json": os.path.join(FIXTURES_DIR, "gitignore", "steps.json"),
+        "removal_basenames": TASK_B_REMOVAL,
+        "carrier_r_src": None,  # B/R's carrier is the real vault's own 830 note — never copied, never deleted
+        "carrier_f_src": os.path.join(ENCODINGS_DIR, "taskB", "B-F", "vault"),
+        "skill_name": "gitignore-narrowing",
+        "skill_src": os.path.join(ENCODINGS_DIR, "taskB", "B-S", "skills", "gitignore-narrowing"),
+    },
+}
+
+PLUMBING_SITUATION = {
+    "A": "committing changes to this repo following the project's conventions",
+    "B": "narrowing this repo's .gitignore so needed files are tracked without exposing generated artifacts",
+}
+
+
+# ----- CLAUDE.md construction (extends p1.build_claude_md with an optional Rdirect section) -----
+
+def _note_body(md_path):
+    """Strip YAML frontmatter, return the note body verbatim."""
+    text = open(md_path).read()
+    parts = text.split("---", 2)
+    if text.startswith("---") and len(parts) >= 3:
+        return parts[2].strip()
+    return text.strip()
+
+
+def _task_a_runbook_body():
+    src_dir = TASKS["A"]["carrier_r_src"]
+    for name in sorted(os.listdir(src_dir)):
+        if name.endswith(".md"):
+            return _note_body(os.path.join(src_dir, name))
+    raise RuntimeError(f"no .md file found in {src_dir}")
+
+
+def _task_b_830_body():
+    return _note_body(os.path.join(REAL_VAULT, NOTE_830_BASENAME + ".md"))
+
+
+def rdirect_procedure_text(task_key):
+    """Verbatim runbook body for the arm-Rdirect '## Project procedure' section: the A-R note's
+    body (Task A) or the real vault's 830 note body (Task B) — read-only access to the real vault,
+    never a write (note 956: writes/activations during a fingerprinted run are the hazard, reads
+    are not)."""
+    return _task_a_runbook_body() if task_key == "A" else _task_b_830_body()
+
+
+def build_claude_md_phase2(marker, extra=None):
+    """p1.build_claude_md(marker) (guidance + fifth cue + marker), with an optional
+    '## Project procedure' section appended verbatim for Arm Rdirect. Identical to phase-1's
+    CLAUDE.md for every other arm."""
+    base = p1.build_claude_md(marker)
+    if not extra:
+        return base
+    return base.rstrip() + "\n\n## Project procedure\n\n" + extra.strip() + "\n"
+
+
+# ----- background vault: real-vault copy, covering-note removal, carrier add (Ruling 3) -----
+
+def remove_covering_notes(vault, task_key, arm):
+    removal = list(TASKS[task_key]["removal_basenames"])
+    if task_key == "B" and arm != "R":
+        removal.append(NOTE_830_BASENAME)
+    for base in removal:
+        for ext in (".md", ".vec.json"):
+            path = os.path.join(vault, base + ext)
+            if os.path.exists(path):
+                os.remove(path)
+
+
+def add_carrier(vault, task_key, arm):
+    """R/F: copy the arm's converted-note vault dir into the trial vault, returning the note's
+    basename (no .md). Task B/R is special: 830 is the carrier and was already NOT deleted by
+    remove_covering_notes, so nothing is copied — just report its basename. S/Rdirect: nothing
+    added, returns None."""
+    if arm not in ("R", "F"):
+        return None
+    if task_key == "B" and arm == "R":
+        return NOTE_830_BASENAME
+    cfg = TASKS[task_key]
+    src_dir = cfg["carrier_r_src"] if arm == "R" else cfg["carrier_f_src"]
+    basename = None
+    for name in sorted(os.listdir(src_dir)):
+        shutil.copy2(os.path.join(src_dir, name), os.path.join(vault, name))
+        if name.endswith(".md"):
+            basename = name[: -len(".md")]
+    return basename
+
+
+def _parse_embed_status(text):
+    stats = {}
+    for line in text.splitlines():
+        m = re.match(r"^([\w-]+):\s*(\d+)\s*$", line.strip())
+        if m:
+            stats[m.group(1)] = int(m.group(2))
+    return stats
+
+
+def verify_vault_health(vault):
+    """`engram embed status --vault <trial vault>` must report broken==0 and without==0 — fail
+    the trial setup loudly otherwise (Ruling 3)."""
+    env = dict(os.environ)
+    env["PATH"] = p1.ENGRAM_BIN_DIR + ":" + env.get("PATH", "")
+    r = subprocess.run(["engram", "embed", "status", "--vault", vault],
+                        capture_output=True, text=True, env=env)
+    stats = _parse_embed_status(r.stdout)
+    broken, without = stats.get("broken"), stats.get("without")
+    if broken != 0 or without != 0:
+        raise RuntimeError(
+            f"vault health check failed for {vault}: broken={broken} without={without}\n"
+            f"stdout={r.stdout}\nstderr={r.stderr}"
+        )
+    return stats
+
+
+def setup_trial_vault(env, task_key, arm):
+    """Background vault for EVERY arm (Ruling 3): a per-trial copytree of the real vault, with
+    the task's covering notes removed, then the arm's carrier added (R/F only). Returns
+    (carrier_basename, copy_seconds)."""
+    vault = env["ENGRAM_VAULT_PATH"]
+    t0 = time.time()
+    shutil.rmtree(vault, ignore_errors=True)
+    shutil.copytree(REAL_VAULT, vault)
+    copy_s = round(time.time() - t0, 2)
+    remove_covering_notes(vault, task_key, arm)
+    carrier_basename = add_carrier(vault, task_key, arm)
+    verify_vault_health(vault)
+    return carrier_basename, copy_s
+
+
+# ----- trial repo setup (Ruling 5) -----
+
+def deploy_skill(repo_path, task_key):
+    cfg = TASKS[task_key]
+    if task_key == "A":
+        dst = os.path.join(repo_path, ".claude", "skills", "commit.md")
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copy2(cfg["skill_src"], dst)
+    else:
+        dst = os.path.join(repo_path, ".claude", "skills", "gitignore-narrowing")
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copytree(cfg["skill_src"], dst)
+
+
+_START_STATE_CHECKS = {
+    "A": (
+        (re.compile(r"^ M pkg/version\.go$", re.MULTILINE), "unstaged ' M pkg/version.go'"),
+        (re.compile(r"^\?\? notes/", re.MULTILINE), "untracked notes/"),
+    ),
+    "B": (
+        (re.compile(r"^\?\? tmp\.log$", re.MULTILINE), "untracked tmp.log"),
+    ),
+}
+_START_STATE_IGNORED_PATHS = {
+    # NOTE: scripts/build.sh and testdata/fixture.json are force-added into the fixture's
+    # INITIAL commit by init_fixture_repo.sh (commit ce8d9a73) — they are tracked, not ignored,
+    # from trial start. Only testdata/generated/big.bin (created after the initial commit) is
+    # actually ignored at start. See task-3-report.md's "concerns" section: this appears to make
+    # done_when_checks.sh's checks 5/6 ("scripts/build.sh staged" / "testdata/fixture.json
+    # staged") unsatisfiable by ANY agent, since `git add` on an already-tracked, unmodified file
+    # produces no entry in `git diff --cached --name-only`. Flagged for the fixture owner
+    # (out of this task's scope per Ruling 10 — fixtures are not edited here).
+    "B": ("testdata/generated/big.bin",),
+}
+
+
+def assert_starting_state(repo_path, task_key):
+    """Verify committing CLAUDE.md (+ skill) did not sweep the fixture's decoy/unstaged state."""
+    status = subprocess.run(["git", "-C", repo_path, "status", "--porcelain"],
+                             capture_output=True, text=True, check=True).stdout
+    for pattern, desc in _START_STATE_CHECKS[task_key]:
+        if not pattern.search(status):
+            raise RuntimeError(
+                f"Task {task_key} starting-state check failed: expected {desc}, got:\n{status}"
+            )
+    for rel_path in _START_STATE_IGNORED_PATHS.get(task_key, ()):
+        r = subprocess.run(["git", "-C", repo_path, "check-ignore", "-q", rel_path])
+        if r.returncode != 0:
+            raise RuntimeError(
+                f"Task {task_key} starting-state check failed: expected {rel_path} to be ignored"
+            )
+
+
+def setup_trial_repo(trial_dir, task_key, arm, marker):
+    cfg = TASKS[task_key]
+    repo_path = os.path.join(trial_dir, "repo")
+    subprocess.run(["bash", cfg["init_script"], repo_path], check=True, capture_output=True, text=True)
+
+    extra = rdirect_procedure_text(task_key) if arm == "Rdirect" else None
+    with open(os.path.join(repo_path, "CLAUDE.md"), "w") as f:
+        f.write(build_claude_md_phase2(marker, extra=extra))
+    if arm == "S":
+        deploy_skill(repo_path, task_key)
+
+    add_paths = ["CLAUDE.md"]
+    if os.path.isdir(os.path.join(repo_path, ".claude")):
+        add_paths.append(".claude")
+    subprocess.run(["git", "-C", repo_path, "add"] + add_paths, check=True, capture_output=True)
+    subprocess.run(["git", "-C", repo_path, "commit", "-m", "add project config"],
+                    check=True, capture_output=True)
+
+    assert_starting_state(repo_path, task_key)
+    return repo_path
+
+
+# ----- FOUND (Ruling 6) -----
+
+def is_first_mutating_step(event, task_key):
+    if event["kind"] != "tool_use":
+        return False
+    name = event.get("name")
+    if name in ("Edit", "Write", "MultiEdit"):
+        return True
+    if name == "Bash":
+        command = (event.get("input") or {}).get("command", "") or ""
+        return bool(TASK_MUTATING_BASH_RE[task_key].search(command))
+    return False
+
+
+def first_mutating_step_index(events, task_key):
+    for ev in events:
+        if is_first_mutating_step(ev, task_key):
+            return ev["idx"]
+    return None
+
+
+def score_found_phase2(task_key, arm, events, carrier_basename):
+    """Rdirect: n/a (no retrieval attempted; marker_seen is the delivery check) — returns
+    (None, None). S: a Skill tool_use naming the arm's skill before the first mutating step.
+    R/F: a Bash `engram query` before the first mutating step whose tool_result contains the
+    arm's carrier basename."""
+    if arm == "Rdirect":
+        return None, None
+
+    first_idx = first_mutating_step_index(events, task_key)
+
+    def before(idx):
+        return first_idx is None or idx < first_idx
+
+    if arm == "S":
+        skill_name = TASKS[task_key]["skill_name"]
+        for ev in events:
+            if (ev["kind"] == "tool_use" and ev.get("name") == "Skill"
+                    and (ev.get("input") or {}).get("skill") == skill_name and before(ev["idx"])):
+                return True, ev["idx"]
+        return False, None
+
+    # Arm R / Arm F
+    for ev in events:
+        if not (ev["kind"] == "tool_use" and ev.get("name") == "Bash"
+                and "engram query" in ((ev.get("input") or {}).get("command", "") or "")):
+            continue
+        if not before(ev["idx"]):
+            continue
+        result_text = p1._tool_result_text(events, ev.get("id"))
+        if carrier_basename and carrier_basename in result_text:
+            return True, ev["idx"]
+    return False, None
+
+
+def found_method(arm, found):
+    if arm == "Rdirect":
+        return "n/a"
+    if not found:
+        return "none"
+    return "Skill tool_use" if arm == "S" else "engram query"
+
+
+# ----- FOLLOWED: steps.json evaluation (Ruling 6) -----
+
+def load_steps(task_key):
+    return json.load(open(TASKS[task_key]["steps_json"]))
+
+
+def _check_commit_message_format(repo_path):
+    """Task A step 5 ('commit_message_format' repo_state signal): conventional-commit subject
+    plus a final 'AI-Used: [claude]' trailer line, mirroring done_when_checks.sh checks 2/3."""
+    r = subprocess.run(["git", "-C", repo_path, "log", "-1", "--format=%B"],
+                        capture_output=True, text=True)
+    msg = r.stdout
+    if not msg.strip():
+        return False
+    if not re.match(r"^[a-z]+(\([a-zA-Z0-9/_-]+\))?:", msg):
+        return False
+    non_empty = [line for line in msg.splitlines() if line.strip()]
+    return bool(non_empty) and non_empty[-1] == "AI-Used: [claude]"
+
+
+REPO_STATE_CHECKERS = {
+    "commit_message_format": _check_commit_message_format,
+}
+
+
+def default_repo_checker(pattern_name, repo_path):
+    fn = REPO_STATE_CHECKERS.get(pattern_name)
+    if fn is None:
+        raise ValueError(f"no repo_state checker registered for {pattern_name!r}")
+    return fn(repo_path)
+
+
+def evaluate_steps(steps, events, repo_path, repo_checker=default_repo_checker):
+    """Evaluate a task's steps.json against a trial's transcript events + final repo state.
+
+    bash_regex: `pattern` matched against Bash tool_use commands, in transcript order; an
+      optional `not_pattern` on the SAME command disqualifies a match (the "not -A" rule);
+      an optional `after: <step n>` requires the matching command to occur strictly after the
+      tool_use event that satisfied step n (a bash_regex step only — repo_state steps carry no
+      event index to order against).
+    repo_state: `pattern` names a key in `repo_checker`'s registry, called with repo_path.
+
+    Returns (results: {n: bool}, followed_k: int, followed_all: bool).
+    """
+    results = {}
+    match_idx = {}
+    bash_events = [ev for ev in events if ev["kind"] == "tool_use" and ev.get("name") == "Bash"]
+
+    for step in sorted(steps, key=lambda s: s["n"]):
+        n = step["n"]
+        signal = step["signal"]
+        pattern = re.compile(step["pattern"])
+        not_pattern = re.compile(step["not_pattern"]) if step.get("not_pattern") else None
+        after_n = step.get("after")
+        min_idx = match_idx.get(after_n, -1) if after_n is not None else -1
+
+        matched = False
+        idx = None
+        if signal == "bash_regex":
+            for ev in bash_events:
+                if ev["idx"] <= min_idx:
+                    continue
+                command = (ev.get("input") or {}).get("command", "") or ""
+                if not pattern.search(command):
+                    continue
+                if not_pattern and not_pattern.search(command):
+                    continue
+                matched, idx = True, ev["idx"]
+                break
+        elif signal == "repo_state":
+            matched = bool(repo_checker(step["pattern"], repo_path))
+        else:
+            raise ValueError(f"unknown steps.json signal {signal!r} for step {n}")
+
+        results[str(n)] = matched
+        if idx is not None:
+            match_idx[n] = idx
+
+    followed_k = sum(1 for v in results.values() if v)
+    followed_all = followed_k == len(steps)
+    return results, followed_k, followed_all
+
+
+# ----- END-STATE -----
+
+def check_end_state_phase2(task_key, repo_path):
+    r = subprocess.run(["bash", TASKS[task_key]["done_when_script"], repo_path],
+                        capture_output=True, text=True)
+    return r.returncode == 0, (r.stdout + r.stderr).strip()
+
+
+# ----- one trial -----
+
+def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, marker, timeout_s):
+    trial_dir = os.path.join(run_root, "trials", f"{task_key}-{arm}-{trial_index}")
+    os.makedirs(trial_dir, exist_ok=True)
+    t0 = time.time()
+
+    repo_path = setup_trial_repo(trial_dir, task_key, arm, marker)
+    env = p1.trial_env(cfg_dir, trial_dir, repo_path)
+    carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, arm)
+
+    prompt = open(TASKS[task_key]["task_prompt"]).read().strip()
+
+    result, timed_out = {}, False
+    error = None
+    try:
+        result, timed_out = p1.spawn_claude(env, model, repo_path, prompt, timeout_s)
+    except Exception as exc:  # noqa: BLE001 — record and keep scoring repo state
+        error = str(exc)
+
+    transcript_paths = p1.discover_transcript_paths(cfg_dir, repo_path)
+    raw_text = p1.transcript_raw_text(transcript_paths)
+    events = p1.parse_transcript_events(transcript_paths)
+
+    marker_seen = p1.is_marker_seen(raw_text, marker)
+    found, found_idx = score_found_phase2(task_key, arm, events, carrier_basename)
+    recall_fired = p1.score_recall_fired(events)
+    steps = load_steps(task_key)
+    followed_steps, followed_k, followed_all = evaluate_steps(steps, events, repo_path)
+    end_state, end_state_output = check_end_state_phase2(task_key, repo_path)
+
+    record = {
+        "task": task_key, "arm": arm, "trial": trial_index, "model": model,
+        "trial_dir": trial_dir, "repo_path": repo_path,
+        "transcript_path": transcript_paths[0] if transcript_paths else None,
+        "valid": marker_seen, "timed_out": timed_out, "error": error,
+        "marker_seen": marker_seen,
+        "found": found, "found_method": found_method(arm, found), "found_index": found_idx,
+        "recall_fired": recall_fired,
+        "followed_steps": followed_steps, "followed_k": followed_k, "followed_all": followed_all,
+        "n_steps": len(steps),
+        "end_state": end_state, "end_state_output": end_state_output,
+        "carrier_basename": carrier_basename,
+        "vault_copy_s": vault_copy_s,
+        "total_cost_usd": p1._call_cost(result),
+        "duration_ms": result.get("duration_ms") if isinstance(result, dict) else None,
+        "num_turns": result.get("num_turns") if isinstance(result, dict) else None,
+        "session_id": result.get("session_id") if isinstance(result, dict) else None,
+        "wall_s": round(time.time() - t0, 1),
+    }
+    # Vault copies are deleted after scoring even under --keep (keep repo + transcripts).
+    shutil.rmtree(env["ENGRAM_VAULT_PATH"], ignore_errors=True)
+    return record
+
+
+# ----- batch run -----
+
+def run_batch(args):
+    arms = [a.strip() for a in args.arms.split(",") if a.strip()]
+    unknown = [a for a in arms if a not in ARMS]
+    if unknown:
+        raise SystemExit(f"unknown arm(s) {unknown}; choose from {ARMS}")
+    if args.task not in TASKS:
+        raise SystemExit(f"unknown task {args.task!r}; choose from {sorted(TASKS)}")
+
+    run_id = f"{args.task}-{args.model}-{int(time.time())}-{uuid.uuid4().hex[:6]}"
+    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
+    os.makedirs(run_root, exist_ok=True)
+
+    cfg_dirs = p1.build_cfg_pool(run_root, args.workers)
+    for cfg_dir in cfg_dirs:
+        p1.matrix.refresh_creds(cfg_dir)
+    cfg_pool = queue.Queue()
+    for cfg_dir in cfg_dirs:
+        cfg_pool.put(cfg_dir)
+
+    marker = f"RUNBOOK-VS-SKILL-PROBE2-{uuid.uuid4().hex[:8]}"
+    before_fp = p1._real_vault_fingerprint()
+
+    jobs = [(arm, i) for arm in arms for i in range(args.n)]
+    print(f"run_id={run_id} task={args.task} arms={arms} n={args.n} model={args.model} "
+          f"trials={len(jobs)} timeout={args.timeout}s workers={args.workers} root={run_root}")
+
+    def _run_pooled(arm, i):
+        cfg_dir = cfg_pool.get()
+        try:
+            return run_one_trial_phase2(run_root, cfg_dir, args.task, arm, args.model, i, marker, args.timeout)
+        finally:
+            cfg_pool.put(cfg_dir)
+
+    try:
+        with cf.ThreadPoolExecutor(max_workers=args.workers) as ex:
+            futs = {ex.submit(_run_pooled, arm, i): (arm, i) for arm, i in jobs}
+            for fut in cf.as_completed(futs):
+                arm, i = futs[fut]
+                record = fut.result()
+                record["run_id"] = run_id
+                p1.append_jsonl(args.out, record)
+                status = "valid" if record["valid"] else "INVALID(no-marker)"
+                print(f"  [{args.task}-{arm}#{i}] {status} found={record['found']} "
+                      f"followed={record['followed_k']}/{record['n_steps']} end_state={record['end_state']} "
+                      f"cost=${record['total_cost_usd']:.2f} timed_out={record['timed_out']}")
+    finally:
+        after_fp = p1._real_vault_fingerprint()
+        if after_fp != before_fp:
+            print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
+                  f"after={after_fp}. A trial may have reached real memory. Investigate before "
+                  "trusting any result in this run.", file=sys.stderr)
+        if not args.keep:
+            shutil.rmtree(run_root, ignore_errors=True)
+
+
+# ----- plumbing mode -----
+
+def plumbing_prompt(task_key):
+    return f"Run /recall glance for: {PLUMBING_SITUATION[task_key]}. Report what the vault returned."
+
+
+def run_plumbing(task_key, model):
+    run_id = f"plumbing-{task_key}-{model}-{int(time.time())}"
+    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
+    os.makedirs(run_root, exist_ok=True)
+    cfg = os.path.join(run_root, "cfg")
+    p1.build_cfg_template(cfg)
+    p1.matrix.refresh_creds(cfg)
+
+    before_fp = p1._real_vault_fingerprint()
+    marker = f"RUNBOOK-VS-SKILL-PROBE2-{uuid.uuid4().hex[:8]}"
+    trial_dir = os.path.join(run_root, "trials", "plumbing-0")
+    os.makedirs(trial_dir, exist_ok=True)
+    repo_path = setup_trial_repo(trial_dir, task_key, "R", marker)
+    env = p1.trial_env(cfg, trial_dir, repo_path)
+    carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, "R")
+
+    result, timed_out = p1.spawn_claude(env, model, repo_path, plumbing_prompt(task_key), p1.DEFAULT_TIMEOUT_S)
+    after_fp = p1._real_vault_fingerprint()
+
+    transcript_paths = p1.discover_transcript_paths(cfg, repo_path)
+    raw_text = p1.transcript_raw_text(transcript_paths)
+    events = p1.parse_transcript_events(transcript_paths)
+
+    marker_seen = p1.is_marker_seen(raw_text, marker)
+    recall_fired = p1.score_recall_fired(events)
+    query_events = [ev for ev in events if ev["kind"] == "tool_use" and ev.get("name") == "Bash"
+                    and "engram query" in ((ev.get("input") or {}).get("command", "") or "")]
+    query_ran = bool(query_events)
+    carrier_surfaced = False
+    result_snippets = []
+    for ev in query_events:
+        text = p1._tool_result_text(events, ev.get("id"))
+        result_snippets.append(text[:1500])
+        if carrier_basename and carrier_basename in text:
+            carrier_surfaced = True
+
+    print(f"marker_seen={marker_seen}")
+    print(f"recall_skill_fired={recall_fired}")
+    print(f"engram_query_ran={query_ran}")
+    print(f"carrier_surfaced={carrier_surfaced}")
+    print(f"carrier_basename={carrier_basename}")
+    print(f"cost_usd={p1._call_cost(result)}")
+    print(f"timed_out={timed_out}")
+    print(f"vault_copy_s={vault_copy_s}")
+    print(f"transcript_path={transcript_paths[0] if transcript_paths else None}")
+    print(f"run_root={run_root}")
+    if query_ran and not carrier_surfaced:
+        print("QUERY RESULT SNIPPETS (carrier did not surface — for the concern report):")
+        for snippet in result_snippets:
+            print("---")
+            print(snippet)
+    shutil.rmtree(env["ENGRAM_VAULT_PATH"], ignore_errors=True)
+    if after_fp != before_fp:
+        print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
+              f"after={after_fp}.", file=sys.stderr)
+
+
+# ----- summarize / decomposition (Ruling 7) -----
+
+def load_jsonl(path):
+    return p1.load_jsonl(path)
+
+
+def aggregate(records, task, arm):
+    rows = [r for r in records if r.get("task") == task and r.get("arm") == arm]
+    valid = [r for r in rows if r.get("valid")]
+    n = len(rows)
+    valid_n = len(valid)
+    found_n = sum(1 for r in valid if r.get("found") is True)
+    found_given_n = found_n
+    end_state_n = sum(1 for r in valid if r.get("end_state"))
+    end_state_given_found_n = sum(1 for r in valid if r.get("found") and r.get("end_state"))
+    followed_all_n = sum(1 for r in valid if r.get("followed_all"))
+    followed_all_given_found_n = sum(1 for r in valid if r.get("found") and r.get("followed_all"))
+    recall_fired_n = sum(1 for r in valid if r.get("recall_fired"))
+    followed_mean_k = (sum((r.get("followed_k") or 0) for r in valid) / valid_n) if valid_n else 0.0
+    n_steps = next((r.get("n_steps") for r in valid if r.get("n_steps")), None)
+    cost_mean = (sum(r.get("total_cost_usd") or 0 for r in valid) / valid_n) if valid_n else 0.0
+    durations = [r.get("duration_ms") for r in valid if r.get("duration_ms")]
+    duration_mean_s = (sum(durations) / len(durations) / 1000.0) if durations else 0.0
+    return {
+        "n": n, "valid_n": valid_n,
+        "found_n": found_n, "found_given_n": found_given_n,
+        "end_state_n": end_state_n, "end_state_given_found_n": end_state_given_found_n,
+        "followed_all_n": followed_all_n, "followed_all_given_found_n": followed_all_given_found_n,
+        "recall_fired_n": recall_fired_n, "followed_mean_k": followed_mean_k, "n_steps": n_steps,
+        "cost_mean": cost_mean, "duration_mean": duration_mean_s,
+    }
+
+
+def _gap_verdict(baseline_val, other_val):
+    gap = other_val - baseline_val
+    if abs(gap) <= 1:
+        return "cant_distinguish"
+    return "better" if gap >= 2 else "worse"
+
+
+def decomposition(agg):
+    """PLAN-2 line 27 / task-3-brief Step 8 decomposition, computed exactly as ruled (controller
+    ruling 7)."""
+    s, r, f, rd = agg.get("S"), agg.get("R"), agg.get("F"), agg.get("Rdirect")
+    out = {}
+
+    if r:
+        out["shim_rate_R"] = f"{r['found_n']}/{r['valid_n']}"
+    if f:
+        out["shim_rate_F"] = f"{f['found_n']}/{f['valid_n']}"
+
+    if r:
+        out["note_quality_given_delivery_R"] = {
+            "end_state": f"{r['end_state_given_found_n']} of {r['found_given_n']}",
+            "followed_all": f"{r['followed_all_given_found_n']} of {r['found_given_n']}",
+        }
+    if f:
+        out["note_quality_given_delivery_F"] = {
+            "end_state": f"{f['end_state_given_found_n']} of {f['found_given_n']}",
+            "followed_all": f"{f['followed_all_given_found_n']} of {f['found_given_n']}",
+        }
+
+    if rd:
+        out["note_ceiling_Rdirect"] = {
+            "end_state": f"{rd['end_state_n']}/{rd['valid_n']}",
+            "followed_all": f"{rd['followed_all_n']}/{rd['valid_n']}",
+        }
+
+    if rd and r:
+        out["shim_loss"] = rd["end_state_n"] - r["end_state_n"]
+
+    if r and f:
+        out["type_effect"] = {
+            "end_state": r["end_state_n"] - f["end_state_n"],
+            "followed_all": r["followed_all_n"] - f["followed_all_n"],
+        }
+
+    parity = {}
+    if s and r:
+        parity["S_vs_R"] = {
+            "end_state": _gap_verdict(s["end_state_n"], r["end_state_n"]),
+            "followed_all": _gap_verdict(s["followed_all_n"], r["followed_all_n"]),
+        }
+    if s and f:
+        parity["S_vs_F"] = {
+            "end_state": _gap_verdict(s["end_state_n"], f["end_state_n"]),
+            "followed_all": _gap_verdict(s["followed_all_n"], f["followed_all_n"]),
+        }
+    out["parity"] = parity
+
+    out["baseline_uninterpretable"] = bool(s and s["end_state_n"] < 3)
+    return out
+
+
+def format_table(task, agg):
+    arms = [a for a in ARMS if a in agg]
+    label_width = 28
+    lines = [f"=== Task {task} ==="]
+    header = "metric".ljust(label_width) + "".join(a.ljust(16) for a in arms)
+    lines.append(header)
+    lines.append("-" * len(header))
+
+    def row(label, fmt):
+        cells = [fmt(arm, agg[arm]) for arm in arms]
+        lines.append(label.ljust(label_width) + "".join(c.ljust(16) for c in cells))
+
+    row("FOUND (k/n)", lambda arm, a: "n/a" if arm == "Rdirect" else f"{a['found_n']}/{a['valid_n']}")
+    row("FOLLOWED all-steps (k/n)", lambda arm, a: f"{a['followed_all_n']}/{a['valid_n']}")
+    row("FOLLOWED (mean k/N)", lambda arm, a: f"{a['followed_mean_k']:.2f}/{a['n_steps']}")
+    row("END-STATE (k/n)", lambda arm, a: f"{a['end_state_n']}/{a['valid_n']}")
+    row("recall_fired (k/n)", lambda arm, a: f"{a['recall_fired_n']}/{a['valid_n']}")
+    row("cost (mean USD)", lambda arm, a: f"${a['cost_mean']:.2f}")
+    row("duration (mean s)", lambda arm, a: f"{a['duration_mean']:.0f}")
+    row("valid (n)", lambda arm, a: f"{a['valid_n']}/{a['n']}")
+    return "\n".join(lines)
+
+
+def summarize_file(path):
+    records = load_jsonl(path)
+    tasks_present = sorted({r.get("task") for r in records if r.get("task")})
+    frames = {}
+    for task in tasks_present:
+        agg = {arm: aggregate(records, task, arm) for arm in ARMS if any(
+            r.get("task") == task and r.get("arm") == arm for r in records)}
+        print(format_table(task, agg))
+        frames[task] = decomposition(agg)
+        print()
+    print("Decision frame:")
+    print(json.dumps(frames, indent=2))
+    return frames
+
+
+def rescore_file(in_path, out_path):
+    """Re-run steps.json evaluation and END-STATE on kept trial directories."""
+    records = load_jsonl(in_path)
+    rescored = []
+
+    for record in records:
+        repo_path = record.get("repo_path")
+        transcript_path = record.get("transcript_path")
+        task_key = record.get("task")
+
+        if not repo_path or not os.path.exists(repo_path):
+            record["error"] = "rescore: repo missing"
+            rescored.append(record)
+            continue
+
+        try:
+            events = []
+            if transcript_path and os.path.exists(transcript_path):
+                events = p1.parse_transcript_events([transcript_path])
+
+            steps = load_steps(task_key)
+            followed_steps, followed_k, followed_all = evaluate_steps(steps, events, repo_path)
+            record["followed_steps"] = followed_steps
+            record["followed_k"] = followed_k
+            record["followed_all"] = followed_all
+
+            end_state, end_state_output = check_end_state_phase2(task_key, repo_path)
+            record["end_state"] = end_state
+            record["end_state_output"] = end_state_output
+
+            record["rescored_from"] = in_path
+        except Exception as e:  # noqa: BLE001
+            record["error"] = f"rescore exception: {str(e)}"
+
+        rescored.append(record)
+
+    with open(out_path, "w") as f:
+        for record in rescored:
+            f.write(json.dumps(record) + "\n")
+
+    print(f"Rescored {len(rescored)} records from {in_path} to {out_path}")
+
+
+# ----- CLI -----
+
+def build_argparser():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--task", choices=list(TASKS))
+    ap.add_argument("--arms", default=",".join(ARMS))
+    ap.add_argument("--model", choices=list(p1.MODELS))
+    ap.add_argument("--n", type=int)
+    ap.add_argument("--out")
+    ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--timeout", type=int, default=p1.DEFAULT_TIMEOUT_S)
+    ap.add_argument("--keep", action="store_true", help="keep the run root instead of deleting it on exit")
+    ap.add_argument("--plumbing", action="store_true")
+    ap.add_argument("--summarize")
+    ap.add_argument("--rescore", help="re-score an existing results.jsonl file using kept trial directories")
+    return ap
+
+
+def main(argv=None):
+    args = build_argparser().parse_args(argv)
+    if args.summarize:
+        summarize_file(args.summarize)
+        return
+    if args.rescore:
+        if not args.out:
+            build_argparser().error("--rescore requires --out")
+        rescore_file(args.rescore, args.out)
+        return
+    if args.plumbing:
+        if not args.task:
+            build_argparser().error("--plumbing requires --task")
+        run_plumbing(args.task, args.model or "sonnet")
+        return
+    if not args.task:
+        build_argparser().error("--task is required (unless --summarize/--rescore)")
+    if not (args.model and args.n is not None and args.out):
+        build_argparser().error("--model, --n, and --out are required for a normal run")
+    run_batch(args)
+
+
+if __name__ == "__main__":
+    main()
