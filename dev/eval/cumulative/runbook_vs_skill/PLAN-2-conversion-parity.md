@@ -4,7 +4,7 @@
 
 **Goal:** Measure whether runbooks earn their keep against facts when both are authored via native paths (learn vs writing-skills) at real-vault scale, and determine if the type matters for generic (non-idiosyncratic) procedures.
 
-**Architecture:** Phase 2 scales phase-1's single-note synthetic vault to real-vault copying per trial. Two tasks (commit skill, gitignore narrowing) are converted across three arms each (Skill/Runbook/Fact) via agents invoking the actual authoring skills, not hand-written. Retrieval arms (R/F) copy the operator's real vault (~1767 files) per trial; direct-control arms (Rdirect) embed the procedure verbatim in trial CLAUDE.md without retrieval. Scoring reuses probe.py's FOUND/FOLLOWED/END-STATE/COST framework; shim/note decomposition separates retrieval tax from procedure quality.
+**Architecture:** Phase 2 scales phase-1's single-note synthetic vault to real-vault copying per trial. Eight arms total: Task A (commit) has A-S (original /commit skill, no conversion), A-R (convert /commit→runbook via learn), A-F (convert /commit→fact via learn), A-Rdirect (shim, no retrieval). Task B (gitignore) has B-R (original runbook 830, no conversion), B-F (convert 830→fact via learn), B-S (convert 830→skill via writing-skills), B-Rdirect (shim). All arms receive the same background vault (real vault copy with covering notes removed, then arm's carrier added). Scoring reuses probe.py's FOUND/FOLLOWED/END-STATE/COST framework; shim/note decomposition separates retrieval tax from procedure quality.
 
 **Tech Stack:** Python 3.11+, headless `claude -p`, engram vault/chunks isolation, BASH for fixture repo and checks, git.
 
@@ -15,17 +15,16 @@
 ## Global Constraints
 
 - **Runbook schema:** Exactly three fields: situation (when-to-use), numbered steps (body), done_when (ending expectations) — per note 789.2026-08-23. Do NOT include full inputs/preconditions/returns (rejected at #719 readiness checkpoint).
-- **Commit trailer:** EVERY commit must end with `AI-Used: [claude]` (not `Co-Authored-By`), per note 354.2026-07-22 and commit skill SKILL.md:18.
-- **Fixture vault scale:** Real vault copy ~1767 files (incl. .vec.json sidecars per note 956: fingerprint before/after each run; exclude orchestrator activations from leak detection).
+- **Background vault fairness:** Every arm (S/R/F/Rdirect for both tasks) receives the SAME background vault: a per-trial copy of the real vault with covering notes REMOVED. Task A covering notes: any notes mentioning `AI-Used`, conventional commits, or commit conventions (Task 1 step 3 grep results). Task B covering notes: runbook 830 (removed from F/S/Rdirect arms only; kept in B-R), plus any other gitignore-narrowing notes. Each arm's carrier (skill S: nothing in vault; R: runbook note; F: fact note; Rdirect: nothing in vault) is then added to its trial vault copy. FOUND for R/F requires the arm's carrier basename in the query result.
+- **Vault copy mechanics:** Per-trial copytree (never symlink; no write-back possible). Copies deleted after scoring even under --keep. Copy size measured once (`du -sh`); per-run disk = 40 × size. Trial isolation follows probe.py's `isolated_env(..., cwd=None)` + `assert_isolated(env)` pattern (cite probe.py line references). Fingerprint guard per #750 interim rule (controller writes nothing to real vault during run).
 - **Fixture placeholder precision:** Every fixture procedure placeholder must name its exact source field (e.g. `<sensor_id>` not `<name>`) with a worked example, per note 955.2026-09-10.
-- **Smoke on opus:** Smoke run MUST run on opus (not sonnet cross-check only), n≥1 per model per arm, before spending on full n=5 paid run per note 955.
+- **Smoke on opus:** Smoke run MUST run on opus, n=1 per arm per task (8 trials total), before spending on full n=5 paid run per note 955.
 - **Measurement scope:** Memory value unmeasured for GENERIC procedures (note 853a.2026-08-30); phase 2 measures exactly this. SEPARATE from idiosyncratic findings (where memory already shows wins).
-- **Isolation:** Per-trial vault/chunks/config isolation (reuse isolation.py contract); real vault fingerprint guards against leaks (scope to trial dirs, exclude orchestrator writes per note 956).
 - **Decision bars (pre-registered):**
-  - Parity rule: ±1-trial indistinguishable (within 1 trial on FOUND/FOLLOWED/END-STATE); 2+ trial gap = worse/better.
+  - Parity rule: ±1-trial indistinguishable (FOLLOWED-all-steps: trials with every step, k/5); 2+ trial gap = worse/better.
   - Runbook > fact: Only if R is 2+ ahead of F on FOLLOWED-all-steps or END-STATE (else "can't distinguish").
   - Baseline usability: Arm S (skill) must ≥3/5 on END-STATE or baseline uninterpretable (fixture/spec fix required).
-  - Shim loss per task: FOUND_rate(R) - FOUND_rate(Rdirect) = retrieval tax; END-STATE(F) given FOUND = note quality tax.
+  - Shim/note decomposition: shim rate = FOUND(R,F) k/5; note quality given delivery = END-STATE and FOLLOWED-all among FOUND=true trials; note ceiling = Rdirect END-STATE/FOLLOWED-all k/5; shim loss = Rdirect END-STATE − R END-STATE; type effect = R − F on both metrics; parity = S vs R and S vs F ±1 rule. Rdirect FOUND = n/a (marker_seen is delivery check).
 
 ---
 
@@ -33,8 +32,8 @@
 
 ### Source Materials (Read-Only, Exact Paths)
 
-- **Commit skill:** `/Users/joe/.claude/skills.backup.20260203223056/commit/SKILL.md` (source of truth for steps/trailers: type, scope, description format, trailers block, "AI-Used: [claude]" line 20).
-- **Runbook 830:** `/Users/joe/.local/share/engram/vault/830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md` (situation line 4, done_when line 5, steps lines 18–24).
+- **Commit skill (LIVE):** `/Users/joe/.claude/plugins/cache/skills/commit/49ce826094da/skills/commit/SKILL.md` — the active /commit skill that trials discover; Workflow steps 1–5 (lines 24–41) and Commit Message Format (lines 43–104). A-S arm uses this skill as-is without conversion.
+- **Runbook 830:** `/Users/joe/.local/share/engram/vault/830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md` (situation, done_when, steps 1–6 verbatim text; exact line numbers shift per YAML). B-R arm uses this note as-is without conversion.
 - **Phase-1 harness:** `/Users/joe/repos/personal/engram/.claude/worktrees/runbook-vs-skill/dev/eval/cumulative/runbook_vs_skill/{README.md, probe.py, fixtures/, fixture-vaults/}` (reuse structure; extend probe.py only).
 - **Isolation contract:** `/Users/joe/repos/personal/engram/dev/eval/isolation.py` (isolated_env, assert_isolated, project_slug, NEVER edit).
 - **Harness shared:** `/Users/joe/repos/personal/engram/dev/eval/cumulative/harness.py` (MODELS, ENGRAM_BIN_DIR, refresh_creds).
@@ -44,94 +43,99 @@
 ```
 dev/eval/cumulative/runbook_vs_skill/
 ├── PLAN-2-conversion-parity.md                          (this file)
-├── phase2/                                              (NEW)
+├── phase2/
+│   ├── SOURCE_MATERIALS.md                              (Task 1: verbatim quotes + covering notes)
 │   ├── fixtures/
-│   │   ├── commit/
-│   │   │   ├── init_fixture_repo.sh                     (task A fixture setup)
-│   │   │   ├── done_when_checks.sh                      (task A end-state checks)
-│   │   │   └── task-prompt.txt                          (natural task prompt)
-│   │   ├── gitignore/
-│   │   │   ├── init_fixture_repo.sh                     (task B fixture setup)
-│   │   │   ├── done_when_checks.sh                      (task B end-state checks, from 830)
-│   │   │   └── task-prompt.txt                          (natural task prompt)
-│   │   └── fixture-repo-templates/
-│   │       ├── commit-task/                             (git repo with staged change ready)
-│   │       └── gitignore-task/                          (git repo with over-broad .gitignore)
-│   ├── encodings/                                       (procedure encodings per arm)
-│   │   ├── A_commit/
-│   │   │   ├── skill/                                   (converted from /commit skill)
-│   │   │   │   └── .claude/skills/commit-task/SKILL.md
-│   │   │   ├── runbook/                                 (converted via learn)
-│   │   │   │   └── vault/NNN.2026-XX-XX.commit-convention-for-AI-agents.md
-│   │   │   ├── fact/                                    (converted via learn)
-│   │   │   │   └── vault/NNN.2026-XX-XX.commit-conventional-format-and-trailers.md
-│   │   │   └── runbook_direct/                          (control: shim only, no retrieval)
-│   │   │       └── claude_md_text.txt
-│   │   ├── B_gitignore/
-│   │   │   ├── skill/
-│   │   │   │   └── .claude/skills/gitignore-narrow/SKILL.md
-│   │   │   ├── runbook/
-│   │   │   │   └── vault/830.2026-08-29... (original, reused from real vault)
-│   │   │   ├── fact/
-│   │   │   │   └── vault/NNN.2026-XX-XX.gitignore-narrowing-method.md
-│   │   │   └── runbook_direct/
-│   │   │       └── claude_md_text.txt
+│   │   ├── commit/{init, done_when, task-prompt}.sh|txt
+│   │   ├── gitignore/{init, done_when, task-prompt}.sh|txt
+│   │   └── fixture-repo-templates/{commit-task, gitignore-task}/
+│   ├── encodings/
+│   │   ├── taskA/
+│   │   │   ├── A-S/ (original /commit skill; no conversion; path below for carrier setup)
+│   │   │   ├── A-R/ (converted: runbook via learn)
+│   │   │   ├── A-F/ (converted: fact via learn)
+│   │   │   └── A-Rdirect/ (shim text, no retrieval)
+│   │   └── taskB/
+│   │       ├── B-R/ (original runbook 830; no conversion; path below for carrier setup)
+│   │       ├── B-F/ (converted: fact via learn)
+│   │       ├── B-S/ (converted: skill via writing-skills; includes RED/GREEN/pressure evidence)
+│   │       └── B-Rdirect/ (shim text, no retrieval)
 │   ├── results/
-│   │   ├── smoke_opus_results.jsonl                     (sonnet->opus cross-check removed; opus only)
-│   │   ├── opus_results.jsonl                           (n=5 per arm)
-│   │   └── WRITING-SKILLS-ADOPTION.md                  (analysis doc, see Task 8)
+│   │   ├── smoke_opus_results.jsonl                     (8 trials: 2 tasks × 4 arms)
+│   │   ├── opus_results.jsonl                           (40 trials: 2 tasks × 4 arms × 5)
+│   │   ├── ANALYSIS.md                                  (post-run: parity per task, type effect)
+│   │   └── conversion-fidelity-report.md                (reviewer audit of 4 conversions)
 │   └── probe_phase2.py                                  (extended from phase-1 probe.py)
 └── ...existing phase-1 files untouched...
 ```
+
+**Carrier setup paths (for reference; not created by plan, just discovered):**
+- A-S carrier: `/Users/joe/.claude/plugins/cache/skills/commit/49ce826094da/skills/commit/SKILL.md` (copied into trial .claude/skills for discovery)
+- B-R carrier: `/Users/joe/.local/share/engram/vault/830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md` (copied into trial vault with .vec.json sidecar)
 
 ---
 
 ## Task Decomposition
 
-### Task 1: Verify Source Materials & Pre-existing Commit Notes
+### Task 1: Verify Source Materials & Background Vault Covering Notes
 
 **Files:**
-- Read: `/Users/joe/.claude/skills.backup.20260203223056/commit/SKILL.md`
-- Read: `/Users/joe/.local/share/engram/vault/830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md`
-- Read: `/Users/joe/.local/share/engram/vault/` (check for pre-existing commit-convention notes)
+- Create: `phase2/SOURCE_MATERIALS.md` (verbatim quotes, covering notes list)
+- Read: `/Users/joe/.claude/plugins/cache/skills/commit/49ce826094da/skills/commit/SKILL.md` (live /commit skill)
+- Read: `/Users/joe/.local/share/engram/vault/830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md` (runbook 830)
 
 **Interfaces:**
-- Produces: exact quoted text of commit skill steps, trailers, done_when from runbook 830, list of pre-existing notes covering commit conventions (if any)
+- Produces: `SOURCE_MATERIALS.md` with verbatim quotes from live /commit skill (Workflow steps, Commit Message Format), runbook 830 (situation, done_when, steps 1–6), and list of covering notes for Task A background vault removal
 
-- [ ] **Step 1: Read commit skill SKILL.md and extract exact steps**
+- [ ] **Step 1: Extract live /commit skill steps verbatim**
 
-The commit skill is at `/Users/joe/.claude/skills.backup.20260203223056/commit/SKILL.md`. Extract and quote the ordered procedural steps from that file. Record the exact trailer format (line 20: `AI-Used: [claude]`) and message template rules (lines 23–29).
+Read `/Users/joe/.claude/plugins/cache/skills/commit/49ce826094da/skills/commit/SKILL.md` (the active skill trials discover). Quote:
+- Workflow section (steps 1–5, lines 24–41): "Inspect the working tree", "Partition into atomic units", "Stage precisely", "Write the commit message", "Verify"
+- Commit Message Format section (lines 43–104): subject line rules, body structure, footers, example
+- Note: this skill says "No AI attribution trailers" (line 88); no AI-Used trailer is prescribed
 
-**Expected output (document for reference):**
-- Ordered steps: (1) Check VCS type, (2) Check git state, (3) Review style, (4) Stage specific files, (5) Compose message following template, (6) Commit, (7) Verify.
-- Trailer: Exactly `AI-Used: [claude]` (not `Co-Authored-By`).
-- Message format: conventional-commit (type(scope): description; body; trailers).
+Record: A-S arm uses this skill as-is; conversions (A-R, A-F) source from this exact text.
 
-- [ ] **Step 2: Read runbook 830 and extract exact procedures and done_when**
+- [ ] **Step 2: Extract runbook 830 verbatim (situation, done_when, steps)**
 
-The runbook is at `/Users/joe/.local/share/engram/vault/830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md`. Extract and quote:
-- Situation (line 4): "before shipping a narrowed or rewritten .gitignore pattern..."
-- Done_when (line 5): "the pattern's anchoring form has been confirmed... exactly the set of newly-visible files..."
-- Steps (lines 18–24): 1–6 ordered, exact text.
+Read `/Users/joe/.local/share/engram/vault/830.2026-08-29.gitignore-narrowing-anchor-and-visible-set.md`. Quote (text verbatim, not line numbers):
+- Situation: "before shipping a narrowed or rewritten .gitignore pattern that makes some previously-ignored files trackable"
+- Done_when: "the pattern's anchoring form has been confirmed correct via a scratch-repo git check-ignore check against representative (including nested) paths, and the exact set of newly-visible files has been enumerated and staged as an explicit path list rather than swept up by git add"
+- Steps 1–6: 6 numbered steps verbatim (git check-ignore, anchor depth, middle-slash rule, git status enumeration, explicit staging, diff verification)
 
-**Expected output:**
-- 6 numbered steps (git check-ignore, anchor depth validation, staged enumeration, diff verification).
-- Done_when condition references anchor confirmation + visible-file enumeration.
+Record: B-R uses this note as-is; conversions (B-F, B-S) source from this exact text.
 
-- [ ] **Step 3: Check vault for pre-existing commit-convention notes**
+- [ ] **Step 3: Grep vault for covering notes (Task A background vault removal)**
 
-Run: `grep -r "AI-Used\|commit.*convention" /Users/joe/.local/share/engram/vault/ --include="*.md" | grep -v "\.vec\.json"`
+Run: `grep -l "AI-Used\|commit.*convention\|Conventional Commits" /Users/joe/.local/share/engram/vault/*.md 2>/dev/null | xargs basename -a | sort`
 
-Record which notes (if any) already cover commit conventions, trailers, or the `AI-Used` marker. If pre-existing notes cover the commit task comprehensively, the plan must account for them in fixture setup (e.g., remove from the trial vault copy to prevent redundancy, or note that the trial will retrieve multiple notes and must rank them).
+**Expected covering notes for Task A** (will be removed from trial vault, all arms): Notes mentioning conventional-commit format, AI-Used trailers, or commit conventions. Known: note 354 (subagent-briefs commit invariants), note 672 (route-dispatch doc-review-gate: "Conventional Commits format, AI-Used trailer"). Any others found must be listed.
 
-**Expected output:** List of note basenames and their main content (e.g., note 354: subagent-briefs commit invariants).
+Record: These notes are REMOVED from the background vault copy before any arm's carrier is added. This ensures R/F arms retrieve only the NEW converted notes (A-R, A-F), not pre-existing covering notes.
 
-- [ ] **Step 4: Commit this task's findings**
+- [ ] **Step 4: Grep vault for covering notes (Task B background vault removal)**
+
+Run: `grep -l "gitignore.*narrow\|\.gitignore.*pattern\|check-ignore" /Users/joe/.local/share/engram/vault/*.md 2>/dev/null | xargs basename -a | sort`
+
+**Expected covering notes for Task B** (will be removed from trial vault, F/S/Rdirect arms only; KEPT in B-R): Notes covering .gitignore narrowing or anchoring patterns. Known: note 830 (the source). Any others found must be listed.
+
+Record: Note 830 is REMOVED from the background vault copy for F/S/Rdirect arms (so they retrieve only the NEW B-F conversion, not the original), but is KEPT in B-R's vault (so it retrieves the original as the arm's carrier).
+
+- [ ] **Step 5: Write phase2/SOURCE_MATERIALS.md**
+
+Create a document (markdown) with three sections:
+1. **Live /commit Skill Workflow & Format** — copy verbatim from Step 1
+2. **Runbook 830 Situation, Done_When, Steps** — copy verbatim from Step 2
+3. **Background Vault Covering Notes for Removal**
+   - Task A: list all notes found in Step 3 (will be removed from all arms' background vault)
+   - Task B: list all notes found in Step 4 (will be removed from F/S/Rdirect arms; 830 kept in B-R)
+
+- [ ] **Step 6: Commit task 1**
 
 ```bash
-cd /Users/joe/repos/personal/engram
-git add -A
-git commit -m "docs(eval): phase-2 source-material verification — commit skill steps and runbook 830 recorded"
+cd /Users/joe/repos/personal/engram/.claude/worktrees/runbook-vs-skill
+git add phase2/SOURCE_MATERIALS.md
+git commit -m "docs(eval/phase2): source materials task 1 — live /commit skill, 830, covering notes recorded"
 ```
 
 ---
@@ -446,159 +450,153 @@ git commit -m "test(eval/phase2): add fixture repos and init/done_when scripts f
 
 ---
 
-### Task 3: Create Fixture Vault Copies & Real-Vault Fingerprinting Guard
+### Task 3: Extend probe.py for Phase 2 (Multi-Task, Multi-Arm, Real-Vault Copying)
 
 **Files:**
-- Create: `phase2/vault_copy_and_fingerprint.py` (helper to copy real vault and guard against leaks per note 956)
-- Modify: (note: probe_phase2.py will call this; no edits to isolation.py per spec)
+- Create: `phase2/probe_phase2.py` (extended from phase-1 probe.py)
 
 **Interfaces:**
-- Produces: function `copy_vault_for_trial(real_vault_path, trial_scratch_dir, trial_id)` → returns (trial_vault_dir, initial_fingerprint)
-- Produces: function `verify_vault_isolated(real_vault_path, initial_fingerprint, orchestrator_writes_manifest)` → raises on leak, returns True on clean
+- Consumes: phase-1 probe.py structure, isolation.py contract (isolated_env, assert_isolated), harness.py (MODELS, ENGRAM_BIN_DIR)
+- Produces: command-line tool with `--task A|B`, `--arms S,R,F,Rdirect`, `--model sonnet|opus`, `--n trials`, `--summarize results.jsonl`; output records include FOUND, FOLLOWED, END-STATE, cost, shim/note decomposition
 
-**Implementation:**
+**Implementation — Key Extensions (Summary):**
 
-- [ ] **Step 1: Understand real-vault fingerprinting (note 956 constraint)**
+- [ ] **Step 1: Understand multi-task and 8-arm structure**
 
-From recall memory (note 956.2026-09-10): "when running a headless eval harness that fingerprints the operator's real vault to detect isolation leaks, during a fingerprinted run, do not write to the real vault (defer route-evidence/learn writes until the run ends) and avoid session-side recall activations; or scope the fingerprint to detect trial-side writes only (e.g. compare against a manifest and exclude paths the orchestrator declares)."
+Phase 2 has 8 arms:
+- **Task A (commit):** A-S (original /commit skill, no conversion), A-R (runbook via learn), A-F (fact via learn), A-Rdirect (shim)
+- **Task B (gitignore):** B-R (original runbook 830, no conversion), B-F (fact via learn), B-S (skill via writing-skills), B-Rdirect (shim)
 
-**Action:** This harness will NOT write to the real vault during trials. If the orchestrator (this script) defers writes until after the run, no leak guard is needed per-trial. BUT the phase-2 run may activate notes (recall cue fires regardless of procedure location). To avoid false positives:
-- Fingerprint the real vault BEFORE the run starts (file count, newest mtime).
-- After the run ends, fingerprint again.
-- If changed, diff and EXCLUDE orchestrator writes (e.g., sidecar mtimes bumped by activations).
-- Report: "real vault unchanged (orchestrator activations excluded)" or "LEAK DETECTED: files changed outside orchestrator manifest".
+Each arm gets:
+- **Background vault:** Real vault copy with covering notes removed (per Task 1), then arm's carrier added
+- **Arm's carrier:** S → skill in .claude/skills; R → runbook note + .vec.json sidecar in vault; F → fact note + sidecar in vault; Rdirect → nothing in vault (text in CLAUDE.md)
 
-- [ ] **Step 2: Write vault_copy_and_fingerprint.py**
+- [ ] **Step 2: Extend probe.py to support --task and --arms**
 
-```python
-#!/usr/bin/env python3
-"""
-Vault isolation helper for phase-2 runbook-vs-skill eval.
+Add argument: `--task A|B` (required). Load task-specific fixtures (done_when script, task prompt, fixture template repo) based on task.
 
-Copies the real vault (~1767 files) per-trial for retrieval arms (R/F).
-Guards against trial-side leaks by fingerprinting real vault before/after.
-Excludes orchestrator writes (activations, note updates) from leak detection.
-"""
-import os
-import shutil
-import hashlib
-import json
-import stat
-from pathlib import Path
-from typing import Tuple, Dict, Any
+Add argument: `--arms` default `S,R,F,Rdirect`. Parse comma-separated list; enumerate 4 arms per task.
 
-def _vault_fingerprint(vault_path: str) -> Dict[str, Any]:
-    """
-    Fingerprint vault: file count, newest mtime, manifest of all .md files.
-    Returns {"file_count": int, "newest_mtime": float, "manifest": {basename: mtime}}.
-    """
-    if not os.path.isdir(vault_path):
-        return {"file_count": 0, "newest_mtime": 0, "manifest": {}}
+For each trial, call the task-specific done_when_checks.sh script to validate end-state.
 
-    manifest = {}
-    newest_mtime = 0
-    file_count = 0
+- [ ] **Step 3: Implement real-vault copying per-trial (background vault fairness)**
 
-    for entry in os.listdir(vault_path):
-        path = os.path.join(vault_path, entry)
-        if os.path.isfile(path) and entry.endswith(".md"):
-            mtime = os.path.getmtime(path)
-            manifest[entry] = mtime
-            newest_mtime = max(newest_mtime, mtime)
-            file_count += 1
+For each trial:
+1. Copy real vault to trial_scratch_dir/vault/ via `shutil.copytree(..., dirs_exist_ok=False)` (not symlink)
+2. Delete covering notes from the copy (determined by Task 1 grep results; two separate lists for A and B)
+3. For R/F arms: copy the arm's carrier into the vault (e.g., for A-R, copy the generated runbook note + .vec.json)
+4. For S arms: leave vault empty
+5. For Rdirect arms: leave vault empty (text will be in CLAUDE.md)
 
-    return {
-        "file_count": file_count,
-        "newest_mtime": newest_mtime,
-        "manifest": manifest,
-    }
+Measurement: `du -sh trial_scratch_dir/vault/` once; compute per-run disk requirement as 40 × size; document cleanup (vault copies deleted after scoring even under --keep; record carrier basename instead).
 
-def copy_vault_for_trial(
-    real_vault_path: str,
-    trial_scratch_dir: str,
-    trial_id: str,
-) -> Tuple[str, Dict[str, Any]]:
-    """
-    Copy the real vault into trial scratch dir.
-    Returns (trial_vault_path, initial_fingerprint).
-    
-    Copies the ENTIRE vault (~1767 files incl. .vec.json sidecars) so retrieval
-    arms (R/F) can run engram query without touching the operator's real vault.
-    """
-    trial_vault = os.path.join(trial_scratch_dir, "vault")
-    
-    # Copy real vault into trial dir
-    shutil.copytree(real_vault_path, trial_vault, dirs_exist_ok=False)
-    
-    # Fingerprint the REAL vault (not the copy) before the trial runs
-    initial_fp = _vault_fingerprint(real_vault_path)
-    
-    return trial_vault, initial_fp
+- [ ] **Step 4: Implement vault fingerprinting (leak detection per #750)**
 
-def verify_vault_isolated(
-    real_vault_path: str,
-    initial_fingerprint: Dict[str, Any],
-    orchestrator_writes: Dict[str, float] = None,
-) -> Tuple[bool, str]:
-    """
-    Verify the real vault was not modified by the trial (excluding orchestrator writes).
-    
-    Args:
-        real_vault_path: operator's real vault path
-        initial_fingerprint: fingerprint before the trial ran
-        orchestrator_writes: dict of {basename: mtime} for writes orchestrator made
-            (e.g., sidecar mtimes bumped by recall activations)
-    
-    Returns:
-        (is_clean, report_str)
-    """
-    if orchestrator_writes is None:
-        orchestrator_writes = {}
-    
-    current_fp = _vault_fingerprint(real_vault_path)
-    
-    # Check file count (ignoring orchestrator writes)
-    real_files = set(current_fp["manifest"].keys())
-    initial_files = set(initial_fingerprint["manifest"].keys())
-    
-    new_files = real_files - initial_files
-    deleted_files = initial_files - real_files
-    
-    if new_files or deleted_files:
-        report = f"Vault structure changed: +{len(new_files)} -{len(deleted_files)} files"
-        return False, report
-    
-    # Check mtime changes (exclude orchestrator writes)
-    changed = {}
-    for basename, current_mtime in current_fp["manifest"].items():
-        initial_mtime = initial_fingerprint["manifest"].get(basename, 0)
-        if current_mtime != initial_mtime:
-            orch_mtime = orchestrator_writes.get(basename)
-            if orch_mtime is None or orch_mtime != current_mtime:
-                # Changed, and not explained by orchestrator
-                changed[basename] = (initial_mtime, current_mtime)
-    
-    if changed:
-        report = f"Vault content changed (excluding orchestrator writes): {list(changed.keys())}"
-        return False, report
-    
-    report = "Real vault unchanged (orchestrator activations excluded)"
-    return True, report
+Before all trials run:
+- Fingerprint real vault: file count + newest mtime of all .md files
+
+After all trials run:
+- Re-fingerprint real vault
+- Check: file count unchanged, no new/deleted .md files
+- Report: "real vault unchanged" or "LEAK DETECTED: <list changed files>"
+
+Scope: detect trial-side writes only (controller writes nothing during run per #750 interim rule).
+
+- [ ] **Step 5: Implement marker validity gate**
+
+Every trial's CLAUDE.md carries a per-run marker (identical across all 40 trials, generated before runs start). Verify marker presence in trial transcript (proof the fixture CLAUDE.md reached the trial context). Trials without marker are invalid, never scored 0 (excluded from aggregates).
+
+Citation: probe.py phase-1 pattern (cite lines where marker is generated and appended to CLAUDE.md).
+
+- [ ] **Step 6: Implement FOUND/FOLLOWED scoring**
+
+**FOUND:** 
+- S arm: Bash tool_use running the skill command (skill S tool_use in transcript) before first procedure step
+- R/F arms: Bash tool_use running `engram query ...` before first procedure step; result contains arm's carrier basename
+- Rdirect: n/a (no retrieval attempted; marker_seen is delivery check)
+
+**FOLLOWED-all-steps:** 
+- Task A: mechanical checklist derived from live /commit skill's 5 Workflow steps (steps 1–5); each trial records k of 5
+- Task B: mechanical checklist derived from runbook 830's 6 steps (steps 1–6 verbatim from Task 1); each trial records k of 6
+
+Record: FOLLOWED-all-steps as binary (every step completed = k=N, or k<N). Compute per-task N_A=5 (commit), N_B=6 (gitignore). Parity uses FOLLOWED-all-steps (trials with every step, k/5), not mean steps.
+
+- [ ] **Step 7: Output record structure**
+
+Each trial result record:
+```json
+{
+  "task": "A|B",
+  "arm": "S|R|F|Rdirect",
+  "trial": 0-4,
+  "model": "opus",
+  "found": true|false,
+  "found_method": "Skill tool_use | engram query | none",
+  "followed_k": k (steps completed),
+  "followed_all": true|false (k == N_task),
+  "end_state": true|false,
+  "cost_usd": float,
+  "duration_ms": int,
+  "marker_seen": true|false,
+  "valid": true|false (marker_seen required for valid)
+}
 ```
 
-**Acceptance:** Script compiles; `copy_vault_for_trial` returns a copy under trial_scratch_dir and fingerprints the real vault BEFORE copy; `verify_vault_isolated` compares fingerprints and excludes orchestrator writes from leak detection.
+- [ ] **Step 8: Implement --summarize with shim/note decomposition**
 
-- [ ] **Step 3: Commit task 3**
+For each task, compute:
+```
+FOUND_rate_R = trials with R found / valid trials
+FOUND_rate_F = trials with F found / valid trials
+FOUND_rate_Rdirect = trials with Rdirect found / valid trials (always 0, n/a)
+SHIM_RATE = FOUND_rate_R (retrieval needed for R to work)
+
+FOLLOWED_ALL_S = trials with followed_all / valid S trials
+FOLLOWED_ALL_R = trials with followed_all / valid R trials (given FOUND=true)
+FOLLOWED_ALL_F = trials with followed_all / valid F trials (given FOUND=true)
+FOLLOWED_ALL_Rdirect = trials with followed_all / valid Rdirect trials
+
+END_STATE_S = trials with end_state=true / valid S trials
+END_STATE_R = trials with end_state=true / valid R trials (given FOUND=true)
+END_STATE_F = trials with end_state=true / valid F trials (given FOUND=true)
+END_STATE_Rdirect = trials with end_state=true / valid Rdirect trials
+
+SHIM_LOSS = END_STATE_Rdirect - END_STATE_R (retrieval tax)
+NOTE_QUALITY_F = END_STATE_F - END_STATE_Rdirect (fact adds value over shim)
+TYPE_EFFECT_RF = R - F on END_STATE (runbook vs fact)
+```
+
+Print a labeled table with all metrics; parity decisions per metric per task (S vs R, S vs F, ±1-trial rule).
+
+- [ ] **Step 9: Commit probe_phase2.py**
 
 ```bash
-cd /Users/joe/repos/personal/engram
-git add phase2/vault_copy_and_fingerprint.py
-git commit -m "test(eval/phase2): add vault copy and isolation guard per note 956"
+cd /Users/joe/repos/personal/engram/.claude/worktrees/runbook-vs-skill
+git add phase2/probe_phase2.py
+git commit -m "test(eval/phase2): probe_phase2.py multi-task, 8 arms, real-vault copying, shim/note decomposition"
+```
+
+**Acceptance:** probe_phase2.py compiled, arguments working (--task A|B --arms S,R,F,Rdirect, --model opus, --n 5); real-vault per-trial copytree created; vault isolation via isolated_env(..., cwd=None) + assert_isolated(env) (cite probe.py isolation pattern); covering notes removed per Task 1 grep results; arm carriers added correctly; marker validity gate implemented; FOUND/FOLLOWED scoring per specs; --summarize produces shim/note decomposition.
+
+- [ ] **Step 9: Commit probe_phase2.py**
+
+```bash
+cd /Users/joe/repos/personal/engram/.claude/worktrees/runbook-vs-skill
+git add phase2/probe_phase2.py
+git commit -m "test(eval/phase2): probe_phase2.py 8 arms, real-vault per-trial copy, shim/note decomposition, scoring"
 ```
 
 ---
 
-### Task 4: Extend probe.py for Phase 2 (Multi-Task, Multi-Arm Enumeration)
+### Task 4: Design Fixture Repos & Scripts (Task A: Commit, Task B: Gitignore)
+
+[Note: This task remains unchanged from the earlier plan. Fixtures define the idiosyncratic scenarios; conversions source from the exact procedures defined in Task 1 SOURCE_MATERIALS.md.]
+
+**Fixture repos and initialization scripts already designed above (Task 2 in original plan). Fixtures are ready for use in subsequent tasks.**
+
+---
+
+### Task 5: Convert /commit Skill & Runbook 830 (Four Agent Dispatches)
 
 **Files:**
 - Create: `phase2/probe_phase2.py` (extended version of phase-1 probe.py)
