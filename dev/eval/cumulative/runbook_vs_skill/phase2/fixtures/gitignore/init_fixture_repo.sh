@@ -19,9 +19,9 @@ git config user.name "Trial Agent"
 git config user.email "trial@example.com"
 
 # Create the fixture commit with the over-broad .gitignore
-# Note: .gitignore hides scripts/ and testdata/, so use -f to force-add them
-git add .gitignore src
-git add -f scripts/build.sh testdata/fixture.json
+# The .gitignore hides scripts/ and testdata/, so git add -A will respect it
+# and leave those files untracked (the task is to make them trackable)
+git add -A
 git commit -m "chore: initial project with broad ignore"
 
 # Generate the big.bin file in the ignored directory
