@@ -403,8 +403,8 @@ def test_rescore_flips_end_state_false_to_true(tmp_path):
 
 # ----- summarize's decision-frame outputs -----
 
-def _agg(found_n, followed_trial_equiv, end_state_n, n, recall_fired_n=0, cost_mean=0.0, duration_mean=0.0):
-    return {"n": n, "valid_n": n, "found_n": found_n, "followed_trial_equiv": followed_trial_equiv,
+def _agg(found_n, followed_all_6_count, end_state_n, n, recall_fired_n=0, cost_mean=0.0, duration_mean=0.0):
+    return {"n": n, "valid_n": n, "found_n": found_n, "followed_all_6_count": followed_all_6_count,
             "end_state_n": end_state_n, "recall_fired_n": recall_fired_n,
             "cost_mean": cost_mean, "duration_mean": duration_mean}
 

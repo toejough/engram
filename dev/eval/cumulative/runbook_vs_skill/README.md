@@ -97,15 +97,15 @@ computed from that file's `valid: true` records.
 | metric (unit) | S skill | R runbook | F fact |
 |---|---|---|---|
 | FOUND (trials, k/5) | 5/5 | 5/5 | 5/5 |
+| FOLLOWED all-6 steps (trials, k/5) | 5/5 | 4/5 | 4/5 |
 | FOLLOWED (mean steps of 6) | 6.00 | 5.80 | 5.80 |
-| FOLLOWED (trial-equivalent, of 5) | 5.00 | 4.83 | 4.83 |
 | END-STATE (trials, k/5) | 5/5 | 5/5 | 5/5 |
 | recall fired (trials, k/5) | 5/5 | 5/5 | 5/5 |
 | cost (mean USD/trial) | 0.74 | 0.64 | 0.75 |
 | duration (mean s/trial) | 104 | 104 | 125 |
 | valid (marker seen) | 5/5 | 5/5 | 5/5 |
 
-**Decision Frame Output:** `parity found/followed/end_state = indistinguishable`; `baseline_uninterpretable = false`; `fact verdict = cant_distinguish` (followed_gap 0.0, end_state_gap 0).
+**Decision Frame Output:** `parity found/followed/end_state = indistinguishable`; `baseline_uninterpretable = false`; `fact verdict = cant_distinguish` (followed_gap 0, end_state_gap 0).
 
 ### Deductions
 
@@ -156,12 +156,10 @@ Per metric (FOUND, FOLLOWED, END-STATE):
 | Better | Runbook 2+ above skill (e.g., skill 2/5, runbook ≥4/5) |
 | Can't distinguish | Gap ≤1 trial — NOT called "tie" |
 
-FOLLOWED is a continuous per-trial mean (k/6), not a pass/fail count, so `--summarize` converts it
-to the same 0..n "trial-equivalent" scale as FOUND/END-STATE — the sum of each valid trial's k/6
-(e.g. 5 trials averaging 4/6 → a trial-equivalent of 3.33) — before applying the same ±1/±2 gap
-rule. This is the harness's documented generalization of the plan's count-based frame to a
-continuous metric; it is exact for FOUND/END-STATE (already integer trial counts) and a linear
-proxy for FOLLOWED.
+FOLLOWED is scored per trial as binary "all 6 steps performed" (followed_k == 6), counted as k trials
+with all steps completed out of n valid trials, then the same ±1/±2 gap rule applies — can't
+distinguish within 1 trial, worse/better at 2+. Mean steps per trial (k/6) is retained in the output
+for information only but is not used for parity or gap decisions.
 
 **If Arm S END-STATE < 3/5 (proportionally, <60% of valid trials):** Baseline too hard; parity
 uninterpretable. Triggers a fixture/spec fix before re-run — reflected as
@@ -169,7 +167,7 @@ uninterpretable. Triggers a fixture/spec fix before re-run — reflected as
 
 ### (b) FUNCTIONALITY: Does runbook exceed fact functionally?
 
-Runbook exceeds fact ONLY if R is 2+ trial-equivalents ahead of F on FOLLOWED or END-STATE;
+Runbook exceeds fact ONLY if R is 2+ trials ahead of F on FOLLOWED or END-STATE;
 otherwise "can't distinguish" (`--summarize` prints this as `fact.verdict`).
 
 ## Cost Estimate

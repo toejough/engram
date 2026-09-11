@@ -744,15 +744,15 @@ def aggregate(records, arm):
     found_n = sum(1 for r in valid if r.get("found"))
     end_state_n = sum(1 for r in valid if r.get("end_state"))
     recall_fired_n = sum(1 for r in valid if r.get("recall_fired"))
-    followed_trial_equiv = sum((r.get("followed_k") or 0) / 6.0 for r in valid)
-    followed_mean = (followed_trial_equiv / valid_n) if valid_n else 0.0
+    followed_all_6_count = sum(1 for r in valid if r.get("followed_k") == 6)
+    followed_mean_k = (sum((r.get("followed_k") or 0) for r in valid) / valid_n) if valid_n else 0.0
     cost_mean = (sum(r.get("total_cost_usd") or 0 for r in valid) / valid_n) if valid_n else 0.0
     durations = [r.get("duration_ms") for r in valid if r.get("duration_ms")]
     duration_mean_s = (sum(durations) / len(durations) / 1000.0) if durations else 0.0
     return {
         "n": n, "valid_n": valid_n, "found_n": found_n, "end_state_n": end_state_n,
-        "recall_fired_n": recall_fired_n, "followed_trial_equiv": followed_trial_equiv,
-        "followed_mean": followed_mean, "cost_mean": cost_mean, "duration_mean": duration_mean_s,
+        "recall_fired_n": recall_fired_n, "followed_all_6_count": followed_all_6_count,
+        "followed_mean_k": followed_mean_k, "cost_mean": cost_mean, "duration_mean": duration_mean_s,
     }
 
 
@@ -764,21 +764,20 @@ def _gap_verdict(skill_val, other_val):
 
 
 def decision_frame(agg):
-    """PLAN.md lines 518-537's parity + functionality decision frame. FOLLOWED's per-trial mean
-    (k/6) is converted to a 'trial-equivalent' scalar (sum of k_i/6 across trials, same 0..n scale
-    as FOUND/END-STATE's trial counts) so the '1 trial' / '2+ trials' gap language applies
-    uniformly across all three metrics — PLAN.md states the frame for count metrics; this is the
-    documented generalization for the continuous FOLLOWED mean (see README)."""
+    """PLAN.md lines 518-537's parity + functionality decision frame. FOLLOWED parity counts
+    trials where all 6 steps performed (followed_k == 6), using the same '1 trial gap' /
+    '2+ trials' rule as FOUND/END-STATE (can't distinguish within 1 trial, worse/better at 2+).
+    Mean steps per trial is retained for information only."""
     s, r, f = agg.get("S"), agg.get("R"), agg.get("F")
     parity = {}
     if s and r:
         parity["found"] = _gap_verdict(s["found_n"], r["found_n"])
-        parity["followed"] = _gap_verdict(s["followed_trial_equiv"], r["followed_trial_equiv"])
+        parity["followed"] = _gap_verdict(s["followed_all_6_count"], r["followed_all_6_count"])
         parity["end_state"] = _gap_verdict(s["end_state_n"], r["end_state_n"])
     baseline_uninterpretable = bool(s and s["valid_n"] and s["end_state_n"] < 0.6 * s["valid_n"])
     fact = {"verdict": "cant_distinguish"}
     if r and f:
-        followed_gap = r["followed_trial_equiv"] - f["followed_trial_equiv"]
+        followed_gap = r["followed_all_6_count"] - f["followed_all_6_count"]
         end_state_gap = r["end_state_n"] - f["end_state_n"]
         if followed_gap >= 2 or end_state_gap >= 2:
             fact["verdict"] = "runbook_exceeds_fact"
@@ -790,7 +789,7 @@ def decision_frame(agg):
 def format_table(agg):
     arms = [a for a in ARMS if a in agg]
     lines = []
-    label_width = 24  # widest label, "FOLLOWED (trial-equiv)", plus a margin
+    label_width = 28  # widest label, "FOLLOWED all-6 steps (trials", plus a margin
     header = "metric".ljust(label_width) + "".join(a.ljust(16) for a in arms)
     lines.append(header)
     lines.append("-" * len(header))
@@ -800,8 +799,8 @@ def format_table(agg):
         lines.append(label.ljust(label_width) + "".join(c.ljust(16) for c in cells))
 
     row("FOUND (k/n)", lambda a: f"{a['found_n']}/{a['valid_n']}")
-    row("FOLLOWED (mean k/6)", lambda a: f"{a['followed_mean']*6:.2f}/6")
-    row("FOLLOWED (trial-equiv)", lambda a: f"{a['followed_trial_equiv']:.2f}/{a['valid_n']}")
+    row("FOLLOWED all-6 (k/n)", lambda a: f"{a['followed_all_6_count']}/{a['valid_n']}")
+    row("FOLLOWED (mean k/6)", lambda a: f"{a['followed_mean_k']:.2f}/6")
     row("END-STATE (k/n)", lambda a: f"{a['end_state_n']}/{a['valid_n']}")
     row("recall_fired (k/n)", lambda a: f"{a['recall_fired_n']}/{a['valid_n']}")
     row("cost (mean USD)", lambda a: f"${a['cost_mean']:.2f}")
