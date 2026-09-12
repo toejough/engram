@@ -690,6 +690,44 @@ def _check_test_bites(repo_path):
     return mutant_run.returncode != 0
 
 
+def _tdd_order_relevant_commits(repo_path, orig_tip):
+    """Commits strictly after `orig_tip` (fixture baseline) up to HEAD that touch at least one
+    .py file, oldest first. The harness's own 'add project config' commit (CLAUDE.md/.claude only)
+    never touches a .py file and is never included."""
+    r = subprocess.run(
+        ["git", "-C", repo_path, "rev-list", "--reverse", f"{orig_tip}..HEAD"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        return []
+    relevant = []
+    for commit in r.stdout.split():
+        show = subprocess.run(
+            ["git", "-C", repo_path, "show", "--name-only", "--pretty=format:", commit],
+            capture_output=True, text=True,
+        )
+        files = [f for f in show.stdout.splitlines() if f.strip()]
+        if any(f.endswith(".py") for f in files):
+            relevant.append(commit)
+    return relevant
+
+
+def _check_tdd_order_at_least_two_new_commits(repo_path):
+    """tdd-order task step 5 ('tdd_order_at_least_two_new_commits' repo_state signal): at least
+    two commits since the fixture's baseline tip (recorded in .eval/original_tip, a sibling of the
+    trial repo, at init time -- see fixtures/tdd-order/init_fixture_repo.sh) touch a .py file. Uses
+    _tdd_order_relevant_commits so the harness's own CLAUDE.md-only commit never counts toward the
+    total, and a single combined test+impl commit (only 1 relevant commit) correctly reads False."""
+    eval_dir = os.path.join(os.path.dirname(os.path.abspath(repo_path)), ".eval")
+    orig_tip_path = os.path.join(eval_dir, "original_tip")
+    try:
+        with open(orig_tip_path) as f:
+            orig_tip = f.read().strip()
+    except OSError:
+        return False
+    return len(_tdd_order_relevant_commits(repo_path, orig_tip)) >= 2
+
+
 REPO_STATE_CHECKERS = {
     # Task 2's thread renamed the fixtures/commit/steps.json pattern to
     # "commit_message_format_and_body" (round-4 ruling: trailer requirement removed from the
@@ -698,6 +736,7 @@ REPO_STATE_CHECKERS = {
     "gitignore_narrowed_to_generated": _check_gitignore_narrowed_to_generated,
     "gitignore_rapid_ignored_fixture_trackable_all_depths": _check_gitignore_rapid_ignored_fixture_trackable_all_depths,
     "test_bites": _check_test_bites,
+    "tdd_order_at_least_two_new_commits": _check_tdd_order_at_least_two_new_commits,
 }
 
 

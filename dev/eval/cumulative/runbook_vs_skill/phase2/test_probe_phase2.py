@@ -2324,3 +2324,415 @@ def test_bisect_before_fix_step7_false_when_step6_never_matched():
     events = [_tool_use("Bash", {"command": "bash gate.sh"}, idx=0)]
     results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
     assert results["7"] is False
+
+
+# --- tdd-order ---
+
+def test_tdd_order_steps_json_is_valid_and_registered():
+    steps = pp.load_steps("tdd-order")
+    assert isinstance(steps, list) and len(steps) > 0
+    for step in steps:
+        assert "n" in step
+        for sig in _step_signals(step):
+            assert "signal" in sig and "pattern" in sig
+    _assert_bash_step_all_registered("tdd-order")
+
+
+def test_tdd_order_step1_write_test_file_via_native_edit_and_negative():
+    steps = pp.load_steps("tdd-order")
+    step1 = next(s for s in steps if s["n"] == 1)
+    pos_events = [_tool_use("Edit", {"file_path": "/repo/test_slugify.py"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step1], pos_events, repo_path="/does/not/matter")
+    assert results["1"] is True
+    neg_events = [_tool_use("Edit", {"file_path": "/repo/slugify.py"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step1], neg_events, repo_path="/does/not/matter")
+    assert results["1"] is False
+
+
+def test_tdd_order_step1_write_test_file_bash_and_negative():
+    steps = pp.load_steps("tdd-order")
+    _assert_bash_step(
+        steps, 1,
+        "cat > test_slugify_behavior.py << 'EOF'",
+        "cat > slugify.py << 'EOF'",
+    )
+
+
+def test_tdd_order_step2_run_pytest_after_step1():
+    steps = pp.load_steps("tdd-order")
+    events = [
+        _tool_use("Edit", {"file_path": "/repo/test_slugify.py"}, idx=0),
+        _tool_use("Bash", {"command": "python3 -m pytest -q"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["2"] is True
+
+
+def test_tdd_order_step2_false_when_step1_never_matched():
+    steps = pp.load_steps("tdd-order")
+    events = [_tool_use("Bash", {"command": "python3 -m pytest -q"}, idx=0)]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["2"] is False
+
+
+def test_tdd_order_step3_edit_impl_after_step2_via_native_edit():
+    steps = pp.load_steps("tdd-order")
+    events = [
+        _tool_use("Edit", {"file_path": "/repo/test_slugify.py"}, idx=0),
+        _tool_use("Bash", {"command": "python3 -m pytest -q"}, idx=1),
+        _tool_use("Edit", {"file_path": "/repo/slugify.py"}, idx=2),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["3"] is True
+
+
+def test_tdd_order_step3_does_not_credit_editing_the_test_file():
+    """The implementation-edit step must not be satisfiable by editing test_slugify.py again --
+    \\bslugify.py$ must not match test_slugify.py's trailing substring."""
+    steps = pp.load_steps("tdd-order")
+    step3 = next(s for s in steps if s["n"] == 3)
+    events = [_tool_use("Edit", {"file_path": "/repo/test_slugify.py"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step3], events, repo_path="/does/not/matter")
+    assert results["3"] is False
+
+
+def test_tdd_order_step4_run_pytest_after_step3():
+    steps = pp.load_steps("tdd-order")
+    events = [
+        _tool_use("Edit", {"file_path": "/repo/test_slugify.py"}, idx=0),
+        _tool_use("Bash", {"command": "python3 -m pytest -q"}, idx=1),
+        _tool_use("Edit", {"file_path": "/repo/slugify.py"}, idx=2),
+        _tool_use("Bash", {"command": "python3 -m pytest -q"}, idx=3),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["4"] is True
+
+
+def test_tdd_order_step4_false_when_step3_never_matched():
+    steps = pp.load_steps("tdd-order")
+    events = [
+        _tool_use("Edit", {"file_path": "/repo/test_slugify.py"}, idx=0),
+        _tool_use("Bash", {"command": "python3 -m pytest -q"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["4"] is False
+
+
+def _git(repo, *args):
+    import subprocess
+    subprocess.run(["git", "-C", repo] + list(args), check=True, capture_output=True)
+
+
+def _write_tdd_order_repo(tmp_path):
+    """A repo laid out like the real fixture: tmp_path/repo (git repo) + tmp_path/.eval/original_tip
+    (baseline tip, recorded before any of the caller's additional commits)."""
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo, exist_ok=True)
+    with open(os.path.join(repo, "slugify.py"), "w") as f:
+        f.write("def slugify(text):\n    return text\n")
+    with open(os.path.join(repo, "test_slugify.py"), "w") as f:
+        f.write("from slugify import slugify\n\n\ndef test_returns_a_string():\n    assert isinstance(slugify('x'), str)\n")
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "Trial")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "chore: initial slugify stub and existing test")
+    import subprocess
+    orig_tip = subprocess.run(["git", "-C", repo, "rev-parse", "HEAD"],
+                               capture_output=True, text=True, check=True).stdout.strip()
+    eval_dir = tmp_path / ".eval"
+    eval_dir.mkdir()
+    (eval_dir / "original_tip").write_text(orig_tip)
+    return repo
+
+
+def test_tdd_order_at_least_two_new_commits_true_for_test_then_impl_commits(tmp_path):
+    repo = _write_tdd_order_repo(tmp_path)
+    with open(os.path.join(repo, "test_slugify.py"), "a") as f:
+        f.write("\n\ndef test_lowercases():\n    assert slugify('Hello') == 'hello'\n")
+    _git(repo, "add", "test_slugify.py")
+    _git(repo, "commit", "-q", "-m", "test: add slugify behavior spec (RED)")
+    with open(os.path.join(repo, "slugify.py"), "w") as f:
+        f.write("def slugify(text):\n    return text.lower()\n")
+    _git(repo, "add", "slugify.py")
+    _git(repo, "commit", "-q", "-m", "feat: implement slugify lowercasing")
+    assert pp.default_repo_checker("tdd_order_at_least_two_new_commits", repo) is True
+
+
+def test_tdd_order_at_least_two_new_commits_false_for_one_combined_commit(tmp_path):
+    repo = _write_tdd_order_repo(tmp_path)
+    with open(os.path.join(repo, "test_slugify.py"), "a") as f:
+        f.write("\n\ndef test_lowercases():\n    assert slugify('Hello') == 'hello'\n")
+    with open(os.path.join(repo, "slugify.py"), "w") as f:
+        f.write("def slugify(text):\n    return text.lower()\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "feat: implement slugify with test")
+    assert pp.default_repo_checker("tdd_order_at_least_two_new_commits", repo) is False
+
+
+def test_tdd_order_at_least_two_new_commits_false_when_no_new_commits(tmp_path):
+    repo = _write_tdd_order_repo(tmp_path)
+    assert pp.default_repo_checker("tdd_order_at_least_two_new_commits", repo) is False
+
+
+def test_tdd_order_at_least_two_new_commits_ignores_non_py_commits(tmp_path):
+    """A commit that touches only a non-.py file (mirroring the harness's own CLAUDE.md-only 'add
+    project config' commit) must never count toward the total."""
+    repo = _write_tdd_order_repo(tmp_path)
+    with open(os.path.join(repo, "CLAUDE.md"), "w") as f:
+        f.write("# project config\n")
+    _git(repo, "add", "CLAUDE.md")
+    _git(repo, "commit", "-q", "-m", "add project config")
+    with open(os.path.join(repo, "test_slugify.py"), "a") as f:
+        f.write("\n\ndef test_lowercases():\n    assert slugify('Hello') == 'hello'\n")
+    _git(repo, "add", "test_slugify.py")
+    _git(repo, "commit", "-q", "-m", "test: add slugify behavior spec (RED)")
+    assert pp.default_repo_checker("tdd_order_at_least_two_new_commits", repo) is False
+
+
+# --- opsx-propose ---
+
+def test_opsx_propose_steps_json_is_valid_and_registered():
+    steps = pp.load_steps("opsx-propose")
+    assert isinstance(steps, list) and len(steps) > 0
+    for step in steps:
+        assert "n" in step
+        for sig in _step_signals(step):
+            assert "signal" in sig and "pattern" in sig
+    _assert_bash_step_all_registered("opsx-propose")
+
+
+def test_opsx_propose_step1_new_change_bash_and_negative():
+    steps = pp.load_steps("opsx-propose")
+    _assert_bash_step(
+        steps, 1,
+        "openspec new change add-rate-limiting",
+        "openspec status --change add-rate-limiting --json",
+    )
+
+
+def test_opsx_propose_step2_status_after_step1():
+    steps = pp.load_steps("opsx-propose")
+    events = [
+        _tool_use("Bash", {"command": "openspec new change add-rate-limiting"}, idx=0),
+        _tool_use("Bash", {"command": "openspec status --change add-rate-limiting --json"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["2"] is True
+
+
+def test_opsx_propose_step2_false_when_step1_never_matched():
+    steps = pp.load_steps("opsx-propose")
+    events = [_tool_use("Bash", {"command": "openspec status --change add-rate-limiting --json"}, idx=0)]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["2"] is False
+
+
+_OPSX_NEW_CHANGE_EVENT = _tool_use("Bash", {"command": "openspec new change add-rate-limiting"}, idx=0)
+
+
+def test_opsx_propose_step3_write_proposal_via_native_write():
+    steps = pp.load_steps("opsx-propose")
+    events = [
+        _OPSX_NEW_CHANGE_EVENT,
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/proposal.md"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["3"] is True
+
+    neg_events = [
+        _OPSX_NEW_CHANGE_EVENT,
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/design.md"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, neg_events, repo_path="/does/not/matter")
+    assert results["3"] is False
+
+
+def test_opsx_propose_step4_write_design_after_step3():
+    steps = pp.load_steps("opsx-propose")
+    events = [
+        _OPSX_NEW_CHANGE_EVENT,
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/proposal.md"}, idx=1),
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/design.md"}, idx=2),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["4"] is True
+
+
+def test_opsx_propose_step5_write_spec_delta_after_step3():
+    steps = pp.load_steps("opsx-propose")
+    events = [
+        _OPSX_NEW_CHANGE_EVENT,
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/proposal.md"}, idx=1),
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/specs/widget-api/spec.md"}, idx=2),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["5"] is True
+
+
+def test_opsx_propose_step6_write_tasks_after_step5():
+    steps = pp.load_steps("opsx-propose")
+    events = [
+        _OPSX_NEW_CHANGE_EVENT,
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/proposal.md"}, idx=1),
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/specs/widget-api/spec.md"}, idx=2),
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/tasks.md"}, idx=3),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["6"] is True
+
+
+def test_opsx_propose_step6_false_when_step5_never_matched():
+    steps = pp.load_steps("opsx-propose")
+    events = [
+        _OPSX_NEW_CHANGE_EVENT,
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/proposal.md"}, idx=1),
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/tasks.md"}, idx=2),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["6"] is False
+
+
+def test_opsx_propose_step7_final_status_after_step6():
+    steps = pp.load_steps("opsx-propose")
+    events = [
+        _OPSX_NEW_CHANGE_EVENT,
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/proposal.md"}, idx=1),
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/specs/widget-api/spec.md"}, idx=2),
+        _tool_use("Write", {"file_path": "/repo/openspec/changes/add-rate-limiting/tasks.md"}, idx=3),
+        _tool_use("Bash", {"command": "openspec status --change add-rate-limiting"}, idx=4),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["7"] is True
+
+
+def test_opsx_propose_step7_false_when_step6_never_matched():
+    steps = pp.load_steps("opsx-propose")
+    events = [
+        _OPSX_NEW_CHANGE_EVENT,
+        _tool_use("Bash", {"command": "openspec status --change add-rate-limiting"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["7"] is False
+
+
+# --- opsx-archive ---
+
+def test_opsx_archive_steps_json_is_valid_and_registered():
+    steps = pp.load_steps("opsx-archive")
+    assert isinstance(steps, list) and len(steps) > 0
+    for step in steps:
+        assert "n" in step
+        for sig in _step_signals(step):
+            assert "signal" in sig and "pattern" in sig
+    _assert_bash_step_all_registered("opsx-archive")
+
+
+def test_opsx_archive_step1_discover_change_any_of():
+    steps = pp.load_steps("opsx-archive")
+    step1 = next(s for s in steps if s["n"] == 1)
+    for positive_cmd in ("openspec list --json", "openspec status --change add-rate-limiting --json",
+                         "ls openspec/changes"):
+        events = [_tool_use("Bash", {"command": positive_cmd}, idx=0)]
+        results, _, _ = pp.evaluate_steps([step1], events, repo_path="/does/not/matter")
+        assert results["1"] is True, positive_cmd
+    events = [_tool_use("Bash", {"command": "git status"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step1], events, repo_path="/does/not/matter")
+    assert results["1"] is False
+
+
+_OPSX_ARCHIVE_DISCOVER_EVENT = _tool_use("Bash", {"command": "openspec list --json"}, idx=0)
+
+
+def test_opsx_archive_step2_check_tasks_after_step1():
+    steps = pp.load_steps("opsx-archive")
+    events = [
+        _OPSX_ARCHIVE_DISCOVER_EVENT,
+        _tool_use("Bash", {"command": "cat openspec/changes/add-rate-limiting/tasks.md"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["2"] is True
+
+
+def test_opsx_archive_step2_via_native_read():
+    steps = pp.load_steps("opsx-archive")
+    events = [
+        _OPSX_ARCHIVE_DISCOVER_EVENT,
+        _tool_use("Read", {"file_path": "/repo/openspec/changes/add-rate-limiting/tasks.md"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["2"] is True
+
+
+def test_opsx_archive_step3_assess_spec_sync_after_step1():
+    steps = pp.load_steps("opsx-archive")
+    events = [
+        _OPSX_ARCHIVE_DISCOVER_EVENT,
+        _tool_use("Bash", {"command": "diff openspec/changes/add-rate-limiting/specs/widget-api/spec.md openspec/specs/widget-api/spec.md"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["3"] is True
+
+
+def test_opsx_archive_step4_perform_archive_any_of():
+    steps = pp.load_steps("opsx-archive")
+    for positive_cmd in ("openspec archive add-rate-limiting --yes",
+                         "mv openspec/changes/add-rate-limiting openspec/changes/archive/2026-09-12-add-rate-limiting"):
+        events = [
+            _OPSX_ARCHIVE_DISCOVER_EVENT,
+            _tool_use("Bash", {"command": positive_cmd}, idx=1),
+        ]
+        results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+        assert results["4"] is True, positive_cmd
+
+
+def test_opsx_archive_step4_false_when_step1_never_matched():
+    steps = pp.load_steps("opsx-archive")
+    events = [_tool_use("Bash", {"command": "openspec archive add-rate-limiting --yes"}, idx=0)]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["4"] is False
+
+
+_OPSX_ARCHIVE_PERFORM_EVENT = _tool_use("Bash", {"command": "openspec archive add-rate-limiting --yes"}, idx=1)
+
+
+def test_opsx_archive_step5_verify_main_spec_after_step4():
+    steps = pp.load_steps("opsx-archive")
+    events = [
+        _OPSX_ARCHIVE_DISCOVER_EVENT,
+        _OPSX_ARCHIVE_PERFORM_EVENT,
+        _tool_use("Bash", {"command": "cat openspec/specs/widget-api/spec.md"}, idx=2),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["5"] is True
+
+
+def test_opsx_archive_step5_false_when_step4_never_matched():
+    steps = pp.load_steps("opsx-archive")
+    events = [
+        _OPSX_ARCHIVE_DISCOVER_EVENT,
+        _tool_use("Bash", {"command": "cat openspec/specs/widget-api/spec.md"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["5"] is False
+
+
+def test_opsx_archive_step6_validate_after_step4():
+    steps = pp.load_steps("opsx-archive")
+    events = [
+        _OPSX_ARCHIVE_DISCOVER_EVENT,
+        _OPSX_ARCHIVE_PERFORM_EVENT,
+        _tool_use("Bash", {"command": "openspec validate --all --strict"}, idx=2),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["6"] is True
+
+
+def test_opsx_archive_step6_false_when_step4_never_matched():
+    steps = pp.load_steps("opsx-archive")
+    events = [
+        _OPSX_ARCHIVE_DISCOVER_EVENT,
+        _tool_use("Bash", {"command": "openspec validate --all --strict"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["6"] is False

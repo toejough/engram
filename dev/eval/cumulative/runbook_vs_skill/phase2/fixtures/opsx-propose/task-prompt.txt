@@ -1,0 +1,1 @@
+Propose a change to add rate limiting to the widget API in this repo, following the project's openspec workflow.

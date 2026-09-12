@@ -1,0 +1,1 @@
+Implement slugify so it lowercases, replaces runs of non-alphanumerics with single hyphens, and trims leading/trailing hyphens. Work test-first and commit as you go.

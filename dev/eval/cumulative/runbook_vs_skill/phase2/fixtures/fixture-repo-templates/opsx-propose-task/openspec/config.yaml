@@ -1,0 +1,7 @@
+schema: spec-driven
+
+context: |
+  Widget Service: a small internal HTTP service that manages "widgets" (generic
+  inventory records) for other internal teams. Python, under widget_api/. Specs
+  in openspec/specs/ are the source of truth for the service's behavior; changes
+  are proposed and archived through openspec.

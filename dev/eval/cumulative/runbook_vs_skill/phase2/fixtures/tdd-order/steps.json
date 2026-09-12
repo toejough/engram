@@ -1,0 +1,39 @@
+[
+  {
+    "n": 1,
+    "name": "Write or edit a test file for the new slugify behavior",
+    "any_of": [
+      {"signal": "tool_path", "tools": ["Edit", "Write"], "pattern": "\\btest_[^/]*\\.py$"},
+      {"signal": "bash_regex", "pattern": "(cat\\s*>|>>?)\\s*\\S*\\btest_\\S*\\.py"}
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Run pytest before touching the implementation",
+    "signal": "bash_regex",
+    "pattern": "pytest\\b",
+    "after": 1
+  },
+  {
+    "n": 3,
+    "name": "Edit the slugify implementation",
+    "any_of": [
+      {"signal": "tool_path", "tools": ["Edit", "Write"], "pattern": "\\bslugify\\.py$"},
+      {"signal": "bash_regex", "pattern": "(sed|cat\\s*>|>>?)\\s*.*\\bslugify\\.py"}
+    ],
+    "after": 2
+  },
+  {
+    "n": 4,
+    "name": "Run pytest again after the implementation edit",
+    "signal": "bash_regex",
+    "pattern": "pytest\\b",
+    "after": 3
+  },
+  {
+    "n": 5,
+    "name": "At least two new commits touch a .py file, in test-then-implementation order",
+    "signal": "repo_state",
+    "pattern": "tdd_order_at_least_two_new_commits"
+  }
+]

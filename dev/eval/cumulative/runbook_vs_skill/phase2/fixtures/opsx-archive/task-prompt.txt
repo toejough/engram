@@ -1,0 +1,1 @@
+The rate-limiting change in this repo is done. Archive it following the project's openspec workflow.

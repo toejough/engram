@@ -1,0 +1,54 @@
+[
+  {
+    "n": 1,
+    "name": "Discover which change to archive",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "openspec\\s+list\\b"},
+      {"signal": "bash_regex", "pattern": "openspec\\s+status\\b.*--change\\b"},
+      {"signal": "bash_regex", "pattern": "ls\\s+.*openspec/changes\\b"}
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Check task completion (tasks.md)",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "(cat|less|head|grep)\\s+.*tasks\\.md"},
+      {"signal": "tool_path", "tools": ["Read"], "pattern": "tasks\\.md$"}
+    ],
+    "after": 1
+  },
+  {
+    "n": 3,
+    "name": "Assess delta spec sync state against the main spec",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "(cat|less|head|grep|diff)\\s+.*specs/.*spec\\.md"},
+      {"signal": "tool_path", "tools": ["Read"], "pattern": "specs/[^/]+/spec\\.md$"}
+    ],
+    "after": 1
+  },
+  {
+    "n": 4,
+    "name": "Perform the archive",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "openspec\\s+archive\\b"},
+      {"signal": "bash_regex", "pattern": "mv\\s+.*openspec/changes/"}
+    ],
+    "after": 1
+  },
+  {
+    "n": 5,
+    "name": "Verify the main spec now reflects the synced requirement",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "(cat|less|head|grep|diff)\\s+.*openspec/specs/.*spec\\.md"},
+      {"signal": "tool_path", "tools": ["Read"], "pattern": "openspec/specs/[^/]+/spec\\.md$"}
+    ],
+    "after": 4
+  },
+  {
+    "n": 6,
+    "name": "Verify openspec validate passes after archiving",
+    "signal": "bash_regex",
+    "pattern": "openspec\\s+validate\\b",
+    "after": 4
+  }
+]

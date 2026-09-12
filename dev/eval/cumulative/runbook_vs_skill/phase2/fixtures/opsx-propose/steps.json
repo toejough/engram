@@ -1,0 +1,58 @@
+[
+  {
+    "n": 1,
+    "name": "Create the change directory (openspec new change)",
+    "signal": "bash_regex",
+    "pattern": "openspec\\s+new\\s+change\\b"
+  },
+  {
+    "n": 2,
+    "name": "Check status to get the artifact build order",
+    "signal": "bash_regex",
+    "pattern": "openspec\\s+status\\b.*--change\\b",
+    "after": 1
+  },
+  {
+    "n": 3,
+    "name": "Write proposal.md",
+    "any_of": [
+      {"signal": "tool_path", "tools": ["Write", "Edit"], "pattern": "\\bproposal\\.md$"},
+      {"signal": "bash_regex", "pattern": "(cat\\s*>|>>?)\\s*\\S*\\bproposal\\.md"}
+    ],
+    "after": 1
+  },
+  {
+    "n": 4,
+    "name": "Write design.md",
+    "any_of": [
+      {"signal": "tool_path", "tools": ["Write", "Edit"], "pattern": "\\bdesign\\.md$"},
+      {"signal": "bash_regex", "pattern": "(cat\\s*>|>>?)\\s*\\S*\\bdesign\\.md"}
+    ],
+    "after": 3
+  },
+  {
+    "n": 5,
+    "name": "Write the spec delta under specs/<capability>/spec.md",
+    "any_of": [
+      {"signal": "tool_path", "tools": ["Write", "Edit"], "pattern": "specs/[^/]+/spec\\.md$"},
+      {"signal": "bash_regex", "pattern": "(cat\\s*>|>>?)\\s*\\S*specs/[^/]+/spec\\.md"}
+    ],
+    "after": 3
+  },
+  {
+    "n": 6,
+    "name": "Write tasks.md",
+    "any_of": [
+      {"signal": "tool_path", "tools": ["Write", "Edit"], "pattern": "\\btasks\\.md$"},
+      {"signal": "bash_regex", "pattern": "(cat\\s*>|>>?)\\s*\\S*\\btasks\\.md"}
+    ],
+    "after": 5
+  },
+  {
+    "n": 7,
+    "name": "Check final status to confirm all artifacts are complete",
+    "signal": "bash_regex",
+    "pattern": "openspec\\s+status\\b.*--change\\b",
+    "after": 6
+  }
+]
