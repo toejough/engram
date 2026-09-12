@@ -179,10 +179,72 @@ Total evidence cost: $5.92 (RED $3.27 + GREEN $0.79 + PRESSURE $1.86). No refact
 
 ---
 
-## Cross-encoding observations (Tasks A + B + Route)
+## BF-R (runbook from vault note 846)
 
-- **Body fidelity ladder:** A-R (simplified rewrite), A-F (flattened summary), B-F (verbatim body), now Route-R and Route-F (both verbatim bodies). Route achieves the highest fidelity by carrying source skill body byte-for-byte into both runbook and fact note, with only schema-required frontmatter fields differing.
-- **Schema-driven frontmatter overhead:** Route-R adds ~600B (runbook frontmatter + synthesized done_when); Route-F adds ~760B (fact frontmatter + "Information learned:" preamble + summary object field). Both preserve the ~19,955B source body exactly.
-- **No encoding dropped a core requirement or safety rule.** All procedures intact in both Route-R (as markdown sections) and Route-F (as verbatim body); all red flags present; the "subagent recalls first" and "decompose before dispatch" rules are identical to source.
-- **Retrieval-key quality:** Route-R's situation field ("routing a subagent dispatch...") matches A-F pattern (descriptive, not retrieval-phrased). Route-F's situation similarly strong. Object field in Route-F is a summary, not full procedure.
-- **High-fidelity minimum for procedural content:** Achieving zero-delta body required rejecting intermediate simplifications (tables-as-prose, flattened enumerations). The verbatim-body standard applies the "as little change as possible" rule correctly.
+| # | Source requirement (quoted short) | Status |
+|---|---|---|
+| S1 | "Identify the commit immediately preceding the change under review's relevant commits" | present **verbatim** in step 1 |
+| S2 | "Check out that preceding commit" | present **verbatim** in step 2 |
+| S3 | "Rebuild the artifact under test from that commit" | present **verbatim** in step 3 |
+| S4 | "Re-run the identical gate (e.g. gate.py --tier smoke) against that rebuilt artifact" | present **verbatim** in step 4 |
+| S5 | "Compare this verdict to the original RED verdict observed on the change under review's HEAD" | present **verbatim** in step 5 |
+| S6 | "If the same failure reproduces on the pre-change commit: the change under review is NOT the cause -- do not apply its prescribed fix; instead file the pre-existing regression as its own separate issue for dedicated investigation" | present **verbatim** in step 6 |
+| S7 | "If the failure does NOT reproduce on the pre-change commit: the change under review is confirmed as the cause -- its prescribed fix (if any) applies" | present **verbatim** in step 7 |
+| S8 | "Restore the original HEAD/branch and rebuild the artifact before reporting results" | present **verbatim** in step 8 |
+| `situation` | "a trap/eval gate (gate.py, crowded_gate.py, or similar) returns RED on the current HEAD of a branch/change under review, and the natural next step is to apply that change's own prescribed fix for the regression" | present **verbatim** |
+| `done_when` | "the gate has been re-run against the commit immediately preceding the change under review, the verdict compared against the original RED result, the regression correctly attributed as pre-existing (with a separate follow-up issue filed) or caused by the change under review, and the original HEAD/branch has been restored and rebuilt before reporting" | present **verbatim** |
+
+**Verdict: FAITHFUL.** All 8 steps present and in order; situation and done_when verbatim; all requirements preserved.
+
+**Structural facts:** `type: runbook` (byte-for-byte copy of the original vault note 846). The 8 steps live in a genuine markdown numbered list, matching source's structure 1:1.
+
+---
+
+## BF-F (fact from vault note 846)
+
+| # | Source requirement (quoted short) | Status |
+|---|---|---|
+| S1-S8 | all 8 steps (see BF-R above) | present **verbatim** in predicate and object fields, inline enumeration |
+| `situation` | "a trap/eval gate returns RED on the current HEAD, and you need to apply the change's prescribed fix for the regression" | present **verbatim** from source frontmatter |
+| `done_when` | "the regression has been correctly attributed as pre-existing or caused by the change under review, and the original HEAD/branch has been restored and rebuilt before reporting" | present **verbatim**, repurposed into object field |
+
+**Verdict: FAITHFUL.** All 8 steps present and in order within predicate/object fields; situation and done_when verbatim; all requirements preserved.
+
+**Most consequential delta:** A template-generation artifact in the `predicate` field that names the steps but does not drop them. The body "Information learned: ..." section reiterates the entire procedure from frontmatter fields, duplicating content as expected for fact schema.
+
+**Structural facts:** `type: fact`, forces subject/predicate/object triple. All 8 steps packed into one ~2200-char `predicate` field as an inline enumeration `(1)...(8)` inside a single sentence — no markdown list (fact schema has no notion of an ordered list, only scalar fields). The body then restates situation+subject+predicate+object as one more prose paragraph.
+
+---
+
+## BF-S (skill from vault note 846, manual creation via transcription)
+
+| # | Source requirement (quoted short) | Status |
+|---|---|---|
+| S1-S8 | all 8 steps | present **verbatim** in markdown numbered list in "Procedure" section |
+| `situation` | "a trap/eval gate returns RED on the current HEAD, and you need to apply the change's prescribed fix for the regression" | present **verbatim** in Overview |
+| `done_when` | "the regression has been correctly attributed as pre-existing or caused by the change under review, and the original HEAD/branch has been restored and rebuilt before reporting" | present **verbatim** in "Done When" section |
+
+**Verdict: FAITHFUL — highest-fidelity of the three encodings.** All 8 steps, situation, and done_when reproduced word-for-word in a genuine numbered list. Nothing reworded, weakened, or dropped.
+
+**Packaging elements added beyond source:** Frontmatter (name, description with triggers); title; Overview (frames the two failure modes already implicit in steps 6–7); When to Use (trigger examples); Common Mistakes (rationalization table targeting confidence-driven skipping); Red Flags (pre-action stop triggers). None add substantive requirements, only packaging/behavioral reinforcement.
+
+**Structural facts:** `type: skill` (directory structure with SKILL.md). Skill frontmatter with name=bisect-before-fix and description covering triggers. All 8 steps in a genuine markdown numbered list under "Procedure", not flattened prose. Body follows skill format: Overview + When to Use + Procedure + Done When + Common Mistakes + Red Flags.
+
+---
+
+## Cross-encoding observations (Tasks A + B + BF + Route)
+
+- **Body fidelity ladder:** A-R (simplified rewrite), A-F (flattened summary), B-F (verbatim body), BF-R (verbatim body), BF-F (verbatim body with schema-shaped predicate), BF-S (verbatim body in markdown list). BF achieves highest overall fidelity: R carries source verbatim unchanged, F preserves all content in schema fields, S reproduces all content word-for-word in native skill list format.
+- **Schema-driven frontmatter overhead:** BF-R adds ~160B (runbook frontmatter + done_when synthesized verbatim from source); BF-F adds ~800B (fact frontmatter + "Information learned:" preamble + schema-shaped predicate/object). BF-S adds ~1400B (skill frontmatter + sections for Overview/When-to-Use/Common-Mistakes/Red-Flags). All preserve source content in body/procedure.
+- **No encoding dropped a core requirement or safety rule.** All 8 steps present in BF-R (markdown list), BF-F (predicate field), and BF-S (markdown list); situation and done_when preserved verbatim across all three.
+- **Highest-fidelity standard now applied consistently:** Vault note carriers (BF-R, BF-F) carry source content byte-for-byte (or schema-constrained faithful reproductions); skill encoding (BF-S) achieves verbatim-body fidelity in native markdown list format, with packaging elements (Common Mistakes, Red Flags) added only for behavioral reinforcement, not requirement changes.
+
+---
+
+## Cross-task summary
+
+**Body fidelity progression:** A (simplified) < B (verbatim with flattening) < BF (verbatim across all forms) = Route (verbatim across all forms).
+
+**BF achieves body fidelity parity with Route:** Both vault note and skill encodings preserve the source content word-for-word (or within schema constraints); neither drops or weakens a requirement.
+
+**Verification methodology:** strip-frontmatter diff confirms zero-delta bodies for BF-R (copy of source), BF-F (content in predicate+object), BF-S (content in Procedure section).

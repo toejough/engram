@@ -6,5 +6,9 @@
     "801.2026-08-26.map-finding-onto-issues-own-named-hypotheses-not-a-blanket-conclusion",
     "846.2026-08-29.bisect-before-attributing-a-gate-regression-to-the-change-under-review",
     "991.2026-09-12.bare-sonnet5-baselines-on-four-candidate-procedures"
-  ]
+  ],
+  "carrier_r_src": "encodings/taskBF/BF-R/vault",
+  "carrier_f_src": "encodings/taskBF/BF-F/vault",
+  "skill_name": "bisect-before-fix",
+  "skill_src": "encodings/taskBF/BF-S/skills/bisect-before-fix"
 }

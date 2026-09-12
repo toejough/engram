@@ -212,6 +212,44 @@ description: >
 
 ---
 
+## 3. Source BF: Vault Note 846
+
+**Path:** `/Users/joe/.local/share/engram/vault/846.2026-08-29.bisect-before-attributing-a-gate-regression-to-the-change-under-review.md`
+
+**Frontmatter situation and done_when (verbatim):**
+```yaml
+type: runbook
+tier: L2
+situation: a trap/eval gate (gate.py, crowded_gate.py, or similar) returns RED on the current HEAD of a branch/change under review, and the natural next step is to apply that change's own prescribed fix for the regression
+done_when: the gate has been re-run against the commit immediately preceding the change under review, the verdict compared against the original RED result, the regression correctly attributed as pre-existing (with a separate follow-up issue filed) or caused by the change under review, and the original HEAD/branch has been restored and rebuilt before reporting
+luhmann: "846"
+created: "2026-08-29"
+source: migrated from 792.2026-08-25.bisect-before-attributing-a-gate-regression-to-the-change-under-review.md, engram#730
+repo: vault
+user: toejough@gmail.com
+vault: personal
+tags:
+    - vocab/change-scope-control
+    - vocab/guard-test-teeth
+    - vocab/corpus-mining
+```
+
+**Body numbered steps (verbatim):**
+```
+1. Identify the commit immediately preceding the change under review's relevant commits.
+2. Check out that preceding commit.
+3. Rebuild the artifact under test from that commit.
+4. Re-run the identical gate (e.g. gate.py --tier smoke) against that rebuilt artifact.
+5. Compare this verdict to the original RED verdict observed on the change under review's HEAD.
+6. If the same failure reproduces on the pre-change commit: the change under review is NOT the cause -- do not apply its prescribed fix; instead file the pre-existing regression as its own separate issue for dedicated investigation.
+7. If the failure does NOT reproduce on the pre-change commit: the change under review is confirmed as the cause -- its prescribed fix (if any) applies.
+8. Restore the original HEAD/branch and rebuild the artifact before reporting results.
+```
+
+**Step count:** N_BF = 8
+
+---
+
 ## 4. Vault Size
 
 **Vault directory size:** 23M
