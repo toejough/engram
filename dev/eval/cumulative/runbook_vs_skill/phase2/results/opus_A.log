@@ -1,0 +1,41 @@
+run_id=A-opus-1789165995-ace293 task=A arms=['S', 'R', 'F', 'Rdirect'] n=5 model=opus trials=20 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-S-0/vault
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-S-1/vault
+  [A-S#1] valid found=True followed=5/7 end_state=True cost=$0.49 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-S-2/vault
+  [A-S#0] valid found=True followed=6/7 end_state=True cost=$0.53 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-S-3/vault
+  [A-S#2] valid found=True followed=5/7 end_state=True cost=$0.50 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-S-4/vault
+  [A-S#3] valid found=True followed=6/7 end_state=True cost=$0.79 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-R-0/vault
+  [A-S#4] valid found=False followed=6/7 end_state=True cost=$0.43 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-R-1/vault
+  [A-R#0] valid found=True followed=7/7 end_state=True cost=$0.45 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-R-2/vault
+  [A-R#1] valid found=True followed=6/7 end_state=True cost=$0.41 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-R-3/vault
+  [A-R#2] valid found=True followed=6/7 end_state=True cost=$0.42 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-R-4/vault
+  [A-R#3] valid found=True followed=6/7 end_state=True cost=$0.43 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-F-0/vault
+  [A-R#4] valid found=True followed=6/7 end_state=True cost=$0.45 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-F-1/vault
+  [A-F#0] valid found=True followed=6/7 end_state=True cost=$0.44 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-F-2/vault
+  [A-F#1] valid found=True followed=6/7 end_state=True cost=$0.72 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-F-3/vault
+  [A-F#2] valid found=True followed=7/7 end_state=True cost=$0.51 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-F-4/vault
+  [A-F#3] valid found=True followed=6/7 end_state=True cost=$0.50 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-Rdirect-0/vault
+  [A-F#4] valid found=True followed=7/7 end_state=True cost=$0.51 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-Rdirect-1/vault
+  [A-Rdirect#0] valid found=None followed=7/7 end_state=True cost=$0.58 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-Rdirect-2/vault
+  [A-Rdirect#1] valid found=None followed=6/7 end_state=True cost=$0.99 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-Rdirect-3/vault
+  [A-Rdirect#2] valid found=None followed=7/7 end_state=True cost=$0.73 timed_out=False
+setup_trial_vault: removed 10 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/A-opus-1789165995-ace293/trials/A-Rdirect-4/vault
+  [A-Rdirect#3] valid found=None followed=7/7 end_state=True cost=$0.92 timed_out=False
+  [A-Rdirect#4] valid found=None followed=6/7 end_state=True cost=$0.50 timed_out=False
