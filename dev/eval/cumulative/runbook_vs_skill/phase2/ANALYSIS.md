@@ -607,10 +607,71 @@ hand-verified by the controller against the real query output during round-5 fix
 measured rate across trials — it should not be read as "the carrier ranks first," only as "in the
 one case anyone checked, it did."
 
+## Sonnet 5 pilot (2026-09-12): 10 runs per form, plus runs with no instructions
+
+Joe asked for an equivalence test on sonnet to measure whether the findings from opus hold at a cheaper model. The pilot runs first to establish a baseline: 10 runs per form (skill, runbook note, fact note) on both tasks, plus 10 runs with no instructions for each task. The pilot measures whether sonnet 5 can even distinguish the forms before committing to a larger run.
+
+### Task A (commit)
+
+```
+=== Task A ===
+metric                      S               R               F               N               
+--------------------------------------------------------------------------------------------
+FOUND (k/n)                 4/10            8/10            8/10            n/a             
+FOLLOWED all-steps (k/n)    0/10            0/10            1/10            0/10            
+FOLLOWED (mean k/N)         5.90/7          6.00/7          6.00/7          5.80/7          
+END-STATE (k/n)             10/10           10/10           10/10           10/10           
+recall_fired (k/n)          10/10           10/10           10/10           10/10           
+cost (mean USD)             $0.36           $0.35           $0.34           $0.37           
+duration (mean s)           68              62              61              57              
+valid (n)                   10/10           10/10           10/10           10/10           
+trailer AI-Used (k/n)       1/10            0/10            0/10            0/10            
+trailer Co-Authored-By (k/n)9/10            10/10           10/10           10/10           
+  ^ reported, not scored — harness attribution injection overrides carriers
+no-instructions baseline: FOLLOWED-all 0/10, END-STATE 10/10
+```
+
+### Task B (gitignore narrowing)
+
+```
+=== Task B ===
+metric                      S               R               F               N               
+--------------------------------------------------------------------------------------------
+FOUND (k/n)                 9/10            10/10           10/10           n/a             
+FOLLOWED all-steps (k/n)    10/10           10/10           10/10           1/10            
+FOLLOWED (mean k/N)         6.00/6          6.00/6          6.00/6          5.10/6          
+END-STATE (k/n)             10/10           10/10           10/10           10/10           
+recall_fired (k/n)          10/10           10/10           10/10           10/10           
+cost (mean USD)             $0.43           $0.45           $0.46           $0.32           
+duration (mean s)           96              96              93              63              
+valid (n)                   10/10           10/10           10/10           10/10           
+no-instructions baseline: FOLLOWED-all 1/10, END-STATE 10/10
+```
+
+### Findings
+
+**Commit task (Task A):** All forms (skill, runbook, fact) and the no-instructions baseline got the end result right — 10 of 10. They all missed the same step: checking for a `.jj` directory. This step only gets credited when it appears in a shell command; it's a Bash-only signal, not automatic inference. The skill was invoked 4 of 10 times. The runbook and fact notes were found 8 of 10. Conclusion: sonnet 5 does not need the instructions for this task, so it cannot separate the forms.
+
+**Gitignore task (Task B):** The skill, runbook, and fact forms all followed every step 10 of 10 and got the end result right 10 of 10. The no-instructions baseline got the end result right 10 of 10 but only followed every step 1 of 10. They skipped the git check-ignore verification step in 9 of 10 cases. Conclusion: the instructions add exactly one verification step here, and all three forms deliver it equally. Retrieval found the notes in 20 of 20 cases (in the results; rank not measured).
+
+### What this means for an equivalence test
+
+At 10 runs per form there is no gap to measure. Both tasks have a no-instructions baseline at or near 100% on the end result. They cannot show a difference between forms. An equivalence claim (for example, within 20 points) needs tasks where the no-instructions baseline is well below 100% and about 40 runs per form to measure the underlying effect reliably.
+
+### Costs
+
+Task A: $14.16 (40 records × $0.36 mean). Task B: $16.67 (40 records × $0.42 mean). Dead batch (rate-limited, 35 of 40 runs killed mid-session): $2.28. Total: $33.11.
+
+### Trailers
+
+The skill wrote AI-Used in 1 of 10 cases. The runbook and fact notes never wrote AI-Used (both reported 0 of 10). This observation is not scored — the harness's own injected `Co-Authored-By` instruction took precedence in 9 of 10 cases (skill) and 10 of 10 (runbook and fact). See the main phase-2 analysis for the full caveat.
+
 ## Reproduction
 
 ```bash
 cd dev/eval/cumulative/runbook_vs_skill/phase2
 python3 probe_phase2.py --summarize results/opus_A.rescored.jsonl
 python3 probe_phase2.py --summarize results/opus_B.invalidated.rescored.jsonl
+python3 probe_phase2.py --summarize results/pilot_sonnet5_A.jsonl
+python3 probe_phase2.py --summarize results/pilot_sonnet5_B.jsonl
 ```

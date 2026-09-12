@@ -337,3 +337,7 @@ observation, not a measured rate; it should not be read as "the carrier ranks fi
   ordering fix, and the Task B original-carrier confound): `phase2/ANALYSIS.md`.
 - What `superpowers:writing-skills`' RED/GREEN/PRESSURE process added over the runbook path, and
   whether it produced a measurable B-S vs B-R difference: `phase2/WRITING-SKILLS-ADOPTION.md`.
+
+### Sonnet 5 pilot (2026-09-12): baseline measurement for an equivalence test
+
+10 runs per form on both tasks plus 10 runs with no instructions, using sonnet 5 to measure whether the opus findings hold at a cheaper model tier. Task A: all forms and no-instructions baseline got 10/10 end result; all missed the same one step (`.jj` directory check, a Bash-only signal). Task B: skill/runbook/fact all got 10/10 on every step and end result; no-instructions got 10/10 end result but only 1/10 on every step (skipped git check-ignore 9/10). At 10 runs per form there is no measurable gap between forms. Both task baselines saturate near 100% without instructions, so they cannot show a difference between the forms; an equivalence test needs tasks where no-instructions baseline is well below 100%, about 40 runs per form. Cost: Task A $14.16, Task B $16.67, dead batch (rate-limited) $2.28. See `phase2/ANALYSIS.md`'s "Sonnet 5 pilot" section for the full tables and findings.
