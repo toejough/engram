@@ -742,6 +742,62 @@ def test_evaluate_steps_any_of_false_when_neither_alternative_matches():
     assert results["1"] is False
 
 
+def test_evaluate_steps_tool_input_regex_matches_json_serialized_input():
+    """tool_input_regex signal matches a regex pattern against the JSON-serialized input dict."""
+    steps = [{"n": 1, "name": "dispatch with explicit model",
+              "signal": "tool_input_regex", "tool": "Agent",
+              "regex": r'"model"\s*:\s*"haiku"'}]
+    events = [_tool_use("Agent", {"model": "haiku", "prompt": "do work"}, idx=0)]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is True
+
+
+def test_evaluate_steps_tool_input_regex_false_when_pattern_not_in_input():
+    """tool_input_regex false when the pattern does not match the input."""
+    steps = [{"n": 1, "name": "dispatch with explicit model",
+              "signal": "tool_input_regex", "tool": "Agent",
+              "regex": r'"model"\s*:\s*"haiku"'}]
+    events = [_tool_use("Agent", {"model": "opus", "prompt": "do work"}, idx=0)]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is False
+
+
+def test_evaluate_steps_tool_input_regex_false_when_wrong_tool():
+    """tool_input_regex false when the tool name does not match."""
+    steps = [{"n": 1, "name": "dispatch with explicit model",
+              "signal": "tool_input_regex", "tool": "Agent",
+              "regex": r'"model"\s*:\s*"haiku"'}]
+    events = [_tool_use("Bash", {"command": "echo model=haiku"}, idx=0)]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is False
+
+
+def test_evaluate_steps_tool_input_regex_case_insensitive():
+    """tool_input_regex with case_insensitive flag matches regardless of case."""
+    steps = [{"n": 1, "name": "check input",
+              "signal": "tool_input_regex", "tool": "Agent",
+              "regex": r'"MODEL"\s*:\s*"haiku"', "case_insensitive": True}]
+    events = [_tool_use("Agent", {"model": "haiku", "prompt": "do work"}, idx=0)]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is True
+
+
+def test_evaluate_steps_tool_input_regex_after_ordering():
+    """tool_input_regex respects after: ordering — must be strictly after the referenced step."""
+    steps = [
+        {"n": 1, "name": "recall", "signal": "bash_regex", "pattern": r"engram\s+query"},
+        {"n": 2, "name": "dispatch", "signal": "tool_input_regex", "tool": "Agent",
+         "regex": r'"model"\s*:\s*"haiku"', "after": 1}
+    ]
+    events = [
+        _tool_use("Bash", {"command": "engram query"}, idx=0),
+        _tool_use("Agent", {"model": "haiku", "prompt": "do work"}, idx=1),
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is True
+    assert results["2"] is True
+
+
 def test_real_gitignore_steps_json_step_1_credits_synthetic_native_read():
     """Round-5 finding: hand-verifying B-R showed an agent that inspects .gitignore via the
     native Read tool (not `cat .gitignore` in Bash) got no credit for step 1. The real fixture's
@@ -3201,3 +3257,37 @@ def test_rescore_marks_truncated_real_work_trial_invalid_with_distinct_reason(tm
     # cost/turns are kept as observed, not zeroed out or dropped by rescore.
     assert rescored["num_turns"] == 25
     assert rescored["total_cost_usd"] == 0.667
+
+
+# ----- env passing to check_end_state_phase2 -----
+
+def test_check_end_state_phase2_passes_env_to_subprocess(tmp_path):
+    """check_end_state_phase2 with an env parameter passes it to the subprocess.run call."""
+    repo_path = str(tmp_path / "repo")
+    os.makedirs(repo_path, exist_ok=True)
+
+    # Create a dummy checks script that echoes the ENGRAM_VAULT_PATH env var
+    checks_script = tmp_path / "checks.sh"
+    checks_script.write_text("#!/bin/bash\nif [ -z \"$ENGRAM_VAULT_PATH\" ]; then echo 'FAIL: ENGRAM_VAULT_PATH not set'; exit 1; fi\nexit 0\n")
+    checks_script.chmod(0o755)
+
+    # Create a mock TASKS entry with this script
+    mock_task_key = "test_route_task"
+    original_tasks = pp.TASKS
+    try:
+        pp.TASKS[mock_task_key] = {
+            "done_when_script": str(checks_script),
+        }
+
+        # Test without env: should fail
+        success, output = pp.check_end_state_phase2(mock_task_key, repo_path, env=None)
+        assert success is False
+        assert "ENGRAM_VAULT_PATH not set" in output
+
+        # Test with env containing ENGRAM_VAULT_PATH: should pass
+        test_env = os.environ.copy()
+        test_env["ENGRAM_VAULT_PATH"] = str(tmp_path / "vault")
+        success, output = pp.check_end_state_phase2(mock_task_key, repo_path, env=test_env)
+        assert success is True
+    finally:
+        pp.TASKS = original_tasks

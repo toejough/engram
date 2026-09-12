@@ -821,10 +821,10 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx,
       event index — repo_state steps carry no ordering point for `after`).
     """
     signal = sig["signal"]
-    pattern = re.compile(sig["pattern"])
-    not_pattern = re.compile(sig["not_pattern"]) if sig.get("not_pattern") else None
 
     if signal == "bash_regex":
+        pattern = re.compile(sig["pattern"])
+        not_pattern = re.compile(sig["not_pattern"]) if sig.get("not_pattern") else None
         for ev in bash_events:
             if ev["idx"] < min_idx:
                 continue
@@ -863,6 +863,7 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx,
         return False, None, None
 
     if signal == "tool_path":
+        pattern = re.compile(sig["pattern"])
         tools = set(sig.get("tools") or ())
         for ev in events:
             if ev["kind"] != "tool_use" or ev.get("name") not in tools:
@@ -873,6 +874,25 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx,
             if not pattern.search(file_path):
                 continue
             return True, ev["idx"], None
+        return False, None, None
+
+    if signal == "tool_input_regex":
+        tool_name = sig.get("tool")
+        regex_pattern = sig.get("regex")
+        if not tool_name or not regex_pattern:
+            raise ValueError(f"tool_input_regex signal requires 'tool' and 'regex' keys")
+        flags = re.IGNORECASE if sig.get("case_insensitive") else 0
+        regex = re.compile(regex_pattern, flags)
+        for ev in events:
+            if ev["idx"] <= min_idx:
+                continue
+            if ev["kind"] != "tool_use" or ev.get("name") != tool_name:
+                continue
+            input_dict = ev.get("input") or {}
+            input_json = json.dumps(input_dict)
+            match = regex.search(input_json)
+            if match:
+                return True, ev["idx"], None
         return False, None, None
 
     if signal == "repo_state":
@@ -949,9 +969,9 @@ def evaluate_steps(steps, events, repo_path, repo_checker=default_repo_checker):
 
 # ----- END-STATE -----
 
-def check_end_state_phase2(task_key, repo_path):
+def check_end_state_phase2(task_key, repo_path, env=None):
     r = subprocess.run(["bash", TASKS[task_key]["done_when_script"], repo_path],
-                        capture_output=True, text=True)
+                        capture_output=True, text=True, env=env)
     return r.returncode == 0, (r.stdout + r.stderr).strip()
 
 
@@ -1079,7 +1099,7 @@ def classify_validity(marker_seen, num_turns, total_cost_usd, result, raw_text):
 
 # ----- one trial -----
 
-def _score_trial(task_key, arm, events, repo_path, carrier_basename):
+def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None):
     """Run all trial scoring (FOUND, recall_fired, FOLLOWED, END-STATE) and NEVER raise — an
     exception here is caught and recorded as `scoring_error`, with safe defaults for the rest of
     the fields. Round-1 review finding: an unhandled exception in scoring propagates through the
@@ -1111,7 +1131,7 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename):
         scored["followed_steps"] = followed_steps
         scored["followed_k"] = followed_k
         scored["followed_all"] = followed_all
-        end_state, end_state_output = check_end_state_phase2(task_key, repo_path)
+        end_state, end_state_output = check_end_state_phase2(task_key, repo_path, env=env)
         scored["end_state"] = end_state
         scored["end_state_output"] = end_state_output
         if task_key == "A":
@@ -1145,7 +1165,7 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
     events = p1.parse_transcript_events(transcript_paths)
 
     marker_seen = p1.is_marker_seen(raw_text, marker)
-    scored = _score_trial(task_key, arm, events, repo_path, carrier_basename)
+    scored = _score_trial(task_key, arm, events, repo_path, carrier_basename, env=env)
     if scored["scoring_error"]:
         scoring_msg = f"scoring exception: {scored['scoring_error']}"
         error = f"{error}; {scoring_msg}" if error else scoring_msg

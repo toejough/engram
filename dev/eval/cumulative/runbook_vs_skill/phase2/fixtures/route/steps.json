@@ -7,36 +7,41 @@
   },
   {
     "n": 2,
-    "name": "Dispatch implementation to a subagent (Agent tool with explicit model)",
-    "signal": "bash_regex",
-    "pattern": "Agent.*model.*haiku"
+    "name": "Dispatch implementation to subagent with explicit cheapest-tier model",
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "\"model\"\\s*:\\s*\"haiku\"",
+    "case_insensitive": true
   },
   {
     "n": 3,
     "name": "Handoff contains recall-first instruction",
-    "signal": "bash_regex",
-    "pattern": "recall\\b"
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "(?:recall\\b|engram\\s+query)"
   },
   {
     "n": 4,
     "name": "Handoff contains LESSONS: completion report contract",
-    "signal": "bash_regex",
-    "pattern": "LESSONS:"
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "LESSONS:"
   },
   {
     "n": 5,
     "name": "Handoff contains acceptance checks",
     "any_of": [
-      {"signal": "bash_regex", "pattern": "pytest"},
-      {"signal": "bash_regex", "pattern": "acceptance"},
-      {"signal": "bash_regex", "pattern": "test"}
+      {"signal": "tool_input_regex", "tool": "Agent", "regex": "pytest"},
+      {"signal": "tool_input_regex", "tool": "Agent", "regex": "acceptance"},
+      {"signal": "tool_input_regex", "tool": "Agent", "regex": "test"}
     ]
   },
   {
     "n": 6,
     "name": "Handoff contains do-not-touch bounds",
-    "signal": "bash_regex",
-    "pattern": "(?:do not touch|do-not-touch|must not modify|leave .* alone)",
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "(?:do not touch|do-not-touch|must not modify|leave .* alone)",
     "case_insensitive": true
   },
   {
@@ -54,16 +59,23 @@
   },
   {
     "n": 9,
-    "name": "Evidence note includes work-kind/, tier/, outcome/ tags",
-    "signal": "bash_regex",
-    "pattern": "(?:--tag\\s+work-kind|--tag\\s+tier|--tag\\s+outcome)"
+    "name": "Evidence note includes all three required tags",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "--tag\\s+work-kind/.*--tag\\s+tier/.*--tag\\s+outcome/"},
+      {"signal": "bash_regex", "pattern": "--tag\\s+work-kind/.*--tag\\s+outcome/.*--tag\\s+tier/"},
+      {"signal": "bash_regex", "pattern": "--tag\\s+tier/.*--tag\\s+work-kind/.*--tag\\s+outcome/"},
+      {"signal": "bash_regex", "pattern": "--tag\\s+tier/.*--tag\\s+outcome/.*--tag\\s+work-kind/"},
+      {"signal": "bash_regex", "pattern": "--tag\\s+outcome/.*--tag\\s+work-kind/.*--tag\\s+tier/"},
+      {"signal": "bash_regex", "pattern": "--tag\\s+outcome/.*--tag\\s+tier/.*--tag\\s+work-kind/"}
+    ]
   },
   {
     "n": 10,
-    "name": "Aggregate update or creation for route-evidence-*",
+    "name": "Aggregate: query route evidence then amend or learn",
     "any_of": [
-      {"signal": "bash_regex", "pattern": "engram\\s+query.*route[- ]evidence"},
-      {"signal": "bash_regex", "pattern": "engram\\s+(?:learn|amend).*route-evidence-"}
-    ]
+      {"signal": "bash_regex", "pattern": "engram\\s+query.*route[- ]evidence.*engram\\s+(?:amend|learn)"},
+      {"signal": "bash_regex", "pattern": "engram\\s+(?:amend|learn).*--target.*route-evidence"}
+    ],
+    "after": 8
   }
 ]
