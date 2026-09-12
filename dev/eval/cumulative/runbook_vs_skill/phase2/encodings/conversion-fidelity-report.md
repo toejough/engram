@@ -261,19 +261,21 @@ Total evidence cost: $5.92 (RED $3.27 + GREEN $0.79 + PRESSURE $1.86). No refact
 
 ---
 
-## BF-S (skill from vault note 846, manual creation via transcription)
+## BF-S (skill from vault note 846, via superpowers:writing-skills RED/GREEN/PRESSURE)
 
 | # | Source requirement (quoted short) | Status |
 |---|---|---|
-| S1-S8 | all 8 steps | present **verbatim** in markdown numbered list in "Procedure" section |
+| S1-S8 | all 8 steps (run via `claude -p` headless testing) | present **verbatim** in markdown numbered list in "Procedure" section |
 | `situation` | "a trap/eval gate returns RED on the current HEAD, and you need to apply the change's prescribed fix for the regression" | present **verbatim** in Overview |
 | `done_when` | "the regression has been correctly attributed as pre-existing or caused by the change under review, and the original HEAD/branch has been restored and rebuilt before reporting" | present **verbatim** in "Done When" section |
 
-**Verdict: FAITHFUL — highest-fidelity of the three encodings.** All 8 steps, situation, and done_when reproduced word-for-word in a genuine numbered list. Nothing reworded, weakened, or dropped.
+**Verdict: FAITHFUL — highest-fidelity of the three encodings.** All 8 steps, situation, and done_when reproduced word-for-word in a genuine numbered list. Nothing reworded, weakened, or dropped. **Discipline-skill pressure testing:** RED phase 4/4 scenarios show baseline model correctly resists gate-failure rationalizations (confidence, authority, deadline, false-confidence claims). GREEN phase: identical max-pressure scenario with skill installed produces more structured, decisive "bisect-not-fix" response. PRESSURE phase: holds under new exhaustion + false-confidence pressure combination.
 
-**Packaging elements added beyond source:** Frontmatter (name, description with triggers); title; Overview (frames the two failure modes already implicit in steps 6–7); When to Use (trigger examples); Common Mistakes (rationalization table targeting confidence-driven skipping); Red Flags (pre-action stop triggers). None add substantive requirements, only packaging/behavioral reinforcement.
+**Testing evidence:** RED cost $3.40 (4 scenarios), GREEN cost $0.73 (max-pressure with skill), PRESSURE cost $0.84 (exhaustion-pressure with skill). Total $4.97. See `encodings/taskBF/BF-S/evidence/EVIDENCE.md` for full results.
 
-**Structural facts:** `type: skill` (directory structure with SKILL.md). Skill frontmatter with name=bisect-before-fix and description covering triggers. All 8 steps in a genuine markdown numbered list under "Procedure", not flattened prose. Body follows skill format: Overview + When to Use + Procedure + Done When + Common Mistakes + Red Flags.
+**Packaging elements added beyond source:** Frontmatter (name, description with trigger keywords including specific pressure scenarios); title; Overview (frames the two failure modes already implicit in steps 6–7); When to Use (trigger examples covering gate deadlines, authority pressure, confidence pressure); **Common Mistakes** (rationalization table targeting 4 empirically-observed pressure rationalizations: "known pattern", "tight deadline", "I'm confident", "lead already reviewed"); **Red Flags** (pre-action stop triggers for the same 5 pressure scenarios). None add substantive requirements; all pressure-resistance scaffolding derived from RED testing findings.
+
+**Structural facts:** `type: skill` (directory structure with SKILL.md). Skill frontmatter with name=bisect-before-fix and description covering triggers. All 8 steps in a genuine markdown numbered list under "Procedure", not flattened prose. Body follows skill format: Overview + When to Use + Procedure + Done When + Common Mistakes + Red Flags. Byte count 4589B (source runbook 846 = 1758B; overhead = frontmatter + sections + pressure-resistance content).
 
 ---
 

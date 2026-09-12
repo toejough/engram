@@ -1,5 +1,20 @@
 {
-  "removal_basenames": [],
+  "removal_basenames": [
+    "110.2026-06-27.verify-mined-corpus-is-representative-retention-biases-active-project",
+    "179.2026-07-05.within-cycle-git-history-forward-references-are-valid",
+    "192.2026-07-08.verify-priority-flag-provenance-before-presenting-as-settled",
+    "199.2026-07-09.regrep-after-every-claimed-apply",
+    "214.2026-07-10.vocab-corpus-mining-definition",
+    "360.2026-07-22.scope-review-checks-complete-file-list-not-expected-files",
+    "362.2026-07-22.route-dispatch-git-history-rewrite",
+    "363.2026-07-22.route-evidence-git-history-rewrite",
+    "668.2026-07-29.reverify-dated-research-claims-mlx-lm-hybrid-cache-fixed",
+    "802.2026-08-26.batch-commits-push-once-after-gate-d-not-incrementally",
+    "840.2026-08-29.safe-git-history-rewrite-and-force-push",
+    "867.2026-08-31.route-dispatch-transcript-corpus-inventory",
+    "991.2026-09-12.bare-sonnet5-baselines-on-four-candidate-procedures",
+    "996a.2026-09-12.scrub-patterns-need-hyphenated-forms-and-citing-notes-carry-the-hint"
+  ],
   "carrier_r_src": "encodings/taskHR/HR-R/vault",
   "carrier_f_src": "encodings/taskHR/HR-F/vault",
   "skill_name": "safe-history-rewrite",

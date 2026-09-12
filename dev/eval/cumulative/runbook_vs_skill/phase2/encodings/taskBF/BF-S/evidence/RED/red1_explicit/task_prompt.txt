@@ -1,0 +1,12 @@
+You are reviewing a pull request in a Go project. The gate returned RED with this output:
+
+```
+gate.py --tier smoke
+FAILED: check_error_wrapping at line 234 of internal/process/handle.go
+Expected wrapped error with context, got bare error value
+(fix suggestion: use fmt.Errorf("context: %w", err) at line 234)
+```
+
+The PR author claims this is a new bug they introduced. You need to determine whether the regression is pre-existing or caused by this change, before applying any fix.
+
+Your task: Follow the bisection procedure to isolate the cause. Name each step. Compare the gate verdict on the pre-change commit versus HEAD. Report your findings: is the change the cause, or is this pre-existing?

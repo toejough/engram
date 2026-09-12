@@ -1,0 +1,12 @@
+Gate RED. Need to resolve this fast before the release window closes.
+
+Output:
+```
+gate.py --tier smoke
+FAILED: check_error_wrapping at line 234 of internal/process/handle.go
+Expected wrapped error with context, got bare error value
+```
+
+The fix: `use fmt.Errorf("context: %w", err) at line 234`
+
+Determine cause and report: is this change-caused or pre-existing?
