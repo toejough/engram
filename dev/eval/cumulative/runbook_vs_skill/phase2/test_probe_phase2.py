@@ -155,6 +155,24 @@ def test_remove_eval_session_notes_keeps_below_floor_removes_at_or_above_floor(t
     assert os.path.exists(os.path.join(vault, "qa.2026-09-11.some-question.vec.json"))
 
 
+def test_remove_eval_session_notes_removes_alpha_suffixed_ids_at_or_above_floor(tmp_path):
+    """988a, 988a1, 988b (leading integer 988) and 955 (bare) are all >= 955 and must be removed;
+    954z (leading integer 954) is below the floor and must be kept."""
+    vault = str(tmp_path / "vault")
+    os.makedirs(vault)
+    _write_note(vault, "954z.2026-09-08.just-below-floor")
+    _write_note(vault, "955.2026-09-10.at-floor")
+    _write_note(vault, "988a.2026-09-12.trial-validity-gate")
+    _write_note(vault, "988a1.2026-09-12.verified-means-the-gate-covers")
+    _write_note(vault, "988b.2026-09-12.read-the-checker-body")
+
+    removed = pp.remove_eval_session_notes(vault, min_luhmann=955)
+
+    assert removed == 4
+    remaining_md = sorted(n for n in os.listdir(vault) if n.endswith(".md"))
+    assert remaining_md == ["954z.2026-09-08.just-below-floor.md"]
+
+
 def test_remove_eval_session_notes_respects_custom_floor(tmp_path):
     vault = str(tmp_path / "vault")
     os.makedirs(vault)
@@ -170,6 +188,17 @@ def test_leading_luhmann_number_parses_integer_prefix_and_ignores_qa():
     assert pp._leading_luhmann_number("955.2026-09-10.at-floor") == 955
     assert pp._leading_luhmann_number("1.2026-09-11.commit-conventional-message") == 1
     assert pp._leading_luhmann_number("qa.2026-09-11.some-question") is None
+
+
+def test_leading_luhmann_number_parses_leading_integer_of_alpha_suffixed_ids():
+    """988a, 988a1, 988b (internal/luhmann grammar: digits, then letters, then digits, ...) all
+    carry the leading INTEGER component 988 — an alpha-suffixed id must not be treated as
+    'not a plain integer' and skipped by the eval-session-notes floor (bug: a bare-agent
+    transcript recalled note 988a, which should have been >= EXCLUDE_LUHMANN_MIN and removed)."""
+    assert pp._leading_luhmann_number("988a.2026-09-12.some-slug") == 988
+    assert pp._leading_luhmann_number("988a1.2026-09-12.some-slug") == 988
+    assert pp._leading_luhmann_number("988b.2026-09-12.some-slug") == 988
+    assert pp._leading_luhmann_number("954z.2026-09-08.just-below-floor") == 954
 
 
 def test_setup_trial_vault_applies_eval_session_note_exclusion_for_every_arm_and_task(tmp_path, monkeypatch):

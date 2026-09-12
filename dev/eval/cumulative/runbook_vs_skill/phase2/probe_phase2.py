@@ -283,12 +283,21 @@ def remove_covering_notes(vault, task_key, arm):
                 os.remove(path)
 
 
+_LEADING_INT_RE = re.compile(r"^\d+")
+
+
 def _leading_luhmann_number(basename):
-    """The integer luhmann id from a note basename's leading segment (before the first '.'), or
-    None if that segment isn't a plain integer — e.g. 'qa.2026-...' notes carry no luhmann number
-    and are never subject to the eval-session-notes exclusion rule."""
+    """The leading INTEGER component of a note basename's leading segment (before the first '.'):
+    a Luhmann id is digits, then letters, then digits, ... (internal/luhmann's ParseID grammar —
+    '988a' -> ['988', 'a'], '988a1' -> ['988', 'a', '1']), so '988a' and '988a1' both carry the
+    leading integer 988. Returns None if that segment doesn't start with a digit at all — e.g.
+    'qa.2026-...' notes carry no luhmann number and are never subject to the eval-session-notes
+    exclusion rule. Bug fixed here: the prior `.isdigit()` check required the WHOLE segment to be
+    digits, so any alpha-suffixed id (988a, 988a1, 988b) fell through as None and escaped the
+    exclusion floor entirely, regardless of how far its integer component was above it."""
     first_segment = basename.split(".", 1)[0]
-    return int(first_segment) if first_segment.isdigit() else None
+    match = _LEADING_INT_RE.match(first_segment)
+    return int(match.group()) if match else None
 
 
 def remove_eval_session_notes(vault, min_luhmann=EXCLUDE_LUHMANN_MIN):
