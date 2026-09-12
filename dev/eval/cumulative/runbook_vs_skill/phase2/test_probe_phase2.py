@@ -8,6 +8,7 @@ already verified against a real transcript.
 """
 import json
 import os
+import re
 
 import pytest
 
@@ -220,6 +221,36 @@ def test_setup_trial_vault_applies_eval_session_note_exclusion_for_every_arm_and
         pp.setup_trial_vault(env, task, arm)
         remaining_md = [n for n in os.listdir(trial_vault) if n.endswith(".md")]
         assert "960.2026-09-11.this-session-note.md" not in remaining_md, (task, arm)
+
+
+def test_setup_trial_vault_scrubs_openspec_domain_for_opsx_tasks(tmp_path, monkeypatch):
+    """opsx-propose and opsx-archive have no skill/runbook carrier of their own (bare-agent
+    baseline fixtures), so their task.json removal_basenames is the ONLY thing that keeps the real
+    vault's ~90 openspec/opsx notes out of the background vault. Without it a bare agent recalls
+    and cites the real openspec workflow (note 996) and an 8/8 'no instructions needed' result is
+    contamination, not a finding. Uses the REAL production vault as background (read-only
+    copytree — note 956: reads are not the write hazard) but stubs verify_vault_health so the test
+    doesn't depend on the engram binary being on PATH."""
+    monkeypatch.setattr(pp, "verify_vault_health", lambda vault: {})
+    pattern = re.compile(r"openspec|opsx", re.IGNORECASE)
+    for task in ("opsx-propose", "opsx-archive"):
+        trial_vault = str(tmp_path / f"trial_{task}")
+        env = {"ENGRAM_VAULT_PATH": trial_vault}
+        pp.setup_trial_vault(env, task, "N")
+        offenders = []
+        for name in os.listdir(trial_vault):
+            if not name.endswith(".md"):
+                continue
+            basename = name[: -len(".md")]
+            if basename.startswith("qa."):
+                continue  # qa.* notes are handled elsewhere — out of scope for this removal list
+            if pattern.search(basename):
+                offenders.append(name)
+                continue
+            with open(os.path.join(trial_vault, name), encoding="utf-8", errors="replace") as f:
+                if pattern.search(f.read()):
+                    offenders.append(name)
+        assert offenders == [], (task, offenders)
 
 
 # ----- Rdirect CLAUDE.md: procedure section + marker -----
