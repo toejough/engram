@@ -86,6 +86,51 @@ Read-only audit. Sources and encodings compared verbatim; no fixes applied.
 
 ---
 
+## TDD-S (skill, source copy)
+
+Encoding: `taskTDD/TDD-S/skills/test-driven-development/SKILL.md`.
+
+| # | Verification | Result |
+|---|---|---|
+| Byte-for-byte match | `diff -u source SKILL.md` | 0 lines (IDENTICAL) |
+| SKILL.md source path | `/Users/joe/.claude/plugins/cache/claude-plugins-official/superpowers/6.3.0/skills/test-driven-development/SKILL.md` | byte count 9015 |
+
+**Verdict: FAITHFUL — byte-for-byte identical to source.** S form is a direct copy of the source skill, no alterations.
+
+---
+
+## TDD-R (runbook from TDD skill)
+
+| # | Source requirement | Status |
+|---|---|---|
+| Body | skill body (lines 5-321: heading, 13 sections, tables, rules, red flags) | **verbatim byte-for-byte** (8884 bytes) |
+| Frontmatter | skill frontmatter (name, description) | dropped; replaced with runbook frontmatter (type, tier, situation, done_when, created, source, repo, user, vault) |
+| — | `done_when` field | **added-not-in-source**, schema-forced; synthesized from body's own verification checklist and phase descriptions |
+
+**Verdict: FAITHFUL — zero-delta body, frontmatter only differs.** Body is identical to source skill body. Diff verification: `diff <(tail -c +132 SKILL.md | head -c 8884) <(tail -c +786 TDD-R note | head -c 8884)` yields empty output (0 lines). The bodies are byte-identical despite different frontmatter lengths (skill 131B vs runbook 785B).
+
+**Delta (frontmatter only):** Skill frontmatter (name, description) is dropped and replaced with runbook schema frontmatter. No change to the red-green-refactor procedure, tables, red flags, common rationalizations, or verification checklist.
+
+**Structural facts:** `type: runbook`, situation ~130 chars, `done_when` ~380 chars (synthesized addition). Byte count 9670B vs source skill 9146B (overhead = runbook frontmatter ~654B + done_when field). Body is identical (8884B).
+
+---
+
+## TDD-F (fact from TDD skill)
+
+| # | Source requirement | Status |
+|---|---|---|
+| Body | skill body (lines 5-321: heading, 13 sections, tables, rules, red flags) | **verbatim byte-for-byte** (8884 bytes) in body section after "Information learned:" preamble |
+| Object field | one-to-two-sentence summary of the procedure | author-composed summary (not source verbatim) |
+| Frontmatter | skill frontmatter (name, description) | dropped; replaced with fact schema frontmatter (type, tier, situation, subject, predicate, object) |
+
+**Verdict: FAITHFUL — zero-delta body, frontmatter and summary field only differ.** Body (in "Information learned:" section) is identical to source skill body (lines 5-321 of SKILL.md), carried verbatim after a 2-line preamble. The `object` field contains a one-sentence summary pointing to the full procedure in the body, not an enumeration of the procedure itself.
+
+**Deltas (frontmatter and summary field only):** Skill frontmatter is dropped and replaced with fact schema frontmatter. The `object` field contains a brief summary ("a procedure for developers to write failing tests first...") rather than enumerating the full procedure. No change to the red-green-refactor sections, red flags, rationalizations, or verification checklist.
+
+**Structural facts:** `type: fact`, situation ~135 chars, subject/predicate/object are fact-schema-shaped (summary in object). Byte count 10018B vs source skill 9146B (overhead = fact frontmatter + "Information learned:" preamble + summary object ~872B). Body is identical (8884B).
+
+---
+
 ## Cross-encoding observations
 
 - **The `type: fact` schema has a consistent cost, independent of source**: both A-F and B-F flatten the source's ordered list into a single scalar field (no markdown list — a numbered-list structure the runbook type preserves natively), and both duplicate that entire content a second time in the body as a restated "Information learned: ..." sentence. This roughly doubles byte count relative to an equivalent runbook encoding of the same content (A-R 2513B vs A-F 4113B for the identical source).

@@ -250,7 +250,50 @@ tags:
 
 ---
 
-## 4. Vault Size
+## 4. Source TDD: superpowers test-driven-development Skill
+
+**Path:** `/Users/joe/.claude/plugins/cache/claude-plugins-official/superpowers/6.3.0/skills/test-driven-development/SKILL.md`
+
+**Byte count:** 9015 bytes
+
+**Skill file frontmatter (verbatim):**
+```yaml
+---
+name: test-driven-development
+description: Use when implementing any feature or bugfix, before writing implementation code
+---
+```
+
+**Body sections (verbatim, ordered):**
+
+1. # Test-Driven Development (TDD)
+2. ## Overview
+3. ## When to Use
+4. ## The Iron Law
+5. ## Red-Green-Refactor (with dot diagram)
+6. ### RED - Write Failing Test
+7. ### Verify RED - Watch It Fail
+8. ### GREEN - Minimal Code
+9. ### Verify GREEN - Watch It Pass
+10. ### REFACTOR - Clean Up
+11. ### Repeat
+12. ## Good Tests (table: Minimal, Clear, Shows intent)
+13. ## Common Rationalizations (11-row table: excuse vs reality)
+14. ## Red Flags - STOP and Start Over (4 bullet flags)
+15. ## Example: Bug Fix (RED/Verify RED/GREEN/Verify GREEN/REFACTOR walkthrough)
+16. ## Verification Checklist (8 checkbox items)
+17. ## When Stuck (4-row table: problem vs solution)
+18. ## Debugging Integration
+19. ## Final Rule (block-quoted code rule + no-exceptions clause)
+
+**Section count:** 19 (1 overview H1 + 3 H2 + 15 H3 + bullet sections)
+**Tables:** 3 (When to Use bullets, Good Tests, Common Rationalizations, When Stuck, Red Flags implicit)
+**Code blocks:** 8 (typescript examples, bash, code rule)
+**Diagram:** 1 (Graphviz dot TDD cycle)
+
+---
+
+## 5. Vault Size
 
 **Vault directory size:** 23M
 
