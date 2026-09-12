@@ -1,1 +1,11 @@
-{}
+{
+  "removal_basenames": [
+    "186.2026-07-06.enumerate-doc-scrub-surface-by-grep-not-from-memory",
+    "360.2026-07-22.scope-review-checks-complete-file-list-not-expected-files",
+    "545.2026-07-27.write-status-language-only-after-status-is-settled",
+    "570.2026-07-27.hold-merge-while-beyond-ask-items-await-yes-no",
+    "840.2026-08-29.safe-git-history-rewrite-and-force-push",
+    "924.2026-09-07.route-dispatch-openspec-proposal-authoring",
+    "991.2026-09-12.bare-sonnet5-baselines-on-four-candidate-procedures"
+  ]
+}

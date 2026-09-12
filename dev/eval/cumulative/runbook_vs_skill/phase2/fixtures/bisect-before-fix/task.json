@@ -1,1 +1,10 @@
-{}
+{
+  "removal_basenames": [
+    "461.2026-07-25.route-dispatch-design-fit-review",
+    "465.2026-07-25.check-full-green-says-valid-not-idiomatic-or-atomic",
+    "484.2026-07-25.targ-struct-tag-desc-comma-breaks-registration",
+    "801.2026-08-26.map-finding-onto-issues-own-named-hypotheses-not-a-blanket-conclusion",
+    "846.2026-08-29.bisect-before-attributing-a-gate-regression-to-the-change-under-review",
+    "991.2026-09-12.bare-sonnet5-baselines-on-four-candidate-procedures"
+  ]
+}

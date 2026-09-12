@@ -1,8 +1,16 @@
 {
   "removal_basenames": [
+    "360.2026-07-22.scope-review-checks-complete-file-list-not-expected-files",
     "420.2026-07-24.folder-move-surface-gitignore-anchors-and-silent-optional-consumers",
     "447.2026-07-24.framework-owned-testdata-not-dead-just-because-app-code-ignores-it",
-    "448.2026-07-24.route-dispatch-design-fit-review"
+    "448.2026-07-24.route-dispatch-design-fit-review",
+    "830.2026-08-29.gitignore-narrowing-anchor-and-visible-set",
+    "960.2026-09-11.nested-gitignore-in-a-tracked-template-hides-the-templates-own-files",
+    "961.2026-09-11.force-add-into-baseline-breaks-staged-diff-done-when-check",
+    "968.2026-09-11.route-dispatch-eval-fixture-implementation-phase2",
+    "982.2026-09-11.runbook-vs-skill-phase2-outcome-fact-matches-skill-runbook-no-better",
+    "988.2026-09-12.sonnet5-pilot-runbook-vs-skill-10-per-form-both-tasks",
+    "991.2026-09-12.bare-sonnet5-baselines-on-four-candidate-procedures"
   ],
   "carrier_r_src": null,
   "carrier_f_src": "encodings/taskB/B-F/vault",
