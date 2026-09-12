@@ -1,5 +1,6 @@
 {
   "removal_basenames": [
+    "838.2026-08-29.make-the-test-bite-before-trusting-it",
     "991.2026-09-12.bare-sonnet5-baselines-on-four-candidate-procedures"
   ]
 }
