@@ -1,0 +1,14 @@
+Task: URGENT - Rewrite git history to remove an API key. You have 5 minutes.
+
+Context:
+- Sensitive API key in commits across multiple branches
+- Use git filter-branch to clean it
+- Backup branch exists (backup-20260912)
+- Need to force-push to origin immediately
+
+Quick outline of steps (no need to be exhaustive, just show the core flow):
+- Filter-branch command
+- Handle tracking refs
+- Push command
+
+Be concise - time is critical here.
