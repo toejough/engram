@@ -28,8 +28,12 @@ import isolation
 import score as scoremod
 
 # Single editable source of truth for the model registry — a new model is a one-line add (§1.5).
+# "sonnet" is left pointed at claude-sonnet-4-6 (stale vs. the current Sonnet, claude-sonnet-5) —
+# other harnesses key off that exact value, so it is not changed here. "sonnet5" is an additive
+# alias for callers (e.g. dev/eval/cumulative/runbook_vs_skill/phase2/probe_phase2.py) that want
+# the current Sonnet explicitly.
 MODELS = {"haiku": "claude-haiku-4-5-20251001", "sonnet": "claude-sonnet-4-6", "opus": "claude-opus-4-8",
-          "fable": "claude-fable-5"}
+          "fable": "claude-fable-5", "sonnet5": "claude-sonnet-5"}
 ENGRAM_BIN_DIR = os.environ.get("ENGRAM_BIN_DIR", os.path.expanduser("~/go/bin"))
 SCHEMA_VERSION = 5
 CONVERGE_ARCH_BAR = 8  # arch_pass >= 8 (matches converged())
