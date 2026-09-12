@@ -40,6 +40,7 @@
     "n": 7,
     "name": "Verify (git log -1 or git status after commit)",
     "signal": "bash_regex",
-    "pattern": "git\\s+(log\\s+-1|status)"
+    "pattern": "git\\s+(log\\s+-1|status)",
+    "after": 6
   }
 ]

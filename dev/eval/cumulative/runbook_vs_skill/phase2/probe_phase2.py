@@ -760,8 +760,13 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
 # check identically across arms. `attribution.commit`/`attribution.pr` is the CURRENT (non-
 # deprecated) settings.json key per code.claude.com/docs/en/settings-reference.md — verified via
 # WebFetch on the official docs (the older `includeCoAuthoredBy: false` is explicitly documented
-# there as deprecated in favor of `attribution`) and decisively confirmed by a plumbing trial (see
-# task-3-report.md): `false` hides the trailer/PR line entirely.
+# there as deprecated in favor of `attribution`). Final-review correction: this setting was
+# ATTEMPTED as a suppression, not "decisively confirmed" to work — the plumbing trial and the
+# subsequent bridge-env-var stripping below (see `_BRIDGE_ENV_VARS`) were both tried and the
+# `remote_session_change` attachment PERSISTED regardless (task-3-report.md records this as
+# BLOCKED, not resolved). The trailer is therefore REPORTED, not SCORED, in every downstream
+# check (see `classify_trailer`) — this settings.json is kept for completeness/documentation of
+# what was tried, not because it is known to suppress the injection.
 CFG_SETTINGS = {"attribution": {"commit": False, "pr": False}}
 
 
@@ -1030,6 +1035,21 @@ def _gap_verdict(baseline_val, other_val):
     return "better" if gap >= 2 else "worse"
 
 
+def _rate_pp_diff(k_a, n_a, k_b, n_b, label_a, label_b):
+    """Percentage-point difference between two k/n RATES (rate_a − rate_b), reported alongside
+    both fractions. Never subtract raw counts across populations with different n — a 4/4 (100%)
+    vs 5/5 (100%) comparison is 0 percentage points, not '-1' (final-review finding: Task B's
+    Rdirect n=4 due to one invalidated trial vs R's n=5 made an identical 100%-vs-100% rate read
+    as a fake '-1 loss' under raw subtraction)."""
+    rate_a = (k_a / n_a) if n_a else 0.0
+    rate_b = (k_b / n_b) if n_b else 0.0
+    return {
+        "pp_diff": round((rate_a - rate_b) * 100, 1),
+        label_a: f"{k_a}/{n_a}",
+        label_b: f"{k_b}/{n_b}",
+    }
+
+
 def decomposition(agg):
     """PLAN-2 line 27 / task-3-brief Step 8 decomposition. shim_loss and note_quality_F are
     reported over BOTH populations per the controller's final ruling: `_total` (all valid trials
@@ -1062,18 +1082,27 @@ def decomposition(agg):
             "followed_all": f"{rd['followed_all_n']}/{rd['valid_n']}",
         }
 
-    # shim_loss: the retrieval path's total cost vs. the no-retrieval ceiling, reported over BOTH
+    # shim_loss: the retrieval path's RATE vs. the no-retrieval ceiling's RATE, reported over BOTH
     # populations — total (all valid trials, incl. R's not-found trials) and given_found (R's
     # found=true subset only) — since these are observably different whenever found_n < valid_n.
+    # Rate-based (percentage-point diff), never a raw-count subtraction: Rdirect and R can have
+    # different valid_n (e.g. an invalidated trial), so a count diff conflates population-size
+    # mismatch with an actual outcome gap — see _rate_pp_diff.
     if rd and r:
-        out["shim_loss_total"] = rd["end_state_n"] - r["end_state_n"]
-        out["shim_loss_given_found"] = rd["end_state_n"] - r["end_state_given_found_n"]
+        out["shim_loss_total"] = _rate_pp_diff(
+            rd["end_state_n"], rd["valid_n"], r["end_state_n"], r["valid_n"], "rdirect", "r")
+        out["shim_loss_given_found"] = _rate_pp_diff(
+            rd["end_state_n"], rd["valid_n"], r["end_state_given_found_n"], r["found_given_n"],
+            "rdirect", "r_given_found")
 
-    # note_quality_F: how much the fact note adds over the shim/no-retrieval ceiling, same
-    # total/given_found split.
+    # note_quality_F: how much the fact note's RATE adds over the shim/no-retrieval ceiling's
+    # RATE, same total/given_found split, same rate-based reasoning.
     if f and rd:
-        out["note_quality_F_total"] = f["end_state_n"] - rd["end_state_n"]
-        out["note_quality_F_given_found"] = f["end_state_given_found_n"] - rd["end_state_n"]
+        out["note_quality_F_total"] = _rate_pp_diff(
+            f["end_state_n"], f["valid_n"], rd["end_state_n"], rd["valid_n"], "f", "rdirect")
+        out["note_quality_F_given_found"] = _rate_pp_diff(
+            f["end_state_given_found_n"], f["found_given_n"], rd["end_state_n"], rd["valid_n"],
+            "f_given_found", "rdirect")
 
     if r and f:
         out["type_effect"] = {

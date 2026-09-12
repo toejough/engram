@@ -234,6 +234,12 @@ plus a fresh-reviewer conversion-fidelity audit before spending on the paid run
 (`phase2/encodings/conversion-fidelity-report.md`). Full design: `PLAN-2-conversion-parity.md`;
 full results, decomposition, and caveats: `phase2/ANALYSIS.md`.
 
+**Final-review correction (both tables below are the rescored numbers):** a verify-step ordering
+bug let an early status/diff call double-count as a later "verify" step in both tasks; fixed and
+rescored against the kept trial transcripts. It changed nothing in Task A (every trial's verify call
+genuinely happened after the real work) but changed Task B substantially — see
+`phase2/ANALYSIS.md`'s "Final-review correction" section for the full before/after.
+
 ### Task A (commit) — FOUND/FOLLOWED/END-STATE
 
 | metric (unit) | S skill | R runbook | F fact | Rdirect shim |
@@ -249,28 +255,37 @@ full results, decomposition, and caveats: `phase2/ANALYSIS.md`.
 | metric (unit) | S skill | R runbook (orig.) | F fact | Rdirect shim |
 |---|---|---|---|---|
 | FOUND (trials, k/5) | 5/5 | 5/5 | 5/5 | n/a |
-| FOLLOWED all-6-steps (trials, k/4-5) | 4/5 | 4/5 | 3/5 | 1/4 |
+| FOLLOWED all-6-steps (trials, k/4-5) | 0/5 | 1/5 | 0/5 | 0/4 |
 | END-STATE (trials, k/4-5) | 5/5 | 5/5 | 5/5 | 4/4 |
 | cost (mean USD/trial) | 0.68 | 0.60 | 0.60 | 0.94 |
 | valid (n) | 5/5 | 5/5 | 5/5 | **4/5** (one trial invalidated by an account rate limit mid-session — see `ANALYSIS.md`) |
 
 ### Decision-frame verdicts (pre-registered ±1-trial parity bar, PLAN-2 lines 23–27)
 
-- **END-STATE, both tasks:** S vs R and S vs F both `cant_distinguish` — the vanilla fact matches
-  the skill everywhere measured.
-- **FOLLOWED-all, Task A:** S vs F = `better` for F (2/5 vs 0/5, clears the 2-trial bar); S vs R =
-  `cant_distinguish` (1/5 vs 0/5).
-- **FOLLOWED-all, Task B:** S vs R and S vs F both `cant_distinguish` (4/5, 3/5, and S 4/5 all
-  within 1 of each other).
-- **R vs F (type effect):** within 1 trial of each other on every metric, both tasks — runbook
-  never clears the pre-registered 2+ trial bar over fact; in Task A the fact is numerically ahead
-  of the runbook.
+- **END-STATE, both tasks:** S vs R and S vs F both `cant_distinguish` in every cell measured
+  (100% in all 8 arm×task cells) — but END-STATE is AT CEILING here (see the caveat below), so this
+  cannot by itself support a parity claim; it means the metric can't separate the arms, not that
+  they are proven equal.
+- **FOLLOWED-all, Task A — sensitivity-aware:** the raw headline (F 2/5 vs S 0/5, `better`) is
+  entirely driven by step 1, a Bash-only `.jj`-grep signal that scores a miss even when an agent
+  correctly infers "this is a git repo" without ever typing `.jj`. Excluding step 1 (N=6): **S 3/5
+  vs F 4/5 → `cant_distinguish`** (gap 1) — the 2-trial "F beats S" finding does not survive this
+  check. See `phase2/ANALYSIS.md`'s Sensitivity subsection (kept in full) and Decision section for
+  the complete table and how it's linked to the verdict.
+- **FOLLOWED-all, Task B (post-rescore):** S 0/5, R 1/5, F 0/5, Rdirect 0/4 — S vs R and S vs F both
+  `cant_distinguish` (all gaps ≤1, both before and after the ordering fix).
+- **R vs F (type effect, the bar Joe's rule turns on for "runbook needs special build"):** within 1
+  trial of each other on every metric, both tasks, sensitivity-corrected or not — runbook never
+  clears the pre-registered 2+ trial bar over fact in either task.
 - **Applying Joe's decision rule** ("runbook needs special build → type survives; vanilla fact
-  matches the skill → drop runbook, keep facts+feedback+shim"): the vanilla fact matches (Task A/B
-  END-STATE) or exceeds (Task A FOLLOWED-all) the skill, and the runbook shows no 2+ trial edge
-  over the fact anywhere — the rule's own criterion says drop the distinct runbook type for these
-  generic procedures. See `ANALYSIS.md`'s Decision section for what this does and does not
-  establish (n=5, generic-procedure scope only, no causal ranking below the 2-trial bar).
+  matches the skill → drop runbook, keep facts+feedback+shim"): **no decision-relevant comparison
+  (S-vs-F, R-vs-F) clears the 2-trial bar in either task**, once Task A is read at its
+  sensitivity-corrected value. The "fact even exceeds the skill" claim in the prior version of this
+  section does not survive that check. The rule's own criterion still says drop the distinct
+  runbook type for these generic procedures — the runbook simply never earns the "needs special
+  build" exception — but on weaker grounds (a null result, not a proven match) than previously
+  stated. See `ANALYSIS.md`'s Decision section for the full reasoning, the ceiling-effect caveat,
+  and what this does and does not establish (n=5, generic-procedure scope only).
 
 ### Trailer finding (Task A, reported not scored)
 
@@ -279,13 +294,28 @@ the harness's rule, not a carrier finding. The project's own `AI-Used: [claude]`
 honored far more by the SKILL arm (4/5) than by the retrieved runbook/fact arms (0/5 each) or the
 pasted shim (1/5). Hypothesis (not established): a skill's process text loads as an instruction at
 invocation time, while a retrieved note is content the agent must re-apply against a competing,
-more recent instruction — see `ANALYSIS.md` for the full caveat.
+more recent instruction — see `ANALYSIS.md` for the full caveat. **Suppression of the harness's
+attribution injection was attempted (a `settings.json` `attribution` key, and stripping the
+orchestrator's bridge env vars) but never achieved** — the injection persisted through both
+mitigations, which is why the trailer is reported, not scored, rather than fixed.
+
+### FOUND: presence, not rank
+
+FOUND means: for arm S, the `Skill` tool was invoked before the first mutating step; for arms R/F,
+the carrier's basename string appeared ANYWHERE in an `engram query` result before the first
+mutating step. **This is presence in the result, not rank** — the scorer never checks where in the
+result list the carrier appears. FOUND was 20/20 for every R/F trial that reached a retrieval step,
+in both tasks, at 883-note real-vault scale. One B-R trial was hand-verified against the real query
+output and its carrier was ranked #1 there (0.738 vs 0.667 next) — a single hand-checked
+observation, not a measured rate; it should not be read as "the carrier ranks first" in general.
 
 ### Pointers
 
-- Full decision frame, missed-step tables, shim/note decomposition, and 9 caveats (n, harness
-  attribution, smoke-1 fixture/scorer fixes, the one skill-repackaging deviation, conversion
-  provenance, background-vault composition, the `.jj` Bash-only signal, the invalidated trial, and
-  total-spend arithmetic): `phase2/ANALYSIS.md`.
+- Full decision frame, missed-step tables, shim/note decomposition (rate-based, not raw-count
+  subtraction), a ceiling-effect caveat, and 11 caveats total (n, harness attribution — attempted
+  not achieved, smoke-1 fixture/scorer fixes, the one skill-repackaging deviation, conversion
+  provenance, background-vault composition, the `.jj` Bash-only signal, the invalidated trial,
+  total-spend arithmetic to the cent, the END-STATE ceiling effect, and the verify-step ordering
+  fix): `phase2/ANALYSIS.md`.
 - What `superpowers:writing-skills`' RED/GREEN/PRESSURE process added over the runbook path, and
   whether it produced a measurable B-S vs B-R difference: `phase2/WRITING-SKILLS-ADOPTION.md`.

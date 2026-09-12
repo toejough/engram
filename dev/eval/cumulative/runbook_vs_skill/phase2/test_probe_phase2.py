@@ -773,6 +773,75 @@ def test_real_steps_json_task_b_evaluates_against_a_synthetic_transcript_and_rep
     assert all_ is True
 
 
+def test_real_commit_steps_json_step_7_verify_requires_order_after_commit():
+    """Final-review finding: Task A step 7 ('git log -1 or git status after commit') shares its
+    pattern with step 2's 'git status' check. Without an 'after' constraint, an EARLY git status
+    call (satisfying step 2, run before any real work) would ALSO satisfy step 7, even though no
+    verification ever happened after the commit. The real fixture must carry after=6 (the commit
+    step) so this can't happen — this proves the ordering constraint changes the verdict, not just
+    that the field is present."""
+    steps = pp.load_steps("A")
+    step7 = next(s for s in steps if s["n"] == 7)
+    assert step7.get("after") == 6
+
+    def always_true_checker(_pattern, _repo):
+        return True
+
+    events_no_post_commit_verify = [
+        _tool_use("Bash", {"command": "ls -la .jj 2>/dev/null || true"}, idx=0),  # step 1
+        _tool_use("Bash", {"command": "git status"}, idx=1),                     # step 2
+        _tool_use("Bash", {"command": "git log --oneline -5"}, idx=2),           # step 3
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=3),         # step 4
+        _tool_use("Bash", {"command": "git commit -m 'feat: bump'"}, idx=4),     # step 6
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events_no_post_commit_verify, repo_path="/x",
+                                          repo_checker=always_true_checker)
+    assert results["2"] is True  # the early git status still credits step 2
+    assert results["7"] is False  # but must NOT also credit step 7 — no call happened after commit
+    assert all_ is False
+
+    events_with_post_commit_verify = events_no_post_commit_verify + [
+        _tool_use("Bash", {"command": "git log -1"}, idx=5),
+    ]
+    results2, k2, all2_ = pp.evaluate_steps(steps, events_with_post_commit_verify, repo_path="/x",
+                                             repo_checker=always_true_checker)
+    assert results2["7"] is True
+    assert all2_ is True
+
+
+def test_real_gitignore_steps_json_step_6_verify_requires_order_after_staging():
+    """Final-review finding: Task B step 6 ('git diff --cached or git status') shares its
+    pattern with step 4's 'git status' check. Without an 'after' constraint, an EARLY git status
+    call (satisfying step 4, run before staging) would ALSO satisfy step 6, even though nothing
+    was ever verified after staging. The real fixture must carry after=5 (the staging step)."""
+    steps = pp.load_steps("B")
+    step6 = next(s for s in steps if s["n"] == 6)
+    assert step6.get("after") == 5
+
+    def always_true_checker(_pattern, _repo):
+        return True
+
+    events_no_post_stage_verify = [
+        _tool_use("Bash", {"command": "cat .gitignore"}, idx=0),                                   # step 1
+        _tool_use("Bash", {"command": "git check-ignore -q testdata/generated/big.bin"}, idx=1),   # step 2
+        _tool_use("Bash", {"command": "git status --porcelain"}, idx=2),                           # step 4
+        _tool_use("Bash", {"command": "git add scripts/build.sh"}, idx=3),                         # step 5
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events_no_post_stage_verify, repo_path="/x",
+                                          repo_checker=always_true_checker)
+    assert results["4"] is True  # the early git status still credits step 4
+    assert results["6"] is False  # but must NOT also credit step 6 — nothing verified after staging
+    assert all_ is False
+
+    events_with_post_stage_verify = events_no_post_stage_verify + [
+        _tool_use("Bash", {"command": "git diff --cached"}, idx=4),
+    ]
+    results2, k2, all2_ = pp.evaluate_steps(steps, events_with_post_stage_verify, repo_path="/x",
+                                             repo_checker=always_true_checker)
+    assert results2["6"] is True
+    assert all2_ is True
+
+
 def test_every_repo_state_pattern_in_real_steps_json_is_registered():
     for task in ("A", "B"):
         for step in pp.load_steps(task):
@@ -964,7 +1033,9 @@ def test_decomposition_shim_loss_reports_both_populations_when_they_diverge():
     """Controller ruling (final): shim_loss must report BOTH the total population (all valid R
     trials, incl. not-found) and the given_found population (only R's found=true subset) — these
     must be observably different, not aliased. R's found_n=3 < valid_n=5, and
-    end_state_given_found_n(0) != end_state_n(3), by construction."""
+    end_state_given_found_n(0) != end_state_n(3), by construction. Final-review correction:
+    shim_loss is a percentage-point RATE difference (dict with both fractions), never a raw-count
+    subtraction — see test_decomposition_shim_loss_unequal_n_equal_rates_is_zero_pp for why."""
     agg = {
         "S": _agg(5, 5, 4, 4, 4),
         "R": _agg(5, 5, 3, 3, 3, end_state_given_found_n=0, followed_all_given_found_n=0),
@@ -972,9 +1043,25 @@ def test_decomposition_shim_loss_reports_both_populations_when_they_diverge():
         "Rdirect": _agg(5, 5, None, 4, 4),
     }
     frame = pp.decomposition(agg)
-    assert frame["shim_loss_total"] == 4 - 3
-    assert frame["shim_loss_given_found"] == 4 - 0
+    # Rdirect 4/5 (80%) vs R 3/5 (60%) -> +20.0pp
+    assert frame["shim_loss_total"] == {"pp_diff": 20.0, "rdirect": "4/5", "r": "3/5"}
+    # Rdirect 4/5 (80%) vs R's found=true subset 0/3 (0%) -> +80.0pp
+    assert frame["shim_loss_given_found"] == {"pp_diff": 80.0, "rdirect": "4/5", "r_given_found": "0/3"}
     assert frame["shim_loss_total"] != frame["shim_loss_given_found"]
+
+
+def test_decomposition_shim_loss_unequal_n_equal_rates_is_zero_pp():
+    """Final-review finding: Task B's real numbers have Rdirect at valid_n=4 (one trial
+    invalidated by a mid-session rate limit) at 4/4 (100%) vs R at valid_n=5 at 5/5 (100%) — raw
+    counts differ (4 - 5 = -1) but the RATES are identical. The reported figure must be 0
+    percentage points, not a negative count implying Rdirect lost ground."""
+    agg = {
+        "R": _agg(5, 5, 5, 5, 5, end_state_given_found_n=5, followed_all_given_found_n=5),
+        "F": _agg(5, 5, 5, 5, 5, end_state_given_found_n=5, followed_all_given_found_n=5),
+        "Rdirect": _agg(4, 4, None, 4, 4),
+    }
+    frame = pp.decomposition(agg)
+    assert frame["shim_loss_total"] == {"pp_diff": 0.0, "rdirect": "4/4", "r": "5/5"}
 
 
 def test_decomposition_note_quality_f_reports_both_populations_when_they_diverge():
@@ -984,8 +1071,11 @@ def test_decomposition_note_quality_f_reports_both_populations_when_they_diverge
         "Rdirect": _agg(5, 5, None, 4, 4),
     }
     frame = pp.decomposition(agg)
-    assert frame["note_quality_F_total"] == 4 - 4
-    assert frame["note_quality_F_given_found"] == 2 - 4
+    # F 4/5 (80%) vs Rdirect 4/5 (80%) -> 0.0pp
+    assert frame["note_quality_F_total"] == {"pp_diff": 0.0, "f": "4/5", "rdirect": "4/5"}
+    # F's found=true subset 2/4 (50%) vs Rdirect 4/5 (80%) -> -30.0pp
+    assert frame["note_quality_F_given_found"] == {
+        "pp_diff": -30.0, "f_given_found": "2/4", "rdirect": "4/5"}
     assert frame["note_quality_F_total"] != frame["note_quality_F_given_found"]
 
 
