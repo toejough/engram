@@ -1,0 +1,69 @@
+[
+  {
+    "n": 1,
+    "name": "Recall for tier evidence before dispatch",
+    "signal": "bash_regex",
+    "pattern": "engram\\s+query.*(?:tier|route[- ]evidence)"
+  },
+  {
+    "n": 2,
+    "name": "Dispatch implementation to a subagent (Agent tool with explicit model)",
+    "signal": "bash_regex",
+    "pattern": "Agent.*model.*haiku"
+  },
+  {
+    "n": 3,
+    "name": "Handoff contains recall-first instruction",
+    "signal": "bash_regex",
+    "pattern": "recall\\b"
+  },
+  {
+    "n": 4,
+    "name": "Handoff contains LESSONS: completion report contract",
+    "signal": "bash_regex",
+    "pattern": "LESSONS:"
+  },
+  {
+    "n": 5,
+    "name": "Handoff contains acceptance checks",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "pytest"},
+      {"signal": "bash_regex", "pattern": "acceptance"},
+      {"signal": "bash_regex", "pattern": "test"}
+    ]
+  },
+  {
+    "n": 6,
+    "name": "Handoff contains do-not-touch bounds",
+    "signal": "bash_regex",
+    "pattern": "(?:do not touch|do-not-touch|must not modify|leave .* alone)",
+    "case_insensitive": true
+  },
+  {
+    "n": 7,
+    "name": "Run tests after the agent completes",
+    "signal": "bash_regex",
+    "pattern": "pytest\\b",
+    "after": 2
+  },
+  {
+    "n": 8,
+    "name": "Write evidence note with route-dispatch-* slug",
+    "signal": "bash_regex",
+    "pattern": "engram\\s+learn\\s+fact.*--slug\\s+route-dispatch-"
+  },
+  {
+    "n": 9,
+    "name": "Evidence note includes work-kind/, tier/, outcome/ tags",
+    "signal": "bash_regex",
+    "pattern": "(?:--tag\\s+work-kind|--tag\\s+tier|--tag\\s+outcome)"
+  },
+  {
+    "n": 10,
+    "name": "Aggregate update or creation for route-evidence-*",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "engram\\s+query.*route[- ]evidence"},
+      {"signal": "bash_regex", "pattern": "engram\\s+(?:learn|amend).*route-evidence-"}
+    ]
+  }
+]

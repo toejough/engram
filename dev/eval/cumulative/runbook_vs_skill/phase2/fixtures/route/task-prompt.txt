@@ -1,0 +1,1 @@
+Add a `--version` flag to the CLI in this repo (print the version from `VERSION` and exit 0), with a test. Get it done by dispatching the implementation to a subagent rather than writing it yourself, then make sure it is correct.
