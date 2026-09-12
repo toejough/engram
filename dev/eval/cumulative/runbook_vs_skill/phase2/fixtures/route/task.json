@@ -415,5 +415,9 @@
     "994.2026-09-12.route-dispatch-eval-harness-implementation-rate-limit-gate",
     "995.2026-09-12.route-dispatch-eval-failure-investigation-step-misses",
     "998.2026-09-12.route-real-work-to-cheap-subagents-not-sonnet-by-default"
-  ]
+  ],
+  "carrier_r_src": "encodings/taskRoute/Route-R/vault",
+  "carrier_f_src": "encodings/taskRoute/Route-F/vault",
+  "skill_name": "route",
+  "skill_src": "../../../../../agent-instructions/skills/route"
 }
