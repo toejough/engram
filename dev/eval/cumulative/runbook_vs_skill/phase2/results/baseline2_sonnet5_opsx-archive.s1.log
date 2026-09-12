@@ -1,0 +1,6 @@
+run_id=baseline-opsx-archive-sonnet5-1789238498-38ad88 task=opsx-archive arm=N n=1 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-238498
+setup_trial_vault: removed 50 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-238498/trials/opsx-archive-N-0/vault
+  [opsx-archive-N#0] valid end_state=True followed=5/6 cost=$0.70 timed_out=False
+bare agent (task=opsx-archive, model=sonnet5, n=1): end result 1/1, did every step 0/1
+per-step miss counts: step 1: 0/1, step 2: 1/1, step 3: 0/1, step 4: 0/1, step 5: 0/1, step 6: 0/1
+mean cost: $0.70

@@ -1,0 +1,6 @@
+run_id=baseline-tdd-order-sonnet5-1789238387-7fa74c task=tdd-order arm=N n=1 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-238387
+setup_trial_vault: removed 54 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-238387/trials/tdd-order-N-0/vault
+  [tdd-order-N#0] valid end_state=True followed=5/5 cost=$0.53 timed_out=False
+bare agent (task=tdd-order, model=sonnet5, n=1): end result 1/1, did every step 1/1
+per-step miss counts: step 1: 0/1, step 2: 0/1, step 3: 0/1, step 4: 0/1, step 5: 0/1
+mean cost: $0.53
