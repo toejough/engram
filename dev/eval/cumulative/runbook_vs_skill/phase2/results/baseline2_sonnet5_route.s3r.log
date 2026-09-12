@@ -1,0 +1,14 @@
+run_id=baseline-route-sonnet5-1789240618-6b676a task=route arm=N n=5 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-240618
+setup_trial_vault: removed 43 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-240618/trials/route-N-1/vault
+setup_trial_vault: removed 43 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-240618/trials/route-N-0/vault
+  [route-N#1] valid end_state=False followed=2/10 cost=$1.05 timed_out=False
+setup_trial_vault: removed 43 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-240618/trials/route-N-2/vault
+  [route-N#0] valid end_state=False followed=2/10 cost=$1.09 timed_out=False
+setup_trial_vault: removed 43 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-240618/trials/route-N-3/vault
+  [route-N#2] valid end_state=False followed=2/10 cost=$0.86 timed_out=False
+setup_trial_vault: removed 43 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-240618/trials/route-N-4/vault
+  [route-N#3] valid end_state=False followed=1/10 cost=$0.80 timed_out=False
+  [route-N#4] INVALID(rate_limit_truncated) end_state=False followed=1/10 cost=$0.56 timed_out=False
+bare agent (task=route, model=sonnet5, n=5): end result 0/4, did every step 0/4 (rate-limited: 1)
+per-step miss counts: step 1: 4/4, step 2: 4/4, step 3: 4/4, step 4: 4/4, step 5: 0/4, step 6: 1/4, step 7: 4/4, step 8: 4/4, step 9: 4/4, step 10: 4/4
+mean cost: $0.95

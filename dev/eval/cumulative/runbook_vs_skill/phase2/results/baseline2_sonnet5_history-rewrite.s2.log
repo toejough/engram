@@ -1,0 +1,8 @@
+run_id=baseline-history-rewrite-sonnet5-1789240134-cdbf79 task=history-rewrite arm=N n=2 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-240134
+setup_trial_vault: removed 55 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-240134/trials/history-rewrite-N-0/vault
+setup_trial_vault: removed 55 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-240134/trials/history-rewrite-N-1/vault
+  [history-rewrite-N#0] valid end_state=False followed=3/6 cost=$0.49 timed_out=False
+  [history-rewrite-N#1] valid end_state=False followed=5/6 cost=$0.90 timed_out=False
+bare agent (task=history-rewrite, model=sonnet5, n=2): end result 0/2, did every step 0/2
+per-step miss counts: step 1: 0/2, step 2: 2/2, step 3: 0/2, step 4: 1/2, step 5: 0/2, step 6: 1/2
+mean cost: $0.69

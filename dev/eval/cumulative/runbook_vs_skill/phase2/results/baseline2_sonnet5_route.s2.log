@@ -1,0 +1,8 @@
+run_id=baseline-route-sonnet5-1789239931-a80055 task=route arm=N n=2 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-239931
+setup_trial_vault: removed 34 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-239931/trials/route-N-1/vault
+setup_trial_vault: removed 34 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-239931/trials/route-N-0/vault
+  [route-N#1] valid end_state=False followed=1/10 cost=$0.81 timed_out=False
+  [route-N#0] valid end_state=False followed=2/10 cost=$1.05 timed_out=False
+bare agent (task=route, model=sonnet5, n=2): end result 0/2, did every step 0/2
+per-step miss counts: step 1: 2/2, step 2: 2/2, step 3: 2/2, step 4: 2/2, step 5: 0/2, step 6: 1/2, step 7: 2/2, step 8: 2/2, step 9: 2/2, step 10: 2/2
+mean cost: $0.93
