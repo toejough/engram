@@ -1,0 +1,56 @@
+[
+  {
+    "n": 1,
+    "name": "Run the gate to see it fail on the current HEAD",
+    "signal": "bash_regex",
+    "pattern": "(bash\\s+)?(\\./)?gate\\.sh",
+    "not_pattern": "^(cat|less|head|grep|Read)\\b"
+  },
+  {
+    "n": 2,
+    "name": "Inspect PLAN.md and the flagged files (foo.py, bar.py)",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "(cat|less|head|grep|Read)(\\s+.*)?(PLAN\\.md|foo\\.py|bar\\.py)"},
+      {"signal": "tool_path", "tools": ["Read", "Edit", "Write"], "pattern": "(PLAN\\.md|foo\\.py|bar\\.py)$"}
+    ]
+  },
+  {
+    "n": 3,
+    "name": "Check out the parent commit to test whether it predates the branch's change",
+    "signal": "bash_regex",
+    "pattern": "git\\s+checkout\\s+(HEAD~1|HEAD\\^|[0-9a-f]{7,40})"
+  },
+  {
+    "n": 4,
+    "name": "Re-run the gate against the parent commit",
+    "signal": "bash_regex",
+    "pattern": "(bash\\s+)?(\\./)?gate\\.sh",
+    "not_pattern": "^(cat|less|head|grep|Read)\\b",
+    "after": 3
+  },
+  {
+    "n": 5,
+    "name": "Return to the branch's original HEAD",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "git\\s+checkout\\s+(main|master|-)\\b"},
+      {"signal": "bash_regex", "pattern": "git\\s+switch\\s+(main|master|-)\\b"}
+    ],
+    "after": 4
+  },
+  {
+    "n": 6,
+    "name": "Fix bar.py's pre-existing issue",
+    "any_of": [
+      {"signal": "tool_path", "tools": ["Edit", "Write"], "pattern": "bar\\.py$"},
+      {"signal": "bash_regex", "pattern": "(sed|cat\\s*>|>>?)\\s*.*bar\\.py"}
+    ]
+  },
+  {
+    "n": 7,
+    "name": "Verify the gate passes on the final HEAD",
+    "signal": "bash_regex",
+    "pattern": "(bash\\s+)?(\\./)?gate\\.sh",
+    "not_pattern": "^(cat|less|head|grep|Read)\\b",
+    "after": 6
+  }
+]

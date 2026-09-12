@@ -1687,3 +1687,456 @@ def test_baseline_step_miss_counts_ignores_invalid_trials():
     counts = pp.baseline_step_miss_counts(records, n_steps=1)
 
     assert counts == {1: 0}
+
+
+# ----- four candidate phase-2 fixtures: steps.json bash_regex positive/negative coverage -----
+
+def _assert_bash_step(steps, n, positive_cmd, negative_cmd):
+    """A step with no `after` dependency: run it in isolation and confirm the positive command
+    matches while the negative command does not."""
+    step = next(s for s in steps if s["n"] == n)
+    pos_events = [_tool_use("Bash", {"command": positive_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step], pos_events, repo_path="/does/not/matter")
+    assert results[str(n)] is True, f"expected step {n} to match positive command {positive_cmd!r}"
+    neg_events = [_tool_use("Bash", {"command": negative_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step], neg_events, repo_path="/does/not/matter")
+    assert results[str(n)] is False, f"expected step {n} to NOT match negative command {negative_cmd!r}"
+
+
+def _assert_bash_step_all_registered(task_key):
+    """Every registered repo_state pattern in this task's real steps.json must be in
+    REPO_STATE_CHECKERS (mirrors test_every_repo_state_pattern_in_real_steps_json_is_registered,
+    generalized to a task key beyond the original hardcoded A/B)."""
+    for step in pp.load_steps(task_key):
+        for sig in _step_signals(step):
+            if sig["signal"] == "repo_state":
+                assert sig["pattern"] in pp.REPO_STATE_CHECKERS, (
+                    f"Task {task_key} step {step['n']} names repo_state pattern "
+                    f"{sig['pattern']!r}, which has no registered checker"
+                )
+
+
+# --- gitignore-nested ---
+
+def test_gitignore_nested_steps_json_is_valid_and_registered():
+    steps = pp.load_steps("gitignore-nested")
+    assert isinstance(steps, list) and len(steps) > 0
+    for step in steps:
+        assert "n" in step
+        for sig in _step_signals(step):
+            assert "signal" in sig and "pattern" in sig
+    _assert_bash_step_all_registered("gitignore-nested")
+
+
+def test_gitignore_nested_step1_inspect_gitignore_bash_and_negative():
+    steps = pp.load_steps("gitignore-nested")
+    _assert_bash_step(steps, 1, "cat .gitignore", "cat other.txt")
+
+
+def test_gitignore_nested_step1_inspect_gitignore_via_native_read():
+    steps = pp.load_steps("gitignore-nested")
+    step1 = next(s for s in steps if s["n"] == 1)
+    events = [_tool_use("Read", {"file_path": "/repo/.gitignore"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step1], events, repo_path="/does/not/matter")
+    assert results["1"] is True
+
+
+def test_gitignore_nested_step2_check_ignore_bash_and_negative():
+    steps = pp.load_steps("gitignore-nested")
+    _assert_bash_step(
+        steps, 2,
+        "git check-ignore -q internal/core/testdata/rapid/big.bin",
+        "git status",
+    )
+
+
+def test_gitignore_nested_step4_status_bash_and_negative():
+    steps = pp.load_steps("gitignore-nested")
+    _assert_bash_step(steps, 4, "git status --porcelain", "git log --oneline")
+
+
+def test_gitignore_nested_step5_stage_explicit_paths_bash_and_negative():
+    steps = pp.load_steps("gitignore-nested")
+    _assert_bash_step(
+        steps, 5,
+        "git add -- .gitignore internal/core/testdata/fixture.json "
+        "internal/api/testdata/fixture.json testdata/fixture.json",
+        "git add -A",
+    )
+
+
+def test_gitignore_nested_step6_verify_after_step5():
+    steps = pp.load_steps("gitignore-nested")
+    events = [
+        _tool_use("Bash", {"command": "git add -- .gitignore testdata/fixture.json"}, idx=0),
+        _tool_use("Bash", {"command": "git diff --cached --name-only"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["6"] is True
+
+
+def test_gitignore_nested_step6_verify_false_when_step5_never_matched():
+    steps = pp.load_steps("gitignore-nested")
+    events = [_tool_use("Bash", {"command": "git diff --cached --name-only"}, idx=0)]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["6"] is False
+
+
+def _write_repo_with_gitignore(repo, lines):
+    import subprocess
+    os.makedirs(repo, exist_ok=True)
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True, capture_output=True)
+    with open(os.path.join(repo, ".gitignore"), "w") as f:
+        f.write("\n".join(lines) + "\n")
+    for path in pp._RAPID_PATHS_NESTED + pp._FIXTURE_JSON_PATHS_NESTED:
+        full = os.path.join(repo, path)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        with open(full, "w") as f:
+            f.write("x")
+
+
+def test_gitignore_rapid_ignored_fixture_trackable_all_depths_true_with_leading_globstar(tmp_path):
+    repo = str(tmp_path / "repo")
+    _write_repo_with_gitignore(repo, ["**/testdata/rapid/", "*.o"])
+    assert pp.default_repo_checker(
+        "gitignore_rapid_ignored_fixture_trackable_all_depths", repo,
+    ) is True
+
+
+def test_gitignore_rapid_ignored_fixture_trackable_all_depths_false_with_middle_slash_trap(tmp_path):
+    """The trap: a middle-slash pattern (`testdata/rapid/`, no leading `**/`) anchors to the
+    .gitignore's own directory and stops matching nested paths — runbook 830 step 3."""
+    repo = str(tmp_path / "repo")
+    _write_repo_with_gitignore(repo, ["testdata/rapid/", "*.o"])
+    assert pp.default_repo_checker(
+        "gitignore_rapid_ignored_fixture_trackable_all_depths", repo,
+    ) is False
+
+
+def test_gitignore_rapid_ignored_fixture_trackable_all_depths_false_when_fixture_json_still_ignored(tmp_path):
+    repo = str(tmp_path / "repo")
+    _write_repo_with_gitignore(repo, ["testdata/", "*.o"])
+    assert pp.default_repo_checker(
+        "gitignore_rapid_ignored_fixture_trackable_all_depths", repo,
+    ) is False
+
+
+# --- test-bite ---
+
+def test_test_bite_steps_json_is_valid_and_registered():
+    steps = pp.load_steps("test-bite")
+    assert isinstance(steps, list) and len(steps) > 0
+    for step in steps:
+        assert "n" in step
+        for sig in _step_signals(step):
+            assert "signal" in sig and "pattern" in sig
+    _assert_bash_step_all_registered("test-bite")
+
+
+def test_test_bite_step1_inspect_runner_bash_and_negative():
+    steps = pp.load_steps("test-bite")
+    _assert_bash_step(steps, 1, "cat runner.py", "cat other.py")
+
+
+def test_test_bite_step1_inspect_runner_via_native_read():
+    steps = pp.load_steps("test-bite")
+    step1 = next(s for s in steps if s["n"] == 1)
+    events = [_tool_use("Read", {"file_path": "/repo/runner.py"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step1], events, repo_path="/does/not/matter")
+    assert results["1"] is True
+
+
+def test_test_bite_step2_write_test_file_tool_path():
+    steps = pp.load_steps("test-bite")
+    step2 = next(s for s in steps if s["n"] == 2)
+    pos_events = [_tool_use("Write", {"file_path": "/repo/tests/test_run_child.py"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step2], pos_events, repo_path="/does/not/matter")
+    assert results["2"] is True
+    neg_events = [_tool_use("Write", {"file_path": "/repo/tests/test_other.py"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step2], neg_events, repo_path="/does/not/matter")
+    assert results["2"] is False
+
+
+def test_test_bite_step3_run_pytest_bash_and_negative():
+    steps = pp.load_steps("test-bite")
+    _assert_bash_step(steps, 3, "pytest -q tests/test_run_child.py", "python3 -m unittest")
+
+
+def _write_runner_repo(repo, mutate=False):
+    os.makedirs(os.path.join(repo, "tests"), exist_ok=True)
+    runner_src = (
+        "import json, os, subprocess, sys\n\n"
+        "def run_child(env_extra=None):\n"
+        "    env = os.environ.copy()\n"
+        "    if env_extra:\n"
+        "        env.update(env_extra)\n"
+        "    script = \"import json, os, sys; sys.stdout.write(json.dumps(dict(os.environ)))\"\n"
+        "    result = subprocess.run([sys.executable, '-c', script], env=env,\n"
+        "                            capture_output=True, text=True, check=True)\n"
+        "    return json.loads(result.stdout)\n"
+    )
+    if mutate:
+        runner_src = runner_src.replace("env.update(env_extra)", "pass")
+    with open(os.path.join(repo, "runner.py"), "w") as f:
+        f.write(runner_src)
+    with open(os.path.join(repo, "conftest.py"), "w") as f:
+        f.write("import os, sys\nsys.path.insert(0, os.path.dirname(__file__))\n")
+    with open(os.path.join(repo, "tests", "test_run_child.py"), "w") as f:
+        f.write(
+            "from runner import run_child\n\n"
+            "def test_env_extra_reaches_child():\n"
+            "    result = run_child({'PROBE_TEST_VAR': 'expected-value'})\n"
+            "    assert result.get('PROBE_TEST_VAR') == 'expected-value'\n"
+        )
+
+
+def test_test_bites_true_when_test_fails_on_mutated_runner(tmp_path):
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo, exist_ok=True)
+    _write_runner_repo(repo, mutate=False)
+    assert pp.default_repo_checker("test_bites", repo) is True
+
+
+def test_test_bites_false_when_test_still_passes_on_mutated_runner(tmp_path):
+    """A test that only asserts 'no exception raised' passes both shipped and mutated code — it
+    does not bite (runbook 838)."""
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo, exist_ok=True)
+    os.makedirs(os.path.join(repo, "tests"), exist_ok=True)
+    runner_src = (
+        "import os, subprocess, sys\n\n"
+        "def run_child(env_extra=None):\n"
+        "    env = os.environ.copy()\n"
+        "    if env_extra:\n"
+        "        env.update(env_extra)\n"
+        "    subprocess.run([sys.executable, '-c', 'pass'], env=env, check=True)\n"
+        "    return True\n"
+    )
+    with open(os.path.join(repo, "runner.py"), "w") as f:
+        f.write(runner_src)
+    with open(os.path.join(repo, "conftest.py"), "w") as f:
+        f.write("import os, sys\nsys.path.insert(0, os.path.dirname(__file__))\n")
+    with open(os.path.join(repo, "tests", "test_run_child.py"), "w") as f:
+        f.write(
+            "from runner import run_child\n\n"
+            "def test_no_exception():\n"
+            "    run_child({'PROBE_TEST_VAR': 'expected-value'})\n"
+        )
+    assert pp.default_repo_checker("test_bites", repo) is False
+
+
+def test_test_bites_false_when_no_test_file():
+    assert pp.default_repo_checker("test_bites", "/does/not/exist") is False
+
+
+# --- history-rewrite ---
+
+def test_history_rewrite_steps_json_is_valid_and_registered():
+    steps = pp.load_steps("history-rewrite")
+    assert isinstance(steps, list) and len(steps) > 0
+    for step in steps:
+        assert "n" in step
+        for sig in _step_signals(step):
+            assert "signal" in sig and "pattern" in sig
+    _assert_bash_step_all_registered("history-rewrite")
+
+
+def test_history_rewrite_step1_inspect_history_any_of():
+    steps = pp.load_steps("history-rewrite")
+    step1 = next(s for s in steps if s["n"] == 1)
+    for positive_cmd in ("git log --oneline -- secrets.env", "git log --all"):
+        events = [_tool_use("Bash", {"command": positive_cmd}, idx=0)]
+        results, _, _ = pp.evaluate_steps([step1], events, repo_path="/does/not/matter")
+        assert results["1"] is True, positive_cmd
+    events = [_tool_use("Bash", {"command": "git status"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step1], events, repo_path="/does/not/matter")
+    assert results["1"] is False
+
+
+def test_history_rewrite_step2_record_pre_rewrite_tip_bash_and_negative():
+    steps = pp.load_steps("history-rewrite")
+    _assert_bash_step(steps, 2, "git rev-parse HEAD", "git rev-parse --short HEAD")
+
+
+def test_history_rewrite_step3_run_rewrite_tool_bash_and_negative():
+    steps = pp.load_steps("history-rewrite")
+    _assert_bash_step(
+        steps, 3,
+        "git filter-branch --force --index-filter 'git rm --cached secrets.env' -- --all",
+        "git rebase -i HEAD~5",
+    )
+
+
+def test_history_rewrite_step4_fetch_after_step3():
+    steps = pp.load_steps("history-rewrite")
+    events = [
+        _tool_use("Bash", {"command": "git filter-branch -- --all"}, idx=0),
+        _tool_use("Bash", {"command": "git fetch origin"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["4"] is True
+
+
+def test_history_rewrite_step4_false_when_step3_never_matched():
+    steps = pp.load_steps("history-rewrite")
+    events = [_tool_use("Bash", {"command": "git fetch origin"}, idx=0)]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["4"] is False
+
+
+def test_history_rewrite_step5_force_push_after_step3():
+    steps = pp.load_steps("history-rewrite")
+    events = [
+        _tool_use("Bash", {"command": "git filter-branch -- --all"}, idx=0),
+        _tool_use("Bash", {"command": "git push origin main --force-with-lease"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["5"] is True
+
+
+def test_history_rewrite_step5_false_for_plain_push_without_force():
+    steps = pp.load_steps("history-rewrite")
+    events = [
+        _tool_use("Bash", {"command": "git filter-branch -- --all"}, idx=0),
+        _tool_use("Bash", {"command": "git push origin main"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["5"] is False
+
+
+def test_history_rewrite_step6_verify_after_step5():
+    steps = pp.load_steps("history-rewrite")
+    events = [
+        _tool_use("Bash", {"command": "git filter-branch -- --all"}, idx=0),
+        _tool_use("Bash", {"command": "git push origin main --force-with-lease"}, idx=1),
+        _tool_use("Bash", {"command": "git log --oneline -- secrets.env"}, idx=2),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["6"] is True
+
+
+def test_history_rewrite_step6_false_when_step5_never_matched():
+    steps = pp.load_steps("history-rewrite")
+    events = [
+        _tool_use("Bash", {"command": "git filter-branch -- --all"}, idx=0),
+        _tool_use("Bash", {"command": "git log --oneline -- secrets.env"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["6"] is False
+
+
+# --- bisect-before-fix ---
+
+def test_bisect_before_fix_steps_json_is_valid_and_registered():
+    steps = pp.load_steps("bisect-before-fix")
+    assert isinstance(steps, list) and len(steps) > 0
+    for step in steps:
+        assert "n" in step
+        for sig in _step_signals(step):
+            assert "signal" in sig and "pattern" in sig
+    _assert_bash_step_all_registered("bisect-before-fix")
+
+
+def test_bisect_before_fix_step1_run_gate_bash_and_negative():
+    steps = pp.load_steps("bisect-before-fix")
+    _assert_bash_step(steps, 1, "bash gate.sh", "cat gate.sh")
+
+
+def test_bisect_before_fix_step1_bare_dot_slash_form():
+    steps = pp.load_steps("bisect-before-fix")
+    step1 = next(s for s in steps if s["n"] == 1)
+    events = [_tool_use("Bash", {"command": "./gate.sh"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step1], events, repo_path="/does/not/matter")
+    assert results["1"] is True
+
+
+def test_bisect_before_fix_step2_inspect_plan_or_flagged_files_any_of():
+    steps = pp.load_steps("bisect-before-fix")
+    step2 = next(s for s in steps if s["n"] == 2)
+    for positive_cmd in ("cat PLAN.md", "cat foo.py", "grep return bar.py"):
+        events = [_tool_use("Bash", {"command": positive_cmd}, idx=0)]
+        results, _, _ = pp.evaluate_steps([step2], events, repo_path="/does/not/matter")
+        assert results["2"] is True, positive_cmd
+    events = [_tool_use("Bash", {"command": "cat README.md"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step2], events, repo_path="/does/not/matter")
+    assert results["2"] is False
+
+
+def test_bisect_before_fix_step3_checkout_parent_bash_and_negative():
+    steps = pp.load_steps("bisect-before-fix")
+    _assert_bash_step(steps, 3, "git checkout HEAD~1", "git checkout main")
+
+
+def test_bisect_before_fix_step4_rerun_gate_after_step3():
+    steps = pp.load_steps("bisect-before-fix")
+    events = [
+        _tool_use("Bash", {"command": "git checkout HEAD~1"}, idx=0),
+        _tool_use("Bash", {"command": "./gate.sh"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["4"] is True
+
+
+def test_bisect_before_fix_step4_false_when_step3_never_matched():
+    steps = pp.load_steps("bisect-before-fix")
+    events = [_tool_use("Bash", {"command": "./gate.sh"}, idx=0)]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["4"] is False
+
+
+def test_bisect_before_fix_step5_return_to_head_after_step4():
+    steps = pp.load_steps("bisect-before-fix")
+    events = [
+        _tool_use("Bash", {"command": "git checkout HEAD~1"}, idx=0),
+        _tool_use("Bash", {"command": "./gate.sh"}, idx=1),
+        _tool_use("Bash", {"command": "git checkout main"}, idx=2),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["5"] is True
+
+
+def test_bisect_before_fix_step5_false_for_unrelated_branch():
+    steps = pp.load_steps("bisect-before-fix")
+    events = [
+        _tool_use("Bash", {"command": "git checkout HEAD~1"}, idx=0),
+        _tool_use("Bash", {"command": "./gate.sh"}, idx=1),
+        _tool_use("Bash", {"command": "git checkout feature-branch"}, idx=2),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["5"] is False
+
+
+def test_bisect_before_fix_step6_fix_bar_py_any_of():
+    steps = pp.load_steps("bisect-before-fix")
+    step6 = next(s for s in steps if s["n"] == 6)
+    events = [_tool_use("Bash", {"command": "sed -i '' '/print(/d' bar.py"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step6], events, repo_path="/does/not/matter")
+    assert results["6"] is True
+    events = [_tool_use("Bash", {"command": "sed -i '' 's/x/y/' foo.py"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step6], events, repo_path="/does/not/matter")
+    assert results["6"] is False
+
+
+def test_bisect_before_fix_step6_fix_bar_py_via_native_edit():
+    steps = pp.load_steps("bisect-before-fix")
+    step6 = next(s for s in steps if s["n"] == 6)
+    events = [_tool_use("Edit", {"file_path": "/repo/bar.py"}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step6], events, repo_path="/does/not/matter")
+    assert results["6"] is True
+
+
+def test_bisect_before_fix_step7_verify_gate_after_step6():
+    steps = pp.load_steps("bisect-before-fix")
+    events = [
+        _tool_use("Bash", {"command": "sed -i '' '/print(/d' bar.py"}, idx=0),
+        _tool_use("Bash", {"command": "bash gate.sh"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["7"] is True
+
+
+def test_bisect_before_fix_step7_false_when_step6_never_matched():
+    steps = pp.load_steps("bisect-before-fix")
+    events = [_tool_use("Bash", {"command": "bash gate.sh"}, idx=0)]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["7"] is False

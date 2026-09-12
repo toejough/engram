@@ -1,0 +1,29 @@
+[
+  {
+    "n": 1,
+    "name": "Inspect run_child / runner.py to understand its signature and behavior",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "(cat|less|head|grep|Read)(\\s+.*)?runner\\.py\\b"},
+      {"signal": "tool_path", "tools": ["Read", "Edit", "Write"], "pattern": "runner\\.py$"}
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Write the test file under tests/test_run_child.py",
+    "signal": "tool_path",
+    "tools": ["Write", "Edit"],
+    "pattern": "tests/test_run_child\\.py$"
+  },
+  {
+    "n": 3,
+    "name": "Run the test suite (pytest)",
+    "signal": "bash_regex",
+    "pattern": "pytest\\b"
+  },
+  {
+    "n": 4,
+    "name": "The written test bites: passes shipped code, fails when env forwarding is mutated out",
+    "signal": "repo_state",
+    "pattern": "test_bites"
+  }
+]

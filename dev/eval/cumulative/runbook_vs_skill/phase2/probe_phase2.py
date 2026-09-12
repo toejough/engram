@@ -32,6 +32,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 
@@ -617,12 +618,79 @@ def _check_gitignore_narrowed_to_generated(repo_path):
     return (not has_bare_testdata) and has_narrowed_testdata and (not has_bare_scripts)
 
 
+_RAPID_PATHS_NESTED = (
+    "internal/core/testdata/rapid/big.bin",
+    "internal/api/testdata/rapid/big.bin",
+    "testdata/rapid/big.bin",
+)
+_FIXTURE_JSON_PATHS_NESTED = (
+    "internal/core/testdata/fixture.json",
+    "internal/api/testdata/fixture.json",
+    "testdata/fixture.json",
+)
+
+
+def _check_gitignore_rapid_ignored_fixture_trackable_all_depths(repo_path):
+    """gitignore-nested task step 3 ('gitignore_rapid_ignored_fixture_trackable_all_depths'
+    repo_state signal): the CURRENT .gitignore, evaluated with the real `git check-ignore` engine
+    (not a line-pattern regex), must ignore all three nested rapid/ generated-data paths and must
+    NOT ignore any of the three fixture.json paths. Using the real ignore engine means a
+    middle-slash pattern that only anchors at the .gitignore's own directory (runbook 830 step 3)
+    correctly fails this check the moment it stops matching a nested depth."""
+    for path in _RAPID_PATHS_NESTED:
+        r = subprocess.run(["git", "-C", repo_path, "check-ignore", "-q", path])
+        if r.returncode != 0:
+            return False
+    for path in _FIXTURE_JSON_PATHS_NESTED:
+        r = subprocess.run(["git", "-C", repo_path, "check-ignore", "-q", path])
+        if r.returncode == 0:
+            return False
+    return True
+
+
+def _check_test_bites(repo_path):
+    """test-bite task step 4 ('test_bites' repo_state signal): the agent's
+    tests/test_run_child.py must pass against the shipped (correct) runner.py AND fail once
+    run_child's env_extra forwarding is mutated out -- i.e. the assertion depends on the effect
+    itself (runbook 838), not merely 'no exception was raised'. The mutation is applied to a
+    scratch copy so the live trial repo is never modified."""
+    test_file = os.path.join(repo_path, "tests", "test_run_child.py")
+    if not os.path.exists(test_file):
+        return False
+
+    shipped = subprocess.run(
+        ["python3", "-m", "pytest", "-q", "tests/test_run_child.py"],
+        cwd=repo_path, capture_output=True, text=True,
+    )
+    if shipped.returncode != 0:
+        return False
+
+    with tempfile.TemporaryDirectory() as scratch:
+        mutant = os.path.join(scratch, "repo")
+        shutil.copytree(repo_path, mutant, ignore=shutil.ignore_patterns(".git"))
+        runner_path = os.path.join(mutant, "runner.py")
+        with open(runner_path) as f:
+            src = f.read()
+        mutated = src.replace("env.update(env_extra)", "pass  # forwarding disabled for bite-check")
+        if mutated == src:
+            return False  # mutation target not found -- can't assert the test bites
+        with open(runner_path, "w") as f:
+            f.write(mutated)
+        mutant_run = subprocess.run(
+            ["python3", "-m", "pytest", "-q", "tests/test_run_child.py"],
+            cwd=mutant, capture_output=True, text=True,
+        )
+    return mutant_run.returncode != 0
+
+
 REPO_STATE_CHECKERS = {
     # Task 2's thread renamed the fixtures/commit/steps.json pattern to
     # "commit_message_format_and_body" (round-4 ruling: trailer requirement removed from the
     # checker's name as well as its behavior) — registered under that name to match.
     "commit_message_format_and_body": _check_commit_message_format,
     "gitignore_narrowed_to_generated": _check_gitignore_narrowed_to_generated,
+    "gitignore_rapid_ignored_fixture_trackable_all_depths": _check_gitignore_rapid_ignored_fixture_trackable_all_depths,
+    "test_bites": _check_test_bites,
 }
 
 

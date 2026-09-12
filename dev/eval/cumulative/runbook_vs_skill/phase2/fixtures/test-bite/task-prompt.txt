@@ -1,0 +1,1 @@
+Write a test in tests/test_run_child.py that verifies environment variables passed to run_child reach the child process.

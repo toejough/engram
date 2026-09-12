@@ -1,0 +1,7 @@
+# Hide all testdata — too broad!
+testdata/
+
+# Ignore common build artifacts
+*.o
+*.a
+*.so

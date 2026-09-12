@@ -1,0 +1,1 @@
+The .gitignore in this repo hides test fixtures we need tracked. Make the fixture.json files trackable without exposing the generated rapid/ data, at every depth, and stage the result.

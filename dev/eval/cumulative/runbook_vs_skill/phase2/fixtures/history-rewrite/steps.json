@@ -1,0 +1,43 @@
+[
+  {
+    "n": 1,
+    "name": "Inspect history to find the commit(s) touching secrets.env",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "git\\s+log\\b.*secrets\\.env"},
+      {"signal": "bash_regex", "pattern": "git\\s+log\\s+--all"}
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Record the pre-rewrite tip before rewriting (rev-parse or similar)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+rev-parse\\s+(HEAD|main|master)\\b"
+  },
+  {
+    "n": 3,
+    "name": "Run the history rewrite tool (filter-branch or filter-repo) against the whole ref set",
+    "signal": "bash_regex",
+    "pattern": "git\\s+(filter-branch|filter-repo)\\b"
+  },
+  {
+    "n": 4,
+    "name": "Fetch the remote's current state before force-pushing",
+    "signal": "bash_regex",
+    "pattern": "git\\s+fetch\\b",
+    "after": 3
+  },
+  {
+    "n": 5,
+    "name": "Push the rewritten history to the remote, forcing safely",
+    "signal": "bash_regex",
+    "pattern": "git\\s+push\\s+.*(--force-with-lease|--force|\\s-f\\b)",
+    "after": 3
+  },
+  {
+    "n": 6,
+    "name": "Verify secrets.env is gone from history on the real branches/tags",
+    "signal": "bash_regex",
+    "pattern": "git\\s+log\\b.*secrets\\.env",
+    "after": 5
+  }
+]

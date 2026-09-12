@@ -1,0 +1,41 @@
+[
+  {
+    "n": 1,
+    "name": "Inspect .gitignore pattern (read/edit the file to understand current pattern)",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "(cat|less|head|sed|grep|awk|vi|nano|Read)(\\s+.*)?\\.gitignore\\b"},
+      {"signal": "tool_path", "tools": ["Read", "Edit", "Write"], "pattern": "\\.gitignore$"}
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Test with git check-ignore against representative nested paths",
+    "signal": "bash_regex",
+    "pattern": "git\\s+check-ignore"
+  },
+  {
+    "n": 3,
+    "name": "Narrow pattern so fixture.json is trackable and rapid/ stays ignored at every depth",
+    "signal": "repo_state",
+    "pattern": "gitignore_rapid_ignored_fixture_trackable_all_depths"
+  },
+  {
+    "n": 4,
+    "name": "Enumerate newly-visible files (git status --porcelain)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+status"
+  },
+  {
+    "n": 5,
+    "name": "Stage explicit enumerated paths (not git add -A)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+add\\s+(--\\s+)?(\\.gitignore|internal/core/testdata/fixture\\.json|internal/api/testdata/fixture\\.json|testdata/fixture\\.json)"
+  },
+  {
+    "n": 6,
+    "name": "Verify result (git diff --cached or git status)",
+    "signal": "bash_regex",
+    "pattern": "git\\s+(diff\\s+--cached|status)",
+    "after": 5
+  }
+]
