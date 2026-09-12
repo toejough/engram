@@ -1,0 +1,14 @@
+run_id=baseline-opsx-archive-sonnet5-1789253915-f712ec task=opsx-archive arm=N n=5 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-253915
+setup_trial_vault: removed 61 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-253915/trials/opsx-archive-N-1/vault
+setup_trial_vault: removed 61 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-253915/trials/opsx-archive-N-0/vault
+  [opsx-archive-N#1] valid end_state=True followed=0/6 cost=$0.47 timed_out=False
+setup_trial_vault: removed 61 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-253915/trials/opsx-archive-N-2/vault
+  [opsx-archive-N#0] valid end_state=True followed=4/6 cost=$0.39 timed_out=False
+setup_trial_vault: removed 61 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-253915/trials/opsx-archive-N-3/vault
+  [opsx-archive-N#2] valid end_state=True followed=2/6 cost=$0.29 timed_out=False
+setup_trial_vault: removed 61 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-253915/trials/opsx-archive-N-4/vault
+  [opsx-archive-N#3] valid end_state=True followed=4/6 cost=$0.30 timed_out=False
+  [opsx-archive-N#4] valid end_state=True followed=4/6 cost=$0.28 timed_out=False
+bare agent (task=opsx-archive, model=sonnet5, n=5): end result 5/5, did every step 0/5
+per-step miss counts: step 1: 1/5, step 2: 5/5, step 3: 2/5, step 4: 1/5, step 5: 2/5, step 6: 5/5
+mean cost: $0.35
