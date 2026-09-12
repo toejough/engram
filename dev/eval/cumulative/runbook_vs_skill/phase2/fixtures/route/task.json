@@ -419,5 +419,5 @@
   "carrier_r_src": "encodings/taskRoute/Route-R/vault",
   "carrier_f_src": "encodings/taskRoute/Route-F/vault",
   "skill_name": "route",
-  "skill_src": "../../../../../agent-instructions/skills/route"
+  "skill_src": "encodings/taskRoute/Route-S/skills/route"
 }

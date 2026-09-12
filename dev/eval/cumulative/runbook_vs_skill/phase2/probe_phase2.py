@@ -458,12 +458,21 @@ def deploy_skill(repo_path, task_key):
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copytree(cfg["skill_src"], dst)
     else:
-        # Generic task: deploy skill directory with its actual name from cfg
+        # Generic task: deploy ONLY the SKILL.md file from the skill_src directory.
+        # Each carrier form carries the SAME text, so the S arm must deploy exactly one file,
+        # SKILL.md, never sibling reference files like price-table.md or tests/.
         skill_name = cfg.get("skill_name")
         if skill_name:
-            dst = os.path.join(repo_path, ".claude", "skills", skill_name)
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.copytree(cfg["skill_src"], dst)
+            skill_src = cfg["skill_src"]
+            # Verify skill_src directory exists and contains SKILL.md
+            skill_file = os.path.join(skill_src, "SKILL.md")
+            if not os.path.isfile(skill_file):
+                raise RuntimeError(f"skill_src '{skill_src}' does not contain SKILL.md")
+            # Deploy only SKILL.md into the skills directory
+            dst_dir = os.path.join(repo_path, ".claude", "skills", skill_name)
+            os.makedirs(dst_dir, exist_ok=True)
+            dst_file = os.path.join(dst_dir, "SKILL.md")
+            shutil.copy2(skill_file, dst_file)
 
 
 _START_STATE_CHECKS = {

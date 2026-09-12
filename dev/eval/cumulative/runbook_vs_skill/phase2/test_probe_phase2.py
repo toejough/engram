@@ -334,6 +334,65 @@ def test_deploy_skill_task_b_places_skill_dir(tmp_path):
     assert "name: gitignore-narrowing" in open(dst).read()
 
 
+def test_deploy_skill_generic_copies_only_skill_md_not_siblings(tmp_path):
+    """Generic tasks (tdd-order, route) must deploy ONLY SKILL.md, never sibling files like
+    price-table.md or tests/. Each carrier form carries the SAME text, so S arm deploys exactly
+    one file — this test verifies siblings are excluded."""
+    repo_path = str(tmp_path / "repo")
+    os.makedirs(repo_path)
+    # Create a skill_src directory with SKILL.md and sibling files
+    skill_src = tmp_path / "skill_src"
+    skill_src.mkdir()
+    (skill_src / "SKILL.md").write_text("# Test Skill\n\nBody content")
+    (skill_src / "sibling.md").write_text("This should not be deployed")
+    (skill_src / "tests").mkdir()
+    (skill_src / "tests" / "test.txt").write_text("Test file")
+
+    # Set up a mock task in TASKS with the skill_src
+    original_tasks = pp.TASKS
+    try:
+        pp.TASKS["generic_test"] = {
+            "skill_src": str(skill_src),
+            "skill_name": "test-skill",
+        }
+        pp.deploy_skill(repo_path, "generic_test")
+
+        # Verify only SKILL.md was deployed
+        dst_dir = os.path.join(repo_path, ".claude", "skills", "test-skill")
+        assert os.path.isdir(dst_dir)
+        assert os.path.isfile(os.path.join(dst_dir, "SKILL.md"))
+
+        # Verify siblings were NOT deployed
+        assert not os.path.exists(os.path.join(dst_dir, "sibling.md"))
+        assert not os.path.exists(os.path.join(dst_dir, "tests"))
+
+        # Verify the content is correct
+        assert open(os.path.join(dst_dir, "SKILL.md")).read() == "# Test Skill\n\nBody content"
+    finally:
+        pp.TASKS = original_tasks
+
+
+def test_deploy_skill_generic_raises_error_if_skill_md_missing(tmp_path):
+    """Generic tasks must raise a clear error if skill_src doesn't contain SKILL.md."""
+    repo_path = str(tmp_path / "repo")
+    os.makedirs(repo_path)
+    # Create a skill_src directory WITHOUT SKILL.md
+    skill_src = tmp_path / "skill_src_no_skill"
+    skill_src.mkdir()
+    (skill_src / "something.md").write_text("No SKILL.md here")
+
+    original_tasks = pp.TASKS
+    try:
+        pp.TASKS["generic_test_missing"] = {
+            "skill_src": str(skill_src),
+            "skill_name": "broken-skill",
+        }
+        with pytest.raises(RuntimeError, match="does not contain SKILL.md"):
+            pp.deploy_skill(repo_path, "generic_test_missing")
+    finally:
+        pp.TASKS = original_tasks
+
+
 # ----- mutating-step regex (smoke-run-1 finding: bare '>' matched '2>&1') -----
 
 def _mut_ev(command, idx=0):

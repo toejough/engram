@@ -97,6 +97,10 @@ Encoding: `taskTDD/TDD-S/skills/test-driven-development/SKILL.md`.
 
 **Verdict: FAITHFUL — byte-for-byte identical to source.** S form is a direct copy of the source skill, no alterations.
 
+### Deployment constraint (Phase 2 hardening)
+
+**Excluded siblings:** The live source directory contains sibling file `writing-good-tests.md` alongside `SKILL.md`. Eval carrier form S deploys **ONLY** `SKILL.md` to the trial repo's `.claude/skills/test-driven-development/` directory — no siblings, no directory tree. This ensures every carrier form (R/F/S) carries identical text. The sibling file is excluded by design to maintain parity across forms. Verification: `find <trial>/.claude/skills/test-driven-development -type f` returns exactly one file (`SKILL.md`).
+
 ---
 
 ## TDD-R (runbook from TDD skill)
@@ -221,6 +225,23 @@ Total evidence cost: $5.92 (RED $3.27 + GREEN $0.79 + PRESSURE $1.86). No refact
 **Deltas (frontmatter and summary field only):** Skill frontmatter is dropped and replaced with fact schema frontmatter. The `object` field contains a brief summary ("a procedure for orchestrators to route subagent work...") rather than enumerating the full procedure. No change to the procedures, tables, red flags, or body content.
 
 **Structural facts:** `type: fact`, situation ~135 chars, subject/predicate/object are fact-schema-shaped (summary in object). Byte count 20,714B vs source skill 19,955B (overhead = fact frontmatter + "Information learned:" preamble ~2 lines; body is identical).
+
+---
+
+## Route-S (skill, source copy)
+
+Encoding: `taskRoute/Route-S/skills/route/SKILL.md`.
+
+| # | Verification | Result |
+|---|---|---|
+| Byte-for-byte match | `cmp source SKILL.md` | 0 bytes differ (IDENTICAL) |
+| SKILL.md source path | `/Users/joe/repos/personal/engram/.claude/worktrees/runbook-vs-skill/agent-instructions/skills/route/SKILL.md` | byte count 19955 |
+
+**Verdict: FAITHFUL — byte-for-byte identical to source.** S form is a direct copy of the source skill, no alterations.
+
+### Deployment constraint (Phase 2 hardening)
+
+**Excluded siblings:** The live source directory contains sibling files `price-table.md` and directory `tests/` alongside `SKILL.md`. Eval carrier form S deploys **ONLY** `SKILL.md` to the trial repo's `.claude/skills/route/` directory — no siblings, no directory tree. This ensures every carrier form (R/F/S) carries identical text. The sibling files are excluded by design to maintain parity across forms. Verification: `find <trial>/.claude/skills/route -type f` returns exactly one file (`SKILL.md`).
 
 ---
 

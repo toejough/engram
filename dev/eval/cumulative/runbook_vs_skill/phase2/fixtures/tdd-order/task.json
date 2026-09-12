@@ -39,5 +39,5 @@
   "carrier_r_src": "encodings/taskTDD/TDD-R/vault",
   "carrier_f_src": "encodings/taskTDD/TDD-F/vault",
   "skill_name": "test-driven-development",
-  "skill_src": "/Users/joe/.claude/plugins/cache/claude-plugins-official/superpowers/6.3.0/skills/test-driven-development"
+  "skill_src": "encodings/taskTDD/TDD-S/skills/test-driven-development"
 }
