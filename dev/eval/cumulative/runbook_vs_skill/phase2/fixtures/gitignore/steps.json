@@ -27,9 +27,10 @@
   },
   {
     "n": 5,
-    "name": "Stage explicit enumerated paths (git add .gitignore scripts/build.sh testdata/fixture.json, not git add -A)",
+    "name": "Stage explicit enumerated paths (git add [--] .gitignore scripts/build.sh testdata/fixture.json, not git add -A)",
+    "_note": "widened (final-review round 2) to also credit the explicit-path-terminator form `git add -- <paths>` (B-R#2's shape) -- previously only 'git add <path>' with no '--' matched, so a legitimate explicit-path staging call scored a false miss on this step.",
     "signal": "bash_regex",
-    "pattern": "git\\s+add\\s+(scripts/build\\.sh|testdata/fixture\\.json|\\.gitignore)"
+    "pattern": "git\\s+add\\s+(--\\s+)?(scripts/build\\.sh|testdata/fixture\\.json|\\.gitignore)"
   },
   {
     "n": 6,

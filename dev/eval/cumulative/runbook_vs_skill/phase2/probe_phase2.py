@@ -578,21 +578,35 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx,
             if ev["idx"] < min_idx:
                 continue
             command = (ev.get("input") or {}).get("command", "") or ""
-            match = pattern.search(command)
-            if not match:
-                continue
             if not_pattern and not_pattern.search(command):
                 continue
             if ev["idx"] == min_idx:
                 # Same Bash event that satisfied the referenced `after` step (final-review
                 # finding: a single command like
                 # `git add ... && git diff --cached --name-only && git status --short` stages
-                # AND verifies in one call) — only credit this step if its own match starts
-                # STRICTLY AFTER the referenced step's match position in that same command
-                # string. `min_pos is None` means the referenced step's own match position is
-                # unknown (e.g. it matched via `tool_path`/`repo_state`, not `bash_regex`) — in
-                # that case a same-event match can never be ordered, so it does not count.
-                if min_pos is None or match.start() <= min_pos:
+                # AND verifies in one call) — only credit this step if SOME occurrence of its
+                # pattern in this command starts STRICTLY AFTER the referenced step's match
+                # position. Round-2 bug (second final-review finding): using only the FIRST
+                # (leftmost) match via `pattern.search` misses a later, legitimate verify match
+                # when an EARLIER, unrelated occurrence of the same pattern also appears in the
+                # command before the referenced step's own match — e.g.
+                # `git status --porcelain -uall && ... && git add <paths> && ... && git diff
+                # --cached --name-only && ... && git status --short`: the verify step's pattern
+                # (`git (diff --cached|status)`) first matches the LEADING `git status` (before
+                # the `git add`), so `search` never sees the later, genuinely-after `git diff
+                # --cached`/`git status --short` occurrence. Scan every match via `finditer` and
+                # take the first one whose start position is after the referenced step's match.
+                # `min_pos is None` means the referenced step's own match position is unknown
+                # (e.g. it matched via `tool_path`/`repo_state`, not `bash_regex`) — in that case
+                # a same-event match can never be ordered, so it does not count.
+                if min_pos is None:
+                    continue
+                match = next((m for m in pattern.finditer(command) if m.start() > min_pos), None)
+                if match is None:
+                    continue
+            else:
+                match = pattern.search(command)
+                if not match:
                     continue
             return True, ev["idx"], match.start()
         return False, None, None
@@ -635,6 +649,12 @@ def evaluate_steps(steps, events, repo_path, repo_checker=default_repo_checker):
           would wrongly fail the verify step even though it demonstrably followed the stage
           clause within that same command).
 
+    **If step n (the referenced step) never matched, the dependent `after: n` step is FALSE**,
+    regardless of what its own pattern would otherwise match (second final-review ruling: a
+    "verify" step with no matched "stage" step to verify AFTER is not the procedure — treating an
+    unmatched reference as `min_idx=-1` would make `after` vacuous, letting the dependent step
+    match anywhere in the transcript as if there were no ordering constraint at all).
+
     Returns (results: {n: bool}, followed_k: int, followed_all: bool).
     """
     results = {}
@@ -645,6 +665,13 @@ def evaluate_steps(steps, events, repo_path, repo_checker=default_repo_checker):
     for step in sorted(steps, key=lambda s: s["n"]):
         n = step["n"]
         after_n = step.get("after")
+
+        if after_n is not None and after_n not in match_idx:
+            # The referenced step never matched — this step cannot be "after" something that
+            # never happened. Do not evaluate its own signal at all.
+            results[str(n)] = False
+            continue
+
         min_idx = match_idx.get(after_n, -1) if after_n is not None else -1
         min_pos = match_pos.get(after_n) if after_n is not None else None
 

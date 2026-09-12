@@ -234,15 +234,22 @@ plus a fresh-reviewer conversion-fidelity audit before spending on the paid run
 (`phase2/encodings/conversion-fidelity-report.md`). Full design: `PLAN-2-conversion-parity.md`;
 full results, decomposition, and caveats: `phase2/ANALYSIS.md`.
 
-**Final-review correction (both tables below are the final, twice-rescored numbers):** a verify-step
-ordering bug let an early status/diff call double-count as a later "verify" step in both tasks. The
-first fix over-corrected (it required the verify call to be a strictly later EVENT, which wrongly
-failed legitimate cases where staging and verification ran in one compound Bash command); the final
-fix accepts either a later event OR a later match position within the SAME command. Both are fixed
-and rescored against the kept trial transcripts. It changed nothing in Task A (every trial's verify
-call genuinely happened after the real work, as its own separate command) but changed Task B
-substantially, including reversing the runbook-vs-fact verdict — see `phase2/ANALYSIS.md`'s
-"Final-review correction" section for the full three-way before/after/final table.
+**Final-review correction (both tables below are the FINAL, three-times-rescored numbers):** a
+verify-step ordering bug let an early status/diff call double-count as a later "verify" step in
+both tasks. The first fix over-corrected (it required the verify call to be a strictly later EVENT,
+which wrongly failed legitimate cases where staging and verification ran in one compound Bash
+command). The second fix accepted a later match within the SAME command, but only checked the
+FIRST occurrence of the verify pattern — missing a later, legitimate occurrence when an earlier,
+unrelated occurrence of the same pattern preceded it in the same command, which produced an
+apparent "runbook beats fact" reversal in Task B that did NOT hold up. The third and final fix
+scans every occurrence and takes the first one after the referenced step, also fixes a second bug
+(an unmatched referenced step no longer vacuously passes its dependent step), and widens the
+staging regex to accept a legitimate `git add -- <paths>` form. Rescored three times against the
+kept trial transcripts. It changed nothing in Task A (every trial's verify call genuinely happened
+after the real work, as its own separate command) but changed Task B substantially each round — the
+final numbers show Task B essentially at ceiling, and RETRACT the round-2 "runbook beats fact"
+finding — see `phase2/ANALYSIS.md`'s "Final-review correction" section for the full
+before/after/final table across all three rounds.
 
 ### Task A (commit) — FOUND/FOLLOWED/END-STATE
 
@@ -259,7 +266,7 @@ substantially, including reversing the runbook-vs-fact verdict — see `phase2/A
 | metric (unit) | S skill | R runbook (orig.) | F fact | Rdirect shim |
 |---|---|---|---|---|
 | FOUND (trials, k/5) | 5/5 | 5/5 | 5/5 | n/a |
-| FOLLOWED all-6-steps (trials, k/4-5) | 1/5 | 4/5 | 2/5 | 1/4 |
+| FOLLOWED all-6-steps (trials, k/4-5) | 5/5 | 5/5 | 4/5 | 4/4 |
 | END-STATE (trials, k/4-5) | 5/5 | 5/5 | 5/5 | 4/4 |
 | cost (mean USD/trial) | 0.68 | 0.60 | 0.60 | 0.94 |
 | valid (n) | 5/5 | 5/5 | 5/5 | **4/5** (one trial invalidated by an account rate limit mid-session — see `ANALYSIS.md`) |
@@ -276,27 +283,27 @@ substantially, including reversing the runbook-vs-fact verdict — see `phase2/A
   vs F 4/5 → `cant_distinguish`** (gap 1) — the 2-trial "F beats S" finding does not survive this
   check. See `phase2/ANALYSIS.md`'s Sensitivity subsection (kept in full) and Decision section for
   the complete table and how it's linked to the verdict.
-- **FOLLOWED-all, Task B (final rescore, both ordering-fix rounds):** S 1/5, R 4/5, F 2/5,
-  Rdirect 1/4 — S vs F is `cant_distinguish` (gap 1); S vs R is `better` for R (gap 3, not one of
-  Joe's rule's decision bars).
+- **FOLLOWED-all, Task B (FINAL rescore, all three ordering-fix rounds):** S 5/5, R 5/5, F 4/5,
+  Rdirect 4/4 — essentially at ceiling in every arm. S vs F is `cant_distinguish` (gap 1); S vs R is
+  `cant_distinguish` (gap 0). **A round-2 reading of this table showed R beating F by 2 trials
+  ("runbook clears the bar") — that reading was a scoring artifact (a leftmost-regex-match bug) and
+  is retracted; it does not survive the final fix.**
 - **R vs F (type effect, the bar Joe's rule turns on for "runbook needs special build") — the two
-  tasks now DISAGREE:** Task A: within 1 trial either way (sensitivity-corrected or not) — runbook
-  does not clear the bar. **Task B: R−F FOLLOWED-all = 4−2 = +2 — the runbook DOES clear the
-  pre-registered 2-trial bar over the fact.** R misses the verify step 0/5 in Task B while F misses
-  it 2/5 — see `phase2/ANALYSIS.md`'s missed-step breakdown and its hypothesis for why (the runbook
-  carrier presents staging and verification as two adjacent numbered steps; the fact carrier packs
-  the same content into one dense clause).
+  tasks now AGREE:** Task A: within 1 trial either way (sensitivity-corrected or not) — runbook does
+  not clear the bar. **Task B (final): R−F FOLLOWED-all = 5−4 = +1 — also within 1 trial**, runbook
+  does not clear the bar here either. Neither task shows the runbook earning a 2+ trial edge over
+  the fact.
 - **Applying Joe's decision rule** ("runbook needs special build → type survives; vanilla fact
-  matches the skill → drop runbook, keep facts+feedback+shim") — **the two tasks disagree, so the
-  recommendation is task-dependent, not uniform:** Task A's data says drop the runbook (fact matches
-  the skill weakly, runbook never clears its bar over fact); **Task B's data says KEEP the runbook**
-  (it clears the 2-trial bar over the fact, meeting its "needs special build" exception). This
-  reverses the prior uniform "drop the runbook type" recommendation for Task B specifically. See
-  `ANALYSIS.md`'s Decision section for the full reasoning, the ceiling-effect caveat, and what this
-  does and does not establish (n=5, generic-procedure scope only — Task B's win does not establish
-  runbooks beat facts on generic procedures IN GENERAL, only on this one task's specific procedure
-  and carrier content; Task A's runbook is also a numbered-step conversion and did not show the same
-  edge).
+  matches the skill → drop runbook, keep facts+feedback+shim") — **both tasks agree: no
+  decision-relevant comparison clears the bar.** Applying the rule's logic: the fact matches the
+  skill weakly (a null result, not a proven match) and the runbook never clears its "needs special
+  build" bar in either task. **Recommendation: drop the distinct runbook type for these generic
+  procedures; keep facts+feedback+shim** — on the same weak (can't-distinguish) grounds throughout,
+  not on a stronger "fact exceeds skill" or "runbook beats fact" claim; neither survives final
+  scoring. See `ANALYSIS.md`'s Decision section for the full reasoning, the ceiling-effect caveat
+  (which now covers Task B's FOLLOWED-all too, not just END-STATE), the standing original-carrier
+  confound (B-R is the only unconverted carrier; Task B's rubric derives from the same source text),
+  and what this does and does not establish (n=5, generic-procedure scope only).
 
 ### Trailer finding (Task A, reported not scored)
 
@@ -323,10 +330,10 @@ observation, not a measured rate; it should not be read as "the carrier ranks fi
 ### Pointers
 
 - Full decision frame, missed-step tables, shim/note decomposition (rate-based, not raw-count
-  subtraction), a ceiling-effect caveat, and 11 caveats total (n, harness attribution — attempted
+  subtraction), a ceiling-effect caveat, and 12 caveats total (n, harness attribution — attempted
   not achieved, smoke-1 fixture/scorer fixes, the one skill-repackaging deviation, conversion
   provenance, background-vault composition, the `.jj` Bash-only signal, the invalidated trial,
-  total-spend arithmetic to the cent, the END-STATE ceiling effect, and the verify-step ordering
-  fix): `phase2/ANALYSIS.md`.
+  total-spend arithmetic to the cent, the END-STATE ceiling effect, the three-round verify-step
+  ordering fix, and the Task B original-carrier confound): `phase2/ANALYSIS.md`.
 - What `superpowers:writing-skills`' RED/GREEN/PRESSURE process added over the runbook path, and
   whether it produced a measurable B-S vs B-R difference: `phase2/WRITING-SKILLS-ADOPTION.md`.

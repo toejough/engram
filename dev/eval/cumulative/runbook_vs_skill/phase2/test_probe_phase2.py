@@ -524,6 +524,71 @@ def test_evaluate_steps_after_same_event_earlier_match_position_not_satisfied():
     assert k == 1
 
 
+def test_evaluate_steps_after_same_event_scans_later_match_past_earlier_occurrence():
+    """Second final-review finding: when the verify pattern occurs MULTIPLE times in one compound
+    command, `after` must find a LATER occurrence, not bail out because the FIRST (leftmost)
+    occurrence sits before the referenced step's match. Real shape (Task B trials B-S#0/1/2,
+    B-F#1/3): an early 'git status' (unrelated to this step) precedes the 'git add' staging call,
+    and a later 'git diff --cached'/'git status --short' follows it — the naive `search()`-based
+    fix (round 2) picked the EARLY occurrence and wrongly failed; `finditer` must scan forward."""
+    steps = [
+        {"n": 1, "name": "stage", "signal": "bash_regex", "pattern": r"git\s+add"},
+        {"n": 2, "name": "verify", "signal": "bash_regex",
+         "pattern": r"git\s+(diff\s+--cached|status)", "after": 1},
+    ]
+    events = [
+        _tool_use("Bash", {
+            "command": ("git status --porcelain -uall && git add .gitignore scripts/build.sh "
+                        "testdata/fixture.json && git diff --cached --name-only && "
+                        "git status --short"),
+        }, idx=0),
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is True
+    assert results["2"] is True
+    assert all_ is True
+
+
+def test_evaluate_steps_after_same_event_no_later_occurrence_at_all_stays_false():
+    """When the verify pattern's ONLY occurrence in the command precedes the referenced step's
+    match, and no later occurrence exists anywhere in the command, the after constraint must stay
+    unsatisfied — there is truly nothing to find after scanning forward."""
+    steps = [
+        {"n": 1, "name": "stage", "signal": "bash_regex", "pattern": r"git\s+add"},
+        {"n": 2, "name": "verify", "signal": "bash_regex", "pattern": r"git\s+diff\s+--cached",
+         "after": 1},
+    ]
+    events = [
+        _tool_use("Bash", {
+            "command": "git diff --cached && git add .gitignore scripts/build.sh testdata/fixture.json",
+        }, idx=0),
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is True
+    assert results["2"] is False
+    assert k == 1
+
+
+def test_evaluate_steps_after_unmatched_referenced_step_forces_dependent_false():
+    """Second final-review ruling: if the referenced step never matched at all, the dependent
+    'after' step must be FALSE, never vacuously True — an unmatched reference defaulting to
+    min_idx=-1 would otherwise let the dependent step match ANYWHERE in the transcript, as if
+    there were no ordering constraint. A 'verify' step with nothing matched to verify AFTER is
+    not the procedure."""
+    steps = [
+        {"n": 1, "name": "stage", "signal": "bash_regex", "pattern": r"git\s+add\s+--\s"},
+        {"n": 2, "name": "verify", "signal": "bash_regex", "pattern": r"git\s+diff\s+--cached",
+         "after": 1},
+    ]
+    events = [
+        _tool_use("Bash", {"command": "git diff --cached --name-only"}, idx=0),
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is False
+    assert results["2"] is False
+    assert k == 0
+
+
 def test_evaluate_steps_repo_state_signal_uses_provided_checker():
     steps = [{"n": 1, "name": "custom repo check", "signal": "repo_state", "pattern": "always_true"}]
 
@@ -908,6 +973,71 @@ def test_real_gitignore_steps_json_step_6_verify_satisfied_by_same_compound_stag
     assert results["5"] is True
     assert results["6"] is True
     assert all_ is True
+
+
+def test_real_gitignore_steps_json_step_6_finds_later_verify_past_leading_status_match():
+    """Regression for the real trials B-S#0/1/2, B-F#1/3: an early 'git status' (satisfying step
+    4) occurs BEFORE the staging 'git add' call within the SAME compound command, and a later
+    'git diff --cached'/'git status --short' occurs after it. Step 6 (after=5) must find that
+    LATER occurrence, not fail because the leftmost occurrence of its own pattern sits before
+    step 5's match."""
+    steps = pp.load_steps("B")
+
+    def always_true_checker(_pattern, _repo):
+        return True
+
+    events = [
+        _tool_use("Bash", {"command": "cat .gitignore"}, idx=0),
+        _tool_use("Bash", {"command": "git check-ignore -q testdata/generated/big.bin"}, idx=1),
+        _tool_use("Bash", {
+            "command": ("git status --porcelain -uall && git add .gitignore scripts/build.sh "
+                        "testdata/fixture.json && git diff --cached --name-only && "
+                        "git status --short"),
+        }, idx=2),
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/x",
+                                          repo_checker=always_true_checker)
+    assert results["4"] is True
+    assert results["5"] is True
+    assert results["6"] is True
+    assert all_ is True
+
+
+def test_real_gitignore_steps_json_step_6_false_when_step_5_never_matched():
+    """Second final-review ruling on the real fixture: if step 5 (staging) never matches at all
+    (e.g. the agent used `git add -A` instead of explicit paths), step 6 (after=5) must be FALSE
+    even though its own verify pattern matches later in the transcript — not vacuously True."""
+    steps = pp.load_steps("B")
+
+    def always_true_checker(_pattern, _repo):
+        return True
+
+    events = [
+        _tool_use("Bash", {"command": "cat .gitignore"}, idx=0),
+        _tool_use("Bash", {"command": "git check-ignore -q testdata/generated/big.bin"}, idx=1),
+        _tool_use("Bash", {"command": "git status --porcelain"}, idx=2),
+        _tool_use("Bash", {"command": "git add -A"}, idx=3),
+        _tool_use("Bash", {"command": "git diff --cached --name-only"}, idx=4),
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/x",
+                                          repo_checker=always_true_checker)
+    assert results["5"] is False
+    assert results["6"] is False
+
+
+def test_real_gitignore_steps_json_step_5_accepts_explicit_path_terminator_form():
+    """Final-review round-2 widening: `git add -- <paths>` (B-R#2's real shape) must credit
+    step 5 — previously only a bare `git add <path>` (no `--`) matched, scoring a false miss on a
+    legitimate explicit-path staging call."""
+    steps = pp.load_steps("B")
+    step5 = next(s for s in steps if s["n"] == 5)
+    events = [
+        _tool_use("Bash", {
+            "command": "git add -- .gitignore scripts/build.sh testdata/fixture.json",
+        }, idx=0),
+    ]
+    results, k, all_ = pp.evaluate_steps([step5], events, repo_path="/does/not/matter")
+    assert results["5"] is True
 
 
 def test_every_repo_state_pattern_in_real_steps_json_is_registered():

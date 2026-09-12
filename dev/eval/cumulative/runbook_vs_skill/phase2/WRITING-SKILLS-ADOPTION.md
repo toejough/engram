@@ -193,35 +193,33 @@ skill-format additions were unneeded scaffolding for this particular discipline 
 weigh toward the "applies to any note, general hygiene only" reading of section 5 rather than a
 distinct runbook type.
 
-RESULTS (final-review correction — re-synced to the twice-rescored numbers; the original RESULTS
-below, based on a verify-step scoring bug, is struck through): a verify-step ordering bug (Task B
-step 6's "verify" signal had no `after` constraint and shared its regex pattern with an earlier
-step) inflated both arms' original FOLLOWED-all counts via double-credited early `git status`
-calls. Fixed in two rounds (see `ANALYSIS.md`'s "Final-review correction" section) — the corrected
-numbers change this section's conclusion:
+RESULTS (final-review correction — re-synced to the FINAL, three-times-rescored numbers; two
+earlier RESULTS drafts below are struck through as scoring-bug artifacts, not real findings): a
+verify-step ordering bug (Task B step 6's "verify" signal had no `after` constraint and shared its
+regex pattern with an earlier step), then an incomplete first fix for it, inflated and then
+distorted both arms' FOLLOWED-all counts across three rounds of rescoring (see `ANALYSIS.md`'s
+"Final-review correction" section for the full history). The FINAL numbers below supersede both
+drafts:
 
 ~~RESULTS: B-S vs B-R (opus, n=5/arm): FOLLOWED-all 4/5 vs 4/5, END-STATE 5/5 vs 5/5 — can't
-distinguish on both metrics (gap 0).~~ *(superseded — the underlying step-6 scoring was an
-ordering-bug artifact; see below.)*
+distinguish on both metrics (gap 0).~~ *(superseded — based on the original unordered scoring.)*
 
-**RESULTS (final): B-S vs B-R (opus, n=5/arm): FOLLOWED-all 1/5 vs 4/5 — `better` for B-R (gap 3,
-clears the pre-registered 2-trial bar); END-STATE 5/5 vs 5/5 — still `cant_distinguish` (ceiling).**
-This is a THIRD outcome section 6 did not originally anticipate (it framed only "B-S beats B-R by
-2+" vs "parity"): **the plain runbook (B-R) outperforms the skill-format conversion (B-S) on
-FOLLOWED-all.** B-R misses the verify step (step 6) 0/5 while B-S misses it 3/5 — B-R's agents far
-more often genuinely verified after staging (frequently via one compound `git add ... && git diff
---cached ...` command), while B-S's agents more often skipped verification. The `## Common
-Mistakes` / `## Red Flags` additions B-S carries beyond the plain runbook did NOT close this gap
-and are not implicated in it either way — the difference traces to the verify step specifically,
-which neither B-S's nor B-R's added/original prose especially emphasizes over the other steps.
-**Reading:** this result does not support "the skill-format additions change agent behavior beyond
-the plain numbered steps" (section 6's first hypothesis) — if anything it points the opposite way,
-though n=5 and a single-task, single-mechanism (verify-step chaining) difference is too narrow to
-generalize "runbooks beat skill-format conversions." It also does not support the original "narrower
-parity" reading, since B-R and B-S are no longer at parity. The safest reading: this eval's Task B
-result is now driven by which carrier's agents happened to chain staging+verification into one
-command, a specific behavioral quirk that plausibly traces to how close together the two related
-steps sit in the source text (see `ANALYSIS.md`'s Decision section hypothesis), not to the
-Common-Mistakes/Red-Flags scaffolding this section set out to test. See `ANALYSIS.md` for the full
-decision frame, per-step breakdown, and caveats (n=5, opus only, one Rdirect trial invalidated by a
-rate limit — does not affect B-S/B-R, which are both fully valid at n=5).
+~~RESULTS (round 2): B-S vs B-R (opus, n=5/arm): FOLLOWED-all 1/5 vs 4/5 — better for B-R (gap 3);
+END-STATE 5/5 vs 5/5 — can't distinguish.~~ *(superseded — this reading was itself produced by a
+leftmost-regex-match scoring bug in the round-2 fix, which undercounted B-S's genuine step-6 passes
+far more than B-R's; see `ANALYSIS.md`'s Final-review correction section. It is NOT a real
+behavioral finding and should not be cited.)*
+
+**RESULTS (final, round-3 rescore): B-S vs B-R (opus, n=5/arm): FOLLOWED-all 5/5 vs 5/5, END-STATE
+5/5 vs 5/5 — `cant_distinguish` on both metrics (gap 0).** With the scoring bugs fixed, B-S and B-R
+land back at parity — the correct reading is section 6's second, narrower outcome: for *this* task
+at n=5, the runbook's plain ordered steps were already sufficient to drive correct behavior in
+BOTH forms, and the `## Common Mistakes` / `## Red Flags` additions B-S carries beyond the plain
+runbook produced no measurable behavioral difference. This weighs toward the "applies to any note,
+general hygiene only" reading of section 5 rather than validating a distinct runbook type on
+behavioral grounds. (Note: Task B's F arm — a third, non-numbered-step conversion of the same
+source — sits one trial below both at 4/5, `cant_distinguish` from either; see `ANALYSIS.md` for
+the full decision frame and the original-carrier confound this comparison carries, since B-R is the
+only one of the three that is byte-identical to the rubric's own source text.) See `ANALYSIS.md`
+for the full decision frame, per-step breakdown, and caveats (n=5, opus only, one Rdirect trial
+invalidated by a rate limit — does not affect B-S/B-R, which are both fully valid at n=5).

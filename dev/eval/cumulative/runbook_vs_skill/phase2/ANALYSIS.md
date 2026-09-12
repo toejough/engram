@@ -21,7 +21,7 @@ marked `valid: false` with `error: "rate_limited: session limit mid-trial (5 tur
 `results/opus_B.invalidated.jsonl` (the original `results/opus_B.jsonl` is untouched). `Task B`
 Rdirect is reported at n=4 for every scored metric below.
 
-## Final-review correction: verify-step ordering (two rounds), and why every table below is from the rescored files
+## Final-review correction: verify-step ordering (three rounds), and why every table below is from the rescored files
 
 A final review found that Task A step 7 ("verify: `git log -1` or `git status` after commit") and
 Task B step 6 ("verify: `git diff --cached` or `git status`") share their regex pattern with an
@@ -42,63 +42,77 @@ git status --short` — so the staging step (5) and the verify step (6) both mat
 event. A strictly-later-EVENT requirement fails this legitimate case even though the verify clause
 demonstrably ran after the staging clause within that one command, collapsing Task B's FOLLOWED-all
 numbers across every arm (an ordering artifact in the OPPOSITE direction from the original bug).
-**Round 2 fixes this:** `after: <step n>` is now satisfied by EITHER (a) a strictly later event
-index, OR (b) a match in the SAME Bash event whose own regex match starts at a LATER position in
-the command string than the referenced step's match did. Four unit tests cover all four cases
-(same-command after → true, same-command before → false, later event → true, earlier event →
-false), plus a regression test reproducing the exact real compound command reported above
-(`test_real_gitignore_steps_json_step_6_verify_satisfied_by_same_compound_staging_command`).
 
-Both result files were rescored against the final (round-2) fix (`--rescore results/opus_A.jsonl
+**Round 2 fixed the same-event case, but incompletely.** It accepted a match in the SAME Bash event
+whose own regex match starts at a LATER position than the referenced step's match — but it located
+that later match with `pattern.search()`, which only ever returns the FIRST (leftmost) occurrence
+in the string. Five real Task B trials (`B-S#0/1/2`, `B-F#1/3`) run a compound command shaped like
+`git status --porcelain -uall && git add <paths> && git diff --cached --name-only && git status
+--short`: the verify step's pattern (`git (diff --cached|status)`) first matches the LEADING `git
+status` — which sits BEFORE the `git add` staging match — so `search()` never sees the later,
+genuinely-after `git diff --cached`/`git status --short` occurrence in the same command, and the
+step wrongly failed even though a legitimate later match existed. **Round 3 fixes this by scanning
+every occurrence via `pattern.finditer()`** and taking the first one whose start position is after
+the referenced step's match, instead of stopping at the first (possibly too-early) occurrence.
+
+**A second, independent bug surfaced during the same review: an unmatched referenced step made
+`after` vacuous.** `match_idx.get(after_n, -1)` defaults to `-1` when the referenced step never
+matched anything — but `-1` satisfies the "strictly later than" check against ANY event, so a
+"verify" step with nothing to verify after would wrongly match anywhere in the transcript, as if
+there were no ordering constraint at all. **Ruling (round 3):** if the referenced step is unmatched,
+the dependent step is now unconditionally FALSE. This surfaced a real instance: `B-R#2` stages with
+`git add -- .gitignore scripts/build.sh testdata/fixture.json` — the explicit-path-terminator
+(`--`) form — which the fixture's step-5 regex did not recognize (it required `git add` to be
+immediately followed by one of the three paths, with no room for `--`). **Step 5's regex is now
+widened** to `git\s+add\s+(--\s+)?(...)`, accepting this legitimate form; this widening turned out
+to matter far more broadly than just `B-R#2` — the `--` form appears across multiple trials in
+multiple arms (see the per-trial evidence below).
+
+Both result files were rescored against the final (round-3) fix (`--rescore results/opus_A.jsonl
 --out results/opus_A.rescored.jsonl`; `--rescore results/opus_B.invalidated.jsonl --out
 results/opus_B.invalidated.rescored.jsonl`) using the kept trial repos/transcripts, OVERWRITING the
-round-1 rescored files. **Every table in this document, the README's phase-2 section, and the
-LEDGER row is now from these final `.rescored.jsonl` files** — the original
+round-1 and round-2 rescored files. **Every table in this document, the README's phase-2 section,
+and the LEDGER row is now from these final `.rescored.jsonl` files** — the original
 `opus_A.jsonl`/`opus_B.invalidated.jsonl` remain committed unchanged, as the un-rescored record of
 what actually ran.
 
-**Before/after per arm (FOLLOWED-all, k/n) — original run, round-1 overshoot, and final (round-2)
-fix:**
+**Before/after per arm (FOLLOWED-all, k/n) — all four states: original run, round-1 overshoot,
+round-2 (still incomplete), and round 3 (final):**
 
-| task | arm | original (no `after`) | round 1 (strict-event, overshot) | round 2 (final, same-command ordering) |
-|---|---|---|---|---|
-| A | S | 0/5 | 0/5 | 0/5 |
-| A | R | 1/5 | 1/5 | 1/5 |
-| A | F | 2/5 | 2/5 | 2/5 |
-| A | Rdirect | 3/5 | 3/5 | 3/5 |
-| B | S | 4/5 | 0/5 | 1/5 |
-| B | R | 4/5 | 1/5 | 4/5 |
-| B | F | 3/5 | 0/5 | 2/5 |
-| B | Rdirect | 1/4 | 0/4 | 1/4 |
+| task | arm | original (no `after`) | round 1 (strict-event, overshot) | round 2 (same-command, incomplete) | round 3 (final) |
+|---|---|---|---|---|---|
+| A | S | 0/5 | 0/5 | 0/5 | 0/5 |
+| A | R | 1/5 | 1/5 | 1/5 | 1/5 |
+| A | F | 2/5 | 2/5 | 2/5 | 2/5 |
+| A | Rdirect | 3/5 | 3/5 | 3/5 | 3/5 |
+| B | S | 4/5 | 0/5 | 1/5 | 5/5 |
+| B | R | 4/5 | 1/5 | 4/5 | 5/5 |
+| B | F | 3/5 | 0/5 | 2/5 | 4/5 |
+| B | Rdirect | 1/4 | 0/4 | 1/4 | 4/4 |
 
 **Task A is unchanged across every round** — every trial's step 7 verify call genuinely happened as
-its own separate Bash event after step 6's commit call, so no round of this fix touches Task A.
-**Task B moved twice.** Round 1 (strict-event `after`) over-corrected: most of the original "step 6
-passes" WERE double-counted early `git status` calls (a real bug), but round 1 also wrongly failed
-every trial whose verify happened via a compound command in the SAME event as staging (a real,
-legitimate pattern). Round 2's same-command-ordering fix recovers those legitimate cases: **Task
-B's R arm rises to 4/5 (matching its original 4/5, but now for the RIGHT reason — genuine
-same-command verification, not an early-status double-count), while S and F land lower than their
-original numbers (S 1/5, F 2/5) because most of THEIR original "step 6 passes" really were the
-early-status artifact, not a compound command.**
+its own separate Bash event after step 6's commit call, and step 5 (Task A has no equivalent
+staging-regex-width issue) never hit either round-3 bug, so no round of this fix touches Task A.
+**Task B moved three times, and the direction of the story changed each time.** Round 1
+over-corrected (collapsed every arm). Round 2 partially recovered but still undercounted every
+arm — most severely S and F, whose real compound commands happen to lead with an early `git status`
+before the `git add`/`git diff --cached` pair, which round 2's leftmost-match search couldn't see
+past. **Round 3 (the actual fix) shows nearly every Task B trial, in every arm, genuinely staged
+with explicit paths AND verified afterward** — the earlier "R clears the bar over F" reading from
+round 2 was ITSELF a scoring artifact, not a real finding; it is retracted below. The ONLY
+remaining Task B FOLLOWED-all miss is `F#3`, on step 3 (gitignore-narrowing correctness), unrelated
+to staging/verification ordering.
 
-One structural difference between the carriers plausibly explains why R's agents chained stage+
-verify while S/F's often didn't: the real vault runbook (830) presents staging and verification as
-two adjacent, individually-numbered steps ("5. Stage only the explicit enumerated paths..." / "6.
-Confirm the staged set matches the enumerated list exactly by running `git diff --cached
---name-only`"), while the FACT conversion (B-F) packs the identical content into one dense
-predicate clause ("...(4) only the explicit enumerated paths...are staged...; and (5) the staged
-set is confirmed to match..."). A short, visually distinct step 6 sitting immediately after step 5
-in a numbered list may be easier for an agent to treat as a discrete thing to actually run (and
-naturally chain onto step 5's command with `&&`) than the same instruction buried as clause (5) of
-one long sentence. This is offered as a hypothesis consistent with the data, not an established
-mechanism — the eval does not isolate carrier structure from carrier type as a controlled variable.
+The apparent Task-B-only "carrier structure" hypothesis floated after round 2 (that the runbook
+carrier's two adjacent numbered steps caused agents to chain stage+verify more than the fact
+carrier's dense predicate clause did) is **retracted along with the reversal it was explaining** —
+round 3 shows S, R, and Rdirect all did this at 4/4 or 5/5 rates, and F did it at 4/5; there is no
+carrier-type pattern left to explain.
 
-This produces a materially different Task B finding than either the original run or the round-1
-overshoot suggested — see the Decision section below, where R now clears the pre-registered
-2-trial bar over F in Task B.
+## `--summarize` output, reproduced from a live run (final, round-3 rescore)
 
-## `--summarize` output, verbatim (rescored)
+The blocks below are reproduced from actually running the command shown, against the final
+`.rescored.jsonl` files — not hand-typed or reflowed independently of a run.
 
 ### `python3 probe_phase2.py --summarize results/opus_A.rescored.jsonl`
 
@@ -170,8 +184,8 @@ trial's step 7 was affected by the ordering fix.
 metric                      S               R               F               Rdirect
 --------------------------------------------------------------------------------------------
 FOUND (k/n)                 5/5             5/5             5/5             n/a
-FOLLOWED all-steps (k/n)    1/5             4/5             2/5             1/4
-FOLLOWED (mean k/N)         5.20/6          5.80/6          5.20/6          5.25/6
+FOLLOWED all-steps (k/n)    5/5             5/5             4/5             4/4
+FOLLOWED (mean k/N)         6.00/6          6.00/6          5.80/6          6.00/6
 END-STATE (k/n)             5/5             5/5             5/5             4/4
 recall_fired (k/n)          5/5             5/5             5/5             4/4
 cost (mean USD)             $0.68           $0.60           $0.60           $0.94
@@ -185,15 +199,15 @@ Decision frame:
     "shim_rate_F": "5/5",
     "note_quality_given_delivery_R": {
       "end_state": "5 of 5",
-      "followed_all": "4 of 5"
+      "followed_all": "5 of 5"
     },
     "note_quality_given_delivery_F": {
       "end_state": "5 of 5",
-      "followed_all": "2 of 5"
+      "followed_all": "4 of 5"
     },
     "note_ceiling_Rdirect": {
       "end_state": "4/4",
-      "followed_all": "1/4"
+      "followed_all": "4/4"
     },
     "shim_loss_total": {"pp_diff": 0.0, "rdirect": "4/4", "r": "5/5"},
     "shim_loss_given_found": {"pp_diff": 0.0, "rdirect": "4/4", "r_given_found": "5/5"},
@@ -202,13 +216,13 @@ Decision frame:
     "type_effect": {
       "end_state_total": 0,
       "end_state_given_found": 0,
-      "followed_all_total": 2,
-      "followed_all_given_found": 2
+      "followed_all_total": 1,
+      "followed_all_given_found": 1
     },
     "parity": {
       "S_vs_R": {
         "end_state": "cant_distinguish",
-        "followed_all": "better"
+        "followed_all": "cant_distinguish"
       },
       "S_vs_F": {
         "end_state": "cant_distinguish",
@@ -220,12 +234,14 @@ Decision frame:
 }
 ```
 
-**Task B changed substantially, and now in a new direction: `type_effect.followed_all_total = 2` —
-R clears the pre-registered 2-trial bar over F in this task** (R 4/5 vs F 2/5). `parity.S_vs_R`
-is now `better` (for R, gap 3: R 4/5 vs S 1/5). `parity.S_vs_F` stays `cant_distinguish` (gap 1).
-See the Decision section below for how this changes the recommendation — this is no longer simply
-"lower numbers, same shape" the way the round-1 overshoot looked; it is a genuine reversal of the
-Task B type-effect verdict.
+**Retraction: the round-2 "R clears the bar over F" finding does NOT survive round 3.**
+`type_effect.followed_all_total` is now `1` (R 5/5 vs F 4/5), back within the ±1 noise floor —
+`cant_distinguish`. `parity.S_vs_R` is now `cant_distinguish` (both at ceiling: S 5/5, R 5/5) —
+the round-2 "`better` for R, gap 3" reading is also retracted; it was driven by the same
+leftmost-match bug being fixed here. Task B is now close to fully saturated on FOLLOWED-all: only
+`F#3` misses anything (step 3, a gitignore-narrowing-correctness check unrelated to
+staging/verification ordering). See the Decision section below — the recommendation returns to the
+pre-round-2 reading: no decision-relevant comparison clears the bar in either task.
 
 ## Per-arm missed-step breakdown
 
@@ -244,29 +260,40 @@ count of trials that missed that step, not a rate).
 
 **Task B** (N_B=6: 1 inspect, 2 check-ignore test, 3 enumerate visible, 4 design pattern,
 5 explicit staging, 6 verify) — S/R/F n=5/arm valid, Rdirect n=4/4 valid + 1 invalidated. **Rescored
-after BOTH rounds of the verify-step ordering fix** (step 6 no longer double-credited by step 4's
-earlier `git status` call, AND correctly credited when it runs in the SAME compound command as
-step 5's staging — see the Final-review correction section above):
+after all three rounds of the verify-step ordering fix** (step 6 no longer double-credited by step
+4's earlier `git status` call; correctly credited when a LATER occurrence of its pattern runs in
+the SAME compound command as step 5's staging, even past an earlier unrelated occurrence; and step
+5's regex widened to accept the `git add -- <paths>` explicit-path-terminator form — see the
+Final-review correction section above):
 
-| arm | step 3 missed | step 5 (staging) missed | step 6 (verify) missed | all other steps |
-|---|---|---|---|---|
-| S | 0/5 | 1/5 | 3/5 | 0 missed |
-| R | 0/5 | 1/5 | 0/5 | 0 missed |
-| F | 1/5 | 1/5 | 2/5 | 0 missed |
-| Rdirect (valid, n=4) | 0/4 | 3/4 | 0/4 | 0 missed |
+| arm | step 3 missed | all other steps |
+|---|---|---|
+| S | 0/5 | 0 missed |
+| R | 0/5 | 0 missed |
+| F | 1/5 | 0 missed |
+| Rdirect (valid, n=4) | 0/4 | 0 missed |
+
+Steps 1, 2, 4, 5, and 6 are now missed by NO trial in ANY arm. The only remaining Task B miss
+anywhere is `F#3` on step 3 (the gitignore-narrowing-correctness `repo_state` check), unrelated to
+staging or verification ordering. **This is a materially different picture from every prior
+version of this document**: what looked like real behavioral spread on steps 5/6 across S, R, F,
+and Rdirect turned out to be almost entirely a scoring artifact (the leftmost-match bug plus the
+`--`-form regex gap) — the underlying agent behavior was already close to uniformly correct.
 
 The invalidated `B-Rdirect#4` trial's own `followed_steps` shows only step 1 credited (steps
 2/3/4/5/6 all missed) — consistent with the session being cut off 5 turns in, before any real
-procedure work; it is excluded from the table above and is not evidence of a step-5 or step-6
-defect, only of the mid-session kill.
+procedure work; it is excluded from the table above and is not evidence of any defect, only of the
+mid-session kill.
 
 **Reading:** Task A misses are dominated by step 1 (the `.jj` VCS check) across every arm, heaviest
 in S (5/5) and lightest in F/Rdirect (2/5 each); step 3 (git log) is a smaller secondary miss in
-S (2/5) and F (1/5). **Task B misses now cleanly separate R from S/F on step 6 (verify after
-staging): R misses it 0/5 — every R trial either verified separately or, more often, verified in
-the SAME compound command as staging — while S misses it 3/5 and F misses it 2/5.** Step 5
-(explicit staging itself) remains a secondary miss across S/R/F alike (1/5 each), heaviest in
-Rdirect (3/4, the shim arm with no vault carrier or retrieval step).
+S (2/5) and F (1/5). **Task B is now essentially at ceiling on FOLLOWED-all across every arm**
+(S 5/5, R 5/5, Rdirect 4/4, F 4/5) — see the Ceiling effect caveat, which now applies to more than
+just END-STATE in this task. Note also the standing design asymmetry between the two tasks
+(Caveat 12): Task B's rubric was derived from the SAME source text that B-R carries verbatim (the
+only unconverted carrier in either task), while Task A's original is the SKILL (S), which is the
+worst performer on Task A's FOLLOWED-all — the "original wins its own rubric" pattern one might
+worry about from Task B's confound does not actually hold in Task A.
 
 ### Sensitivity: Task A FOLLOWED-all excluding step 1
 
@@ -330,23 +357,23 @@ when both arms were actually at 100% END-STATE. Counts are never comparable acro
 **Measured: END-STATE shim loss is 0.0 percentage points in both tasks — no measurable difference.**
 Both the retrieved runbook (R) and the pasted-into-CLAUDE.md runbook text (Rdirect) reached 100%
 END-STATE in both tasks; this metric cannot distinguish them (it is at ceiling — see the Ceiling
-effect caveat below). **On FOLLOWED-all, R and Rdirect now diverge in OPPOSITE directions across
-the two tasks:** Task B (post both rounds of the verify-step ordering fix) is R 4/5 vs Rdirect 1/4
-— R ahead by a 3-trial margin, clearing the pre-registered bar; Task A is R 1/5 vs Rdirect 3/5 —
-Rdirect ahead by 2, the opposite direction. Because the two tasks disagree on which arm the gap
-favors, this is not evidence that either the retrieval step or the shim is generally better — it
-reads as task-dependent, not as a consistent "shim performed worse" or "shim performed better"
-finding.
+effect caveat below). **On FOLLOWED-all (final, round-3 rescore): Task B now shows R and Rdirect
+both at ceiling (R 5/5, Rdirect 4/4 — 100% each, gap 0, `cant_distinguish`); Task A still shows
+Rdirect ahead of R by 2 (R 1/5 vs Rdirect 3/5)**, unaffected by any round of this fix. A prior
+version of this section reported Task B as R ahead of Rdirect by 3 (an "opposite direction from
+Task A" finding) — that reading was itself a product of the same leftmost-match scoring bug fixed
+above and is retracted. The only standing R-vs-Rdirect FOLLOWED-all gap in this data is Task A's,
+where the shim (Rdirect) outperforms the retrieval arm (R) by 2 trials.
 
 **Hypothesis, not established:** the retrieval path's own procedure — recall's Step-0 plan
 statement plus the act of reading a single, focused note during Step 2.5 — may cause more
 attentive application of the note's content than pasting the same text directly into a long
 CLAUDE.md, where it competes with everything else already loaded (the marker, the task prompt, the
-harness's attribution injection, and whatever else the trial's CLAUDE.md carries). Task B's R-vs-
-Rdirect gap is directionally consistent with this hypothesis (R ahead); Task A's is not (Rdirect
-ahead). With one task supporting it and one contradicting it, this remains an open hypothesis for a
-follow-up eval, not an established effect — the same caution applies here as to the R-vs-F finding
-below.
+harness's attribution injection, and whatever else the trial's CLAUDE.md carries). This was
+originally offered to explain an apparent Task-B "shim did worse" pattern that no longer exists
+(see above); with Task B now at ceiling and Task A pointing the OPPOSITE way (shim ahead, not
+behind), this hypothesis has no supporting data left in this eval and should not be carried forward
+without a fresh test.
 
 ## Decision, per Joe's rule
 
@@ -365,6 +392,14 @@ defect must be reported WITH its sensitivity result as the verdict itself, not f
 table elsewhere in the document): **the sensitivity-excluded comparison IS the verdict for Task A
 FOLLOWED-all, not the raw N=7 number.**
 
+**Retraction: the round-2 "task-dependent split" reading below does NOT survive round 3 and is
+withdrawn.** Round 2 reported Task B's runbook clearing the 2-trial bar over the fact and
+recommended keeping the runbook type for Task B specifically. That reading rested on a leftmost-
+match scoring bug (fixed in round 3, see above) that undercounted S and F's genuine step-6 passes
+far more than R's. With the bug fixed, Task B is now close to fully saturated on FOLLOWED-all
+across every arm, and the round-2 "reversal" evaporates along with the carrier-structure hypothesis
+that was built to explain it.
+
 **What the data supports at n=5, sensitivity-aware:**
 - **END-STATE:** S vs R and S vs F are `cant_distinguish` in **both** tasks (Task A: 5/5 all three;
   Task B: 5/5 S/R/F, 4/4 valid Rdirect) — but see the Ceiling effect caveat immediately below before
@@ -379,71 +414,66 @@ FOLLOWED-all, not the raw N=7 number.**
   while only S's remaining step-3 misses stay visible, so it says more about which defective step
   each arm happens to miss than about a genuine skill-vs-runbook ranking. It is not treated as a
   decision-driving result below.)
-- **FOLLOWED-all, Task B (post-rescore, both rounds of the verify-step ordering fix):** S 1/5, R
-  4/5, F 2/5, Rdirect 1/4. **S vs R is `better` for R (gap 3)** — not one of Joe's rule's two decision
-  bars, reported for completeness; **S vs F is `cant_distinguish` (gap 1)**.
+- **FOLLOWED-all, Task B (final, round-3 rescore):** S 5/5, R 5/5, F 4/5, Rdirect 4/4 — essentially
+  at ceiling in every arm. **S vs R is `cant_distinguish` (gap 0)** — the round-2 "`better` for R,
+  gap 3" reading is retracted (it was the leftmost-match bug). **S vs F is `cant_distinguish`
+  (gap 1)**.
 - **R vs F (type effect, the bar Joe's rule actually turns on for "runbook needs special build")
-  — the two tasks now DISAGREE:** Task A: R−F FOLLOWED-all = −1 at N=7 / +1 at the
-  sensitivity-corrected N=6 — small, sign-unstable, never reaching 2; runbook does **not** clear the
-  bar over fact in Task A. **Task B: R−F FOLLOWED-all = 4−2 = +2 — runbook DOES clear the
-  pre-registered 2-trial bar over fact in Task B.** This is a genuine reversal from the
-  round-1-overshot reading (where R and F looked equally low) and from the original pre-fix reading
-  (where the gap was +1, sub-bar) — round 2's same-command-ordering fix specifically credits R's
-  trials for genuinely verifying (often via a compound stage+verify command) far more often than F's
-  trials do (R misses step 6 0/5; F misses it 2/5 — see the missed-step breakdown above).
+  — the two tasks now AGREE:** Task A: R−F FOLLOWED-all = −1 at N=7 / +1 at the
+  sensitivity-corrected N=6 — small, sign-unstable, never reaching 2. **Task B (final): R−F
+  FOLLOWED-all = 5−4 = +1 — also within the ±1 noise floor, `cant_distinguish`.** The round-2
+  reading of Task B's R−F gap as +2 is retracted along with the scoring bug that produced it.
+  **Runbook never clears the 2+ trial bar over fact on any metric, in either task.**
 
-**Conclusion the data supports — the two tasks disagree under Joe's own rule, so the recommendation
-is task-dependent, not a single uniform verdict.** Joe's rule turns on exactly two comparisons:
-S-vs-F ("vanilla fact matches the skill") and R-vs-F ("runbook needs special build to survive").
-**Task A:** once FOLLOWED-all is read at its sensitivity-corrected value, both decision-relevant
-comparisons (S-vs-F, R-vs-F) are `cant_distinguish` — no 2+-trial finding either way. Applying the
-rule's logic here: the fact matches the skill (weakly — a null result, not a proven match) and the
-runbook does not clear its "needs special build" bar — **the rule says drop the runbook for Task A's
-procedure.** **Task B:** S-vs-F is `cant_distinguish` (fact still matches the skill, weakly), but
-**R-vs-F clears the 2-trial bar (runbook beats fact by 2) — the runbook DOES meet its "needs special
-build → survives" bar for Task B's procedure.** Applying the rule's logic here: **the rule says KEEP
-the runbook for Task B's procedure.** This is a genuinely split, task-dependent result, not a single
-"drop the runbook type" or "keep the runbook type" conclusion — the prior version of this document
-(and the round-1-overshoot rescore) both stated a uniform "drop the runbook" recommendation that this
-final numbers do not support. The plausible structural explanation offered above (Task B's runbook
-carrier presents staging and verification as two adjacent, individually-numbered steps, which may
-make agents more likely to genuinely execute and chain both, versus the fact carrier's single dense
-predicate clause) is consistent with a real "runbook shape helps procedural completeness"
-mechanism, but it is a hypothesis from one task's data, not a proven generalizable effect — Task A's
-own runbook carrier is ALSO a numbered-step conversion and did not show the same edge, so carrier
-type alone does not explain Task B's result; something about Task B's specific procedure and/or its
-specific carrier content, not "runbooks in general," is the more defensible read pending further
-eval.
+**Conclusion the data supports — no decision-relevant comparison clears the pre-registered 2-trial
+bar in either task; the recommendation is uniform, not task-dependent.** Joe's rule turns on
+exactly two comparisons: S-vs-F ("vanilla fact matches the skill") and R-vs-F ("runbook needs
+special build to survive"). In BOTH tasks, once Task A's headline is read at its
+sensitivity-corrected value, both decision-relevant comparisons are `cant_distinguish` — no
+2+-trial finding either way, in either task. Applying the rule's logic: the fact matches the skill
+in the weak sense of a null result (not a proven match — n=5 is underpowered to confirm
+equivalence), and the runbook shows no evidence anywhere in this data that it "needs special
+build" to survive — it never clears the 2+ trial margin over the fact on any metric, in either
+task. **Recommendation: drop the distinct runbook type for these generic procedures; keep
+facts+feedback+shim** — on the same weak (can't-distinguish) grounds Task A alone supported before
+round 2's now-retracted reversal, not on a stronger "fact even exceeds the skill" or "runbook beats
+fact in Task B" claim; neither survives final scoring.
+
+**Standing confound, unrelated to the scoring bugs above but worth naming wherever Task B's R-vs-F
+comparison is read (Caveat 12):** Task B's rubric (`done_when` + `steps.json`) was derived directly
+from vault note 830's own text, and B-R is the only carrier in either task that is byte-identical
+to that same source (R/F/S are all conversions of it). If anything this would bias Task B's rubric
+toward crediting R, yet R and F end up statistically indistinguishable anyway (gap 1) — the
+confound did not manufacture a spurious win here, but it remains a reason not to treat Task B's
+R-vs-F comparison as a clean test even before the scoring-bug history above. Task A's original is
+the SKILL (S) instead, and S is Task A's WORST performer on FOLLOWED-all (0/5 raw, 3/5
+sensitivity-corrected) — so "the original wins its own rubric" is not a pattern this eval's own
+Task A supports, which somewhat blunts concern that Task B's confound alone explains anything.
 
 **What the data does NOT support:**
 - **END-STATE was at ceiling (100%) in all 8 arm×task cells (S/R/F/Rdirect × Task A/Task B), and
   there is no procedure-absent control arm** (no trial with no carrier, no skill, and no procedure
   text at all). A ceiling metric with no floor/absent-condition anchor cannot separate "every
   carrier works equally well" from "opus performs this task correctly with no carrier at all" —
-  END-STATE alone cannot support either a parity claim or a difference claim here. The parity
-  finding this eval can actually stand behind rests on FOLLOWED-all (which has real variance) and
-  on FOUND, not on END-STATE.
-- It does not show a UNIFORM ranking between the fact and the runbook — Task A shows no
-  distinguishable difference (both `cant_distinguish`, sensitivity-corrected); Task B shows the
-  runbook 2 trials ahead of the fact. Neither task supports "the fact is causally superior to the
-  runbook," and only Task B supports "the runbook beats the fact" — this is not evidence that
-  runbooks beat facts on generic procedures IN GENERAL, only that they did on this one task's
-  specific procedure and carrier content.
+  END-STATE alone cannot support either a parity claim or a difference claim here. **Task B's
+  FOLLOWED-all is now ALSO close to ceiling** (S 5/5, R 5/5, Rdirect 4/4, F 4/5) — the parity
+  finding this eval can actually stand behind rests mainly on Task A's FOLLOWED-all (which has real
+  variance) and on FOUND, not on Task B's FOLLOWED-all or on END-STATE in either task.
+- It does not show the fact is *causally superior* to the runbook or to the skill — every
+  decision-relevant comparison, sensitivity-corrected, is `cant_distinguish` in both tasks; nothing
+  in this data clears the pre-registered 2-trial bar in either direction.
 - It does not generalize beyond **generic** (non-idiosyncratic) procedures — this eval was scoped
   exactly to fill the gap noted in vault note 853a; the runbook type's demonstrated wins on
   idiosyncratic content (prior LEDGER rows, e.g. `crowded-vault-capability-robustness`) are
-  untouched by this finding, and are now joined by a second, generic-procedure win (Task B) that
-  this document previously reported as absent.
+  untouched by this finding.
 - It does not establish anything about skill vs. memory-in-general: S itself performs comparably to
-  R/F on END-STATE in both tasks (the "baseline usability" bar, S END-STATE ≥3/5, is cleared 5/5 in
-  both, though see the ceiling caveat above on what that clearance can and cannot mean) — this is a
-  runbook-vs-fact type question, not a memory-vs-no-memory one. On FOLLOWED-all, Task B's S-vs-R gap
-  (`better` for R, 3 trials) is the one skill-vs-memory-carrier comparison in this data that DOES
-  clear a bar, but it is S-vs-R, not one of Joe's rule's own two decision comparisons.
+  R/F on every scored metric here (the "baseline usability" bar, S END-STATE ≥3/5, is cleared 5/5 in
+  both tasks, though see the ceiling caveat above on what that clearance can and cannot mean) — this
+  is a runbook-vs-fact type question, not a memory-vs-no-memory one.
 - It is n=5 per arm; a single flipped trial in either direction can move a `cant_distinguish`
-  verdict to `better`/`worse` or vice versa — and both Task A's FOLLOWED-all headline (under the
-  sensitivity check) and Task B's entire FOLLOWED-all picture (under two rounds of an ordering-bug
-  fix) already moved substantially, with no new trial run, purely from scoring corrections.
+  verdict to `better`/`worse` or vice versa — and this document's own history is the clearest
+  demonstration: Task B's FOLLOWED-all picture moved substantially THREE times, with no new trial
+  run, purely from scoring corrections, before settling back near the original run's rough shape.
 
 ## Caveats
 
@@ -526,11 +556,27 @@ eval.
 11. **Verify-step ordering (Task A step 7, Task B step 6) lacked an `after` constraint** and shared
     its regex pattern with an earlier step in the same task, letting an early status/diff call
     double-count as the later "verify" step even when nothing was actually verified after the real
-    work. Fixed in two rounds — round 1 (strict-event ordering) over-corrected, wrongly failing
+    work. Fixed in three rounds — round 1 (strict-event ordering) over-corrected, wrongly failing
     legitimate compound-command verifications; round 2 (same-command ordering by match position)
-    is the final fix. Rescored twice — see the dedicated "Final-review correction" section above for
-    the full before/after/final breakdown; this changed Task B's FOLLOWED-all numbers substantially
-    (including reversing the Task B runbook-vs-fact type-effect verdict) and Task A's not at all.
+    fixed that but only checked the FIRST occurrence of the verify pattern in a command, missing a
+    later legitimate occurrence when an earlier, unrelated occurrence of the same pattern preceded
+    the referenced step's own match; round 3 (scan all occurrences via `finditer`, plus: an
+    unmatched referenced step now forces the dependent step FALSE instead of vacuously passing, and
+    step 5's regex was widened to accept the `git add -- <paths>` explicit-path form) is the final
+    fix. Rescored three times — see the dedicated "Final-review correction" section above for the
+    full before/after/final breakdown; round 3 changed Task B's FOLLOWED-all numbers substantially
+    (retracting round 2's runbook-vs-fact reversal) and Task A's not at all.
+12. **Task B's rubric has an original-carrier confound: B-R is the only UNCONVERTED carrier in
+    either task.** Task B's `done_when` checks and `steps.json` were derived directly from vault
+    note 830's own text — the SAME text B-R serves verbatim (B-R's carrier IS note 830 itself,
+    never converted), while F and S are authored conversions of it. This could plausibly bias
+    Task B's rubric toward crediting whichever arm happens to phrase things
+    closest to the source; the final numbers show R and F statistically indistinguishable anyway
+    (gap 1), so the confound did not manufacture a spurious result here, but it is a standing
+    design asymmetry worth naming whenever Task B's R-vs-F (or R-vs-anything) comparison is read.
+    Task A's original is the SKILL (S) instead, and S is Task A's WORST performer on FOLLOWED-all
+    (0/5 raw, 3/5 sensitivity-corrected) — the "the original wins its own rubric" concern this
+    confound might raise does not hold in Task A, where the original loses.
 
 ## FOUND definitions (presence, not rank)
 
