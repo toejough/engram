@@ -234,11 +234,15 @@ plus a fresh-reviewer conversion-fidelity audit before spending on the paid run
 (`phase2/encodings/conversion-fidelity-report.md`). Full design: `PLAN-2-conversion-parity.md`;
 full results, decomposition, and caveats: `phase2/ANALYSIS.md`.
 
-**Final-review correction (both tables below are the rescored numbers):** a verify-step ordering
-bug let an early status/diff call double-count as a later "verify" step in both tasks; fixed and
-rescored against the kept trial transcripts. It changed nothing in Task A (every trial's verify call
-genuinely happened after the real work) but changed Task B substantially — see
-`phase2/ANALYSIS.md`'s "Final-review correction" section for the full before/after.
+**Final-review correction (both tables below are the final, twice-rescored numbers):** a verify-step
+ordering bug let an early status/diff call double-count as a later "verify" step in both tasks. The
+first fix over-corrected (it required the verify call to be a strictly later EVENT, which wrongly
+failed legitimate cases where staging and verification ran in one compound Bash command); the final
+fix accepts either a later event OR a later match position within the SAME command. Both are fixed
+and rescored against the kept trial transcripts. It changed nothing in Task A (every trial's verify
+call genuinely happened after the real work, as its own separate command) but changed Task B
+substantially, including reversing the runbook-vs-fact verdict — see `phase2/ANALYSIS.md`'s
+"Final-review correction" section for the full three-way before/after/final table.
 
 ### Task A (commit) — FOUND/FOLLOWED/END-STATE
 
@@ -255,7 +259,7 @@ genuinely happened after the real work) but changed Task B substantially — see
 | metric (unit) | S skill | R runbook (orig.) | F fact | Rdirect shim |
 |---|---|---|---|---|
 | FOUND (trials, k/5) | 5/5 | 5/5 | 5/5 | n/a |
-| FOLLOWED all-6-steps (trials, k/4-5) | 0/5 | 1/5 | 0/5 | 0/4 |
+| FOLLOWED all-6-steps (trials, k/4-5) | 1/5 | 4/5 | 2/5 | 1/4 |
 | END-STATE (trials, k/4-5) | 5/5 | 5/5 | 5/5 | 4/4 |
 | cost (mean USD/trial) | 0.68 | 0.60 | 0.60 | 0.94 |
 | valid (n) | 5/5 | 5/5 | 5/5 | **4/5** (one trial invalidated by an account rate limit mid-session — see `ANALYSIS.md`) |
@@ -272,20 +276,27 @@ genuinely happened after the real work) but changed Task B substantially — see
   vs F 4/5 → `cant_distinguish`** (gap 1) — the 2-trial "F beats S" finding does not survive this
   check. See `phase2/ANALYSIS.md`'s Sensitivity subsection (kept in full) and Decision section for
   the complete table and how it's linked to the verdict.
-- **FOLLOWED-all, Task B (post-rescore):** S 0/5, R 1/5, F 0/5, Rdirect 0/4 — S vs R and S vs F both
-  `cant_distinguish` (all gaps ≤1, both before and after the ordering fix).
-- **R vs F (type effect, the bar Joe's rule turns on for "runbook needs special build"):** within 1
-  trial of each other on every metric, both tasks, sensitivity-corrected or not — runbook never
-  clears the pre-registered 2+ trial bar over fact in either task.
+- **FOLLOWED-all, Task B (final rescore, both ordering-fix rounds):** S 1/5, R 4/5, F 2/5,
+  Rdirect 1/4 — S vs F is `cant_distinguish` (gap 1); S vs R is `better` for R (gap 3, not one of
+  Joe's rule's decision bars).
+- **R vs F (type effect, the bar Joe's rule turns on for "runbook needs special build") — the two
+  tasks now DISAGREE:** Task A: within 1 trial either way (sensitivity-corrected or not) — runbook
+  does not clear the bar. **Task B: R−F FOLLOWED-all = 4−2 = +2 — the runbook DOES clear the
+  pre-registered 2-trial bar over the fact.** R misses the verify step 0/5 in Task B while F misses
+  it 2/5 — see `phase2/ANALYSIS.md`'s missed-step breakdown and its hypothesis for why (the runbook
+  carrier presents staging and verification as two adjacent numbered steps; the fact carrier packs
+  the same content into one dense clause).
 - **Applying Joe's decision rule** ("runbook needs special build → type survives; vanilla fact
-  matches the skill → drop runbook, keep facts+feedback+shim"): **no decision-relevant comparison
-  (S-vs-F, R-vs-F) clears the 2-trial bar in either task**, once Task A is read at its
-  sensitivity-corrected value. The "fact even exceeds the skill" claim in the prior version of this
-  section does not survive that check. The rule's own criterion still says drop the distinct
-  runbook type for these generic procedures — the runbook simply never earns the "needs special
-  build" exception — but on weaker grounds (a null result, not a proven match) than previously
-  stated. See `ANALYSIS.md`'s Decision section for the full reasoning, the ceiling-effect caveat,
-  and what this does and does not establish (n=5, generic-procedure scope only).
+  matches the skill → drop runbook, keep facts+feedback+shim") — **the two tasks disagree, so the
+  recommendation is task-dependent, not uniform:** Task A's data says drop the runbook (fact matches
+  the skill weakly, runbook never clears its bar over fact); **Task B's data says KEEP the runbook**
+  (it clears the 2-trial bar over the fact, meeting its "needs special build" exception). This
+  reverses the prior uniform "drop the runbook type" recommendation for Task B specifically. See
+  `ANALYSIS.md`'s Decision section for the full reasoning, the ceiling-effect caveat, and what this
+  does and does not establish (n=5, generic-procedure scope only — Task B's win does not establish
+  runbooks beat facts on generic procedures IN GENERAL, only on this one task's specific procedure
+  and carrier content; Task A's runbook is also a numbered-step conversion and did not show the same
+  edge).
 
 ### Trailer finding (Task A, reported not scored)
 

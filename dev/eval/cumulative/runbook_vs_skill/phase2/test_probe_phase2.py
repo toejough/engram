@@ -484,6 +484,46 @@ def test_evaluate_steps_after_satisfied_when_match_follows_referenced_step():
     assert all_ is True
 
 
+def test_evaluate_steps_after_same_event_later_match_position_is_satisfied():
+    """Final-review finding (coordinator correction): a single compound Bash command can
+    legitimately satisfy an earlier step and a later step at once (e.g.
+    `git add X && git diff --cached --name-only`). Requiring a STRICTLY LATER EVENT index for
+    `after` wrongly fails the later step here — the fix accepts a match in the SAME Bash event
+    when this step's own match starts strictly after the referenced step's match position within
+    that command string."""
+    steps = [
+        {"n": 1, "name": "stage", "signal": "bash_regex", "pattern": r"git\s+add"},
+        {"n": 2, "name": "verify", "signal": "bash_regex", "pattern": r"git\s+diff\s+--cached",
+         "after": 1},
+    ]
+    events = [
+        _tool_use("Bash", {"command": "git add file.txt && git diff --cached --name-only"}, idx=0),
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is True
+    assert results["2"] is True
+    assert k == 2
+    assert all_ is True
+
+
+def test_evaluate_steps_after_same_event_earlier_match_position_not_satisfied():
+    """Mirror case: when the 'verify' pattern's match position comes BEFORE the referenced step's
+    match position in the SAME command, the after constraint must NOT be satisfied — same
+    command, wrong order."""
+    steps = [
+        {"n": 1, "name": "stage", "signal": "bash_regex", "pattern": r"git\s+add"},
+        {"n": 2, "name": "verify", "signal": "bash_regex", "pattern": r"git\s+diff\s+--cached",
+         "after": 1},
+    ]
+    events = [
+        _tool_use("Bash", {"command": "git diff --cached --name-only && git add file.txt"}, idx=0),
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["1"] is True
+    assert results["2"] is False
+    assert k == 1
+
+
 def test_evaluate_steps_repo_state_signal_uses_provided_checker():
     steps = [{"n": 1, "name": "custom repo check", "signal": "repo_state", "pattern": "always_true"}]
 
@@ -840,6 +880,34 @@ def test_real_gitignore_steps_json_step_6_verify_requires_order_after_staging():
                                              repo_checker=always_true_checker)
     assert results2["6"] is True
     assert all2_ is True
+
+
+def test_real_gitignore_steps_json_step_6_verify_satisfied_by_same_compound_staging_command():
+    """Regression test for the reported real trial (hand-verified B-R, idx 16): a single compound
+    Bash command stages AND verifies in one call —
+    `git add .gitignore scripts/build.sh testdata/fixture.json && git diff --cached --name-only
+    && git status --short`. Step 5 (staging) and step 6 (verify, after=5) must BOTH be credited
+    from this one event — the after-constraint fix must not regress this legitimate case back to
+    false."""
+    steps = pp.load_steps("B")
+
+    def always_true_checker(_pattern, _repo):
+        return True
+
+    events = [
+        _tool_use("Bash", {"command": "cat .gitignore"}, idx=0),
+        _tool_use("Bash", {"command": "git check-ignore -q testdata/generated/big.bin"}, idx=1),
+        _tool_use("Bash", {"command": "git status --porcelain"}, idx=2),
+        _tool_use("Bash", {
+            "command": ("git add .gitignore scripts/build.sh testdata/fixture.json "
+                        "&& git diff --cached --name-only && git status --short"),
+        }, idx=3),
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/x",
+                                          repo_checker=always_true_checker)
+    assert results["5"] is True
+    assert results["6"] is True
+    assert all_ is True
 
 
 def test_every_repo_state_pattern_in_real_steps_json_is_registered():

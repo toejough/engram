@@ -553,9 +553,11 @@ def default_repo_checker(pattern_name, repo_path):
     return fn(repo_path)
 
 
-def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx):
+def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx, min_pos=None):
     """Evaluate ONE signal definition against the trial's events/repo state. Returns
-    (matched: bool, idx: int|None).
+    (matched: bool, idx: int|None, pos: int|None) — `pos` is the regex match's start offset
+    within the matched command string (bash_regex only; None otherwise), used to order two
+    signals that land in the SAME Bash event (see `evaluate_steps`'s `after` docstring).
 
     bash_regex: `pattern` matched against Bash tool_use commands, in transcript order; an
       optional `not_pattern` on the SAME command disqualifies a match (the "not -A" rule).
@@ -573,15 +575,27 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx)
 
     if signal == "bash_regex":
         for ev in bash_events:
-            if ev["idx"] <= min_idx:
+            if ev["idx"] < min_idx:
                 continue
             command = (ev.get("input") or {}).get("command", "") or ""
-            if not pattern.search(command):
+            match = pattern.search(command)
+            if not match:
                 continue
             if not_pattern and not_pattern.search(command):
                 continue
-            return True, ev["idx"]
-        return False, None
+            if ev["idx"] == min_idx:
+                # Same Bash event that satisfied the referenced `after` step (final-review
+                # finding: a single command like
+                # `git add ... && git diff --cached --name-only && git status --short` stages
+                # AND verifies in one call) — only credit this step if its own match starts
+                # STRICTLY AFTER the referenced step's match position in that same command
+                # string. `min_pos is None` means the referenced step's own match position is
+                # unknown (e.g. it matched via `tool_path`/`repo_state`, not `bash_regex`) — in
+                # that case a same-event match can never be ordered, so it does not count.
+                if min_pos is None or match.start() <= min_pos:
+                    continue
+            return True, ev["idx"], match.start()
+        return False, None, None
 
     if signal == "tool_path":
         tools = set(sig.get("tools") or ())
@@ -593,11 +607,11 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx)
             file_path = (ev.get("input") or {}).get("file_path", "") or ""
             if not pattern.search(file_path):
                 continue
-            return True, ev["idx"]
-        return False, None
+            return True, ev["idx"], None
+        return False, None, None
 
     if signal == "repo_state":
-        return bool(repo_checker(sig["pattern"], repo_path)), None
+        return bool(repo_checker(sig["pattern"], repo_path)), None, None
 
     raise ValueError(f"unknown steps.json signal {signal!r}")
 
@@ -609,33 +623,46 @@ def evaluate_steps(steps, events, repo_path, repo_checker=default_repo_checker):
     keys — see `_evaluate_signal`) or an `any_of` list of alternative signal definitions, any ONE
     of which satisfies the step (e.g. Task B step 1: inspecting .gitignore via `cat`/`grep`/etc.
     in Bash, OR via the native Read/Edit/Write tool — either counts). An optional `after: <step n>`
-    requires the matching event to occur strictly after the tool_use event that satisfied step n
-    (bash_regex/tool_path only — repo_state signals carry no event index to order against).
+    (bash_regex only for the same-event case below; tool_path/repo_state referenced-step
+    positions are always None, so a same-event match against those can never be ordered)
+    requires the matching event to satisfy ONE of:
+      (a) occur at a STRICTLY LATER event index than the event that satisfied step n, or
+      (b) occur in the SAME Bash event as step n's match, with this step's own regex match
+          starting at a LATER position in the command string than step n's match did
+          (final-review finding: a single compound command — e.g.
+          `git add X && git diff --cached --name-only && git status --short` — can legitimately
+          satisfy a "stage" step and a "verify" step at once; requiring a strictly later EVENT
+          would wrongly fail the verify step even though it demonstrably followed the stage
+          clause within that same command).
 
     Returns (results: {n: bool}, followed_k: int, followed_all: bool).
     """
     results = {}
     match_idx = {}
+    match_pos = {}
     bash_events = [ev for ev in events if ev["kind"] == "tool_use" and ev.get("name") == "Bash"]
 
     for step in sorted(steps, key=lambda s: s["n"]):
         n = step["n"]
         after_n = step.get("after")
         min_idx = match_idx.get(after_n, -1) if after_n is not None else -1
+        min_pos = match_pos.get(after_n) if after_n is not None else None
 
         sub_signals = step["any_of"] if "any_of" in step else [step]
         matched = False
         idx = None
+        pos = None
         for sig in sub_signals:
-            sig_matched, sig_idx = _evaluate_signal(sig, events, bash_events, repo_path,
-                                                     repo_checker, min_idx)
+            sig_matched, sig_idx, sig_pos = _evaluate_signal(sig, events, bash_events, repo_path,
+                                                               repo_checker, min_idx, min_pos)
             if sig_matched:
-                matched, idx = True, sig_idx
+                matched, idx, pos = True, sig_idx, sig_pos
                 break
 
         results[str(n)] = matched
         if idx is not None:
             match_idx[n] = idx
+            match_pos[n] = pos
 
     followed_k = sum(1 for v in results.values() if v)
     followed_all = followed_k == len(steps)
