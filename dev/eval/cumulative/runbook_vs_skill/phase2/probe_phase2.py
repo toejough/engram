@@ -72,14 +72,46 @@ EXCLUDE_LUHMANN_MIN = 955
 # Covering-note removal lists (SOURCE_MATERIALS.md §3). Note 830 is handled separately (kept
 # in every arm EXCEPT B/R — it is B/R's carrier, present because it is NEVER deleted there).
 TASK_A_REMOVAL = (
+    "180.2026-07-05.check-each-commit-summary-length-under-batch-authoring",
+    "199.2026-07-09.regrep-after-every-claimed-apply",
+    "291.2026-07-18.no-coined-jargon-in-briefings-plain-language",
+    "313.2026-07-19.stage-explicit-paths-while-subagents-have-inflight-work",
+    "329.2026-07-20.true-downstream-briefs-against-landed-tree-at-every-boundary",
     "354.2026-07-22.subagent-briefs-state-commit-invariants-not-per-commit",
     "392.2026-07-23.route-dispatch-doc-review-gate",
+    "435.2026-07-24.route-dispatch-doc-review-gate",
+    "440.2026-07-24.rederive-rationale-when-mechanism-changes",
+    "451.2026-07-24.amend-verify-committed-content-not-working-file",
+    "452.2026-07-24.count-claims-need-a-count-before-they-propagate",
+    "459.2026-07-25.route-dispatch-plan-gate-review",
+    "463.2026-07-25.auto-close-keywords-fire-from-quoted-prose",
+    "478.2026-07-25.measure-the-correction-against-the-artifact-being-corrected",
+    "480.2026-07-25.code-comments-state-invariants-not-review-provenance",
+    "490.2026-07-26.a-load-bearing-number-needs-an-artifact-not-repetition",
+    "542.2026-07-27.marker-list-silence-is-not-agent-blindness",
+    "618.2026-07-28.prove-a-single-path-claim-by-grepping-for-the-others",
+    "641.2026-07-28.a-count-without-a-stated-unit-cannot-be-verified",
     "672.2026-07-29.route-dispatch-doc-review-gate",
+    "695.2026-08-01.open-a-change-when-guarantees-change-not-when-you-proposed-it",
+    "740.2026-08-08.verify-the-edit-landed-before-claiming-it-in-prose",
+    "743.2026-08-08.write-the-claim-from-the-artifact-not-from-the-intent",
+    "746.2026-08-08.dont-attribute-invented-rationale-to-a-users-decision",
+    "802.2026-08-26.batch-commits-push-once-after-gate-d-not-incrementally",
+    "866.2026-08-31.review-workflow-pull-can-reveal-sibling-session-superseded-artifact",
+    "963.2026-09-11.headless-claude-code-injects-commit-attribution-that-overrides-project-conventions",
+    "966.2026-09-11.route-dispatch-plan-review-gate-phase2",
+    "982.2026-09-11.runbook-vs-skill-phase2-outcome-fact-matches-skill-runbook-no-better",
 )
 TASK_B_REMOVAL = (
+    "360.2026-07-22.scope-review-checks-complete-file-list-not-expected-files",
     "420.2026-07-24.folder-move-surface-gitignore-anchors-and-silent-optional-consumers",
     "447.2026-07-24.framework-owned-testdata-not-dead-just-because-app-code-ignores-it",
     "448.2026-07-24.route-dispatch-design-fit-review",
+    "960.2026-09-11.nested-gitignore-in-a-tracked-template-hides-the-templates-own-files",
+    "961.2026-09-11.force-add-into-baseline-breaks-staged-diff-done-when-check",
+    "968.2026-09-11.route-dispatch-eval-fixture-implementation-phase2",
+    "988.2026-09-12.sonnet5-pilot-runbook-vs-skill-10-per-form-both-tasks",
+    "991.2026-09-12.bare-sonnet5-baselines-on-four-candidate-procedures",
 )
 
 # First-mutating-step detector (Ruling 6): Edit/Write/MultiEdit anywhere in the repo, or a Bash
@@ -421,10 +453,17 @@ def deploy_skill(repo_path, task_key):
         original = open(cfg["skill_src"]).read()
         with open(dst, "w") as f:
             f.write(_skill_body_with_name(original, cfg["skill_name"]))
-    else:
+    elif task_key == "B":
         dst = os.path.join(repo_path, ".claude", "skills", "gitignore-narrowing")
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copytree(cfg["skill_src"], dst)
+    else:
+        # Generic task: deploy skill directory with its actual name from cfg
+        skill_name = cfg.get("skill_name")
+        if skill_name:
+            dst = os.path.join(repo_path, ".claude", "skills", skill_name)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copytree(cfg["skill_src"], dst)
 
 
 _START_STATE_CHECKS = {
@@ -1545,13 +1584,14 @@ def run_setup_only(task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN):
         print(f"setup-only FAILED: {exc}", file=sys.stderr)
         raise
     finally:
-        if env is not None:
-            shutil.rmtree(env["ENGRAM_VAULT_PATH"], ignore_errors=True)
+        # Keep vault and repo for manual inspection of the trial repo/vault (removed after verification checks)
+        # if env is not None:
+        #     shutil.rmtree(env["ENGRAM_VAULT_PATH"], ignore_errors=True)
         after_fp = p1._real_vault_fingerprint()
         if after_fp != before_fp:
             print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
                   f"after={after_fp}.", file=sys.stderr)
-        shutil.rmtree(run_root, ignore_errors=True)
+        # shutil.rmtree(run_root, ignore_errors=True)
 
 
 # ----- summarize / decomposition (Ruling 7) -----
@@ -1948,8 +1988,9 @@ def main(argv=None):
         if not args.task:
             build_argparser().error("--setup-only requires --task")
         task_key = validate_task_key(args.task)
-        arm = [a.strip() for a in args.arms.split(",") if a.strip()][0]
-        run_setup_only(task_key, arm, args.exclude_luhmann_min)
+        arms = [a.strip() for a in args.arms.split(",") if a.strip()]
+        for arm in arms:
+            run_setup_only(task_key, arm, args.exclude_luhmann_min)
         return
     if not args.task:
         build_argparser().error("--task is required (unless --summarize/--rescore/--baseline)")
