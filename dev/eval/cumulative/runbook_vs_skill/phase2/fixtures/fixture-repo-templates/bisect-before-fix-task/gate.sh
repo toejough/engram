@@ -3,9 +3,12 @@
 set -uo pipefail
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-EVAL_DIR="$(cd "$REPO_ROOT/.." && pwd)/.eval"
-mkdir -p "$EVAL_DIR"
-git -C "$REPO_ROOT" rev-parse HEAD >> "$EVAL_DIR/gate-log"
+# GATE_LOG_PATH is injected at fixture init time to an absolute path.
+# This ensures the log is written to the same location regardless of whether
+# the gate is run from a worktree, clone, or the original repo.
+GATE_LOG_PATH="/PLACEHOLDER_GATE_LOG_PATH"
+mkdir -p "$(dirname "$GATE_LOG_PATH")"
+git -C "$REPO_ROOT" rev-parse HEAD >> "$GATE_LOG_PATH"
 
 FAIL=0
 

@@ -11,6 +11,12 @@ mkdir -p "$EVAL_DIR"
 
 mkdir -p "$TARGET_DIR"
 cp -r "$TEMPLATE/." "$TARGET_DIR/"
+
+# Bake the absolute gate-log path into gate.sh so it works from any worktree or clone.
+GATE_LOG_ESCAPED=$(printf '%s\n' "$EVAL_DIR/gate-log" | sed 's:[/&\]:\\&:g')
+sed -i.bak "s|/PLACEHOLDER_GATE_LOG_PATH|$GATE_LOG_ESCAPED|" "$TARGET_DIR/gate.sh"
+rm -f "$TARGET_DIR/gate.sh.bak"
+
 cd "$TARGET_DIR"
 
 git init -q -b main
