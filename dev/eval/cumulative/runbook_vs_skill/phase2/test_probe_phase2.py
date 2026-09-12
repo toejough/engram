@@ -1105,7 +1105,16 @@ def test_live_scoring_and_rescore_emit_the_same_scored_field_set(tmp_path):
     --rescore must emit the SAME set of scored fields — round-6 finding: first_procedure_step_index
     was computed by --rescore but never by the live path, so base result files lacked it.
     `rescored_from` is the one expected rescore-only addition (provenance marking that a record
-    was rescored) — everything else must match exactly."""
+    was rescored) — everything else must match exactly.
+
+    `valid`/`marker_seen` are computed live by run_one_trial_phase2 itself (from the marker it
+    generated), not by `_score_trial` — they are added to the expected set here rather than read
+    off `scored`. The truncated-projects-dir fix (a long trial repo path can make Claude Code
+    truncate its own projects/<slug> dir name, so a kept record's transcript_path can be None
+    even though the trial ran) taught --rescore to re-derive both fields too, by reading the
+    PROBE-TOKEN back off the trial repo's own committed CLAUDE.md — see rescore_file /
+    _read_repo_marker — so the full live record schema (not just _score_trial's slice of it) is
+    now what --rescore must match."""
     repo_path = pp.setup_trial_repo(str(tmp_path / "trial"), "A", "R",
                                      marker="RUNBOOK-VS-SKILL-PROBE2-parity")
     carrier = "1.2026-09-11.commit-conventional-message"
@@ -1135,7 +1144,7 @@ def test_live_scoring_and_rescore_emit_the_same_scored_field_set(tmp_path):
     # never persisted as a scored field name in the record schema itself) ---
     events = pp.p1.parse_transcript_events([str(transcript_path)])
     scored = pp._score_trial("A", "R", events, repo_path, carrier)
-    live_scored_keys = set(scored.keys()) - {"scoring_error"}
+    live_scored_keys = (set(scored.keys()) - {"scoring_error"}) | {"valid", "marker_seen"}
 
     # --- rescore path: whatever keys rescore_file adds/overwrites onto a minimal provenance-only
     # record ---
@@ -1503,6 +1512,181 @@ def test_rescore_preserves_provenance_fields_from_kept_record():
         rescored = pp.load_jsonl(rescored_path)[0]
     assert rescored["error"] == "rescore: repo missing"
     assert rescored["arm"] == "S"
+
+
+# ----- truncated-projects-dir bug: rediscover_transcript_paths + _read_repo_marker + rescore -----
+
+def _make_truncated_session_jsonl(dir_path, filename, cwd, extra_text=""):
+    """A synthetic Claude Code session jsonl: a leading 'queue-operation' record with no `cwd`
+    key (verified against a real transcript — the file's literal first line often has none),
+    followed by a 'user' record carrying `cwd` and, optionally, `extra_text` in its message
+    content (used to plant the PROBE-TOKEN marker text so marker-validity recomputation can find
+    it)."""
+    os.makedirs(dir_path, exist_ok=True)
+    lines = [
+        json.dumps({"type": "queue-operation", "operation": "x", "sessionId": "s1",
+                     "timestamp": "2026-09-12T00:00:00.000Z"}),
+        json.dumps({"type": "user", "cwd": cwd, "sessionId": "s1",
+                     "timestamp": "2026-09-12T00:00:01.000Z",
+                     "message": {"content": [{"type": "text", "text": extra_text}]} if extra_text
+                     else {"content": []}}),
+    ]
+    path = os.path.join(dir_path, filename)
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return path
+
+
+def test_rediscover_transcript_paths_finds_match_across_cfg_dirs(tmp_path):
+    """The bug: a long trial repo path makes Claude Code truncate the projects/ dir name and
+    append a random 6-char suffix (observed '...-trials-gitigno-t7vm24'). Which cfg-N a live
+    run's worker pool assigned to this trial is never recorded, so every cfg-*/ dir under the
+    trial's run_root must be tried."""
+    run_root = tmp_path / "run"
+    trial_dir = run_root / "trials" / "gitignore-nested-N-0"
+    repo_path = str(trial_dir / "repo")
+    os.makedirs(repo_path, exist_ok=True)
+
+    # An unrelated session under a DIFFERENT cfg dir must never be picked.
+    unrelated_repo = str(run_root / "trials" / "other" / "repo")
+    os.makedirs(unrelated_repo, exist_ok=True)
+    _make_truncated_session_jsonl(run_root / "cfg-0" / "projects" / "unrelated-name",
+                                   "session.jsonl", cwd=unrelated_repo)
+
+    full_slug = pp.p1.isolation.project_slug(repo_path)
+    truncated_name = full_slug[: len(full_slug) - 10] + "-t7vm24"
+    jsonl_path = _make_truncated_session_jsonl(run_root / "cfg-1" / "projects" / truncated_name,
+                                                "session.jsonl", cwd=repo_path)
+
+    found = pp.rediscover_transcript_paths(str(trial_dir), repo_path)
+
+    assert found == [jsonl_path]
+
+
+def test_rediscover_transcript_paths_returns_empty_for_falsy_trial_dir():
+    assert pp.rediscover_transcript_paths(None, "/some/repo") == []
+    assert pp.rediscover_transcript_paths("", "/some/repo") == []
+
+
+def test_rediscover_transcript_paths_returns_empty_when_run_root_missing(tmp_path):
+    trial_dir = str(tmp_path / "does-not-exist" / "trials" / "t0")
+    assert pp.rediscover_transcript_paths(trial_dir, "/some/repo") == []
+
+
+def test_rediscover_transcript_paths_returns_empty_when_no_cfg_dir_matches(tmp_path):
+    run_root = tmp_path / "run"
+    trial_dir = run_root / "trials" / "t0"
+    repo_path = str(trial_dir / "repo")
+    os.makedirs(repo_path, exist_ok=True)
+    other_repo = str(run_root / "trials" / "other" / "repo")
+    os.makedirs(other_repo, exist_ok=True)
+    _make_truncated_session_jsonl(run_root / "cfg-0" / "projects" / "some-dir",
+                                   "session.jsonl", cwd=other_repo)
+
+    assert pp.rediscover_transcript_paths(str(trial_dir), repo_path) == []
+
+
+def test_read_repo_marker_extracts_probe_token(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "CLAUDE.md").write_text("some guidance\n\nPROBE-TOKEN: ABC123\n")
+
+    assert pp._read_repo_marker(str(repo)) == "ABC123"
+
+
+def test_read_repo_marker_returns_none_when_claude_md_missing(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    assert pp._read_repo_marker(str(repo)) is None
+
+
+def test_read_repo_marker_returns_none_when_no_probe_token_line(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "CLAUDE.md").write_text("no marker here\n")
+
+    assert pp._read_repo_marker(str(repo)) is None
+
+
+def test_rescore_rediscovers_missing_transcript_path_and_flips_valid_true(tmp_path):
+    """End-to-end reproduction of the first --baseline batch's bug: a kept record has
+    transcript_path=None (the live run's exact-slug projects/ lookup found nothing because Claude
+    Code truncated its own directory name), but the trial actually ran and its transcript exists
+    under a truncated-name sibling directory that carries the marker text. --rescore must
+    re-discover the transcript, recompute marker validity from the trial repo's own committed
+    CLAUDE.md, and flip both `transcript_path` and `valid`/`marker_seen` accordingly."""
+    run_root = tmp_path / "run"
+    trial_dir = run_root / "trials" / "A-R-0"
+    repo_path = str(trial_dir / "repo")
+    os.makedirs(repo_path, exist_ok=True)
+    marker = "RUNBOOK-VS-SKILL-BASELINE-deadbeef"
+    with open(os.path.join(repo_path, "CLAUDE.md"), "w") as f:
+        f.write(f"some guidance\n\nPROBE-TOKEN: {marker}\n")
+
+    full_slug = pp.p1.isolation.project_slug(repo_path)
+    truncated_name = full_slug[: len(full_slug) - 10] + "-t7vm24"
+    jsonl_path = _make_truncated_session_jsonl(
+        run_root / "cfg-0" / "projects" / truncated_name, "session.jsonl",
+        cwd=repo_path, extra_text=f"PROBE-TOKEN: {marker}")
+
+    record = {
+        "task": "A", "arm": "R", "trial_dir": str(trial_dir), "repo_path": repo_path,
+        "transcript_path": None, "carrier_basename": None,
+        "valid": False, "marker_seen": False,
+        "found": None, "found_index": None,
+        "followed_steps": {}, "followed_k": 0, "followed_all": False,
+        "end_state": False, "end_state_output": "",
+    }
+    results_path = tmp_path / "results.jsonl"
+    with open(results_path, "w") as f:
+        f.write(json.dumps(record) + "\n")
+    rescored_path = tmp_path / "rescored.jsonl"
+
+    pp.rescore_file(str(results_path), str(rescored_path))
+
+    rescored = pp.load_jsonl(str(rescored_path))[0]
+    assert rescored["transcript_path"] == str(jsonl_path)
+    assert rescored["marker_seen"] is True
+    assert rescored["valid"] is True
+
+
+def test_rescore_leaves_valid_false_when_rediscovery_finds_nothing(tmp_path):
+    """No matching transcript anywhere under the run_root — rescore must not fabricate a
+    validity; valid/marker_seen stay False and transcript_path stays None."""
+    run_root = tmp_path / "run"
+    trial_dir = run_root / "trials" / "A-R-0"
+    repo_path = str(trial_dir / "repo")
+    os.makedirs(repo_path, exist_ok=True)
+    with open(os.path.join(repo_path, "CLAUDE.md"), "w") as f:
+        f.write("some guidance\n\nPROBE-TOKEN: RUNBOOK-VS-SKILL-BASELINE-neverfound\n")
+    os.makedirs(run_root / "cfg-0" / "projects", exist_ok=True)  # no matching session anywhere
+
+    record = {
+        "task": "A", "arm": "R", "trial_dir": str(trial_dir), "repo_path": repo_path,
+        "transcript_path": None, "carrier_basename": None,
+        "valid": False, "marker_seen": False,
+        "found": None, "found_index": None,
+        "followed_steps": {}, "followed_k": 0, "followed_all": False,
+        "end_state": False, "end_state_output": "",
+    }
+    results_path = tmp_path / "results.jsonl"
+    with open(results_path, "w") as f:
+        f.write(json.dumps(record) + "\n")
+    rescored_path = tmp_path / "rescored.jsonl"
+
+    pp.rescore_file(str(results_path), str(rescored_path))
+
+    rescored = pp.load_jsonl(str(rescored_path))[0]
+    assert rescored["transcript_path"] is None
+    assert rescored["marker_seen"] is False
+    assert rescored["valid"] is False
+
+
+# ----- shortened run root (RUN_ROOT_SUBDIR, run_baseline's short dir name) -----
+
+def test_run_root_subdir_is_shortened_from_phase2():
+    assert pp.RUN_ROOT_SUBDIR == "p2"
 
 
 # ----- task registry: fixtures/<name>/ discovery + optional task.json -----

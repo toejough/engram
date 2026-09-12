@@ -1,0 +1,20 @@
+run_id=baseline-gitignore-nested-sonnet5-1789222976-3663f1 task=gitignore-nested arm=N n=8 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/baseline-gitignore-nested-sonnet5-1789222976-3663f1
+setup_trial_vault: removed 36 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/baseline-gitignore-nested-sonnet5-1789222976-3663f1/trials/gitignore-nested-N-1/vault
+setup_trial_vault: removed 36 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/baseline-gitignore-nested-sonnet5-1789222976-3663f1/trials/gitignore-nested-N-0/vault
+  [gitignore-nested-N#1] INVALID(no-marker) end_state=True followed=1/6 cost=$0.43 timed_out=False
+  [gitignore-nested-N#0] INVALID(no-marker) end_state=True followed=1/6 cost=$0.44 timed_out=False
+setup_trial_vault: removed 36 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/baseline-gitignore-nested-sonnet5-1789222976-3663f1/trials/gitignore-nested-N-2/vault
+setup_trial_vault: removed 36 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/baseline-gitignore-nested-sonnet5-1789222976-3663f1/trials/gitignore-nested-N-3/vault
+  [gitignore-nested-N#3] INVALID(no-marker) end_state=True followed=1/6 cost=$0.43 timed_out=False
+setup_trial_vault: removed 36 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/baseline-gitignore-nested-sonnet5-1789222976-3663f1/trials/gitignore-nested-N-4/vault
+  [gitignore-nested-N#2] INVALID(no-marker) end_state=True followed=1/6 cost=$0.47 timed_out=False
+setup_trial_vault: removed 36 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/baseline-gitignore-nested-sonnet5-1789222976-3663f1/trials/gitignore-nested-N-5/vault
+  [gitignore-nested-N#5] INVALID(no-marker) end_state=True followed=1/6 cost=$0.45 timed_out=False
+setup_trial_vault: removed 36 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/baseline-gitignore-nested-sonnet5-1789222976-3663f1/trials/gitignore-nested-N-6/vault
+  [gitignore-nested-N#4] INVALID(no-marker) end_state=True followed=1/6 cost=$0.49 timed_out=False
+setup_trial_vault: removed 36 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/phase2/baseline-gitignore-nested-sonnet5-1789222976-3663f1/trials/gitignore-nested-N-7/vault
+  [gitignore-nested-N#6] INVALID(no-marker) end_state=True followed=1/6 cost=$0.55 timed_out=False
+  [gitignore-nested-N#7] INVALID(no-marker) end_state=True followed=1/6 cost=$0.36 timed_out=False
+bare agent (task=gitignore-nested, model=sonnet5, n=8): end result 0/0, did every step 0/0
+per-step miss counts: n/a
+mean cost: $0.00

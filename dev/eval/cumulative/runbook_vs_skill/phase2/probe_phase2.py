@@ -46,6 +46,13 @@ FIXTURES_DIR = os.path.join(HERE, "fixtures")
 ENCODINGS_DIR = os.path.join(HERE, "encodings")
 REAL_VAULT = p1.isolation.operator_vault()
 
+# Shortened from "phase2" (fix for the truncated-projects-dir bug: a long trial repo path makes
+# Claude Code truncate its own projects/<slug> directory name and append a random 6-char suffix,
+# which discover_transcript_paths now handles — see probe.py — but shortening every run root
+# reduces how often that path even gets exercised). Every entry point's run_root lives under
+# p1.DEFAULT_RUN_ROOT/RUN_ROOT_SUBDIR/.
+RUN_ROOT_SUBDIR = "p2"
+
 ARMS = ("S", "R", "F", "Rdirect", "N")
 # --arms without an explicit value still runs the original 4-arm set; N is opt-in (a control the
 # coordinator selects deliberately, not part of the standard comparison).
@@ -1027,7 +1034,7 @@ def run_batch(args):
     task_key = validate_task_key(args.task)
 
     run_id = f"{task_key}-{args.model}-{int(time.time())}-{uuid.uuid4().hex[:6]}"
-    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
+    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, RUN_ROOT_SUBDIR, run_id)
     os.makedirs(run_root, exist_ok=True)
 
     cfg_dirs = build_cfg_pool_phase2(run_root, args.workers)
@@ -1120,8 +1127,14 @@ def run_baseline(args):
     only the arm (fixed to "N") and the final summary differ from run_batch."""
     task_key = validate_task_key(args.baseline)
 
-    run_id = f"baseline-{task_key}-{args.model}-{int(time.time())}-{uuid.uuid4().hex[:6]}"
-    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
+    ts = int(time.time())
+    # `run_id` stays fully descriptive (stored on every record, printed below) — it is the
+    # DIRECTORY name that must stay short: a long task name (e.g. "gitignore-nested") folded into
+    # every trial's cwd is exactly what made Claude Code truncate its own projects/<slug>
+    # directory name in the first --baseline batch (see RUN_ROOT_SUBDIR / discover_transcript_paths).
+    run_id = f"baseline-{task_key}-{args.model}-{ts}-{uuid.uuid4().hex[:6]}"
+    run_dir_name = f"b-{str(ts)[-6:]}"
+    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, RUN_ROOT_SUBDIR, run_dir_name)
     os.makedirs(run_root, exist_ok=True)
 
     cfg_dirs = build_cfg_pool_phase2(run_root, args.workers)
@@ -1180,7 +1193,7 @@ def plumbing_prompt(task_key):
 
 def run_plumbing(task_key, model):
     run_id = f"plumbing-{task_key}-{model}-{int(time.time())}"
-    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
+    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, RUN_ROOT_SUBDIR, run_id)
     os.makedirs(run_root, exist_ok=True)
     cfg = os.path.join(run_root, "cfg")
     build_cfg_template_phase2(cfg)
@@ -1242,7 +1255,7 @@ def run_setup_only(task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN):
     starting-state checks, and clean up — no claude call. For confirming a fixture change against
     the harness's own starting-state assertion without spending on a trial."""
     run_id = f"setup-only-{task_key}-{arm}-{int(time.time())}"
-    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
+    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, RUN_ROOT_SUBDIR, run_id)
     trial_dir = os.path.join(run_root, "trials", "setup-only-0")
     os.makedirs(trial_dir, exist_ok=True)
     cfg = os.path.join(run_root, "cfg")
@@ -1476,18 +1489,62 @@ def summarize_file(path):
     return frames
 
 
+_PROBE_TOKEN_RE = re.compile(r"PROBE-TOKEN:\s*(\S+)")
+
+
+def _read_repo_marker(repo_path):
+    """The PROBE-TOKEN marker embedded verbatim in the trial repo's own committed CLAUDE.md (see
+    p1.build_claude_md) — read directly from the repo rather than requiring the marker string to
+    be stored on the kept record (it never was). Returns None if CLAUDE.md is missing or carries
+    no PROBE-TOKEN line."""
+    try:
+        text = open(os.path.join(repo_path, "CLAUDE.md")).read()
+    except OSError:
+        return None
+    m = _PROBE_TOKEN_RE.search(text)
+    return m.group(1) if m else None
+
+
+def rediscover_transcript_paths(trial_dir, repo_path):
+    """Search every cfg-*/ directory under the trial's run_root (trial_dir's grandparent —
+    run_root/trials/<name>) for the trial's transcript. Which cfg-N a live run's worker pool
+    assigned to this particular trial is never recorded on the kept record, so every cfg dir is
+    tried; p1.discover_transcript_paths's truncated-slug-prefix + exact-cwd-verification (see
+    probe.py) means trying several cfg dirs never risks picking up the WRONG trial's transcript —
+    a candidate is only accepted when ITS OWN session jsonl records this exact repo_path as its
+    cwd. Returns [] if trial_dir is falsy, its run_root doesn't exist, or no cfg dir matches."""
+    if not trial_dir:
+        return []
+    run_root = os.path.dirname(os.path.dirname(trial_dir))
+    if not os.path.isdir(run_root):
+        return []
+    for name in sorted(os.listdir(run_root)):
+        if not name.startswith("cfg-"):
+            continue
+        found = p1.discover_transcript_paths(os.path.join(run_root, name), repo_path)
+        if found:
+            return found
+    return []
+
+
 def rescore_file(in_path, out_path):
-    """Re-run FOUND + `first_procedure_step_index` + `recall_fired` (round-3: extended to cover
-    FOUND, per the mutating-regex fix), steps.json evaluation (incl. `n_steps`), END-STATE, and
-    the Task A `trailer` field (round 4) on kept trial directories/transcripts — round 6: this
-    field set is kept IDENTICAL to what the live scoring path (`_score_trial`) emits, so a
-    rescored record is directly comparable, field for field, to a live one (see
-    `test_live_scoring_and_rescore_emit_the_same_scored_field_set`). `repo_path` is required (for
-    steps.json's repo_state signals, END-STATE, and `trailer`); `transcript_path` is required for
-    FOUND and bash_regex steps — if the transcript is also missing, those recompute against an
-    empty event list (found stays at its arm-appropriate default, e.g. None for Rdirect / False
-    otherwise). Provenance (`arm`, `carrier_basename`, `task`) is read from the kept record,
-    never re-derived."""
+    """Re-run marker validity, FOUND + `first_procedure_step_index` + `recall_fired` (round-3:
+    extended to cover FOUND, per the mutating-regex fix), steps.json evaluation (incl.
+    `n_steps`), END-STATE, and the Task A `trailer` field (round 4) on kept trial
+    directories/transcripts — round 6: this field set is kept IDENTICAL to what the live scoring
+    path (`_score_trial`) emits, so a rescored record is directly comparable, field for field, to
+    a live one (see `test_live_scoring_and_rescore_emit_the_same_scored_field_set`). `repo_path`
+    is required (for steps.json's repo_state signals, END-STATE, `trailer`, and re-reading the
+    trial's own PROBE-TOKEN off its committed CLAUDE.md); `transcript_path` is required for
+    FOUND, bash_regex steps, and marker validity — if it is missing or no longer exists (the
+    truncated-projects-dir bug: Claude Code's own projects/<slug> dir name got truncated with a
+    random suffix, so the live run's exact-slug lookup found nothing even though the trial ran —
+    see rediscover_transcript_paths / probe.discover_transcript_paths), it is RE-DISCOVERED here
+    by scanning every cfg-*/ dir under the trial's run_root; if that also comes up empty, FOUND
+    and marker validity recompute against an empty event list (found stays at its arm-appropriate
+    default, e.g. None for Rdirect / False otherwise; `valid`/`marker_seen` become False).
+    Provenance (`arm`, `carrier_basename`, `task`) is read from the kept record, never
+    re-derived."""
     records = load_jsonl(in_path)
     rescored = []
 
@@ -1504,9 +1561,24 @@ def rescore_file(in_path, out_path):
             continue
 
         try:
-            events = []
+            transcript_paths_for_parsing = []
             if transcript_path and os.path.exists(transcript_path):
-                events = p1.parse_transcript_events([transcript_path])
+                transcript_paths_for_parsing = [transcript_path]
+            else:
+                rediscovered = rediscover_transcript_paths(record.get("trial_dir"), repo_path)
+                if rediscovered:
+                    transcript_paths_for_parsing = rediscovered
+                    record["transcript_path"] = rediscovered[0]
+
+            events = (p1.parse_transcript_events(transcript_paths_for_parsing)
+                      if transcript_paths_for_parsing else [])
+
+            marker = _read_repo_marker(repo_path)
+            if marker is not None:
+                raw_text = p1.transcript_raw_text(transcript_paths_for_parsing)
+                marker_seen = p1.is_marker_seen(raw_text, marker)
+                record["marker_seen"] = marker_seen
+                record["valid"] = marker_seen
 
             found, found_idx = score_found_phase2(task_key, arm, events, carrier_basename)
             record["found"] = found

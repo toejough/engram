@@ -310,9 +310,102 @@ def spawn_claude(env, model, cwd, prompt, timeout_s):
 
 # ----- transcript discovery + parsing -----
 
+# Claude Code truncates its own projects/<slug> directory name (and appends a random 6-char
+# suffix) when the exact isolation.project_slug(repo_path) would be too long to use as a
+# filesystem component — observed on a long enough trial repo path (dev/eval/phase2's nested
+# fixture dirs): a slug ending "...-gitignore-..." landed on disk as "...-gitigno-t7vm24" /
+# "...-gitigno-un0h8p". An exact-slug lookup then finds nothing even though the trial ran and
+# wrote a transcript (all 8 gitignore-nested baseline trials: INVALID(no-marker),
+# transcript_path=None, despite 14 real turns and the marker actually in CLAUDE.md).
+_TRUNCATED_SLUG_SUFFIX_RE = re.compile(r"-[a-z0-9]{6}$")
+_MIN_SLUG_PREFIX_LEN = 8  # below this, a "prefix" match is too likely to be coincidental noise
+
+
+def _slug_prefix_candidate(dirname, full_slug):
+    """Is `dirname` (a projects/ subdirectory name) a PLAUSIBLE truncated-slug candidate for
+    `full_slug`? True for an exact match, or for `dirname` with an optional trailing random
+    "-xxxxxx" suffix stripped being a real prefix of `full_slug`. This is a candidate FILTER
+    only — never trust it alone to identify the right transcript (two different long repo_paths
+    sharing a common ancestor path can truncate to the identical prefix); the caller must confirm
+    via the candidate directory's own session jsonl `cwd` field (see discover_transcript_paths)."""
+    if dirname == full_slug:
+        return True
+    stripped = _TRUNCATED_SLUG_SUFFIX_RE.sub("", dirname)
+    return len(stripped) >= _MIN_SLUG_PREFIX_LEN and full_slug.startswith(stripped)
+
+
+def _read_transcript_cwd(jsonl_path):
+    """The `cwd` field from the first record that carries one in a Claude Code session jsonl —
+    NOT necessarily the file's literal first line: a session's leading record(s) can be a
+    'queue-operation' entry with no `cwd` key at all (verified against a real transcript) before
+    the first 'user'/'attachment' record that does. Returns None if the file is unreadable or no
+    record ever carries a `cwd`."""
+    try:
+        with open(jsonl_path, errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except Exception:
+                    continue
+                if "cwd" in obj:
+                    return obj["cwd"]
+    except OSError:
+        return None
+    return None
+
+
 def discover_transcript_paths(cfg, repo_path):
-    proj_dir = os.path.join(cfg, "projects", isolation.project_slug(repo_path))
-    return sorted(glob.glob(os.path.join(proj_dir, "**", "*.jsonl"), recursive=True))
+    """Locate the trial's session transcript(s) under `cfg/projects/`.
+
+    Fast path (unchanged behavior for the common case): the exact `isolation.project_slug`
+    directory exists — glob every *.jsonl under it.
+
+    Truncated-slug path: when that exact directory is absent (see _TRUNCATED_SLUG_SUFFIX_RE's
+    docstring for why it can be), (a) scan `cfg/projects/*` for directories that plausibly match
+    the slug's truncation prefix (_slug_prefix_candidate) and confirm each one by reading a
+    candidate jsonl's own `cwd` field — accepted ONLY on an exact match (by realpath, to tolerate
+    a /tmp-vs-/private/tmp symlink) against `repo_path`, never by directory-name prefix alone;
+    (b) if (a) finds no confirmed directory, fall back to scanning EVERY jsonl anywhere under
+    `cfg/projects/` for a matching `cwd` — a last resort for a truncation shape the prefix
+    heuristic doesn't anticipate.
+    """
+    full_slug = isolation.project_slug(repo_path)
+    projects_dir = os.path.join(cfg, "projects")
+
+    exact_dir = os.path.join(projects_dir, full_slug)
+    if os.path.isdir(exact_dir):
+        return sorted(glob.glob(os.path.join(exact_dir, "**", "*.jsonl"), recursive=True))
+
+    if not os.path.isdir(projects_dir):
+        return []
+
+    real_repo_path = os.path.realpath(repo_path)
+
+    def _cwd_matches(jsonl_path):
+        cwd = _read_transcript_cwd(jsonl_path)
+        return cwd is not None and os.path.realpath(cwd) == real_repo_path
+
+    matched_dirs = []
+    for name in sorted(os.listdir(projects_dir)):
+        candidate_dir = os.path.join(projects_dir, name)
+        if not os.path.isdir(candidate_dir) or not _slug_prefix_candidate(name, full_slug):
+            continue
+        candidate_jsonls = glob.glob(os.path.join(candidate_dir, "**", "*.jsonl"), recursive=True)
+        if any(_cwd_matches(p) for p in candidate_jsonls):
+            matched_dirs.append(candidate_dir)
+
+    if matched_dirs:
+        paths = []
+        for d in matched_dirs:
+            paths.extend(glob.glob(os.path.join(d, "**", "*.jsonl"), recursive=True))
+        return sorted(paths)
+
+    # Fallback (b): every jsonl under projects/, regardless of its directory name's shape.
+    all_jsonls = glob.glob(os.path.join(projects_dir, "**", "*.jsonl"), recursive=True)
+    return sorted(p for p in all_jsonls if _cwd_matches(p))
 
 
 def transcript_raw_text(paths):
