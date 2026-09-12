@@ -193,4 +193,14 @@ skill-format additions were unneeded scaffolding for this particular discipline 
 weigh toward the "applies to any note, general hygiene only" reading of section 5 rather than a
 distinct runbook type.
 
-RESULTS: <to be filled after the opus run>
+RESULTS: B-S vs B-R (opus, n=5/arm): FOLLOWED-all 4/5 vs 4/5, END-STATE 5/5 vs 5/5 — **can't
+distinguish** on both metrics (gap 0). The `## Common Mistakes` / `## Red Flags` additions B-S
+carries beyond the plain runbook did not produce a measurable difference at n=5 on this task; the
+one Task-B FOLLOWED-all miss both arms share is step 5 (explicit staging), missed once in each of
+S and R alike. Per section 6's own pre-registered reading: this result is the narrower outcome —
+"for *this* task at n=5, the runbook's plain ordered steps were already sufficient to drive correct
+behavior, and the skill-format additions were unneeded scaffolding for this particular discipline
+rule" — weighing toward "applies to any note, general hygiene only" rather than validating a
+distinct runbook type on behavioral grounds. See `ANALYSIS.md` for the full decision frame,
+per-step breakdown, and caveats (n=5, opus only, one Rdirect trial invalidated by a rate limit —
+does not affect B-S/B-R, which are both fully valid at n=5).

@@ -220,3 +220,72 @@ stderr — a trial reached real memory and the results should not be trusted.
   seed other procedural-memory evals.
 - FOUND/FOLLOWED/END-STATE/COST scoring framework reusable; the decision frame (parity +
   functionality questions) generalizes to other note-vs-skill comparisons.
+
+## Phase 2 — conversion parity (opus, 2026-09-11)
+
+Phase 1 used one synthetic fixture with a single-note vault. Phase 2 asks the harder question:
+does the answer hold for **two real, generic procedures** (the live `/commit` skill; vault runbook
+830 on gitignore narrowing), each **converted via its native authoring path** (`learn` →
+runbook/fact, `superpowers:writing-skills` → skill) into 4 arms per task — S (original, no
+conversion), R (runbook), F (fact), Rdirect (shim: text pasted into CLAUDE.md, no vault carrier) —
+against the **same real 883-note vault** (covering notes removed per task, per
+`phase2/SOURCE_MATERIALS.md`), rather than a one-note fixture vault. n=5/arm, opus, 40 trials,
+plus a fresh-reviewer conversion-fidelity audit before spending on the paid run
+(`phase2/encodings/conversion-fidelity-report.md`). Full design: `PLAN-2-conversion-parity.md`;
+full results, decomposition, and caveats: `phase2/ANALYSIS.md`.
+
+### Task A (commit) — FOUND/FOLLOWED/END-STATE
+
+| metric (unit) | S skill | R runbook | F fact | Rdirect shim |
+|---|---|---|---|---|
+| FOUND (trials, k/5) | 4/5 | 5/5 | 5/5 | n/a |
+| FOLLOWED all-7-steps (trials, k/5) | 0/5 | 1/5 | 2/5 | 3/5 |
+| END-STATE (trials, k/5) | 5/5 | 5/5 | 5/5 | 5/5 |
+| cost (mean USD/trial) | 0.55 | 0.43 | 0.53 | 0.75 |
+| valid (n) | 5/5 | 5/5 | 5/5 | 5/5 |
+
+### Task B (gitignore narrowing) — FOUND/FOLLOWED/END-STATE
+
+| metric (unit) | S skill | R runbook (orig.) | F fact | Rdirect shim |
+|---|---|---|---|---|
+| FOUND (trials, k/5) | 5/5 | 5/5 | 5/5 | n/a |
+| FOLLOWED all-6-steps (trials, k/4-5) | 4/5 | 4/5 | 3/5 | 1/4 |
+| END-STATE (trials, k/4-5) | 5/5 | 5/5 | 5/5 | 4/4 |
+| cost (mean USD/trial) | 0.68 | 0.60 | 0.60 | 0.94 |
+| valid (n) | 5/5 | 5/5 | 5/5 | **4/5** (one trial invalidated by an account rate limit mid-session — see `ANALYSIS.md`) |
+
+### Decision-frame verdicts (pre-registered ±1-trial parity bar, PLAN-2 lines 23–27)
+
+- **END-STATE, both tasks:** S vs R and S vs F both `cant_distinguish` — the vanilla fact matches
+  the skill everywhere measured.
+- **FOLLOWED-all, Task A:** S vs F = `better` for F (2/5 vs 0/5, clears the 2-trial bar); S vs R =
+  `cant_distinguish` (1/5 vs 0/5).
+- **FOLLOWED-all, Task B:** S vs R and S vs F both `cant_distinguish` (4/5, 3/5, and S 4/5 all
+  within 1 of each other).
+- **R vs F (type effect):** within 1 trial of each other on every metric, both tasks — runbook
+  never clears the pre-registered 2+ trial bar over fact; in Task A the fact is numerically ahead
+  of the runbook.
+- **Applying Joe's decision rule** ("runbook needs special build → type survives; vanilla fact
+  matches the skill → drop runbook, keep facts+feedback+shim"): the vanilla fact matches (Task A/B
+  END-STATE) or exceeds (Task A FOLLOWED-all) the skill, and the runbook shows no 2+ trial edge
+  over the fact anywhere — the rule's own criterion says drop the distinct runbook type for these
+  generic procedures. See `ANALYSIS.md`'s Decision section for what this does and does not
+  establish (n=5, generic-procedure scope only, no causal ranking below the 2-trial bar).
+
+### Trailer finding (Task A, reported not scored)
+
+Every arm honored the harness's own injected `Co-Authored-By` attribution instruction 5/5 — that is
+the harness's rule, not a carrier finding. The project's own `AI-Used: [claude]` rule, however, was
+honored far more by the SKILL arm (4/5) than by the retrieved runbook/fact arms (0/5 each) or the
+pasted shim (1/5). Hypothesis (not established): a skill's process text loads as an instruction at
+invocation time, while a retrieved note is content the agent must re-apply against a competing,
+more recent instruction — see `ANALYSIS.md` for the full caveat.
+
+### Pointers
+
+- Full decision frame, missed-step tables, shim/note decomposition, and 9 caveats (n, harness
+  attribution, smoke-1 fixture/scorer fixes, the one skill-repackaging deviation, conversion
+  provenance, background-vault composition, the `.jj` Bash-only signal, the invalidated trial, and
+  total-spend arithmetic): `phase2/ANALYSIS.md`.
+- What `superpowers:writing-skills`' RED/GREEN/PRESSURE process added over the runbook path, and
+  whether it produced a measurable B-S vs B-R difference: `phase2/WRITING-SKILLS-ADOPTION.md`.
