@@ -109,6 +109,16 @@ def test_add_carrier_s_and_rdirect_add_nothing(tmp_path):
     assert sorted(os.listdir(vault)) == before_listing
 
 
+def test_add_carrier_n_adds_nothing_to_vault(tmp_path):
+    """Arm N (no-instructions control): same background vault + covering-note removal as every
+    other arm, but NO carrier — measures whether the task needs instructions at all."""
+    vault = _make_synthetic_vault(tmp_path)
+    before_listing = sorted(os.listdir(vault))
+    assert pp.add_carrier(vault, "A", "N") is None
+    assert pp.add_carrier(vault, "B", "N") is None
+    assert sorted(os.listdir(vault)) == before_listing
+
+
 # ----- eval-session note exclusion (luhmann >= EXCLUDE_LUHMANN_MIN), every arm and task -----
 
 def _write_note(vault, basename, content="body"):
@@ -1197,6 +1207,22 @@ def test_setup_trial_repo_task_a_arm_s_deploys_skill_and_commits_it(tmp_path):
     assert "add project config" in log
 
 
+def test_setup_trial_repo_task_a_arm_n_adds_no_claude_dir_and_plain_claude_md(tmp_path):
+    """Arm N (no-instructions control): same CLAUDE.md as S/R/F (guidance + cue + marker, no
+    Rdirect '## Project procedure' section) and NO .claude dir at all — no skill deployed."""
+    marker = "RUNBOOK-VS-SKILL-PROBE2-narm"
+    repo_path = pp.setup_trial_repo(str(tmp_path), "A", "N", marker=marker)
+    assert not os.path.isdir(os.path.join(repo_path, ".claude"))
+    claude_md = open(os.path.join(repo_path, "CLAUDE.md")).read()
+    assert f"PROBE-TOKEN: {marker}" in claude_md
+    assert "## Project procedure" not in claude_md
+
+
+def test_setup_trial_repo_task_b_arm_n_adds_no_claude_dir(tmp_path):
+    repo_path = pp.setup_trial_repo(str(tmp_path), "B", "N", marker="RUNBOOK-VS-SKILL-PROBE2-narmb")
+    assert not os.path.isdir(os.path.join(repo_path, ".claude"))
+
+
 # ----- decision frame outputs: baseline_uninterpretable and shim loss -----
 
 def _agg(n, valid_n, found_n, end_state_n, followed_all_n, end_state_given_found_n=None,
@@ -1210,6 +1236,7 @@ def _agg(n, valid_n, found_n, end_state_n, followed_all_n, end_state_given_found
                                         else followed_all_n),
         "recall_fired_n": 0, "followed_mean_k": float(followed_all_n), "n_steps": n_steps,
         "cost_mean": 0.10, "duration_mean": 30.0,
+        "trailer_ai_used_n": 0, "trailer_co_authored_n": 0,
     }
 
 
@@ -1317,6 +1344,56 @@ def test_decomposition_note_quality_given_delivery_format():
     frame = pp.decomposition(agg)
     assert frame["note_quality_given_delivery_R"]["end_state"] == "3 of 4"
     assert frame["note_quality_given_delivery_R"]["followed_all"] == "2 of 4"
+
+
+# ----- arm N (no-instructions control): decomposition ignores it; --summarize reports it -----
+
+def test_decomposition_ignores_arm_n():
+    """N is a control, not part of the decision frame — decomposition() must produce the exact
+    same output whether or not N is present in agg."""
+    agg_without_n = {"S": _agg(5, 5, 4, 4, 4), "R": _agg(5, 5, 3, 3, 3), "F": _agg(5, 5, 3, 3, 3),
+                      "Rdirect": _agg(5, 5, None, 3, 3)}
+    agg_with_n = dict(agg_without_n, N=_agg(5, 5, None, 1, 1))
+    assert pp.decomposition(agg_with_n) == pp.decomposition(agg_without_n)
+
+
+def test_format_table_shows_n_column_and_no_instructions_baseline_line():
+    agg = {"S": _agg(5, 5, 4, 4, 4), "R": _agg(5, 5, 3, 3, 3), "F": _agg(5, 5, 3, 3, 3),
+           "Rdirect": _agg(5, 5, None, 3, 3), "N": _agg(5, 5, None, 1, 2)}
+    table = pp.format_table("A", agg)
+    assert "N" in table.splitlines()[1]  # header row includes the N column
+    assert "no-instructions baseline: FOLLOWED-all 2/5, END-STATE 1/5" in table
+
+
+def test_format_table_found_row_is_na_for_n():
+    agg = {"S": _agg(5, 5, 4, 4, 4), "N": _agg(5, 5, None, 1, 2)}
+    table = pp.format_table("A", agg)
+    found_row = next(line for line in table.splitlines() if line.startswith("FOUND"))
+    assert "n/a" in found_row
+
+
+def test_format_table_omits_no_instructions_line_when_n_absent():
+    agg = {"S": _agg(5, 5, 4, 4, 4), "R": _agg(5, 5, 3, 3, 3)}
+    table = pp.format_table("A", agg)
+    assert "no-instructions baseline" not in table
+
+
+def test_score_found_phase2_arm_n_is_always_na():
+    events = [_tool_use("Bash", {"command": "git add pkg/version.go"}, idx=0)]
+    found, idx = pp.score_found_phase2("A", "N", events, carrier_basename=None)
+    assert found is None
+    assert idx is None
+
+
+def test_found_method_arm_n_is_na():
+    assert pp.found_method("N", None) == "n/a"
+    assert pp.found_method("N", False) == "n/a"
+
+
+def test_arms_includes_n_but_default_arms_does_not():
+    assert "N" in pp.ARMS
+    assert "N" not in pp.DEFAULT_ARMS
+    assert pp.DEFAULT_ARMS == ("S", "R", "F", "Rdirect")
 
 
 # ----- aggregate() -----

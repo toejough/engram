@@ -45,7 +45,10 @@ FIXTURES_DIR = os.path.join(HERE, "fixtures")
 ENCODINGS_DIR = os.path.join(HERE, "encodings")
 REAL_VAULT = p1.isolation.operator_vault()
 
-ARMS = ("S", "R", "F", "Rdirect")
+ARMS = ("S", "R", "F", "Rdirect", "N")
+# --arms without an explicit value still runs the original 4-arm set; N is opt-in (a control the
+# coordinator selects deliberately, not part of the standard comparison).
+DEFAULT_ARMS = ("S", "R", "F", "Rdirect")
 
 NOTE_830_BASENAME = "830.2026-08-29.gitignore-narrowing-anchor-and-visible-set"
 
@@ -429,10 +432,11 @@ def first_mutating_step_index(events, task_key):
 
 def score_found_phase2(task_key, arm, events, carrier_basename):
     """Rdirect: n/a (no retrieval attempted; marker_seen is the delivery check) — returns
-    (None, None). S: a Skill tool_use naming the arm's skill before the first mutating step.
+    (None, None). N (no-instructions control): n/a for the same reason — there is no carrier to
+    find, by design. S: a Skill tool_use naming the arm's skill before the first mutating step.
     R/F: a Bash `engram query` before the first mutating step whose tool_result contains the
     arm's carrier basename."""
-    if arm == "Rdirect":
+    if arm in ("Rdirect", "N"):
         return None, None
 
     first_idx = first_mutating_step_index(events, task_key)
@@ -462,7 +466,7 @@ def score_found_phase2(task_key, arm, events, carrier_basename):
 
 
 def found_method(arm, found):
-    if arm == "Rdirect":
+    if arm in ("Rdirect", "N"):
         return "n/a"
     if not found:
         return "none"
@@ -1196,7 +1200,7 @@ def format_table(task, agg):
         cells = [fmt(arm, agg[arm]) for arm in arms]
         lines.append(label.ljust(label_width) + "".join(c.ljust(16) for c in cells))
 
-    row("FOUND (k/n)", lambda arm, a: "n/a" if arm == "Rdirect" else f"{a['found_n']}/{a['valid_n']}")
+    row("FOUND (k/n)", lambda arm, a: "n/a" if arm in ("Rdirect", "N") else f"{a['found_n']}/{a['valid_n']}")
     row("FOLLOWED all-steps (k/n)", lambda arm, a: f"{a['followed_all_n']}/{a['valid_n']}")
     row("FOLLOWED (mean k/N)", lambda arm, a: f"{a['followed_mean_k']:.2f}/{a['n_steps']}")
     row("END-STATE (k/n)", lambda arm, a: f"{a['end_state_n']}/{a['valid_n']}")
@@ -1208,6 +1212,11 @@ def format_table(task, agg):
         row("trailer AI-Used (k/n)", lambda arm, a: f"{a['trailer_ai_used_n']}/{a['valid_n']}")
         row("trailer Co-Authored-By (k/n)", lambda arm, a: f"{a['trailer_co_authored_n']}/{a['valid_n']}")
         lines.append("  ^ reported, not scored — harness attribution injection overrides carriers")
+    if "N" in agg:
+        n_agg = agg["N"]
+        lines.append(f"no-instructions baseline: FOLLOWED-all "
+                     f"{n_agg['followed_all_n']}/{n_agg['valid_n']}, "
+                     f"END-STATE {n_agg['end_state_n']}/{n_agg['valid_n']}")
     return "\n".join(lines)
 
 
@@ -1296,7 +1305,7 @@ def rescore_file(in_path, out_path):
 def build_argparser():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--task", choices=list(TASKS))
-    ap.add_argument("--arms", default=",".join(ARMS))
+    ap.add_argument("--arms", default=",".join(DEFAULT_ARMS))
     ap.add_argument("--model", choices=list(p1.MODELS))
     ap.add_argument("--n", type=int)
     ap.add_argument("--out")
