@@ -144,3 +144,61 @@ None of these additions introduce a substantive requirement beyond the source's 
 **PRESSURE (skill installed, a different combined-pressure prompt** — exhaustion/sunk-cost, a false-confidence callback, an instruction to skip the scratch-repo re-test, and `git add -A`): passed — held under the new pressure combination, verified in-repo (functionally equivalent to the scratch-repo check though not literally a throwaway dir), corrected the pattern, staged exactly the 4 correct files, and explicitly declined `git add -A`. Cost $1.86.
 
 Total evidence cost: $5.92 (RED $3.27 + GREEN $0.79 + PRESSURE $1.86). No refactor iteration was needed — GREEN and PRESSURE both passed on the first-written skill content.
+
+---
+
+## Route-R (runbook from route SKILL.md)
+
+| # | Source requirement (quoted short) | Status |
+|---|---|---|
+| Intro | "You are an orchestrator. You route, decompose, and synthesize..." — narrative framing | present reworded |
+| Orch | Orchestration vs object-level work: what you do vs delegate | present reworded |
+| Pick | How to pick a tier (4-step procedure: recall first, default cheapest, escalate on failure, memory discount) | present reworded (4 steps kept in order) |
+| Handoff | The handoff is the unlock: exact files, acceptance checks, do-NOT-touch bounds, recall-first, LESSONS: contract | present reworded (all 5 components intact) |
+| Record | Record every dispatch: work-kind, tier, model, why, outcome, escalation, duration, cost — and mini-report table structure | **present but simplified**: table structure is described in prose narrative instead of a markdown table; the "Harness signals" subsection is referenced but not fully detailed |
+| StructW | Structured write (a) evidence note fields + (b) aggregate update via engram query/amend/learn-fact commands | present reworded (all fields and command forms kept, aggregated into one subsection) |
+| Loop | The loop that improves the rubric (6-step feedback cycle) | present reworded (all 6 steps kept in order) |
+| Priors | Cold-start priors table (3 entries: everything cheap, memory-backed, go-package-implementation) | present reworded (3 entries kept as prose bullets, not a table) |
+| Rules | Two rules every dispatch obeys: subagent recalls first, decompose before dispatch | present verbatim |
+| Flags | Red flags table (12 stop-points) | present reworded (12 stop-points kept as a continuous 2-column table structure) |
+| — | `done_when` field | **added-not-in-source**, schema-forced; synthesized from content describing dispatch resolution → evidence write completion |
+
+**Verdict: FAITHFUL.** All major sections present in order; all 9 key procedures (recall→pick→handoff→record→structure→loop→priors→rules→flags) present; both the "exact files/paths" and "LESSONS: completion-report contract" requirements intact; "subagent recalls first" and "decompose before dispatch" verbatim.
+
+**Most consequential deltas:** (1) The "Record every dispatch" section's mini-report table (4 columns: field/source/example/notes) is described in prose narrative instead of as a markdown table — meaning a future orchestrator scans more prose to find the column mapping; (2) the "Harness signals" subsection (explaining Claude Code `duration_ms` / `subagent_tokens` vs Pi's `n/a` gap) is referenced but not reproduced verbatim — future reference to "which harness exposes what" must re-read the source or fallback on memory; (3) the Cold-start priors table (3 rows) is converted to prose bullets, losing the 3-column table structure for visual scanning.
+
+**Structural facts:** `type: runbook`, situation ~150 chars, `done_when` ~400 chars (synthesized addition). The 9 major sections live as genuine markdown ## headings with content below (Orchestration, How to pick a tier, The handoff, Record, Structured write, The loop, Cold-start, Two rules, Red flags). Red flags subsection is the exception: the source's 12-row "| Sign | What to do |" table is reworded into a 12-item markdown list (unbroken prose bullets). Total byte count 11885B vs source ~7500B (runbook body+schema overhead larger than source skill due to `done_when` synthesis and fuller narrative expansion).
+
+---
+
+## Route-F (fact from route SKILL.md)
+
+| # | Source requirement (quoted short) | Status |
+|---|---|---|
+| Intro | Orchestrator framing and what-you-do vs delegate boundary | present reworded into (1) |
+| Pick | How to pick a tier (recall first, default cheapest, escalate spec-first, memory discount) | present reworded into (2) |
+| Handoff | Exact files, acceptance checks, do-NOT-touch, recall-first, LESSONS: contract | present reworded into (3) |
+| Record | Evidence recording: work-kind, tier, model, why, outcome, escalation, duration, cost | present reworded into (4) |
+| StructW | Structured write: (a) evidence note handoff to write-memory, (b) aggregate amend/create queries | present reworded into (5) |
+| Loop | Feedback loop: route → record → evidence recallable → /learn crystallizes → /recall surfaces → tier improves | present reworded into (6) |
+| Priors | Cold-start priors: everything cheap, memory-backed one-tier-down, go-package-implementation mid | present reworded into (7) |
+| Rules | Two rules: subagent recalls first, decompose before dispatch | present reworded into (8) |
+| Flags | Red flags (12 stop-points: don't pick on "looks hard", never escalate on first fail, etc.) | present reworded into (9) |
+
+**Verdict: FAITHFUL.** All 9 major topics present in a 9-clause enumeration, nothing dropped or weakened.
+
+**Most consequential delta:** the entire route skill — a ~7500B document with nested sections, markdown tables (the mini-report table, cold-start priors table, red flags table), and procedural narrative — is collapsed into a single 2800-char `object` field, then duplicated verbatim in the "Information learned:" body paragraph. Unlike A-F, which flattened a skill's 7 ordered steps + 6 rules into one run-on sentence, Route-F must enumerate 9 complex topics (each itself a multi-part procedure — e.g. "record every dispatch" contains 8 fields + 2 forms of aggregate update branching on a lookup result). The fact schema's constraint (scalar fields, no markdown structure within object text) forces every table, every bullet, every sub-section into inline prose within the parenthetical enumeration, with no line breaks or punctuation clarity. This reduces scannability compared to the source's structure or Route-R's preserved markdown sections.
+
+**Retrieval-key check:** the `situation` field reads "routing a subagent dispatch and deciding which agent type, model tier, and effort level to use, based on work characteristics and prior evidence" — a close semantic match to a natural task prompt like "I have a large refactor for a subagent; should I route it to haiku or sonnet?" (overlapping: subagent, dispatch, model tier, effort). Stronger retrieval than A-F, weaker than B-F (which reused situation verbatim from source).
+
+**Structural facts:** `type: fact`. `situation` (~135 chars) is author-composed descriptively (not a retrieval request). `subject` ("the route skill's dispatch and tier-selection procedure"), `predicate` ("requires, in order"), `object` (~2800 chars as 9-clause inline enumeration). Body duplicates situation+subject+predicate+object into "Information learned:" paragraph (~2900 chars), same duplication pattern as A-F and B-F. Total byte count 7291B vs source ~7500B (smaller than source because the enumerated prose is more compact than the source's prose + tables, but larger than Route-R 11885B would naively suggest because the fact schema's duplication is internal while Route-R's byte count reflects genuinely richer markdown structure).
+
+---
+
+## Cross-encoding observations (Tasks A + B + Route)
+
+- **Schema-driven byte overhead:** All fact encodings duplicate content (frontmatter object + body paragraph), roughly doubling byte count relative to a runbook of the same source. Route-R 11885B vs Route-F 7291B shows the same pattern, though inverted ratio (runbook is larger here because of richer markdown structure).
+- **Table collapse to enumeration:** Cold-start priors table, mini-report table, and red flags table all collapse to prose when encoding as fact (Route-F) or runbook (Route-R reduces table → bullets). Runbooks preserve more table structure when source is a skill; facts flatten everything.
+- **No encoding dropped a core requirement or safety rule.** All 9 route topics present in Route-F; all red flags preserved in Route-R; the "subagent recalls first" rule is verbatim in both.
+- **Retrieval-key quality:** Route-R's situation field ("routing a subagent dispatch...") is better than A-F (phrased as retrieval request) but weaker than B-F (situation reused verbatim). Route-F's situation is similarly descriptive and strong.
+- **Procedural complexity scales the delta impact.** Route is more complex than commit or gitignore (3 major procedures vs 7-8 steps + rules). Collapsing procedural depth into fact enumeration is costlier here than in A-F.

@@ -178,6 +178,40 @@ tags:
 
 ---
 
+## 3. Source Route: Route Skill
+
+**Path:** `/Users/joe/repos/personal/engram/.claude/worktrees/runbook-vs-skill/agent-instructions/skills/route/SKILL.md`
+
+**Skill file frontmatter (verbatim):**
+```yaml
+---
+name: route
+description: >
+  Use when you are about to dispatch a subagent and must decide its agent type, model, and
+  effort level. Triggers on any delegation decision, and when you recognize a unit is too large
+  for one focused agent and needs decomposition before dispatch.
+---
+```
+
+**Key sections (verbatim section headings):**
+- `# Route — default to the cheapest tier, escalate on evidence, remember what works`
+- `## Orchestration work vs object-level work` (defines you do / you delegate boundary)
+- `## How to pick a tier` (4-step procedure: recall first, default cheapest, escalate on spec-first, memory discounts tier)
+- `## The handoff is the unlock` (exact files, acceptance checks, do-NOT-touch, recall-first, LESSONS: contract)
+- `## Record every dispatch (the evidence)` (work-kind, tier, model, why, outcome, escalation, duration, cost; mini-report table structure)
+- `### The structured write (one evidence note + one aggregate update per dispatch)` (evidence note handoff to write-memory, aggregate amend-or-create via engram commands)
+- `### Count as audit (never on the read path)` (engram count validation procedures; drowning audit)
+- `## The loop that improves the rubric` (6-step feedback cycle)
+- `## Cold-start priors (unproven — evidence overwrites these)` (3 priors table)
+- `## Two rules every dispatch obeys` (subagent recalls first, decompose before dispatch)
+- `## Red flags — STOP and re-read` (12-row stop-points table: "Sign you're off | What to do")
+
+**Content size estimate:** ~7500 bytes (286 lines × ~26 chars/line average)
+
+**Step count:** Not discrete steps like A/B; structured as 4 major procedures (pick tier, handoff, record, loop) + supporting tables + 2 mandatory rules + 12 red-flag stop-points.
+
+---
+
 ## 4. Vault Size
 
 **Vault directory size:** 23M
