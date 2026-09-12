@@ -959,6 +959,14 @@ def check_end_state_phase2(task_key, repo_path):
 _RATE_LIMIT_ERROR_RE = re.compile(r'"error"\s*:\s*"rate_limit"')
 _RATE_LIMIT_STATUS_RE = re.compile(r'"apiErrorStatus"\s*:\s*429\b')
 _RATE_LIMIT_MESSAGE_RE = re.compile(r"hit your session limit", re.IGNORECASE)
+_RATE_LIMIT_IS_API_ERROR_RE = re.compile(r'"isApiErrorMessage"\s*:\s*true')
+
+# Both invalid_reason values classify_validity can emit for a rate-limit-related outage: the
+# zero-work stub ("rate_limit") and a truncation after real work ("rate_limit_truncated"). Every
+# summary surface (format_baseline_summary, aggregate) counts both together in the single
+# ' (rate-limited: K)' suffix — an outage is an outage either way, and the distinction between the
+# two only matters for classify_validity's own reasoning, not for the roll-up count.
+_RATE_LIMIT_INVALID_REASONS = ("rate_limit", "rate_limit_truncated")
 
 
 def _rate_limit_signal_present(result, raw_text):
@@ -974,6 +982,35 @@ def _rate_limit_signal_present(result, raw_text):
                       or _RATE_LIMIT_MESSAGE_RE.search(raw_text)):
         return True
     return False
+
+
+def _rate_limit_truncation_signal_present(result, raw_text):
+    """Stricter than `_rate_limit_signal_present` — REQUIRED for a mid-task truncation check that
+    runs regardless of num_turns/total_cost_usd (unlike `is_rate_limited_stub`, which is safely
+    gated to the zero-turn/zero-cost shape and can afford the loose OR-of-three-signals check).
+    A trial's background vault carries real memory notes, including ones that NARRATE a past
+    rate-limit incident in English prose (e.g. vault note 988a's own body: "...a session that hit
+    the account's 5-hour limit ('You've hit your session limit · resets 1pm', transcript error
+    rate_limit / apiErrorStatus 429, 1 turn, $0.00)..."). When an agent surfaces that note via
+    `engram query` during a genuinely successful, fully-completed trial, its transcript's raw text
+    contains the words "hit your session limit" — `_rate_limit_signal_present` alone would
+    misclassify that trial as truncated (confirmed: 2/8 trials in
+    results/baseline_sonnet5_opsx-propose.jsonl, both 30+ turns and real cost with
+    end_state=True/followed_all=True, false-positived this way before this stricter check was
+    added).
+
+    The one shape that ONLY the real system-generated error record carries — never prose ABOUT
+    it — is `"isApiErrorMessage":true` co-occurring with `"apiErrorStatus":429` on the SAME
+    transcript line (Claude Code writes one compact-JSON record per line; verified against the
+    real byte-for-byte shape in every record of results/baseline_sonnet5_opsx-{propose,archive}
+    .rate-limited.jsonl). `result`'s top-level dict fields are also honored (a future CLI version
+    may surface them there instead of only in the transcript)."""
+    if isinstance(result, dict) and result.get("apiErrorStatus") == 429 and result.get("isApiErrorMessage"):
+        return True
+    if not raw_text:
+        return False
+    return any(_RATE_LIMIT_STATUS_RE.search(line) and _RATE_LIMIT_IS_API_ERROR_RE.search(line)
+               for line in raw_text.splitlines())
 
 
 def is_rate_limited_stub(num_turns, total_cost_usd, result, raw_text):
@@ -1003,9 +1040,29 @@ def classify_validity(marker_seen, num_turns, total_cost_usd, result, raw_text):
     by construction (it's committed before claude is ever spawned), so a stub session that hit the
     account's session limit before doing any real work still shows marker_seen=True. That is
     exactly what let 22 session-limit outages score as real failures (found=0/N, end_state=FAIL)
-    instead of being excluded as an outage — vault note 988a."""
+    instead of being excluded as an outage — vault note 988a.
+
+    A SECOND, distinct outage shape (988a's 2026-09-12 follow-up): a session that did substantial
+    real work (many turns, real cost) but was cut off mid-task when the account's session limit
+    hit on a LATER turn — the rate-limit signal is present, but `is_rate_limited_stub` correctly
+    says False (real work happened, so it is not a zero-work stub). Such a trial never got the
+    chance to finish, so scoring its FOLLOWED/END-STATE would misrepresent a truncation as a
+    genuine failure — the first two records of
+    results/baseline_sonnet5_opsx-propose.rate-limited.jsonl (25/18 turns, $0.667/$0.4975 spent,
+    scored followed 3/7 and 2/7) were exactly this shape and were nearly reported as real
+    failures. This is marked invalid too, with a DISTINCT invalid_reason
+    ('rate_limit_truncated') so it is never conflated with the zero-work stub reason
+    ('rate_limit') — both are surfaced together in the ' (rate-limited: K)' summary suffix.
+
+    The truncation check uses `_rate_limit_truncation_signal_present`, NOT the looser
+    `_rate_limit_signal_present` used by `is_rate_limited_stub` — unlike the zero-turn/zero-cost
+    stub shape (where a loose text match is safe), a truncation check with no turn/cost gate must
+    not fire on a genuinely completed trial whose background vault surfaced a note NARRATING a
+    past rate-limit incident in prose (see `_rate_limit_truncation_signal_present`'s docstring)."""
     if is_rate_limited_stub(num_turns, total_cost_usd, result, raw_text):
         return False, "rate_limit"
+    if _rate_limit_truncation_signal_present(result, raw_text):
+        return False, "rate_limit_truncated"
     if not marker_seen:
         return False, "no_marker"
     return True, None
@@ -1256,14 +1313,16 @@ def format_baseline_summary(task_key, model, records):
     claude). `records` is the same shape run_one_trial_phase2 emits; arm N carries no
     found/found_method (score_found_phase2 returns n/a for arm N — no carrier to find, by
     design), so this reports only END-STATE, FOLLOWED-all, per-step miss counts, and mean cost.
-    Denominators are VALID trials only — a rate-limited stub (invalid_reason == "rate_limit") is
-    never valid, so it drops out of every rate here automatically; its count is still surfaced via
-    the ` (rate-limited: K)` suffix on the first line whenever K > 0, so an outage is visible in
-    one line rather than silently deflating the denominator (vault note 988a)."""
+    Denominators are VALID trials only — a rate-limited outage (invalid_reason in
+    _RATE_LIMIT_INVALID_REASONS: a zero-work "rate_limit" stub OR a "rate_limit_truncated"
+    mid-task cutoff after real work) is never valid, so it drops out of every rate here
+    automatically; its count is still surfaced via the ` (rate-limited: K)` suffix on the first
+    line whenever K > 0, so an outage is visible in one line rather than silently deflating the
+    denominator (vault note 988a)."""
     n = len(records)
     valid = [r for r in records if r.get("valid")]
     valid_n = len(valid)
-    rate_limited_n = sum(1 for r in records if r.get("invalid_reason") == "rate_limit")
+    rate_limited_n = sum(1 for r in records if r.get("invalid_reason") in _RATE_LIMIT_INVALID_REASONS)
     end_state_n = sum(1 for r in valid if r.get("end_state"))
     followed_all_n = sum(1 for r in valid if r.get("followed_all"))
     n_steps = next((r.get("n_steps") for r in valid if r.get("n_steps")), 0)
@@ -1477,7 +1536,7 @@ def aggregate(records, task, arm):
     valid = [r for r in rows if r.get("valid")]
     n = len(rows)
     valid_n = len(valid)
-    rate_limited_n = sum(1 for r in rows if r.get("invalid_reason") == "rate_limit")
+    rate_limited_n = sum(1 for r in rows if r.get("invalid_reason") in _RATE_LIMIT_INVALID_REASONS)
     found_n = sum(1 for r in valid if r.get("found") is True)
     found_given_n = found_n
     end_state_n = sum(1 for r in valid if r.get("end_state"))
@@ -1715,11 +1774,14 @@ def rescore_file(in_path, out_path):
     Provenance (`arm`, `carrier_basename`, `task`) is read from the kept record, never
     re-derived.
 
-    Also reclassifies rate-limited stubs (vault note 988a): `invalid_reason` is recomputed from
-    the kept record's own `num_turns`/`total_cost_usd` plus the (re-discovered, if needed)
-    transcript text — never a live claude call, so this is the only place a set-aside
-    `*.rate-limited.jsonl` file gets corrected. `valid` is forced False whenever the rate-limit
-    stub shape is detected, even when the trial's CLAUDE.md marker is (as expected) still present."""
+    Also reclassifies rate-limit-related outages (vault note 988a, plus its 2026-09-12 follow-up):
+    `invalid_reason` is recomputed from the kept record's own `num_turns`/`total_cost_usd` plus the
+    (re-discovered, if needed) transcript text — never a live claude call, so this is the only
+    place a set-aside `*.rate-limited.jsonl` file gets corrected. `valid` is forced False whenever
+    EITHER outage shape is detected, even when the trial's CLAUDE.md marker is (as expected) still
+    present: a zero-work stub (`invalid_reason="rate_limit"`) or a mid-task truncation after real
+    work (`invalid_reason="rate_limit_truncated"`, see classify_validity) — both are surfaced
+    together in the ` (rate-limited: K)` summary suffix (_RATE_LIMIT_INVALID_REASONS)."""
     records = load_jsonl(in_path)
     rescored = []
 
@@ -1760,11 +1822,13 @@ def rescore_file(in_path, out_path):
                 record["valid"] = valid
                 record["invalid_reason"] = invalid_reason
             else:
-                rate_limited = is_rate_limited_stub(
-                    record.get("num_turns"), record.get("total_cost_usd"), None, raw_text)
-                if rate_limited:
+                if is_rate_limited_stub(record.get("num_turns"), record.get("total_cost_usd"),
+                                         None, raw_text):
                     record["valid"] = False
                     record["invalid_reason"] = "rate_limit"
+                elif _rate_limit_truncation_signal_present(None, raw_text):
+                    record["valid"] = False
+                    record["invalid_reason"] = "rate_limit_truncated"
                 else:
                     record.setdefault("invalid_reason", None)
 

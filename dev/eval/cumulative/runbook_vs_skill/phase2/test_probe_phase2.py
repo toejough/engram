@@ -2880,12 +2880,66 @@ def test_classify_validity_valid_when_marker_seen_and_not_rate_limited():
     assert reason is None
 
 
-def test_classify_validity_real_completed_trial_with_tail_rate_limit_stays_valid():
-    """Mirrors the opsx-propose real-completed records: marker seen, substantial real work, the
-    rate-limit text present near the tail — must stay valid."""
+def test_classify_validity_rate_limit_truncated_for_real_work_then_signal():
+    """Mirrors the opsx-propose real-completed-looking records (vault note 988a.2026-09-12
+    follow-up): marker seen, substantial real work (25 turns, $0.667), but the rate-limit signal
+    is present near the tail — the account limit cut the session off mid-task on a later turn.
+    Not a zero-work stub (is_rate_limited_stub is False here), but still not a genuine completed
+    trial: must be invalid with a DISTINCT reason from the zero-work stub's 'rate_limit', so a
+    truncation is never conflated with (or silently absorbed into) a real pass/fail verdict."""
     valid, reason = pp.classify_validity(True, 25, 0.667, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
+    assert valid is False
+    assert reason == "rate_limit_truncated"
+    assert pp.is_rate_limited_stub(25, 0.667, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT) is False
+
+
+def test_classify_validity_rate_limit_truncated_distinct_from_zero_work_stub_reason():
+    stub_valid, stub_reason = pp.classify_validity(True, 1, 0.0, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
+    truncated_valid, truncated_reason = pp.classify_validity(
+        True, 18, 0.4975, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
+    assert stub_valid is False and truncated_valid is False
+    assert stub_reason == "rate_limit"
+    assert truncated_reason == "rate_limit_truncated"
+    assert stub_reason != truncated_reason
+
+
+# Real false positive (found rescoring results/baseline_sonnet5_opsx-propose.jsonl records #0 and
+# #7 -- both 30+ turns, real cost, end_state=True, followed_all=True): a trial's background vault
+# includes real memory notes, and vault note 988a's own body NARRATES a past rate-limit incident
+# in prose -- "a session that hit the account's 5-hour limit ('You've hit your session limit ·
+# resets 1pm', transcript error rate_limit / apiErrorStatus 429, 1 turn, $0.00)". When an agent's
+# `engram query` tool_result surfaces that note during a genuinely successful trial, the raw
+# transcript text contains "hit your session limit" with NEITHER `"isApiErrorMessage":true` NOR
+# `"apiErrorStatus":429` in the real compact-JSON form (the prose spells it "apiErrorStatus 429",
+# no quotes/colon) -- this must never be classified as a truncation.
+_RECALLED_NOTE_PROSE_ABOUT_RATE_LIMIT = (
+    '{"type":"user","message":{"content":[{"type":"tool_result","content":'
+    '"situation: scoring headless claude -p eval trials; behavior: the trial validity gate keyed '
+    "only on the CLAUDE.md marker being seen; a session that hit the account's 5-hour limit "
+    "('You\\u2019ve hit your session limit \\u00b7 resets 1pm', transcript error rate_limit / "
+    'apiErrorStatus 429, 1 turn, $0.00) still shows the marker"}]}}'
+)
+
+
+def test_classify_validity_not_truncated_when_signal_is_only_recalled_note_prose():
+    """Guards the exact false positive found while rescoring the good opsx-propose relaunch: a
+    fully-completed trial (many turns, real cost, marker seen) whose transcript merely QUOTES a
+    vault note's prose about a past rate-limit incident must stay valid — never
+    'rate_limit_truncated'."""
+    valid, reason = pp.classify_validity(True, 32, 0.84, None, _RECALLED_NOTE_PROSE_ABOUT_RATE_LIMIT)
     assert valid is True
     assert reason is None
+
+
+def test_rate_limit_truncation_signal_absent_for_recalled_note_prose_alone():
+    assert pp._rate_limit_truncation_signal_present(None, _RECALLED_NOTE_PROSE_ABOUT_RATE_LIMIT) is False
+    # Sanity: the loose, turn/cost-gated helper DOES fire on this text (why the stricter check
+    # exists in the first place — a truncation check has no turn/cost gate to fall back on).
+    assert pp._rate_limit_signal_present(None, _RECALLED_NOTE_PROSE_ABOUT_RATE_LIMIT) is True
+
+
+def test_rate_limit_truncation_signal_present_for_real_system_record():
+    assert pp._rate_limit_truncation_signal_present(None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT) is True
 
 
 # ----- format_baseline_summary: rate-limited suffix (task item 3) -----
@@ -2928,6 +2982,21 @@ def test_format_baseline_summary_rate_limited_trials_excluded_from_denominator()
     assert "end result 1/1, did every step 1/1 (rate-limited: 8)" in first_line
 
 
+def test_format_baseline_summary_counts_rate_limit_truncated_in_same_suffix():
+    """A mid-task session-limit truncation (invalid_reason == 'rate_limit_truncated') counts in
+    the SAME '(rate-limited: K)' suffix as a zero-work stub ('rate_limit') — the suffix reports
+    total rate-limit-related invalidations, not just the stub subset; nothing else about the
+    summary format changes."""
+    records = (
+        [_rl_record(True, end_state=True, followed_all=True)]
+        + [_rl_record(False, invalid_reason="rate_limit") for _ in range(6)]
+        + [_rl_record(False, invalid_reason="rate_limit_truncated") for _ in range(2)]
+    )
+    summary = pp.format_baseline_summary("opsx-propose", "sonnet5", records)
+    first_line = summary.splitlines()[0]
+    assert "end result 1/1, did every step 1/1 (rate-limited: 8)" in first_line
+
+
 # ----- aggregate()/format_table(): rate-limited suffix in --summarize (task item 3) -----
 
 def test_aggregate_reports_rate_limited_n():
@@ -2942,6 +3011,20 @@ def test_aggregate_reports_rate_limited_n():
     agg = pp.aggregate(records, "A", "R")
     assert agg["valid_n"] == 1
     assert agg["rate_limited_n"] == 1
+
+
+def test_aggregate_counts_rate_limit_truncated_alongside_stub_in_rate_limited_n():
+    records = [
+        {"task": "A", "arm": "N", "valid": False, "invalid_reason": "rate_limit", "found": None,
+         "end_state": False, "followed_all": False, "followed_k": 0, "n_steps": 0,
+         "recall_fired": False, "total_cost_usd": 0.0, "duration_ms": 100},
+        {"task": "A", "arm": "N", "valid": False, "invalid_reason": "rate_limit_truncated",
+         "found": None, "end_state": False, "followed_all": False, "followed_k": 0, "n_steps": 0,
+         "recall_fired": False, "total_cost_usd": 0.667, "duration_ms": 900000},
+    ]
+    agg = pp.aggregate(records, "A", "N")
+    assert agg["valid_n"] == 0
+    assert agg["rate_limited_n"] == 2
 
 
 def test_format_table_valid_row_appends_rate_limited_suffix_when_present():
@@ -3012,10 +3095,14 @@ def test_rescore_reclassifies_rate_limited_stub_as_invalid(tmp_path):
     assert rescored["total_cost_usd"] == 0.0
 
 
-def test_rescore_leaves_real_completed_trial_valid_despite_tail_rate_limit_text(tmp_path):
-    """A real completed trial (many turns, real cost) whose transcript ALSO happens to carry the
-    rate-limit text near its tail (the account limit tripped on a final wrap-up turn) must stay
-    valid — rescore must not treat a bare rate-limit signal as sufficient on its own."""
+def test_rescore_marks_truncated_real_work_trial_invalid_with_distinct_reason(tmp_path):
+    """A trial that did substantial real work (many turns, real cost) but whose transcript carries
+    the rate-limit text near its tail (the account limit cut the session off mid-task on a later
+    turn, not on turn 1) must be marked invalid with invalid_reason 'rate_limit_truncated' —
+    distinct from the zero-work stub's 'rate_limit' — never left valid: a session cut off
+    mid-task never got the chance to finish, so its FOLLOWED/END-STATE would misrepresent the
+    trial as a genuine failure (vault note 988a.2026-09-12 follow-up: the first two records of
+    results/baseline_sonnet5_opsx-propose.rate-limited.jsonl were exactly this shape)."""
     repo = str(tmp_path / "repo")
     os.makedirs(repo)
     marker = "RUNBOOK-VS-SKILL-BASELINE-real1"
@@ -3049,5 +3136,8 @@ def test_rescore_leaves_real_completed_trial_valid_despite_tail_rate_limit_text(
     pp.rescore_file(str(results_path), str(rescored_path))
 
     rescored = pp.load_jsonl(str(rescored_path))[0]
-    assert rescored["valid"] is True
-    assert rescored["invalid_reason"] is None
+    assert rescored["valid"] is False
+    assert rescored["invalid_reason"] == "rate_limit_truncated"
+    # cost/turns are kept as observed, not zeroed out or dropped by rescore.
+    assert rescored["num_turns"] == 25
+    assert rescored["total_cost_usd"] == 0.667
