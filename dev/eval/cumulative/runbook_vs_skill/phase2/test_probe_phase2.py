@@ -2447,7 +2447,10 @@ def _write_tdd_order_repo(tmp_path):
     return repo
 
 
-def test_tdd_order_at_least_two_new_commits_true_for_test_then_impl_commits(tmp_path):
+_TDD_ORDER_PATTERN = "tdd_order_test_only_commit_precedes_impl"
+
+
+def test_tdd_order_test_only_commit_precedes_impl_true_for_test_then_impl_commits(tmp_path):
     repo = _write_tdd_order_repo(tmp_path)
     with open(os.path.join(repo, "test_slugify.py"), "a") as f:
         f.write("\n\ndef test_lowercases():\n    assert slugify('Hello') == 'hello'\n")
@@ -2457,10 +2460,10 @@ def test_tdd_order_at_least_two_new_commits_true_for_test_then_impl_commits(tmp_
         f.write("def slugify(text):\n    return text.lower()\n")
     _git(repo, "add", "slugify.py")
     _git(repo, "commit", "-q", "-m", "feat: implement slugify lowercasing")
-    assert pp.default_repo_checker("tdd_order_at_least_two_new_commits", repo) is True
+    assert pp.default_repo_checker(_TDD_ORDER_PATTERN, repo) is True
 
 
-def test_tdd_order_at_least_two_new_commits_false_for_one_combined_commit(tmp_path):
+def test_tdd_order_test_only_commit_precedes_impl_false_for_one_combined_commit(tmp_path):
     repo = _write_tdd_order_repo(tmp_path)
     with open(os.path.join(repo, "test_slugify.py"), "a") as f:
         f.write("\n\ndef test_lowercases():\n    assert slugify('Hello') == 'hello'\n")
@@ -2468,15 +2471,15 @@ def test_tdd_order_at_least_two_new_commits_false_for_one_combined_commit(tmp_pa
         f.write("def slugify(text):\n    return text.lower()\n")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "feat: implement slugify with test")
-    assert pp.default_repo_checker("tdd_order_at_least_two_new_commits", repo) is False
+    assert pp.default_repo_checker(_TDD_ORDER_PATTERN, repo) is False
 
 
-def test_tdd_order_at_least_two_new_commits_false_when_no_new_commits(tmp_path):
+def test_tdd_order_test_only_commit_precedes_impl_false_when_no_new_commits(tmp_path):
     repo = _write_tdd_order_repo(tmp_path)
-    assert pp.default_repo_checker("tdd_order_at_least_two_new_commits", repo) is False
+    assert pp.default_repo_checker(_TDD_ORDER_PATTERN, repo) is False
 
 
-def test_tdd_order_at_least_two_new_commits_ignores_non_py_commits(tmp_path):
+def test_tdd_order_test_only_commit_precedes_impl_ignores_non_py_commits(tmp_path):
     """A commit that touches only a non-.py file (mirroring the harness's own CLAUDE.md-only 'add
     project config' commit) must never count toward the total."""
     repo = _write_tdd_order_repo(tmp_path)
@@ -2488,7 +2491,58 @@ def test_tdd_order_at_least_two_new_commits_ignores_non_py_commits(tmp_path):
         f.write("\n\ndef test_lowercases():\n    assert slugify('Hello') == 'hello'\n")
     _git(repo, "add", "test_slugify.py")
     _git(repo, "commit", "-q", "-m", "test: add slugify behavior spec (RED)")
-    assert pp.default_repo_checker("tdd_order_at_least_two_new_commits", repo) is False
+    assert pp.default_repo_checker(_TDD_ORDER_PATTERN, repo) is False
+
+
+def test_tdd_order_test_only_commit_precedes_impl_false_when_a_later_commit_mixes_test_and_impl(tmp_path):
+    """done_when_checks.sh Check 3: a relevant commit that touches BOTH a test file and an
+    implementation .py file fails the signal, even though there are >= 2 relevant commits and the
+    first one is test-only."""
+    repo = _write_tdd_order_repo(tmp_path)
+    with open(os.path.join(repo, "test_slugify.py"), "a") as f:
+        f.write("\n\ndef test_lowercases():\n    assert slugify('Hello') == 'hello'\n")
+    _git(repo, "add", "test_slugify.py")
+    _git(repo, "commit", "-q", "-m", "test: add slugify behavior spec (RED)")
+    with open(os.path.join(repo, "slugify.py"), "w") as f:
+        f.write("def slugify(text):\n    return text.lower()\n")
+    with open(os.path.join(repo, "test_slugify.py"), "a") as f:
+        f.write("\n\ndef test_more():\n    assert slugify('X') == 'x'\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "feat: implement slugify and add another test in the same commit")
+    assert pp.default_repo_checker(_TDD_ORDER_PATTERN, repo) is False
+
+
+def test_tdd_order_test_only_commit_precedes_impl_false_when_first_relevant_commit_overimplements(tmp_path):
+    """done_when_checks.sh Check 4 (file-classification half): the FIRST relevant commit must
+    touch ONLY test file(s). A first commit that already includes implementation changes
+    alongside the test fails, even if a second, later commit is impl-only."""
+    repo = _write_tdd_order_repo(tmp_path)
+    with open(os.path.join(repo, "test_slugify.py"), "a") as f:
+        f.write("\n\ndef test_lowercases():\n    assert slugify('Hello') == 'hello'\n")
+    with open(os.path.join(repo, "slugify.py"), "w") as f:
+        f.write("def slugify(text):\n    return text.lower()\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "feat: over-implement in the first commit")
+    with open(os.path.join(repo, "slugify.py"), "a") as f:
+        f.write("\n")
+    _git(repo, "add", "slugify.py")
+    _git(repo, "commit", "-q", "-m", "chore: touch impl again")
+    assert pp.default_repo_checker(_TDD_ORDER_PATTERN, repo) is False
+
+
+def test_tdd_order_test_only_commit_precedes_impl_false_when_first_relevant_commit_is_impl_only(tmp_path):
+    """done_when_checks.sh Check 4: implementation-then-test order (impl written first) fails
+    even though neither commit mixes test and impl and there are >= 2 relevant commits."""
+    repo = _write_tdd_order_repo(tmp_path)
+    with open(os.path.join(repo, "slugify.py"), "w") as f:
+        f.write("def slugify(text):\n    return text.lower()\n")
+    _git(repo, "add", "slugify.py")
+    _git(repo, "commit", "-q", "-m", "feat: implement slugify lowercasing first")
+    with open(os.path.join(repo, "test_slugify.py"), "a") as f:
+        f.write("\n\ndef test_lowercases():\n    assert slugify('Hello') == 'hello'\n")
+    _git(repo, "add", "test_slugify.py")
+    _git(repo, "commit", "-q", "-m", "test: add slugify behavior spec after the fact")
+    assert pp.default_repo_checker(_TDD_ORDER_PATTERN, repo) is False
 
 
 # --- opsx-propose ---

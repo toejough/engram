@@ -712,12 +712,55 @@ def _tdd_order_relevant_commits(repo_path, orig_tip):
     return relevant
 
 
-def _check_tdd_order_at_least_two_new_commits(repo_path):
-    """tdd-order task step 5 ('tdd_order_at_least_two_new_commits' repo_state signal): at least
-    two commits since the fixture's baseline tip (recorded in .eval/original_tip, a sibling of the
-    trial repo, at init time -- see fixtures/tdd-order/init_fixture_repo.sh) touch a .py file. Uses
-    _tdd_order_relevant_commits so the harness's own CLAUDE.md-only commit never counts toward the
-    total, and a single combined test+impl commit (only 1 relevant commit) correctly reads False."""
+_TDD_ORDER_TEST_FILE_RE = re.compile(r"(^|/)test_[^/]*\.py$|(^|/)[^/]*_test\.py$")
+
+
+def _tdd_order_is_test_file(path):
+    """Mirrors done_when_checks.sh's `is_test_file()` shell case pattern exactly: a .py file whose
+    basename either starts with 'test_' or ends with '_test.py', at any directory depth
+    (test_*.py, */test_*.py, *_test.py, */*_test.py)."""
+    return bool(_TDD_ORDER_TEST_FILE_RE.search(path))
+
+
+def _tdd_order_commit_py_files(repo_path, commit):
+    show = subprocess.run(
+        ["git", "-C", repo_path, "show", "--name-only", "--pretty=format:", commit],
+        capture_output=True, text=True,
+    )
+    return [f for f in show.stdout.splitlines() if f.strip().endswith(".py")]
+
+
+def _tdd_order_commit_mixes_test_and_impl(repo_path, commit):
+    """done_when_checks.sh Check 3: a relevant commit that touches BOTH a test file and a
+    non-test .py file (implementation) fails the signal."""
+    py_files = _tdd_order_commit_py_files(repo_path, commit)
+    has_test = any(_tdd_order_is_test_file(f) for f in py_files)
+    has_impl = any(not _tdd_order_is_test_file(f) for f in py_files)
+    return has_test and has_impl
+
+
+def _tdd_order_commit_is_test_only(repo_path, commit):
+    """done_when_checks.sh Check 4's file-classification half: the commit's .py files exist and
+    are ALL test files (empty/no .py files never counts as test-only)."""
+    py_files = _tdd_order_commit_py_files(repo_path, commit)
+    return bool(py_files) and all(_tdd_order_is_test_file(f) for f in py_files)
+
+
+def _check_tdd_order_test_only_commit_precedes_impl(repo_path):
+    """tdd-order task step 5 ('tdd_order_test_only_commit_precedes_impl' repo_state signal):
+    mirrors fixtures/tdd-order/done_when_checks.sh Checks 3 and 4, minus Check 4's pytest-at-SHA
+    RED verification (which requires checking out a scratch worktree and running the project's own
+    suite there -- out of scope for a repo_state file-classification signal). True iff:
+      (a) at least two commits since the fixture's baseline tip (recorded in .eval/original_tip, a
+          sibling of the trial repo, at init time -- see fixtures/tdd-order/init_fixture_repo.sh)
+          touch a .py file (Check 2, via _tdd_order_relevant_commits -- the harness's own
+          CLAUDE.md-only commit never counts toward the total);
+      (b) no relevant commit touches BOTH a test and an implementation .py file (Check 3); and
+      (c) the FIRST relevant commit touches ONLY test file(s) (Check 4's file-classification half).
+    Renamed from tdd_order_at_least_two_new_commits (count-only; a bare-agent baseline batch found
+    4/8 trials whose final commit mixed test and implementation .py files, or led with an
+    over-implemented first commit, yet still scored this step as followed under the old,
+    count-only name -- see vault/route-dispatch notes on the phase-2 tdd-order rescore)."""
     eval_dir = os.path.join(os.path.dirname(os.path.abspath(repo_path)), ".eval")
     orig_tip_path = os.path.join(eval_dir, "original_tip")
     try:
@@ -725,7 +768,12 @@ def _check_tdd_order_at_least_two_new_commits(repo_path):
             orig_tip = f.read().strip()
     except OSError:
         return False
-    return len(_tdd_order_relevant_commits(repo_path, orig_tip)) >= 2
+    relevant = _tdd_order_relevant_commits(repo_path, orig_tip)
+    if len(relevant) < 2:
+        return False
+    if any(_tdd_order_commit_mixes_test_and_impl(repo_path, c) for c in relevant):
+        return False
+    return _tdd_order_commit_is_test_only(repo_path, relevant[0])
 
 
 REPO_STATE_CHECKERS = {
@@ -736,7 +784,7 @@ REPO_STATE_CHECKERS = {
     "gitignore_narrowed_to_generated": _check_gitignore_narrowed_to_generated,
     "gitignore_rapid_ignored_fixture_trackable_all_depths": _check_gitignore_rapid_ignored_fixture_trackable_all_depths,
     "test_bites": _check_test_bites,
-    "tdd_order_at_least_two_new_commits": _check_tdd_order_at_least_two_new_commits,
+    "tdd_order_test_only_commit_precedes_impl": _check_tdd_order_test_only_commit_precedes_impl,
 }
 
 

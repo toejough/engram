@@ -34,6 +34,6 @@
     "n": 5,
     "name": "At least two new commits touch a .py file, in test-then-implementation order",
     "signal": "repo_state",
-    "pattern": "tdd_order_at_least_two_new_commits"
+    "pattern": "tdd_order_test_only_commit_precedes_impl"
   }
 ]
