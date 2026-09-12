@@ -293,7 +293,43 @@ description: Use when implementing any feature or bugfix, before writing impleme
 
 ---
 
-## 5. Vault Size
+## 5. Source HR: Vault Note 840
+
+**Path:** `/Users/joe/.local/share/engram/vault/840.2026-08-29.safe-git-history-rewrite-and-force-push.md`
+
+**Frontmatter situation and done_when (verbatim):**
+```yaml
+type: runbook
+tier: L2
+situation: rewriting git history (git filter-branch or any all-refs history rewrite), especially when keeping a safety backup branch, before force-pushing the result
+done_when: the pre-rewrite tip is safely recoverable (bare SHA / refs/original / reflog, not a branch '-- --all' could sweep), the force-with-lease push has succeeded against a freshly-fetched remote state, and if sensitive data needed scrubbing, a GitHub support purge request has been filed for unreachable objects
+luhmann: "840"
+created: "2026-08-29"
+source: migrated from 654.2026-07-28.filter-branch-all-sweeps-backup-branches-and-stales-the-lease.md, engram#730
+repo: vault
+user: toejough@gmail.com
+vault: personal
+tags:
+    - vocab/change-scope-control
+    - vocab/issue-and-followup-tracking
+    - vocab/phone-llm-tailnet-network-security
+```
+
+**Body numbered steps (verbatim):**
+```
+1. Before rewriting, record the pre-rewrite tip as a bare SHA (or rely on refs/original/ plus the reflog) rather than a plain backup branch.
+2. Scope the rewrite to explicit refs instead of using '-- --all' — a backup branch is not a safe exception, since '-- --all' rewrites every ref it can see, backup branches included.
+3. Run the history rewrite (e.g. git filter-branch ... -- --all).
+4. Before force-pushing, run git fetch to refresh local refs/remotes/origin/* — filter-branch also rewrites local tracking refs, so a stale tracking ref will fail the --force-with-lease check.
+5. Force-push with --force-with-lease now that the lease compares against the freshly-fetched real remote state.
+6. If the rewrite was meant to scrub truly sensitive data, note that GitHub retains unreachable objects by SHA until server-side GC — file a support request for a full purge to actually remove them.
+```
+
+**Step count:** N_HR = 6
+
+---
+
+## 6. Vault Size
 
 **Vault directory size:** 23M
 

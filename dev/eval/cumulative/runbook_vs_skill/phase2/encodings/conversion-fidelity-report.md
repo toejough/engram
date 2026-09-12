@@ -295,3 +295,52 @@ Total evidence cost: $5.92 (RED $3.27 + GREEN $0.79 + PRESSURE $1.86). No refact
 **BF achieves body fidelity parity with Route:** Both vault note and skill encodings preserve the source content word-for-word (or within schema constraints); neither drops or weakens a requirement.
 
 **Verification methodology:** strip-frontmatter diff confirms zero-delta bodies for BF-R (copy of source), BF-F (content in predicate+object), BF-S (content in Procedure section).
+
+---
+
+## HR (safe-history-rewrite from vault note 840)
+
+**Source:** `/Users/joe/.local/share/engram/vault/840.2026-08-29.safe-git-history-rewrite-and-force-push.md` (1746 bytes) — `situation` + `done_when` + 6 ordered steps covering pre-rewrite recovery, ref scoping, git fetch, --force-with-lease, and GitHub purge request.
+
+**Carriers:**
+- **HR-R** (runbook): `encodings/taskHR/HR-R/vault/840.2026-08-29.safe-git-history-rewrite-and-force-push.md` (1746 bytes, byte-for-byte copy) + .vec.json sidecar
+- **HR-F** (fact): `encodings/taskHR/HR-F/vault/1.2026-09-12.safe-git-history-rewrite-and-force-push.md` (1897 bytes, body verbatim) with fact frontmatter
+- **HR-S** (skill): `encodings/taskHR/HR-S/skills/safe-history-rewrite/SKILL.md` (4238 bytes) via `superpowers:writing-skills` TDD
+
+**Body fidelity (HR-R vs HR-F vs HR-S):**
+
+| # | Source requirement (quoted short) | HR-R | HR-F | HR-S |
+|---|---|---|---|---|
+| 1 | "record pre-rewrite tip as bare SHA / refs/original / reflog" | present verbatim | present verbatim | present verbatim in step 1 |
+| 2 | "scope to explicit refs, not '-- --all'; backup branch not a safe exception" | present verbatim | present verbatim | present verbatim in step 2 + rationalization table |
+| 3 | "run the history rewrite (e.g. git filter-branch)" | present verbatim | present verbatim | present verbatim in step 3 |
+| 4 | "git fetch before force-push to refresh tracking refs" | present verbatim | present verbatim | present verbatim in step 4 + red flags |
+| 5 | "force-push with --force-with-lease against fresh lease" | present verbatim | present verbatim | present verbatim in step 5 |
+| 6 | "file GitHub support request for full purge if scrubbing sensitive data" | present verbatim | present verbatim | present verbatim in step 6 |
+| `situation` | "rewriting git history... before force-pushing" | verbatim field | verbatim field | verbatim in Overview |
+| `done_when` | "pre-rewrite tip safely recoverable... force-with-lease push succeeded... support request filed if needed" | verbatim field | verbatim in object | verbatim in Done When section |
+
+**Strip-frontmatter diff (HR-F vs HR-R):** empty (body identical).
+
+**Verdict: FAITHFUL.** All 6 steps, situation, and done_when reproduced word-for-word across all three encodings. Nothing dropped or weakened.
+
+**HR-S testing evidence (writing-skills RED/GREEN/PRESSURE):**
+- **RED phase** (3 scenarios, no skill): Baseline model already demonstrates strong knowledge of safe practices (backup branch dangers, tracking refs issue, --force-with-lease). Cost: $1.72
+- **GREEN phase** (max-pressure scenario with skill): Skill anchors all 6 steps explicitly; agent names the skill and walks through checklist. Cost: $0.58
+- **PRESSURE phase** (exhaustion/sunk-cost pressure with skill): Holds procedure; explicitly declines cleanup-skipping suggestion by referencing Red Flags. Cost: $1.22
+- **Total evidence cost:** $3.52 (claude-fable-5-1, headless)
+
+**Packaging elements added beyond source (HR-S only):**
+- Frontmatter (name=safe-history-rewrite, description with keywords: backup-branch-sweep, refs/original, tracking-refs-refresh, --force-with-lease)
+- Overview (frames failure modes: backup sweep, stale tracking refs, unrecoverable sensitive data)
+- When to Use (four trigger scenarios)
+- Common Mistakes (4-row rationalization table: "proven pattern reuse", "'-- --all' with backup", "skip tracking refresh", "bare --force vs --force-with-lease")
+- Red Flags (4-row pre-action stop list)
+
+None of these add new requirements; all are pressure-resistance scaffolding. **No loopholes found in GREEN/PRESSURE testing; skill issued without refactor iteration.**
+
+**Structural facts:** HR-R is byte-for-byte copy of vault 840; HR-F is verbatim body under fact schema; HR-S is verbatim body in markdown list under skill sections. No omissions or rewording at the requirement level across any encoding.
+
+**Cross-task progression:** A (simplified) < B (verbatim with list flattening) = HR (verbatim across all encodings) = BF (verbatim across all encodings) = Route (verbatim across all encodings).
+
+**HR achieves parity with BF and Route on body fidelity:** All three vault note sources (BF, HR, Route) now have converged encoding strategies: R carries source verbatim, F preserves content in schema fields, S reproduces steps verbatim in lists with pressure-resistance scaffolding.
