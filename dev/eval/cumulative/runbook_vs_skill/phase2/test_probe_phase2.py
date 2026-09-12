@@ -3291,3 +3291,60 @@ def test_check_end_state_phase2_passes_env_to_subprocess(tmp_path):
         assert success is True
     finally:
         pp.TASKS = original_tasks
+
+
+# ----- fixture regression tests -----
+
+def test_fixture_task_json_removal_basenames_not_clobbered():
+    """Regression test: task.json files with carrier keys must have non-empty removal_basenames.
+
+    When a fixture has carrier keys (skill_src, carrier_r_src, carrier_f_src), the removal_basenames
+    array holds the list of notes to exclude from the reference corpus. This array must not be
+    empty (a regression from commit 17d49a32 where carrier wiring rewrote the file and clobbered
+    it to []). Additionally, if the real vault exists at /Users/joe/.local/share/engram/vault,
+    every basename in removal_basenames must exist as <basename>.md in that vault (skip this
+    validation if the vault path is absent, to allow CI environments without the vault).
+    """
+    fixtures_dir = os.path.join(HERE, "fixtures")
+    assert os.path.isdir(fixtures_dir), f"fixtures directory not found at {fixtures_dir}"
+
+    real_vault = "/Users/joe/.local/share/engram/vault"
+    vault_exists = os.path.isdir(real_vault)
+
+    for task_name in os.listdir(fixtures_dir):
+        task_dir = os.path.join(fixtures_dir, task_name)
+        if not os.path.isdir(task_dir):
+            continue
+
+        task_json_path = os.path.join(task_dir, "task.json")
+        if not os.path.exists(task_json_path):
+            continue
+
+        with open(task_json_path, "r") as f:
+            task_config = json.load(f)
+
+        # Check if this fixture has carrier keys
+        has_carrier_keys = any(
+            key in task_config
+            for key in ["skill_src", "carrier_r_src", "carrier_f_src"]
+        )
+
+        if has_carrier_keys:
+            # Carrier fixtures must have non-empty removal_basenames
+            removal_basenames = task_config.get("removal_basenames", [])
+            assert isinstance(removal_basenames, list), (
+                f"{task_name}/task.json: removal_basenames must be a list, "
+                f"got {type(removal_basenames).__name__}"
+            )
+            assert len(removal_basenames) > 0, (
+                f"{task_name}/task.json has carrier keys but removal_basenames is empty"
+            )
+
+            # If the real vault exists, every basename must exist as a note
+            if vault_exists:
+                for basename in removal_basenames:
+                    note_path = os.path.join(real_vault, f"{basename}.md")
+                    assert os.path.exists(note_path), (
+                        f"{task_name}/task.json removal_basenames includes '{basename}' "
+                        f"but {note_path} does not exist in the vault"
+                    )
