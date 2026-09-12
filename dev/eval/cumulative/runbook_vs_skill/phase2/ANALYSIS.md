@@ -66,7 +66,7 @@ the dependent step is now unconditionally FALSE. This surfaced a real instance: 
 immediately followed by one of the three paths, with no room for `--`). **Step 5's regex is now
 widened** to `git\s+add\s+(--\s+)?(...)`, accepting this legitimate form; this widening turned out
 to matter far more broadly than just `B-R#2` — the `--` form appears across multiple trials in
-multiple arms (see the per-trial evidence below).
+multiple arms: Task B valid trials using `git add -- <paths>` — S 1 of 5, R 1 of 5, F 1 of 5, Rdirect 3 of 4. The widening therefore moved the control arm most: Rdirect 1/4 → 4/4.
 
 Both result files were rescored against the final (round-3) fix (`--rescore results/opus_A.jsonl
 --out results/opus_A.rescored.jsonl`; `--rescore results/opus_B.invalidated.jsonl --out
@@ -112,7 +112,7 @@ carrier-type pattern left to explain.
 ## `--summarize` output, reproduced from a live run (final, round-3 rescore)
 
 The blocks below are reproduced from actually running the command shown, against the final
-`.rescored.jsonl` files — not hand-typed or reflowed independently of a run.
+`.rescored.jsonl` files — not hand-typed; the JSON decomposition blocks are compacted onto one line each for width, values unchanged.
 
 ### `python3 probe_phase2.py --summarize results/opus_A.rescored.jsonl`
 
@@ -442,7 +442,7 @@ fact in Task B" claim; neither survives final scoring.
 **Standing confound, unrelated to the scoring bugs above but worth naming wherever Task B's R-vs-F
 comparison is read (Caveat 12):** Task B's rubric (`done_when` + `steps.json`) was derived directly
 from vault note 830's own text, and B-R is the only carrier in either task that is byte-identical
-to that same source (R/F/S are all conversions of it). If anything this would bias Task B's rubric
+to that same source (F/S are conversions of it; R is the original). If anything this would bias Task B's rubric
 toward crediting R, yet R and F end up statistically indistinguishable anyway (gap 1) — the
 confound did not manufacture a spurious win here, but it remains a reason not to treat Task B's
 R-vs-F comparison as a clean test even before the scoring-bug history above. Task A's original is
