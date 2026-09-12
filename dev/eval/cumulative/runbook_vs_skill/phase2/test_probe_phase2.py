@@ -1144,7 +1144,8 @@ def test_live_scoring_and_rescore_emit_the_same_scored_field_set(tmp_path):
     # never persisted as a scored field name in the record schema itself) ---
     events = pp.p1.parse_transcript_events([str(transcript_path)])
     scored = pp._score_trial("A", "R", events, repo_path, carrier)
-    live_scored_keys = (set(scored.keys()) - {"scoring_error"}) | {"valid", "marker_seen"}
+    live_scored_keys = ((set(scored.keys()) - {"scoring_error"})
+                         | {"valid", "marker_seen", "invalid_reason"})
 
     # --- rescore path: whatever keys rescore_file adds/overwrites onto a minimal provenance-only
     # record ---
@@ -2736,3 +2737,263 @@ def test_opsx_archive_step6_false_when_step4_never_matched():
     ]
     results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
     assert results["6"] is False
+
+
+# ----- rate-limited stub detection (vault note 988a) -----
+
+# Compact-JSON snippet matching the real transcript bytes verified in
+# results/baseline_sonnet5_opsx-archive.rate-limited.jsonl (no whitespace around ":").
+_RATE_LIMIT_STUB_TRANSCRIPT_TEXT = (
+    '{"type":"assistant","message":{"content":[{"type":"text",'
+    '"text":"You\'ve hit your session limit · resets 1pm (America/Detroit)"}]},'
+    '"error":"rate_limit","isApiErrorMessage":true,"apiErrorStatus":429}'
+)
+
+
+def test_rate_limit_signal_present_via_error_field_in_raw_text():
+    assert pp._rate_limit_signal_present(None, '{"error":"rate_limit"}') is True
+
+
+def test_rate_limit_signal_present_via_api_error_status_in_raw_text():
+    assert pp._rate_limit_signal_present(None, '{"apiErrorStatus":429}') is True
+
+
+def test_rate_limit_signal_present_via_session_limit_message_text():
+    assert pp._rate_limit_signal_present(None, "You've hit your session limit · resets 1pm") is True
+
+
+def test_rate_limit_signal_present_via_result_dict_error_field():
+    assert pp._rate_limit_signal_present({"error": "rate_limit"}, "") is True
+
+
+def test_rate_limit_signal_present_via_result_dict_api_error_status():
+    assert pp._rate_limit_signal_present({"apiErrorStatus": 429}, "") is True
+
+
+def test_rate_limit_signal_absent_for_ordinary_transcript():
+    assert pp._rate_limit_signal_present({"total_cost_usd": 0.5}, '{"type":"assistant"}') is False
+
+
+def test_is_rate_limited_stub_true_for_real_stub_shape():
+    """The real stub shape (vault note 988a / results/*.rate-limited.jsonl): 1 turn, $0.00, the
+    rate-limit signal present."""
+    assert pp.is_rate_limited_stub(1, 0.0, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT) is True
+
+
+def test_is_rate_limited_stub_true_when_num_turns_missing():
+    """num_turns=None (never recorded) is treated as 0 turns — still a stub when cost is zero and
+    the signal is present."""
+    assert pp.is_rate_limited_stub(None, 0.0, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT) is True
+
+
+def test_is_rate_limited_stub_false_when_real_work_was_done():
+    """The real completed shape (results/baseline_sonnet5_opsx-propose.rate-limited.jsonl, lines
+    1-2): 25 turns, $0.667 spent — the rate-limit signal shows up near the transcript's tail (the
+    account limit was tripped on a final wrap-up turn) but substantial real work already happened.
+    Must NOT be classified as a stub."""
+    assert pp.is_rate_limited_stub(25, 0.667, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT) is False
+
+
+def test_is_rate_limited_stub_false_when_no_rate_limit_signal():
+    """Zero turns/cost alone, with no rate-limit signal anywhere, is out of scope (task item 5) —
+    never classified as a rate-limit stub."""
+    assert pp.is_rate_limited_stub(1, 0.0, None, '{"type":"assistant","message":{}}') is False
+
+
+def test_is_rate_limited_stub_false_for_zero_cost_but_multiple_turns():
+    assert pp.is_rate_limited_stub(3, 0.0, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT) is False
+
+
+# ----- classify_validity (shared by live scoring and --rescore) -----
+
+def test_classify_validity_rate_limited_overrides_marker_seen_true():
+    """A rate-limited stub's trial repo carries the marker (its CLAUDE.md was committed before
+    claude was ever spawned) — marker_seen=True must NOT make it valid."""
+    valid, reason = pp.classify_validity(True, 1, 0.0, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
+    assert valid is False
+    assert reason == "rate_limit"
+
+
+def test_classify_validity_no_marker_when_not_rate_limited():
+    valid, reason = pp.classify_validity(False, 5, 0.3, None, '{"type":"assistant"}')
+    assert valid is False
+    assert reason == "no_marker"
+
+
+def test_classify_validity_valid_when_marker_seen_and_not_rate_limited():
+    valid, reason = pp.classify_validity(True, 5, 0.3, None, '{"type":"assistant"}')
+    assert valid is True
+    assert reason is None
+
+
+def test_classify_validity_real_completed_trial_with_tail_rate_limit_stays_valid():
+    """Mirrors the opsx-propose real-completed records: marker seen, substantial real work, the
+    rate-limit text present near the tail — must stay valid."""
+    valid, reason = pp.classify_validity(True, 25, 0.667, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
+    assert valid is True
+    assert reason is None
+
+
+# ----- format_baseline_summary: rate-limited suffix (task item 3) -----
+
+def _rl_record(valid, invalid_reason=None, end_state=False, followed_all=False, n_steps=6,
+               total_cost_usd=0.1):
+    return {
+        "valid": valid, "invalid_reason": invalid_reason, "end_state": end_state,
+        "followed_all": followed_all, "followed_steps": {}, "n_steps": n_steps,
+        "total_cost_usd": total_cost_usd,
+    }
+
+
+def test_format_baseline_summary_appends_rate_limited_suffix_when_present():
+    records = (
+        [_rl_record(True, end_state=True, followed_all=True) for _ in range(2)]
+        + [_rl_record(False, invalid_reason="rate_limit") for _ in range(6)]
+    )
+    summary = pp.format_baseline_summary("opsx-archive", "sonnet5", records)
+    first_line = summary.splitlines()[0]
+    assert "end result 2/2, did every step 2/2 (rate-limited: 6)" in first_line
+
+
+def test_format_baseline_summary_omits_rate_limited_suffix_when_zero():
+    records = [_rl_record(True, end_state=True, followed_all=True) for _ in range(3)]
+    summary = pp.format_baseline_summary("opsx-archive", "sonnet5", records)
+    first_line = summary.splitlines()[0]
+    assert "rate-limited" not in first_line
+
+
+def test_format_baseline_summary_rate_limited_trials_excluded_from_denominator():
+    """The rate-limited trials are invalid — they must not count toward the valid_n denominator
+    (they are surfaced only via the suffix count)."""
+    records = (
+        [_rl_record(True, end_state=True, followed_all=True)]
+        + [_rl_record(False, invalid_reason="rate_limit") for _ in range(8)]
+    )
+    summary = pp.format_baseline_summary("opsx-archive", "sonnet5", records)
+    first_line = summary.splitlines()[0]
+    assert "end result 1/1, did every step 1/1 (rate-limited: 8)" in first_line
+
+
+# ----- aggregate()/format_table(): rate-limited suffix in --summarize (task item 3) -----
+
+def test_aggregate_reports_rate_limited_n():
+    records = [
+        {"task": "A", "arm": "R", "valid": True, "invalid_reason": None, "found": True,
+         "end_state": True, "followed_all": True, "followed_k": 6, "n_steps": 6,
+         "recall_fired": False, "total_cost_usd": 0.3, "duration_ms": 500},
+        {"task": "A", "arm": "R", "valid": False, "invalid_reason": "rate_limit", "found": None,
+         "end_state": False, "followed_all": False, "followed_k": 0, "n_steps": 0,
+         "recall_fired": False, "total_cost_usd": 0.0, "duration_ms": 100},
+    ]
+    agg = pp.aggregate(records, "A", "R")
+    assert agg["valid_n"] == 1
+    assert agg["rate_limited_n"] == 1
+
+
+def test_format_table_valid_row_appends_rate_limited_suffix_when_present():
+    agg = {"S": _agg(9, 1, 1, 1, 1)}
+    agg["S"]["rate_limited_n"] = 8
+    table = pp.format_table("A", agg)
+    valid_row = next(line for line in table.splitlines() if line.startswith("valid (n)"))
+    assert "1/9 (rate-limited: 8)" in valid_row
+
+
+def test_format_table_valid_row_omits_suffix_when_no_rate_limited_trials():
+    agg = {"S": _agg(5, 5, 4, 4, 4)}
+    table = pp.format_table("A", agg)
+    valid_row = next(line for line in table.splitlines() if line.startswith("valid (n)"))
+    assert "rate-limited" not in valid_row
+
+
+# ----- --rescore reclassifies rate-limited stubs retroactively (task item 4) -----
+
+def _stub_transcript_lines(session_id="rl-session"):
+    return [
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-12T16:06:36.440Z",
+            "message": {"content": [
+                {"type": "text", "text": "You've hit your session limit · resets 1pm (America/Detroit)"}
+            ]},
+            "error": "rate_limit", "isApiErrorMessage": True, "apiErrorStatus": 429,
+            "sessionId": session_id,
+        }),
+    ]
+
+
+def test_rescore_reclassifies_rate_limited_stub_as_invalid(tmp_path):
+    """Reproduces the real stub shape: marker_seen would be True (CLAUDE.md carries the marker
+    regardless), num_turns=1, total_cost_usd=0.0, and the transcript shows the rate-limit
+    signal — --rescore must flip valid to False and set invalid_reason to 'rate_limit'."""
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo)
+    marker = "RUNBOOK-VS-SKILL-BASELINE-stub1"
+    with open(os.path.join(repo, "CLAUDE.md"), "w") as f:
+        f.write(f"some guidance\n\nPROBE-TOKEN: {marker}\n")
+
+    transcript_path = tmp_path / "session.jsonl"
+    with open(transcript_path, "w") as f:
+        f.write("\n".join(_stub_transcript_lines()) + "\n")
+
+    record = {
+        "task": "opsx-archive", "arm": "N", "repo_path": repo,
+        "transcript_path": str(transcript_path), "carrier_basename": None,
+        "valid": True, "marker_seen": True, "invalid_reason": None,
+        "num_turns": 1, "total_cost_usd": 0.0,
+        "found": None, "found_index": None,
+        "followed_steps": {}, "followed_k": 0, "followed_all": False,
+        "end_state": False, "end_state_output": "",
+    }
+    results_path = tmp_path / "results.jsonl"
+    with open(results_path, "w") as f:
+        f.write(json.dumps(record) + "\n")
+    rescored_path = tmp_path / "rescored.jsonl"
+
+    pp.rescore_file(str(results_path), str(rescored_path))
+
+    rescored = pp.load_jsonl(str(rescored_path))[0]
+    assert rescored["valid"] is False
+    assert rescored["invalid_reason"] == "rate_limit"
+    # cost/turns are kept as observed, not zeroed out or dropped by rescore.
+    assert rescored["num_turns"] == 1
+    assert rescored["total_cost_usd"] == 0.0
+
+
+def test_rescore_leaves_real_completed_trial_valid_despite_tail_rate_limit_text(tmp_path):
+    """A real completed trial (many turns, real cost) whose transcript ALSO happens to carry the
+    rate-limit text near its tail (the account limit tripped on a final wrap-up turn) must stay
+    valid — rescore must not treat a bare rate-limit signal as sufficient on its own."""
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo)
+    marker = "RUNBOOK-VS-SKILL-BASELINE-real1"
+    with open(os.path.join(repo, "CLAUDE.md"), "w") as f:
+        f.write(f"some guidance\n\nPROBE-TOKEN: {marker}\n")
+
+    transcript_path = tmp_path / "session.jsonl"
+    lines = [
+        json.dumps({
+            "type": "user", "timestamp": "2026-09-12T16:00:00.000Z",
+            "message": {"content": [{"type": "text", "text": f"PROBE-TOKEN: {marker}"}]},
+        }),
+    ] + _stub_transcript_lines(session_id="real-session")
+    with open(transcript_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+    record = {
+        "task": "opsx-propose", "arm": "N", "repo_path": repo,
+        "transcript_path": str(transcript_path), "carrier_basename": None,
+        "valid": True, "marker_seen": True, "invalid_reason": None,
+        "num_turns": 25, "total_cost_usd": 0.667,
+        "found": None, "found_index": None,
+        "followed_steps": {}, "followed_k": 0, "followed_all": False,
+        "end_state": False, "end_state_output": "",
+    }
+    results_path = tmp_path / "results.jsonl"
+    with open(results_path, "w") as f:
+        f.write(json.dumps(record) + "\n")
+    rescored_path = tmp_path / "rescored.jsonl"
+
+    pp.rescore_file(str(results_path), str(rescored_path))
+
+    rescored = pp.load_jsonl(str(rescored_path))[0]
+    assert rescored["valid"] is True
+    assert rescored["invalid_reason"] is None

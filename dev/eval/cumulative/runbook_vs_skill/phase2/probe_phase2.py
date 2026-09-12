@@ -898,6 +898,71 @@ def check_end_state_phase2(task_key, repo_path):
     return r.returncode == 0, (r.stdout + r.stderr).strip()
 
 
+# ----- rate-limited stub detection (vault note 988a) -----
+
+# A trial whose spawned `claude -p` session hit the ACCOUNT's session limit produces a transcript
+# carrying a terminal assistant-message record with `"error":"rate_limit"`,
+# `"isApiErrorMessage":true`, `"apiErrorStatus":429`, and content text "You've hit your session
+# limit · resets <time> (<tz>)" — verified against the real compact-JSON transcript bytes in
+# results/baseline_sonnet5_opsx-archive.rate-limited.jsonl (all 8 records) and the last 6 records
+# of results/baseline_sonnet5_opsx-propose.rate-limited.jsonl. No inter-key whitespace is present
+# (Claude Code writes compact JSON), so the regexes below tolerate optional whitespace around `:`
+# without requiring it.
+_RATE_LIMIT_ERROR_RE = re.compile(r'"error"\s*:\s*"rate_limit"')
+_RATE_LIMIT_STATUS_RE = re.compile(r'"apiErrorStatus"\s*:\s*429\b')
+_RATE_LIMIT_MESSAGE_RE = re.compile(r"hit your session limit", re.IGNORECASE)
+
+
+def _rate_limit_signal_present(result, raw_text):
+    """True when either the `claude -p --output-format json` result object or the trial's raw
+    transcript text carries the account session-limit condition. `result` is checked defensively
+    at the top level (`error`/`apiErrorStatus` keys) in case a future CLI version surfaces them
+    there too, but detection never depends on it — every confirmed real sample carries the signal
+    in the transcript text, which is also all `--rescore` (no live claude call) has to work with."""
+    if isinstance(result, dict):
+        if result.get("error") == "rate_limit" or result.get("apiErrorStatus") == 429:
+            return True
+    if raw_text and (_RATE_LIMIT_ERROR_RE.search(raw_text) or _RATE_LIMIT_STATUS_RE.search(raw_text)
+                      or _RATE_LIMIT_MESSAGE_RE.search(raw_text)):
+        return True
+    return False
+
+
+def is_rate_limited_stub(num_turns, total_cost_usd, result, raw_text):
+    """A trial is a rate-limited STUB — invalid, never scored — only when the session did NO real
+    work (num_turns <= 1 and total_cost_usd == 0.0) AND the rate-limit signal is present. The
+    rate-limit signal alone is NOT sufficient: a real trial can run many turns and spend real
+    money before tripping the account limit on a final wrap-up turn (verified: the first two
+    records of results/baseline_sonnet5_opsx-propose.rate-limited.jsonl show 25/18 turns and
+    $0.667/$0.4975 spent, with the identical rate-limit text present near the transcript's tail —
+    those are real completed trials and must stay valid/scored, not be discarded as outage stubs).
+    Only the zero-turn/zero-cost stub shape combined with the rate-limit signal is treated as an
+    outage — a bare zero-turn/zero-cost trial with NO rate-limit signal is left alone (no other
+    field in the real records distinguishes that general case cleanly, so it is out of scope
+    here)."""
+    if not _rate_limit_signal_present(result, raw_text):
+        return False
+    turns_zero_or_one = (num_turns or 0) <= 1
+    cost_zero = not (total_cost_usd or 0.0)
+    return turns_zero_or_one and cost_zero
+
+
+def classify_validity(marker_seen, num_turns, total_cost_usd, result, raw_text):
+    """(valid, invalid_reason) shared by the live scoring path (run_one_trial_phase2) and
+    --rescore, so a trial is judged the same way whether it was just spawned or is being
+    re-scored from a kept run dir. A rate-limited stub (see `is_rate_limited_stub`) is NEVER
+    valid, regardless of `marker_seen` — the trial repo's CLAUDE.md carries the PROBE-TOKEN marker
+    by construction (it's committed before claude is ever spawned), so a stub session that hit the
+    account's session limit before doing any real work still shows marker_seen=True. That is
+    exactly what let 22 session-limit outages score as real failures (found=0/N, end_state=FAIL)
+    instead of being excluded as an outage — vault note 988a."""
+    if is_rate_limited_stub(num_turns, total_cost_usd, result, raw_text):
+        return False, "rate_limit"
+    if not marker_seen:
+        return False, "no_marker"
+    return True, None
+
+
 # ----- one trial -----
 
 def _score_trial(task_key, arm, events, repo_path, carrier_basename):
@@ -971,11 +1036,15 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
         scoring_msg = f"scoring exception: {scored['scoring_error']}"
         error = f"{error}; {scoring_msg}" if error else scoring_msg
 
+    total_cost_usd = p1._call_cost(result)
+    num_turns = result.get("num_turns") if isinstance(result, dict) else None
+    valid, invalid_reason = classify_validity(marker_seen, num_turns, total_cost_usd, result, raw_text)
+
     record = {
         "task": task_key, "arm": arm, "trial": trial_index, "model": model,
         "trial_dir": trial_dir, "repo_path": repo_path,
         "transcript_path": transcript_paths[0] if transcript_paths else None,
-        "valid": marker_seen, "timed_out": timed_out, "error": error,
+        "valid": valid, "invalid_reason": invalid_reason, "timed_out": timed_out, "error": error,
         "marker_seen": marker_seen,
         "found": scored["found"], "found_method": scored["found_method"],
         "found_index": scored["found_index"],
@@ -987,9 +1056,9 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
         "trailer": scored["trailer"],
         "carrier_basename": carrier_basename,
         "vault_copy_s": vault_copy_s,
-        "total_cost_usd": p1._call_cost(result),
+        "total_cost_usd": total_cost_usd,
         "duration_ms": result.get("duration_ms") if isinstance(result, dict) else None,
-        "num_turns": result.get("num_turns") if isinstance(result, dict) else None,
+        "num_turns": num_turns,
         "session_id": result.get("session_id") if isinstance(result, dict) else None,
         "wall_s": round(time.time() - t0, 1),
     }
@@ -1106,7 +1175,7 @@ def run_batch(args):
                 record = fut.result()
                 record["run_id"] = run_id
                 p1.append_jsonl(args.out, record)
-                status = "valid" if record["valid"] else "INVALID(no-marker)"
+                status = "valid" if record["valid"] else f"INVALID({record.get('invalid_reason') or 'no-marker'})"
                 print(f"  [{task_key}-{arm}#{i}] {status} found={record['found']} "
                       f"followed={record['followed_k']}/{record['n_steps']} end_state={record['end_state']} "
                       f"cost=${record['total_cost_usd']:.2f} timed_out={record['timed_out']}")
@@ -1138,10 +1207,15 @@ def format_baseline_summary(task_key, model, records):
     """Pure formatting over already-scored trial records (real or synthetic — never calls
     claude). `records` is the same shape run_one_trial_phase2 emits; arm N carries no
     found/found_method (score_found_phase2 returns n/a for arm N — no carrier to find, by
-    design), so this reports only END-STATE, FOLLOWED-all, per-step miss counts, and mean cost."""
+    design), so this reports only END-STATE, FOLLOWED-all, per-step miss counts, and mean cost.
+    Denominators are VALID trials only — a rate-limited stub (invalid_reason == "rate_limit") is
+    never valid, so it drops out of every rate here automatically; its count is still surfaced via
+    the ` (rate-limited: K)` suffix on the first line whenever K > 0, so an outage is visible in
+    one line rather than silently deflating the denominator (vault note 988a)."""
     n = len(records)
     valid = [r for r in records if r.get("valid")]
     valid_n = len(valid)
+    rate_limited_n = sum(1 for r in records if r.get("invalid_reason") == "rate_limit")
     end_state_n = sum(1 for r in valid if r.get("end_state"))
     followed_all_n = sum(1 for r in valid if r.get("followed_all"))
     n_steps = next((r.get("n_steps") for r in valid if r.get("n_steps")), 0)
@@ -1149,9 +1223,11 @@ def format_baseline_summary(task_key, model, records):
     cost_mean = (sum(r.get("total_cost_usd") or 0 for r in valid) / valid_n) if valid_n else 0.0
 
     miss_str = ", ".join(f"step {k}: {v}/{valid_n}" for k, v in sorted(miss_counts.items())) or "n/a"
+    rate_limited_suffix = f" (rate-limited: {rate_limited_n})" if rate_limited_n else ""
     return (
         f"bare agent (task={task_key}, model={model}, n={n}): "
-        f"end result {end_state_n}/{valid_n}, did every step {followed_all_n}/{valid_n}\n"
+        f"end result {end_state_n}/{valid_n}, did every step {followed_all_n}/{valid_n}"
+        f"{rate_limited_suffix}\n"
         f"per-step miss counts: {miss_str}\n"
         f"mean cost: ${cost_mean:.2f}"
     )
@@ -1208,7 +1284,7 @@ def run_baseline(args):
                 records.append(record)
                 if args.out:
                     p1.append_jsonl(args.out, record)
-                status = "valid" if record["valid"] else "INVALID(no-marker)"
+                status = "valid" if record["valid"] else f"INVALID({record.get('invalid_reason') or 'no-marker'})"
                 print(f"  [{task_key}-N#{i}] {status} end_state={record['end_state']} "
                       f"followed={record['followed_k']}/{record['n_steps']} "
                       f"cost=${record['total_cost_usd']:.2f} timed_out={record['timed_out']}")
@@ -1353,6 +1429,7 @@ def aggregate(records, task, arm):
     valid = [r for r in rows if r.get("valid")]
     n = len(rows)
     valid_n = len(valid)
+    rate_limited_n = sum(1 for r in rows if r.get("invalid_reason") == "rate_limit")
     found_n = sum(1 for r in valid if r.get("found") is True)
     found_given_n = found_n
     end_state_n = sum(1 for r in valid if r.get("end_state"))
@@ -1369,7 +1446,7 @@ def aggregate(records, task, arm):
     trailer_ai_used_n = sum(1 for r in valid if r.get("trailer") in ("ai_used", "both"))
     trailer_co_authored_n = sum(1 for r in valid if r.get("trailer") in ("co_authored", "both"))
     return {
-        "n": n, "valid_n": valid_n,
+        "n": n, "valid_n": valid_n, "rate_limited_n": rate_limited_n,
         "found_n": found_n, "found_given_n": found_given_n,
         "end_state_n": end_state_n, "end_state_given_found_n": end_state_given_found_n,
         "followed_all_n": followed_all_n, "followed_all_given_found_n": followed_all_given_found_n,
@@ -1500,7 +1577,12 @@ def format_table(task, agg):
     row("recall_fired (k/n)", lambda arm, a: f"{a['recall_fired_n']}/{a['valid_n']}")
     row("cost (mean USD)", lambda arm, a: f"${a['cost_mean']:.2f}")
     row("duration (mean s)", lambda arm, a: f"{a['duration_mean']:.0f}")
-    row("valid (n)", lambda arm, a: f"{a['valid_n']}/{a['n']}")
+    def _valid_cell(arm, a):
+        base = f"{a['valid_n']}/{a['n']}"
+        rate_limited_n = a.get("rate_limited_n") or 0
+        return f"{base} (rate-limited: {rate_limited_n})" if rate_limited_n else base
+
+    row("valid (n)", _valid_cell)
     if task == "A":
         row("trailer AI-Used (k/n)", lambda arm, a: f"{a['trailer_ai_used_n']}/{a['valid_n']}")
         row("trailer Co-Authored-By (k/n)", lambda arm, a: f"{a['trailer_co_authored_n']}/{a['valid_n']}")
@@ -1583,7 +1665,13 @@ def rescore_file(in_path, out_path):
     and marker validity recompute against an empty event list (found stays at its arm-appropriate
     default, e.g. None for Rdirect / False otherwise; `valid`/`marker_seen` become False).
     Provenance (`arm`, `carrier_basename`, `task`) is read from the kept record, never
-    re-derived."""
+    re-derived.
+
+    Also reclassifies rate-limited stubs (vault note 988a): `invalid_reason` is recomputed from
+    the kept record's own `num_turns`/`total_cost_usd` plus the (re-discovered, if needed)
+    transcript text — never a live claude call, so this is the only place a set-aside
+    `*.rate-limited.jsonl` file gets corrected. `valid` is forced False whenever the rate-limit
+    stub shape is detected, even when the trial's CLAUDE.md marker is (as expected) still present."""
     records = load_jsonl(in_path)
     rescored = []
 
@@ -1611,13 +1699,26 @@ def rescore_file(in_path, out_path):
 
             events = (p1.parse_transcript_events(transcript_paths_for_parsing)
                       if transcript_paths_for_parsing else [])
+            raw_text = (p1.transcript_raw_text(transcript_paths_for_parsing)
+                        if transcript_paths_for_parsing else "")
 
             marker = _read_repo_marker(repo_path)
             if marker is not None:
-                raw_text = p1.transcript_raw_text(transcript_paths_for_parsing)
                 marker_seen = p1.is_marker_seen(raw_text, marker)
                 record["marker_seen"] = marker_seen
-                record["valid"] = marker_seen
+                valid, invalid_reason = classify_validity(
+                    marker_seen, record.get("num_turns"), record.get("total_cost_usd"),
+                    None, raw_text)
+                record["valid"] = valid
+                record["invalid_reason"] = invalid_reason
+            else:
+                rate_limited = is_rate_limited_stub(
+                    record.get("num_turns"), record.get("total_cost_usd"), None, raw_text)
+                if rate_limited:
+                    record["valid"] = False
+                    record["invalid_reason"] = "rate_limit"
+                else:
+                    record.setdefault("invalid_reason", None)
 
             found, found_idx = score_found_phase2(task_key, arm, events, carrier_basename)
             record["found"] = found
