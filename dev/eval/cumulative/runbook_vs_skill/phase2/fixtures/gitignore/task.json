@@ -1,0 +1,11 @@
+{
+  "removal_basenames": [
+    "420.2026-07-24.folder-move-surface-gitignore-anchors-and-silent-optional-consumers",
+    "447.2026-07-24.framework-owned-testdata-not-dead-just-because-app-code-ignores-it",
+    "448.2026-07-24.route-dispatch-design-fit-review"
+  ],
+  "carrier_r_src": null,
+  "carrier_f_src": "encodings/taskB/B-F/vault",
+  "skill_name": "gitignore-narrowing",
+  "skill_src": "encodings/taskB/B-S/skills/gitignore-narrowing"
+}

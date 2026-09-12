@@ -114,30 +114,106 @@ def _strip_quoted(command):
 # of what their (quoted) arguments contain.
 _ENGRAM_READONLY_RE = re.compile(r"^\s*engram\s+(query|show-chunk|activate|ingest)\b")
 
-TASKS = {
-    "A": {
-        "init_script": os.path.join(FIXTURES_DIR, "commit", "init_fixture_repo.sh"),
-        "done_when_script": os.path.join(FIXTURES_DIR, "commit", "done_when_checks.sh"),
-        "task_prompt": os.path.join(FIXTURES_DIR, "commit", "task-prompt.txt"),
-        "steps_json": os.path.join(FIXTURES_DIR, "commit", "steps.json"),
-        "removal_basenames": TASK_A_REMOVAL,
-        "carrier_r_src": os.path.join(ENCODINGS_DIR, "taskA", "A-R", "vault"),
-        "carrier_f_src": os.path.join(ENCODINGS_DIR, "taskA", "A-F", "vault"),
-        "skill_name": "commit",
-        "skill_src": os.path.join(p1.REPO, ".claude", "skills", "commit.md"),
-    },
-    "B": {
-        "init_script": os.path.join(FIXTURES_DIR, "gitignore", "init_fixture_repo.sh"),
-        "done_when_script": os.path.join(FIXTURES_DIR, "gitignore", "done_when_checks.sh"),
-        "task_prompt": os.path.join(FIXTURES_DIR, "gitignore", "task-prompt.txt"),
-        "steps_json": os.path.join(FIXTURES_DIR, "gitignore", "steps.json"),
-        "removal_basenames": TASK_B_REMOVAL,
-        "carrier_r_src": None,  # B/R's carrier is the real vault's own 830 note — never copied, never deleted
-        "carrier_f_src": os.path.join(ENCODINGS_DIR, "taskB", "B-F", "vault"),
-        "skill_name": "gitignore-narrowing",
-        "skill_src": os.path.join(ENCODINGS_DIR, "taskB", "B-S", "skills", "gitignore-narrowing"),
-    },
-}
+# ----- task registry: discover fixtures/<name>/ directories generically -----
+#
+# A task directory is ANY subdirectory of fixtures/ containing all of FIXTURE_REQUIRED_FILES —
+# so `--task <name>` works for a brand-new candidate task the moment its fixture files exist,
+# with zero edits to this module. Per-task carrier config (skill_src, carrier_r_src,
+# carrier_f_src, skill_name, removal_basenames) is OPTIONAL and lives in an adjacent
+# fixtures/<name>/task.json — absent entirely for a new task that has no skill/runbook/fact-note
+# carrier yet (fine: arm N / --baseline never touches carrier config; see score_found_phase2).
+#
+# "A" and "B" remain the canonical internal task keys — every other per-task table in this module
+# (TASK_A_REMOVAL/TASK_B_REMOVAL, TASK_MUTATING_BASH_RE, _START_STATE_CHECKS, PLUMBING_SITUATION,
+# classify_trailer's `task_key == "A"` check, ...) is still keyed by those letters, and existing
+# tests call functions with "A"/"B" literals directly. "commit" and "gitignore" (the fixtures/
+# directory names) are ALIASES that resolve to "A"/"B" via resolve_task_key before any lookup —
+# fixtures/commit/task.json and fixtures/gitignore/task.json were generated from this module's
+# former hardcoded TASKS dict literal (see git history) and round-trip to the same values.
+FIXTURE_REQUIRED_FILES = ("init_fixture_repo.sh", "done_when_checks.sh", "task-prompt.txt", "steps.json")
+TASK_KEY_ALIASES = {"commit": "A", "gitignore": "B"}
+
+
+def resolve_task_key(raw_task_key):
+    """User-facing task name (a fixtures/<name>/ directory name, or a legacy A/B letter) -> the
+    canonical internal task key. "commit"/"gitignore" resolve to "A"/"B"; anything else —
+    including a new fixtures/<name>/ directory with no alias entry — passes through unchanged as
+    its own canonical key."""
+    return TASK_KEY_ALIASES.get(raw_task_key, raw_task_key)
+
+
+def validate_task_key(raw_task_key):
+    """resolve_task_key, but raises SystemExit with a helpful message if the resolved key isn't a
+    discovered task — the CLI-facing form every entry point that accepts a user-typed task name
+    should call before using the result."""
+    canonical = resolve_task_key(raw_task_key)
+    if canonical not in TASKS:
+        valid = sorted(set(TASKS) | set(TASK_KEY_ALIASES))
+        raise SystemExit(f"unknown task {raw_task_key!r}; choose from {valid}")
+    return canonical
+
+
+def load_task_json(task_json_path):
+    """Optional per-task carrier config from fixtures/<name>/task.json. Path-valued fields
+    (carrier_r_src, carrier_f_src, skill_src) are stored RELATIVE TO `HERE` (this file's
+    directory) for portability across clones/worktrees, and resolved to absolute paths here.
+    Returns {} if the file doesn't exist — every field then keeps discover_tasks's default."""
+    if not os.path.exists(task_json_path):
+        return {}
+    data = json.load(open(task_json_path))
+    resolved = dict(data)
+    for key in ("carrier_r_src", "carrier_f_src", "skill_src"):
+        if resolved.get(key):
+            resolved[key] = os.path.normpath(os.path.join(HERE, resolved[key]))
+    if "removal_basenames" in resolved:
+        resolved["removal_basenames"] = tuple(resolved["removal_basenames"])
+    return resolved
+
+
+def discover_tasks(fixtures_dir=None):
+    """Scan `fixtures_dir` (default FIXTURES_DIR) for task directories: any subdirectory
+    containing all of FIXTURE_REQUIRED_FILES is a discovered task, keyed by its directory
+    basename. Returns {dir_name: {init_script, done_when_script, task_prompt, steps_json,
+    removal_basenames, carrier_r_src, carrier_f_src, skill_name, skill_src}} — the last five
+    default to ()/None/None/None/None and are overridden by an adjacent task.json (see
+    load_task_json)."""
+    fixtures_dir = fixtures_dir or FIXTURES_DIR
+    discovered = {}
+    if not os.path.isdir(fixtures_dir):
+        return discovered
+    for name in sorted(os.listdir(fixtures_dir)):
+        task_dir = os.path.join(fixtures_dir, name)
+        if not os.path.isdir(task_dir):
+            continue
+        if not all(os.path.exists(os.path.join(task_dir, fname)) for fname in FIXTURE_REQUIRED_FILES):
+            continue
+        entry = {
+            "init_script": os.path.join(task_dir, "init_fixture_repo.sh"),
+            "done_when_script": os.path.join(task_dir, "done_when_checks.sh"),
+            "task_prompt": os.path.join(task_dir, "task-prompt.txt"),
+            "steps_json": os.path.join(task_dir, "steps.json"),
+            "removal_basenames": (),
+            "carrier_r_src": None,
+            "carrier_f_src": None,
+            "skill_name": None,
+            "skill_src": None,
+        }
+        entry.update(load_task_json(os.path.join(task_dir, "task.json")))
+        discovered[name] = entry
+    return discovered
+
+
+def _build_tasks_registry():
+    """TASKS, keyed by canonical task key: resolve_task_key applied to each discovered fixture
+    directory name — "commit"/"gitignore" collapse onto "A"/"B"; any other discovered directory
+    keeps its own name as the key."""
+    tasks = {}
+    for dir_name, entry in discover_tasks().items():
+        tasks[resolve_task_key(dir_name)] = entry
+    return tasks
+
+
+TASKS = _build_tasks_registry()
 
 PLUMBING_SITUATION = {
     "A": "committing changes to this repo following the project's conventions",
@@ -363,7 +439,7 @@ def assert_starting_state(repo_path, task_key):
     """Verify committing CLAUDE.md (+ skill) did not sweep the fixture's decoy/unstaged state."""
     status = subprocess.run(["git", "-C", repo_path, "status", "--porcelain"],
                              capture_output=True, text=True, check=True).stdout
-    for pattern, desc in _START_STATE_CHECKS[task_key]:
+    for pattern, desc in _START_STATE_CHECKS.get(task_key, ()):
         if not pattern.search(status):
             raise RuntimeError(
                 f"Task {task_key} starting-state check failed: expected {desc}, got:\n{status}"
@@ -419,7 +495,7 @@ def is_first_mutating_step(event, task_key):
         stripped = _strip_quoted(command)
         if _ENGRAM_READONLY_RE.match(stripped):
             return False
-        return bool(TASK_MUTATING_BASH_RE[task_key].search(stripped))
+        return bool(TASK_MUTATING_BASH_RE.get(task_key, _MUTATING_BASH_RE).search(stripped))
     return False
 
 
@@ -880,10 +956,9 @@ def run_batch(args):
     unknown = [a for a in arms if a not in ARMS]
     if unknown:
         raise SystemExit(f"unknown arm(s) {unknown}; choose from {ARMS}")
-    if args.task not in TASKS:
-        raise SystemExit(f"unknown task {args.task!r}; choose from {sorted(TASKS)}")
+    task_key = validate_task_key(args.task)
 
-    run_id = f"{args.task}-{args.model}-{int(time.time())}-{uuid.uuid4().hex[:6]}"
+    run_id = f"{task_key}-{args.model}-{int(time.time())}-{uuid.uuid4().hex[:6]}"
     run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
     os.makedirs(run_root, exist_ok=True)
 
@@ -898,13 +973,13 @@ def run_batch(args):
     before_fp = p1._real_vault_fingerprint()
 
     jobs = [(arm, i) for arm in arms for i in range(args.n)]
-    print(f"run_id={run_id} task={args.task} arms={arms} n={args.n} model={args.model} "
+    print(f"run_id={run_id} task={task_key} arms={arms} n={args.n} model={args.model} "
           f"trials={len(jobs)} timeout={args.timeout}s workers={args.workers} root={run_root}")
 
     def _run_pooled(arm, i):
         cfg_dir = cfg_pool.get()
         try:
-            return run_one_trial_phase2(run_root, cfg_dir, args.task, arm, args.model, i, marker,
+            return run_one_trial_phase2(run_root, cfg_dir, task_key, arm, args.model, i, marker,
                                          args.timeout, args.exclude_luhmann_min)
         finally:
             cfg_pool.put(cfg_dir)
@@ -918,7 +993,7 @@ def run_batch(args):
                 record["run_id"] = run_id
                 p1.append_jsonl(args.out, record)
                 status = "valid" if record["valid"] else "INVALID(no-marker)"
-                print(f"  [{args.task}-{arm}#{i}] {status} found={record['found']} "
+                print(f"  [{task_key}-{arm}#{i}] {status} found={record['found']} "
                       f"followed={record['followed_k']}/{record['n_steps']} end_state={record['end_state']} "
                       f"cost=${record['total_cost_usd']:.2f} timed_out={record['timed_out']}")
     finally:
@@ -929,6 +1004,104 @@ def run_batch(args):
                   "trusting any result in this run.", file=sys.stderr)
         if not args.keep:
             shutil.rmtree(run_root, ignore_errors=True)
+
+
+# ----- baseline mode: arm N only, bare agent, no carrier -----
+
+def baseline_step_miss_counts(records, n_steps):
+    """{step_n: miss_count} across VALID records only, for step numbers 1..n_steps. A step counts
+    as a miss when its `followed_steps` entry is False or absent (e.g. a scoring_error left
+    followed_steps empty for that trial)."""
+    valid = [r for r in records if r.get("valid")]
+    counts = {}
+    for step_n in range(1, n_steps + 1):
+        key = str(step_n)
+        counts[step_n] = sum(1 for r in valid if not (r.get("followed_steps") or {}).get(key, False))
+    return counts
+
+
+def format_baseline_summary(task_key, model, records):
+    """Pure formatting over already-scored trial records (real or synthetic — never calls
+    claude). `records` is the same shape run_one_trial_phase2 emits; arm N carries no
+    found/found_method (score_found_phase2 returns n/a for arm N — no carrier to find, by
+    design), so this reports only END-STATE, FOLLOWED-all, per-step miss counts, and mean cost."""
+    n = len(records)
+    valid = [r for r in records if r.get("valid")]
+    valid_n = len(valid)
+    end_state_n = sum(1 for r in valid if r.get("end_state"))
+    followed_all_n = sum(1 for r in valid if r.get("followed_all"))
+    n_steps = next((r.get("n_steps") for r in valid if r.get("n_steps")), 0)
+    miss_counts = baseline_step_miss_counts(records, n_steps)
+    cost_mean = (sum(r.get("total_cost_usd") or 0 for r in valid) / valid_n) if valid_n else 0.0
+
+    miss_str = ", ".join(f"step {k}: {v}/{valid_n}" for k, v in sorted(miss_counts.items())) or "n/a"
+    return (
+        f"bare agent (task={task_key}, model={model}, n={n}): "
+        f"end result {end_state_n}/{valid_n}, did every step {followed_all_n}/{valid_n}\n"
+        f"per-step miss counts: {miss_str}\n"
+        f"mean cost: ${cost_mean:.2f}"
+    )
+
+
+def run_baseline(args):
+    """Arm N only (bare agent — no skill/runbook/fact-note carrier) against one task: the cheap
+    entry point for baselining a NEW candidate task before any carrier is built for it. Reuses
+    run_one_trial_phase2's exact trial machinery (setup_trial_repo/setup_trial_vault — same
+    CLAUDE.md with guidance+cue+marker, same real-vault copy minus covering notes and
+    eval-session notes; see setup_trial_vault/remove_covering_notes/remove_eval_session_notes);
+    only the arm (fixed to "N") and the final summary differ from run_batch."""
+    task_key = validate_task_key(args.baseline)
+
+    run_id = f"baseline-{task_key}-{args.model}-{int(time.time())}-{uuid.uuid4().hex[:6]}"
+    run_root = os.path.join(p1.DEFAULT_RUN_ROOT, "phase2", run_id)
+    os.makedirs(run_root, exist_ok=True)
+
+    cfg_dirs = build_cfg_pool_phase2(run_root, args.workers)
+    for cfg_dir in cfg_dirs:
+        p1.matrix.refresh_creds(cfg_dir)
+    cfg_pool = queue.Queue()
+    for cfg_dir in cfg_dirs:
+        cfg_pool.put(cfg_dir)
+
+    marker = f"RUNBOOK-VS-SKILL-BASELINE-{uuid.uuid4().hex[:8]}"
+    before_fp = p1._real_vault_fingerprint()
+
+    print(f"run_id={run_id} task={task_key} arm=N n={args.n} model={args.model} "
+          f"timeout={args.timeout}s workers={args.workers} root={run_root}")
+
+    def _run_pooled(i):
+        cfg_dir = cfg_pool.get()
+        try:
+            return run_one_trial_phase2(run_root, cfg_dir, task_key, "N", args.model, i, marker,
+                                         args.timeout, args.exclude_luhmann_min)
+        finally:
+            cfg_pool.put(cfg_dir)
+
+    records = []
+    try:
+        with cf.ThreadPoolExecutor(max_workers=args.workers) as ex:
+            futs = {ex.submit(_run_pooled, i): i for i in range(args.n)}
+            for fut in cf.as_completed(futs):
+                i = futs[fut]
+                record = fut.result()
+                record["run_id"] = run_id
+                records.append(record)
+                if args.out:
+                    p1.append_jsonl(args.out, record)
+                status = "valid" if record["valid"] else "INVALID(no-marker)"
+                print(f"  [{task_key}-N#{i}] {status} end_state={record['end_state']} "
+                      f"followed={record['followed_k']}/{record['n_steps']} "
+                      f"cost=${record['total_cost_usd']:.2f} timed_out={record['timed_out']}")
+    finally:
+        after_fp = p1._real_vault_fingerprint()
+        if after_fp != before_fp:
+            print(f"ABORT-REPORT: operator's real vault fingerprint changed! before={before_fp} "
+                  f"after={after_fp}. A trial may have reached real memory. Investigate before "
+                  "trusting any result in this run.", file=sys.stderr)
+        if not args.keep:
+            shutil.rmtree(run_root, ignore_errors=True)
+
+    print(format_baseline_summary(task_key, args.model, records))
 
 
 # ----- plumbing mode -----
@@ -1304,7 +1477,8 @@ def rescore_file(in_path, out_path):
 
 def build_argparser():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--task", choices=list(TASKS))
+    ap.add_argument("--task", help="a fixtures/<name>/ directory name (discovered dynamically), "
+                                    "or a legacy alias (A -> commit, B -> gitignore)")
     ap.add_argument("--arms", default=",".join(DEFAULT_ARMS))
     ap.add_argument("--model", choices=list(p1.MODELS))
     ap.add_argument("--n", type=int)
@@ -1316,6 +1490,10 @@ def build_argparser():
     ap.add_argument("--setup-only", action="store_true",
                      help="build repo+vault+CLAUDE.md for one arm (first of --arms) and print "
                           "the starting-state checks — no claude call")
+    ap.add_argument("--baseline", metavar="TASK",
+                     help="run arm N only (bare agent, no carrier) against TASK and print a "
+                          "summary — the cheap way to baseline a new candidate task before any "
+                          "carrier is built for it")
     ap.add_argument("--summarize")
     ap.add_argument("--rescore", help="re-score an existing results.jsonl file using kept trial directories")
     ap.add_argument("--exclude-luhmann-min", type=int, default=EXCLUDE_LUHMANN_MIN,
@@ -1334,19 +1512,26 @@ def main(argv=None):
             build_argparser().error("--rescore requires --out")
         rescore_file(args.rescore, args.out)
         return
+    if args.baseline:
+        if not (args.model and args.n is not None):
+            build_argparser().error("--baseline requires --model and --n")
+        run_baseline(args)
+        return
     if args.plumbing:
         if not args.task:
             build_argparser().error("--plumbing requires --task")
-        run_plumbing(args.task, args.model or "sonnet")
+        task_key = validate_task_key(args.task)
+        run_plumbing(task_key, args.model or "sonnet")
         return
     if args.setup_only:
         if not args.task:
             build_argparser().error("--setup-only requires --task")
+        task_key = validate_task_key(args.task)
         arm = [a.strip() for a in args.arms.split(",") if a.strip()][0]
-        run_setup_only(args.task, arm, args.exclude_luhmann_min)
+        run_setup_only(task_key, arm, args.exclude_luhmann_min)
         return
     if not args.task:
-        build_argparser().error("--task is required (unless --summarize/--rescore)")
+        build_argparser().error("--task is required (unless --summarize/--rescore/--baseline)")
     if not (args.model and args.n is not None and args.out):
         build_argparser().error("--model, --n, and --out are required for a normal run")
     run_batch(args)

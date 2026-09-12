@@ -9,6 +9,8 @@ already verified against a real transcript.
 import json
 import os
 
+import pytest
+
 import probe_phase2 as pp
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1501,3 +1503,187 @@ def test_rescore_preserves_provenance_fields_from_kept_record():
         rescored = pp.load_jsonl(rescored_path)[0]
     assert rescored["error"] == "rescore: repo missing"
     assert rescored["arm"] == "S"
+
+
+# ----- task registry: fixtures/<name>/ discovery + optional task.json -----
+
+def _write_synthetic_fixture(task_dir, with_task_json=None):
+    task_dir.mkdir(parents=True)
+    (task_dir / "init_fixture_repo.sh").write_text("#!/bin/bash\nmkdir -p \"$1\"\n")
+    (task_dir / "done_when_checks.sh").write_text("#!/bin/bash\nexit 0\n")
+    (task_dir / "task-prompt.txt").write_text("do the widget task")
+    (task_dir / "steps.json").write_text("[]")
+    if with_task_json is not None:
+        (task_dir / "task.json").write_text(json.dumps(with_task_json))
+
+
+def test_discover_tasks_finds_synthetic_fixture_dir(tmp_path):
+    fixtures_dir = tmp_path / "fixtures"
+    task_dir = fixtures_dir / "widget"
+    _write_synthetic_fixture(task_dir)
+
+    discovered = pp.discover_tasks(str(fixtures_dir))
+
+    assert "widget" in discovered
+    entry = discovered["widget"]
+    assert entry["init_script"] == str(task_dir / "init_fixture_repo.sh")
+    assert entry["done_when_script"] == str(task_dir / "done_when_checks.sh")
+    assert entry["task_prompt"] == str(task_dir / "task-prompt.txt")
+    assert entry["steps_json"] == str(task_dir / "steps.json")
+    # no task.json present -> carrier config defaults to empty/None
+    assert entry["removal_basenames"] == ()
+    assert entry["carrier_r_src"] is None
+    assert entry["carrier_f_src"] is None
+    assert entry["skill_name"] is None
+    assert entry["skill_src"] is None
+
+
+def test_discover_tasks_ignores_dir_missing_a_required_file(tmp_path):
+    fixtures_dir = tmp_path / "fixtures"
+    incomplete = fixtures_dir / "incomplete"
+    incomplete.mkdir(parents=True)
+    (incomplete / "init_fixture_repo.sh").write_text("#!/bin/bash\n")
+    # missing done_when_checks.sh, task-prompt.txt, steps.json
+
+    discovered = pp.discover_tasks(str(fixtures_dir))
+
+    assert "incomplete" not in discovered
+
+
+def test_discover_tasks_ignores_non_directory_entries(tmp_path):
+    fixtures_dir = tmp_path / "fixtures"
+    fixtures_dir.mkdir()
+    (fixtures_dir / "stray_file.txt").write_text("not a task dir")
+
+    discovered = pp.discover_tasks(str(fixtures_dir))
+
+    assert discovered == {}
+
+
+def test_discover_tasks_reads_optional_task_json_and_resolves_paths_relative_to_here(tmp_path):
+    fixtures_dir = tmp_path / "fixtures"
+    task_dir = fixtures_dir / "widget"
+    _write_synthetic_fixture(task_dir, with_task_json={
+        "removal_basenames": ["1.note", "2.note"],
+        "carrier_r_src": "../elsewhere/vault",
+        "carrier_f_src": None,
+        "skill_name": "widget",
+        "skill_src": "../elsewhere/widget-skill",
+    })
+
+    discovered = pp.discover_tasks(str(fixtures_dir))
+
+    entry = discovered["widget"]
+    assert entry["removal_basenames"] == ("1.note", "2.note")
+    assert entry["skill_name"] == "widget"
+    assert entry["carrier_f_src"] is None
+    assert entry["carrier_r_src"] == os.path.normpath(os.path.join(pp.HERE, "../elsewhere/vault"))
+    assert entry["skill_src"] == os.path.normpath(os.path.join(pp.HERE, "../elsewhere/widget-skill"))
+
+
+def test_discover_tasks_missing_fixtures_dir_returns_empty():
+    assert pp.discover_tasks("/does/not/exist/anywhere") == {}
+
+
+def test_task_a_task_json_round_trips_into_tasks_registry():
+    a = pp.TASKS["A"]
+    assert a["removal_basenames"] == pp.TASK_A_REMOVAL
+    assert a["skill_name"] == "commit"
+    assert a["skill_src"] == os.path.join(pp.p1.REPO, ".claude", "skills", "commit.md")
+    assert a["carrier_r_src"] == os.path.join(pp.ENCODINGS_DIR, "taskA", "A-R", "vault")
+    assert a["carrier_f_src"] == os.path.join(pp.ENCODINGS_DIR, "taskA", "A-F", "vault")
+
+
+def test_task_b_task_json_round_trips_into_tasks_registry():
+    b = pp.TASKS["B"]
+    assert b["removal_basenames"] == pp.TASK_B_REMOVAL
+    assert b["skill_name"] == "gitignore-narrowing"
+    assert b["carrier_r_src"] is None
+    assert b["carrier_f_src"] == os.path.join(pp.ENCODINGS_DIR, "taskB", "B-F", "vault")
+    assert b["skill_src"] == os.path.join(pp.ENCODINGS_DIR, "taskB", "B-S", "skills", "gitignore-narrowing")
+
+
+def test_task_key_aliases_resolve_commit_and_gitignore_to_a_and_b():
+    assert pp.resolve_task_key("commit") == "A"
+    assert pp.resolve_task_key("gitignore") == "B"
+    assert pp.resolve_task_key("A") == "A"
+    assert pp.resolve_task_key("B") == "B"
+    assert pp.resolve_task_key("newtask") == "newtask"
+
+
+def test_validate_task_key_accepts_alias_and_canonical():
+    assert pp.validate_task_key("commit") == "A"
+    assert pp.validate_task_key("gitignore") == "B"
+    assert pp.validate_task_key("A") == "A"
+    assert pp.validate_task_key("B") == "B"
+
+
+def test_validate_task_key_raises_systemexit_for_unknown_task():
+    with pytest.raises(SystemExit):
+        pp.validate_task_key("nonexistent-task")
+
+
+# ----- --baseline mode: arm N summary formatting from synthetic records -----
+
+def test_format_baseline_summary_basic_from_synthetic_records():
+    records = [
+        {"valid": True, "end_state": True, "followed_all": True, "n_steps": 3,
+         "followed_steps": {"1": True, "2": True, "3": True}, "total_cost_usd": 0.10},
+        {"valid": True, "end_state": False, "followed_all": False, "n_steps": 3,
+         "followed_steps": {"1": True, "2": False, "3": True}, "total_cost_usd": 0.20},
+    ]
+
+    summary = pp.format_baseline_summary("gitignore", "sonnet5", records)
+
+    assert "end result 1/2" in summary
+    assert "did every step 1/2" in summary
+    assert "step 2: 1/2" in summary
+    assert "mean cost: $0.15" in summary
+
+
+def test_format_baseline_summary_excludes_invalid_trials_from_rates_and_cost():
+    records = [
+        {"valid": True, "end_state": True, "followed_all": True, "n_steps": 2,
+         "followed_steps": {"1": True, "2": True}, "total_cost_usd": 0.10},
+        {"valid": False, "end_state": False, "followed_all": False, "n_steps": 2,
+         "followed_steps": {"1": False, "2": False}, "total_cost_usd": 0.05},
+    ]
+
+    summary = pp.format_baseline_summary("gitignore", "sonnet5", records)
+
+    assert "end result 1/1" in summary
+    assert "did every step 1/1" in summary
+    assert "mean cost: $0.10" in summary
+
+
+def test_format_baseline_summary_no_valid_trials_reports_zero_over_zero():
+    records = [{"valid": False, "end_state": False, "followed_all": False, "n_steps": 0,
+                "followed_steps": {}, "total_cost_usd": 0.0}]
+
+    summary = pp.format_baseline_summary("widget", "sonnet5", records)
+
+    assert "end result 0/0" in summary
+    assert "did every step 0/0" in summary
+    assert "mean cost: $0.00" in summary
+
+
+def test_baseline_step_miss_counts_counts_false_and_missing_as_misses():
+    records = [
+        {"valid": True, "followed_steps": {"1": True, "2": False}},
+        {"valid": True, "followed_steps": {"1": True}},  # step 2 missing counts as a miss
+    ]
+
+    counts = pp.baseline_step_miss_counts(records, n_steps=2)
+
+    assert counts == {1: 0, 2: 2}
+
+
+def test_baseline_step_miss_counts_ignores_invalid_trials():
+    records = [
+        {"valid": True, "followed_steps": {"1": True}},
+        {"valid": False, "followed_steps": {"1": False}},
+    ]
+
+    counts = pp.baseline_step_miss_counts(records, n_steps=1)
+
+    assert counts == {1: 0}

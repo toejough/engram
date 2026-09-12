@@ -1,0 +1,11 @@
+{
+  "removal_basenames": [
+    "354.2026-07-22.subagent-briefs-state-commit-invariants-not-per-commit",
+    "392.2026-07-23.route-dispatch-doc-review-gate",
+    "672.2026-07-29.route-dispatch-doc-review-gate"
+  ],
+  "carrier_r_src": "encodings/taskA/A-R/vault",
+  "carrier_f_src": "encodings/taskA/A-F/vault",
+  "skill_name": "commit",
+  "skill_src": "../../../../../.claude/skills/commit.md"
+}
