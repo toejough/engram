@@ -1,0 +1,20 @@
+run_id=baseline-tdd-order-sonnet5-1789234573-524fb5 task=tdd-order arm=N n=8 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-234573
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-234573/trials/tdd-order-N-0/vault
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-234573/trials/tdd-order-N-1/vault
+  [tdd-order-N#0] valid end_state=True followed=5/5 cost=$0.42 timed_out=False
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-234573/trials/tdd-order-N-2/vault
+  [tdd-order-N#1] valid end_state=True followed=5/5 cost=$0.80 timed_out=False
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-234573/trials/tdd-order-N-3/vault
+  [tdd-order-N#2] valid end_state=False followed=5/5 cost=$0.71 timed_out=False
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-234573/trials/tdd-order-N-4/vault
+  [tdd-order-N#3] valid end_state=False followed=5/5 cost=$0.67 timed_out=False
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-234573/trials/tdd-order-N-5/vault
+  [tdd-order-N#4] valid end_state=True followed=5/5 cost=$0.46 timed_out=False
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-234573/trials/tdd-order-N-6/vault
+  [tdd-order-N#5] valid end_state=True followed=5/5 cost=$0.55 timed_out=False
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-234573/trials/tdd-order-N-7/vault
+  [tdd-order-N#7] valid end_state=False followed=5/5 cost=$0.55 timed_out=False
+  [tdd-order-N#6] valid end_state=False followed=5/5 cost=$1.09 timed_out=False
+bare agent (task=tdd-order, model=sonnet5, n=8): end result 4/8, did every step 8/8
+per-step miss counts: step 1: 0/8, step 2: 0/8, step 3: 0/8, step 4: 0/8, step 5: 0/8
+mean cost: $0.66

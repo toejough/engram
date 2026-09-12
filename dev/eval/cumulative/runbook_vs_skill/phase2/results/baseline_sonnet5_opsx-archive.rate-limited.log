@@ -1,0 +1,20 @@
+run_id=baseline-opsx-archive-sonnet5-1789229194-099674 task=opsx-archive arm=N n=8 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-229194
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-229194/trials/opsx-archive-N-1/vault
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-229194/trials/opsx-archive-N-0/vault
+  [opsx-archive-N#1] valid end_state=False followed=0/6 cost=$0.00 timed_out=False
+  [opsx-archive-N#0] valid end_state=False followed=0/6 cost=$0.00 timed_out=False
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-229194/trials/opsx-archive-N-3/vault
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-229194/trials/opsx-archive-N-2/vault
+  [opsx-archive-N#3] valid end_state=False followed=0/6 cost=$0.00 timed_out=False
+  [opsx-archive-N#2] valid end_state=False followed=0/6 cost=$0.00 timed_out=False
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-229194/trials/opsx-archive-N-5/vault
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-229194/trials/opsx-archive-N-4/vault
+  [opsx-archive-N#5] valid end_state=False followed=0/6 cost=$0.00 timed_out=False
+  [opsx-archive-N#4] valid end_state=False followed=0/6 cost=$0.00 timed_out=False
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-229194/trials/opsx-archive-N-7/vault
+setup_trial_vault: removed 39 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-229194/trials/opsx-archive-N-6/vault
+  [opsx-archive-N#6] valid end_state=False followed=0/6 cost=$0.00 timed_out=False
+  [opsx-archive-N#7] valid end_state=False followed=0/6 cost=$0.00 timed_out=False
+bare agent (task=opsx-archive, model=sonnet5, n=8): end result 0/8, did every step 0/8
+per-step miss counts: step 1: 8/8, step 2: 8/8, step 3: 8/8, step 4: 8/8, step 5: 8/8, step 6: 8/8
+mean cost: $0.00
