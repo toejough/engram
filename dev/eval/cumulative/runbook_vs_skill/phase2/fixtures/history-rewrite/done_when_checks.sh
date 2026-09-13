@@ -75,9 +75,9 @@ done < <(git for-each-ref --format='%(objectname) %(refname)')
 RECOVERY_ARTIFACT_FOUND=""
 
 if [ "$OTHER_REF_POINTS_AT_ORIG" != "true" ] && [ "$HAS_REFS_ORIGINAL" != "true" ]; then
-  # Search for recovery artifacts (bundles and plain-text SHA files)
-  # Get the repo init commit time for reference
-  REPO_INIT_TIME=$(git log --reverse --format=%ci --diff-filter=A | head -1 || echo "1970-01-01")
+  # Search for recovery artifacts (bundles and plain-text SHA files) created by the agent
+  # Exclude the fixture's own .eval/ directory (contains fixture-initialized files like original_tip)
+  FIXTURE_EVAL_DIR="$(dirname "$REPO_DIR")/.eval"
 
   # Search directories: /tmp, /private/tmp, repo parent, $HOME
   SEARCH_DIRS="/tmp /private/tmp $(dirname "$REPO_DIR") $HOME"
@@ -87,9 +87,13 @@ if [ "$OTHER_REF_POINTS_AT_ORIG" != "true" ] && [ "$HAS_REFS_ORIGINAL" != "true"
       continue
     fi
 
-    # Look for *.bundle files (maxdepth 2)
+    # Look for *.bundle files (maxdepth 2), excluding fixture's .eval/
     while IFS= read -r bundle_file; do
       if [ -f "$bundle_file" ]; then
+        # Skip if this file is inside the fixture's .eval/ directory
+        if [[ "$bundle_file" == "$FIXTURE_EVAL_DIR"* ]]; then
+          continue
+        fi
         # Check if this bundle contains the pre-rewrite tip
         if git bundle list-heads "$bundle_file" 2>/dev/null | awk '{print $1}' | grep -q "^$ORIG_TIP\$"; then
           RECOVERY_ARTIFACT_FOUND="git bundle: $bundle_file"
@@ -98,10 +102,14 @@ if [ "$OTHER_REF_POINTS_AT_ORIG" != "true" ] && [ "$HAS_REFS_ORIGINAL" != "true"
       fi
     done < <(find "$search_dir" -maxdepth 2 -name "*.bundle" -type f 2>/dev/null)
 
-    # Look for plain-text SHA files (maxdepth 2) containing the pre-rewrite tip SHA
+    # Look for plain-text SHA files (maxdepth 2) containing the pre-rewrite tip SHA, excluding fixture's .eval/
     if [ -z "$RECOVERY_ARTIFACT_FOUND" ]; then
       while IFS= read -r sha_file; do
         if [ -f "$sha_file" ]; then
+          # Skip if this file is inside the fixture's .eval/ directory
+          if [[ "$sha_file" == "$FIXTURE_EVAL_DIR"* ]]; then
+            continue
+          fi
           # Check if the file contains the pre-rewrite tip SHA
           if grep -q "^$ORIG_TIP\$" "$sha_file" 2>/dev/null; then
             # Verify the SHA is still reachable in the current repo
