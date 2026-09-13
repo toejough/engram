@@ -480,9 +480,10 @@ def test_found_s_true_when_commit_skill_before_first_mutation():
         _tool_use("Bash", {"command": "git status"}, idx=1),
         _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=2),
     ]
-    found, idx = pp.score_found_phase2("A", "S", events, carrier_basename=None)
+    found, idx, found_via = pp.score_found_phase2("A", "S", events, carrier_basename=None)
     assert found is True
     assert idx == 0
+    assert found_via == "skill_tool"
 
 
 def test_found_s_false_when_commit_skill_after_first_mutation():
@@ -490,15 +491,17 @@ def test_found_s_false_when_commit_skill_after_first_mutation():
         _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=0),
         _tool_use("Skill", {"skill": "commit", "args": "late invoke"}, idx=1),
     ]
-    found, idx = pp.score_found_phase2("A", "S", events, carrier_basename=None)
+    found, idx, found_via = pp.score_found_phase2("A", "S", events, carrier_basename=None)
     assert found is False
     assert idx is None
+    assert found_via is None
 
 
 def test_found_s_false_when_wrong_skill_name():
     events = [_tool_use("Skill", {"skill": "recall", "args": "x"}, idx=0)]
-    found, idx = pp.score_found_phase2("A", "S", events, carrier_basename=None)
+    found, idx, found_via = pp.score_found_phase2("A", "S", events, carrier_basename=None)
     assert found is False
+    assert found_via is None
 
 
 def test_found_s_task_b_uses_gitignore_narrowing_skill_name():
@@ -506,8 +509,9 @@ def test_found_s_task_b_uses_gitignore_narrowing_skill_name():
         _tool_use("Skill", {"skill": "gitignore-narrowing", "args": "narrow it"}, idx=0),
         _tool_use("Bash", {"command": "git add .gitignore"}, idx=1),
     ]
-    found, idx = pp.score_found_phase2("B", "S", events, carrier_basename=None)
+    found, idx, found_via = pp.score_found_phase2("B", "S", events, carrier_basename=None)
     assert found is True
+    assert found_via == "skill_tool"
 
 
 # ----- FOUND: Arm R/F requires carrier basename in the query result -----
@@ -519,9 +523,10 @@ def test_found_r_true_when_query_result_contains_carrier_basename():
         _tool_result(1, 0, f"items:\n  - path: {carrier}.md\n    kind: runbook"),
         _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=2),
     ]
-    found, idx = pp.score_found_phase2("A", "R", events, carrier_basename=carrier)
+    found, idx, found_via = pp.score_found_phase2("A", "R", events, carrier_basename=carrier)
     assert found is True
     assert idx == 0
+    assert found_via == "engram_query"
 
 
 def test_found_r_false_when_query_result_lacks_carrier_basename():
@@ -531,9 +536,10 @@ def test_found_r_false_when_query_result_lacks_carrier_basename():
         _tool_result(1, 0, "items: []\n"),
         _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=2),
     ]
-    found, idx = pp.score_found_phase2("A", "R", events, carrier_basename=carrier)
+    found, idx, found_via = pp.score_found_phase2("A", "R", events, carrier_basename=carrier)
     assert found is False
     assert idx is None
+    assert found_via is None
 
 
 def test_found_f_true_when_query_result_contains_carrier_basename():
@@ -543,15 +549,73 @@ def test_found_f_true_when_query_result_contains_carrier_basename():
         _tool_result(1, 0, f"{carrier}.md"),
         _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=2),
     ]
-    found, idx = pp.score_found_phase2("A", "F", events, carrier_basename=carrier)
+    found, idx, found_via = pp.score_found_phase2("A", "F", events, carrier_basename=carrier)
     assert found is True
+    assert found_via == "engram_query"
 
 
 def test_found_rdirect_is_always_na():
     events = [_tool_use("Bash", {"command": "git add pkg/version.go"}, idx=0)]
-    found, idx = pp.score_found_phase2("A", "Rdirect", events, carrier_basename=None)
+    found, idx, found_via = pp.score_found_phase2("A", "Rdirect", events, carrier_basename=None)
     assert found is None
     assert idx is None
+    assert found_via is None
+
+
+# ----- FOUND: Arm S file_read mechanism (Read/Bash-cat/Glob of SKILL.md) -----
+
+def test_found_s_true_when_read_skill_md_before_first_mutation():
+    events = [
+        _tool_use("Read", {"file_path": "/foo/bar/.claude/skills/commit/SKILL.md"}, idx=0),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
+    ]
+    found, idx, found_via = pp.score_found_phase2("A", "S", events, carrier_basename=None)
+    assert found is True
+    assert idx == 0
+    assert found_via == "file_read"
+
+
+def test_found_s_true_when_bash_cat_skill_md_before_first_mutation():
+    events = [
+        _tool_use("Bash", {"command": "cat .claude/skills/commit/SKILL.md"}, idx=0),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
+    ]
+    found, idx, found_via = pp.score_found_phase2("A", "S", events, carrier_basename=None)
+    assert found is True
+    assert idx == 0
+    assert found_via == "file_read"
+
+
+def test_found_s_true_when_glob_skill_md_before_first_mutation():
+    events = [
+        _tool_use("Glob", {"pattern": "**/.claude/skills/commit/SKILL.md"}, idx=0),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
+    ]
+    found, idx, found_via = pp.score_found_phase2("A", "S", events, carrier_basename=None)
+    assert found is True
+    assert idx == 0
+    assert found_via == "file_read"
+
+
+def test_found_s_false_when_read_skill_md_after_first_mutation():
+    events = [
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=0),
+        _tool_use("Read", {"file_path": ".claude/skills/commit/SKILL.md"}, idx=1),
+    ]
+    found, idx, found_via = pp.score_found_phase2("A", "S", events, carrier_basename=None)
+    assert found is False
+    assert idx is None
+    assert found_via is None
+
+
+def test_found_s_false_when_read_wrong_skill_md():
+    events = [
+        _tool_use("Read", {"file_path": ".claude/skills/recall/SKILL.md"}, idx=0),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
+    ]
+    found, idx, found_via = pp.score_found_phase2("A", "S", events, carrier_basename=None)
+    assert found is False
+    assert found_via is None
 
 
 # ----- steps.json evaluation: not_pattern and after -----
@@ -1567,9 +1631,10 @@ def test_format_table_omits_no_instructions_line_when_n_absent():
 
 def test_score_found_phase2_arm_n_is_always_na():
     events = [_tool_use("Bash", {"command": "git add pkg/version.go"}, idx=0)]
-    found, idx = pp.score_found_phase2("A", "N", events, carrier_basename=None)
+    found, idx, found_via = pp.score_found_phase2("A", "N", events, carrier_basename=None)
     assert found is None
     assert idx is None
+    assert found_via is None
 
 
 def test_found_method_arm_n_is_na():
@@ -3350,6 +3415,63 @@ def test_check_end_state_phase2_passes_env_to_subprocess(tmp_path):
         assert success is True
     finally:
         pp.TASKS = original_tasks
+
+
+# ----- detect_stalled_asking -----
+
+def test_detect_stalled_asking_true_when_last_assistant_ends_with_question(tmp_path):
+    transcript_path = tmp_path / "transcript.jsonl"
+    lines = [
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:00.000Z",
+            "message": {"content": [{"type": "text", "text": "Should I proceed with this change?"}]}
+        }),
+    ]
+    transcript_path.write_text("\n".join(lines) + "\n")
+
+    result = pp.detect_stalled_asking([str(transcript_path)])
+    assert result is True
+
+
+def test_detect_stalled_asking_false_when_last_assistant_ends_with_period(tmp_path):
+    transcript_path = tmp_path / "transcript.jsonl"
+    lines = [
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:00.000Z",
+            "message": {"content": [{"type": "text", "text": "I have completed the work."}]}
+        }),
+    ]
+    transcript_path.write_text("\n".join(lines) + "\n")
+
+    result = pp.detect_stalled_asking([str(transcript_path)])
+    assert result is False
+
+
+def test_detect_stalled_asking_false_when_no_transcripts():
+    result = pp.detect_stalled_asking([])
+    assert result is False
+
+
+def test_detect_stalled_asking_finds_last_assistant_among_multiple_messages(tmp_path):
+    transcript_path = tmp_path / "transcript.jsonl"
+    lines = [
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:00.000Z",
+            "message": {"content": [{"type": "text", "text": "First message?"}]}
+        }),
+        json.dumps({
+            "type": "user", "timestamp": "2026-09-11T00:00:01.000Z",
+            "message": {"content": [{"type": "text", "text": "Do it"}]}
+        }),
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:02.000Z",
+            "message": {"content": [{"type": "text", "text": "Done."}]}
+        }),
+    ]
+    transcript_path.write_text("\n".join(lines) + "\n")
+
+    result = pp.detect_stalled_asking([str(transcript_path)])
+    assert result is False  # Last assistant message ends with period
 
 
 # ----- fixture regression tests -----

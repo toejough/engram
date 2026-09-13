@@ -573,12 +573,13 @@ def first_mutating_step_index(events, task_key):
 
 def score_found_phase2(task_key, arm, events, carrier_basename):
     """Rdirect: n/a (no retrieval attempted; marker_seen is the delivery check) — returns
-    (None, None). N (no-instructions control): n/a for the same reason — there is no carrier to
-    find, by design. S: a Skill tool_use naming the arm's skill before the first mutating step.
+    (None, None, None). N (no-instructions control): n/a for the same reason — there is no carrier to
+    find, by design. S: a Skill tool_use naming the arm's skill OR a Read/Glob/Bash-cat of
+    .claude/skills/<skill_name>/SKILL.md before the first mutating step; returns (found, idx, found_via).
     R/F: a Bash `engram query` before the first mutating step whose tool_result contains the
-    arm's carrier basename."""
+    arm's carrier basename; returns (found, idx, found_via)."""
     if arm in ("Rdirect", "N"):
-        return None, None
+        return None, None, None
 
     first_idx = first_mutating_step_index(events, task_key)
 
@@ -587,11 +588,38 @@ def score_found_phase2(task_key, arm, events, carrier_basename):
 
     if arm == "S":
         skill_name = TASKS[task_key]["skill_name"]
+        skill_md_pattern = f".claude/skills/{skill_name}/SKILL.md"
+
+        # Check for Skill tool_use
         for ev in events:
             if (ev["kind"] == "tool_use" and ev.get("name") == "Skill"
                     and (ev.get("input") or {}).get("skill") == skill_name and before(ev["idx"])):
-                return True, ev["idx"]
-        return False, None
+                return True, ev["idx"], "skill_tool"
+
+        # Check for Read/Glob/Bash of SKILL.md file
+        for ev in events:
+            if not before(ev["idx"]):
+                continue
+
+            # Check Read tool
+            if (ev["kind"] == "tool_use" and ev.get("name") == "Read"
+                    and (ev.get("input") or {}).get("file_path", "").endswith(skill_md_pattern)):
+                return True, ev["idx"], "file_read"
+
+            # Check Bash tool for cat/grep of SKILL.md
+            if (ev["kind"] == "tool_use" and ev.get("name") == "Bash"):
+                cmd = (ev.get("input") or {}).get("command", "")
+                # Match: cat .claude/skills/<skill>/SKILL.md or grep ... .claude/skills/<skill>/SKILL.md
+                if skill_md_pattern in cmd and re.search(r"\b(cat|grep|head|less)\b", cmd):
+                    return True, ev["idx"], "file_read"
+
+            # Check Glob tool for pattern matching SKILL.md path
+            if (ev["kind"] == "tool_use" and ev.get("name") == "Glob"):
+                pattern = (ev.get("input") or {}).get("pattern", "")
+                if "SKILL.md" in pattern and skill_name in pattern:
+                    return True, ev["idx"], "file_read"
+
+        return False, None, None
 
     # Arm R / Arm F
     for ev in events:
@@ -602,16 +630,22 @@ def score_found_phase2(task_key, arm, events, carrier_basename):
             continue
         result_text = p1._tool_result_text(events, ev.get("id"))
         if carrier_basename and carrier_basename in result_text:
-            return True, ev["idx"]
-    return False, None
+            return True, ev["idx"], "engram_query"
+    return False, None, None
 
 
-def found_method(arm, found):
+def found_method(arm, found, found_via=None):
     if arm in ("Rdirect", "N"):
         return "n/a"
     if not found:
         return "none"
-    return "Skill tool_use" if arm == "S" else "engram query"
+    if arm == "S":
+        if found_via == "skill_tool":
+            return "Skill tool_use"
+        elif found_via == "file_read":
+            return "file read"
+        return "Skill tool_use"  # fallback for backward compatibility
+    return "engram query"
 
 
 # ----- FOLLOWED: steps.json evaluation (Ruling 6) -----
@@ -1145,6 +1179,48 @@ def classify_validity(marker_seen, num_turns, total_cost_usd, result, raw_text):
     return True, None
 
 
+def detect_stalled_asking(transcript_paths):
+    """Check if the last assistant message ends with a question mark.
+
+    Returns True if the last assistant message (text content) ends with '?' after trimming,
+    False otherwise."""
+    if not transcript_paths:
+        return False
+
+    last_assistant_text = None
+    for path in transcript_paths:
+        try:
+            lines = open(path, errors="replace").read().splitlines()
+        except OSError:
+            continue
+        for line in reversed(lines):  # Start from the end
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except Exception:
+                continue
+            if obj.get("type") == "assistant":
+                message = obj.get("message") or {}
+                content = message.get("content")
+                if isinstance(content, list):
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            text = block.get("text", "").strip()
+                            if text:
+                                last_assistant_text = text
+                                break
+                if last_assistant_text:
+                    break
+        if last_assistant_text:
+            break
+
+    if last_assistant_text is None:
+        return False
+    return last_assistant_text.endswith("?")
+
+
 # ----- one trial -----
 
 def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None):
@@ -1159,19 +1235,22 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None):
     contract either), so n_steps defaults to 0 until steps are loaded successfully."""
     scored = {
         "found": None, "found_method": found_method(arm, None), "found_index": None,
+        "found_via": None,
         "first_procedure_step_index": None,
         "recall_fired": False,
         "followed_steps": {}, "followed_k": 0, "followed_all": False, "n_steps": 0,
         "end_state": False, "end_state_output": "",
+        "stalled_asking": False,
         "trailer": "n/a",
         "scoring_error": None,
     }
     try:
         steps = load_steps(task_key)
         scored["n_steps"] = len(steps)
-        found, found_idx = score_found_phase2(task_key, arm, events, carrier_basename)
+        found, found_idx, found_via = score_found_phase2(task_key, arm, events, carrier_basename)
         scored["found"] = found
-        scored["found_method"] = found_method(arm, found)
+        scored["found_via"] = found_via
+        scored["found_method"] = found_method(arm, found, found_via)
         scored["found_index"] = found_idx
         scored["first_procedure_step_index"] = first_mutating_step_index(events, task_key)
         scored["recall_fired"] = p1.score_recall_fired(events)
@@ -1222,19 +1301,22 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
     num_turns = result.get("num_turns") if isinstance(result, dict) else None
     valid, invalid_reason = classify_validity(marker_seen, num_turns, total_cost_usd, result, raw_text)
 
+    stalled_asking = detect_stalled_asking(transcript_paths) and not scored["end_state"]
+
     record = {
         "task": task_key, "arm": arm, "trial": trial_index, "model": model,
         "trial_dir": trial_dir, "repo_path": repo_path,
         "transcript_path": transcript_paths[0] if transcript_paths else None,
         "valid": valid, "invalid_reason": invalid_reason, "timed_out": timed_out, "error": error,
         "marker_seen": marker_seen,
-        "found": scored["found"], "found_method": scored["found_method"],
+        "found": scored["found"], "found_via": scored["found_via"], "found_method": scored["found_method"],
         "found_index": scored["found_index"],
         "first_procedure_step_index": scored["first_procedure_step_index"],
         "recall_fired": scored["recall_fired"],
         "followed_steps": scored["followed_steps"], "followed_k": scored["followed_k"],
         "followed_all": scored["followed_all"], "n_steps": scored["n_steps"],
         "end_state": scored["end_state"], "end_state_output": scored["end_state_output"],
+        "stalled_asking": stalled_asking,
         "trailer": scored["trailer"],
         "carrier_basename": carrier_basename,
         "vault_copy_s": vault_copy_s,
@@ -1910,10 +1992,11 @@ def rescore_file(in_path, out_path):
                 else:
                     record.setdefault("invalid_reason", None)
 
-            found, found_idx = score_found_phase2(task_key, arm, events, carrier_basename)
+            found, found_idx, found_via = score_found_phase2(task_key, arm, events, carrier_basename)
             record["found"] = found
+            record["found_via"] = found_via
             record["found_index"] = found_idx
-            record["found_method"] = found_method(arm, found)
+            record["found_method"] = found_method(arm, found, found_via)
             record["first_procedure_step_index"] = first_mutating_step_index(events, task_key)
             record["recall_fired"] = p1.score_recall_fired(events)
 
@@ -1929,6 +2012,9 @@ def rescore_file(in_path, out_path):
             record["end_state_output"] = end_state_output
 
             record["trailer"] = classify_trailer(repo_path) if task_key == "A" else "n/a"
+
+            stalled_asking = detect_stalled_asking(transcript_paths_for_parsing) and not end_state
+            record["stalled_asking"] = stalled_asking
 
             record["rescored_from"] = in_path
         except Exception as e:  # noqa: BLE001
