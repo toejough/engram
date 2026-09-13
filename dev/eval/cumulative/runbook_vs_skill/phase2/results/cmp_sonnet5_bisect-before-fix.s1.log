@@ -1,0 +1,7 @@
+run_id=bisect-before-fix-sonnet5-1789260864-095427 task=bisect-before-fix arms=['S', 'R', 'F'] n=1 model=sonnet5 trials=3 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/bisect-before-fix-sonnet5-1789260864-095427
+setup_trial_vault: removed 76 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/bisect-before-fix-sonnet5-1789260864-095427/trials/bisect-before-fix-R-0/vault
+setup_trial_vault: removed 76 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/bisect-before-fix-sonnet5-1789260864-095427/trials/bisect-before-fix-S-0/vault
+  [bisect-before-fix-R#0] valid found=True followed=7/7 end_state=True cost=$0.52 timed_out=False
+setup_trial_vault: removed 76 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/bisect-before-fix-sonnet5-1789260864-095427/trials/bisect-before-fix-F-0/vault
+  [bisect-before-fix-S#0] valid found=True followed=4/7 end_state=True cost=$0.57 timed_out=False
+  [bisect-before-fix-F#0] valid found=True followed=7/7 end_state=True cost=$0.60 timed_out=False

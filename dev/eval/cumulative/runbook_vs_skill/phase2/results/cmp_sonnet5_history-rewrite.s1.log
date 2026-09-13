@@ -1,0 +1,7 @@
+run_id=history-rewrite-sonnet5-1789260571-e44203 task=history-rewrite arms=['S', 'R', 'F'] n=1 model=sonnet5 trials=3 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789260571-e44203
+setup_trial_vault: removed 75 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789260571-e44203/trials/history-rewrite-S-0/vault
+setup_trial_vault: removed 75 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789260571-e44203/trials/history-rewrite-R-0/vault
+  [history-rewrite-R#0] valid found=True followed=2/6 end_state=False cost=$0.40 timed_out=False
+setup_trial_vault: removed 75 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789260571-e44203/trials/history-rewrite-F-0/vault
+  [history-rewrite-S#0] valid found=True followed=6/6 end_state=False cost=$0.53 timed_out=False
+  [history-rewrite-F#0] valid found=True followed=6/6 end_state=False cost=$1.06 timed_out=False

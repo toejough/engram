@@ -1,0 +1,7 @@
+run_id=route-sonnet5-1789261091-799b44 task=route arms=['S', 'R', 'F'] n=1 model=sonnet5 trials=3 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789261091-799b44
+setup_trial_vault: removed 54 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789261091-799b44/trials/route-S-0/vault
+setup_trial_vault: removed 54 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789261091-799b44/trials/route-R-0/vault
+  [route-R#0] valid found=True followed=3/10 end_state=False cost=$0.56 timed_out=False
+setup_trial_vault: removed 54 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789261091-799b44/trials/route-F-0/vault
+  [route-S#0] valid found=False followed=7/10 end_state=False cost=$0.80 timed_out=False
+  [route-F#0] valid found=True followed=3/10 end_state=False cost=$0.69 timed_out=False
