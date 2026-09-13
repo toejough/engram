@@ -9,9 +9,9 @@
 ## 2. Shim: the follow frame
 
 - [ ] 2.1 RED baseline: shim-only config (no engram skills; recall+learn as runbooks in the vault; current guidance in CLAUDE.md) on history-rewrite, runbook arm, n=3 — record found / restated / every-step / end / question-stops
-- [ ] 2.2 Draft the four-part shim in `agent-instructions/guidance/recall.md`: bootstrap `engram query`, matched-runbook frame (announce, restate as plan/todos, done_when bar, stop-and-ask, red_flags, transitive wikilinks, `engram show` on truncation), general behavioral floor, four re-entry cues — wording per vault notes 137/1030/1031
-- [ ] 2.3 GREEN: same fixture and n as 2.1 with the new shim; pressure tests against the rationalizations the skill-arm carrier named; iterate wording until the pre-registered bar holds or a question-stop finding amends the shim
-- [ ] 2.4 Deploy: `engram update --with-guidance`; confirm `~/.claude/engram/guidance/recall.md` matches source
+- [ ] 2.2 Draft the four-part shim as a NEW file `agent-instructions/guidance/shim.md` (recall.md untouched): bootstrap `engram query`, treatment of each returned kind with the matched-runbook frame (announce, restate as plan/todos, done_when bar, stop-and-ask, red_flags, transitive wikilinks, `engram show` on truncation), general behavioral floor, four re-entry cues phrased as `engram query` actions — wording per vault notes 137/1030/1031
+- [ ] 2.3 GREEN: same fixture and n as 2.1 with shim.md as the ONLY guidance in the trial CLAUDE.md (plus the probe marker); pressure tests against the rationalizations the skill-arm carrier named; iterate wording until the pre-registered bar holds or a question-stop finding amends the shim
+- [ ] 2.4 Deploy: `engram update --with-guidance` syncs `shim.md` to `~/.claude/engram/guidance/shim.md` (update's owned-roots list gains the file; TDD in `internal/update`); confirm deployed copy matches source
 
 ## 3. Recall and learn as runbooks
 
@@ -21,7 +21,7 @@
 
 ## 4. Eval: shim-only comparison
 
-- [ ] 4.1 Harness: `--shim-only` config option in `probe_phase2.py` (config dir without engram skills; recall/learn runbooks added to the trial vault; new shim in CLAUDE.md); scorer signal for "restated steps as plan before first mutating command"; question-stops reported as clarity findings, not failures
+- [ ] 4.1 Harness: `--shim-only` config option in `probe_phase2.py` (config dir without engram skills; recall/learn runbooks added to the trial vault; trial CLAUDE.md = `shim.md` + probe marker and nothing else, replacing the recall.md-plus-fifth-cue composition for that arm); scorer signal for "restated steps as plan before first mutating command"; question-stops reported as clarity findings, not failures
 - [ ] 4.2 Move the history-rewrite skill carrier's red flags into the runbook carrier's `red_flags`; rebuild the fact carrier preserving `tags:`; re-verify zero-delta bodies
 - [ ] 4.3 Stage 1: history-rewrite R and F, n=3, shim-only; validate (mid tier) against the skill row; amend shim on any question-stop finding
 - [ ] 4.4 Stage 2: bisect-before-fix and route R and F, n=3, shim-only; validate

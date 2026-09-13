@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The engram shim (`agent-instructions/guidance/recall.md`, deployed via `engram update --with-guidance`) is the only custom instruction text an agent needs; every procedure, including recall and learn, is a runbook note it finds and follows. This capability covers the follow half: what the shim requires of an agent once a `kind: runbook` note is returned, and the bootstrap action that works with no engram skill installed. Why: the runbook-vs-skill eval showed runbooks found 3/3 but restated-as-plan 0/6 and end-state 0/6 against a skill row of 3/3/2 (checkpoint 2026-09-13); design.md D1–D4.
+The engram shim (a new guidance file, `agent-instructions/guidance/shim.md`, deployed via `engram update --with-guidance`) is the only custom instruction text an agent needs; every procedure, including recall and learn, is a runbook note it finds and follows. This capability covers the follow half: what the shim requires of an agent once a `kind: runbook` note is returned, and the bootstrap action that works with no engram skill installed. Why: the runbook-vs-skill eval showed runbooks found 3/3 but restated-as-plan 0/6 and end-state 0/6 against a skill row of 3/3/2 (checkpoint 2026-09-13); design.md D1–D4.
 
 ## ADDED Requirements
 
