@@ -1,0 +1,12 @@
+run_id=baseline-bisect-before-fix-sonnet5-1789270964-59994c task=bisect-before-fix arm=N n=4 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-270964
+setup_trial_vault: removed 82 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-270964/trials/bisect-before-fix-N-1/vault
+setup_trial_vault: removed 82 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-270964/trials/bisect-before-fix-N-0/vault
+  [bisect-before-fix-N#1] valid end_state=False followed=4/7 cost=$0.40 timed_out=False
+setup_trial_vault: removed 82 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-270964/trials/bisect-before-fix-N-2/vault
+  [bisect-before-fix-N#0] valid end_state=True followed=7/7 cost=$0.57 timed_out=False
+setup_trial_vault: removed 82 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-270964/trials/bisect-before-fix-N-3/vault
+  [bisect-before-fix-N#2] valid end_state=False followed=4/7 cost=$0.44 timed_out=False
+  [bisect-before-fix-N#3] valid end_state=True followed=7/7 cost=$0.80 timed_out=False
+bare agent (task=bisect-before-fix, model=sonnet5, n=4): end result 2/4, did every step 2/4
+per-step miss counts: step 1: 0/4, step 2: 0/4, step 3: 2/4, step 4: 2/4, step 5: 2/4, step 6: 0/4, step 7: 0/4
+mean cost: $0.55

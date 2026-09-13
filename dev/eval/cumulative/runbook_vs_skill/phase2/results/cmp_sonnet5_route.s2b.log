@@ -1,0 +1,13 @@
+run_id=route-sonnet5-1789271321-4fa6f1 task=route arms=['S', 'R', 'F'] n=2 model=sonnet5 trials=6 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789271321-4fa6f1
+setup_trial_vault: removed 60 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789271321-4fa6f1/trials/route-S-1/vault
+setup_trial_vault: removed 60 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789271321-4fa6f1/trials/route-S-0/vault
+  [route-S#0] valid found=True followed=7/10 end_state=False cost=$1.19 timed_out=False
+setup_trial_vault: removed 60 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789271321-4fa6f1/trials/route-R-0/vault
+  [route-S#1] valid found=True followed=7/10 end_state=False cost=$1.03 timed_out=False
+setup_trial_vault: removed 60 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789271321-4fa6f1/trials/route-R-1/vault
+  [route-R#1] valid found=False followed=0/10 end_state=False cost=$0.00 timed_out=False
+setup_trial_vault: removed 60 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789271321-4fa6f1/trials/route-F-0/vault
+  [route-R#0] valid found=True followed=4/10 end_state=False cost=$1.08 timed_out=False
+setup_trial_vault: removed 60 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/route-sonnet5-1789271321-4fa6f1/trials/route-F-1/vault
+  [route-F#0] valid found=False followed=0/10 end_state=False cost=$0.00 timed_out=False
+  [route-F#1] valid found=True followed=3/10 end_state=False cost=$0.60 timed_out=False
