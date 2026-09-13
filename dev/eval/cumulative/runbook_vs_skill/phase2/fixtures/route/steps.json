@@ -41,7 +41,7 @@
     "name": "Handoff contains do-not-touch bounds",
     "signal": "tool_input_regex",
     "tool": "Agent",
-    "regex": "(?:do not touch|do-not-touch|must not modify|leave .* alone)",
+    "regex": "(?:do[- ]not[- ]touch|must not (?:modify|change|edit)|do not (?:modify|change|edit)|leave .* (?:alone|untouched|as[- ]is)|out of scope)",
     "case_insensitive": true
   },
   {

@@ -17,8 +17,10 @@
   {
     "n": 3,
     "name": "Check out the parent commit to test whether it predates the branch's change",
-    "signal": "bash_regex",
-    "pattern": "git\\s+checkout\\s+(HEAD~1|HEAD\\^|[0-9a-f]{7,40})"
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "git\\s+checkout\\s+(HEAD~1|HEAD\\^|[0-9a-f]{7,40})"},
+      {"signal": "bash_regex", "pattern": "git\\s+worktree\\s+add\\b"}
+    ]
   },
   {
     "n": 4,
@@ -33,7 +35,8 @@
     "name": "Return to the branch's original HEAD",
     "any_of": [
       {"signal": "bash_regex", "pattern": "git\\s+checkout\\s+(main|master|-)\\b"},
-      {"signal": "bash_regex", "pattern": "git\\s+switch\\s+(main|master|-)\\b"}
+      {"signal": "bash_regex", "pattern": "git\\s+switch\\s+(main|master|-)\\b"},
+      {"signal": "bash_regex", "pattern": "git\\s+worktree\\s+remove\\b"}
     ],
     "after": 4
   },
