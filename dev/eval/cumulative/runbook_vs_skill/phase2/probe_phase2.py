@@ -1072,12 +1072,16 @@ _RATE_LIMIT_STATUS_RE = re.compile(r'"apiErrorStatus"\s*:\s*429\b')
 _RATE_LIMIT_MESSAGE_RE = re.compile(r"hit your session limit", re.IGNORECASE)
 _RATE_LIMIT_IS_API_ERROR_RE = re.compile(r'"isApiErrorMessage"\s*:\s*true')
 
+_API_ERROR_FIELD_RE = re.compile(r'"error"\s*:\s*"([^"]+)"')
+_API_ERROR_MESSAGE_RE = re.compile(r'"isApiErrorMessage"\s*:\s*true')
+
 # Both invalid_reason values classify_validity can emit for a rate-limit-related outage: the
 # zero-work stub ("rate_limit") and a truncation after real work ("rate_limit_truncated"). Every
 # summary surface (format_baseline_summary, aggregate) counts both together in the single
-# ' (rate-limited: K)' suffix — an outage is an outage either way, and the distinction between the
+# ' (api-errors: K)' suffix — an outage is an outage either way, and the distinction between the
 # two only matters for classify_validity's own reasoning, not for the roll-up count.
-_RATE_LIMIT_INVALID_REASONS = ("rate_limit", "rate_limit_truncated")
+# API errors include both rate-limit and authentication failures.
+_API_ERROR_INVALID_REASONS = ("rate_limit", "rate_limit_truncated", "api_error_stub", "api_error_truncated")
 
 
 def _rate_limit_signal_present(result, raw_text):
@@ -1143,40 +1147,71 @@ def is_rate_limited_stub(num_turns, total_cost_usd, result, raw_text):
     return turns_zero_or_one and cost_zero
 
 
+def _api_error_message_present(result, raw_text):
+    """True when the transcript carries isApiErrorMessage=true without 429 status (rate-limit
+    specific case is handled separately). Detects auth failures and other API errors."""
+    if not raw_text:
+        return False
+    return _API_ERROR_MESSAGE_RE.search(raw_text) is not None
+
+
+def _extract_error_value(result, raw_text):
+    """Extract the error field value from result dict or transcript. Returns the error string
+    or None if not found."""
+    if isinstance(result, dict) and result.get("error"):
+        return result.get("error")
+    if raw_text:
+        match = _API_ERROR_FIELD_RE.search(raw_text)
+        if match:
+            return match.group(1)
+    return None
+
+
+def is_api_error_stub(num_turns, total_cost_usd, result, raw_text):
+    """A trial is an API error STUB — invalid, never scored — only when the session did NO real
+    work (num_turns <= 1 and total_cost_usd == 0.0) AND an API error message is present
+    (including auth failures with isApiErrorMessage=true)."""
+    if not _api_error_message_present(result, raw_text):
+        return False
+    turns_zero_or_one = (num_turns or 0) <= 1
+    cost_zero = not (total_cost_usd or 0.0)
+    return turns_zero_or_one and cost_zero
+
+
+def _api_error_truncation_signal_present(result, raw_text):
+    """Stricter check for API error truncation. Requires isApiErrorMessage=true on the same
+    line as an error field to avoid false positives from prose narration in vault notes."""
+    if not raw_text:
+        return False
+    return any(_API_ERROR_FIELD_RE.search(line) and _API_ERROR_MESSAGE_RE.search(line)
+               for line in raw_text.splitlines())
+
+
 def classify_validity(marker_seen, num_turns, total_cost_usd, result, raw_text):
-    """(valid, invalid_reason) shared by the live scoring path (run_one_trial_phase2) and
-    --rescore, so a trial is judged the same way whether it was just spawned or is being
-    re-scored from a kept run dir. A rate-limited stub (see `is_rate_limited_stub`) is NEVER
-    valid, regardless of `marker_seen` — the trial repo's CLAUDE.md carries the PROBE-TOKEN marker
-    by construction (it's committed before claude is ever spawned), so a stub session that hit the
-    account's session limit before doing any real work still shows marker_seen=True. That is
-    exactly what let 22 session-limit outages score as real failures (found=0/N, end_state=FAIL)
-    instead of being excluded as an outage — vault note 988a.
+    """(valid, invalid_reason, api_error_type) shared by the live scoring path (run_one_trial_phase2)
+    and --rescore. Returns invalid_reason and an optional api_error field containing the error value
+    from the transcript.
 
-    A SECOND, distinct outage shape (988a's 2026-09-12 follow-up): a session that did substantial
-    real work (many turns, real cost) but was cut off mid-task when the account's session limit
-    hit on a LATER turn — the rate-limit signal is present, but `is_rate_limited_stub` correctly
-    says False (real work happened, so it is not a zero-work stub). Such a trial never got the
-    chance to finish, so scoring its FOLLOWED/END-STATE would misrepresent a truncation as a
-    genuine failure — the first two records of
-    results/baseline_sonnet5_opsx-propose.rate-limited.jsonl (25/18 turns, $0.667/$0.4975 spent,
-    scored followed 3/7 and 2/7) were exactly this shape and were nearly reported as real
-    failures. This is marked invalid too, with a DISTINCT invalid_reason
-    ('rate_limit_truncated') so it is never conflated with the zero-work stub reason
-    ('rate_limit') — both are surfaced together in the ' (rate-limited: K)' summary suffix.
+    A rate-limited stub (see `is_rate_limited_stub`) is NEVER valid, regardless of `marker_seen`.
+    An API error stub (authentication_failed, etc. with isApiErrorMessage=true and zero work) is also
+    invalid. Both are marked with distinct reasons ('rate_limit' vs 'api_error_stub') so they are
+    never conflated — both are surfaced in the ' (api-errors: K)' summary suffix.
 
-    The truncation check uses `_rate_limit_truncation_signal_present`, NOT the looser
-    `_rate_limit_signal_present` used by `is_rate_limited_stub` — unlike the zero-turn/zero-cost
-    stub shape (where a loose text match is safe), a truncation check with no turn/cost gate must
-    not fire on a genuinely completed trial whose background vault surfaced a note NARRATING a
-    past rate-limit incident in prose (see `_rate_limit_truncation_signal_present`'s docstring)."""
+    Truncations (rate-limit or API errors occurring mid-task after real work) are also marked
+    invalid with distinct reasons ('rate_limit_truncated' or 'api_error_truncated')."""
     if is_rate_limited_stub(num_turns, total_cost_usd, result, raw_text):
-        return False, "rate_limit"
+        return False, "rate_limit", None
     if _rate_limit_truncation_signal_present(result, raw_text):
-        return False, "rate_limit_truncated"
+        return False, "rate_limit_truncated", None
+    if is_api_error_stub(num_turns, total_cost_usd, result, raw_text):
+        error_val = _extract_error_value(result, raw_text)
+        return False, "api_error_stub", error_val
+    if _api_error_truncation_signal_present(result, raw_text):
+        error_val = _extract_error_value(result, raw_text)
+        return False, "api_error_truncated", error_val
     if not marker_seen:
-        return False, "no_marker"
-    return True, None
+        return False, "no_marker", None
+    return True, None, None
 
 
 def detect_stalled_asking(transcript_paths):
@@ -1299,7 +1334,7 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
 
     total_cost_usd = p1._call_cost(result)
     num_turns = result.get("num_turns") if isinstance(result, dict) else None
-    valid, invalid_reason = classify_validity(marker_seen, num_turns, total_cost_usd, result, raw_text)
+    valid, invalid_reason, api_error = classify_validity(marker_seen, num_turns, total_cost_usd, result, raw_text)
 
     stalled_asking = detect_stalled_asking(transcript_paths) and not scored["end_state"]
 
@@ -1307,7 +1342,7 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
         "task": task_key, "arm": arm, "trial": trial_index, "model": model,
         "trial_dir": trial_dir, "repo_path": repo_path,
         "transcript_path": transcript_paths[0] if transcript_paths else None,
-        "valid": valid, "invalid_reason": invalid_reason, "timed_out": timed_out, "error": error,
+        "valid": valid, "invalid_reason": invalid_reason, "api_error": api_error, "timed_out": timed_out, "error": error,
         "marker_seen": marker_seen,
         "found": scored["found"], "found_via": scored["found_via"], "found_method": scored["found_method"],
         "found_index": scored["found_index"],
@@ -1473,7 +1508,7 @@ def format_baseline_summary(task_key, model, records):
     found/found_method (score_found_phase2 returns n/a for arm N — no carrier to find, by
     design), so this reports only END-STATE, FOLLOWED-all, per-step miss counts, and mean cost.
     Denominators are VALID trials only — a rate-limited outage (invalid_reason in
-    _RATE_LIMIT_INVALID_REASONS: a zero-work "rate_limit" stub OR a "rate_limit_truncated"
+    _API_ERROR_INVALID_REASONS: a zero-work "rate_limit" stub OR a "rate_limit_truncated"
     mid-task cutoff after real work) is never valid, so it drops out of every rate here
     automatically; its count is still surfaced via the ` (rate-limited: K)` suffix on the first
     line whenever K > 0, so an outage is visible in one line rather than silently deflating the
@@ -1481,7 +1516,7 @@ def format_baseline_summary(task_key, model, records):
     n = len(records)
     valid = [r for r in records if r.get("valid")]
     valid_n = len(valid)
-    rate_limited_n = sum(1 for r in records if r.get("invalid_reason") in _RATE_LIMIT_INVALID_REASONS)
+    api_error_n = sum(1 for r in records if r.get("invalid_reason") in _API_ERROR_INVALID_REASONS)
     stalled_n = sum(1 for r in valid if r.get("stalled_asking"))
     end_state_n = sum(1 for r in valid if r.get("end_state"))
     followed_all_n = sum(1 for r in valid if r.get("followed_all"))
@@ -1490,12 +1525,12 @@ def format_baseline_summary(task_key, model, records):
     cost_mean = (sum(r.get("total_cost_usd") or 0 for r in valid) / valid_n) if valid_n else 0.0
 
     miss_str = ", ".join(f"step {k}: {v}/{valid_n}" for k, v in sorted(miss_counts.items())) or "n/a"
-    rate_limited_suffix = f" (rate-limited: {rate_limited_n})" if rate_limited_n else ""
+    api_error_suffix = f" (api-errors: {api_error_n})" if api_error_n else ""
     stalled_suffix = f" (stalled: {stalled_n})" if stalled_n else ""
     return (
         f"bare agent (task={task_key}, model={model}, n={n}): "
         f"end result {end_state_n}/{valid_n}, did every step {followed_all_n}/{valid_n}"
-        f"{rate_limited_suffix}{stalled_suffix}\n"
+        f"{api_error_suffix}{stalled_suffix}\n"
         f"per-step miss counts: {miss_str}\n"
         f"mean cost: ${cost_mean:.2f}"
     )
@@ -1698,7 +1733,7 @@ def aggregate(records, task, arm):
     valid = [r for r in rows if r.get("valid")]
     n = len(rows)
     valid_n = len(valid)
-    rate_limited_n = sum(1 for r in rows if r.get("invalid_reason") in _RATE_LIMIT_INVALID_REASONS)
+    api_error_n = sum(1 for r in rows if r.get("invalid_reason") in _API_ERROR_INVALID_REASONS)
     stalled_n = sum(1 for r in valid if r.get("stalled_asking"))
     found_n = sum(1 for r in valid if r.get("found") is True)
     found_given_n = found_n
@@ -1716,7 +1751,7 @@ def aggregate(records, task, arm):
     trailer_ai_used_n = sum(1 for r in valid if r.get("trailer") in ("ai_used", "both"))
     trailer_co_authored_n = sum(1 for r in valid if r.get("trailer") in ("co_authored", "both"))
     return {
-        "n": n, "valid_n": valid_n, "rate_limited_n": rate_limited_n, "stalled_n": stalled_n,
+        "n": n, "valid_n": valid_n, "api_error_n": api_error_n, "stalled_n": stalled_n,
         "found_n": found_n, "found_given_n": found_given_n,
         "end_state_n": end_state_n, "end_state_given_found_n": end_state_given_found_n,
         "followed_all_n": followed_all_n, "followed_all_given_found_n": followed_all_given_found_n,
@@ -1849,11 +1884,11 @@ def format_table(task, agg):
     row("duration (mean s)", lambda arm, a: f"{a['duration_mean']:.0f}")
     def _valid_cell(arm, a):
         base = f"{a['valid_n']}/{a['n']}"
-        rate_limited_n = a.get("rate_limited_n") or 0
+        api_error_n = a.get("api_error_n") or 0
         stalled_n = a.get("stalled_n") or 0
         suffix_parts = []
-        if rate_limited_n:
-            suffix_parts.append(f"rate-limited: {rate_limited_n}")
+        if api_error_n:
+            suffix_parts.append(f"api-errors: {api_error_n}")
         if stalled_n:
             suffix_parts.append(f"stalled: {stalled_n}")
         if suffix_parts:
@@ -1953,7 +1988,7 @@ def rescore_file(in_path, out_path):
     EITHER outage shape is detected, even when the trial's CLAUDE.md marker is (as expected) still
     present: a zero-work stub (`invalid_reason="rate_limit"`) or a mid-task truncation after real
     work (`invalid_reason="rate_limit_truncated"`, see classify_validity) — both are surfaced
-    together in the ` (rate-limited: K)` summary suffix (_RATE_LIMIT_INVALID_REASONS)."""
+    together in the ` (rate-limited: K)` summary suffix (_API_ERROR_INVALID_REASONS)."""
     records = load_jsonl(in_path)
     rescored = []
 
@@ -1988,21 +2023,34 @@ def rescore_file(in_path, out_path):
             if marker is not None:
                 marker_seen = p1.is_marker_seen(raw_text, marker)
                 record["marker_seen"] = marker_seen
-                valid, invalid_reason = classify_validity(
+                valid, invalid_reason, api_error = classify_validity(
                     marker_seen, record.get("num_turns"), record.get("total_cost_usd"),
                     None, raw_text)
                 record["valid"] = valid
                 record["invalid_reason"] = invalid_reason
+                record["api_error"] = api_error
             else:
                 if is_rate_limited_stub(record.get("num_turns"), record.get("total_cost_usd"),
                                          None, raw_text):
                     record["valid"] = False
                     record["invalid_reason"] = "rate_limit"
+                    record["api_error"] = None
                 elif _rate_limit_truncation_signal_present(None, raw_text):
                     record["valid"] = False
                     record["invalid_reason"] = "rate_limit_truncated"
+                    record["api_error"] = None
+                elif is_api_error_stub(record.get("num_turns"), record.get("total_cost_usd"),
+                                       None, raw_text):
+                    record["valid"] = False
+                    record["invalid_reason"] = "api_error_stub"
+                    record["api_error"] = _extract_error_value(None, raw_text)
+                elif _api_error_truncation_signal_present(None, raw_text):
+                    record["valid"] = False
+                    record["invalid_reason"] = "api_error_truncated"
+                    record["api_error"] = _extract_error_value(None, raw_text)
                 else:
                     record.setdefault("invalid_reason", None)
+                    record.setdefault("api_error", None)
 
             found, found_idx, found_via = score_found_phase2(task_key, arm, events, carrier_basename)
             record["found"] = found

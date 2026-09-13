@@ -1384,7 +1384,7 @@ def test_live_scoring_and_rescore_emit_the_same_scored_field_set(tmp_path):
     events = pp.p1.parse_transcript_events([str(transcript_path)])
     scored = pp._score_trial("A", "R", events, repo_path, carrier)
     live_scored_keys = ((set(scored.keys()) - {"scoring_error"})
-                         | {"valid", "marker_seen", "invalid_reason"})
+                         | {"valid", "marker_seen", "invalid_reason", "api_error"})
 
     # --- rescore path: whatever keys rescore_file adds/overwrites onto a minimal provenance-only
     # record ---
@@ -1477,7 +1477,7 @@ def test_setup_trial_repo_task_b_arm_n_adds_no_claude_dir(tmp_path):
 # ----- decision frame outputs: baseline_uninterpretable and shim loss -----
 
 def _agg(n, valid_n, found_n, end_state_n, followed_all_n, end_state_given_found_n=None,
-         followed_all_given_found_n=None, n_steps=6, rate_limited_n=0, stalled_n=0):
+         followed_all_given_found_n=None, n_steps=6, api_error_n=0, stalled_n=0):
     return {
         "n": n, "valid_n": valid_n, "found_n": found_n, "found_given_n": found_n,
         "end_state_n": end_state_n,
@@ -1488,7 +1488,7 @@ def _agg(n, valid_n, found_n, end_state_n, followed_all_n, end_state_given_found
         "recall_fired_n": 0, "followed_mean_k": float(followed_all_n), "n_steps": n_steps,
         "cost_mean": 0.10, "duration_mean": 30.0,
         "trailer_ai_used_n": 0, "trailer_co_authored_n": 0,
-        "rate_limited_n": rate_limited_n, "stalled_n": stalled_n,
+        "api_error_n": api_error_n, "stalled_n": stalled_n,
     }
 
 
@@ -3104,19 +3104,19 @@ def test_is_rate_limited_stub_false_for_zero_cost_but_multiple_turns():
 def test_classify_validity_rate_limited_overrides_marker_seen_true():
     """A rate-limited stub's trial repo carries the marker (its CLAUDE.md was committed before
     claude was ever spawned) — marker_seen=True must NOT make it valid."""
-    valid, reason = pp.classify_validity(True, 1, 0.0, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
+    valid, reason, api_error = pp.classify_validity(True, 1, 0.0, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
     assert valid is False
     assert reason == "rate_limit"
 
 
 def test_classify_validity_no_marker_when_not_rate_limited():
-    valid, reason = pp.classify_validity(False, 5, 0.3, None, '{"type":"assistant"}')
+    valid, reason, api_error = pp.classify_validity(False, 5, 0.3, None, '{"type":"assistant"}')
     assert valid is False
     assert reason == "no_marker"
 
 
 def test_classify_validity_valid_when_marker_seen_and_not_rate_limited():
-    valid, reason = pp.classify_validity(True, 5, 0.3, None, '{"type":"assistant"}')
+    valid, reason, api_error = pp.classify_validity(True, 5, 0.3, None, '{"type":"assistant"}')
     assert valid is True
     assert reason is None
 
@@ -3128,15 +3128,15 @@ def test_classify_validity_rate_limit_truncated_for_real_work_then_signal():
     Not a zero-work stub (is_rate_limited_stub is False here), but still not a genuine completed
     trial: must be invalid with a DISTINCT reason from the zero-work stub's 'rate_limit', so a
     truncation is never conflated with (or silently absorbed into) a real pass/fail verdict."""
-    valid, reason = pp.classify_validity(True, 25, 0.667, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
+    valid, reason, api_error = pp.classify_validity(True, 25, 0.667, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
     assert valid is False
     assert reason == "rate_limit_truncated"
     assert pp.is_rate_limited_stub(25, 0.667, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT) is False
 
 
 def test_classify_validity_rate_limit_truncated_distinct_from_zero_work_stub_reason():
-    stub_valid, stub_reason = pp.classify_validity(True, 1, 0.0, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
-    truncated_valid, truncated_reason = pp.classify_validity(
+    stub_valid, stub_reason, stub_error = pp.classify_validity(True, 1, 0.0, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
+    truncated_valid, truncated_reason, truncated_error = pp.classify_validity(
         True, 18, 0.4975, None, _RATE_LIMIT_STUB_TRANSCRIPT_TEXT)
     assert stub_valid is False and truncated_valid is False
     assert stub_reason == "rate_limit"
@@ -3167,7 +3167,7 @@ def test_classify_validity_not_truncated_when_signal_is_only_recalled_note_prose
     fully-completed trial (many turns, real cost, marker seen) whose transcript merely QUOTES a
     vault note's prose about a past rate-limit incident must stay valid — never
     'rate_limit_truncated'."""
-    valid, reason = pp.classify_validity(True, 32, 0.84, None, _RECALLED_NOTE_PROSE_ABOUT_RATE_LIMIT)
+    valid, reason, api_error = pp.classify_validity(True, 32, 0.84, None, _RECALLED_NOTE_PROSE_ABOUT_RATE_LIMIT)
     assert valid is True
     assert reason is None
 
@@ -3201,14 +3201,14 @@ def test_format_baseline_summary_appends_rate_limited_suffix_when_present():
     )
     summary = pp.format_baseline_summary("opsx-archive", "sonnet5", records)
     first_line = summary.splitlines()[0]
-    assert "end result 2/2, did every step 2/2 (rate-limited: 6)" in first_line
+    assert "end result 2/2, did every step 2/2 (api-errors: 6)" in first_line
 
 
 def test_format_baseline_summary_omits_rate_limited_suffix_when_zero():
     records = [_rl_record(True, end_state=True, followed_all=True) for _ in range(3)]
     summary = pp.format_baseline_summary("opsx-archive", "sonnet5", records)
     first_line = summary.splitlines()[0]
-    assert "rate-limited" not in first_line
+    assert "api-errors" not in first_line
 
 
 def test_format_baseline_summary_rate_limited_trials_excluded_from_denominator():
@@ -3220,12 +3220,12 @@ def test_format_baseline_summary_rate_limited_trials_excluded_from_denominator()
     )
     summary = pp.format_baseline_summary("opsx-archive", "sonnet5", records)
     first_line = summary.splitlines()[0]
-    assert "end result 1/1, did every step 1/1 (rate-limited: 8)" in first_line
+    assert "end result 1/1, did every step 1/1 (api-errors: 8)" in first_line
 
 
 def test_format_baseline_summary_counts_rate_limit_truncated_in_same_suffix():
     """A mid-task session-limit truncation (invalid_reason == 'rate_limit_truncated') counts in
-    the SAME '(rate-limited: K)' suffix as a zero-work stub ('rate_limit') — the suffix reports
+    the SAME '(api-errors: K)' suffix as a zero-work stub ('rate_limit') — the suffix reports
     total rate-limit-related invalidations, not just the stub subset; nothing else about the
     summary format changes."""
     records = (
@@ -3235,7 +3235,7 @@ def test_format_baseline_summary_counts_rate_limit_truncated_in_same_suffix():
     )
     summary = pp.format_baseline_summary("opsx-propose", "sonnet5", records)
     first_line = summary.splitlines()[0]
-    assert "end result 1/1, did every step 1/1 (rate-limited: 8)" in first_line
+    assert "end result 1/1, did every step 1/1 (api-errors: 8)" in first_line
 
 
 # ----- aggregate()/format_table(): rate-limited suffix in --summarize (task item 3) -----
@@ -3251,7 +3251,7 @@ def test_aggregate_reports_rate_limited_n():
     ]
     agg = pp.aggregate(records, "A", "R")
     assert agg["valid_n"] == 1
-    assert agg["rate_limited_n"] == 1
+    assert agg["api_error_n"] == 1
 
 
 def test_aggregate_counts_rate_limit_truncated_alongside_stub_in_rate_limited_n():
@@ -3265,22 +3265,22 @@ def test_aggregate_counts_rate_limit_truncated_alongside_stub_in_rate_limited_n(
     ]
     agg = pp.aggregate(records, "A", "N")
     assert agg["valid_n"] == 0
-    assert agg["rate_limited_n"] == 2
+    assert agg["api_error_n"] == 2
 
 
 def test_format_table_valid_row_appends_rate_limited_suffix_when_present():
     agg = {"S": _agg(9, 1, 1, 1, 1)}
-    agg["S"]["rate_limited_n"] = 8
+    agg["S"]["api_error_n"] = 8
     table = pp.format_table("A", agg)
     valid_row = next(line for line in table.splitlines() if line.startswith("valid (n)"))
-    assert "1/9 (rate-limited: 8)" in valid_row
+    assert "1/9 (api-errors: 8)" in valid_row
 
 
 def test_format_table_valid_row_omits_suffix_when_no_rate_limited_trials():
     agg = {"S": _agg(5, 5, 4, 4, 4)}
     table = pp.format_table("A", agg)
     valid_row = next(line for line in table.splitlines() if line.startswith("valid (n)"))
-    assert "rate-limited" not in valid_row
+    assert "api-errors" not in valid_row
 
 
 # ----- stalled_asking aggregation in format_baseline_summary -----
@@ -3311,7 +3311,7 @@ def test_format_baseline_summary_stalled_and_rate_limited_both_shown():
     )
     summary = pp.format_baseline_summary("opsx-archive", "sonnet5", records)
     first_line = summary.splitlines()[0]
-    assert "end result 4/4, did every step 4/4 (rate-limited: 1) (stalled: 2)" in first_line
+    assert "end result 4/4, did every step 4/4 (api-errors: 1) (stalled: 2)" in first_line
 
 
 # ----- aggregate() stalled_n computation -----
@@ -3356,10 +3356,10 @@ def test_format_table_valid_row_appends_stalled_suffix_when_present():
 
 
 def test_format_table_valid_row_appends_both_suffixes_when_both_present():
-    agg = {"S": _agg(10, 8, 4, 4, 4, rate_limited_n=2, stalled_n=1)}
+    agg = {"S": _agg(10, 8, 4, 4, 4, api_error_n=2, stalled_n=1)}
     table = pp.format_table("A", agg)
     valid_row = next(line for line in table.splitlines() if line.startswith("valid (n)"))
-    assert "8/10 (rate-limited: 2, stalled: 1)" in valid_row
+    assert "8/10 (api-errors: 2, stalled: 1)" in valid_row
 
 
 # ----- --rescore reclassifies rate-limited stubs retroactively (task item 4) -----
