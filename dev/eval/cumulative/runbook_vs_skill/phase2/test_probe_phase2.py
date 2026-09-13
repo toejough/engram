@@ -1477,7 +1477,7 @@ def test_setup_trial_repo_task_b_arm_n_adds_no_claude_dir(tmp_path):
 # ----- decision frame outputs: baseline_uninterpretable and shim loss -----
 
 def _agg(n, valid_n, found_n, end_state_n, followed_all_n, end_state_given_found_n=None,
-         followed_all_given_found_n=None, n_steps=6):
+         followed_all_given_found_n=None, n_steps=6, rate_limited_n=0, stalled_n=0):
     return {
         "n": n, "valid_n": valid_n, "found_n": found_n, "found_given_n": found_n,
         "end_state_n": end_state_n,
@@ -1488,6 +1488,7 @@ def _agg(n, valid_n, found_n, end_state_n, followed_all_n, end_state_given_found
         "recall_fired_n": 0, "followed_mean_k": float(followed_all_n), "n_steps": n_steps,
         "cost_mean": 0.10, "duration_mean": 30.0,
         "trailer_ai_used_n": 0, "trailer_co_authored_n": 0,
+        "rate_limited_n": rate_limited_n, "stalled_n": stalled_n,
     }
 
 
@@ -3185,11 +3186,11 @@ def test_rate_limit_truncation_signal_present_for_real_system_record():
 # ----- format_baseline_summary: rate-limited suffix (task item 3) -----
 
 def _rl_record(valid, invalid_reason=None, end_state=False, followed_all=False, n_steps=6,
-               total_cost_usd=0.1):
+               total_cost_usd=0.1, stalled_asking=False):
     return {
         "valid": valid, "invalid_reason": invalid_reason, "end_state": end_state,
         "followed_all": followed_all, "followed_steps": {}, "n_steps": n_steps,
-        "total_cost_usd": total_cost_usd,
+        "total_cost_usd": total_cost_usd, "stalled_asking": stalled_asking,
     }
 
 
@@ -3280,6 +3281,85 @@ def test_format_table_valid_row_omits_suffix_when_no_rate_limited_trials():
     table = pp.format_table("A", agg)
     valid_row = next(line for line in table.splitlines() if line.startswith("valid (n)"))
     assert "rate-limited" not in valid_row
+
+
+# ----- stalled_asking aggregation in format_baseline_summary -----
+
+def test_format_baseline_summary_appends_stalled_suffix_when_present():
+    records = (
+        [_rl_record(True, end_state=True, followed_all=True) for _ in range(3)]
+        + [_rl_record(True, end_state=True, followed_all=True, stalled_asking=True) for _ in range(2)]
+    )
+    summary = pp.format_baseline_summary("opsx-archive", "sonnet5", records)
+    first_line = summary.splitlines()[0]
+    assert "end result 5/5, did every step 5/5 (stalled: 2)" in first_line
+
+
+def test_format_baseline_summary_omits_stalled_suffix_when_zero():
+    records = [_rl_record(True, end_state=True, followed_all=True) for _ in range(3)]
+    summary = pp.format_baseline_summary("opsx-archive", "sonnet5", records)
+    first_line = summary.splitlines()[0]
+    assert "stalled" not in first_line
+
+
+def test_format_baseline_summary_stalled_and_rate_limited_both_shown():
+    """When both rate-limited and stalled trials are present, both suffixes should appear."""
+    records = (
+        [_rl_record(True, end_state=True, followed_all=True) for _ in range(2)]
+        + [_rl_record(True, end_state=True, followed_all=True, stalled_asking=True) for _ in range(2)]
+        + [_rl_record(False, invalid_reason="rate_limit") for _ in range(1)]
+    )
+    summary = pp.format_baseline_summary("opsx-archive", "sonnet5", records)
+    first_line = summary.splitlines()[0]
+    assert "end result 4/4, did every step 4/4 (rate-limited: 1) (stalled: 2)" in first_line
+
+
+# ----- aggregate() stalled_n computation -----
+
+def test_aggregate_reports_stalled_n():
+    records = [
+        {"task": "A", "arm": "R", "valid": True, "invalid_reason": None, "found": True,
+         "end_state": True, "followed_all": True, "followed_k": 6, "n_steps": 6,
+         "recall_fired": False, "stalled_asking": False, "total_cost_usd": 0.3, "duration_ms": 500},
+        {"task": "A", "arm": "R", "valid": True, "invalid_reason": None, "found": True,
+         "end_state": True, "followed_all": True, "followed_k": 6, "n_steps": 6,
+         "recall_fired": False, "stalled_asking": True, "total_cost_usd": 0.3, "duration_ms": 500},
+    ]
+    agg = pp.aggregate(records, "A", "R")
+    assert agg["valid_n"] == 2
+    assert agg["stalled_n"] == 1
+
+
+def test_aggregate_stalled_only_counts_valid_records():
+    """Stalled should only count records where valid=True; rate-limited (invalid) records
+    should not be counted."""
+    records = [
+        {"task": "A", "arm": "N", "valid": True, "invalid_reason": None, "found": None,
+         "end_state": False, "followed_all": False, "followed_k": 0, "n_steps": 0,
+         "recall_fired": False, "stalled_asking": True, "total_cost_usd": 0.1, "duration_ms": 100},
+        {"task": "A", "arm": "N", "valid": False, "invalid_reason": "rate_limit", "found": None,
+         "end_state": False, "followed_all": False, "followed_k": 0, "n_steps": 0,
+         "recall_fired": False, "stalled_asking": True, "total_cost_usd": 0.0, "duration_ms": 100},
+    ]
+    agg = pp.aggregate(records, "A", "N")
+    assert agg["valid_n"] == 1
+    assert agg["stalled_n"] == 1
+
+
+# ----- format_table valid row with stalled suffix -----
+
+def test_format_table_valid_row_appends_stalled_suffix_when_present():
+    agg = {"S": _agg(5, 5, 4, 4, 4, stalled_n=2)}
+    table = pp.format_table("A", agg)
+    valid_row = next(line for line in table.splitlines() if line.startswith("valid (n)"))
+    assert "5/5 (stalled: 2)" in valid_row
+
+
+def test_format_table_valid_row_appends_both_suffixes_when_both_present():
+    agg = {"S": _agg(10, 8, 4, 4, 4, rate_limited_n=2, stalled_n=1)}
+    table = pp.format_table("A", agg)
+    valid_row = next(line for line in table.splitlines() if line.startswith("valid (n)"))
+    assert "8/10 (rate-limited: 2, stalled: 1)" in valid_row
 
 
 # ----- --rescore reclassifies rate-limited stubs retroactively (task item 4) -----

@@ -1482,6 +1482,7 @@ def format_baseline_summary(task_key, model, records):
     valid = [r for r in records if r.get("valid")]
     valid_n = len(valid)
     rate_limited_n = sum(1 for r in records if r.get("invalid_reason") in _RATE_LIMIT_INVALID_REASONS)
+    stalled_n = sum(1 for r in valid if r.get("stalled_asking"))
     end_state_n = sum(1 for r in valid if r.get("end_state"))
     followed_all_n = sum(1 for r in valid if r.get("followed_all"))
     n_steps = next((r.get("n_steps") for r in valid if r.get("n_steps")), 0)
@@ -1490,10 +1491,11 @@ def format_baseline_summary(task_key, model, records):
 
     miss_str = ", ".join(f"step {k}: {v}/{valid_n}" for k, v in sorted(miss_counts.items())) or "n/a"
     rate_limited_suffix = f" (rate-limited: {rate_limited_n})" if rate_limited_n else ""
+    stalled_suffix = f" (stalled: {stalled_n})" if stalled_n else ""
     return (
         f"bare agent (task={task_key}, model={model}, n={n}): "
         f"end result {end_state_n}/{valid_n}, did every step {followed_all_n}/{valid_n}"
-        f"{rate_limited_suffix}\n"
+        f"{rate_limited_suffix}{stalled_suffix}\n"
         f"per-step miss counts: {miss_str}\n"
         f"mean cost: ${cost_mean:.2f}"
     )
@@ -1697,6 +1699,7 @@ def aggregate(records, task, arm):
     n = len(rows)
     valid_n = len(valid)
     rate_limited_n = sum(1 for r in rows if r.get("invalid_reason") in _RATE_LIMIT_INVALID_REASONS)
+    stalled_n = sum(1 for r in valid if r.get("stalled_asking"))
     found_n = sum(1 for r in valid if r.get("found") is True)
     found_given_n = found_n
     end_state_n = sum(1 for r in valid if r.get("end_state"))
@@ -1713,7 +1716,7 @@ def aggregate(records, task, arm):
     trailer_ai_used_n = sum(1 for r in valid if r.get("trailer") in ("ai_used", "both"))
     trailer_co_authored_n = sum(1 for r in valid if r.get("trailer") in ("co_authored", "both"))
     return {
-        "n": n, "valid_n": valid_n, "rate_limited_n": rate_limited_n,
+        "n": n, "valid_n": valid_n, "rate_limited_n": rate_limited_n, "stalled_n": stalled_n,
         "found_n": found_n, "found_given_n": found_given_n,
         "end_state_n": end_state_n, "end_state_given_found_n": end_state_given_found_n,
         "followed_all_n": followed_all_n, "followed_all_given_found_n": followed_all_given_found_n,
@@ -1847,7 +1850,16 @@ def format_table(task, agg):
     def _valid_cell(arm, a):
         base = f"{a['valid_n']}/{a['n']}"
         rate_limited_n = a.get("rate_limited_n") or 0
-        return f"{base} (rate-limited: {rate_limited_n})" if rate_limited_n else base
+        stalled_n = a.get("stalled_n") or 0
+        suffix_parts = []
+        if rate_limited_n:
+            suffix_parts.append(f"rate-limited: {rate_limited_n}")
+        if stalled_n:
+            suffix_parts.append(f"stalled: {stalled_n}")
+        if suffix_parts:
+            suffix = " (" + ", ".join(suffix_parts) + ")"
+            return f"{base}{suffix}"
+        return base
 
     row("valid (n)", _valid_cell)
     if task == "A":
