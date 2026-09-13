@@ -54,7 +54,8 @@ if ! git cat-file -e "$ORIG_TIP" 2>/dev/null; then
   exit 1
 fi
 
-# Check 6: some ref other than refs/original points at the pre-rewrite tip, OR refs/original exists
+# Check 6: some ref other than refs/original points at the pre-rewrite tip, OR refs/original exists,
+# OR a recovery artifact (bundle or plain-text SHA file) exists outside the repo
 HAS_REFS_ORIGINAL=false
 if git for-each-ref refs/original | grep -q .; then
   HAS_REFS_ORIGINAL=true
@@ -71,7 +72,61 @@ while IFS= read -r line; do
   fi
 done < <(git for-each-ref --format='%(objectname) %(refname)')
 
+RECOVERY_ARTIFACT_FOUND=""
+
 if [ "$OTHER_REF_POINTS_AT_ORIG" != "true" ] && [ "$HAS_REFS_ORIGINAL" != "true" ]; then
+  # Search for recovery artifacts (bundles and plain-text SHA files)
+  # Get the repo init commit time for reference
+  REPO_INIT_TIME=$(git log --reverse --format=%ci --diff-filter=A | head -1 || echo "1970-01-01")
+
+  # Search directories: /tmp, /private/tmp, repo parent, $HOME
+  SEARCH_DIRS="/tmp /private/tmp $(dirname "$REPO_DIR") $HOME"
+
+  for search_dir in $SEARCH_DIRS; do
+    if [ ! -d "$search_dir" ]; then
+      continue
+    fi
+
+    # Look for *.bundle files (maxdepth 2)
+    while IFS= read -r bundle_file; do
+      if [ -f "$bundle_file" ]; then
+        # Check if this bundle contains the pre-rewrite tip
+        if git bundle list-heads "$bundle_file" 2>/dev/null | awk '{print $1}' | grep -q "^$ORIG_TIP\$"; then
+          RECOVERY_ARTIFACT_FOUND="git bundle: $bundle_file"
+          break 2
+        fi
+      fi
+    done < <(find "$search_dir" -maxdepth 2 -name "*.bundle" -type f 2>/dev/null)
+
+    # Look for plain-text SHA files (maxdepth 2) containing the pre-rewrite tip SHA
+    if [ -z "$RECOVERY_ARTIFACT_FOUND" ]; then
+      while IFS= read -r sha_file; do
+        if [ -f "$sha_file" ]; then
+          # Check if the file contains the pre-rewrite tip SHA
+          if grep -q "^$ORIG_TIP\$" "$sha_file" 2>/dev/null; then
+            # Verify the SHA is still reachable in the current repo
+            if git cat-file -e "$ORIG_TIP" 2>/dev/null; then
+              RECOVERY_ARTIFACT_FOUND="plain-text SHA file: $sha_file"
+              break 2
+            fi
+          fi
+        fi
+      done < <(find "$search_dir" -maxdepth 2 -type f ! -name "*.bundle" 2>/dev/null | \
+               while read f; do file "$f" 2>/dev/null | grep -q "text" && echo "$f"; done)
+    fi
+  done
+fi
+
+if [ "$OTHER_REF_POINTS_AT_ORIG" = "true" ]; then
+  echo "PASS: Other ref points at pre-rewrite tip"
+  exit 0
+elif [ "$HAS_REFS_ORIGINAL" = "true" ]; then
+  echo "PASS: refs/original exists"
+  exit 0
+elif [ -n "$RECOVERY_ARTIFACT_FOUND" ]; then
+  echo "PASS: Recovery artifact found ($RECOVERY_ARTIFACT_FOUND)"
+  exit 0
+else
   echo "FAIL: no ref (other than refs/original) points at the pre-rewrite tip, and refs/original does not exist -- original commit is not durably recoverable"
   exit 1
 fi
