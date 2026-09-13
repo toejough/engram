@@ -1,0 +1,21 @@
+ABORT-REPORT: operator's real vault fingerprint changed! before=(1924, 1789262708.1797907) after=(1928, 1789263142.4375138). A trial may have reached real memory. Investigate before trusting any result in this run.
+run_id=baseline-bisect-before-fix-sonnet5-1789262931-040ac9 task=bisect-before-fix arm=N n=8 model=sonnet5 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-262931
+setup_trial_vault: removed 80 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-262931/trials/bisect-before-fix-N-0/vault
+setup_trial_vault: removed 80 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-262931/trials/bisect-before-fix-N-1/vault
+  [bisect-before-fix-N#0] valid end_state=False followed=4/7 cost=$0.39 timed_out=False
+setup_trial_vault: removed 81 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-262931/trials/bisect-before-fix-N-2/vault
+  [bisect-before-fix-N#1] valid end_state=False followed=4/7 cost=$0.49 timed_out=False
+setup_trial_vault: removed 81 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-262931/trials/bisect-before-fix-N-3/vault
+  [bisect-before-fix-N#2] valid end_state=False followed=4/7 cost=$0.67 timed_out=False
+setup_trial_vault: removed 81 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-262931/trials/bisect-before-fix-N-4/vault
+  [bisect-before-fix-N#3] valid end_state=False followed=4/7 cost=$0.51 timed_out=False
+setup_trial_vault: removed 81 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-262931/trials/bisect-before-fix-N-5/vault
+  [bisect-before-fix-N#5] INVALID(rate_limit_truncated) end_state=False followed=2/7 cost=$0.41 timed_out=False
+setup_trial_vault: removed 82 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-262931/trials/bisect-before-fix-N-6/vault
+  [bisect-before-fix-N#4] INVALID(rate_limit_truncated) end_state=False followed=1/7 cost=$0.29 timed_out=False
+setup_trial_vault: removed 82 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-262931/trials/bisect-before-fix-N-7/vault
+  [bisect-before-fix-N#6] INVALID(rate_limit) end_state=False followed=0/7 cost=$0.00 timed_out=False
+  [bisect-before-fix-N#7] INVALID(rate_limit) end_state=False followed=0/7 cost=$0.00 timed_out=False
+bare agent (task=bisect-before-fix, model=sonnet5, n=8): end result 0/4, did every step 0/4 (rate-limited: 4)
+per-step miss counts: step 1: 0/4, step 2: 0/4, step 3: 4/4, step 4: 4/4, step 5: 4/4, step 6: 0/4, step 7: 0/4
+mean cost: $0.51

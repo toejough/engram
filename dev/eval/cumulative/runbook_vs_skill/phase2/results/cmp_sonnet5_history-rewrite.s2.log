@@ -1,0 +1,14 @@
+ABORT-REPORT: operator's real vault fingerprint changed! before=(1920, 1789262306.0265768) after=(1928, 1789263142.4375138). A trial may have reached real memory. Investigate before trusting any result in this run.
+run_id=history-rewrite-sonnet5-1789262692-2680a7 task=history-rewrite arms=['S', 'R', 'F'] n=2 model=sonnet5 trials=6 timeout=900s workers=2 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789262692-2680a7
+setup_trial_vault: removed 77 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789262692-2680a7/trials/history-rewrite-S-0/vault
+setup_trial_vault: removed 77 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789262692-2680a7/trials/history-rewrite-S-1/vault
+  [history-rewrite-S#0] valid found=True followed=6/6 end_state=True cost=$0.50 timed_out=False
+setup_trial_vault: removed 79 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789262692-2680a7/trials/history-rewrite-R-0/vault
+  [history-rewrite-S#1] valid found=True followed=6/6 end_state=False cost=$0.81 timed_out=False
+setup_trial_vault: removed 79 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789262692-2680a7/trials/history-rewrite-R-1/vault
+  [history-rewrite-R#0] valid found=True followed=5/6 end_state=False cost=$1.13 timed_out=False
+setup_trial_vault: removed 80 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789262692-2680a7/trials/history-rewrite-F-0/vault
+  [history-rewrite-R#1] valid found=True followed=6/6 end_state=False cost=$0.67 timed_out=False
+setup_trial_vault: removed 80 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/history-rewrite-sonnet5-1789262692-2680a7/trials/history-rewrite-F-1/vault
+  [history-rewrite-F#0] valid found=False followed=6/6 end_state=False cost=$0.41 timed_out=False
+  [history-rewrite-F#1] valid found=False followed=3/6 end_state=False cost=$0.37 timed_out=False
