@@ -70,10 +70,18 @@ When a matched runbook's body wikilinks another runbook, the agent SHALL fetch i
 - **WHEN** a matched runbook step reads "follow [[<runbook basename>]]"
 - **THEN** the transcript shows `engram show <basename>` and the sub-runbook's steps restated before that step's mutating commands
 
-### Requirement: The frame SHALL apply only to `kind: runbook`
+### Requirement: The shim SHALL state how each returned kind is treated
 
-The announce, restate, done_when, red_flags, and transitive-follow requirements SHALL apply to returned notes of `kind: runbook` only. Returned `fact` and `feedback` notes are applied as lessons, not executed as procedures.
+The shim SHALL state, in one line each, the treatment of every kind a query returns: a `fact` is knowledge and context, taken as true for the task unless the repository contradicts it; a `feedback` note is a correction the user already gave, treated as a standing instruction so the mistake it names is not repeated; a `runbook` is executed under the frame in this specification; a `chunk` is raw evidence, fetched (`engram show-chunk`) only when the notes leave a gap. The announce, restate, done_when, red_flags, and transitive-follow requirements SHALL apply to `kind: runbook` only.
 
 #### Scenario: A fact with procedural text gets no frame
 - **WHEN** a query returns a `fact` note whose body contains numbered steps
 - **THEN** the shim requires no announcement or step restatement for it
+
+#### Scenario: Feedback treated as a standing instruction
+- **WHEN** a query returns a `feedback` note naming a mistake relevant to the task
+- **THEN** the agent's plan or actions avoid the named mistake, and the transcript does not show the agent re-deriving whether to honor it
+
+#### Scenario: Chunks are not instructions
+- **WHEN** a query returns `chunk` items alongside notes
+- **THEN** the agent acts on the notes and fetches a chunk only to fill a gap the notes leave
