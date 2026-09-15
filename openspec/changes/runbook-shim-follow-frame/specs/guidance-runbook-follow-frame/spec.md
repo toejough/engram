@@ -6,13 +6,17 @@ The engram shim (a new guidance file, `agent-instructions/guidance/shim.md`, dep
 
 ## ADDED Requirements
 
-### Requirement: The shim SHALL name the first action as a literal `engram query` that needs no skill
+### Requirement: The shim SHALL name the first action as a literal `engram query` on every user request
 
-Before starting a multi-step task the agent may have done before, the shim SHALL instruct the agent to run `engram query` with at least two `--phrase` values (the task in the agent's own words; the kind of situation it is in), as a bare imperative naming the command, so that the instruction is executable with no `recall` skill present.
+Before the first tool call on any user request, the shim SHALL instruct the agent to run `engram query` with at least two `--phrase` values (the request in the agent's own words; the kind of situation it is in), as a bare imperative naming the command, so that the instruction is executable with no `recall` skill present. The trigger SHALL NOT depend on the agent judging the task multi-step, recurring, or previously done: that judgment is what the returned runbook supplies, so it cannot gate the lookup. Over-fire on one-shot requests is accepted (task-init fire-unit, measured 3.4x; per-fire cost is one query with no crystallization).
 
 #### Scenario: Shim-only session runs the first query
-- **WHEN** an agent with the shim in CLAUDE.md and no engram skills installed begins a multi-step task
-- **THEN** its first tool call is an `engram query` carrying the task phrase and the situation phrase before any mutating command
+- **WHEN** an agent with the shim in CLAUDE.md and no engram skills installed receives a user request
+- **THEN** its first tool call is an `engram query` carrying the request phrase and the situation phrase, before any other tool call
+
+#### Scenario: A one-shot request still fires
+- **WHEN** the request is a single-step action (a one-line answer, a single-file typo fix)
+- **THEN** the query still runs first; the agent proceeds without a runbook when none matches
 
 ### Requirement: The agent SHALL announce a matched runbook by name before acting
 
