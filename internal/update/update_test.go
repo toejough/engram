@@ -1158,6 +1158,83 @@ func TestRun_WithGuidance_GuidanceCopyError(t *testing.T) {
 	g.Expect(report.Harnesses[0].GuidanceFiles).To(BeEmpty())
 }
 
+// TestRun_WithGuidance_NewGuidanceFileJoinsExistingOnSubsequentSync covers
+// task 2.4 of runbook-shim-follow-frame: shim.md is a brand-new guidance
+// file added to agent-instructions/guidance/ alongside the already-deployed
+// recall.md/delegate.md/learn.md. The fixture models a genuinely
+// SUBSEQUENT sync (marker present, prior guidance/ copies and compat
+// symlinks already on disk for the three existing files) with shim.md
+// present in source but ABSENT from the destination entirely — no
+// pre-existing guidance/shim.md, no pre-existing compat symlink. This
+// guards against any "only sync files that already exist at the
+// destination" special-casing: planGuidanceCopies (and the compat-link
+// application built on it) must pick up a truly new file on a run that is
+// not the harness's first sync, without disturbing the untouched files.
+func TestRun_WithGuidance_NewGuidanceFileJoinsExistingOnSubsequentSync(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	fileSystem := newMemFS()
+	fileSystem.dirs[home+"/.claude"] = true
+	fileSystem.files["/repo/go.mod"] = []byte("module github.com/toejough/engram\n")
+	fileSystem.dirs["/repo/agent-instructions/skills"] = true
+	fileSystem.dirs["/repo/agent-instructions/guidance"] = true
+	fileSystem.files["/repo/agent-instructions/guidance/recall.md"] = []byte("fresh recall guidance")
+	fileSystem.files["/repo/agent-instructions/guidance/delegate.md"] = []byte("fresh delegate guidance")
+	fileSystem.files["/repo/agent-instructions/guidance/learn.md"] = []byte("fresh learn guidance")
+	fileSystem.files["/repo/agent-instructions/guidance/shim.md"] = []byte("fresh shim guidance")
+
+	root := home + "/.claude/engram"
+	fileSystem.dirs[root] = true
+	fileSystem.files[root+"/.engram-owned"] = []byte{}
+	fileSystem.files[root+"/guidance/recall.md"] = []byte("stale recall guidance")
+	fileSystem.files[root+"/guidance/delegate.md"] = []byte("stale delegate guidance")
+	fileSystem.files[root+"/guidance/learn.md"] = []byte("stale learn guidance")
+
+	symlinkErr := fileSystem.Symlink(root+"/guidance/recall.md", root+"/recall.md")
+	g.Expect(symlinkErr).NotTo(HaveOccurred())
+	symlinkErr = fileSystem.Symlink(root+"/guidance/delegate.md", root+"/delegate.md")
+	g.Expect(symlinkErr).NotTo(HaveOccurred())
+	symlinkErr = fileSystem.Symlink(root+"/guidance/learn.md", root+"/learn.md")
+	g.Expect(symlinkErr).NotTo(HaveOccurred())
+
+	updater := &update.Updater{
+		FS:    fileSystem,
+		Cmd:   &fakeCmd{},
+		Env:   &fakeEnv{home: home, cwd: "/repo"},
+		Spawn: noopSpawner{},
+	}
+
+	report, err := updater.Run(context.Background(), update.Options{WithGuidance: true})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report.Harnesses).To(HaveLen(1))
+
+	harness := report.Harnesses[0]
+	g.Expect(harness.Err).NotTo(HaveOccurred())
+	g.Expect(harness.GuidanceFiles).To(ConsistOf("recall.md", "delegate.md", "learn.md", "shim.md"))
+
+	// The brand-new file gets canonical content and a compat symlink, same
+	// as the pre-existing three.
+	written, ok := fileSystem.written[root+"/guidance/shim.md"]
+	g.Expect(ok).To(BeTrue())
+	g.Expect(written).To(Equal([]byte("fresh shim guidance")))
+
+	target, isSymlink := fileSystem.symlinks[root+"/shim.md"]
+	g.Expect(isSymlink).To(BeTrue())
+	g.Expect(target).To(Equal(root + "/guidance/shim.md"))
+
+	// The pre-existing files are refreshed and stay symlinked; untouched.
+	g.Expect(fileSystem.written[root+"/guidance/recall.md"]).To(Equal([]byte("fresh recall guidance")))
+	g.Expect(fileSystem.written[root+"/guidance/delegate.md"]).To(Equal([]byte("fresh delegate guidance")))
+	g.Expect(fileSystem.written[root+"/guidance/learn.md"]).To(Equal([]byte("fresh learn guidance")))
+	g.Expect(fileSystem.symlinks[root+"/recall.md"]).To(Equal(root + "/guidance/recall.md"))
+	g.Expect(fileSystem.symlinks[root+"/delegate.md"]).To(Equal(root + "/guidance/delegate.md"))
+	g.Expect(fileSystem.symlinks[root+"/learn.md"]).To(Equal(root + "/guidance/learn.md"))
+}
+
 func TestRun_WithoutGuidance_SkipsGuidance(t *testing.T) {
 	t.Parallel()
 
