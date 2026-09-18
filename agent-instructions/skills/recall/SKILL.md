@@ -293,7 +293,11 @@ Hand ONE synthesis note per conclusion to the **write-memory** skill (kind=fact 
   the superseded note's basename, type (`updates|narrows|refutes`), and claim in the write-memory
   handoff — the binary maintains the inverse automatically. Otherwise no link ritual is needed; the
   binary auto-assigns vocab tags at write time, and recall surfaces vocab-tagged notes via explore
-  sampling at query time. Do not hand-author wikilinks to connect notes.
+  sampling at query time. **Never hand-author a `vocab/<term>` tag or a `Supersedes:` backlink** —
+  the binary writes both automatically. This does NOT restrict inline `[[full-basename]]` prose
+  citations in the synthesis body: hand-type one directly in the body whenever it cites an input
+  note's claim — ordinary authoring, no CLI mechanism does it for you (and the Gate below, plus the
+  QA-capture step after it, depend on you having written them).
 
 **Gate — do not rot the vault (notes 68/69):** persist ONLY conclusions you judge sound. If it is a
 hunch, you'd hedge below "probable", or it merely re-aggregates one note, do NOT persist. One synthesis
@@ -331,7 +335,7 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 | You activated every returned note | Activate only the notes you actually USED — judged Covered/Near or cited in Step 3 |
 | You activated recent-channel items | Chunks are never activated; recent-block items are not activation targets |
 | You skipped `engram activate` after drawing on notes | Call it after synthesis — used notes must stay warm or the recency-competition mechanism breaks |
-| You're about to write `--relation` or hand-author wikilinks for structural linking | The binary removed `--relation`; vocab tags are automatic; use `--supersedes` only when the note corrects/narrows/refutes a surfaced note |
+| You're about to write `--relation`, or hand-author a `vocab/<term>` tag or a `Supersedes:` backlink | The binary removed `--relation`; vocab tags are automatic; use `--supersedes` only when the note corrects/narrows/refutes a surfaced note. This does NOT cover inline `[[full-basename]]` prose citations in a synthesis body — hand-type those whenever citing an input note's claim is warranted |
 | You composed an engram learn command yourself at a write site | Write sites hand off to write-memory — parents judge, the worker writes |
 | Reply is a memory dump with no plan reference | Restart Step 3: walk the plan and judge each piece |
 | You're recommending a prerequisite or better test as the first step, not the asked task | That displacement IS relitigating the settled task — old reasoning isn't new evidence. Do the asked task; displace only on a NEW fact, stated as a reversal |

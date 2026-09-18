@@ -176,12 +176,17 @@ the agent. Canonical capitalization: **Luhmann ID** in prose,
 
 ### wikilink
 A bracketed reference of the form `[[<luhmann-id>.<date>.<slug>]]` or a
-shorter `[[<slug>]]` form. Three roles historically; two live today: (1) **prose links** — running-text references
-with human-readable context for the connection (no per-link rationale required by `--relation` —
-that flag was removed 2026-07-03); (2) **`Supersedes:` body line** —
-`Supersedes: [[<note>]] — <type>: <claim>`, written by the binary when `--supersedes` is passed.
+shorter `[[<slug>]]` form. Three roles historically; two live today, and the two differ in
+**who writes them**: (1) **prose links** — running-text references with human-readable context
+for the connection, hand-typed by the author anywhere in a note's own body or field text, the
+same way you'd cite a URL. This is ordinary free-text authoring: no CLI mechanism writes these,
+always the author's job, and nothing restricts hand-authoring it (no per-link rationale required
+by `--relation` — that flag was removed 2026-07-03). (2) **`Supersedes:` body line** —
+`Supersedes: [[<note>]] — <type>: <claim>`, written by the binary when `--supersedes` is passed,
+and never hand-typed.
 (3) **`Vocab:` member→term links** (retired 2026-07-10, #678) — was a `Vocab: [[vocab.<term>]], ...` body line + `vocab:` frontmatter list written by the binary's write-time vocab assigner, and has been migrated to the tags convention: vocab membership is now a `vocab/<term>` entry in the shared `tags:` list, never a wikilink. See **vocab definition note**, below.
-Structural linking is done by the binary, not by hand.
+Structural linking — sense (2), the `Supersedes:` backlink — is done by the binary, not by hand;
+sense (1) prose citations are always hand-typed, with no restriction.
 
 ### slug
 The kebab-case tag at the end of a note filename. Passed via `--slug` on

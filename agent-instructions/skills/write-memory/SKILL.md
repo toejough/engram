@@ -103,10 +103,14 @@ Rules:
 
 - Never mix fact flags (`--subject/--predicate/--object`), feedback flags
   (`--behavior/--impact/--action`), or runbook flags (`--done-when/--body`) in one command.
-- Never hand-author vocab tags or wikilinks — the binary assigns vocab terms automatically as
-  `vocab/<term>` entries in the `tags:` list. Handed-off --tag categoricals ride the same list but
-  are NOT vocab: pass them through exactly as provided; never invent tags and never write the
-  `vocab/` namespace yourself.
+- Never hand-author a `vocab/<term>` tag or a `Supersedes:` backlink — the binary assigns vocab
+  terms automatically as `vocab/<term>` entries in the `tags:` list, and writes the `Supersedes:`
+  body line itself when `--supersedes` is passed. This does NOT restrict inline `[[basename]]`
+  prose citations: hand-type one directly in `--body` or `--object` whenever the parent's handoff
+  content calls for citing a fact/feedback note — ordinary authoring, no CLI mechanism does it for
+  you. Handed-off --tag categoricals ride the same `tags:` list as vocab but are NOT vocab: pass
+  them through exactly as provided; never invent tags and never write the `vocab/` namespace
+  yourself.
 
 ## Execute, verify, report
 
