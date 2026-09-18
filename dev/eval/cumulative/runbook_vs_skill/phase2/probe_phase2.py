@@ -46,6 +46,13 @@ FIXTURES_DIR = os.path.join(HERE, "fixtures")
 ENCODINGS_DIR = os.path.join(HERE, "encodings")
 REAL_VAULT = p1.isolation.operator_vault()
 
+# The recall/learn/write-memory SKILL.md bodies converted to runbook notes (openspec change
+# runbook-shim-follow-frame, tasks 3.1/3.2/3.4) — the 8-note fixture vault copied into a trial's
+# background vault by add_recall_learn_runbooks below, for the shim-only / no-skills arms (task
+# 2.1) where no engram skill is installed and "how to recall"/"how to learn" must be findable via
+# the first `engram query` alone.
+RECALL_LEARN_RUNBOOKS_VAULT = os.path.join(ENCODINGS_DIR, "shim", "recall-learn", "vault")
+
 # Shortened from "phase2" (fix for the truncated-projects-dir bug: a long trial repo path makes
 # Claude Code truncate its own projects/<slug> directory name and append a random 6-char suffix,
 # which discover_transcript_paths now handles — see probe.py — but shortening every run root
@@ -138,7 +145,33 @@ TASK_B_REMOVAL = (
 # `git commit -m "$(cat <<'EOF'` still matches — "git commit" sits before the first quote char).
 _MUTATING_REDIRECT_RE = r"(?<![\d&])>(?!&)\s*\S"
 _MUTATING_BASH_RE = re.compile(rf"git\s+(add|commit|rm|mv)|{_MUTATING_REDIRECT_RE}|tee|sed\s+-i")
-TASK_MUTATING_BASH_RE = {"A": _MUTATING_BASH_RE, "B": _MUTATING_BASH_RE}
+
+# history-rewrite's real mutating actions (steps.json steps 3/5: rewrite the whole ref set, then
+# force-push it) are `git filter-branch`/`git filter-repo` and a forced `git push` — none of
+# which `_MUTATING_BASH_RE` recognizes (it was written for tasks A/B's add/commit/rm/mv-shaped
+# mutations). Without this entry, `first_mutating_step_index` returns None for every
+# history-rewrite trial that never runs a plain `git add/commit/rm/mv`, so `before()` is
+# vacuously True for the WHOLE transcript — confirmed to false-positive `detect_restated_as_plan`
+# on a trial's trailing wrap-up bullet list (task 4.1's real-transcript validation, 2.1 trial 2:
+# manual_note says 0 TodoWrite calls / no plan restatement, but the final "Summary:" bullets,
+# which come AFTER the real `git filter-repo` mutation, were being scored as "before" it).
+#
+# The `filter-branch|filter-repo` alternative excludes a bare `--version`/`--help` probe right
+# after it (`(?!\s+(?:--version|--help|-h)\b)`) — real trials run `git filter-repo --version`
+# to check tool availability BEFORE the real rewrite call; without this exclusion that read-only
+# probe itself was scored as the first mutation (task 4.1 validation, round-1 trial 2), pulling
+# the boundary earlier than the real `git filter-repo --path ... --force` invocation and hiding a
+# genuine restated-plan that came between the probe and the real rewrite.
+_HISTORY_REWRITE_MUTATING_BASH_RE = re.compile(
+    rf"git\s+(add|commit|rm|mv)\b|"
+    rf"git\s+(?:filter-branch|filter-repo)\b(?!\s+(?:--version|--help|-h)\b)|"
+    rf"git\s+push\b[^\n]*(?:--force\b|-f\b)|"
+    rf"{_MUTATING_REDIRECT_RE}|tee|sed\s+-i"
+)
+TASK_MUTATING_BASH_RE = {
+    "A": _MUTATING_BASH_RE, "B": _MUTATING_BASH_RE,
+    "history-rewrite": _HISTORY_REWRITE_MUTATING_BASH_RE,
+}
 _QUOTED_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
 
 
@@ -302,6 +335,23 @@ def build_claude_md_phase2(marker, extra=None):
     return base.rstrip() + "\n\n## Project procedure\n\n" + extra.strip() + "\n"
 
 
+SHIM_GUIDANCE_PATH = os.path.join(p1.REPO, "agent-instructions", "guidance", "shim.md")
+
+
+def build_claude_md_shimonly(marker, extra=None):
+    """`agent-instructions/guidance/shim.md` verbatim, plus the run's PROBE-TOKEN marker line —
+    the runbook-shim-follow-frame task 2.3 GREEN config's trial CLAUDE.md. Replaces
+    p1.build_claude_md's recall.md-plus-fifth-cue body entirely (D0/D7: in the shim-only arm,
+    shim.md is the ONLY custom guidance text in CLAUDE.md — testing a hybrid of recall.md and
+    shim.md would not measure the frame this change is about). Optional '## Project procedure'
+    appendage mirrors build_claude_md_phase2 for symmetry, though task 2.3 exercises arm R only."""
+    guidance = open(SHIM_GUIDANCE_PATH).read()
+    base = guidance.rstrip() + f"\n\nPROBE-TOKEN: {marker}\n"
+    if not extra:
+        return base
+    return base.rstrip() + "\n\n## Project procedure\n\n" + extra.strip() + "\n"
+
+
 # ----- background vault: real-vault copy, covering-note removal, carrier add (Ruling 3) -----
 
 def remove_covering_notes(vault, task_key, arm):
@@ -418,6 +468,17 @@ def setup_trial_vault(env, task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MI
     return carrier_basename, copy_s
 
 
+def add_recall_learn_runbooks(vault):
+    """Copy the 8 recall/learn/write-memory runbook fixture notes (.md + .vec.json pairs, task
+    3.1/3.2/3.4 conversion) from RECALL_LEARN_RUNBOOKS_VAULT into `vault` — the shim-only /
+    no-skills arm's bootstrap carrier (task 2.1): with no engram skill installed, "how to
+    recall"/"how to learn" must still be findable as runbooks via the first `engram query`.
+    Call AFTER setup_trial_vault (which already ran verify_vault_health on the base copy); the
+    caller re-verifies health once these notes are added."""
+    for name in sorted(os.listdir(RECALL_LEARN_RUNBOOKS_VAULT)):
+        shutil.copy2(os.path.join(RECALL_LEARN_RUNBOOKS_VAULT, name), os.path.join(vault, name))
+
+
 # ----- trial repo setup (Ruling 5) -----
 
 def _skill_body_with_name(text, skill_name):
@@ -525,14 +586,18 @@ def assert_starting_state(repo_path, task_key):
             )
 
 
-def setup_trial_repo(trial_dir, task_key, arm, marker):
+def setup_trial_repo(trial_dir, task_key, arm, marker, shim_md=False):
+    """`shim_md` (task 2.3): when True, the trial CLAUDE.md is built by
+    build_claude_md_shimonly (shim.md verbatim + marker) instead of build_claude_md_phase2
+    (recall.md + fifth cue + marker) — the shim-only GREEN config's trial CLAUDE.md."""
     cfg = TASKS[task_key]
     repo_path = os.path.join(trial_dir, "repo")
     subprocess.run(["bash", cfg["init_script"], repo_path], check=True, capture_output=True, text=True)
 
     extra = rdirect_procedure_text(task_key) if arm == "Rdirect" else None
+    builder = build_claude_md_shimonly if shim_md else build_claude_md_phase2
     with open(os.path.join(repo_path, "CLAUDE.md"), "w") as f:
-        f.write(build_claude_md_phase2(marker, extra=extra))
+        f.write(builder(marker, extra=extra))
     if arm == "S":
         deploy_skill(repo_path, task_key)
 
@@ -542,6 +607,20 @@ def setup_trial_repo(trial_dir, task_key, arm, marker):
     subprocess.run(["git", "-C", repo_path, "add"] + add_paths, check=True, capture_output=True)
     subprocess.run(["git", "-C", repo_path, "commit", "-m", "add project config"],
                     check=True, capture_output=True)
+
+    # Re-stamp .eval/original_tip (when the task's init_fixture_repo.sh wrote one) to the SHA
+    # actually at HEAD now, i.e. AFTER this "add project config" commit -- the true tip a trial
+    # agent observes at hand-off. Without this, a done_when check that verifies recoverability of
+    # the exact recorded original_tip (e.g. history-rewrite's Checks 5/6) tests reachability of the
+    # fixture's pre-harness-commit SHA, which is the PARENT of what the agent actually starts from
+    # and records via `git rev-parse HEAD` -- making the check near-unpassable regardless of the
+    # agent's actions (issue #752).
+    orig_tip_path = os.path.join(trial_dir, ".eval", "original_tip")
+    if os.path.isfile(orig_tip_path):
+        head_sha = subprocess.run(["git", "-C", repo_path, "rev-parse", "HEAD"],
+                                   capture_output=True, text=True, check=True).stdout.strip()
+        with open(orig_tip_path, "w") as f:
+            f.write(head_sha + "\n")
 
     assert_starting_state(repo_path, task_key)
     return repo_path
@@ -569,6 +648,101 @@ def first_mutating_step_index(events, task_key):
         if is_first_mutating_step(ev, task_key):
             return ev["idx"]
     return None
+
+
+# ----- RESTATED-AS-PLAN (task 4.1): restated the runbook's steps before acting -----
+
+# >= 2 lines matching a numbered ("1.") or bulleted ("-"/"*") list item — a simple regex
+# heuristic for "the assistant enumerated multiple steps as a plan/todo list in prose", per
+# design.md D8's follow-frame expectation (announce -> restate as plan/todos -> act).
+_LIST_ITEM_LINE_RE = re.compile(r"^\s*(?:\d+\.|-|\*)\s")
+
+
+def _list_item_count(text):
+    return sum(1 for line in text.splitlines() if _LIST_ITEM_LINE_RE.match(line))
+
+
+def detect_restated_as_plan(events, task_key):
+    """TRUE when, before the first mutating tool call (first_mutating_step_index — Edit/Write/
+    MultiEdit, or a mutating Bash command per TASK_MUTATING_BASH_RE), the transcript already
+    shows either (a) a TodoWrite tool_use whose `todos` input carries >= 2 items, or (b) an
+    assistant text block enumerating >= 2 items as a numbered/bulleted list (_list_item_count >=
+    2) — the 'restated steps as a plan before the first mutating command' signal (tasks.md 4.1,
+    design.md D8's follow frame: announce -> restate as plan/todos -> act). No mutating step at
+    all (first_idx is None) means every event is 'before' it, matching score_found_phase2's own
+    `before()` convention."""
+    first_idx = first_mutating_step_index(events, task_key)
+
+    def before(idx):
+        return first_idx is None or idx < first_idx
+
+    for ev in events:
+        if not before(ev["idx"]):
+            continue
+        if ev["kind"] == "tool_use" and ev.get("name") == "TodoWrite":
+            todos = (ev.get("input") or {}).get("todos")
+            if isinstance(todos, list) and len(todos) >= 2:
+                return True
+        elif ev["kind"] == "text":
+            if _list_item_count(ev.get("text") or "") >= 2:
+                return True
+    return False
+
+
+# ----- QUESTION-STOP (task 4.1): a legitimate clarity stop, never a failure (design.md D8) -----
+
+# An assistant text block naming an ambiguity/uncertainty it wants resolved before proceeding —
+# the vocabulary a stop-and-ask turn uses (vault notes 137/1030/1031's shim wording; verified
+# against the real 2.1/2.3 trial transcripts this heuristic was validated against — see
+# test_probe_phase2.py's question_stop tests, and tasks.md 4.1's completion report). A real stop
+# frequently poses its actual question mid-paragraph (a closing "..., or is X acceptable here?"
+# after several sentences of status/reasoning), never only as the text block's own final
+# character, so `_poses_ambiguity` checks for a '?' ANYWHERE in the text, not just at the end.
+_AMBIGUITY_RE = re.compile(
+    r"\b(unclear|ambiguous|uncertain|unsure|not sure|"
+    r"need (?:clarification|your (?:input|guidance|decision|confirmation))|"
+    r"could you (?:clarify|confirm|let me know)|"
+    r"should i\b|do you want|would you (?:like|prefer)|which (?:approach|option|one|way)|"
+    r"before i (?:proceed|continue)|want to confirm|want me to|stopping to ask|"
+    r"i'm stopping|stopping here)",
+    re.IGNORECASE,
+)
+
+
+def _poses_ambiguity(text):
+    return bool(_AMBIGUITY_RE.search(text)) or "?" in text
+
+
+def detect_question_stop(events, task_key):
+    """TRUE when the transcript shows a legitimate clarity stop: the LAST assistant text block
+    posing an ambiguity/uncertainty (_poses_ambiguity — matches _AMBIGUITY_RE, or contains a '?'
+    anywhere) has NO mutating tool call (is_first_mutating_step — Edit/Write/MultiEdit, or a
+    mutating Bash command per TASK_MUTATING_BASH_RE) anywhere after it in the transcript —
+    whether the transcript simply ends there, or an AskUserQuestion/ExitPlanMode tool_use follows
+    first (neither is itself a mutation, so either naturally satisfies "no mutation follows"). An
+    agent that raises the same ambiguity but then goes on to mutate anyway (a silent deviation,
+    never a real stop) scores False, the same as a trial that never raised any ambiguity at all.
+    Reported as a clarity finding (design.md D8, tasks.md 4.1 item 4) — a question_stop=True
+    trial is excluded from found/restated/every-step/end-state's failure aggregates, never
+    scored as a failure itself."""
+    ambiguity_idx = None
+    for ev in events:
+        if ev["kind"] != "text":
+            continue
+        text = (ev.get("text") or "").strip()
+        if not text:
+            continue
+        if _poses_ambiguity(text):
+            ambiguity_idx = ev["idx"]  # keep the LAST match — the trial's final word on it
+    if ambiguity_idx is None:
+        return False
+
+    for ev in events:
+        if ev["idx"] <= ambiguity_idx:
+            continue
+        if is_first_mutating_step(ev, task_key):
+            return False
+    return True
 
 
 def score_found_phase2(task_key, arm, events, carrier_basename):
@@ -1276,6 +1450,8 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None):
         "followed_steps": {}, "followed_k": 0, "followed_all": False, "n_steps": 0,
         "end_state": False, "end_state_output": "",
         "stalled_asking": False,
+        "restated_as_plan": False,
+        "question_stop": False,
         "trailer": "n/a",
         "scoring_error": None,
     }
@@ -1288,6 +1464,8 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None):
         scored["found_method"] = found_method(arm, found, found_via)
         scored["found_index"] = found_idx
         scored["first_procedure_step_index"] = first_mutating_step_index(events, task_key)
+        scored["restated_as_plan"] = detect_restated_as_plan(events, task_key)
+        scored["question_stop"] = detect_question_stop(events, task_key)
         scored["recall_fired"] = p1.score_recall_fired(events)
         followed_steps, followed_k, followed_all = evaluate_steps(steps, events, repo_path)
         scored["followed_steps"] = followed_steps
@@ -1304,14 +1482,22 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None):
 
 
 def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, marker, timeout_s,
-                          exclude_luhmann_min=EXCLUDE_LUHMANN_MIN):
+                          exclude_luhmann_min=EXCLUDE_LUHMANN_MIN, add_recall_learn=False,
+                          shim_md=False):
+    """`add_recall_learn` (task 2.1): when True, copy the recall/learn/write-memory runbook
+    fixture notes into the trial vault after the normal setup_trial_vault carrier add, and
+    re-verify vault health — the shim-only / no-skills arm's bootstrap carrier. `shim_md`
+    (task 2.3): when True, the trial CLAUDE.md is shim.md alone (see setup_trial_repo)."""
     trial_dir = os.path.join(run_root, "trials", f"{task_key}-{arm}-{trial_index}")
     os.makedirs(trial_dir, exist_ok=True)
     t0 = time.time()
 
-    repo_path = setup_trial_repo(trial_dir, task_key, arm, marker)
+    repo_path = setup_trial_repo(trial_dir, task_key, arm, marker, shim_md=shim_md)
     env = trial_env_phase2(cfg_dir, trial_dir, repo_path)
     carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, arm, exclude_luhmann_min)
+    if add_recall_learn:
+        add_recall_learn_runbooks(env["ENGRAM_VAULT_PATH"])
+        verify_vault_health(env["ENGRAM_VAULT_PATH"])
 
     prompt = open(TASKS[task_key]["task_prompt"]).read().strip()
 
@@ -1352,6 +1538,8 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
         "followed_all": scored["followed_all"], "n_steps": scored["n_steps"],
         "end_state": scored["end_state"], "end_state_output": scored["end_state_output"],
         "stalled_asking": stalled_asking,
+        "restated_as_plan": scored["restated_as_plan"],
+        "question_stop": scored["question_stop"],
         "trailer": scored["trailer"],
         "carrier_basename": carrier_basename,
         "vault_copy_s": vault_copy_s,
@@ -1407,6 +1595,25 @@ def build_cfg_pool_phase2(run_root, n):
     return dirs
 
 
+def build_cfg_template_noskills_phase2(dst):
+    """build_cfg_template_phase2, mirrored but with NO engram skills installed (skills=()) —
+    the shim-only / no-skills trial config (openspec change runbook-shim-follow-frame, D7 /
+    task 2.1): the follow frame under test must work with no engram skill present at all, using
+    only current guidance (recall.md + fifth cue, unmodified) plus recall/learn as runbooks in
+    the trial vault (see add_recall_learn_runbooks)."""
+    p1.build_cfg_template(dst, skills=())
+    _write_cfg_settings(dst)
+
+
+def build_cfg_pool_noskills_phase2(run_root, n):
+    """build_cfg_pool_phase2, mirrored but with NO engram skills installed in any cfg dir
+    (skills=()) — see build_cfg_template_noskills_phase2."""
+    dirs = p1.build_cfg_pool(run_root, n, skills=())
+    for cfg_dir in dirs:
+        _write_cfg_settings(cfg_dir)
+    return dirs
+
+
 # Root-cause finding (settings.json's `attribution.commit: false` was verified via plumbing trial
 # to have NO effect — see task-3-report.md): the injected `remote_session_change` attachment is
 # NOT a local-settings-driven behavior at all. `env | grep -i claude` in THIS orchestrator session
@@ -1444,7 +1651,8 @@ def run_batch(args):
     run_root = os.path.join(p1.DEFAULT_RUN_ROOT, RUN_ROOT_SUBDIR, run_id)
     os.makedirs(run_root, exist_ok=True)
 
-    cfg_dirs = build_cfg_pool_phase2(run_root, args.workers)
+    cfg_dirs = (build_cfg_pool_noskills_phase2(run_root, args.workers) if args.noskills
+                else build_cfg_pool_phase2(run_root, args.workers))
     for cfg_dir in cfg_dirs:
         p1.matrix.refresh_creds(cfg_dir)
     cfg_pool = queue.Queue()
@@ -1462,7 +1670,9 @@ def run_batch(args):
         cfg_dir = cfg_pool.get()
         try:
             return run_one_trial_phase2(run_root, cfg_dir, task_key, arm, args.model, i, marker,
-                                         args.timeout, args.exclude_luhmann_min)
+                                         args.timeout, args.exclude_luhmann_min,
+                                         add_recall_learn=args.add_recall_learn_runbooks,
+                                         shim_md=args.shim_md)
         finally:
             cfg_pool.put(cfg_dir)
 
@@ -1491,14 +1701,16 @@ def run_batch(args):
 # ----- baseline mode: arm N only, bare agent, no carrier -----
 
 def baseline_step_miss_counts(records, n_steps):
-    """{step_n: miss_count} across VALID records only, for step numbers 1..n_steps. A step counts
-    as a miss when its `followed_steps` entry is False or absent (e.g. a scoring_error left
-    followed_steps empty for that trial)."""
-    valid = [r for r in records if r.get("valid")]
+    """{step_n: miss_count} across VALID, non-question-stop records only, for step numbers
+    1..n_steps. A step counts as a miss when its `followed_steps` entry is False or absent (e.g.
+    a scoring_error left followed_steps empty for that trial). A question-stop trial is a clarity
+    finding, not a failure (design.md D8) — excluded here the same way `aggregate`'s `scoreable`
+    excludes it from found/every-step/end-state rates."""
+    scoreable = [r for r in records if r.get("valid") and not r.get("question_stop")]
     counts = {}
     for step_n in range(1, n_steps + 1):
         key = str(step_n)
-        counts[step_n] = sum(1 for r in valid if not (r.get("followed_steps") or {}).get(key, False))
+        counts[step_n] = sum(1 for r in scoreable if not (r.get("followed_steps") or {}).get(key, False))
     return counts
 
 
@@ -1518,19 +1730,27 @@ def format_baseline_summary(task_key, model, records):
     valid_n = len(valid)
     api_error_n = sum(1 for r in records if r.get("invalid_reason") in _API_ERROR_INVALID_REASONS)
     stalled_n = sum(1 for r in valid if r.get("stalled_asking"))
-    end_state_n = sum(1 for r in valid if r.get("end_state"))
-    followed_all_n = sum(1 for r in valid if r.get("followed_all"))
+    question_stop_n = sum(1 for r in valid if r.get("question_stop"))
+    # A question-stop trial is a clarity finding, not a failure (design.md D8) — excluded from
+    # end-state/every-step/per-step-miss numerator AND denominator, mirroring `aggregate`'s
+    # `scoreable` population; reported separately via question_stop_n instead.
+    scoreable = [r for r in valid if not r.get("question_stop")]
+    scoreable_n = len(scoreable)
+    end_state_n = sum(1 for r in scoreable if r.get("end_state"))
+    followed_all_n = sum(1 for r in scoreable if r.get("followed_all"))
     n_steps = next((r.get("n_steps") for r in valid if r.get("n_steps")), 0)
     miss_counts = baseline_step_miss_counts(records, n_steps)
     cost_mean = (sum(r.get("total_cost_usd") or 0 for r in valid) / valid_n) if valid_n else 0.0
 
-    miss_str = ", ".join(f"step {k}: {v}/{valid_n}" for k, v in sorted(miss_counts.items())) or "n/a"
+    miss_str = (", ".join(f"step {k}: {v}/{scoreable_n}" for k, v in sorted(miss_counts.items()))
+                or "n/a")
     api_error_suffix = f" (api-errors: {api_error_n})" if api_error_n else ""
     stalled_suffix = f" (stalled: {stalled_n})" if stalled_n else ""
+    question_stop_suffix = f" (question-stops: {question_stop_n})" if question_stop_n else ""
     return (
         f"bare agent (task={task_key}, model={model}, n={n}): "
-        f"end result {end_state_n}/{valid_n}, did every step {followed_all_n}/{valid_n}"
-        f"{api_error_suffix}{stalled_suffix}\n"
+        f"end result {end_state_n}/{scoreable_n}, did every step {followed_all_n}/{scoreable_n}"
+        f"{api_error_suffix}{stalled_suffix}{question_stop_suffix}\n"
         f"per-step miss counts: {miss_str}\n"
         f"mean cost: ${cost_mean:.2f}"
     )
@@ -1668,10 +1888,15 @@ def run_plumbing(task_key, model):
 
 # ----- setup-only mode: dry run, no claude call -----
 
-def run_setup_only(task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN):
+def run_setup_only(task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN, add_recall_learn=False,
+                    shim_md=False):
     """Build the trial repo + background vault + CLAUDE.md for one (task, arm) pair, print the
     starting-state checks, and clean up — no claude call. For confirming a fixture change against
-    the harness's own starting-state assertion without spending on a trial."""
+    the harness's own starting-state assertion without spending on a trial. `add_recall_learn`
+    mirrors run_one_trial_phase2's flag — lets a --setup-only dry run also verify the recall/
+    learn runbook carrier lands cleanly before any real spend (task 2.1's pre-run vault check).
+    `shim_md` (task 2.3) mirrors run_one_trial_phase2's flag — lets a --setup-only dry run
+    confirm the trial CLAUDE.md resolves to shim.md content, not recall.md, before any spend."""
     run_id = f"setup-only-{task_key}-{arm}-{int(time.time())}"
     run_root = os.path.join(p1.DEFAULT_RUN_ROOT, RUN_ROOT_SUBDIR, run_id)
     trial_dir = os.path.join(run_root, "trials", "setup-only-0")
@@ -1683,7 +1908,7 @@ def run_setup_only(task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN):
     before_fp = p1._real_vault_fingerprint()
     env = None
     try:
-        repo_path = setup_trial_repo(trial_dir, task_key, arm, marker)
+        repo_path = setup_trial_repo(trial_dir, task_key, arm, marker, shim_md=shim_md)
         print(f"setup_trial_repo: OK ({task_key}/{arm}) repo_path={repo_path}")
 
         status = subprocess.run(["git", "-C", repo_path, "status", "--porcelain"],
@@ -1705,6 +1930,10 @@ def run_setup_only(task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MIN):
 
         env = trial_env_phase2(cfg, trial_dir, repo_path)
         carrier_basename, vault_copy_s = setup_trial_vault(env, task_key, arm, exclude_luhmann_min)
+        if add_recall_learn:
+            add_recall_learn_runbooks(env["ENGRAM_VAULT_PATH"])
+            verify_vault_health(env["ENGRAM_VAULT_PATH"])
+            print("add_recall_learn_runbooks: OK (8-note recall/learn/write-memory carrier added)")
         md_count = len([n for n in os.listdir(env["ENGRAM_VAULT_PATH"]) if n.endswith(".md")])
         print(f"carrier_basename={carrier_basename} vault_copy_s={vault_copy_s}")
         print(f"vault .md count after setup: {md_count}")
@@ -1735,14 +1964,24 @@ def aggregate(records, task, arm):
     valid_n = len(valid)
     api_error_n = sum(1 for r in rows if r.get("invalid_reason") in _API_ERROR_INVALID_REASONS)
     stalled_n = sum(1 for r in valid if r.get("stalled_asking"))
-    found_n = sum(1 for r in valid if r.get("found") is True)
+    question_stop_n = sum(1 for r in valid if r.get("question_stop"))
+    # A legitimate question-stop is a clarity finding, not a failure (design.md D8, tasks.md
+    # 4.1 item 4): excluded from found/restated/every-step/end-state's numerator AND denominator
+    # so it never counts against those rates — reported separately via question_stop_n instead.
+    # `scoreable` reduces to `valid` (scoreable_n == valid_n) whenever no trial in this arm/task
+    # stopped to ask, so every pre-existing caller/test that never sets `question_stop` sees
+    # identical numbers to before this field existed.
+    scoreable = [r for r in valid if not r.get("question_stop")]
+    scoreable_n = len(scoreable)
+    found_n = sum(1 for r in scoreable if r.get("found") is True)
     found_given_n = found_n
-    end_state_n = sum(1 for r in valid if r.get("end_state"))
-    end_state_given_found_n = sum(1 for r in valid if r.get("found") and r.get("end_state"))
-    followed_all_n = sum(1 for r in valid if r.get("followed_all"))
-    followed_all_given_found_n = sum(1 for r in valid if r.get("found") and r.get("followed_all"))
+    restated_as_plan_n = sum(1 for r in scoreable if r.get("restated_as_plan"))
+    end_state_n = sum(1 for r in scoreable if r.get("end_state"))
+    end_state_given_found_n = sum(1 for r in scoreable if r.get("found") and r.get("end_state"))
+    followed_all_n = sum(1 for r in scoreable if r.get("followed_all"))
+    followed_all_given_found_n = sum(1 for r in scoreable if r.get("found") and r.get("followed_all"))
     recall_fired_n = sum(1 for r in valid if r.get("recall_fired"))
-    followed_mean_k = (sum((r.get("followed_k") or 0) for r in valid) / valid_n) if valid_n else 0.0
+    followed_mean_k = (sum((r.get("followed_k") or 0) for r in scoreable) / scoreable_n) if scoreable_n else 0.0
     n_steps = next((r.get("n_steps") for r in valid if r.get("n_steps")), None)
     cost_mean = (sum(r.get("total_cost_usd") or 0 for r in valid) / valid_n) if valid_n else 0.0
     durations = [r.get("duration_ms") for r in valid if r.get("duration_ms")]
@@ -1752,7 +1991,9 @@ def aggregate(records, task, arm):
     trailer_co_authored_n = sum(1 for r in valid if r.get("trailer") in ("co_authored", "both"))
     return {
         "n": n, "valid_n": valid_n, "api_error_n": api_error_n, "stalled_n": stalled_n,
+        "question_stop_n": question_stop_n, "scoreable_n": scoreable_n,
         "found_n": found_n, "found_given_n": found_given_n,
+        "restated_as_plan_n": restated_as_plan_n,
         "end_state_n": end_state_n, "end_state_given_found_n": end_state_given_found_n,
         "followed_all_n": followed_all_n, "followed_all_given_found_n": followed_all_given_found_n,
         "recall_fired_n": recall_fired_n, "followed_mean_k": followed_mean_k, "n_steps": n_steps,
@@ -1783,20 +2024,32 @@ def _rate_pp_diff(k_a, n_a, k_b, n_b, label_a, label_b):
     }
 
 
+def _scoreable_n(a):
+    """agg's scoreable_n (valid trials minus question-stop clarity findings, per design.md D8)
+    when present, else valid_n — backward-compatible with a hand-built agg dict (e.g. test
+    fixtures predating the question_stop exclusion, or a --summarize run over old result files
+    with no question_stop field) where scoreable_n was never computed."""
+    return a.get("scoreable_n", a["valid_n"])
+
+
 def decomposition(agg):
     """PLAN-2 line 27 / task-3-brief Step 8 decomposition. shim_loss and note_quality_F are
     reported over BOTH populations per the controller's final ruling: `_total` (all valid trials
     — the retrieval path's full cost, including R's not-found trials) and `_given_found` (only
     R's found=true subset). type_effect reports both populations for END-STATE and FOLLOWED-all.
     These two populations are only equal when found_n == valid_n (retrieval never missed) — tests
-    must use an aggregate where they diverge to prove the split is real, not aliased."""
+    must use an aggregate where they diverge to prove the split is real, not aliased.
+
+    Every ratio paired with found_n/restated_as_plan_n/end_state_n/followed_all_n uses
+    `_scoreable_n` (valid minus question-stop trials), not `valid_n` directly — a legitimate
+    question-stop is a clarity finding, never counted against these rates (design.md D8)."""
     s, r, f, rd = agg.get("S"), agg.get("R"), agg.get("F"), agg.get("Rdirect")
     out = {}
 
     if r:
-        out["shim_rate_R"] = f"{r['found_n']}/{r['valid_n']}"
+        out["shim_rate_R"] = f"{r['found_n']}/{_scoreable_n(r)}"
     if f:
-        out["shim_rate_F"] = f"{f['found_n']}/{f['valid_n']}"
+        out["shim_rate_F"] = f"{f['found_n']}/{_scoreable_n(f)}"
 
     if r:
         out["note_quality_given_delivery_R"] = {
@@ -1811,8 +2064,8 @@ def decomposition(agg):
 
     if rd:
         out["note_ceiling_Rdirect"] = {
-            "end_state": f"{rd['end_state_n']}/{rd['valid_n']}",
-            "followed_all": f"{rd['followed_all_n']}/{rd['valid_n']}",
+            "end_state": f"{rd['end_state_n']}/{_scoreable_n(rd)}",
+            "followed_all": f"{rd['followed_all_n']}/{_scoreable_n(rd)}",
         }
 
     # shim_loss: the retrieval path's RATE vs. the no-retrieval ceiling's RATE, reported over BOTH
@@ -1823,18 +2076,18 @@ def decomposition(agg):
     # mismatch with an actual outcome gap — see _rate_pp_diff.
     if rd and r:
         out["shim_loss_total"] = _rate_pp_diff(
-            rd["end_state_n"], rd["valid_n"], r["end_state_n"], r["valid_n"], "rdirect", "r")
+            rd["end_state_n"], _scoreable_n(rd), r["end_state_n"], _scoreable_n(r), "rdirect", "r")
         out["shim_loss_given_found"] = _rate_pp_diff(
-            rd["end_state_n"], rd["valid_n"], r["end_state_given_found_n"], r["found_given_n"],
+            rd["end_state_n"], _scoreable_n(rd), r["end_state_given_found_n"], r["found_given_n"],
             "rdirect", "r_given_found")
 
     # note_quality_F: how much the fact note's RATE adds over the shim/no-retrieval ceiling's
     # RATE, same total/given_found split, same rate-based reasoning.
     if f and rd:
         out["note_quality_F_total"] = _rate_pp_diff(
-            f["end_state_n"], f["valid_n"], rd["end_state_n"], rd["valid_n"], "f", "rdirect")
+            f["end_state_n"], _scoreable_n(f), rd["end_state_n"], _scoreable_n(rd), "f", "rdirect")
         out["note_quality_F_given_found"] = _rate_pp_diff(
-            f["end_state_given_found_n"], f["found_given_n"], rd["end_state_n"], rd["valid_n"],
+            f["end_state_given_found_n"], f["found_given_n"], rd["end_state_n"], _scoreable_n(rd),
             "f_given_found", "rdirect")
 
     if r and f:
@@ -1875,10 +2128,15 @@ def format_table(task, agg):
         cells = [fmt(arm, agg[arm]) for arm in arms]
         lines.append(label.ljust(label_width) + "".join(c.ljust(16) for c in cells))
 
-    row("FOUND (k/n)", lambda arm, a: "n/a" if arm in ("Rdirect", "N") else f"{a['found_n']}/{a['valid_n']}")
-    row("FOLLOWED all-steps (k/n)", lambda arm, a: f"{a['followed_all_n']}/{a['valid_n']}")
+    # FOUND/FOLLOWED all-steps/END-STATE/restated-as-plan denominators use _scoreable_n (valid
+    # minus question-stop trials) — a legitimate question-stop is a clarity finding, never
+    # counted against these rates (design.md D8, tasks.md 4.1 item 4).
+    row("FOUND (k/n)", lambda arm, a: "n/a" if arm in ("Rdirect", "N") else f"{a['found_n']}/{_scoreable_n(a)}")
+    row("restated as plan (k/n)",
+        lambda arm, a: f"{a.get('restated_as_plan_n', 0)}/{_scoreable_n(a)}")
+    row("FOLLOWED all-steps (k/n)", lambda arm, a: f"{a['followed_all_n']}/{_scoreable_n(a)}")
     row("FOLLOWED (mean k/N)", lambda arm, a: f"{a['followed_mean_k']:.2f}/{a['n_steps']}")
-    row("END-STATE (k/n)", lambda arm, a: f"{a['end_state_n']}/{a['valid_n']}")
+    row("END-STATE (k/n)", lambda arm, a: f"{a['end_state_n']}/{_scoreable_n(a)}")
     row("recall_fired (k/n)", lambda arm, a: f"{a['recall_fired_n']}/{a['valid_n']}")
     row("cost (mean USD)", lambda arm, a: f"${a['cost_mean']:.2f}")
     row("duration (mean s)", lambda arm, a: f"{a['duration_mean']:.0f}")
@@ -1886,11 +2144,14 @@ def format_table(task, agg):
         base = f"{a['valid_n']}/{a['n']}"
         api_error_n = a.get("api_error_n") or 0
         stalled_n = a.get("stalled_n") or 0
+        question_stop_n = a.get("question_stop_n") or 0
         suffix_parts = []
         if api_error_n:
             suffix_parts.append(f"api-errors: {api_error_n}")
         if stalled_n:
             suffix_parts.append(f"stalled: {stalled_n}")
+        if question_stop_n:
+            suffix_parts.append(f"question-stops: {question_stop_n}")
         if suffix_parts:
             suffix = " (" + ", ".join(suffix_parts) + ")"
             return f"{base}{suffix}"
@@ -1904,8 +2165,8 @@ def format_table(task, agg):
     if "N" in agg:
         n_agg = agg["N"]
         lines.append(f"no-instructions baseline: FOLLOWED-all "
-                     f"{n_agg['followed_all_n']}/{n_agg['valid_n']}, "
-                     f"END-STATE {n_agg['end_state_n']}/{n_agg['valid_n']}")
+                     f"{n_agg['followed_all_n']}/{_scoreable_n(n_agg)}, "
+                     f"END-STATE {n_agg['end_state_n']}/{_scoreable_n(n_agg)}")
     return "\n".join(lines)
 
 
@@ -2075,6 +2336,8 @@ def rescore_file(in_path, out_path):
 
             stalled_asking = detect_stalled_asking(transcript_paths_for_parsing) and not end_state
             record["stalled_asking"] = stalled_asking
+            record["restated_as_plan"] = detect_restated_as_plan(events, task_key)
+            record["question_stop"] = detect_question_stop(events, task_key)
 
             record["rescored_from"] = in_path
         except Exception as e:  # noqa: BLE001
@@ -2115,11 +2378,41 @@ def build_argparser():
     ap.add_argument("--exclude-luhmann-min", type=int, default=EXCLUDE_LUHMANN_MIN,
                      help="delete any background-vault note whose leading luhmann number is >= "
                           "this floor (this eval session's own notes) from every trial's vault")
+    ap.add_argument("--noskills", action="store_true",
+                     help="build the cfg pool with NO installed engram skills (runbook-shim-"
+                          "follow-frame task 2.1/2.3: the shim-only / no-skills trial arm)")
+    ap.add_argument("--add-recall-learn-runbooks", action="store_true",
+                     help="copy the recall/learn/write-memory runbook fixture notes into every "
+                          "trial's vault (pairs with --noskills for the shim-only arm's "
+                          "bootstrap carrier)")
+    ap.add_argument("--shim-md", action="store_true",
+                     help="build the trial CLAUDE.md from agent-instructions/guidance/shim.md "
+                          "ALONE (plus the probe marker), replacing the recall.md-plus-fifth-cue "
+                          "body — runbook-shim-follow-frame task 2.3's shim-only GREEN config "
+                          "(pairs with --noskills --add-recall-learn-runbooks)")
+    ap.add_argument("--shim-only", action="store_true",
+                     help="shorthand for --noskills --add-recall-learn-runbooks --shim-md "
+                          "together — the shim-only trial config task 2.1/2.3 validated "
+                          "(runbook-shim-follow-frame task 4.1), as one flag; does not change "
+                          "what the three individual flags do, each can still be passed alone")
     return ap
 
 
+def apply_shim_only_alias(args):
+    """--shim-only is a thin alias, expanded here (never inside build_argparser, so the three
+    underlying flags keep their own independent argparse defaults/help): when set, it forces
+    --noskills/--add-recall-learn-runbooks/--shim-md all True on the same `args` Namespace,
+    mutating and returning it. A no-op when --shim-only wasn't passed — an explicit combination
+    of the three flags is untouched either way."""
+    if getattr(args, "shim_only", False):
+        args.noskills = True
+        args.add_recall_learn_runbooks = True
+        args.shim_md = True
+    return args
+
+
 def main(argv=None):
-    args = build_argparser().parse_args(argv)
+    args = apply_shim_only_alias(build_argparser().parse_args(argv))
     if args.summarize:
         summarize_file(args.summarize)
         return
@@ -2145,7 +2438,9 @@ def main(argv=None):
         task_key = validate_task_key(args.task)
         arms = [a.strip() for a in args.arms.split(",") if a.strip()]
         for arm in arms:
-            run_setup_only(task_key, arm, args.exclude_luhmann_min)
+            run_setup_only(task_key, arm, args.exclude_luhmann_min,
+                            add_recall_learn=args.add_recall_learn_runbooks,
+                            shim_md=args.shim_md)
         return
     if not args.task:
         build_argparser().error("--task is required (unless --summarize/--rescore/--baseline)")

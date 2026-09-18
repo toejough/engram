@@ -27,6 +27,10 @@ def _tool_result(idx, tool_use_idx, content, tool_id="tu"):
     return {"idx": idx, "kind": "tool_result", "tool_use_id": f"{tool_id}{tool_use_idx}", "content": content}
 
 
+def _text_ev(text, idx):
+    return {"idx": idx, "kind": "text", "text": text}
+
+
 # ----- covering-note removal + carrier add (synthetic vault dir, never the real one) -----
 
 def _make_synthetic_vault(tmp_path, extra_notes=()):
@@ -273,6 +277,97 @@ def test_build_claude_md_phase2_rdirect_appends_procedure_section_verbatim():
     assert claude_md.index(f"PROBE-TOKEN: {marker}") < claude_md.index("## Project procedure")
 
 
+# ----- shim-only CLAUDE.md (task 2.3): shim.md verbatim + marker, no recall.md -----
+
+def test_build_claude_md_shimonly_contains_shim_body_and_marker():
+    marker = "RUNBOOK-VS-SKILL-PROBE2-shim0001"
+    claude_md = pp.build_claude_md_shimonly(marker, extra=None)
+    shim_source = open(pp.SHIM_GUIDANCE_PATH).read()
+    assert shim_source.strip() in claude_md
+    assert f"PROBE-TOKEN: {marker}" in claude_md
+    # the marker line comes after the shim body (appended, not interleaved)
+    assert claude_md.index(shim_source.strip()[:40]) < claude_md.index(f"PROBE-TOKEN: {marker}")
+
+
+def test_build_claude_md_shimonly_excludes_recall_md_content():
+    marker = "RUNBOOK-VS-SKILL-PROBE2-shim0002"
+    claude_md = pp.build_claude_md_shimonly(marker, extra=None)
+    recall_md = open(pp.p1.GUIDANCE_PATH).read()
+    # recall.md's own cue text ("/recall glance") must NOT leak into a shim-only CLAUDE.md —
+    # that's exactly the hybrid D0/D7 rule out.
+    assert "/recall glance" not in claude_md
+    assert "/recall glance" in recall_md  # sanity: confirms the negative assertion is meaningful
+
+
+def test_build_claude_md_shimonly_appends_project_procedure_when_extra_given():
+    marker = "RUNBOOK-VS-SKILL-PROBE2-shim0003"
+    extra_text = "1. Do the thing.\n2. Verify the thing."
+    claude_md = pp.build_claude_md_shimonly(marker, extra=extra_text)
+    assert "## Project procedure" in claude_md
+    assert extra_text in claude_md
+    assert claude_md.index(f"PROBE-TOKEN: {marker}") < claude_md.index("## Project procedure")
+
+
+def test_setup_trial_repo_shim_md_true_writes_shim_content(tmp_path):
+    marker = "RUNBOOK-VS-SKILL-PROBE2-shim0004"
+    repo_path = pp.setup_trial_repo(str(tmp_path), "A", "R", marker, shim_md=True)
+    claude_md = open(os.path.join(repo_path, "CLAUDE.md")).read()
+    assert "/recall glance" not in claude_md
+    shim_source = open(pp.SHIM_GUIDANCE_PATH).read()
+    assert shim_source.strip()[:40] in claude_md
+
+
+def test_setup_trial_repo_shim_md_false_writes_recall_md_content_unchanged(tmp_path):
+    marker = "RUNBOOK-VS-SKILL-PROBE2-shim0005"
+    repo_path = pp.setup_trial_repo(str(tmp_path), "A", "R", marker, shim_md=False)
+    claude_md = open(os.path.join(repo_path, "CLAUDE.md")).read()
+    assert "/recall glance" in claude_md
+
+
+def test_argparser_shim_md_flag_defaults_false_and_parses_true():
+    ap = pp.build_argparser()
+    assert ap.parse_args(["--task", "history-rewrite"]).shim_md is False
+    assert ap.parse_args(["--task", "history-rewrite", "--shim-md"]).shim_md is True
+
+
+# ----- --shim-only (task 4.1): thin alias for --noskills --add-recall-learn-runbooks --shim-md --
+
+def test_argparser_shim_only_flag_defaults_false_and_parses_true():
+    ap = pp.build_argparser()
+    assert ap.parse_args(["--task", "history-rewrite"]).shim_only is False
+    assert ap.parse_args(["--task", "history-rewrite", "--shim-only"]).shim_only is True
+
+
+def test_apply_shim_only_alias_sets_all_three_underlying_flags():
+    args = pp.build_argparser().parse_args(["--task", "history-rewrite", "--shim-only"])
+    pp.apply_shim_only_alias(args)
+    assert args.noskills is True
+    assert args.add_recall_learn_runbooks is True
+    assert args.shim_md is True
+
+
+def test_apply_shim_only_alias_is_noop_when_flag_absent():
+    args = pp.build_argparser().parse_args(["--task", "history-rewrite"])
+    pp.apply_shim_only_alias(args)
+    assert args.noskills is False
+    assert args.add_recall_learn_runbooks is False
+    assert args.shim_md is False
+
+
+def test_shim_only_produces_identical_trial_setup_to_explicit_three_flags():
+    """--shim-only alone must be indistinguishable, post-expansion, from passing the three
+    underlying flags explicitly — the whole point of the shorthand (tasks.md 4.1 item 1)."""
+    via_shorthand = pp.apply_shim_only_alias(
+        pp.build_argparser().parse_args(["--task", "history-rewrite", "--shim-only"]))
+    via_explicit = pp.apply_shim_only_alias(
+        pp.build_argparser().parse_args(["--task", "history-rewrite", "--noskills",
+                                          "--add-recall-learn-runbooks", "--shim-md"]))
+    assert (via_shorthand.noskills, via_shorthand.add_recall_learn_runbooks, via_shorthand.shim_md) == (
+        via_explicit.noskills, via_explicit.add_recall_learn_runbooks, via_explicit.shim_md)
+    assert (via_shorthand.noskills, via_shorthand.add_recall_learn_runbooks, via_shorthand.shim_md) == (
+        True, True, True)
+
+
 def test_rdirect_procedure_text_task_a_reads_a_r_note_body_verbatim():
     text = pp.rdirect_procedure_text("A")
     assert "Check VCS type" in text
@@ -470,6 +565,134 @@ def test_mutating_step_engram_readonly_verbs_never_mutating_even_with_redirect_l
     ):
         ev = _mut_ev(command)
         assert pp.is_first_mutating_step(ev, "A") is False, command
+
+
+# ----- restated_as_plan (task 4.1): restated the runbook's steps before the first mutation -----
+
+def test_restated_as_plan_true_when_todowrite_with_two_items_precedes_mutation():
+    events = [
+        _tool_use("TodoWrite", {"todos": [{"content": "step 1"}, {"content": "step 2"}]}, idx=0),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
+    ]
+    assert pp.detect_restated_as_plan(events, "A") is True
+
+
+def test_restated_as_plan_true_when_assistant_text_lists_two_items_before_mutation():
+    events = [
+        _text_ev("Plan:\n1. Record the pre-rewrite tip.\n2. Run the rewrite.\n3. Push.", idx=0),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
+    ]
+    assert pp.detect_restated_as_plan(events, "A") is True
+
+
+def test_restated_as_plan_true_with_bulleted_list():
+    events = [
+        _text_ev("Plan:\n- record the tip\n- run the rewrite", idx=0),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
+    ]
+    assert pp.detect_restated_as_plan(events, "A") is True
+
+
+def test_restated_as_plan_false_when_mutation_with_no_restate_first():
+    """Clean mutate-with-no-restate: the agent jumps straight to a mutating command with no
+    TodoWrite and no enumerated list beforehand."""
+    events = [
+        _tool_use("Bash", {"command": "git status"}, idx=0),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
+    ]
+    assert pp.detect_restated_as_plan(events, "A") is False
+
+
+def test_restated_as_plan_false_when_list_appears_only_after_the_mutation():
+    """A plan restated AFTER the first mutating step doesn't count — the signal is specifically
+    about restating BEFORE acting."""
+    events = [
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=0),
+        _text_ev("1. Did the thing.\n2. Verified the thing.", idx=1),
+    ]
+    assert pp.detect_restated_as_plan(events, "A") is False
+
+
+def test_restated_as_plan_false_when_todowrite_has_only_one_item():
+    events = [
+        _tool_use("TodoWrite", {"todos": [{"content": "only one step"}]}, idx=0),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
+    ]
+    assert pp.detect_restated_as_plan(events, "A") is False
+
+
+def test_restated_as_plan_true_when_no_mutation_occurs_at_all():
+    """No mutating step anywhere -> every event is 'before' it (mirrors score_found_phase2's own
+    before() convention for a transcript with no mutation)."""
+    events = [_text_ev("1. First.\n2. Second.", idx=0), _tool_use("Bash", {"command": "git status"}, idx=1)]
+    assert pp.detect_restated_as_plan(events, "A") is True
+
+
+# ----- question_stop (task 4.1): a legitimate clarity stop, never a failure (design.md D8) -----
+
+def test_question_stop_true_when_ambiguity_text_ends_transcript_with_no_further_calls():
+    """Question-stop-with-no-further-calls: the transcript simply ends right after the assistant
+    poses its question — the clean, unambiguous case."""
+    events = [
+        _tool_use("Bash", {"command": "git status"}, idx=0),
+        _text_ev("Should I use approach A or approach B here?", idx=1),
+    ]
+    assert pp.detect_question_stop(events, "A") is True
+
+
+def test_question_stop_true_when_question_is_mid_paragraph_not_at_the_very_end():
+    """Verified against a real 2.3 GREEN-round2 trial transcript: the actual clarifying question
+    sat mid-paragraph ('...or is X acceptable here?'), followed by one more sentence that ends
+    with a period, not '?'. The signal must not require the text BLOCK's own last character to
+    be '?'."""
+    events = [
+        _tool_use("Bash", {"command": "git push --force-with-lease origin main"}, idx=0),
+        _text_ev(
+            "Two things before I call this done. First, a real gap: the reflog auto-expired. "
+            "Second, is this remote a stand-in for a real GitHub-hosted repo, or is local-only "
+            "the actual scope here? That determines whether a follow-up action is needed.",
+            idx=1,
+        ),
+    ]
+    assert pp.detect_question_stop(events, "A") is True
+
+
+def test_question_stop_false_when_mutation_follows_the_ambiguity_text():
+    """Deviate-without-stopping: the agent raises the same ambiguity but then goes on to mutate
+    anyway, rather than actually waiting — never a real stop."""
+    events = [
+        _text_ev("I'm not sure whether to use approach A or B here.", idx=0),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
+    ]
+    assert pp.detect_question_stop(events, "A") is False
+
+
+def test_question_stop_false_when_no_ambiguity_ever_raised():
+    events = [
+        _tool_use("Bash", {"command": "git status"}, idx=0),
+        _text_ev("Everything looks good, committing now.", idx=1),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=2),
+    ]
+    assert pp.detect_question_stop(events, "A") is False
+
+
+def test_question_stop_true_when_ask_user_question_tool_follows_ambiguity_with_no_mutation():
+    events = [
+        _text_ev("Which approach would you like: A or B?", idx=0),
+        _tool_use("AskUserQuestion", {"question": "A or B?"}, idx=1),
+    ]
+    assert pp.detect_question_stop(events, "A") is True
+
+
+def test_question_stop_uses_the_last_ambiguity_mention_not_the_first():
+    """An early rhetorical '?' followed by real work, then a genuine late stop, must still score
+    True — the LAST ambiguity-bearing text block is what matters, not the first."""
+    events = [
+        _text_ev("Should I check the remote first? Let me look.", idx=0),
+        _tool_use("Bash", {"command": "git status"}, idx=1),
+        _text_ev("Actually, before I proceed: do you want me to also prune the remote?", idx=2),
+    ]
+    assert pp.detect_question_stop(events, "A") is True
 
 
 # ----- FOUND: Arm S (skill: commit) -----
@@ -1472,6 +1695,52 @@ def test_setup_trial_repo_task_a_arm_n_adds_no_claude_dir_and_plain_claude_md(tm
 def test_setup_trial_repo_task_b_arm_n_adds_no_claude_dir(tmp_path):
     repo_path = pp.setup_trial_repo(str(tmp_path), "B", "N", marker="RUNBOOK-VS-SKILL-PROBE2-narmb")
     assert not os.path.isdir(os.path.join(repo_path, ".claude"))
+
+
+# ----- .eval/original_tip re-stamping (issue #752 regression) -----
+#
+# Bug: several fixtures' init_fixture_repo.sh stamp .eval/original_tip via `git rev-parse HEAD`
+# BEFORE setup_trial_repo makes its own "add project config" commit on top. Every trial's real
+# HEAD at hand-off is therefore one commit AHEAD of what original_tip recorded. history-rewrite's
+# done_when_checks.sh Checks 5/6 verify recoverability of the EXACT recorded original_tip -- so an
+# agent that faithfully follows the task (record `git rev-parse HEAD`, i.e. the harness's commit,
+# then preserve that SHA's reachability) can never satisfy a check testing the SHA one commit
+# further back, regardless of what it does correctly. Fix: setup_trial_repo re-stamps
+# .eval/original_tip to whatever is actually HEAD once its own commit lands.
+
+@pytest.mark.parametrize("task_key", ["history-rewrite", "tdd-order", "bisect-before-fix", "route"])
+def test_setup_trial_repo_original_tip_matches_head_after_setup(tmp_path, task_key):
+    """Every task whose init_fixture_repo.sh stamps .eval/original_tip must see it re-stamped, by
+    setup_trial_repo, to the SHA that is actually HEAD once setup_trial_repo returns -- the true
+    pre-agent-work tip a trial agent starts from -- not the fixture's pre-harness-commit parent."""
+    marker = f"RUNBOOK-VS-SKILL-PROBE2-origtip-{task_key}"
+    repo_path = pp.setup_trial_repo(str(tmp_path), task_key, "R", marker=marker)
+    import subprocess
+    head_sha = subprocess.run(["git", "-C", repo_path, "rev-parse", "HEAD"],
+                               capture_output=True, text=True, check=True).stdout.strip()
+    orig_tip_path = os.path.join(str(tmp_path), ".eval", "original_tip")
+    assert os.path.isfile(orig_tip_path), f"{task_key} fixture should stamp .eval/original_tip"
+    recorded_tip = open(orig_tip_path).read().strip()
+    assert recorded_tip == head_sha
+
+
+def test_setup_trial_repo_history_rewrite_original_tip_is_the_add_project_config_commit(tmp_path):
+    """The recorded original_tip must be the harness's own 'add project config' commit -- the SHA
+    a trial agent actually observes as HEAD at hand-off -- not its parent. Before the fix,
+    original_tip pointed one commit BEHIND real HEAD, so no ref an agent created at (or descended
+    from) real HEAD could ever equal the recorded tip, making done_when_checks.sh Checks 5/6
+    near-unpassable regardless of the agent's actions."""
+    repo_path = pp.setup_trial_repo(str(tmp_path), "history-rewrite", "R",
+                                     marker="RUNBOOK-VS-SKILL-PROBE2-origtip-hr")
+    import subprocess
+    subject = subprocess.run(["git", "-C", repo_path, "log", "-1", "--format=%s"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    assert subject == "add project config"
+    head_sha = subprocess.run(["git", "-C", repo_path, "rev-parse", "HEAD"],
+                               capture_output=True, text=True, check=True).stdout.strip()
+    orig_tip_path = os.path.join(str(tmp_path), ".eval", "original_tip")
+    recorded_tip = open(orig_tip_path).read().strip()
+    assert recorded_tip == head_sha
 
 
 # ----- decision frame outputs: baseline_uninterpretable and shim loss -----
@@ -3034,6 +3303,145 @@ def test_opsx_archive_step6_false_when_step4_never_matched():
     assert results["6"] is False
 
 
+# --- route ---
+#
+# Task 4.4 stage-2 rerun 2 (real-transcript finding, sonnet5 route-R-0, 2026-09-16): a fully
+# compliant trial still scored followed_all=False because two of steps.json's real regexes were
+# too strict for equally-valid command shapes the agent actually ran:
+#
+#   step 9 ("all three required tags"): the agent quoted each --tag value per normal shell
+#   practice (`--tag "work-kind/foo"`), but the any_of patterns required the tag prefix
+#   (`work-kind/`, `tier/`, `outcome/`) immediately after `--tag\s+` with no quote character
+#   allowed in between, so a quoted, otherwise-correct invocation never matched any of the six
+#   orderings.
+#
+#   step 10 ("aggregate: query route evidence then amend or learn"): the route runbook's own
+#   documented "no prior aggregate exists" branch has the agent create a brand-new aggregate note
+#   via `engram learn fact --slug route-evidence-<work-kind> --position top ...` — a real,
+#   runbook-sanctioned path, distinct from the amend-an-existing-aggregate path the two any_of
+#   alternatives were written for (a single combined query+amend/learn command, or an
+#   `--target ... route-evidence` amend). Neither alternative recognized the create-new-aggregate
+#   shape.
+#
+# Both are the same class of gap task 4.1 found in history-rewrite's step 3 (#754: the checker's
+# regex not recognizing an equally-valid alternate command shape) — fixed here by widening the
+# fixture's regex/any_of, not by asking the agent to type something differently.
+
+def test_route_steps_json_is_valid_and_registered():
+    """Unlike the other fixtures' _step_signals checks, route mixes bash_regex (`pattern`) and
+    tool_input_regex (`regex`, on the Agent dispatch handoff) signals, so each signal is checked
+    for its own signal-appropriate key rather than assuming `pattern` universally."""
+    steps = pp.load_steps("route")
+    assert isinstance(steps, list) and len(steps) > 0
+    for step in steps:
+        assert "n" in step
+        for sig in _step_signals(step):
+            assert "signal" in sig
+            key = "pattern" if sig["signal"] in ("bash_regex", "tool_path", "repo_state") else "regex"
+            assert key in sig, f"step {step['n']} signal {sig['signal']!r} missing {key!r}"
+    _assert_bash_step_all_registered("route")
+
+
+def test_route_step8_write_evidence_note_bash_and_negative():
+    steps = pp.load_steps("route")
+    _assert_bash_step(
+        steps, 8,
+        'engram learn fact --slug route-dispatch-cli-flag-implementation --tag work-kind/x '
+        '--tag tier/cheap --tag outcome/pass',
+        "engram learn fact --slug route-evidence-cli-flag-implementation",
+    )
+
+
+_ROUTE_EVIDENCE_WRITE_EVENT = _tool_use(
+    "Bash",
+    {"command": 'engram learn fact --slug route-dispatch-cli-flag-implementation --position top'},
+    idx=0,
+)
+
+
+def test_route_step9_tags_match_with_quoted_values_real_transcript_shape():
+    """Real route-R-0 transcript (task 4.4 stage-2 rerun 2): tag values are quoted per normal
+    shell practice. Before the fix, no any_of alternative tolerated the quote character between
+    `--tag` and the tag prefix."""
+    steps = pp.load_steps("route")
+    step9 = next(s for s in steps if s["n"] == 9)
+    quoted_cmd = (
+        'engram learn fact --slug route-dispatch-cli-flag-implementation --position top '
+        '--tag "work-kind/cli-flag-implementation" --tag "tier/cheap" --tag "outcome/pass" '
+        '--source "route dispatch record" --situation "routing cli-flag-implementation work" '
+        '--subject "cli-flag-implementation dispatch at cheap (haiku)" --predicate "resolved as" '
+        '--object "pass per review verdict"'
+    )
+    events = [_tool_use("Bash", {"command": quoted_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step9], events, repo_path="/does/not/matter")
+    assert results["9"] is True
+
+
+def test_route_step9_tags_still_match_unquoted_values():
+    steps = pp.load_steps("route")
+    step9 = next(s for s in steps if s["n"] == 9)
+    unquoted_cmd = (
+        "engram learn fact --slug route-dispatch-x --tag work-kind/x --tag tier/cheap "
+        "--tag outcome/pass"
+    )
+    events = [_tool_use("Bash", {"command": unquoted_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step9], events, repo_path="/does/not/matter")
+    assert results["9"] is True
+
+
+def test_route_step9_false_when_a_required_tag_is_missing():
+    steps = pp.load_steps("route")
+    step9 = next(s for s in steps if s["n"] == 9)
+    missing_outcome_cmd = 'engram learn fact --tag "work-kind/x" --tag "tier/cheap"'
+    events = [_tool_use("Bash", {"command": missing_outcome_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step9], events, repo_path="/does/not/matter")
+    assert results["9"] is False
+
+
+def test_route_step10_create_new_aggregate_after_step8_real_transcript_shape():
+    """Real route-R-0 transcript: no prior route-evidence-<work-kind> aggregate existed, so the
+    agent correctly took the route runbook's own documented create-new-aggregate branch
+    (`engram learn fact --slug route-evidence-<work-kind> --position top ...`) rather than
+    amending an existing one. Before the fix, neither any_of alternative recognized this shape."""
+    steps = pp.load_steps("route")
+    create_aggregate_cmd = (
+        'engram learn fact --slug route-evidence-cli-flag-implementation --position top '
+        '--source "route dispatch record" '
+        '--situation "routing cli-flag-implementation work: which tier the evidence supports" '
+        '--subject "route evidence for cli-flag-implementation" --predicate "tallies" '
+        '--object "cheap 1/1 as of 2026-09-16 -- evidence: '
+        '940.2026-09-16.route-dispatch-cli-flag-implementation"'
+    )
+    events = [
+        _ROUTE_EVIDENCE_WRITE_EVENT,
+        _tool_use("Bash", {"command": create_aggregate_cmd}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["10"] is True
+
+
+def test_route_step10_amend_existing_aggregate_still_matches():
+    steps = pp.load_steps("route")
+    amend_cmd = (
+        'engram amend --target 940.2026-09-16.route-evidence-cli-flag-implementation '
+        '--object "cheap 2/2 as of 2026-09-16"'
+    )
+    events = [
+        _ROUTE_EVIDENCE_WRITE_EVENT,
+        _tool_use("Bash", {"command": amend_cmd}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["10"] is True
+
+
+def test_route_step10_false_when_step8_never_matched():
+    steps = pp.load_steps("route")
+    create_aggregate_cmd = 'engram learn fact --slug route-evidence-cli-flag-implementation --position top'
+    events = [_tool_use("Bash", {"command": create_aggregate_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["10"] is False
+
+
 # ----- rate-limited stub detection (vault note 988a) -----
 
 # Compact-JSON snippet matching the real transcript bytes verified in
@@ -3344,6 +3752,128 @@ def test_aggregate_stalled_only_counts_valid_records():
     agg = pp.aggregate(records, "A", "N")
     assert agg["valid_n"] == 1
     assert agg["stalled_n"] == 1
+
+
+# ----- aggregate() question_stop_n / scoreable_n (task 4.1 item 4, design.md D8) -----
+
+def _rec(arm="R", found=True, end_state=True, followed_all=True, followed_k=6, n_steps=6,
+         restated_as_plan=True, question_stop=False, valid=True, invalid_reason=None):
+    return {
+        "task": "A", "arm": arm, "valid": valid, "invalid_reason": invalid_reason,
+        "found": found, "end_state": end_state, "followed_all": followed_all,
+        "followed_k": followed_k, "n_steps": n_steps, "recall_fired": False,
+        "stalled_asking": False, "restated_as_plan": restated_as_plan,
+        "question_stop": question_stop, "total_cost_usd": 0.3, "duration_ms": 500,
+    }
+
+
+def test_aggregate_reports_question_stop_n():
+    records = [_rec(question_stop=False), _rec(question_stop=True)]
+    agg = pp.aggregate(records, "A", "R")
+    assert agg["valid_n"] == 2
+    assert agg["question_stop_n"] == 1
+
+
+def test_aggregate_question_stop_excludes_trial_from_found_and_end_state_and_followed_all():
+    """A question_stop=True trial with found/end_state/followed_all all False (it stopped
+    instead of finishing) must NOT drag those rates down — it is excluded from scoreable_n
+    entirely, per design.md D8 (tasks.md 4.1 item 4: never counted as a failure)."""
+    records = [
+        _rec(found=True, end_state=True, followed_all=True, question_stop=False),
+        _rec(found=False, end_state=False, followed_all=False, question_stop=True),
+    ]
+    agg = pp.aggregate(records, "A", "R")
+    assert agg["valid_n"] == 2
+    assert agg["scoreable_n"] == 1
+    assert agg["found_n"] == 1
+    assert agg["end_state_n"] == 1
+    assert agg["followed_all_n"] == 1
+
+
+def test_aggregate_reports_restated_as_plan_n_excluding_question_stop_trials():
+    records = [
+        _rec(restated_as_plan=True, question_stop=False),
+        _rec(restated_as_plan=False, question_stop=True),
+    ]
+    agg = pp.aggregate(records, "A", "R")
+    assert agg["restated_as_plan_n"] == 1
+    assert agg["scoreable_n"] == 1
+
+
+def test_aggregate_scoreable_n_equals_valid_n_when_no_question_stops():
+    """Backward-compatible default: with no question_stop trial at all, scoreable_n and valid_n
+    are identical, so every pre-existing found/end_state/followed_all number is unchanged."""
+    records = [_rec(), _rec(), _rec()]
+    agg = pp.aggregate(records, "A", "R")
+    assert agg["scoreable_n"] == agg["valid_n"] == 3
+
+
+# ----- decomposition()/format_table() use scoreable_n, not valid_n, for these ratios -----
+
+def test_decomposition_shim_rate_uses_scoreable_n_not_valid_n():
+    agg = {"R": _agg(5, 5, 3, 3, 3)}
+    agg["R"]["scoreable_n"] = 4  # one of the 5 valid trials was a question-stop, excluded
+    agg["R"]["question_stop_n"] = 1
+    frame = pp.decomposition(agg)
+    assert frame["shim_rate_R"] == "3/4"
+
+
+def test_decomposition_falls_back_to_valid_n_when_scoreable_n_absent():
+    """A hand-built agg dict that predates the question_stop exclusion (no scoreable_n key) must
+    behave exactly as before — _scoreable_n falls back to valid_n."""
+    agg = {"R": _agg(5, 5, 3, 3, 3)}
+    frame = pp.decomposition(agg)
+    assert frame["shim_rate_R"] == "3/5"
+
+
+def test_format_table_found_row_uses_scoreable_n_when_present():
+    agg = {"R": _agg(5, 5, 3, 3, 3)}
+    agg["R"]["scoreable_n"] = 4
+    table = pp.format_table("A", agg)
+    found_row = next(line for line in table.splitlines() if line.startswith("FOUND"))
+    assert "3/4" in found_row
+
+
+def test_format_table_valid_row_appends_question_stop_suffix_when_present():
+    agg = {"S": _agg(5, 5, 4, 4, 4)}
+    agg["S"]["question_stop_n"] = 2
+    table = pp.format_table("A", agg)
+    valid_row = next(line for line in table.splitlines() if line.startswith("valid (n)"))
+    assert "5/5 (question-stops: 2)" in valid_row
+
+
+def test_format_table_shows_restated_as_plan_row():
+    agg = {"R": _agg(5, 5, 3, 3, 3)}
+    agg["R"]["restated_as_plan_n"] = 2
+    table = pp.format_table("A", agg)
+    restated_row = next(line for line in table.splitlines() if line.startswith("restated as plan"))
+    assert "2/5" in restated_row
+
+
+# ----- format_baseline_summary()/baseline_step_miss_counts() exclude question-stop trials -----
+
+def test_format_baseline_summary_excludes_question_stop_from_rates():
+    records = [
+        {"valid": True, "invalid_reason": None, "end_state": True, "followed_all": True,
+         "n_steps": 2, "followed_steps": {"1": True, "2": True}, "question_stop": False,
+         "total_cost_usd": 0.1},
+        {"valid": True, "invalid_reason": None, "end_state": False, "followed_all": False,
+         "n_steps": 2, "followed_steps": {}, "question_stop": True, "total_cost_usd": 0.1},
+    ]
+    summary = pp.format_baseline_summary("history-rewrite", "sonnet", records)
+    first_line = summary.splitlines()[0]
+    assert "end result 1/1" in first_line
+    assert "did every step 1/1" in first_line
+    assert "question-stops: 1" in first_line
+
+
+def test_baseline_step_miss_counts_excludes_question_stop_trials():
+    records = [
+        {"valid": True, "question_stop": False, "followed_steps": {"1": False}},
+        {"valid": True, "question_stop": True, "followed_steps": {"1": False}},
+    ]
+    counts = pp.baseline_step_miss_counts(records, 1)
+    assert counts[1] == 1  # only the non-question-stop trial's miss is counted
 
 
 # ----- format_table valid row with stalled suffix -----

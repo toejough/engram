@@ -147,6 +147,56 @@ def test_recall_fired_false_when_absent(tmp_path):
     assert p.score_recall_fired(events) is False
 
 
+# ----- parse_transcript_events: assistant "text" blocks (task 4.1's restated-as-plan/ -----
+# ----- question-stop signals both need the assistant's own prose, not just tool_use/result) ----
+
+def _text_line(text, ts="2026-09-09T00:00:00.000Z"):
+    return json.dumps({
+        "type": "assistant", "timestamp": ts,
+        "message": {"content": [{"type": "text", "text": text}]},
+    })
+
+
+def test_parse_transcript_events_captures_assistant_text_block(tmp_path):
+    lines = [_text_line("1. Do the thing.\n2. Verify the thing.")]
+    path = _write_transcript(tmp_path, lines)
+    events = p.parse_transcript_events([path])
+    assert len(events) == 1
+    assert events[0]["kind"] == "text"
+    assert events[0]["text"] == "1. Do the thing.\n2. Verify the thing."
+
+
+def test_parse_transcript_events_ignores_user_type_text_blocks(tmp_path):
+    """Only an ASSISTANT message's own text block is a 'text' event — a user-type record's
+    content (e.g. an echoed prompt) is never assistant prose and must not be captured."""
+    line = json.dumps({
+        "type": "user", "timestamp": "2026-09-09T00:00:00.000Z",
+        "message": {"content": [{"type": "text", "text": "some user-side text"}]},
+    })
+    path = _write_transcript(tmp_path, [line])
+    events = p.parse_transcript_events([path])
+    assert events == []
+
+
+def test_parse_transcript_events_skips_blank_text_blocks(tmp_path):
+    lines = [_text_line("   \n  ")]
+    path = _write_transcript(tmp_path, lines)
+    events = p.parse_transcript_events([path])
+    assert events == []
+
+
+def test_parse_transcript_events_interleaves_text_and_tool_use_in_timestamp_order(tmp_path):
+    lines = [
+        _text_line("first thought", ts="2026-09-09T00:00:00.000Z"),
+        _tool_use_line("Bash", {"command": "ls"}, tool_id="tu1", ts="2026-09-09T00:00:01.000Z"),
+        _text_line("second thought", ts="2026-09-09T00:00:02.000Z"),
+    ]
+    path = _write_transcript(tmp_path, lines)
+    events = p.parse_transcript_events([path])
+    kinds = [(ev["kind"], ev.get("text") or ev.get("name")) for ev in events]
+    assert kinds == [("text", "first thought"), ("tool_use", "Bash"), ("text", "second thought")]
+
+
 # ----- per-worker cfg pool (round-1 review: no shared CLAUDE_CONFIG_DIR across workers) -----
 
 def test_build_cfg_pool_creates_distinct_dirs_from_one_template(tmp_path):
@@ -161,6 +211,31 @@ def test_build_cfg_pool_creates_distinct_dirs_from_one_template(tmp_path):
     template = os.path.join(str(tmp_path), "cfg_template")
     for d in dirs:
         assert os.path.realpath(d) != os.path.realpath(template)
+
+
+def test_build_cfg_template_default_skills_unchanged(tmp_path):
+    dst = os.path.join(str(tmp_path), "cfg")
+    p.build_cfg_template(dst)
+    assert os.path.isdir(os.path.join(dst, "skills", "recall"))
+    assert os.path.isdir(os.path.join(dst, "skills", "learn"))
+
+
+def test_build_cfg_template_skills_empty_installs_no_skills(tmp_path):
+    """runbook-shim-follow-frame task 2.1: skills=() must produce a cfg with NO installed
+    engram skills (the shim-only / no-skills trial arm), while still writing .claude.json and
+    an (empty) skills/ dir."""
+    dst = os.path.join(str(tmp_path), "cfg")
+    p.build_cfg_template(dst, skills=())
+    assert os.path.exists(os.path.join(dst, ".claude.json"))
+    assert os.path.isdir(os.path.join(dst, "skills"))
+    assert os.listdir(os.path.join(dst, "skills")) == []
+
+
+def test_build_cfg_pool_skills_empty_propagates_to_every_worker(tmp_path):
+    dirs = p.build_cfg_pool(str(tmp_path), 2, skills=())
+    assert len(dirs) == 2
+    for d in dirs:
+        assert os.listdir(os.path.join(d, "skills")) == []
 
 
 # ----- procedure-step detection: mutation-only (round-1 review) -----

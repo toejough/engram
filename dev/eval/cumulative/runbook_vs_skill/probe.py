@@ -140,7 +140,7 @@ def build_claude_md(marker):
 
 # ----- shared cfg (Ruling 3) -----
 
-def build_cfg_template(dst):
+def build_cfg_template(dst, skills=("recall", "learn")):
     """Isolated CLAUDE_CONFIG_DIR carrying the repo's REAL recall+learn skills (warm), mirroring
     matrix.py::build_cfg_template(dst, warm=True) — but NOT calling it directly. Verified
     (see report): matrix.py's skill source is `REPO/skills/<skill>`, which does not exist in
@@ -150,7 +150,12 @@ def build_cfg_template(dst):
     recall/learn skill — which would fail this eval's own pre-registered "recall delivery" smoke
     bar. matrix.py is out of scope to edit from this task, so this is a corrected LOCAL copy
     pointed at the real path; idempotent like the original (skips a rebuild once skills/ exists).
-    """
+
+    `skills` names which of `REPO/agent-instructions/skills/<name>` get copied into the cfg's
+    `skills/` dir — default `("recall", "learn")` preserves every existing call site's behavior
+    unchanged. Pass `skills=()` to build a cfg with NO installed engram skills (the
+    runbook-shim-follow-frame eval's shim-only / no-skills trial arms, openspec change
+    runbook-shim-follow-frame task 2.1)."""
     if os.path.exists(os.path.join(dst, ".claude.json")) and os.path.isdir(os.path.join(dst, "skills")):
         return
     shutil.rmtree(dst, ignore_errors=True)
@@ -164,22 +169,24 @@ def build_cfg_template(dst):
             base = {}
     base["projects"] = {}
     json.dump(base, open(os.path.join(dst, ".claude.json"), "w"))
-    for skill in ("recall", "learn"):
+    os.makedirs(os.path.join(dst, "skills"), exist_ok=True)
+    for skill in skills:
         src = os.path.join(REPO, "agent-instructions", "skills", skill)
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(dst, "skills", skill))
 
 
-def build_cfg_pool(run_root, n):
+def build_cfg_pool(run_root, n, skills=("recall", "learn")):
     """Build the warm cfg template ONCE, then copy it into `n` separate `cfg-<i>` directories —
     one per concurrent worker. Fix (round 1 review): concurrent `run_batch` workers previously
     shared one `CLAUDE_CONFIG_DIR`, contending on the same `cfg/.claude.json` and `cfg/projects/`
     tree exactly the way matrix.py's own `make_pools` exists to avoid (it gives every worker its
     own cfg copy for the same reason). Each returned dir is a full, independent, already-`warm`
     cfg (its own `skills/recall`, `skills/learn`, `.claude.json`) — safe for one worker's
-    exclusive use for the life of the run."""
+    exclusive use for the life of the run. `skills` passes through to `build_cfg_template`
+    (default unchanged; `skills=()` builds a pool with no installed skills)."""
     template = os.path.join(run_root, "cfg_template")
-    build_cfg_template(template)
+    build_cfg_template(template, skills=skills)
     dirs = []
     for i in range(n):
         dst = os.path.join(run_root, f"cfg-{i}")
@@ -428,7 +435,10 @@ def parse_transcript_events(paths):
     mixes timestamped and non-timestamped lines will sort every non-timestamped line first, not
     interleaved at its true chronological position. Each event: idx (position in the returned
     order), kind, name (tool_use only), input (tool_use only), id (tool_use only, its
-    tool_use_id), tool_use_id (tool_result only), content (tool_result only, stringified)."""
+    tool_use_id), tool_use_id (tool_result only), content (tool_result only, stringified), text
+    (kind "text" only — an assistant message's own prose, e.g. a restated plan or a clarifying
+    question; every existing caller filters explicitly by kind == "tool_use"/"tool_result", so
+    this additional kind is additive and never seen by code that doesn't ask for it)."""
     raw = []
     for path in paths:
         try:
@@ -444,6 +454,7 @@ def parse_transcript_events(paths):
             except Exception:
                 continue
             ts = obj.get("timestamp") or ""
+            msg_type = obj.get("type")
             message = obj.get("message") or {}
             content = message.get("content")
             if not isinstance(content, list):
@@ -464,6 +475,10 @@ def parse_transcript_events(paths):
                         "kind": "tool_result", "tool_use_id": block.get("tool_use_id"),
                         "content": text or "",
                     }))
+                elif btype == "text" and msg_type == "assistant":
+                    text = block.get("text") or ""
+                    if text.strip():
+                        raw.append((ts, path, line_no, {"kind": "text", "text": text}))
     raw.sort(key=lambda t: (t[0], t[1], t[2]))
     events = []
     for idx, (_, _, _, ev) in enumerate(raw):

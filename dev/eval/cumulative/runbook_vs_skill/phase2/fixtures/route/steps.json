@@ -61,20 +61,21 @@
     "n": 9,
     "name": "Evidence note includes all three required tags",
     "any_of": [
-      {"signal": "bash_regex", "pattern": "--tag\\s+work-kind/.*--tag\\s+tier/.*--tag\\s+outcome/"},
-      {"signal": "bash_regex", "pattern": "--tag\\s+work-kind/.*--tag\\s+outcome/.*--tag\\s+tier/"},
-      {"signal": "bash_regex", "pattern": "--tag\\s+tier/.*--tag\\s+work-kind/.*--tag\\s+outcome/"},
-      {"signal": "bash_regex", "pattern": "--tag\\s+tier/.*--tag\\s+outcome/.*--tag\\s+work-kind/"},
-      {"signal": "bash_regex", "pattern": "--tag\\s+outcome/.*--tag\\s+work-kind/.*--tag\\s+tier/"},
-      {"signal": "bash_regex", "pattern": "--tag\\s+outcome/.*--tag\\s+tier/.*--tag\\s+work-kind/"}
+      {"signal": "bash_regex", "pattern": "--tag\\s+[\"']?work-kind/.*--tag\\s+[\"']?tier/.*--tag\\s+[\"']?outcome/"},
+      {"signal": "bash_regex", "pattern": "--tag\\s+[\"']?work-kind/.*--tag\\s+[\"']?outcome/.*--tag\\s+[\"']?tier/"},
+      {"signal": "bash_regex", "pattern": "--tag\\s+[\"']?tier/.*--tag\\s+[\"']?work-kind/.*--tag\\s+[\"']?outcome/"},
+      {"signal": "bash_regex", "pattern": "--tag\\s+[\"']?tier/.*--tag\\s+[\"']?outcome/.*--tag\\s+[\"']?work-kind/"},
+      {"signal": "bash_regex", "pattern": "--tag\\s+[\"']?outcome/.*--tag\\s+[\"']?work-kind/.*--tag\\s+[\"']?tier/"},
+      {"signal": "bash_regex", "pattern": "--tag\\s+[\"']?outcome/.*--tag\\s+[\"']?tier/.*--tag\\s+[\"']?work-kind/"}
     ]
   },
   {
     "n": 10,
-    "name": "Aggregate: query route evidence then amend or learn",
+    "name": "Aggregate: query route evidence then amend or learn (or, when no prior aggregate exists, create one)",
     "any_of": [
       {"signal": "bash_regex", "pattern": "engram\\s+query.*route[- ]evidence.*engram\\s+(?:amend|learn)"},
-      {"signal": "bash_regex", "pattern": "engram\\s+(?:amend|learn).*--target.*route-evidence"}
+      {"signal": "bash_regex", "pattern": "engram\\s+(?:amend|learn).*--target.*route-evidence"},
+      {"signal": "bash_regex", "pattern": "engram\\s+learn\\s+fact.*--slug\\s+route-evidence-"}
     ],
     "after": 8
   }
