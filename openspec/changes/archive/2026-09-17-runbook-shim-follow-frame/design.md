@@ -32,7 +32,7 @@ Ultimate goal (Joe): every skill, including recall and learn, becomes a runbook;
 
 **D4. General behavioral floor, uniform across runbooks.** The urge to shortcut a step is the cue to reread it, not a reason. Substituting a related action for the named one is a skip. The letter of a step is its spirit. These are the rules a skill's Common-Mistakes/Red-Flags sections restate locally; here they are stated once.
 
-**D5. Runbook-specific red flags: a structured field (option 1), not a body heading.** New optional frontmatter field `red_flags` (list of strings) on runbook notes; `engram learn runbook --red-flag <text>` (repeatable); rendered in query/show payloads; `write-memory` passes it through. The shim says: read `red_flags` before starting; when one fires, stop and reread the step. Rejected the heading convention: nothing enforces it and general-rule drift creeps back through free-form bodies. Field name is provisional; `watch_for` is the alternative.
+**D5. Runbook-specific red flags: a structured field (option 1), not a body heading.** New optional frontmatter field `red_flags` (list of strings) on runbook notes; `engram learn runbook --red-flag <text>` (repeatable); rendered in query/show payloads; `write-memory` passes it through. The shim says: read `red_flags` before starting; when one fires, stop and reread the step. Rejected the heading convention: nothing enforces it and general-rule drift creeps back through free-form bodies. Field name settled as `red_flags` (see Settled, below).
 
 **D6. The frame keys on `kind: runbook`.** A fact with the same body gets no frame. This preserves the eval's original question (does a vanilla fact match?) and gives the runbook kind a reason to exist beyond schema.
 
@@ -51,6 +51,11 @@ Ultimate goal (Joe): every skill, including recall and learn, becomes a runbook;
 
 ## Open Questions
 
-- Field name: `red_flags` vs `watch_for`.
 - Whether `engram query` output should carry the one-line frame reminder (D1 reinforcement) or stay pure data.
 - How much of the learn runbook's 10-step procedure needs splitting before it ranks and loads cleanly.
+
+## Settled
+
+- Field name: `red_flags` (not `watch_for`) — implemented in learn-runbook-capture and
+  recall-runbook-surfacing spec deltas: optional frontmatter list on runbook notes, populated via
+  repeatable `engram learn runbook --red-flag <text>`.
