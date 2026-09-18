@@ -792,6 +792,94 @@ func TestRenderFrontmatter_Runbook(t *testing.T) {
 	}))
 }
 
+// TestRenderRunbookFrontmatter_IncludesRedFlagsInOrder guards the populated
+// case: red_flags must render as a YAML list preserving entry order
+// (learn-runbook-capture spec, "Runbook captured with red flags").
+func TestRenderRunbookFrontmatter_IncludesRedFlagsInOrder(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
+		Situation: "rewriting git history",
+		DoneWhen:  "the backup branch still has every original commit",
+		Luhmann:   "7a",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+		RedFlags:  []string{"filter-branch on all refs sweeps the backup branch", "force-push without --force-with-lease"},
+	}, when)
+
+	const delim = "---\n"
+
+	body := strings.TrimPrefix(got, delim)
+	end := strings.Index(body, "\n"+delim)
+	g.Expect(end).To(BeNumerically(">=", 0), "missing closing ---")
+
+	var doc struct {
+		RedFlags []string `yaml:"red_flags"`
+	}
+
+	g.Expect(yaml.Unmarshal([]byte(body[:end+1]), &doc)).To(Succeed())
+	g.Expect(doc.RedFlags).To(Equal([]string{
+		"filter-branch on all refs sweeps the backup branch",
+		"force-push without --force-with-lease",
+	}))
+}
+
+// TestRenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent guards the no-flag
+// case: red_flags must not appear at all when the caller supplies none
+// (learn-runbook-capture spec, "Runbook captured without red flags").
+func TestRenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Luhmann:   "7a",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+	}, when)
+	g.Expect(got).NotTo(ContainSubstring("red_flags"))
+}
+
+// TestRenderRunbookFrontmatter_RedFlagsRoundtripFidelity is a property test:
+// any non-empty red_flags list survives the render->parse YAML roundtrip
+// identically (order and values) — mirrors
+// TestRenderFactFrontmatter_TagsRoundtripFidelity.
+func TestRenderRunbookFrontmatter_RedFlagsRoundtripFidelity(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		flagGen := rapid.StringMatching(`[a-zA-Z0-9 _.'-]{1,40}`)
+		redFlags := rapid.SliceOfN(flagGen, 1, 4).Draw(rt, "redFlags")
+
+		fields := cli.ExportRunbookFields{
+			Situation: "s", DoneWhen: "d",
+			Luhmann: "1", Source: "src", RedFlags: redFlags,
+		}
+		when := time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC)
+		got := cli.ExportRenderRunbookFrontmatter(fields, when)
+
+		const delim = "---\n"
+
+		body := strings.TrimPrefix(got, delim)
+		end := strings.Index(body, "\n"+delim)
+
+		if end < 0 {
+			rt.Fatalf("no closing delimiter in %q", got)
+		}
+
+		var doc struct {
+			RedFlags []string `yaml:"red_flags"`
+		}
+
+		if err := yaml.Unmarshal([]byte(body[:end+1]), &doc); err != nil {
+			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
+		}
+
+		if !slices.Equal(doc.RedFlags, redFlags) {
+			rt.Fatalf("red_flags: got %v want %v\nfull:\n%s", doc.RedFlags, redFlags, got)
+		}
+	})
+}
+
 func TestRunLearn_BootstrapsVaultWhenMissing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1144,6 +1232,73 @@ func TestRunLearn_Runbook_WritesExpectedFile(t *testing.T) {
 	g.Expect(string(writtenContent)).To(ContainSubstring("type: runbook"))
 	g.Expect(string(writtenContent)).To(ContainSubstring("done_when: the tag is pushed and the changelog is updated"))
 	g.Expect(string(writtenContent)).To(ContainSubstring("1. Run the tests"))
+	g.Expect(string(writtenContent)).NotTo(ContainSubstring("red_flags"),
+		"no --red-flag supplied: the field must be absent, not an empty list")
+}
+
+// TestRunLearn_Runbook_WritesRedFlagsWhenProvided proves args.RedFlags flows
+// through assembleLearnContent into the written frontmatter, in order
+// (learn-runbook-capture spec, "Runbook captured with red flags").
+func TestRunLearn_Runbook_WritesRedFlagsWhenProvided(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var writtenContent []byte
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		StatDir:    func(string) error { return nil },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error {
+			writtenContent = data
+
+			return nil
+		},
+	}
+
+	args := cli.LearnArgs{
+		Type:      "runbook",
+		Slug:      "history-rewrite",
+		Vault:     "/vault",
+		Position:  "top",
+		Source:    "test",
+		Situation: "rewriting git history",
+		DoneWhen:  "the backup branch still has every original commit",
+		Body:      "1. Create a backup branch\n2. Rewrite history",
+		RedFlags: []string{
+			"filter-branch on all refs sweeps the backup branch",
+			"force-push without --force-with-lease",
+		},
+	}
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	const delim = "---\n"
+
+	rendered := string(writtenContent)
+	body := strings.TrimPrefix(rendered, delim)
+	end := strings.Index(body, "\n"+delim)
+	g.Expect(end).To(BeNumerically(">=", 0), "missing closing ---")
+
+	var doc struct {
+		RedFlags []string `yaml:"red_flags"`
+	}
+	g.Expect(yaml.Unmarshal([]byte(body[:end+1]), &doc)).To(Succeed())
+	g.Expect(doc.RedFlags).To(Equal([]string{
+		"filter-branch on all refs sweeps the backup branch",
+		"force-push without --force-with-lease",
+	}))
 }
 
 // TestRunLearn_StampsIdentityFields verifies RunLearn stamps repo:/user:/

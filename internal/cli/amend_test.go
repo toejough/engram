@@ -549,6 +549,105 @@ func TestRunAmend_FieldReplacement_NoContentChange_NoReEmbed(t *testing.T) {
 	g.Expect(embedCalled).To(BeFalse(), "no-content-change amend must not trigger re-embed")
 }
 
+// makeFeedbackNote renders a minimal feedback note. When source is non-empty it
+// is recorded as a single sources: provenance entry, exercising the
+// existing-sources merge path.
+func TestRunAmend_FieldReplacement_Runbook_BodyDoneWhenRedFlags(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.rb.md"
+
+	noteContent := makeRunbookNote("ctx", "old done", "1. old step\n")
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:    "/vault",
+		Target:   "1aa",
+		DoneWhen: "new done",
+		Body:     "1. new step\n",
+		RedFlags: []string{"flag one", "flag two"},
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+	g.Expect(body).To(ContainSubstring("done_when: new done"))
+	g.Expect(body).To(ContainSubstring("situation: ctx"))
+	g.Expect(body).To(ContainSubstring("1. new step"))
+	g.Expect(body).To(ContainSubstring("red_flags:"))
+	g.Expect(body).To(ContainSubstring("flag one"))
+	g.Expect(body).To(ContainSubstring("flag two"))
+	g.Expect(body).To(ContainSubstring("luhmann: \"1aa\""))
+}
+
+func TestRunAmend_FieldReplacement_Runbook_SituationOnly_PreservesBody(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.rb.md"
+
+	noteContent := makeRunbookNote("old ctx", "old done", "1. old step\n")
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error { written = data; return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
+	args := cli.AmendArgs{
+		Vault:     "/vault",
+		Target:    "1aa",
+		Situation: "new ctx",
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+	g.Expect(body).To(ContainSubstring("situation: new ctx"))
+	g.Expect(body).To(ContainSubstring("done_when: old done"))
+	g.Expect(body).To(ContainSubstring("1. old step"))
+}
+
 // TestRunAmend_IdentityOnlyReStamp_DoesNotTriggerReEmbed verifies that an
 // amend with no content-changing flags — one that only re-stamps identity —
 // is a provenance-only change and never triggers a re-embed (matches the
@@ -1210,9 +1309,6 @@ func makeFactNote(situation, subject string) []byte {
 	return []byte(frontmatter + formula + "\n")
 }
 
-// makeFeedbackNote renders a minimal feedback note. When source is non-empty it
-// is recorded as a single sources: provenance entry, exercising the
-// existing-sources merge path.
 func makeFeedbackNote(situation, behavior, impact, action, chunkSource string) []byte {
 	frontmatter := "---\ntype: feedback\ntier: L2\n" +
 		fmt.Sprintf(
@@ -1231,4 +1327,12 @@ func makeFeedbackNote(situation, behavior, impact, action, chunkSource string) [
 	formula := fmt.Sprintf("Lesson learned: when %s, %s.\n", situation, action)
 
 	return []byte(frontmatter + formula + "\n")
+}
+
+func makeRunbookNote(situation, doneWhen, body string) []byte {
+	frontmatter := "---\ntype: runbook\ntier: L2\n" +
+		fmt.Sprintf("situation: %s\ndone_when: %s\n", situation, doneWhen) +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n"
+
+	return []byte(frontmatter + body + "\n")
 }

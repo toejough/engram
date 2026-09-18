@@ -54,9 +54,10 @@ type LearnFeedbackArgs struct {
 type LearnRunbookArgs struct {
 	CommonLearnArgs
 
-	Situation string `targ:"flag,name=situation,required,desc=when should you use this runbook (required)"`
-	DoneWhen  string `targ:"flag,name=done-when,required,desc=what should be true when you're done (required)"`
-	Body      string `targ:"flag,name=body,desc=the numbered steps"`
+	Situation string   `targ:"flag,name=situation,required,desc=when should you use this runbook (required)"`
+	DoneWhen  string   `targ:"flag,name=done-when,required,desc=what should be true when you're done (required)"`
+	Body      string   `targ:"flag,name=body,desc=the numbered steps"`
+	RedFlags  []string `targ:"flag,name=red-flag,desc=task-specific failure mode a general step-following rule would not catch (repeatable)"` //nolint:lll // single unbreakable struct-tag string
 }
 
 // CacheDirFromHome returns the engram model cache directory for a given home path

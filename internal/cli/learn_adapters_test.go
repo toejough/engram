@@ -267,6 +267,96 @@ func TestRunLearnFromFeedbackArgs_WritesFile(t *testing.T) {
 	g.Expect(entries).NotTo(BeEmpty())
 }
 
+// TestRunLearnFromRunbookArgs_NoRedFlag_NoFieldNoError proves the absent-flag
+// case writes cleanly with no red_flags field and no error
+// (learn-runbook-capture spec, "Runbook captured without red flags").
+func TestRunLearnFromRunbookArgs_NoRedFlag_NoFieldNoError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
+
+	args := cli.LearnRunbookArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "no-red-flags",
+			Vault:    vault,
+			Position: "top",
+			Source:   "test",
+		},
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Body:      "1. Run the tests\n2. Tag the release",
+	}
+
+	err := cli.ExportRunLearnFromRunbookArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
+	g.Expect(globErr).NotTo(HaveOccurred())
+	g.Expect(matches).To(HaveLen(1))
+
+	if len(matches) == 0 {
+		return
+	}
+
+	body, readErr := os.ReadFile(matches[0])
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(body)).NotTo(ContainSubstring("red_flags"))
+}
+
+// TestRunLearnFromRunbookArgs_RedFlagRepeatableFlagWritesField proves the
+// repeatable --red-flag CLI flag (bound to LearnRunbookArgs.RedFlags) reaches
+// the written note, in order (learn-runbook-capture spec).
+func TestRunLearnFromRunbookArgs_RedFlagRepeatableFlagWritesField(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
+
+	args := cli.LearnRunbookArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "history-rewrite",
+			Vault:    vault,
+			Position: "top",
+			Source:   "test",
+		},
+		Situation: "rewriting git history",
+		DoneWhen:  "the backup branch still has every original commit",
+		Body:      "1. Create a backup branch\n2. Rewrite history",
+		RedFlags: []string{
+			"filter-branch on all refs sweeps the backup branch",
+			"force-push without --force-with-lease",
+		},
+	}
+
+	err := cli.ExportRunLearnFromRunbookArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
+	g.Expect(globErr).NotTo(HaveOccurred())
+	g.Expect(matches).To(HaveLen(1))
+
+	if len(matches) == 0 {
+		return
+	}
+
+	body, readErr := os.ReadFile(matches[0])
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(body)).To(ContainSubstring(
+		"red_flags:\n    - filter-branch on all refs sweeps the backup branch\n" +
+			"    - force-push without --force-with-lease\n"))
+}
+
 func TestRunLearnFromRunbookArgs_RequiresSituation(t *testing.T) {
 	t.Parallel()
 

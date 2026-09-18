@@ -63,6 +63,11 @@ type LearnArgs struct {
 	// runbook only
 	DoneWhen string `json:"doneWhen"`
 	Body     string `json:"body"`
+	// RedFlags carries repeatable `--red-flag <text>` entries: task-specific
+	// failure modes a general "follow the steps" rule would not catch.
+	// Written to the frontmatter red_flags: list when non-empty; absent flag
+	// → no field, no error (learn-runbook-capture spec).
+	RedFlags []string `json:"redFlags"`
 
 	// Pending marks the note a pending offer (vault-offer-curation): set
 	// only by a served `learn` handler, never by a CLI flag — a note
@@ -326,6 +331,9 @@ type runbookFields struct {
 	ChunkSources []string
 	Tags         []string
 	Supersedes   []supersedesEntry
+	// RedFlags: optional task-specific failure modes (learn-runbook-capture
+	// spec) — see LearnArgs.RedFlags.
+	RedFlags []string
 }
 
 // runbookFrontmatterDoc is the YAML shape of a runbook note's frontmatter.
@@ -334,6 +342,7 @@ type runbookFrontmatterDoc struct {
 	Tier       string            `yaml:"tier,omitempty"`
 	Situation  string            `yaml:"situation"`
 	DoneWhen   string            `yaml:"done_when"`
+	RedFlags   []string          `yaml:"red_flags,omitempty"`
 	Luhmann    quotedString      `yaml:"luhmann"`
 	Created    string            `yaml:"created"`
 	Source     string            `yaml:"source"`
@@ -450,6 +459,7 @@ func assembleRunbookContent(
 		Pending: args.Pending,
 		Issue:   args.Issue, Tier: tierOrDefault(args.Tier),
 		ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
+		RedFlags: args.RedFlags,
 	}
 
 	return renderRunbookFrontmatter(f, when) + renderRunbookBody(f), nil
@@ -556,6 +566,7 @@ func learnArgsFromRunbook(a LearnRunbookArgs) LearnArgs {
 		Situation:    a.Situation,
 		DoneWhen:     a.DoneWhen,
 		Body:         a.Body,
+		RedFlags:     a.RedFlags,
 	}
 }
 
@@ -692,6 +703,7 @@ func renderRunbookFrontmatter(f runbookFields, when time.Time) string {
 		Tier:       f.Tier,
 		Situation:  f.Situation,
 		DoneWhen:   f.DoneWhen,
+		RedFlags:   f.RedFlags,
 		Luhmann:    quotedString(f.Luhmann),
 		Created:    when.Format(dateFormat),
 		Source:     f.Source,

@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -33,7 +34,14 @@ type AmendArgs struct {
 	Behavior  string `json:"behavior"  targ:"flag,name=behavior,desc=replace behavior (feedback; optional)"`
 	Impact    string `json:"impact"    targ:"flag,name=impact,desc=replace impact (feedback; optional)"`
 	Action    string `json:"action"    targ:"flag,name=action,desc=replace action (feedback; optional)"`
-	Activate  bool   `json:"activate"  targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
+	DoneWhen  string `json:"doneWhen"  targ:"flag,name=done-when,desc=replace done_when (runbook; optional)"`
+	Body      string `json:"body"      targ:"flag,name=body,desc=replace the numbered-steps body (runbook; optional)"`
+	// RedFlags replaces the whole red_flags: list when non-empty (repeatable
+	// `--red-flag <text>`) — mirrors LearnArgs.RedFlags (learn-runbook-capture
+	// spec), full-list replace rather than merge, matching how the rest of
+	// amend's content flags overwrite-when-supplied.
+	RedFlags []string `json:"redFlags" targ:"flag,name=red-flag,desc=replace red_flags (runbook; repeatable; optional)"` //nolint:lll // single unbreakable struct-tag string
+	Activate bool     `json:"activate"  targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
 	// ClearPending is the CLI-facing surface for clearing the pending-offer
 	// marker (vault-offer-curation) — the curation skill's only real use of
 	// it. Local `engram amend` never needs to SET pending (only served
@@ -318,9 +326,68 @@ func applyFieldReplacement(
 		return applyFactAmend(frontmatter, args, body, parsedSupersedes, identity)
 	case typeFeedback:
 		return applyFeedbackAmend(frontmatter, args, body, parsedSupersedes, identity)
+	case typeRunbook:
+		return applyRunbookAmend(frontmatter, args, body, parsedSupersedes, identity)
 	default:
 		return "", false, fmt.Errorf("%w: %q", errAmendUnknownType, noteType)
 	}
+}
+
+// applyRunbookAmend overrides supplied runbook fields (situation/done_when/body/
+// red_flags), merges chunk-source provenance, and re-renders the note. Runbook
+// doesn't fit the shared applyTypedAmend/typedAmend driver used by fact/feedback:
+// those types synthesize their whole body from frontmatter fields, so their
+// override+render split never needs the CURRENT body text. A runbook's body is
+// caller-authored free text that lives only in the markdown body, not the
+// frontmatter — overriding it means comparing/rebuilding against the note's
+// existing steps, so this path is written out directly instead of squeezing an
+// extra body channel through typedAmend's generic (doc-only) override signature.
+func applyRunbookAmend(
+	frontmatter []byte,
+	args AmendArgs,
+	body string,
+	parsedSupersedes []supersedesEntry,
+	identity identityStamp,
+) (string, bool, error) {
+	var doc runbookFrontmatterDoc
+
+	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
+	if unmarshalErr != nil {
+		return "", false, fmt.Errorf("amend: parsing runbook frontmatter: %w", unmarshalErr)
+	}
+
+	when, createdErr := parseCreated(doc.Created)
+	if createdErr != nil {
+		return "", false, createdErr
+	}
+
+	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
+	doc.Repo, doc.User, doc.Vault = identity.Repo, identity.User, identity.Vault
+
+	if args.Pending != nil {
+		doc.Pending = *args.Pending
+	}
+
+	if parsedSupersedes != nil {
+		doc.Supersedes = parsedSupersedes
+	}
+
+	fieldsChanged := applyFieldOverrides([]fieldOverride{
+		{&doc.Situation, args.Situation},
+		{&doc.DoneWhen, args.DoneWhen},
+	})
+
+	currentSteps := replaceSupersedes(body, nil)
+	bodyChanged := args.Body != "" && args.Body != currentSteps
+
+	redFlagsChanged := len(args.RedFlags) > 0 && !slices.Equal(doc.RedFlags, args.RedFlags)
+	if redFlagsChanged {
+		doc.RedFlags = args.RedFlags
+	}
+
+	contentChanged := fieldsChanged || bodyChanged || redFlagsChanged
+
+	return renderAmendedRunbook(doc, when, body, currentSteps, args.Body, contentChanged), contentChanged, nil
 }
 
 // applyTypedAmend is the shared fact/feedback amend driver. It unmarshals the
@@ -600,6 +667,36 @@ func renderAmendedFeedback(
 	}
 
 	return marshalFrontmatter(doc) + body
+}
+
+// renderAmendedRunbook re-renders a runbook note from the (possibly updated)
+// doc. When contentChanged, the body is rebuilt from newSteps (args.Body when
+// supplied, else the note's existing steps) and fresh supersedes lines are
+// appended. Otherwise the body is preserved but supersedes lines are replaced
+// in place — mirrors renderAmendedFact/renderAmendedFeedback.
+func renderAmendedRunbook(
+	doc runbookFrontmatterDoc,
+	_ time.Time,
+	body, currentSteps, argsBody string,
+	contentChanged bool,
+) string {
+	if !contentChanged {
+		return marshalFrontmatter(doc) + replaceSupersedes(body, doc.Supersedes)
+	}
+
+	steps := currentSteps
+	if argsBody != "" {
+		steps = argsBody
+	}
+
+	f := runbookFields{
+		Situation: doc.Situation, DoneWhen: doc.DoneWhen, Body: steps,
+		Luhmann: string(doc.Luhmann), Source: doc.Source,
+		Project: doc.Project, Issue: string(doc.Issue), Tier: doc.Tier,
+		ChunkSources: doc.Sources, Supersedes: doc.Supersedes, RedFlags: doc.RedFlags,
+	}
+
+	return marshalFrontmatter(doc) + renderRunbookBody(f)
 }
 
 // validateChunkSources loads the chunk-id set and fails loud when any

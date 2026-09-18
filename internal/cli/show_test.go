@@ -93,6 +93,35 @@ func TestRunShow_OsDepsReadRealVault(t *testing.T) {
 	g.Expect(out.String()).To(ContainSubstring("2.other"))
 }
 
+// TestRunShow_RendersRunbookRedFlags proves `engram show` returns the full
+// runbook note, including red_flags, when present — so an agent can restate
+// every step and every red flag once the query payload's inline content is
+// truncated (recall-runbook-surfacing spec, "Full runbook via show").
+func TestRunShow_RendersRunbookRedFlags(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	memFS.files[filepath.Join(vault, "1.history-rewrite.md")] = []byte(
+		"---\ntype: runbook\nsituation: rewriting git history\n" +
+			"done_when: the backup branch still has every original commit\n" +
+			"red_flags:\n    - filter-branch on all refs sweeps the backup branch\n" +
+			"    - force-push without --force-with-lease\n---\n\n" +
+			"1. Create a backup branch\n2. Rewrite history\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunShow(context.Background(),
+		cli.ShowArgs{Ref: "1.history-rewrite", VaultPath: vault}, newShowDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("done_when: the backup branch still has every original commit"))
+	g.Expect(out.String()).To(ContainSubstring("red_flags:"))
+	g.Expect(out.String()).To(ContainSubstring("filter-branch on all refs sweeps the backup branch"))
+	g.Expect(out.String()).To(ContainSubstring("force-push without --force-with-lease"))
+}
+
 func TestRunShow_ResolvesBareLuhmannID(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

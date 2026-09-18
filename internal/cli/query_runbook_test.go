@@ -78,3 +78,49 @@ func TestRunQuery_RunbookCompetesInMainMatchedSet(t *testing.T) {
 
 	g.Expect(foundInCandidates).To(BeTrue(), "runbook note must be nominated in candidate_l2s, like fact/feedback")
 }
+
+// TestRunQuery_RunbookItemContentIncludesRedFlags proves a runbook note's
+// red_flags entries reach the query payload's item content, so an agent
+// never has to fall back to `engram show` just to see them
+// (recall-runbook-surfacing spec, "Red flags visible in the query payload").
+func TestRunQuery_RunbookItemContentIncludesRedFlags(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-08-24.history-rewrite.md",
+		"---\ntype: runbook\nsituation: rewriting git history\n"+
+			"done_when: the backup branch still has every original commit\n"+
+			"red_flags:\n    - filter-branch on all refs sweeps the backup branch\n"+
+			"    - force-push without --force-with-lease\n---\n\n"+
+			"1. Create a backup branch\n2. Rewrite history\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"rewriting git history"}, VaultPath: vault, Limit: 20},
+		newQueryDeps(memFS), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	var runbookContent string
+
+	for _, item := range parsed.Items {
+		if item.Kind == "runbook" {
+			runbookContent = item.Content
+		}
+	}
+
+	g.Expect(runbookContent).To(ContainSubstring("red_flags:"))
+	g.Expect(runbookContent).To(ContainSubstring("filter-branch on all refs sweeps the backup branch"))
+	g.Expect(runbookContent).To(ContainSubstring("force-push without --force-with-lease"))
+}
