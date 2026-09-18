@@ -29,6 +29,8 @@ The parent provides:
   `sibling`) plus the target note ID (required when position is not `top`), when the parent made
   a disposition decision. Omitted → `--position top` (today's default), fact/feedback/runbook
   only.
+- optional **red_flags** — task-specific failure modes a general "follow the steps" rule would
+  not catch (runbook only), e.g. "filter-branch on all refs sweeps the backup branch"
 
 If a required field is missing, ask for it from the in-session parent context — do not invent
 content on the parent's behalf.
@@ -67,10 +69,13 @@ engram learn runbook --slug <kebab-slug> --position <top|continuation|sibling> [
   --situation "<retrieval-shaped phrase: when should this runbook be used>" \
   --done-when "<what should be true when the procedure is complete>" \
   --body "<numbered steps, may [[wikilink]] fact/feedback notes to consider>" \
+  [--red-flag "<task-specific failure mode>" ...] \
   [--tag <family>/<value> ...]
 ```
 
-Same `--position`/`--target` disposition rules as fact/feedback above.
+Same `--position`/`--target` disposition rules as fact/feedback above. One `--red-flag` per
+handed-off `red_flags` entry, in order; omit entirely when the parent's handoff carries no
+red_flags (no error, no empty flag).
 
 kind=qa:
 
