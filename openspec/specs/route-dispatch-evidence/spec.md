@@ -3,16 +3,14 @@
 ## Purpose
 
 Every route dispatch is recorded as an ordinary recallable fact note tagged with three categorical tags (work-kind, tier, outcome in frontmatter tags:), and each work-kind keeps one aggregate fact note (route-evidence-<work-kind>) whose object text holds running tier tallies plus wikilinks to every evidence note. Route reads evidence by plain recall — aggregates surface as normal memories; engram count recomputes tallies from tags as the drift audit. Why: docs/architecture/adr.md — ADR-0019 (the 2026-07-10 decision on #669); issue #674. Validation: internal/cli/learn_test.go (TestLearnFact_Tags_WrittenToFrontmatter, TestLearnFact_InvalidTag_RejectedBeforeWrite, TestRenderFactFrontmatter_TagsRoundtripFidelity) and internal/cli/amend_test.go (TestRunAmend_PreservesTagsFrontmatter); scratch-vault drowning gauge PASS at 20 sibling evidence notes + count recompute parity.
-
 ## Requirements
-
 ### Requirement: Every route dispatch SHALL be recorded as a tagged fact note
 After each dispatch resolves, the orchestrator SHALL hand off a structured fact note to write-memory with three categorical tags (work-kind/<k>, tier/<cheap|mid|deep>, outcome/<pass|fail>) and provenance in the note's situation/subject/predicate/object fields.
 The evidence note and the aggregate update are written through two different paths: the
 evidence note goes through write-memory (parents judge, worker writes), while the aggregate
 amend-or-create is composed and executed directly by the route-executing agent — structurally
 forced, because write-memory has no amend form. This is a deliberate exception to the
-write-site doctrine, not an oversight, and the skill SHALL state it explicitly.
+write-site doctrine, not an oversight, and route's runbook SHALL state it explicitly.
 
 #### Scenario: Recording a passing dispatch
 - **WHEN** a dispatch completes with a passing review verdict
@@ -24,7 +22,7 @@ write-site doctrine, not an oversight, and the skill SHALL state it explicitly.
 
 #### Scenario: Write-path split is stated, not implicit
 - **WHEN** an orchestrator reads the aggregate-update procedure
-- **THEN** the skill text states that the evidence note goes through write-memory while the aggregate amend-or-create is composed directly by the route-executing agent, and names write-memory's lack of an amend form as the reason
+- **THEN** route's runbook text states that the evidence note goes through write-memory while the aggregate amend-or-create is composed directly by the route-executing agent, and names write-memory's lack of an amend form as the reason
 
 ### Requirement: Tags SHALL be three closed families: work-kind, tier, outcome
 Tags SHALL use bare families (family only, no value) for definition notes, and family/value pairs (kebab-case segments) for evidence notes; only three tag families are valid: work-kind (open set, kebab-case), tier (closed: cheap, mid, deep), outcome (closed: pass, fail).
@@ -120,3 +118,4 @@ For harnesses other than Claude Code that do not expose a per-subagent usage blo
 #### Scenario: No signal available
 - **WHEN** a dispatch runs on a harness with no per-subagent usage block and no documented alternate source
 - **THEN** the mini-report shows `n/a` with the reason the signal is unavailable, and never fabricates a cost or duration number
+

@@ -1,5 +1,8 @@
-## ADDED Requirements
+# production-guidance-activation Specification
 
+## Purpose
+TBD - created by archiving change activate-shim-guidance. Update Purpose after archive.
+## Requirements
 ### Requirement: A production harness config SHALL import shim.md alongside the existing engram guidance imports
 A harness's own config file (`CLAUDE.md` for Claude Code, `AGENTS.md` for Pi) that already imports
 `recall.md`, `delegate.md`, and `learn.md` SHALL also import `shim.md`, additively — the three
@@ -19,3 +22,4 @@ yet promoted to runbooks (per issue #760, separately scoped).
   `write-memory`) have not yet been promoted to production runbooks
 - **THEN** `recall.md`, `delegate.md`, and `learn.md` remain imported in the harness config; `shim.md`
   is added, not substituted for them
+
