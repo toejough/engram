@@ -58,7 +58,7 @@ func RunShow(_ context.Context, args ShowArgs, deps ShowDeps, stdout io.Writer) 
 		return fmt.Errorf("show: read %s: %w", notePath, readErr)
 	}
 
-	renderShow(stdout, string(body), note.Outgoing)
+	renderShow(stdout, capRedFlagsForPreview(string(body)), note.Outgoing)
 
 	return nil
 }

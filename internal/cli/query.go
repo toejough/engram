@@ -1624,7 +1624,7 @@ func rankCandidates(
 			coord:     coord,
 			sitVec:    hit.sidecar.SituationVector,
 			bodyVec:   hit.sidecar.BodyVector,
-			content:   stripWikilinks(string(noteBytes)),
+			content:   capRedFlagsForPreview(stripWikilinks(string(noteBytes))),
 		})
 	}
 

@@ -93,6 +93,41 @@ func TestRunShow_OsDepsReadRealVault(t *testing.T) {
 	g.Expect(out.String()).To(ContainSubstring("2.other"))
 }
 
+// TestRunShow_OversizedRedFlagsListKeepsNewestEntry reproduces engram#763:
+// `engram show`'s own remedy for a truncated query preview is itself subject
+// to the same external output truncation for a large note, so it must also
+// cap an oversized red_flags list rather than rely on the caller's tool
+// wrapper to preserve the newest entry.
+func TestRunShow_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	var body strings.Builder
+
+	body.WriteString("---\ntype: runbook\nsituation: dispatching a subagent for a scoped unit of work\n" +
+		"done_when: the dispatch is recorded\nred_flags:\n")
+
+	for range 20 {
+		body.WriteString("    - " + strings.Repeat("a pre-existing red flag entry with enough filler text ", 3) + "\n")
+	}
+
+	body.WriteString("    - the newly added red flag entry for this specific defect\n---\n\n1. Dispatch\n2. Record\n")
+
+	memFS.files[filepath.Join(vault, "1.oversized-red-flags.md")] = []byte(body.String())
+
+	var out bytes.Buffer
+
+	err := cli.RunShow(context.Background(),
+		cli.ShowArgs{Ref: "1.oversized-red-flags", VaultPath: vault}, newShowDeps(memFS), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("the newly added red flag entry for this specific defect"))
+	g.Expect(out.String()).To(ContainSubstring("EARLIER RED_FLAGS OMITTED"))
+}
+
 // TestRunShow_RendersRunbookRedFlags proves `engram show` returns the full
 // runbook note, including red_flags, when present — so an agent can restate
 // every step and every red flag once the query payload's inline content is

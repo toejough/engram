@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -10,6 +11,57 @@ import (
 
 	"github.com/toejough/engram/internal/cli"
 )
+
+// TestRunQuery_OversizedRedFlagsListKeepsNewestEntry reproduces engram#763:
+// a runbook whose red_flags list is long enough to exceed the preview
+// budget must still deliver its most-recently-appended entry through the
+// query payload, not silently drop it.
+func TestRunQuery_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	var body strings.Builder
+
+	body.WriteString("---\ntype: runbook\nsituation: dispatching a subagent for a scoped unit of work\n" +
+		"done_when: the dispatch is recorded\nred_flags:\n")
+
+	for range 20 {
+		body.WriteString("    - " + strings.Repeat("a pre-existing red flag entry with enough filler text ", 3) + "\n")
+	}
+
+	body.WriteString("    - the newly added red flag entry for this specific defect\n---\n\n1. Dispatch\n2. Record\n")
+
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-09-18.oversized-red-flags.md", body.String())
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"dispatching a subagent for a scoped unit of work"}, VaultPath: vault, Limit: 20},
+		newQueryDeps(memFS), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed queryParsed
+
+	g.Expect(yaml.Unmarshal(out.Bytes(), &parsed)).NotTo(HaveOccurred())
+
+	var runbookContent string
+
+	for _, item := range parsed.Items {
+		if item.Kind == "runbook" {
+			runbookContent = item.Content
+		}
+	}
+
+	g.Expect(runbookContent).To(ContainSubstring("the newly added red flag entry for this specific defect"))
+	g.Expect(runbookContent).To(ContainSubstring("EARLIER RED_FLAGS OMITTED"))
+}
 
 // TestRunQuery_RunbookCompetesInMainMatchedSet proves runbook notes receive no
 // exclusion treatment (unlike qa-question) and rank purely by situation
