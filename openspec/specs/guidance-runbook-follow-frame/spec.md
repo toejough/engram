@@ -3,7 +3,9 @@
 ## Purpose
 
 The engram shim (a new guidance file, `agent-instructions/guidance/shim.md`, deployed via `engram update --with-guidance`) is the only custom instruction text an agent needs; every procedure, including recall and learn, is a runbook note it finds and follows. This capability covers the follow half: what the shim requires of an agent once a `kind: runbook` note is returned, and the bootstrap action that works with no engram skill installed. Why: the runbook-vs-skill eval showed runbooks found 3/3 but restated-as-plan 0/6 and end-state 0/6 against a skill row of 3/3/2 (checkpoint 2026-09-13); design.md D1–D4.
+
 ## Requirements
+
 ### Requirement: The shim SHALL name the first action as a literal `engram query` on every user request
 
 Before the first tool call on any user request, the shim SHALL instruct the agent to run `engram query` with at least two `--phrase` values (the request in the agent's own words; the kind of situation it is in), as a bare imperative naming the command, so that the instruction is executable with no `recall` skill present. The trigger SHALL NOT depend on the agent judging the task multi-step, recurring, or previously done: that judgment is what the returned runbook supplies, so it cannot gate the lookup. Over-fire on one-shot requests is accepted (task-init fire-unit, measured 3.4x; per-fire cost is one query with no crystallization).
@@ -47,26 +49,17 @@ The agent SHALL NOT report the task done until the matched runbook's `done_when`
 
 ### Requirement: The agent SHALL stop and ask when a step is unclear or would be deviated from
 
-If a step cannot be executed as written, is genuinely ambiguous in this context, or the agent
-would deviate from it, the agent SHALL stop and ask rather than proceed. A question stop is a
-clarity signal for the caller (who owns supplying the missing context now and for future runs),
-never a failure, and the shim SHALL NOT contain "proceed anyway" language. Completing an earlier
-step — including the one that produces the task's most visible or "primary" deliverable — is NOT,
-by itself, evidence that a later step is ambiguous: when the agent's own restated plan already
-names a later step as required, the agent SHALL proceed to it without stopping to ask whether to.
+If a step cannot be executed as written, is genuinely ambiguous in this context, or the agent would deviate from it, the agent SHALL stop and ask rather than proceed. A question stop is a clarity signal for the caller (who owns supplying the missing context now and for future runs), never a failure, and the shim SHALL NOT contain "proceed anyway" language. Completing an earlier step — including the one that produces the task's most visible or "primary" deliverable — is NOT, by itself, evidence that a later step is ambiguous: when the agent's own restated plan already names a later step as required, the agent SHALL proceed to it without stopping to ask whether to.
 
 #### Scenario: Unclear step yields a question, not a substitute
 
 - **WHEN** a runbook step is ambiguous for the current repository
-- **THEN** the agent ends its turn with a question naming the step and the ambiguity, and no
-  substitute action for that step appears in the transcript
+- **THEN** the agent ends its turn with a question naming the step and the ambiguity, and no substitute action for that step appears in the transcript
 
 #### Scenario: A verified earlier step does not license a stop before an unambiguous mandatory step
 
-- **WHEN** the agent has verified an earlier step complete and a later step in its restated plan is
-  unambiguous and already marked mandatory
-- **THEN** the agent proceeds to that later step without ending its turn to ask permission, and the
-  transcript contains no question about whether to continue
+- **WHEN** the agent has verified an earlier step complete and a later step in its restated plan is unambiguous and already marked mandatory
+- **THEN** the agent proceeds to that later step without ending its turn to ask permission, and the transcript contains no question about whether to continue
 
 ### Requirement: The shim SHALL state a general behavioral floor that applies to every runbook
 
@@ -113,4 +106,3 @@ The shim SHALL state, in one line each, the treatment of every kind a query retu
 
 - **WHEN** a query returns `chunk` items alongside notes
 - **THEN** the agent acts on the notes and fetches a chunk only to fill a gap the notes leave
-
