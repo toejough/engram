@@ -492,7 +492,8 @@ aggregates, and is never on the read path. (`--group-by work-kind` does not appl
 a tag value, not a frontmatter attribute.)
 
 **Consequences.** LLM-maintained tallies WILL drift; count makes them falsifiable (audit commands
-live in `agent-instructions/skills/route/SKILL.md`). Evidence notes stay in recall — excluding them would regress on
+live in route's production runbook — formerly `agent-instructions/skills/route/SKILL.md`, retired
+2026-09-19, see `openspec/changes/archive/2026-09-19-route-skill-to-runbook/`). Evidence notes stay in recall — excluding them would regress on
 the already-recallable free-text records they replace. The aggregate-drowning risk (many
 near-identical evidence notes outranking their aggregate on the read query) is gauged, not
 pre-engineered: a scratch-vault gauge (20 sibling evidence notes + 1 aggregate; PASS = the

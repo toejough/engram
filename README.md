@@ -50,7 +50,7 @@ Requires Go 1.25+ on `PATH`.
 | `please` | Drives an ask end-to-end through a fixed seven-step workflow — capture, orient, plan, execute (TDD), document, complete, capture. Sequences `recall`, `learn`, and other available skills; tracks each step on the task list. Four adversarial review gates dispatch fresh per-angle reviewer subagents over the plan, each refactor, touched docs, and outward prose, blocking step completion until findings are resolved. Triggers on `/please <ask>` and natural-language phrasings of the same intent. |
 | `route` | Encodes the delegate-everything doctrine: guides subagent selection (agent type, model, effort) rather than doing object-level work. Easy work goes to a cheap model (not skipped), complex work is decomposed before dispatch, and every dispatched subagent recalls first. `please` consults it when staffing gate reviewers. |
 
-See `agent-instructions/skills/recall/SKILL.md`, `agent-instructions/skills/learn/SKILL.md`, `agent-instructions/skills/write-memory/SKILL.md`, `agent-instructions/skills/please/SKILL.md`, and `agent-instructions/skills/route/SKILL.md` for the full skill definitions.
+See `agent-instructions/skills/recall/SKILL.md`, `agent-instructions/skills/learn/SKILL.md`, `agent-instructions/skills/write-memory/SKILL.md`, and `agent-instructions/skills/please/SKILL.md` for the full skill definitions. `route` has no `SKILL.md` — it's retrieval-only now, its definition living as a production vault runbook (see `openspec/changes/archive/2026-09-19-route-skill-to-runbook/`).
 
 ## Vault location
 
