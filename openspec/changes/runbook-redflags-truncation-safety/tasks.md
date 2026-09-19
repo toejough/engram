@@ -23,6 +23,6 @@
 
 ## 4. Close out (reserved for the orchestrator — not done here)
 
+- [x] 4.3 Loop back to route's D8 probe (issue #757) now that both #762 (question-stop scoping) and #763 (this fix) are applied, to see whether route's D8 bar is now met — per Joe's explicit sequencing instruction, this must happen before either #762 or #763 (or #757 itself) is considered closed. — **done**: rerun (`probe_phase2.py --task route --model sonnet5 --n 3 --arms R --shim-only`, $1.43) found 3/3, followed_all 3/3, end_state 3/3 — D8 bar MET, exceeding the skill row's 2/3 reference. Route's `SKILL.md` subsequently retired.
 - [ ] 4.1 Comment on GitHub issue #763 with the outcome and evidence.
 - [ ] 4.2 `openspec archive runbook-redflags-truncation-safety` once 4.1 is done.
-- [ ] 4.3 Loop back to route's D8 probe (issue #757) now that both #762 (question-stop scoping) and #763 (this fix) are applied, to see whether route's D8 bar is now met — per Joe's explicit sequencing instruction, this must happen before either #762 or #763 (or #757 itself) is considered closed.
