@@ -3,9 +3,7 @@
 ## Purpose
 
 The route skill picks a subagent's model tier from recalled memory, not a fixed table: every unit starts at the cheapest tier, and only recalled evidence — or a failed review — raises it. Each dispatch is recorded as evidence per the route-dispatch-evidence spec. Those records become recallable memory, so the rubric improves over time without editing the skill. Why: docs/architecture/adr.md — ADR-0017 (extends ADR-0014). Validation: dev/eval/LEDGER.md#tier-routing-parity.
-
 ## Requirements
-
 ### Requirement: Routing SHALL default to the cheapest tier absent evidence
 Every unit of work SHALL start at the cheapest / fastest available tier, regardless of how hard it appears (complex debugging, cross-cutting refactors, correctness reviews, greenfield design all start cheap).
 
@@ -60,7 +58,7 @@ options.
 
 #### Scenario: Red flag on paid dispatch with a free option available
 - **WHEN** the orchestrator dispatches cheap-tier work to a paid API model while a free local model was available and suitable
-- **THEN** this is a documented red flag in the skill's red-flags table, naming "resolve the roster against the environment first" as the correction
+- **THEN** this is a documented condition in route's runbook `red_flags` field, naming "resolve the roster against the environment first" as the correction
 
 ### Requirement: Cold-start priors SHALL reflect evidence-backed escalations per work-kind
 When recorded dispatch evidence for a work-kind clears the escalation thresholds (cheap-tier pass
@@ -79,3 +77,4 @@ justified it.
 - **WHEN** recorded dispatch evidence shows a work-kind's cheap-tier pass rate at or above 90%
 - **THEN** the Cold-start priors table does not add an escalated row for that work-kind — it
   remains covered by the default cheapest-tier posture
+
