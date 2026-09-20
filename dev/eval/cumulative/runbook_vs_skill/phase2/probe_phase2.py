@@ -414,7 +414,11 @@ def add_carrier(vault, task_key, arm):
     if task_key == "B" and arm == "R":
         return NOTE_830_BASENAME
     cfg = TASKS[task_key]
-    src_dir = cfg["carrier_r_src"] if arm == "R" else cfg["carrier_f_src"]
+    carrier_key = "carrier_r_src" if arm == "R" else "carrier_f_src"
+    src_dir = cfg[carrier_key]
+    if not src_dir:
+        # Fail loud: os.listdir(None) would silently list the CWD and copy it into the vault.
+        raise RuntimeError(f"task {task_key!r} has no {carrier_key} in its task.json; arm {arm} needs a carrier")
     basename = None
     for name in sorted(os.listdir(src_dir)):
         shutil.copy2(os.path.join(src_dir, name), os.path.join(vault, name))
@@ -805,6 +809,18 @@ def score_found_phase2(task_key, arm, events, carrier_basename):
         result_text = p1._tool_result_text(events, ev.get("id"))
         if carrier_basename and carrier_basename in result_text:
             return True, ev["idx"], "engram_query"
+    # A large `engram query` result is persisted to a tool-results file and the tool_result shows only a
+    # short preview; the agent then reads the list back (grep/sed on that file). Count that read-back
+    # as the query result, since it is the same list of items (found via `engram query`, read late).
+    for ev in events:
+        if not (ev["kind"] == "tool_use" and ev.get("name") == "Bash"
+                and "tool-results" in ((ev.get("input") or {}).get("command", "") or "")):
+            continue
+        if not before(ev["idx"]):
+            continue
+        result_text = p1._tool_result_text(events, ev.get("id"))
+        if carrier_basename and carrier_basename in result_text:
+            return True, ev["idx"], "engram_query"
     return False, None, None
 
 
@@ -1073,6 +1089,8 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx,
       file tool (Read/Edit/Write) that a bash_regex alone can never see (round-5 finding: an
       agent that inspects .gitignore via the native Read tool, rather than `cat .gitignore`,
       got no credit for an "inspect the file" step).
+    text_regex: `regex` (+ optional `case_insensitive`, `dotall`) matched against an assistant text
+      block — for outcomes only prose can show (e.g. please's closing lessons-audit report).
     repo_state: `pattern` names a key in `repo_checker`'s registry, called with repo_path (no
       event index — repo_state steps carry no ordering point for `after`).
     """
@@ -1148,6 +1166,19 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx,
             input_json = json.dumps(input_dict)
             match = regex.search(input_json)
             if match:
+                return True, ev["idx"], None
+        return False, None, None
+
+    if signal == "text_regex":
+        regex_pattern = sig.get("regex")
+        if not regex_pattern:
+            raise ValueError("text_regex signal requires a 'regex' key")
+        flags = (re.IGNORECASE if sig.get("case_insensitive") else 0) | (re.DOTALL if sig.get("dotall") else 0)
+        regex = re.compile(regex_pattern, flags)
+        for ev in events:
+            if ev["idx"] <= min_idx or ev["kind"] != "text":
+                continue
+            if regex.search(ev.get("text") or ""):
                 return True, ev["idx"], None
         return False, None, None
 

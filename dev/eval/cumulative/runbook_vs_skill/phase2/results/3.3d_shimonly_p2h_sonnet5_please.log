@@ -1,0 +1,7 @@
+run_id=please-sonnet5-1789922627-1065d6 task=please arms=['R'] n=3 model=sonnet5 trials=3 timeout=900s workers=4 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/please-sonnet5-1789922627-1065d6
+setup_trial_vault: removed 97 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/please-sonnet5-1789922627-1065d6/trials/please-R-0/vault
+setup_trial_vault: removed 97 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/please-sonnet5-1789922627-1065d6/trials/please-R-1/vault
+setup_trial_vault: removed 97 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/please-sonnet5-1789922627-1065d6/trials/please-R-2/vault
+  [please-R#1] valid found=False followed=0/19 end_state=False cost=$0.27 timed_out=False
+  [please-R#0] valid found=True followed=19/19 end_state=True cost=$1.65 timed_out=False
+  [please-R#2] valid found=False followed=19/19 end_state=True cost=$2.07 timed_out=False

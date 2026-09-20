@@ -1,0 +1,162 @@
+[
+  {
+    "n": 1,
+    "name": "Step 1: opening capture (/learn) before orienting",
+    "any_of": [
+      {"signal": "tool_input_regex", "tool": "Skill", "regex": "\"skill\"\\s*:\\s*\"(?:engram:)?learn\""},
+      {"signal": "bash_regex", "pattern": "engram\\s+ingest"}
+    ]
+  },
+  {
+    "n": 2,
+    "name": "Step 2: orient with a literal recall (engram query) after the opening capture",
+    "signal": "bash_regex",
+    "pattern": "engram\\s+query",
+    "after": 1
+  },
+  {
+    "n": 3,
+    "name": "Step 3: doc-surface enumeration grep for the old flag over the repo",
+    "any_of": [
+      {"signal": "bash_regex", "pattern": "\\b(?:grep|rg|ugrep|ag)\\b[^\\n]*(?:--out|\\bout\\b)"},
+      {"signal": "tool_input_regex", "tool": "Grep", "regex": "out"}
+    ],
+    "after": 2
+  },
+  {
+    "n": 4,
+    "name": "Step 3: plan committed",
+    "signal": "bash_regex",
+    "pattern": "git\\s+(?:-C\\s+\\S+\\s+)?commit",
+    "after": 3
+  },
+  {
+    "n": 5,
+    "name": "Gate A: ask-alignment reviewer dispatched",
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "ask[- ]?alignment",
+    "case_insensitive": true,
+    "after": 4
+  },
+  {
+    "n": 6,
+    "name": "Gate A: code-alignment reviewer dispatched",
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "code[- ]?alignment",
+    "case_insensitive": true,
+    "after": 4
+  },
+  {
+    "n": 7,
+    "name": "Gate A: docs/diagrams-alignment reviewer dispatched",
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "diagrams?[- ]?alignment|docs?\\s*/\\s*diagrams?",
+    "case_insensitive": true,
+    "after": 4
+  },
+  {
+    "n": 8,
+    "name": "Gate A: clarity/standards reviewer dispatched",
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "clarity",
+    "case_insensitive": true,
+    "after": 4
+  },
+  {
+    "n": 9,
+    "name": "Gate reviewers are handed a recall-first instruction",
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "(?:recall\\b|engram\\s+query)",
+    "case_insensitive": true,
+    "after": 4
+  },
+  {
+    "n": 10,
+    "name": "Step 4 RED: the test file is edited first",
+    "any_of": [
+      {"signal": "tool_path", "tools": ["Edit", "Write", "MultiEdit"], "pattern": "tests/test_tally\\.py$"},
+      {"signal": "bash_regex", "pattern": "(?:sed|perl)\\s+-[a-z]*i[^\\n]*test_tally\\.py"}
+    ],
+    "after": 5
+  },
+  {
+    "n": 11,
+    "name": "Step 4 GREEN: the implementation is edited after the test",
+    "any_of": [
+      {"signal": "tool_path", "tools": ["Edit", "Write", "MultiEdit"], "pattern": "(?:^|/)tally\\.py$"},
+      {"signal": "bash_regex", "pattern": "(?:sed|perl)\\s+-[a-z]*i[^\\n]*\\btally\\.py"}
+    ],
+    "after": 10
+  },
+  {
+    "n": 12,
+    "name": "Step 4: tests run after the implementation edit",
+    "signal": "bash_regex",
+    "pattern": "pytest\\b",
+    "after": 11
+  },
+  {
+    "n": 13,
+    "name": "Step 5: docs edited",
+    "any_of": [
+      {"signal": "tool_path", "tools": ["Edit", "Write", "MultiEdit"], "pattern": "(?:README\\.md|docs/[^/]+\\.md|CHANGELOG\\.md|tally\\.bash)$"},
+      {"signal": "bash_regex", "pattern": "(?:sed|perl)\\s+-[a-z]*i[^\\n]*(?:README\\.md|docs/|CHANGELOG\\.md|tally\\.bash)"}
+    ],
+    "after": 11
+  },
+  {
+    "n": 14,
+    "name": "Gate C: doc reviewer (relevance / clarity-cohesion) dispatched after the docs were edited",
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "relevance|cohesion",
+    "case_insensitive": true,
+    "after": 13
+  },
+  {
+    "n": 15,
+    "name": "Gate D: outward prose (commit message) reviewer dispatched",
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "commit\\s+messages?|outward\\s+prose",
+    "case_insensitive": true,
+    "after": 14
+  },
+  {
+    "n": 16,
+    "name": "Step 6: final commit after gate D",
+    "signal": "bash_regex",
+    "pattern": "git\\s+(?:-C\\s+\\S+\\s+)?commit",
+    "after": 15
+  },
+  {
+    "n": 17,
+    "name": "Step 7: closing /learn after the final commit",
+    "any_of": [
+      {"signal": "tool_input_regex", "tool": "Skill", "regex": "\"skill\"\\s*:\\s*\"(?:engram:)?learn\""},
+      {"signal": "bash_regex", "pattern": "engram\\s+(?:ingest|learn)"}
+    ],
+    "after": 16
+  },
+  {
+    "n": 18,
+    "name": "Step 7: closing report carries the lessons audit (all four corpus categories enumerated)",
+    "signal": "text_regex",
+    "regex": "^(?=.*lessons?[- ]?audit)(?=.*\\bSTOPs?\\b)(?=.*\\bFAIL)(?=.*CORRECTION)(?=.*escalation)",
+    "case_insensitive": true,
+    "dotall": true,
+    "after": 16
+  },
+  {
+    "n": 19,
+    "name": "Dispatched units' handoffs carry the LESSONS: completion-report contract",
+    "signal": "tool_input_regex",
+    "tool": "Agent",
+    "regex": "LESSONS:"
+  }
+]

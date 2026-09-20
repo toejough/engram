@@ -1,0 +1,10 @@
+run_id=baseline-please-sonnet5-1789843402-3ceac0 task=please arm=N n=3 model=sonnet5 timeout=900s workers=4 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-843402
+setup_trial_vault: removed 94 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-843402/trials/please-N-0/vault
+setup_trial_vault: removed 94 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-843402/trials/please-N-1/vault
+setup_trial_vault: removed 94 eval-session note(s) (luhmann >= 955) from /private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/b-843402/trials/please-N-2/vault
+  [please-N#0] valid end_state=False followed=4/19 cost=$0.25 timed_out=False
+  [please-N#1] valid end_state=False followed=4/19 cost=$0.27 timed_out=False
+  [please-N#2] valid end_state=False followed=4/19 cost=$0.25 timed_out=False
+bare agent (task=please, model=sonnet5, n=3): end result 0/3, did every step 0/3
+per-step miss counts: step 1: 0/3, step 2: 0/3, step 3: 0/3, step 4: 0/3, step 5: 3/3, step 6: 3/3, step 7: 3/3, step 8: 3/3, step 9: 3/3, step 10: 3/3, step 11: 3/3, step 12: 3/3, step 13: 3/3, step 14: 3/3, step 15: 3/3, step 16: 3/3, step 17: 3/3, step 18: 3/3, step 19: 3/3
+mean cost: $0.26

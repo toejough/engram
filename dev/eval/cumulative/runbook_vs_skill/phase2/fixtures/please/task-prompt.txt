@@ -1,0 +1,1 @@
+Please take this end-to-end: rename the tally CLI's `--out` flag to `--output`. It is a hard rename with no alias for the old spelling. Get it landed properly in this repo.

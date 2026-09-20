@@ -752,6 +752,21 @@ def test_found_r_true_when_query_result_contains_carrier_basename():
     assert found_via == "engram_query"
 
 
+def test_found_r_true_when_persisted_query_result_is_read_back_from_tool_results_file():
+    carrier = "1.2026-09-11.commit-conventional-message"
+    events = [
+        _tool_use("Bash", {"command": "engram query --lazy-chunks --phrase \"commit conventions\""}, idx=0),
+        _tool_result(1, 0, "<persisted-output>Output too large. Preview (first 2KB): version: 1"),
+        _tool_use("Bash", {"command": "grep -n path: /x/tool-results/abc.txt | head -150"}, idx=2),
+        _tool_result(3, 2, f"6:  - path: {carrier}.md"),
+        _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=4),
+    ]
+    found, idx, found_via = pp.score_found_phase2("A", "R", events, carrier_basename=carrier)
+    assert found is True
+    assert idx == 2
+    assert found_via == "engram_query"
+
+
 def test_found_r_false_when_query_result_lacks_carrier_basename():
     carrier = "1.2026-09-11.commit-conventional-message"
     events = [
@@ -1708,7 +1723,7 @@ def test_setup_trial_repo_task_b_arm_n_adds_no_claude_dir(tmp_path):
 # further back, regardless of what it does correctly. Fix: setup_trial_repo re-stamps
 # .eval/original_tip to whatever is actually HEAD once its own commit lands.
 
-@pytest.mark.parametrize("task_key", ["history-rewrite", "tdd-order", "bisect-before-fix", "route"])
+@pytest.mark.parametrize("task_key", ["history-rewrite", "tdd-order", "bisect-before-fix", "route", "please"])
 def test_setup_trial_repo_original_tip_matches_head_after_setup(tmp_path, task_key):
     """Every task whose init_fixture_repo.sh stamps .eval/original_tip must see it re-stamped, by
     setup_trial_repo, to the SHA that is actually HEAD once setup_trial_repo returns -- the true
@@ -4139,3 +4154,396 @@ def test_fixture_task_json_removal_basenames_not_clobbered():
                         f"{task_name}/task.json removal_basenames includes '{basename}' "
                         f"but {note_path} does not exist in the vault"
                     )
+
+
+# ----- please task (openspec change please-skill-to-runbook, task 1.2) -----
+#
+# The please fixture is validated WITHOUT any model call, per vault notes 1017a (run the end
+# check against the carrier's own prescribed outcome before launch) and 955 (a checker must
+# accept every reading the carrier text permits): a hand-built ideal end state (following
+# please/SKILL.md's steps literally, including its "plan committed, then deleted at Step 6"
+# lifecycle) must PASS done_when_checks.sh, and each single-defect mutant must FAIL it.
+
+import subprocess
+
+
+def _git(repo, *args):
+    return subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True, check=True).stdout
+
+
+def _sub_in_file(repo, rel_path, old_re, new):
+    path = os.path.join(repo, rel_path)
+    text = open(path).read()
+    with open(path, "w") as f:
+        f.write(re.sub(old_re, new, text))
+
+
+_FLAG_RE = r"--out(?![a-zA-Z])"
+
+_PLAN_WITH_DISPOSITIONS = """# Plan: rename --out to --output
+
+Doc-surface enumeration grep (term `--out`, `out flag`, diagram labels, comments):
+
+- tally.py -> update (parser flag, help text, comment)
+- tests/test_tally.py -> update
+- README.md -> update (usage block)
+- docs/usage.md -> update (options table and example)
+- docs/architecture.md -> update (mermaid edge label and prose)
+- completions/tally.bash -> update (opts list)
+- CHANGELOG.md -> keep (historical 0.2.0 entry is a record); add a new entry
+"""
+
+
+def _ideal_please_end_state(tmp_path, plan_text=_PLAN_WITH_DISPOSITIONS, skip=(), plan_commit=True,
+                            delete_plan=True, changelog_new_entry=True):
+    """Follow please's workflow literally on a fresh trial repo: commit the plan (Step 3), RED test
+    edit, GREEN code + doc edits + CHANGELOG entry, delete the plan (Step 6). `skip` names surface
+    files whose flag echo is left stale (a mutant)."""
+    repo = pp.setup_trial_repo(str(tmp_path), "please", "S", marker="RUNBOOK-VS-SKILL-PROBE2-please")
+    if plan_commit:
+        with open(os.path.join(repo, "plan.md"), "w") as f:
+            f.write(plan_text)
+        _git(repo, "add", "plan.md")
+        _git(repo, "commit", "-qm", "docs: plan the --output rename")
+    _sub_in_file(repo, "tests/test_tally.py", _FLAG_RE, "--output")
+    _git(repo, "commit", "-qam", "test: expect --output")
+    for rel in ("tally.py", "README.md", "docs/usage.md", "docs/architecture.md", "completions/tally.bash"):
+        if rel in skip:
+            continue
+        _sub_in_file(repo, rel, _FLAG_RE, "--output")
+    if "tally.py" not in skip:
+        _sub_in_file(repo, "tally.py", r"args\.out\b", "args.output")
+    if changelog_new_entry:
+        path = os.path.join(repo, "CHANGELOG.md")
+        text = open(path).read()
+        with open(path, "w") as f:
+            f.write(text.replace("# Changelog\n", "# Changelog\n\n## 0.3.0\n\n- Renamed `--out` to `--output` "
+                                                   "(hard rename, no alias).\n", 1))
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "feat: rename --out flag to --output")
+    if plan_commit and delete_plan:
+        _git(repo, "rm", "-q", "plan.md")
+        _git(repo, "commit", "-qm", "chore: remove plan")
+    return repo
+
+
+def _run_please_done_when(repo):
+    r = subprocess.run(["bash", pp.TASKS["please"]["done_when_script"], repo], capture_output=True, text=True)
+    return r.returncode, (r.stdout + r.stderr).strip()
+
+
+def test_please_is_registered_with_skill_and_runbook_r_carrier():
+    cfg = pp.TASKS["please"]
+    assert cfg["skill_name"] == "please"
+    assert os.path.isfile(os.path.join(cfg["skill_src"], "SKILL.md"))
+    assert len(cfg["removal_basenames"]) > 0
+    # the R carrier is the converted runbook set (conversion tasks 2.x); no fact-encoded F arm exists
+    assert cfg["carrier_r_src"].endswith(os.path.join("encodings", "taskPlease", "Please-R", "vault"))
+    assert os.path.isdir(cfg["carrier_r_src"])
+    assert cfg["carrier_f_src"] is None
+
+
+def test_please_skill_src_is_byte_identical_to_the_live_skill():
+    live = os.path.join(pp.p1.REPO, "agent-instructions", "skills", "please", "SKILL.md")
+    if not os.path.isfile(live):  # retired by task 5.3: the frozen copy is then the only record
+        pytest.skip("live please skill already retired")
+    frozen = os.path.join(pp.TASKS["please"]["skill_src"], "SKILL.md")
+    assert open(frozen).read() == open(live).read()
+
+
+def test_add_carrier_fails_loud_when_the_arm_has_no_carrier_source(tmp_path):
+    """Missing-input rule (vault note 159 / fail-loud): an F arm on a task whose task.json has no
+    carrier_f_src must raise, not silently `os.listdir(None)` the cwd into the vault."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    with pytest.raises(RuntimeError, match="carrier_f_src"):
+        pp.add_carrier(str(vault), "please", "F")
+    assert os.listdir(str(vault)) == []
+
+
+_PLEASE_R_VAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "encodings", "taskPlease",
+                              "Please-R", "vault")
+_REDFLAGS_BUDGET = 1200  # internal/cli/redflags_truncation.go redFlagsPreviewBudget
+
+
+def _please_r_notes():
+    return sorted(n for n in os.listdir(_PLEASE_R_VAULT) if n.endswith(".md"))
+
+
+def _frontmatter_and_body(name):
+    text = open(os.path.join(_PLEASE_R_VAULT, name)).read()
+    _, fm, body = text.split("---\n", 2)
+    return fm, body
+
+
+def test_please_r_carrier_is_top_runbook_plus_three_sub_runbooks_with_sidecars():
+    notes = _please_r_notes()
+    assert len(notes) == 4
+    for n in notes:
+        assert os.path.isfile(os.path.join(_PLEASE_R_VAULT, n[:-3] + ".vec.json")), n
+    # add_carrier reports the LAST .md in sorted order as the carrier: that must be the top runbook
+    assert notes[-1].endswith("please-drive-ask-end-to-end.md")
+
+
+def test_please_r_red_flags_fit_the_redflags_preview_budget_in_every_note():
+    for n in _please_r_notes():
+        fm, _ = _frontmatter_and_body(n)
+        # red_flags is followed by `triggers:` (when amended) then `luhmann`: cut at whichever comes
+        # first, or the trigger list is miscounted against the red_flags budget.
+        block = fm.split("red_flags:\n", 1)[1].split("\ntriggers:", 1)[0].split("\nluhmann", 1)[0] + "\n"
+        assert len(block.encode()) <= _REDFLAGS_BUDGET, (n, len(block.encode()))
+
+
+def test_please_r_wikilinks_live_in_the_top_body_only_and_resolve_to_siblings():
+    notes = _please_r_notes()
+    basenames = {n[:-3] for n in notes}
+    top_fm, top_body = _frontmatter_and_body(notes[-1])
+    for n in notes:
+        fm, _ = _frontmatter_and_body(n)
+        structured = fm.split("luhmann:", 1)[0]
+        # structured fields never LINK; the one allowed literal is the syntax placeholder
+        assert re.findall(r"\[\[([^\]]+)\]\]", structured.replace("[[note-basename]]", "")) == [], n
+    links = set(re.findall(r"\[\[([^\]]+)\]\]", top_body)) - {"note-basename"}
+    assert links == basenames - {notes[-1][:-3]}
+
+
+def test_please_r_top_red_flags_include_plaintext_wikilink_entry_and_lessons_order_flags():
+    notes = _please_r_notes()
+    fm, _ = _frontmatter_and_body(notes[-1])
+    # red_flags/done_when describe wikilink syntax in words; a literal [[...]] would be followed by the shim
+    assert "[[" not in fm and "plain text" in fm and "double-square-bracket" in fm
+    assert "step 1 opening /learn has completed" in fm  # learn-before-recall ordering
+    assert "LESSONS" in fm
+
+
+def test_please_domain_carrier_reaches_only_the_r_arm(tmp_path):
+    for arm in ("S", "N", "Rdirect"):
+        vault = tmp_path / arm
+        vault.mkdir()
+        assert pp.add_carrier(str(vault), "please", arm) is None
+        assert os.listdir(str(vault)) == []
+    vault = tmp_path / "R"
+    vault.mkdir()
+    assert pp.add_carrier(str(vault), "please", "R") == "6.2026-09-19.please-drive-ask-end-to-end"
+    assert len([n for n in os.listdir(str(vault)) if n.endswith(".md")]) == 4
+
+
+def test_please_setup_s_arm_deploys_skill_and_starts_clean(tmp_path):
+    repo = pp.setup_trial_repo(str(tmp_path), "please", "S", marker="RUNBOOK-VS-SKILL-PROBE2-please")
+    assert os.path.isfile(os.path.join(repo, ".claude", "skills", "please", "SKILL.md"))
+    assert _git(repo, "status", "--porcelain").strip() == ""
+    # the flag is echoed across every surface at the start
+    for rel in ("tally.py", "tests/test_tally.py", "README.md", "docs/usage.md", "docs/architecture.md",
+                "completions/tally.bash", "CHANGELOG.md"):
+        assert re.search(_FLAG_RE, open(os.path.join(repo, rel)).read()), rel
+
+
+def test_please_done_when_fails_on_the_untouched_start_state(tmp_path):
+    repo = pp.setup_trial_repo(str(tmp_path), "please", "S", marker="RUNBOOK-VS-SKILL-PROBE2-please")
+    rc, out = _run_please_done_when(repo)
+    assert rc != 0 and out.startswith("FAIL"), out
+
+
+def test_please_done_when_passes_on_the_ideal_end_state(tmp_path):
+    repo = _ideal_please_end_state(tmp_path)
+    rc, out = _run_please_done_when(repo)
+    assert rc == 0, out
+    assert out.endswith("PASS: please task end-state verified")
+
+
+def test_please_done_when_passes_when_the_plan_lives_under_docs_plans_with_capitalized_dispositions(tmp_path):
+    """Every reading the skill permits must pass: the skill names no plan path or disposition
+    casing (vault note 955)."""
+    plan = _PLAN_WITH_DISPOSITIONS
+    repo = pp.setup_trial_repo(str(tmp_path), "please", "S", marker="RUNBOOK-VS-SKILL-PROBE2-please")
+    os.makedirs(os.path.join(repo, "docs", "plans"))
+    with open(os.path.join(repo, "docs", "plans", "rename.md"), "w") as f:
+        f.write(plan.replace("update", "Update"))
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "plan")
+    _sub_in_file(repo, "tests/test_tally.py", _FLAG_RE, "--output")
+    _sub_in_file(repo, "tally.py", _FLAG_RE, "--output")
+    _sub_in_file(repo, "tally.py", r"args\.out\b", "args.output")
+    for rel in ("README.md", "docs/usage.md", "docs/architecture.md", "completions/tally.bash"):
+        _sub_in_file(repo, rel, _FLAG_RE, "--output")
+    _sub_in_file(repo, "CHANGELOG.md", r"# Changelog\n", "# Changelog\n\n- Renamed `--out` to `--output`.\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "feat: rename")
+    _git(repo, "rm", "-rq", "docs/plans")
+    _git(repo, "commit", "-qm", "chore: drop plan")
+    rc, out = _run_please_done_when(repo)
+    assert rc == 0, out
+
+
+@pytest.mark.parametrize("label,kwargs,expected", [
+    ("stale diagram label left behind", {"skip": ("docs/architecture.md",)}, "docs/architecture.md"),
+    ("stale completion script left behind", {"skip": ("completions/tally.bash",)}, "completions/tally.bash"),
+    ("stale README left behind", {"skip": ("README.md",)}, "README.md"),
+    ("no plan committed at all", {"plan_commit": False}, "no plan file"),
+    ("plan left tracked at HEAD", {"delete_plan": False}, "plan.md"),
+    ("no CHANGELOG entry", {"changelog_new_entry": False}, "CHANGELOG"),
+    ("plan without a disposition for the completion script",
+     {"plan_text": _PLAN_WITH_DISPOSITIONS.replace("- completions/tally.bash -> update (opts list)\n", "")},
+     "completions/tally.bash"),
+])
+def test_please_done_when_fails_each_single_defect_mutant(tmp_path, label, kwargs, expected):
+    repo = _ideal_please_end_state(tmp_path, **kwargs)
+    rc, out = _run_please_done_when(repo)
+    assert rc != 0, f"{label}: expected FAIL, got: {out}"
+    assert expected in out, f"{label}: FAIL message should name {expected!r}, got: {out}"
+
+
+def test_please_done_when_fails_when_history_of_the_changelog_is_rewritten(tmp_path):
+    repo = _ideal_please_end_state(tmp_path)
+    _sub_in_file(repo, "CHANGELOG.md", r"Added `--out PATH`", "Added `--output PATH`")
+    _git(repo, "commit", "-qam", "docs: scrub changelog history")
+    rc, out = _run_please_done_when(repo)
+    assert rc != 0 and "historical line" in out, out
+
+
+def test_please_done_when_fails_when_plan_is_committed_only_with_the_code(tmp_path):
+    """Plan-before-code order (Step 3): a plan added in the SAME commit as the first tally.py change
+    was not committed first."""
+    repo = pp.setup_trial_repo(str(tmp_path), "please", "S", marker="RUNBOOK-VS-SKILL-PROBE2-please")
+    with open(os.path.join(repo, "plan.md"), "w") as f:
+        f.write(_PLAN_WITH_DISPOSITIONS)
+    for rel in ("tally.py", "tests/test_tally.py", "README.md", "docs/usage.md", "docs/architecture.md",
+                "completions/tally.bash"):
+        _sub_in_file(repo, rel, _FLAG_RE, "--output")
+    _sub_in_file(repo, "tally.py", r"args\.out\b", "args.output")
+    _sub_in_file(repo, "CHANGELOG.md", r"# Changelog\n", "# Changelog\n\n- Renamed `--out` to `--output`.\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "feat: everything at once")
+    _git(repo, "rm", "-q", "plan.md")
+    _git(repo, "commit", "-qm", "chore: drop plan")
+    rc, out = _run_please_done_when(repo)
+    assert rc != 0 and "no plan file" in out, out
+
+
+def test_please_done_when_fails_when_the_old_flag_is_kept_as_an_alias(tmp_path):
+    repo = _ideal_please_end_state(tmp_path)
+    _sub_in_file(repo, "tally.py", r'parser\.add_argument\("--output"',
+                 'parser.add_argument("--output", "--out"')
+    _git(repo, "commit", "-qam", "feat: keep alias")
+    rc, out = _run_please_done_when(repo)
+    assert rc != 0 and "--out" in out, out
+
+
+# --- please steps.json ---
+
+def test_please_steps_json_is_valid_and_registered():
+    steps = pp.load_steps("please")
+    assert [s["n"] for s in steps] == list(range(1, len(steps) + 1))
+    valid_keys = {"bash_regex": "pattern", "tool_path": "pattern", "repo_state": "pattern",
+                  "tool_input_regex": "regex", "text_regex": "regex"}
+    for step in steps:
+        for sig in _step_signals(step):
+            assert sig["signal"] in valid_keys, f"step {step['n']}: unknown signal {sig['signal']!r}"
+            assert valid_keys[sig["signal"]] in sig
+        if "after" in step:
+            assert step["after"] < step["n"]
+    _assert_bash_step_all_registered("please")
+
+
+_AUDIT_TEXT = ("Done. Lessons audit: STOPs fired: none. Gate FAIL verdicts: none. CORRECTION-class commits: "
+               "none. Mid-cycle escalations: none. No lesson: clean rename.")
+
+
+def _ideal_please_events():
+    """A transcript following please/SKILL.md literally, as the events the harness parses."""
+    seq = [
+        ("Skill", {"skill": "learn"}),
+        ("Bash", {"command": "engram ingest --auto"}),
+        ("Bash", {"command": "engram query --lazy-chunks --phrase 'rename cli flag'"}),
+        ("Bash", {"command": "git grep -nE -e '--out' -e 'out flag'"}),
+        ("Bash", {"command": "git add plan.md && git commit -m 'docs: plan'"}),
+        ("Agent", {"prompt": "Gate A ask-alignment reviewer. Recall first. Refute the plan. LESSONS: line."}),
+        ("Agent", {"prompt": "Gate A code-alignment reviewer. Recall first."}),
+        ("Agent", {"prompt": "Gate A docs/diagrams-alignment reviewer. Recall first."}),
+        ("Agent", {"prompt": "Gate A clarity/standards reviewer. Recall first."}),
+        ("Edit", {"file_path": "/r/tests/test_tally.py"}),
+        ("Edit", {"file_path": "/r/tally.py"}),
+        ("Bash", {"command": "python3 -m pytest -q"}),
+        ("Edit", {"file_path": "/r/README.md"}),
+        ("Agent", {"prompt": "Gate C relevance reviewer over every touched doc."}),
+        ("Agent", {"prompt": "Gate D: review the commit message for clarity/standards."}),
+        ("Bash", {"command": "git commit -am 'feat: rename --out to --output'"}),
+        ("Skill", {"skill": "learn"}),
+    ]
+    events = []
+    for i, (name, inp) in enumerate(seq):
+        events.append(_tool_use(name, inp, idx=i))
+    events.append(_text_ev(_AUDIT_TEXT, idx=len(seq)))
+    return events
+
+
+def test_please_ideal_transcript_satisfies_every_step():
+    steps = pp.load_steps("please")
+    results, k, followed_all = pp.evaluate_steps(steps, _ideal_please_events(), repo_path="/does/not/matter")
+    assert followed_all, {n: v for n, v in results.items() if not v}
+    assert k == len(steps)
+
+
+def test_please_bare_agent_transcript_fails_the_ceremony_steps():
+    """The no-instructions shape (grep, edit, test, commit -- no learn/recall bracket, no gates, no
+    audit) must NOT satisfy the ceremony: this is the fixture's discriminating power (note 989)."""
+    events = [
+        _tool_use("Bash", {"command": "grep -rn -e '--out' ."}, idx=0),
+        _tool_use("Edit", {"file_path": "/r/tests/test_tally.py"}, idx=1),
+        _tool_use("Edit", {"file_path": "/r/tally.py"}, idx=2),
+        _tool_use("Bash", {"command": "python3 -m pytest -q"}, idx=3),
+        _tool_use("Edit", {"file_path": "/r/README.md"}, idx=4),
+        _tool_use("Bash", {"command": "git commit -am 'rename --out to --output'"}, idx=5),
+        _text_ev("Renamed the flag everywhere and committed.", idx=6),
+    ]
+    results, k, followed_all = pp.evaluate_steps(pp.load_steps("please"), events, repo_path="/x")
+    assert not followed_all
+    for n in ("1", "2", "5", "6", "7", "8", "14", "15", "17", "18", "19"):
+        assert results[n] is False, n
+    assert k <= 5
+
+
+@pytest.mark.parametrize("dropped_index,failed_step", [
+    (5, "5"),   # no ask-alignment reviewer
+    (7, "7"),   # no docs/diagrams reviewer
+    (13, "14"),  # no gate C
+    (14, "15"),  # no gate D
+])
+def test_please_dropping_a_gate_fails_exactly_its_step_family(dropped_index, failed_step):
+    events = [ev for ev in _ideal_please_events() if ev["idx"] != dropped_index]
+    for i, ev in enumerate(events):
+        ev["idx"] = i
+    results, _, followed_all = pp.evaluate_steps(pp.load_steps("please"), events, repo_path="/x")
+    assert not followed_all
+    assert results[failed_step] is False
+
+
+def test_please_audit_step_rejects_a_report_missing_a_corpus_category():
+    events = _ideal_please_events()
+    events[-1]["text"] = "Lessons audit: STOPs: none. Gate FAIL verdicts: none. No lesson: clean rename."
+    results, _, _ = pp.evaluate_steps(pp.load_steps("please"), events, repo_path="/x")
+    assert results["18"] is False
+
+
+# --- text_regex signal (assistant prose; needed to observe please's closing lessons-audit report) ---
+
+def test_text_regex_signal_matches_assistant_text_after_the_referenced_step():
+    steps = [
+        {"n": 1, "signal": "bash_regex", "pattern": "git commit"},
+        {"n": 2, "signal": "text_regex", "regex": "^(?=.*audit)(?=.*none)", "case_insensitive": True,
+         "dotall": True, "after": 1},
+    ]
+    before_only = [_text_ev("AUDIT: none", 0), _tool_use("Bash", {"command": "git commit -m x"}, 1)]
+    results, _, _ = pp.evaluate_steps(steps, before_only, repo_path="/x")
+    assert results["2"] is False
+    after = [_tool_use("Bash", {"command": "git commit -m x"}, 0), _text_ev("Audit:\nfindings: none", 1)]
+    results, _, _ = pp.evaluate_steps(steps, after, repo_path="/x")
+    assert results["2"] is True
+
+
+def test_text_regex_signal_requires_regex_key_and_ignores_tool_events():
+    with pytest.raises(ValueError, match="regex"):
+        pp.evaluate_steps([{"n": 1, "signal": "text_regex"}], [_text_ev("x", 0)], repo_path="/x")
+    steps = [{"n": 1, "signal": "text_regex", "regex": "git commit"}]
+    results, _, _ = pp.evaluate_steps(steps, [_tool_use("Bash", {"command": "git commit"}, 0)], repo_path="/x")
+    assert results["1"] is False
