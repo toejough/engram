@@ -946,6 +946,28 @@ kind=fact save-request when the user says "do that going forward."
   property was already true by construction once capture landed (Decision 2 is an omission, not an
   addition).
 
+**Amendment (2026-09-20, openspec change `runbook-lexical-triggers`): one lexical exception to "no
+dedicated ranking mechanism."** The Decision's "ranks purely by situation-similarity … no new
+ranking mechanism" rationale was written against a *task-type classifier* and still holds for
+that mechanism. It does not hold for a literal cue the runbook's author declares. The parked change
+`please-skill-to-runbook` measured the pure-similarity path on a real `/please` ask (results
+`dev/eval/cumulative/runbook_vs_skill/phase2/results/3.3_*`, `3.3c_*`, `3.3d_*`): the agent
+paraphrases the user's request into the `--phrase` values and the paraphrase drops the cue —
+"please" and "end-to-end" vanished and the deliverable was named instead, so the runbook did not
+surface in the shim-only arm (end_state 0/3, 3.3) and, after shim fixes, still missed on 1/3 trials
+(3.3c) and whenever the paraphrase named the deliverable. Adding the user's verbatim words as a
+*third semantic phrase* changed the runbook's rank or score in 0 of 95 scratch-vault cells:
+embedding similarity on a paraphrase cannot reproduce a literal-cue fire. Decision: a runbook MAY
+carry an author-declared `triggers:` list (`engram learn runbook --trigger`, repeatable;
+`engram amend --trigger` replaces the list); `engram query --text "<user message, verbatim>"` is
+matched against it by case-insensitive substring after whitespace collapse, and a hit surfaces
+first in `items[]` (provenance `trigger`, ahead of every similarity-ranked item, exempt from the
+relevance floor, matched-set cap, and `--limit`). This is the single lexical exception: `--text` is
+never embedded, triggers apply to `type: runbook` only, `triggers:` is not part of `embed.ContentHash`
+(no sidecar re-embed), and runbooks without a hit, and queries without `--text`, rank exactly as
+before. A hit is still only a candidate the agent judges against the runbook's own applicability
+text. Link: `openspec/changes/runbook-lexical-triggers`.
+
 Link: `openspec/changes/runbook-note-kind`.
 
 ---

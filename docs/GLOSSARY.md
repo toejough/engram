@@ -335,9 +335,10 @@ v2+v3 batches (`dev/eval/LEDGER.md#c7-reentry-query-green`).
 
 ### surfaced notes
 Notes returned in the `items[]` payload from `engram query`. Includes both
-matched notes (Channel 1, relevance) and recent chunks (Channel 2, recency,
-tagged `recent`). Coverage synthesis is judged from matched clusters only (Channel
-1); the recency channel is situational context the agent reads, not clustered.
+matched notes (Channel 1, relevance), recent chunks (Channel 2, recency,
+tagged `recent`), and runbook *trigger hits* (provenance `trigger`, listed first). Coverage
+synthesis is judged from matched clusters only (Channel 1); the recency channel is situational
+context the agent reads, not clustered.
 
 ### matched set
 The bounded set of notes and chunks fed to clustering in the query path.
@@ -411,8 +412,32 @@ Matched sets smaller than 6 items skip clustering and return `clusters: []`.
 ### provenances (item roles)
 A query item's `provenances` list names every role it fills: `direct`
 (top-k cosine hit), `cluster_rep` (cluster representative), `recent`
-(recency-channel chunk, un-clustered). Items dedup across roles; a path
+(recency-channel chunk, un-clustered), `trigger` (runbook whose `triggers:` matched
+`--text` — see *trigger hit*; ranks above `direct`). Items dedup across roles; a path
 appears once regardless of how many roles it fills.
+
+### trigger
+An author-declared literal cue on a `type: runbook` note: an entry of its optional
+`triggers:` frontmatter list, written with repeatable `engram learn runbook --trigger <text>`
+(replaced whole by `engram amend --trigger`). Each entry is at least 3 characters after
+trimming. Authoring rule: a distinctive cue — a slash form (`/please`) or a multi-word phrase
+(`take this end-to-end`) — never a lone common word. `triggers:` is not part of
+`embed.ContentHash`, so editing it never stales the sidecar. Only runbooks carry triggers; a
+`triggers:` list on any other kind is ignored.
+
+### trigger hit
+A runbook whose `triggers:` list contains an entry that is a substring of the query's `--text`,
+compared case-insensitively after collapsing whitespace runs to one space on both sides.
+`--text` is the user's message pasted verbatim (never a paraphrase, never embedded); it is
+separate from the semantic `--phrase` values, and absent `--text` means no trigger matching and
+a payload identical to a query without triggers. A hit surfaces first in `items[]` with
+provenance `trigger`, ahead of every similarity-ranked item, exempt from the relevance floor,
+matched-set cap, and `--limit` (a hit may have similarity score 0); `--project` still filters
+it. A runbook can only be a hit if it has a compatible embedding sidecar (the trigger index is
+built from the compatible-sidecar set, and a query errors before matching when a non-empty
+vault has none). A hit is a candidate only — the agent still judges it against the runbook's own
+applicability text. On the served path (`ENGRAM_SERVER`), `text` is capped at 2 KB (silent
+truncation).
 
 ---
 
