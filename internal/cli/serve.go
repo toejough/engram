@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // FetchResponse is one HTTP response reduced to primitive types.
@@ -124,6 +125,8 @@ func ServeRoutes(deps Deps, vault, vaultName, chunksDir string) []ServeRoute {
 
 // unexported constants.
 const (
+	// maxQueryTextBytes caps the served /query text param (2 KB).
+	maxQueryTextBytes         = 2048
 	methodGet                 = "GET"
 	methodPost                = "POST"
 	offerReceivedStatus       = "offer received"
@@ -182,6 +185,22 @@ func boolQueryParam(query map[string][]string, key string) bool {
 	value, _ := strconv.ParseBool(firstQueryParam(query, key))
 
 	return value
+}
+
+// capQueryText truncates text to maxQueryTextBytes on a UTF-8 rune boundary,
+// bounding the served query string; trigger cues occur early in a message, so
+// truncation is silent (runbook-lexical-triggers spec).
+func capQueryText(text string) string {
+	if len(text) <= maxQueryTextBytes {
+		return text
+	}
+
+	end := maxQueryTextBytes
+	for end > 0 && !utf8.RuneStart(text[end]) {
+		end--
+	}
+
+	return text[:end]
 }
 
 // firstQueryParam returns key's first query value, or "" when absent.
@@ -376,6 +395,7 @@ func serveQuery(deps Deps, vault, chunksDir string) ServeHandler {
 			ChunksDir:     chunksDir,
 			Limit:         intQueryParam(req.Query, "limit"),
 			Project:       firstQueryParam(req.Query, "project"),
+			Text:          capQueryText(firstQueryParam(req.Query, "text")),
 			ContentBudget: intQueryParam(req.Query, "content-budget"),
 			RecentFill:    intQueryParam(req.Query, "recent-fill"),
 			LazyChunks:    boolQueryParam(req.Query, "lazy-chunks"),

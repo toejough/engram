@@ -656,6 +656,62 @@ func TestCleanupDanglingLinksInDir_StatError_Propagates(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("stat boom")))
 }
 
+// TestCleanupDanglingLinks_NoGuidanceSurface_ScansOnlySkillsRoot: a harness
+// with no guidance surface has only its skills root scanned; a dangling
+// engram link elsewhere is left alone.
+func TestCleanupDanglingLinks_NoGuidanceSurface_ScansOnlySkillsRoot(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	base := newMemFS()
+	base.dirs[home+"/.x/skills"] = true
+	base.dirs[home+"/.x/guidance"] = true
+	g.Expect(base.Symlink(home+"/.x/engram/skills/gone", home+"/.x/skills/gone")).To(Succeed())
+	g.Expect(base.Symlink(home+"/.x/engram/guidance/gone.md", home+"/.x/guidance/gone.md")).To(Succeed())
+
+	updater := &update.Updater{FS: base}
+	rep := &update.HarnessReport{SkillsRoot: home + "/.x/skills", EngramRoot: home + "/.x/engram"}
+	spec := update.HarnessSpec{EngramRootRel: ".x/engram"}
+
+	update.ExportCleanupDanglingLinks(updater, rep, spec, home, false)
+
+	g.Expect(rep.Err).NotTo(HaveOccurred())
+	g.Expect(rep.DanglingLinksRemoved).To(ConsistOf(home + "/.x/skills/gone"))
+	g.Expect(base.symlinks).To(HaveKey(home + "/.x/guidance/gone.md"))
+}
+
+// TestCleanupDanglingLinks_ScanError_SetsRepErrAndStops: a scan failure on
+// the skills root is recorded on the report and later surfaces are skipped.
+func TestCleanupDanglingLinks_ScanError_SetsRepErrAndStops(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const home = "/home/joe"
+
+	base := newMemFS()
+	base.dirs[home+"/.x/skills"] = true
+	base.dirs[home+"/.x/guidance"] = true
+	g.Expect(base.Symlink(home+"/.x/engram/guidance/gone.md", home+"/.x/guidance/gone.md")).To(Succeed())
+
+	fileSystem := &symlinkFaultFS{
+		memFS:      base,
+		readDirErr: map[string]error{home + "/.x/skills": errors.New("readdir boom")},
+	}
+	updater := &update.Updater{FS: fileSystem}
+	rep := &update.HarnessReport{SkillsRoot: home + "/.x/skills", EngramRoot: home + "/.x/engram"}
+	spec := update.HarnessSpec{EngramRootRel: ".x/engram", GuidanceTargetRel: ".x/guidance"}
+
+	update.ExportCleanupDanglingLinks(updater, rep, spec, home, false)
+
+	g.Expect(rep.Err).To(MatchError(ContainSubstring("readdir boom")))
+	g.Expect(rep.DanglingLinksRemoved).To(BeEmpty())
+	g.Expect(base.symlinks).To(HaveKey(home + "/.x/guidance/gone.md"))
+}
+
 // --- pure lexical-resolution helpers -----------------------------------------
 
 func TestLexicallyResolveSymlinkTarget_Absolute(t *testing.T) {

@@ -35,6 +35,10 @@ type AllVaultNotesMeta struct {
 	// ContentByBasename stores loaded note content keyed by basename (for ride-along
 	// superseder insertion — the superseder may not be in the matched set).
 	ContentByBasename map[string]string
+	// TriggerIndex maps a runbook note's basename to its non-empty triggers:
+	// frontmatter entries (runbook-lexical-triggers). Only type: runbook notes
+	// contribute; other kinds' triggers: lists are ignored.
+	TriggerIndex map[string][]string
 }
 
 // VaultTermMember holds a vault note carrying a vocab/<term> tag, eligible
@@ -58,6 +62,7 @@ type VaultTermMember struct {
 type noteQueryFrontmatter struct {
 	Tags       []string          `yaml:"tags"`
 	Supersedes []supersedesEntry `yaml:"supersedes"`
+	Triggers   []string          `yaml:"triggers"`
 }
 
 // applySupersedesRideAlong inserts superseding notes directly after any delivered
@@ -157,6 +162,7 @@ func loadAllVaultNotesMeta(
 		TermIndex:         make(map[string][]VaultTermMember),
 		SupersedesInverse: make(SupersedesInverse),
 		ContentByBasename: make(map[string]string),
+		TriggerIndex:      make(map[string][]string),
 	}
 
 	supersedersByNote := make(map[string][]supersedesEntry)
@@ -186,6 +192,10 @@ func loadAllVaultNotesMeta(
 			for _, term := range terms {
 				result.TermIndex[term] = append(result.TermIndex[term], member)
 			}
+		}
+
+		if len(meta.Triggers) > 0 && kindFromContent(content) == typeRunbook {
+			result.TriggerIndex[basename] = meta.Triggers
 		}
 
 		// Populate SupersedesInverse via BuildSupersedesInverse after scanning all notes.

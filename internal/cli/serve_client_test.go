@@ -5,9 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	. "github.com/onsi/gomega"
 
@@ -355,6 +358,42 @@ func TestEngramServer_Query_RoutesThroughFetch(t *testing.T) {
 	g.Expect(stdout).To(Equal("version: 1\nitems: []\n"), "GET response body is copied verbatim")
 	g.Expect(got.method).To(Equal("GET"))
 	g.Expect(got.url).To(Equal("http://vault-host:8420/query?phrase=hello%20world"))
+}
+
+// TestEngramServer_Query_TextRoundTripsByteIdentically: a 1 KB --text with
+// quotes, newlines, '&', '=', '%' and non-ASCII characters survives the
+// hand-rolled query encoder unchanged when decoded by a standard parser.
+func TestEngramServer_Query_TextRoundTripsByteIdentically(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
+
+	const unit = "say \"hi\"\nfoo&bar=baz 100% naïve привет мир /please\t"
+
+	text := strings.Repeat(unit, 1024/len(unit))
+	g.Expect(utf8.ValidString(text)).To(BeTrue(), "fixture must be valid UTF-8")
+
+	var got fakeFetchCall
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "query", "--text", text},
+		func(d *cli.Deps) {
+			d.Fetch = func(_ context.Context, method, target string, body []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: target, body: body}
+
+				return cli.FetchResponse{Status: 200, Body: []byte("ok\n")}, nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+
+	parsed, parseErr := url.Parse(got.url)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	g.Expect(parsed.Query().Get("text")).To(Equal(text))
+	g.Expect(parsed.Query()["phrase"]).To(BeEmpty())
 }
 
 // TestEngramServer_ShowChunk_RoutesThroughFetch covers `engram show-chunk`

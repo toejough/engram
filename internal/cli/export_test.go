@@ -86,6 +86,7 @@ var (
 	ExportLoadTermVectors                  = loadTermVectors
 	ExportMarshalFrontmatter               = marshalFrontmatter
 	ExportMatchClustersToTerms             = matchClustersToTerms
+	ExportMatchTriggers                    = matchTriggers
 	ExportMaxTurnBySource                  = maxTurnBySource
 	ExportMintDefinitionNote               = mintDefinitionNote
 	ExportMostRecentlyUsedNoteItems        = mostRecentlyUsedNoteItems
@@ -95,54 +96,55 @@ var (
 	ExportNewErrHandler                    = newErrHandler
 	ExportNewIdentityDeps                  = newIdentityDeps
 	// ExportNewUpdateDeps exposes the production pure composition for tests.
-	ExportNewUpdateDeps               = newUpdateDeps
-	ExportNewVocabDeps                = newVocabDeps
-	ExportNextLuhmannID               = nextLuhmannID
-	ExportNoteAgeDays                 = noteAgeDays
-	ExportNoteContainsAnyRemoval      = noteContainsAnyRemoval
-	ExportNoteHasPendingMarker        = noteHasPendingMarker
-	ExportNotesMissingIdentityFields  = notesMissingIdentityFields
-	ExportOldVocabFilesPresent        = oldVocabFilesPresent
-	ExportParentBase                  = parentBase
-	ExportParseCreatedFromNote        = parseCreatedFromNote
-	ExportParseNoteQueryFrontmatter   = parseNoteQueryFrontmatter
-	ExportParseRefitNames             = parseRefitNames
-	ExportParseSupersedesFlag         = parseSupersedesFlag
-	ExportParseTagsFromFrontmatter    = parseTagsFromFrontmatter
-	ExportParseTurnN                  = parseTurnN
-	ExportPluralFile                  = pluralFile
-	ExportPrintLinkExamples           = printLinkExamples
-	ExportPrintNoteExamples           = printNoteExamples
-	ExportPrintStatsReport            = printStatsReport
-	ExportProcessVocabDefinitionNote  = processVocabDefinitionNote
-	ExportReadCentroidsDoc            = readCentroidsDoc
-	ExportRecencyMultiplier           = recencyMultiplier
-	ExportRegenVocab                  = regenVocab
-	ExportRemoveNoteReferences        = removeNoteReferences
-	ExportRenderDefinitionNoteContent = renderDefinitionNoteContent
-	ExportRenderFactBody              = renderFactBody
-	ExportRenderFactFrontmatter       = renderFactFrontmatter
-	ExportRenderFeedbackBody          = renderFeedbackBody
-	ExportRenderFeedbackFrontmatter   = renderFeedbackFrontmatter
-	ExportRenderQAAnswerNote          = renderQAAnswerNote
-	ExportRenderQAQuestionNote        = renderQAQuestionNote
-	ExportRenderRunbookBody           = renderRunbookBody
-	ExportRenderRunbookFrontmatter    = renderRunbookFrontmatter
-	ExportRenderSupersedes            = renderSupersedes
-	ExportRepoWithProjectFallback     = repoWithProjectFallback
-	ExportResolveVault                = resolveVault
-	ExportResolveVaultName            = resolveVaultName
-	ExportRetagAllNotesTwoPass        = retagAllNotesTwoPass
-	ExportRetireVocabTerms            = retireVocabTerms
-	ExportRunActivate                 = RunActivate
-	ExportRunAmend                    = RunAmend
-	ExportRunLearn                    = RunLearn
-	ExportRunUpdate                   = runUpdate
-	ExportRunVocabTagDefinitions      = runVocabTagDefinitions
-	ExportScanNonVocabNotes           = scanNonVocabNotes
-	ExportSelectStates                = selectStates
-	ExportServerBase                  = serverBase
-	ExportShouldEmbed                 = func(args EmbedApplyArgs, state embed.State) bool {
+	ExportNewUpdateDeps                = newUpdateDeps
+	ExportNewVocabDeps                 = newVocabDeps
+	ExportNextLuhmannID                = nextLuhmannID
+	ExportNoteAgeDays                  = noteAgeDays
+	ExportNoteContainsAnyRemoval       = noteContainsAnyRemoval
+	ExportNoteHasPendingMarker         = noteHasPendingMarker
+	ExportNotesMissingIdentityFields   = notesMissingIdentityFields
+	ExportOldVocabFilesPresent         = oldVocabFilesPresent
+	ExportParentBase                   = parentBase
+	ExportParseCreatedFromNote         = parseCreatedFromNote
+	ExportParseNoteQueryFrontmatter    = parseNoteQueryFrontmatter
+	ExportParseRefitNames              = parseRefitNames
+	ExportParseSupersedesFlag          = parseSupersedesFlag
+	ExportParseTagsFromFrontmatter     = parseTagsFromFrontmatter
+	ExportParseTurnN                   = parseTurnN
+	ExportPluralFile                   = pluralFile
+	ExportPrintLinkExamples            = printLinkExamples
+	ExportPrintNoteExamples            = printNoteExamples
+	ExportPrintStatsReport             = printStatsReport
+	ExportProcessVocabDefinitionNote   = processVocabDefinitionNote
+	ExportReadCentroidsDoc             = readCentroidsDoc
+	ExportRecencyMultiplier            = recencyMultiplier
+	ExportRegenVocab                   = regenVocab
+	ExportRemoveNoteReferences         = removeNoteReferences
+	ExportRenderDefinitionNoteContent  = renderDefinitionNoteContent
+	ExportRenderFactBody               = renderFactBody
+	ExportRenderFactFrontmatter        = renderFactFrontmatter
+	ExportRenderFeedbackBody           = renderFeedbackBody
+	ExportRenderFeedbackFrontmatter    = renderFeedbackFrontmatter
+	ExportRenderQAAnswerNote           = renderQAAnswerNote
+	ExportRenderQAQuestionNote         = renderQAQuestionNote
+	ExportRenderRunbookBody            = renderRunbookBody
+	ExportRenderRunbookFrontmatter     = renderRunbookFrontmatter
+	ExportRenderSupersedes             = renderSupersedes
+	ExportRepoWithProjectFallback      = repoWithProjectFallback
+	ExportResolveVault                 = resolveVault
+	ExportResolveVaultName             = resolveVaultName
+	ExportResolvedItemLessByProvenance = resolvedItemLessForTest
+	ExportRetagAllNotesTwoPass         = retagAllNotesTwoPass
+	ExportRetireVocabTerms             = retireVocabTerms
+	ExportRunActivate                  = RunActivate
+	ExportRunAmend                     = RunAmend
+	ExportRunLearn                     = RunLearn
+	ExportRunUpdate                    = runUpdate
+	ExportRunVocabTagDefinitions       = runVocabTagDefinitions
+	ExportScanNonVocabNotes            = scanNonVocabNotes
+	ExportSelectStates                 = selectStates
+	ExportServerBase                   = serverBase
+	ExportShouldEmbed                  = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
 	ExportShouldSkipDir                   = shouldSkipDir
@@ -936,4 +938,13 @@ func ExportTermsWithExploitEvidence(
 	exploitPaths map[string]struct{},
 ) map[string]bool {
 	return termsWithExploitEvidence(members, exploitPaths)
+}
+
+// resolvedItemLessForTest exposes resolvedItemLess over bare provenance/score
+// pairs (resolvedItem is unexported).
+func resolvedItemLessForTest(aProv []string, aScore float32, bProv []string, bScore float32) bool {
+	return resolvedItemLess(
+		resolvedItem{provenances: aProv, score: aScore},
+		resolvedItem{provenances: bProv, score: bScore},
+	)
 }

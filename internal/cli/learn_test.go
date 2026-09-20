@@ -1183,6 +1183,81 @@ func TestRunLearn_RejectsUnknownType(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestRunLearn_Runbook_InvalidTriggerRejectedWritesNothing(t *testing.T) {
+	t.Parallel()
+
+	for _, bad := range []string{"  ", "", "ab", " ab "} {
+		t.Run(fmt.Sprintf("%q", bad), func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			var (
+				written []byte
+				writes  int
+			)
+
+			var stdout strings.Builder
+
+			args := runbookTriggerArgs([]string{"/please", bad}, nil)
+
+			err := cli.ExportRunLearn(t.Context(), args, runbookTriggerDeps(&written, &writes), &stdout)
+			g.Expect(err).To(MatchError(ContainSubstring("trigger")))
+			g.Expect(err).To(MatchError(ContainSubstring(fmt.Sprintf("%q", bad))))
+			g.Expect(writes).To(Equal(0))
+		})
+	}
+}
+
+func TestRunLearn_Runbook_NoTriggersWritesNoField(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), runbookTriggerArgs(nil, nil), runbookTriggerDeps(&written, &writes), &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(written)).NotTo(ContainSubstring("triggers"))
+}
+
+// TestRunLearn_Runbook_TriggersRoundTripProperty: for any 1-5 valid triggers,
+// the rendered frontmatter parses back to the identical list.
+func TestRunLearn_Runbook_TriggersRoundTripProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
+
+		triggers := rapid.SliceOfN(
+			rapid.StringMatching(`[!-~\p{L}][ -~\p{L}]{1,30}[!-~\p{L}]`), 1, 5,
+		).Draw(rt, "triggers")
+
+		var (
+			written []byte
+			writes  int
+		)
+
+		var stdout strings.Builder
+
+		err := cli.ExportRunLearn(
+			context.Background(), runbookTriggerArgs(triggers, nil), runbookTriggerDeps(&written, &writes), &stdout,
+		)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		got, parseErr := parseRunbookTriggers(string(written))
+		g.Expect(parseErr).NotTo(HaveOccurred())
+		g.Expect(got).To(Equal(triggers))
+	})
+}
+
 func TestRunLearn_Runbook_WritesExpectedFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1299,6 +1374,37 @@ func TestRunLearn_Runbook_WritesRedFlagsWhenProvided(t *testing.T) {
 		"filter-branch on all refs sweeps the backup branch",
 		"force-push without --force-with-lease",
 	}))
+}
+
+// TestRunLearn_Runbook_WritesTriggersInOrderAfterRedFlags proves --trigger
+// entries reach the frontmatter in order, after red_flags when present
+// (runbook-lexical-triggers spec).
+func TestRunLearn_Runbook_WritesTriggersInOrderAfterRedFlags(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := runbookTriggerArgs([]string{"/please", "take this end-to-end"}, []string{"a red flag"})
+
+	var stdout strings.Builder
+
+	err := cli.ExportRunLearn(t.Context(), args, runbookTriggerDeps(&written, &writes), &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	rendered := string(written)
+
+	triggers, parseErr := parseRunbookTriggers(rendered)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+	g.Expect(triggers).To(Equal([]string{"/please", "take this end-to-end"}))
+	g.Expect(strings.Index(rendered, "triggers:")).To(BeNumerically(">", strings.Index(rendered, "red_flags:")))
 }
 
 // TestRunLearn_StampsIdentityFields verifies RunLearn stamps repo:/user:/
@@ -1616,4 +1722,62 @@ func parseFrontmatter(t *testing.T, rendered string) map[string]string {
 	g.Expect(yaml.Unmarshal([]byte(body[:end+1]), &parsed)).To(Succeed())
 
 	return parsed
+}
+
+// parseRunbookTriggers extracts the frontmatter triggers: list from a rendered note.
+func parseRunbookTriggers(rendered string) ([]string, error) {
+	const delim = "---\n"
+
+	body := strings.TrimPrefix(rendered, delim)
+
+	end := strings.Index(body, "\n"+delim)
+	if end < 0 {
+		return nil, errors.New("missing closing ---")
+	}
+
+	var doc struct {
+		Triggers []string `yaml:"triggers"`
+	}
+
+	err := yaml.Unmarshal([]byte(body[:end+1]), &doc)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal: %w", err)
+	}
+
+	return doc.Triggers, nil
+}
+
+func runbookTriggerArgs(triggers, redFlags []string) cli.LearnArgs {
+	return cli.LearnArgs{
+		Type:      "runbook",
+		Slug:      "drive-ask",
+		Vault:     "/vault",
+		Position:  "top",
+		Source:    "test",
+		Situation: "driving a task end to end",
+		DoneWhen:  "the task is finished",
+		Body:      "1. Do it",
+		Triggers:  triggers,
+		RedFlags:  redFlags,
+	}
+}
+
+// runbookTriggerDeps returns LearnDeps whose WriteNew records the last write
+// into *written (nil-safe when no write occurs) and counts writes in *writes.
+func runbookTriggerDeps(written *[]byte, writes *int) cli.LearnDeps {
+	return cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		StatDir:    func(string) error { return nil },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew: func(_ string, data []byte) error {
+			*written = data
+			*writes++
+
+			return nil
+		},
+	}
 }

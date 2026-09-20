@@ -1,6 +1,9 @@
 package cli
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // unexported constants.
 const (
@@ -49,13 +52,13 @@ func keepNewestEntriesWithinBudget(entryLines []string, budget int) []string {
 	kept := make([]string, 0, len(entryLines))
 	size := 0
 
-	for i := len(entryLines) - 1; i >= 0; i-- {
-		size += len(entryLines[i])
+	for _, line := range slices.Backward(entryLines) {
+		size += len(line)
 		if size > budget {
 			break
 		}
 
-		kept = append([]string{entryLines[i]}, kept...)
+		kept = append([]string{line}, kept...)
 	}
 
 	return kept

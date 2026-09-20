@@ -131,6 +131,17 @@ func TestContentHash_FrontmatterChangeDoesNotChangeHash(t *testing.T) {
 	g.Expect(embed.ContentHash(a)).To(Equal(embed.ContentHash(b)))
 }
 
+func TestContentHash_IgnoresRunbookTriggersBlock(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	without := []byte("---\ntype: runbook\nsituation: driving a task\ndone_when: done\n" +
+		"luhmann: \"1\"\n---\n\n1. Do it\n")
+	with := []byte("---\ntype: runbook\nsituation: driving a task\ndone_when: done\n" +
+		"triggers:\n    - /please\n    - take this end-to-end\nluhmann: \"1\"\n---\n\n1. Do it\n")
+	g.Expect(embed.ContentHash(with)).To(Equal(embed.ContentHash(without)))
+}
+
 func TestContentHash_IsSha256OfSituationAndBody(t *testing.T) {
 	t.Parallel()
 

@@ -1232,6 +1232,84 @@ func TestRunAmend_RoundTrip_FactNote(t *testing.T) {
 	g.Expect(body).To(ContainSubstring(chunkID))
 }
 
+func TestRunAmend_Runbook_InvalidTriggerRejectedWritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Triggers: []string{"ab"}}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(
+		t.Context(), args, runbookAmendDeps(makeRunbookNote("ctx", "done", "1. s\n"), &written, &writes), &buf,
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("trigger")))
+	g.Expect(writes).To(Equal(0))
+}
+
+// TestRunAmend_Runbook_ToleratesUnknownFrontmatterKey proves runbook frontmatter
+// decoding ignores unknown keys, so a binary predating a field can still
+// amend a note carrying it (rollback safety for runbook-lexical-triggers).
+func TestRunAmend_Runbook_ToleratesUnknownFrontmatterKey(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: done\n" +
+		"some_future_key:\n    - x\nluhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n1. step\n")
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", DoneWhen: "new done"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(written)).To(ContainSubstring("done_when: new done"))
+}
+
+// TestRunAmend_Runbook_TriggersReplaceWholeList proves --trigger on amend
+// replaces the entire triggers: list (runbook-lexical-triggers spec).
+func TestRunAmend_Runbook_TriggersReplaceWholeList(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: done\n" +
+		"triggers:\n    - /old-one\n    - old two cue\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n1. step\n")
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Triggers: []string{"/please"}}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+	g.Expect(writes).To(Equal(1))
+	g.Expect(body).To(ContainSubstring("/please"))
+	g.Expect(body).NotTo(ContainSubstring("/old-one"))
+	g.Expect(body).NotTo(ContainSubstring("old two cue"))
+	g.Expect(body).To(ContainSubstring("1. step"))
+}
+
 func TestRunAmend_UnknownNoteType_Errors(t *testing.T) {
 	t.Parallel()
 
@@ -1335,4 +1413,27 @@ func makeRunbookNote(situation, doneWhen, body string) []byte {
 		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\n---\n\n"
 
 	return []byte(frontmatter + body + "\n")
+}
+
+func runbookAmendDeps(noteContent []byte, written *[]byte, writes *int) cli.AmendDeps {
+	const basename = "1aa.2026-01-01.rb.md"
+
+	return cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read: func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(_ string, data []byte) error {
+			*written = data
+			*writes++
+
+			return nil
+		},
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
+	}
 }

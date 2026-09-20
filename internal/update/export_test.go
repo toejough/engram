@@ -40,3 +40,15 @@ func ExportApplyOps(
 ) []HarnessReport {
 	return updater.applyOps(harnesses, home, skillOps, guidanceOps, guidanceManaged, dryRun)
 }
+
+// ExportCleanupDanglingLinks drives Updater.cleanupDanglingLinks directly so
+// tests can cover its per-harness surface selection and error handling.
+func ExportCleanupDanglingLinks(
+	updater *Updater,
+	rep *HarnessReport,
+	spec HarnessSpec,
+	home string,
+	dryRun bool,
+) {
+	updater.cleanupDanglingLinks(rep, spec, home, dryRun)
+}

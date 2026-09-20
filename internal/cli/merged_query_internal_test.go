@@ -265,3 +265,35 @@ func TestMergeQueryPayloads_TagsItemsWithOriginAndModelID(t *testing.T) {
 		queryItem{Path: "parent-item", Score: 0.5, ModelID: "parent-model", FromParent: true},
 	))
 }
+
+// TestMergeQueryPayloads_TriggerHitsLeadAndBypassLimit verifies trigger hits
+// from both sources come first (local then parent) and do not consume --limit.
+func TestMergeQueryPayloads_TriggerHitsLeadAndBypassLimit(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	local := queryPayload{
+		ModelID: "m@4",
+		Items: []queryItem{
+			{Path: "local-high", Score: 0.9},
+			{Path: "local-trig", Score: 0.0, Provenances: []string{provenanceTrigger}},
+		},
+	}
+	parent := queryPayload{
+		ModelID: "m@4",
+		Items: []queryItem{
+			{Path: "parent-high", Score: 0.8},
+			{Path: "parent-trig", Score: 0.0, Provenances: []string{provenanceTrigger}},
+		},
+	}
+
+	merged := mergeQueryPayloads(local, parent, QueryArgs{Limit: 1})
+
+	paths := make([]string, len(merged.Items))
+	for i, item := range merged.Items {
+		paths[i] = item.Path
+	}
+
+	g.Expect(paths).To(Equal([]string{"local-trig", "parent-trig", "local-high"}))
+}

@@ -415,6 +415,54 @@ func TestServeQuery_ExcludesPendingOffersAndSetsModelID(t *testing.T) {
 	g.Expect(payload).NotTo(ContainSubstring("pending-note"))
 }
 
+// TestServeQuery_TextCappedAtTwoKB: GET /query carries `text` through to
+// trigger matching and truncates it at 2 KB without error — a cue that ends
+// exactly at byte 2048 hits; one that straddles the boundary does not.
+func TestServeQuery_TextCappedAtTwoKB(t *testing.T) {
+	t.Parallel()
+
+	const (
+		capBytes = 2048
+		cue      = "/zz-boundary"
+	)
+
+	cases := []struct {
+		name string
+		text string
+		hit  bool
+	}{
+		{"cue ends at boundary", strings.Repeat("x", capBytes-len(cue)) + cue, true},
+		{"cue straddles boundary", strings.Repeat("x", capBytes-len(cue)+1) + cue, false},
+		{"cue at start of long text", cue + strings.Repeat("x", 4*capBytes), true},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			deps := newTestDeps(io.Discard, io.Discard)
+			deps.Embed = stubEmbedder{modelID: "test-model@4", dims: 4}
+
+			learnLocal(t, deps, vault, cli.LearnArgs{
+				Type: "runbook", Slug: "boundary", Position: "top", Source: "local",
+				Situation: "boundary situation", DoneWhen: "done", Body: "1. step",
+				Triggers: []string{cue},
+			})
+
+			routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
+
+			resp := routeFor(t, routes, "/query").Serve(t.Context(), cli.ServeRequest{
+				Query: map[string][]string{"text": {testCase.text}},
+			})
+
+			g.Expect(resp.Status).To(Equal(200))
+			g.Expect(strings.Contains(string(resp.Body), "- trigger")).To(Equal(testCase.hit))
+		})
+	}
+}
+
 // TestServeRoutes_MethodsAndPatterns covers the API contract's route table:
 // the four read routes are GET, the three write routes are POST, and no
 // host-only command (ingest/vocab refit/prune/check/update/resituate) gets

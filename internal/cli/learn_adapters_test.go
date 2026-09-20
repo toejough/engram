@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -400,6 +401,54 @@ func TestRunLearnFromRunbookArgs_RequiresSituation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestRunLearnFromRunbookArgs_TriggerRepeatableFlagWritesField proves the
+// repeatable --trigger CLI flag (bound to LearnRunbookArgs.Triggers) reaches
+// the written note, in order (runbook-lexical-triggers spec).
+func TestRunLearnFromRunbookArgs_TriggerRepeatableFlagWritesField(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	args := cli.LearnRunbookArgs{
+		CommonLearnArgs: cli.CommonLearnArgs{
+			Slug:     "drive-ask",
+			Vault:    vault,
+			Position: "top",
+			Source:   "test",
+		},
+		Situation: "driving a task end to end",
+		DoneWhen:  "the task is finished",
+		Body:      "1. Do it",
+		Triggers:  []string{"/please", "take this end-to-end"},
+	}
+
+	err := cli.ExportRunLearnFromRunbookArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
+	g.Expect(globErr).NotTo(HaveOccurred())
+	g.Expect(matches).To(HaveLen(1))
+
+	if len(matches) == 0 {
+		return
+	}
+
+	body, readErr := os.ReadFile(matches[0])
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	text := string(body)
+	first := strings.Index(text, "/please")
+	second := strings.Index(text, "take this end-to-end")
+	g.Expect(first).To(BeNumerically(">", 0))
+	g.Expect(second).To(BeNumerically(">", first))
+	g.Expect(text).To(ContainSubstring("triggers:"))
 }
 
 func TestRunLearnFromRunbookArgs_WritesFile(t *testing.T) {

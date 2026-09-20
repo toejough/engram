@@ -42,6 +42,7 @@ func buildQueryParams(args QueryArgs) map[string][]string {
 
 	setIntParam(query, "limit", args.Limit)
 	setStringParam(query, "project", args.Project)
+	setStringParam(query, "text", args.Text)
 	setIntParam(query, "content-budget", args.ContentBudget)
 	setIntParam(query, "recent-fill", args.RecentFill)
 	setBoolParam(query, "lazy-chunks", args.LazyChunks)

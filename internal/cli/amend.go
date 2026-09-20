@@ -41,7 +41,10 @@ type AmendArgs struct {
 	// spec), full-list replace rather than merge, matching how the rest of
 	// amend's content flags overwrite-when-supplied.
 	RedFlags []string `json:"redFlags" targ:"flag,name=red-flag,desc=replace red_flags (runbook; repeatable; optional)"` //nolint:lll // single unbreakable struct-tag string
-	Activate bool     `json:"activate"  targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
+	// Triggers replaces the whole triggers: list when non-empty (repeatable
+	// `--trigger <text>`) — mirrors RedFlags (runbook-lexical-triggers spec).
+	Triggers []string `json:"triggers" targ:"flag,name=trigger,desc=replace triggers (runbook; repeatable; optional)"` //nolint:lll // single unbreakable struct-tag string
+	Activate bool     `json:"activate" targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
 	// ClearPending is the CLI-facing surface for clearing the pending-offer
 	// marker (vault-offer-curation) — the curation skill's only real use of
 	// it. Local `engram amend` never needs to SET pending (only served
@@ -159,14 +162,9 @@ func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Wri
 		return fmt.Errorf("amend: read %s: %w", relPath, readErr)
 	}
 
-	chunkErr := validateChunkSources(args, deps)
-	if chunkErr != nil {
-		return chunkErr
-	}
-
-	parsedSupersedes, supErr := parseAllSupersedes(args.Supersedes)
-	if supErr != nil {
-		return fmt.Errorf("amend: %w", supErr)
+	parsedSupersedes, validateErr := validateAmendInputs(args, deps)
+	if validateErr != nil {
+		return validateErr
 	}
 
 	identity := identityStamp{
@@ -334,14 +332,15 @@ func applyFieldReplacement(
 }
 
 // applyRunbookAmend overrides supplied runbook fields (situation/done_when/body/
-// red_flags), merges chunk-source provenance, and re-renders the note. Runbook
-// doesn't fit the shared applyTypedAmend/typedAmend driver used by fact/feedback:
-// those types synthesize their whole body from frontmatter fields, so their
-// override+render split never needs the CURRENT body text. A runbook's body is
-// caller-authored free text that lives only in the markdown body, not the
-// frontmatter — overriding it means comparing/rebuilding against the note's
-// existing steps, so this path is written out directly instead of squeezing an
-// extra body channel through typedAmend's generic (doc-only) override signature.
+// red_flags/triggers), merges chunk-source provenance, and re-renders the note.
+// Runbook doesn't fit the shared applyTypedAmend/typedAmend driver used by
+// fact/feedback: those types synthesize their whole body from frontmatter
+// fields, so their override+render split never needs the CURRENT body text. A
+// runbook's body is caller-authored free text that lives only in the markdown
+// body, not the frontmatter — overriding it means comparing/rebuilding against
+// the note's existing steps, so this path is written out directly instead of
+// squeezing an extra body channel through typedAmend's generic (doc-only)
+// override signature.
 func applyRunbookAmend(
 	frontmatter []byte,
 	args AmendArgs,
@@ -379,15 +378,26 @@ func applyRunbookAmend(
 
 	currentSteps := replaceSupersedes(body, nil)
 	bodyChanged := args.Body != "" && args.Body != currentSteps
+	listsChanged := applyRunbookListOverrides(&doc, args)
+	contentChanged := fieldsChanged || bodyChanged || listsChanged
 
+	return renderAmendedRunbook(doc, when, body, currentSteps, args.Body, contentChanged), contentChanged, nil
+}
+
+// applyRunbookListOverrides replaces the runbook's red_flags and triggers lists
+// when supplied and different, reporting whether either changed.
+func applyRunbookListOverrides(doc *runbookFrontmatterDoc, args AmendArgs) bool {
 	redFlagsChanged := len(args.RedFlags) > 0 && !slices.Equal(doc.RedFlags, args.RedFlags)
 	if redFlagsChanged {
 		doc.RedFlags = args.RedFlags
 	}
 
-	contentChanged := fieldsChanged || bodyChanged || redFlagsChanged
+	triggersChanged := len(args.Triggers) > 0 && !slices.Equal(doc.Triggers, args.Triggers)
+	if triggersChanged {
+		doc.Triggers = args.Triggers
+	}
 
-	return renderAmendedRunbook(doc, when, body, currentSteps, args.Body, contentChanged), contentChanged, nil
+	return redFlagsChanged || triggersChanged
 }
 
 // applyTypedAmend is the shared fact/feedback amend driver. It unmarshals the
@@ -694,9 +704,31 @@ func renderAmendedRunbook(
 		Luhmann: string(doc.Luhmann), Source: doc.Source,
 		Project: doc.Project, Issue: string(doc.Issue), Tier: doc.Tier,
 		ChunkSources: doc.Sources, Supersedes: doc.Supersedes, RedFlags: doc.RedFlags,
+		Triggers: doc.Triggers,
 	}
 
 	return marshalFrontmatter(doc) + renderRunbookBody(f)
+}
+
+// validateAmendInputs checks the chunk-source ids, supersedes entries and
+// triggers supplied to amend, returning the parsed supersedes entries.
+func validateAmendInputs(args AmendArgs, deps AmendDeps) ([]supersedesEntry, error) {
+	chunkErr := validateChunkSources(args, deps)
+	if chunkErr != nil {
+		return nil, chunkErr
+	}
+
+	parsedSupersedes, supErr := parseAllSupersedes(args.Supersedes)
+	if supErr != nil {
+		return nil, fmt.Errorf("amend: %w", supErr)
+	}
+
+	triggerErr := validateTriggers(args.Triggers)
+	if triggerErr != nil {
+		return nil, fmt.Errorf("amend: %w", triggerErr)
+	}
+
+	return parsedSupersedes, nil
 }
 
 // validateChunkSources loads the chunk-id set and fails loud when any

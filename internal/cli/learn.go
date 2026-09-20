@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"go.yaml.in/yaml/v3"
 
@@ -68,6 +69,11 @@ type LearnArgs struct {
 	// Written to the frontmatter red_flags: list when non-empty; absent flag
 	// → no field, no error (learn-runbook-capture spec).
 	RedFlags []string `json:"redFlags"`
+	// Triggers carries repeatable `--trigger <text>` entries: literal cues
+	// that, found in the user's raw message, surface this runbook first
+	// (runbook-lexical-triggers spec). Validated by validateTriggers before
+	// any write; absent flag → no field, no error.
+	Triggers []string `json:"triggers"`
 
 	// Pending marks the note a pending offer (vault-offer-curation): set
 	// only by a served `learn` handler, never by a CLI flag — a note
@@ -162,6 +168,11 @@ func RunLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 		return fmt.Errorf("learn: %w", tagErr)
 	}
 
+	triggerErr := validateTriggers(args.Triggers)
+	if triggerErr != nil {
+		return fmt.Errorf("learn: %w", triggerErr)
+	}
+
 	vault := args.Vault
 
 	vaultErr := ensureVaultDir(deps.StatDir, deps.InitVault, vault, "learn")
@@ -183,10 +194,12 @@ func RunLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 const (
 	dateFormat   = "2006-01-02"
 	envVaultPath = "ENGRAM_VAULT_PATH"
-	tierL2       = "L2"
-	typeFact     = "fact"
-	typeFeedback = "feedback"
-	typeRunbook  = "runbook"
+	// minTriggerLen is the shortest accepted --trigger (runes, after trimming).
+	minTriggerLen = 3
+	tierL2        = "L2"
+	typeFact      = "fact"
+	typeFeedback  = "feedback"
+	typeRunbook   = "runbook"
 )
 
 // unexported variables.
@@ -202,6 +215,7 @@ var (
 	errSlugEmpty                 = errors.New("slug is required")
 	errSlugInvalid               = errors.New("slug must match [a-z0-9-]+")
 	errTagInvalid                = errors.New("tag must be <family> or <family>/<value>, each segment matching [a-z0-9-]+")
+	errTriggerInvalid            = errors.New("trigger must be at least 3 characters after trimming")
 	slugPattern                  = regexp.MustCompile(`^[a-z0-9-]+$`)
 	tagPattern                   = regexp.MustCompile(`^[a-z0-9-]+(/[a-z0-9-]+)?$`)
 )
@@ -334,6 +348,9 @@ type runbookFields struct {
 	// RedFlags: optional task-specific failure modes (learn-runbook-capture
 	// spec) — see LearnArgs.RedFlags.
 	RedFlags []string
+	// Triggers: optional literal cue strings (runbook-lexical-triggers spec)
+	// — see LearnArgs.Triggers.
+	Triggers []string
 }
 
 // runbookFrontmatterDoc is the YAML shape of a runbook note's frontmatter.
@@ -343,6 +360,7 @@ type runbookFrontmatterDoc struct {
 	Situation  string            `yaml:"situation"`
 	DoneWhen   string            `yaml:"done_when"`
 	RedFlags   []string          `yaml:"red_flags,omitempty"`
+	Triggers   []string          `yaml:"triggers,omitempty"`
 	Luhmann    quotedString      `yaml:"luhmann"`
 	Created    string            `yaml:"created"`
 	Source     string            `yaml:"source"`
@@ -459,7 +477,7 @@ func assembleRunbookContent(
 		Pending: args.Pending,
 		Issue:   args.Issue, Tier: tierOrDefault(args.Tier),
 		ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
-		RedFlags: args.RedFlags,
+		RedFlags: args.RedFlags, Triggers: args.Triggers,
 	}
 
 	return renderRunbookFrontmatter(f, when) + renderRunbookBody(f), nil
@@ -567,6 +585,7 @@ func learnArgsFromRunbook(a LearnRunbookArgs) LearnArgs {
 		DoneWhen:     a.DoneWhen,
 		Body:         a.Body,
 		RedFlags:     a.RedFlags,
+		Triggers:     a.Triggers,
 	}
 }
 
@@ -704,6 +723,7 @@ func renderRunbookFrontmatter(f runbookFields, when time.Time) string {
 		Situation:  f.Situation,
 		DoneWhen:   f.DoneWhen,
 		RedFlags:   f.RedFlags,
+		Triggers:   f.Triggers,
 		Luhmann:    quotedString(f.Luhmann),
 		Created:    when.Format(dateFormat),
 		Source:     f.Source,
@@ -852,6 +872,19 @@ func validateTier(tier string) error {
 	default:
 		return fmt.Errorf("%w: got %q", errLearnBadTier, tier)
 	}
+}
+
+// validateTriggers rejects any --trigger entry that is empty, whitespace-only,
+// or shorter than minTriggerLen characters after trimming: such cues would
+// substring-match nearly any message (runbook-lexical-triggers spec).
+func validateTriggers(triggers []string) error {
+	for _, trigger := range triggers {
+		if utf8.RuneCountInString(strings.TrimSpace(trigger)) < minTriggerLen {
+			return fmt.Errorf("%w: got %q", errTriggerInvalid, trigger)
+		}
+	}
+
+	return nil
 }
 
 // writeLearnUnderLock acquires the vault lock, computes the next Luhmann ID,

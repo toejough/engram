@@ -105,7 +105,18 @@ func mergeQueryPayloads(local, parent queryPayload, args QueryArgs) queryPayload
 	// has its own dedicated budget (--recent-fill) and must not be
 	// displaced just because Channel 1 alone already reaches --limit
 	// (mirrors renderQueryPayload's same fix for the single-source path).
-	mainMerged := capItemsToLimit(mergeByScoreDesc(localMain, parentMain), resolveLimit(args.Limit))
+	// Trigger hits (runbook-lexical-triggers) lead the merged list, local
+	// before parent, and are exempt from --limit like in the single-source path.
+	localTriggered, localMain := splitTriggerItems(localMain)
+	parentTriggered, parentMain := splitTriggerItems(parentMain)
+	triggered := make([]queryItem, 0, len(localTriggered)+len(parentTriggered))
+	triggered = append(triggered, localTriggered...)
+	triggered = append(triggered, parentTriggered...)
+
+	capped := capItemsToLimit(mergeByScoreDesc(localMain, parentMain), resolveLimit(args.Limit))
+	mainMerged := make([]queryItem, 0, len(triggered)+len(capped))
+	mainMerged = append(mainMerged, triggered...)
+	mainMerged = append(mainMerged, capped...)
 	recentMerged := capItemsToLimit(
 		interleaveAlternating(localRecent, parentRecent), resolveRecentFill(args.RecentFill))
 

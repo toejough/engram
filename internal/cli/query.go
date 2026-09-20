@@ -26,6 +26,10 @@ type QueryArgs struct {
 	ChunksDir string   `targ:"flag,name=chunks-dir,desc=chunk index dir (default $XDG_DATA_HOME/engram/chunks); chunks compete in the same ranking as notes"` //nolint:lll // single unbreakable struct-tag string
 	Limit     int      `targ:"flag,name=limit,desc=max number of items to return (default 20)"`
 	Project   string   `targ:"flag,name=project,desc=restrict items to notes with matching project: field (optional)"`
+	// Text carries the user's message verbatim. It is matched literally
+	// (never embedded) against runbook triggers: fields; a hit surfaces that
+	// runbook first in items[] (runbook-lexical-triggers spec).
+	Text string `targ:"flag,name=text,desc=the user's message verbatim; runbooks whose triggers appear in it surface first (optional)"` //nolint:lll // single unbreakable struct-tag string
 	// ContentBudget caps how many chunk items (in rank order) render with full
 	// content; later chunks get a one-line snippet. 0 = baked default (15);
 	// negative = unlimited. Notes are never capped. env= lets the recall sweep
@@ -150,10 +154,15 @@ const (
 	provenanceExplore        = "explore"
 	provenanceRankClusterRep = 2
 	provenanceRankDirect     = 3
+	provenanceRankTrigger    = 4
 	// provenanceRecent tags un-clustered recency-channel chunks (Channel 2,
 	// Phase 2). Items carrying this role appear in items[] but in NO cluster's
 	// members[], so the skill can render a separate "recent activity" block.
 	provenanceRecent = "recent"
+	// provenanceTrigger tags a runbook whose triggers: entry is a substring of
+	// the query's --text (runbook-lexical-triggers). Trigger items sort first
+	// and are exempt from floor, caps, and --limit.
+	provenanceTrigger = "trigger"
 	// singleClusterPhrase is the empty phrase tag on the single synthesis
 	// cluster, which spans all seed phrases rather than any one of them.
 	singleClusterPhrase = ""
@@ -673,6 +682,8 @@ func assembleResolvedItems(
 	// set and therefore do NOT appear in any cluster's members[].
 	recentItems := buildRecentFillItems(chunkRecords, chunkUnion, resolveRecentFill(args.RecentFill))
 	resolved = append(resolved, recentItems...)
+
+	resolved = applyTriggerHits(resolved, matchTriggers(args.Text, vaultMeta.TriggerIndex), vaultMeta, args.Project)
 
 	return resolved, exploreAllocated
 }
@@ -1556,6 +1567,8 @@ func promoteNotesEvictingChunks(kept, promotable []matchedSetItem, need int) {
 // Unknown roles get rank 0.
 func provenanceRankFor(role string) int {
 	switch role {
+	case provenanceTrigger:
+		return provenanceRankTrigger
 	case provenanceDirect:
 		return provenanceRankDirect
 	case provenanceClusterRep:
@@ -1730,8 +1743,13 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	// would silently displace the whole recency channel whenever Channel 1
 	// alone already reaches --limit, which defeats --recent-fill entirely
 	// in any non-trivial vault.
+	triggered, items := splitTriggerItems(items)
 	main, recent := splitRecencyChannel(items)
-	items = append(capItemsToLimit(main, merged.limit), recent...)
+	cappedMain := capItemsToLimit(main, merged.limit)
+	items = make([]queryItem, 0, len(triggered)+len(cappedMain)+len(recent))
+	items = append(items, triggered...)
+	items = append(items, cappedMain...)
+	items = append(items, recent...)
 	items, snipped := applyContentPolicy(items, merged)
 	// Full content = items still carrying their complete text — snippeted
 	// chunks retain (truncated) content, so exclude them from the count.
@@ -1810,6 +1828,13 @@ func resolveRecentFill(raw int) int {
 // resolvedItemLess compares two items by F7 rules: provenance count
 // desc → highest-rank provenance desc → score desc.
 func resolvedItemLess(a, b resolvedItem) bool {
+	// Trigger hits precede everything regardless of provenance count: a
+	// trigger-only item (one role) must still beat a two-role similarity item.
+	triggerA := slices.Contains(a.provenances, provenanceTrigger)
+	if triggerA != slices.Contains(b.provenances, provenanceTrigger) {
+		return triggerA
+	}
+
 	if len(a.provenances) != len(b.provenances) {
 		return len(a.provenances) > len(b.provenances)
 	}
@@ -1842,6 +1867,10 @@ func runQuery(
 	pendingOffers bool,
 	modelID string,
 ) error {
+	if len(args.Phrases) == 0 {
+		return runTriggerOnlyQuery(args, notes, hits, limit, deps, timer, stdout, pendingOffers, modelID)
+	}
+
 	chunkRecords, loadErr := loadClusterChunkRecords(args, deps)
 	if loadErr != nil {
 		return loadErr
@@ -2020,7 +2049,7 @@ func topKCandidateNotes(centroid []float32, idx candidateNoteIndex) []queryCandi
 
 // validateQueryArgs rejects invalid invocations before any vault I/O runs.
 func validateQueryArgs(args QueryArgs) error {
-	if len(args.Phrases) == 0 {
+	if len(args.Phrases) == 0 && strings.TrimSpace(args.Text) == "" {
 		return errQueryEmptyString
 	}
 
