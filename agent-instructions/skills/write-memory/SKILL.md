@@ -31,6 +31,8 @@ The parent provides:
   only.
 - optional **red_flags** — task-specific failure modes a general "follow the steps" rule would
   not catch (runbook only), e.g. "filter-branch on all refs sweeps the backup branch"
+- optional **triggers** — literal cues in a user's message that should surface this runbook first
+  (runbook only), e.g. `/please`, "take this end-to-end"
 
 If a required field is missing, ask for it from the in-session parent context — do not invent
 content on the parent's behalf.
@@ -70,12 +72,21 @@ engram learn runbook --slug <kebab-slug> --position <top|continuation|sibling> [
   --done-when "<what should be true when the procedure is complete>" \
   --body "<numbered steps, may [[wikilink]] fact/feedback notes to consider>" \
   [--red-flag "<task-specific failure mode>" ...] \
+  [--trigger "<literal cue>" ...] \
   [--tag <family>/<value> ...]
 ```
 
 Same `--position`/`--target` disposition rules as fact/feedback above. One `--red-flag` per
 handed-off `red_flags` entry, in order; omit entirely when the parent's handoff carries no
 red_flags (no error, no empty flag).
+
+One `--trigger` per handed-off `triggers` entry, in order, placed after any `--red-flag`; omit
+entirely when the handoff carries none. A trigger is a distinctive cue — a slash form
+(`/please`) or a multi-word phrase ("take this end-to-end"), at least 3 characters, never a lone
+common word ("please", "fix"). A handed-off trigger that is a lone common word → ask the parent
+for a distinctive cue instead of passing it through. A trigger hit only makes the runbook a
+candidate; the agent still judges it against the runbook's own `situation`, so triggers never
+replace a well-written `--situation`.
 
 kind=qa:
 
@@ -102,7 +113,7 @@ Append to any kind:
 Rules:
 
 - Never mix fact flags (`--subject/--predicate/--object`), feedback flags
-  (`--behavior/--impact/--action`), or runbook flags (`--done-when/--body`) in one command.
+  (`--behavior/--impact/--action`), or runbook flags (`--done-when/--body/--red-flag/--trigger`) in one command.
 - Never hand-author a `vocab/<term>` tag or a `Supersedes:` backlink — the binary assigns vocab
   terms automatically as `vocab/<term>` entries in the `tags:` list, and writes the `Supersedes:`
   body line itself when `--supersedes` is passed. This does NOT restrict inline `[[basename]]`

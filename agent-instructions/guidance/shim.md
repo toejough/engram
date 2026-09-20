@@ -18,10 +18,14 @@ nothing matches, proceed without one.
 
 ```
 engram query --lazy-chunks \
+  --text "<the user's message, word for word>" \
   --phrase "<the request, in your own words>" \
   --phrase "<the kind of situation this is — the same shape of wording a runbook's own 'situation'
              field would use: '<verb>-ing <object> in <context>', not a casual paraphrase>"
 ```
+
+`--text` is the user's message pasted verbatim (its first ~300 characters if long), never rewritten or
+summarized; your paraphrase goes only in `--phrase`.
 
 Two phrases minimum, both shapes above. The second phrase names your own process, not the ticket:
 strip out the concrete deliverable and name the kind of work-handling decision in front of you.
@@ -33,6 +37,13 @@ and every other ticket-specific detail: "routing a subagent dispatch and decidin
 scoped unit of implementation work." Casual task-phrasing alone does not reliably surface a
 matching runbook; situation-shaped wording does. Add more phrases if the request has distinct
 facets worth querying separately.
+
+**Re-check phrase two before you run the query.** If it contains a concrete noun from the ticket (a
+file, flag, feature, bug, or field name), or reads like a paraphrase of the request, it is wrong:
+rewrite it as the kind of work-handling decision (how to carry out, verify, review, or land this
+class of work). Second example: for "fix the pagination bug in the orders endpoint", not "fixing
+pagination in the orders endpoint" but "diagnosing and fixing a defect in a service and deciding
+how much verification and review it needs before it is called done."
 
 ## What each returned item is for
 
