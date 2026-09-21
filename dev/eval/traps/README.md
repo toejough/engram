@@ -1,7 +1,7 @@
 # Trap regression gate
 
 `gate.py` re-runs the four **verified capability traps** and emits a single GREEN/RED/INCONCLUSIVE
-verdict, so cost/usage optimization of the recall/learn/please skills can't silently erode a win.
+verdict, so cost/usage optimization of the recall/learn skills and the please runbook can't silently erode a win.
 
 These are the only adversarially-verified, memory-attributable wins (idiosyncratic / un-derivable
 content — see vault notes 99/100): a warm (memory) agent does something a cold agent cannot.
@@ -39,7 +39,7 @@ The gate scores **only the warm arm** per axis — the cold/baseline arms are no
 
 ## When
 
-Run **before and after** any edit to a recall/learn/please skill body, and before merging
+Run **before and after** any edit to a recall/learn skill body or the please runbook, and before merging
 cost/usage changes. Pair with the recall-cost meter (from the cumulative harness, retired in the
 2026-07 docs restructure — `git log` recovers it) so a change is checked on both axes: capability (this gate) and dollars (the meter). Pure verdict logic lives in
 `gate_verdict.py` (unit-tested in `test_gate.py`); `gate.py` is the I/O orchestrator.

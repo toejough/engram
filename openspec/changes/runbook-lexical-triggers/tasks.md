@@ -56,9 +56,9 @@ before ticking any task in section 4. All paths under `internal/cli/` unless sta
 
 ## 7. Close-out
 
-- [ ] 7.1 Record the eval outcomes in `dev/eval/LEDGER.md`
-- [ ] 7.2 Update `openspec/changes/please-skill-to-runbook/tasks.md` PARKED block: unblock condition met (or not), with the 6.2 numbers
-- [ ] 7.3 Commit with `/commit` (trailer `AI-Used: [claude]`); reference #758 in prose only — this change does not close it
+- [x] 7.1 (DONE 2026-09-20; six rows added after `shim-follow-frame-d8-bar` in `dev/eval/LEDGER.md`: `please-semantic-retrieval-unreliable` (refuted; 0/3 -> 2/3 -> D11 0/95), `runbook-lexical-triggers-text-fidelity` (strict 24/30, whitespace-tolerant 29/30 vs RED 0/30, bar amended), `runbook-lexical-triggers-please-surfacing` (3/3 surfaced, end_state 3/3), `runbook-lexical-triggers-please-followed-all` (unmeasured; 0/3 scorer artifact, 17-18/19 with `after` removed), `runbook-lexical-triggers-route-regression` (3/3), `write-memory-triggers-contract` (12/12 vs 2/12)) Record the eval outcomes in `dev/eval/LEDGER.md`
+- [x] 7.2 (DONE 2026-09-20; PARKED block replaced with UNPARKED status citing 6.2: surfaced 3/3 with trigger provenance, end_state 3/3; R1 chosen by Joe) Update `openspec/changes/please-skill-to-runbook/tasks.md` PARKED block: unblock condition met (or not), with the 6.2 numbers
+- [x] 7.3 (commits made: 00efc1c6 feat(query), 00c9299c docs(openspec), 8468823a feat(guidance), ec5f3735 chore(eval); verified with `git log`; the 7.1/7.2 close-out edits themselves are still uncommitted at this stage) Commit with `/commit` (trailer `AI-Used: [claude]`); reference #758 in prose only — this change does not close it
 
 ## Enumeration
 

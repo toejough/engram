@@ -485,9 +485,10 @@ def main():
     if a.pressure and a.role != "loaded_auditor":
         ap.error("--pressure is valid only for --role loaded_auditor")
 
-    # If --skill-text not provided, use the live please/SKILL.md
+    # If --skill-text not provided, use the frozen pre-retirement please/SKILL.md (the skill was retired
+    # into the please runbook; the probe measures that historical skill body, so it is kept verbatim)
     if a.skill_text is None:
-        skill_path = os.path.join(HERE, "..", "..", "..", "..", "agent-instructions", "skills", "please", "SKILL.md")
+        skill_path = os.path.join(HERE, "skill-text", "please-SKILL.md.frozen")
         if not os.path.exists(skill_path):
             print(f"ERROR: no --skill-text provided and default path does not exist: {skill_path}")
             exit(1)

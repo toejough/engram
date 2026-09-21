@@ -949,8 +949,8 @@ kind=fact save-request when the user says "do that going forward."
 **Amendment (2026-09-20, openspec change `runbook-lexical-triggers`): one lexical exception to "no
 dedicated ranking mechanism."** The Decision's "ranks purely by situation-similarity … no new
 ranking mechanism" rationale was written against a *task-type classifier* and still holds for
-that mechanism. It does not hold for a literal cue the runbook's author declares. The parked change
-`please-skill-to-runbook` measured the pure-similarity path on a real `/please` ask (results
+that mechanism. It does not hold for a literal cue the runbook's author declares. The change
+`please-skill-to-runbook` (since unparked; it retires `agent-instructions/skills/please/SKILL.md`) measured the pure-similarity path on a real `/please` ask (results
 `dev/eval/cumulative/runbook_vs_skill/phase2/results/3.3_*`, `3.3c_*`, `3.3d_*`): the agent
 paraphrases the user's request into the `--phrase` values and the paraphrase drops the cue —
 "please" and "end-to-end" vanished and the deliverable was named instead, so the runbook did not

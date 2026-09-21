@@ -28,15 +28,27 @@ Luhmann-ID lineage and Maps of Content for synthesis. Used as both noun
 
 ### skill
 A markdown file (`SKILL.md`) that defines an agent behavior, installed into
-each harness's skills directory by `engram update`. Engram ships five:
-[`recall`](#recall-skill), [`learn`](#learn-skill), `please` (end-to-end
-orchestration), `route` (delegation doctrine — agent/model/effort selection),
-and [`write-memory`](#write-memory-worker-skill) (vault-write execution on handoff).
+each harness's skills directory by `engram update`. Engram ships four:
+[`recall`](#recall-skill), [`learn`](#learn-skill),
+[`write-memory`](#write-memory-worker-skill) (vault-write execution on handoff), and
+`curate` (judges `engram serve`'s pending-offer notes against the host vault). The
+end-to-end orchestration (`please`) and delegation doctrine (`route` — agent/model/effort
+selection) once shipped as skills too; both are now **runbook** notes in the vault, not skills.
 Distinct from **slash command** — the user-facing `/name` trigger that invokes
 a skill in a harness (Claude Code's term). (The `command` file/deploy mechanism —
 a per-harness wrapper under `agent-instructions/commands/` for a harness whose
 skill discovery required it — was removed along with OpenCode support, its
 sole consumer.)
+
+### runbook
+A vault note with `type: runbook` that carries a procedure: a `situation` (when it applies),
+a `done_when` completion bar, a body of steps (which may wikilink sub-runbooks, written as
+`[[basename]]`), optional `red_flags`, and optional `triggers` (see **trigger** below).
+Retrieved by `engram query` and followed per the shim's follow frame (announce, restate as
+a plan, read red flags, verify `done_when`) rather than loaded as an installed skill. It is
+the carrier for `please` (a top runbook plus three sub-runbooks: gates, doc-surface
+enumeration grep, lessons audit) and `route`. Written with `engram learn runbook`.
+Distinct from **skill**, which is a `SKILL.md` deployed to each harness's skills directory.
 
 ### atom
 The skill-decomposition concept from the roadmap's guiding framing: one behavior, one skill
@@ -93,7 +105,7 @@ unconfirmed guesses do not qualify — the signal is a resolved uncertainty or a
 confirmation, never "it worked".
 
 ### lessons audit
-The please skill's step-7 enumeration of a cycle's mechanical corpus — fired
+The please runbook's step-7 enumeration (the lessons-audit sub-runbook) of a cycle's mechanical corpus — fired
 pre-registered STOPs, gate FAIL verdicts, commits whose messages carry
 CORRECTION/supersede/instrument-invalid/redraw markers, and mid-cycle escalations —
 each mapped to the vault note that captures its lesson or an explicit
@@ -105,7 +117,7 @@ triggers a fresh-context lessons reviewer (an externalized audit; upgrade path i
 `docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row).
 
 ### surprise harvest (Step 7 addition, #687)
-A small addition to the please skill's Step-7 lessons audit (see **lessons audit**, above):
+A small addition to the please runbook's Step-7 lessons audit (see **lessons audit**, above):
 for each lesson the audit is about to capture, ask which already-existing artifact should
 have surfaced it, and search the vault for a note that already covers the situation before
 writing a new one — reword an existing note whose `situation:` line missed the moment rather
@@ -114,8 +126,9 @@ anything shipped from the repo instead (code, skills, guidance) makes the user w
 release, so that path is proposed only as a last resort and never filed automatically.
 
 **Status:** committed in
-`agent-instructions/skills/please/SKILL.md` (`662e50ba`); not deployed via
-`engram update`; unvalidated (no measurement supports it). The
+`agent-instructions/skills/please/SKILL.md` (`662e50ba`), which was retired when `please`
+became a runbook (change `please-skill-to-runbook`); the lessons-audit sub-runbook carries the
+reword-an-existing-note-instead-of-duplicating rule; unvalidated (no measurement supports it). The
 addition originally shipped alongside a much larger mechanism: a seven-marker surprise
 enumeration, a four-way counterfactual classification, and a two-remedy ladder, proposed on
 the premise that the *existing* Step-7 audit structurally cannot surface certain findings on
@@ -127,7 +140,7 @@ addition: no measurement supports it. Full figures in
 `dev/eval/LEDGER.md#687-surprise-harvest`.
 
 ### escalation provenance
-The please skill's rule that any measured claim (count, rate, cost, duration) in a
+The please runbook's rule that any measured claim (count, rate, cost, duration) in a
 mid-cycle escalation — an AskUserQuestion or STOP report — carries its evidence
 pointer (file/command) and a one-line validity statement ("verified how?");
 unverified claims ship only as explicitly-labeled hypotheses. Pre-registered
@@ -687,7 +700,7 @@ Operator-run maintenance subcommand. Reads the chunk-index manifest and, for
 every source whose file no longer exists, drops the stale manifest entry but
 KEEPS that source's per-source index file — the embedded chunks stay searchable
 (chunk search scans index files directly, not the manifest). Not part of the
-recall/learn/please flows — run manually after removing or moving ingested
+recall/learn flows — run manually after removing or moving ingested
 source files to clear dead manifest entries without losing the embedded memory.
 A separate `--empty` mode (with `--dry-run`) instead removes existing 0-byte
 chunk-index files left behind by a source that yielded zero records —
@@ -863,9 +876,9 @@ written note or is dropped with a reason.
 ### subagent
 A fresh-context worker spawned via the Agent tool to do isolated object-level
 or review work without polluting the parent's context. Current uses:
-**please**'s gate reviewers (a fresh subagent per gate — plan, refactors,
+**please**'s (runbook) gate reviewers (a fresh subagent per gate — plan, refactors,
 docs, outward prose) and any executor/planner a skill fans out to; agent
-type, model, and effort selection for a dispatch follow the **route** skill's
+type, model, and effort selection for a dispatch follow the **route** runbook's
 doctrine. The retired parallel-writer architecture — subagents synthesizing
 notes in parallel, reconciled afterward by a serial coordinator pass — is
 gone: recall's Step 2.5 crystallizes inline from the query payload's own
@@ -889,7 +902,7 @@ The six proposed guards against the lesson-capture blind spot (a presented concl
 overturned going uncaptured). Shipped 2026-07-04: **G1** reversals as a learn capture kind ·
 **G2** please step-7 lessons audit · **G6** escalation-provenance rule. **G2** gained a small
 addition, the **surprise harvest** (see above) — committed `662e50ba` in
-`agent-instructions/skills/please/SKILL.md`, not deployed via `engram update`, 2026-07-26 via #687,
+`agent-instructions/skills/please/SKILL.md` (since retired; now the please runbook's lessons-audit sub-runbook), 2026-07-26 via #687,
 its larger premise refuted by measurement; extends G2's existing guard, not a new guard
 number. Pre-registered upgrade
 paths (in `docs/ROADMAP.md` → Parked backlog → "Pre-registered guard upgrades" row): **G3** fresh-context lessons reviewer (upgrade of G2) ·

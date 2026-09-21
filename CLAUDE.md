@@ -1,6 +1,6 @@
 # Engram
 
-Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand; at their write sites they hand off to a fifth skill, `write-memory`, which composes and executes the vault-write commands (parents judge, the worker writes). A third skill, `please`, orchestrates end-to-end work by sequencing recall, learn, and other available skills around a user's `<ask>`, with adversarial review gates over the plan, refactors, docs, and outward prose. A fourth skill, `route`, encodes the delegate-everything doctrine: it guides subagent selection (agent type, model, effort) rather than doing object-level work itself. `please` consults it when assigning gate reviewers. A sixth skill, `curate`, judges `engram serve`'s pending-offer notes against the host vault using the same covered/near/absent reasoning `recall`'s Step 2.5 documents, and is self-contained — it composes and executes `engram amend` directly rather than handing off to `write-memory`, since an offer's content already exists as a note file with nothing left to compose from scratch.
+Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand; at their write sites they hand off to a third skill, `write-memory`, which composes and executes the vault-write commands (parents judge, the worker writes). Two further workflows are no longer skills but vault runbooks surfaced by `engram query` and followed per the shim: `please` (a top runbook plus three sub-runbooks; orchestrates end-to-end work by sequencing recall, learn, and other available skills around a user's `<ask>`, with adversarial review gates over the plan, refactors, docs, and outward prose; matched by the literal triggers `/please`, `take this end-to-end`, `please`) and `route` (the delegate-everything doctrine: guides subagent selection (agent type, model, effort) rather than doing object-level work itself; `please` consults it when assigning gate reviewers). A fourth skill, `curate`, judges `engram serve`'s pending-offer notes against the host vault using the same covered/near/absent reasoning `recall`'s Step 2.5 documents, and is self-contained — it composes and executes `engram amend` directly rather than handing off to `write-memory`, since an offer's content already exists as a note file with nothing left to compose from scratch.
 
 ## Core Principles
 
@@ -23,7 +23,7 @@ engram/
 │   ├── update/        # `engram update` subcommand
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
 ├── agent-instructions/
-│   ├── skills/        # Source for the recall, learn, write-memory, please, and route skills
+│   ├── skills/        # Source for the recall, learn, write-memory, and curate skills
 │   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), and learn-firing (`learn.md`) — synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code) and `~/.pi/agent/engram/guidance/` (Pi); compat symlinks at old flat paths keep existing `@import` lines in CLAUDE.md / AGENTS.md resolving (ADR-0022 D9); activated via `@import`
 ├── openspec/          # Primary behavior specs — one per shipped capability; backfilled 2026-07-27 from docs/FEATURES.md surface
 ├── dev/               # Build tooling (targ definitions, linter configs)
@@ -35,9 +35,9 @@ engram/
 - `cmd/engram/main.go` — CLI entry point (wiring-only: single-statement main() composing `cli.Primitives` from checker-thin per-group functions of raw capability references; `targ check-thin-api`-enforced)
 - `internal/cli/primitives.go` — Composition root (`cli.Primitives` + `cli.NewDeps`, which builds every production adapter from the injected primitives)
 - `internal/cli/targets.go` — Subcommand wiring
-- `agent-instructions/skills/{learn,recall,write-memory,please,route}/SKILL.md` — Skill definitions
+- `agent-instructions/skills/{learn,recall,write-memory,curate}/SKILL.md` — Skill definitions (`please` and `route` are vault runbooks, not skills)
 - `dev/targs.go` — Build targets (targ definitions)
-- `docs/architecture/c1-system-context.md` — L1 C4 system context diagram + sequence diagrams for the four key flows (recall, learn, please, update)
+- `docs/architecture/c1-system-context.md` — L1 C4 system context diagram + sequence diagrams for the four key flows (recall, learn, please runbook, update)
 - `docs/README.md` — documentation index
 
 ## Design Principles

@@ -20,7 +20,7 @@ flowchart LR
     gotool(S6 · Go toolchain)
 
     user -->|"R1: directs work via prompts"| harness
-    harness -->|"R2: invokes /recall, /learn, /please; runs engram CLI"| engram
+    harness -->|"R2: invokes /recall, /learn (skills) and runs engram CLI; a /please message is matched by literal trigger via engram query"| engram
     engram -->|"R3: reads & writes notes + sidecars"| vault
     engram -->|"R4: reads session transcripts; re-chunks only mtime/size/hash-changed sources (manifest.json)"| sessions
     engram -->|"R5: invokes git clone + go install for self-update, then re-execs the fresh binary (ADR-0023)"| gotool
@@ -44,7 +44,7 @@ flowchart LR
 |---|---|---|---|---|
 | <a id="s1-engram-operator"></a>S1 | Engram operator | Person | Directs work through the LLM coding harness; configures engram via environment variables (`ENGRAM_VAULT_PATH`, `XDG_DATA_HOME`, etc.) | Human |
 | <a id="s2-engram"></a>S2 | Engram | System in scope | Persistent memory for LLM coding agents: reads & writes a Luhmann zettelkasten vault, reads per-harness session transcripts via markers, self-updates, and provides operator-run tools outside the recall/learn/please/update flows — `engram prune` (GC: detaches chunk-index manifest entries whose source file no longer exists, preserving the embedded chunks on disk; `--empty` removes existing 0-byte `.jsonl` index files left by zero-record sources, ranking-neutral) and `engram count` (frontmatter membership `--group-by`/`--filter` counts + `--backlinks-of` wikilink in-degree; ADR-0018) | This repo (`cmd/engram/`, `internal/`, `agent-instructions/`) |
-| <a id="s3-llm-coding-harness"></a>S3 | LLM coding harness | External system | Hosts engram's slash commands and subprocess-invokes the engram CLI. Engram skills are loaded by the harness's skill mechanism. | Claude Code (`~/.claude/`), Pi (`~/.pi/agent/`) |
+| <a id="s3-llm-coding-harness"></a>S3 | LLM coding harness | External system | Hosts engram's slash commands and subprocess-invokes the engram CLI. Engram skills (recall, learn, write-memory, curate) are loaded by the harness's skill mechanism; the please and route procedures are vault runbooks fetched through `engram query`, not loaded skills. | Claude Code (`~/.claude/`), Pi (`~/.pi/agent/`) |
 | <a id="s4-agent-memory-vault"></a>S4 | Agent-memory vault | External system | Luhmann zettelkasten on the local filesystem — a FLAT layout: notes live at the vault root (each with a sibling `.vec.json` embedding sidecar). The `Permanent/` and `MOCs/` tiers are retired (2026-06-12 flat-vault migration); subdirectories are ignored by the scanner | `$ENGRAM_VAULT_PATH` or `$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`) |
 | <a id="s5-harness-session-stores"></a>S5 | Harness session stores | External system | The LLM harness's per-session transcript storage; engram reads them at the filesystem level, not via a harness API | Claude Code: `~/.claude/projects/<slug>/*.jsonl`; Pi: session JSONL under swept ancestor `.pi` dirs or explicit `--pi-sessions` dirs (JSONL only; the OpenCode SQLite backend was never wired into production ingest and was removed in the 2026-06-20 deep clean) |
 | <a id="s6-go-toolchain"></a>S6 | Go toolchain | External system | Resolves module versions and installs the engram binary during `engram update` | `go` binary on `$PATH` |
@@ -54,7 +54,7 @@ flowchart LR
 | ID | From | To | Description |
 |---|---|---|---|
 | <a id="r1"></a>R1 | S1 Engram operator | S3 LLM coding harness | Directs work via prompts in the harness; configures engram via environment variables |
-| <a id="r2"></a>R2 | S3 LLM coding harness | S2 Engram | Invokes `/recall`, `/learn`, `/please` slash commands; subprocess-executes the engram CLI for each invocation |
+| <a id="r2"></a>R2 | S3 LLM coding harness | S2 Engram | Invokes the `/recall` and `/learn` slash commands; subprocess-executes the engram CLI for each invocation (a `/please` message is not a skill invocation: the agent passes it via `engram query --text` and the please runbook surfaces by literal trigger) |
 | <a id="r3"></a>R3 | S2 Engram | S4 Agent-memory vault | Reads & writes notes plus their `.vec.json` embedding sidecars under a `flock`-held vault lock; rendered as a single unidirectional arrow per the C4 read+write CRUD convention |
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code `~/.claude/projects/<slug>/*.jsonl`; Pi session JSONL under ancestor `.pi` dirs or `--pi-sessions` dirs) for changed sources only |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go install` (local clone) or clones the repo and builds from the clone (remote mode, never `go install …@latest`; #645) to self-update, then re-execs the freshly installed binary to run the sync phase (ADR-0023) |
@@ -248,13 +248,15 @@ sequenceDiagram
 
 ### Flow: please
 
-`/please` is a skill-only orchestration of the engram repo's other skills — it
-has no dedicated subcommand. The diagram below shows the seven-step bracket;
+`/please` is a runbook-only orchestration (a vault runbook, not a skill) of the engram
+repo's other skills — it has no dedicated subcommand. The shim has the agent run
+`engram query --text "<user message>"`, and the please runbook surfaces by its literal
+`triggers:` (`/please`, `take this end-to-end`, `please`); the agent then follows it. The diagram below shows the seven-step bracket;
 each step that crosses an L1 edge appears as a call into Engram (with the
 implementation of `recall`, `learn`, etc. shown in their own diagrams above).
 The diagram is intentionally workflow-shaped, not call-surface-shaped — at L1
 all engram subprocess calls collapse onto the same R2 edge. The orchestrator
-consults the `route` skill when staffing each gate reviewer (agent/model/effort);
+consults the `route` runbook when staffing each gate reviewer (agent/model/effort);
 that is in-context guidance, not an L1 edge, so it does not appear as a message.
 
 ```mermaid
@@ -265,7 +267,7 @@ sequenceDiagram
     participant E as S2 Engram CLI
 
     Op->>H: /please ASK
-    Note over H: load please skill, push 7 tasks to the list
+    Note over H: fetch please runbook (literal trigger via engram query), push 7 tasks to the list
 
     rect rgb(245,245,255)
         Note over H: Step 1 — opening /learn
@@ -301,7 +303,7 @@ sequenceDiagram
     end
 
     rect rgb(245,245,255)
-        Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"); a small addition — committed in `agent-instructions/skills/please/SKILL.md` (`662e50ba`), not deployed via `engram update`, unvalidated — then asks which existing vault note should have surfaced each captured lesson, rewording a stale one rather than duplicating it (see GLOSSARY → surprise harvest); then closing /learn
+        Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"); a small addition — originally committed in `agent-instructions/skills/please/SKILL.md` (`662e50ba`, since retired; now carried by the lessons-audit sub-runbook), unvalidated — then asks which existing vault note should have surfaced each captured lesson, rewording a stale one rather than duplicating it (see GLOSSARY → surprise harvest); then closing /learn
         H->>E: engram ingest --auto
         E-->>H: per-source chunk tally
         loop per explicit lesson
@@ -422,7 +424,7 @@ Steps run **in order** — each starts only after the previous completes. They a
 (urgency / "no ceremony" do not authorize skipping) and **N/A only when the mechanism is absent**
 (no VCS for the step-6 commit; no transcript source for the closing `/learn`). Adversarial review
 gates A–D are integral stops, not optional: each fans out fresh per-angle reviewer subagents and
-blocks its step's completion until every finding is resolved (see `agent-instructions/skills/please/SKILL.md`).
+blocks its step's completion until every finding is resolved (see the please runbook, note `1045.2026-09-20.please-drive-ask-end-to-end`, and its gates sub-runbook `1042`).
 
 ```mermaid
 flowchart TD
@@ -447,11 +449,10 @@ flowchart TD
 The flowchart above shows *when* gates A–D fire; this sequence diagram is the swimlane companion showing *who* reviews. It elides the `engram query`/`learn`
 call mechanics already diagrammed in Flow: recall and Flow: learn above, and focuses on the
 fan-out to fresh per-angle reviewer subagents and the argue-to-ACK loop. As in the Flow: please
-diagram, the orchestrator's consult of the `route` skill for reviewer staffing (agent/model/effort)
+diagram, the orchestrator's consult of the `route` runbook for reviewer staffing (agent/model/effort)
 is in-context guidance, not an L1 edge — shown here as a `Note`, never a message or a participant
 (route is not an L1 element; see Out of scope at L1). Gate table
-(fires-at, artifact, angles, default model) verified against `agent-instructions/skills/please/SKILL.md`'s Adversarial
-review gates table.
+(fires-at, artifact, angles, default model) verified against the gates sub-runbook `1042.2026-09-20.please-adversarial-review-gates`.
 
 ```mermaid
 sequenceDiagram
@@ -461,8 +462,8 @@ sequenceDiagram
     participant GR as fresh per-angle Gate reviewer
 
     Op->>H: /please ASK
-    Note over H: load please skill, push 7 tasks to the list
-    Note over GR: one lifeline stands in for many mutually-isolated FRESH reviewer instances — no reviewer persists across angles or gates (SKILL.md: one fresh-context reviewer per angle)
+    Note over H: fetch please runbook (literal trigger via engram query), push 7 tasks to the list
+    Note over GR: one lifeline stands in for many mutually-isolated FRESH reviewer instances — no reviewer persists across angles or gates (gates sub-runbook: one fresh-context reviewer per angle)
 
     Note over H: Steps 1–2 run with no gate — see Flow: please above
 
@@ -538,7 +539,7 @@ sequenceDiagram
     end
 
     rect rgb(245,245,255)
-        Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"); a small addition — committed in `agent-instructions/skills/please/SKILL.md` (`662e50ba`), not deployed via `engram update`, unvalidated — then asks which existing vault note should have surfaced each captured lesson, rewording a stale one rather than duplicating it (see GLOSSARY → surprise harvest); then closing /learn
+        Note over H: Step 7 — lessons audit (every STOP, gate FAIL, CORRECTION-class commit, escalation maps to a note or "no lesson: why"); a small addition — originally committed in `agent-instructions/skills/please/SKILL.md` (`662e50ba`, since retired; now carried by the lessons-audit sub-runbook), unvalidated — then asks which existing vault note should have surfaced each captured lesson, rewording a stale one rather than duplicating it (see GLOSSARY → surprise harvest); then closing /learn
     end
 
     H-->>Op: terminal report (commits made, paths written, gate audit, follow-ups offered)
@@ -562,12 +563,11 @@ proposed an external Voyage API was superseded by the 2026-05-22 research
 log and the v2 implementation (narrative in DESIGN-HISTORY.md, removed by the
 2026-07 docs restructure — `git log` recovers it).
 
-The `route` skill is **not** a new L1 element. It adds no system boundary, no
-external, and no R-edge: it is skill-level guidance the orchestrator applies
+The `route` runbook (formerly a skill) is **not** a new L1 element. It adds no system boundary, no
+external, and no R-edge: it is runbook-level guidance the orchestrator applies
 when choosing `Agent`-tool parameters for delegated work (agent type, model,
 effort), operating over the existing harness↔engram relationship rather than a
-new interaction. It is a sibling of `recall`/`learn`/`please` under S2's skills
-container at L2, not a participant at L1.
+new interaction. It is a sibling of the `please` runbook (both vault runbooks, not skills) under S2 at L2, not a participant at L1.
 
 ## Related
 

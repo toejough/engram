@@ -86,7 +86,7 @@ autonomously — it requires Joe's oversight.
 
 ## Step 2 — Crystallize explicit lessons (only when they exist)
 
-**Collected LESSONS lines are an explicit scan input.** When the orchestrator (`please`) hands
+**Collected LESSONS lines are an explicit scan input.** When the orchestrator (following the `please` runbook) hands
 you the session's collected `LESSONS:` lines from dispatched work (route's completion-report
 contract), scan that list alongside the raw session content — every line, `none` entries
 included (skip those trivially). Judge each line against the same four kinds and the same

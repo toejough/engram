@@ -106,7 +106,7 @@ M7 marker-monotonicity, M8 luhmann-uniqueness.)
 **Dispositions:**
 - **R1 (recall-mirror) and C1 (clustering determinism) are DETERMINISTIC `[PT]`, not "untested-as-judgment".** R1 = embed `situation` S, query S, assert top-k by cosine contains the note (no LLM). C1 seed is `FNV-1a(query)` (`query.go:1364`) → run twice, assert identical.
 - **R2** **[RETIRED — recall no longer does graph traversal; disposition moot.]**
-- **Agent-discipline items are RT-only, NEVER checker-gated:** recall Step-0 plan-print, §3a synthesis gate, binding-principle judgement, please step-ordering. (RT-1 itself is RETIRED — see above.)
+- **Agent-discipline items are RT-only, NEVER checker-gated:** recall Step-0 plan-print, §3a synthesis gate, binding-principle judgement, please-runbook step-ordering. (RT-1 itself is RETIRED — see above.)
 - **P1 status correction:** **[RETIRED — episode kind and transcript-path provenance removed.]**
 - **Severity model (required so the checker can PASS):** FAIL = breaks correctness (G0, E1, M2-segments, M4, M5, M7). WARN = corpus health (G2–G3, M6, M8, S1, S2). **[Note: G1/G4/G5/T1a/E4/E5/P1 removed from severity lists — all RETIRED above.]** The Phase-8 checker FAILs CI only on FAIL-class; WARN is reported, non-blocking.
 - **Checker robustness requirement:** parse UTF-8/bytes-robustly. BSD `grep` aborts on invalid multibyte sequences and silently skipped 7 non-UTF-8 notes in the antagonist's first census (false "7 untagged"). A grep-based checker would false-positive exactly the way both of us did.

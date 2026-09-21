@@ -1,6 +1,6 @@
 # please_step7_probe
 
-Headless micro-test for `agent-instructions/skills/please/SKILL.md`'s Step 7 (surprise harvest)
+Headless micro-test for the (retired) `please` skill's Step 7 (surprise harvest)
 and the plea's second pass (engram issue #687, Unit 1). Built per
 `docs/superpowers/plans/2026-07-26-687-surprise-harvest.md`.
 
@@ -135,7 +135,7 @@ python3 run_probe.py --role loaded_auditor --n 1 --out results.jsonl \
     --skill-text /path/to/candidate/SKILL.md --model sonnet
 ```
 
-If `--skill-text` is omitted, the script defaults to the live `agent-instructions/skills/please/SKILL.md`.
+If `--skill-text` is omitted, the script defaults to `skill-text/please-SKILL.md.frozen`, a verbatim copy of `agent-instructions/skills/please/SKILL.md` as of the commit before its retirement (`git show HEAD:agent-instructions/skills/please/SKILL.md`, change `please-skill-to-runbook`). `please` now lives as a vault runbook; the probe keeps measuring the historical skill body so results stay reproducible.
 
 ## Reading Results
 

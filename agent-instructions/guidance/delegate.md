@@ -7,7 +7,7 @@ a "quick look"** — starts the same way: **you plan it and hand it to a subagen
 call is never a Read, Edit, Write, or Bash on the work itself; it is a plan you route or a subagent
 you dispatch. "Do X" and "go ahead" mean **get X done** — orchestrate it, don't type it. Reviewing
 what returns (fresh context, never the builder's own "done") and reporting the outcome (route's
-evidence table, please's gate verdicts) is your job; the subagent produces the artifact.
+evidence table, the please runbook's gate verdicts) is your job; the subagent produces the artifact.
 
 **"Let me just look at the files first" is going solo.** Opening or cat-ing a file to orient, or
 building it yourself because the repo is empty, is starting the work. Dispatch first — the subagent
@@ -28,4 +28,4 @@ No record → route it, even if it feels trivial. Don't guess it's a quick fix �
 **Red flag — you're going solo:** your next tool call is Read/Edit/Write/Bash on the work with no plan
 routed. Stop; plan and dispatch instead.
 
-For one dispatch's *how* use `route`; for a full end-to-end ask, `/please`.
+For one dispatch's *how* use `route`; for a full end-to-end ask, `/please` — the runbook triggered by that word.
