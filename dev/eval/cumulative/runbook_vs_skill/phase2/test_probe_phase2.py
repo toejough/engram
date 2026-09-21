@@ -5070,3 +5070,18 @@ def test_curate_glob_loop_read_and_no_query_still_credit_reads_and_actions():
     events = [_tool_use(n, i, idx=k) for k, (n, i) in enumerate(seq)]
     results, k, _ = pp.evaluate_steps(pp.load_steps("curate"), events, repo_path="/x")
     assert [n for n, v in results.items() if not v] == ["5"], results
+
+
+@_needs_engram
+def test_curate_done_when_ignores_the_shim_only_arm_carrier_notes(tmp_path):
+    """The shim-only R arm adds the curate runbook (id 10) and the recall/learn runbooks (ids 1-8,
+    colliding with fixture ids); the end-state check must resolve fixture notes by date and ignore them."""
+    v = _ideal_curate_vault(tmp_path)
+    for src in (pp.RECALL_LEARN_RUNBOOKS_VAULT, pp.TASKS["curate"]["carrier_r_src"]):
+        for n in os.listdir(src):
+            _shutil.copy2(os.path.join(src, n), v)
+    rc, out = _curate_check(tmp_path, v)
+    assert rc == 0, out
+    _amend(v, "--target", "1.2026-09-20.summer-inspection-interval", "--object", "changed")
+    rc, out = _curate_check(tmp_path, v)
+    assert rc != 0

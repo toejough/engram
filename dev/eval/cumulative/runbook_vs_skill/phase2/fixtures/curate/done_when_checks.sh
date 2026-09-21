@@ -23,7 +23,12 @@ if [ ! -d "$V" ]; then
   exit 1
 fi
 
-note() { ls "$V"/"$1".*.md 2>/dev/null | head -n 1; }
+# Fixture notes are dated 2026-09-20. The shim-only R arm also puts the curate runbook (id 10) and the
+# recall/learn/write-memory runbook carrier (ids 1-8, dated 2026-09-14, colliding with fixture ids) in the
+# vault; those are the arm's treatment, not fixture notes, so they are excluded from the note-set check
+# and never matched by id.
+CARRIERS="$( (ls "$HERE"/../../encodings/shim/recall-learn/vault/*.md "$HERE"/../../encodings/taskCurate/Curate-R/vault/*.md 2>/dev/null) | xargs -n1 basename)"
+note() { ls "$V"/"$1".2026-09-20.*.md 2>/dev/null | head -n 1; }
 sidecar_of() { echo "${1%.md}.vec.json"; }
 
 # Check 1: vault invariants hold.
@@ -41,13 +46,13 @@ fi
 # Check 3: exactly the expected note set (1-6 plus the kept absent offer 9): covered and near
 # offers are gone (discarded, not cleared-and-kept) and nothing new was written (no `engram learn`).
 EXPECTED="1 2 3 4 5 6 9"
-ACTUAL=$(ls "$V"/*.md | xargs -n1 basename | sed 's/\..*//' | sort -n | tr '\n' ' ' | sed 's/ $//')
+ACTUAL=$(ls "$V"/*.md | xargs -n1 basename | grep -vxF -f <(echo "$CARRIERS") | sed 's/\..*//' | sort -n | tr '\n' ' ' | sed 's/ $//')
 if [ "$ACTUAL" != "$EXPECTED" ]; then
   echo "FAIL: vault note ids are [$ACTUAL], expected [$EXPECTED] (offers 7 and 8 must be discarded, 9 kept, nothing new written)"
   exit 1
 fi
 for id in 7 8; do
-  if [ -n "$(note $id)" ] || ls "$V"/$id.*.vec.json >/dev/null 2>&1; then
+  if [ -n "$(note $id)" ] || ls "$V"/$id.2026-09-20.*.vec.json >/dev/null 2>&1; then
     echo "FAIL: offer $id was not fully discarded (note or sidecar remains)"
     exit 1
   fi
