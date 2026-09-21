@@ -35,7 +35,7 @@ dropped. Lexical triggers replaced it.
 - [x] 2.4 Prioritize the ~22-row Red Flags table under the 1200-byte `red_flags` cap (D3); include the plain-text-instead-of-`[[wikilink]]` entry; move overflow to sub-runbook `red_flags`/body
 - [x] 2.5 State the `[[wikilink]]` syntax requirement emphatically at each place the agent writes a vault-note reference
 - [x] 2.6 Complete the conversion-fidelity report: every dropped/moved/reworded item with reason, including each shim-floor drop mapped to the shim.md rule that covers it
-- [ ] 2.7 Fresh-context reviewer checks the fidelity report against the SKILL.md for lost content
+- [x] 2.7 Fresh-context reviewer checks the fidelity report against the SKILL.md for lost content (fresh-context reviewer (Opus) ran 2026-09-19 after conversion: verdict PASS-WITH-FIXES; fixes applied (LESSONS report bar reverted, dissent rule restored, escalation provenance in top runbook, placeholder moved out of red_flags, route wikilink task 4.2a, D4 amendment); see design D4 amendment and the fidelity report)
 
 ## 3. Validation (gates retirement)
 

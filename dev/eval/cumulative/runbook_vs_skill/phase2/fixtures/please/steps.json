@@ -80,7 +80,7 @@
     "name": "Step 4 RED: the test file is edited first",
     "any_of": [
       {"signal": "tool_path", "tools": ["Edit", "Write", "MultiEdit"], "pattern": "tests/test_tally\\.py$"},
-      {"signal": "bash_regex", "pattern": "(?:sed|perl)\\s+-[a-z]*i[^\\n]*test_tally\\.py"}
+      {"signal": "bash_writes_file", "pattern": "tests/test_tally\\.py"}
     ],
     "after": 5
   },
@@ -89,7 +89,7 @@
     "name": "Step 4 GREEN: the implementation is edited after the test",
     "any_of": [
       {"signal": "tool_path", "tools": ["Edit", "Write", "MultiEdit"], "pattern": "(?:^|/)tally\\.py$"},
-      {"signal": "bash_regex", "pattern": "(?:sed|perl)\\s+-[a-z]*i[^\\n]*\\btally\\.py"}
+      {"signal": "bash_writes_file", "pattern": "(?<![\\w.-])tally\\.py\\b"}
     ],
     "after": 10
   },
@@ -105,7 +105,7 @@
     "name": "Step 5: docs edited",
     "any_of": [
       {"signal": "tool_path", "tools": ["Edit", "Write", "MultiEdit"], "pattern": "(?:README\\.md|docs/[^/]+\\.md|CHANGELOG\\.md|tally\\.bash)$"},
-      {"signal": "bash_regex", "pattern": "(?:sed|perl)\\s+-[a-z]*i[^\\n]*(?:README\\.md|docs/|CHANGELOG\\.md|tally\\.bash)"}
+      {"signal": "bash_writes_file", "pattern": "README\\.md|docs/[^/\\s]+\\.md|CHANGELOG\\.md|tally\\.bash"}
     ],
     "after": 11
   },

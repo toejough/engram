@@ -4434,7 +4434,7 @@ def test_please_done_when_fails_when_the_old_flag_is_kept_as_an_alias(tmp_path):
 def test_please_steps_json_is_valid_and_registered():
     steps = pp.load_steps("please")
     assert [s["n"] for s in steps] == list(range(1, len(steps) + 1))
-    valid_keys = {"bash_regex": "pattern", "tool_path": "pattern", "repo_state": "pattern",
+    valid_keys = {"bash_regex": "pattern", "bash_writes_file": "pattern", "tool_path": "pattern", "repo_state": "pattern",
                   "tool_input_regex": "regex", "text_regex": "regex"}
     for step in steps:
         for sig in _step_signals(step):
@@ -4547,3 +4547,121 @@ def test_text_regex_signal_requires_regex_key_and_ignores_tool_events():
     steps = [{"n": 1, "signal": "text_regex", "regex": "git commit"}]
     results, _, _ = pp.evaluate_steps(steps, [_tool_use("Bash", {"command": "git commit"}, 0)], repo_path="/x")
     assert results["1"] is False
+
+
+# ----- bash_writes_file signal: Bash commands that WRITE a file (please steps 10/11/13) -----
+
+_TEST_PATH = r"tests/test_tally\.py"
+_IMPL_PATH = r"(?<![\w.-])tally\.py\b"
+
+
+def _writes(command, path=_TEST_PATH):
+    steps = [{"n": 1, "signal": "bash_writes_file", "pattern": path}]
+    results, _, _ = pp.evaluate_steps(steps, [_tool_use("Bash", {"command": command}, 0)], repo_path="/x")
+    return results["1"]
+
+
+@pytest.mark.parametrize("command", [
+    "python3 - <<'EOF'\nopen('tests/test_tally.py','w').write('x')\nEOF",
+    "python3 - <<'EOF'\np='tests/test_tally.py'\ns=open(p).read()\nopen(p,'w').write(s.replace('a','b'))\nEOF",
+    "python3 - <<'EOF'\nfrom pathlib import Path\nPath('tests/test_tally.py').write_text('x')\nEOF",
+    "python3 - <<'EOF'\nfrom pathlib import Path\np = Path('tests/test_tally.py')\np.write_text(p.read_text())\nEOF",
+    "cat > tests/test_tally.py <<'EOF'\nx\nEOF",
+    "cat >> tests/test_tally.py <<'EOF'\nx\nEOF",
+    "cat <<'EOF' | tee tests/test_tally.py\nx\nEOF",
+    "echo x | tee -a tests/test_tally.py",
+    "printf 'x\\n' > tests/test_tally.py",
+    "echo 'def test_x(): pass' >> \"tests/test_tally.py\"",
+    "cd /repo && sed -i '' 's/a/b/' tests/test_tally.py",
+    "perl -pi -e 's/a/b/' tests/test_tally.py",
+])
+def test_bash_writes_file_credits_every_write_form(command):
+    assert _writes(command) is True
+
+
+@pytest.mark.parametrize("command", [
+    "cat tests/test_tally.py",
+    "cat tests/test_tally.py | head -20",
+    "grep -n out tests/test_tally.py",
+    "python3 -m pytest tests/test_tally.py -q",
+    "python3 -m pytest tests/test_tally.py > /tmp/out.txt 2>&1",
+    "cat tests/test_tally.py > /tmp/copy.py",
+    "sed -n 1,20p tests/test_tally.py",
+    "python3 -c \"print(open('tests/test_tally.py').read())\"",
+    "python3 - <<'EOF'\np='tests/test_tally.py'\nprint(open(p).read())\nopen('other.txt','w').write('x')\nEOF",
+    "python3 - <<'EOF'\nopen('tests/test_tally.py','r').read()\nEOF",
+    "git diff tests/test_tally.py 2>&1 | tee /tmp/d.txt",
+    "wc -l tests/test_tally.py >> /tmp/log.txt",
+])
+def test_bash_writes_file_rejects_read_only_uses(command):
+    assert _writes(command) is False
+
+
+def test_bash_writes_file_impl_path_does_not_match_the_test_file():
+    assert _writes("cat > tests/test_tally.py <<'EOF'\nx\nEOF", _IMPL_PATH) is False
+    assert _writes("cat > tally.py <<'EOF'\nx\nEOF", _IMPL_PATH) is True
+    assert _writes("cat > ./src/tally.py <<'EOF'\nx\nEOF", _IMPL_PATH) is True
+
+
+def test_bash_writes_file_honors_after_ordering_within_one_command():
+    steps = [
+        {"n": 1, "signal": "bash_regex", "pattern": r"git\s+commit"},
+        {"n": 2, "signal": "bash_writes_file", "pattern": _TEST_PATH, "after": 1},
+    ]
+    before = [_tool_use("Bash", {"command": "cat > tests/test_tally.py <<'EOF'\nx\nEOF"}, 0),
+              _tool_use("Bash", {"command": "git commit -m x"}, 1)]
+    assert pp.evaluate_steps(steps, before, repo_path="/x")[0]["2"] is False
+    after = [_tool_use("Bash", {"command": "git commit -m x"}, 0),
+             _tool_use("Bash", {"command": "printf x > tests/test_tally.py"}, 1)]
+    assert pp.evaluate_steps(steps, after, repo_path="/x")[0]["2"] is True
+
+
+def test_please_steps_recognize_a_python_heredoc_test_edit_and_keep_the_chain_alive():
+    steps = pp.load_steps("please")
+    cmds = [
+        ("engram ingest --auto", 0), ("engram query --phrase x", 1), ("grep -rn out .", 2),
+        ("git commit -m plan", 3),
+    ]
+    events = [_tool_use("Bash", {"command": c}, i) for c, i in cmds]
+    idx = 4
+    for role in ("ask-alignment", "code-alignment", "diagrams-alignment", "clarity"):
+        events.append(_tool_use("Agent", {"prompt": f"{role} reviewer; run engram query recall first"}, idx))
+        idx += 1
+    events.append(_tool_use("Bash", {"command": "python3 - <<'EOF'\np='tests/test_tally.py'\ns=open(p).read()\n"
+                                                 "open(p,'w').write(s)\nEOF"}, idx)); idx += 1
+    events.append(_tool_use("Bash", {"command": "cat > tally.py <<'EOF'\nx\nEOF"}, idx)); idx += 1
+    events.append(_tool_use("Bash", {"command": "python3 -m pytest -q"}, idx)); idx += 1
+    events.append(_tool_use("Bash", {"command": "cat >> README.md <<'EOF'\nx\nEOF"}, idx)); idx += 1
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/x")
+    assert results["10"] is True
+    assert results["11"] is True
+    assert results["12"] is True
+    assert results["13"] is True
+
+
+def test_rescore_includes_subagent_transcripts_next_to_an_existing_main_transcript(tmp_path):
+    """Live scoring globs every *.jsonl under the project dir (main + <sid>/subagents/*.jsonl);
+    --rescore used to parse only the recorded main transcript when it existed, so steps performed
+    in a subagent (e.g. the TDD unit's test edit) scored as missed on rescore only."""
+    repo = str(tmp_path / "repo")
+    os.makedirs(repo)
+    main = tmp_path / "sid1.jsonl"
+    sub_dir = tmp_path / "sid1" / "subagents"
+    sub_dir.mkdir(parents=True)
+
+    def rec(ts, name, tool_input):
+        return json.dumps({"type": "assistant", "timestamp": f"2026-09-20T00:00:0{ts}.000Z",
+                           "message": {"content": [{"type": "tool_use", "id": f"t{ts}", "name": name,
+                                                    "input": tool_input}]}})
+    main.write_text(rec(0, "Bash", {"command": "git commit -m x"}) + "\n")
+    (sub_dir / "agent-a.jsonl").write_text(rec(1, "Agent", {"prompt": "report LESSONS: at the end"}) + "\n")
+
+    record = {"task": "please", "arm": "R", "repo_path": repo, "transcript_path": str(main),
+              "carrier_basename": None}
+    results_path = tmp_path / "results.jsonl"
+    results_path.write_text(json.dumps(record) + "\n")
+    out_path = tmp_path / "rescored.jsonl"
+    pp.rescore_file(str(results_path), str(out_path))
+    rescored = pp.load_jsonl(str(out_path))[0]
+    assert rescored.get("error") in (None, "")
+    assert rescored["followed_steps"]["19"] is True  # the LESSONS: signal lives only in the subagent file

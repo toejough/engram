@@ -25,6 +25,7 @@ Usage:
 """
 import argparse
 import concurrent.futures as cf
+import glob
 import json
 import os
 import queue
@@ -1076,6 +1077,33 @@ def default_repo_checker(pattern_name, repo_path):
     return fn(repo_path)
 
 
+def _write_starts(command, path_re):
+    """Start offsets of every construct in a Bash `command` that WRITES to a file whose path
+    matches the regex `path_re` (the `bash_writes_file` signal). Recognized writers: `sed -i` /
+    `perl -pi` (in-place), a shell redirect `>`/`>>` whose TARGET is the path, `tee [-a] <path>`,
+    and python `open(<path or var bound to it>, 'w'|'a'|'x'|'r+')` / `Path(...).write_text|bytes`.
+    A path that is merely READ (cat/grep/pytest/`cat f |`/`open(p)`/`open(p,'r')`) never matches,
+    and neither does a redirect whose target is some OTHER file."""
+    target = r"[^\s\"'|;&<>()]*?" + f"(?:{path_re})" + r"[\"']?(?![\w.])"
+    quoted = r"[\"']?"
+    pats = [
+        rf"(?:sed|perl)\s+-[a-zA-Z]*i[^\n]*?(?:{path_re})",
+        rf"(?<![<>&\d])\d?>>?(?!&)\s*{quoted}{target}",
+        rf"\btee\s+(?:-[a-zA-Z]+\s+)*{quoted}{target}",
+        rf"\bopen\(\s*[rRbBuU]*[\"'][^\"']*?(?:{path_re})[\"']\s*,\s*(?:mode\s*=\s*)?[\"'](?:[wax]|r\+)",
+        rf"\bPath\(\s*[\"'][^\"']*?(?:{path_re})[\"']\s*\)\s*\.write_(?:text|bytes)\(",
+    ]
+    starts = [m.start() for pat in pats for m in re.finditer(pat, command)]
+    # A variable bound to the path (`p = 'x'` / `p = Path('x')`), later used as a write target.
+    for bind in re.finditer(rf"\b(\w+)\s*=\s*(?:Path\(\s*)?[\"'][^\"']*?(?:{path_re})[\"']", command):
+        var = re.escape(bind.group(1))
+        for pat in (rf"\bopen\(\s*{var}\s*,\s*(?:mode\s*=\s*)?[\"'](?:[wax]|r\+)",
+                    rf"\b{var}\.write_(?:text|bytes)\(",
+                    rf"\bPath\(\s*{var}\s*\)\s*\.write_(?:text|bytes)\("):
+            starts.extend(bind.end() + m.start() for m in re.finditer(pat, command[bind.end():]))
+    return sorted(set(starts))
+
+
 def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx, min_pos=None):
     """Evaluate ONE signal definition against the trial's events/repo state. Returns
     (matched: bool, idx: int|None, pos: int|None) — `pos` is the regex match's start offset
@@ -1084,6 +1112,9 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx,
 
     bash_regex: `pattern` matched against Bash tool_use commands, in transcript order; an
       optional `not_pattern` on the SAME command disqualifies a match (the "not -A" rule).
+    bash_writes_file: `pattern` is a regex for a FILE PATH; matches a Bash command that WRITES that
+      file (python open(...,'w')/Path.write_text, `>`/`>>` redirect, `tee`, `sed -i`, `perl -pi`)
+      but never one that only reads it (see `_write_starts`). Ordering/`after` work like bash_regex.
     tool_path: `tools` (a list of tool names, e.g. ["Read", "Edit", "Write"]) + `pattern` matched
       against that tool_use's `file_path` input — credits a step satisfiable via a native
       file tool (Read/Edit/Write) that a bash_regex alone can never see (round-5 finding: an
@@ -1096,9 +1127,14 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx,
     """
     signal = sig["signal"]
 
-    if signal == "bash_regex":
+    if signal in ("bash_regex", "bash_writes_file"):
         pattern = re.compile(sig["pattern"])
         not_pattern = re.compile(sig["not_pattern"]) if sig.get("not_pattern") else None
+
+        def _starts(command):
+            if signal == "bash_writes_file":
+                return _write_starts(command, sig["pattern"])
+            return [m.start() for m in pattern.finditer(command)]
         for ev in bash_events:
             if ev["idx"] < min_idx:
                 continue
@@ -1126,14 +1162,15 @@ def _evaluate_signal(sig, events, bash_events, repo_path, repo_checker, min_idx,
                 # a same-event match can never be ordered, so it does not count.
                 if min_pos is None:
                     continue
-                match = next((m for m in pattern.finditer(command) if m.start() > min_pos), None)
-                if match is None:
+                start = next((st for st in _starts(command) if st > min_pos), None)
+                if start is None:
                     continue
             else:
-                match = pattern.search(command)
-                if not match:
+                starts = _starts(command)
+                if not starts:
                     continue
-            return True, ev["idx"], match.start()
+                start = starts[0]
+            return True, ev["idx"], start
         return False, None, None
 
     if signal == "tool_path":
@@ -2299,7 +2336,11 @@ def rescore_file(in_path, out_path):
         try:
             transcript_paths_for_parsing = []
             if transcript_path and os.path.exists(transcript_path):
-                transcript_paths_for_parsing = [transcript_path]
+                # Live scoring reads main + subagent transcripts (a recursive glob); include the
+                # subagent files sitting next to the recorded main transcript here too.
+                subagent_glob = os.path.join(os.path.splitext(transcript_path)[0], "**", "*.jsonl")
+                transcript_paths_for_parsing = [transcript_path] + sorted(
+                    glob.glob(subagent_glob, recursive=True))
             else:
                 rediscovered = rediscover_transcript_paths(record.get("trial_dir"), repo_path)
                 if rediscovered:
