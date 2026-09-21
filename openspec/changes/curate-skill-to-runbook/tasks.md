@@ -1,6 +1,6 @@
 ## Status
 
-Stage 1 (this stage): sections 1, 2, 2a and task 3.1 (no paid runs). Sections 3.2-3.5, 4 and 5 are later
+Stage 1 (this stage): sections 1, 2, 2a, 2b and task 3.1 (no paid runs). Sections 3.2-3.5, 4 and 5 are later
 stages (paid runs need cost confirmation; retirement needs the gate).
 
 ## 1. Eval baseline (done in the previous stage)
@@ -24,6 +24,13 @@ stages (paid runs need cost confirmation; retirement needs the gate).
 - [x] 2a.3 Reword "curation skill" / "offer-curation skill" to "curation runbook" in comments and flag descriptions (`amend.go`, `learn.go`, `update.go`, `serve.go`, `targets.go`, tests)
 - [x] 2a.4 `targ check-full` green; smoke: run the reworded notice through a scratch-home `engram update` (or show the unit-test evidence); never touch the real vault
 
+## 2b. Payload hint (D9)
+
+- [x] 2b.1 RED: tests for `pending_offers_hint` present iff `pending_offers` is true, equal to the shared constant, byte-identical payload without offers, merged query, served round-trip, and notices embedding the same constant; `targ test` fails
+- [x] 2b.2 GREEN: `pendingOfferCurateInstruction` shared constant, `queryPayload.PendingOffersHint`, set in `runQuery` and `mergeQueryPayloads`; `targ test` passes (commit b050db1d)
+- [x] 2b.3 Smoke with a scratch-built binary against a scratch vault: hint present with offers, absent without
+- [ ] 2b.4 Follow-ups after retirement: `curate/SKILL.md` lines 5 and 28 (deleted in 4.5); consider `shim.md` only if option B (D8) is built
+
 ## 3. Validation (gates retirement)
 
 - [x] 3.1 Retrieval check (no spend): phrases harvested from the kept baseline transcripts and shim-shaped forms, `--text` variants, the notice command, plus over-fire probes; table probe -> top runbook rank/provenance in `results/3.1_curate_retrieval_check.md`; first verify the scratch binary has whole-word matching
@@ -43,4 +50,4 @@ stages (paid runs need cost confirmation; retirement needs the gate).
 ## 5. Close-out
 
 - [ ] 5.1 Sync the delta spec to `openspec/specs/vault-offer-curation/spec.md`, archive the change
-- [ ] 5.2 Joe's call on D5 near-case wording recorded in the spec and design
+- [x] 5.2 Joe's call on D5 near-case wording recorded in the spec and design (confirmed 2026-09-21: near offer discarded after folding)

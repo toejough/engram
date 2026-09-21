@@ -53,11 +53,10 @@ survive a future matcher change; it costs nothing. `pending offers` is specific 
 
 **D4. Automatic firing rides on the notice text.** A skill was offered by its `description`; a runbook is
 reached by `engram query`. So the two notices carry the trigger query: e.g. `engram query --text "curate
-pending offers" --phrase "reviewing pending offers in a vault and judging them against existing notes"`.
+pending offers" --phrase "reviewing pending offers in a vault and judging each against existing notes"`.
 `--text` contains the trigger words (`curate`, `pending offers`), so the runbook surfaces with `trigger`
 provenance and ranks first; the `--phrase` is the semantic fallback and is process-shaped. The query
-payload's `pending_offers: true` flag stays a bare boolean (out of scope; an agent that reads it still has
-to know what to do, which the shim's re-entry cues do not cover). The served-write-accepted signal is not
+payload's `pending_offers: true` flag gets a companion hint string (D9). The served-write-accepted signal is not
 a printed line and is dropped as a firing signal (it only ever mattered to an agent that operated the
 server, and the two notices already cover the next `update` or write). "curation skill" in help text and
 comments becomes "curation runbook" (help text for `--discard` and `--clear-pending`) so a reader is not
@@ -81,9 +80,39 @@ sent looking for a skill after retirement.
 Decision: the delta spec follows the skill (covered: discard; near: fold into the existing note, then
 discard the offer; absent: clear the marker; the marker is cleared on the offer only when it is kept). This
 is the behavior actually shipped, tested and evaluated, and the literal spec reading contradicts itself
-for covered. **Flagged for Joe:** the near case changes the literal wording of a shipped requirement; if
-Joe intended the offer to stay live after folding, the skill, the eval end state and this delta must all
-change together. The delta is written so that reverting only the near sentence is a one-line edit.
+for covered. **Confirmed by Joe 2026-09-21** (near offer is discarded after its claim is folded into the
+existing note); the earlier flag and one-line-revert note are moot.
+
+**D9. The query payload carries a hint next to `pending_offers`.** Added 2026-09-21 on Joe's answer to the
+open question about the flag. The shim runs `engram query` on every request, so the payload is the most
+reliable place to reach an agent; the flag was a bare boolean that cannot prompt anything. New payload field
+`pending_offers_hint` (string, omitted when there are no pending offers, so payloads without offers are
+byte-identical to before) carries the same instruction the update notice and write nudge print, held in one
+shared constant (`pendingOfferCurateInstruction`, `internal/cli/offer.go`) so the three cues cannot drift.
+The hint is derived from the flag at the two payload-construction sites (`runQuery` and
+`mergeQueryPayloads`), never decoded from the wire, so a merged or served payload cannot carry a stale copy;
+the served path is byte-identical to local because the handler captures `RunQuery` stdout.
+- Cue coverage: of the automatic cues, the update notice and the write nudge (D4) and now the payload hint
+  are all wired. The "serve just accepted a write" cue (dropped in D4) is partly covered: `serveLearn` and
+  `serveAmend` run `RunLearn`/`RunAmend` with deps whose `LogWarning` is the server process's stderr and
+  whose `ListMD`/`ReadSidecar` are set, so the write nudge does fire, but on the SERVER host's stderr, not in
+  the served client's response. It reaches an operator watching the server, and any agent on the host that
+  next runs `engram query` sees the hint. **Open item:** a served client never sees the nudge; not changed
+  here.
+- Alternatives rejected: (a) keep the bare boolean: cannot prompt, and D8's mid-turn gap stays; (b) embed the
+  hint in every item: multiplies the bytes by the item count and belongs to no item; (c) a top-level
+  `notices:` list: a general mechanism with one user, and a shape change every consumer must learn.
+- Blast radius (verified by grep): `queryPayload` (`internal/cli/query.go`) gets one field; the two constructors
+  (`runQuery`, `mergeQueryPayloads`) set it; `serve_client.go` decodes the parent payload into `queryPayload`,
+  so a parent's hint is decoded harmlessly and the merged hint is recomputed from the OR-ed flag. Tests
+  touched: `query_test.go`, `merged_query_internal_test.go`, `serve_test.go`, `offer_test.go`, `update_test.go`.
+  Docs: `docs/GLOSSARY.md` and `docs/architecture/c3-components.md` (K6 payload shape) do not list
+  `pending_offers` today, so no doc edit is required. Specs: `openspec/specs/vault-offer-curation/spec.md`
+  (this change's delta modifies it); `vault-serve-api` mentions pending offers only for the write path.
+- Follow-ups (not edited here, per the change's scope): `agent-instructions/skills/curate/SKILL.md` (lines 5
+  and 28 describe the flag as a bare boolean; the skill is retired in 4.5, so no edit needed if it goes),
+  `agent-instructions/guidance/shim.md` (no mention of `pending_offers`; option B in D8 would touch it),
+  and `recall`'s SKILL.md (no mention found).
 
 **D6. Validation plan (no paid runs in the conversion stage).** (1) Retrieval check with phrases real
 agents generate (harvested from the kept baseline transcripts, plus `--text` forms), with over-fire
@@ -113,5 +142,5 @@ shim re-entry cue "when engram output tells you to run `engram query`, do". Not 
 - [The agent ignores the notice] -> `curate-signal` measures it; fall back to option B.
 - [`curate` fires on unrelated uses of the word] -> a trigger hit is a candidate only; the situation
   text discriminates; accepted.
-- [Spec reconcile guesses Joe's intent] -> flagged in D5; single-sentence revert.
+- [Spec reconcile guesses Joe's intent] -> resolved: D5 confirmed by Joe 2026-09-21.
 - [Retirement strands curate if the shim is not imported] -> gate (c).

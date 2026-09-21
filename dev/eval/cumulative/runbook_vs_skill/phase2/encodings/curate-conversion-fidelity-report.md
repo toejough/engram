@@ -15,7 +15,7 @@ OpenSpec change `curate-skill-to-runbook`, tasks 2.1-2.6. Format mirrors `please
 | `situation` | reviewing pending offers in a vault and deciding, for each, whether existing notes already cover it, nearly cover it, or do not |
 | `triggers` | `curate`, `/curate`, `pending offers`, `pending offer` |
 | `red_flags` bytes | 931 of 1200 (the exact `    - ...` block `capRedFlagsForPreview` measures; `engram show --vault <fixture>` prints no `EARLIER RED_FLAGS OMITTED` marker; pinned by `test_curate_r_red_flags_fit_the_redflags_preview_budget`) |
-| body | 4,212 bytes |
+| body | 4,214 bytes (measured as the bytes after the closing `---\n` of the frontmatter) |
 
 The situation is process-shaped and names nothing from the eval task (no beekeeping, no offer number, no example);
 pinned by `test_curate_r_triggers_and_process_shaped_situation`. `carrier_basename` = the only `.md` in the carrier dir.
@@ -69,7 +69,7 @@ Wording is tightened to `<sign> -- <action>` (`--` per please's convention) and 
 ## Behavior unchanged
 
 Steps, per-outcome actions, the grep, and the rationale are byte-for-byte the skill's text (the body is the skill minus
-the description, the red-flags table and the invocation sentence). The spec/skill disagreement about near and covered offers
+the description and the red-flags table, with the invocation sentence rewritten). The spec/skill disagreement about near and covered offers
 (design D5 of the change) is NOT resolved here: the runbook follows the skill, which is what the eval scores.
 
 ## Open

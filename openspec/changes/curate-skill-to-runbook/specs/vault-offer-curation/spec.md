@@ -20,11 +20,27 @@ Curation of a pending offer SHALL use the same covered/near/absent judgment `rec
 - **THEN** every action is an `engram amend` call on existing files, with no `engram learn` and no handoff to `write-memory`
 
 ### Requirement: Pending offers are surfaced at three points
-`engram query` SHALL include a pending-offer-exists flag in its payload on every call. `engram update` SHALL include a notify-only notice when pending offers exist, following the same detect-and-notify convention as its other vault-condition detectors. `engram learn`, `engram amend`, and `engram resituate` SHALL log a warning-level nudge, at the same point each already checks the `vocab refit` trigger, when pending offers exist. The update notice and the write-path nudge SHALL each carry a copy-pasteable `engram query` command whose `--text` contains the curate runbook's trigger words, so that following the notice surfaces the curate runbook without naming a skill.
+`engram query` SHALL include a pending-offer-exists flag in its payload on every call, and when the flag is true SHALL also include a `pending_offers_hint` string carrying the same curate instruction the notices carry (omitted when the flag is false, so payloads without pending offers are unchanged). `engram update` SHALL include a notify-only notice when pending offers exist, following the same detect-and-notify convention as its other vault-condition detectors. `engram learn`, `engram amend`, and `engram resituate` SHALL log a warning-level nudge, at the same point each already checks the `vocab refit` trigger, when pending offers exist. The update notice and the write-path nudge SHALL each carry a copy-pasteable `engram query` command whose `--text` contains the curate runbook's trigger words, so that following the notice surfaces the curate runbook without naming a skill.
 
 #### Scenario: Query payload reflects current state
 - **WHEN** `engram query` runs
 - **THEN** its payload's pending-offer-exists flag matches whether any pending offer currently exists
+
+#### Scenario: Query payload carries the hint when offers are pending
+- **WHEN** `engram query` runs while pending offers exist
+- **THEN** its payload has `pending_offers: true` and a `pending_offers_hint` whose text is the same instruction (the `engram query --text "curate pending offers" ...` command and "follow the curate runbook it returns") that the update notice and write-path nudge embed, taken from one shared definition
+
+#### Scenario: Query payload has no hint without offers
+- **WHEN** `engram query` runs while no pending offer exists
+- **THEN** its payload contains neither `pending_offers` nor `pending_offers_hint`, and is byte-identical to a payload produced before the hint existed
+
+#### Scenario: Merged query carries the hint
+- **WHEN** a merged query (local plus parent) runs and either source reports pending offers
+- **THEN** the merged payload has `pending_offers: true` and the hint, and with neither source pending it has neither
+
+#### Scenario: Served query carries the hint
+- **WHEN** `GET /query` is served while pending offers exist on the host
+- **THEN** the response body is the same YAML a local query would print, including `pending_offers: true` and `pending_offers_hint`
 
 #### Scenario: Update surfaces a notice
 - **WHEN** `engram update` runs while pending offers exist
