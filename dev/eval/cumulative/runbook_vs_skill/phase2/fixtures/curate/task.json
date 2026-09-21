@@ -1,4 +1,5 @@
 {
+  "carrier_r_src": "encodings/taskCurate/Curate-R/vault",
   "removal_basenames": [],
   "skill_name": "curate",
   "skill_src": "encodings/taskCurate/Curate-S/skills/curate",

@@ -4785,7 +4785,50 @@ def test_curate_is_registered_as_a_vault_template_task_with_skill():
     assert cfg["skill_name"] == "curate"
     assert os.path.isfile(os.path.join(cfg["skill_src"], "SKILL.md"))
     assert os.path.isdir(cfg["vault_template"])
-    assert cfg["carrier_r_src"] is None
+    assert cfg["carrier_r_src"].endswith(os.path.join("encodings", "taskCurate", "Curate-R", "vault"))
+    assert os.path.isdir(cfg["carrier_r_src"])
+
+
+def _curate_r_note():
+    d = pp.TASKS["curate"]["carrier_r_src"]
+    notes = sorted(n for n in os.listdir(d) if n.endswith(".md"))
+    assert len(notes) == 1, notes
+    text = open(os.path.join(d, notes[0])).read()
+    _, fm, body = text.split("---\n", 2)
+    return d, notes[0], fm, body
+
+
+def test_curate_r_carrier_is_one_runbook_with_a_sidecar_and_no_vocab_file():
+    d, name, fm, _ = _curate_r_note()
+    assert os.path.isfile(os.path.join(d, name[:-3] + ".vec.json"))
+    assert "vocab.centroids.json" not in os.listdir(d)  # would overwrite the seed vault's own
+    assert re.search(r"(?m)^type: runbook$", fm)
+    assert name.endswith("curate-review-pending-offers.md")
+
+
+def test_curate_r_red_flags_fit_the_redflags_preview_budget():
+    _, _, fm, _ = _curate_r_note()
+    block = fm.split("red_flags:\n", 1)[1].split("\ntriggers:", 1)[0] + "\n"
+    assert len(block.encode()) <= _REDFLAGS_BUDGET, len(block.encode())
+    assert block.count("\n    - ") + 1 == 7  # one entry per row of the skill's 7-row red-flags table
+
+
+def test_curate_r_triggers_and_process_shaped_situation():
+    _, _, fm, _ = _curate_r_note()
+    triggers = fm.split("triggers:\n", 1)[1].split("\nluhmann", 1)[0]
+    for t in ("curate", "/curate", "pending offers", "pending offer"):
+        assert f"    - {t}\n" in triggers + "\n"
+    situation = re.search(r"(?m)^situation: (.*)$", fm).group(1).lower()
+    # test-fitting guard: no eval-fixture vocabulary in the situation
+    for word in ("bee", "hive", "oxalic", "honey", "swarm", "offer 7", "apiary"):
+        assert word not in situation
+
+
+def test_curate_r_body_keeps_the_scan_and_never_hands_off_to_write_memory():
+    _, _, _, body = _curate_r_note()
+    assert "grep -l '^pending: true$' <vault>/*.md" in body
+    assert "Never hand off to `write-memory`" in body
+    assert "[[" not in body  # no wikilink citations requested by this runbook (design D1)
 
 
 def test_curate_skill_src_is_byte_identical_to_the_live_skill():
