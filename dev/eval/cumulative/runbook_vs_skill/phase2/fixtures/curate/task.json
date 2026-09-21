@@ -1,0 +1,6 @@
+{
+  "removal_basenames": [],
+  "skill_name": "curate",
+  "skill_src": "encodings/taskCurate/Curate-S/skills/curate",
+  "vault_template": "fixtures/curate/vault-template"
+}

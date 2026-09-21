@@ -169,9 +169,15 @@ _HISTORY_REWRITE_MUTATING_BASH_RE = re.compile(
     rf"git\s+push\b[^\n]*(?:--force\b|-f\b)|"
     rf"{_MUTATING_REDIRECT_RE}|tee|sed\s+-i"
 )
+# curate's real mutations are vault writes through the engram CLI (`engram amend`/`learn`) or a
+# raw rm/sed of a vault note -- none of which `_MUTATING_BASH_RE` (git add/commit/rm/mv) fully covers.
+_CURATE_MUTATING_BASH_RE = re.compile(
+    rf"engram\s+(?:amend|learn|resituate)\b|\brm\b|\bmv\b|{_MUTATING_REDIRECT_RE}|tee|sed\s+-i|perl\s+-p?i"
+)
 TASK_MUTATING_BASH_RE = {
     "A": _MUTATING_BASH_RE, "B": _MUTATING_BASH_RE,
     "history-rewrite": _HISTORY_REWRITE_MUTATING_BASH_RE,
+    "curate": _CURATE_MUTATING_BASH_RE,
 }
 _QUOTED_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
 
@@ -236,7 +242,7 @@ def load_task_json(task_json_path):
         return {}
     data = json.load(open(task_json_path))
     resolved = dict(data)
-    for key in ("carrier_r_src", "carrier_f_src", "skill_src"):
+    for key in ("carrier_r_src", "carrier_f_src", "skill_src", "vault_template"):
         if resolved.get(key):
             resolved[key] = os.path.normpath(os.path.join(HERE, resolved[key]))
     if "removal_basenames" in resolved:
@@ -462,6 +468,15 @@ def setup_trial_vault(env, task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MI
     vault = env["ENGRAM_VAULT_PATH"]
     t0 = time.time()
     shutil.rmtree(vault, ignore_errors=True)
+    template = TASKS[task_key].get("vault_template")
+    if template:
+        # Vault-only task (e.g. curate): the fixture's own small fictional vault IS the trial
+        # vault. No real-vault copy, so nothing to scrub (no covering / eval-session notes exist).
+        shutil.copytree(template, vault)
+        copy_s = round(time.time() - t0, 2)
+        carrier_basename = add_carrier(vault, task_key, arm)
+        verify_vault_health(vault)
+        return carrier_basename, copy_s
     shutil.copytree(REAL_VAULT, vault)
     copy_s = round(time.time() - t0, 2)
     remove_covering_notes(vault, task_key, arm)
@@ -471,6 +486,16 @@ def setup_trial_vault(env, task_key, arm, exclude_luhmann_min=EXCLUDE_LUHMANN_MI
     carrier_basename = add_carrier(vault, task_key, arm)
     verify_vault_health(vault)
     return carrier_basename, copy_s
+
+
+def snapshot_final_vault(vault, trial_dir, task_key):
+    """vault_template tasks only: keep the trial's FINAL vault at <trial_dir>/vault-final so the
+    end-state check can be re-run by --rescore after run_one_trial_phase2 deletes the live vault
+    (the vault is the task's whole deliverable). No-op for every other task."""
+    if TASKS[task_key].get("vault_template") and os.path.isdir(vault):
+        dst = os.path.join(trial_dir, "vault-final")
+        shutil.rmtree(dst, ignore_errors=True)
+        shutil.copytree(vault, dst)
 
 
 def add_recall_learn_runbooks(vault):
@@ -1618,6 +1643,7 @@ def run_one_trial_phase2(run_root, cfg_dir, task_key, arm, model, trial_index, m
         "wall_s": round(time.time() - t0, 1),
     }
     # Vault copies are deleted after scoring even under --keep (keep repo + transcripts).
+    snapshot_final_vault(env["ENGRAM_VAULT_PATH"], trial_dir, task_key)
     shutil.rmtree(env["ENGRAM_VAULT_PATH"], ignore_errors=True)
     return record
 

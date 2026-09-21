@@ -4135,7 +4135,9 @@ def test_fixture_task_json_removal_basenames_not_clobbered():
             for key in ["skill_src", "carrier_r_src", "carrier_f_src"]
         )
 
-        if has_carrier_keys:
+        # vault_template tasks (curate) build the trial vault from the fixture's own seed vault, not
+        # a real-vault copy, so there is nothing to scrub and removal_basenames is moot.
+        if has_carrier_keys and "vault_template" not in task_config:
             # Carrier fixtures must have non-empty removal_basenames
             removal_basenames = task_config.get("removal_basenames", [])
             assert isinstance(removal_basenames, list), (
@@ -4665,3 +4667,363 @@ def test_rescore_includes_subagent_transcripts_next_to_an_existing_main_transcri
     rescored = pp.load_jsonl(str(out_path))[0]
     assert rescored.get("error") in (None, "")
     assert rescored["followed_steps"]["19"] is True  # the LESSONS: signal lives only in the subagent file
+
+
+# ----- vault_template tasks (curate): the seed vault IS the trial vault, not a real-vault copy -----
+
+def _vault_template_task(tmp_path):
+    tmpl = tmp_path / "tmpl"
+    tmpl.mkdir()
+    (tmpl / "1.2026-01-01.seed-note.md").write_text("seed")
+    (tmpl / "1.2026-01-01.seed-note.vec.json").write_text("{}")
+    return {"vault_template": str(tmpl), "removal_basenames": ()}
+
+
+def test_load_task_json_resolves_vault_template_relative_to_here(tmp_path):
+    task_json = tmp_path / "task.json"
+    task_json.write_text(json.dumps({"vault_template": "fixtures/x/vault-template"}))
+    resolved = pp.load_task_json(str(task_json))
+    assert resolved["vault_template"] == os.path.normpath(os.path.join(pp.HERE, "fixtures/x/vault-template"))
+
+
+def test_setup_trial_vault_with_vault_template_uses_only_the_template(tmp_path, monkeypatch):
+    fake_real_vault = str(tmp_path / "real_vault")
+    os.makedirs(fake_real_vault)
+    _write_note(fake_real_vault, "100.2026-01-01.real-note")
+    monkeypatch.setattr(pp, "REAL_VAULT", fake_real_vault)
+    monkeypatch.setattr(pp, "verify_vault_health", lambda vault: {})
+    monkeypatch.setitem(pp.TASKS, "vt-task", _vault_template_task(tmp_path))
+    env = {"ENGRAM_VAULT_PATH": str(tmp_path / "trial_vault")}
+    pp.setup_trial_vault(env, "vt-task", "N")
+    assert sorted(os.listdir(env["ENGRAM_VAULT_PATH"])) == [
+        "1.2026-01-01.seed-note.md", "1.2026-01-01.seed-note.vec.json"]
+
+
+def test_setup_trial_vault_without_vault_template_is_unchanged_real_vault_copy(tmp_path, monkeypatch):
+    fake_real_vault = str(tmp_path / "real_vault")
+    os.makedirs(fake_real_vault)
+    _write_note(fake_real_vault, "100.2026-01-01.real-note")
+    monkeypatch.setattr(pp, "REAL_VAULT", fake_real_vault)
+    monkeypatch.setattr(pp, "verify_vault_health", lambda vault: {})
+    env = {"ENGRAM_VAULT_PATH": str(tmp_path / "trial_vault")}
+    pp.setup_trial_vault(env, "A", "N")
+    assert "100.2026-01-01.real-note.md" in os.listdir(env["ENGRAM_VAULT_PATH"])
+
+
+def test_snapshot_final_vault_copies_vault_next_to_repo_only_for_vault_template_tasks(tmp_path, monkeypatch):
+    monkeypatch.setitem(pp.TASKS, "vt-task", _vault_template_task(tmp_path))
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "n.md").write_text("x")
+    trial_dir = tmp_path / "trial"
+    trial_dir.mkdir()
+    pp.snapshot_final_vault(str(vault), str(trial_dir), "vt-task")
+    assert (trial_dir / "vault-final" / "n.md").read_text() == "x"
+    other = tmp_path / "trial2"
+    other.mkdir()
+    pp.snapshot_final_vault(str(vault), str(other), "A")
+    assert not (other / "vault-final").exists()
+
+
+# ----- curate task (vault-only fixture: pending offers, covered / near / absent) -----
+
+import shutil as _shutil
+import subprocess as _subprocess
+
+CURATE_DIR = os.path.join(pp.FIXTURES_DIR, "curate")
+CURATE_TEMPLATE = os.path.join(CURATE_DIR, "vault-template")
+_needs_engram = pytest.mark.skipif(_shutil.which("engram") is None, reason="engram binary not on PATH")
+
+
+def _curate_vault(tmp_path, name="v"):
+    dst = str(tmp_path / name)
+    _shutil.copytree(CURATE_TEMPLATE, dst)
+    return dst
+
+
+def _amend(vault, *args):
+    env = dict(os.environ, ENGRAM_VAULT_PATH=vault)
+    _subprocess.run(["engram", "amend", *args], check=True, capture_output=True, env=env)
+
+
+def _note_path(vault, id_):
+    return next(os.path.join(vault, n) for n in sorted(os.listdir(vault)) if n.startswith(f"{id_}.") and n.endswith(".md"))
+
+
+_NEAR_OBJECT = ("when the colony is broodless (late autumn or winter), because the vapor does not penetrate wax "
+                "cappings; a single dose misses mites under late-emerging brood, so repeat it three times at "
+                "five-day intervals")
+
+
+def _ideal_curate_vault(tmp_path, name="ideal", skip=(), extra=()):
+    """The vault after executing curate/SKILL.md's steps LITERALLY with the real `engram amend`."""
+    v = _curate_vault(tmp_path, name)
+    ops = {
+        "covered_reinforce": ("--target", "3", "--activate"),
+        "covered_discard": ("--target", "7", "--discard"),
+        "near_fold": ("--target", "2", "--object", _NEAR_OBJECT),
+        "near_discard": ("--target", "8", "--discard"),
+        "absent_accept": ("--target", "9", "--clear-pending"),
+    }
+    for key, args in ops.items():
+        if key not in skip:
+            _amend(v, *args)
+    for args in extra:
+        _amend(v, *args)
+    return v
+
+
+def _curate_check(repo_dir, vault):
+    env = dict(os.environ, ENGRAM_VAULT_PATH=vault)
+    r = _subprocess.run(["bash", pp.TASKS["curate"]["done_when_script"], str(repo_dir)],
+                        capture_output=True, text=True, env=env)
+    return r.returncode, (r.stdout + r.stderr).strip()
+
+
+def test_curate_is_registered_as_a_vault_template_task_with_skill():
+    cfg = pp.TASKS["curate"]
+    assert cfg["skill_name"] == "curate"
+    assert os.path.isfile(os.path.join(cfg["skill_src"], "SKILL.md"))
+    assert os.path.isdir(cfg["vault_template"])
+    assert cfg["carrier_r_src"] is None
+
+
+def test_curate_skill_src_is_byte_identical_to_the_live_skill():
+    live = os.path.join(pp.p1.REPO, "agent-instructions", "skills", "curate", "SKILL.md")
+    if not os.path.isfile(live):  # retired by the conversion: the frozen copy is then the only record
+        pytest.skip("live curate skill already retired")
+    assert open(live).read() == open(os.path.join(pp.TASKS["curate"]["skill_src"], "SKILL.md")).read()
+
+
+def test_curate_template_has_six_existing_notes_and_exactly_three_pending_offers():
+    mds = sorted(n for n in os.listdir(CURATE_TEMPLATE) if n.endswith(".md"))
+    assert len(mds) == 9
+    pending = [n for n in mds if re.search(r"(?m)^pending: true$", open(os.path.join(CURATE_TEMPLATE, n)).read())]
+    assert [n.split(".")[0] for n in pending] == ["7", "8", "9"]
+
+
+@_needs_engram
+def test_curate_template_is_a_healthy_vault(tmp_path):
+    r = _subprocess.run(["engram", "embed", "status", "--vault", CURATE_TEMPLATE], capture_output=True, text=True)
+    stats = pp._parse_embed_status(r.stdout)
+    assert stats["total"] == 9 and stats["broken"] == 0 and stats["without"] == 0
+
+
+@_needs_engram
+def test_curate_setup_gives_the_trial_only_the_seed_vault_and_a_clean_repo(tmp_path, monkeypatch):
+    repo = pp.setup_trial_repo(str(tmp_path), "curate", "S", marker="RUNBOOK-VS-SKILL-PROBE2-curate")
+    assert os.path.isfile(os.path.join(repo, ".claude", "skills", "curate", "SKILL.md"))
+    assert _git(repo, "status", "--porcelain").strip() == ""
+    env = {"ENGRAM_VAULT_PATH": str(tmp_path / "trial_vault")}
+    pp.setup_trial_vault(env, "curate", "N")
+    assert sorted(n for n in os.listdir(env["ENGRAM_VAULT_PATH"]) if n.endswith(".md")) == sorted(
+        n for n in os.listdir(CURATE_TEMPLATE) if n.endswith(".md"))
+
+
+def test_curate_bare_arm_gets_no_skill(tmp_path):
+    repo = pp.setup_trial_repo(str(tmp_path), "curate", "N", marker="RUNBOOK-VS-SKILL-PROBE2-curate")
+    assert not os.path.exists(os.path.join(repo, ".claude"))
+
+
+@_needs_engram
+def test_curate_done_when_fails_the_untouched_seed(tmp_path):
+    rc, out = _curate_check(tmp_path, _curate_vault(tmp_path))
+    assert rc != 0 and "pending" in out
+
+
+@_needs_engram
+def test_curate_done_when_passes_the_skill_literal_ideal_end_state(tmp_path):
+    rc, out = _curate_check(tmp_path, _ideal_curate_vault(tmp_path))
+    assert rc == 0, out
+
+
+@_needs_engram
+def test_curate_done_when_passes_when_reinforcement_uses_engram_activate(tmp_path):
+    v = _ideal_curate_vault(tmp_path, skip=("covered_reinforce",))
+    env = dict(os.environ, ENGRAM_VAULT_PATH=v)
+    _subprocess.run(["engram", "activate", "--note", _note_path(v, "3")], check=True, capture_output=True, env=env)
+    rc, out = _curate_check(tmp_path, v)
+    assert rc == 0, out
+
+
+@_needs_engram
+def test_curate_done_when_falls_back_to_vault_final_next_to_the_repo(tmp_path):
+    trial = tmp_path / "trial"
+    (trial / "repo").mkdir(parents=True)
+    _shutil.copytree(_ideal_curate_vault(tmp_path), str(trial / "vault-final"))
+    env = {k: v for k, v in os.environ.items() if k != "ENGRAM_VAULT_PATH"}
+    r = _subprocess.run(["bash", pp.TASKS["curate"]["done_when_script"], str(trial / "repo")],
+                        capture_output=True, text=True, env=env)
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def _m_clear_all(tmp_path):
+    v = _curate_vault(tmp_path, "m")
+    for i in ("7", "8", "9"):
+        _amend(v, "--target", i, "--clear-pending")
+    return v
+
+
+def _m_extra_note(tmp_path):
+    v = _ideal_curate_vault(tmp_path, "m")
+    env = dict(os.environ, ENGRAM_VAULT_PATH=v)
+    _subprocess.run(["engram", "learn", "fact", "--slug", "extra", "--source", "x", "--position", "top",
+                     "--situation", "s", "--subject", "a", "--predicate", "b", "--object", "c"],
+                    check=True, capture_output=True, env=env)
+    return v
+
+
+def _m_corrupt_sidecar(tmp_path):
+    v = _ideal_curate_vault(tmp_path, "m")
+    with open(_note_path(v, "9")[:-3] + ".vec.json", "w") as f:
+        f.write("{")
+    return v
+
+
+def _m_touch_unrelated(tmp_path):
+    v = _ideal_curate_vault(tmp_path, "m")
+    _amend(v, "--target", "5", "--action", "burn only pine needles")
+    return v
+
+
+def _m_near_overwrites_original(tmp_path):
+    v = _ideal_curate_vault(tmp_path, "m", skip=("near_fold",))
+    _amend(v, "--target", "2", "--object", "three times at five-day intervals")
+    return v
+
+
+def _m_absent_content_rewritten(tmp_path):
+    v = _ideal_curate_vault(tmp_path, "m", skip=("absent_accept",))
+    _amend(v, "--target", "9", "--clear-pending", "--object", "somewhere in a tree")
+    return v
+
+
+CURATE_MUTANTS = [
+    ("untouched-seed", lambda t: _curate_vault(t, "m")),
+    ("covered-offer-cleared-not-discarded", lambda t: _ideal_curate_vault(
+        t, "m", skip=("covered_discard",), extra=[("--target", "7", "--clear-pending")])),
+    ("covered-offer-left-pending", lambda t: _ideal_curate_vault(t, "m", skip=("covered_discard",))),
+    ("covered-target-not-reinforced", lambda t: _ideal_curate_vault(t, "m", skip=("covered_reinforce",))),
+    ("near-offer-cleared-not-folded-not-discarded", lambda t: _ideal_curate_vault(
+        t, "m", skip=("near_fold", "near_discard"), extra=[("--target", "8", "--clear-pending")])),
+    ("near-folded-but-offer-not-discarded", lambda t: _ideal_curate_vault(
+        t, "m", skip=("near_discard",), extra=[("--target", "8", "--clear-pending")])),
+    ("near-offer-discarded-but-claim-lost", lambda t: _ideal_curate_vault(t, "m", skip=("near_fold",))),
+    ("near-target-original-claim-overwritten", _m_near_overwrites_original),
+    ("absent-offer-discarded", lambda t: _ideal_curate_vault(
+        t, "m", skip=("absent_accept",), extra=[("--target", "9", "--discard")])),
+    ("absent-offer-left-pending", lambda t: _ideal_curate_vault(t, "m", skip=("absent_accept",))),
+    ("absent-offer-content-rewritten", _m_absent_content_rewritten),
+    ("all-three-just-cleared", _m_clear_all),
+    ("extra-note-written-by-engram-learn", _m_extra_note),
+    ("vault-check-fails-corrupt-sidecar", _m_corrupt_sidecar),
+    ("unrelated-note-modified", _m_touch_unrelated),
+]
+
+
+@_needs_engram
+@pytest.mark.parametrize("label,build", CURATE_MUTANTS, ids=[m[0] for m in CURATE_MUTANTS])
+def test_curate_done_when_fails_each_single_defect_mutant(tmp_path, label, build):
+    rc, out = _curate_check(tmp_path, build(tmp_path))
+    assert rc != 0, f"mutant {label} PASSED the end check: {out}"
+
+
+def test_curate_first_mutating_step_is_an_amend_not_a_read():
+    read = _tool_use("Bash", {"command": "grep -l '^pending: true$' /v/*.md"}, idx=0)
+    amend = _tool_use("Bash", {"command": "engram amend --target 3 --activate"}, idx=1)
+    assert pp.first_mutating_step_index([read, amend], "curate") == 1
+
+
+def test_curate_steps_json_is_valid_and_registered():
+    steps = pp.load_steps("curate")
+    assert [s["n"] for s in steps] == list(range(1, len(steps) + 1))
+    for step in steps:
+        for sig in _step_signals(step):
+            assert sig["signal"] in ("bash_regex", "tool_path", "tool_input_regex")
+        if "after" in step:
+            assert step["after"] < step["n"]
+
+
+V = "/v"
+
+
+def _ideal_curate_events():
+    seq = [
+        ("Skill", {"skill": "curate"}),
+        ("Bash", {"command": f"grep -l '^pending: true$' {V}/*.md"}),
+        ("Read", {"file_path": f"{V}/7.2026-09-20.spun-uncapped-frames.md"}),
+        ("Read", {"file_path": f"{V}/8.2026-09-20.oxalic-vapor-repeat-dosing.md"}),
+        ("Read", {"file_path": f"{V}/9.2026-09-20.swarm-trap-placement.md"}),
+        ("Bash", {"command": "engram query --phrase 'pulling honey frames for extraction'"}),
+        ("Bash", {"command": "engram amend --target 3 --activate"}),
+        ("Bash", {"command": "engram amend --target 7 --discard"}),
+        ("Bash", {"command": f"engram amend --target 2 --object '{_NEAR_OBJECT}'"}),
+        ("Bash", {"command": "engram amend --target 8 --discard"}),
+        ("Bash", {"command": "engram amend --target 9 --clear-pending"}),
+        ("Bash", {"command": "engram check"}),
+        ("Bash", {"command": "engram count --group-by pending"}),
+    ]
+    return [_tool_use(n, i, idx=k) for k, (n, i) in enumerate(seq)]
+
+
+def test_curate_ideal_transcript_satisfies_every_step():
+    steps = pp.load_steps("curate")
+    results, k, followed_all = pp.evaluate_steps(steps, _ideal_curate_events(), repo_path="/x")
+    assert followed_all, {n: v for n, v in results.items() if not v}
+    assert k == len(steps)
+
+
+def test_curate_ideal_with_chained_and_multiline_commands_still_satisfies_every_step():
+    seq = [
+        ("Bash", {"command": f"grep -l '^pending: true$' {V}/*.md | xargs cat"}),
+        ("Bash", {"command": "engram query --phrase 'x'"}),
+        ("Bash", {"command": "engram amend --target 3.2026-09-20.honey-extraction-moisture --activate \\\n"
+                              "  && engram amend --target 7 --discard"}),
+        ("Bash", {"command": "engram amend \\\n  --target 2 \\\n  --object 'a; b' && engram amend --target 8 --discard"}),
+        ("Bash", {"command": "engram amend --target 9 --clear-pending && engram check"}),
+        ("Bash", {"command": "engram query --phrase 'swarm'"}),
+    ]
+    events = [_tool_use(n, i, idx=k) for k, (n, i) in enumerate(seq)]
+    results, k, followed_all = pp.evaluate_steps(pp.load_steps("curate"), events, repo_path="/x")
+    assert followed_all, {n: v for n, v in results.items() if not v}
+
+
+def test_curate_wrong_action_fails_its_own_step():
+    events = _ideal_curate_events()
+    events[7]["input"]["command"] = "engram amend --target 7 --clear-pending"   # covered offer cleared
+    results, _, _ = pp.evaluate_steps(pp.load_steps("curate"), events, repo_path="/x")
+    assert results["7"] is False
+    events = _ideal_curate_events()
+    events[10]["input"]["command"] = "engram amend --target 9 --discard"          # absent offer discarded
+    results, _, _ = pp.evaluate_steps(pp.load_steps("curate"), events, repo_path="/x")
+    assert results["10"] is False
+
+
+def test_curate_bare_agent_that_rms_files_and_edits_fails_the_skill_moves():
+    events = [
+        _tool_use("Bash", {"command": f"ls {V}"}, idx=0),
+        _tool_use("Bash", {"command": f"cat {V}/7.2026-09-20.spun-uncapped-frames.md"}, idx=1),
+        _tool_use("Bash", {"command": f"rm {V}/7.2026-09-20.spun-uncapped-frames.md"}, idx=2),
+        _tool_use("Bash", {"command": f"sed -i 's/pending: true//' {V}/9.2026-09-20.swarm-trap-placement.md"}, idx=3),
+    ]
+    results, k, followed_all = pp.evaluate_steps(pp.load_steps("curate"), events, repo_path="/x")
+    assert not followed_all
+    for n in ("1", "5", "6", "7", "8", "9", "10", "11", "12"):
+        assert results[n] is False, n
+
+
+def test_curate_glob_loop_read_and_no_query_still_credit_reads_and_actions():
+    """Real S-arm shapes: offers read by `for f in 7.* 8.* 9.*; do cat`, and the agent judged from the
+    files with no `engram query` -- steps 2-4 and the actions must not depend on the query step."""
+    seq = [
+        ("Bash", {"command": "cd $V && grep -l '^pending: true$' *.md"}),
+        ("Bash", {"command": "cd $V && for f in 7.* 8.* 9.* 2.*.md; do case $f in *.json) continue;; esac; cat \"$f\"; done"}),
+        ("Bash", {"command": "engram amend --target 3 --activate && engram amend --target 7 --discard\n"
+                              "engram amend --target 2 --object 'x; three times at five-day intervals'\n"
+                              "engram amend --target 8 --discard\nengram amend --target 9 --clear-pending"}),
+        ("Bash", {"command": "engram check"}),
+        ("Bash", {"command": "grep -c '^pending: true$' $V/*.md"}),
+    ]
+    events = [_tool_use(n, i, idx=k) for k, (n, i) in enumerate(seq)]
+    results, k, _ = pp.evaluate_steps(pp.load_steps("curate"), events, repo_path="/x")
+    assert [n for n, v in results.items() if not v] == ["5"], results
