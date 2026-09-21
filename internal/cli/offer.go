@@ -11,16 +11,27 @@ import (
 
 // unexported constants.
 const (
+	// pendingOfferCurateQuery is the trigger query both notices carry. Its
+	// --text holds the curate runbook's trigger words ("curate", "pending
+	// offers"), so the runbook surfaces first with trigger provenance; the
+	// --phrase is the process-shaped semantic fallback. A runbook has no
+	// harness-read description the way a skill did, so the notice itself has
+	// to say what to run (curate-skill-to-runbook D4).
+	pendingOfferCurateQuery = "`engram query --text \"curate pending offers\" --phrase \"reviewing pending " +
+		"offers in a vault and judging each against existing notes\"`"
 	// pendingOfferUpdateNotice is the `engram update` detect-and-notify line
 	// (ADR-0021 convention) for pending offers. Unlike the other notices, it
-	// names no CLI fix command — curation is a skill (vault-offer-curation),
-	// not something `engram update` can do on the user's behalf.
+	// names no CLI fix command — curation is a runbook (vault-offer-curation),
+	// not something `engram update` can do on the user's behalf — so it names
+	// the query that surfaces the curate runbook.
 	pendingOfferUpdateNotice = "vault holds pending offer(s) awaiting curation — see the pending_offers " +
-		"flag in `engram query`'s payload; curated by the offer-curation skill, not a CLI command\n"
+		"flag in `engram query`'s payload; to curate them, run " + pendingOfferCurateQuery +
+		" and follow the curate runbook it returns\n"
 	// pendingOfferWriteNudge is the write-path log-only nudge (task 6.4):
 	// fired at the same call sites checkAndPersistVocabRefitTrigger already
 	// runs from, but never persists anything — detection stays stateless.
-	pendingOfferWriteNudge = "vault holds pending offer(s) awaiting curation"
+	pendingOfferWriteNudge = "vault holds pending offer(s) awaiting curation — to curate them, run " +
+		pendingOfferCurateQuery + " and follow the curate runbook it returns"
 )
 
 // excludePendingOffers filters notes down to those NOT carrying the

@@ -848,7 +848,7 @@ func writeLuhmannBranchingNotice(buffer *bytes.Buffer, report update.Report) {
 // writePendingOfferHint prints a one-line notice naming the pending_offers
 // query flag when the vault holds at least one pending-offer note awaiting
 // curation. Silent otherwise. Deliberately just a notice: update never
-// curates offers itself — that's the offer-curation skill's job, off this
+// curates offers itself — that's the curate runbook's job, off this
 // process entirely.
 func writePendingOfferHint(buffer *bytes.Buffer, report update.Report) {
 	if report.VaultHasPendingOffers {

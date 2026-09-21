@@ -1328,7 +1328,8 @@ func TestWriteUpdateReport_LuhmannBranchingHint(t *testing.T) {
 // TestWriteUpdateReport_PendingOfferHint covers vault-offer-curation's
 // engram-update notice: VaultHasPendingOffers=true names the pending_offers
 // query flag; false prints nothing. Unlike backfill-identity, there is no
-// CLI fix command to name — curation is a skill, not an update flag.
+// CLI fix command to name — curation is a runbook, not an update flag; the
+// notice carries the trigger query that surfaces it.
 func TestWriteUpdateReport_PendingOfferHint(t *testing.T) {
 	t.Parallel()
 
@@ -1339,6 +1340,9 @@ func TestWriteUpdateReport_PendingOfferHint(t *testing.T) {
 	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasPendingOffers: true})
 	g.Expect(writeErr).NotTo(HaveOccurred())
 	g.Expect(buffer.String()).To(ContainSubstring("pending_offers"))
+	g.Expect(buffer.String()).To(ContainSubstring(`engram query --text "curate pending offers"`))
+	g.Expect(buffer.String()).To(ContainSubstring("--phrase"))
+	g.Expect(buffer.String()).NotTo(ContainSubstring("skill"))
 
 	var clean bytes.Buffer
 

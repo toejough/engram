@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"errors"
+	"fmt"
 	"maps"
 	"testing"
 
@@ -153,12 +154,21 @@ func TestWarnIfPendingOffers(t *testing.T) {
 
 	var warnings []string
 
-	logWarn := func(format string, _ ...any) {
-		warnings = append(warnings, format)
+	logWarn := func(format string, args ...any) {
+		warnings = append(warnings, fmt.Sprintf(format, args...))
 	}
 
 	cli.ExportWarnIfPendingOffers("/vault", listMD, read, logWarn)
 	g.Expect(warnings).To(HaveLen(1))
+
+	if len(warnings) != 1 {
+		return
+	}
+
+	// The nudge carries the curate runbook's trigger query, not a skill name.
+	g.Expect(warnings[0]).To(ContainSubstring(`engram query --text "curate pending offers"`))
+	g.Expect(warnings[0]).To(ContainSubstring("--phrase"))
+	g.Expect(warnings[0]).NotTo(ContainSubstring("skill"))
 
 	warnings = nil
 	files["/vault/1.2026-01-01.a.md"] = []byte(normalFactNote)

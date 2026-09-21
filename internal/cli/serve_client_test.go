@@ -530,7 +530,7 @@ func TestFetchQueryPayload_TransportErrorPropagates(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("connection refused")))
 }
 
-// TestLocalAmend_ClearPendingClearsTheMarker covers the curation skill's
+// TestLocalAmend_ClearPendingClearsTheMarker covers the curate runbook's
 // core mechanism: `engram amend --clear-pending` is the only CLI-facing way
 // to clear a pending-offer note's marker (local amend never sets it —
 // TestLocalAmend_NeverSetsPendingMarker — but must be able to clear one a
@@ -551,7 +551,7 @@ func TestLocalAmend_ClearPendingClearsTheMarker(t *testing.T) {
 	g.Expect(string(raw)).NotTo(ContainSubstring("pending: true"))
 }
 
-// TestLocalAmend_DiscardDeletesNoteAndSidecar covers the curation skill's
+// TestLocalAmend_DiscardDeletesNoteAndSidecar covers the curate runbook's
 // "covered" outcome (vault-offer-curation): `engram amend --discard` removes
 // both the note and its sidecar rather than amending content.
 func TestLocalAmend_DiscardDeletesNoteAndSidecar(t *testing.T) {

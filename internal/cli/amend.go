@@ -46,7 +46,7 @@ type AmendArgs struct {
 	Triggers []string `json:"triggers" targ:"flag,name=trigger,desc=replace triggers (runbook; repeatable; optional)"` //nolint:lll // single unbreakable struct-tag string
 	Activate bool     `json:"activate" targ:"flag,name=activate,desc=bump LastUsed on the sidecar (optional)"`
 	// ClearPending is the CLI-facing surface for clearing the pending-offer
-	// marker (vault-offer-curation) — the curation skill's only real use of
+	// marker (vault-offer-curation) — the curate runbook's only real use of
 	// it. Local `engram amend` never needs to SET pending (only served
 	// writes do that), so a one-way clear flag is all the CLI exposes;
 	// targets.go translates ClearPending=true into Pending=&false before
@@ -59,7 +59,7 @@ type AmendArgs struct {
 	// assigns it after decode.
 	Pending *bool `json:"pending"`
 	// Discard deletes the target note and its sidecar under the vault lock,
-	// instead of amending content — the curation skill's "covered" outcome
+	// instead of amending content — the curate runbook's "covered" outcome
 	// (vault-offer-curation): the pending offer's content is already covered
 	// by an existing note, so the offer is removed rather than folded in.
 	// RunAmend short-circuits to delete-and-return as soon as the target is
@@ -452,7 +452,7 @@ func applyVocabAssignmentAfterAmend(deps AmendDeps, vault, notePath, amended str
 }
 
 // discardNote deletes the note and its sidecar under the vault lock RunAmend
-// already holds — the curation skill's "covered" outcome
+// already holds — the curate runbook's "covered" outcome
 // (vault-offer-curation): the pending offer's content is already covered by
 // an existing note, so the offer is removed rather than folded in. A missing
 // sidecar (a note that predates embed-on-write, or already lacks one) is not
