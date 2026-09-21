@@ -433,14 +433,21 @@ appears once regardless of how many roles it fills.
 An author-declared literal cue on a `type: runbook` note: an entry of its optional
 `triggers:` frontmatter list, written with repeatable `engram learn runbook --trigger <text>`
 (replaced whole by `engram amend --trigger`). Each entry is at least 3 characters after
-trimming. Authoring rule: a distinctive cue — a slash form (`/please`) or a multi-word phrase
-(`take this end-to-end`) — never a lone common word. `triggers:` is not part of
+trimming. Authoring rule: a distinctive cue — a slash form (`/please`), a multi-word phrase
+(`take this end-to-end`), or a bare word specific enough to be a deliberate invocation
+(`curate`; matched as a whole word) — never a very common word (`fix`, `run`) that appears in
+ordinary requests. `triggers:` is not part of
 `embed.ContentHash`, so editing it never stales the sidecar. Only runbooks carry triggers; a
 `triggers:` list on any other kind is ignored.
 
 ### trigger hit
-A runbook whose `triggers:` list contains an entry that is a substring of the query's `--text`,
-compared case-insensitively after collapsing whitespace runs to one space on both sides.
+A runbook whose `triggers:` list contains an entry that occurs in the query's `--text` as a whole
+word, compared case-insensitively after collapsing whitespace runs to one space on both sides.
+Whole word: on each side where the trigger's own edge character is a letter or digit, the
+character next to the match (if any) must not be a letter or digit (Unicode-aware; `_`, `-`, `/`
+and other punctuation count as boundaries). A trigger edge that is punctuation (`/please`) needs
+no boundary on that side. So `curate` hits "curate the offers", "Curate!", "/curate" but not
+"accurate" or "curated".
 `--text` is the user's message pasted verbatim (never a paraphrase, never embedded); it is
 separate from the semantic `--phrase` values, and absent `--text` means no trigger matching and
 a payload identical to a query without triggers. A hit surfaces first in `items[]` with

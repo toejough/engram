@@ -960,7 +960,7 @@ surface in the shim-only arm (end_state 0/3, 3.3) and, after shim fixes, still m
 embedding similarity on a paraphrase cannot reproduce a literal-cue fire. Decision: a runbook MAY
 carry an author-declared `triggers:` list (`engram learn runbook --trigger`, repeatable;
 `engram amend --trigger` replaces the list); `engram query --text "<user message, verbatim>"` is
-matched against it by case-insensitive substring after whitespace collapse, and a hit surfaces
+matched against it by case-insensitive whole-word match after whitespace collapse (amended 2026-09-21: was a plain substring, which let a bare-word trigger fire inside longer words such as "accurate"; see `openspec/changes/runbook-trigger-whole-word`), and a hit surfaces
 first in `items[]` (provenance `trigger`, ahead of every similarity-ranked item, exempt from the
 relevance floor, matched-set cap, and `--limit`). This is the single lexical exception: `--text` is
 never embedded, triggers apply to `type: runbook` only, `triggers:` is not part of `embed.ContentHash`
