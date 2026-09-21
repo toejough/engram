@@ -1,9 +1,11 @@
 package cli_test
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
+	"unicode"
 
 	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
@@ -11,22 +13,28 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestMatchTriggers_HitsIffNormalizedSubstring: a note is a hit iff some
-// trigger, lowercased with whitespace runs collapsed, is a substring of the
-// text normalized the same way.
-func TestMatchTriggers_HitsIffNormalizedSubstring(t *testing.T) {
+// TestMatchTriggers_HitsIffNormalizedWholeWord: a note is a hit iff some
+// trigger, lowercased with whitespace runs collapsed, occurs in the text
+// normalized the same way with a non-letter/digit (or text edge) on each side
+// where the trigger's own edge rune is a letter or digit. The oracle is a
+// regexp, independent of the implementation's rune scan.
+func TestMatchTriggers_HitsIffNormalizedWholeWord(t *testing.T) {
 	t.Parallel()
+
+	const alphabet = `[A-Za-z0-9é_/.-]`
 
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(rt)
 
-		words := rapid.SliceOfN(rapid.StringMatching(`[A-Za-z/-]{1,6}`), 0, 8).Draw(rt, "words")
-		text := strings.Join(words, rapid.SampledFrom([]string{" ", "  ", "\t", "\n"}).Draw(rt, "sep"))
+		words := rapid.SliceOfN(rapid.StringMatching(alphabet+`{1,6}`), 0, 8).Draw(rt, "words")
+		text := strings.Join(words, rapid.SampledFrom([]string{" ", "  ", "\t", "\n", "-", ""}).Draw(rt, "sep"))
 
 		index := map[string][]string{}
 
 		for _, name := range []string{"a", "b", "c"} {
-			index[name] = rapid.SliceOfN(rapid.StringMatching(`[A-Za-z/-]{3,6}( [A-Za-z/-]{3,6})?`), 0, 3).Draw(rt, name)
+			index[name] = rapid.SliceOfN(
+				rapid.StringMatching(alphabet+`{3,6}( `+alphabet+`{3,6})?`), 0, 3,
+			).Draw(rt, name)
 		}
 
 		norm := strings.ToLower(strings.Join(strings.Fields(text), " "))
@@ -35,7 +43,7 @@ func TestMatchTriggers_HitsIffNormalizedSubstring(t *testing.T) {
 
 		for name, triggers := range index {
 			for _, trigger := range triggers {
-				if strings.Contains(norm, strings.ToLower(strings.Join(strings.Fields(trigger), " "))) {
+				if wholeWordOracle(norm, strings.ToLower(strings.Join(strings.Fields(trigger), " "))) {
 					want = append(want, name)
 
 					break
@@ -77,4 +85,29 @@ func orEmpty(in []string) []string {
 	}
 
 	return in
+}
+
+// wholeWordOracle reports whether needle occurs in norm bounded, on each side
+// whose needle edge rune is a letter or digit, by a non-letter/digit or the
+// text edge. Built as a regexp so it shares no logic with the matcher.
+func wholeWordOracle(norm, needle string) bool {
+	const (
+		before = `(^|[^\p{L}\p{N}])`
+		after  = `([^\p{L}\p{N}]|$)`
+	)
+
+	runes := []rune(needle)
+	pattern := ""
+
+	if unicode.IsLetter(runes[0]) || unicode.IsDigit(runes[0]) {
+		pattern += before
+	}
+
+	pattern += regexp.QuoteMeta(needle)
+
+	if last := runes[len(runes)-1]; unicode.IsLetter(last) || unicode.IsDigit(last) {
+		pattern += after
+	}
+
+	return regexp.MustCompile(pattern).MatchString(norm)
 }

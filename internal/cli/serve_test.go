@@ -433,7 +433,7 @@ func TestServeQuery_TextCappedAtTwoKB(t *testing.T) {
 	}{
 		{"cue ends at boundary", strings.Repeat("x", capBytes-len(cue)) + cue, true},
 		{"cue straddles boundary", strings.Repeat("x", capBytes-len(cue)+1) + cue, false},
-		{"cue at start of long text", cue + strings.Repeat("x", 4*capBytes), true},
+		{"cue at start of long text", cue + " " + strings.Repeat("x", 4*capBytes), true},
 	}
 
 	for _, testCase := range cases {

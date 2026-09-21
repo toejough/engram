@@ -5,6 +5,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/toejough/engram/internal/vaultgraph"
 )
@@ -74,9 +76,62 @@ func applyTriggerHits(
 	return append(triggered, rest...)
 }
 
+// boundaryOK reports whether the rune adjacent to a match (the last rune of
+// context when before, else its first) is not a letter or digit. It is true
+// when no boundary is needed or the match touches the text edge.
+func boundaryOK(needed bool, context string, before bool) bool {
+	if !needed || context == "" {
+		return true
+	}
+
+	var neighbor rune
+	if before {
+		neighbor, _ = utf8.DecodeLastRuneInString(context)
+	} else {
+		neighbor, _ = utf8.DecodeRuneInString(context)
+	}
+
+	return !isWordRune(neighbor)
+}
+
+// containsWholeWord reports whether needle occurs in text with a boundary on
+// each side whose needle edge rune is a letter or digit: the adjacent rune (if
+// any) must not be a letter or digit. Every occurrence is tried, so a later
+// one can satisfy the boundary when an earlier one does not.
+func containsWholeWord(text, needle string) bool {
+	first, _ := utf8.DecodeRuneInString(needle)
+	last, _ := utf8.DecodeLastRuneInString(needle)
+	needBefore := isWordRune(first)
+	needAfter := isWordRune(last)
+
+	for offset := 0; offset <= len(text)-len(needle); {
+		found := strings.Index(text[offset:], needle)
+		if found < 0 {
+			return false
+		}
+
+		start := offset + found
+		end := start + len(needle)
+
+		if boundaryOK(needBefore, text[:start], true) && boundaryOK(needAfter, text[end:], false) {
+			return true
+		}
+
+		offset = start + 1
+	}
+
+	return false
+}
+
+// isWordRune reports whether r is a letter or digit (underscore and hyphen are not).
+func isWordRune(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
 // matchTriggers returns the sorted basenames whose triggers contain an entry
-// that is a substring of text, comparing case-insensitively after collapsing
-// whitespace runs to one space on both sides. Empty text matches nothing.
+// that occurs in text as a whole word, comparing case-insensitively after
+// collapsing whitespace runs to one space on both sides (see
+// containsWholeWord for the boundary rule). Empty text matches nothing.
 func matchTriggers(text string, index map[string][]string) []string {
 	hits := make([]string, 0, len(index))
 
@@ -88,7 +143,7 @@ func matchTriggers(text string, index map[string][]string) []string {
 	for basename, triggers := range index {
 		for _, trigger := range triggers {
 			needle := normalizeTriggerText(trigger)
-			if needle != "" && strings.Contains(normalized, needle) {
+			if needle != "" && containsWholeWord(normalized, needle) {
 				hits = append(hits, basename)
 
 				break
