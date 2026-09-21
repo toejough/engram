@@ -411,6 +411,8 @@ func TestServeQuery_ExcludesPendingOffersAndSetsModelID(t *testing.T) {
 	payload := string(resp.Body)
 	g.Expect(payload).To(ContainSubstring("model_id: test-model@4"))
 	g.Expect(payload).To(ContainSubstring("pending_offers: true"))
+	g.Expect(payload).To(ContainSubstring("pending_offers_hint:"))
+	g.Expect(payload).To(ContainSubstring("curate pending offers"))
 	g.Expect(payload).To(ContainSubstring("normal-note"))
 	g.Expect(payload).NotTo(ContainSubstring("pending-note"))
 }

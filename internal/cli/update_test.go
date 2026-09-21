@@ -1343,6 +1343,7 @@ func TestWriteUpdateReport_PendingOfferHint(t *testing.T) {
 	g.Expect(buffer.String()).To(ContainSubstring(`engram query --text "curate pending offers"`))
 	g.Expect(buffer.String()).To(ContainSubstring("--phrase"))
 	g.Expect(buffer.String()).NotTo(ContainSubstring("skill"))
+	g.Expect(buffer.String()).To(ContainSubstring(cli.ExportPendingOfferCurateInstruction))
 
 	var clean bytes.Buffer
 

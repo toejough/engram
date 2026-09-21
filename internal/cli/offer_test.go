@@ -169,6 +169,7 @@ func TestWarnIfPendingOffers(t *testing.T) {
 	g.Expect(warnings[0]).To(ContainSubstring(`engram query --text "curate pending offers"`))
 	g.Expect(warnings[0]).To(ContainSubstring("--phrase"))
 	g.Expect(warnings[0]).NotTo(ContainSubstring("skill"))
+	g.Expect(warnings[0]).To(ContainSubstring(cli.ExportPendingOfferCurateInstruction))
 
 	warnings = nil
 	files["/vault/1.2026-01-01.a.md"] = []byte(normalFactNote)

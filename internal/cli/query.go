@@ -446,6 +446,10 @@ type queryPayload struct {
 	// note awaiting curation (vault-offer-curation) — computed fresh on
 	// every call, local and served alike.
 	PendingOffers bool `yaml:"pending_offers,omitempty"`
+	// PendingOffersHint tells the reader what to run when PendingOffers is
+	// true (pendingOfferCurateInstruction); omitted otherwise, so payloads
+	// without pending offers are unchanged (curate-skill-to-runbook D9).
+	PendingOffersHint string `yaml:"pending_offers_hint,omitempty"`
 	// ModelID is the embedding model that produced this query's results
 	// (vault-query-model-provenance) — applies locally and served alike.
 	ModelID string        `yaml:"model_id"`
@@ -1757,13 +1761,14 @@ func renderQueryPayload(stdout io.Writer, merged aggregatedSummary) error {
 	directCount := countDirectHits(items)
 
 	payload := queryPayload{
-		Version:       1,
-		Phrases:       merged.phrases,
-		Items:         items,
-		Clusters:      clusters,
-		RefitPending:  merged.refitPending,
-		PendingOffers: merged.pendingOffers,
-		ModelID:       merged.modelID,
+		Version:           1,
+		Phrases:           merged.phrases,
+		Items:             items,
+		Clusters:          clusters,
+		RefitPending:      merged.refitPending,
+		PendingOffers:     merged.pendingOffers,
+		PendingOffersHint: pendingOffersHint(merged.pendingOffers),
+		ModelID:           merged.modelID,
 		Budget: queryBudget{
 			PhrasesQueried:       len(merged.phrases),
 			TotalNotes:           merged.totalNotes,

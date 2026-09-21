@@ -96,55 +96,58 @@ var (
 	ExportNewErrHandler                    = newErrHandler
 	ExportNewIdentityDeps                  = newIdentityDeps
 	// ExportNewUpdateDeps exposes the production pure composition for tests.
-	ExportNewUpdateDeps                = newUpdateDeps
-	ExportNewVocabDeps                 = newVocabDeps
-	ExportNextLuhmannID                = nextLuhmannID
-	ExportNoteAgeDays                  = noteAgeDays
-	ExportNoteContainsAnyRemoval       = noteContainsAnyRemoval
-	ExportNoteHasPendingMarker         = noteHasPendingMarker
-	ExportNotesMissingIdentityFields   = notesMissingIdentityFields
-	ExportOldVocabFilesPresent         = oldVocabFilesPresent
-	ExportParentBase                   = parentBase
-	ExportParseCreatedFromNote         = parseCreatedFromNote
-	ExportParseNoteQueryFrontmatter    = parseNoteQueryFrontmatter
-	ExportParseRefitNames              = parseRefitNames
-	ExportParseSupersedesFlag          = parseSupersedesFlag
-	ExportParseTagsFromFrontmatter     = parseTagsFromFrontmatter
-	ExportParseTurnN                   = parseTurnN
-	ExportPluralFile                   = pluralFile
-	ExportPrintLinkExamples            = printLinkExamples
-	ExportPrintNoteExamples            = printNoteExamples
-	ExportPrintStatsReport             = printStatsReport
-	ExportProcessVocabDefinitionNote   = processVocabDefinitionNote
-	ExportReadCentroidsDoc             = readCentroidsDoc
-	ExportRecencyMultiplier            = recencyMultiplier
-	ExportRegenVocab                   = regenVocab
-	ExportRemoveNoteReferences         = removeNoteReferences
-	ExportRenderDefinitionNoteContent  = renderDefinitionNoteContent
-	ExportRenderFactBody               = renderFactBody
-	ExportRenderFactFrontmatter        = renderFactFrontmatter
-	ExportRenderFeedbackBody           = renderFeedbackBody
-	ExportRenderFeedbackFrontmatter    = renderFeedbackFrontmatter
-	ExportRenderQAAnswerNote           = renderQAAnswerNote
-	ExportRenderQAQuestionNote         = renderQAQuestionNote
-	ExportRenderRunbookBody            = renderRunbookBody
-	ExportRenderRunbookFrontmatter     = renderRunbookFrontmatter
-	ExportRenderSupersedes             = renderSupersedes
-	ExportRepoWithProjectFallback      = repoWithProjectFallback
-	ExportResolveVault                 = resolveVault
-	ExportResolveVaultName             = resolveVaultName
-	ExportResolvedItemLessByProvenance = resolvedItemLessForTest
-	ExportRetagAllNotesTwoPass         = retagAllNotesTwoPass
-	ExportRetireVocabTerms             = retireVocabTerms
-	ExportRunActivate                  = RunActivate
-	ExportRunAmend                     = RunAmend
-	ExportRunLearn                     = RunLearn
-	ExportRunUpdate                    = runUpdate
-	ExportRunVocabTagDefinitions       = runVocabTagDefinitions
-	ExportScanNonVocabNotes            = scanNonVocabNotes
-	ExportSelectStates                 = selectStates
-	ExportServerBase                   = serverBase
-	ExportShouldEmbed                  = func(args EmbedApplyArgs, state embed.State) bool {
+	ExportNewUpdateDeps              = newUpdateDeps
+	ExportNewVocabDeps               = newVocabDeps
+	ExportNextLuhmannID              = nextLuhmannID
+	ExportNoteAgeDays                = noteAgeDays
+	ExportNoteContainsAnyRemoval     = noteContainsAnyRemoval
+	ExportNoteHasPendingMarker       = noteHasPendingMarker
+	ExportNotesMissingIdentityFields = notesMissingIdentityFields
+	ExportOldVocabFilesPresent       = oldVocabFilesPresent
+	ExportParentBase                 = parentBase
+	ExportParseCreatedFromNote       = parseCreatedFromNote
+	ExportParseNoteQueryFrontmatter  = parseNoteQueryFrontmatter
+	ExportParseRefitNames            = parseRefitNames
+	ExportParseSupersedesFlag        = parseSupersedesFlag
+	ExportParseTagsFromFrontmatter   = parseTagsFromFrontmatter
+	ExportParseTurnN                 = parseTurnN
+	// ExportPendingOfferCurateInstruction is the single shared curate instruction
+	// carried by the query payload hint, the update notice and the write nudge.
+	ExportPendingOfferCurateInstruction = pendingOfferCurateInstruction
+	ExportPluralFile                    = pluralFile
+	ExportPrintLinkExamples             = printLinkExamples
+	ExportPrintNoteExamples             = printNoteExamples
+	ExportPrintStatsReport              = printStatsReport
+	ExportProcessVocabDefinitionNote    = processVocabDefinitionNote
+	ExportReadCentroidsDoc              = readCentroidsDoc
+	ExportRecencyMultiplier             = recencyMultiplier
+	ExportRegenVocab                    = regenVocab
+	ExportRemoveNoteReferences          = removeNoteReferences
+	ExportRenderDefinitionNoteContent   = renderDefinitionNoteContent
+	ExportRenderFactBody                = renderFactBody
+	ExportRenderFactFrontmatter         = renderFactFrontmatter
+	ExportRenderFeedbackBody            = renderFeedbackBody
+	ExportRenderFeedbackFrontmatter     = renderFeedbackFrontmatter
+	ExportRenderQAAnswerNote            = renderQAAnswerNote
+	ExportRenderQAQuestionNote          = renderQAQuestionNote
+	ExportRenderRunbookBody             = renderRunbookBody
+	ExportRenderRunbookFrontmatter      = renderRunbookFrontmatter
+	ExportRenderSupersedes              = renderSupersedes
+	ExportRepoWithProjectFallback       = repoWithProjectFallback
+	ExportResolveVault                  = resolveVault
+	ExportResolveVaultName              = resolveVaultName
+	ExportResolvedItemLessByProvenance  = resolvedItemLessForTest
+	ExportRetagAllNotesTwoPass          = retagAllNotesTwoPass
+	ExportRetireVocabTerms              = retireVocabTerms
+	ExportRunActivate                   = RunActivate
+	ExportRunAmend                      = RunAmend
+	ExportRunLearn                      = RunLearn
+	ExportRunUpdate                     = runUpdate
+	ExportRunVocabTagDefinitions        = runVocabTagDefinitions
+	ExportScanNonVocabNotes             = scanNonVocabNotes
+	ExportSelectStates                  = selectStates
+	ExportServerBase                    = serverBase
+	ExportShouldEmbed                   = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
 	ExportShouldSkipDir                   = shouldSkipDir
@@ -816,6 +819,17 @@ func ExportRenderQueryPayloadFromResolvedItems(items []resolvedItem) (string, er
 	var buf bytes.Buffer
 
 	err := renderQueryPayload(&buf, aggregatedSummary{resolvedItems: items})
+
+	return buf.String(), err
+}
+
+// ExportRenderQueryPayloadPendingOffers renders a minimal payload with the
+// pending-offers flag and hint set the way the query path sets them, so tests
+// can assert both fields' presence/omission.
+func ExportRenderQueryPayloadPendingOffers(pending bool) (string, error) {
+	var buf bytes.Buffer
+
+	err := renderQueryPayload(&buf, aggregatedSummary{pendingOffers: pending})
 
 	return buf.String(), err
 }

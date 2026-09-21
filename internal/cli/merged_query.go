@@ -124,13 +124,14 @@ func mergeQueryPayloads(local, parent queryPayload, args QueryArgs) queryPayload
 	items, _ := capChunkContent(mainMerged, resolveContentBudget(args.ContentBudget))
 
 	return queryPayload{
-		Version:       1,
-		Phrases:       local.Phrases,
-		Items:         items,
-		Clusters:      local.Clusters,
-		RefitPending:  local.RefitPending || parent.RefitPending,
-		PendingOffers: local.PendingOffers || parent.PendingOffers,
-		ModelID:       local.ModelID,
+		Version:           1,
+		Phrases:           local.Phrases,
+		Items:             items,
+		Clusters:          local.Clusters,
+		RefitPending:      local.RefitPending || parent.RefitPending,
+		PendingOffers:     local.PendingOffers || parent.PendingOffers,
+		PendingOffersHint: pendingOffersHint(local.PendingOffers || parent.PendingOffers),
+		ModelID:           local.ModelID,
 	}
 }
 

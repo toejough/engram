@@ -189,6 +189,28 @@ func TestMergeQueryPayloads_PayloadModelIDIsQueryingNodesOwn(t *testing.T) {
 	g.Expect(merged.ModelID).To(Equal("local-model"))
 }
 
+// TestMergeQueryPayloads_PendingOffersHintFollowsFlag verifies the merged
+// payload carries the curate hint exactly when its merged PendingOffers flag
+// is true (from either source), and omits it otherwise.
+func TestMergeQueryPayloads_PendingOffersHintFollowsFlag(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	withHint := queryPayload{PendingOffers: true, PendingOffersHint: pendingOfferCurateInstruction}
+
+	fromLocal := mergeQueryPayloads(withHint, queryPayload{}, QueryArgs{})
+	g.Expect(fromLocal.PendingOffersHint).To(Equal(pendingOfferCurateInstruction))
+
+	fromParent := mergeQueryPayloads(queryPayload{}, withHint, QueryArgs{})
+	g.Expect(fromParent.PendingOffers).To(BeTrue())
+	g.Expect(fromParent.PendingOffersHint).To(Equal(pendingOfferCurateInstruction))
+
+	neither := mergeQueryPayloads(queryPayload{}, queryPayload{}, QueryArgs{})
+	g.Expect(neither.PendingOffers).To(BeFalse())
+	g.Expect(neither.PendingOffersHint).To(BeEmpty())
+}
+
 // TestMergeQueryPayloads_RecencyItemsDoNotCountAgainstMainRanking verifies
 // recency-channel items (score 0, provenance recent) are appended after
 // the score-ranked main items, mirroring single-source behavior

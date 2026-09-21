@@ -68,6 +68,51 @@ func TestApplyProjectFilter_EmptyProjectReturnsAll(t *testing.T) {
 	g.Expect(filtered).To(HaveLen(2))
 }
 
+// TestQueryPayload_PendingOffersHintOmittedWhenFalse: without pending offers
+// neither the flag nor the hint appears, so the payload is byte-identical to
+// one built before the hint existed.
+func TestQueryPayload_PendingOffersHintOmittedWhenFalse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	out, err := cli.ExportRenderQueryPayloadPendingOffers(false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).NotTo(ContainSubstring("pending_offers"))
+
+	baseline, baselineErr := cli.ExportRenderQueryPayloadRefitPending(false)
+	g.Expect(baselineErr).NotTo(HaveOccurred())
+	g.Expect(out).To(Equal(baseline))
+}
+
+// TestQueryPayload_PendingOffersHintPresentWhenTrue: pending_offers: true is
+// accompanied by pending_offers_hint carrying the shared curate instruction.
+func TestQueryPayload_PendingOffersHintPresentWhenTrue(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	out, err := cli.ExportRenderQueryPayloadPendingOffers(true)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).To(ContainSubstring("pending_offers: true"))
+
+	var decoded struct {
+		Hint string `yaml:"pending_offers_hint"`
+	}
+
+	g.Expect(yaml.Unmarshal([]byte(out), &decoded)).To(Succeed())
+	g.Expect(decoded.Hint).To(Equal(cli.ExportPendingOfferCurateInstruction))
+	g.Expect(decoded.Hint).To(ContainSubstring(`engram query --text "curate pending offers"`))
+}
+
 func TestQueryPayload_RefitPendingOmittedWhenFalse(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
