@@ -5085,3 +5085,196 @@ def test_curate_done_when_ignores_the_shim_only_arm_carrier_notes(tmp_path):
     _amend(v, "--target", "1.2026-09-20.summer-inspection-interval", "--object", "changed")
     rc, out = _curate_check(tmp_path, v)
     assert rc != 0
+
+
+# ----- curate-signal task (routine note ask; engram's mid-turn pending-offers signal is the only curate cue) -----
+
+SIGNAL_TASK = "curate-signal"
+
+
+def _signal_check(repo_dir, vault):
+    env = dict(os.environ, ENGRAM_VAULT_PATH=vault)
+    r = _subprocess.run(["bash", pp.TASKS[SIGNAL_TASK]["done_when_script"], str(repo_dir)],
+                        capture_output=True, text=True, env=env)
+    return r.returncode, (r.stdout + r.stderr).strip()
+
+
+def _learn_note(vault, slug="hive-scale-calibration", subject="hive scales",
+                object_="each spring, before the first nectar flow, because load cells drift over winter"):
+    env = dict(os.environ, ENGRAM_VAULT_PATH=vault)
+    _subprocess.run(["engram", "learn", "fact", "--slug", slug, "--source", "x", "--position", "top",
+                     "--situation", "keeping hive scales accurate through the season",
+                     "--subject", subject, "--predicate", "should be calibrated", "--object", object_],
+                    check=True, capture_output=True, env=env)
+    return vault
+
+
+def test_curate_signal_is_registered_and_shares_the_curate_carriers_and_seed_vault():
+    cfg, base = pp.TASKS[SIGNAL_TASK], pp.TASKS["curate"]
+    for key in ("carrier_r_src", "skill_src", "vault_template", "skill_name"):
+        assert cfg[key] == base[key], key
+    assert pp.TASK_MUTATING_BASH_RE[SIGNAL_TASK] is pp.TASK_MUTATING_BASH_RE["curate"]
+
+
+def test_curate_signal_prompt_never_mentions_curation_or_offers():
+    text = open(pp.TASKS[SIGNAL_TASK]["task_prompt"]).read().lower()
+    for word in ("curate", "curation", "offer", "pending", "review", "triage"):
+        assert word not in text
+    assert "scale" in text and "calibrat" in text
+
+
+@_needs_engram
+def test_curate_signal_done_when_passes_the_ideal_end_state(tmp_path):
+    rc, out = _signal_check(tmp_path, _learn_note(_ideal_curate_vault(tmp_path)))
+    assert rc == 0, out
+
+
+@_needs_engram
+def test_curate_signal_done_when_passes_the_ideal_end_state_with_shim_only_carriers(tmp_path):
+    v = _learn_note(_ideal_curate_vault(tmp_path))
+    for src in (pp.RECALL_LEARN_RUNBOOKS_VAULT, pp.TASKS["curate"]["carrier_r_src"]):
+        for n in os.listdir(src):
+            _shutil.copy2(os.path.join(src, n), v)
+    rc, out = _signal_check(tmp_path, v)
+    assert rc == 0, out
+
+
+def _s_no_requested_note(tmp_path):
+    return _ideal_curate_vault(tmp_path, "m")
+
+
+def _s_offers_untouched(tmp_path):
+    return _learn_note(_curate_vault(tmp_path, "m"))
+
+
+def _s_note_folded_into_existing_note_instead(tmp_path):
+    v = _ideal_curate_vault(tmp_path, "m")
+    _amend(v, "--target", "5", "--action", "burn only untreated burlap; calibrate hive scales each spring")
+    return v
+
+
+def _s_requested_note_off_topic(tmp_path):
+    return _learn_note(_ideal_curate_vault(tmp_path, "m"), slug="other", subject="a veil",
+                       object_="worn at every inspection")
+
+
+def _s_requested_note_still_pending(tmp_path):
+    v = _learn_note(_ideal_curate_vault(tmp_path, "m"))
+    path = next(os.path.join(v, n) for n in os.listdir(v)
+                if n.endswith("hive-scale-calibration.md"))
+    text = open(path).read().replace("\ntier: L2\n", "\ntier: L2\npending: true\n", 1)
+    open(path, "w").write(text)
+    return v
+
+
+def _s_two_new_notes(tmp_path):
+    return _learn_note(_learn_note(_ideal_curate_vault(tmp_path, "m")), slug="hive-scale-calibration-again")
+
+
+SIGNAL_MUTANTS = [
+    ("requested-note-missing-offers-curated", _s_no_requested_note),
+    ("requested-note-done-offers-untouched", _s_offers_untouched),
+    ("request-folded-into-existing-note-not-a-new-note", _s_note_folded_into_existing_note_instead),
+    ("requested-note-off-topic", _s_requested_note_off_topic),
+    ("requested-note-left-pending", _s_requested_note_still_pending),
+    ("two-new-notes", _s_two_new_notes),
+] + [(f"note-done+{label}", (lambda b: lambda t: _learn_note(b(t)))(build))
+     for label, build in CURATE_MUTANTS if label not in ("untouched-seed", "extra-note-written-by-engram-learn")]
+
+
+@_needs_engram
+@pytest.mark.parametrize("label,build", SIGNAL_MUTANTS, ids=[m[0] for m in SIGNAL_MUTANTS])
+def test_curate_signal_done_when_fails_each_single_defect_mutant(tmp_path, label, build):
+    rc, out = _signal_check(tmp_path, build(tmp_path))
+    assert rc != 0, f"mutant {label} PASSED the end check: {out}"
+
+
+def _signal_events(skip=()):
+    seq = [
+        ("Bash", {"command": "engram query --text 'add a hive scale note' --phrase 'a' --phrase 'b'"}),
+        ("Bash", {"command": "engram learn fact --slug s --situation x --subject 'hive scales' "
+                              "--predicate 'calibrated' --object 'each spring' --source x"}),
+        ("Bash", {"command": f"grep -l '^pending: true$' {V}/*.md"}),
+        ("Read", {"file_path": f"{V}/7.2026-09-20.spun-uncapped-frames.md"}),
+        ("Read", {"file_path": f"{V}/8.2026-09-20.oxalic-vapor-repeat-dosing.md"}),
+        ("Read", {"file_path": f"{V}/9.2026-09-20.swarm-trap-placement.md"}),
+        ("Bash", {"command": "engram amend --target 3 --activate"}),
+        ("Bash", {"command": "engram amend --target 7 --discard"}),
+        ("Bash", {"command": f"engram amend --target 2 --object '{_NEAR_OBJECT}'"}),
+        ("Bash", {"command": "engram amend --target 8 --discard"}),
+        ("Bash", {"command": "engram amend --target 9 --clear-pending"}),
+        ("Bash", {"command": "engram check"}),
+        ("Bash", {"command": "grep -c '^pending: true$' " + V + "/*.md"}),
+    ]
+    return [_tool_use(n, i, idx=k) for k, (n, i) in enumerate(seq) if k not in skip]
+
+
+def test_curate_signal_steps_are_valid_and_the_ideal_transcript_satisfies_all():
+    steps = pp.load_steps(SIGNAL_TASK)
+    assert [s["n"] for s in steps] == list(range(1, len(steps) + 1))
+    for step in steps:
+        if "after" in step:
+            assert step["after"] < step["n"]
+    results, k, followed_all = pp.evaluate_steps(steps, _signal_events(), repo_path="/x")
+    assert followed_all and k == len(steps), {n: v for n, v in results.items() if not v}
+
+
+def test_curate_signal_transcript_that_only_writes_the_note_fails_every_offer_step():
+    events = _signal_events()[:2]
+    results, _, followed_all = pp.evaluate_steps(pp.load_steps(SIGNAL_TASK), events, repo_path="/x")
+    assert not followed_all
+    assert results["1"] and results["2"]
+    assert not any(results[str(n)] for n in range(3, 14))
+
+
+def test_curate_signal_transcript_that_curates_but_never_writes_the_note_fails_step_two():
+    results, _, followed_all = pp.evaluate_steps(pp.load_steps(SIGNAL_TASK), _signal_events(skip=(1,)),
+                                                 repo_path="/x")
+    assert not followed_all and results["2"] is False
+
+
+@_needs_engram
+def test_curate_signal_done_when_reports_each_half_separately(tmp_path):
+    (tmp_path / "a").mkdir(); (tmp_path / "b").mkdir(); (tmp_path / "c").mkdir()
+    rc, out = _signal_check(tmp_path, _s_no_requested_note(tmp_path / "a"))
+    assert rc != 0 and "[requested-note: FAIL] [offers: ok]" in out, out
+    rc, out = _signal_check(tmp_path, _s_offers_untouched(tmp_path / "b"))
+    assert rc != 0 and "[requested-note: ok] [offers: FAIL]" in out, out
+    rc, out = _signal_check(tmp_path, _learn_note(_ideal_curate_vault(tmp_path / "c")))
+    assert rc == 0 and "[requested-note: ok] [offers: ok]" in out, out
+
+
+def test_signal_exposure_reads_signal_hint_surfacing_and_the_two_end_state_halves():
+    import signal_exposure as se
+    q1 = {"kind": "tool_use", "name": "Bash", "id": "a", "input": {"command": "engram query --text x --phrase y"}}
+    r1 = {"kind": "tool_result", "tool_use_id": "a", "content": "pending_offers: true\npending_offers_hint: run ..."}
+    q2 = {"kind": "tool_use", "name": "Bash", "id": "b",
+          "input": {"command": "engram query --text 'curate pending offers' --phrase z"}}
+    r2 = {"kind": "tool_result", "tool_use_id": "b", "content": "path: 10.x.curate-review-pending-offers.md"}
+    out = "FAIL [requested-note: ok] [offers: FAIL] offers: x"
+    ex = se.exposure([q1, r1, q2, r2], "R", out)
+    assert ex["saw_signal"] and ex["q_visible"] and ex["q_emitted"] and ex["q_hint_emitted"] and ex["ran_hint"] and ex["surfaced"]
+    assert ex["requested_note_done"] and not ex["offers_curated"]
+    quiet = se.exposure([q1, {**r1, "content": "results only"}], "R", "")
+    assert not quiet["saw_signal"] and not quiet["ran_hint"] and not quiet["surfaced"]
+    skill = {"kind": "tool_use", "name": "Skill", "id": "c", "input": {"skill": "curate"}}
+    assert se.exposure([q1, r1, skill], "S", "")["surfaced"]
+
+
+def test_signal_exposure_counts_the_write_path_nudge_when_the_agent_never_queried():
+    import signal_exposure as se
+    learn = {"kind": "tool_use", "name": "Bash", "id": "a", "input": {"command": "engram learn fact --slug s"}}
+    res = {"kind": "tool_result", "tool_use_id": "a", "content": "warning: vault holds pending offer(s) awaiting curation"}
+    ex = se.exposure([learn, res], "S", "PASS [requested-note: ok] [offers: FAIL]")
+    assert ex["saw_signal"] and ex["nudge"] and not ex["queried"] and not ex["q_emitted"] and not ex["ran_hint"]
+
+
+def test_signal_exposure_reads_a_persisted_query_payload_the_agent_never_saw(tmp_path):
+    import signal_exposure as se
+    full = tmp_path / "out.txt"
+    full.write_text("items: ...\npending_offers: true\npending_offers_hint: run x\n")
+    q = {"kind": "tool_use", "name": "Bash", "id": "a", "input": {"command": "engram query --text x"}}
+    r = {"kind": "tool_result", "tool_use_id": "a",
+         "content": f"<persisted-output>Output too large. Full output saved to: {full}\npreview</persisted-output>"}
+    ex = se.exposure([q, r], "R", "")
+    assert ex["q_emitted"] and ex["q_hint_emitted"] and not ex["q_visible"] and not ex["saw_signal"]

@@ -35,8 +35,9 @@ stages (paid runs need cost confirmation; retirement needs the gate).
 
 - [x] 3.1 Retrieval check (no spend): phrases harvested from the kept baseline transcripts and shim-shaped forms, `--text` variants, the notice command, plus over-fire probes; table probe -> top runbook rank/provenance in `results/3.1_curate_retrieval_check.md`; first verify the scratch binary has whole-word matching
 - [ ] 3.2 Shim-only R arm n=3 on the explicit-ask task; bar: runbook surfaces with `trigger` provenance 3/3 and `end_state` >= 2/3 (within one trial of the skill row's 3/3); validity gate (marker-in-transcript, shadowing scan) before scoring; cost confirmed first
-- [ ] 3.3 Build the `curate-signal` task: routine work in a vault with pending offers where engram's mid-turn notice appears; arms S / N / R; scorer for "followed the notice's instruction, surfaced the runbook, curated"
+- [x] 3.3 Build the `curate-signal` task: routine work in a vault with pending offers where engram's mid-turn notice appears; arms S / N / R; scorer for "followed the notice's instruction, surfaced the runbook, curated"
 - [ ] 3.4 Run `curate-signal` (arms S, N, R, n=3 each); if R fails to follow the notice, evaluate option B (generic fifth shim re-entry cue) as a separate change
+  - Run done 2026-09-21 (see `dev/eval/cumulative/runbook_vs_skill/phase2/results/1.3_curate_signal_baseline_sonnet5.md`, `3.3_curate_signal_shim_only_sonnet5.md`): offers curated S 0/3, N 0/3, R 0/3. Not ticked: the conditional option-B evaluation is not done.
 - [ ] 3.5 Record results; D6 bars met or Joe redirects
 
 ## 4. Promotion and retirement (later stage, gated)

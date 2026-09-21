@@ -178,6 +178,7 @@ TASK_MUTATING_BASH_RE = {
     "A": _MUTATING_BASH_RE, "B": _MUTATING_BASH_RE,
     "history-rewrite": _HISTORY_REWRITE_MUTATING_BASH_RE,
     "curate": _CURATE_MUTATING_BASH_RE,
+    "curate-signal": _CURATE_MUTATING_BASH_RE,
 }
 _QUOTED_RE = re.compile(r'"[^"]*"|\'[^\']*\'')
 

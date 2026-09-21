@@ -1,0 +1,182 @@
+[
+ {
+  "n": 1,
+  "name": "Step 1: engram query first (the shim/recall moment)",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+query"
+ },
+ {
+  "n": 2,
+  "name": "Step 2: the requested note is written with engram learn (about hive-scale calibration)",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\b[\\s\\S]*[Ss]cale"
+ },
+ {
+  "n": 3,
+  "name": "Offers: scan the vault files for `pending: true` (query excludes offers)",
+  "any_of": [
+   {
+    "signal": "bash_regex",
+    "pattern": "\\b(?:grep|rg|ugrep|ag)\\b[^\\n]*pending"
+   },
+   {
+    "signal": "tool_input_regex",
+    "tool": "Grep",
+    "regex": "pending"
+   }
+  ]
+ },
+ {
+  "n": 4,
+  "name": "Offers: read offer 7 (spun-uncapped-frames) in full",
+  "any_of": [
+   {
+    "signal": "tool_path",
+    "tools": [
+     "Read"
+    ],
+    "pattern": "/7\\.2026-09-20\\.spun-uncapped-frames\\.md$"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "^(?=[\\s\\S]*\\b7\\.[*\\d])(?=[\\s\\S]*\\b(?:cat|head|tail|sed|less|bat|awk|nl)\\b)"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "grep\\b[^\\n]*pending[^\\n]*\\|\\s*xargs[^\\n]*\\b(?:cat|head|sed|less)\\b"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "for\\s+\\w+\\s+in[^\\n]*pending[^\\n]*(?:\\n|;)[^\\n]*\\b(?:cat|head|sed|less)\\b"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "grep\\b[^\\n]*(?:-[A-Za-z]*[ABC]\\s*\\d|--context|--after|--before)[^\\n]*pending"
+   }
+  ]
+ },
+ {
+  "n": 5,
+  "name": "Offers: read offer 8 (oxalic-vapor-repeat-dosing) in full",
+  "any_of": [
+   {
+    "signal": "tool_path",
+    "tools": [
+     "Read"
+    ],
+    "pattern": "/8\\.2026-09-20\\.oxalic-vapor-repeat-dosing\\.md$"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "^(?=[\\s\\S]*\\b8\\.[*\\d])(?=[\\s\\S]*\\b(?:cat|head|tail|sed|less|bat|awk|nl)\\b)"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "grep\\b[^\\n]*pending[^\\n]*\\|\\s*xargs[^\\n]*\\b(?:cat|head|sed|less)\\b"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "for\\s+\\w+\\s+in[^\\n]*pending[^\\n]*(?:\\n|;)[^\\n]*\\b(?:cat|head|sed|less)\\b"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "grep\\b[^\\n]*(?:-[A-Za-z]*[ABC]\\s*\\d|--context|--after|--before)[^\\n]*pending"
+   }
+  ]
+ },
+ {
+  "n": 6,
+  "name": "Offers: read offer 9 (swarm-trap-placement) in full",
+  "any_of": [
+   {
+    "signal": "tool_path",
+    "tools": [
+     "Read"
+    ],
+    "pattern": "/9\\.2026-09-20\\.swarm-trap-placement\\.md$"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "^(?=[\\s\\S]*\\b9\\.[*\\d])(?=[\\s\\S]*\\b(?:cat|head|tail|sed|less|bat|awk|nl)\\b)"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "grep\\b[^\\n]*pending[^\\n]*\\|\\s*xargs[^\\n]*\\b(?:cat|head|sed|less)\\b"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "for\\s+\\w+\\s+in[^\\n]*pending[^\\n]*(?:\\n|;)[^\\n]*\\b(?:cat|head|sed|less)\\b"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "grep\\b[^\\n]*(?:-[A-Za-z]*[ABC]\\s*\\d|--context|--after|--before)[^\\n]*pending"
+   }
+  ]
+ },
+ {
+  "n": 7,
+  "name": "Offers covered: reinforce note 3 with amend --activate",
+  "any_of": [
+   {
+    "signal": "bash_regex",
+    "pattern": "engram\\s+amend(?=(?:[^;&|\\n\\\\]|\\\\\\r?\\n)*--target[= ]+[\"'\\[]*(?:\\S*/)?3(?![0-9a-z]))(?=(?:[^;&|\\n\\\\]|\\\\\\r?\\n)*--activate)"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "engram\\s+activate\\b[^\\n]*--note[= ]+[\"'\\[]*(?:\\S*/)?3(?![0-9a-z])"
+   }
+  ]
+ },
+ {
+  "n": 8,
+  "name": "Offers covered: discard offer 7 with amend --discard",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+amend(?=(?:[^;&|\\n\\\\]|\\\\\\r?\\n)*--target[= ]+[\"'\\[]*(?:\\S*/)?7(?![0-9a-z]))(?=(?:[^;&|\\n\\\\]|\\\\\\r?\\n)*--discard)",
+  "after": 7
+ },
+ {
+  "n": 9,
+  "name": "Offers near: fold the extra claim into note 2 with a content flag",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+amend\\s+(?:[^;&|\\n\\\\]|\\\\\\r?\\n)*?--target[= ]+[\"'\\[]*(?:\\S*/)?2(?![0-9a-z])[\\s\\S]{0,900}?--(?:object|subject|predicate|situation|behavior|impact|action|body)\\b|engram\\s+amend\\s+(?:[^;&|\\n\\\\]|\\\\\\r?\\n)*?--(?:object|subject|predicate|situation|behavior|impact|action|body)\\b[\\s\\S]{0,900}?--target[= ]+[\"'\\[]*(?:\\S*/)?2(?![0-9a-z])"
+ },
+ {
+  "n": 10,
+  "name": "Offers near: discard the now-redundant offer 8",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+amend(?=(?:[^;&|\\n\\\\]|\\\\\\r?\\n)*--target[= ]+[\"'\\[]*(?:\\S*/)?8(?![0-9a-z]))(?=(?:[^;&|\\n\\\\]|\\\\\\r?\\n)*--discard)",
+  "after": 9
+ },
+ {
+  "n": 11,
+  "name": "Offers absent: accept offer 9 with amend --clear-pending",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+amend(?=(?:[^;&|\\n\\\\]|\\\\\\r?\\n)*--target[= ]+[\"'\\[]*(?:\\S*/)?9(?![0-9a-z]))(?=(?:[^;&|\\n\\\\]|\\\\\\r?\\n)*--clear-pending)"
+ },
+ {
+  "n": 12,
+  "name": "Offers: engram check after curating",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+check",
+  "after": 11
+ },
+ {
+  "n": 13,
+  "name": "Offers: confirm offers are no longer pending (query / count / re-scan)",
+  "any_of": [
+   {
+    "signal": "bash_regex",
+    "pattern": "engram\\s+query"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "engram\\s+count\\b[^\\n]*pending"
+   },
+   {
+    "signal": "bash_regex",
+    "pattern": "\\b(?:grep|rg|ugrep|ag)\\b[^\\n]*pending"
+   }
+  ],
+  "after": 11
+ }
+]
