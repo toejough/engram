@@ -2,7 +2,7 @@
 
 ## Purpose
 
-A deployed guidance document (@import-able into CLAUDE.md) that fires the "orchestrator" reflex at delegation moments — plan the unit, hand it to a subagent via the route skill, review what returns, report the outcome — instead of doing object-level work solo out of habit. Sibling to the recall-firing guidance; it points to the route skill and please skill rather than restating them. Why: delegation-guidance pattern (no dedicated ADR). Validation: dev/eval/LEDGER.md#delegate-guidance-flip (headless RED→GREEN: solo→subagent-dispatch, including the trivial-rename case).
+A deployed guidance document (@import-able into CLAUDE.md) that fires the "orchestrator" reflex at delegation moments — plan the unit, hand it to a subagent via the route skill, review what returns, report the outcome — instead of doing object-level work solo out of habit. Sibling to the recall-firing guidance; it points to the route skill and the please runbook rather than restating them. Why: delegation-guidance pattern (no dedicated ADR). Validation: dev/eval/LEDGER.md#delegate-guidance-flip (headless RED→GREEN: solo→subagent-dispatch, including the trivial-rename case).
 
 ## Requirements
 

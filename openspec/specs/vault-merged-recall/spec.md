@@ -6,9 +6,7 @@ Lets a node with its own local vault also merge results from its single
 configured parent vault into one ranked `engram query` answer, so an agent
 gets one coherent view of local plus inherited memory instead of two
 separate queries it has to reconcile by hand.
-
 ## Requirements
-
 ### Requirement: ENGRAM_PARENT configures a single parent vault
 `engram query` SHALL accept an `ENGRAM_PARENT` environment variable naming
 exactly one parent vault's base URL. No mechanism SHALL exist to configure
@@ -43,7 +41,14 @@ local+parent item set, not independently to each source before merging.
 `--content-budget` applies across both channels combined; `--recent-fill`
 governs Channel 2 (recency) only; `--limit` governs Channel 1 (relevance)
 only and never displaces Channel 2 — the two budgets are independent, not
-stacked into one combined cap (`recall-payload-cuts` owns `--limit`'s base
+stacked into one combined cap. Trigger hits (items whose `provenances` include `trigger`,
+capability `runbook-lexical-triggers`) SHALL be split out of each source
+before the `--limit` cap and placed first in the merged `items[]`: local
+trigger hits first, then parent trigger hits, each in the order its source
+returned them, ahead of the score-ranked Channel 1 items. They are exempt
+from `--limit` (it caps only the non-trigger Channel 1 items) and are not
+re-sorted by score across sources. `--content-budget` still applies to them
+as part of the final pass. (`recall-payload-cuts` owns `--limit`'s base
 enforcement; this requirement governs only where in the merge pipeline
 these budgets apply).
 
@@ -68,6 +73,14 @@ these budgets apply).
   N from each source independently before merging, and not counting the
   merged recency channel (which `--limit` never displaces — see
   `recall-payload-cuts`)
+
+#### Scenario: trigger hits lead the merged payload, local before parent
+- **WHEN** `engram query --text "<msg>" --limit 1` runs with `ENGRAM_PARENT`
+  set, the local vault returns one trigger hit and a score-0.9 item, and
+  the parent returns one trigger hit and a score-0.8 item
+- **THEN** the merged `items[]` order is: local trigger hit, parent
+  trigger hit, local score-0.9 item — both trigger hits survive `--limit 1`
+  and the parent's score-0.8 item is dropped by the limit
 
 ### Requirement: Merge does not gate on model_id
 `engram query` SHALL merge local and parent results into the ranked list
@@ -170,3 +183,4 @@ regardless of `ENGRAM_PARENT`.
 - **THEN** `engram query`'s output is unchanged from its behavior before
   this capability existed, other than `items[]` now being capped at
   `--limit` per `recall-payload-cuts`
+

@@ -7,9 +7,7 @@ vault note kind, distinct from `fact`, `feedback`, and `qa`. Its schema answers 
 questions — when should you use it, what are the steps, what should be true when you're done —
 and it is wired through the same capture pipeline as `fact`/`feedback` (Luhmann disposition, lock,
 embed, vocab), not a bespoke standalone implementation. Why: `docs/architecture/adr.md` ADR-0026.
-
 ## Requirements
-
 ### Requirement: `engram learn` SHALL support capturing runbook notes
 
 The system SHALL accept a `runbook` capture path in `engram learn`, writing a single note with frontmatter `type: runbook`, distinct from `fact`, `feedback`, and `qa-question`/`qa-answer`.
@@ -77,3 +75,15 @@ A runbook note SHALL receive both embedding (dual-vector sidecar: situation vect
 
 - **WHEN** a runbook note is written via `engram learn runbook`
 - **THEN** it receives a `.vec.json` sidecar and vocab term assignment, per the `vault-embed-on-write` spec's embed-on-write mechanics
+
+### Requirement: Runbook notes MAY carry a `triggers` field populated by `--trigger`
+A runbook note SHALL support an optional frontmatter field `triggers` (a list of strings). `engram learn runbook` SHALL accept a repeatable `--trigger <text>` flag that populates it in order, wired through the same capture pipeline as `--red-flag` (Luhmann disposition, lock, embed, vocab). Full matching semantics are specified in capability `runbook-lexical-triggers`.
+
+#### Scenario: Runbook captured with triggers
+- **WHEN** `engram learn runbook … --trigger "<cue A>" --trigger "<cue B>"` is invoked
+- **THEN** the written note's frontmatter contains `triggers:` with the two entries in order, after `red_flags` if present
+
+#### Scenario: Runbook captured without triggers
+- **WHEN** `engram learn runbook` is invoked with no `--trigger`
+- **THEN** the note is written with no `triggers` field and no error
+

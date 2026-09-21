@@ -3,9 +3,7 @@
 ## Purpose
 
 Recall's underlying query defers matched chunk full-text delivery and limits raw recent-activity volume — so a recall pass carries less to read without losing reach. The `--lazy-chunks` flag (QueryArgs.LazyChunks, internal/cli/query.go) renders matched chunk items with path/score only (no content); the agent fetches evidence on-demand via `engram show-chunk`. The `--recent-fill` flag (QueryArgs.RecentFill, defaults to 25, internal/cli/query.go) caps newest-by-ingest chunks in the recency channel (Channel 2). Why: docs/architecture/adr.md ADR-0004. Validation: dev/eval/LEDGER.md#payload-cut-lazy-chunks; dev/eval/LEDGER.md#payload-cut-recent-fill.
-
 ## Requirements
-
 ### Requirement: Lazy-chunks defers chunk content delivery
 
 The query SHALL render matched chunk items (kind: chunk) with path and score fields only when `--lazy-chunks` is set, while note items (kind: fact/feedback) keep full content. The agent fetches a chunk's real content on-demand via `engram show-chunk`.
@@ -42,6 +40,13 @@ count was governed entirely by clustering/candidate-nomination sizing
 ceiling. This applies identically to local, `ENGRAM_SERVER`-exclusive, and
 `ENGRAM_PARENT`-merged query modes.
 
+`--limit` SHALL NOT count or drop trigger hits (items whose `provenances`
+include `trigger`, capability `runbook-lexical-triggers`): they are placed
+first in `items[]`, and the `--limit` cap applies only to the remaining
+Channel 1 items — so `items[]` may hold more than `--limit` Channel 1 items
+by the number of trigger hits. Trigger hits only exist when `--text` is
+given.
+
 `--limit` SHALL NOT cap Channel 2 (the recency channel, `provenance:
 recent`) — that channel has its own dedicated budget (`--recent-fill`,
 capability `recall-payload-cuts`) and SHALL survive intact even when
@@ -65,6 +70,12 @@ rare edge case; a routine one in a non-trivial vault.
   fewer than the resolved `--limit`
 - **THEN** every Channel 1 item is returned, unchanged from before this
   requirement
+
+#### Scenario: Trigger hits do not consume the limit
+- **WHEN** `engram query --text "<msg>" --limit N` runs and one or more
+  runbooks are trigger hits for `<msg>`
+- **THEN** `items[]` lists every trigger hit first, followed by at most N
+  other Channel 1 items — the hits are not counted against N
 
 #### Scenario: The recency channel survives a full Channel 1
 - **WHEN** `engram query` runs against a vault whose Channel 1 (matched)
@@ -101,3 +112,4 @@ requirement.
 - **THEN** reading both chunks' content (not just their titles) is required before either is
   judged relevant or irrelevant — this is the exact configuration in which #733's C5b honoring
   miss occurred (`dev/eval/traps/c5.py`, trial idx=3, `gate-C5-6l_mjvl1`)
+

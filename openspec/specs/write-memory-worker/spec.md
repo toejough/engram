@@ -2,10 +2,8 @@
 
 ## Purpose
 
-The write-memory skill is a dedicated worker that executes vault-write commands handed off by parent skills (recall and learn), keeping the judgment of what to capture separate from the mechanics of writing it. Learn also captures self-discovered reversals and confirmed approaches as explicit lesson kinds, and `please` audits each cycle's mechanical corpus (failed gates, corrections, escalations) to catch lessons that went uncaptured. A decision-support addition in Step 7's lessons audit asks which existing artifact should have surfaced each lesson and suggests rewording stale notes before writing duplicates. This addition is committed in `agent-instructions/skills/please/SKILL.md` (commit 662e50ba); deployed as of 2026-07-27; unvalidated — no measurement supports it. Why: `docs/architecture/adr.md` ADR-0001. Validation: `dev/eval/LEDGER.md#write-memory-worker-fire-rates` (worker + G1/G2/G6); `dev/eval/LEDGER.md#687-surprise-harvest` (decision-support addition — committed 662e50ba; deployed 2026-07-27; unvalidated).
-
+The write-memory skill is a dedicated worker that executes vault-write commands handed off by parent skills (recall and learn), keeping the judgment of what to capture separate from the mechanics of writing it. Learn also captures self-discovered reversals and confirmed approaches as explicit lesson kinds, and `please` audits each cycle's mechanical corpus (failed gates, corrections, escalations) to catch lessons that went uncaptured. A decision-support addition in Step 7's lessons audit asks which existing artifact should have surfaced each lesson and suggests rewording stale notes before writing duplicates. This addition was originally committed in `agent-instructions/skills/please/SKILL.md` (662e50ba, since retired; now carried by the please lessons-audit sub-runbook); deployed as of 2026-07-27; unvalidated — no measurement supports it. Why: `docs/architecture/adr.md` ADR-0001. Validation: `dev/eval/LEDGER.md#write-memory-worker-fire-rates` (worker + G1/G2/G6); `dev/eval/LEDGER.md#687-surprise-harvest` (decision-support addition — committed 662e50ba; deployed 2026-07-27; unvalidated).
 ## Requirements
-
 ### Requirement: Write-memory worker SHALL accept handoff and execute vault writes
 
 The worker is invoked by a parent skill that has already made the judgment (what to write and why). The worker SHALL receive a structured handoff containing kind (fact/feedback/qa), content fields, source, and optional chunk-sources, tags, and supersedes. The worker SHALL NOT re-judge the parent's decision and SHALL NOT decide whether to write.
@@ -113,7 +111,7 @@ Learn SHALL identify and capture corrections (user-corrected approaches), explic
 
 ### Requirement: Please Step 7 lessons audit SHALL map mechanical corpus findings to vault notes
 
-The closing `/learn` in please Step 7 SHALL audit the cycle's mechanical corpus: every pre-registered STOP, every gate failure, every CORRECTION-class commit, and every mid-cycle escalation. Each item SHALL be mapped to an existing vault note or marked "no lesson: <why>". Unmapped items become reversal handoffs to learn's Step 2 kind 3.
+The closing `/learn` in the please runbook's Step 7 (carried by the lessons-audit sub-runbook, reached by `[[basename]]` wikilink from the top runbook body) SHALL audit the cycle's mechanical corpus: every pre-registered STOP, every gate failure, every CORRECTION-class commit, and every mid-cycle escalation. Each item SHALL be mapped to an existing vault note or marked "no lesson: <why>". Unmapped items become reversal handoffs to learn's Step 2 kind 3.
 
 #### Scenario: Lessons audit enumeration
 
@@ -126,4 +124,20 @@ The closing `/learn` in please Step 7 SHALL audit the cycle's mechanical corpus:
 - **THEN** the audit SHALL ask which existing artifact should have surfaced it first and map it to an existing vault note if one covers the situation
 - **AND** if a note existed but did not surface at the moment it was needed, the audit SHALL check whether its `situation:` line matches how the moment actually presented
 - **AND** if it does not match, the audit SHALL suggest rewording the note before writing a duplicate
+
+#### Scenario: Vault note citations use wikilink syntax
+
+- **WHEN** the lessons audit cites an existing vault note in a structured field
+- **THEN** the citation SHALL be written as `[[note-basename]]` wikilink syntax, not plain text
+
+### Requirement: Write-memory worker SHALL pass runbook triggers through as `--trigger` flags
+When a kind=runbook handoff carries an optional `triggers` list, the worker SHALL append one `--trigger "<cue>"` per entry, in order, to the `engram learn runbook` command; when the handoff carries none, no `--trigger` flag is emitted. The template SHALL state that a trigger is a distinctive cue (a slash form or multi-word phrase), never a lone common word.
+
+#### Scenario: Runbook handoff with triggers
+- **WHEN** the parent hands off kind=runbook with `triggers: ["/please", "take this end-to-end"]`
+- **THEN** the composed command ends with `--trigger "/please" --trigger "take this end-to-end"` (after any `--red-flag` flags)
+
+#### Scenario: Runbook handoff without triggers
+- **WHEN** the parent hands off kind=runbook with no `triggers`
+- **THEN** the composed command contains no `--trigger` flag
 
