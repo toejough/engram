@@ -1,3 +1,5 @@
+> 2026-09-21: please was retired to a runbook (b79f390e; route earlier); delta specs reworded to runbook carrier language. Historical task text below describes the skills as they existed when edited. Remaining tasks 3.2-3.4 measure the audit instrument and vault/transcript history, not a please/route SKILL.md, so none are affected.
+
 ## 1. Skill edits with TDD (superpowers:writing-skills)
 
 Each of the three skill edits (route, please, learn) goes through the full RED → GREEN → REFACTOR cycle using the `superpowers:writing-skills` skill, per repo rule. Do not skip the RED baseline.

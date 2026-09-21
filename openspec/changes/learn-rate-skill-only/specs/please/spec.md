@@ -1,10 +1,10 @@
-# Please Capability
+# Please Capability (the please runbook set)
 
 ## ADDED Requirements
 
 ### Requirement: Orchestrator collects LESSONS lines from all dispatched work
 
-As the please skill orchestrates dispatched work steps, it MUST collect the `LESSONS:` line from every subagent's completion report at the moment each dispatch resolves. Dispatches occur throughout the seven-step workflow in `agent-instructions/skills/please/SKILL.md` (chiefly step 4 "Execute" and the adversarial review gates); the edit instructs the orchestrator to record each returned LESSONS line as part of handling every dispatch result, wherever in the workflow it lands. Collection is not judging — the orchestrator gathers the raw lines exactly as written by the subagent, whether they say "none" or contain lessons. Collection happens for every dispatch in the session, even if some lines are "LESSONS: none".
+As the please runbook set drives dispatched work steps, the orchestrator following it MUST collect the `LESSONS:` line from every subagent's completion report at the moment each dispatch resolves. Dispatches occur throughout the please runbook's seven-step workflow (chiefly step 4 "Execute" and the adversarial-review-gates sub-runbook); the runbook instructs the orchestrator to record each returned LESSONS line as part of handling every dispatch result, wherever in the workflow it lands. Collection is not judging — the orchestrator gathers the raw lines exactly as written by the subagent, whether they say "none" or contain lessons. Collection happens for every dispatch in the session, even if some lines are "LESSONS: none".
 
 #### Scenario: Single dispatch in session
 - **WHEN** please dispatches one subagent for a task and it returns a LESSONS line
@@ -20,7 +20,7 @@ As the please skill orchestrates dispatched work steps, it MUST collect the `LES
 
 ### Requirement: Please passes collected LESSONS lines to closing learn
 
-At workflow step 7 ("Capture (close) — `/learn`" in `agent-instructions/skills/please/SKILL.md`), the please skill MUST pass the collected LESSONS lines as input to the learn skill, alongside the existing lessons-audit output that step already hands over. This is explicit handoff — learn receives the full set of lines and judges them against the quality gate.
+At workflow step 7 ("Capture (close) — `/learn`" in the please runbook, with its lessons-audit sub-runbook), the please runbook set MUST pass the collected LESSONS lines as input to the learn skill, alongside the existing lessons-audit output that step already hands over. This is explicit handoff — learn receives the full set of lines and judges them against the quality gate.
 
 #### Scenario: Closing learn receives LESSONS collection
 - **WHEN** the session's dispatched work is complete and please is preparing to run the closing learn
@@ -36,7 +36,7 @@ At workflow step 7 ("Capture (close) — `/learn`" in `agent-instructions/skills
 
 ### Requirement: Please gates do not block LESSONS collection
 
-The gates in the please skill (documentation gate, review gate, final gate before closing learn) MUST NOT block or filter the LESSONS collection. Collection is unconditional; gates may filter the work being gated, but they do not filter what gets recorded.
+The gates in the please runbook set (documentation gate, review gate, final gate before closing learn) MUST NOT block or filter the LESSONS collection. Collection is unconditional; gates may filter the work being gated, but they do not filter what gets recorded.
 
 #### Scenario: Gate rejects a subagent's output
 - **WHEN** please's gate rejects a subagent's work (e.g., "documentation is missing")

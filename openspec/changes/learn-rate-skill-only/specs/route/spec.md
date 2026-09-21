@@ -4,9 +4,9 @@
 
 ### Requirement: Dispatch handoff checklist mandates LESSONS line in subagent completion report
 
-When the route skill selects a subagent type and constructs the dispatch instructions, the completion-report section MUST include an explicit instruction that every completion report ends with a `LESSONS:` line. The instruction format is prescriptive: the subagent MUST include the line, not "should" or "may", and MUST follow the lessons-contract format (`LESSONS: none` or `LESSONS: <lesson1>, <lesson2>, <lesson3>`).
+When the route runbook selects a subagent type and constructs the dispatch instructions, the completion-report section MUST include an explicit instruction that every completion report ends with a `LESSONS:` line. The instruction format is prescriptive: the subagent MUST include the line, not "should" or "may", and MUST follow the lessons-contract format (`LESSONS: none` or `LESSONS: <lesson1>, <lesson2>, <lesson3>`).
 
-The mandate lives in `agent-instructions/skills/route/SKILL.md`, in the "The handoff is the unlock" section — the existing MUST-hand checklist every dispatch obeys (exact files, acceptance checks, do-NOT-touch bounds, recall-first instruction). The edit adds a new bullet to that checklist: the completion-report instruction, including the LESSONS line mandate. It applies to all subagent types (fork, fresh-context, workflow) because that checklist already governs every dispatch. No special cases.
+The mandate lives in the route runbook (dispatch / tier-selection), in its handoff section — the existing MUST-hand checklist every dispatch obeys (exact files, acceptance checks, do-NOT-touch bounds, recall-first instruction). The edit adds a new bullet to that checklist: the completion-report instruction, including the LESSONS line mandate. It applies to all subagent types (fork, fresh-context, workflow) because that checklist already governs every dispatch. No special cases.
 
 #### Scenario: Route dispatches a fresh-context subagent
 - **WHEN** route selects a subagent type (e.g., "general-purpose" agent) and builds the dispatch instructions
@@ -22,7 +22,7 @@ The mandate lives in `agent-instructions/skills/route/SKILL.md`, in the "The han
 
 ### Requirement: Route enforces re-ask for missing LESSONS line
 
-If a subagent's completion report does not include a `LESSONS:` line, the orchestrator (the agent executing route's dispatch loop — route is a skill the orchestrator follows, not a separate actor) MUST trigger exactly one re-ask, passing a targeted follow-up to the subagent with a reminder to include the LESSONS line. The re-ask is not a retry of the entire task — it is a targeted request to add the missing line. This is the same single-re-ask rule stated in the lessons-contract spec; route's SKILL.md carries the instruction text the orchestrator follows.
+If a subagent's completion report does not include a `LESSONS:` line, the orchestrator (the agent executing route's dispatch loop — route is a runbook the orchestrator follows, not a separate actor) MUST trigger exactly one re-ask, passing a targeted follow-up to the subagent with a reminder to include the LESSONS line. The re-ask is not a retry of the entire task — it is a targeted request to add the missing line. This is the same single-re-ask rule stated in the lessons-contract spec; the route runbook carries the instruction text the orchestrator follows.
 
 #### Scenario: Subagent returns report without LESSONS line
 - **WHEN** the orchestrator receives a subagent completion report that ends without a LESSONS line

@@ -4,7 +4,7 @@
 
 ### Requirement: Dispatched subagent completion report carries LESSONS line
 
-Every subagent dispatched via the route skill (fork, fresh-context, or workflow) MUST include a `LESSONS:` line at the end of its completion report. The line format is one of:
+Every subagent dispatched via the route runbook (fork, fresh-context, or workflow) MUST include a `LESSONS:` line at the end of its completion report. The line format is one of:
 - `LESSONS: none` (when no learnable lessons exist from the subagent's work)
 - `LESSONS: <lesson1>` (single lesson)
 - `LESSONS: <lesson1>, <lesson2>, <lesson3>` (up to three lessons, comma-separated)
@@ -25,7 +25,7 @@ Each lesson is a one-line summary capturing confirmed corrections, surprising fi
 
 ### Requirement: Orchestrator collects and passes LESSONS lines to closing learn
 
-The orchestrator (please skill) MUST collect all `LESSONS:` lines from every dispatched subagent across the session and pass them as input to the closing learn step. Collection happens regardless of whether any individual line contains "none".
+The orchestrator (following the please runbook set) MUST collect all `LESSONS:` lines from every dispatched subagent across the session and pass them as input to the closing learn step. Collection happens regardless of whether any individual line contains "none".
 
 #### Scenario: Multiple subagents dispatch during session
 - **WHEN** the session contains three dispatched subagents, each with a LESSONS line
