@@ -57,6 +57,4 @@ None. Ship the binary; behavior changes on next `engram query --text`.
 
 ## Open Questions
 
-- Update the write-memory SKILL.md authoring rule and the spec requirement "Trigger cues SHALL be
-  specific, author-chosen strings" to admit deliberate bare words: deferred, needs writing-skills
-  paid tests (precedent: LEDGER row `write-memory-triggers-contract`, 12 runs per arm).
+- RESOLVED: the write-memory SKILL.md authoring rule and the spec requirement "Trigger cues SHALL be specific, author-chosen strings" now admit distinctive bare words (whole-word matched) and deliberate, recorded over-fire; verified with 15 control (HEAD) and 25 GREEN fresh-context headless runs (task 4.2).

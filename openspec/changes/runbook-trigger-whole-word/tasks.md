@@ -21,7 +21,7 @@ Conventions: TDD (failing test, `targ test` RED, implement, GREEN, refactor); go
 ## 4. Docs
 
 - [x] 4.1 Update the match-rule docs per the Enumeration below (GLOSSARY, c3-components K6, README, adr.md ADR-0026 amendment)
-- [ ] 4.2 DEFERRED (needs paid tests): edit `agent-instructions/skills/write-memory/SKILL.md` authoring rule ("never a lone common word") to admit deliberate whole-word bare words, and update the main-spec requirement "Trigger cues SHALL be specific, author-chosen strings" (currently "a slash form or a multi-word phrase") to match. SKILL.md edits require `superpowers:writing-skills` RED->GREEN with behavioral runs; the precedent (LEDGER `write-memory-triggers-contract`) used 12 paid `claude -p` runs per arm. Not run; cost reported to Joe. Until then the SKILL.md rule stays stricter than the matcher (safe direction), and GLOSSARY `trigger` states the intended rule.
+- [x] 4.2 DONE (GREEN 25 runs vs control 15 runs, all scenarios improved or unchanged; SKILL.md + specs updated). Was: DEFERRED (needs paid tests): edit `agent-instructions/skills/write-memory/SKILL.md` authoring rule ("never a lone common word") to admit deliberate whole-word bare words, and update the main-spec requirement "Trigger cues SHALL be specific, author-chosen strings" (currently "a slash form or a multi-word phrase") to match. SKILL.md edits require `superpowers:writing-skills` RED->GREEN with behavioral runs; the precedent (LEDGER `write-memory-triggers-contract`) used 12 paid `claude -p` runs per arm. Not run; cost reported to Joe. Until then the SKILL.md rule stays stricter than the matcher (safe direction), and GLOSSARY `trigger` states the intended rule.
 - [ ] 4.3 After Joe's review: archive this change (not done here), then re-add bare-word triggers (`curate`) to runbook notes as desired
 
 ## Enumeration
@@ -37,7 +37,7 @@ Grep: `substring|case-insensitive|trigger hit|lone common|whitespace runs` (and 
 | `docs/architecture/adr.md` ADR-0026 | update: "case-insensitive substring" -> whole-word, dated amendment pointing at this change |
 | `README.md` `engram query` row | update: whole-word wording with example |
 | `README.md` L54 (please matched by triggers) | leave: lists triggers only |
-| `agent-instructions/skills/write-memory/SKILL.md` L82-90 | DEFERRED (task 4.2; paid tests) |
+| `agent-instructions/skills/write-memory/SKILL.md` L82-90 | update (task 4.2, done) |
 | `openspec/specs/runbook-lexical-triggers/spec.md` | update via this change's MODIFIED delta (match requirement); "Trigger cues SHALL be specific" requirement deferred with 4.2 |
 | `openspec/specs/recall-runbook-surfacing/spec.md` | leave: says only "trigger hit", no match rule |
 | `openspec/specs/vault-merged-recall/spec.md`, `recall-payload-cuts/spec.md` | leave: trigger hits ordering/limit only |

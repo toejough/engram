@@ -54,3 +54,22 @@ A runbook is a trigger hit when any of its `triggers` entries occurs in `--text`
 #### Scenario: Hyphen and underscore are boundaries
 - **WHEN** `--text "re-curate-now"` or `--text "do_curate_it"` is run against `triggers: ["curate"]`
 - **THEN** the runbook is a trigger hit
+
+### Requirement: Trigger cues SHALL be specific, author-chosen strings
+Guidance for authoring triggers (write-memory template) SHALL state that a trigger is a cue word or phrase the user (or an engram notice) would literally write (a slash form, a multi-word phrase, or a single distinctive word), that matching is case-insensitive, whitespace-collapsed, and whole-word at letter/digit edges, that a single word must be distinctive enough that whole-word matching will not fire on ordinary prose unless over-firing is a deliberate, recorded choice, and that a trigger hit is a candidate the agent still judges against the runbook's own applicability text.
+
+#### Scenario: Write-memory composes a runbook with triggers
+- **WHEN** a parent skill hands off kind=runbook with `triggers: ["/please", "take this end-to-end"]`
+- **THEN** write-memory appends `--trigger "/please" --trigger "take this end-to-end"` to the `engram learn runbook` command
+
+#### Scenario: Distinctive bare word is composed as a trigger
+- **WHEN** a parent skill hands off kind=runbook with `triggers: ["curate", "/curate", "pending offers"]`
+- **THEN** write-memory appends `--trigger "curate" --trigger "/curate" --trigger "pending offers"` without asking for a different cue
+
+#### Scenario: Very common bare word is questioned
+- **WHEN** a parent skill hands off kind=runbook with `triggers: ["fix"]` and no statement that over-firing is deliberate
+- **THEN** write-memory asks the parent for a distinctive cue instead of emitting `--trigger "fix"`
+
+#### Scenario: Deliberate over-fire is passed through
+- **WHEN** a parent skill hands off kind=runbook with `triggers: ["please"]` and states that over-firing is a deliberate, accepted choice
+- **THEN** write-memory appends `--trigger "please"`

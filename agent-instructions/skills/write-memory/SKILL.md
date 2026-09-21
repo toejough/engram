@@ -81,12 +81,18 @@ handed-off `red_flags` entry, in order; omit entirely when the parent's handoff 
 red_flags (no error, no empty flag).
 
 One `--trigger` per handed-off `triggers` entry, in order, placed after any `--red-flag`; omit
-entirely when the handoff carries none. A trigger is a distinctive cue — a slash form
-(`/please`) or a multi-word phrase ("take this end-to-end"), at least 3 characters, never a lone
-common word ("please", "fix"). A handed-off trigger that is a lone common word → ask the parent
-for a distinctive cue instead of passing it through. A trigger hit only makes the runbook a
-candidate; the agent still judges it against the runbook's own `situation`, so triggers never
-replace a well-written `--situation`.
+entirely when the handoff carries none. A trigger is a cue word or phrase the user (or an
+engram notice) would literally write: a slash form (`/please`), a multi-word phrase ("take this
+end-to-end"), or a single distinctive word (`curate`), at least 3 characters. Matching is
+case-insensitive, whitespace-collapsed, and whole-word at letter/digit edges, so `curate` hits
+"curate" and "/curate" but not "accurate". A single word must be distinctive enough that
+whole-word matching will not fire on ordinary prose (`curate` qualifies; "fix", "run", "the"
+do not). A handed-off single word that is common in ordinary prose → ask the parent for a
+distinctive cue instead of passing it through, unless the handoff states that over-firing is a
+deliberate, accepted choice (e.g. "please" on the please runbook, 2026-09-20); then pass it
+through. Over-firing is tolerable because a trigger hit only makes the runbook a candidate; the
+agent still judges it against the runbook's own `situation`, so triggers never replace a
+well-written `--situation`.
 
 kind=qa:
 
