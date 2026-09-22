@@ -1,7 +1,10 @@
 ## Status
 
-Stage 1 (this stage): sections 1, 2, 2a, 2b and task 3.1 (no paid runs). Sections 3.2-3.5, 4 and 5 are later
-stages (paid runs need cost confirmation; retirement needs the gate).
+Sections 1, 2, 2a, 2b, 3, 3a, and 4 are done (2026-09-21): the curate skill is retired, the runbook is
+promoted to the production vault (`1049.2026-09-21.curate-review-pending-offers`), live docs are updated,
+and `targ check-full` / `openspec validate --all --strict` are green. **Remaining:** 5.1 (sync the delta
+spec to the main spec, archive the change) — held per instruction until Joe reviews this stage's work
+(including an independent fresh-context re-verification of the `enumeration.md` disposition list, task 4.3).
 
 ## 1. Eval baseline (done in the previous stage)
 
@@ -15,7 +18,7 @@ stages (paid runs need cost confirmation; retirement needs the gate).
 - [x] 2.4 Rebuild sidecars: `engram embed apply --vault <fixture vault> --all`, 0 stale
 - [x] 2.5 Wire `carrier_r_src` in `fixtures/curate/task.json`; `probe_phase2.py --task curate --arms R --shim-only --setup-only` builds (no spend) and the trial vault contains the runbook plus the fixture offers
 - [x] 2.6 Run the phase2 tests (`python3 -m pytest dev/eval/cumulative/runbook_vs_skill/phase2/test_probe_phase2.py`)
-- [ ] 2.7 Fresh-context reviewer checks the fidelity report against `SKILL.md` for lost content
+- [x] 2.7 Fresh-context reviewer checks the fidelity report against `SKILL.md` for lost content — reviewed 2026-09-21 by a separate Opus reviewer, verdict PASS-WITH-FIXES, fixes applied in commits 4beb714f (fixture + fidelity report), b983e29d (retrieval check), 5c4cdbaf (D5 confirmation, payload-hint decision, fidelity nits — confirmed this commit touches `curate-conversion-fidelity-report.md`)
 
 ## 2a. Notice reword (D4)
 
@@ -30,18 +33,18 @@ stages (paid runs need cost confirmation; retirement needs the gate).
 - [x] 2b.2 GREEN: `pendingOfferCurateInstruction` shared constant, `queryPayload.PendingOffersHint`, set in `runQuery` and `mergeQueryPayloads`; `targ test` passes (commit b050db1d)
 - [x] 2b.3 Smoke with a scratch-built binary against a scratch vault: hint present with offers, absent without
 - [x] 2b.5 (D10, D11) RED: flag and hint before `items:` in a >100 KB payload, first 1500 bytes contain the hint; instruction says expected upkeep / after the request / without asking; GREEN: field order in `queryPayload`, reworded `pendingOfferCurateInstruction`, notice and nudge prefixes adjusted (commit 013f591e)
-- [ ] 2b.4 Follow-ups after retirement: `curate/SKILL.md` lines 5 and 28 (deleted in 4.5); consider `shim.md` only if option B (D8) is built
+- [x] 2b.4 Follow-ups after retirement: `curate/SKILL.md` lines 5 and 28 (deleted in 4.5); consider `shim.md` only if option B (D8) is built — moot: `curate/SKILL.md` was deleted whole in 4.5 (its lines 5/28 no longer exist anywhere); option B (D8's "generic fifth shim re-entry cue") was never built — the shim.md edit that did land is D12's differently-shaped standing rule (task 3a.1), not option B, so this follow-up's own condition was not triggered
 
 ## 3. Validation (gates retirement)
 
 - [x] 3.1 Retrieval check (no spend): phrases harvested from the kept baseline transcripts and shim-shaped forms, `--text` variants, the notice command, plus over-fire probes; table probe -> top runbook rank/provenance in `results/3.1_curate_retrieval_check.md`; first verify the scratch binary has whole-word matching
-- [ ] 3.2 Shim-only R arm n=3 on the explicit-ask task; bar: runbook surfaces with `trigger` provenance 3/3 and `end_state` >= 2/3 (within one trial of the skill row's 3/3); validity gate (marker-in-transcript, shadowing scan) before scoring; cost confirmed first
+- [x] 3.2 Shim-only R arm n=3 on the explicit-ask task; bar: runbook surfaces with `trigger` provenance 3/3 and `end_state` >= 2/3 (within one trial of the skill row's 3/3); validity gate (marker-in-transcript, shadowing scan) before scoring; cost confirmed first — done 2026-09-21, `results/3.3_curate_shim_only_sonnet5.md`: runbook surfaced by `trigger` 3/3, `end_state` 3/3, bar MET; spend $1.09 (within approved $1-3)
 - [x] 3.3 Build the `curate-signal` task: routine work in a vault with pending offers where engram's mid-turn notice appears; arms S / N / R; scorer for "followed the notice's instruction, surfaced the runbook, curated"
-- [ ] 3.4 Run `curate-signal` (arms S, N, R, n=3 each); if R fails to follow the notice, evaluate option B (generic fifth shim re-entry cue) as a separate change
-  - Run done 2026-09-21 (see `dev/eval/cumulative/runbook_vs_skill/phase2/results/1.3_curate_signal_baseline_sonnet5.md`, `3.3_curate_signal_shim_only_sonnet5.md`): offers curated S 0/3, N 0/3, R 0/3. Not ticked: the conditional option-B evaluation is not done.
-  - 2026-09-21 rerun of R with top-of-payload stronger hint (D10, D11): smoke 0/1 curated; agent saw the hint in the preview and the reworded write warning and still declined (`results/3.4_curate_signal_stronger_hint_sonnet5.md`). n=3 not run; Joe to redirect (D11 fallback).
-  - 2026-09-21 D11's own fallback (D12, shim standing rule) succeeded: 4/4 curated, see task 3a and `results/3.5_curate_signal_shim_standing_rule_sonnet5.md`.
-- [ ] 3.5 Record results; D6 bars met or Joe redirects
+- [x] 3.4 Run `curate-signal` (arms S, N, R, n=3 each); if R fails to follow the notice, evaluate option B (generic fifth shim re-entry cue) as a separate change
+  - Run done 2026-09-21 (see `dev/eval/cumulative/runbook_vs_skill/phase2/results/1.3_curate_signal_baseline_sonnet5.md`, `3.3_curate_signal_shim_only_sonnet5.md`): offers curated S 0/3, N 0/3, R 0/3.
+  - 2026-09-21 rerun of R with top-of-payload stronger hint (D10, D11): smoke 0/1 curated; agent saw the hint in the preview and the reworded write warning and still declined (`results/3.4_curate_signal_stronger_hint_sonnet5.md`). n=3 not run; Joe redirected to D11's own fallback instead of the literal option-B path.
+  - 2026-09-21 D11's own fallback (D12, shim standing rule) succeeded: 4/4 curated, see task 3a and `results/3.5_curate_signal_shim_standing_rule_sonnet5.md`. The literal "evaluate option B" branch was superseded by Joe's D12 decision and was not separately run; recorded as such rather than left open.
+- [x] 3.5 Record results; D6 bars met or Joe redirects — D6 bars met via D11/D12 (Joe's redirect): task 3a.2 `curate-signal` R arm with the shim standing rule, `end_state` 4/4 (`results/3.5_curate_signal_shim_standing_rule_sonnet5.md`); task 3a.3 `route` dispatch-tier regression found 3/3 (`results/3.5b_route_regression_shim_standing_rule.md`)
 
 ## 3a. Shim standing rule (D12, D11's own fallback)
 
@@ -56,11 +59,11 @@ stages (paid runs need cost confirmation; retirement needs the gate).
 
 ## 4. Promotion and retirement (later stage, gated)
 
-- [ ] 4.1 Promote via `engram learn runbook` (real CLI fields, never a file copy) with the fixture's situation, `done_when`, `red_flags`, `triggers`; verify retrieval against the production vault (task phrase, notice command, `/curate`; casual "curated"/"accurate" do not fire)
-- [ ] 4.2 Confirm `shim.md` is imported in the real `~/.claude/CLAUDE.md` (vault note 1031a)
-- [ ] 4.3 Doc-surface enumeration (grep the term, synonyms, hyphenated forms and OLD echoes) with a per-file disposition list, verified independently by a fresh-context reviewer
-- [ ] 4.4 Update live references: `CLAUDE.md`, `README.md`, `docs/GLOSSARY.md`, `docs/architecture/{c1-system-context,c2-containers,adr}.md`, `docs/ROADMAP.md`
-- [ ] 4.5 Delete `agent-instructions/skills/curate/`; `engram update` (sync-as-removal cleans deployed copies); real-query check; `targ check-full`
+- [x] 4.1 Promote via `engram learn runbook` (real CLI fields, never a file copy) with the fixture's situation, `done_when`, `red_flags`, `triggers`; verify retrieval against the production vault (task phrase, notice command, `/curate`; casual "curated"/"accurate" do not fire) — done 2026-09-21: promoted as `1049.2026-09-21.curate-review-pending-offers` via `engram learn runbook`; `engram embed status` clean (983/983); no `red_flags` truncation marker; retrieval verified against the real ~1000-note vault, see `dev/eval/cumulative/runbook_vs_skill/phase2/results/4.1_curate_real_vault_retrieval_check.md` (trigger and semantic channels both rank 1; over-fire probes behave as designed)
+- [x] 4.2 Confirm `shim.md` is imported in the real `~/.claude/CLAUDE.md` (vault note 1031a) — confirmed: `~/.claude/CLAUDE.md:27` imports `@~/.claude/engram/shim.md`; deployed `~/.claude/engram/guidance/shim.md` is byte-identical to this repo's `agent-instructions/guidance/shim.md` (carries D12's standing rule) after `engram update --with-guidance`
+- [x] 4.3 Doc-surface enumeration (grep the term, synonyms, hyphenated forms and OLD echoes) with a per-file disposition list, verified independently by a fresh-context reviewer — disposition list built: `openspec/changes/curate-skill-to-runbook/enumeration.md` (grep run, exclusions, false positives, per-file table, counts). Independent fresh-context verification of this list is a SEPARATE step Joe will dispatch (not performed in this pass, per instruction)
+- [x] 4.4 Update live references: `CLAUDE.md`, `README.md`, `docs/GLOSSARY.md`, `docs/architecture/{c1-system-context,c2-containers,adr}.md`, `docs/ROADMAP.md` — done per `enumeration.md`'s update/rewrite rows: CLAUDE.md, README.md (skills table + 3 prose spots), docs/GLOSSARY.md (`skill` entry), docs/architecture/c1-system-context.md (S3 row), docs/architecture/c2-containers.md (mermaid + C1 row), docs/ROADMAP.md (NOW row removed/renumbered, Provenance row added); docs/architecture/adr.md needed no edit (verified: no ADR entry asserts curate is a skill)
+- [x] 4.5 Delete `agent-instructions/skills/curate/`; `engram update` (sync-as-removal cleans deployed copies); real-query check; `targ check-full` — done 2026-09-21: `git rm -r agent-instructions/skills/curate/`; `engram update --with-guidance` dry-run showed only the curate skill deletion (no other unexpected removals), then run for real: deleted from both `~/.claude/skills/curate` and `~/.pi/agent/skills/curate` (dangling links cleaned); real-query from `~` cwd surfaces `1049.2026-09-21.curate-review-pending-offers` (rank 1, direct+trigger); `targ test` (all packages ok, phase2 pytest 451 passed/2 skipped — including the now-skipping `test_curate_skill_src_is_byte_identical_to_the_live_skill`); `targ check-full` 8/9 PASS (check-uncommitted FAILs only because the change is not yet committed, expected); `openspec validate curate-skill-to-runbook --strict` and `--all --strict` (44/44) both valid
 
 ## 5. Close-out
 
