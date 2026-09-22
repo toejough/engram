@@ -367,6 +367,13 @@ instrument-invalid and binds nothing (`dev/eval/LEDGER.md#write-memory-atom-dere
 vintage 2026-07-04); the worker form's fire-rate validation is
 `dev/eval/LEDGER.md#write-memory-worker-fire-rates` (vintage 2026-07-04).
 
+**Historical note (2026-09):** `please` and `route` were later retired from skills to vault
+runbooks (`openspec/changes/archive/2026-09-19-route-skill-to-runbook/`,
+`please-skill-to-runbook`), and `curate` followed the same path
+(`curate-skill-to-runbook`). "Five skills remain" above is a snapshot of the 2026-07-04 decision,
+not the current skill count — see ADR-0026 and the `guidance-runbook-follow-frame` spec for the
+runbook-carrier shape that superseded it.
+
 ---
 
 ## ADR-0016 — Architecture diagrams are hand-authored mermaid, verified against code

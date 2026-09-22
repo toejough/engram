@@ -24,7 +24,7 @@ engram/
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
 ├── agent-instructions/
 │   ├── skills/        # Source for the recall, learn, and write-memory skills
-│   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), and learn-firing (`learn.md`) — synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code) and `~/.pi/agent/engram/guidance/` (Pi); compat symlinks at old flat paths keep existing `@import` lines in CLAUDE.md / AGENTS.md resolving (ADR-0022 D9); activated via `@import`
+│   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), learn-firing (`learn.md`), and runbook-follow-frame (`shim.md`) — synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code) and `~/.pi/agent/engram/guidance/` (Pi); compat symlinks at old flat paths keep existing `@import` lines in CLAUDE.md / AGENTS.md resolving (ADR-0022 D9); activated via `@import`
 ├── openspec/          # Primary behavior specs — one per shipped capability; backfilled 2026-07-27 from docs/FEATURES.md surface
 ├── dev/               # Build tooling (targ definitions, linter configs)
 └── docs/              # Organized by charter — see docs/README.md

@@ -48,7 +48,7 @@ a `done_when` completion bar, a body of steps (which may wikilink sub-runbooks, 
 Retrieved by `engram query` and followed per the shim's follow frame (announce, restate as
 a plan, read red flags, verify `done_when`) rather than loaded as an installed skill. It is
 the carrier for `please` (a top runbook plus three sub-runbooks: gates, doc-surface
-enumeration grep, lessons audit) and `route`. Written with `engram learn runbook`.
+enumeration grep, lessons audit), `route`, and `curate`. Written with `engram learn runbook`.
 Distinct from **skill**, which is a `SKILL.md` deployed to each harness's skills directory.
 
 ### atom
@@ -844,8 +844,9 @@ that topic in frontmatter; `vocab.index.md` was a machine-generated instance of 
 ### guidance file
 An always-loaded ambient doc under `agent-instructions/guidance/` in the engram repo,
 synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code)
-and `~/.pi/agent/engram/guidance/` (Pi). Three ship today: `recall.md` (recall-firing),
-`delegate.md` (delegation-firing), and `learn.md` (learn-firing). First-sync migration creates compat symlinks at old flat paths (`~/.claude/engram/<name>.md`) so existing `@import` lines keep working (ADR-0022 D9).
+and `~/.pi/agent/engram/guidance/` (Pi). Four ship today: `recall.md` (recall-firing),
+`delegate.md` (delegation-firing), `learn.md` (learn-firing), and `shim.md` (the runbook-follow-frame
+guidance). First-sync migration creates compat symlinks at old flat paths (`~/.claude/engram/<name>.md`) so existing `@import` lines keep working (ADR-0022 D9).
 Each is activated independently by adding its own
 `@~/.claude/engram/<name>.md` line to `~/.claude/CLAUDE.md` (resolves via compat symlink to canonical path), or
 `@~/.pi/agent/guidance/<name>.md` to `~/.pi/agent/AGENTS.md` (symlink surface path; detection matches this prefix; harness

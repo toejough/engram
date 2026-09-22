@@ -79,7 +79,7 @@ Legend: keep / update / rewrite / N/A / delete.
 | file:line | disposition | reason |
 |---|---|---|
 | agent-instructions/skills/curate/ (whole dir, 1 file) | delete (this task) | the retirement itself, performed after this enumeration and the D6/D7 gate |
-| agent-instructions/guidance/shim.md | keep | D12's standing rule is generic (names no skill/runbook); already deployed |
+| agent-instructions/guidance/shim.md | update (done in task 3.x — commit 2a0af513) | D12's standing rule is generic (names no skill/runbook); already deployed |
 | agent-instructions/guidance/{recall,learn,delegate}.md | keep | no curate references |
 | agent-instructions/skills/write-memory/SKILL.md | keep | `curate` used only as a trigger-authoring example (still correct) |
 

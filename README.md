@@ -147,7 +147,7 @@ internal/            Business logic (DI boundaries)
   vaultgraph/        Vault traversal (wikilink graph, note scanning)
 agent-instructions/
   skills/            Source for the recall, learn, and write-memory skills
-  guidance/          Source for the deployable ambient guidance docs — recall-firing (recall.md), delegation-firing (delegate.md), and learn-firing (learn.md)
+  guidance/          Source for the deployable ambient guidance docs — recall-firing (recall.md), delegation-firing (delegate.md), learn-firing (learn.md), and runbook-follow-frame (shim.md)
 ```
 
 ## Development

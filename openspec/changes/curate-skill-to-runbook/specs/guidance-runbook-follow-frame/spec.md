@@ -9,7 +9,7 @@ finishing the user's request, the agent SHALL do what the signal says without as
 instruction SHALL NOT override the existing genuine-ambiguity stop-and-ask default: when the named
 action is destructive or hard to reverse and the agent is genuinely uncertain about it, the agent
 SHALL stop and ask instead, per that default. The shim SHALL state this rule generically, naming no
-specific skill, runbook, or command, so it applies uniformly to any current or future tool-result
+specific skill or runbook, so it applies uniformly to any current or future tool-result
 signal of this shape.
 
 #### Scenario: An unrequested pending-work signal is acted on after the main task
@@ -29,5 +29,5 @@ signal of this shape.
 #### Scenario: The rule is stated generically, not tied to one signal
 
 - **WHEN** the shim's wording for this rule is read
-- **THEN** it names no specific skill, runbook, or command, so a future tool-result signal of the
+- **THEN** it names no specific skill or runbook, so a future tool-result signal of the
   same shape is covered without a further shim edit
