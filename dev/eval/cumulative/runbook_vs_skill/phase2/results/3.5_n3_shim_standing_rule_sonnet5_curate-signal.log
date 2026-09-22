@@ -1,0 +1,4 @@
+run_id=curate-signal-sonnet5-1790045436-70769e task=curate-signal arms=['R'] n=3 model=sonnet5 trials=3 timeout=900s workers=4 root=/private/tmp/claude-501/-Users-joe-repos-personal-engram/23a08637-d9a1-431d-9ac8-7770901edb97/scratchpad/runbook_vs_skill_runs/p2/curate-signal-sonnet5-1790045436-70769e
+  [curate-signal-R#0] valid found=False followed=13/13 end_state=True cost=$0.59 timed_out=False
+  [curate-signal-R#2] valid found=False followed=13/13 end_state=True cost=$0.60 timed_out=False
+  [curate-signal-R#1] valid found=False followed=13/13 end_state=True cost=$0.75 timed_out=False

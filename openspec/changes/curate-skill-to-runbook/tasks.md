@@ -40,6 +40,7 @@ stages (paid runs need cost confirmation; retirement needs the gate).
 - [ ] 3.4 Run `curate-signal` (arms S, N, R, n=3 each); if R fails to follow the notice, evaluate option B (generic fifth shim re-entry cue) as a separate change
   - Run done 2026-09-21 (see `dev/eval/cumulative/runbook_vs_skill/phase2/results/1.3_curate_signal_baseline_sonnet5.md`, `3.3_curate_signal_shim_only_sonnet5.md`): offers curated S 0/3, N 0/3, R 0/3. Not ticked: the conditional option-B evaluation is not done.
   - 2026-09-21 rerun of R with top-of-payload stronger hint (D10, D11): smoke 0/1 curated; agent saw the hint in the preview and the reworded write warning and still declined (`results/3.4_curate_signal_stronger_hint_sonnet5.md`). n=3 not run; Joe to redirect (D11 fallback).
+  - 2026-09-21 D11's own fallback (D12, shim standing rule) succeeded: 4/4 curated, see task 3a and `results/3.5_curate_signal_shim_standing_rule_sonnet5.md`.
 - [ ] 3.5 Record results; D6 bars met or Joe redirects
 
 ## 3a. Shim standing rule (D12, D11's own fallback)
@@ -48,11 +49,10 @@ stages (paid runs need cost confirmation; retirement needs the gate).
   after "What each returned item is for"); record D12 in design.md (reason: D9-update's in-band instruction
   still failed per `results/3.4_curate_signal_stronger_hint_sonnet5.md`); delta spec (ADDED requirement,
   `specs/guidance-runbook-follow-frame/spec.md`)
-- [ ] 3a.2 Smoke (n=1) `curate-signal`'s R arm with the new shim as the trial CLAUDE.md; if it still
-  declines, stop and report (D11's fallback list is now exhausted, do not iterate wording further without
-  Joe); if it curates, run n=3 fresh, bar `end_state` >= 2/3
-- [ ] 3a.3 Only if 3a.2 meets the bar: `route` dispatch-tier regression (`probe_phase2.py --task route --arms
-  R --shim-only --model sonnet5 --n 3 --keep`) with the new shim; bar: found 3/3 as before
+- [x] 3a.2 Smoke (n=1) `curate-signal`'s R arm with the new shim as the trial CLAUDE.md — curated (4/4
+  when followed by n=3 fresh); bar `end_state` >= 2/3 MET at 4/4 (`results/3.5_curate_signal_shim_standing_rule_sonnet5.md`)
+- [x] 3a.3 `route` dispatch-tier regression (`probe_phase2.py --task route --arms R --shim-only --model
+  sonnet5 --n 3 --keep`) with the new shim; bar found 3/3 MET (`results/3.5b_route_regression_shim_standing_rule.md`)
 
 ## 4. Promotion and retirement (later stage, gated)
 
