@@ -29,6 +29,7 @@ stages (paid runs need cost confirmation; retirement needs the gate).
 - [x] 2b.1 RED: tests for `pending_offers_hint` present iff `pending_offers` is true, equal to the shared constant, byte-identical payload without offers, merged query, served round-trip, and notices embedding the same constant; `targ test` fails
 - [x] 2b.2 GREEN: `pendingOfferCurateInstruction` shared constant, `queryPayload.PendingOffersHint`, set in `runQuery` and `mergeQueryPayloads`; `targ test` passes (commit b050db1d)
 - [x] 2b.3 Smoke with a scratch-built binary against a scratch vault: hint present with offers, absent without
+- [x] 2b.5 (D10, D11) RED: flag and hint before `items:` in a >100 KB payload, first 1500 bytes contain the hint; instruction says expected upkeep / after the request / without asking; GREEN: field order in `queryPayload`, reworded `pendingOfferCurateInstruction`, notice and nudge prefixes adjusted (commit 013f591e)
 - [ ] 2b.4 Follow-ups after retirement: `curate/SKILL.md` lines 5 and 28 (deleted in 4.5); consider `shim.md` only if option B (D8) is built
 
 ## 3. Validation (gates retirement)

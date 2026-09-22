@@ -114,6 +114,27 @@ the served path is byte-identical to local because the handler captures `RunQuer
   `agent-instructions/guidance/shim.md` (no mention of `pending_offers`; option B in D8 would touch it),
   and `recall`'s SKILL.md (no mention found).
 
+**D9 update (2026-09-21).** The hint text now instructs, not just points: "curating pending offers is expected
+vault upkeep, not an extra: after you finish the user's request, curate them without asking — run `<command>`
+and follow the curate runbook it returns". Still one shared constant; the notice and nudge prefixes dropped
+their own "to curate them," so the sentence is not said twice. Reason: `curate-signal` (1.3, 3.3) showed all 9
+S/N/R agents wrote the requested note and declined to curate ("you didn't ask for that", then an offer).
+
+**D10. `pending_offers` and its hint are the first payload keys after `version`.** The shim-only R arm's first
+query payload was 94-112 KB; the Bash tool showed a preview and saved the rest to a file, and 0/3 agents saw
+the hint at the payload tail. Struct field order in `queryPayload` fixes YAML key order, so the two fields
+were moved ahead of `phrases` and `items` (still `omitempty`, so payloads without offers are byte-identical).
+Merged and served paths build the same struct, so they inherit the order. Alternatives rejected: (a) shrink the
+payload so the tail fits the preview: the size is items' content, a separate lever with its own recall trade-offs
+(see the payload-cut findings); (b) a separate `notices:` list: a new shape for every consumer, with the same
+placement question. Test: a >100 KB payload has the hint in its first 1500 bytes.
+
+**D11. Agents curate offers themselves on the signal (Joe, 2026-09-21).** Joe chose auto-curation knowing all 9
+baseline agents declined and the skill row was 0/3, so the goal is reliable curation, not parity with a 0.
+Risk: curate's `--discard` deletes an offer file; the vault is a git store so it is recoverable, and the
+mitigation is the curate steps' judge-first rule (judge each offer against existing notes before any action).
+Fallback if the stronger text still fails in `curate-signal`: revisit (option B in D8, or ask-first wording).
+
 **D6. Validation plan (no paid runs in the conversion stage).** (1) Retrieval check with phrases real
 agents generate (harvested from the kept baseline transcripts, plus `--text` forms), with over-fire
 probes; no LLM spend. (2) Shim-only R arm n=3 on the explicit-ask task: bar is within one trial of the
