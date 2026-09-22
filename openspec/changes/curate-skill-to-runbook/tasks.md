@@ -42,6 +42,18 @@ stages (paid runs need cost confirmation; retirement needs the gate).
   - 2026-09-21 rerun of R with top-of-payload stronger hint (D10, D11): smoke 0/1 curated; agent saw the hint in the preview and the reworded write warning and still declined (`results/3.4_curate_signal_stronger_hint_sonnet5.md`). n=3 not run; Joe to redirect (D11 fallback).
 - [ ] 3.5 Record results; D6 bars met or Joe redirects
 
+## 3a. Shim standing rule (D12, D11's own fallback)
+
+- [x] 3a.1 Add the generic standing rule to `agent-instructions/guidance/shim.md` (+433 bytes / 7 lines,
+  after "What each returned item is for"); record D12 in design.md (reason: D9-update's in-band instruction
+  still failed per `results/3.4_curate_signal_stronger_hint_sonnet5.md`); delta spec (ADDED requirement,
+  `specs/guidance-runbook-follow-frame/spec.md`)
+- [ ] 3a.2 Smoke (n=1) `curate-signal`'s R arm with the new shim as the trial CLAUDE.md; if it still
+  declines, stop and report (D11's fallback list is now exhausted, do not iterate wording further without
+  Joe); if it curates, run n=3 fresh, bar `end_state` >= 2/3
+- [ ] 3a.3 Only if 3a.2 meets the bar: `route` dispatch-tier regression (`probe_phase2.py --task route --arms
+  R --shim-only --model sonnet5 --n 3 --keep`) with the new shim; bar: found 3/3 as before
+
 ## 4. Promotion and retirement (later stage, gated)
 
 - [ ] 4.1 Promote via `engram learn runbook` (real CLI fields, never a file copy) with the fixture's situation, `done_when`, `red_flags`, `triggers`; verify retrieval against the production vault (task phrase, notice command, `/curate`; casual "curated"/"accurate" do not fire)

@@ -23,7 +23,8 @@ write" (an agent-side observation, not a printed line).
 working after retirement; the spec matches the shipped behavior.
 
 **Non-Goals:** changing curation behavior; `recall`/`learn`/`write-memory` (#760); the openspec skills
-(#761); editing the shim in this change; running paid evals in the conversion stage.
+(#761); running paid evals in the conversion stage. (Editing the shim was originally a non-goal; D12
+reverses this — Joe's own fallback for D11's failed in-band-instruction attempt is a shim standing rule.)
 
 ## Decisions
 
@@ -135,6 +136,40 @@ Risk: curate's `--discard` deletes an offer file; the vault is a git store so it
 mitigation is the curate steps' judge-first rule (judge each offer against existing notes before any action).
 Fallback if the stronger text still fails in `curate-signal`: revisit (option B in D8, or ask-first wording).
 
+**D12. Shim standing rule (Joe, 2026-09-21; D11's own fallback list, option A).** The D9-update in-band
+instruction (payload hint + notices telling the agent to "curate them without asking") still failed:
+`results/3.4_curate_signal_stronger_hint_sonnet5.md`'s smoke (n=1) read the instruction correctly and
+declined anyway — "You only asked me to add a note ... say the word if you want me to run that review" —
+so a stronger *sentence in the payload* was not the missing lever; the agent needed to be told, once, that
+a tool result naming unrequested pending work is itself authoritative, not merely informational context it
+is free to weigh against the user's literal ask. Fix: one generic standing rule added to
+`agent-instructions/guidance/shim.md`, not to curate's own runbook or the payload text — worded for any
+tool result naming unrequested pending work, not curate-specific, since #760/#761's conversions
+(recall/learn/write-memory, the openspec skills) will hit the same in-band-instruction gap. This reverses
+this change's own "editing the shim" non-goal; the reversal is confirmed by Joe, who named the shim edit as
+the fallback to take.
+- Reconciled with vault note 1037 (`question-stop-default-scoped-to-genuine-ambiguity`): that note narrows
+  a *different* default (never stop-and-ask blanket) to genuine ambiguity only. The new rule does not
+  touch that scoping — it only says an unambiguous, named, unrequested-work instruction is not "extra
+  scope to defer," while leaving the existing "destructive or hard to reverse and genuinely uncertain ->
+  stop and ask" exception untouched. The two rules point the same direction: act on the unambiguous case,
+  reserve stop-and-ask for genuine ambiguity/destructive-uncertain cases.
+- Shared-shim caveat, same pattern as D9/D10 in the archived `runbook-lexical-triggers` change: a shim edit
+  changes the guidance every runbook is read under, so a change validated against curate alone is not
+  proof it is safe for other runbooks. That change's D9(c) reran the `please` eval after its shim edit as a
+  regression check; this change reruns `route`'s dispatch-tier task (`probe_phase2.py --task route --arms R
+  --shim-only`) the same way before trusting the new rule, bar: found 3/3 as measured previously.
+- Byte cost: +433 bytes / 7 lines (`## A tool result naming unrequested work is still an instruction`),
+  placed after "What each returned item is for" (paid every session per the shim's own size-discipline
+  note).
+- Alternatives rejected: (a) keep pushing on payload/notice wording (D9-update already tried the strongest
+  in-band phrasing and failed; no evidence a further reword would do better) — parked, not retried without
+  Joe; (b) curate-specific shim wording — rejected as narrower than the actual gap and a second, later
+  conversion would need its own near-identical rule.
+- Validation: (i) re-run `curate-signal`'s R arm smoke (n=1) with the new shim; if it still declines, stop
+  and report — do not iterate wording further without Joe; if it curates, run n=3 fresh (bar: `end_state`
+  >= 2/3). (ii) only if (i) meets the bar, `route`'s dispatch-tier regression (n=3, bar found 3/3).
+
 **D6. Validation plan (no paid runs in the conversion stage).** (1) Retrieval check with phrases real
 agents generate (harvested from the kept baseline transcripts, plus `--text` forms), with over-fire
 probes; no LLM spend. (2) Shim-only R arm n=3 on the explicit-ask task: bar is within one trial of the
@@ -165,3 +200,7 @@ shim re-entry cue "when engram output tells you to run `engram query`, do". Not 
   text discriminates; accepted.
 - [Spec reconcile guesses Joe's intent] -> resolved: D5 confirmed by Joe 2026-09-21.
 - [Retirement strands curate if the shim is not imported] -> gate (c).
+- [Shim standing rule (D12) is shared by every runbook, not just curate] -> `route` regression rerun
+  before trusting it; bar found 3/3 as before.
+- [Shim standing rule still fails in `curate-signal`] -> stop and report; do not iterate wording further
+  without Joe (D11's fallback list is now exhausted).
