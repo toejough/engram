@@ -28,12 +28,13 @@ Luhmann-ID lineage and Maps of Content for synthesis. Used as both noun
 
 ### skill
 A markdown file (`SKILL.md`) that defines an agent behavior, installed into
-each harness's skills directory by `engram update`. Engram ships four:
-[`recall`](#recall-skill), [`learn`](#learn-skill),
-[`write-memory`](#write-memory-worker-skill) (vault-write execution on handoff), and
-`curate` (judges `engram serve`'s pending-offer notes against the host vault). The
-end-to-end orchestration (`please`) and delegation doctrine (`route` — agent/model/effort
-selection) once shipped as skills too; both are now **runbook** notes in the vault, not skills.
+each harness's skills directory by `engram update`. Engram ships three:
+[`recall`](#recall-skill), [`learn`](#learn-skill), and
+[`write-memory`](#write-memory-worker-skill) (vault-write execution on handoff). The
+end-to-end orchestration (`please`), delegation doctrine (`route` — agent/model/effort
+selection), and offer curation (`curate` — judges `engram serve`'s pending-offer notes
+against the host vault) once shipped as skills too; all three are now **runbook** notes in
+the vault, not skills.
 Distinct from **slash command** — the user-facing `/name` trigger that invokes
 a skill in a harness (Claude Code's term). (The `command` file/deploy mechanism —
 a per-harness wrapper under `agent-instructions/commands/` for a harness whose
