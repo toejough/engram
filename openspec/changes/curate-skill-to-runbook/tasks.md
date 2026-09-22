@@ -39,6 +39,7 @@ stages (paid runs need cost confirmation; retirement needs the gate).
 - [x] 3.3 Build the `curate-signal` task: routine work in a vault with pending offers where engram's mid-turn notice appears; arms S / N / R; scorer for "followed the notice's instruction, surfaced the runbook, curated"
 - [ ] 3.4 Run `curate-signal` (arms S, N, R, n=3 each); if R fails to follow the notice, evaluate option B (generic fifth shim re-entry cue) as a separate change
   - Run done 2026-09-21 (see `dev/eval/cumulative/runbook_vs_skill/phase2/results/1.3_curate_signal_baseline_sonnet5.md`, `3.3_curate_signal_shim_only_sonnet5.md`): offers curated S 0/3, N 0/3, R 0/3. Not ticked: the conditional option-B evaluation is not done.
+  - 2026-09-21 rerun of R with top-of-payload stronger hint (D10, D11): smoke 0/1 curated; agent saw the hint in the preview and the reworded write warning and still declined (`results/3.4_curate_signal_stronger_hint_sonnet5.md`). n=3 not run; Joe to redirect (D11 fallback).
 - [ ] 3.5 Record results; D6 bars met or Joe redirects
 
 ## 4. Promotion and retirement (later stage, gated)
