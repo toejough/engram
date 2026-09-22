@@ -834,6 +834,17 @@ func ExportRenderQueryPayloadPendingOffers(pending bool) (string, error) {
 	return buf.String(), err
 }
 
+// ExportRenderQueryPayloadPendingOffersWithItems renders a payload carrying the
+// given resolved items with the pending-offers flag set, so tests can assert
+// where the flag and hint sit relative to the (large) items section.
+func ExportRenderQueryPayloadPendingOffersWithItems(pending bool, items []resolvedItem) (string, error) {
+	var buf bytes.Buffer
+
+	err := renderQueryPayload(&buf, aggregatedSummary{pendingOffers: pending, resolvedItems: items})
+
+	return buf.String(), err
+}
+
 // ExportRenderQueryPayloadRefitPending renders a minimal payload with refitPending set,
 // so tests can assert the refit_pending field's presence/omission.
 func ExportRenderQueryPayloadRefitPending(pending bool) (string, error) {

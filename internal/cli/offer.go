@@ -22,7 +22,11 @@ const (
 	// pendingOfferCurateInstruction is the one shared instruction: the query
 	// payload's pending_offers_hint, the update notice and the write nudge
 	// all embed this exact string, so they can never drift apart.
-	pendingOfferCurateInstruction = "run `" + pendingOfferCurateCommand +
+	// It tells the agent curation is expected upkeep, not an extra: an agent
+	// seeing the cue mid-unrelated-work declined 9/9 as "you didn't ask for
+	// that" (curate-skill-to-runbook D9, D11).
+	pendingOfferCurateInstruction = "curating pending offers is expected vault upkeep, not an extra: after you " +
+		"finish the user's request, curate them without asking — run `" + pendingOfferCurateCommand +
 		"` and follow the curate runbook it returns"
 	// pendingOfferUpdateNotice is the `engram update` detect-and-notify line
 	// (ADR-0021 convention) for pending offers. Unlike the other notices, it
@@ -30,11 +34,11 @@ const (
 	// not something `engram update` can do on the user's behalf — so it names
 	// the query that surfaces the curate runbook.
 	pendingOfferUpdateNotice = "vault holds pending offer(s) awaiting curation — see the pending_offers " +
-		"flag in `engram query`'s payload; to curate them, " + pendingOfferCurateInstruction + "\n"
+		"flag in `engram query`'s payload; " + pendingOfferCurateInstruction + "\n"
 	// pendingOfferWriteNudge is the write-path log-only nudge (task 6.4):
 	// fired at the same call sites checkAndPersistVocabRefitTrigger already
 	// runs from, but never persists anything — detection stays stateless.
-	pendingOfferWriteNudge = "vault holds pending offer(s) awaiting curation — to curate them, " +
+	pendingOfferWriteNudge = "vault holds pending offer(s) awaiting curation — " +
 		pendingOfferCurateInstruction
 )
 

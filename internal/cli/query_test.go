@@ -68,6 +68,20 @@ func TestApplyProjectFilter_EmptyProjectReturnsAll(t *testing.T) {
 	g.Expect(filtered).To(HaveLen(2))
 }
 
+// TestPendingOfferCurateInstruction_IsExpectedUpkeep: the shared instruction
+// says curation is expected upkeep, done after the user's request, without
+// asking (curate-skill-to-runbook D9, D11).
+func TestPendingOfferCurateInstruction_IsExpectedUpkeep(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	instruction := cli.ExportPendingOfferCurateInstruction
+	g.Expect(instruction).To(ContainSubstring("expected vault upkeep"))
+	g.Expect(instruction).To(ContainSubstring("after you finish the user's request"))
+	g.Expect(instruction).To(ContainSubstring("without asking"))
+	g.Expect(instruction).NotTo(ContainSubstring("\n"))
+}
+
 // TestQueryPayload_PendingOffersHintOmittedWhenFalse: without pending offers
 // neither the flag nor the hint appears, so the payload is byte-identical to
 // one built before the hint existed.
@@ -111,6 +125,46 @@ func TestQueryPayload_PendingOffersHintPresentWhenTrue(t *testing.T) {
 	g.Expect(yaml.Unmarshal([]byte(out), &decoded)).To(Succeed())
 	g.Expect(decoded.Hint).To(Equal(cli.ExportPendingOfferCurateInstruction))
 	g.Expect(decoded.Hint).To(ContainSubstring(`engram query --text "curate pending offers"`))
+}
+
+// TestQueryPayload_PendingOffersLeadPayload: pending_offers and its hint
+// serialize before items, so a truncated preview of a large payload still
+// shows them (curate-skill-to-runbook D10).
+func TestQueryPayload_PendingOffersLeadPayload(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const (
+		itemCount   = 60
+		itemBytes   = 2000
+		previewSize = 1500
+	)
+
+	items := make([]cli.ExportResolvedItem, 0, itemCount)
+	body := strings.Repeat("x", itemBytes)
+
+	for index := range itemCount {
+		items = append(items, cli.ExportNewResolvedItem(fmt.Sprintf("%d.a.md", index),
+			"---\ntype: fact\n---\n"+body))
+	}
+
+	out, err := cli.ExportRenderQueryPayloadPendingOffersWithItems(true, items)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(len(out)).To(BeNumerically(">", 100_000))
+
+	itemsAt := strings.Index(out, "\nitems:")
+	g.Expect(itemsAt).To(BeNumerically(">", 0))
+	g.Expect(strings.Index(out, "pending_offers: true")).To(BeNumerically("<", itemsAt))
+	g.Expect(strings.Index(out, "pending_offers_hint:")).To(BeNumerically("<", itemsAt))
+
+	head := out[:previewSize]
+	g.Expect(head).To(ContainSubstring("pending_offers: true"))
+	g.Expect(head).To(ContainSubstring(`engram query --text "curate pending offers"`))
 }
 
 func TestQueryPayload_RefitPendingOmittedWhenFalse(t *testing.T) {

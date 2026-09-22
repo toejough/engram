@@ -436,20 +436,22 @@ type queryItem struct {
 
 // queryPayload is the top-level YAML document.
 type queryPayload struct {
-	Version      int            `yaml:"version"`
-	Phrases      []string       `yaml:"phrases"`
-	Items        []queryItem    `yaml:"items"`
-	Clusters     []queryCluster `yaml:"clusters"`
-	Budget       queryBudget    `yaml:"budget"`
-	RefitPending bool           `yaml:"refit_pending,omitempty"`
+	Version int `yaml:"version"`
 	// PendingOffers is true when the vault holds at least one pending-offer
 	// note awaiting curation (vault-offer-curation) — computed fresh on
-	// every call, local and served alike.
+	// every call, local and served alike. It and its hint are declared before
+	// Phrases/Items so they lead the payload: a truncated preview of a large
+	// payload still shows them (curate-skill-to-runbook D10).
 	PendingOffers bool `yaml:"pending_offers,omitempty"`
 	// PendingOffersHint tells the reader what to run when PendingOffers is
 	// true (pendingOfferCurateInstruction); omitted otherwise, so payloads
 	// without pending offers are unchanged (curate-skill-to-runbook D9).
-	PendingOffersHint string `yaml:"pending_offers_hint,omitempty"`
+	PendingOffersHint string         `yaml:"pending_offers_hint,omitempty"`
+	Phrases           []string       `yaml:"phrases"`
+	Items             []queryItem    `yaml:"items"`
+	Clusters          []queryCluster `yaml:"clusters"`
+	Budget            queryBudget    `yaml:"budget"`
+	RefitPending      bool           `yaml:"refit_pending,omitempty"`
 	// ModelID is the embedding model that produced this query's results
 	// (vault-query-model-provenance) — applies locally and served alike.
 	ModelID string        `yaml:"model_id"`
