@@ -67,5 +67,5 @@ spec to the main spec, archive the change) — held per instruction until Joe re
 
 ## 5. Close-out
 
-- [ ] 5.1 Sync the delta spec to `openspec/specs/vault-offer-curation/spec.md`, archive the change
+- [x] 5.1 Sync the delta spec to `openspec/specs/vault-offer-curation/spec.md`, archive the change — done 2026-09-21: delta merged into `vault-offer-curation` and `guidance-runbook-follow-frame` main specs, change moved to `openspec/changes/archive/2026-09-21-curate-skill-to-runbook/`
 - [x] 5.2 Joe's call on D5 near-case wording recorded in the spec and design (confirmed 2026-09-21: near offer discarded after folding)

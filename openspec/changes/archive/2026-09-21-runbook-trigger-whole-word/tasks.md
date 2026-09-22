@@ -22,7 +22,7 @@ Conventions: TDD (failing test, `targ test` RED, implement, GREEN, refactor); go
 
 - [x] 4.1 Update the match-rule docs per the Enumeration below (GLOSSARY, c3-components K6, README, adr.md ADR-0026 amendment)
 - [x] 4.2 DONE (GREEN 25 runs vs control 15 runs, all scenarios improved or unchanged; SKILL.md + specs updated). Was: DEFERRED (needs paid tests): edit `agent-instructions/skills/write-memory/SKILL.md` authoring rule ("never a lone common word") to admit deliberate whole-word bare words, and update the main-spec requirement "Trigger cues SHALL be specific, author-chosen strings" (currently "a slash form or a multi-word phrase") to match. SKILL.md edits require `superpowers:writing-skills` RED->GREEN with behavioral runs; the precedent (LEDGER `write-memory-triggers-contract`) used 12 paid `claude -p` runs per arm. Not run; cost reported to Joe. Until then the SKILL.md rule stays stricter than the matcher (safe direction), and GLOSSARY `trigger` states the intended rule.
-- [ ] 4.3 After Joe's review: archive this change (not done here), then re-add bare-word triggers (`curate`) to runbook notes as desired
+- [x] 4.3 After Joe's review: archive this change (not done here), then re-add bare-word triggers (`curate`) to runbook notes as desired — archived 2026-09-21: delta merged into `runbook-lexical-triggers` and `write-memory-worker` main specs, change moved to `openspec/changes/archive/2026-09-21-runbook-trigger-whole-word/`; re-adding bare-word triggers to runbook notes is a separate follow-up, not performed here
 
 ## Enumeration
 
