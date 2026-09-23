@@ -15,14 +15,14 @@ flowchart TB
     classDef store     fill:#23a,   stroke:#127,   color:#fff
 
     agent([Agent · in the harness])
-    skills["C1 · Skills (learn / recall / write-memory)<br/>markdown behavior specs"]
+    skills["C1 · Skills (learn / recall)<br/>markdown behavior specs"]
     cli["C2 · engram CLI<br/>Go binary — ingest/learn/query/embed/update"]
     model["C3 · Embedded model<br/>MiniLM-L6 384d, go:embed in C2"]
     vault[("C4 · Vault<br/>flat root: *.md + *.vec.json + .luhmann.lock")]
     sessions(["S5 · Session stores (Claude + Pi .jsonl)"])
     gotool(["S6 · Go toolchain"])
 
-    agent -->|"runs /learn, /recall, /write-memory"| skills
+    agent -->|"runs /learn, /recall"| skills
     skills -->|"C1→C2: subprocess engram ingest/learn/query"| cli
     cli -->|"embeds note/query text"| model
     cli -->|"C2→C4: read/write notes+sidecars under flock"| vault
@@ -38,7 +38,7 @@ flowchart TB
 ## Container catalog
 | ID | Container | Tech | Responsibility | ⚠ verified defects |
 |---|---|---|---|---|
-| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons), `/recall` (`query` → agent-judged coverage → `amend`/`learn`), and `/write-memory`, the vault-write worker (executes learn/recall handoffs — parents judge, the worker writes; 2026-07-04). `please` (7-step bracket), `route` (dispatch doctrine: agent/model/effort selection), and `curate` (judges `engram serve` pending offers against the host vault) are no longer skills: they are `type: runbook` vault notes surfaced by `engram query` (C2 → C4) and followed per the shim, so they live in C4, not here. Deployed to `~/.claude/skills`, `~/.pi/agent/skills` via `engram update`. | — |
+| C1 | Skills | markdown (loaded by harness) | The LLM-judgment layer: `/learn` (`ingest --auto` + `fact`/`feedback` for explicit lessons) and `/recall` (`query` → agent-judged coverage → `amend`/`learn`). `please` (7-step bracket), `route` (dispatch doctrine: agent/model/effort selection), `curate` (judges `engram serve` pending offers against the host vault), and `write-memory` (the vault-write worker: executes learn/recall handoffs — parents judge, the worker writes; 2026-07-04, runbook conversion 2026-09-22) are no longer skills: they are `type: runbook` vault notes, `please`/`route`/`curate` surfaced by `engram query` and write-memory reached by basename/wikilink named directly in recall/learn's own text (C2 → C4), each followed per the shim, so they live in C4, not here. Deployed to `~/.claude/skills`, `~/.pi/agent/skills` via `engram update`. | — |
 | C2 | engram CLI | Go (no CGO; GoMLX simplego) | Pure-compute layer: chunk ingest (`engram ingest --auto` re-chunks/re-embeds only sources whose mtime/size/hash changed vs `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; the manifest read-modify-write is serialized under `.manifest.lock` across `ingest` + `prune`, #660; cross-source dedup keys on (content hash, chunking class) and indexes only one canonical member per group — ADR-0021), note write (embed-on-write, Luhmann id under lock, vocab-tag assignment on every write — `vocab/<term>` entries in the shared `tags:` list since the 2026-07-10 tags migration, #678 — in-process vocab trigger check persisting `refit_pending` in `vocab.centroids.json` when the growth-only trigger trips — ≥40 new notes AND ≥14 days since last refit, 2026-07-03/2026-07-28), query (two-channel recall: relevance channel = recency-biased cosine → bounded matched set (~300) → one AutoK cluster → `candidate_l2s` of within-cluster top-5 only, plus a separate explore half sampled from vocab-term centroids by proximity to the query (softmax allocation, budget = exploit-half note count) delivered as top-level `items[]` (`provenance: explore`, `source_term`, budget reported in `explore_allocated`) + superseded-note ride-alongs; recency channel = newest chunks un-clustered (`recentFillChunks`, default 25); optional `--lazy-chunks` renders matched+recent **chunk** items path/source-only (notes keep full content) for on-demand fetch via `show-chunk`), `vocab` subcommand family (bootstrap/propose/stats/refit — refit is derivational: whole-vault clustering → centroid-to-term matching → naming requests answered via `--names`, with `--dry-run` diff preview), embed apply/status, update; read-only operator/audit surfaces — `check` (vault-invariant checks), `show`/`show-chunk` (note/chunk lookup), `prune` (chunk-index GC), `count` (frontmatter `--group-by`/`--filter` membership counts and `--backlinks-of` wikilink in-degree, ADR-0018) — all side-effect-free and off the query/similarity path. | houses G0, M4 |
 | C3 | Embedded model | MiniLM-L6-v2@384, `go:embed` | Deterministic 384-d sentence embeddings for note/query text. Single model id stamped into every sidecar. | M4: off-model sidecars dropped with only a non-fatal stderr advisory under partial migration (`warnModelMismatch` — results thin silently on stdout, no error); a full-vault mismatch errors (`errQueryNoEmbeddings`) |
 | C4 | Vault | filesystem | `<luhmann>.<date>.<slug>.md` at the flat vault root + sibling `.vec.json`; `.luhmann.lock` (flock). Tier in frontmatter. Wikilinks in note bodies = the graph edges. | G0: bare-id links unresolved by C2's basename resolver — census 151/183 links bare-id, 28 edges resolve, 138/171 orphaned (memory-invariants.md) |
@@ -133,7 +133,7 @@ sequenceDiagram
         else near
             Sk->>E: shell engram amend --target <note> --chunk-source <content flags> (re-synthesize)
         else absent
-            Note over Sk: hand off to write-memory skill (parents judge, worker writes)
+            Note over Sk: hand off to write-memory runbook (parents judge, worker writes)
             Sk->>E: shell engram learn fact|feedback --chunk-source (create; via write-memory)
         end
         E->>V: write under flock (amend rewrites both copies + re-embeds; learn O_EXCL)
@@ -191,7 +191,7 @@ sequenceDiagram
     E-->>Sk: stdout chunk identifiers + status line (scanned range, new chunk count)
     Note over Sk: scan for the four explicit lesson kinds (corrections, save-requests, reversals, confirmed approaches); hand each to write-memory
     loop per explicit lesson (one parallel tool-use block)
-        Note over Sk: hand off to write-memory skill (parents judge, worker writes)
+        Note over Sk: hand off to write-memory runbook (parents judge, worker writes)
         Sk->>E: shell engram learn fact|feedback … (fresh process; via write-memory)
         E->>V: flock, next Luhmann id, write note (O_EXCL)
         E->>Md: embed body
@@ -204,7 +204,7 @@ sequenceDiagram
 ### Flowchart: learn capture kinds (C1)
 
 Companion to the sequence diagram above — the four Step-2 capture kinds plus the Step-2.5 QA-pair kind
-(`agent-instructions/skills/learn/SKILL.md` Steps 2/2.5), each handed off to the **write-memory** skill, converging on the
+(`agent-instructions/skills/learn/SKILL.md` Steps 2/2.5), each handed off to the **write-memory** runbook, converging on the
 same vault-write mechanics.
 
 ```mermaid
@@ -218,11 +218,11 @@ flowchart TD
     S25 -->|"answer has >=1 [[wikilink]] or crystallized a new note"| QAK["QA pair worth capturing"]
     P7["please runbook Step 7 lessons audit: STOPs, gate FAILs, CORRECTION-commits, escalations"] -.->|"unmapped item"| REV
 
-    CORR --> WM["write-memory skill: composes + executes the handoff"]
+    CORR --> WM["write-memory runbook: composes + executes the handoff"]
     SAVE --> WM
     REV --> WM
     CONF --> WM
-    QAK --> WMQ["write-memory skill (kind=qa)"]
+    QAK --> WMQ["write-memory runbook (kind=qa)"]
 
     WM --> L["engram learn feedback|fact --chunk-source ..."]
     WMQ --> LQ["engram learn qa (writes Q-note + A-note together)"]

@@ -1,6 +1,6 @@
 <!-- engram-owned: the follow-frame shim. NEW file (openspec runbook-shim-follow-frame, D0) — not a
      replacement for recall.md/delegate.md/learn.md, which stay as-is for sessions that still
-     install the recall/learn/write-memory skills. In a shim-only session this file is the ONLY
+     install the recall/learn skills. In a shim-only session this file is the ONLY
      custom guidance text. Synced by 'engram update --with-guidance' to canonical paths (mirrors
      recall.md's sync convention). Edit via writing-skills-equivalent TDD (RED baseline, GREEN,
      pressure test) — never hand-edit past a RED/GREEN cycle. -->

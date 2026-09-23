@@ -1,0 +1,7 @@
+{
+  "carrier_r_src": "encodings/taskWriteMemory/WM-R/vault",
+  "removal_basenames": [],
+  "skill_name": "write-memory",
+  "skill_src": "encodings/taskWriteMemory/WM-S/skills/write-memory",
+  "vault_template": "fixtures/write-memory/vault-template"
+}

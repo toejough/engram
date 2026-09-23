@@ -5278,3 +5278,72 @@ def test_signal_exposure_reads_a_persisted_query_payload_the_agent_never_saw(tmp
          "content": f"<persisted-output>Output too large. Full output saved to: {full}\npreview</persisted-output>"}
     ex = se.exposure([q, r], "R", "")
     assert ex["q_emitted"] and ex["q_hint_emitted"] and not ex["q_visible"] and not ex["saw_signal"]
+
+
+# ----- write-memory steps.json: same-command scope must tolerate a literal ';' in prose -----
+#
+# task 1.4's live baseline run surfaced a real scoring bug: steps 4/6/8/10's same-command
+# lookahead scope (`(?:[^;&|\n\\]|\\\r?\n)*`) excludes a bare ';', intending to stop the scope at
+# a chained shell command boundary. But a real `engram learn` command's own quoted --source/
+# --situation/--object prose legitimately contains English semicolons (e.g. "...vault memory;
+# synthesis (abduction)...", "...within the same two-minute window; stagger printer startups...").
+# When such a semicolon falls between the warp/draft (or breaker/preheat/trip) keyword and a
+# later flag the same step also requires (--tag component/…, --source, --situation), the lookahead
+# breaks at the semicolon and the step is scored False even though the real command is fully
+# compliant — reproduced here verbatim from a live sonnet5 trial (write-memory-S-1/-2).
+
+def test_write_memory_steps_json_tolerates_a_semicolon_in_prose_before_the_tag_flag():
+    steps = pp.load_steps("write-memory")
+    # Live trial 1's first write: "vault memory; synthesis" sits between "warping" and "--tag".
+    command = (
+        'engram learn fact --slug bay-door-draft-warping-diagnosis --position top \\\n'
+        '  --source "session 2026-09-22, context: diagnosing Printer 3 corner warping after '
+        'checking vault memory; synthesis (abduction) from recalled memory" \\\n'
+        '  --situation "a printer positioned next to the shop bay door develops corner warping '
+        'on prints while the door is propped open for ventilation" \\\n'
+        '  --subject "corner warping on a printer near the propped-open bay door" \\\n'
+        '  --predicate "is most likely caused by" \\\n'
+        '  --object "a cross-draft from the open door" \\\n'
+        '  --tag component/cooling'
+    )
+    events = [_tool_use("Bash", {"command": command}, idx=0)]
+    results, _k, _all = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["3"] is True  # warp/draft present (already passed before the fix)
+    assert results["4"] is True  # --tag component/... present, after the embedded ';'
+    assert results["5"] is True  # --source present
+    assert results["6"] is True  # --situation present, after the embedded ';'
+
+
+def test_write_memory_steps_json_tolerates_a_semicolon_in_prose_before_the_breaker_tag_flag():
+    steps = pp.load_steps("write-memory")
+    # Live trial 1/2's second write: "...two-minute window; stagger..." sits between "preheat"
+    # and "--tag component/electrical".
+    command = (
+        'engram learn fact --slug printer-preheat-circuit-trip --position top \\\n'
+        '  --source "user-reported, printer farm shop, session 2026-09-22" \\\n'
+        '  --situation "starting up multiple printers in the bay" \\\n'
+        '  --subject "the printer bay circuit" \\\n'
+        '  --predicate "trips if" \\\n'
+        '  --object "two printers start preheating within the same two-minute window; stagger '
+        'printer startups by at least two minutes to avoid it" \\\n'
+        '  --tag component/electrical'
+    )
+    events = [_tool_use("Bash", {"command": command}, idx=0)]
+    results, _k, _all = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["7"] is True  # breaker/preheat/trip present (already passed before the fix)
+    assert results["8"] is True  # --tag component/electrical present, after the embedded ';'
+    assert results["10"] is True  # --source present
+
+
+def test_write_memory_steps_json_still_rejects_the_plural_tags_mistake():
+    """Regression guard: the semicolon-tolerance fix must not blunt the --tags-vs---tag
+    divergence steps 4/8 exist to catch (design.md's Risk section; TASK-RATIONALE.md)."""
+    steps = pp.load_steps("write-memory")
+    command = (
+        'engram learn fact --slug bay-door-draft-warping-diagnosis '
+        '--source "s" --situation "s" --subject "s" --predicate "p" '
+        '--object "a cross-draft causing warping" --tags component/cooling'
+    )
+    events = [_tool_use("Bash", {"command": command}, idx=0)]
+    results, _k, _all = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["4"] is False

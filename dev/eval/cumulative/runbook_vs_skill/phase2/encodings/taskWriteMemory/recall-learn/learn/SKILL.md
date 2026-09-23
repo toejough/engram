@@ -116,18 +116,22 @@ for a placement target.
 1. **Corrections** — the user corrected your approach or behavior ("don't suppress lint warnings —
    fix the underlying issue", "never amend pushed commits").
 
-   **REQUIRED NEXT ACTION:** run `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory is not a Skill tool) and follow what it prints, with this handoff — kind=feedback,
-   slug, source ("session <date>, context: <one-line what-was-happening>"), situation
-   (retrieval-shaped), behavior, impact, action; plus supersedes details if this correction
-   corrects an existing vault note. write-memory composes, executes, and reports the note path.
+   **REQUIRED NEXT ACTION:** run `engram show 6a.2026-09-22.write-memory-compose-execute-verify` in
+   Bash (a shell command — write-memory is not a Skill tool) and follow what it prints,
+   with this handoff — kind=feedback, slug, source ("session <date>, context: <one-line
+   what-was-happening>"), situation (retrieval-shaped), behavior, impact, action; plus supersedes
+   details if this correction corrects an existing vault note. write-memory composes, executes, and
+   reports the note path.
 
 2. **Explicit save-requests** — the user said "remember this/that X", "note for next time",
    "write this down".
 
-   **REQUIRED NEXT ACTION:** run `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory is not a Skill tool) and follow what it prints, with this handoff — kind=fact,
-   slug, source ("session <date>, context: <one-line what-was-happening>"), situation
-   (retrieval-shaped), subject, predicate, object; plus supersedes details if this fact
-   corrects an existing vault note. write-memory composes, executes, and reports the note path.
+   **REQUIRED NEXT ACTION:** run `engram show 6a.2026-09-22.write-memory-compose-execute-verify` in
+   Bash (a shell command — write-memory is not a Skill tool) and follow what it prints,
+   with this handoff — kind=fact, slug, source ("session <date>, context: <one-line
+   what-was-happening>"), situation (retrieval-shaped), subject, predicate, object; plus supersedes
+   details if this fact corrects an existing vault note. write-memory composes, executes, and
+   reports the note path.
 
 3. **Reversals** — a conclusion, design, or verdict that was PRESENTED (to the user, a review
    gate, or a committed plan) and later OVERTURNED — by you, a reviewer, or an instrument
@@ -135,13 +139,13 @@ for a placement target.
    redrawn boundary). Nobody needs to have SAID the correction — self-discovered reversals
    qualify, and a repo-doc CORRECTION section or postscript does NOT count as capture
    (record-correction ≠ lesson-capture). For each reversal, **REQUIRED NEXT ACTION:** run
-   `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
-   is not a Skill tool) and follow what it prints, with this handoff — kind=feedback, slug, source ("session <date>,
-   context: <one-line what-was-happening>"), situation (retrieval-shaped: when does this
-   failure mode apply), behavior = what the original reasoning did wrong, impact = what the
-   reversal cost, action = the guard that would have prevented it — the ROOT CAUSE, not a
-   narrative of the flip; plus supersedes details if the reversal corrects an existing vault
-   note.
+   `engram show 6a.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
+   is not a Skill tool) and follow what it prints, with this handoff — kind=feedback,
+   slug, source ("session <date>, context: <one-line what-was-happening>"), situation
+   (retrieval-shaped: when does this failure mode apply), behavior = what the original reasoning
+   did wrong, impact = what the reversal cost, action = the guard that would have prevented it —
+   the ROOT CAUSE, not a narrative of the flip; plus supersedes details if the reversal corrects
+   an existing vault note.
 
 4. **Confirmed approaches (positive reinforcement)** — a specific, generalizable approach was
    validated as good, either by the user or by the outcome. The positive mirror of kinds 1 and 3;
@@ -188,7 +192,7 @@ for a placement target.
    inlining them") → **kind=feedback**, as before.
 
    For a **runbook**, **REQUIRED NEXT ACTION:** run
-   `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
+   `engram show 6a.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
    is not a Skill tool) and follow what it prints, with this
    handoff — kind=runbook, slug, source ("session <date>, context: <one-line what-was-happening>"),
    situation (retrieval-shaped: when would this approach apply again), done_when = what should be
@@ -200,7 +204,7 @@ for a placement target.
    the runbook case.
 
    For **feedback**, **REQUIRED NEXT ACTION:** run
-   `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
+   `engram show 6a.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
    is not a Skill tool) and follow what it prints, with this handoff —
    kind=feedback, slug, source ("session <date>, context: <one-line what-was-happening>"), situation
    (retrieval-shaped: when would this approach apply again), behavior = what worked, impact = the
@@ -228,7 +232,7 @@ new vault note (Step 2) as the answer. Both conditions make the answer traceable
 bar). Skip questions answered with generic advice or without `[[...]]` wikilinks.
 
 For each uncaptured substantive Q&A from this session, **run
-`engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
+`engram show 6a.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
 is not a Skill tool) and follow what it prints** with
 this handoff — kind=qa, slug, verbatim question, answer body (copy; no re-derive), contributor
 basenames, certainty, source ("ad-hoc capture, learn session <date>").
@@ -240,13 +244,7 @@ write time; if write-memory reports a contributor rejection, surface it.
 If no `[[...]]` wikilinks appear in the answer and no note was crystallized, skip (D2 bar not met).
 
 **Gate — do not duplicate:** if a QA pair was already written (e.g. by recall's Step 4 during
-this session), do not write it again here. This also covers your own Step 2 crystallization: if
-a question was answered by a Step 2 note YOU wrote this turn, that note already IS the capture
-(whatever wikilinks it cites) — do not additionally write a QA pair for the same question, even
-though "crystallized a new vault note (Step 2) as the answer" above nominally qualifies it as
-substantively answered. The wikilink-based trigger stays live on its own: a question answered by
-citing an EXISTING prior note, with no new Step 2 note written for it this turn, still gets its
-QA pair. One pair per distinct answered question.
+this session), do not write it again here. One pair per distinct answered question.
 
 ## Batch mode — Luhmann re-eval answers (`--reparent-luhmann`)
 
@@ -304,4 +302,3 @@ skill does not invoke either command itself — that is the acting agent's (or u
 | You skipped the sweep because "nothing changed" | The sweep IS the check — it costs seconds when nothing changed — skipping because a sweep already ran this session is the prescribed exception |
 | `--tier` flags or L3/ADR writing | Tiers are not part of learn anymore |
 | You corrected a repo doc (CORRECTION/postscript) and skipped the vault note | Write the vault note for the reversal's root cause — record-correction is not capture |
-| At Step 2.5 you're about to write a QA pair for a question you just answered with your OWN Step 2 note this turn | Don't — that note is already the capture; the Gate excludes this case even though it nominally meets the substantive-answer bar |

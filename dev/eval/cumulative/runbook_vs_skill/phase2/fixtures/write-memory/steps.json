@@ -1,0 +1,74 @@
+[
+ {
+  "n": 1,
+  "name": "recall: Step 0.5 sweep before the unified query",
+  "any_of": [
+   {
+    "signal": "bash_regex",
+    "pattern": "engram\\s+ingest\\s+--auto"
+   },
+   {
+    "signal": "tool_input_regex",
+    "tool": "Skill",
+    "regex": "\"skill\"\\s*:\\s*\"recall\""
+   }
+  ]
+ },
+ {
+  "n": 2,
+  "name": "recall: Step 2 unified engram query",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+query\\b"
+ },
+ {
+  "n": 3,
+  "name": "recall Step 2.5C absent: write the corner-warping/draft finding (kind=fact or feedback)",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:warp|draft))"
+ },
+ {
+  "n": 4,
+  "name": "that write uses the correct singular --tag flag under a component/ family (not --tags)",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:warp|draft))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--tag\\s+component/)",
+  "not_pattern": "--tags\\b"
+ },
+ {
+  "n": 5,
+  "name": "that write carries --source provenance",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:warp|draft))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source\\s)"
+ },
+ {
+  "n": 6,
+  "name": "that write carries a --situation phrase",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:warp|draft))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--situation\\s)"
+ },
+ {
+  "n": 7,
+  "name": "learn: explicit save-request -- write the breaker/preheat rule (kind=fact)",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:breaker|preheat|trip))"
+ },
+ {
+  "n": 8,
+  "name": "that write uses the correct singular --tag flag under component/electrical (not --tags)",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:breaker|preheat|trip))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--tag\\s+component/electrical)",
+  "not_pattern": "--tags\\b"
+ },
+ {
+  "n": 9,
+  "name": "that write never mixes feedback flags (--behavior/--impact/--action) into the fact command",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:breaker|preheat|trip))",
+  "not_pattern": "--(?:behavior|impact|action)\\b"
+ },
+ {
+  "n": 10,
+  "name": "that write carries --source provenance",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:breaker|preheat|trip))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source\\s)"
+ }
+]

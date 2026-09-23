@@ -28,13 +28,13 @@ Luhmann-ID lineage and Maps of Content for synthesis. Used as both noun
 
 ### skill
 A markdown file (`SKILL.md`) that defines an agent behavior, installed into
-each harness's skills directory by `engram update`. Engram ships three:
-[`recall`](#recall-skill), [`learn`](#learn-skill), and
-[`write-memory`](#write-memory-worker-skill) (vault-write execution on handoff). The
+each harness's skills directory by `engram update`. Engram ships two:
+[`recall`](#recall-skill) and [`learn`](#learn-skill). The
 end-to-end orchestration (`please`), delegation doctrine (`route` — agent/model/effort
-selection), and offer curation (`curate` — judges `engram serve`'s pending-offer notes
-against the host vault) once shipped as skills too; all three are now **runbook** notes in
-the vault, not skills.
+selection), offer curation (`curate` — judges `engram serve`'s pending-offer notes
+against the host vault), and vault-write execution
+([`write-memory`](#write-memory-worker-runbook) — executes writes handed off by recall/learn)
+once shipped as skills too; all four are now **runbook** notes in the vault, not skills.
 Distinct from **slash command** — the user-facing `/name` trigger that invokes
 a skill in a harness (Claude Code's term). (The `command` file/deploy mechanism —
 a per-harness wrapper under `agent-instructions/commands/` for a harness whose
@@ -48,7 +48,8 @@ a `done_when` completion bar, a body of steps (which may wikilink sub-runbooks, 
 Retrieved by `engram query` and followed per the shim's follow frame (announce, restate as
 a plan, read red flags, verify `done_when`) rather than loaded as an installed skill. It is
 the carrier for `please` (a top runbook plus three sub-runbooks: gates, doc-surface
-enumeration grep, lessons audit), `route`, and `curate`. Written with `engram learn runbook`.
+enumeration grep, lessons audit), `route`, `curate`, and `write-memory`. Written with
+`engram learn runbook`.
 Distinct from **skill**, which is a `SKILL.md` deployed to each harness's skills directory.
 
 ### atom
@@ -59,11 +60,13 @@ fetch. The full design history (the superseded reference-card form, the decision
 at the write seam) is recorded in `docs/architecture/adr.md` ADR-0015, with its validation
 in `dev/eval/LEDGER.md`.
 
-### write-memory (worker skill)
-The skill at `agent-instructions/skills/write-memory/SKILL.md`. Executes a vault write handed off by
-recall or learn: composes the `engram learn fact|feedback|qa` command from the
-handoff fields, runs it, retries on CLI errors (max 2), and reports the written
-note path. Parents judge; the worker writes. Amends stay in recall (single-site).
+### write-memory (worker runbook)
+The vault runbook `1053.2026-09-22.write-memory-compose-execute-verify`, reached by
+basename/wikilink from recall/learn's own text (they remain skills), not by `engram query`
+retrieval. Executes a vault write handed off by recall or learn: composes the
+`engram learn fact|feedback|qa` command from the handoff fields, runs it, retries on
+CLI errors (max 2), and reports the written note path. Parents judge; the worker writes.
+Amends stay in recall (single-site).
 
 ### handoff contract
 The field set a parent skill passes when invoking write-memory: **kind**

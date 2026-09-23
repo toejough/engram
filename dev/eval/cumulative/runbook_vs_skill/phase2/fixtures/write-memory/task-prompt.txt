@@ -1,0 +1,9 @@
+Prints coming off Printer 3 in the workshop have been warping at the corners for the last week -- it
+sits right next to the bay door, which has been propped open for ventilation while the weather's been
+warm. Before doing anything else, check what the shop's memory vault already knows and figure out the
+most likely cause, then log the finding so we don't lose it -- tag it under whichever component
+category fits, the way the existing notes are tagged.
+
+Also: remember for next time, tagged under the electrical category, that the printer bay's circuit
+trips if two printers start preheating within the same two-minute window -- stagger printer startups
+by at least two minutes to avoid it.
