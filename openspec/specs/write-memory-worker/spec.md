@@ -2,22 +2,27 @@
 
 ## Purpose
 
-The write-memory skill is a dedicated worker that executes vault-write commands handed off by parent skills (recall and learn), keeping the judgment of what to capture separate from the mechanics of writing it. Learn also captures self-discovered reversals and confirmed approaches as explicit lesson kinds, and `please` audits each cycle's mechanical corpus (failed gates, corrections, escalations) to catch lessons that went uncaptured. A decision-support addition in Step 7's lessons audit asks which existing artifact should have surfaced each lesson and suggests rewording stale notes before writing duplicates. This addition was originally committed in `agent-instructions/skills/please/SKILL.md` (662e50ba, since retired; now carried by the please lessons-audit sub-runbook); deployed as of 2026-07-27; unvalidated — no measurement supports it. Why: `docs/architecture/adr.md` ADR-0001. Validation: `dev/eval/LEDGER.md#write-memory-worker-fire-rates` (worker + G1/G2/G6); `dev/eval/LEDGER.md#687-surprise-harvest` (decision-support addition — committed 662e50ba; deployed 2026-07-27; unvalidated).
+The write-memory runbook (`1053.2026-09-22.write-memory-compose-execute-verify`; formerly a skill, retired in favor of the runbook) is a dedicated worker that executes vault-write commands handed off by parent skills (recall and learn), keeping the judgment of what to capture separate from the mechanics of writing it. Learn also captures self-discovered reversals and confirmed approaches as explicit lesson kinds, and `please` audits each cycle's mechanical corpus (failed gates, corrections, escalations) to catch lessons that went uncaptured. A decision-support addition in Step 7's lessons audit asks which existing artifact should have surfaced each lesson and suggests rewording stale notes before writing duplicates. This addition was originally committed in `agent-instructions/skills/please/SKILL.md` (662e50ba, since retired; now carried by the please lessons-audit sub-runbook); deployed as of 2026-07-27; unvalidated — no measurement supports it. Why: `docs/architecture/adr.md` ADR-0001. Validation: `dev/eval/LEDGER.md#write-memory-worker-fire-rates` (worker + G1/G2/G6); `dev/eval/LEDGER.md#687-surprise-harvest` (decision-support addition — committed 662e50ba; deployed 2026-07-27; unvalidated).
 ## Requirements
 ### Requirement: Write-memory worker SHALL accept handoff and execute vault writes
 
-The worker is invoked by a parent skill that has already made the judgment (what to write and why). The worker SHALL receive a structured handoff containing kind (fact/feedback/qa), content fields, source, and optional chunk-sources, tags, and supersedes. The worker SHALL NOT re-judge the parent's decision and SHALL NOT decide whether to write.
+The worker is carried by the write-memory runbook (`agent-instructions/skills/write-memory/SKILL.md` retired) and is invoked by a parent skill (`recall`, `learn`) that has already made the judgment (what to write and why), by fetching the runbook by basename/wikilink as its next action — write-memory has no trigger of its own and is never reached by a user's own words. The worker SHALL receive a structured handoff containing kind (fact/feedback/qa/runbook), content fields, source, and optional chunk-sources, tags, and supersedes. The worker SHALL NOT re-judge the parent's decision and SHALL NOT decide whether to write.
 
 #### Scenario: Worker receives handoff from parent skill
 
-- **WHEN** a parent skill (recall, learn) invokes write-memory with a complete handoff (kind, required content fields, source)
-- **THEN** the worker SHALL compose the corresponding `engram learn` command from the provided fields
+- **WHEN** a parent skill (recall, learn) fetches and follows the write-memory runbook with a complete handoff (kind, required content fields, source)
+- **THEN** the runbook's steps SHALL compose the corresponding `engram learn` command from the provided fields
 
 #### Scenario: Worker rejects incomplete handoff
 
 - **WHEN** required handoff fields are missing
 - **THEN** the worker SHALL ask the parent skill (via in-session context) to provide the missing fields
 - **AND** the worker SHALL NOT invent content on behalf of the parent
+
+#### Scenario: Parent skill locates the worker by name, not by query
+
+- **WHEN** `recall` or `learn` reaches a write site in its own instructions
+- **THEN** it names the write-memory runbook's basename (a `[[wikilink]]` or equivalent explicit reference) as the next action, and the agent fetches it with `engram show <basename>` rather than relying on `engram query`'s first-action trigger or similarity match to surface it
 
 ### Requirement: Write-memory worker SHALL handle three note kinds with distinct field sets
 

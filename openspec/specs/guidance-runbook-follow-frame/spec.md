@@ -115,6 +115,20 @@ When a matched runbook's body wikilinks another runbook, the agent SHALL fetch i
 - **WHEN** a matched runbook step reads "follow [[<runbook basename>]]"
 - **THEN** the transcript shows `engram show <basename>` and the sub-runbook's steps restated before that step's mutating commands
 
+### Requirement: A runbook named by a skill's own instructions SHALL receive the same follow-frame treatment as a matched runbook
+
+When a skill's own instructions (not a query-matched runbook) name a specific runbook by basename or `[[wikilink]]` as the agent's next action, the agent SHALL fetch it (`engram show <basename>`) and apply the same follow-frame obligations as a query-matched runbook: announce it by name, restate its steps as the plan, treat its `done_when` as the completion bar, and read and react to its `red_flags`. This generalizes the existing wikilinked-transitively requirement (runbook body → runbook) to the case where the referring text is still a skill, not a runbook.
+
+#### Scenario: A skill names a worker runbook as its next action
+
+- **WHEN** a skill's instructions read "fetch and follow `[[<basename>]]` with this handoff" at a write site
+- **THEN** the transcript shows `engram show <basename>` and the runbook's steps restated before the write is composed
+
+#### Scenario: The named runbook's red_flags still apply
+
+- **WHEN** the runbook fetched by name carries `red_flags`
+- **THEN** the agent reads them and stops if one fires, exactly as it would for a runbook matched by `engram query`
+
 ### Requirement: The shim SHALL state how each returned kind is treated
 
 The shim SHALL state, in one line each, the treatment of every kind a query returns: a `fact` is knowledge and context, taken as true for the task unless the repository contradicts it; a `feedback` note is a correction the user already gave, treated as a standing instruction so the mistake it names is not repeated; a `runbook` is executed under the frame in this specification; a `chunk` is raw evidence, fetched (`engram show-chunk`) only when the notes leave a gap. The announce, restate, done_when, red_flags, and transitive-follow requirements SHALL apply to `kind: runbook` only.
