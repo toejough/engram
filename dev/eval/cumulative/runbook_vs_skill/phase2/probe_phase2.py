@@ -255,8 +255,9 @@ def discover_tasks(fixtures_dir=None):
     """Scan `fixtures_dir` (default FIXTURES_DIR) for task directories: any subdirectory
     containing all of FIXTURE_REQUIRED_FILES is a discovered task, keyed by its directory
     basename. Returns {dir_name: {init_script, done_when_script, task_prompt, steps_json,
-    removal_basenames, carrier_r_src, carrier_f_src, skill_name, skill_src}} — the last five
-    default to ()/None/None/None/None and are overridden by an adjacent task.json (see
+    removal_basenames, carrier_r_src, carrier_f_src, skill_name, skill_src,
+    carrier_entry_basename}} — the last six default to
+    ()/None/None/None/None/None and are overridden by an adjacent task.json (see
     load_task_json)."""
     fixtures_dir = fixtures_dir or FIXTURES_DIR
     discovered = {}
@@ -278,6 +279,12 @@ def discover_tasks(fixtures_dir=None):
             "carrier_f_src": None,
             "skill_name": None,
             "skill_src": None,
+            # This task's OWN intended R-arm entry-point basename, when its carrier directory is
+            # SHARED with another task (e.g. recall-glance/recall-escalation both carry Recall-R's
+            # full 4-note vault). None (the default) means "no override" — add_carrier falls back
+            # to the last-sorted .md basename in the carrier dir, correct for every
+            # single-entry-point carrier (please/curate/write-memory/learn).
+            "carrier_entry_basename": None,
         }
         entry.update(load_task_json(os.path.join(task_dir, "task.json")))
         discovered[name] = entry
@@ -413,10 +420,19 @@ def remove_eval_session_notes(vault, min_luhmann=EXCLUDE_LUHMANN_MIN):
 
 
 def add_carrier(vault, task_key, arm):
-    """R/F: copy the arm's converted-note vault dir into the trial vault, returning the note's
-    basename (no .md). Task B/R is special: 830 is the carrier and was already NOT deleted by
-    remove_covering_notes, so nothing is copied — just report its basename. S/Rdirect: nothing
-    added, returns None."""
+    """R/F: copy the arm's converted-note vault dir into the trial vault, returning the
+    basename (no .md) THIS TASK considers its own carrier for scoring purposes. Task B/R is
+    special: 830 is the carrier and was already NOT deleted by remove_covering_notes, so nothing
+    is copied — just report its basename. S/Rdirect: nothing added, returns None.
+
+    Every note in the carrier directory is always copied in full (wikilinks between sub-runbooks
+    and entry points must resolve regardless of which one this task scores). When a carrier
+    directory is SHARED by more than one task (e.g. recall-glance and recall-escalation both ship
+    Recall-R's full 4-note vault: core, write-extension, glance, deep), a bare "last-sorted .md
+    basename wins" rule can't tell the two tasks apart — task.json's optional
+    `carrier_entry_basename` field names THIS task's own intended entry point explicitly. Absent
+    that field (every single-entry-point carrier: please/curate/write-memory/learn), the
+    last-sorted `.md` basename in the directory is used, unchanged from the original rule."""
     if arm not in ("R", "F"):
         return None
     if task_key == "B" and arm == "R":
@@ -427,12 +443,22 @@ def add_carrier(vault, task_key, arm):
     if not src_dir:
         # Fail loud: os.listdir(None) would silently list the CWD and copy it into the vault.
         raise RuntimeError(f"task {task_key!r} has no {carrier_key} in its task.json; arm {arm} needs a carrier")
-    basename = None
+    last_sorted_basename = None
+    copied_basenames = []
     for name in sorted(os.listdir(src_dir)):
         shutil.copy2(os.path.join(src_dir, name), os.path.join(vault, name))
         if name.endswith(".md"):
-            basename = name[: -len(".md")]
-    return basename
+            last_sorted_basename = name[: -len(".md")]
+            copied_basenames.append(last_sorted_basename)
+    entry_basename = cfg.get("carrier_entry_basename")
+    if entry_basename is None:
+        return last_sorted_basename
+    if entry_basename not in copied_basenames:
+        raise RuntimeError(
+            f"task {task_key!r}'s carrier_entry_basename {entry_basename!r} is not among the "
+            f"notes copied from {src_dir!r}: {copied_basenames}"
+        )
+    return entry_basename
 
 
 def _parse_embed_status(text):

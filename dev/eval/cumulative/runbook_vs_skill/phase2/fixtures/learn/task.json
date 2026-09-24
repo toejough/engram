@@ -1,0 +1,7 @@
+{
+  "removal_basenames": [],
+  "carrier_r_src": "encodings/taskLearn/Learn-R/vault",
+  "skill_name": "learn",
+  "skill_src": "encodings/taskLearn/Learn-S/skills/learn",
+  "vault_template": "fixtures/learn/vault-template"
+}

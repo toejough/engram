@@ -1,0 +1,38 @@
+[
+ {
+  "n": 1,
+  "name": "recall: Step 0.5 sweep before the unified query",
+  "any_of": [
+   {
+    "signal": "bash_regex",
+    "pattern": "engram\\s+ingest\\s+--auto"
+   },
+   {
+    "signal": "tool_input_regex",
+    "tool": "Skill",
+    "regex": "\"skill\"\\s*:\\s*\"recall\""
+   }
+  ]
+ },
+ {
+  "n": 2,
+  "name": "recall Step 2: unified engram query, glance-scale phrase count (~3, not 10 -- disqualified at 6+ --phrase flags in the same call)",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+query\\b",
+  "not_pattern": "(?s)(?:--phrase\\b.*?){6}"
+ },
+ {
+  "n": 3,
+  "name": "Step 2.7: activate the CORRECTING note (blight-correction), not just the superseded one",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+activate(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*blight-correction)",
+  "after": 2
+ },
+ {
+  "n": 4,
+  "name": "final reply names blight as the cause -- proof the recency weight (Step 2.5B) was applied to the older splashback note, not just read verbatim",
+  "signal": "text_regex",
+  "regex": "blight",
+  "case_insensitive": true
+ }
+]

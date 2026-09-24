@@ -1,0 +1,13 @@
+Batch #14, our club's saison, has stalled at a hydrometer reading of 1.032 -- well above the 1.010
+we expected at finish. Don't jump to raising the fermentation temperature to try to restart it: we
+made that exact mistake with batch #9 last month, and it wasn't a temperature problem at all. The
+airlock had gone quiet under a thick krausen cap, giving a false stall reading while the yeast were
+still actively working underneath -- the fix is to check airlock/krausen activity and gently swirl
+the fermenter to release trapped CO2 before touching the temperature at all. Log this so we don't
+repeat the temperature mistake a third time, tagged under whichever process category fits how we've
+tagged things so far.
+
+Also: remember for next time, tagged under the sanitation category, that Campden tablets need a
+full 24 hours to fully dissipate chlorine/chloramine from tap water before pitching yeast -- not
+the 1 hour we've been assuming. Pitching into water that hasn't sat long enough kills off a
+meaningful fraction of the starter.

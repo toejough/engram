@@ -1,0 +1,73 @@
+[
+ {
+  "n": 1,
+  "name": "Step 1: sweep (engram ingest --auto) ran at least once -- the closing learn always sweeps, even if an earlier mid-cycle capture legitimately skipped it",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+ingest\\s+--auto"
+ },
+ {
+  "n": 2,
+  "name": "write-memory runbook fetched via `engram show 1053...` before the FIRST compose",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+show\\s+1053[\\w.-]*"
+ },
+ {
+  "n": 3,
+  "name": "kind=feedback: compose the airlock/krausen false-stall correction, after the first runbook fetch",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+feedback(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:[Aa]irlock|[Kk]rausen))",
+  "after": 2
+ },
+ {
+  "n": 4,
+  "name": "that write carries a --tag <family>/<value> under some process/equipment family (not --tags)",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+feedback(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:[Aa]irlock|[Kk]rausen))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--tag\\s+[a-z][a-z-]*/[a-z][a-z-]*)",
+  "not_pattern": "--tags\\b"
+ },
+ {
+  "n": 5,
+  "name": "that write carries --source provenance",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+feedback(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:[Aa]irlock|[Kk]rausen))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source\\s)"
+ },
+ {
+  "n": 6,
+  "name": "that write carries a --situation phrase",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+feedback(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:[Aa]irlock|[Kk]rausen))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--situation\\s)"
+ },
+ {
+  "n": 7,
+  "name": "write-memory runbook FETCHED AGAIN via `engram show 1053...`, after the first compose -- a fresh re-fetch before the second compose, not a reused earlier read",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+show\\s+1053[\\w.-]*",
+  "after": 3
+ },
+ {
+  "n": 8,
+  "name": "kind=fact: compose the Campden-tablet dissipation-time save-request, after the second runbook fetch",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*[Cc]ampden)",
+  "after": 7
+ },
+ {
+  "n": 9,
+  "name": "that write carries --tag sanitation/<value> exactly, as the task names that category (not --tags)",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*[Cc]ampden)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--tag\\s+sanitation/[a-z][a-z-]*)",
+  "not_pattern": "--tags\\b"
+ },
+ {
+  "n": 10,
+  "name": "that write carries --source provenance",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*[Cc]ampden)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source\\s)"
+ },
+ {
+  "n": 11,
+  "name": "that write carries a --situation phrase",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*[Cc]ampden)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--situation\\s)"
+ }
+]

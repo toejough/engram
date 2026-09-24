@@ -1,0 +1,57 @@
+[
+ {
+  "n": 1,
+  "name": "recall: Step 0.5 sweep before the unified query -- CRITICAL here, this is what ingests docs/co-op-notes-2026-09-22.md into the recency channel at all",
+  "any_of": [
+   {
+    "signal": "bash_regex",
+    "pattern": "engram\\s+ingest\\s+--auto"
+   },
+   {
+    "signal": "tool_input_regex",
+    "tool": "Skill",
+    "regex": "\"skill\"\\s*:\\s*\"recall\""
+   }
+  ]
+ },
+ {
+  "n": 2,
+  "name": "recall Step 2: unified engram query",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+query\\b",
+  "after": 1
+ },
+ {
+  "n": 3,
+  "name": "write-memory runbook fetched via `engram show 1053...` -- the escalation's write side (Step 4 persist), never reachable without recognizing the Channel-2 standard is load-bearing",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+show\\s+1053[\\w.-]*",
+  "after": 2
+ },
+ {
+  "n": 4,
+  "name": "kind=fact or feedback: compose the coir-switch synthesis note, after the runbook fetch",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:coir|coconut))",
+  "after": 3
+ },
+ {
+  "n": 5,
+  "name": "that write carries --supersedes naming the old peat-mix note",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:coir|coconut))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--supersedes\\s)"
+ },
+ {
+  "n": 6,
+  "name": "that write carries --source provenance",
+  "signal": "bash_regex",
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:coir|coconut))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source\\s)"
+ },
+ {
+  "n": 7,
+  "name": "final reply gives the ESCALATED (correct, new) answer -- coir/coconut, not the stale peat convention",
+  "signal": "text_regex",
+  "regex": "co(?:conut|ir)",
+  "case_insensitive": true
+ }
+]

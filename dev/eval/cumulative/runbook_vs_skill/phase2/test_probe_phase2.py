@@ -2313,6 +2313,96 @@ def test_task_b_task_json_round_trips_into_tasks_registry():
     assert b["skill_src"] == os.path.join(pp.ENCODINGS_DIR, "taskB", "B-S", "skills", "gitignore-narrowing")
 
 
+def test_recall_glance_and_escalation_are_discovered_as_top_level_tasks():
+    """The recall eval ships two independent scenarios (glance-only, and C5 escalation) that must
+    each be reachable as their own `--task <name>` — mirroring gitignore/gitignore-nested's "two
+    independent top-level fixture dirs sharing a domain" precedent, not a nested
+    fixtures/recall/{glance,escalation}/ layout `discover_tasks` (immediate-children-only) can't see."""
+    assert "recall-glance" in pp.TASKS
+    assert "recall-escalation" in pp.TASKS
+    for name in ("recall-glance", "recall-escalation"):
+        entry = pp.TASKS[name]
+        assert entry["skill_name"] == "recall"
+        assert entry["skill_src"] == os.path.join(pp.ENCODINGS_DIR, "taskRecall", "Recall-S", "skills", "recall")
+        assert entry["vault_template"] == os.path.join(pp.FIXTURES_DIR, name, "vault-template")
+
+
+# ----- carrier_entry_basename: two tasks sharing one carrier dir need distinct entry points -----
+# (recall-glance-skill-to-runbook, task 2.8 fresh-context review, FIX 1 — blocker)
+#
+# recall-glance and recall-escalation share ONE carrier directory (Recall-R's 4-note vault:
+# recall-core, recall-write-extension, recall-glance, recall-deep). Before this fix, add_carrier's
+# only rule was "the last-sorted .md basename in the carrier dir wins" — so BOTH tasks reported
+# "4.2026-09-23.recall-deep" as their carrier, even though recall-glance's own intended entry
+# point is "3.2026-09-23.recall-glance". Worse, because recall-core's and recall-glance's own body
+# text wikilinks "[[4.2026-09-23.recall-deep]]", score_found_phase2's plain substring match on
+# that one wrong basename fires whenever ANY of the three notes surfaces — the metric could not
+# discriminate "found recall-glance's own note" from "found some other note that merely mentions
+# recall-deep by name".
+
+def test_add_carrier_uses_carrier_entry_basename_when_task_json_specifies_it(tmp_path):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    escalation_vault = tmp_path / "escalation"
+    escalation_vault.mkdir()
+    assert pp.add_carrier(str(vault), "recall-glance", "R") == "3.2026-09-23.recall-glance"
+    assert pp.add_carrier(str(escalation_vault), "recall-escalation", "R") == "4.2026-09-23.recall-deep"
+    # both tasks still copy the FULL shared carrier directory (wikilinks must resolve)
+    for basename in ("1.2026-09-23.recall-core", "2.2026-09-23.recall-write-extension",
+                      "3.2026-09-23.recall-glance", "4.2026-09-23.recall-deep"):
+        assert os.path.exists(os.path.join(str(vault), basename + ".md"))
+
+
+def test_add_carrier_falls_back_to_last_sorted_basename_when_carrier_entry_basename_absent(tmp_path):
+    """Backward compatible default for every task.json that doesn't set carrier_entry_basename —
+    please/curate/write-memory/learn's single-entry-point carriers are unaffected."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    assert pp.TASKS["please"].get("carrier_entry_basename") is None
+    basename = pp.add_carrier(str(vault), "please", "R")
+    assert basename == "6.2026-09-19.please-drive-ask-end-to-end"
+
+
+def test_add_carrier_raises_when_carrier_entry_basename_is_not_among_the_copied_notes(tmp_path, monkeypatch):
+    monkeypatch.setitem(pp.TASKS["recall-glance"], "carrier_entry_basename", "nonexistent-basename")
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    with pytest.raises(RuntimeError, match="nonexistent-basename"):
+        pp.add_carrier(str(vault), "recall-glance", "R")
+
+
+def test_recall_glance_found_scoring_uses_its_own_entry_point_not_recall_deep(tmp_path):
+    """End-to-end RED/GREEN demonstration of the bug: a query result surfacing ONLY
+    recall-glance's own note (not recall-deep) must score recall-glance's task as found. Against
+    the pre-fix add_carrier (which always returned "4.2026-09-23.recall-deep" here), this failed —
+    the result text below never contains that string."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    carrier_basename = pp.add_carrier(str(vault), "recall-glance", "R")
+    events = [
+        _tool_use("Bash", {"command": "engram query --lazy-chunks --phrase \"quick memory check\""}, idx=0),
+        _tool_result(1, 0, "items:\n  - path: 3.2026-09-23.recall-glance.md\n    kind: runbook"),
+        _tool_use("Bash", {"command": "echo done"}, idx=2),
+    ]
+    found, idx, found_via = pp.score_found_phase2("recall-glance", "R", events, carrier_basename)
+    assert found is True
+    assert found_via == "engram_query"
+
+
+def test_recall_escalation_found_scoring_still_targets_recall_deep(tmp_path):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    carrier_basename = pp.add_carrier(str(vault), "recall-escalation", "R")
+    events = [
+        _tool_use("Bash", {"command": "engram query --lazy-chunks --phrase \"weighty decision\""}, idx=0),
+        _tool_result(1, 0, "items:\n  - path: 4.2026-09-23.recall-deep.md\n    kind: runbook"),
+        _tool_use("Bash", {"command": "echo done"}, idx=2),
+    ]
+    found, idx, found_via = pp.score_found_phase2("recall-escalation", "R", events, carrier_basename)
+    assert found is True
+    assert found_via == "engram_query"
+
+
 def test_task_key_aliases_resolve_commit_and_gitignore_to_a_and_b():
     assert pp.resolve_task_key("commit") == "A"
     assert pp.resolve_task_key("gitignore") == "B"
