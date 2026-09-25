@@ -16,9 +16,9 @@ output as parent-sourced.
 - **THEN** the ref is resolved against the parent vault, not the local
   vault
 
-#### Scenario: Local hit without --parent is unchanged
+#### Scenario: Without --parent, behavior is unchanged
 - **WHEN** `engram show` or `engram show-chunk` runs without `--parent` and the ref exists locally
-- **THEN** the local note is returned; the parent is not contacted
+- **THEN** the local note is returned exactly as before this capability existed; the parent is not contacted (only a local miss changes, per the fallback scenario below)
 
 #### Scenario: Local miss falls back to the parent
 - **WHEN** `engram show <ref>` runs without `--parent`, `ENGRAM_PARENT` is set, `ENGRAM_SERVER` is not set, and the ref is not found locally
