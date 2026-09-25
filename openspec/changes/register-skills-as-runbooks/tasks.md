@@ -15,10 +15,10 @@ Conventions: TDD for every Go change (RED via `targ test`, then GREEN, refactor)
 
 ## 2. Restore the four skills
 
-- [ ] 2.1 Restore `route/` from `f5b44504` (SKILL.md, price-table.md, tests/), `please/SKILL.md` from `ec5f3735`, `curate/SKILL.md` from `14049280`, `write-memory/SKILL.md` from `cbda7f6e` (`git checkout <commit> -- <path>`); confirm byte-identical to the last intact versions and that no frontmatter beyond `name`/`description` exists
-- [ ] 2.2 Revert the nine `recall`/`learn` write-memory call sites to native skill invocation ("invoke the **write-memory** skill with this handoff") via `superpowers:writing-skills` (RED: the current wording tells agents the skill does not exist); keep `learn`'s Step 2.5 duplicate-guard fix and the `REQUIRED NEXT ACTION` labels only where they are still accurate
-- [ ] 2.3 Add curate's branch for pending skill notes (author, or after a refresh re-check, `situation`/`done_when`/`triggers`/`red_flags` from the body within the 1200-byte red_flags cap, then `engram amend --clear-pending`) via `superpowers:writing-skills`
-- [ ] 2.4 Fresh-context reviewer diffs each restored skill against its last intact commit and confirms nothing was lost
+- [x] 2.1 Restore `route/` from `f5b44504` (SKILL.md, price-table.md, tests/), `please/SKILL.md` from `ec5f3735`, `curate/SKILL.md` from `14049280`, `write-memory/SKILL.md` from `cbda7f6e` (`git checkout <commit> -- <path>`); confirm byte-identical to the last intact versions and that no frontmatter beyond `name`/`description` exists
+- [x] 2.2 Revert the nine `recall`/`learn` write-memory call sites to native skill invocation ("invoke the **write-memory** skill with this handoff") via `superpowers:writing-skills` (RED: the current wording tells agents the skill does not exist); keep `learn`'s Step 2.5 duplicate-guard fix and the `REQUIRED NEXT ACTION` labels only where they are still accurate
+- [x] 2.3 Add curate's branch for pending skill notes (author, or after a refresh re-check, `situation`/`done_when`/`triggers`/`red_flags` from the body within the 1200-byte red_flags cap, then `engram amend --clear-pending`) via `superpowers:writing-skills`
+- [x] 2.4 Fresh-context reviewer diffs each restored skill against its last intact commit and confirms nothing was lost
 
 ## 3. Adopt the existing notes
 

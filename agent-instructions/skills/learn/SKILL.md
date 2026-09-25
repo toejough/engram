@@ -116,7 +116,7 @@ for a placement target.
 1. **Corrections** — the user corrected your approach or behavior ("don't suppress lint warnings —
    fix the underlying issue", "never amend pushed commits").
 
-   **REQUIRED NEXT ACTION:** run `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory is not a Skill tool) and follow what it prints, with this handoff — kind=feedback,
+   **REQUIRED SUB-SKILL:** invoke the **write-memory** skill with this handoff — kind=feedback,
    slug, source ("session <date>, context: <one-line what-was-happening>"), situation
    (retrieval-shaped), behavior, impact, action; plus supersedes details if this correction
    corrects an existing vault note. write-memory composes, executes, and reports the note path.
@@ -124,7 +124,7 @@ for a placement target.
 2. **Explicit save-requests** — the user said "remember this/that X", "note for next time",
    "write this down".
 
-   **REQUIRED NEXT ACTION:** run `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory is not a Skill tool) and follow what it prints, with this handoff — kind=fact,
+   **REQUIRED SUB-SKILL:** invoke the **write-memory** skill with this handoff — kind=fact,
    slug, source ("session <date>, context: <one-line what-was-happening>"), situation
    (retrieval-shaped), subject, predicate, object; plus supersedes details if this fact
    corrects an existing vault note. write-memory composes, executes, and reports the note path.
@@ -134,9 +134,8 @@ for a placement target.
    (a superseded design, a retro-invalidated finding, an instrument-invalid measurement, a
    redrawn boundary). Nobody needs to have SAID the correction — self-discovered reversals
    qualify, and a repo-doc CORRECTION section or postscript does NOT count as capture
-   (record-correction ≠ lesson-capture). For each reversal, **REQUIRED NEXT ACTION:** run
-   `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
-   is not a Skill tool) and follow what it prints, with this handoff — kind=feedback, slug, source ("session <date>,
+   (record-correction ≠ lesson-capture). For each reversal, **REQUIRED SUB-SKILL:** invoke the
+   **write-memory** skill with this handoff — kind=feedback, slug, source ("session <date>,
    context: <one-line what-was-happening>"), situation (retrieval-shaped: when does this
    failure mode apply), behavior = what the original reasoning did wrong, impact = what the
    reversal cost, action = the guard that would have prevented it — the ROOT CAUSE, not a
@@ -187,9 +186,7 @@ for a placement target.
    behavioral tweak with no natural step structure (e.g. "attach deliverable files instead of
    inlining them") → **kind=feedback**, as before.
 
-   For a **runbook**, **REQUIRED NEXT ACTION:** run
-   `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
-   is not a Skill tool) and follow what it prints, with this
+   For a **runbook**, **REQUIRED SUB-SKILL:** invoke the **write-memory** skill with this
    handoff — kind=runbook, slug, source ("session <date>, context: <one-line what-was-happening>"),
    situation (retrieval-shaped: when would this approach apply again), done_when = what should be
    true once the procedure is complete, body = the numbered steps (may `[[wikilink]]` fact/feedback
@@ -199,9 +196,7 @@ for a placement target.
    kind=fact save-request (kind 2) for the same content; that redundancy-avoidance is specific to
    the runbook case.
 
-   For **feedback**, **REQUIRED NEXT ACTION:** run
-   `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
-   is not a Skill tool) and follow what it prints, with this handoff —
+   For **feedback**, **REQUIRED SUB-SKILL:** invoke the **write-memory** skill with this handoff —
    kind=feedback, slug, source ("session <date>, context: <one-line what-was-happening>"), situation
    (retrieval-shaped: when would this approach apply again), behavior = what worked, impact = the
    confirming evidence (the user's quote for 4a, or the observed outcome that resolved the
@@ -227,9 +222,7 @@ the answer body contains ≥1 `[[full-basename]]` wikilink OR if you crystallize
 new vault note (Step 2) as the answer. Both conditions make the answer traceable (D2 observable
 bar). Skip questions answered with generic advice or without `[[...]]` wikilinks.
 
-For each uncaptured substantive Q&A from this session, **run
-`engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory
-is not a Skill tool) and follow what it prints** with
+For each uncaptured substantive Q&A from this session, **invoke the **write-memory** skill** with
 this handoff — kind=qa, slug, verbatim question, answer body (copy; no re-derive), contributor
 basenames, certainty, source ("ad-hoc capture, learn session <date>").
 

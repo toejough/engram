@@ -189,7 +189,7 @@ because it lacks a recent instance.
 | --- | --- | --- |
 | **Covered** | A candidate's claim states the cluster's principle with **no material omission** vs the recency-weighted members | `engram amend --target <candidate-path> --activate --chunk-source <new-chunk-ids>` — provenance-enrich only; **do not rewrite content**. If this note CORRECTS/narrows/refutes a surfaced note, also pass `--supersedes "<basename>\|<type>\|<claim>"` (types: `updates\|narrows\|refutes`). |
 | **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted. Add `--supersedes "<basename>\|<type>\|<claim>"` if this note corrects a surfaced note. |
-| **Absent** | No candidate addresses the situation | Run `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory is not a Skill tool) and follow what it prints, with this handoff — kind=fact or feedback (pick per the cluster's principle), situation + content fields, `--source "<descriptive>"`, the cluster's chunk-source IDs, plus supersedes details if the new note corrects a surfaced note. write-memory composes, executes, and reports the note path. |
+| **Absent** | No candidate addresses the situation | Invoke the **write-memory** skill with this handoff — kind=fact or feedback (pick per the cluster's principle), situation + content fields, `--source "<descriptive>"`, the cluster's chunk-source IDs, plus supersedes details if the new note corrects a surfaced note. write-memory composes, executes, and reports the note path. |
 
 **One write per cluster; one representative note per cluster.** The representative is always a note
 (never a chunk). For `absent`, write exactly one note (fact *or* feedback) covering
@@ -281,7 +281,7 @@ something a future session (or a *less capable model* that can't re-derive it) w
 or a human may later **inspect or correct** — crystallize it. Reasoning that is never written down
 evaporates; this records the *outcome* and grows the web.
 
-Run `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory is not a Skill tool) and follow what it prints, handing it ONE synthesis note per conclusion (kind=fact or feedback, per the conclusion's shape):
+Hand ONE synthesis note per conclusion to the **write-memory** skill (kind=fact or feedback, per the conclusion's shape):
 
 - **The note IS the conclusion** (the reasoned lesson), phrased as such — not a restatement of an input.
 - **Certainty by inference mode:** deduction → state it as following necessarily; **abduction / induction
@@ -304,7 +304,7 @@ hunch, you'd hedge below "probable", or it merely re-aggregates one note, do NOT
 note per conclusion; link all of its inputs.
 
 **After the synthesis note: if the synthesis body contains ≥1 `[[full-basename]]` wikilink,
-ALSO run `engram show 1053.2026-09-22.write-memory-compose-execute-verify` in Bash (a shell command — write-memory is not a Skill tool) and follow what it prints** with kind=qa — verbatim question, the synthesis conclusion
+ALSO invoke the **write-memory** skill** with kind=qa — verbatim question, the synthesis conclusion
 as the answer, certainty matching the synthesis note's label, contributors = the wikilink
 basenames, source "recall Step 4, session <date>".
 
