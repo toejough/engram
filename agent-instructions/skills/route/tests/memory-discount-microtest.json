@@ -1,0 +1,106 @@
+{
+ "control": {
+  "tiers": [
+   "mid",
+   "mid",
+   "cheap",
+   "cheap",
+   "mid",
+   "mid"
+  ],
+  "mean_tier": "1.67",
+  "deep": 0,
+  "mid": 4,
+  "cheap": 2,
+  "saw_memory": 6
+ },
+ "treatment": {
+  "tiers": [
+   "cheap",
+   "cheap",
+   "cheap",
+   "cheap",
+   "cheap",
+   "cheap"
+  ],
+  "mean_tier": "1.00",
+  "deep": 0,
+  "mid": 0,
+  "cheap": 6,
+  "saw_memory": 6
+ },
+ "rows": [
+  {
+   "id": "ingest-slow",
+   "arm": "control",
+   "tier": "mid",
+   "memory_backed": true
+  },
+  {
+   "id": "ingest-slow",
+   "arm": "treatment",
+   "tier": "cheap",
+   "memory_backed": true
+  },
+  {
+   "id": "spec-review",
+   "arm": "control",
+   "tier": "mid",
+   "memory_backed": true
+  },
+  {
+   "id": "spec-review",
+   "arm": "treatment",
+   "tier": "cheap",
+   "memory_backed": true
+  },
+  {
+   "id": "retry-decide",
+   "arm": "control",
+   "tier": "cheap",
+   "memory_backed": true
+  },
+  {
+   "id": "retry-decide",
+   "arm": "treatment",
+   "tier": "cheap",
+   "memory_backed": true
+  },
+  {
+   "id": "wrap-errors",
+   "arm": "control",
+   "tier": "cheap",
+   "memory_backed": true
+  },
+  {
+   "id": "wrap-errors",
+   "arm": "treatment",
+   "tier": "cheap",
+   "memory_backed": true
+  },
+  {
+   "id": "corpus-skew",
+   "arm": "control",
+   "tier": "mid",
+   "memory_backed": true
+  },
+  {
+   "id": "corpus-skew",
+   "arm": "treatment",
+   "tier": "cheap",
+   "memory_backed": true
+  },
+  {
+   "id": "mech-removal",
+   "arm": "control",
+   "tier": "mid",
+   "memory_backed": true
+  },
+  {
+   "id": "mech-removal",
+   "arm": "treatment",
+   "tier": "cheap",
+   "memory_backed": true
+  }
+ ]
+}

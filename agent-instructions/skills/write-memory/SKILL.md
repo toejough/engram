@@ -1,0 +1,140 @@
+---
+name: write-memory
+description: >
+  Executes a vault write handed off by another skill (recall, learn): composes the engram
+  command from the provided fields, runs it, verifies the result, and reports the written
+  note path. Requires a handoff — do not fire on your own judgment that something is worth
+  remembering.
+---
+
+# Write Memory — execute a handed-off vault write
+
+You were invoked by a parent skill that already made the judgment (what to write and why).
+Your job is the write itself: compose, execute, verify, report. Do not re-litigate the
+parent's judgment; do not decide WHETHER to write.
+
+## The handoff contract
+
+The parent provides:
+
+- **kind** — `fact`, `feedback`, `qa`, or `runbook`
+- **content fields** — by kind, per the blocks below
+- **source** — human-readable provenance string
+- optional **chunk-sources** — `<source#anchor>` chunk IDs (provenance)
+- optional **tags** — categorical `<family>` or `<family>/<value>` strings (kebab-case;
+  fact/feedback/runbook only), e.g. `work-kind/rename`, `tier/cheap`, `outcome/pass`
+- optional **supersedes** — `<basename>|<type>|<claim>` (types: `updates|narrows|refutes`),
+  when the parent determined this write corrects a surfaced note
+- optional **position** / **target** — Luhmann placement (`top` (default), `continuation`, or
+  `sibling`) plus the target note ID (required when position is not `top`), when the parent made
+  a disposition decision. Omitted → `--position top` (today's default), fact/feedback/runbook
+  only.
+- optional **red_flags** — task-specific failure modes a general "follow the steps" rule would
+  not catch (runbook only), e.g. "filter-branch on all refs sweeps the backup branch"
+- optional **triggers** — literal cues in a user's message that should surface this runbook first
+  (runbook only), e.g. `/please`, "take this end-to-end"
+
+If a required field is missing, ask for it from the in-session parent context — do not invent
+content on the parent's behalf.
+
+## Compose
+
+kind=feedback:
+
+```bash
+engram learn feedback --slug <kebab-slug> --position <top|continuation|sibling> [--target <id>] \
+  --source "<source>" \
+  --situation "<retrieval-shaped phrase: when does this apply>" \
+  --behavior "<what was done>" --impact "<why it was wrong/costly>" --action "<what to do instead>" \
+  [--tag <family>/<value> ...]
+```
+
+kind=fact:
+
+```bash
+engram learn fact --slug <kebab-slug> --position <top|continuation|sibling> [--target <id>] \
+  --source "<source>" \
+  --situation "<retrieval-shaped phrase: when does this apply>" \
+  --subject "<the thing>" --predicate "<requires / must use / is>" --object "<the standard or value>" \
+  [--tag <family>/<value> ...]
+```
+
+`--position` defaults to `top` and `--target` is omitted whenever the parent's handoff doesn't
+include a position/target (today's behavior, unchanged). Include `--target <id>` only when
+position is `continuation` or `sibling`; never emit `--target` alongside `--position top`.
+
+kind=runbook:
+
+```bash
+engram learn runbook --slug <kebab-slug> --position <top|continuation|sibling> [--target <id>] \
+  --source "<source>" \
+  --situation "<retrieval-shaped phrase: when should this runbook be used>" \
+  --done-when "<what should be true when the procedure is complete>" \
+  --body "<numbered steps, may [[wikilink]] fact/feedback notes to consider>" \
+  [--red-flag "<task-specific failure mode>" ...] \
+  [--trigger "<literal cue>" ...] \
+  [--tag <family>/<value> ...]
+```
+
+Same `--position`/`--target` disposition rules as fact/feedback above. One `--red-flag` per
+handed-off `red_flags` entry, in order; omit entirely when the parent's handoff carries no
+red_flags (no error, no empty flag).
+
+One `--trigger` per handed-off `triggers` entry, in order, placed after any `--red-flag`; omit
+entirely when the handoff carries none. A trigger is a cue word or phrase the user (or an
+engram notice) would literally write: a slash form (`/please`), a multi-word phrase ("take this
+end-to-end"), or a single distinctive word (`curate`), at least 3 characters. Matching is
+case-insensitive, whitespace-collapsed, and whole-word at letter/digit edges, so `curate` hits
+"curate" and "/curate" but not "accurate". A single word must be distinctive enough that
+whole-word matching will not fire on ordinary prose (`curate` qualifies; "fix", "run", "the"
+do not). A handed-off single word that is common in ordinary prose → ask the parent for a
+distinctive cue instead of passing it through, unless the handoff states that over-firing is a
+deliberate, accepted choice (e.g. "please" on the please runbook, 2026-09-20); then pass it
+through. Over-firing is tolerable because a trigger hit only makes the runbook a candidate; the
+agent still judges it against the runbook's own `situation`, so triggers never replace a
+well-written `--situation`.
+
+kind=qa:
+
+```bash
+engram learn qa \
+  --slug "<kebab summary of the question>" \
+  --question "<verbatim question>" \
+  --answer "<the answer body, copied — no re-derive>" \
+  --contributors "<full-basename>" \
+  --certainty "<high|medium|low>" \
+  --source "<source>"
+```
+
+Append to any kind:
+
+- one `--chunk-source <source#anchor>` per provided chunk ID
+- one `--tag <t>` per provided tag (fact/feedback/runbook only — `engram learn qa` and
+  `engram amend` take no `--tag`; a qa handoff carrying tags → drop them and say so: append the
+  exact line `tags dropped: qa takes no tag flags` to whatever you output, even command-only
+  output)
+- `--supersedes "<basename>|<type>|<claim>"` if provided (repeatable)
+- for qa: one `--contributors <full-basename>` per basename the parent provided
+
+Rules:
+
+- Never mix fact flags (`--subject/--predicate/--object`), feedback flags
+  (`--behavior/--impact/--action`), or runbook flags (`--done-when/--body/--red-flag/--trigger`) in one command.
+- Never hand-author a `vocab/<term>` tag or a `Supersedes:` backlink — the binary assigns vocab
+  terms automatically as `vocab/<term>` entries in the `tags:` list, and writes the `Supersedes:`
+  body line itself when `--supersedes` is passed. This does NOT restrict inline `[[basename]]`
+  prose citations: hand-type one directly in `--body` or `--object` whenever the parent's handoff
+  content calls for citing a fact/feedback note — ordinary authoring, no CLI mechanism does it for
+  you. Handed-off --tag categoricals ride the same `tags:` list as vocab but are NOT vocab: pass
+  them through exactly as provided; never invent tags and never write the `vocab/` namespace
+  yourself.
+
+## Execute, verify, report
+
+Run the command. On success the CLI prints the written note path(s).
+
+- CLI error → read it, fix exactly the named problem (missing/typo'd flag, bad value), retry.
+  Max 2 retries.
+- Success → report the printed note path(s) to the parent flow in one line.
+- Still failing after retries → report the exact command and the CLI error verbatim. Never
+  silently skip a handed-off write.
