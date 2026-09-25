@@ -38,7 +38,7 @@ Conventions: TDD for every Go change (RED via `targ test`, then GREEN, refactor)
 
 ## 5. Abandon the two delete-conversion changes
 
-- [ ] 5.1 Remove `openspec/changes/learn-skill-to-runbook/` and `openspec/changes/recall-glance-skill-to-runbook/` in a commit whose message records the reversal (vault note 1054), what was carried forward (fixtures, fidelity reports, harness fixes stay under `dev/eval/`), and that no paid run was made; `openspec validate --all --strict` passes afterward
+- [x] 5.1 Remove `openspec/changes/learn-skill-to-runbook/` and `openspec/changes/recall-glance-skill-to-runbook/` in a commit whose message records the reversal (vault note 1054), what was carried forward (fixtures, fidelity reports, harness fixes stay under `dev/eval/`), and that no paid run was made; `openspec validate --all --strict` passes afterward
 
 ## 6. `show` parent fallback (design D8)
 
