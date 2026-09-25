@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -143,6 +144,66 @@ func TestTargets_Query_MergedMode_ParentUnavailableFallsBackToLocal(t *testing.T
 	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
 	g.Expect(parsed.Items).To(HaveLen(1))
 	g.Expect(parsed.Items[0].Path).To(Equal("1.fact.md"))
+}
+
+// TestTargets_ShowFallback_SurfacesParentRunbookAfterMergedQuery is the
+// register-skills-as-runbooks D8 merged-vault smoke (tasks.md 6.2): a
+// runbook note that exists only in the parent vault is surfaced by a
+// client's `engram query` (merged mode, tagged from_parent: true) and then
+// fetched by a bare `engram show <basename>` (no --parent) through the
+// local-miss fallback, labeled as parent-sourced. No network — both the
+// query and show hits against the parent are served by the same deps.Fetch
+// fake, reusing this file's fake-parent dispatch pattern.
+func TestTargets_ShowFallback_SurfacesParentRunbookAfterMergedQuery(t *testing.T) {
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
+	// The local vault holds an unrelated note; the runbook below exists only
+	// in the parent.
+	plantRealVaultNote(t, vault, "1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0}, "m@4")
+
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	const parentBasename = "2.2026-01-01.parent-only-runbook.md"
+
+	const parentShowOutput = "---\ntype: runbook\nsituation: y\n---\n\nparent runbook body\n\n" +
+		"# outbound links (fetch with: engram show <basename>)\n(none)\n"
+
+	fakeParent := func(_ context.Context, _, url string, _ []byte) (cli.FetchResponse, error) {
+		switch {
+		case strings.Contains(url, "/query"):
+			return cli.FetchResponse{Status: 200, Body: []byte(
+				"version: 1\nmodel_id: m@4\nitems:\n" +
+					"  - path: " + parentBasename + "\n    kind: fact\n    score: 0.9\n    provenances: [direct]\n",
+			)}, nil
+		case strings.Contains(url, "/show"):
+			return cli.FetchResponse{Status: 200, Body: []byte(parentShowOutput)}, nil
+		default:
+			return cli.FetchResponse{}, errors.New("unexpected fetch url: " + url)
+		}
+	}
+
+	queryStdout, queryStderr := executeCapturingBoth(t,
+		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+			d.Fetch = fakeParent
+		})
+
+	g.Expect(queryStderr).To(BeEmpty())
+	g.Expect(queryStdout).To(ContainSubstring("path: " + parentBasename))
+	g.Expect(queryStdout).To(ContainSubstring("from_parent: true"),
+		"the parent-only item must be tagged from_parent per vault-merged-recall")
+
+	showStdout, showStderr := executeCapturingBoth(t,
+		[]string{"engram", "show", parentBasename, "--vault", vault}, func(d *cli.Deps) {
+			d.Fetch = fakeParent
+		})
+
+	g.Expect(showStderr).To(BeEmpty())
+	g.Expect(showStdout).To(Equal("# from_parent: true\n" + parentShowOutput))
 }
 
 // plantRealVaultNote writes a note and a matching sidecar to a real vault

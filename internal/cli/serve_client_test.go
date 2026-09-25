@@ -16,6 +16,7 @@ import (
 
 	"github.com/toejough/targ"
 
+	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/embed"
 )
@@ -736,6 +737,91 @@ func TestServerBase_NilGetenv(t *testing.T) {
 	g.Expect(cli.ExportServerBase(cli.Deps{})).To(Equal(""))
 }
 
+// TestShowChunkFallback_LocalHitDoesNotContactParent mirrors
+// TestShowFallback_LocalHitDoesNotContactParent for show-chunk: a locally
+// resolvable chunk id is returned without ever consulting ENGRAM_PARENT.
+func TestShowChunkFallback_LocalHitDoesNotContactParent(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	chunksDir := t.TempDir()
+	records := []chunk.Record{
+		{Source: "/s/a.jsonl", Anchor: "turn-1", ContentHash: "sha256:aa", Text: "local chunk text"},
+	}
+
+	data, encodeErr := chunk.EncodeRecords(records)
+	g.Expect(encodeErr).NotTo(HaveOccurred())
+
+	if encodeErr != nil {
+		return
+	}
+
+	g.Expect(os.WriteFile(filepath.Join(chunksDir, "idx.jsonl"), data, 0o600)).To(Succeed())
+
+	fetchCalled := false
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show-chunk", "/s/a.jsonl#turn-1", "--chunks-dir", chunksDir}, func(d *cli.Deps) {
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetchCalled = true
+
+				return cli.FetchResponse{}, nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(fetchCalled).To(BeFalse())
+	g.Expect(stdout).To(Equal("local chunk text\n"))
+}
+
+// TestShowChunkFallback_LocalMissNoParentConfiguredErrorsUnchanged mirrors
+// TestShowFallback_LocalMissNoParentConfiguredErrorsUnchanged for
+// show-chunk.
+func TestShowChunkFallback_LocalMissNoParentConfiguredErrorsUnchanged(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	chunksDir := t.TempDir()
+	fetchCalled := false
+
+	_, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show-chunk", "src.md#anchor", "--chunks-dir", chunksDir}, func(d *cli.Deps) {
+			d.Getenv = func(string) string { return "" }
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetchCalled = true
+
+				return cli.FetchResponse{}, nil
+			}
+		})
+
+	g.Expect(stderr).To(ContainSubstring("chunk not found"))
+	g.Expect(fetchCalled).To(BeFalse())
+}
+
+// TestShowChunkFallback_LocalMissRoutesToParentLabeled mirrors
+// TestShowFallback_LocalMissRoutesToParentLabeled for show-chunk.
+func TestShowChunkFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	chunksDir := t.TempDir()
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show-chunk", "src.md#anchor", "--chunks-dir", chunksDir}, func(d *cli.Deps) {
+			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url, body: body}
+
+				return cli.FetchResponse{Status: 200, Body: []byte("parent chunk text\n")}, nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(got.url).To(Equal("http://parent-host:8420/show-chunk?id=src.md%23anchor"))
+	g.Expect(stdout).To(Equal("# from_parent: true\nparent chunk text\n"))
+}
+
 // TestShowChunkParent_InertWhenEngramServerSet mirrors
 // TestShowParent_InertWhenEngramServerSet for show-chunk.
 func TestShowChunkParent_InertWhenEngramServerSet(t *testing.T) {
@@ -808,13 +894,102 @@ func TestShowChunkParent_WithoutEngramParentErrors(t *testing.T) {
 
 // TestShowChunkTarget_LocalDispatch covers show-chunk's local (non-served)
 // branch through Targets() — the ENGRAM_SERVER-set branch is covered by
-// TestEngramServer_ShowChunk_RoutesThroughFetch.
+// TestEngramServer_ShowChunk_RoutesThroughFetch. Getenv is stubbed to "" for
+// the same reason as TestTargets_QueryEmptyVault: this test means to
+// exercise the local-only not-found path, and newTestDeps wires the real
+// os.Getenv, so an ambient ENGRAM_PARENT would otherwise route the miss
+// into dispatchShowChunk's vault-merged-recall fallback, which needs
+// deps.Fetch — never wired here.
 func TestShowChunkTarget_LocalDispatch(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	stderr := executeForTest(t, []string{"engram", "show-chunk", "missing#anchor", "--chunks-dir", t.TempDir()})
+	stderr := executeForTestWithDeps(t,
+		[]string{"engram", "show-chunk", "missing#anchor", "--chunks-dir", t.TempDir()},
+		func(d *cli.Deps) {
+			d.Getenv = func(string) string { return "" }
+		})
 	g.Expect(stderr).To(ContainSubstring("chunk not found"))
+}
+
+// TestShowFallback_LocalHitDoesNotContactParent covers "Without --parent,
+// behavior is unchanged": with ENGRAM_PARENT configured but the ref found
+// locally, `engram show` (no --parent) returns the local note and never
+// contacts the parent — vault-merged-recall D8's fallback fires only on a
+// local miss.
+func TestShowFallback_LocalHitDoesNotContactParent(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	vault := t.TempDir()
+	writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+	fetchCalled := false
+
+	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1", "--vault", vault}, func(d *cli.Deps) {
+		d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+			fetchCalled = true
+
+			return cli.FetchResponse{}, nil
+		}
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(fetchCalled).To(BeFalse())
+	g.Expect(stdout).NotTo(ContainSubstring("from_parent"))
+}
+
+// TestShowFallback_LocalMissNoParentConfiguredErrorsUnchanged covers "Local
+// miss with no parent configured is still an error": the same not-found
+// error as before this capability existed, and the parent is never
+// contacted. Getenv is stubbed to "" (t.Parallel() forbids t.Setenv) so this
+// doesn't depend on ENGRAM_PARENT actually being unset in the ambient
+// environment running the test.
+func TestShowFallback_LocalMissNoParentConfiguredErrorsUnchanged(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	fetchCalled := false
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.missing", "--vault", vault},
+		func(d *cli.Deps) {
+			d.Getenv = func(string) string { return "" }
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetchCalled = true
+
+				return cli.FetchResponse{}, nil
+			}
+		})
+
+	g.Expect(stderr).To(ContainSubstring("not found"))
+	g.Expect(fetchCalled).To(BeFalse())
+}
+
+// TestShowFallback_LocalMissRoutesToParentLabeled covers "Local miss falls
+// back to the parent": with ENGRAM_PARENT configured, no ENGRAM_SERVER, and
+// no local match, bare `engram show <ref>` resolves the ref against the
+// parent and labels the output as parent-sourced (vault-merged-recall D8).
+func TestShowFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
+	g := NewWithT(t)
+	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	vault := t.TempDir()
+
+	var got fakeFetchCall
+
+	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.missing", "--vault", vault},
+		func(d *cli.Deps) {
+			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url, body: body}
+
+				return cli.FetchResponse{Status: 200, Body: []byte("parent note content\n")}, nil
+			}
+		})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(got.url).To(Equal("http://parent-host:8420/show?note=1.missing"))
+	g.Expect(stdout).To(Equal("# from_parent: true\nparent note content\n"))
 }
 
 // TestShowParent_InertWhenEngramServerSet covers the precedence rule: with
@@ -885,12 +1060,55 @@ func TestShowParent_WithoutEngramParentErrors(t *testing.T) {
 	g.Expect(fetchCalled).To(BeFalse())
 }
 
+// TestWriteParentSourced_BodyWriteErrorWraps covers writeParentSourced's
+// second write-error branch: the marker line writes fine, but the body
+// write fails.
+func TestWriteParentSourced_BodyWriteErrorWraps(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.ExportWriteParentSourced(&writeNTimesThenFail{remaining: 1}, []byte("body"))
+	g.Expect(err).To(MatchError(ContainSubstring("write response")))
+}
+
+// TestWriteParentSourced_MarkerWriteErrorWraps covers writeParentSourced's
+// first write-error branch: the marker line itself fails to write.
+func TestWriteParentSourced_MarkerWriteErrorWraps(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	err := cli.ExportWriteParentSourced(&writeNTimesThenFail{remaining: 0}, []byte("body"))
+	g.Expect(err).To(MatchError(ContainSubstring("write response")))
+}
+
+// unexported variables.
+var (
+	errWriteNTimesThenFail = errors.New("writeNTimesThenFail: write failed")
+)
+
 // fakeFetchCall records one deps.Fetch invocation for ENGRAM_SERVER-mode
 // client tests.
 type fakeFetchCall struct {
 	method string
 	url    string
 	body   []byte
+}
+
+// writeNTimesThenFail succeeds on its first n calls to Write, then fails —
+// used to exercise writeParentSourced's two write-error branches (marker,
+// then body) independently.
+type writeNTimesThenFail struct {
+	remaining int
+}
+
+func (w *writeNTimesThenFail) Write(p []byte) (int, error) {
+	if w.remaining <= 0 {
+		return 0, errWriteNTimesThenFail
+	}
+
+	w.remaining--
+
+	return len(p), nil
 }
 
 // executeCapturingBoth runs an engram CLI command through targ like

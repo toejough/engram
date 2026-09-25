@@ -428,8 +428,7 @@ func showTargets(
 				return
 			}
 
-			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-			errHandler(RunShow(withLog(ctx), a, newShowDeps(deps), deps.Stdout))
+			errHandler(dispatchShow(withLog(ctx), deps, a, home, deps.Stdout))
 		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
 		targ.Targ(func(ctx context.Context, a ShowChunkArgs) {
 			if base := serverBase(deps); base != "" {
@@ -451,8 +450,7 @@ func showTargets(
 				return
 			}
 
-			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-			errHandler(RunShowChunk(withLog(ctx), a, newShowChunkDeps(deps), deps.Stdout))
+			errHandler(dispatchShowChunk(withLog(ctx), deps, a, home, deps.Stdout))
 		}).Name("show-chunk").Description("Print a chunk's text by its source#anchor id (read-only)"),
 	}
 }

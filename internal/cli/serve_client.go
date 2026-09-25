@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -20,6 +21,14 @@ const (
 	// httpStatusMultipleChoices is the first non-2xx status code — used to
 	// bound the "success" range without importing net/http here.
 	httpStatusMultipleChoices = 300
+	// parentSourcedMarker labels engram show/show-chunk's local-miss parent
+	// fallback output as parent-sourced (vault-merged-recall D8) — the
+	// human-readable analog of a merged query payload's per-item
+	// from_parent tag. Only the fallback path is labeled; the explicit
+	// --parent route (fetchShow/fetchShowChunk) stays byte-identical to a
+	// direct parent request, unlabeled, per the delta spec's "Without
+	// --parent, behavior is unchanged" scenario.
+	parentSourcedMarker = "# from_parent: true\n"
 )
 
 // unexported variables.
@@ -78,6 +87,49 @@ func describeErrorBody(body []byte) string {
 	}
 
 	return strings.TrimSpace(string(body))
+}
+
+// dispatchShow runs `engram show` against the local vault, then — only on a
+// not-found miss with ENGRAM_PARENT configured — falls back to the parent
+// and labels the result as parent-sourced (vault-merged-recall D8: "Local
+// miss falls back to the parent"). Callers reach this only after ruling out
+// ENGRAM_SERVER and an explicit --parent, both of which take precedence and
+// never fall through here. A local hit, or any error other than a miss
+// (e.g. an empty ref), returns as-is without contacting the parent; a miss
+// with no parent configured surfaces the same not-found error as before
+// this capability existed ("Local miss with no parent configured is still
+// an error").
+func dispatchShow(ctx context.Context, deps Deps, args ShowArgs, home string, stdout io.Writer) error {
+	args.VaultPath = resolveVault(args.VaultPath, home, deps.Getenv)
+
+	localErr := RunShow(ctx, args, newShowDeps(deps), stdout)
+	if localErr == nil || !errors.Is(localErr, errShowNoteNotFound) {
+		return localErr
+	}
+
+	parent := parentBase(deps)
+	if parent == "" {
+		return localErr
+	}
+
+	return fetchShowFallback(ctx, deps, parent, args, stdout)
+}
+
+// dispatchShowChunk is dispatchShow's show-chunk counterpart.
+func dispatchShowChunk(ctx context.Context, deps Deps, args ShowChunkArgs, home string, stdout io.Writer) error {
+	args.ChunksDir = ResolveChunksDir(args.ChunksDir, home, deps.Getenv)
+
+	localErr := RunShowChunk(ctx, args, newShowChunkDeps(deps), stdout)
+	if localErr == nil || !errors.Is(localErr, errShowChunkNotFound) {
+		return localErr
+	}
+
+	parent := parentBase(deps)
+	if parent == "" {
+		return localErr
+	}
+
+	return fetchShowChunkFallback(ctx, deps, parent, args, stdout)
 }
 
 // encodeQuery percent-encodes query into a "k=v&k=v" string, keys sorted
@@ -239,6 +291,34 @@ func fetchShowChunk(ctx context.Context, deps Deps, base string, args ShowChunkA
 	return fetchAndCopy(ctx, deps, base, "/show-chunk", map[string][]string{"id": {args.Ref}}, stdout)
 }
 
+// fetchShowChunkFallback is fetchShowFallback's show-chunk counterpart.
+func fetchShowChunkFallback(ctx context.Context, deps Deps, base string, args ShowChunkArgs, stdout io.Writer) error {
+	var buf bytes.Buffer
+
+	fetchErr := fetchShowChunk(ctx, deps, base, args, &buf)
+	if fetchErr != nil {
+		return fetchErr
+	}
+
+	return writeParentSourced(stdout, buf.Bytes())
+}
+
+// fetchShowFallback fetches ref from the parent for dispatchShow's
+// local-miss fallback and labels the output as parent-sourced. It buffers
+// fetchShow's result rather than writing straight to stdout, so a fetch
+// failure (parent also has no match, or is unreachable) never leaves a
+// stray marker line ahead of an error.
+func fetchShowFallback(ctx context.Context, deps Deps, base string, args ShowArgs, stdout io.Writer) error {
+	var buf bytes.Buffer
+
+	fetchErr := fetchShow(ctx, deps, base, args, &buf)
+	if fetchErr != nil {
+		return fetchErr
+	}
+
+	return writeParentSourced(stdout, buf.Bytes())
+}
+
 // isURLUnreserved reports whether c is an RFC 3986 unreserved character
 // (safe unescaped in a URL query component).
 func isURLUnreserved(c byte) bool {
@@ -347,4 +427,21 @@ func setStringParam(query map[string][]string, key string, value string) {
 	if value != "" {
 		query[key] = []string{value}
 	}
+}
+
+// writeParentSourced writes the parent-sourced marker line followed by body
+// verbatim — the shared tail of fetchShowFallback and
+// fetchShowChunkFallback.
+func writeParentSourced(stdout io.Writer, body []byte) error {
+	_, writeErr := io.WriteString(stdout, parentSourcedMarker)
+	if writeErr != nil {
+		return fmt.Errorf("serve client: write response: %w", writeErr)
+	}
+
+	_, writeErr = stdout.Write(body)
+	if writeErr != nil {
+		return fmt.Errorf("serve client: write response: %w", writeErr)
+	}
+
+	return nil
 }

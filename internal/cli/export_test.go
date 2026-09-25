@@ -169,6 +169,7 @@ var (
 	ExportWarnIfPendingOffers             = warnIfPendingOffers
 	ExportWriteCentroidsDocRaw            = writeCentroidsDocRaw
 	ExportWriteCentroidsFile              = writeCentroidsFile
+	ExportWriteParentSourced              = writeParentSourced
 	ExportWriteUpdateReport               = writeUpdateReport
 	ExportWriteVocabAssignment            = WriteVocabAssignment
 	ExportWriteVocabVersionToFamilyNote   = writeVocabVersionToFamilyNote

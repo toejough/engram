@@ -42,8 +42,8 @@ Conventions: TDD for every Go change (RED via `targ test`, then GREEN, refactor)
 
 ## 6. `show` parent fallback (design D8)
 
-- [ ] 6.1 RED→GREEN in `internal/cli/show.go` + `serve_client.go`: local miss + `ENGRAM_PARENT` set + no `ENGRAM_SERVER` → resolve against the parent, label output parent-sourced; local hit never contacts the parent; no parent configured → unchanged not-found error; explicit `--parent` and `ENGRAM_SERVER` precedence unchanged (tests for each scenario in the delta spec)
-- [ ] 6.2 Merged-vault smoke (no spend): a runbook present only in a parent vault is surfaced by a client's `engram query` and then fetched by bare `engram show <basename>`
+- [x] 6.1 RED→GREEN in `internal/cli/show.go` + `serve_client.go`: local miss + `ENGRAM_PARENT` set + no `ENGRAM_SERVER` → resolve against the parent, label output parent-sourced; local hit never contacts the parent; no parent configured → unchanged not-found error; explicit `--parent` and `ENGRAM_SERVER` precedence unchanged (tests for each scenario in the delta spec)
+- [x] 6.2 Merged-vault smoke (no spend): a runbook present only in a parent vault is surfaced by a client's `engram query` and then fetched by bare `engram show <basename>`
 
 ## 7. Docs, specs, enumeration
 
