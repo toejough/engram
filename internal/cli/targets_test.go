@@ -364,6 +364,24 @@ func TestTargets_ActivateNoNotes(t *testing.T) {
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
+// TestTargets_Amend_NoSkillHashFlag proves `engram amend` has no --skill-hash
+// flag either — amend can only preserve skill_hash, never set it. See
+// TestTargets_LearnRunbook_NoSkillHashFlag for why "exit code 1" is the right
+// assertion here.
+func TestTargets_Amend_NoSkillHashFlag(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{
+		"engram", "amend",
+		"--skill-hash", "deadbeef",
+		"--vault", vault, "--target", "1",
+	})
+	g.Expect(stderr).To(gomega.Equal("exit code 1\n"))
+}
+
 // TestTargets_CheckEmptyVault exercises the check closure's local
 // (non-served) dispatch through Targets() against an empty vault.
 func TestTargets_CheckEmptyVault(t *testing.T) {
@@ -430,6 +448,29 @@ func TestTargets_IngestAndQueryChunksEmpty(t *testing.T) {
 		"engram", "query-chunks", "--chunks-dir", chunks, "--phrase", "anything",
 	})
 	g.Expect(stderr).To(gomega.BeEmpty())
+}
+
+// TestTargets_LearnRunbook_NoSkillHashFlag proves `engram learn runbook` has
+// no --skill-hash flag: skill_hash is set only by future registration code
+// constructing LearnArgs directly, never by a CLI surface (vault-note-identity
+// spec; design.md D2/D3). An unrecognized flag makes targ's parser reject the
+// invocation before any target runs, surfacing as the generic "exit code 1"
+// (see executeForTest) rather than any of RunLearn's own descriptive errors —
+// so this exact, otherwise-never-produced message is the signal that the
+// flag was never defined in the first place.
+func TestTargets_LearnRunbook_NoSkillHashFlag(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{
+		"engram", "learn", "runbook",
+		"--skill-hash", "deadbeef",
+		"--vault", vault, "--slug", "x", "--source", "test",
+		"--situation", "s", "--done-when", "d",
+	})
+	g.Expect(stderr).To(gomega.Equal("exit code 1\n"))
 }
 
 // TestTargets_PruneEmpty exercises the prune target closure end-to-end on an

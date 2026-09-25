@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -824,6 +825,26 @@ func TestRenderRunbookFrontmatter_IncludesRedFlagsInOrder(t *testing.T) {
 	}))
 }
 
+// TestRenderRunbookFrontmatter_IncludesSkillHashWhenSet guards the populated
+// case: skill_hash renders as a plain scalar when a caller sets it on
+// runbookFields — only future registration code ever does this, never
+// `engram learn`'s CLI surface (vault-note-identity spec, "Skill notes SHALL
+// carry a skill_hash field").
+func TestRenderRunbookFrontmatter_IncludesSkillHashWhenSet(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Luhmann:   "7a",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+		SkillHash: "deadbeef",
+	}, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed["skill_hash"]).To(Equal("deadbeef"))
+}
+
 // TestRenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent guards the no-flag
 // case: red_flags must not appear at all when the caller supplies none
 // (learn-runbook-capture spec, "Runbook captured without red flags").
@@ -838,6 +859,22 @@ func TestRenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent(t *testing.T) {
 		Source:    "session log foo, 2026-05-09 12:00 UTC",
 	}, when)
 	g.Expect(got).NotTo(ContainSubstring("red_flags"))
+}
+
+// TestRenderRunbookFrontmatter_OmitsSkillHashWhenAbsent guards the no-hash
+// case: skill_hash must not appear at all when the caller supplies none — a
+// normal `engram learn runbook` capture never writes it.
+func TestRenderRunbookFrontmatter_OmitsSkillHashWhenAbsent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Luhmann:   "7a",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+	}, when)
+	g.Expect(got).NotTo(ContainSubstring("skill_hash"))
 }
 
 // TestRenderRunbookFrontmatter_RedFlagsRoundtripFidelity is a property test:
@@ -876,6 +913,45 @@ func TestRenderRunbookFrontmatter_RedFlagsRoundtripFidelity(t *testing.T) {
 
 		if !slices.Equal(doc.RedFlags, redFlags) {
 			rt.Fatalf("red_flags: got %v want %v\nfull:\n%s", doc.RedFlags, redFlags, got)
+		}
+	})
+}
+
+// TestRenderRunbookFrontmatter_SkillHashRoundtripFidelity is a property test:
+// any non-empty skill_hash survives the render->parse YAML roundtrip
+// identically (vault-note-identity spec scenario "Amend preserves the hash"
+// depends on the same round-trip amend relies on).
+func TestRenderRunbookFrontmatter_SkillHashRoundtripFidelity(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		hash := rapid.StringMatching(`[a-f0-9]{8,64}`).Draw(rt, "skillHash")
+
+		fields := cli.ExportRunbookFields{
+			Situation: "s", DoneWhen: "d",
+			Luhmann: "1", Source: "src", SkillHash: hash,
+		}
+		when := time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC)
+		got := cli.ExportRenderRunbookFrontmatter(fields, when)
+
+		const delim = "---\n"
+
+		body := strings.TrimPrefix(got, delim)
+		end := strings.Index(body, "\n"+delim)
+
+		if end < 0 {
+			rt.Fatalf("no closing delimiter in %q", got)
+		}
+
+		var doc struct {
+			SkillHash string `yaml:"skill_hash"`
+		}
+
+		if err := yaml.Unmarshal([]byte(body[:end+1]), &doc); err != nil {
+			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
+		}
+
+		if doc.SkillHash != hash {
+			rt.Fatalf("skill_hash: got %q want %q\nfull:\n%s", doc.SkillHash, hash, got)
 		}
 	})
 }
@@ -1206,6 +1282,39 @@ func TestRunLearn_Runbook_InvalidTriggerRejectedWritesNothing(t *testing.T) {
 			g.Expect(writes).To(Equal(0))
 		})
 	}
+}
+
+// TestRunLearn_Runbook_NeverWritesSkillHash proves the local capture path
+// (LearnArgs built the way `engram learn runbook` builds it, with SkillHash
+// left at its zero value) never emits skill_hash — only future registration
+// code constructing LearnArgs directly can set it (vault-note-identity spec,
+// "Non-skill notes have no such field").
+func TestRunLearn_Runbook_NeverWritesSkillHash(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var written []byte
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		StatDir:    func(string) error { return nil },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(_ string, data []byte) error { written = data; return nil },
+	}
+	args := cli.LearnArgs{
+		Type: "runbook", Slug: "release-flow", Vault: "/vault", Source: "test", Position: "top",
+		Situation: "releasing a module", DoneWhen: "tag pushed", Body: "1. tag\n",
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.RunLearn(context.Background(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(string(written)).NotTo(ContainSubstring("skill_hash"))
 }
 
 func TestRunLearn_Runbook_NoTriggersWritesNoField(t *testing.T) {

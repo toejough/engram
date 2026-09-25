@@ -80,6 +80,37 @@ func TestExcludePendingOffers_NoneReportsFalse(t *testing.T) {
 	g.Expect(kept).To(HaveLen(1))
 }
 
+// TestExcludePendingOffers_SkillRunbookNote proves excludePendingOffers (and
+// therefore engram query's exclusion + pending_offers flag, since both route
+// through noteHasPendingMarker) drops a pending skill-runbook note exactly
+// like a pending fact/feedback note, while an ordinary runbook survives.
+func TestExcludePendingOffers_SkillRunbookNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	notes := []vaultgraph.Note{
+		{Basename: "4.2026-01-04.skill-demo"},
+		{Basename: "7.2026-01-07.normal-runbook"},
+	}
+
+	read := func(path string) ([]byte, error) {
+		switch path {
+		case "/vault/4.2026-01-04.skill-demo.md":
+			return []byte(pendingSkillRunbookNote), nil
+		case "/vault/7.2026-01-07.normal-runbook.md":
+			return []byte(nonPendingSkillRunbookNote), nil
+		default:
+			return nil, errUnreachableRead
+		}
+	}
+
+	kept, anyPending := cli.ExportExcludePendingOffers(notes, "/vault", read)
+
+	g.Expect(anyPending).To(BeTrue())
+	g.Expect(kept).To(HaveLen(1))
+	g.Expect(kept[0].Basename).To(Equal("7.2026-01-07.normal-runbook"))
+}
+
 // TestNoteHasPendingMarker covers noteHasPendingMarker: a pending fact/
 // feedback note is flagged, a normal one isn't, and a non-fact/feedback
 // note (e.g. a vocab definition) is never flagged even if its raw bytes
@@ -93,6 +124,22 @@ func TestNoteHasPendingMarker(t *testing.T) {
 	g.Expect(cli.ExportNoteHasPendingMarker([]byte(normalFactNote))).To(BeFalse())
 	g.Expect(cli.ExportNoteHasPendingMarker([]byte(vocabDefNoteWithPendingLikeContent))).To(BeFalse())
 	g.Expect(cli.ExportNoteHasPendingMarker([]byte("not frontmatter at all"))).To(BeFalse())
+}
+
+// TestNoteHasPendingMarker_SkillRunbook covers the skill-runbook-registration
+// extension (vault-offer-curation ADDED requirement "The pending-offer marker
+// SHALL apply to skill runbook notes"): a runbook note is a pending offer
+// only when it carries BOTH `pending: true` and a non-empty `skill_hash`. A
+// runbook with `pending: true` but no `skill_hash` is unchanged behavior —
+// not a pending offer — and neither is a `skill_hash`-carrying runbook that
+// isn't pending.
+func TestNoteHasPendingMarker_SkillRunbook(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingSkillRunbookNote))).To(BeTrue())
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingRunbookNoSkillHashNote))).To(BeFalse())
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(nonPendingSkillRunbookNote))).To(BeFalse())
 }
 
 // TestVaultHasPendingOffers covers the engram-update detector: a vault
@@ -183,12 +230,21 @@ func TestWarnIfPendingOffers(t *testing.T) {
 
 // unexported constants.
 const (
+	nonPendingSkillRunbookNote = "---\ntype: runbook\nsituation: s\ndone_when: d\n" +
+		"luhmann: \"6\"\ncreated: 2026-01-06\nsource: agent\nuser: u\nvault: personal\n" +
+		"skill_hash: abc123\n---\n\n1. step\n"
 	normalFactNote = "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\n" +
 		"luhmann: \"2\"\ncreated: 2026-01-02\nsource: agent\nuser: u\nvault: personal\n---\n\nbody\n"
 	pendingFactNote = "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\n" +
 		"luhmann: \"1\"\ncreated: 2026-01-01\nsource: agent\nuser: u\nvault: personal\npending: true\n---\n\nbody\n"
 	pendingFeedbackNote = "---\ntype: feedback\nsituation: s\nbehavior: b\nimpact: i\naction: act\n" +
 		"luhmann: \"3\"\ncreated: 2026-01-03\nsource: agent\nuser: u\nvault: personal\npending: true\n---\n\nbody\n"
+	pendingRunbookNoSkillHashNote = "---\ntype: runbook\nsituation: s\ndone_when: d\n" +
+		"luhmann: \"5\"\ncreated: 2026-01-05\nsource: agent\nuser: u\nvault: personal\n" +
+		"pending: true\n---\n\n1. step\n"
+	pendingSkillRunbookNote = "---\ntype: runbook\nsituation: n/a\ndone_when: n/a\n" +
+		"luhmann: \"4\"\ncreated: 2026-01-04\nsource: agent\nuser: u\nvault: personal\n" +
+		"skill_hash: abc123\npending: true\n---\n\nSKILL body\n"
 	vocabDefNoteWithPendingLikeContent = "---\ntype: term\nterm: recall\ndescription: recall the vault\n---\n\nbody\n"
 )
 

@@ -1252,6 +1252,69 @@ func TestRunAmend_Runbook_InvalidTriggerRejectedWritesNothing(t *testing.T) {
 	g.Expect(writes).To(Equal(0))
 }
 
+// TestRunAmend_Runbook_PreservesSkillHash_ContentChanged proves amend never
+// drops or alters skill_hash when rewriting a runbook note that carries it,
+// even along the content-changed render path that rebuilds the body
+// (vault-note-identity spec: "amend re-stamps repo/user/vault but SHALL NOT
+// drop or alter skill_hash" — only registration ever changes it).
+func TestRunAmend_Runbook_PreservesSkillHash_ContentChanged(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: old done\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nskill_hash: abc123def456\n---\n\n1. step\n")
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", DoneWhen: "new done"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	body := string(written)
+	g.Expect(body).To(ContainSubstring("done_when: new done"))
+	g.Expect(body).To(ContainSubstring("skill_hash: abc123def456"))
+}
+
+// TestRunAmend_Runbook_PreservesSkillHash_IdentityOnlyRestamp covers the
+// other render path in applyRunbookAmend/renderAmendedRunbook: an amend that
+// only re-stamps identity (no content flags supplied) still preserves
+// skill_hash unchanged.
+func TestRunAmend_Runbook_PreservesSkillHash_IdentityOnlyRestamp(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	noteContent := []byte("---\ntype: runbook\ntier: L2\nsituation: ctx\ndone_when: done\n" +
+		"luhmann: \"1aa\"\ncreated: 2026-01-01\nsource: test\nskill_hash: abc123def456\n---\n\n1. step\n")
+
+	var (
+		written []byte
+		writes  int
+	)
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa"}
+
+	var buf bytes.Buffer
+
+	err := cli.ExportRunAmend(t.Context(), args, runbookAmendDeps(noteContent, &written, &writes), &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(written)).To(ContainSubstring("skill_hash: abc123def456"))
+}
+
 // TestRunAmend_Runbook_ToleratesUnknownFrontmatterKey proves runbook frontmatter
 // decoding ignores unknown keys, so a binary predating a field can still
 // amend a note carrying it (rollback safety for runbook-lexical-triggers).

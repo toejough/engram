@@ -78,9 +78,14 @@ func excludePendingOffers(
 	return kept, anyPending
 }
 
-// noteHasPendingMarker reports whether raw is a fact/feedback note carrying
-// the pending-offer marker (frontmatter `pending: true`). Non-fact/feedback
-// notes (e.g. vocab definitions) and unparseable content report false.
+// noteHasPendingMarker reports whether raw is a pending offer: a fact or
+// feedback note carrying frontmatter `pending: true`, or a runbook note
+// carrying both `pending: true` and a non-empty `skill_hash` (a pending
+// skill-registration offer — vault-offer-curation, skill-runbook-registration).
+// A runbook note with `pending: true` but no `skill_hash` is NOT a pending
+// offer — unchanged behavior, so a stray pending flag on an ordinary
+// hand-edited runbook doesn't vanish from query results. Any other note type
+// (e.g. vocab definitions) and unparseable content report false.
 func noteHasPendingMarker(raw []byte) bool {
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
@@ -88,15 +93,24 @@ func noteHasPendingMarker(raw []byte) bool {
 	}
 
 	noteType := peekNoteType(frontmatter)
-	if noteType != typeFact && noteType != typeFeedback {
+	if noteType != typeFact && noteType != typeFeedback && noteType != typeRunbook {
 		return false
 	}
 
 	var probe struct {
-		Pending bool `yaml:"pending"`
+		Pending   bool   `yaml:"pending"`
+		SkillHash string `yaml:"skill_hash"`
 	}
 
-	return yaml.Unmarshal(frontmatter, &probe) == nil && probe.Pending
+	if yaml.Unmarshal(frontmatter, &probe) != nil || !probe.Pending {
+		return false
+	}
+
+	if noteType == typeRunbook {
+		return probe.SkillHash != ""
+	}
+
+	return true
 }
 
 // notesHavePendingOfferByName scans names-in-hand (a vault ListMD result)

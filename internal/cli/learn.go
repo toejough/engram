@@ -83,6 +83,16 @@ type LearnArgs struct {
 	// never trusted.
 	Pending bool `json:"pending"`
 
+	// SkillHash marks a runbook note as a mirror of a registered skill: the
+	// SHA-256 of the SKILL.md bytes its body was last copied from
+	// (vault-note-identity spec, skill-runbook-registration capability).
+	// Set only by future registration code constructing LearnArgs directly
+	// — `engram learn runbook` has no --skill-hash flag, so a locally
+	// captured runbook never carries it. json tag present for musttag
+	// symmetry with the other server/registration-only fields; unused for
+	// non-runbook types.
+	SkillHash string `json:"skillHash"`
+
 	// Repo carries a served write's client-detected repo: value across the
 	// wire. repo: carries no privilege (design.md Decisions), so a served
 	// learn handler passes it through via LearnDeps.DetectRepo unchanged
@@ -351,23 +361,30 @@ type runbookFields struct {
 	// Triggers: optional literal cue strings (runbook-lexical-triggers spec)
 	// — see LearnArgs.Triggers.
 	Triggers []string
+	// SkillHash: registration-only identity field — see LearnArgs.SkillHash.
+	SkillHash string
 }
 
 // runbookFrontmatterDoc is the YAML shape of a runbook note's frontmatter.
 type runbookFrontmatterDoc struct {
-	Type       string            `yaml:"type"`
-	Tier       string            `yaml:"tier,omitempty"`
-	Situation  string            `yaml:"situation"`
-	DoneWhen   string            `yaml:"done_when"`
-	RedFlags   []string          `yaml:"red_flags,omitempty"`
-	Triggers   []string          `yaml:"triggers,omitempty"`
-	Luhmann    quotedString      `yaml:"luhmann"`
-	Created    string            `yaml:"created"`
-	Source     string            `yaml:"source"`
-	Project    string            `yaml:"project,omitempty"`
-	Repo       string            `yaml:"repo,omitempty"`
-	User       string            `yaml:"user"`
-	Vault      string            `yaml:"vault"`
+	Type      string       `yaml:"type"`
+	Tier      string       `yaml:"tier,omitempty"`
+	Situation string       `yaml:"situation"`
+	DoneWhen  string       `yaml:"done_when"`
+	RedFlags  []string     `yaml:"red_flags,omitempty"`
+	Triggers  []string     `yaml:"triggers,omitempty"`
+	Luhmann   quotedString `yaml:"luhmann"`
+	Created   string       `yaml:"created"`
+	Source    string       `yaml:"source"`
+	Project   string       `yaml:"project,omitempty"`
+	Repo      string       `yaml:"repo,omitempty"`
+	User      string       `yaml:"user"`
+	Vault     string       `yaml:"vault"`
+	// SkillHash marks this note as a registered skill's runbook mirror
+	// (vault-note-identity spec). Never set by `engram learn`'s CLI surface;
+	// `engram amend` never overrides it (no --skill-hash flag exists), so a
+	// value present on read is always re-emitted unchanged.
+	SkillHash  string            `yaml:"skill_hash,omitempty"`
 	Pending    bool              `yaml:"pending,omitempty"`
 	Issue      quotedString      `yaml:"issue,omitempty"`
 	Sources    []string          `yaml:"sources,omitempty"`
@@ -477,7 +494,7 @@ func assembleRunbookContent(
 		Pending: args.Pending,
 		Issue:   args.Issue, Tier: tierOrDefault(args.Tier),
 		ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
-		RedFlags: args.RedFlags, Triggers: args.Triggers,
+		RedFlags: args.RedFlags, Triggers: args.Triggers, SkillHash: args.SkillHash,
 	}
 
 	return renderRunbookFrontmatter(f, when) + renderRunbookBody(f), nil
@@ -731,6 +748,7 @@ func renderRunbookFrontmatter(f runbookFields, when time.Time) string {
 		Repo:       f.Repo,
 		User:       f.User,
 		Vault:      f.Vault,
+		SkillHash:  f.SkillHash,
 		Pending:    f.Pending,
 		Issue:      quotedString(f.Issue),
 		Sources:    f.ChunkSources,

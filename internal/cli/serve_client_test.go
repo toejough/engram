@@ -551,6 +551,33 @@ func TestLocalAmend_ClearPendingClearsTheMarker(t *testing.T) {
 	g.Expect(string(raw)).NotTo(ContainSubstring("pending: true"))
 }
 
+// TestLocalAmend_ClearPendingOnSkillRunbookNote_MakesItLive covers the
+// skill-runbook-registration extension of the curate runbook's core
+// mechanism (vault-offer-curation ADDED requirement): `engram amend
+// --clear-pending` clears the marker on a runbook note carrying skill_hash
+// (not just fact/feedback), skill_hash survives untouched, and the note
+// then surfaces in `engram query` like any ordinary runbook.
+func TestLocalAmend_ClearPendingOnSkillRunbookNote_MakesItLive(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	notePath := filepath.Join(vault, "4.2026-01-04.skill-demo.md")
+	g.Expect(os.WriteFile(notePath, []byte(pendingSkillRunbookNote), 0o600)).To(Succeed())
+
+	stderr := executeForTest(t, []string{"engram", "amend", "--vault", vault, "--target", "4", "--clear-pending"})
+	g.Expect(stderr).To(BeEmpty())
+
+	raw, readErr := os.ReadFile(notePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(raw)).NotTo(ContainSubstring("pending: true"))
+	g.Expect(string(raw)).To(ContainSubstring("skill_hash: abc123"))
+
+	// The cleared note now surfaces like any ordinary runbook: it is no
+	// longer a pending offer.
+	g.Expect(cli.ExportNoteHasPendingMarker(raw)).To(BeFalse())
+}
+
 // TestLocalAmend_DiscardDeletesNoteAndSidecar covers the curate runbook's
 // "covered" outcome (vault-offer-curation): `engram amend --discard` removes
 // both the note and its sidecar rather than amending content.

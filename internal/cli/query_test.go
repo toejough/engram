@@ -720,6 +720,44 @@ func TestQuery_StripsWikilinksFromItemsContent(t *testing.T) {
 		To(ContainSubstring("See 1a.foo and the bar note for context."))
 }
 
+// TestRunQuery_ExcludesPendingSkillRunbookNote proves the full query-time
+// consequence chain for a pending skill runbook note (vault-offer-curation
+// ADDED requirement + skill-runbook-registration): it is excluded from
+// results and the payload carries pending_offers: true, while an ordinary
+// runbook note surfaces normally.
+func TestRunQuery_ExcludesPendingSkillRunbookNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+
+	plantNoteWithSidecar(t, memFS, vault, "1.2026-01-01.normal-runbook.md",
+		"---\ntype: runbook\nsituation: releasing a module\ndone_when: tag pushed\n"+
+			"luhmann: \"1\"\ncreated: 2026-01-01\nsource: test\nuser: u\nvault: personal\n---\n\n1. step\n")
+
+	plantNoteWithSidecar(t, memFS, vault, "2.2026-01-02.skill-demo.md",
+		"---\ntype: runbook\nsituation: n/a\ndone_when: n/a\n"+
+			"luhmann: \"2\"\ncreated: 2026-01-02\nsource: test\nuser: u\nvault: personal\n"+
+			"skill_hash: abc123\npending: true\n---\n\nSKILL body\n")
+
+	var out bytes.Buffer
+
+	err := cli.RunQuery(context.Background(),
+		cli.QueryArgs{Phrases: []string{"releasing a module"}, VaultPath: vault},
+		newQueryDeps(memFS), &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	payload := out.String()
+	g.Expect(payload).To(ContainSubstring("pending_offers: true"))
+	g.Expect(payload).To(ContainSubstring("normal-runbook"))
+	g.Expect(payload).NotTo(ContainSubstring("skill-demo"))
+}
+
 func TestRunQuery_ModelMismatchEmitsWarning(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

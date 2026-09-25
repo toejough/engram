@@ -2,8 +2,8 @@ Conventions: TDD for every Go change (RED via `targ test`, then GREEN, refactor)
 
 ## 1. Registration mechanism (Go)
 
-- [ ] 1.1 RED→GREEN: `skill_hash` frontmatter field on runbook notes (`runbookFrontmatterDoc`, render, parse), preserved by `amend`; a test that `engram learn` outside registration never writes it
-- [ ] 1.2 RED→GREEN: pending-offer marker recognized on `runbook` notes (`noteHasPendingMarker`, `offer.go:84`): excluded from normal query results, raises `pending_offers`, cleared by `engram amend --clear-pending`; existing fact/feedback behavior unchanged
+- [x] 1.1 RED→GREEN: `skill_hash` frontmatter field on runbook notes (`runbookFrontmatterDoc`, render, parse), preserved by `amend`; a test that `engram learn` outside registration never writes it
+- [x] 1.2 RED→GREEN: pending-offer marker recognized on `runbook` notes (`noteHasPendingMarker`, `offer.go:84`): excluded from normal query results, raises `pending_offers`, cleared by `engram amend --clear-pending`; existing fact/feedback behavior unchanged
 - [ ] 1.3 RED→GREEN: skill-note lookup by basename suffix `.skill-<name>.md` on runbook notes carrying `skill_hash` (via existing list/read deps, no new I/O); duplicate matches error naming both
 - [ ] 1.4 RED→GREEN: offer comparison — per shipped skill: no note → register offer; hash differs → refresh offer; note with no shipped skill → removal offer; hash match or declined hash → nothing. Property test: a run after answering every offer makes no offers
 - [ ] 1.5 RED→GREEN: `skill-registrations.json` decline state at the vault root (read, record per skill name, tolerate absent file); decline records the current hash and changes nothing else; a new hash re-offers once
