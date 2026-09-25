@@ -30,6 +30,7 @@ var (
 	ErrCountBadFilterForTest               = errCountBadFilter
 	ErrCountBothModesForTest               = errCountBothModes
 	ErrCountNoModeForTest                  = errCountNoMode
+	ErrDuplicateSkillNoteForTest           = errDuplicateSkillNote
 	ErrLearnBadTierForTest                 = errLearnBadTier
 	ErrQAAnswerSourceRequired              = errQAAnswerSourceRequired
 	ErrQACertaintyInvalid                  = errQACertaintyInvalid
