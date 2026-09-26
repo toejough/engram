@@ -123,5 +123,5 @@ func realServeDeps(stdout, stderr *bytes.Buffer) cli.Deps {
 		Spawn: spawnPrimitives(),
 		Proc:  procPrimitives(),
 		HTTP:  httpPrimitives(),
-	}, stdout, stderr, func(int) {})
+	}, nil, stdout, stderr, func(int) {})
 }

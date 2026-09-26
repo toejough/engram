@@ -464,12 +464,12 @@ func debugSinkAt(path string) io.Writer {
 		return ""
 	}
 
-	return cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).DebugLog
+	return cli.NewDeps(prims, nil, io.Discard, io.Discard, func(int) {}).DebugLog
 }
 
 // realDepsForTest composes production Deps over real OS primitives.
 func realDepsForTest() cli.Deps {
-	return cli.NewDeps(realPrimitives(), io.Discard, io.Discard, func(int) {})
+	return cli.NewDeps(realPrimitives(), nil, io.Discard, io.Discard, func(int) {})
 }
 
 // realExecPrims mirrors cmd/engram/main.go's execPrimitives() group.

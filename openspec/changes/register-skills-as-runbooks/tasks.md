@@ -9,9 +9,9 @@ Conventions: TDD for every Go change (RED via `targ test`, then GREEN, refactor)
 - [x] 1.5 RED→GREEN: `skill-registrations.json` decline state at the vault root (read, record per skill name, tolerate absent file); decline records the current hash and changes nothing else; a new hash re-offers once
 - [x] 1.6 RED→GREEN: accept actions — register creates a pending note (capture path, slug `skill-<name>`, preamble + `SKILL.md` body, `skill_hash`, no runbook fields, sidecar); refresh replaces body + hash, preserves fields/`created`/basename, sets pending, rebuilds sidecar; removal deletes note + sidecar
 - [x] 1.7 RED→GREEN: `--adopt <name>=<note-ref>` via `RenameAndRewriteReferences` (id and date kept, inbound links rewritten, sidecar moved), body replaced, `skill_hash` stamped, fields kept, not pending
-- [ ] 1.8 RED→GREEN: prompting — interactive prompt per offer when stdin is a terminal; non-interactive path writes nothing, records nothing, and prints one line naming waiting skills and the answering command; `--accept`/`--decline <name>` answer without prompting
-- [ ] 1.9 RED→GREEN: `engram register-skills [--dry-run] [--accept <name>]... [--decline <name>]... [--adopt <name>=<ref>]...` (targets wiring; `cmd/engram/main.go` stays wiring-only) and the `runPostUpdateChecks` hook in `internal/cli/update.go`; `--dry-run` for both lists offers and writes nothing; registration errors are reported and do not roll back the deploy
-- [ ] 1.10 `targ test` green; `targ check-full` green apart from `check-uncommitted`
+- [x] 1.8 RED→GREEN: prompting — interactive prompt per offer when stdin is a terminal; non-interactive path writes nothing, records nothing, and prints one line naming waiting skills and the answering command; `--accept`/`--decline <name>` answer without prompting
+- [x] 1.9 RED→GREEN: `engram register-skills [--dry-run] [--accept <name>]... [--decline <name>]... [--adopt <name>=<ref>]...` (targets wiring; `cmd/engram/main.go` stays wiring-only) and the `runPostUpdateChecks` hook in `internal/cli/update.go`; `--dry-run` for both lists offers and writes nothing; registration errors are reported and do not roll back the deploy
+- [x] 1.10 `targ test` green; `targ check-full` green apart from `check-uncommitted`
 
 ## 2. Restore the four skills
 

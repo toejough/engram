@@ -152,5 +152,5 @@ func TestPrimLocker_UnlockLifecycle(t *testing.T) {
 // lockerFromPrims composes the production FileLocker from fake primitives
 // via the public composition root.
 func lockerFromPrims(prims cli.Primitives) cli.FileLocker {
-	return cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).Lock
+	return cli.NewDeps(prims, nil, io.Discard, io.Discard, func(int) {}).Lock
 }

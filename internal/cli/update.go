@@ -109,6 +109,12 @@ type updateDeps struct {
 	Vocab    VocabDeps    // used only when args.RegenVocab is set (#712)
 	Reparent ReparentDeps // used only when args.ReparentLuhmann is set
 	Identity IdentityDeps // used only when args.BackfillIdentity is set
+	// SkillReg backs the post-deploy skill-registration hook (skill-runbook-
+	// registration, update-deploy-sync). Optional: the zero value (older
+	// updateDeps test fixtures built before this hook existed, e.g.
+	// ExportNewUpdateDepsFrom) is a safe no-op — runUpdateSkillRegistration
+	// skips entirely when ListSkillsDir is nil.
+	SkillReg SkillRegistrationDeps
 }
 
 // updateEnvFromDeps adapts cli.Deps' env funcs to update.Env.
@@ -388,6 +394,7 @@ func newUpdateDeps(d Deps) updateDeps {
 			Prune:  newPruneDeps(d),
 		},
 		Identity: newIdentityDeps(d),
+		SkillReg: newSkillRegistrationDeps(d),
 	}
 }
 
@@ -450,12 +457,18 @@ func reexecArgsFrom(args UpdateArgs) []string {
 	return reexecArgs
 }
 
-// runPostUpdateChecks runs the vault/vocab/chunk-check detector battery and
-// the opt-in --regen-vocab/--backfill-identity actions, mutating report in
-// place. Split out of runUpdate to keep the "belongs to whichever process
-// actually ran the sync phase" block (see runUpdate's D8 comment) within the
-// house per-function length/nesting budget.
-func runPostUpdateChecks(ctx context.Context, args UpdateArgs, deps updateDeps, report *update.Report) error {
+// runPostUpdateChecks runs the vault/vocab/chunk-check detector battery, the
+// opt-in --regen-vocab/--backfill-identity actions, and the post-deploy
+// skill-registration hook, mutating report in place. Split out of runUpdate
+// to keep the "belongs to whichever process actually ran the sync phase"
+// block (see runUpdate's D8 comment) within the house per-function
+// length/nesting budget. stdout is skill registration's own output
+// (prompts, dry-run offer previews, the non-interactive summary line) —
+// written directly and immediately, unlike every other field on report,
+// because a prompt must appear before its answer is read.
+func runPostUpdateChecks(
+	ctx context.Context, args UpdateArgs, deps updateDeps, report *update.Report, stdout io.Writer,
+) error {
 	vaultPath := resolveVault("", report.Home, deps.Env.Getenv)
 	report.VaultHasOldVocabFiles = oldVocabFilesPresent(vaultPath, deps.FS)
 	report.VaultHasUntaggedVocabDefinitions = vocabDefinitionsMissingSelfTags(vaultPath, deps.FS)
@@ -478,6 +491,11 @@ func runPostUpdateChecks(ctx context.Context, args UpdateArgs, deps updateDeps, 
 		if backfillErr != nil {
 			return fmt.Errorf("update: %w", backfillErr)
 		}
+	}
+
+	registrationErr := runUpdateSkillRegistration(ctx, args.DryRun, vaultPath, report.Source.Root, deps, stdout)
+	if registrationErr != nil {
+		report.SkillRegistrationErr = registrationErr.Error()
 	}
 
 	return nil
@@ -535,13 +553,41 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 	}
 
 	if runErr == nil {
-		checksErr := runPostUpdateChecks(ctx, args, deps, &report)
+		checksErr := runPostUpdateChecks(ctx, args, deps, &report, stdout)
 		if checksErr != nil {
 			return checksErr
 		}
 	}
 
 	return finishUpdate(stdout, report, runErr)
+}
+
+// runUpdateSkillRegistration runs skill registration (skill-runbook-
+// registration) against the resolved vault, using update's own --dry-run
+// flag and no explicit --accept/--decline answers (update-deploy-sync:
+// "Update SHALL run skill registration ... after the engram-owned root sync
+// completes"). A registration failure is returned to the caller, which
+// records it on the report rather than failing the update
+// (update-deploy-sync: "Registration failures SHALL be reported and SHALL
+// NOT roll back the deploy"). deps.SkillReg's zero value (older updateDeps
+// test fixtures built before this hook existed) is a safe no-op: without a
+// skills-dir listing capability there's nothing to register against. An
+// empty sourceRoot (no resolved source) is the same no-op.
+func runUpdateSkillRegistration(
+	ctx context.Context, dryRun bool, vaultPath, sourceRoot string, deps updateDeps, stdout io.Writer,
+) error {
+	if deps.SkillReg.ListSkillsDir == nil || sourceRoot == "" {
+		return nil
+	}
+
+	args := SkillRegistrationArgs{
+		Vault:     vaultPath,
+		VaultName: resolveVaultName("", deps.Env.Getenv),
+		SkillsDir: filepath.Join(sourceRoot, "agent-instructions", "skills"),
+		DryRun:    dryRun,
+	}
+
+	return RunSkillRegistration(ctx, args, deps.SkillReg, stdout)
 }
 
 // tildify replaces a leading home path with "~" for spec-style output.
@@ -875,6 +921,17 @@ func writeReexecHandoffReport(out io.Writer, report update.Report) error {
 	return nil
 }
 
+// writeSkillRegistrationErrorHint prints a one-line notice when this run's
+// post-deploy skill-registration hook failed (update-deploy-sync:
+// "Registration failures SHALL be reported and SHALL NOT roll back the
+// deploy"). Silent when registration didn't fail (including when it never
+// ran — deps.SkillReg unconfigured, or no resolved source).
+func writeSkillRegistrationErrorHint(buffer *bytes.Buffer, report update.Report) {
+	if report.SkillRegistrationErr != "" {
+		fmt.Fprintf(buffer, "skill registration error: %s\n", report.SkillRegistrationErr)
+	}
+}
+
 func writeSkillRows(buffer *bytes.Buffer, harness update.HarnessReport, home string) {
 	for _, dirCount := range harness.SkillDirs {
 		dst := filepath.Join(harness.SkillsRoot, dirCount.Name) + string(filepath.Separator)
@@ -931,6 +988,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	writeDuplicatesHint(&buffer, report)
 	writeIdentityBackfillHint(&buffer, report)
 	writePendingOfferHint(&buffer, report)
+	writeSkillRegistrationErrorHint(&buffer, report)
 
 	_, err := out.Write(buffer.Bytes())
 	if err != nil {

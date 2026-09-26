@@ -68,6 +68,13 @@ const (
 
 // Exported variables.
 var (
+	// ClaudeSkillsTargetRel is the Claude Code harness's (HarnessClaude)
+	// home-relative skills install dir — the same value supportedHarnesses
+	// stamps onto that harness's HarnessSpec.SkillsTargetRel. Exported for
+	// callers that need this one harness's deployed skills path outside a
+	// full harness-detection run (skill-runbook-registration: `engram
+	// register-skills`'s --skills-dir default).
+	ClaudeSkillsTargetRel = filepath.Join(".claude", "skills") //nolint:gochecknoglobals // exported well-known path
 	// ErrCommandNotFound is the Commander contract for "binary not on PATH":
 	// implementations translate their platform's not-found error (e.g.
 	// exec.ErrNotFound) to this sentinel before returning, keeping this
@@ -351,6 +358,16 @@ type Report struct {
 	// data. Detection is stateless/unbatched (a fresh scan every check),
 	// unlike the vocab-refit trigger.
 	VaultHasPendingOffers bool
+
+	// SkillRegistrationErr, when non-empty, is a skill-registration failure's
+	// message (skill-runbook-registration). Set by the cli package after
+	// running its post-deploy registration hook — Updater.Run itself never
+	// touches vault or skill paths; this field is opaque data, same
+	// convention as VaultHasPendingOffers above. update-deploy-sync:
+	// "Registration failures SHALL be reported and SHALL NOT roll back the
+	// deploy" — this field is how the failure reaches the report without
+	// failing runUpdate.
+	SkillRegistrationErr string
 
 	// ReexecExitCode is set (non-nil) iff this run's install succeeded and
 	// re-exec of the freshly installed binary was spawned and awaited
@@ -2598,7 +2615,7 @@ func supportedHarnesses() []HarnessSpec {
 		{
 			Name:              HarnessClaude,
 			ProbeRel:          ".claude",
-			SkillsTargetRel:   filepath.Join(".claude", "skills"),
+			SkillsTargetRel:   ClaudeSkillsTargetRel,
 			GuidanceTargetRel: filepath.Join(".claude", "engram"),
 			ImportsFileRel:    filepath.Join(".claude", "CLAUDE.md"),
 			EngramRootRel:     filepath.Join(".claude", "engram"),

@@ -122,6 +122,13 @@ type ProcPrims struct {
 	Username          func() (string, error)                                   // os/user.Current().Username
 	OpenDebugFile     func(path string, perm fs.FileMode) (WriteSyncer, error) // os.OpenFile O_APPEND|O_CREATE|O_WRONLY
 	StartSignalPulses func(pulses chan<- struct{}, buffer int)                 // SIG-1 closure
+	// IsTerminal reports whether os.Stdin is an interactive terminal
+	// (skill-runbook-registration: gates `engram register-skills`'/`engram
+	// update`'s interactive prompting). Composed in main.go from
+	// os.Stdin.Stat()'s ModeCharDevice bit — golang.org/x/term is only an
+	// indirect dependency today (not imported by any engram code), so this
+	// stays the smallest pure-Go option rather than promoting it to direct.
+	IsTerminal func() bool
 }
 
 // SpawnPrims groups the raw process-spawn capability: run a binary with
@@ -146,10 +153,11 @@ type WriteSyncer interface {
 // or failed open → nil → no-op logger), and the repeated-signal force-exit
 // watcher. cmd/engram calls this exactly once from main(); tests call it
 // with fake primitives to unit-test the composition (#700).
-func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
+func NewDeps(prims Primitives, stdin io.Reader, stdout, stderr io.Writer, exit func(int)) Deps {
 	startForceExit(prims, exit)
 
 	deps := Deps{
+		Stdin:          stdin,
 		Stdout:         stdout,
 		Stderr:         stderr,
 		Exit:           exit,
@@ -158,6 +166,7 @@ func NewDeps(prims Primitives, stdout, stderr io.Writer, exit func(int)) Deps {
 		Getwd:          prims.Proc.Getwd,
 		UserHomeDir:    prims.Proc.UserHomeDir,
 		Username:       prims.Proc.Username,
+		IsTerminal:     prims.Proc.IsTerminal,
 		FS:             primFS{prims: prims},
 		Lock:           primLocker{prims: prims},
 		Commander:      primCommander{prims: prims},

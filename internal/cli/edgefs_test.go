@@ -582,5 +582,5 @@ func failingPrims(boom error) cli.Primitives {
 // fsFromPrims composes the production EdgeFS from fake primitives via the
 // public composition root.
 func fsFromPrims(prims cli.Primitives) cli.EdgeFS {
-	return cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).FS
+	return cli.NewDeps(prims, nil, io.Discard, io.Discard, func(int) {}).FS
 }

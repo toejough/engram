@@ -14,6 +14,12 @@ import (
 // internal/ code never calls os.*, exec, syscall, or time.Now directly —
 // production I/O enters exclusively through this struct (#700, ADR-0001).
 type Deps struct {
+	// Stdin supplies interactive prompt input (production: os.Stdin) — read
+	// by skill-runbook-registration's `engram register-skills` prompt loop
+	// via a bufio.Scanner internal/cli owns; a nil Stdin is safe as long as
+	// no code path that reads it is exercised (e.g. dry-run/non-interactive
+	// registration, or any other command).
+	Stdin io.Reader
 	// Stdout receives command output (production: os.Stdout).
 	Stdout io.Writer
 	// Stderr receives error output (production: os.Stderr).
@@ -32,6 +38,11 @@ type Deps struct {
 	// (production: os/user.Current().Username). Used as the fallback when
 	// git config user.email resolves to nothing.
 	Username func() (string, error)
+	// IsTerminal reports whether Stdin is an interactive terminal (production:
+	// os.Stdin.Stat's ModeCharDevice bit, checked in cmd/engram/main.go —
+	// skill-runbook-registration's interactive-prompt gate). A nil
+	// IsTerminal is treated as non-interactive by callers that check it.
+	IsTerminal func() bool
 	// FS is the filesystem edge (production: cmd/engram's osFS).
 	FS EdgeFS
 	// Lock acquires exclusive cross-process file locks (production: flockLocker).

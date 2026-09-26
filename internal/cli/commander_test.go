@@ -115,5 +115,5 @@ func commanderOver(
 ) update.Commander {
 	prims := cli.Primitives{Exec: cli.ExecPrims{RunCommand: run, NotFoundErr: notFound}}
 
-	return cli.NewDeps(prims, io.Discard, io.Discard, nil).Commander
+	return cli.NewDeps(prims, nil, io.Discard, io.Discard, nil).Commander
 }

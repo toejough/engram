@@ -33,7 +33,7 @@ func main() {
 		Proc:         procPrimitives(),
 		EmbedRuntime: hugotRuntime{},
 		HTTP:         httpPrimitives(),
-	}, os.Stdout, os.Stderr, os.Exit))...)
+	}, os.Stdin, os.Stdout, os.Stderr, os.Exit))...)
 }
 
 // execPrimitives groups the raw external-command capabilities: the C-1
@@ -135,6 +135,16 @@ func procPrimitives() cli.ProcPrims {
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 			go cli.ForwardAsPulses(sigCh, pulses)
+		},
+		IsTerminal: func() bool {
+			stdin := os.Stdin
+
+			info, statErr := stdin.Stat()
+			if statErr != nil {
+				return false
+			}
+
+			return info.Mode()&os.ModeCharDevice != 0
 		},
 	}
 }

@@ -156,8 +156,8 @@ func TestTargets(t *testing.T) {
 		targets := cli.Targets(newTestDeps(&bytes.Buffer{}, &bytes.Buffer{}))
 		// learn (group), update, embed (group), query, ingest, query-chunks,
 		// activate, count, show, show-chunk, check, resituate, amend, prune,
-		// vocab (group), serve
-		g.Expect(targets).To(gomega.HaveLen(16))
+		// vocab (group), register-skills, serve
+		g.Expect(targets).To(gomega.HaveLen(17))
 	})
 
 	t.Run("show parses positional ref through targ", func(t *testing.T) {

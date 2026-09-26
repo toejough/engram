@@ -85,5 +85,5 @@ func ExportNewTestOsDeps() Deps {
 				return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
 			},
 		},
-	}, os.Stdout, os.Stderr, func(int) {})
+	}, os.Stdin, os.Stdout, os.Stderr, func(int) {})
 }

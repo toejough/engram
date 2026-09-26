@@ -31,7 +31,7 @@ func TestNewDeps_ComposesCarrierFromPrimitives(t *testing.T) {
 		UserHomeDir: func() (string, error) { return "/home/x", nil },
 	}}
 
-	deps := cli.NewDeps(prims, &stdout, &stderr, func(code int) { exitCodes = append(exitCodes, code) })
+	deps := cli.NewDeps(prims, nil, &stdout, &stderr, func(code int) { exitCodes = append(exitCodes, code) })
 
 	g.Expect(deps.Stdout).To(gomega.BeIdenticalTo(&stdout))
 	g.Expect(deps.Stderr).To(gomega.BeIdenticalTo(&stderr))
@@ -68,7 +68,7 @@ func TestNewDeps_DebugSinkEmptyEnvOrFailedOpenIsNil(t *testing.T) {
 			},
 		}}
 
-		g.Expect(cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).DebugLog).To(gomega.BeNil())
+		g.Expect(cli.NewDeps(prims, nil, io.Discard, io.Discard, func(int) {}).DebugLog).To(gomega.BeNil())
 	})
 
 	t.Run("failed open yields nil sink", func(t *testing.T) {
@@ -82,7 +82,7 @@ func TestNewDeps_DebugSinkEmptyEnvOrFailedOpenIsNil(t *testing.T) {
 			},
 		}}
 
-		g.Expect(cli.NewDeps(prims, io.Discard, io.Discard, func(int) {}).DebugLog).To(gomega.BeNil())
+		g.Expect(cli.NewDeps(prims, nil, io.Discard, io.Discard, func(int) {}).DebugLog).To(gomega.BeNil())
 	})
 }
 
@@ -106,7 +106,7 @@ func TestNewDeps_DebugSinkSyncsEveryWrite(t *testing.T) {
 		},
 	}}
 
-	deps := cli.NewDeps(prims, io.Discard, io.Discard, func(int) {})
+	deps := cli.NewDeps(prims, nil, io.Discard, io.Discard, func(int) {})
 	g.Expect(deps.DebugLog).NotTo(gomega.BeNil())
 
 	if deps.DebugLog == nil {
@@ -138,7 +138,7 @@ func TestNewDeps_StartsForceExitWatcherFromPrimitive(t *testing.T) {
 		},
 	}}
 
-	cli.NewDeps(prims, io.Discard, io.Discard, func(code int) { exitCodes <- code })
+	cli.NewDeps(prims, nil, io.Discard, io.Discard, func(code int) { exitCodes <- code })
 
 	var pulses chan<- struct{}
 
@@ -164,7 +164,7 @@ func TestNewDeps_ZeroPrimitivesDisablesOptionalEdges(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	deps := cli.NewDeps(cli.Primitives{}, io.Discard, io.Discard, func(int) {})
+	deps := cli.NewDeps(cli.Primitives{}, nil, io.Discard, io.Discard, func(int) {})
 
 	g.Expect(deps.DebugLog).To(gomega.BeNil())
 }

@@ -712,6 +712,16 @@ func ExportNewUpdateDepsFromWithReparent(
 	return updateDeps{FS: fs, Cmd: cmd, Env: env, Reparent: reparent}
 }
 
+// ExportNewUpdateDepsFromWithSkillReg is ExportNewUpdateDepsFrom plus an
+// explicit SkillRegistrationDeps, for tests driving `engram update`'s
+// post-deploy skill-registration hook (skill-runbook-registration,
+// update-deploy-sync).
+func ExportNewUpdateDepsFromWithSkillReg(
+	fs update.Filesystem, cmd update.Commander, env update.Env, skillReg SkillRegistrationDeps,
+) updateDeps {
+	return updateDeps{FS: fs, Cmd: cmd, Env: env, SkillReg: skillReg}
+}
+
 // ExportNewUpdateDepsFromWithVocab is ExportNewUpdateDepsFrom plus an
 // explicit VocabDeps, for tests driving `engram update --regen-vocab`.
 func ExportNewUpdateDepsFromWithVocab(

@@ -64,5 +64,5 @@ func TestSpawner_PassesThroughSpawnFailure(t *testing.T) {
 func spawnerOver(run func(name string, args, extraEnv []string) (int, error)) update.Spawner {
 	prims := cli.Primitives{Spawn: cli.SpawnPrims{RunInherited: run}}
 
-	return cli.NewDeps(prims, io.Discard, io.Discard, nil).Spawner
+	return cli.NewDeps(prims, nil, io.Discard, io.Discard, nil).Spawner
 }

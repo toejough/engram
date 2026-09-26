@@ -11,6 +11,7 @@ import (
 	"github.com/toejough/targ"
 
 	"github.com/toejough/engram/internal/debuglog"
+	"github.com/toejough/engram/internal/update"
 )
 
 // CommonLearnArgs holds shared flags for learn subcommands.
@@ -121,6 +122,12 @@ var (
 	// (see serveAmend), which would otherwise re-stamp and re-pend the target
 	// note instead of doing what the caller asked.
 	errDiscardOverServer = errors.New("amend --discard is host-local only; unset ENGRAM_SERVER to discard a note")
+	// errRegisterSkillsOverServer guards `engram register-skills`: like
+	// amend --discard, it judges and writes vault notes on the user's own
+	// terminal (prompting, declines) — never something to route over the
+	// wire (skill-runbook-registration).
+	errRegisterSkillsOverServer = errors.New(
+		"register-skills is host-local only; unset ENGRAM_SERVER to run it")
 )
 
 // amendResituateTargets returns the amend and resituate subcommands. Split out
@@ -314,8 +321,8 @@ func learnUpdateTargets(
 }
 
 // maintenanceTargets returns the vault-maintenance subcommands (resituate,
-// amend, vocab). Split out of Targets to keep each function within the length budget;
-// the wiring mirrors the other targets exactly.
+// amend, vocab, register-skills). Split out of Targets to keep each function
+// within the length budget; the wiring mirrors the other targets exactly.
 func maintenanceTargets(
 	deps Deps,
 	withLog func(context.Context) context.Context,
@@ -324,8 +331,11 @@ func maintenanceTargets(
 	home := homeOrEmpty(deps)
 
 	return append(
-		amendResituateTargets(deps, withLog, errHandler, home),
-		vocabTargets(deps, withLog, errHandler, home)...,
+		append(
+			amendResituateTargets(deps, withLog, errHandler, home),
+			vocabTargets(deps, withLog, errHandler, home)...,
+		),
+		registerSkillsTargets(deps, withLog, errHandler, home)...,
 	)
 }
 
@@ -340,6 +350,55 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 		_, _ = fmt.Fprintln(stderr, err)
 
 		exit(1)
+	}
+}
+
+// registerSkillsTargets returns the `engram register-skills` subcommand
+// (skill-runbook-registration): host-local only (errRegisterSkillsOverServer,
+// mirroring amend --discard's errDiscardOverServer), --skills-dir defaults to
+// the deployed Claude Code harness's skills dir under home.
+func registerSkillsTargets(
+	deps Deps,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+	home string,
+) []any {
+	return []any{
+		targ.Targ(func(ctx context.Context, a RegisterSkillsArgs) {
+			if base := serverBase(deps); base != "" {
+				errHandler(errRegisterSkillsOverServer)
+
+				return
+			}
+
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+
+			skillsDir := a.SkillsDir
+			if skillsDir == "" {
+				skillsDir = filepath.Join(home, update.ClaudeSkillsTargetRel)
+			}
+
+			adopt, adoptErr := parseAdoptFlags(a.Adopt)
+			if adoptErr != nil {
+				errHandler(adoptErr)
+
+				return
+			}
+
+			args := SkillRegistrationArgs{
+				Vault:     a.Vault,
+				VaultName: a.VaultName,
+				SkillsDir: skillsDir,
+				DryRun:    a.DryRun,
+				Accept:    a.Accept,
+				Decline:   a.Decline,
+				Adopt:     adopt,
+			}
+
+			errHandler(RunSkillRegistration(withLog(ctx), args, newSkillRegistrationDeps(deps), deps.Stdout))
+		}).Name("register-skills").Description(
+			"Offer to register, refresh, or remove vault runbook notes mirroring shipped skills"),
 	}
 }
 
