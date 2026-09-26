@@ -182,3 +182,21 @@ A first Gate A review found the original 10-row table incomplete (1 missed row, 
 of that revision — 11 rows total). A second review of that 11-row list found it still
 incomplete: it never opened `adr.md`, `c1`/`c2-containers.md`, or most of the openspec specs, and
 misjudged two live ROADMAP NOW-band items (#760/#761) as historical. A third review (Gate A #2, this one) deleted 6 overreach rows misreading recall's preserved glance/deep split and removed the intro's "largest gap" claim. Revision 4 supersedes all prior tables in full; its 59-row table above is the list to perform against.
+
+## Performed (2026-09-25)
+
+All "now" rows (52 total) performed:
+
+**CLAUDE.md:** 1–5 done
+**README.md:** 6–10 done
+**docs/GLOSSARY.md:** 11–20 done
+**docs/architecture/c1-system-context.md:** 24–36 done
+**docs/architecture/c2-containers.md:** 37–45 done
+**docs/ROADMAP.md:** 46–47 done
+**agent-instructions/guidance/delegate.md:** 50–51 done
+**openspec/changes/register-skills-as-runbooks/specs/learn-runbook-capture/spec.md:** 54 done (MODIFIED Requirement added)
+**openspec/changes/register-skills-as-runbooks/specs/vault-offer-curation/spec.md:** 55 (pre-existing; no changes needed)
+**openspec/changes/register-skills-as-runbooks/specs/please-doc-enumeration-gate/spec.md:** 57–58 done (new delta file created)
+**openspec/changes/register-skills-as-runbooks/specs/learn-branching-disposition/spec.md:** 59 done (new delta file created)
+
+Archive-time rows (7 total) not performed per scope: 21–23 (ADR amendments), 48–49 (ROADMAP amend-historical), 52, 53, 56 (spec Purpose lines)

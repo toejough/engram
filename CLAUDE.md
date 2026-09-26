@@ -1,6 +1,6 @@
 # Engram
 
-Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Two skills — `recall` and `learn` — read from and write to the vault on demand. Four further workflows are no longer skills but vault runbooks surfaced by `engram query` and followed per the shim: `please` (a top runbook plus three sub-runbooks; orchestrates end-to-end work by sequencing recall, learn, and other available skills around a user's `<ask>`, with adversarial review gates over the plan, refactors, docs, and outward prose; matched by the literal triggers `/please`, `take this end-to-end`, `please`), `route` (the delegate-everything doctrine: guides subagent selection (agent type, model, effort) rather than doing object-level work itself; `please` consults it when assigning gate reviewers), `curate` (judges `engram serve`'s pending-offer notes against the host vault using the same covered/near/absent reasoning `recall`'s Step 2.5 documents, and is self-contained — it composes and executes `engram amend` directly rather than handing off to `write-memory`, since an offer's content already exists as a note file with nothing left to compose from scratch; matched by the literal triggers `curate`, `/curate`, `pending offers`, `pending offer`), and `write-memory` (a dedicated worker invoked by `recall`/`learn` at their write sites — parents judge, the worker writes — that composes and executes the vault-write commands; reached by basename/wikilink from `recall`/`learn`'s own text, since it has no trigger of its own).
+Persistent memory for LLM agents, backed by an agent-memory zettelkasten vault. Six skills read from and write to the vault on demand: `recall`, `learn`, `please`, `route`, `curate`, and `write-memory`. Each skill ships in `agent-instructions/skills/` via `engram update`. Additionally, each skill may carry one companion vault runbook note (basename slug `skill-<name>`, frontmatter `skill_hash`, body mirroring the SKILL.md) that `engram update`/`engram register-skills` (`--accept`/`--decline`/`--dry-run`/`--adopt`) offer to register, refresh, or remove; declines are remembered by hash in vault-root `skill-registrations.json`, nothing is written without a terminal, and new/refreshed notes are pending offers the `curate` skill reviews. `recall` and `learn` invoke `write-memory` natively as a skill at their write sites, not reached by basename/wikilink. `please` is one note (its former three sub-runbooks merged into the single note/skill body). The runbook concept itself (captured runbooks with triggers, the shim follow-frame) remains unchanged — only the "skills are replaced by runbooks" direction is reversed.
 
 ## Core Principles
 
@@ -23,7 +23,7 @@ engram/
 │   ├── update/        # `engram update` subcommand
 │   └── vaultgraph/    # Wikilink graph analysis of the vault
 ├── agent-instructions/
-│   ├── skills/        # Source for the recall and learn skills
+│   ├── skills/        # Source for all six skills — recall, learn, please, route, curate, write-memory
 │   └── guidance/      # Source for the deployable ambient guidance docs — recall-firing (`recall.md`), delegation-firing (`delegate.md`), learn-firing (`learn.md`), and runbook-follow-frame (`shim.md`) — synced by `engram update --with-guidance` to canonical paths in `~/.claude/engram/guidance/` (Claude Code) and `~/.pi/agent/engram/guidance/` (Pi); compat symlinks at old flat paths keep existing `@import` lines in CLAUDE.md / AGENTS.md resolving (ADR-0022 D9); activated via `@import`
 ├── openspec/          # Primary behavior specs — one per shipped capability; backfilled 2026-07-27 from docs/FEATURES.md surface
 ├── dev/               # Build tooling (targ definitions, linter configs)
@@ -35,9 +35,9 @@ engram/
 - `cmd/engram/main.go` — CLI entry point (wiring-only: single-statement main() composing `cli.Primitives` from checker-thin per-group functions of raw capability references; `targ check-thin-api`-enforced)
 - `internal/cli/primitives.go` — Composition root (`cli.Primitives` + `cli.NewDeps`, which builds every production adapter from the injected primitives)
 - `internal/cli/targets.go` — Subcommand wiring
-- `agent-instructions/skills/{learn,recall}/SKILL.md` — Skill definitions (`please`, `route`, `curate`, and `write-memory` are vault runbooks, not skills)
+- `agent-instructions/skills/{learn,recall,please,route,curate,write-memory}/SKILL.md` — Skill definitions for all six skills (each may also carry a companion `skill-<name>` vault runbook note offered by `engram update`/`engram register-skills`)
 - `dev/targs.go` — Build targets (targ definitions)
-- `docs/architecture/c1-system-context.md` — L1 C4 system context diagram + sequence diagrams for the four key flows (recall, learn, please runbook, update)
+- `docs/architecture/c1-system-context.md` — L1 C4 system context diagram + sequence diagrams for the four key flows (recall, learn, please, update)
 - `docs/README.md` — documentation index
 
 ## Design Principles
@@ -46,7 +46,7 @@ Authority: `docs/architecture/adr.md` (ADR-0001..0020) — the bullets below are
 
 - **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges. Lint-enforced (depguard/forbidigo + `targ check-thin-api`, #700).
 - **Pure Go, no CGO.** External API only for LLM operations. Embedder runs through GoMLX's `simplego` backend (CGO not required).
-- **Skills + binary:** Skills for behavior (learn, recall), slim Go binary for computation.
+- **Skills + binary:** Skills for behavior (recall, learn, please, route, curate, write-memory), slim Go binary for computation.
 - **Embed-on-write:** Every note gets a sibling `.vec.json` sidecar on `engram learn`. The bundled MiniLM-L6 model (`minilm-l6-v2@384`) is `go:embed`-ed into the binary from `internal/embed/assets/model/` (git-lfs tracked). Sidecars are stamped with the model_id so future swaps require explicit `engram embed apply --force`.
 - **Test hard-to-test code by refactoring for DI**, not by writing integration tests around I/O.
 - **Test categorization:** Unit tests verify business logic via DI + mocks (imptest). Integration tests verify wiring of thin I/O wrappers with real dependencies. If a function has business logic AND I/O, refactor to separate them — don't write an integration test around the whole thing.
