@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Update SHALL run registration offers after deploying skills
-After the engram-owned root sync completes, `engram update` SHALL run skill registration (capability `skill-runbook-registration`) against the resolved vault over the same default skill source set that standalone `engram register-skills` scans — resolved by the same function from the same home directory and working directory, and not from `<sourceRoot>/agent-instructions/skills` — prompting for each outstanding offer when stdin is a terminal, and otherwise writing nothing and reporting the outstanding offers. Registration failures SHALL be reported and SHALL NOT roll back the deploy.
+After the engram-owned root sync completes, `engram update` SHALL run skill registration (capability `skill-runbook-registration`) against the resolved vault over the same default skill and command source set that standalone `engram register-skills` scans — resolved by the same function from the same home directory and working directory, and not from `<sourceRoot>/agent-instructions/skills` — prompting for each outstanding offer when stdin is a terminal, and otherwise writing nothing and reporting the outstanding offers. Registration failures SHALL be reported and SHALL NOT roll back the deploy.
 
 #### Scenario: Interactive update
 - **WHEN** `engram update` runs in a terminal and a shipped skill has no note
