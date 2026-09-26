@@ -22,7 +22,7 @@ Registration SHALL compare against the skills, commands, and Pi prompt templates
 
   Its skills come from `<installPath>/skills/<n>/SKILL.md` plus any `plugin.json` `skills` paths. Its commands come from `<installPath>/commands/**/*.md`, or from `plugin.json` `commands` when that is a path or an array. No other cached version is read.
 - Claude Code project skills and commands: `.claude/skills/<n>/SKILL.md` and `.claude/commands/**/*.md` in the working directory and each ancestor up to the repository top-level. Root `.md` files in `.claude/skills` are ignored.
-- For projects that Pi trusts, the Pi project sources: `.pi/skills/`, `.pi/prompts/*.md`, `.agents/skills/` in the working directory and its ancestors up to the top-level, and `.pi/settings.json` skill and prompt paths and packages. A project is trusted when the nearest saved decision in `~/.pi/agent/trust.json` for the folder or a parent says so, or, with no saved decision, when the global `defaultProjectTrust` is `always`.
+- For projects that Pi trusts, the Pi project sources, in this precedence order: `.pi/skills/`, `.agents/skills/` in the working directory and its ancestors up to the top-level, `.pi/settings.json` skill paths, `.pi/prompts/*.md`, `.pi/settings.json` prompt paths, and `.pi/settings.json` packages. A project is trusted when the nearest saved decision in `~/.pi/agent/trust.json` for the folder or a parent says so, or, with no saved decision, when the global `defaultProjectTrust` is `always`.
 
 Harness sources SHALL be scanned only for harnesses that `engram update` detects. A name SHALL be the directory name, file stem, or command path, never a frontmatter field. An entry whose name contains `:` SHALL be skipped with a warning.
 

@@ -50,7 +50,14 @@ func TestNormalizeProjectRemote_Examples(t *testing.T) {
 			want: projectRemoteID, ok: true,
 		},
 		{name: "surrounding whitespace", url: "  https://github.com/toejough/engram\n", want: projectRemoteID, ok: true},
-		{name: "already normalized", url: projectRemoteID, want: projectRemoteID, ok: true},
+		{
+			name: "scp ssh host alias", url: "git@github-work:toejough/engram.git",
+			want: "github-work/toejough/engram", ok: true,
+		},
+		{name: "scheme dotless host", url: "ssh://gitserver/team/repo", want: "gitserver/team/repo", ok: true},
+		{name: "normalized form is a local path to git", url: projectRemoteID, ok: false},
+		{name: "plain relative path", url: "mirrors/engram", ok: false},
+		{name: "windows drive path", url: "C:/x/y", ok: false},
 		{name: "gitlab subgroup", url: "https://gitlab.com/Group/Sub/Repo.git", want: "gitlab.com/group/sub/repo", ok: true},
 		{name: "empty", url: "", ok: false},
 		{name: "absolute local path", url: "/srv/git/engram.git", ok: false},
@@ -100,7 +107,9 @@ func TestNormalizeProjectRemote_VariantProperty(t *testing.T) {
 		g.Expect(ok).To(BeTrue(), url)
 		g.Expect(got).To(Equal(want), url)
 
-		again, againOK := cli.ExportNormalizeProjectRemote(got)
+		// Idempotence over the canonical form re-expressed as a URL (a bare
+		// `host/path` is a local path to git, so it is not a raw origin).
+		again, againOK := cli.ExportNormalizeProjectRemote("ssh://" + got)
 		g.Expect(againOK).To(BeTrue())
 		g.Expect(again).To(Equal(got))
 	})
@@ -196,6 +205,10 @@ func TestProbeProjectIdentity_UnusableFallbacks(t *testing.T) {
 			wantID: "local/engram", wantFound: true,
 		},
 		{name: "empty origin falls back", origin: "  \n", commonDir: "/w/tool/.git", wantID: "local/tool", wantFound: true},
+		{
+			name: "relative-path origin falls back", origin: "mirrors/engram", commonDir: "/w/tool/.git",
+			wantID: "local/tool", wantFound: true,
+		},
 		{name: "common dir fails", origin: "", commonErr: errProbeGit, wantFound: false},
 		{name: "common dir empty", origin: "", commonDir: "\n", wantFound: false},
 	}

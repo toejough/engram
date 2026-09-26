@@ -101,6 +101,12 @@ func ResolveSkillSources(
 	return resolved, nil
 }
 
+// unexported constants.
+const (
+	agentsLevelUnknownWarningFormat = "engram: cannot find the .agents level of %s; " +
+		"project settings overrides are not applied to it"
+)
+
 // claudeSources are the Claude Code harness's results, by precedence slot.
 type claudeSources struct {
 	user    SkillScanResult
@@ -302,8 +308,11 @@ func splitPiConfigured(candidates []SkillCandidate, projectScope string) piConfi
 
 // withAgentsChainOverrides applies the project settings' overrides to a
 // project `.agents/skills` chain, each level against its own `<dir>/.agents`
-// base (Pi matches each ancestor level separately). An override Pi cannot
-// evaluate (`**`) is warned about once per level.
+// base, as Pi does (package-manager.js:1959-1966: each ancestor level's
+// isEnabledByOverrides call gets `dirname(agentsSkillsDir)`). An override Pi
+// cannot evaluate (`**`) is warned about once per level. A candidate whose
+// ReadRoot matches no recorded level (the scanners never emit one) is kept
+// unchanged with a warning, never matched against an empty base.
 func withAgentsChainOverrides(result SkillScanResult, patterns []string) SkillScanResult {
 	baseByRoot := make(map[string]string, len(result.Roots))
 	for _, root := range result.Roots {
@@ -314,9 +323,15 @@ func withAgentsChainOverrides(result SkillScanResult, patterns []string) SkillSc
 	out.Candidates = make([]SkillCandidate, 0, len(result.Candidates))
 
 	for _, candidate := range result.Candidates {
-		overridden, warnings := ApplyPiSettingsOverrides(
-			[]SkillCandidate{candidate}, patterns, baseByRoot[candidate.ReadRoot],
-		)
+		base, known := baseByRoot[candidate.ReadRoot]
+		if !known {
+			out.Candidates = append(out.Candidates, candidate)
+			out.Warnings = append(out.Warnings, fmt.Sprintf(agentsLevelUnknownWarningFormat, candidate.WalkedPath))
+
+			continue
+		}
+
+		overridden, warnings := ApplyPiSettingsOverrides([]SkillCandidate{candidate}, patterns, base)
 		out.Candidates = append(out.Candidates, overridden...)
 		out.Warnings = appendUniqueWarnings(out.Warnings, warnings)
 	}

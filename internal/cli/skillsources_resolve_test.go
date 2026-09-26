@@ -14,6 +14,73 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// TestPiScanners_ReadRootIsARecordedRootProperty: every candidate a Pi
+// default-folder scanner emits has a ReadRoot equal to one of its result's
+// recorded resolved roots, over real and symlinked roots at every chain
+// level — the invariant withAgentsChainOverrides relies on to find each
+// candidate's `.agents` base.
+func TestPiScanners_ReadRootIsARecordedRootProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
+
+		depth := rapid.IntRange(0, maxProjectChainDepth).Draw(rt, "depth")
+		fsys := newFakeSkillFS()
+		levels := make([]string, 0, depth+1)
+		levels = append(levels, projectTop)
+
+		for index := range depth {
+			levels = append(levels, fmt.Sprintf("%s/l%d", levels[index], index))
+		}
+
+		cwd := levels[len(levels)-1]
+		fsys.dir(cwd)
+
+		place := func(dir, label string) {
+			if !rapid.Bool().Draw(rt, "present "+label) {
+				return
+			}
+
+			target := dir
+			if rapid.Bool().Draw(rt, "linked "+label) {
+				target = "/store/" + strings.ReplaceAll(label, "/", "_")
+				fsys.link(dir, target)
+			}
+
+			fsys.file(target+"/a/SKILL.md", label).
+				file(target+"/nest/b/SKILL.md", label).
+				file(target+"/root.md", label)
+		}
+
+		for index, level := range levels {
+			place(level+"/.agents/skills", fmt.Sprintf("agents%d", index))
+		}
+
+		place(cwd+"/.pi/skills", "pi")
+		place(cwd+"/.pi/prompts", "prompts")
+
+		scan := cli.PiProjectScan{
+			Cwd: cwd, TopLevel: projectTop, UserAgentsRoot: agentsUserRoot, ScopeID: projectScope, Trusted: true,
+		}
+
+		for _, result := range []cli.SkillScanResult{
+			cli.ScanAgentsProjectSkills(fsys, scan),
+			cli.ScanPiProjectSkills(fsys, scan),
+			cli.ScanPiProjectPrompts(fsys, scan),
+		} {
+			resolvedRoots := make([]string, 0, len(result.Roots))
+			for _, root := range result.Roots {
+				resolvedRoots = append(resolvedRoots, root.Resolved)
+			}
+
+			for _, candidate := range result.Candidates {
+				g.Expect(resolvedRoots).To(ContainElement(candidate.ReadRoot), candidate.SourcePath)
+			}
+		}
+	})
+}
+
 func TestResolveSkillSources_AbsentHarnessSourcesAreNotRead(t *testing.T) {
 	t.Parallel()
 
@@ -152,6 +219,28 @@ func TestResolveSkillSources_OutsideARepoHasNoProjectSources(t *testing.T) {
 // the global settings' `!` overrides switch off default-folder files and the
 // project settings' overrides switch off project default-folder files; the
 // Disabled candidates stay in the result.
+// TestResolveSkillSources_OverridesSkipCandidateWithUnknownLevel: a
+// `.agents/skills` candidate whose ReadRoot matches no recorded level is left
+// unchanged (never matched against an empty base) and reported.
+func TestResolveSkillSources_OverridesSkipCandidateWithUnknownLevel(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	level := projectTop + "/.agents/skills"
+	result := cli.SkillScanResult{
+		Candidates: []cli.SkillCandidate{
+			{Name: "known", ReadRoot: level, WalkedPath: level + "/known/SKILL.md"},
+			{Name: "stray", ReadRoot: "/elsewhere", WalkedPath: "/elsewhere/stray/SKILL.md"},
+		},
+		Roots: []cli.ScannedRoot{{Path: level, Resolved: level, Scanned: true}},
+	}
+
+	out := cli.ExportWithAgentsChainOverrides(result, []string{"!known", "!stray"})
+
+	g.Expect(disabledNames(out.Candidates)).To(Equal([]string{"known"}))
+	g.Expect(out.Warnings).To(ContainElement(ContainSubstring("/elsewhere/stray/SKILL.md")))
+}
+
 func TestResolveSkillSources_PiOverridesDisableDefaultFolders(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

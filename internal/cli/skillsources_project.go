@@ -127,11 +127,13 @@ func localProjectID(commonDir string) string {
 // normalizeProjectRemote turns a git origin URL into `<host>/<path>` (design
 // D3 `<r>`): the whole string lowercased, userinfo and any `:port` stripped,
 // and trailing `.git` and `/` removed. It parses the scheme form
-// (`ssh://`, `https://`, …), the scp form (`git@host:owner/repo`), and an
-// already-normalized `host/path`, so normalization is idempotent. ok is
-// false for a URL with no host or path — a local path or `file://` origin —
-// or one whose result would keep a `:` (e.g. an IPv6 host), which would
-// make keys unparseable.
+// (`ssh://`, `https://`, …) and the scp form (`git@host:owner/repo`,
+// including an SSH host alias). Normalization is idempotent: the result,
+// re-expressed as a URL (`ssh://<r>`), normalizes to itself. ok is false for
+// anything git treats as a local path — a bare `host/path`, a relative or
+// absolute path, a drive letter (`C:/x`), a `file://` URL — and for a result
+// that would keep a `:` (e.g. an IPv6 host), which would make keys
+// unparseable; the caller then falls back to `local/<name>`.
 func normalizeProjectRemote(remote string) (string, bool) {
 	lowered := strings.ToLower(strings.TrimSpace(remote))
 
@@ -141,7 +143,12 @@ func normalizeProjectRemote(remote string) (string, bool) {
 		authority, urlPath, _ := strings.Cut(rest, "/")
 		host, path = stripRemotePort(stripRemoteUserinfo(authority)), urlPath
 	} else {
-		host, path = splitSchemelessRemote(lowered)
+		var isScp bool
+
+		host, path, isScp = splitScpRemote(lowered)
+		if !isScp {
+			return "", false
+		}
 	}
 
 	path = strings.TrimLeft(path, "/")
@@ -213,28 +220,28 @@ func projectLevelDir(fsys SkillSourceFS, dir string, userRoots []string) (string
 	}
 }
 
-// splitSchemelessRemote splits an scp-form remote (`[user@]host:path`,
-// recognized by a `:` before the first `/`) or a plain `host/path` into host
-// and path, with any userinfo stripped.
-func splitSchemelessRemote(remote string) (host, path string) {
+// splitScpRemote splits an scp-form remote, `[user@]host:path` (git's
+// rule: a `:` before the first `/`), into host and path with any userinfo
+// stripped. ok is false for anything else — a bare `host/path` or a relative
+// path is a local path to git, not a remote — and for a one-letter host,
+// which is a drive letter (`C:/x`), not a forge.
+func splitScpRemote(remote string) (host, path string, ok bool) {
 	head := remote
 	if slash := strings.IndexByte(remote, '/'); slash >= 0 {
 		head = remote[:slash]
 	}
 
-	if strings.Contains(head, ":") {
-		if at := strings.LastIndexByte(head, '@'); at >= 0 {
-			remote = remote[at+1:]
-		}
-
-		host, path, _ = strings.Cut(remote, ":")
-
-		return host, path
+	if !strings.Contains(head, ":") {
+		return "", "", false
 	}
 
-	host, path, _ = strings.Cut(remote, "/")
+	if at := strings.LastIndexByte(head, '@'); at >= 0 {
+		remote = remote[at+1:]
+	}
 
-	return stripRemoteUserinfo(host), path
+	host, path, _ = strings.Cut(remote, ":")
+
+	return host, path, len(host) > 1
 }
 
 // stripRemotePort removes a trailing `:<digits>` port from host.

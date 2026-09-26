@@ -170,6 +170,7 @@ var (
 	ExportVocabDefinitionsMissingSelfTags = vocabDefinitionsMissingSelfTags
 	ExportVocabTermsFromTags              = vocabTermsFromTags
 	ExportWarnIfPendingOffers             = warnIfPendingOffers
+	ExportWithAgentsChainOverrides        = withAgentsChainOverrides
 	ExportWriteCentroidsDocRaw            = writeCentroidsDocRaw
 	ExportWriteCentroidsFile              = writeCentroidsFile
 	ExportWriteParentSourced              = writeParentSourced
