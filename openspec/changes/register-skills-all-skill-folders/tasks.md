@@ -27,7 +27,7 @@ Every Go task follows RED → GREEN → REFACTOR:
   - Fixtures: a global prompt yields key `pi-prompt:review`; an untrusted project yields none.
 - [ ] 1.5 RED→GREEN: Pi configured sources.
   - `settings.json` `skills` entries: paths relative to `~/.pi/agent` (or to `.pi`), `~` expansion, per-segment `path.Match` globs, `!pattern`, `+path`, `-path`. Unsupported `**` → warning, source not scanned.
-  - `packages` in string and object forms: `npm:` → `<root>/npm/node_modules/<name>`; `git:`/URL → `<root>/git/<host>/<path>`; local path relative to the settings dir. Prompts come from settings `prompts` entries and package `pi.prompts`, else `prompts/*.md`, with the object-form `prompts` filter. Skills come from package.json `pi.skills`, else convention `skills/`. The object-form `skills` filter applies (omitted = all, `[]` = none). A project entry overrides a global one with the same identity.
+  - `packages` in string and object forms: `npm:` → `<root>/npm/node_modules/<name>`; `git:`/URL → `<root>/git/<host>/<path>`; local path relative to the settings dir. Prompts also come from settings `prompts` entries. Package contents match Pi's `collectPackageResources` (`dist/core/package-manager.js` ~1747-1785): for a string-form entry, any `pi` key → manifest entries only (`pi.skills`, `pi.prompts`), and convention `skills/`/`prompts/` only with no `pi` key; for an object-form entry, an explicit pattern list filters (`[]` = none), and an omitted type falls back per type to the manifest entry, else the convention dir; `autoload: false` → warning, not scanned. Fixtures: a string-form package whose `pi` has only `extensions` yields no skills even with `skills/` present; the same package as object-form with `skills` omitted yields `skills/fmt`. A project entry overrides a global one with the same identity.
   - Positive fixtures, one per spec scenario: a settings `skills` path (`~/extra-skills/fmt`); an npm package with `pi.skills` (listed `npm:pi-intercom`); object-form `skills: []` yields none.
   - Fixture of this machine's shape: a missing local package contributes nothing and is not scanned; an installed-but-unconfigured npm package (pi-intercom) is not read.
 - [ ] 1.6 RED→GREEN: Pi trust.
@@ -43,7 +43,7 @@ Every Go task follows RED → GREEN → REFACTOR:
   - Reserved names are skipped with a warning.
   - Fixtures: disabled (hookify), absent entry with missing installPath (work-on), uninstalled plugin, two marketplaces.
 - [ ] 1.8 RED→GREEN: project identity probe (via the injected Commander; extend, don't duplicate, `detectRepo`).
-  - `<host>/<owner>/<repo>` from the origin URL (host lowercased), for ssh://, https:// and scp forms, with `.git` stripped.
+  - `<host>/<owner>/<repo>` from the origin URL, fully normalized (whole string lowercased; userinfo and port stripped; trailing `.git`/`/` removed), for ssh://, https:// and scp forms. rapid property: normalization is idempotent, and every userinfo/port/case variant of one URL yields the same `<r>`.
   - No origin → `local/<basename of the parent of git rev-parse --path-format=absolute --git-common-dir>`.
   - Not a repo → no project sources.
   - Fixtures: a linked worktree resolves to `github.com/toejough/engram`; github.com and gitlab.com repos with the same owner/repo stay distinct.
@@ -69,7 +69,7 @@ Every Go task follows RED → GREEN → REFACTOR:
   - Same-path collapse.
   - Same key: identical → collapse; different → conflict line naming both paths, no offer for that key, failure exit status after all other offers. This includes the same name at two project-chain levels.
   - Plugin conflict (a name in two marketplaces) → no offers, scope not scanned.
-  - Engram-owned bare keys with different bytes → the first in precedence wins, plus one warning, with no conflict and no failure (spec scenario).
+  - Engram-owned bare keys with different bytes → the first in precedence wins, plus one warning, with no conflict and no failure, but only when every copy is under an engram-owned root. A real `~/.claude/skills/<n>` clashing with an engram-owned copy → a conflict with a failure exit (spec scenario).
   - Alias = SHA equal to a higher-precedence candidate or to any note's `skill_hash`.
 - [ ] 2.4 RED→GREEN (+ rapid property: never a removal offer for a note whose eligibility root (a fixed user root, the root containing its `skill_source`, or the plugin manifest rule) was not read, or whose key has any candidate, alias included):
   - Eligibility per D5, including matching the resolved `skill_source` prefix against `ScannedRoots` for synced (per bucket), `pi-settings`, `pi-pkg` and `project` notes.

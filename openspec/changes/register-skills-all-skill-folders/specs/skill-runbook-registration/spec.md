@@ -14,7 +14,7 @@ Registration SHALL compare against the skills, commands, and Pi prompt templates
 - Pi user skills in `~/.pi/agent/skills/`: recursively discovered skill directories plus root `.md` files.
 - Skills in `~/.agents/skills/`: recursive, with root `.md` files ignored.
 - Pi prompt templates: `~/.pi/agent/prompts/*.md` (flat, named by file stem).
-- The skill and prompt paths and packages configured in Pi's global `settings.json`: `skills` and `prompts` entries, and `packages` entries resolved to `npm:`, `git:` or local package roots per Pi's documented rules. A package's skills come from `package.json` `pi.skills`, else from `skills/`, and its prompts from `pi.prompts`, else from `prompts/`. Both are narrowed by the entry's object-form `skills`/`prompts` filter, where an omitted filter means all and `[]` means none.
+- The skill and prompt paths and packages configured in Pi's global `settings.json`: `skills` and `prompts` entries, and `packages` entries resolved to `npm:`, `git:` or local package roots per Pi's documented rules. For a string-form package entry whose `package.json` has any `pi` key, only the manifest's `pi.skills`/`pi.prompts` entries SHALL load. The convention directories `skills/` and `prompts/` SHALL be used only when `package.json` has no `pi` key. For an object-form entry, an explicit `skills`/`prompts` pattern list SHALL filter the package (`[]` loads none), and an omitted key SHALL fall back, for that type only, to the manifest's entry if present, else the convention directory.
 - The skills and commands of each installed Claude Code plugin that meets all of these conditions:
   - it is enabled by its `enabledPlugins` entry, or, when the entry is absent, by its `plugin.json` `defaultEnabled` (default true);
   - its scope is `user`, or it is project-scoped to the current repository;
@@ -53,6 +53,14 @@ Harness sources SHALL be scanned only for harnesses that `engram update` detects
 #### Scenario: npm package skills from its manifest
 - **WHEN** `settings.json` lists `"npm:pi-intercom"`, and `~/.pi/agent/npm/node_modules/pi-intercom/package.json` has `"pi": {"skills": ["./skills"]}` with `skills/pi-intercom/SKILL.md`
 - **THEN** `pi-intercom` is scanned as a skill of package `pi-intercom`
+
+#### Scenario: String-form package with a pi key ignores convention dirs
+- **WHEN** `settings.json` lists `"npm:x"`, and `x`'s `package.json` has `"pi": {"extensions": ["./index.ts"]}` and the package also has `skills/fmt/SKILL.md`
+- **THEN** no skill of package `x` is scanned
+
+#### Scenario: Object-form omitted type falls back per type
+- **WHEN** `settings.json` lists `{"source": "npm:x", "extensions": []}` for the same package
+- **THEN** `fmt` is scanned from `skills/`, because the object form falls back to the convention directory for the omitted `skills` type
 
 #### Scenario: Object-form empty skills filter
 - **WHEN** `settings.json` lists `{"source": "npm:pi-intercom", "skills": []}`
@@ -125,7 +133,7 @@ The components are defined as follows:
 
 - `<plugin>` is the part before `@` in the manifest key, and is never qualified by marketplace.
 - `<pkg-id>` is the npm name, git `<host>/<path>`, or `~`-relative local path.
-- `<r>` is the origin remote's lowercased host followed by its path, without `.git` (e.g. `github.com/toejough/engram`). Without an origin, it is `local/` followed by the basename of the parent of the absolute `git rev-parse --git-common-dir`.
+- `<r>` is the origin remote's host followed by its path, fully normalized: lowercased, with userinfo and any port removed, and without a trailing `.git` or `/` (e.g. `github.com/toejough/engram`). Without an origin, it is `local/` followed by the basename of the parent of the absolute `git rev-parse --git-common-dir`.
 - A working directory outside any git repository SHALL contribute no project entries.
 - A plugin named `pi`, `agents`, `project`, `anthropic-skills`, `cmd`, `pi-settings`, `pi-pkg`, or `pi-prompt` SHALL be skipped with a warning.
 - "Lies under an engram-owned root" SHALL be decided on fully symlink-resolved paths: the entry's resolved file under the resolved `<home>/<engram root>/skills` of any supported harness.
@@ -145,7 +153,7 @@ The note slug SHALL be `skill-` followed by the key lowercased, with every run o
 - **THEN** its project skills' keys begin with `project:github.com/toejough/engram:` and their slugs with `skill-project-github-com-toejough-engram-`
 
 #### Scenario: Two same-named projects stay distinct
-- **WHEN** two repositories are both named `engram`, with origins `github.com/toejough/engram` and `gitlab.com/toejough/engram`, and each has a project skill `deploy`
+- **WHEN** two repositories are both named `engram`, with origins `ssh://git@GitHub.com:22/toejough/engram.git` and `https://gitlab.com/toejough/engram`, and each has a project skill `deploy`
 - **THEN** their keys are `project:github.com/toejough/engram:deploy` and `project:gitlab.com/toejough/engram:deploy`
 
 #### Scenario: Pi-only machine keeps the engram skill's bare key
@@ -167,7 +175,7 @@ Entries with the same key SHALL collapse when byte-identical. When they differ, 
 
 A plugin name installed from more than one marketplace SHALL be a plugin conflict. Registration SHALL report it, SHALL make no offer for any of its keys, and SHALL treat its scope as not scanned.
 
-The single exception is entries under engram-owned roots (bare keys). When their bytes differ, the entry first in source precedence SHALL be used, and registration SHALL print one warning suggesting `engram update`, without a conflict or a failure status.
+The single exception is a bare key whose differing copies ALL lie under engram-owned roots. A real user skill `~/.claude/skills/<n>` that clashes with an engram-owned copy of the same bare key SHALL be an ordinary key conflict with a failure status. Under the exception, when the copies' bytes differ, the entry first in source precedence SHALL be used, and registration SHALL print one warning suggesting `engram update`, without a conflict or a failure status.
 
 An entry whose SHA-256 equals that of an entry earlier in source precedence in the same run, or equals the `skill_hash` of any existing skill note, SHALL be an alias. An alias SHALL make no offer and SHALL NOT be recorded anywhere, but it SHALL count as present for its key.
 
@@ -191,6 +199,10 @@ An entry whose SHA-256 equals that of an entry earlier in source precedence in t
 - **WHEN** `~/.claude/skills/route` and `~/.pi/agent/skills/route` both resolve under engram-owned roots with different bytes
 - **THEN** registration compares the Claude copy with note 1036, prints one warning suggesting `engram update`, and reports no conflict
 
+#### Scenario: A user skill clashing with an engram skill is a conflict
+- **WHEN** `~/.pi/agent/skills/route` resolves under `~/.pi/agent/engram/skills`, and `~/.claude/skills/route` is a real directory (not a symlink into an engram root) with different bytes
+- **THEN** registration reports a key conflict for `route` naming both paths, makes no offer for `route`, and exits with a failure status
+
 #### Scenario: Two synced buckets hold the same skill
 - **WHEN** two synced buckets both hold `pdf/SKILL.md` with identical bytes
 - **THEN** one candidate `anthropic-skills:pdf` results and no conflict is reported
@@ -204,7 +216,7 @@ A source root SHALL count as read only when its read succeeded. A read error of 
 
 A skill note SHALL be eligible for removal only as follows:
 
-- For bare, `cmd:`, `pi:`, `agents:`, and `pi-prompt:` keys: the fixed user root for that form was read (`~/.claude/skills`, `~/.claude/commands`, `~/.pi/agent/skills`, `~/.agents/skills`, `~/.pi/agent/prompts`).
+- For bare, `cmd:`, `pi:`, `agents:`, and `pi-prompt:` keys: the fixed user root for that form was read (`~/.claude/skills` for every bare key, `~/.claude/commands`, `~/.pi/agent/skills`, `~/.agents/skills`, `~/.pi/agent/prompts`). Without a readable `~/.claude/skills`, no bare-key note SHALL be removal-eligible.
 - For `anthropic-skills:`, `pi-settings:`, `pi-pkg:`, and `project:` keys: the specific root containing the note's recorded `skill_source` was read in this run. That root is the synced bucket whose `manifest.json` parsed, the settings entry's path, the package root, or the exact project directory.
 - For plugin keys: `installed_plugins.json` and `settings.json` both parsed, the plugin has no plugin conflict, and it is either enabled with its `installPath` read, or absent from the manifest.
 
