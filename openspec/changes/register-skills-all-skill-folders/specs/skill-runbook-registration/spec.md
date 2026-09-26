@@ -14,7 +14,7 @@ Registration SHALL compare against the skills, commands, and Pi prompt templates
 - Pi user skills in `~/.pi/agent/skills/`: recursively discovered skill directories plus root `.md` files.
 - Skills in `~/.agents/skills/`: recursive, with root `.md` files ignored.
 - Pi prompt templates: `~/.pi/agent/prompts/*.md` (flat, named by file stem).
-- The skill and prompt paths and packages configured in Pi's global `settings.json`: `skills` and `prompts` entries, and `packages` entries resolved to `npm:`, `git:` or local package roots per Pi's documented rules. For a string-form package entry whose `package.json` has any `pi` key, only the manifest's `pi.skills`/`pi.prompts` entries SHALL load. The convention directories `skills/` and `prompts/` SHALL be used only when `package.json` has no `pi` key. For an object-form entry, an explicit `skills`/`prompts` pattern list SHALL filter the package (`[]` loads none), and an omitted key SHALL fall back, for that type only, to the manifest's entry if present, else the convention directory.
+- The skill and prompt paths and packages configured in Pi's global `settings.json`: `skills` and `prompts` entries, and `packages` entries resolved to `npm:`, `git:` or local package roots per Pi's documented rules. For a string-form package entry whose `package.json` has any `pi` key, only the manifest's `pi.skills`/`pi.prompts` entries SHALL load. The convention directories `skills/` and `prompts/` SHALL be used only when `package.json` has no `pi` key. For an object-form entry, an explicit `skills`/`prompts` pattern list SHALL filter the package (`[]` switches every file of that type off), and an omitted key SHALL fall back, for that type only, to the manifest's entry if present, else the convention directory. A settings or package skill directory SHALL be searched recursively and SHALL include its own root `.md` files. A settings or package prompt directory SHALL be searched recursively. A file that a settings entry, a settings `!pattern`/`-path` over a default folder, or an object-form package filter switches off SHALL be kept as disabled: it SHALL NOT be offered, and it SHALL count as present for removal.
 - The skills and commands of each installed Claude Code plugin that meets all of these conditions:
   - it is enabled by its `enabledPlugins` entry, or, when the entry is absent, by its `plugin.json` `defaultEnabled` (default true);
   - its scope is `user`, or it is project-scoped to the current repository;
@@ -64,7 +64,7 @@ Harness sources SHALL be scanned only for harnesses that `engram update` detects
 
 #### Scenario: Object-form empty skills filter
 - **WHEN** `settings.json` lists `{"source": "npm:pi-intercom", "skills": []}`
-- **THEN** no skill of that package is scanned
+- **THEN** no skill of that package is offered, and its `pi-intercom` skill is kept as disabled, present for removal
 
 #### Scenario: Pi root markdown skill
 - **WHEN** `~/.pi/agent/skills/notes.md` is a root file
@@ -233,6 +233,10 @@ A note whose `skill_source` lies under no read root SHALL NOT be eligible. Regis
 #### Scenario: Disabled plugin keeps its notes
 - **WHEN** a note has key `hookify:writing-rules` and hookify is installed but disabled
 - **THEN** no removal offer is made for it
+
+#### Scenario: Pi-disabled skill keeps its note
+- **WHEN** a note has key `pi:ping`, `~/.pi/agent/skills` is read, and the global Pi `settings.json` `skills` has `"!ping"`
+- **THEN** no register, refresh or removal offer is made for it
 
 #### Scenario: Uninstalled plugin is offered for removal
 - **WHEN** a note has key `ralph-loop:cmd:help` and `ralph-loop` is absent from a readable `installed_plugins.json`

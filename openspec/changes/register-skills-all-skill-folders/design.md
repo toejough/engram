@@ -16,14 +16,15 @@ Joe reversed the Non-Goal (vault note 1066a). Registration covers every default 
 - **Pi** (`/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/docs/{skills,settings,packages}.md`):
   - Default locations are `~/.pi/agent/skills/` and `~/.agents/skills/` (global), and, for trusted projects only, `.pi/skills/` plus `.agents/skills/` in the cwd and its ancestors up to the git root.
   - `SKILL.md` directories are discovered recursively. Root `.md` files count as skills only in `~/.pi/agent/skills/` and `.pi/skills/`.
-  - `settings.json` `skills: string[]` holds file or directory paths. They resolve relative to `~/.pi/agent`, or relative to `.pi` for project settings. `~`, globs, `!pattern`, `+path` and `-path` are supported.
+  - `settings.json` `skills: string[]` holds file or directory paths. They resolve relative to `~/.pi/agent`, or relative to `.pi` for project settings. `~`, globs, `!pattern`, `+path` and `-path` are supported. A glob entry is never a path: it filters the files the path entries found (`package-manager.js:127-129`, `:1890-1903`). The `!`/`+`/`-` entries also switch default-folder files on or off (`isEnabledByOverrides`, `:515-539`, applied at `:1949`).
+  - Pi never drops a file that a settings or package filter excludes. It keeps it with `enabled: false` (`package-manager.js:1807`, `:1815`, `:1901`, `:1949-1950`), so the file is still installed but switched off.
   - `packages` entries are either a string or `{source, skills?: [...]}`:
     - `npm:<name>[@ver]` installs to `~/.pi/agent/npm/node_modules/<name>`, or `.pi/npm/` for a project.
     - `git:`/URL sources clone to `~/.pi/agent/git/<host>/<path>`, or `.pi/git/…`.
     - A local path resolves against its settings file.
-    - A package's resources (checked in `dist/core/package-manager.js` `collectPackageResources`): for a string-form entry, any `pi` key in `package.json` means only the manifest's entries load, and the convention dirs (`skills/`, `prompts/`) apply only with no `pi` key at all. Only the object-form path falls back per resource type (manifest entry, else convention dir) when that type's filter is omitted; `[]` loads none.
+    - A package's resources (checked in `dist/core/package-manager.js` `collectPackageResources`): for a string-form entry, any `pi` key in `package.json` means only the manifest's entries load, and the convention dirs (`skills/`, `prompts/`) apply only with no `pi` key at all. Only the object-form path falls back per resource type (manifest entry, else convention dir) when that type's filter is omitted. `[]` switches every file of that type off (`package-manager.js:1802-1817`); it does not remove them.
     - When a package appears in both the global and the project settings, the project entry wins.
-  - Prompt templates (`docs/prompt-templates.md`) load from `~/.pi/agent/prompts/*.md`, from `.pi/prompts/*.md` for trusted projects, from `prompts/` directories or `pi.prompts` entries in a package, and from the `settings.json` `prompts` array. They are flat `*.md` files, and "the filename becomes the command name". Their frontmatter is optional `description`/`argument-hint`.
+  - Prompt templates (`docs/prompt-templates.md`) load from `~/.pi/agent/prompts/*.md`, from `.pi/prompts/*.md` for trusted projects, from `prompts/` directories or `pi.prompts` entries in a package, and from the `settings.json` `prompts` array. "The filename becomes the command name" (`prompt-templates.js:85`). Only the two default folders are flat (`collectAutoPromptEntries`, `package-manager.js:291-326`). A settings or package prompt directory is searched recursively (`collectFiles`, `:149-192`, reached via `:463`). Their frontmatter is optional `description`/`argument-hint`.
   - Trust is decided by the nearest saved decision for the folder or a parent in `~/.pi/agent/trust.json`. With no saved decision, the fallback is `defaultProjectTrust`, and only `always` trusts.
 
 **Real layout on this machine (checked 2026-09-26):**
@@ -55,7 +56,7 @@ The real vault holds six skill notes: 1036 route, 1045 please, 1049 curate, 1053
 - About 77 first-run offers remain answerable, both interactively and through an agent.
 
 **Non-Goals:**
-- Plugin `commands` object-map form, and `**` globs in Pi paths. Both are skipped with a warning, and the affected scope is not scanned. This machine uses neither.
+- Plugin `commands` object-map form, and `**` globs in Pi paths. Both are skipped with a warning, and the affected scope is not scanned. This machine uses neither. When a Pi `!`/`-` override contains `**`, it cannot be applied to the default folders, so every file in those folders is marked Disabled, with a warning.
 - Pi `--skill` and `--prompt-template` CLI paths, Claude managed/enterprise skill dirs, lazily-loaded nested `.claude/skills` below cwd, and project-level plugin enablement in `<project>/.claude/settings.json`.
 - Project sources outside a git repository. They are skipped with one line (D3).
 - Changing curation. `curate`'s pending-skill-note branch already handles any skill note.
@@ -79,15 +80,26 @@ Alternatives:
 3. **Synced.** For each **directory** child of `~/.claude/skills/synced/` (files such as `.bucket-*` are ignored) whose `manifest.json` parses, read its `<n>/SKILL.md` children.
 4. **Pi user.** `~/.pi/agent/skills`: recursive `SKILL.md` discovery (stop at a skill directory, depth-bounded, cycle guard on the resolved path), plus root `.md` files named by their stem.
 5. **agents user.** `~/.agents/skills`: recursive, and root `.md` files are ignored.
-6. **Pi settings skills.** The global `settings.json` `skills` entries. A path resolves relative to `~/.pi/agent`, and `~` expands. A directory entry uses recursive discovery with no root `.md`. A file entry is one skill, named by its stem, or by its parent directory when the file is `SKILL.md`. Supported: `*`/`?`/`[…]` per path segment (Go `path.Match`), `!pattern`, `+path`, `-path`.
-6b. **Pi prompt templates.** `~/.pi/agent/prompts/*.md` (flat), plus the global `settings.json` `prompts` entries (resolved like `skills`; a directory contributes its flat `*.md`). Kind: prompt. The name is the file stem.
+6. **Pi settings skills.** The global `settings.json` `skills` entries. A path resolves relative to `~/.pi/agent`, and `~` expands. A directory entry uses recursive discovery **plus its own root `.md` files**. Pi calls `collectSkillEntries(dir, "pi")` (`package-manager.js:241`, reached via `:1986-2005` and `:456-463`). A file entry is one skill, named by its stem, or by its parent directory when the file is `SKILL.md`.
+   - Pattern entries are the ones with a `!`/`+`/`-` prefix or a `*`/`?` (`isPattern`, `:127-129`). They are filters, not paths (`applyPatterns`, `:540-584`):
+     - plain globs include (all files when there are none);
+     - `!` excludes;
+     - `+path` re-adds by exact path;
+     - `-path` removes by exact path.
+   - Matching is Go `path.Match`, per segment, against the discovered path relative to the base, the file name or the absolute path. For `SKILL.md` the same three forms of its directory also count (`:465-511`).
+   - **A filtered-out file is kept as a Disabled candidate: never offered, still present for removal** (`:1901`).
+   - The `!`, `+` and `-` entries also apply to the default folders of the same settings file (sources 4 and 5 for global settings, source 10's folders for project settings; `isEnabledByOverrides`, `:515-539`, `:1949`). A default-folder file they switch off is likewise Disabled, not dropped.
+6b. **Pi prompt templates.** `~/.pi/agent/prompts/*.md` (flat, `package-manager.js:291-326`), plus the global `settings.json` `prompts` entries. These resolve and filter like `skills`. A directory contributes its `*.md` files **recursively**, skipping `.`-prefixed entries and `node_modules` (`collectFiles`, `:149-192`). Kind: prompt. The name is the file stem (`prompt-templates.js:85`).
 7. **Pi packages.** The global `packages` entries:
    - `npm:<name>[@v]` resolves to `~/.pi/agent/npm/node_modules/<name>`.
    - `git:<host>/<path>[@ref]` and protocol URLs resolve to `~/.pi/agent/git/<host>/<path>`.
    - A local path resolves relative to `~/.pi/agent`.
    - Package contents follow Pi's `collectPackageResources` (`dist/core/package-manager.js` ~1747-1785):
-     - **String-form entry:** if `package.json` has **any** `pi` key, only the manifest's entries load (`pi.skills`, `pi.prompts`, paths and globs relative to the root). A resource type the manifest omits loads nothing. The convention directories `skills/` (recursive, plus top-level `.md`) and `prompts/*.md` are used **only when there is no `pi` key at all**.
-     - **Object-form entry:** per resource type. An explicit `skills`/`prompts` pattern list filters the package (`[]` loads none). An omitted key falls back per type (`collectDefaultResources`): the manifest's entry for that type if present, else that type's convention directory. `autoload: false` (a delta over a global entry) is skipped with a warning and marked not scanned.
+     - **String-form entry:** if `package.json` has **any** `pi` key, only the manifest's entries load (`pi.skills`, `pi.prompts`, paths and globs relative to the root). A resource type the manifest omits loads nothing. The convention directories `skills/` and `prompts/` are used **only when there is no `pi` key at all** (`:1765-1784`).
+       - A skill directory, whether listed or the convention one, is searched recursively, **plus its root `.md` files** (`:241`).
+       - A prompt directory is searched **recursively** (`:149-192`).
+       - The manifest list's own `!`/`+`/`-` entries drop files outright (`addManifestEntries`, `:1863-1874`).
+     - **Object-form entry:** per resource type. An explicit `skills`/`prompts` pattern list filters the package (`applyPackageFilter`, `:1802-1817`). **A filtered-out file, including every file under `[]`, is kept as a Disabled candidate: never offered, still present for removal.** An omitted key falls back per type (`collectDefaultResources`): the manifest's entry for that type if present, else that type's convention directory. `autoload: false` (a delta over a global entry) is skipped with a warning and marked not scanned.
 8. **Claude plugins.** Each `installed_plugins.json` entry that meets all three conditions:
    - It is enabled: `enabledPlugins["<plugin>@<marketplace>"]`, or, when that entry is absent, `plugin.json` `defaultEnabled`, which defaults to true per the Claude docs.
    - Its `scope` is `user`, or `project`/`local` with `projectPath` equal to the repo top-level.
@@ -217,6 +229,7 @@ Alternative: treat `<checkout>/agent-instructions/skills` as engram-owned and le
 - **[Trade-off] Commands shadowed by same-named skills are still registered** under their `cmd` key. In the harness, skills take precedence. An example is the `commit@skills` plugin, which ships `skills/commit` and `commands/commit.md`. → The keys never collide, and both procedures exist on disk.
 - **[Trade-off] Plugin `skill_source` embeds a version.** → Refresh is keyed to a byte change, so the path can go stale. The key, not the path, is the identity.
 - **[Risk] A dry run inside `engram update` reads the currently deployed engram copies.** → The preview can miss a refresh that the real run will offer. Documented in the dry-run output.
+- **[Risk] Pi's ignore files are not honored** (ruling R7). Pi skips skills and prompts hidden by `.gitignore`, `.ignore` or `.fdignore` rules (`package-manager.js:73`, `:107-126`); engram does not read those files. → As a result, engram may offer a skill that Pi skips. The user can decline it, and removal is unaffected, because scanning only ever finds more files, never fewer. A follow-up issue tracks parity.
 - **[Risk] A key conflict hides that key** (same name at two project levels, two Pi entries, two synced buckets, or a plugin in two marketplaces). → It is reported loudly with both paths and a failure exit status. Nothing is written for the key.
 
 ## Migration Plan
