@@ -58,7 +58,8 @@ func RebuildNoteSidecars(
 // renameMap to its mapped new basename (plus its .vec.json sidecar), updates the
 // renamed note's own frontmatter luhmann: field to the new ID, and — in the same
 // pass — rewrites every note's [[old-basename]] wikilink (including the legacy
-// [[old-basename.md]] form), "Supersedes: [[old-basename]]" body line, and
+// [[old-basename.md]] form) in its body AND any frontmatter string field,
+// "Supersedes: [[old-basename]]" body line, and
 // frontmatter supersedes: list note: field naming an old basename, to the
 // corresponding new basename.
 //
@@ -207,20 +208,28 @@ func rewriteLuhmannIDField(content, newID string) string {
 }
 
 // rewriteNoteReferences rewrites content's frontmatter supersedes: note: fields
-// and every [[old-basename]] (or legacy [[old-basename.md]]) occurrence in the
-// body — including "Supersedes: [[old-basename]] — ..." lines, which use the
-// same wikilink syntax — to the corresponding new basename per renameMap.
-// Returns the possibly-updated content and whether anything changed.
+// and every [[old-basename]] (or legacy [[old-basename.md]]) occurrence anywhere
+// in the note — every frontmatter string value (action:, situation:,
+// red_flags: items, ...) as well as the body, including "Supersedes:
+// [[old-basename]] — ..." lines — to the corresponding new basename per
+// renameMap. Returns the possibly-updated content and whether anything changed.
+//
+// Wikilinks are replaced in the raw text rather than by re-rendering YAML: a
+// basename is [a-z0-9.-] only, so swapping one for another inside a plain,
+// single-quoted, or double-quoted scalar needs no escaping and cannot break
+// the scalar's quoting, and a space-free [[...]] can never straddle a folded
+// line break.
 func rewriteNoteReferences(content string, renameMap map[string]string) (string, bool) {
 	frontmatter, body, ok := splitFrontmatterAndBody(content)
 	if !ok {
 		return rewriteWikilinks(content, renameMap)
 	}
 
-	newFrontmatter, frontChanged := rewriteSupersedesFrontmatterNotes(frontmatter, renameMap)
+	newFrontmatter, supersedesChanged := rewriteSupersedesFrontmatterNotes(frontmatter, renameMap)
+	newFrontmatter, frontLinksChanged := rewriteWikilinks(newFrontmatter, renameMap)
 
 	newBody, bodyChanged := rewriteWikilinks(body, renameMap)
-	if !frontChanged && !bodyChanged {
+	if !supersedesChanged && !frontLinksChanged && !bodyChanged {
 		return content, false
 	}
 
