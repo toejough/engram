@@ -845,6 +845,28 @@ func TestRenderRunbookFrontmatter_IncludesSkillHashWhenSet(t *testing.T) {
 	g.Expect(parsed["skill_hash"]).To(Equal("deadbeef"))
 }
 
+// TestRenderRunbookFrontmatter_IncludesSkillKeyAndSourceWhenSet guards the
+// populated case: skill_key and skill_source render right after skill_hash
+// when a caller (registration only) sets them on runbookFields
+// (vault-note-identity spec, "Skill-note identity fields SHALL survive every
+// frontmatter rewrite").
+func TestRenderRunbookFrontmatter_IncludesSkillKeyAndSourceWhenSet(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
+		Luhmann:     "7a",
+		Source:      "skill registration",
+		SkillHash:   "deadbeef",
+		SkillKey:    "superpowers:brainstorming",
+		SkillSource: "~/.claude/plugins/cache/superpowers/5.0.1/skills/brainstorming/SKILL.md",
+	}, when)
+	parsed := parseFrontmatter(t, got)
+	g.Expect(parsed["skill_key"]).To(Equal("superpowers:brainstorming"))
+	g.Expect(parsed["skill_source"]).To(Equal("~/.claude/plugins/cache/superpowers/5.0.1/skills/brainstorming/SKILL.md"))
+	g.Expect(got).To(ContainSubstring("skill_hash: deadbeef\nskill_key: superpowers:brainstorming\nskill_source: "))
+}
+
 // TestRenderRunbookFrontmatter_OmitsRedFlagsWhenAbsent guards the no-flag
 // case: red_flags must not appear at all when the caller supplies none
 // (learn-runbook-capture spec, "Runbook captured without red flags").
@@ -875,6 +897,23 @@ func TestRenderRunbookFrontmatter_OmitsSkillHashWhenAbsent(t *testing.T) {
 		Source:    "session log foo, 2026-05-09 12:00 UTC",
 	}, when)
 	g.Expect(got).NotTo(ContainSubstring("skill_hash"))
+}
+
+// TestRenderRunbookFrontmatter_OmitsSkillKeyAndSourceWhenAbsent guards the
+// unset case: neither field appears when the caller supplies none — every
+// non-registration runbook.
+func TestRenderRunbookFrontmatter_OmitsSkillKeyAndSourceWhenAbsent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	when := time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC)
+	got := cli.ExportRenderRunbookFrontmatter(cli.ExportRunbookFields{
+		Situation: "releasing a new Go module version",
+		DoneWhen:  "the tag is pushed and the changelog is updated",
+		Luhmann:   "7a",
+		Source:    "session log foo, 2026-05-09 12:00 UTC",
+	}, when)
+	g.Expect(got).NotTo(ContainSubstring("skill_key"))
+	g.Expect(got).NotTo(ContainSubstring("skill_source"))
 }
 
 // TestRenderRunbookFrontmatter_RedFlagsRoundtripFidelity is a property test:
@@ -952,6 +991,44 @@ func TestRenderRunbookFrontmatter_SkillHashRoundtripFidelity(t *testing.T) {
 
 		if doc.SkillHash != hash {
 			rt.Fatalf("skill_hash: got %q want %q\nfull:\n%s", doc.SkillHash, hash, got)
+		}
+	})
+}
+
+// TestRenderRunbookFrontmatter_SkillKeySourceRoundtripProperty is a
+// property test: any source-qualified skill_key and `~`-relative
+// skill_source survive the render->parse YAML roundtrip identically.
+func TestRenderRunbookFrontmatter_SkillKeySourceRoundtripProperty(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		key := skillKeyGen().Draw(rt, "skillKey")
+		source := skillSourceGen().Draw(rt, "skillSource")
+
+		fields := cli.ExportRunbookFields{
+			Luhmann: "1", Source: "src", SkillHash: "abc", SkillKey: key, SkillSource: source,
+		}
+		got := cli.ExportRenderRunbookFrontmatter(fields, time.Date(2026, time.July, 10, 0, 0, 0, 0, time.UTC))
+
+		const delim = "---\n"
+
+		body := strings.TrimPrefix(got, delim)
+		end := strings.Index(body, "\n"+delim)
+
+		if end < 0 {
+			rt.Fatalf("no closing delimiter in %q", got)
+		}
+
+		var doc struct {
+			SkillKey    string `yaml:"skill_key"`
+			SkillSource string `yaml:"skill_source"`
+		}
+
+		if err := yaml.Unmarshal([]byte(body[:end+1]), &doc); err != nil {
+			rt.Fatalf("unmarshal %q: %v", body[:end+1], err)
+		}
+
+		if doc.SkillKey != key || doc.SkillSource != source {
+			rt.Fatalf("got key %q source %q, want %q %q\nfull:\n%s", doc.SkillKey, doc.SkillSource, key, source, got)
 		}
 	})
 }
@@ -1315,6 +1392,40 @@ func TestRunLearn_Runbook_NeverWritesSkillHash(t *testing.T) {
 	err := cli.RunLearn(context.Background(), args, deps, &buf)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(string(written)).NotTo(ContainSubstring("skill_hash"))
+}
+
+// TestRunLearn_Runbook_NeverWritesSkillKeyOrSource proves an ordinary
+// capture (LearnArgs built the way `engram learn runbook` builds them) carries
+// neither skill_key nor skill_source (vault-note-identity spec, "Ordinary
+// capture carries neither").
+func TestRunLearn_Runbook_NeverWritesSkillKeyOrSource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var written []byte
+
+	deps := cli.LearnDeps{
+		DetectRepo: func(context.Context) string { return "" },
+		DetectUser: func(context.Context) string { return "" },
+		Now:        func() time.Time { return time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC) },
+		Getenv:     func(string) string { return "" },
+		StatDir:    func(string) error { return nil },
+		ListIDs:    func(string) ([]string, error) { return nil, nil },
+		Lock:       func(string) (func(), error) { return func() {}, nil },
+		WriteNew:   func(_ string, data []byte) error { written = data; return nil },
+	}
+	args := cli.LearnArgs{
+		Type: "runbook", Slug: "skill-release-flow", Vault: "/vault", Source: "test", Position: "top",
+		Situation: "releasing a module", DoneWhen: "tag pushed", Body: "1. tag\n",
+	}
+
+	var buf bytes.Buffer
+
+	err := cli.RunLearn(context.Background(), args, deps, &buf)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(written).NotTo(BeEmpty())
+	g.Expect(string(written)).NotTo(ContainSubstring("skill_key"))
+	g.Expect(string(written)).NotTo(ContainSubstring("skill_source"))
 }
 
 func TestRunLearn_Runbook_NoTriggersWritesNoField(t *testing.T) {

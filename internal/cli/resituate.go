@@ -308,16 +308,13 @@ func resituateContent(raw []byte, situation string) (string, error) {
 	}
 }
 
-// splitFrontmatter returns the YAML bytes between the leading "---\n" and the
-// next "---\n" delimiter. Returns (nil, false) when the note has no leading
+// splitFrontmatter returns the YAML bytes between the leading "---\n" line
+// and the closing "---\n" line (embed.SplitFrontmatter: the closing
+// delimiter must be a whole line, so a value ending in "---" does not end
+// the block early). Returns (nil, false) when the note has no leading
 // frontmatter block.
 func splitFrontmatter(raw []byte) ([]byte, bool) {
-	delim := []byte("---\n")
-	if !bytes.HasPrefix(raw, delim) {
-		return nil, false
-	}
-
-	frontmatter, _, ok := bytes.Cut(raw[len(delim):], delim)
+	frontmatter, _, ok := embed.SplitFrontmatter(raw)
 	if !ok {
 		return nil, false
 	}

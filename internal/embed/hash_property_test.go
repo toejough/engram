@@ -82,6 +82,27 @@ func TestContentHash_IdempotentProperty(t *testing.T) {
 	})
 }
 
+// TestExtractBody_ClosingDelimiterIsAWholeLineProperty asserts that for any
+// frontmatter value — including ones containing or ending in "---" — the
+// body ExtractBody returns is exactly the text after the closing "---" line.
+func TestExtractBody_ClosingDelimiterIsAWholeLineProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		value := rapid.StringMatching(`[a-z:]{0,8}-{0,4}`).Draw(rt, "value")
+		body := "Body text.\n"
+		raw := []byte("---\ntype: runbook\nskill_key: " + value + "\nsituation: s\n---\n\n" + body)
+
+		if got := string(embed.ExtractBody(raw)); got != body {
+			rt.Fatalf("ExtractBody: got %q want %q", got, body)
+		}
+
+		if got := string(embed.SituationText(raw)); got != "s" {
+			rt.Fatalf("SituationText: got %q want %q", got, "s")
+		}
+	})
+}
+
 // genFieldValue draws a non-empty, space-free, newline-free token suitable for
 // either a frontmatter field value or a body. Avoiding spaces sidesteps the
 // trim in Text; avoiding newlines keeps frontmatter and body shapes intact.

@@ -473,6 +473,36 @@ func TestTargets_LearnRunbook_NoSkillHashFlag(t *testing.T) {
 	g.Expect(stderr).To(gomega.Equal("exit code 1\n"))
 }
 
+// TestTargets_NoSkillKeyOrSourceFlags proves neither `engram learn runbook`
+// nor `engram amend` exposes a --skill-key or --skill-source flag: only
+// registration sets those fields. See TestTargets_LearnRunbook_NoSkillHashFlag
+// for why "exit code 1" is the right assertion.
+func TestTargets_NoSkillKeyOrSourceFlags(t *testing.T) {
+	t.Parallel()
+
+	for _, flag := range []string{"--skill-key", "--skill-source"} {
+		t.Run("learn runbook "+flag, func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
+
+			stderr := executeForTest(t, []string{
+				"engram", "learn", "runbook", flag, "x",
+				"--vault", t.TempDir(), "--slug", "x", "--source", "test",
+				"--situation", "s", "--done-when", "d",
+			})
+			g.Expect(stderr).To(gomega.Equal("exit code 1\n"))
+		})
+
+		t.Run("amend "+flag, func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
+
+			stderr := executeForTest(t, []string{"engram", "amend", flag, "x", "--vault", t.TempDir(), "--target", "1"})
+			g.Expect(stderr).To(gomega.Equal("exit code 1\n"))
+		})
+	}
+}
+
 // TestTargets_PruneEmpty exercises the prune target closure end-to-end on an
 // empty chunks dir — the "no manifest" fast path, which verifies the wiring
 // without creating real files.

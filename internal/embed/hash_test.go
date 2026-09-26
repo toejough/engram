@@ -184,6 +184,26 @@ func TestContributorsBodyMarker_IsExported(t *testing.T) {
 	g.Expect(embed.AnswersBodyMarker).To(Equal("Answers:"))
 }
 
+// TestExtractBody_EmptyFrontmatter guards the empty-block case: an opening
+// "---" line immediately followed by the closing one still strips cleanly.
+func TestExtractBody_EmptyFrontmatter(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	g.Expect(string(embed.ExtractBody([]byte("---\n---\n\nBody.\n")))).To(Equal("Body.\n"))
+}
+
+// TestExtractBody_FrontmatterValueEndingInDashes guards the closing
+// delimiter match: it must be a whole "---" line, so a frontmatter value
+// that merely ends in "---" (e.g. a skill_key) does not end the block early.
+func TestExtractBody_FrontmatterValueEndingInDashes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: runbook\nskill_key: a:foo---\n---\n\nThis is the body.\n")
+	g.Expect(string(embed.ExtractBody(in))).To(Equal("This is the body.\n"))
+}
+
 func TestExtractBody_NoFrontmatter(t *testing.T) {
 	t.Parallel()
 
@@ -217,6 +237,17 @@ func TestSituationText_ExtractsFieldForAnyType(t *testing.T) {
 
 	noFM := []byte("just a body, no frontmatter\n")
 	g.Expect(embed.SituationText(noFM)).To(BeEmpty())
+}
+
+// TestSituationText_FieldAfterValueEndingInDashes guards SituationText's
+// closing-delimiter match the same way: a preceding value ending in "---"
+// must not cut the frontmatter before situation:.
+func TestSituationText_FieldAfterValueEndingInDashes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: runbook\nskill_key: a:foo---\nsituation: when wiring a Go CLI\n---\n\nBody.\n")
+	g.Expect(string(embed.SituationText(in))).To(Equal("when wiring a Go CLI"))
 }
 
 func TestSituationText_WhitespaceIsTrimmed(t *testing.T) {

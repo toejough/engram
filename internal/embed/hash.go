@@ -65,14 +65,7 @@ func ContentHash(raw []byte) string {
 // closing delimiter is also stripped so notes whose frontmatter blocks
 // differ but whose bodies match produce identical hashes.
 func ExtractBody(raw []byte) []byte {
-	delim := []byte(frontmatterDelim)
-	if !bytes.HasPrefix(raw, delim) {
-		return raw
-	}
-
-	rest := raw[len(delim):]
-
-	_, body, ok := bytes.Cut(rest, delim)
+	_, body, ok := SplitFrontmatter(raw)
 	if !ok {
 		return raw
 	}
@@ -83,14 +76,7 @@ func ExtractBody(raw []byte) []byte {
 // SituationText returns the `situation:` frontmatter field for any note
 // type ("" when absent or unparseable). It is the situation-vector source.
 func SituationText(raw []byte) []byte {
-	delim := []byte(frontmatterDelim)
-	if !bytes.HasPrefix(raw, delim) {
-		return nil
-	}
-
-	rest := raw[len(delim):]
-
-	frontmatter, _, ok := bytes.Cut(rest, delim)
+	frontmatter, _, ok := SplitFrontmatter(raw)
 	if !ok {
 		return nil
 	}
@@ -101,6 +87,31 @@ func SituationText(raw []byte) []byte {
 	}
 
 	return []byte(situation)
+}
+
+// SplitFrontmatter splits raw into its YAML frontmatter (between the
+// leading "---\n" line and the closing "---\n" line, delimiters excluded,
+// trailing newline kept) and everything after the closing line. The closing
+// delimiter must be a whole line: a frontmatter value that merely ends in
+// "---" (e.g. a skill_key) does not close the block. ok is false when raw
+// has no leading frontmatter or no closing line.
+func SplitFrontmatter(raw []byte) (frontmatter, rest []byte, ok bool) {
+	delim := []byte(frontmatterDelim)
+	if !bytes.HasPrefix(raw, delim) {
+		return nil, nil, false
+	}
+
+	afterOpen := raw[len(delim):]
+	if bytes.HasPrefix(afterOpen, delim) {
+		return afterOpen[:0], afterOpen[len(delim):], true
+	}
+
+	closeIdx := bytes.Index(afterOpen, []byte("\n"+frontmatterDelim))
+	if closeIdx < 0 {
+		return nil, nil, false
+	}
+
+	return afterOpen[:closeIdx+1], afterOpen[closeIdx+1+len(delim):], true
 }
 
 // unexported constants.

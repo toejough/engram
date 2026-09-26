@@ -375,6 +375,10 @@ type runbookFields struct {
 	Triggers []string
 	// SkillHash: registration-only identity field — see LearnArgs.SkillHash.
 	SkillHash string
+	// SkillKey/SkillSource: registration-only identity fields — see
+	// runbookFrontmatterDoc.SkillKey. No `engram learn` surface sets them.
+	SkillKey    string
+	SkillSource string
 }
 
 // runbookFrontmatterDoc is the YAML shape of a runbook note's frontmatter.
@@ -401,12 +405,19 @@ type runbookFrontmatterDoc struct {
 	// (vault-note-identity spec). Never set by `engram learn`'s CLI surface;
 	// `engram amend` never overrides it (no --skill-hash flag exists), so a
 	// value present on read is always re-emitted unchanged.
-	SkillHash  string            `yaml:"skill_hash,omitempty"`
-	Pending    bool              `yaml:"pending,omitempty"`
-	Issue      quotedString      `yaml:"issue,omitempty"`
-	Sources    []string          `yaml:"sources,omitempty"`
-	Tags       []string          `yaml:"tags,omitempty"`
-	Supersedes []supersedesEntry `yaml:"supersedes,omitempty"`
+	SkillHash string `yaml:"skill_hash,omitempty"`
+	// SkillKey is the note's source-qualified skill key and SkillSource the
+	// `~`-relative resolved path its body was last copied from
+	// (vault-note-identity spec, skill-runbook-registration). Like
+	// SkillHash, only registration sets them; every other rewrite of this
+	// doc re-emits the parsed values unchanged.
+	SkillKey    string            `yaml:"skill_key,omitempty"`
+	SkillSource string            `yaml:"skill_source,omitempty"`
+	Pending     bool              `yaml:"pending,omitempty"`
+	Issue       quotedString      `yaml:"issue,omitempty"`
+	Sources     []string          `yaml:"sources,omitempty"`
+	Tags        []string          `yaml:"tags,omitempty"`
+	Supersedes  []supersedesEntry `yaml:"supersedes,omitempty"`
 }
 
 // applyLearnVocabAssignment performs only the term-assignment part of
@@ -754,25 +765,27 @@ func renderRunbookBody(f runbookFields) string {
 
 func renderRunbookFrontmatter(f runbookFields, when time.Time) string {
 	return marshalFrontmatter(runbookFrontmatterDoc{
-		Type:       typeRunbook,
-		Tier:       f.Tier,
-		Situation:  f.Situation,
-		DoneWhen:   f.DoneWhen,
-		RedFlags:   f.RedFlags,
-		Triggers:   f.Triggers,
-		Luhmann:    quotedString(f.Luhmann),
-		Created:    when.Format(dateFormat),
-		Source:     f.Source,
-		Project:    f.Project,
-		Repo:       f.Repo,
-		User:       f.User,
-		Vault:      f.Vault,
-		SkillHash:  f.SkillHash,
-		Pending:    f.Pending,
-		Issue:      quotedString(f.Issue),
-		Sources:    f.ChunkSources,
-		Tags:       f.Tags,
-		Supersedes: f.Supersedes,
+		Type:        typeRunbook,
+		Tier:        f.Tier,
+		Situation:   f.Situation,
+		DoneWhen:    f.DoneWhen,
+		RedFlags:    f.RedFlags,
+		Triggers:    f.Triggers,
+		Luhmann:     quotedString(f.Luhmann),
+		Created:     when.Format(dateFormat),
+		Source:      f.Source,
+		Project:     f.Project,
+		Repo:        f.Repo,
+		User:        f.User,
+		Vault:       f.Vault,
+		SkillHash:   f.SkillHash,
+		SkillKey:    f.SkillKey,
+		SkillSource: f.SkillSource,
+		Pending:     f.Pending,
+		Issue:       quotedString(f.Issue),
+		Sources:     f.ChunkSources,
+		Tags:        f.Tags,
+		Supersedes:  f.Supersedes,
 	})
 }
 
