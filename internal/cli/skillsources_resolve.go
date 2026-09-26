@@ -12,8 +12,9 @@ import (
 
 // ResolvedSkillSources is ResolveSkillSources' output (design D1).
 type ResolvedSkillSources struct {
-	// SkillScanResult holds every candidate in design D2 precedence order
-	// (Key still empty: key construction is task 2.1), every root a scanner
+	// SkillScanResult holds every candidate in design D2 precedence order,
+	// each stamped with its key (AssignSkillKeys, the resolver's last step;
+	// a candidate it cannot key is dropped with a warning), every root a scanner
 	// tried to read with its scanned flag (D5's ScannedRoots are the
 	// Scanned ones), and all scanner warnings. Disabled candidates are kept.
 	SkillScanResult
@@ -55,6 +56,11 @@ type SkillSourceDeps struct {
 // every Pi project source; the global and project settings' `!`/`+`/`-`
 // overrides mark default-folder candidates Disabled (rulings R8/R10).
 //
+// Keys are stamped here, as the last step, so every caller gets keyed
+// candidates from the one definition: AssignSkillKeys over the scanners'
+// output, against the resolved engram-owned skills roots of every supported
+// harness (ResolveEngramSkillRoots).
+//
 // Outside a git repository no project source is read. The only error is a
 // harness probe that fails for a reason other than not-exist.
 func ResolveSkillSources(
@@ -94,6 +100,9 @@ func ResolveSkillSources(
 		claudeResult.user, piResult.user, claudeResult.plugins.SkillScanResult,
 		claudeResult.project, piResult.project,
 	)
+	keyed, keyWarnings := AssignSkillKeys(resolved.Candidates, ResolveEngramSkillRoots(deps.FS, home))
+	resolved.Candidates = keyed
+	resolved.Warnings = append(resolved.Warnings, keyWarnings...)
 	resolved.PluginManifestsRead = claudeResult.plugins.ManifestsRead
 	resolved.Plugins = claudeResult.plugins.Plugins
 	resolved.PluginConflicts = claudeResult.plugins.PluginConflicts

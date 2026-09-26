@@ -357,10 +357,12 @@ func groupClaudePluginInstalls(
 // fixed key prefix (design D3) or cannot be a key segment (contains `:`).
 func isReservedPluginName(name string) bool {
 	switch name {
-	case "pi", "agents", "project", "anthropic-skills", "cmd", "pi-settings", "pi-pkg", "pi-prompt":
+	case SkillSegmentPi, SkillSegmentAgents, strings.TrimSuffix(SkillScopeProjectPrefix, skillKeySeparator),
+		skillKeySegmentAnthropic, skillKeySegmentCommand, SkillScopePiSettings,
+		strings.TrimSuffix(SkillScopePiPkgPrefix, skillKeySeparator), SkillScopePiPrompt:
 		return true
 	default:
-		return strings.Contains(name, ":")
+		return strings.Contains(name, skillKeySeparator)
 	}
 }
 

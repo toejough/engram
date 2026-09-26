@@ -88,6 +88,19 @@ func TestDetectHarnesses_None(t *testing.T) {
 	g.Expect(detected).To(BeEmpty())
 }
 
+// TestEngramOwnedSkillsRels: one engram-owned skills subtree per supported
+// harness, derived from its EngramRootRel, in harness order.
+func TestEngramOwnedSkillsRels(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	g.Expect(update.EngramOwnedSkillsRels()).To(Equal([]string{
+		update.ClaudeEngramSkillsRel,
+		filepath.Join(".pi", "agent", "engram", "skills"),
+	}))
+}
+
 func TestGuidanceImportAttribution_PerHarness(t *testing.T) {
 	t.Parallel()
 

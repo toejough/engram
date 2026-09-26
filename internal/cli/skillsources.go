@@ -48,8 +48,9 @@ type ScannedRoot struct {
 // (ResolveSkillSources, task 1.10) composes (design D1).
 type SkillCandidate struct {
 	// Key is the source-qualified skill key (design D3). Scanners leave it
-	// empty: key construction is task 2.1, which builds it from ScopeID and
-	// Name (plus the engram-owned-root rule over SourcePath).
+	// empty; AssignSkillKeys builds it from ScopeID, SourceSegment, Kind and
+	// Name (plus the engram-owned-root rule over SourcePath), and
+	// ResolveSkillSources stamps it on every candidate it returns.
 	Key string
 	// Name is the scope-local raw name: a skill's directory name, or a
 	// command's relative path with `/` replaced by `:` and `.md` stripped
@@ -148,7 +149,9 @@ func ScanClaudeUserSkills(fsys SkillSourceFS, skillsRoot string) SkillScanResult
 // bounded). A command's Name is its path relative to commandsRoot with `/`
 // replaced by `:` and `.md` stripped (`opsx/apply.md` → `opsx:apply`, design
 // D2 source 2). It serves ~/.claude/commands, project `.claude/commands` and
-// plugin `commands/` alike; scopeID is stamped on every candidate.
+// plugin `commands/` alike; scopeID is stamped on every candidate. A file or
+// namespace directory whose own name contains `:` is skipped with a warning
+// (the joined name would be ambiguous); that does not unscan the root.
 //
 // The root is scanned only when it and every entry beneath it were read:
 // any read error other than a dangling link marks it not scanned, with a
@@ -327,7 +330,11 @@ func ScanSyncedSkills(fsys SkillSourceFS, syncedRoot string) SkillScanResult {
 
 // unexported constants.
 const (
-	commandFileExt = ".md"
+	// commandColonWarningFormat reports a command entry (file or namespace
+	// directory) skipped because its name contains `:`, which would make its
+	// `:`-joined command name ambiguous (design D2).
+	commandColonWarningFormat = "engram: skipping command %s: its name contains `:`"
+	commandFileExt            = ".md"
 	// jsonNullLiteral is the JSON null token.
 	jsonNullLiteral = "null"
 	// maxCommandDepth bounds command-directory recursion below the root; a
@@ -391,13 +398,19 @@ func (w commandWalker) walk(dir string, entries []fs.DirEntry, prefix []string) 
 			continue
 		}
 
-		if info.IsDir() {
-			ok = w.walkSubdir(childPath, resolved, append(slices.Clone(prefix), entry.Name())) && ok
+		if !info.IsDir() && !strings.HasSuffix(entry.Name(), commandFileExt) {
+			continue
+		}
+
+		if strings.Contains(entry.Name(), skillKeySeparator) {
+			w.result.Warnings = append(w.result.Warnings, fmt.Sprintf(commandColonWarningFormat, childPath))
 
 			continue
 		}
 
-		if !strings.HasSuffix(entry.Name(), commandFileExt) {
+		if info.IsDir() {
+			ok = w.walkSubdir(childPath, resolved, append(slices.Clone(prefix), entry.Name())) && ok
+
 			continue
 		}
 
@@ -660,6 +673,14 @@ func scanCommandPath(fsys SkillSourceFS, path, scopeID string) SkillScanResult {
 		return ScanCommandDir(fsys, path, scopeID)
 	}
 
+	name := strings.TrimSuffix(filepath.Base(path), commandFileExt)
+	if strings.Contains(name, skillKeySeparator) {
+		result.Roots = []ScannedRoot{{Path: path, Resolved: resolved, Scanned: true}}
+		result.Warnings = []string{fmt.Sprintf(commandColonWarningFormat, path)}
+
+		return result
+	}
+
 	content, readErr := fsys.ReadFile(resolved)
 	if readErr != nil {
 		warnUnlessNotExist(&result, path, readErr)
@@ -670,7 +691,7 @@ func scanCommandPath(fsys SkillSourceFS, path, scopeID string) SkillScanResult {
 
 	result.Roots = []ScannedRoot{{Path: path, Resolved: resolved, Scanned: true}}
 	result.Candidates = []SkillCandidate{{
-		Name:       strings.TrimSuffix(filepath.Base(path), commandFileExt),
+		Name:       name,
 		ScopeID:    scopeID,
 		ReadRoot:   resolved,
 		SourcePath: resolved,

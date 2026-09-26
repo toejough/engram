@@ -72,14 +72,14 @@ func CompareSkillOffers(
 	readFile func(string) ([]byte, error),
 	declined map[string]string,
 ) ([]SkillOffer, error) {
-	byName := groupSkillNoteCandidates(vault, names, readFile)
+	byKey := groupSkillNoteCandidates(vault, names, readFile)
 	shipped := make(map[string]bool, len(skills))
 	offers := make([]SkillOffer, 0, len(skills))
 
 	for _, skill := range skills {
 		shipped[skill.Name] = true
 
-		offer, hasOffer, err := compareOneShippedSkill(skill, byName[skill.Name], declined)
+		offer, hasOffer, err := compareOneShippedSkill(skill, byKey[skill.Name], declined)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +89,7 @@ func CompareSkillOffers(
 		}
 	}
 
-	for skillName, matches := range byName {
+	for skillName, matches := range byKey {
 		if shipped[skillName] {
 			continue
 		}
@@ -109,19 +109,20 @@ func CompareSkillOffers(
 	return offers, nil
 }
 
-// FindSkillNote locates skillName's runbook note among the vault's full .md
-// filenames (a ListMD-shaped listing): the note whose basename ends with
-// ".skill-<name>.md" and whose frontmatter is type runbook with a non-empty
-// skill_hash (skill-runbook-registration D3). found is false when no note
+// FindSkillNote locates skill key key's runbook note among the vault's full
+// .md filenames (a ListMD-shaped listing), per skillNoteKey's identity rule:
+// a runbook note carrying a non-empty skill_hash whose skill_key equals key,
+// or — for a legacy note with no skill_key — whose "skill-<remainder>" slug
+// remainder equals key (a bare key; design D3). found is false when no note
 // matches; errDuplicateSkillNote names every match when more than one does.
 func FindSkillNote(
-	vault, skillName string,
+	vault, key string,
 	names []string,
 	readFile func(string) ([]byte, error),
 ) (basename string, hash string, found bool, err error) {
-	byName := groupSkillNoteCandidates(vault, names, readFile)
+	byKey := groupSkillNoteCandidates(vault, names, readFile)
 
-	return resolveSkillNoteMatches(byName[skillName])
+	return resolveSkillNoteMatches(byKey[key])
 }
 
 // ReadSkillRegistrations loads the decline state from skill-
@@ -234,11 +235,12 @@ type skillNoteCandidate struct {
 }
 
 // skillNoteFrontmatterProbe extracts just the fields skill-note identity
-// needs from a candidate note's frontmatter: its declared type and its
-// skill_hash, if any.
+// needs from a candidate note's frontmatter: its declared type, its
+// skill_hash, and its skill_key, if any.
 type skillNoteFrontmatterProbe struct {
 	Type      string `yaml:"type"`
 	SkillHash string `yaml:"skill_hash"`
+	SkillKey  string `yaml:"skill_key"`
 }
 
 // skillRegistrationsDoc is the on-disk shape of skill-registrations.json —
@@ -284,18 +286,23 @@ func compareOneShippedSkill(
 }
 
 // groupSkillNoteCandidates scans names for runbook notes carrying a
-// non-empty skill_hash whose basename slug has the "skill-<name>" shape,
-// grouped by the extracted skill name. A note matching the slug shape but
-// failing either check (wrong type, or a runbook with no skill_hash, or an
-// unreadable/unparseable file) is excluded — same non-identity as an
-// unrelated note with a coincidentally matching slug.
+// non-empty skill_hash whose basename slug has the "skill-<remainder>"
+// shape, grouped by skill key: the note's skill_key when it has one, else
+// its slug remainder, which is a legacy note's bare key (design D3; the six
+// pre-key notes route, please, curate, write-memory, learn and recall). A
+// note matching the slug shape but failing a check (wrong type, a runbook
+// with no skill_hash such as note 820, or an unreadable/unparseable file) is
+// excluded — same non-identity as an unrelated note with a coincidentally
+// matching slug. Only "skill-" slugs are read: registration always gives a
+// skill note the slug derived from its key (SkillKeySlug), which has that
+// prefix.
 func groupSkillNoteCandidates(
 	vault string, names []string, readFile func(string) ([]byte, error),
 ) map[string][]skillNoteCandidate {
-	byName := make(map[string][]skillNoteCandidate)
+	byKey := make(map[string][]skillNoteCandidate)
 
 	for _, name := range names {
-		skillName, isSkillSlug := skillNameFromNoteName(name)
+		slugRemainder, isSkillSlug := skillNameFromNoteName(name)
 		if !isSkillSlug {
 			continue
 		}
@@ -305,18 +312,22 @@ func groupSkillNoteCandidates(
 			continue
 		}
 
-		hash, isSkillNote := skillHashFromFrontmatter(raw)
+		hash, key, isSkillNote := skillIdentityFromFrontmatter(raw)
 		if !isSkillNote {
 			continue
 		}
 
-		byName[skillName] = append(byName[skillName], skillNoteCandidate{
+		if key == "" {
+			key = slugRemainder
+		}
+
+		byKey[key] = append(byKey[key], skillNoteCandidate{
 			Basename: strings.TrimSuffix(name, mdExt),
 			Hash:     hash,
 		})
 	}
 
-	return byName
+	return byKey
 }
 
 // removalOfferFor resolves skillName's note matches and returns a Remove
@@ -357,26 +368,26 @@ func resolveSkillNoteMatches(matches []skillNoteCandidate) (basename string, has
 	}
 }
 
-// skillHashFromFrontmatter reports the note's skill_hash when raw parses as
-// a runbook note's frontmatter carrying a non-empty skill_hash; ok is false
-// for any other note type, a runbook with no skill_hash, or unparseable
-// content.
-func skillHashFromFrontmatter(raw []byte) (hash string, ok bool) {
+// skillIdentityFromFrontmatter reports the note's skill_hash and skill_key
+// (empty for a legacy note) when raw parses as a runbook note's frontmatter
+// carrying a non-empty skill_hash; ok is false for any other note type, a
+// runbook with no skill_hash, or unparseable content.
+func skillIdentityFromFrontmatter(raw []byte) (hash, key string, ok bool) {
 	frontmatter, hasFrontmatter := splitFrontmatter(raw)
 	if !hasFrontmatter {
-		return "", false
+		return "", "", false
 	}
 
 	var probe skillNoteFrontmatterProbe
 	if yaml.Unmarshal(frontmatter, &probe) != nil {
-		return "", false
+		return "", "", false
 	}
 
 	if probe.Type != typeRunbook || probe.SkillHash == "" {
-		return "", false
+		return "", "", false
 	}
 
-	return probe.SkillHash, true
+	return probe.SkillHash, probe.SkillKey, true
 }
 
 // skillNameFromNoteName extracts the skill name from a full .md filename

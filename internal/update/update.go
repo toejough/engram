@@ -1464,6 +1464,23 @@ func DetectHarnesses(home string, prober HarnessProber) ([]HarnessSpec, error) {
 	return detectHarnesses(home, prober)
 }
 
+// EngramOwnedSkillsRels returns, for every supported harness (detected or
+// not, in supportedHarnesses order), the home-relative `skills` subtree of
+// its engram-owned root (HarnessSpec.EngramRootRel) — where the canonical
+// copies of engram's shipped skills live. Skill registration keys anything
+// resolving under one of these by its bare name (design D3), so callers
+// never re-hardcode the harness list.
+func EngramOwnedSkillsRels() []string {
+	specs := supportedHarnesses()
+	rels := make([]string, 0, len(specs))
+
+	for _, spec := range specs {
+		rels = append(rels, filepath.Join(spec.EngramRootRel, engramRootSkillsSubdir))
+	}
+
+	return rels
+}
+
 // unexported constants.
 const (
 	// dirPerm is the mode used when creating any harness target dir.

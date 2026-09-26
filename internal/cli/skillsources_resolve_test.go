@@ -171,7 +171,7 @@ func TestResolveSkillSources_ComposesEverySourceInPrecedenceOrder(t *testing.T) 
 	g.Expect(resolved.PluginConflicts).To(BeEmpty())
 
 	for _, candidate := range resolved.Candidates {
-		g.Expect(candidate.Key).To(BeEmpty(), candidate.Name)
+		g.Expect(candidate.Key).NotTo(BeEmpty(), candidate.Name)
 		g.Expect(candidate.Disabled).To(BeFalse(), candidate.Name)
 	}
 

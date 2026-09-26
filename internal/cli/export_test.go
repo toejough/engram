@@ -177,6 +177,7 @@ var (
 	ExportWriteUpdateReport               = writeUpdateReport
 	ExportWriteVocabAssignment            = WriteVocabAssignment
 	ExportWriteVocabVersionToFamilyNote   = writeVocabVersionToFamilyNote
+	IsReservedPluginNameForTest           = isReservedPluginName
 )
 
 // ExportAllVaultNotesMeta aliases AllVaultNotesMeta for cli_test fixtures.

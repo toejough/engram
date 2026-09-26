@@ -624,7 +624,7 @@ func newSkillregFixtureVault() *skillregFixtureVault {
 }
 
 // runbookNote renders a minimal runbook note carrying skill_hash — just
-// enough frontmatter for skillHashFromFrontmatter's probe to parse.
+// enough frontmatter for skillIdentityFromFrontmatter's probe to parse.
 func runbookNote(hash string) string {
 	return "---\ntype: runbook\nsituation: s\ndone_when: d\nskill_hash: \"" + hash + "\"\n---\n\nbody\n"
 }
