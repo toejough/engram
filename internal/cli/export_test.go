@@ -416,6 +416,11 @@ func ExportDedupeAndBackfill(
 // locate a source's chunk index file.
 func ExportIndexFileName(source string) string { return sourceSlug(source) + ".jsonl" }
 
+// ExportItemMatchesProject exposes itemMatchesProject over raw note content.
+func ExportItemMatchesProject(content, project string) bool {
+	return itemMatchesProject(resolvedItem{content: content}, project)
+}
+
 // ExportLoadMemberNoteVectors drives loadMemberNoteVectors with
 // production-composed VocabDeps (newVocabDeps over real-OS test Deps), so
 // tests can exercise it against a real t.TempDir() vault fixture (see

@@ -68,6 +68,22 @@ func TestApplyProjectFilter_EmptyProjectReturnsAll(t *testing.T) {
 	g.Expect(filtered).To(HaveLen(2))
 }
 
+// TestItemMatchesProject_ReadsOnlyTheFrontmatterBlock covers
+// itemMatchesProject's frontmatter split (embed.SplitFrontmatter): a
+// project: line in the frontmatter matches, one only in the body, in a
+// note with no frontmatter, or in empty content does not.
+func TestItemMatchesProject_ReadsOnlyTheFrontmatterBlock(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(cli.ExportItemMatchesProject("---\ntype: fact\nproject: engram\n---\n\nbody\n", "engram")).To(BeTrue())
+	g.Expect(cli.ExportItemMatchesProject("---\ntype: fact\nproject: other\n---\n\nbody\n", "engram")).To(BeFalse())
+	g.Expect(cli.ExportItemMatchesProject("---\ntype: fact\n---\n\nproject: engram\n", "engram")).To(BeFalse())
+	g.Expect(cli.ExportItemMatchesProject("project: engram\n---\nbody\n", "engram")).To(BeFalse())
+	g.Expect(cli.ExportItemMatchesProject("---\ntype: fact\nproject: engram\n", "engram")).To(BeFalse())
+	g.Expect(cli.ExportItemMatchesProject("", "engram")).To(BeFalse())
+}
+
 // TestPendingOfferCurateInstruction_IsExpectedUpkeep: the shared instruction
 // says curation is expected upkeep, done after the user's request, without
 // asking (curate-skill-to-runbook D9, D11).

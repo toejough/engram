@@ -395,6 +395,47 @@ func TestParseCreatedFromNoteFrontmatterBoundary(t *testing.T) {
 			"body-only created: with no frontmatter must return empty string")
 }
 
+// TestParseCreatedFromNote_IgnoresIndentedCreatedLine verifies only the
+// top-level created: key is read, never an indented line inside a block
+// scalar that happens to start with "created:".
+func TestParseCreatedFromNote_IgnoresIndentedCreatedLine(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	note := []byte("---\ntype: runbook\nsituation: |-\n    created: 2020-01-01\ncreated: 2026-06-10\n---\n\nbody\n")
+
+	g.Expect(cli.ExportParseCreatedFromNote(note)).To(Equal("2026-06-10"))
+}
+
+// TestParseCreatedFromNote_IndentedFenceInBlockScalar verifies that an
+// indented "    ---" line — which yaml.v3 emits inside a |- block scalar
+// whose value holds a standalone --- line — does not close the frontmatter
+// before a later created: key.
+func TestParseCreatedFromNote_IndentedFenceInBlockScalar(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	note := []byte("---\ntype: runbook\nsituation: |-\n    first part\n    ---\n    second part\n" +
+		"created: 2026-06-10\n---\n\nbody\n")
+
+	g.Expect(cli.ExportParseCreatedFromNote(note)).To(Equal("2026-06-10"))
+}
+
+// TestParseCreatedFromNote_QuotedValue verifies the quoted form every
+// marshalFrontmatter writer emits (created: "2026-06-10") parses to the bare
+// date, so noteAgeDays can use it.
+func TestParseCreatedFromNote_QuotedValue(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	note := []byte("---\ntype: fact\nluhmann: \"1\"\ncreated: \"2026-06-10\"\n---\n\nbody\n")
+
+	g.Expect(cli.ExportParseCreatedFromNote(note)).To(Equal("2026-06-10"))
+}
+
 func TestParseTurnN(t *testing.T) {
 	t.Parallel()
 

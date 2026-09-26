@@ -337,19 +337,18 @@ func sortTermScores(candidates []termScore) {
 }
 
 // splitFrontmatterAndBody cuts content into (frontmatter-without-delims,
-// body-after-closing-delim, ok). ok is false when content has no leading
-// frontmatter block.
+// body-after-closing-delim, ok) via embed.SplitFrontmatter, with the
+// frontmatter's trailing newline dropped so callers can rebuild the note as
+// fmStart + frontmatter + fmEnd + body. ok is false when content has no
+// leading frontmatter block. An empty block ("---\n---\n") yields "" —
+// rebuilt as "---\n\n---\n", which parses identically.
 func splitFrontmatterAndBody(content string) (string, string, bool) {
-	if !strings.HasPrefix(content, fmStart) {
-		return "", "", false
-	}
-
-	frontmatter, body, found := strings.Cut(content[len(fmStart):], fmEnd)
+	frontmatter, body, found := embed.SplitFrontmatter([]byte(content))
 	if !found {
 		return "", "", false
 	}
 
-	return frontmatter, body, true
+	return strings.TrimSuffix(string(frontmatter), "\n"), string(body), true
 }
 
 // vocabTermsFromTags returns the terms of the vocab namespace entries

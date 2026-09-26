@@ -8,18 +8,17 @@ import (
 	"time"
 
 	"github.com/toejough/engram/internal/chunk"
+	"github.com/toejough/engram/internal/embed"
 )
 
 // unexported constants.
 const (
-	closingFrontmatterFence = 2 // fencesSeen value when the closing --- has been reached
-	defaultHalfLifeDays     = 60.0
-	defaultRecencyFloor     = 3
-	defaultTailWeight       = 0.2
-	hoursPerDay             = 24
-	noteDateFormat          = "2006-01-02"
-	openFrontmatterFence    = 1 // fencesSeen value while inside the frontmatter block
-	turnAnchorPrefix        = "turn-"
+	defaultHalfLifeDays = 60.0
+	defaultRecencyFloor = 3
+	defaultTailWeight   = 0.2
+	hoursPerDay         = 24
+	noteDateFormat      = "2006-01-02"
+	turnAnchorPrefix    = "turn-"
 )
 
 // recencyParams are the tunable knobs (defaults chosen by the eval in recency_eval_test.go).
@@ -240,34 +239,21 @@ func noteAgeDays(lastUsed, created string, now time.Time) float64 {
 	return age
 }
 
-// parseCreatedFromNote extracts the `created:` frontmatter date (YYYY-MM-DD)
-// from a note's raw bytes, or "" when absent. Only the frontmatter block
-// (between the opening and closing `---` fences) is scanned; body lines that
-// happen to contain `created:` are ignored.
+// parseCreatedFromNote extracts the top-level `created:` frontmatter date
+// (YYYY-MM-DD, surrounding quotes removed) from a note's raw bytes, or ""
+// when absent. Only the frontmatter block is scanned (embed.SplitFrontmatter:
+// the closing fence is a whole unindented `---` line, so an indented `    ---`
+// inside a block scalar does not end it), and only unindented lines match,
+// so body text or block-scalar lines starting with `created:` are ignored.
 func parseCreatedFromNote(note []byte) string {
-	const fence = "---"
+	frontmatter, _, ok := embed.SplitFrontmatter(note)
+	if !ok {
+		return ""
+	}
 
-	fencesSeen := 0
-
-	for line := range strings.SplitSeq(string(note), "\n") {
-		trimmed := strings.TrimSpace(line)
-
-		if trimmed == fence {
-			fencesSeen++
-
-			// Stop after the closing fence — everything below is body text.
-			if fencesSeen == closingFrontmatterFence {
-				return ""
-			}
-
-			continue
-		}
-
-		// Only match inside the frontmatter block (between the two fences).
-		if fencesSeen == openFrontmatterFence {
-			if rest, ok := strings.CutPrefix(trimmed, "created:"); ok {
-				return strings.TrimSpace(rest)
-			}
+	for line := range strings.SplitSeq(string(frontmatter), "\n") {
+		if rest, found := strings.CutPrefix(line, "created:"); found {
+			return strings.Trim(strings.TrimSpace(rest), `"'`)
 		}
 	}
 

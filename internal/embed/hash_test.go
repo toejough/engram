@@ -184,6 +184,27 @@ func TestContributorsBodyMarker_IsExported(t *testing.T) {
 	g.Expect(embed.AnswersBodyMarker).To(Equal("Answers:"))
 }
 
+// TestExtractBody_BlockScalarFenceLine guards that an indented "    ---"
+// line inside a |- block scalar (yaml.v3's rendering of a value holding a
+// standalone --- line) does not close the frontmatter.
+func TestExtractBody_BlockScalarFenceLine(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	in := []byte("---\ntype: runbook\nsituation: |-\n    first\n    ---\n    second\nluhmann: \"1\"\n---\n\nBody.\n")
+	g.Expect(string(embed.ExtractBody(in))).To(Equal("Body.\n"))
+}
+
+// TestExtractBody_BodyStartingWithFence guards that only the first whole
+// "---" line closes the frontmatter: a body that itself starts with a "---"
+// line keeps it.
+func TestExtractBody_BodyStartingWithFence(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	g.Expect(string(embed.ExtractBody([]byte("---\ntype: fact\n---\n---\nBody.\n")))).To(Equal("---\nBody.\n"))
+}
+
 // TestExtractBody_EmptyFrontmatter guards the empty-block case: an opening
 // "---" line immediately followed by the closing one still strips cleanly.
 func TestExtractBody_EmptyFrontmatter(t *testing.T) {

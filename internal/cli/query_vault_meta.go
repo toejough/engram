@@ -3,9 +3,10 @@ package cli
 import (
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/toejough/engram/internal/embed"
 )
 
 // Exported constants.
@@ -213,20 +214,14 @@ func loadAllVaultNotesMeta(
 // namespace entries) and supersedes: fields from note content's YAML
 // frontmatter. Returns zero-value fields on any parse failure.
 func parseNoteQueryFrontmatter(content string) noteQueryFrontmatter {
-	if !strings.HasPrefix(content, fmStart) {
-		return noteQueryFrontmatter{}
-	}
-
-	rest := content[len(fmStart):]
-
-	frontmatter, _, ok := strings.Cut(rest, fmEnd)
+	frontmatter, _, ok := embed.SplitFrontmatter([]byte(content))
 	if !ok {
 		return noteQueryFrontmatter{}
 	}
 
 	var doc noteQueryFrontmatter
 
-	err := yaml.Unmarshal([]byte(frontmatter), &doc)
+	err := yaml.Unmarshal(frontmatter, &doc)
 	if err != nil {
 		return noteQueryFrontmatter{}
 	}

@@ -1162,20 +1162,14 @@ func itemMatchesProject(item resolvedItem, project string) bool {
 		return false
 	}
 
-	const delim = "---\n"
-
-	body := strings.TrimPrefix(item.content, delim)
-
-	end := strings.Index(body, "\n"+delim)
-	if end < 0 {
+	front, _, ok := embed.SplitFrontmatter([]byte(item.content))
+	if !ok {
 		return false
 	}
 
-	front := body[:end+1]
+	match := projectLineRE.FindSubmatch(front)
 
-	match := projectLineRE.FindStringSubmatch(front)
-
-	return len(match) == 2 && match[1] == project
+	return len(match) == 2 && string(match[1]) == project
 }
 
 // kindFromContent reads the frontmatter type field to label the item.
