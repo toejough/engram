@@ -25,9 +25,9 @@ type RegisterSkillsArgs struct {
 	VaultName string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on a newly-registered note's vault: field (default \"personal\")"` //nolint:lll // unbreakable env+desc struct-tag string
 	SkillsDir string   `targ:"flag,name=skills-dir,desc=skills source dir (default: the engram-owned deployed skills dir ~/.claude/engram/skills)"`                 //nolint:lll // unbreakable struct-tag string
 	DryRun    bool     `targ:"flag,name=dry-run,desc=list offers without prompting or writing"`
-	Accept    []string `targ:"flag,name=accept,desc=accept the named skill's current offer without prompting (repeatable)"`
-	Decline   []string `targ:"flag,name=decline,desc=decline the named skill's current offer without prompting (repeatable)"`              //nolint:lll // unbreakable struct-tag string
-	Adopt     []string `targ:"flag,name=adopt,desc=adopt an existing runbook note as <name>'s skill note: <name>=<note-ref> (repeatable)"` //nolint:lll // unbreakable struct-tag string
+	Accept    []string `targ:"flag,name=accept,desc=accept the matching offers without prompting: a skill key or prefix* pattern or @<scope-id> (repeatable)"`   //nolint:lll // unbreakable struct-tag string
+	Decline   []string `targ:"flag,name=decline,desc=decline the matching offers without prompting: a skill key or prefix* pattern or @<scope-id> (repeatable)"` //nolint:lll // unbreakable struct-tag string
+	Adopt     []string `targ:"flag,name=adopt,desc=adopt an existing runbook note as <name>'s skill note: <name>=<note-ref> (repeatable)"`                       //nolint:lll // unbreakable struct-tag string
 }
 
 // SkillRegistrationArgs holds RunSkillRegistration's inputs: the resolved
@@ -95,9 +95,9 @@ type SkillRegistrationDeps struct {
 func RunSkillRegistration(
 	ctx context.Context, args SkillRegistrationArgs, deps SkillRegistrationDeps, stdout io.Writer,
 ) error {
-	conflictErr := checkAcceptDeclineConflict(args.Accept, args.Decline)
-	if conflictErr != nil {
-		return conflictErr
+	answers, answersErr := ParseSkillAnswers(args.Accept, args.Decline)
+	if answersErr != nil {
+		return answersErr
 	}
 
 	shipped, loadErr := loadShippedSkills(args.SkillsDir, deps.ListSkillsDir, deps.ReadSkillFile)
@@ -116,7 +116,7 @@ func RunSkillRegistration(
 		return adoptErr
 	}
 
-	return runSkillRegistrationOffers(ctx, args, shipped, shippedByName, deps, stdout)
+	return runSkillRegistrationOffers(ctx, args, answers, shipped, shippedByName, deps, stdout)
 }
 
 // unexported constants.
@@ -125,23 +125,25 @@ const (
 	skillRefreshPromptFormat  = "Skill `%s` changed since its note was last synced. Update the note? [y/N] "
 	skillRegisterPromptFormat = "Register skill `%s` as a vault runbook? [y/N] "
 	// skillRegistrationAwaitingAnswerFormat is the one-line, non-interactive
-	// summary naming every offer left unanswered this run
-	// (skill-runbook-registration: "Registration SHALL never prompt or write
-	// without a terminal ... it SHALL print one line naming the skills with
-	// outstanding offers and the `engram register-skills` command that
-	// answers them"). The trailing "<name>" placeholders are literal command
-	// syntax, not further substitutions — only the leading %s (the
-	// comma-joined list of waiting skill names) is filled in.
-	skillRegistrationAwaitingAnswerFormat = "engram: skill runbook offers awaiting an answer: %s — run " +
-		"`engram register-skills` in a terminal, or `engram register-skills --accept <name>` / `--decline <name>`\n"
-	// skillRegistrationDryRunOfferFormat previews one offer under --dry-run
-	// (skill-runbook-registration: "`--dry-run` SHALL list every offer and
-	// write nothing").
-	skillRegistrationDryRunOfferFormat = "would offer: %s %s\n"
-	// skillRegistrationNoOfferFormat reports a --accept/--decline flag naming
-	// a skill with no current offer: not an error, just a one-line note, and
-	// registration continues (skill-runbook-registration: "Registration SHALL
-	// be invocable standalone with explicit answers").
+	// summary of every offer left unanswered this run (skill-runbook-
+	// registration: "Registration SHALL never prompt or write without a
+	// terminal ... It SHALL print one line giving the total number of
+	// outstanding offers, each scope's selector with its count, and the
+	// `engram register-skills` command that answers them"; design D6). It
+	// fills in the total, "offer"/"offers", and the comma-joined
+	// `@<scope-id> <count>` labels; the `<key|prefix*|@scope>` placeholders
+	// are literal command syntax.
+	skillRegistrationAwaitingAnswerFormat = "engram: %d skill runbook %s awaiting an answer: %s — run " +
+		"`engram register-skills` in a terminal, or `engram register-skills --accept <key|prefix*|@scope>` / " +
+		"`--decline <key|prefix*|@scope>`\n"
+	// skillRegistrationDryRunOfferFormat previews one offer under --dry-run,
+	// indented under its scope header (design D6: "`--dry-run` prints `would
+	// offer: <kind> <key> (<source>)` under scope headers").
+	skillRegistrationDryRunOfferFormat = "  would offer: %s %s (%s)\n"
+	// skillRegistrationNoOfferFormat reports a --accept/--decline token (key,
+	// pattern or selector) matching no current offer: not an error, just a
+	// one-line note, and registration continues (skill-runbook-registration:
+	// "Registration SHALL be invocable standalone with explicit answers").
 	skillRegistrationNoOfferFormat = "engram: no pending offer for skill %q — ignoring --%s\n"
 	skillRemovePromptFormat        = "Skill `%s` is no longer shipped. Remove its runbook note? [y/N] "
 )
@@ -156,12 +158,6 @@ var (
 	// errMalformedAdoptFlag reports a --adopt flag that isn't shaped
 	// "<name>=<note-ref>" (both sides non-empty).
 	errMalformedAdoptFlag = errors.New("register-skills: --adopt must be <name>=<note-ref>")
-	// errSkillNamedInBothAcceptAndDecline reports a skill name passed to both
-	// --accept and --decline in the same invocation (skill-runbook-
-	// registration D4/D9: an ambiguous answer is refused before acting on
-	// anything).
-	errSkillNamedInBothAcceptAndDecline = errors.New(
-		"register-skills: skill named in both --accept and --decline")
 	// errUnknownSkillOfferKind guards acceptSkillOffer's switch — unreachable
 	// in production since CompareSkillOffers only ever emits the three known
 	// SkillOfferKind values.
@@ -188,20 +184,6 @@ func acceptSkillOffer(
 	default:
 		return fmt.Errorf("%w: %s", errUnknownSkillOfferKind, offer.Kind)
 	}
-}
-
-// checkAcceptDeclineConflict errors when a skill name appears in both accept
-// and decline — an ambiguous answer refused before anything is acted on.
-func checkAcceptDeclineConflict(accept, decline []string) error {
-	declineSet := toStringSet(decline)
-
-	for _, name := range accept {
-		if declineSet[name] {
-			return fmt.Errorf("%w: %s", errSkillNamedInBothAcceptAndDecline, name)
-		}
-	}
-
-	return nil
 }
 
 // computeSkillOffers lists the vault, reads the decline state, and runs
@@ -355,53 +337,6 @@ func promptFormatForOfferKind(kind SkillOfferKind) string {
 	}
 }
 
-// reportUnmatchedExplicitAnswers prints skillRegistrationNoOfferFormat for
-// every name in names that isn't among offered — a --accept/--decline flag
-// naming a skill with no current offer (not an error).
-func reportUnmatchedExplicitAnswers(stdout io.Writer, names []string, flag string, offered map[string]bool) {
-	for _, name := range names {
-		if offered[name] {
-			continue
-		}
-
-		_, _ = fmt.Fprintf(stdout, skillRegistrationNoOfferFormat, name, flag)
-	}
-}
-
-// resolveOneSkillOffer answers a single offer: an explicit --accept/--decline
-// wins over interactivity; otherwise it prompts when interactive, else
-// appends to unanswered. Split out of runSkillRegistrationOffers's loop to
-// keep both within the repo's cyclomatic-complexity budget.
-func resolveOneSkillOffer(
-	ctx context.Context,
-	args SkillRegistrationArgs,
-	offer SkillOffer,
-	shippedByName map[string]ShippedSkill,
-	acceptSet, declineSet map[string]bool,
-	interactive bool,
-	scanner *bufio.Scanner,
-	deps SkillRegistrationDeps,
-	stdout io.Writer,
-	unanswered *[]string,
-) error {
-	switch {
-	case acceptSet[offer.Key]:
-		return acceptSkillOffer(ctx, args.Vault, args.VaultName, offer, shippedByName, deps, stdout)
-	case declineSet[offer.Key]:
-		return RecordSkillDeclined(args.Vault, offer.Key, offer.Hash, deps.Accept.Read, deps.Accept.Write)
-	case interactive:
-		if promptForOffer(offer, scanner, stdout) {
-			return acceptSkillOffer(ctx, args.Vault, args.VaultName, offer, shippedByName, deps, stdout)
-		}
-
-		return RecordSkillDeclined(args.Vault, offer.Key, offer.Hash, deps.Accept.Read, deps.Accept.Write)
-	default:
-		*unanswered = append(*unanswered, offer.Key)
-
-		return nil
-	}
-}
-
 // runSkillAdoptions runs every args --adopt entry, in sorted-by-name order
 // for determinism, via AdoptSkillNote — before offers are computed (design
 // D6/tasks.md 1.8: "adopt entries ... run first").
@@ -435,9 +370,10 @@ func runSkillAdoptions(
 	return nil
 }
 
-// runSkillRegistrationDryRun previews every computed offer as "would offer:
-// <kind> <skill>" and writes nothing, prompts nothing (skill-runbook-
-// registration: "`--dry-run` SHALL list every offer and write nothing").
+// runSkillRegistrationDryRun previews every computed offer under its scope
+// header (PreviewSkillOffers) and writes nothing, prompts nothing
+// (skill-runbook-registration: "`--dry-run` SHALL list every offer and write
+// nothing").
 // --adopt entries are not run under --dry-run either — a dry run touches no
 // vault state.
 func runSkillRegistrationDryRun(
@@ -448,21 +384,16 @@ func runSkillRegistrationDryRun(
 		return offersErr
 	}
 
-	for _, offer := range comparison.Offers {
-		_, _ = fmt.Fprintf(stdout, skillRegistrationDryRunOfferFormat, offer.Kind, offer.Key)
-	}
-
-	return ReportSkillOfferProblems(stdout, comparison)
+	return PreviewSkillOffers(stdout, comparison)
 }
 
-// runSkillRegistrationOffers computes the current offers and, for each one:
-// acts immediately on an explicit --accept/--decline answer; else prompts
-// when interactive; else leaves it unanswered. Explicit answers naming a
-// skill with no current offer are reported (not an error), and any offers
-// left unanswered are named in one final summary line.
+// runSkillRegistrationOffers computes the current offers and answers them
+// through AnswerSkillOffers: an accepted offer is carried out by
+// acceptSkillOffer, a declined one records its hash (RecordSkillDeclined).
 func runSkillRegistrationOffers(
 	ctx context.Context,
 	args SkillRegistrationArgs,
+	answers SkillAnswers,
 	shipped []ShippedSkill,
 	shippedByName map[string]ShippedSkill,
 	deps SkillRegistrationDeps,
@@ -473,38 +404,18 @@ func runSkillRegistrationOffers(
 		return offersErr
 	}
 
-	offers := comparison.Offers
-
-	acceptSet := toStringSet(args.Accept)
-	declineSet := toStringSet(args.Decline)
-	interactive := deps.IsTerminal != nil && deps.IsTerminal()
-
-	var scanner *bufio.Scanner
-	if interactive {
-		scanner = bufio.NewScanner(deps.Stdin)
-	}
-
-	offeredNames := make(map[string]bool, len(offers))
-	unanswered := make([]string, 0, len(offers))
-
-	for _, offer := range offers {
-		offeredNames[offer.Key] = true
-
-		actionErr := resolveOneSkillOffer(ctx, args, offer, shippedByName, acceptSet, declineSet,
-			interactive, scanner, deps, stdout, &unanswered)
-		if actionErr != nil {
-			return actionErr
-		}
-	}
-
-	reportUnmatchedExplicitAnswers(stdout, args.Accept, "accept", offeredNames)
-	reportUnmatchedExplicitAnswers(stdout, args.Decline, "decline", offeredNames)
-
-	if len(unanswered) > 0 {
-		_, _ = fmt.Fprintf(stdout, skillRegistrationAwaitingAnswerFormat, strings.Join(unanswered, ", "))
-	}
-
-	return ReportSkillOfferProblems(stdout, comparison)
+	return AnswerSkillOffers(SkillOfferAnswering{
+		Comparison:  comparison,
+		Answers:     answers,
+		Interactive: deps.IsTerminal != nil && deps.IsTerminal(),
+		Stdin:       deps.Stdin,
+		Accept: func(offer SkillOffer) error {
+			return acceptSkillOffer(ctx, args.Vault, args.VaultName, offer, shippedByName, deps, stdout)
+		},
+		Decline: func(offer SkillOffer) error {
+			return RecordSkillDeclined(args.Vault, offer.Key, offer.Hash, deps.Accept.Read, deps.Accept.Write)
+		},
+	}, stdout)
 }
 
 // skillsByName indexes skills by name for accept-time lookup.

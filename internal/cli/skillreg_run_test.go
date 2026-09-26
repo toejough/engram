@@ -148,7 +148,7 @@ func TestRunSkillRegistration_CompareSkillOffersError_Propagates(t *testing.T) {
 
 // TestRunSkillRegistration_DryRun_PreviewsOffersWritesNothing covers
 // "dry-run writes nothing": every computed offer is previewed as "would
-// offer: <kind> <skill>", nothing is written, and nothing is prompted (an
+// offer: <kind> <key> (<source>)" under its scope header, nothing is written, and nothing is prompted (an
 // interactive IsTerminal is wired but must never be consulted).
 func TestRunSkillRegistration_DryRun_PreviewsOffersWritesNothing(t *testing.T) {
 	t.Parallel()
@@ -181,7 +181,9 @@ func TestRunSkillRegistration_DryRun_PreviewsOffersWritesNothing(t *testing.T) {
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(Equal("would offer: register curate\nwould offer: register route\n"))
+	g.Expect(stdout.String()).To(Equal("@claude-user (2)\n" +
+		"  would offer: register curate (/skills/curate/SKILL.md)\n" +
+		"  would offer: register route (/skills/route/SKILL.md)\n"))
 
 	g.Expect(vault.files).To(BeEmpty())
 }
@@ -241,7 +243,7 @@ func TestRunSkillRegistration_ExplicitAnswerWithNoOffer_PrintsNoteAndContinues(t
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(ContainSubstring(`no pending offer for skill "bogus"`))
 	g.Expect(stdout.String()).To(ContainSubstring("--accept"))
-	g.Expect(stdout.String()).To(ContainSubstring("awaiting an answer: curate"))
+	g.Expect(stdout.String()).To(ContainSubstring("awaiting an answer: @claude-user 1"))
 }
 
 // TestRunSkillRegistration_ExplicitDecline_NonInteractive_RecordsWithoutPrompting
@@ -344,8 +346,8 @@ func TestRunSkillRegistration_NonInteractive_NoAnswers_WritesNothingPrintsSummar
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(Equal(
-		"engram: skill runbook offers awaiting an answer: curate — run `engram register-skills` in a " +
-			"terminal, or `engram register-skills --accept <name>` / `--decline <name>`\n",
+		"engram: 1 skill runbook offer awaiting an answer: @claude-user 1 — run `engram register-skills` in a " +
+			"terminal, or `engram register-skills --accept <key|prefix*|@scope>` / `--decline <key|prefix*|@scope>`\n",
 	))
 	g.Expect(vault.files).To(BeEmpty())
 }
@@ -568,7 +570,7 @@ func TestRunSkillRegistration_SkillsDirEntryWithoutSkillMD_Ignored(t *testing.T)
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(Equal("would offer: register curate\n"))
+	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register curate (/skills/curate/SKILL.md)\n"))
 }
 
 // unexported constants.

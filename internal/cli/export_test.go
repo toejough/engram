@@ -26,6 +26,7 @@ const (
 
 // Exported variables.
 var (
+	ErrAnswerInBothFlagsForTest            = errAnswerInBothFlags
 	ErrCheckFailedForTest                  = errCheckFailed
 	ErrCountBadFilterForTest               = errCountBadFilter
 	ErrCountBothModesForTest               = errCountBothModes
@@ -39,6 +40,7 @@ var (
 	ErrQASourceRequired                    = errQASourceRequired
 	ErrResituateNoteNotFoundForTest        = errResituateNoteNotFound
 	ErrSkillOfferConflictForTest           = errSkillOfferConflict
+	ErrSkillRegistrationsVersionForTest    = errSkillRegistrationsVersion
 	ErrVocabFamilyNoteMissing              = errVocabFamilyNoteMissing
 	ExportAnyHarnessFailed                 = anyHarnessFailed
 	ExportApplyIdentityBackfill            = applyIdentityBackfill

@@ -131,7 +131,8 @@ func TestRegisterSkillsCLI_DefaultSkillsDirIsEngramOwnedRoot(t *testing.T) {
 	})
 
 	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout.String()).To(Equal("would offer: register recall\n"))
+	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register recall (" +
+		filepath.Join(home, ".claude", "engram", "skills", "recall", "SKILL.md") + ")\n"))
 }
 
 // TestRegisterSkillsCLI_DryRunListsRegisterOffer drives the real CLI wiring
@@ -160,7 +161,8 @@ func TestRegisterSkillsCLI_DryRunListsRegisterOffer(t *testing.T) {
 	})
 
 	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout.String()).To(Equal("would offer: register curate\n"))
+	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register curate (" +
+		filepath.Join(skillsDir, "curate", "SKILL.md") + ")\n"))
 }
 
 // TestRegisterSkillsCLI_MalformedAdoptFlag covers --adopt values that aren't

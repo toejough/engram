@@ -59,7 +59,8 @@ func TestRunUpdateSkillRegistration_DryRunListsOffers(t *testing.T) {
 	err := runUpdateSkillRegistration(context.Background(), true, "/vault", "/repo", deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(Equal("would offer: register curate\n"))
+	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register curate (" +
+		filepath.Join(skillsDir, "curate", "SKILL.md") + ")\n"))
 }
 
 // TestRunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured proves the
@@ -120,7 +121,7 @@ func TestRunUpdateSkillRegistration_NonInteractive_ReportsSummary(t *testing.T) 
 	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/repo", deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(ContainSubstring("awaiting an answer: curate"))
+	g.Expect(stdout.String()).To(ContainSubstring("awaiting an answer: @claude-user 1"))
 }
 
 // TestRunUpdateSkillRegistration_PropagatesError proves a registration
