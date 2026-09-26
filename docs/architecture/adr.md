@@ -375,6 +375,16 @@ runbooks (`openspec/changes/archive/2026-09-19-route-skill-to-runbook/`,
 2026-07-04 decision, not the current skill count — see ADR-0026 and the
 `guidance-runbook-follow-frame` spec for the runbook-carrier shape that superseded it.
 
+**Amendment (2026-09-26):** The 2026-09 historical note above records `please`, `route`, `curate`,
+and `write-memory` being retired from skills to vault-runbook-only form. The openspec change
+`register-skills-as-runbooks` (`openspec/changes/archive/2026-09-26-register-skills-as-runbooks/`)
+reverses that direction: all six skills (`recall`, `learn`, `please`, `route`, `curate`,
+`write-memory`) ship again as skills under `agent-instructions/skills/`, and the skill remains the
+shipping and authoring form. Each skill may have at most one registered vault runbook note (slug
+`skill-<name>`, frontmatter `skill_hash`) whose body mirrors the `SKILL.md`, for `engram query`
+surfacing — the note mirrors the skill, it no longer replaces it. See ADR-0026's matching
+amendment and the `skill-runbook-registration` spec for the current shape.
+
 ---
 
 ## ADR-0016 — Architecture diagrams are hand-authored mermaid, verified against code
@@ -514,6 +524,12 @@ the standing rule that a new edge type must first demonstrate retrieval value (A
 `docs/ROADMAP.md` → Standing constraint; vault note 73). Vocab's hub-note channel migrated to this tags
 convention 2026-07-10 (#678): definitions are recallable bare-`vocab`-tagged fact notes,
 `vocab_version` lives on `vocab-definition`, and the vocab query exclusions are deleted.
+
+**Amendment (2026-09-26):** `agent-instructions/skills/route/SKILL.md`, referenced above as
+retired 2026-09-19, is restored by `register-skills-as-runbooks`
+(`openspec/changes/archive/2026-09-26-register-skills-as-runbooks/`): route ships again as a
+skill and the audit commands live in it. Its vault runbook note (`skill-route`) is a registered
+mirror of the skill, not the sole surface for this guidance.
 
 ---
 
@@ -977,6 +993,28 @@ before. A hit is still only a candidate the agent judges against the runbook's o
 text. Link: `openspec/changes/runbook-lexical-triggers`.
 
 Link: `openspec/changes/runbook-note-kind`.
+
+**Amendment (2026-09-26, openspec change `register-skills-as-runbooks`): the skill-to-runbook-only
+direction is reversed — skills remain the shipping form; runbook notes are registered, derived
+mirrors.** The 2026-09-20 amendment above, and ADR-0015's 2026-09 historical note, record
+`please`, `route`, `curate`, and `write-memory` being retired from `agent-instructions/skills/` to
+vault-runbook-only form. That retirement broke distribution: `engram update` syncs skills and
+guidance, never the vault, so a fresh install shipped only `recall` and `learn`. Vault note 1054
+records the reversal and supersedes note 1031's goal that every skill becomes a runbook and the
+shim is the only custom instruction text. All six skills (`recall`, `learn`, `please`, `route`,
+`curate`, `write-memory`) ship again as skills via `engram update` and remain the shipping and
+authoring form; `please` is again one `SKILL.md`, with no sub-runbooks. Each skill MAY have one
+registered vault runbook note, derived from the skill: slug `skill-<name>`, body copied from the
+`SKILL.md`, and frontmatter `skill_hash` (SHA-256 of the `SKILL.md` bytes last copied). The
+runbook fields (`situation`, `triggers`, `done_when`, `red_flags`) are authored on the note, never
+in `SKILL.md` frontmatter, whose schema belongs to the harness. `engram update` and
+`engram register-skills` (`--accept`/`--decline`/`--dry-run`/`--adopt`) offer to register,
+refresh, or remove each note; declines are remembered by hash in vault-root
+`skill-registrations.json`, and without a terminal or an explicit answer nothing is written. A new
+or refreshed note is a pending offer (`pending: true`, now recognized on runbook notes) that
+`curate` completes. The `runbook` kind, the `triggers:` mechanism above, and the shim's
+follow-frame are unchanged. Links: `openspec/changes/archive/2026-09-26-register-skills-as-runbooks`,
+`openspec/specs/skill-runbook-registration/spec.md`.
 
 ---
 
