@@ -22,19 +22,19 @@ Conventions: TDD for every Go change (RED via `targ test`, then GREEN, refactor)
 
 ## 3. Adopt the existing notes
 
-- [ ] 3.1 `engram register-skills --dry-run` on the real vault before adoption shows register offers for route, please, curate, write-memory (no notes carry the `skill-` slug yet); answer nothing
-- [ ] 3.2 Adopt: `--adopt route=1036 --adopt please=1045 --adopt curate=1049 --adopt write-memory=1053`; drop write-memory's "no longer exists as a skill" red_flag from 1053 with `engram amend`
-- [ ] 3.3 please: review sub-notes 1042/1043/1044's red_flags into the please note within the 1200-byte cap (record anything cut in this task's notes); repoint every inbound link to 1042–1044 at the please note; remove 1042–1044 and their sidecars after Joe confirms the list
-- [ ] 3.4 `engram embed status` clean; `engram show` on each adopted note shows the `skill-` basename, `skill_hash`, the preamble, and no pending marker; `engram register-skills --dry-run` shows no offers for the four
-- [ ] 3.5 No-spend retrieval checks: for each adopted skill, the same real-agent phrases used in its conversion's retrieval check (results files under `dev/eval/cumulative/runbook_vs_skill/phase2/results/`) surface the note as before; over-fire probes unchanged; for please, flag any regression from the one-note shape (design D10) to Joe before considering a paid re-run
+- [x] 3.1 `engram register-skills --dry-run` on the real vault before adoption shows register offers for route, please, curate, write-memory (no notes carry the `skill-` slug yet); answer nothing
+- [x] 3.2 Adopt: `--adopt route=1036 --adopt please=1045 --adopt curate=1049 --adopt write-memory=1053`; drop write-memory's "no longer exists as a skill" red_flag from 1053 with `engram amend`
+- [x] 3.3 please: review sub-notes 1042/1043/1044's red_flags into the please note within the 1200-byte cap (record anything cut in this task's notes); repoint every inbound link to 1042–1044 at the please note; remove 1042–1044 and their sidecars after Joe confirms the list
+- [x] 3.4 `engram embed status` clean; `engram show` on each adopted note shows the `skill-` basename, `skill_hash`, the preamble, and no pending marker; `engram register-skills --dry-run` shows no offers for the four
+- [x] 3.5 No-spend retrieval checks: for each adopted skill, the same real-agent phrases used in its conversion's retrieval check (results files under `dev/eval/cumulative/runbook_vs_skill/phase2/results/`) surface the note as before; over-fire probes unchanged; for please, flag any regression from the one-note shape (design D10) to Joe before considering a paid re-run
 
 ## 4. Register recall and learn
 
-- [ ] 4.1 Accept registration offers for `recall` and `learn` (`engram register-skills --accept recall --accept learn`); confirm both notes are pending with no runbook fields
-- [ ] 4.2 Curate `learn`'s note: author fields from `encodings/taskLearn/Learn-R/vault/` top note 1057 with the review-fixed triggers (`/learn`, remember this, note for next time, write this down), folding sub-note red_flags within the cap; clear pending
-- [ ] 4.3 Curate `recall`'s note: author one situation covering both modes from `encodings/taskRecall/Recall-R/vault/` glance/deep entry notes; no triggers until a similarity check says otherwise; clear pending
-- [ ] 4.4 Retrieval checks with the real-agent phrases harvested in those changes' fixture work; write-memory reached natively as a skill from both
-- [ ] 4.5 Fresh-context reviewer confirms recall/learn's authored fields match the reviewed fixture runbooks, noting anything consolidated from sub-notes
+- [x] 4.1 Accept registration offers for `recall` and `learn` (`engram register-skills --accept recall --accept learn`); confirm both notes are pending with no runbook fields
+- [x] 4.2 Curate `learn`'s note: author fields from `encodings/taskLearn/Learn-R/vault/` top note 1057 with the review-fixed triggers (`/learn`, remember this, note for next time, write this down), folding sub-note red_flags within the cap; clear pending
+- [x] 4.3 Curate `recall`'s note: author one situation covering both modes from `encodings/taskRecall/Recall-R/vault/` glance/deep entry notes; no triggers until a similarity check says otherwise; clear pending
+- [x] 4.4 Retrieval checks with the real-agent phrases harvested in those changes' fixture work; write-memory reached natively as a skill from both — **Note:** no harvested phrase set existed; phrases mined from real transcripts (note 1039's method) were used instead, with Joe's approval. `/recall` trigger added at Joe's direction (results: `dev/eval/cumulative/runbook_vs_skill/phase2/results/5.1_…`)
+- [x] 4.5 Fresh-context reviewer confirms recall/learn's authored fields match the reviewed fixture runbooks, noting anything consolidated from sub-notes
 
 ## 5. Abandon the two delete-conversion changes
 
@@ -54,7 +54,7 @@ Conventions: TDD for every Go change (RED via `targ test`, then GREEN, refactor)
 
 ## 8. Close-out
 
-- [ ] 8.1 `engram update --with-guidance` on this machine; verify all six skills deployed in `~/.claude/engram/skills/` and the Pi root, every shipped skill has a note with a matching `skill_hash`, no registration offers outstanding, `engram embed status` clean
+- [x] 8.1 `engram update --with-guidance` on this machine; verify all six skills deployed in `~/.claude/engram/skills/` and the Pi root, every shipped skill has a note with a matching `skill_hash`, no registration offers outstanding, `engram embed status` clean
 - [x] 8.2 `targ check-full` fully green; `openspec validate --all --strict`
-- [ ] 8.3 Commit(s) with `AI-Used: [claude]`; record the outcome in `dev/eval/LEDGER.md` (mechanism unit-tested; retrieval re-checked at no spend)
+- [x] 8.3 Commit(s) with `AI-Used: [claude]`; record the outcome in `dev/eval/LEDGER.md` (mechanism unit-tested; retrieval re-checked at no spend)
 - [ ] 8.4 Archive this change; sync specs; perform 7.2/7.3
