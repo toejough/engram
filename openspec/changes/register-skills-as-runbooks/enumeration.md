@@ -185,7 +185,7 @@ misjudged two live ROADMAP NOW-band items (#760/#761) as historical. A third rev
 
 ## Performed (2026-09-25)
 
-All "now" rows (52 total) performed:
+All "now" rows (51 total) performed:
 
 **CLAUDE.md:** 1–5 done
 **README.md:** 6–10 done
@@ -195,8 +195,8 @@ All "now" rows (52 total) performed:
 **docs/ROADMAP.md:** 46–47 done
 **agent-instructions/guidance/delegate.md:** 50–51 done
 **openspec/changes/register-skills-as-runbooks/specs/learn-runbook-capture/spec.md:** 54 done (MODIFIED Requirement added)
-**openspec/changes/register-skills-as-runbooks/specs/vault-offer-curation/spec.md:** 55 (pre-existing; no changes needed)
-**openspec/changes/register-skills-as-runbooks/specs/please-doc-enumeration-gate/spec.md:** 57–58 done (new delta file created)
-**openspec/changes/register-skills-as-runbooks/specs/learn-branching-disposition/spec.md:** 59 done (new delta file created)
+**openspec/changes/register-skills-as-runbooks/specs/vault-offer-curation/spec.md:** 55 done (pre-existing delta; no changes needed)
+**openspec/changes/register-skills-as-runbooks/specs/please-doc-enumeration-gate/spec.md:** 57–58 done (delta spec rewritten)
+**openspec/changes/register-skills-as-runbooks/specs/learn-branching-disposition/spec.md:** 59 done (delta spec fixed)
 
-Archive-time rows (7 total) not performed per scope: 21–23 (ADR amendments), 48–49 (ROADMAP amend-historical), 52, 53, 56 (spec Purpose lines)
+Archive-time rows (8 total) not performed per scope: 21–23 (ADR amendments), 48–49 (ROADMAP amend-historical), 52, 53, 56 (spec Purpose lines)

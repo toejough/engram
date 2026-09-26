@@ -11,6 +11,10 @@ A runbook note mirroring a skill SHALL participate in the Luhmann hierarchy, emb
 - **WHEN** `engram show` prints a skill runbook note
 - **THEN** the body begins with a line naming the skill file it mirrors
 
+#### Scenario: Authored fields survive a refresh
+- **WHEN** `engram amend` changes a skill note's `red_flags` and a later refresh is accepted
+- **THEN** the amended `red_flags` are still present
+
 ## MODIFIED Requirements
 
 ### Requirement: `write-memory` SHALL compose and execute runbook-note writes
@@ -21,7 +25,3 @@ The write-memory skill (`agent-instructions/skills/write-memory/SKILL.md`; its v
 
 - **WHEN** `learn` hands off a confirmed runbook (slug, situation, done_when, body, source, position, optional target, optional red_flags) to the write-memory skill
 - **THEN** the write-memory skill's steps compose and run the corresponding `engram learn runbook` command, with one `--red-flag` per handed-off entry, and report the written note path
-
-#### Scenario: Authored fields survive a refresh
-- **WHEN** `engram amend` changes a skill note's `red_flags` and a later refresh is accepted
-- **THEN** the amended `red_flags` are still present

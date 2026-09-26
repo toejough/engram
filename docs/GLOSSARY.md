@@ -29,7 +29,7 @@ Luhmann-ID lineage and Maps of Content for synthesis. Used as both noun
 ### skill
 A markdown file (`SKILL.md`) that defines an agent behavior, installed into
 each harness's skills directory by `engram update`. Engram ships six:
-[`recall`](#recall-skill), [`learn`](#learn-skill), [`please`](#please-skill), [`route`](#route-skill), [`curate`](#curate-skill), and [`write-memory`](#write-memory-skill).
+[`recall`](#recall-skill), [`learn`](#learn-skill), `please`, `route`, `curate`, and [`write-memory`](#write-memory-skill).
 Each skill may additionally have one registered vault runbook note (basename slug `skill-<name>`, frontmatter `skill_hash`) mirroring its SKILL.md, offered by `engram update`/`engram register-skills` and reviewed via the `curate` skill's pending-offer flow — a retrieval surface alongside the skill, not a replacement for it.
 Distinct from **slash command** — the user-facing `/name` trigger that invokes
 a skill in a harness (Claude Code's term). (The `command` file/deploy mechanism —

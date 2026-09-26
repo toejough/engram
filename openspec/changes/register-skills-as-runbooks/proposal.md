@@ -42,6 +42,8 @@ So the fix is not "undo runbooks" — it is to keep skills as the shipping form 
 - `guidance-runbook-follow-frame`: Purpose reversal ("every procedure is a runbook note" → "every registered skill has a runbook note; skills remain the shipping form"); follow-frame's `engram show` works on parent-shared runbooks.
 - `vault-merged-recall`: `engram show` falls back to the parent vault on a local miss when `ENGRAM_PARENT` is set.
 - `write-memory-worker`: write-memory is a skill again, invoked natively by `recall`/`learn`; its runbook note mirrors it.
+- `please-doc-enumeration-gate`: the doc-surface enumeration gate is carried by the please skill again, not a separate runbook; the skill's Step 3 procedure runs the enumeration grep.
+- `learn-branching-disposition`: the placement-fields handoff contract belongs to the write-memory skill again, reached by native invocation rather than by basename/wikilink.
 
 ## Impact
 

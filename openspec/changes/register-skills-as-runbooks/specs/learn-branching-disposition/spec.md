@@ -1,8 +1,8 @@
 ## MODIFIED Requirements
 
-### Requirement: Write-memory handoff SHALL carry placement fields
+### Requirement: Write-memory handoff carries placement fields
 
-The write-memory skill's handoff contract (`agent-instructions/skills/write-memory/SKILL.md`; its vault runbook is the registered, derived mirror of that skill) — the field set `learn` passes when invoking write-memory — SHALL specify **kind** (`fact|feedback|qa|runbook`), the kind's content fields, **source** (provenance string), optional **chunk-sources**, optional **supersedes** (`basename|type|claim`), optional **target** (for positioning within a topic/MOC), and optional **tags** (`vocab/<term>` or `project:<slug>` or user-supplied `<family>/<value>`).
+The write-memory skill's handoff contract (`agent-instructions/skills/write-memory/SKILL.md`; when registered, its vault runbook note mirrors the skill) — carried by the skill and reached by native invocation from `learn`'s own instructions rather than by `engram query`, since write-memory is invoked natively rather than by trigger — SHALL accept `position` (`top`, `continuation`, or `sibling`) and `target` (a Luhmann note ID, required when position is not `top`) from the calling skill, and SHALL pass them through to the `engram learn <kind>` command it composes.
 
 #### Scenario: Continuation handoff composes the correct command
 - **WHEN** learn hands off a note with `position=continuation` and `target=1a`

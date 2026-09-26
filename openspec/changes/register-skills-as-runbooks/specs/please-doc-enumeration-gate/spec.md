@@ -1,9 +1,17 @@
 ## MODIFIED Requirements
 
-### Requirement: Carrier is the please skill's Step 3 sub-runbook
+### Requirement: Plan author SHALL run doc-surface enumeration grep for repeated invariants
 
-This procedure SHALL be carried by the `please` skill's Step 3 sub-runbook file (`agent-instructions/skills/please/runbooks/<slug>.md`, registered per capability `skill-runbook-registration`).
+When a planned change alters a repeated invariant (payload shape, sweep cadence, command set, count, naming convention echoed across docs/diagrams/skills), the plan author SHALL search the term, its synonyms, hyphenated forms, and the OLD text's echoes in labels and comments, then paste the per-file disposition list into the plan. This procedure SHALL be carried by the please skill (`agent-instructions/skills/please/SKILL.md`, with its optional vault runbook note mirroring the skill) rather than a separate runbook body.
 
-#### Scenario: Carrier is the please skill's Step 3 sub-runbook
+#### Scenario: Planning a change to a repeated invariant
+- **WHEN** a plan alters something repeated across multiple files (a field name, a command, a convention)
+- **THEN** the plan author runs the grep over the repo and includes the per-file disposition list (file → keep / update / rewrite / N/A, with one-line reason) in the plan text
 
-The top runbook note/skill `please` SHALL have its Step 3 body wikilink the doc-surface enumeration sub-runbook (`[[<basename>]]`); the top's enumerator SHALL run that sub-runbook to completion before proceeding to Step 4. The top body SHALL not replicate the enumeration procedure — the sub-runbook is the single carrier and sole authority on how enumeration runs — so maintenance of the enumeration logic lives in one place.
+#### Scenario: Small or seemingly obvious surface
+- **WHEN** a surface appears small or obvious enough to skip the grep
+- **THEN** the author still runs the grep; cost scales with surface size, so small surfaces produce cheap greps, never exemptions
+
+#### Scenario: Carrier is the runbook, not a skill
+- **WHEN** an agent plans a change under the please skill
+- **THEN** the please skill carries the doc-surface enumeration requirement in its Step 3, and the grep requirement applies unchanged; the please skill's optional vault runbook note (when registered) mirrors this same requirement
