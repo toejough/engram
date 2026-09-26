@@ -341,10 +341,10 @@ func TestCompareSkillOffers_OffersCarryKeyScopeAndSource(t *testing.T) {
 	fixture.root(piUserRoot, cli.SkillRootFormPiUser, true)
 	fixture.root(agentsUserRoot, cli.SkillRootFormAgentsUser, true)
 	fixture.root(piPromptsRoot, cli.SkillRootFormPiPrompt, true)
-	fixture.root(userSkillsRoot+"/synced/b1", cli.SkillRootFormSynced, true)
-	fixture.root(fakeHome+"/extra", cli.SkillRootFormPiSettings, true)
-	fixture.root(piAgentDir+"/npm/node_modules/pk", cli.SkillRootFormPiPkg, true)
-	fixture.root(projectTop+"/.claude/skills", cli.SkillRootFormProject, true)
+	fixture.root(userSkillsRoot+"/synced/b1", cli.SkillRootFormSynced, true, "anthropic-skills:")
+	fixture.root(fakeHome+"/extra", cli.SkillRootFormPiSettings, true, "pi-settings:")
+	fixture.root(piAgentDir+"/npm/node_modules/pk", cli.SkillRootFormPiPkg, true, "pi-pkg:pk:")
+	fixture.root(projectTop+"/.claude/skills", cli.SkillRootFormProject, true, projectScope+":")
 
 	fixture.candidate(offerCand("zeta", cli.SkillScopeClaudeUser, userSkillsRoot+"/zeta/SKILL.md", "zeta"))
 	fixture.candidate(offerCand("alpha", cli.SkillScopeClaudeUser, userSkillsRoot+"/alpha/SKILL.md", "alpha"))
@@ -387,138 +387,11 @@ func TestCompareSkillOffers_OffersCarryKeyScopeAndSource(t *testing.T) {
 	}))
 }
 
-// TestCompareSkillOffers_RemovalEligibility covers design D5 and every
-// removal scenario of task 2.4 over hand-built resolved sources: a removal
-// needs the note's own root read, and no candidate holding its key.
-func TestCompareSkillOffers_RemovalEligibility(t *testing.T) {
+// TestCompareSkillOffers_RemovalEligibilityPlugins covers design D5 for
+// plugin notes: the manifest rule.
+func TestCompareSkillOffers_RemovalEligibilityPlugins(t *testing.T) {
 	t.Parallel()
-
-	projectSkills := projectTop + "/.claude/skills"
-	syncedA := userSkillsRoot + "/synced/a"
-	syncedB := userSkillsRoot + "/synced/b"
-
-	testCases := []struct {
-		name        string
-		setup       func(fixture *offerFixture)
-		wantRemoved []string
-	}{
-		{
-			name: "project note from another directory is kept",
-			setup: func(fixture *offerFixture) {
-				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-				fixture.note(projectScope+":openspec-propose", "h", projectSkills+"/openspec-propose/SKILL.md")
-			},
-		},
-		{
-			name: "project note's own folder read and skill gone is removed",
-			setup: func(fixture *offerFixture) {
-				fixture.root(projectSkills, cli.SkillRootFormProject, true)
-				fixture.note(projectScope+":openspec-propose", "h", projectSkills+"/openspec-propose/SKILL.md")
-			},
-			wantRemoved: []string{projectScope + ":openspec-propose"},
-		},
-		{
-			name: "nested-only project skill is safe from the top level",
-			setup: func(fixture *offerFixture) {
-				fixture.root(projectSkills, cli.SkillRootFormProject, true)
-				fixture.root(projectTop+"/.claude/commands", cli.SkillRootFormProject, true)
-				fixture.note(projectScope+":foo", "h", projectTop+"/sub/.claude/skills/foo/SKILL.md")
-			},
-		},
-		{
-			name: "one failing synced bucket keeps its notes; the parsed bucket's note is removed",
-			setup: func(fixture *offerFixture) {
-				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-				fixture.root(userSkillsRoot+"/synced", "", true)
-				fixture.root(syncedA, cli.SkillRootFormSynced, true)
-				fixture.root(syncedB, cli.SkillRootFormSynced, false)
-				fixture.note("anthropic-skills:in-b", "h1", syncedB+"/in-b/SKILL.md")
-				fixture.note("anthropic-skills:in-a", "h2", syncedA+"/in-a/SKILL.md")
-			},
-			wantRemoved: []string{"anthropic-skills:in-a"},
-		},
-		{
-			name: "a bucket no longer listed is not its note's read root",
-			setup: func(fixture *offerFixture) {
-				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-				fixture.root(userSkillsRoot+"/synced", "", true)
-				fixture.root(syncedA, cli.SkillRootFormSynced, true)
-				fixture.note("anthropic-skills:old", "h", userSkillsRoot+"/synced/gone/old/SKILL.md")
-			},
-		},
-		{
-			name: "no synced manifest parsed keeps every synced note",
-			setup: func(fixture *offerFixture) {
-				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-				fixture.root(userSkillsRoot+"/synced", "", false)
-				fixture.note("anthropic-skills:pdf", "h", syncedA+"/pdf/SKILL.md")
-			},
-		},
-		{
-			name: "pi-settings note is tied to its own unreadable entry",
-			setup: func(fixture *offerFixture) {
-				fixture.root("/home/joe/first", cli.SkillRootFormPiSettings, false)
-				fixture.root("/home/joe/second", cli.SkillRootFormPiSettings, true)
-				fixture.note("pi-settings:x", "h1", "/home/joe/first/x/SKILL.md")
-				fixture.note("pi-settings:y", "h2", "/home/joe/second/y/SKILL.md")
-			},
-			wantRemoved: []string{"pi-settings:y"},
-		},
-		{
-			name: "a failing entry nested in a read entry still keeps its note",
-			setup: func(fixture *offerFixture) {
-				fixture.root("/home/joe/a", cli.SkillRootFormPiSettings, true)
-				fixture.root("/home/joe/a/b", cli.SkillRootFormPiSettings, false)
-				fixture.note("pi-settings:x", "h", "/home/joe/a/b/x/SKILL.md")
-			},
-		},
-		{
-			name: "a pi-settings entry that is the skill file itself counts as its root",
-			setup: func(fixture *offerFixture) {
-				fixture.root("/home/joe/solo.md", cli.SkillRootFormPiSettings, true)
-				fixture.note("pi-settings:solo", "h", "/home/joe/solo.md")
-			},
-			wantRemoved: []string{"pi-settings:solo"},
-		},
-		{
-			name: "a package dropped from settings leaves an orphan",
-			setup: func(fixture *offerFixture) {
-				fixture.root(piUserRoot, cli.SkillRootFormPiUser, true)
-				fixture.note("pi-pkg:x:foo", "h", piAgentDir+"/npm/node_modules/x/skills/foo/SKILL.md")
-			},
-		},
-		{
-			name: "a root of another form never proves a note absent",
-			setup: func(fixture *offerFixture) {
-				fixture.root("/work", cli.SkillRootFormPiSettings, true)
-				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-				fixture.note(projectScope+":foo", "h1", projectSkills+"/foo/SKILL.md")
-				fixture.note("anthropic-skills:bar", "h2", syncedA+"/bar/SKILL.md")
-			},
-		},
-		{
-			name: "a source-rooted note without skill_source is kept",
-			setup: func(fixture *offerFixture) {
-				fixture.root(syncedA, cli.SkillRootFormSynced, true)
-				fixture.note("anthropic-skills:pdf", "h", "")
-			},
-		},
-		{
-			name: "a ~-relative skill_source without a home matches no root",
-			setup: func(fixture *offerFixture) {
-				fixture.home = ""
-				fixture.root(fakeHome+"/extra", cli.SkillRootFormPiSettings, true)
-				fixture.note("pi-settings:fmt", "h", "~/extra/fmt/SKILL.md")
-			},
-		},
-		{
-			name: "a ~-relative skill_source expands against home",
-			setup: func(fixture *offerFixture) {
-				fixture.root(fakeHome+"/extra", cli.SkillRootFormPiSettings, true)
-				fixture.note("pi-settings:fmt", "h", "~/extra/fmt/SKILL.md")
-			},
-			wantRemoved: []string{"pi-settings:fmt"},
-		},
+	runRemovalCases(t, []removalCase{
 		{
 			name: "disabled plugin keeps its notes",
 			setup: func(fixture *offerFixture) {
@@ -559,6 +432,215 @@ func TestCompareSkillOffers_RemovalEligibility(t *testing.T) {
 				fixture.note("tools:lint", "h", "")
 			},
 		},
+	})
+}
+
+// TestCompareSkillOffers_RemovalEligibilityProject covers design D5 for
+// project notes: the exact project directory must be read and vouch for the key.
+func TestCompareSkillOffers_RemovalEligibilityProject(t *testing.T) {
+	t.Parallel()
+	runRemovalCases(t, []removalCase{
+		{
+			name: "project note from another directory is kept",
+			setup: func(fixture *offerFixture) {
+				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+				fixture.note(projectScope+":openspec-propose", "h", projectSkills+"/openspec-propose/SKILL.md")
+			},
+		},
+		{
+			name: "project note's own folder read and skill gone is removed",
+			setup: func(fixture *offerFixture) {
+				fixture.root(projectSkills, cli.SkillRootFormProject, true, projectScope+":")
+				fixture.note(projectScope+":openspec-propose", "h", projectSkills+"/openspec-propose/SKILL.md")
+			},
+			wantRemoved: []string{projectScope + ":openspec-propose"},
+		},
+		{
+			name: "nested-only project skill is safe from the top level",
+			setup: func(fixture *offerFixture) {
+				fixture.root(projectSkills, cli.SkillRootFormProject, true, projectScope+":")
+				fixture.root(projectTop+"/.claude/commands", cli.SkillRootFormProject, true, projectScope+":cmd:")
+				fixture.note(projectScope+":foo", "h", projectTop+"/sub/.claude/skills/foo/SKILL.md")
+			},
+		},
+		{
+			name: "a project settings entry at the repo top never vouches for a Claude project note",
+			setup: func(fixture *offerFixture) {
+				fixture.root(projectTop, cli.SkillRootFormProject, true, projectScope+":pi-settings:")
+				fixture.note(projectScope+":foo", "h", projectTop+"/sub/.claude/skills/foo/SKILL.md")
+			},
+		},
+		{
+			name: "a git repo nested in another project's .agents/skills keeps its notes",
+			setup: func(fixture *offerFixture) {
+				fixture.root(projectTop+"/.agents/skills", cli.SkillRootFormProject, true, projectScope+":agents:")
+				fixture.note("project:github.com/x/inner:foo", "h",
+					projectTop+"/.agents/skills/inner/.claude/skills/foo/SKILL.md")
+			},
+		},
+		{
+			name: "a read root of another scope nested inside the note's read root blocks it",
+			setup: func(fixture *offerFixture) {
+				fixture.root(projectSkills, cli.SkillRootFormProject, true, projectScope+":")
+				fixture.root(projectSkills+"/foo", cli.SkillRootFormProject, true, projectScope+":pi-settings:")
+				fixture.note(projectScope+":foo", "h", projectSkills+"/foo/SKILL.md")
+			},
+		},
+		{
+			name: "a package's gone prompt and a project's gone namespaced command are removed",
+			setup: func(fixture *offerFixture) {
+				fixture.root(piAgentDir+"/npm/node_modules/a", cli.SkillRootFormPiPkg, true,
+					"pi-pkg:a:", "pi-pkg:a:pi-prompt:")
+				fixture.root(projectTop+"/.claude/commands", cli.SkillRootFormProject, true, projectScope+":cmd:")
+				fixture.note("pi-pkg:a:pi-prompt:p", "h1", piAgentDir+"/npm/node_modules/a/prompts/p.md")
+				fixture.note(projectScope+":cmd:opsx:apply", "h2", projectTop+"/.claude/commands/opsx/apply.md")
+			},
+			wantRemoved: []string{"pi-pkg:a:pi-prompt:p", projectScope + ":cmd:opsx:apply"},
+		},
+		{
+			name: "a skill root never vouches for a key with a further segment",
+			setup: func(fixture *offerFixture) {
+				fixture.root(projectSkills, cli.SkillRootFormProject, true, projectScope+":")
+				fixture.note(projectScope+":pi:x", "h", projectSkills+"/x/SKILL.md")
+			},
+		},
+		{
+			name: "untrusted Pi project keeps its Pi project notes",
+			setup: func(fixture *offerFixture) {
+				fixture.root(projectSkills, cli.SkillRootFormProject, true, projectScope+":")
+				fixture.note(projectScope+":pi:x", "h", projectTop+"/.pi/skills/x/SKILL.md")
+			},
+		},
+	})
+}
+
+// TestCompareSkillOffers_RemovalEligibilitySourceRooted covers design D5 for
+// synced, pi-settings and pi-pkg notes: the root holding skill_source must be read and vouch for the key.
+func TestCompareSkillOffers_RemovalEligibilitySourceRooted(t *testing.T) {
+	t.Parallel()
+	runRemovalCases(t, []removalCase{
+		{
+			name: "two roots at one path must both be read, and one must vouch",
+			setup: func(fixture *offerFixture) {
+				fixture.root("/home/joe/same", cli.SkillRootFormPiSettings, true, "pi-settings:")
+				fixture.root("/home/joe/same", cli.SkillRootFormPiSettings, false, "pi-settings:pi-prompt:")
+				fixture.root("/home/joe/twin", cli.SkillRootFormPiSettings, true, "pi-settings:pi-prompt:")
+				fixture.root("/home/joe/twin", cli.SkillRootFormPiSettings, true, "pi-settings:")
+				fixture.note("pi-settings:x", "h1", "/home/joe/same/x/SKILL.md")
+				fixture.note("pi-settings:y", "h2", "/home/joe/twin/y/SKILL.md")
+			},
+			wantRemoved: []string{"pi-settings:y"},
+		},
+		{
+			name: "one failing synced bucket keeps its notes; the parsed bucket's note is removed",
+			setup: func(fixture *offerFixture) {
+				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+				fixture.root(userSkillsRoot+"/synced", "", true)
+				fixture.root(syncedA, cli.SkillRootFormSynced, true, "anthropic-skills:")
+				fixture.root(syncedB, cli.SkillRootFormSynced, false, "anthropic-skills:")
+				fixture.note("anthropic-skills:in-b", "h1", syncedB+"/in-b/SKILL.md")
+				fixture.note("anthropic-skills:in-a", "h2", syncedA+"/in-a/SKILL.md")
+			},
+			wantRemoved: []string{"anthropic-skills:in-a"},
+		},
+		{
+			name: "a bucket no longer listed is not its note's read root",
+			setup: func(fixture *offerFixture) {
+				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+				fixture.root(userSkillsRoot+"/synced", "", true)
+				fixture.root(syncedA, cli.SkillRootFormSynced, true, "anthropic-skills:")
+				fixture.note("anthropic-skills:old", "h", userSkillsRoot+"/synced/gone/old/SKILL.md")
+			},
+		},
+		{
+			name: "no synced manifest parsed keeps every synced note",
+			setup: func(fixture *offerFixture) {
+				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+				fixture.root(userSkillsRoot+"/synced", "", false)
+				fixture.note("anthropic-skills:pdf", "h", syncedA+"/pdf/SKILL.md")
+			},
+		},
+		{
+			name: "pi-settings note is tied to its own unreadable entry",
+			setup: func(fixture *offerFixture) {
+				fixture.root("/home/joe/first", cli.SkillRootFormPiSettings, false, "pi-settings:")
+				fixture.root("/home/joe/second", cli.SkillRootFormPiSettings, true, "pi-settings:")
+				fixture.note("pi-settings:x", "h1", "/home/joe/first/x/SKILL.md")
+				fixture.note("pi-settings:y", "h2", "/home/joe/second/y/SKILL.md")
+			},
+			wantRemoved: []string{"pi-settings:y"},
+		},
+		{
+			name: "a failing entry nested in a read entry still keeps its note",
+			setup: func(fixture *offerFixture) {
+				fixture.root("/home/joe/a", cli.SkillRootFormPiSettings, true, "pi-settings:")
+				fixture.root("/home/joe/a/b", cli.SkillRootFormPiSettings, false, "pi-settings:")
+				fixture.note("pi-settings:x", "h", "/home/joe/a/b/x/SKILL.md")
+			},
+		},
+		{
+			name: "a pi-settings entry that is the skill file itself counts as its root",
+			setup: func(fixture *offerFixture) {
+				fixture.root("/home/joe/solo.md", cli.SkillRootFormPiSettings, true, "pi-settings:")
+				fixture.note("pi-settings:solo", "h", "/home/joe/solo.md")
+			},
+			wantRemoved: []string{"pi-settings:solo"},
+		},
+		{
+			name: "a package dropped from settings leaves an orphan",
+			setup: func(fixture *offerFixture) {
+				fixture.root(piUserRoot, cli.SkillRootFormPiUser, true)
+				fixture.note("pi-pkg:x:foo", "h", piAgentDir+"/npm/node_modules/x/skills/foo/SKILL.md")
+			},
+		},
+		{
+			name: "a root of another form never proves a note absent",
+			setup: func(fixture *offerFixture) {
+				fixture.root("/work", cli.SkillRootFormPiSettings, true, "pi-settings:")
+				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+				fixture.note(projectScope+":foo", "h1", projectSkills+"/foo/SKILL.md")
+				fixture.note("anthropic-skills:bar", "h2", syncedA+"/bar/SKILL.md")
+			},
+		},
+		{
+			name: "a dropped package nested in another package's root is an orphan",
+			setup: func(fixture *offerFixture) {
+				fixture.root(piAgentDir+"/npm/node_modules/a", cli.SkillRootFormPiPkg, true,
+					"pi-pkg:a:", "pi-pkg:a:pi-prompt:")
+				fixture.note("pi-pkg:b:x", "h", piAgentDir+"/npm/node_modules/a/node_modules/b/skills/x/SKILL.md")
+			},
+		},
+		{
+			name: "a source-rooted note without skill_source is kept",
+			setup: func(fixture *offerFixture) {
+				fixture.root(syncedA, cli.SkillRootFormSynced, true, "anthropic-skills:")
+				fixture.note("anthropic-skills:pdf", "h", "")
+			},
+		},
+		{
+			name: "a ~-relative skill_source without a home matches no root",
+			setup: func(fixture *offerFixture) {
+				fixture.home = ""
+				fixture.root(fakeHome+"/extra", cli.SkillRootFormPiSettings, true, "pi-settings:")
+				fixture.note("pi-settings:fmt", "h", "~/extra/fmt/SKILL.md")
+			},
+		},
+		{
+			name: "a ~-relative skill_source expands against home",
+			setup: func(fixture *offerFixture) {
+				fixture.root(fakeHome+"/extra", cli.SkillRootFormPiSettings, true, "pi-settings:")
+				fixture.note("pi-settings:fmt", "h", "~/extra/fmt/SKILL.md")
+			},
+			wantRemoved: []string{"pi-settings:fmt"},
+		},
+	})
+}
+
+// TestCompareSkillOffers_RemovalEligibilityUserRoots covers design D5 for
+// single-root user forms, aliases, disabled candidates, --skills-dir and declines.
+func TestCompareSkillOffers_RemovalEligibilityUserRoots(t *testing.T) {
+	t.Parallel()
+	runRemovalCases(t, []removalCase{
 		{
 			name: "unreadable ~/.claude/skills keeps bare-key notes",
 			setup: func(fixture *offerFixture) {
@@ -602,13 +684,6 @@ func TestCompareSkillOffers_RemovalEligibility(t *testing.T) {
 			},
 		},
 		{
-			name: "untrusted Pi project keeps its Pi project notes",
-			setup: func(fixture *offerFixture) {
-				fixture.root(projectSkills, cli.SkillRootFormProject, true)
-				fixture.note(projectScope+":pi:x", "h", projectTop+"/.pi/skills/x/SKILL.md")
-			},
-		},
-		{
 			name: "--skills-dir makes no removal offer",
 			setup: func(fixture *offerFixture) {
 				fixture.noRemovals = true
@@ -624,28 +699,15 @@ func TestCompareSkillOffers_RemovalEligibility(t *testing.T) {
 				fixture.declined["c4"] = "h"
 			},
 		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			fixture := newOfferFixture()
-			fixture.home = fakeHome
-			testCase.setup(fixture)
-
-			comparison := fixture.compare(g)
-
-			g.Expect(removedKeys(comparison)).To(ConsistOf(stringsOrEmpty(testCase.wantRemoved)))
-		})
-	}
+	})
 }
 
 // TestCompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent (task 2.4
-// property, model-based): each drawn note gets an intended root state; a
-// removal is offered exactly when that root was read and no candidate,
-// alias or disabled one included, holds the note's key.
+// property, model-based): each drawn note gets an intended root state and,
+// for source-rooted forms, maybe a read decoy root of the same form but
+// another scope or segment, around or inside its own root; a removal is
+// offered exactly when its own root was read, no decoy hides it, and no
+// candidate, alias or disabled one included, holds the note's key.
 func TestCompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
@@ -665,139 +727,11 @@ func TestCompareSkillOffers_RemovalOnlyWhenOwnRootReadAndKeyAbsent(t *testing.T)
 	})
 }
 
-// TestCompareSkillOffers_ScenariosThroughTheResolver runs the spec
-// scenarios end to end: a fake home through ResolveSkillSources, then
+// TestCompareSkillOffers_ResolvedPluginsAndSources runs the spec scenarios for
+// plugins, synced buckets, Pi settings entries and packages end to end: a fake home through ResolveSkillSources, then
 // CompareSkillOffers against a fake vault.
-func TestCompareSkillOffers_ScenariosThroughTheResolver(t *testing.T) {
+func TestCompareSkillOffers_ResolvedPluginsAndSources(t *testing.T) {
 	t.Parallel()
-
-	t.Run("same project skill name at two levels is a conflict from sub/", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").
-			file(projectTop+"/.claude/skills/foo/SKILL.md", "top foo").
-			file(projectTop+"/sub/.claude/skills/foo/SKILL.md", "sub foo").
-			file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
-
-		comparison := resolveAndCompare(g, fsys, projectTop+"/sub", resolverDeps(fsys), nil)
-
-		g.Expect(comparison.Conflicts).To(Equal([]string{
-			"engram: skill key conflict: " + projectScope + ":foo at " + projectTop + "/.claude/skills/foo/SKILL.md and " +
-				projectTop + "/sub/.claude/skills/foo/SKILL.md",
-		}))
-		g.Expect(offeredKeys(comparison)).To(Equal([]string{projectScope + ":bar"}))
-	})
-
-	t.Run("nested-only project note is kept when run from the top level", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
-		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/sub/.claude/skills/foo/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-
-	t.Run("a gone project skill in the read folder is offered for removal", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
-		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/.claude/skills/foo/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{projectScope + ":foo"}))
-	})
-
-	t.Run("update outside a repository keeps project notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g)
-		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/.claude/skills/foo/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-
-	t.Run("unreadable ~/.claude/skills keeps bare-key notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).failRead(userSkillsRoot)
-		notes := []offerNote{{key: "gone", hash: "h"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-
-	t.Run("readable ~/.claude/skills offers a gone bare-key note for removal", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g)
-		notes := []offerNote{{key: "gone", hash: "h"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{"gone"}))
-	})
-
-	t.Run("a Pi-disabled skill makes no offer of any kind", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().
-			file(piUserRoot+"/ping/SKILL.md", "ping").
-			file(piAgentDir+"/settings.json", `{"skills": ["!ping"]}`)
-		notes := []offerNote{{key: "pi:ping", hash: "stale"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(comparison.Offers).To(BeEmpty())
-	})
-
-	t.Run("an untrusted Pi project keeps its Pi project notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).remove(piAgentDir + "/trust.json")
-		notes := []offerNote{{key: projectScope + ":pi:gone", hash: "h", source: projectTop + "/.pi/skills/gone/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
-
-	t.Run("a trusted Pi project's gone skill is offered for removal", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g)
-		notes := []offerNote{{key: projectScope + ":pi:gone", hash: "h", source: projectTop + "/.pi/skills/gone/SKILL.md"}}
-
-		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
-
-		g.Expect(removedKeys(comparison)).To(Equal([]string{projectScope + ":pi:gone"}))
-	})
-
-	t.Run("no Pi harness keeps pi notes", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := resolverFixture(g).remove(fakeHome + "/.pi")
-		notes := []offerNote{{key: "pi:ping", hash: "h"}}
-
-		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
-
-		g.Expect(removedKeys(comparison)).To(BeEmpty())
-	})
 
 	t.Run("an uninstalled plugin's note is offered for removal; the installed one's kept", func(t *testing.T) {
 		t.Parallel()
@@ -884,6 +818,24 @@ func TestCompareSkillOffers_ScenariosThroughTheResolver(t *testing.T) {
 		g.Expect(removedKeys(comparison)).To(Equal([]string{"pi-settings:y"}))
 	})
 
+	t.Run("a failed settings entry reached through a symlink still guards its notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).
+			file(piAgentDir+"/settings.json", `{"skills": ["~/outer", "~/lnk"]}`).
+			file(fakeHome+"/outer/keep/SKILL.md", "keep").
+			link(fakeHome+"/lnk", fakeHome+"/outer/inner")
+		notes := []offerNote{
+			{key: "pi-settings:x", hash: "h1", source: "~/outer/inner/x/SKILL.md"},
+			{key: "pi-settings:y", hash: "h2", source: "~/outer/y/SKILL.md"},
+		}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{"pi-settings:y"}))
+	})
+
 	t.Run("a package dropped from settings leaves an orphan", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
@@ -906,6 +858,163 @@ func TestCompareSkillOffers_ScenariosThroughTheResolver(t *testing.T) {
 		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
 
 		g.Expect(removedKeys(comparison)).To(Equal([]string{"pi-pkg:pk:gone"}))
+	})
+}
+
+// TestCompareSkillOffers_ResolvedProject runs the spec scenarios for
+// project sources end to end (conflicts across chain levels, removals
+// scoped to the exact project directory): a fake home through
+// ResolveSkillSources, then CompareSkillOffers against a fake vault.
+func TestCompareSkillOffers_ResolvedProject(t *testing.T) {
+	t.Parallel()
+
+	t.Run("same project skill name at two levels is a conflict from sub/", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").
+			file(projectTop+"/.claude/skills/foo/SKILL.md", "top foo").
+			file(projectTop+"/sub/.claude/skills/foo/SKILL.md", "sub foo").
+			file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
+
+		comparison := resolveAndCompare(g, fsys, projectTop+"/sub", resolverDeps(fsys), nil)
+
+		g.Expect(comparison.Conflicts).To(Equal([]string{
+			"engram: skill key conflict: " + projectScope + ":foo at " + projectTop + "/.claude/skills/foo/SKILL.md and " +
+				projectTop + "/sub/.claude/skills/foo/SKILL.md",
+		}))
+		g.Expect(offeredKeys(comparison)).To(Equal([]string{projectScope + ":bar"}))
+	})
+
+	t.Run("nested-only project note is kept when run from the top level", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
+		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/sub/.claude/skills/foo/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+
+	t.Run("a gone project skill in the read folder is offered for removal", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newFakeSkillFS().dir(fakeHome+"/.claude").file(projectTop+"/.claude/skills/bar/SKILL.md", "bar")
+		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/.claude/skills/foo/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{projectScope + ":foo"}))
+	})
+
+	t.Run("update outside a repository keeps project notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g)
+		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/.claude/skills/foo/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+
+	t.Run("an untrusted Pi project keeps its Pi project notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).remove(piAgentDir + "/trust.json")
+		notes := []offerNote{{key: projectScope + ":pi:gone", hash: "h", source: projectTop + "/.pi/skills/gone/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+
+	t.Run("a trusted Pi project's gone skill is offered for removal", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g)
+		notes := []offerNote{{key: projectScope + ":pi:gone", hash: "h", source: projectTop + "/.pi/skills/gone/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{projectScope + ":pi:gone"}))
+	})
+
+	t.Run("a project settings entry of .. never exposes a nested-only project note", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).
+			file(projectTop+"/.pi/settings.json", `{"skills": [".."]}`).
+			file(projectTop+"/sub/.claude/skills/foo/SKILL.md", "foo")
+		notes := []offerNote{{key: projectScope + ":foo", hash: "h", source: projectTop + "/sub/.claude/skills/foo/SKILL.md"}}
+
+		comparison := resolveAndCompare(g, fsys, projectTop, resolverDeps(fsys), notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+}
+
+// TestCompareSkillOffers_ResolvedUserAndPi runs the spec scenarios for
+// the user roots and the Pi harness end to end: a fake home through ResolveSkillSources, then
+// CompareSkillOffers against a fake vault.
+func TestCompareSkillOffers_ResolvedUserAndPi(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unreadable ~/.claude/skills keeps bare-key notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).failRead(userSkillsRoot)
+		notes := []offerNote{{key: "gone", hash: "h"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
+	})
+
+	t.Run("readable ~/.claude/skills offers a gone bare-key note for removal", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g)
+		notes := []offerNote{{key: "gone", hash: "h"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(Equal([]string{"gone"}))
+	})
+
+	t.Run("a Pi-disabled skill makes no offer of any kind", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newFakeSkillFS().
+			file(piUserRoot+"/ping/SKILL.md", "ping").
+			file(piAgentDir+"/settings.json", `{"skills": ["!ping"]}`)
+		notes := []offerNote{{key: "pi:ping", hash: "stale"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(comparison.Offers).To(BeEmpty())
+	})
+
+	t.Run("no Pi harness keeps pi notes", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := resolverFixture(g).remove(fakeHome + "/.pi")
+		notes := []offerNote{{key: "pi:ping", hash: "h"}}
+
+		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
+
+		g.Expect(removedKeys(comparison)).To(BeEmpty())
 	})
 }
 
@@ -952,9 +1061,65 @@ func TestReportSkillOfferProblems(t *testing.T) {
 	})
 }
 
+// TestResolveSkillPathBestEffort: a root that cannot be resolved still gets
+// the real location it points into, up to the failing component.
+func TestResolveSkillPathBestEffort(t *testing.T) {
+	t.Parallel()
+
+	fsys := newFakeSkillFS().
+		dir("/real/ok").
+		link("/home/joe/ok", "/real/ok").
+		link("/home/joe/lnk", "/real/gone/inner").
+		dir("/real/denied").failLstat("/real/denied").
+		link("/home/joe/via", "/real/denied").
+		link("/loop/a", "/loop/b").link("/loop/b", "/loop/a")
+
+	testCases := map[string]string{
+		"/home/joe/ok":      "/real/ok",
+		"/home/joe/lnk":     "/real/gone/inner",
+		"/home/joe/via/x":   "/real/denied/x",
+		"relative/path":     "relative/path",
+		"/loop/a/skills":    "/loop/a/skills",
+		"/home/joe/missing": "/home/joe/missing",
+	}
+
+	for path, want := range testCases {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			g.Expect(cli.ExportResolveSkillPathBestEffort(fsys, path)).To(Equal(want))
+		})
+	}
+}
+
+// TestResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarget
+// (property): a chain of symlinks ending at a missing path resolves to that
+// path, whatever the chain's length and link forms.
+func TestResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarget(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		hops := rapid.IntRange(0, 5).Draw(rt, "hops")
+		leaf := "/real/" + rapid.StringMatching(`[a-z]{1,6}`).Draw(rt, "leaf") + "/SKILL.md"
+		fsys := newFakeSkillFS().dir("/real")
+		target := leaf
+
+		for hop := hops; hop > 0; hop-- {
+			link := fmt.Sprintf("/links/l%d", hop)
+			fsys.link(link, target)
+			target = link
+		}
+
+		if got := cli.ExportResolveSkillPathBestEffort(fsys, target); got != leaf {
+			rt.Fatalf("best effort of %s: got %s, want %s", target, got, leaf)
+		}
+	})
+}
+
 // TestResolveSkillSources_StampsRootForms: every read root carries the
-// removal-eligibility form of the notes it can prove absent; the synced
-// directory itself and plugin roots carry none.
+// removal-eligibility form of the notes it can prove absent, and each
+// source-rooted root the key prefixes it vouches for; the synced directory
+// itself and plugin roots carry neither.
 func TestResolveSkillSources_StampsRootForms(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -989,6 +1154,30 @@ func TestResolveSkillSources_StampsRootForms(t *testing.T) {
 		projectTop + "/.pi/extra-prompts":           cli.SkillRootFormProject,
 		projectTop + "/.pi/npm/node_modules/ppk":    cli.SkillRootFormProject,
 	}))
+
+	prefixes := map[string][]string{}
+
+	for _, root := range resolved.Roots {
+		if root.KeyPrefixes != nil {
+			prefixes[root.Path] = root.KeyPrefixes
+		}
+	}
+
+	project := projectScope + ":"
+	g.Expect(prefixes).To(Equal(map[string][]string{
+		userSkillsRoot + "/synced/b1":            {"anthropic-skills:"},
+		fakeHome + "/extra-skills":               {"pi-settings:"},
+		fakeHome + "/extra-prompts":              {"pi-settings:pi-prompt:"},
+		piAgentDir + "/npm/node_modules/pk":      {"pi-pkg:pk:", "pi-pkg:pk:pi-prompt:"},
+		projectTop + "/.claude/skills":           {project},
+		projectTop + "/.claude/commands":         {project + "cmd:"},
+		projectTop + "/.pi/skills":               {project + "pi:"},
+		projectTop + "/.agents/skills":           {project + "agents:"},
+		projectTop + "/.pi/prompts":              {project + "pi-prompt:"},
+		projectTop + "/.pi/extra":                {project + "pi-settings:"},
+		projectTop + "/.pi/extra-prompts":        {project + "pi-settings:pi-prompt:"},
+		projectTop + "/.pi/npm/node_modules/ppk": {project + "pi-pkg:ppk:", project + "pi-pkg:ppk:pi-prompt:"},
+	}))
 }
 
 // unexported constants.
@@ -1001,7 +1190,10 @@ const (
 
 // unexported constants.
 const (
-	pkGoneSource = "~/.pi/agent/npm/node_modules/pk/skills/gone/SKILL.md"
+	pkGoneSource  = "~/.pi/agent/npm/node_modules/pk/skills/gone/SKILL.md"
+	projectSkills = projectTop + "/.claude/skills"
+	syncedA       = userSkillsRoot + "/synced/a"
+	syncedB       = userSkillsRoot + "/synced/b"
 )
 
 // offerFixture builds a CompareSkillOffers input: resolved sources plus a
@@ -1091,15 +1283,25 @@ func (fixture *offerFixture) drawRemovalNote(rt *rapid.T, index int, fixedRead m
 	}
 
 	spec := removalSourcedForms()[formName]
-	root := fmt.Sprintf("/r/%d", index)
+	outer := fmt.Sprintf("/r/%d", index)
+	own := outer + "/own"
+	inner := own + "/d"
 
 	if state != removalStateAbsent {
-		fixture.root(root, spec.form, state == removalStateRead)
+		fixture.root(own, spec.form, state == removalStateRead, spec.prefix)
 	}
 
-	fixture.note(spec.prefix+name, "h"+name, root+"/"+name+"/SKILL.md")
+	// A decoy: a READ root of the same form vouching for another scope or
+	// segment, around the note's own root or inside it. It never grants
+	// eligibility, and inside it hides the own root.
+	decoy := rapid.SampledFrom([]string{"none", "outer", "inner"}).Draw(rt, fmt.Sprintf("decoy%d", index))
+	if decoy != "none" && spec.otherPrefix != "" {
+		fixture.root(map[string]string{"outer": outer, "inner": inner}[decoy], spec.form, true, spec.otherPrefix)
+	}
 
-	return spec.prefix + name, state == removalStateRead
+	fixture.note(spec.prefix+name, "h"+name, inner+"/"+name+"/SKILL.md")
+
+	return spec.prefix + name, state == removalStateRead && (decoy != "inner" || spec.otherPrefix == "")
 }
 
 func (fixture *offerFixture) hasEnabledCandidate(key, hash string) bool {
@@ -1116,14 +1318,16 @@ func (fixture *offerFixture) note(key, hash, source string) {
 	fixture.notes = append(fixture.notes, offerNote{key: key, hash: hash, source: source})
 }
 
-func (fixture *offerFixture) root(path string, form cli.SkillRootForm, scanned bool) {
+// root records a read (or failed) root of form vouching for keyPrefixes.
+func (fixture *offerFixture) root(path string, form cli.SkillRootForm, scanned bool, keyPrefixes ...string) {
 	resolved := ""
 	if scanned {
 		resolved = path
 	}
 
-	fixture.sources.Roots = append(fixture.sources.Roots,
-		cli.ScannedRoot{Path: path, Resolved: resolved, Scanned: scanned, Form: form})
+	fixture.sources.Roots = append(fixture.sources.Roots, cli.ScannedRoot{
+		Path: path, Resolved: resolved, Scanned: scanned, Form: form, KeyPrefixes: keyPrefixes,
+	})
 }
 
 // shuffled returns a copy with every input list permuted.
@@ -1143,11 +1347,21 @@ type offerNote struct {
 	key, hash, source string
 }
 
+// removalCase is one design D5 removal scenario over hand-built sources.
+type removalCase struct {
+	name        string
+	setup       func(fixture *offerFixture)
+	wantRemoved []string
+}
+
 // removalFormSpec is one key form's prefix and root for drawRemovalUniverse.
 type removalFormSpec struct {
 	prefix string
 	root   string
 	form   cli.SkillRootForm
+	// otherPrefix is a key prefix of the same form but another scope or
+	// segment, for decoy roots (empty: the form has only one prefix).
+	otherPrefix string
 }
 
 // drawDedupeUniverse draws candidates over a small pool of keys, scopes,
@@ -1302,21 +1516,23 @@ func offeredKeys(comparison cli.SkillOfferComparison) []string {
 // removalFixedForms are the single-root user key forms and their roots.
 func removalFixedForms() map[string]removalFormSpec {
 	return map[string]removalFormSpec{
-		"bare":      {"", userSkillsRoot, cli.SkillRootFormClaudeUser},
-		"cmd":       {"cmd:", fakeHome + "/.claude/commands", cli.SkillRootFormClaudeCmd},
-		"pi":        {"pi:", piUserRoot, cli.SkillRootFormPiUser},
-		"agents":    {"agents:", agentsUserRoot, cli.SkillRootFormAgentsUser},
-		"pi-prompt": {"pi-prompt:", piPromptsRoot, cli.SkillRootFormPiPrompt},
+		"bare":      {prefix: "", root: userSkillsRoot, form: cli.SkillRootFormClaudeUser},
+		"cmd":       {prefix: "cmd:", root: fakeHome + "/.claude/commands", form: cli.SkillRootFormClaudeCmd},
+		"pi":        {prefix: "pi:", root: piUserRoot, form: cli.SkillRootFormPiUser},
+		"agents":    {prefix: "agents:", root: agentsUserRoot, form: cli.SkillRootFormAgentsUser},
+		"pi-prompt": {prefix: "pi-prompt:", root: piPromptsRoot, form: cli.SkillRootFormPiPrompt},
 	}
 }
 
 // removalSourcedForms are the source-rooted key forms.
 func removalSourcedForms() map[string]removalFormSpec {
 	return map[string]removalFormSpec{
-		"synced":      {prefix: "anthropic-skills:", form: cli.SkillRootFormSynced},
-		"pi-settings": {prefix: "pi-settings:", form: cli.SkillRootFormPiSettings},
-		"pi-pkg":      {prefix: "pi-pkg:pk:", form: cli.SkillRootFormPiPkg},
-		"project":     {prefix: projectScope + ":", form: cli.SkillRootFormProject},
+		"synced": {prefix: "anthropic-skills:", form: cli.SkillRootFormSynced},
+		"pi-settings": {
+			prefix: "pi-settings:", form: cli.SkillRootFormPiSettings, otherPrefix: "pi-settings:pi-prompt:",
+		},
+		"pi-pkg":  {prefix: "pi-pkg:pk:", form: cli.SkillRootFormPiPkg, otherPrefix: "pi-pkg:other:"},
+		"project": {prefix: projectScope + ":", form: cli.SkillRootFormProject, otherPrefix: projectScope + ":agents:"},
 	}
 }
 
@@ -1347,6 +1563,26 @@ func resolveAndCompare(
 	fixture.notes = notes
 
 	return fixture.compare(g)
+}
+
+// runRemovalCases runs each case against a fresh fixture (home fakeHome).
+func runRemovalCases(t *testing.T, cases []removalCase) {
+	t.Helper()
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			fixture := newOfferFixture()
+			fixture.home = fakeHome
+			testCase.setup(fixture)
+
+			comparison := fixture.compare(g)
+
+			g.Expect(removedKeys(comparison)).To(ConsistOf(stringsOrEmpty(testCase.wantRemoved)))
+		})
+	}
 }
 
 // sourcedSkillNote renders a runbook skill note with skill_key and, when

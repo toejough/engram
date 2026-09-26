@@ -107,6 +107,7 @@ func ResolveSkillSources(
 	engramRoots, rootWarnings := ResolveEngramSkillRoots(deps.FS, home)
 	keyed, keyWarnings := AssignSkillKeys(resolved.Candidates, engramRoots)
 	resolved.Candidates = keyed
+	resolved.Roots = withFailedRootsResolved(deps.FS, resolved.Roots)
 	resolved.EngramSkillRoots = engramRoots
 	resolved.Warnings = append(append(resolved.Warnings, rootWarnings...), keyWarnings...)
 	resolved.PluginManifestsRead = claudeResult.plugins.ManifestsRead
@@ -161,11 +162,12 @@ func (in skillSourceInputs) claude(configDir, skillsRoot string) claudeSources {
 	syncedRoot := filepath.Join(skillsRoot, syncedDirName)
 
 	mergeSkillScanResult(&sources.user,
-		withRootForm(ScanClaudeUserSkills(in.fsys, skillsRoot), SkillRootFormClaudeUser))
+		withRootForm(ScanClaudeUserSkills(in.fsys, skillsRoot), SkillRootFormClaudeUser, nil))
 	mergeSkillScanResult(&sources.user,
-		withRootForm(ScanCommandDir(in.fsys, commandsRoot, SkillScopeClaudeCmd), SkillRootFormClaudeCmd))
+		withRootForm(ScanCommandDir(in.fsys, commandsRoot, SkillScopeClaudeCmd), SkillRootFormClaudeCmd, nil))
 	mergeSkillScanResult(&sources.user,
-		withRootForm(ScanSyncedSkills(in.fsys, syncedRoot), SkillRootFormSynced, syncedRoot))
+		withRootForm(ScanSyncedSkills(in.fsys, syncedRoot), SkillRootFormSynced,
+			[]string{skillRootKeyPrefix(SkillScopeSynced, "", SkillSourceKindSkill)}, syncedRoot))
 
 	pluginScan := ClaudePluginScan{ClaudeDir: configDir}
 	if in.projectFound {
@@ -175,13 +177,13 @@ func (in skillSourceInputs) claude(configDir, skillsRoot string) claudeSources {
 	sources.plugins = ScanClaudePlugins(in.fsys, pluginScan)
 
 	if in.projectFound {
-		sources.project = withRootForm(ScanClaudeProjectSources(in.fsys, ClaudeProjectScan{
+		sources.project = withClaudeProjectRootForms(ScanClaudeProjectSources(in.fsys, ClaudeProjectScan{
 			Cwd:              in.cwd,
 			TopLevel:         in.project.TopLevel,
 			UserSkillsRoot:   skillsRoot,
 			UserCommandsRoot: commandsRoot,
 			ScopeID:          in.project.ScopeID(),
-		}), SkillRootFormProject)
+		}), in.project.ScopeID())
 	}
 
 	return sources
@@ -216,14 +218,14 @@ func (in skillSourceInputs) pi(agentDir, piSkillsRoot string) piSources {
 	global, _ := ReadPiSettings(in.fsys, filepath.Join(agentDir, piSettingsFilename))
 
 	piUser := withRootForm(
-		withPiOverrides(ScanPiUserSkills(in.fsys, piSkillsRoot), global.Skills, agentDir), SkillRootFormPiUser,
+		withPiOverrides(ScanPiUserSkills(in.fsys, piSkillsRoot), global.Skills, agentDir), SkillRootFormPiUser, nil,
 	)
 	agentsUser := withRootForm(withPiOverrides(
 		ScanAgentsUserSkills(in.fsys, filepath.Join(agentsDir, piSkillsDirName)), global.Skills, agentsDir,
-	), SkillRootFormAgentsUser)
+	), SkillRootFormAgentsUser, nil)
 	prompts := withRootForm(withPiOverrides(
 		ScanPiUserPrompts(in.fsys, filepath.Join(agentDir, piPromptsDirName)), global.Prompts, agentDir,
-	), SkillRootFormPiPrompt)
+	), SkillRootFormPiPrompt, nil)
 
 	sources.user = joinSkillScanResults(
 		sources.user, piUser, agentsUser, SkillScanResult{Candidates: parts.settingsSkills},
@@ -235,25 +237,39 @@ func (in skillSourceInputs) pi(agentDir, piSkillsRoot string) piSources {
 		return sources
 	}
 
+	sources.project = in.piProject(parts, agentsDir, projectBase)
+
+	return sources
+}
+
+// piProject scans a trusted project's Pi sources (design D2 source 10) in
+// the global Pi order, stamping each root's project key prefix; the
+// settings and package parts come from ScanPiConfiguredSources.
+func (in skillSourceInputs) piProject(
+	parts piConfiguredParts, agentsDir, projectBase string,
+) SkillScanResult {
 	project, _ := ReadPiSettings(in.fsys, filepath.Join(projectBase, piSettingsFilename))
 	scan := PiProjectScan{
 		Cwd:            in.cwd,
 		TopLevel:       in.project.TopLevel,
 		UserAgentsRoot: filepath.Join(agentsDir, piSkillsDirName),
 		ScopeID:        in.project.ScopeID(),
-		Trusted:        trusted,
+		Trusted:        true,
 	}
 
-	sources.project = withRootForm(joinSkillScanResults(
-		withPiOverrides(ScanPiProjectSkills(in.fsys, scan), project.Skills, projectBase),
-		withAgentsChainOverrides(ScanAgentsProjectSkills(in.fsys, scan), project.Skills),
+	scope := in.project.ScopeID()
+
+	return joinSkillScanResults(
+		withRootForm(withPiOverrides(ScanPiProjectSkills(in.fsys, scan), project.Skills, projectBase),
+			SkillRootFormProject, []string{skillRootKeyPrefix(scope, SkillSegmentPi, SkillSourceKindSkill)}),
+		withRootForm(withAgentsChainOverrides(ScanAgentsProjectSkills(in.fsys, scan), project.Skills),
+			SkillRootFormProject, []string{skillRootKeyPrefix(scope, SkillSegmentAgents, SkillSourceKindSkill)}),
 		SkillScanResult{Candidates: parts.projectSettingsSkills},
-		withPiOverrides(ScanPiProjectPrompts(in.fsys, scan), project.Prompts, projectBase),
+		withRootForm(withPiOverrides(ScanPiProjectPrompts(in.fsys, scan), project.Prompts, projectBase),
+			SkillRootFormProject, []string{skillRootKeyPrefix(scope, SkillScopePiPrompt, SkillSourceKindPrompt)}),
 		SkillScanResult{Candidates: parts.projectSettingsPrompts},
 		SkillScanResult{Candidates: parts.projectPackages},
-	), SkillRootFormProject)
-
-	return sources
+	)
 }
 
 // skillSourceProber adapts a SkillSourceFS to update.HarnessProber: Stat
@@ -361,6 +377,46 @@ func withAgentsChainOverrides(result SkillScanResult, patterns []string) SkillSc
 	return out
 }
 
+// withClaudeProjectRootForms stamps the project form on every Claude
+// project root, vouching for `project:<r>:<n>` from a `.claude/skills`
+// level and `project:<r>:cmd:…` from a `.claude/commands` level.
+func withClaudeProjectRootForms(result SkillScanResult, scope string) SkillScanResult {
+	roots := make([]ScannedRoot, 0, len(result.Roots))
+
+	for _, root := range result.Roots {
+		kind := SkillSourceKindSkill
+		if filepath.Base(root.Path) == claudeCommandsDirName {
+			kind = SkillSourceKindCommand
+		}
+
+		root.Form = SkillRootFormProject
+		root.KeyPrefixes = []string{skillRootKeyPrefix(scope, "", kind)}
+		roots = append(roots, root)
+	}
+
+	result.Roots = roots
+
+	return result
+}
+
+// withFailedRootsResolved gives every root that was not read and has no
+// resolved path its best-effort resolution (resolveSkillPathBestEffort), so
+// a failed root reached through a symlink still hides the notes under its
+// real location from an outer read root (design D5).
+func withFailedRootsResolved(fsys SkillSourceFS, roots []ScannedRoot) []ScannedRoot {
+	out := make([]ScannedRoot, 0, len(roots))
+
+	for _, root := range roots {
+		if !root.Scanned && root.Resolved == "" {
+			root.Resolved = resolveSkillPathBestEffort(fsys, root.Path)
+		}
+
+		out = append(out, root)
+	}
+
+	return out
+}
+
 // withPiOverrides applies one settings file's overrides to a default-folder
 // result matched against baseDir.
 func withPiOverrides(result SkillScanResult, patterns []string, baseDir string) SkillScanResult {
@@ -375,15 +431,19 @@ func withPiOverrides(result SkillScanResult, patterns []string, baseDir string) 
 	return result
 }
 
-// withRootForm stamps form on every root of result that has none, except
-// the roots whose Path is listed in skip (the synced directory itself, whose
-// buckets are the roots its notes need).
-func withRootForm(result SkillScanResult, form SkillRootForm, skip ...string) SkillScanResult {
+// withRootForm stamps form, and keyPrefixes when given, on every root of
+// result that has no form yet, except the roots whose Path is listed in
+// skip (the synced directory itself, whose buckets are the roots its notes
+// need).
+func withRootForm(
+	result SkillScanResult, form SkillRootForm, keyPrefixes []string, skip ...string,
+) SkillScanResult {
 	roots := make([]ScannedRoot, 0, len(result.Roots))
 
 	for _, root := range result.Roots {
 		if root.Form == "" && !slices.Contains(skip, root.Path) {
 			root.Form = form
+			root.KeyPrefixes = keyPrefixes
 		}
 
 		roots = append(roots, root)

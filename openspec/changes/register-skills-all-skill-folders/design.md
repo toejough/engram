@@ -160,6 +160,7 @@ Alternatives:
    - **Plugin conflict:** a plugin name installed from more than one marketplace is reported once, `engram: plugin name conflict: <plugin> in <m1>, <m2>`. It makes no offer for any of its keys, and its scope is not scanned, so there are no removals (review N2).
    - **Engram-owned exception (the only one):** it applies only when **every** differing copy of the bare key lies under an engram-owned root. A user's own real `~/.claude/skills/<n>` (not a symlink into an engram root) that clashes with an engram-owned copy of the same bare key is an ordinary key conflict with a failure exit. Under the exception, entries under engram-owned roots share bare keys across harnesses. When their bytes differ (e.g. a Pi copy not yet synced), the first in precedence (Claude's) wins, and one warning line suggests `engram update`. This is not a conflict and not a failure (review N4).
 3. A candidate whose SHA equals that of a higher-precedence candidate in this run, or equals any existing skill note's `skill_hash`, is an **alias**. It makes no offer and is recorded nowhere, but it still counts as present for its key (D5).
+   - Aliasing runs before the refresh check, so a key whose new bytes equal another note's `skill_hash` gets no refresh offer. Every member of a key group, including the non-winning copies under the engram-owned exception and every copy of a conflicted key, still acts as an alias source for later candidates (ruling R27). Both choices are conservative: they can only suppress an offer, and they never write or remove anything.
 
 Alternative: record alias paths on the note. Rejected: it would write on runs where the procedure did not change.
 
@@ -172,6 +173,7 @@ Alternative: record alias paths on the note. Rejected: it would write on runs wh
   - the package root;
   - the exact project directory (`<dir>/.claude/skills`, `<dir>/.claude/commands`, `<dir>/.agents/skills`, `.pi/skills`, `.pi/prompts`).
 
+  Each such root vouches only for its own key prefix (`anthropic-skills:`, `pi-settings:`, `pi-pkg:<id>:`, `project:<r>:` plus its segment). The deepest root of the form that contains the `skill_source` must be read and must vouch for the note's key, so a read root of another package, project or sub-source never exposes a note. A root that failed to read is matched by its best-effort resolved path.
   A note whose `skill_source` lies under no scanned root is never removal-eligible. This is what makes a nested-only `sub/.claude/skills/foo` safe from the top level, keeps a worktree's note safe from the main checkout, and ties a `pi-settings:` note to its own entry (review N1, N3).
 - **Plugin keys.** `installed_plugins.json` and `settings.json` both parsed, there is no plugin conflict, and the plugin is either enabled with its `installPath` read, or absent from the manifest (uninstalled). An installed-but-disabled plugin is not scanned. An entry with no `enabledPlugins` value and a missing `installPath` (`work-on`) is not scanned.
 

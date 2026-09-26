@@ -176,6 +176,16 @@ func skillKeyPrefix(candidate SkillCandidate) ([]string, bool) {
 	return parts, true
 }
 
+// skillRootKeyPrefix is the key prefix of every candidate a root of scope,
+// source segment and kind yields (design D3 without the name): e.g.
+// `project:<r>:cmd:` or `pi-pkg:<id>:pi-prompt:`. A root vouches for the
+// notes whose keys carry it (design D5).
+func skillRootKeyPrefix(scope, segment string, kind SkillSourceKind) string {
+	parts, _ := skillKeyPrefix(SkillCandidate{ScopeID: scope, SourceSegment: segment, Kind: kind})
+
+	return strings.Join(append(parts, ""), skillKeySeparator)
+}
+
 // skillScopeKeyParts returns the key segments a scope ID contributes: none
 // for claude-cmd, pi-prompt and the Pi configured scopes (whose segment is
 // SourceSegment), a fixed segment for synced, pi-user and agents-user, the

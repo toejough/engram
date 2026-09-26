@@ -138,6 +138,7 @@ var (
 	ExportRenderRunbookFrontmatter      = renderRunbookFrontmatter
 	ExportRenderSupersedes              = renderSupersedes
 	ExportRepoWithProjectFallback       = repoWithProjectFallback
+	ExportResolveSkillPathBestEffort    = resolveSkillPathBestEffort
 	ExportResolveVault                  = resolveVault
 	ExportResolveVaultName              = resolveVaultName
 	ExportResolvedItemLessByProvenance  = resolvedItemLessForTest

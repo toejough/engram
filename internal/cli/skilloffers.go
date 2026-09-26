@@ -212,6 +212,29 @@ var (
 	errSkillOfferConflict = errors.New("register-skills: skill conflicts")
 )
 
+// deepestRootMatch folds the roots containing a note's source into the
+// deepest one's facts (sourceRootRead).
+type deepestRootMatch struct {
+	depth   int
+	read    bool
+	vouches bool
+}
+
+// consider folds root in when it contains path: a deeper root replaces the
+// match; at equal depth every root must be read and one must vouch.
+func (m *deepestRootMatch) consider(root ScannedRoot, path, key string) {
+	depth, contains := rootDepthContaining(root, path)
+
+	switch {
+	case !contains || depth < m.depth:
+	case depth == m.depth:
+		m.read = m.read && root.Scanned
+		m.vouches = m.vouches || rootVouchesFor(root, key)
+	default:
+		m.depth, m.read, m.vouches = depth, root.Scanned, rootVouchesFor(root, key)
+	}
+}
+
 // skillKeyForm is a qualified key prefix's removal form (design D5).
 type skillKeyForm struct {
 	form    SkillRootForm
@@ -249,7 +272,7 @@ func (e skillRemovalEligibility) eligible(key, source string) bool {
 	case !sourced:
 		return e.fixedRootRead(form)
 	default:
-		return e.sourceRootRead(form, source)
+		return e.sourceRootRead(form, key, source)
 	}
 }
 
@@ -274,35 +297,26 @@ func (e skillRemovalEligibility) fixedRootRead(form SkillRootForm) bool {
 }
 
 // sourceRootRead reports whether the deepest root of form containing the
-// note's skill_source was read. A source under no root of that form (or no
-// source at all) is never eligible; at equal depth an unread root wins.
-func (e skillRemovalEligibility) sourceRootRead(form SkillRootForm, source string) bool {
+// note's skill_source was read and vouches for the note's key (design D5:
+// the settings entry, the package root, the exact project directory). A
+// source under no root of that form (or no source at all) is never
+// eligible; a deeper root of another scope or segment hides a shallower
+// one; at equal depth every root must be read and one must vouch.
+func (e skillRemovalEligibility) sourceRootRead(form SkillRootForm, key, source string) bool {
 	if source == "" {
 		return false
 	}
 
 	path := expandHomeRel(source, e.home)
-	bestDepth := -1
-	bestRead := false
+	best := deepestRootMatch{depth: -1}
 
 	for _, root := range e.roots {
-		if root.Form != form {
-			continue
-		}
-
-		depth, contains := rootDepthContaining(root, path)
-
-		switch {
-		case !contains || depth < bestDepth:
-			continue
-		case depth == bestDepth:
-			bestRead = bestRead && root.Scanned
-		default:
-			bestDepth, bestRead = depth, root.Scanned
+		if root.Form == form {
+			best.consider(root, path, key)
 		}
 	}
 
-	return bestDepth >= 0 && bestRead
+	return best.depth >= 0 && best.read && best.vouches
 }
 
 // candidateOffers turns each non-conflicted, non-alias key group's winner
@@ -555,6 +569,27 @@ func rootDepthContaining(root ScannedRoot, path string) (int, bool) {
 	}
 
 	return depth, contains
+}
+
+// rootVouchesFor reports whether key is one of root's key prefixes followed
+// by a name: one segment, or — after a `cmd:` segment — a command's
+// `:`-joined namespace path.
+func rootVouchesFor(root ScannedRoot, key string) bool {
+	commandSuffix := skillKeySegmentCommand + skillKeySeparator
+
+	for _, prefix := range root.KeyPrefixes {
+		name, found := strings.CutPrefix(key, prefix)
+		if !found || name == "" {
+			continue
+		}
+
+		isCommandPrefix := prefix == commandSuffix || strings.HasSuffix(prefix, skillKeySeparator+commandSuffix)
+		if isCommandPrefix || !strings.Contains(name, skillKeySeparator) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // skillCandidateLess orders candidates by design D2 precedence, then key,

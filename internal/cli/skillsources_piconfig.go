@@ -439,11 +439,17 @@ func (p piPackage) scan(fsys SkillSourceFS) SkillScanResult {
 		form = SkillRootFormProject
 	}
 
-	for _, skipped := range p.skipRoots {
-		result.Roots = append(result.Roots, ScannedRoot{Path: skipped, Form: form})
+	segment := SkillScopePiPkgPrefix + p.pkgID
+	prefixes := []string{
+		skillRootKeyPrefix(p.scopeID, segment, SkillSourceKindSkill),
+		skillRootKeyPrefix(p.scopeID, segment, SkillSourceKindPrompt),
 	}
 
-	record := ScannedRoot{Path: p.root, Form: form}
+	for _, skipped := range p.skipRoots {
+		result.Roots = append(result.Roots, ScannedRoot{Path: skipped, Form: form, KeyPrefixes: prefixes})
+	}
+
+	record := ScannedRoot{Path: p.root, Form: form, KeyPrefixes: prefixes}
 
 	if p.entry.filter != nil && p.entry.filter.autoloadOff {
 		result.Warnings = append(result.Warnings, fmt.Sprintf(piAutoloadWarningFormat, p.entry.source))
@@ -687,6 +693,13 @@ func (s piSettingsScope) rootForm() SkillRootForm {
 	return SkillRootFormPiSettings
 }
 
+// rootKeyPrefixes are the key prefixes one of this settings file's
+// entries of kind vouches for: `pi-settings:` (or `pi-settings:pi-prompt:`),
+// under `project:<r>:` for the project settings (design D5).
+func (s piSettingsScope) rootKeyPrefixes(kind SkillSourceKind) []string {
+	return []string{skillRootKeyPrefix(s.scopeID, SkillScopePiSettings, kind)}
+}
+
 // scanEntries scans one settings `skills` or `prompts` list (see
 // ScanPiConfiguredSources).
 func (s piSettingsScope) scanEntries(fsys SkillSourceFS, entries []string, kind SkillSourceKind) SkillScanResult {
@@ -710,7 +723,9 @@ func (s piSettingsScope) scanEntries(fsys SkillSourceFS, entries []string, kind 
 			fmt.Sprintf(piGlobstarWarningFormat, "settings "+filepath.Join(s.baseDir, piSettingsFilename)))
 
 		for _, root := range plain {
-			result.Roots = append(result.Roots, ScannedRoot{Path: root, Form: s.rootForm()})
+			result.Roots = append(result.Roots, ScannedRoot{
+				Path: root, Form: s.rootForm(), KeyPrefixes: s.rootKeyPrefixes(kind),
+			})
 		}
 
 		return result
@@ -723,7 +738,8 @@ func (s piSettingsScope) scanEntries(fsys SkillSourceFS, entries []string, kind 
 		result.Candidates = append(result.Candidates, collected.candidates...)
 		result.Warnings = append(result.Warnings, collected.warnings...)
 		result.Roots = append(result.Roots, ScannedRoot{
-			Path: root, Resolved: collected.resolved, Scanned: collected.found && collected.ok, Form: s.rootForm(),
+			Path: root, Resolved: collected.resolved, Scanned: collected.found && collected.ok,
+			Form: s.rootForm(), KeyPrefixes: s.rootKeyPrefixes(kind),
 		})
 	}
 

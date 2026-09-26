@@ -46,6 +46,14 @@ type ScannedRoot struct {
 	// the Pi configured-source scanner stamp it. An empty Form (e.g. the
 	// synced directory itself, or a plugin root) never grants eligibility.
 	Form SkillRootForm
+	// KeyPrefixes are, for a source-rooted root (synced bucket, Pi settings
+	// entry, Pi package, project directory), the key prefixes of the notes
+	// it can vouch for: `anthropic-skills:`, `pi-settings:` or
+	// `pi-settings:pi-prompt:`, `pi-pkg:<id>:` and `pi-pkg:<id>:pi-prompt:`,
+	// `project:<r>:` plus its segment (``, `cmd:`, `pi:`, `agents:`, …).
+	// A read root vouches for a note only when the note's key is one of its
+	// prefixes followed by a name (design D5).
+	KeyPrefixes []string
 }
 
 // SkillCandidate is one skill, command or prompt file found by a source
@@ -606,56 +614,26 @@ func readSkillSourceRoot(
 	return resolved, entries, record
 }
 
+// resolveSkillPathBestEffort resolves path as far as it can: every symlink
+// up to the first component that fails is followed, and the unresolved rest
+// is joined on. It gives a root that could not be read (a dangling link, a
+// denied directory) the real location it points into, so D5 eligibility can
+// match a resolved skill_source against it (design D5).
+func resolveSkillPathBestEffort(fsys SkillSourceFS, path string) string {
+	resolved, rest, _, err := walkSkillPath(fsys, path)
+	if err != nil && resolved == "" {
+		return path
+	}
+
+	return filepath.Join(append([]string{resolved}, rest...)...)
+}
+
 // resolveSkillPathInfo is ResolveSkillPath that also returns the resolved
 // path's (non-symlink) FileInfo.
 func resolveSkillPathInfo(fsys SkillSourceFS, path string) (string, fs.FileInfo, error) {
-	if !filepath.IsAbs(path) {
-		return "", nil, fmt.Errorf("%w: %s", errSkillPathNotAbsolute, path)
-	}
-
-	resolved := string(filepath.Separator)
-	pending := splitSkillPath(path)
-	links := 0
-
-	var info fs.FileInfo
-
-	for len(pending) > 0 {
-		component := pending[0]
-		pending = pending[1:]
-
-		if component == "" || component == "." {
-			continue
-		}
-
-		if component == ".." {
-			resolved, info = filepath.Dir(resolved), nil
-
-			continue
-		}
-
-		next := filepath.Join(resolved, component)
-
-		nextInfo, target, isLink, componentErr := lstatSkillPathComponent(fsys, next)
-		if componentErr != nil {
-			return "", nil, fmt.Errorf("resolving %s: %w", path, componentErr)
-		}
-
-		if !isLink {
-			resolved, info = next, nextInfo
-
-			continue
-		}
-
-		links++
-		if links > maxSkillPathLinks {
-			return "", nil, fmt.Errorf("resolving %s: %w", path, errSkillPathLinkLoop)
-		}
-
-		if filepath.IsAbs(target) {
-			resolved = string(filepath.Separator)
-		}
-
-		pending = append(splitSkillPath(target), pending...)
+	resolved, _, info, err := walkSkillPath(fsys, path)
+	if err != nil {
+		return "", nil, err
 	}
 
 	return finishResolvedSkillPath(fsys, path, resolved, info)
@@ -740,6 +718,66 @@ func syncedManifestParses(fsys SkillSourceFS, bucket string) bool {
 	var manifest map[string]json.RawMessage
 
 	return json.Unmarshal(content, &manifest) == nil
+}
+
+// walkSkillPath resolves path component by component, following symlinks.
+// On a failing component it returns the error together with the prefix
+// resolved so far and the components still pending (the failing one first);
+// resolved is empty for a path that is not absolute or loops.
+func walkSkillPath(fsys SkillSourceFS, path string) (string, []string, fs.FileInfo, error) {
+	if !filepath.IsAbs(path) {
+		return "", nil, nil, fmt.Errorf("%w: %s", errSkillPathNotAbsolute, path)
+	}
+
+	resolved := string(filepath.Separator)
+	pending := splitSkillPath(path)
+	links := 0
+
+	var info fs.FileInfo
+
+	for len(pending) > 0 {
+		component := pending[0]
+
+		if component == "" || component == "." {
+			pending = pending[1:]
+
+			continue
+		}
+
+		if component == ".." {
+			resolved, info, pending = filepath.Dir(resolved), nil, pending[1:]
+
+			continue
+		}
+
+		next := filepath.Join(resolved, component)
+
+		nextInfo, target, isLink, componentErr := lstatSkillPathComponent(fsys, next)
+		if componentErr != nil {
+			return resolved, pending, nil, fmt.Errorf("resolving %s: %w", path, componentErr)
+		}
+
+		pending = pending[1:]
+
+		if !isLink {
+			resolved, info = next, nextInfo
+
+			continue
+		}
+
+		links++
+		if links > maxSkillPathLinks {
+			return "", nil, nil, fmt.Errorf("resolving %s: %w", path, errSkillPathLinkLoop)
+		}
+
+		if filepath.IsAbs(target) {
+			resolved = string(filepath.Separator)
+		}
+
+		pending = append(splitSkillPath(target), pending...)
+	}
+
+	return resolved, nil, info, nil
 }
 
 // warnUnlessNotExist appends a read warning for path unless err is a plain
