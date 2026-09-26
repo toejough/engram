@@ -6,14 +6,15 @@
 ## ADDED Requirements
 
 ### Requirement: Registration SHALL scan the default skill and command source set
-Registration SHALL compare against the skills and commands found in one default source set, resolved identically for `engram register-skills` and `engram update`. The set SHALL consist of the following sources:
+Registration SHALL compare against the skills, commands, and Pi prompt templates found in one default source set, resolved identically for `engram register-skills` and `engram update`. The set SHALL consist of the following sources:
 
 - Claude Code user skills: `~/.claude/skills/<n>/SKILL.md`, from immediate children that are directories or symlinks resolving to directories. Root files, `synced`, dangling symlinks, and directories without `SKILL.md` are ignored.
 - Claude Code user commands: `~/.claude/commands/**/*.md`, named by relative path with `/` replaced by `:`.
 - claude.ai-synced skills: `<bucket>/<n>/SKILL.md` for each directory bucket under `~/.claude/skills/synced/` whose `manifest.json` parses.
 - Pi user skills in `~/.pi/agent/skills/`: recursively discovered skill directories plus root `.md` files.
 - Skills in `~/.agents/skills/`: recursive, with root `.md` files ignored.
-- The skill paths and packages configured in Pi's global `settings.json`: `skills` entries, and `packages` entries resolved to `npm:`, `git:` or local package roots per Pi's documented rules.
+- Pi prompt templates: `~/.pi/agent/prompts/*.md` (flat, named by file stem).
+- The skill and prompt paths and packages configured in Pi's global `settings.json`: `skills` and `prompts` entries, and `packages` entries resolved to `npm:`, `git:` or local package roots per Pi's documented rules. A package's skills come from `package.json` `pi.skills`, else from `skills/`, and its prompts from `pi.prompts`, else from `prompts/`. Both are narrowed by the entry's object-form `skills`/`prompts` filter, where an omitted filter means all and `[]` means none.
 - The skills and commands of each installed Claude Code plugin that meets all of these conditions:
   - it is enabled by its `enabledPlugins` entry, or, when the entry is absent, by its `plugin.json` `defaultEnabled` (default true);
   - its scope is `user`, or it is project-scoped to the current repository;
@@ -21,9 +22,9 @@ Registration SHALL compare against the skills and commands found in one default 
 
   Its skills come from `<installPath>/skills/<n>/SKILL.md` plus any `plugin.json` `skills` paths. Its commands come from `<installPath>/commands/**/*.md`, or from `plugin.json` `commands` when that is a path or an array. No other cached version is read.
 - Claude Code project skills and commands: `.claude/skills/<n>/SKILL.md` and `.claude/commands/**/*.md` in the working directory and each ancestor up to the repository top-level. Root `.md` files in `.claude/skills` are ignored.
-- For projects that Pi's `~/.pi/agent/trust.json` trusts (nearest saved decision, else `defaultProjectTrust: always`): `.pi/skills/`, `.agents/skills/` in the working directory and its ancestors up to the top-level, and `.pi/settings.json` skill paths and packages.
+- For projects that Pi trusts, the Pi project sources: `.pi/skills/`, `.pi/prompts/*.md`, `.agents/skills/` in the working directory and its ancestors up to the top-level, and `.pi/settings.json` skill and prompt paths and packages. A project is trusted when the nearest saved decision in `~/.pi/agent/trust.json` for the folder or a parent says so, or, with no saved decision, when the global `defaultProjectTrust` is `always`.
 
-Harness sources SHALL be scanned only for harnesses that `engram update` detects. A name SHALL be the directory name, file stem, or command path, never a frontmatter field.
+Harness sources SHALL be scanned only for harnesses that `engram update` detects. A name SHALL be the directory name, file stem, or command path, never a frontmatter field. An entry whose name contains `:` SHALL be skipped with a warning.
 
 #### Scenario: Symlinked user skill is found
 - **WHEN** `~/.claude/skills/route` is a symlink to `~/.claude/engram/skills/route` containing `SKILL.md`
@@ -41,6 +42,22 @@ Harness sources SHALL be scanned only for harnesses that `engram update` detects
 - **WHEN** `~/.claude/skills/synced/` holds one bucket directory with a parseable `manifest.json` and skill `pdf/SKILL.md`, plus a stray file `.bucket-x`
 - **THEN** `pdf` is scanned as a synced skill and the stray file is ignored
 
+#### Scenario: Pi prompt template
+- **WHEN** `~/.pi/agent/prompts/review.md` exists
+- **THEN** it is scanned as a Pi prompt template named `review`
+
+#### Scenario: Pi settings skill path
+- **WHEN** Pi's global `settings.json` has `"skills": ["~/extra-skills"]` and `~/extra-skills/fmt/SKILL.md` exists
+- **THEN** `fmt` is scanned as a Pi settings skill
+
+#### Scenario: npm package skills from its manifest
+- **WHEN** `settings.json` lists `"npm:pi-intercom"`, and `~/.pi/agent/npm/node_modules/pi-intercom/package.json` has `"pi": {"skills": ["./skills"]}` with `skills/pi-intercom/SKILL.md`
+- **THEN** `pi-intercom` is scanned as a skill of package `pi-intercom`
+
+#### Scenario: Object-form empty skills filter
+- **WHEN** `settings.json` lists `{"source": "npm:pi-intercom", "skills": []}`
+- **THEN** no skill of that package is scanned
+
 #### Scenario: Pi root markdown skill
 - **WHEN** `~/.pi/agent/skills/notes.md` is a root file
 - **THEN** it is scanned as Pi user skill `notes`
@@ -48,6 +65,10 @@ Harness sources SHALL be scanned only for harnesses that `engram update` detects
 #### Scenario: Agents skills in an ancestor
 - **WHEN** a trusted project has `.agents/skills/lint/SKILL.md` at its top-level and registration runs from a subdirectory of it
 - **THEN** `lint` is scanned as a project agents skill
+
+#### Scenario: Trust fallback to defaultProjectTrust always
+- **WHEN** the working directory has `.pi/skills/foo/SKILL.md`, `trust.json` has no decision for it or any parent, and the global `settings.json` has `"defaultProjectTrust": "always"`
+- **THEN** `foo` is scanned as a Pi project skill
 
 #### Scenario: Untrusted Pi project is not scanned
 - **WHEN** the working directory has `.pi/skills/foo/SKILL.md` and `trust.json` has no trusting decision for it or any parent, and `defaultProjectTrust` is not `always`
@@ -64,6 +85,10 @@ Harness sources SHALL be scanned only for harnesses that `engram update` detects
 #### Scenario: Root markdown in the project skills dir is ignored
 - **WHEN** a repository's `.claude/skills/` holds root files `commit.md` and `engram-go-conventions.md`
 - **THEN** neither is scanned as a skill, while `.claude/commands/commit.md` is scanned as a command
+
+#### Scenario: plugin.json commands replaces the commands directory
+- **WHEN** an enabled plugin's `plugin.json` has `"commands": ["./commands/setup.md"]` and its `commands/` directory also holds `configure.md`
+- **THEN** only `setup` is scanned as that plugin's command
 
 #### Scenario: Disabled plugin contributes nothing
 - **WHEN** a plugin is present in `installed_plugins.json` with `enabledPlugins` set to `false`
@@ -89,19 +114,21 @@ Each scanned entry SHALL have a key determined by its source:
 | `~/.agents/skills` skill | `agents:<n>` |
 | Pi settings skill | `pi-settings:<n>` |
 | Pi package skill | `pi-pkg:<pkg-id>:<n>` |
+| Pi prompt template | `pi-prompt:<n>` (global dir), `pi-settings:pi-prompt:<n>`, `pi-pkg:<pkg-id>:pi-prompt:<n>` |
 | plugin skill | `<plugin>:<n>` |
 | plugin command | `<plugin>:cmd:<name>` |
 | Claude Code project skill | `project:<r>:<n>` |
 | Claude Code project command | `project:<r>:cmd:<name>` |
-| Pi and agents project entries | `project:<r>:pi:<n>`, `project:<r>:agents:<n>`, `project:<r>:pi-settings:<n>`, `project:<r>:pi-pkg:<pkg-id>:<n>` |
+| Pi and agents project entries | `project:<r>:pi:<n>`, `project:<r>:agents:<n>`, `project:<r>:pi-prompt:<n>`, `project:<r>:pi-settings:<n>`, `project:<r>:pi-pkg:<pkg-id>:<n>` (prompts under settings/packages add `pi-prompt:` before `<n>`) |
 
 The components are defined as follows:
 
-- `<plugin>` is the part before `@` in the manifest key. It is qualified as `<plugin>@<marketplace>` for every plugin whose name repeats across installed marketplaces.
+- `<plugin>` is the part before `@` in the manifest key, and is never qualified by marketplace.
 - `<pkg-id>` is the npm name, git `<host>/<path>`, or `~`-relative local path.
-- `<r>` is the origin remote's path after the host without `.git` (e.g. `toejough/engram`), else the basename of the parent of the absolute `git rev-parse --git-common-dir`.
+- `<r>` is the origin remote's lowercased host followed by its path, without `.git` (e.g. `github.com/toejough/engram`). Without an origin, it is `local/` followed by the basename of the parent of the absolute `git rev-parse --git-common-dir`.
 - A working directory outside any git repository SHALL contribute no project entries.
-- A plugin named `pi`, `agents`, `project`, `anthropic-skills`, `cmd`, `pi-settings`, or `pi-pkg` SHALL be skipped with a warning.
+- A plugin named `pi`, `agents`, `project`, `anthropic-skills`, `cmd`, `pi-settings`, `pi-pkg`, or `pi-prompt` SHALL be skipped with a warning.
+- "Lies under an engram-owned root" SHALL be decided on fully symlink-resolved paths: the entry's resolved file under the resolved `<home>/<engram root>/skills` of any supported harness.
 
 The note slug SHALL be `skill-` followed by the key lowercased, with every run of characters outside `[a-z0-9]` replaced by `-`, and with leading and trailing `-` trimmed.
 
@@ -115,24 +142,32 @@ The note slug SHALL be `skill-` followed by the key lowercased, with every run o
 
 #### Scenario: Worktree resolves to owner and repository
 - **WHEN** registration runs from a linked worktree directory named `runbook-vs-skill` whose origin remote is `ssh://git@github.com/toejough/engram.git`
-- **THEN** its project skills' keys begin with `project:toejough/engram:` and their slugs with `skill-project-toejough-engram-`
+- **THEN** its project skills' keys begin with `project:github.com/toejough/engram:` and their slugs with `skill-project-github-com-toejough-engram-`
 
 #### Scenario: Two same-named projects stay distinct
-- **WHEN** two repositories are both named `engram`, with origins `github.com/toejough/engram` and `github.com/other/engram`, and each has a project skill `deploy`
-- **THEN** their keys are `project:toejough/engram:deploy` and `project:other/engram:deploy`
+- **WHEN** two repositories are both named `engram`, with origins `github.com/toejough/engram` and `gitlab.com/toejough/engram`, and each has a project skill `deploy`
+- **THEN** their keys are `project:github.com/toejough/engram:deploy` and `project:gitlab.com/toejough/engram:deploy`
 
 #### Scenario: Pi-only machine keeps the engram skill's bare key
 - **WHEN** `~/.claude` does not exist, `~/.pi/agent/skills/route` resolves under `~/.pi/agent/engram/skills`, and note `1036.2026-09-18.skill-route.md` exists
 - **THEN** the Pi entry's key is `route` and, after an engram release changes the skill, registration offers to refresh note 1036 rather than to register `pi:route`
 
-#### Scenario: Plugin name repeated across marketplaces
-- **WHEN** plugins `tools@alpha` and `tools@beta` are both installed and enabled, and each ships skill `fmt`
-- **THEN** their keys are `tools@alpha:fmt` and `tools@beta:fmt`
+#### Scenario: Engram-owned root reached through a symlinked home
+- **WHEN** `$HOME` is a symlink to `/Users/joe` and `$HOME/.pi/agent/skills/route` resolves to `/Users/joe/.pi/agent/engram/skills/route`
+- **THEN** the entry's key is `route`, not `pi:route`
 
-### Requirement: Copies of the same skill SHALL collapse to one note, and same-scope conflicts SHALL be reported
+#### Scenario: Prompt template key
+- **WHEN** `~/.pi/agent/prompts/review.md` is scanned
+- **THEN** its key is `pi-prompt:review`
+
+### Requirement: Copies of the same skill SHALL collapse to one note, and key conflicts SHALL be reported
 Scanned entries resolving to the same file SHALL be one entry.
 
-Entries with the same key within one scope SHALL collapse when byte-identical. When they differ, registration SHALL report a key conflict naming both paths, SHALL make no offer for that key, and SHALL exit with a failure status after handling every other offer. The exception is Claude Code project directories, where the one nearest the working directory SHALL win.
+Entries with the same key SHALL collapse when byte-identical. When they differ, registration SHALL report a key conflict naming both paths, SHALL make no offer for that key, and SHALL exit with a failure status after handling every other offer. This SHALL include the same name found at two levels of a project directory chain.
+
+A plugin name installed from more than one marketplace SHALL be a plugin conflict. Registration SHALL report it, SHALL make no offer for any of its keys, and SHALL treat its scope as not scanned.
+
+The single exception is entries under engram-owned roots (bare keys). When their bytes differ, the entry first in source precedence SHALL be used, and registration SHALL print one warning suggesting `engram update`, without a conflict or a failure status.
 
 An entry whose SHA-256 equals that of an entry earlier in source precedence in the same run, or equals the `skill_hash` of any existing skill note, SHALL be an alias. An alias SHALL make no offer and SHALL NOT be recorded anywhere, but it SHALL count as present for its key.
 
@@ -144,6 +179,18 @@ An entry whose SHA-256 equals that of an entry earlier in source precedence in t
 - **WHEN** Pi recursion finds `~/.pi/agent/skills/a/foo/SKILL.md` and `~/.pi/agent/skills/b/foo/SKILL.md` with different bytes
 - **THEN** registration reports a conflict for `pi:foo` naming both paths, makes no offer for `pi:foo`, handles every other offer, and exits with a failure status
 
+#### Scenario: Same project skill name at two levels
+- **WHEN** a repository has `.claude/skills/foo/SKILL.md` at its top-level and a different `sub/.claude/skills/foo/SKILL.md`, and registration runs from `sub/`
+- **THEN** registration reports a conflict for the key `project:<r>:foo` naming both paths and makes no offer for it
+
+#### Scenario: Plugin name in two marketplaces
+- **WHEN** plugins `tools@alpha` and `tools@beta` are both installed and enabled
+- **THEN** registration reports a plugin conflict for `tools`, makes no offer for any `tools:` key, and offers no removal of existing `tools:` notes
+
+#### Scenario: Diverged engram copies use precedence
+- **WHEN** `~/.claude/skills/route` and `~/.pi/agent/skills/route` both resolve under engram-owned roots with different bytes
+- **THEN** registration compares the Claude copy with note 1036, prints one warning suggesting `engram update`, and reports no conflict
+
 #### Scenario: Two synced buckets hold the same skill
 - **WHEN** two synced buckets both hold `pdf/SKILL.md` with identical bytes
 - **THEN** one candidate `anthropic-skills:pdf` results and no conflict is reported
@@ -153,21 +200,18 @@ An entry whose SHA-256 equals that of an entry earlier in source precedence in t
 - **THEN** registration offers both `skill-creator:skill-creator` and `anthropic-skills:skill-creator`
 
 ### Requirement: Removal offers SHALL be limited to successfully read sources
-Every key SHALL map to the source root that would contain it. A root SHALL count as scanned only when its read succeeded. A read error of any kind, including not-exist, SHALL mean not scanned, never empty.
+A source root SHALL count as read only when its read succeeded. A read error of any kind, including not-exist, SHALL mean not read, never empty.
 
-The read that counts for each kind of root is as follows:
+A skill note SHALL be eligible for removal only as follows:
 
-- User skill, command, Pi, and agents roots: the directory listing succeeded.
-- Synced skills: at least one bucket `manifest.json` was read and parsed.
-- Pi settings and package sources: `settings.json` parsed and the entry's path was read.
-- A plugin root: `installed_plugins.json` and `settings.json` both parsed, and the plugin is either enabled with its `installPath` read, or absent from the manifest.
-- A Claude Code project root: the repository top-level's `.claude/skills` (skill keys) or `.claude/commands` (command keys) was read.
-- A Pi project root: the project is trusted and its directory was read.
+- For bare, `cmd:`, `pi:`, `agents:`, and `pi-prompt:` keys: the fixed user root for that form was read (`~/.claude/skills`, `~/.claude/commands`, `~/.pi/agent/skills`, `~/.agents/skills`, `~/.pi/agent/prompts`).
+- For `anthropic-skills:`, `pi-settings:`, `pi-pkg:`, and `project:` keys: the specific root containing the note's recorded `skill_source` was read in this run. That root is the synced bucket whose `manifest.json` parsed, the settings entry's path, the package root, or the exact project directory.
+- For plugin keys: `installed_plugins.json` and `settings.json` both parsed, the plugin has no plugin conflict, and it is either enabled with its `installPath` read, or absent from the manifest.
 
-Registration SHALL offer to remove a skill note only when its root was scanned and no scanned entry, alias or not, has its key. It SHALL make no removal offer when `--skills-dir` is given.
+A note whose `skill_source` lies under no read root SHALL NOT be eligible. Registration SHALL offer to remove a skill note only when it is eligible and no scanned entry, alias or not, has its key. It SHALL make no removal offer when `--skills-dir` is given.
 
 #### Scenario: Project skill note from another directory
-- **WHEN** a note has key `project:toejough/engram:openspec-propose` and registration runs from a directory outside that repository
+- **WHEN** a note has key `project:github.com/toejough/engram:openspec-propose` and registration runs from a directory outside that repository
 - **THEN** no removal offer is made for it
 
 #### Scenario: Update run without a project
@@ -189,6 +233,22 @@ Registration SHALL offer to remove a skill note only when its root was scanned a
 #### Scenario: Synced manifest missing
 - **WHEN** `~/.claude/skills/synced/` holds no bucket with a readable `manifest.json` and `anthropic-skills:*` notes exist
 - **THEN** no removal offer is made for them
+
+#### Scenario: Nested-only project skill is safe from the top level
+- **WHEN** a note with key `project:github.com/toejough/engram:foo` was registered from `sub/`, its `skill_source` is under `sub/.claude/skills`, and registration runs from the repository top-level
+- **THEN** no removal offer is made for it
+
+#### Scenario: One failing synced bucket
+- **WHEN** two synced buckets exist, bucket A's `manifest.json` parses, bucket B's does not, and a note's `skill_source` lies in bucket B
+- **THEN** no removal offer is made for that note
+
+#### Scenario: Pi settings note tied to its own entry
+- **WHEN** `settings.json` has two `skills` entries, the first is unreadable, and a `pi-settings:` note's `skill_source` lies under the first
+- **THEN** no removal offer is made for that note
+
+#### Scenario: Package dropped from settings leaves an orphan
+- **WHEN** a `pi-pkg:x:` note exists and `npm:x` is no longer listed in `settings.json`
+- **THEN** no removal offer is made for it
 
 #### Scenario: Alias keeps its note
 - **WHEN** a note has key `pi:ping` and the Pi `ping` skill is now byte-identical to a higher-precedence skill
@@ -254,6 +314,18 @@ Removal offers SHALL be answered only by an exact key or an individual prompt, n
 - **THEN** registration reports an error and writes nothing
 
 ## MODIFIED Requirements
+
+### Requirement: Skill files SHALL carry no engram-specific metadata
+Registration SHALL NOT read, require, or write any frontmatter field in a skill's `SKILL.md`, a command's `.md` file, or a Pi prompt template, other than using the file's bytes as the note body and hash input. It SHALL NOT require any additional file in the skill directory, command directory, or prompt directory.
+
+#### Scenario: Skill deploys unchanged
+- **WHEN** a skill whose `SKILL.md` frontmatter has only `name` and `description` is deployed and registered
+- **THEN** the deployed `SKILL.md` is byte-identical to the source and no file is added to the skill directory
+
+#### Scenario: Command and prompt files are untouched
+- **WHEN** a command `.md` file with `description`/`argument-hint` frontmatter and a Pi prompt template are registered
+- **THEN** both files are byte-identical afterward, no file is added beside them, and their keys do not depend on any frontmatter field
+
 
 ### Requirement: Each registered skill SHALL have exactly one runbook note, identified by its skill key
 A registered skill's or command's runbook note SHALL meet these conditions:
@@ -325,8 +397,8 @@ The preamble SHALL name `agent-instructions/skills/<n>/SKILL.md` when the resolv
 - **THEN** the note carries `skill_key: superpowers:brainstorming`, that `skill_source`, and a preamble naming that path
 
 #### Scenario: Command registration
-- **WHEN** the user accepts registration of project command `project:toejough/engram:cmd:opsx:apply`
-- **THEN** the note's body is `.claude/commands/opsx/apply.md` preceded by a preamble naming that file, and its basename ends in `.skill-project-toejough-engram-cmd-opsx-apply.md`
+- **WHEN** the user accepts registration of project command `project:github.com/toejough/engram:cmd:opsx:apply`
+- **THEN** the note's body is `.claude/commands/opsx/apply.md` preceded by a preamble naming that file, and its basename ends in `.skill-project-github-com-toejough-engram-cmd-opsx-apply.md`
 
 ### Requirement: Accepting a refresh SHALL replace the body, keep the fields, and mark the note pending
 Accepting a refresh offer SHALL do the following:
