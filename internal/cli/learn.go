@@ -109,6 +109,18 @@ type LearnArgs struct {
 	// it's empty. Unused/empty for local (non-served) learn — RunLearn
 	// always calls deps.DetectUser(ctx), never reads this field directly.
 	User string `json:"user"`
+
+	// skipRunbookRequiredFields bypasses the runbook --situation/--done-when
+	// requiredness check in assembleRunbookContent, for skill registration's
+	// Register action only (skillreg_accept.go): "Accepting registration
+	// SHALL create a pending note ... carrying no situation, triggers,
+	// done_when, or red_flags" (skill-runbook-registration spec).
+	// Unexported: reachable only by cli package code that builds LearnArgs
+	// directly. Invisible to encoding/json (so a served write can never set
+	// it) and untouched by `engram learn runbook`'s flag parsing
+	// (learnArgsFromRunbook only ever populates the exported fields above),
+	// so ordinary captured-runbook validation is unchanged.
+	skipRunbookRequiredFields bool
 }
 
 // LearnDeps holds injected dependencies for RunLearn. All fields are
@@ -366,11 +378,16 @@ type runbookFields struct {
 }
 
 // runbookFrontmatterDoc is the YAML shape of a runbook note's frontmatter.
+// Situation/DoneWhen carry omitempty because a registered skill's freshly
+// created note (skillreg_accept.go RegisterSkill) intentionally has neither
+// (skill-runbook-registration: "carrying no situation ... done_when") —
+// every other writer of this type populates both (learn.go's requiredness
+// checks, unless bypassed), so omitempty never changes their output.
 type runbookFrontmatterDoc struct {
 	Type      string       `yaml:"type"`
 	Tier      string       `yaml:"tier,omitempty"`
-	Situation string       `yaml:"situation"`
-	DoneWhen  string       `yaml:"done_when"`
+	Situation string       `yaml:"situation,omitempty"`
+	DoneWhen  string       `yaml:"done_when,omitempty"`
 	RedFlags  []string     `yaml:"red_flags,omitempty"`
 	Triggers  []string     `yaml:"triggers,omitempty"`
 	Luhmann   quotedString `yaml:"luhmann"`
@@ -479,12 +496,14 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, identi
 func assembleRunbookContent(
 	args LearnArgs, luhmann string, when time.Time, identity identityStamp, parsedSupersedes []supersedesEntry,
 ) (string, error) {
-	if strings.TrimSpace(args.Situation) == "" {
-		return "", errRunbookSituationRequired
-	}
+	if !args.skipRunbookRequiredFields {
+		if strings.TrimSpace(args.Situation) == "" {
+			return "", errRunbookSituationRequired
+		}
 
-	if strings.TrimSpace(args.DoneWhen) == "" {
-		return "", errRunbookDoneWhenRequired
+		if strings.TrimSpace(args.DoneWhen) == "" {
+			return "", errRunbookDoneWhenRequired
+		}
 	}
 
 	f := runbookFields{
