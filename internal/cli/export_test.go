@@ -40,8 +40,11 @@ var (
 	ErrQASourceRequired                    = errQASourceRequired
 	ErrResituateNoteNotFoundForTest        = errResituateNoteNotFound
 	ErrSkillOfferConflictForTest           = errSkillOfferConflict
+	ErrSkillOfferSourceMissingForTest      = errSkillOfferSourceMissing
 	ErrSkillRegistrationsVersionForTest    = errSkillRegistrationsVersion
+	ErrSkillSourcesNeedWorkingDirForTest   = errSkillSourcesNeedWorkingDir
 	ErrSkillsDirReadOnlyForTest            = errSkillsDirReadOnly
+	ErrUnknownSkillOfferKindForTest        = errUnknownSkillOfferKind
 	ErrVocabFamilyNoteMissing              = errVocabFamilyNoteMissing
 	ExportAnyHarnessFailed                 = anyHarnessFailed
 	ExportApplyIdentityBackfill            = applyIdentityBackfill
@@ -267,6 +270,15 @@ type ExportVocabNamingExemplar = vocabNamingExemplar
 
 // Exported naming-request types (vocab-derivational-refit Task 2.2).
 type ExportVocabNamingRequest = vocabNamingRequest
+
+// ExportAcceptSkillOffer carries out one accepted offer (acceptSkillOffer)
+// against noteSources, the candidates' note sources by key and path.
+func ExportAcceptSkillOffer(
+	ctx context.Context, vault, vaultName string, offer SkillOffer,
+	noteSources map[string]SkillNoteSource, deps SkillRegistrationDeps, stdout io.Writer,
+) error {
+	return acceptSkillOffer(ctx, vault, vaultName, offer, noteSources, deps, stdout)
+}
 
 // ExportAnswerSkillSources runs register-skills' adopt-then-answer flow over
 // fixture sources (answerSkillSources), parsing args' --accept/--decline
@@ -969,6 +981,15 @@ func ExportRunLearnFromRunbookArgs(
 	stdout io.Writer,
 ) error {
 	return runLearnFromRunbookArgs(ctx, a, d, stdout)
+}
+
+// ExportRunUpdateSkillRegistrationFromDeps runs `engram update`'s
+// registration hook over updateDeps composed from d exactly as production
+// composes them (newUpdateDeps).
+func ExportRunUpdateSkillRegistrationFromDeps(
+	ctx context.Context, d Deps, dryRun bool, vaultPath, home string, stdout io.Writer,
+) error {
+	return runUpdateSkillRegistration(ctx, dryRun, vaultPath, home, newUpdateDeps(d), stdout)
 }
 
 func ExportScoredChunkRecord(s scoredChunk) chunk.Record { return s.record }

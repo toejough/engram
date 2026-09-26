@@ -11,7 +11,6 @@ import (
 	"github.com/toejough/targ"
 
 	"github.com/toejough/engram/internal/debuglog"
-	"github.com/toejough/engram/internal/update"
 )
 
 // CommonLearnArgs holds shared flags for learn subcommands.
@@ -355,10 +354,12 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 
 // registerSkillsTargets returns the `engram register-skills` subcommand
 // (skill-runbook-registration): host-local only (errRegisterSkillsOverServer,
-// mirroring amend --discard's errDiscardOverServer). The default source is
-// the deployed Claude Code harness's engram skills dir under home;
-// --skills-dir (repeatable, relative to the working directory) replaces it
-// with a read-only preview (design D9).
+// mirroring amend --discard's errDiscardOverServer). It calls the shared
+// source resolver (ResolveSkillSources, design D1) over home and the working
+// directory — the same default skill, command and prompt set `engram
+// update`'s registration hook scans. --skills-dir is repeatable (relative to
+// the working directory), replaces the default set, and makes a read-only
+// preview with no removals (design D9).
 func registerSkillsTargets(
 	deps Deps,
 	withLog func(context.Context) context.Context,
@@ -394,7 +395,6 @@ func registerSkillsTargets(
 				Vault:       a.Vault,
 				VaultName:   a.VaultName,
 				Home:        home,
-				SkillsDir:   filepath.Join(home, update.ClaudeEngramSkillsRel),
 				PreviewDirs: previewDirs,
 				DryRun:      a.DryRun,
 				Accept:      a.Accept,
@@ -404,7 +404,8 @@ func registerSkillsTargets(
 
 			errHandler(RunSkillRegistration(withLog(ctx), args, newSkillRegistrationDeps(deps), deps.Stdout))
 		}).Name("register-skills").Description(
-			"Offer to register, refresh, or remove vault runbook notes mirroring shipped skills"),
+			"Offer to register, refresh, or remove vault runbook notes mirroring the skills, commands and " +
+				"prompt templates in the default folders"),
 	}
 }
 

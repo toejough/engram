@@ -190,14 +190,13 @@ func TestRunSkillRegistration_VersionAbove2_ErrorsAndWritesNothing(t *testing.T)
 	vault := newSkillAcceptFixtureVault()
 	vault.put("skill-registrations.json", `{"schema_version":3,"declined":{}}`)
 
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": []byte("# Curate\n")}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": []byte("# Curate\n")})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
-		Vault: "/vault", VaultName: "personal", SkillsDir: skillsFixtureDir, Accept: []string{"curate"},
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome, Accept: []string{"curate"},
 	}, deps, &stdout)
 
 	g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))

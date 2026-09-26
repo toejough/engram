@@ -327,7 +327,7 @@ func TestRunSkillRegistration_AcceptLeavesSourceFilesByteIdentical(t *testing.T)
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	deps := skillRegistrationDepsFor(vault, nil, nil)
+	deps := skillRegistrationDepsFor(vault, nil)
 
 	var writes []string
 
@@ -396,7 +396,7 @@ func TestRunSkillRegistration_AdoptOfAConflictedKeyErrors(t *testing.T) {
 
 	err := cli.ExportAnswerSkillSources(t.Context(), cli.SkillRegistrationArgs{
 		Vault: "/vault", Home: fakeHome, Adopt: map[string]string{"pi:foo": "1049"},
-	}, sources, skillRegistrationDepsFor(vault, nil, nil), &bytes.Buffer{})
+	}, sources, skillRegistrationDepsFor(vault, nil), &bytes.Buffer{})
 	g.Expect(err).To(MatchError(ContainSubstring("key conflict")))
 
 	_, untouched := vault.get("1049.2026-09-21.curate-review-pending-offers.md")
@@ -423,7 +423,7 @@ func TestRunSkillRegistration_AdoptTakesKeyOfAScannedSource(t *testing.T) {
 	err := cli.ExportAnswerSkillSources(t.Context(), cli.SkillRegistrationArgs{
 		Vault: "/vault", VaultName: "personal", Home: fakeHome,
 		Adopt: map[string]string{"superpowers:brainstorming": "1049"},
-	}, sources, skillRegistrationDepsFor(vault, nil, nil), &stdout)
+	}, sources, skillRegistrationDepsFor(vault, nil), &stdout)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	adopted, found := vault.get("1049.2026-09-21.skill-superpowers-brainstorming.md")
@@ -455,8 +455,8 @@ func TestRunSkillRegistration_SkillsDirIsAReadOnlyPreview(t *testing.T) {
 		link("/extra/skills/c4", "/elsewhere/real/c4").
 		file("/extra/skills/synced/b/pdf/SKILL.md", "pdf")
 
-	deps := skillRegistrationDepsFor(vault, failingListSkillsDir(g), nil)
-	deps.SourceFS = fsys
+	deps := skillRegistrationDepsFor(vault, fsys)
+	deps.Getwd = failingGetwd(g)
 	deps.IsTerminal = func() bool { return true }
 	deps.Stdin = strings.NewReader(strings.Repeat("y\n", 3))
 
@@ -496,8 +496,8 @@ func TestRunSkillRegistration_SkillsDirRefusesAnswersBeforeScanning(t *testing.T
 			g := NewWithT(t)
 
 			vault := newSkillAcceptFixtureVault()
-			deps := skillRegistrationDepsFor(vault, failingListSkillsDir(g), nil)
-			deps.SourceFS = untouchableSkillFS{g: g}
+			deps := skillRegistrationDepsFor(vault, untouchableSkillFS{g: g})
+			deps.Getwd = failingGetwd(g)
 			deps.ListMD = func(string) ([]string, error) {
 				g.Expect("the vault").To(BeEmpty(), "read before the refusal")
 
@@ -550,13 +550,14 @@ func engramOwnedSkill(name string, content []byte) cli.SkillNoteSource {
 	}
 }
 
-// failingListSkillsDir is a ListSkillsDir that fails the test: a
-// --skills-dir run never reads the interim default dir.
-func failingListSkillsDir(g Gomega) func(string) ([]fs.DirEntry, error) {
-	return func(dir string) ([]fs.DirEntry, error) {
-		g.Expect(dir).To(BeEmpty(), "the default skills dir was listed")
+// failingGetwd is a Getwd that fails the test: a --skills-dir run never
+// resolves the default source set, so it never asks for the working
+// directory.
+func failingGetwd(g Gomega) func() (string, error) {
+	return func() (string, error) {
+		g.Expect("the working directory").To(BeEmpty(), "the default source set was resolved")
 
-		return nil, fs.ErrPermission
+		return "", fs.ErrPermission
 	}
 }
 

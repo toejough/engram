@@ -31,12 +31,14 @@ func TestRegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
 		[]byte("---\nname: curate\ndescription: judge pending offers\n---\n\nbody\n"),
 		0o600,
 	)).To(Succeed())
+	linkDeployedSkill(g, home, "curate")
 
 	stderr := executeForTestWithDeps(t, []string{
 		"engram", "register-skills", "--accept", "curate", "--vault", vault,
 	}, func(d *cli.Deps) {
 		d.Embed = skillAcceptFakeEmbedder{}
 		d.UserHomeDir = func() (string, error) { return home, nil }
+		d.Getwd = func() (string, error) { return home, nil }
 	})
 
 	// A pending-offer nudge on the freshly-created note is expected
@@ -87,6 +89,7 @@ func TestRegisterSkillsCLI_AdoptRealNote(t *testing.T) {
 		[]byte("---\nname: curate\ndescription: judge pending offers\n---\n\n1. Judge offers.\n"),
 		0o600,
 	)).To(Succeed())
+	linkDeployedSkill(g, home, "curate")
 
 	oldBasename := "1049.2026-09-21.curate-review-pending-offers.md"
 	g.Expect(os.WriteFile(
@@ -98,6 +101,7 @@ func TestRegisterSkillsCLI_AdoptRealNote(t *testing.T) {
 	}, func(d *cli.Deps) {
 		d.Embed = skillAcceptFakeEmbedder{}
 		d.UserHomeDir = func() (string, error) { return home, nil }
+		d.Getwd = func() (string, error) { return home, nil }
 	})
 
 	g.Expect(stderr).To(BeEmpty())
@@ -108,47 +112,6 @@ func TestRegisterSkillsCLI_AdoptRealNote(t *testing.T) {
 	newContent, readErr := os.ReadFile(filepath.Join(vault, "1049.2026-09-21.skill-curate.md"))
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(newContent)).To(ContainSubstring("1. Judge offers."))
-}
-
-// TestRegisterSkillsCLI_DefaultSkillsDirIsEngramOwnedRoot covers the
-// --skills-dir default: with the flag omitted, register-skills reads engram's
-// own canonical deployed skills (~/.claude/engram/skills), NOT the Claude Code
-// harness surface dir (~/.claude/skills), which also holds the user's
-// non-engram skills (skill-runbook-registration: only skills engram ships are
-// registered). A real non-engram skill dir under ~/.claude/skills must
-// produce no offer.
-func TestRegisterSkillsCLI_DefaultSkillsDirIsEngramOwnedRoot(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	home := t.TempDir()
-	vault := t.TempDir()
-
-	writeSkill := func(dir, name string) {
-		skillDir := filepath.Join(home, dir, name)
-		g.Expect(os.MkdirAll(skillDir, 0o750)).To(Succeed())
-		g.Expect(os.WriteFile(
-			filepath.Join(skillDir, "SKILL.md"),
-			[]byte("---\nname: "+name+"\ndescription: d\n---\n\nbody\n"),
-			0o600,
-		)).To(Succeed())
-	}
-
-	writeSkill(filepath.Join(".claude", "skills"), "c4")
-	writeSkill(filepath.Join(".claude", "engram", "skills"), "recall")
-
-	var stdout bytes.Buffer
-
-	stderr := executeForTestWithDeps(t, []string{
-		"engram", "register-skills", "--dry-run", "--vault", vault,
-	}, func(d *cli.Deps) {
-		d.Stdout = &stdout
-		d.UserHomeDir = func() (string, error) { return home, nil }
-	})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register recall (" +
-		filepath.Join(home, ".claude", "engram", "skills", "recall", "SKILL.md") + ")\n"))
 }
 
 // TestRegisterSkillsCLI_DryRunListsRegisterOffer drives the real CLI wiring
@@ -217,10 +180,10 @@ func TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites(t *testing.T) {
 	home := t.TempDir()
 	binPath := sharedEngramBinary(t)
 
-	engramDir := filepath.Join(home, ".claude", "engram")
-	g.Expect(os.MkdirAll(engramDir, 0o750)).To(Succeed())
+	claudeDir := filepath.Join(home, ".claude")
+	g.Expect(os.MkdirAll(claudeDir, 0o750)).To(Succeed())
 	g.Expect(os.Symlink(
-		filepath.Join(projectRoot(t), "agent-instructions", "skills"), filepath.Join(engramDir, "skills"),
+		filepath.Join(projectRoot(t), "agent-instructions", "skills"), filepath.Join(claudeDir, "skills"),
 	)).To(Succeed())
 
 	devNull, openErr := os.Open(os.DevNull)
@@ -230,6 +193,7 @@ func TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites(t *testing.T) {
 
 	run := exec.Command(binPath, "register-skills", "--vault", vault)
 	run.Stdin = devNull
+	run.Dir = home
 	run.Env = append(os.Environ(), "ENGRAM_PARENT=", "HOME="+home)
 
 	out, runErr := run.CombinedOutput()
@@ -345,4 +309,14 @@ func TestRegisterSkillsCLI_SkillsDirRefusesAccept(t *testing.T) {
 	entries, readErr := os.ReadDir(vault)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).To(BeEmpty())
+}
+
+// linkDeployedSkill links ~/.claude/skills/<name> to engram's deployed copy
+// under ~/.claude/engram/skills, as `engram update` deploys it.
+func linkDeployedSkill(g Gomega, home, name string) {
+	userSkills := filepath.Join(home, ".claude", "skills")
+	g.Expect(os.MkdirAll(userSkills, 0o750)).To(Succeed())
+	g.Expect(os.Symlink(
+		filepath.Join(home, ".claude", "engram", "skills", name), filepath.Join(userSkills, name),
+	)).To(Succeed())
 }

@@ -76,15 +76,15 @@ var (
 	// home-relative canonical deployed skills dir: the `skills` subtree of
 	// its engram-owned root (ClaudeEngramRootRel), where `engram update`
 	// syncs real copies of the skills engram ships and which the harness
-	// surface dir (ClaudeSkillsTargetRel) symlinks into. It holds ONLY
-	// engram's skills, so it is `engram register-skills`'s --skills-dir
-	// default (skill-runbook-registration: only shipped skills register).
+	// surface dir (ClaudeSkillsTargetRel) symlinks into. It holds only
+	// engram's skills; registration scans the default source set, which
+	// reaches these copies through the surface dir's symlinks.
 	ClaudeEngramSkillsRel = filepath.Join(ClaudeEngramRootRel, engramRootSkillsSubdir) //nolint:gochecknoglobals,lll // exported well-known path
 	// ClaudeSkillsTargetRel is the Claude Code harness's (HarnessClaude)
 	// home-relative skills surface dir — the same value supportedHarnesses
 	// stamps onto that harness's HarnessSpec.SkillsTargetRel. It holds ALL
-	// of the user's skills (engram's only as symlinks), so it is NOT a
-	// source of engram's shipped skills; use ClaudeEngramSkillsRel for that.
+	// of the user's skills (engram's only as symlinks) and is a registration
+	// source: the Claude user scope, with symlinks followed.
 	ClaudeSkillsTargetRel = filepath.Join(".claude", "skills") //nolint:gochecknoglobals // exported well-known path
 	// ErrCommandNotFound is the Commander contract for "binary not on PATH":
 	// implementations translate their platform's not-found error (e.g.

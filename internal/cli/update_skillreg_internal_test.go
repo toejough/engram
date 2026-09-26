@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io/fs"
 	"path/filepath"
+	"strings"
 	"testing"
+	"testing/fstest"
 
 	. "github.com/onsi/gomega"
 
@@ -22,11 +24,9 @@ func TestRunPostUpdateChecks_SkillRegistrationError_SetsReportFieldDoesNotFailCh
 	g := NewWithT(t)
 
 	deps := updateDeps{
-		FS:  skillRegUpdateStubFS{},
-		Env: skillRegUpdateStubEnv{},
-		SkillReg: skillRegUpdateDepsFixture(
-			nil, nil, func(string) ([]fs.DirEntry, error) { return nil, errSkillRegUpdateFixture },
-		),
+		FS:       skillRegUpdateStubFS{},
+		Env:      skillRegUpdateStubEnv{},
+		SkillReg: skillRegUpdateDepsFixture(nil, failingSkillRegGetwd),
 	}
 
 	report := update.Report{Home: "/home/x", Source: update.SourceInfo{Root: "/repo"}}
@@ -39,28 +39,26 @@ func TestRunPostUpdateChecks_SkillRegistrationError_SetsReportFieldDoesNotFailCh
 	g.Expect(report.SkillRegistrationErr).To(ContainSubstring("injected"))
 }
 
-// TestRunUpdateSkillRegistration_DryRunListsOffers proves the hook builds
-// SkillsDir as <source.Root>/agent-instructions/skills and forwards update's
-// own --dry-run flag.
+// TestRunUpdateSkillRegistration_DryRunListsOffers proves the hook resolves
+// the default source set from home (a Claude user skill offers, while the
+// source checkout's agent-instructions/skills is never read) and forwards
+// update's own --dry-run flag.
 func TestRunUpdateSkillRegistration_DryRunListsOffers(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	skillsDir := filepath.Join("/repo", "agent-instructions", "skills")
-	skillContent := []byte("# Curate\n")
-
-	deps := updateDeps{Env: skillRegUpdateStubEnv{}, SkillReg: skillRegUpdateDepsFixture(
-		map[string][]byte{filepath.Join(skillsDir, "curate", "SKILL.md"): skillContent},
-		[]string{"curate"}, nil,
-	)}
+	deps := updateDeps{Env: skillRegUpdateStubEnv{}, SkillReg: skillRegUpdateDepsFixture(fstest.MapFS{
+		"home/x/.claude/skills/curate/SKILL.md":          {Data: []byte("# Curate\n")},
+		"repo/agent-instructions/skills/recall/SKILL.md": {Data: []byte("# Recall\n")},
+	}, nil)}
 
 	var stdout bytesBufferForTest
 
-	err := runUpdateSkillRegistration(context.Background(), true, "/vault", "/home", "/repo", deps, &stdout)
+	err := runUpdateSkillRegistration(context.Background(), true, "/vault", "/home/x", deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register curate (" +
-		filepath.Join(skillsDir, "curate", "SKILL.md") + ")\n"))
+	g.Expect(stdout.String()).To(Equal(
+		"@claude-user (1)\n  would offer: register curate (/home/x/.claude/skills/curate/SKILL.md)\n"))
 }
 
 // TestRunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured proves the
@@ -72,30 +70,7 @@ func TestRunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured(t *testing.T) {
 
 	var stdout bytesBufferForTest
 
-	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", "/repo", updateDeps{}, &stdout)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(BeEmpty())
-}
-
-// TestRunUpdateSkillRegistration_NoOpWhenSourceRootEmpty proves an
-// unresolved source (empty Root) skips registration entirely — including
-// never consulting deps.SkillReg.
-func TestRunUpdateSkillRegistration_NoOpWhenSourceRootEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := updateDeps{Env: skillRegUpdateStubEnv{}, SkillReg: skillRegUpdateDepsFixture(
-		nil, nil, func(string) ([]fs.DirEntry, error) {
-			t.Fatal("must not list a skills dir when source.Root is empty")
-
-			return nil, nil
-		},
-	)}
-
-	var stdout bytesBufferForTest
-
-	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", "", deps, &stdout)
+	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", updateDeps{}, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(BeEmpty())
@@ -108,17 +83,13 @@ func TestRunUpdateSkillRegistration_NonInteractive_ReportsSummary(t *testing.T) 
 	t.Parallel()
 	g := NewWithT(t)
 
-	skillsDir := filepath.Join("/repo", "agent-instructions", "skills")
-	skillContent := []byte("# Curate\n")
-
-	deps := updateDeps{Env: skillRegUpdateStubEnv{}, SkillReg: skillRegUpdateDepsFixture(
-		map[string][]byte{filepath.Join(skillsDir, "curate", "SKILL.md"): skillContent},
-		[]string{"curate"}, nil,
-	)}
+	deps := updateDeps{Env: skillRegUpdateStubEnv{}, SkillReg: skillRegUpdateDepsFixture(fstest.MapFS{
+		"home/x/.claude/skills/curate/SKILL.md": {Data: []byte("# Curate\n")},
+	}, nil)}
 
 	var stdout bytesBufferForTest
 
-	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", "/repo", deps, &stdout)
+	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home/x", deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(ContainSubstring("awaiting an answer: @claude-user 1"))
@@ -131,13 +102,11 @@ func TestRunUpdateSkillRegistration_PropagatesError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	deps := updateDeps{Env: skillRegUpdateStubEnv{}, SkillReg: skillRegUpdateDepsFixture(
-		nil, nil, func(string) ([]fs.DirEntry, error) { return nil, errSkillRegUpdateFixture },
-	)}
+	deps := updateDeps{Env: skillRegUpdateStubEnv{}, SkillReg: skillRegUpdateDepsFixture(nil, failingSkillRegGetwd)}
 
 	var stdout bytesBufferForTest
 
-	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", "/repo", deps, &stdout)
+	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home/x", deps, &stdout)
 
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(errSkillRegUpdateFixture))
@@ -162,6 +131,45 @@ func (b *bytesBufferForTest) Write(p []byte) (int, error) {
 	b.data = append(b.data, p...)
 
 	return len(p), nil
+}
+
+// mapSkillSourceFS adapts an fstest.MapFS (unrooted paths) to the absolute
+// paths SkillSourceFS takes.
+type mapSkillSourceFS struct {
+	fsys fstest.MapFS
+}
+
+func (m mapSkillSourceFS) Lstat(path string) (fs.FileInfo, error) {
+	return fs.Lstat(m.fsys, m.rel(path))
+}
+
+func (m mapSkillSourceFS) ReadDir(path string) ([]fs.DirEntry, error) {
+	return fs.ReadDir(m.fsys, m.rel(path))
+}
+
+func (m mapSkillSourceFS) ReadFile(path string) ([]byte, error) {
+	return fs.ReadFile(m.fsys, m.rel(path))
+}
+
+func (m mapSkillSourceFS) Readlink(path string) (string, error) {
+	return fs.ReadLink(m.fsys, m.rel(path))
+}
+
+func (m mapSkillSourceFS) rel(path string) string {
+	rel := strings.TrimPrefix(filepath.Clean(path), "/")
+	if rel == "" {
+		return "."
+	}
+
+	return rel
+}
+
+// noGitCommander answers every command as a failed run: the working
+// directory is in no git repository.
+type noGitCommander struct{}
+
+func (noGitCommander) Run(context.Context, string, string, ...string) ([]byte, []byte, error) {
+	return nil, nil, errSkillRegUpdateFixture
 }
 
 // skillRegUpdateStubEnv is a minimal update.Env whose Getenv always reports
@@ -199,38 +207,26 @@ func (skillRegUpdateStubFS) Symlink(string, string) error { return nil }
 
 func (skillRegUpdateStubFS) WriteFile(string, []byte, fs.FileMode) error { return nil }
 
-// skillRegUpdateDepsFixture builds a minimal SkillRegistrationDeps: skills
-// content/dir names back ListSkillsDir/ReadSkillFile (skipped when
-// listOverride is non-nil, which replaces ListSkillsDir outright — for
-// tests asserting it's never called, or that it fails); ListMD reports an
-// empty vault (no existing notes, no declines).
-func skillRegUpdateDepsFixture(
-	skillsContent map[string][]byte,
-	skillDirNames []string,
-	listOverride func(string) ([]fs.DirEntry, error),
-) SkillRegistrationDeps {
-	listSkillsDir := listOverride
-	if listSkillsDir == nil {
-		listSkillsDir = func(string) ([]fs.DirEntry, error) {
-			entries := make([]fs.DirEntry, 0, len(skillDirNames))
-			for _, name := range skillDirNames {
-				entries = append(entries, fakeDirEntry{name: name, dir: true})
-			}
+// failingSkillRegGetwd is a Getwd failing with errSkillRegUpdateFixture.
+func failingSkillRegGetwd() (string, error) { return "", errSkillRegUpdateFixture }
 
-			return entries, nil
-		}
+// skillRegUpdateDepsFixture builds a minimal SkillRegistrationDeps whose
+// default source set is resolved from files (an empty home when nil), from a
+// working directory outside any git repository (getwd, when non-nil,
+// replaces it); ListMD reports an empty vault (no existing notes, no
+// declines).
+func skillRegUpdateDepsFixture(files fstest.MapFS, getwd func() (string, error)) SkillRegistrationDeps {
+	if files == nil {
+		files = fstest.MapFS{}
+	}
+
+	if getwd == nil {
+		getwd = func() (string, error) { return "/outside/any/repo", nil }
 	}
 
 	return SkillRegistrationDeps{
-		ListSkillsDir: listSkillsDir,
-		ReadSkillFile: func(path string) ([]byte, error) {
-			content, ok := skillsContent[path]
-			if !ok {
-				return nil, fs.ErrNotExist
-			}
-
-			return content, nil
-		},
+		Sources:    SkillSourceDeps{FS: mapSkillSourceFS{fsys: files}, Commander: noGitCommander{}},
+		Getwd:      getwd,
 		ListMD:     func(string) ([]string, error) { return nil, nil },
 		IsTerminal: func() bool { return false },
 		Accept: SkillAcceptDeps{

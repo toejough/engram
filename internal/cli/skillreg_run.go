@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -22,9 +21,9 @@ import (
 // same split as LearnFactArgs/LearnFeedbackArgs/LearnRunbookArgs vs. the
 // shared internal LearnArgs.
 type RegisterSkillsArgs struct {
-	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                                                                                                        //nolint:lll // unbreakable env+desc struct-tag string
-	VaultName string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on a newly-registered note's vault: field (default \"personal\")"`                                                                //nolint:lll // unbreakable env+desc struct-tag string
-	SkillsDir []string `targ:"flag,name=skills-dir,desc=preview only: scan these skills dirs (repeatable) with Claude Code user-skill rules instead of the default set; implies --dry-run and refuses --accept/--decline/--adopt"` //nolint:lll // unbreakable struct-tag string
+	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                                                                     //nolint:lll // unbreakable env+desc struct-tag string
+	VaultName string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on a newly-registered note's vault: field (default \"personal\")"`                             //nolint:lll // unbreakable env+desc struct-tag string
+	SkillsDir []string `targ:"flag,name=skills-dir,desc=preview a skills dir instead of the default folders (repeatable; read-only: implies --dry-run and refuses --accept/--decline/--adopt)"` //nolint:lll // unbreakable struct-tag string
 	DryRun    bool     `targ:"flag,name=dry-run,desc=list offers without prompting or writing"`
 	Accept    []string `targ:"flag,name=accept,desc=accept the matching offers without prompting: a skill key or prefix* pattern or @<scope-id> (repeatable)"`   //nolint:lll // unbreakable struct-tag string
 	Decline   []string `targ:"flag,name=decline,desc=decline the matching offers without prompting: a skill key or prefix* pattern or @<scope-id> (repeatable)"` //nolint:lll // unbreakable struct-tag string
@@ -32,19 +31,16 @@ type RegisterSkillsArgs struct {
 }
 
 // SkillRegistrationArgs holds RunSkillRegistration's inputs: the resolved
-// vault/vault-name, the home, the skills source dirs to scan, the dry-run
-// flag, and any explicit --accept/--decline/--adopt answers
-// (skill-runbook-registration).
+// vault/vault-name, the home the default source set is resolved from, any
+// `--skills-dir` preview dirs, the dry-run flag, and any explicit
+// --accept/--decline/--adopt answers (skill-runbook-registration).
 type SkillRegistrationArgs struct {
 	Vault     string
 	VaultName string
-	// Home is the user's home dir: a note's skill_source is written
+	// Home is the user's home dir: the default source set is resolved from
+	// it (ResolveSkillSources, design D1), a note's skill_source is written
 	// `~`-relative to it, and removal eligibility expands it (design D5, D8).
 	Home string
-	// SkillsDir is the default source set's one skills dir, whose skills are
-	// engram's own deployed copies (ShippedSkillSources) — until task 5.1
-	// resolves the default set with ResolveSkillSources.
-	SkillsDir string
 	// PreviewDirs are `--skills-dir`'s dirs: they replace the default set,
 	// each scanned with the Claude-user rules (bare keys), and the run is a
 	// read-only preview (design D9).
@@ -59,18 +55,20 @@ type SkillRegistrationArgs struct {
 }
 
 // SkillRegistrationDeps holds RunSkillRegistration's injected capabilities:
-// loading shipped skills off the skills source dir, listing/reading vault
+// resolving the default source set (Sources, Getwd), listing/reading vault
 // notes for the offer comparison, the interactive-prompt gate, and the three
 // accept-path deps structs (Learn for Register, Accept for Refresh/Remove,
 // Adopt for --adopt) that skillreg_accept.go's actions already define.
 type SkillRegistrationDeps struct {
-	// ListSkillsDir lists a skills source dir's immediate entries (production:
-	// EdgeFS.ReadDir). Each subdirectory containing SKILL.md becomes a
-	// ShippedSkill; an entry without one is ignored.
-	ListSkillsDir func(dir string) ([]fs.DirEntry, error)
-	// ReadSkillFile reads one skill's SKILL.md bytes (production:
-	// EdgeFS.ReadFile).
-	ReadSkillFile func(path string) ([]byte, error)
+	// Sources backs ResolveSkillSources — the read-only filesystem (also the
+	// one `--skills-dir`'s dirs are scanned with) and the git command runner
+	// for the project probe (production: EdgeFS and the CLI Commander).
+	Sources SkillSourceDeps
+	// Getwd supplies the working directory the default source set is
+	// resolved from (production: os.Getwd). The update hook's re-exec child
+	// inherits the parent's working directory, so both commands resolve
+	// from the directory the user ran them in.
+	Getwd func() (string, error)
 	// ListMD lists the vault's full .md filenames, for the offer comparison
 	// (CompareSkillOffers/FindSkillNote) — same shape as LearnDeps.ListMD.
 	ListMD func(vault string) ([]string, error)
@@ -79,8 +77,6 @@ type SkillRegistrationDeps struct {
 	// SHALL never prompt or write without a terminal"). nil is treated as
 	// non-interactive.
 	IsTerminal func() bool
-	// SourceFS scans `--skills-dir`'s dirs (production: EdgeFS).
-	SourceFS SkillSourceFS
 	// Stdin supplies interactive prompt answers, read one line per offer via
 	// an internally-owned bufio.Scanner. Unused when IsTerminal is false (or
 	// nil) or every offer has an explicit --accept/--decline answer.
@@ -100,7 +96,9 @@ type SkillRegistrationDeps struct {
 
 // RunSkillRegistration orchestrates `engram register-skills` and `engram
 // update`'s post-deploy registration hook (skill-runbook-registration): it
-// loads the skill sources, runs any --adopt entries first, computes the
+// resolves the default source set (ResolveSkillSources, design D1 — the one
+// definition both commands share) from args.Home and the working directory,
+// runs any --adopt entries first, computes the
 // register/refresh/remove offers against the vault, and then — for each
 // offer, in order — acts on an explicit --accept/--decline answer, prompts
 // interactively when stdin is a terminal and this isn't a dry run, or else
@@ -122,12 +120,10 @@ func RunSkillRegistration(
 		return answersErr
 	}
 
-	shipped, loadErr := loadShippedSkills(args.SkillsDir, deps.ListSkillsDir, deps.ReadSkillFile)
-	if loadErr != nil {
-		return loadErr
+	sources, resolveErr := resolveDefaultSkillSources(ctx, args.Home, deps)
+	if resolveErr != nil {
+		return resolveErr
 	}
-
-	sources := ShippedSkillSources(args.SkillsDir, shipped)
 
 	if args.DryRun {
 		return previewSkillSources(args.Vault, args.Home, sources, false, deps, stdout)
@@ -178,6 +174,12 @@ var (
 	// errMalformedAdoptFlag reports a --adopt flag that isn't shaped
 	// "<key>=<note-ref>" (both sides non-empty).
 	errMalformedAdoptFlag = errors.New("register-skills: --adopt must be <key>=<note-ref>")
+	// errSkillOfferSourceMissing reports an accepted Register or Refresh
+	// offer whose key and source path name no candidate's note source.
+	errSkillOfferSourceMissing = errors.New("register-skills: offer names no scanned source")
+	// errSkillSourcesNeedWorkingDir reports a default-set run with no working
+	// directory to resolve the project sources from.
+	errSkillSourcesNeedWorkingDir = errors.New("register-skills: resolving the working directory")
 	// errSkillsDirNeedsWorkingDir reports a relative --skills-dir with no
 	// working directory to resolve it against.
 	errSkillsDirNeedsWorkingDir = errors.New("register-skills: --skills-dir: resolving a relative dir")
@@ -221,7 +223,8 @@ func absolutePreviewDirs(dirs []string, getwd func() (string, error)) ([]string,
 
 // acceptSkillOffer dispatches an accepted offer to RegisterSkill, RefreshSkill,
 // or RemoveSkill, by kind. A Register or Refresh offer mirrors the candidate
-// it came from, looked up in noteSources.
+// it came from, looked up in noteSources; a lookup that misses is
+// errSkillOfferSourceMissing, never a note with an empty key or slug.
 func acceptSkillOffer(
 	ctx context.Context,
 	vault, vaultName string,
@@ -230,13 +233,9 @@ func acceptSkillOffer(
 	deps SkillRegistrationDeps,
 	stdout io.Writer,
 ) error {
-	source := noteSources[skillCandidateRef(offer.Key, offer.SourcePath)]
-
 	switch offer.Kind {
-	case SkillOfferRegister:
-		return RegisterSkill(ctx, vault, vaultName, source, deps.Learn, stdout)
-	case SkillOfferRefresh:
-		return RefreshSkill(ctx, vault, source, offer.Basename, deps.Accept, stdout)
+	case SkillOfferRegister, SkillOfferRefresh:
+		return mirrorSkillOffer(ctx, vault, vaultName, offer, noteSources, deps, stdout)
 	case SkillOfferRemove:
 		return RemoveSkill(vault, offer.Basename, deps.Accept, stdout)
 	default:
@@ -340,45 +339,27 @@ func computeSkillOffers(
 	return comparison, nil
 }
 
-// loadShippedSkills lists skillsDir's immediate subdirectories and reads
-// each one's SKILL.md into a ShippedSkill, sorted by name for deterministic
-// output. A subdirectory without SKILL.md is ignored (skill-runbook-
-// registration: registration never requires any file beyond SKILL.md
-// itself); any other read failure is propagated.
-func loadShippedSkills(
-	skillsDir string,
-	readDir func(string) ([]fs.DirEntry, error),
-	readFile func(string) ([]byte, error),
-) ([]ShippedSkill, error) {
-	entries, dirErr := readDir(skillsDir)
-	if dirErr != nil {
-		return nil, fmt.Errorf("register-skills: listing skills dir %s: %w", skillsDir, dirErr)
+// mirrorSkillOffer carries out an accepted Register or Refresh offer: it
+// looks up the note source of the candidate the offer came from, and a miss
+// is errSkillOfferSourceMissing — nothing is written.
+func mirrorSkillOffer(
+	ctx context.Context,
+	vault, vaultName string,
+	offer SkillOffer,
+	noteSources map[string]SkillNoteSource,
+	deps SkillRegistrationDeps,
+	stdout io.Writer,
+) error {
+	source, found := noteSources[skillCandidateRef(offer.Key, offer.SourcePath)]
+	if !found {
+		return fmt.Errorf("%w: %s %s (%s)", errSkillOfferSourceMissing, offer.Kind, offer.Key, offer.SourcePath)
 	}
 
-	skills := make([]ShippedSkill, 0, len(entries))
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		skillMDPath := filepath.Join(skillsDir, entry.Name(), skillMDFilename)
-
-		content, readErr := readFile(skillMDPath)
-		if readErr != nil {
-			if errors.Is(readErr, fs.ErrNotExist) {
-				continue
-			}
-
-			return nil, fmt.Errorf("register-skills: reading %s: %w", skillMDPath, readErr)
-		}
-
-		skills = append(skills, ShippedSkill{Name: entry.Name(), Content: content})
+	if offer.Kind == SkillOfferRegister {
+		return RegisterSkill(ctx, vault, vaultName, source, deps.Learn, stdout)
 	}
 
-	sort.Slice(skills, func(i, j int) bool { return skills[i].Name < skills[j].Name })
-
-	return skills, nil
+	return RefreshSkill(ctx, vault, source, offer.Basename, deps.Accept, stdout)
 }
 
 // newSkillRegistrationDeps composes SkillRegistrationDeps from the injected
@@ -387,12 +368,11 @@ func newSkillRegistrationDeps(d Deps) SkillRegistrationDeps {
 	vfs := newVaultFS(d.FS)
 
 	return SkillRegistrationDeps{
-		ListSkillsDir: d.FS.ReadDir,
-		ReadSkillFile: d.FS.ReadFile,
-		SourceFS:      d.FS,
-		ListMD:        vfs.ListMD,
-		IsTerminal:    d.IsTerminal,
-		Stdin:         d.Stdin,
+		Sources:    SkillSourceDeps{FS: d.FS, Commander: d.Commander},
+		Getwd:      d.Getwd,
+		ListMD:     vfs.ListMD,
+		IsTerminal: d.IsTerminal,
+		Stdin:      d.Stdin,
 		Accept: SkillAcceptDeps{
 			Lock:     vaultLockFromLocker(d.Lock),
 			Read:     vfs.ReadFile,
@@ -461,7 +441,7 @@ func previewSkillsDirs(args SkillRegistrationArgs, deps SkillRegistrationDeps, s
 	var sources ResolvedSkillSources
 
 	for _, dir := range args.PreviewDirs {
-		mergeSkillScanResult(&sources.SkillScanResult, ScanClaudeUserSkills(deps.SourceFS, dir))
+		mergeSkillScanResult(&sources.SkillScanResult, ScanClaudeUserSkills(deps.Sources.FS, dir))
 	}
 
 	keyed, keyWarnings := AssignSkillKeys(sources.Candidates, nil)
@@ -504,6 +484,30 @@ func promptFormatForOfferKind(kind SkillOfferKind) string {
 	default:
 		return ""
 	}
+}
+
+// resolveDefaultSkillSources resolves the default source set
+// (ResolveSkillSources) from home and deps.Getwd's working directory. With
+// no working directory it fails rather than silently resolving without the
+// project sources.
+func resolveDefaultSkillSources(
+	ctx context.Context, home string, deps SkillRegistrationDeps,
+) (ResolvedSkillSources, error) {
+	if deps.Getwd == nil {
+		return ResolvedSkillSources{}, fmt.Errorf("%w: no working directory", errSkillSourcesNeedWorkingDir)
+	}
+
+	cwd, cwdErr := deps.Getwd()
+	if cwdErr != nil {
+		return ResolvedSkillSources{}, fmt.Errorf("%w: %w", errSkillSourcesNeedWorkingDir, cwdErr)
+	}
+
+	sources, resolveErr := ResolveSkillSources(ctx, home, cwd, deps.Sources)
+	if resolveErr != nil {
+		return ResolvedSkillSources{}, fmt.Errorf("register-skills: resolving skill sources: %w", resolveErr)
+	}
+
+	return sources, nil
 }
 
 // runSkillAdoptions runs every args --adopt entry, in sorted-by-key order

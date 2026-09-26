@@ -21,16 +21,6 @@ const (
 	SkillOfferRemove   SkillOfferKind = "remove"
 )
 
-// ShippedSkill is one skill engram ships, as raw `SKILL.md` bytes. A later
-// registration-wiring unit reads `agent-instructions/skills/<name>/SKILL.md`
-// and supplies it here — this file never reads skill directories itself
-// (skill-runbook-registration: "Skill files SHALL carry no engram-specific
-// metadata").
-type ShippedSkill struct {
-	Name    string
-	Content []byte
-}
-
 // SkillOffer is one pending registration decision produced by
 // CompareSkillOffers. Hash is the hash the offer would act on if accepted —
 // the skill's current content hash for Register/Refresh, or the note's

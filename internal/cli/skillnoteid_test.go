@@ -20,9 +20,9 @@ func TestCompareSkillOffers_LegacyNotesMakeNoOffer(t *testing.T) {
 
 	vault, names := legacyVault()
 
-	skills := make([]cli.ShippedSkill, 0, len(legacyNotes))
+	skills := make([]engramSkill, 0, len(legacyNotes))
 	for _, key := range legacyNotes {
-		skills = append(skills, cli.ShippedSkill{Name: key, Content: []byte(key)})
+		skills = append(skills, engramSkill{Name: key, Content: []byte(key)})
 	}
 
 	offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})

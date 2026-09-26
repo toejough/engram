@@ -113,7 +113,7 @@ type updateDeps struct {
 	// registration, update-deploy-sync). Optional: the zero value (older
 	// updateDeps test fixtures built before this hook existed, e.g.
 	// ExportNewUpdateDepsFrom) is a safe no-op — runUpdateSkillRegistration
-	// skips entirely when ListSkillsDir is nil.
+	// skips entirely when its source filesystem is nil.
 	SkillReg SkillRegistrationDeps
 }
 
@@ -494,9 +494,7 @@ func runPostUpdateChecks(
 		}
 	}
 
-	registrationErr := runUpdateSkillRegistration(
-		ctx, args.DryRun, vaultPath, report.Home, report.Source.Root, deps, stdout,
-	)
+	registrationErr := runUpdateSkillRegistration(ctx, args.DryRun, vaultPath, report.Home, deps, stdout)
 	if registrationErr != nil {
 		report.SkillRegistrationErr = registrationErr.Error()
 	}
@@ -569,17 +567,21 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 // registration) against the resolved vault, using update's own --dry-run
 // flag and no explicit --accept/--decline answers (update-deploy-sync:
 // "Update SHALL run skill registration ... after the engram-owned root sync
-// completes"). A registration failure is returned to the caller, which
+// completes"). It calls the shared source resolver (ResolveSkillSources,
+// design D1) over home and the working directory — the same default set
+// `engram register-skills` scans, never `<sourceRoot>/agent-instructions/
+// skills` — and runs after the sync, so it reads the freshly deployed
+// engram copies. A re-execed child inherits the parent's working
+// directory. A registration failure is returned to the caller, which
 // records it on the report rather than failing the update
 // (update-deploy-sync: "Registration failures SHALL be reported and SHALL
 // NOT roll back the deploy"). deps.SkillReg's zero value (older updateDeps
 // test fixtures built before this hook existed) is a safe no-op: without a
-// skills-dir listing capability there's nothing to register against. An
-// empty sourceRoot (no resolved source) is the same no-op.
+// source filesystem there's nothing to register against.
 func runUpdateSkillRegistration(
-	ctx context.Context, dryRun bool, vaultPath, home, sourceRoot string, deps updateDeps, stdout io.Writer,
+	ctx context.Context, dryRun bool, vaultPath, home string, deps updateDeps, stdout io.Writer,
 ) error {
-	if deps.SkillReg.ListSkillsDir == nil || sourceRoot == "" {
+	if deps.SkillReg.Sources.FS == nil {
 		return nil
 	}
 
@@ -587,7 +589,6 @@ func runUpdateSkillRegistration(
 		Vault:     vaultPath,
 		VaultName: resolveVaultName("", deps.Env.Getenv),
 		Home:      home,
-		SkillsDir: filepath.Join(sourceRoot, "agent-instructions", "skills"),
 		DryRun:    dryRun,
 	}
 

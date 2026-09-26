@@ -137,38 +137,6 @@ func ReportSkillOfferProblems(stdout io.Writer, comparison SkillOfferComparison)
 	return nil
 }
 
-// ShippedSkillSources presents the shipped skills of one skills directory
-// as resolved sources: Claude-user candidates keyed by their bare names,
-// read from skillsDir, which is recorded as the one read Claude-user root
-// and as the one engram-owned root — the directory holds engram's own
-// skills, so their notes keep today's preamble (design D8). It adapts the
-// single-directory default flow to CompareSkillOffers until the callers use
-// ResolveSkillSources (task 5.1).
-func ShippedSkillSources(skillsDir string, shipped []ShippedSkill) ResolvedSkillSources {
-	var sources ResolvedSkillSources
-
-	sources.EngramSkillRoots = []string{skillsDir}
-
-	sources.Roots = []ScannedRoot{{
-		Path: skillsDir, Resolved: skillsDir, Scanned: true, Form: SkillRootFormClaudeUser,
-	}}
-	sources.Candidates = make([]SkillCandidate, 0, len(shipped))
-
-	for _, skill := range shipped {
-		sources.Candidates = append(sources.Candidates, SkillCandidate{
-			Key:        skill.Name,
-			Name:       skill.Name,
-			ScopeID:    SkillScopeClaudeUser,
-			ReadRoot:   skillsDir,
-			SourcePath: filepath.Join(skillsDir, skill.Name, skillMDFilename),
-			Kind:       SkillSourceKindSkill,
-			Content:    skill.Content,
-		})
-	}
-
-	return sources
-}
-
 // unexported constants.
 const (
 	// engramCopiesDifferWarningFormat is the one warning for an engram-owned

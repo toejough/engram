@@ -389,7 +389,7 @@ func TestResolveSkillSources_PiOnlyKeepsBareKeyAndRefreshesLegacyNote(t *testing
 	vault := newSkillregFixtureVault()
 	vault.put(legacyRouteNote, legacySkillNote("1036", "route", cli.SkillContentHash([]byte("route"))))
 
-	offers, offerErr := compareShippedSkills([]cli.ShippedSkill{{
+	offers, offerErr := compareShippedSkills([]engramSkill{{
 		Name: resolved.Candidates[0].Key, Content: resolved.Candidates[0].Content,
 	}}, []string{legacyRouteNote}, vault.readFile, map[string]string{})
 

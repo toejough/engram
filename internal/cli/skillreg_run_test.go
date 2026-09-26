@@ -3,7 +3,6 @@ package cli_test
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io/fs"
 	"strings"
 	"testing"
@@ -26,19 +25,16 @@ func TestRunSkillRegistration_AdoptRunsBeforeOffers_NoDuplicateOffer(t *testing.
 	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
 
 	skillContent := []byte("# Curate\n\n1. Judge offers.\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent},
-		[]string{"curate"},
-	)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
 
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 		Adopt:     map[string]string{"curate": "1049"},
 	}, deps, &stdout)
 
@@ -67,15 +63,15 @@ func TestRunSkillRegistration_AdoptUnshippedSkill_Errors(t *testing.T) {
 	vault := newSkillAcceptFixtureVault()
 	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
 
-	listDir, readSkillFile := skillsDirFixture(map[string][]byte{}, nil)
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(nil)
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 		Adopt:     map[string]string{"curate": "1049"},
 	}, deps, &stdout)
 
@@ -95,16 +91,15 @@ func TestRunSkillRegistration_BothNamedError(t *testing.T) {
 
 	vault := newSkillAcceptFixtureVault()
 	skillContent := []byte("# Curate\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 		Accept:    []string{"curate"},
 		Decline:   []string{"curate"},
 	}, deps, &stdout)
@@ -132,14 +127,13 @@ func TestRunSkillRegistration_CompareSkillOffersError_Propagates(t *testing.T) {
 	vault.put("9999.2026-01-02.skill-curate.md", curateSkillNoteFixture("hash-b"))
 
 	skillContent := []byte("# Curate\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
-		Vault: "/vault", VaultName: "personal", SkillsDir: skillsFixtureDir, DryRun: true,
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome, DryRun: true,
 	}, deps, &stdout)
 
 	g.Expect(err).To(HaveOccurred())
@@ -159,12 +153,9 @@ func TestRunSkillRegistration_DryRun_PreviewsOffersWritesNothing(t *testing.T) {
 	curateContent := []byte("# Curate\n\nNew text.\n")
 	routeContent := []byte("# Route\n")
 
-	listDir, readSkillFile := skillsDirFixture(map[string][]byte{
-		skillsFixtureDir + "/curate/SKILL.md": curateContent,
-		skillsFixtureDir + "/route/SKILL.md":  routeContent,
-	}, []string{"curate", "route"})
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": curateContent, "route": routeContent})
 
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 	deps.IsTerminal = func() bool {
 		t.Fatal("dry-run must never consult IsTerminal")
 
@@ -176,14 +167,14 @@ func TestRunSkillRegistration_DryRun_PreviewsOffersWritesNothing(t *testing.T) {
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 		DryRun:    true,
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(Equal("@claude-user (2)\n" +
-		"  would offer: register curate (/skills/curate/SKILL.md)\n" +
-		"  would offer: register route (/skills/route/SKILL.md)\n"))
+		"  would offer: register curate (" + skillRegSourcePath("curate") + ")\n" +
+		"  would offer: register route (" + skillRegSourcePath("route") + ")\n"))
 
 	g.Expect(vault.files).To(BeEmpty())
 }
@@ -197,16 +188,15 @@ func TestRunSkillRegistration_ExplicitAccept_NonInteractive_ActsWithoutPrompting
 
 	vault := newSkillAcceptFixtureVault()
 	skillContent := []byte("# Curate\n\nStep 1.\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 		Accept:    []string{"curate"},
 	}, deps, &stdout)
 
@@ -227,16 +217,15 @@ func TestRunSkillRegistration_ExplicitAnswerWithNoOffer_PrintsNoteAndContinues(t
 
 	vault := newSkillAcceptFixtureVault()
 	skillContent := []byte("# Curate\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 		Accept:    []string{"bogus"},
 	}, deps, &stdout)
 
@@ -254,16 +243,15 @@ func TestRunSkillRegistration_ExplicitDecline_NonInteractive_RecordsWithoutPromp
 
 	vault := newSkillAcceptFixtureVault()
 	skillContent := []byte("# Curate\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 		Decline:   []string{"curate"},
 	}, deps, &stdout)
 
@@ -283,38 +271,14 @@ func TestRunSkillRegistration_ListMDError_Propagates(t *testing.T) {
 
 	vault := newSkillAcceptFixtureVault()
 	skillContent := []byte("# Curate\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 	deps.ListMD = func(string) ([]string, error) { return nil, errSkillsDirForTest }
 
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
-		Vault: "/vault", VaultName: "personal", SkillsDir: skillsFixtureDir, DryRun: true,
-	}, deps, &stdout)
-
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err).To(MatchError(errSkillsDirForTest))
-}
-
-// TestRunSkillRegistration_ListSkillsDirError_Propagates covers
-// loadShippedSkills' listing-failure branch, reached through
-// RunSkillRegistration.
-func TestRunSkillRegistration_ListSkillsDirError_Propagates(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newSkillAcceptFixtureVault()
-	deps := skillRegistrationDepsFor(vault,
-		func(string) ([]fs.DirEntry, error) { return nil, errSkillsDirForTest },
-		func(string) ([]byte, error) { return nil, fs.ErrNotExist },
-	)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
-		Vault: "/vault", VaultName: "personal", SkillsDir: skillsFixtureDir,
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome, DryRun: true,
 	}, deps, &stdout)
 
 	g.Expect(err).To(HaveOccurred())
@@ -331,9 +295,8 @@ func TestRunSkillRegistration_NonInteractive_NoAnswers_WritesNothingPrintsSummar
 
 	vault := newSkillAcceptFixtureVault()
 	skillContent := []byte("# Curate\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 	deps.IsTerminal = func() bool { return false }
 
 	var stdout bytes.Buffer
@@ -341,7 +304,7 @@ func TestRunSkillRegistration_NonInteractive_NoAnswers_WritesNothingPrintsSummar
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -361,9 +324,8 @@ func TestRunSkillRegistration_PromptEOF_RecordsNothing(t *testing.T) {
 
 	vault := newSkillAcceptFixtureVault()
 	skillContent := []byte("# Curate\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 	deps.IsTerminal = func() bool { return true }
 	deps.Stdin = strings.NewReader("")
 
@@ -372,7 +334,7 @@ func TestRunSkillRegistration_PromptEOF_RecordsNothing(t *testing.T) {
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -390,9 +352,8 @@ func TestRunSkillRegistration_PromptRefresh_Yes_ReplacesBody(t *testing.T) {
 	vault.put("1049.2026-09-21.skill-curate.md", curateSkillNoteFixture(oldHash))
 
 	newContent := []byte("# Curate\n\nRevised.\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": newContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": newContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 	deps.IsTerminal = func() bool { return true }
 	deps.Stdin = strings.NewReader("y\n")
 
@@ -401,7 +362,7 @@ func TestRunSkillRegistration_PromptRefresh_Yes_ReplacesBody(t *testing.T) {
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -422,9 +383,8 @@ func TestRunSkillRegistration_PromptRegister_No_RecordsDecline(t *testing.T) {
 
 	vault := newSkillAcceptFixtureVault()
 	skillContent := []byte("# Curate\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 	deps.IsTerminal = func() bool { return true }
 	deps.Stdin = strings.NewReader("n\n")
 
@@ -433,7 +393,7 @@ func TestRunSkillRegistration_PromptRegister_No_RecordsDecline(t *testing.T) {
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -455,9 +415,8 @@ func TestRunSkillRegistration_PromptRegister_Yes_CreatesNote(t *testing.T) {
 
 	vault := newSkillAcceptFixtureVault()
 	skillContent := []byte("# Curate\n\nStep 1. Judge offers.\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 	deps.IsTerminal = func() bool { return true }
 	deps.Stdin = strings.NewReader("YES\n")
 
@@ -466,7 +425,7 @@ func TestRunSkillRegistration_PromptRegister_Yes_CreatesNote(t *testing.T) {
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -489,8 +448,8 @@ func TestRunSkillRegistration_PromptRemove_Yes_DeletesNote(t *testing.T) {
 	vault.put(basename+".vec.json", `{"model_id":"m"}`)
 
 	// No shipped skills at all — write-memory's note is now orphaned.
-	listDir, readSkillFile := skillsDirFixture(map[string][]byte{}, nil)
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(nil)
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 	deps.IsTerminal = func() bool { return true }
 	deps.Stdin = strings.NewReader("y\n")
 
@@ -499,7 +458,7 @@ func TestRunSkillRegistration_PromptRemove_Yes_DeletesNote(t *testing.T) {
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -522,9 +481,8 @@ func TestRunSkillRegistration_ReadSkillRegistrationsError_Propagates(t *testing.
 
 	vault := newSkillAcceptFixtureVault()
 	skillContent := []byte("# Curate\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": skillContent}, []string{"curate"})
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 	deps.Accept.Read = func(path string) ([]byte, error) {
 		if strings.HasSuffix(path, "skill-registrations.json") {
 			return nil, errSkillsDirForTest
@@ -536,11 +494,93 @@ func TestRunSkillRegistration_ReadSkillRegistrationsError_Propagates(t *testing.
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
-		Vault: "/vault", VaultName: "personal", SkillsDir: skillsFixtureDir, DryRun: true,
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome, DryRun: true,
 	}, deps, &stdout)
 
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(errSkillsDirForTest))
+}
+
+// TestRunSkillRegistration_ResolveError_Propagates covers the default
+// set's resolution failure (a harness probe failing for a reason other than
+// not-exist), reached through RunSkillRegistration: nothing is offered.
+func TestRunSkillRegistration_ResolveError_Propagates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	deps := skillRegistrationDepsFor(vault, skillsHomeFixture(nil).failLstat(skillRegHome+"/.claude"))
+
+	var stdout bytes.Buffer
+
+	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome,
+	}, deps, &stdout)
+
+	g.Expect(err).To(MatchError(ContainSubstring("resolving skill sources")))
+	g.Expect(err).To(MatchError(fs.ErrPermission))
+	g.Expect(stdout.String()).To(BeEmpty())
+}
+
+// TestRunSkillRegistration_ResolvesFromTheWorkingDirectory covers design D1:
+// the default set is resolved from the working directory Getwd supplies — a
+// project command in the cwd's repository is offered under its project key —
+// and a run with no working directory fails instead of silently dropping
+// the project sources.
+func TestRunSkillRegistration_ResolvesFromTheWorkingDirectory(t *testing.T) {
+	t.Parallel()
+
+	getwdFailure := errors.New("getwd fixture: no cwd")
+
+	cases := map[string]struct {
+		getwd   func() (string, error)
+		want    string
+		wantErr error
+	}{
+		"project cwd": {
+			getwd: func() (string, error) { return projectTop, nil },
+			want: "@claude-user (1)\n  would offer: register curate (" + skillRegSourcePath("curate") + ")\n" +
+				"@project:github.com/toejough/engram (1)\n" +
+				"  would offer: register project:github.com/toejough/engram:cmd:ship (" +
+				projectTop + "/.claude/commands/ship.md)\n",
+		},
+		"getwd fails": {getwd: func() (string, error) { return "", getwdFailure }, wantErr: getwdFailure},
+		"no getwd":    {wantErr: cli.ErrSkillSourcesNeedWorkingDirForTest},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := newSkillAcceptFixtureVault()
+			sourceFS := skillsHomeFixture(map[string][]byte{"curate": []byte("# Curate\n")}).
+				file(projectTop+"/.claude/commands/ship.md", "Ship it.\n")
+			deps := skillRegistrationDepsFor(vault, sourceFS)
+			deps.Sources.Commander = scriptedGit{
+				"rev-parse --show-toplevel": {out: projectTop + "\n"},
+				"remote get-url origin":     {out: "git@github.com:toejough/engram.git\n"},
+			}
+			deps.Getwd = testCase.getwd
+
+			var stdout bytes.Buffer
+
+			err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+				Vault: "/vault", VaultName: "personal", Home: skillRegHome, DryRun: true,
+			}, deps, &stdout)
+
+			if testCase.wantErr != nil {
+				g.Expect(err).To(MatchError(testCase.wantErr))
+				g.Expect(err).To(MatchError(cli.ErrSkillSourcesNeedWorkingDirForTest))
+				g.Expect(stdout.String()).To(BeEmpty())
+
+				return
+			}
+
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(stdout.String()).To(Equal(testCase.want))
+		})
+	}
 }
 
 // TestRunSkillRegistration_SkillsDirEntryWithoutSkillMD_Ignored covers "a
@@ -552,28 +592,30 @@ func TestRunSkillRegistration_SkillsDirEntryWithoutSkillMD_Ignored(t *testing.T)
 
 	vault := newSkillAcceptFixtureVault()
 	curateContent := []byte("# Curate\n")
-	listDir, readSkillFile := skillsDirFixture(
-		map[string][]byte{skillsFixtureDir + "/curate/SKILL.md": curateContent},
-		[]string{"curate", "no-skill-md"},
-	)
-	deps := skillRegistrationDepsFor(vault, listDir, readSkillFile)
+	sourceFS := skillsHomeFixture(map[string][]byte{"curate": curateContent}).
+		dir(skillRegHome + "/.claude/skills/no-skill-md")
+	deps := skillRegistrationDepsFor(vault, sourceFS)
 
 	var stdout bytes.Buffer
 
 	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
 		Vault:     "/vault",
 		VaultName: "personal",
-		SkillsDir: skillsFixtureDir,
+		Home:      skillRegHome,
 		DryRun:    true,
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register curate (/skills/curate/SKILL.md)\n"))
+	g.Expect(stdout.String()).To(Equal(
+		"@claude-user (1)\n  would offer: register curate (" + skillRegSourcePath("curate") + ")\n"))
 }
 
 // unexported constants.
 const (
-	skillsFixtureDir = "/skills"
+	skillRegEngramRoot = skillRegHome + "/.claude/engram/skills"
+	// skillRegHome is the fixture home; skillRegEngramRoot its Claude Code
+	// engram-owned skills root, where `engram update` deploys engram's skills.
+	skillRegHome = "/home/reg"
 )
 
 // unexported variables.
@@ -583,25 +625,29 @@ var (
 
 // unexported test helpers.
 
+// skillRegSourcePath is the resolved SKILL.md path of an engram skill in
+// skillsHomeFixture's home.
+func skillRegSourcePath(name string) string {
+	return skillRegEngramRoot + "/" + name + "/SKILL.md"
+}
+
 // skillRegistrationDepsFor composes SkillRegistrationDeps over vault (via the
-// skillreg_accept_test.go fixture helpers) and the given skills-dir
-// listing/reading funcs. IsTerminal defaults to false (non-interactive);
-// tests override it directly on the returned value.
-func skillRegistrationDepsFor(
-	vault *skillAcceptFixtureVault,
-	listSkillsDir func(string) ([]fs.DirEntry, error),
-	readSkillFile func(string) ([]byte, error),
-) cli.SkillRegistrationDeps {
+// skillreg_accept_test.go fixture helpers) and sourceFS, the filesystem the
+// default source set is resolved from. The working directory lies outside
+// any git repository (the scripted git answers nothing), so no project
+// source is read. IsTerminal defaults to false (non-interactive); tests
+// override it directly on the returned value.
+func skillRegistrationDepsFor(vault *skillAcceptFixtureVault, sourceFS cli.SkillSourceFS) cli.SkillRegistrationDeps {
 	var writtenPath string
 
 	var writtenContent []byte
 
 	return cli.SkillRegistrationDeps{
-		ListSkillsDir: listSkillsDir,
-		ReadSkillFile: readSkillFile,
-		ListMD:        vault.ListMD,
-		IsTerminal:    func() bool { return false },
-		Accept:        skillAcceptDeps(vault),
+		Sources:    cli.SkillSourceDeps{FS: sourceFS, Commander: scriptedGit{}},
+		Getwd:      func() (string, error) { return "/outside/any/repo", nil },
+		ListMD:     vault.ListMD,
+		IsTerminal: func() bool { return false },
+		Accept:     skillAcceptDeps(vault),
 		Adopt: cli.SkillAdoptDeps{
 			Lock:     noLock,
 			Scan:     func(v string) ([]vaultgraph.Note, error) { return vaultgraph.ScanVault(vault, v) },
@@ -612,28 +658,16 @@ func skillRegistrationDepsFor(
 	}
 }
 
-// skillsDirFixture builds ListSkillsDir/ReadSkillFile closures over an
-// in-memory skills source dir: dirNames become top-level directory entries,
-// and entries maps a full "<skillsDir>/<name>/SKILL.md" path to its bytes —
-// a dir name with no matching entry simulates a skill directory without a
-// SKILL.md file.
-func skillsDirFixture(
-	entries map[string][]byte, dirNames []string,
-) (func(string) ([]fs.DirEntry, error), func(string) ([]byte, error)) {
-	list := make([]fs.DirEntry, 0, len(dirNames))
-	for _, name := range dirNames {
-		list = append(list, fakeDirEntry{name: name, dir: true})
+// skillsHomeFixture builds skillRegHome with a Claude Code harness: each of
+// skills is deployed under the engram-owned root and linked into
+// ~/.claude/skills, as `engram update` deploys engram's skills.
+func skillsHomeFixture(skills map[string][]byte) *fakeSkillFS {
+	fsys := newFakeSkillFS().dir(skillRegHome + "/.claude/skills")
+
+	for name, content := range skills {
+		fsys.file(skillRegSourcePath(name), string(content))
+		fsys.link(skillRegHome+"/.claude/skills/"+name, skillRegEngramRoot+"/"+name)
 	}
 
-	listDir := func(string) ([]fs.DirEntry, error) { return list, nil }
-	readFile := func(path string) ([]byte, error) {
-		content, ok := entries[path]
-		if !ok {
-			return nil, fmt.Errorf("skillreg-run fixture: %w: %s", fs.ErrNotExist, path)
-		}
-
-		return content, nil
-	}
-
-	return listDir, readFile
+	return fsys
 }

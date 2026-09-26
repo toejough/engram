@@ -110,7 +110,7 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 		content := []byte("curate procedure v1")
 		hash := cli.SkillContentHash(content)
 		vault := newSkillregFixtureVault()
-		skills := []cli.ShippedSkill{{Name: "curate", Content: content}}
+		skills := []engramSkill{{Name: "curate", Content: content}}
 
 		offers, err := compareShippedSkills(skills, nil, vault.readFile, map[string]string{"curate": hash})
 
@@ -124,7 +124,7 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 
 		vault := newSkillregFixtureVault()
 		declined := map[string]string{"curate": cli.SkillContentHash([]byte("curate procedure v1"))}
-		skills := []cli.ShippedSkill{{Name: "curate", Content: []byte("curate procedure v2")}}
+		skills := []engramSkill{{Name: "curate", Content: []byte("curate procedure v2")}}
 
 		offers, err := compareShippedSkills(skills, nil, vault.readFile, declined)
 
@@ -145,7 +145,7 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 		hash := cli.SkillContentHash(content)
 		vault := newSkillregFixtureVault()
 		vault.put("1049.2026-09-21.skill-curate.md", runbookNote("stale-hash"))
-		skills := []cli.ShippedSkill{{Name: "curate", Content: content}}
+		skills := []engramSkill{{Name: "curate", Content: content}}
 		names := []string{"1049.2026-09-21.skill-curate.md"}
 
 		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{"curate": hash})
@@ -182,7 +182,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		g := NewWithT(t)
 
 		vault := newSkillregFixtureVault()
-		skills := []cli.ShippedSkill{{Name: "curate", Content: []byte("curate procedure v1")}}
+		skills := []engramSkill{{Name: "curate", Content: []byte("curate procedure v1")}}
 
 		offers, err := compareShippedSkills(skills, nil, vault.readFile, map[string]string{})
 
@@ -204,7 +204,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 
 		vault := newSkillregFixtureVault()
 		vault.put("1049.2026-09-21.skill-curate.md", runbookNote("stale-hash"))
-		skills := []cli.ShippedSkill{{Name: "curate", Content: []byte("curate procedure v2")}}
+		skills := []engramSkill{{Name: "curate", Content: []byte("curate procedure v2")}}
 		names := []string{"1049.2026-09-21.skill-curate.md"}
 
 		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
@@ -252,7 +252,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 
 		vault := newSkillregFixtureVault()
 		vault.put("1049.2026-09-21.skill-curate.md", runbookNote(hash))
-		skills := []cli.ShippedSkill{{Name: "curate", Content: content}}
+		skills := []engramSkill{{Name: "curate", Content: content}}
 		names := []string{"1049.2026-09-21.skill-curate.md"}
 
 		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
@@ -268,7 +268,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		vault := newSkillregFixtureVault()
 		vault.put("1049.2026-09-21.skill-curate.md", runbookNote("abc"))
 		vault.put("1050.2026-09-22.skill-curate.md", runbookNote("def"))
-		skills := []cli.ShippedSkill{{Name: "curate", Content: []byte("v")}}
+		skills := []engramSkill{{Name: "curate", Content: []byte("v")}}
 		names := []string{"1049.2026-09-21.skill-curate.md", "1050.2026-09-22.skill-curate.md"}
 
 		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
@@ -553,6 +553,12 @@ var (
 	errPermissionDeniedForTest = errors.New("permission denied")
 )
 
+// engramSkill is one of engram's own skills, as raw SKILL.md bytes.
+type engramSkill struct {
+	Name    string
+	Content []byte
+}
+
 // unexported test helpers.
 
 // skillregFixtureVault is a fake vault: full .md filenames plus a
@@ -578,18 +584,17 @@ func (v *skillregFixtureVault) readFile(path string) ([]byte, error) {
 	return []byte(content), nil
 }
 
-// compareShippedSkills runs CompareSkillOffers the way the single-directory
-// register-skills flow does (ShippedSkillSources over /skills) and returns
-// just the offers.
+// compareShippedSkills runs CompareSkillOffers over engram's own skills
+// (engramSkillSources over /skills) and returns just the offers.
 func compareShippedSkills(
-	skills []cli.ShippedSkill, names []string, readFile func(string) ([]byte, error), declined map[string]string,
+	skills []engramSkill, names []string, readFile func(string) ([]byte, error), declined map[string]string,
 ) ([]cli.SkillOffer, error) {
 	comparison, err := cli.CompareSkillOffers(cli.SkillOfferInput{
 		Vault:    skillregFixtureVaultRoot,
 		Names:    names,
 		ReadFile: readFile,
 		Declined: declined,
-		Sources:  cli.ShippedSkillSources("/skills", skills),
+		Sources:  engramSkillSources("/skills", skills),
 	})
 	if err != nil {
 		return nil, err
@@ -598,12 +603,40 @@ func compareShippedSkills(
 	return comparison.Offers, nil
 }
 
+// engramSkillSources presents skills as resolved sources read from one
+// engram-owned skills dir: Claude-user candidates keyed by their bare names,
+// skillsDir recorded as the one read Claude-user root and the one
+// engram-owned root, so their notes keep today's preamble (design D8).
+func engramSkillSources(skillsDir string, skills []engramSkill) cli.ResolvedSkillSources {
+	var sources cli.ResolvedSkillSources
+
+	sources.EngramSkillRoots = []string{skillsDir}
+	sources.Roots = []cli.ScannedRoot{{
+		Path: skillsDir, Resolved: skillsDir, Scanned: true, Form: cli.SkillRootFormClaudeUser,
+	}}
+	sources.Candidates = make([]cli.SkillCandidate, 0, len(skills))
+
+	for _, skill := range skills {
+		sources.Candidates = append(sources.Candidates, cli.SkillCandidate{
+			Key:        skill.Name,
+			Name:       skill.Name,
+			ScopeID:    cli.SkillScopeClaudeUser,
+			ReadRoot:   skillsDir,
+			SourcePath: skillsDir + "/" + skill.Name + "/SKILL.md",
+			Kind:       cli.SkillSourceKindSkill,
+			Content:    skill.Content,
+		})
+	}
+
+	return sources
+}
+
 // genSkillregFixture draws a random set of shipped skills (1-4, unique
 // names and distinct contents) and, for each, an independent note state: no note, a note whose
 // skill_hash matches the skill's current content, or one whose skill_hash
 // is stale. Returns the skills, the vault's full .md filename listing, and
 // the backing fixture vault.
-func genSkillregFixture(rt *rapid.T) ([]cli.ShippedSkill, []string, *skillregFixtureVault) {
+func genSkillregFixture(rt *rapid.T) ([]engramSkill, []string, *skillregFixtureVault) {
 	const (
 		stateNoNote = iota
 		stateMatching
@@ -611,7 +644,7 @@ func genSkillregFixture(rt *rapid.T) ([]cli.ShippedSkill, []string, *skillregFix
 	)
 
 	count := rapid.IntRange(1, 4).Draw(rt, "skillCount")
-	skills := make([]cli.ShippedSkill, count)
+	skills := make([]engramSkill, count)
 	vault := newSkillregFixtureVault()
 	names := make([]string, 0, count)
 
@@ -621,7 +654,7 @@ func genSkillregFixture(rt *rapid.T) ([]cli.ShippedSkill, []string, *skillregFix
 		// The name prefix keeps every skill's bytes distinct, so no skill is an
 		// alias of another (design D4) and each is offered on its own.
 		content := append([]byte(name+":"), rapid.SliceOfN(rapid.Byte(), 1, 24).Draw(rt, fmt.Sprintf("content%d", i))...)
-		skills[i] = cli.ShippedSkill{Name: name, Content: content}
+		skills[i] = engramSkill{Name: name, Content: content}
 
 		state := rapid.IntRange(stateNoNote, stateStale).Draw(rt, fmt.Sprintf("state%d", i))
 		if state == stateNoNote {
