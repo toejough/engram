@@ -55,6 +55,6 @@ Conventions: TDD for every Go change (RED via `targ test`, then GREEN, refactor)
 ## 8. Close-out
 
 - [ ] 8.1 `engram update --with-guidance` on this machine; verify all six skills deployed in `~/.claude/engram/skills/` and the Pi root, every shipped skill has a note with a matching `skill_hash`, no registration offers outstanding, `engram embed status` clean
-- [ ] 8.2 `targ check-full` fully green; `openspec validate --all --strict`
+- [x] 8.2 `targ check-full` fully green; `openspec validate --all --strict`
 - [ ] 8.3 Commit(s) with `AI-Used: [claude]`; record the outcome in `dev/eval/LEDGER.md` (mechanism unit-tested; retrieval re-checked at no spend)
 - [ ] 8.4 Archive this change; sync specs; perform 7.2/7.3
