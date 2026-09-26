@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/toejough/targ"
+	"golang.org/x/term"
 
 	"github.com/toejough/engram/internal/cli"
 )
@@ -137,14 +138,16 @@ func procPrimitives() cli.ProcPrims {
 			go cli.ForwardAsPulses(sigCh, pulses)
 		},
 		IsTerminal: func() bool {
+			// term.IsTerminal, not stdin.Stat's ModeCharDevice bit: /dev/null
+			// is also a character device, so a non-interactive
+			// `</dev/null` redirection (how many agent harnesses run
+			// commands) would otherwise misdetect as an interactive
+			// terminal and silently prompt-then-decline (skill-runbook-
+			// registration: "Registration SHALL never prompt or write
+			// without a terminal").
 			stdin := os.Stdin
 
-			info, statErr := stdin.Stat()
-			if statErr != nil {
-				return false
-			}
-
-			return info.Mode()&os.ModeCharDevice != 0
+			return term.IsTerminal(int(stdin.Fd()))
 		},
 	}
 }

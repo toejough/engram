@@ -125,9 +125,10 @@ type ProcPrims struct {
 	// IsTerminal reports whether os.Stdin is an interactive terminal
 	// (skill-runbook-registration: gates `engram register-skills`'/`engram
 	// update`'s interactive prompting). Composed in main.go from
-	// os.Stdin.Stat()'s ModeCharDevice bit — golang.org/x/term is only an
-	// indirect dependency today (not imported by any engram code), so this
-	// stays the smallest pure-Go option rather than promoting it to direct.
+	// golang.org/x/term's term.IsTerminal(os.Stdin.Fd()) — not
+	// os.Stdin.Stat()'s ModeCharDevice bit, which /dev/null also satisfies
+	// and so can't distinguish a real tty from a non-interactive
+	// `</dev/null` redirection.
 	IsTerminal func() bool
 }
 

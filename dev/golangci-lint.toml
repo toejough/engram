@@ -69,6 +69,7 @@ allow = [
 	'github.com/toejough/go-reorder',
 	'github.com/toejough/imptest',
 	'github.com/toejough/targ',
+	'golang.org/x/term',
 	'golang.org/x/tools/go/packages',
 	'go.yaml.in/yaml/v3',
 	'modernc.org/sqlite',

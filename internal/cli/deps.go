@@ -39,9 +39,10 @@ type Deps struct {
 	// git config user.email resolves to nothing.
 	Username func() (string, error)
 	// IsTerminal reports whether Stdin is an interactive terminal (production:
-	// os.Stdin.Stat's ModeCharDevice bit, checked in cmd/engram/main.go —
-	// skill-runbook-registration's interactive-prompt gate). A nil
-	// IsTerminal is treated as non-interactive by callers that check it.
+	// golang.org/x/term's term.IsTerminal(os.Stdin.Fd()), checked in
+	// cmd/engram/main.go — skill-runbook-registration's interactive-prompt
+	// gate). A nil IsTerminal is treated as non-interactive by callers that
+	// check it.
 	IsTerminal func() bool
 	// FS is the filesystem edge (production: cmd/engram's osFS).
 	FS EdgeFS

@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -137,6 +138,48 @@ func TestRegisterSkillsCLI_MalformedAdoptFlag(t *testing.T) {
 	})
 
 	g.Expect(stderr).To(ContainSubstring("<name>=<note-ref>"))
+}
+
+// TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites drives the real
+// built binary (not the in-process targ wiring, which never exercises
+// cmd/engram/main.go's IsTerminal primitive) with stdin redirected from
+// /dev/null — a character device, exactly like an agent harness's `</dev/null`
+// redirection, but not an interactive terminal. skill-runbook-registration's
+// "Registration SHALL never prompt or write without a terminal" must hold
+// here: no prompt text, just the one non-interactive summary line, and the
+// vault stays untouched (regression coverage for the ModeCharDevice
+// misdetection: /dev/null satisfies ModeCharDevice, so os.Stdin.Stat() alone
+// can't tell it apart from a real tty).
+func TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	binPath := sharedEngramBinary(t)
+
+	devNull, openErr := os.Open(os.DevNull)
+	g.Expect(openErr).NotTo(HaveOccurred())
+
+	t.Cleanup(func() { _ = devNull.Close() })
+
+	run := exec.Command(binPath, "register-skills",
+		"--vault", vault,
+		"--skills-dir", filepath.Join(projectRoot(t), "agent-instructions", "skills"),
+	)
+	run.Stdin = devNull
+	run.Env = append(os.Environ(), "ENGRAM_PARENT=")
+
+	out, runErr := run.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", out)
+
+	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	g.Expect(lines).To(HaveLen(1), "expected exactly one non-interactive summary line, got: %s", out)
+	g.Expect(lines[0]).To(ContainSubstring("skill runbook offers awaiting an answer"))
+	g.Expect(string(out)).NotTo(ContainSubstring("Register skill"))
+
+	entries, readErr := os.ReadDir(vault)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(entries).To(BeEmpty(), "expected vault to remain untouched, found: %v", entries)
 }
 
 // TestRegisterSkillsCLI_RefusesOverServer covers "Refuse when ENGRAM_SERVER

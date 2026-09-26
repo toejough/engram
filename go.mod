@@ -8,6 +8,7 @@ require (
 	github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e
 	github.com/toejough/targ v0.0.0-20260728221652-5425cfd96fae
 	go.yaml.in/yaml/v3 v3.0.4
+	golang.org/x/term v0.43.0
 	pgregory.net/rapid v1.2.0
 )
 
@@ -56,7 +57,6 @@ require (
 	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/term v0.43.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
