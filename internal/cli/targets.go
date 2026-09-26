@@ -355,8 +355,10 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 
 // registerSkillsTargets returns the `engram register-skills` subcommand
 // (skill-runbook-registration): host-local only (errRegisterSkillsOverServer,
-// mirroring amend --discard's errDiscardOverServer), --skills-dir defaults to
-// the deployed Claude Code harness's skills dir under home.
+// mirroring amend --discard's errDiscardOverServer). The default source is
+// the deployed Claude Code harness's engram skills dir under home;
+// --skills-dir (repeatable, relative to the working directory) replaces it
+// with a read-only preview (design D9).
 func registerSkillsTargets(
 	deps Deps,
 	withLog func(context.Context) context.Context,
@@ -374,11 +376,6 @@ func registerSkillsTargets(
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 
-			skillsDir := a.SkillsDir
-			if skillsDir == "" {
-				skillsDir = filepath.Join(home, update.ClaudeEngramSkillsRel)
-			}
-
 			adopt, adoptErr := parseAdoptFlags(a.Adopt)
 			if adoptErr != nil {
 				errHandler(adoptErr)
@@ -386,14 +383,23 @@ func registerSkillsTargets(
 				return
 			}
 
+			previewDirs, dirsErr := absolutePreviewDirs(a.SkillsDir, deps.Getwd)
+			if dirsErr != nil {
+				errHandler(dirsErr)
+
+				return
+			}
+
 			args := SkillRegistrationArgs{
-				Vault:     a.Vault,
-				VaultName: a.VaultName,
-				SkillsDir: skillsDir,
-				DryRun:    a.DryRun,
-				Accept:    a.Accept,
-				Decline:   a.Decline,
-				Adopt:     adopt,
+				Vault:       a.Vault,
+				VaultName:   a.VaultName,
+				Home:        home,
+				SkillsDir:   filepath.Join(home, update.ClaudeEngramSkillsRel),
+				PreviewDirs: previewDirs,
+				DryRun:      a.DryRun,
+				Accept:      a.Accept,
+				Decline:     a.Decline,
+				Adopt:       adopt,
 			}
 
 			errHandler(RunSkillRegistration(withLog(ctx), args, newSkillRegistrationDeps(deps), deps.Stdout))

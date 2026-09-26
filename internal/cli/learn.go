@@ -84,14 +84,18 @@ type LearnArgs struct {
 	Pending bool `json:"pending"`
 
 	// SkillHash marks a runbook note as a mirror of a registered skill: the
-	// SHA-256 of the SKILL.md bytes its body was last copied from
+	// SHA-256 of the source file bytes its body was last copied from
 	// (vault-note-identity spec, skill-runbook-registration capability).
-	// Set only by future registration code constructing LearnArgs directly
-	// — `engram learn runbook` has no --skill-hash flag, so a locally
-	// captured runbook never carries it. json tag present for musttag
-	// symmetry with the other server/registration-only fields; unused for
-	// non-runbook types.
-	SkillHash string `json:"skillHash"`
+	// SkillKey is the skill's source-qualified key and SkillSource the
+	// `~`-relative resolved path the body was copied from. All three are set
+	// only by registration (RegisterSkill) constructing LearnArgs directly:
+	// `engram learn runbook` has no flag for them, and they are tagged
+	// `json:"-"` so a remote `engram serve` client's learn request can never
+	// set them (ruling R31) — a served write can never pose as, or shadow, a
+	// registered skill's note. Unused for non-runbook types.
+	SkillHash   string `json:"-"`
+	SkillKey    string `json:"-"`
+	SkillSource string `json:"-"`
 
 	// Repo carries a served write's client-detected repo: value across the
 	// wire. repo: carries no privilege (design.md Decisions), so a served
@@ -376,7 +380,8 @@ type runbookFields struct {
 	// SkillHash: registration-only identity field — see LearnArgs.SkillHash.
 	SkillHash string
 	// SkillKey/SkillSource: registration-only identity fields — see
-	// runbookFrontmatterDoc.SkillKey. No `engram learn` surface sets them.
+	// LearnArgs.SkillHash and runbookFrontmatterDoc.SkillKey. No `engram
+	// learn` surface sets them.
 	SkillKey    string
 	SkillSource string
 }
@@ -524,7 +529,8 @@ func assembleRunbookContent(
 		Pending: args.Pending,
 		Issue:   args.Issue, Tier: tierOrDefault(args.Tier),
 		ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
-		RedFlags: args.RedFlags, Triggers: args.Triggers, SkillHash: args.SkillHash,
+		RedFlags: args.RedFlags, Triggers: args.Triggers,
+		SkillHash: args.SkillHash, SkillKey: args.SkillKey, SkillSource: args.SkillSource,
 	}
 
 	return renderRunbookFrontmatter(f, when) + renderRunbookBody(f), nil

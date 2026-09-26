@@ -56,7 +56,7 @@ func TestRunUpdateSkillRegistration_DryRunListsOffers(t *testing.T) {
 
 	var stdout bytesBufferForTest
 
-	err := runUpdateSkillRegistration(context.Background(), true, "/vault", "/repo", deps, &stdout)
+	err := runUpdateSkillRegistration(context.Background(), true, "/vault", "/home", "/repo", deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register curate (" +
@@ -72,7 +72,7 @@ func TestRunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured(t *testing.T) {
 
 	var stdout bytesBufferForTest
 
-	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/repo", updateDeps{}, &stdout)
+	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", "/repo", updateDeps{}, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(BeEmpty())
@@ -95,7 +95,7 @@ func TestRunUpdateSkillRegistration_NoOpWhenSourceRootEmpty(t *testing.T) {
 
 	var stdout bytesBufferForTest
 
-	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "", deps, &stdout)
+	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", "", deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(BeEmpty())
@@ -118,7 +118,7 @@ func TestRunUpdateSkillRegistration_NonInteractive_ReportsSummary(t *testing.T) 
 
 	var stdout bytesBufferForTest
 
-	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/repo", deps, &stdout)
+	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", "/repo", deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(ContainSubstring("awaiting an answer: @claude-user 1"))
@@ -137,7 +137,7 @@ func TestRunUpdateSkillRegistration_PropagatesError(t *testing.T) {
 
 	var stdout bytesBufferForTest
 
-	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/repo", deps, &stdout)
+	err := runUpdateSkillRegistration(context.Background(), false, "/vault", "/home", "/repo", deps, &stdout)
 
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(errSkillRegUpdateFixture))

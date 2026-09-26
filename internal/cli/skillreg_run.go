@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -15,34 +16,45 @@ import (
 )
 
 // RegisterSkillsArgs holds the parsed flags for `engram register-skills`
-// (skill-runbook-registration). Adopt entries are `<name>=<note-ref>`
+// (skill-runbook-registration). Adopt entries are `<key>=<note-ref>`
 // strings, parsed by parseAdoptFlags into SkillRegistrationArgs' map — the
 // CLI-facing repeatable-flag shape differs from the internal args' shape,
 // same split as LearnFactArgs/LearnFeedbackArgs/LearnRunbookArgs vs. the
 // shared internal LearnArgs.
 type RegisterSkillsArgs struct {
-	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                                         //nolint:lll // unbreakable env+desc struct-tag string
-	VaultName string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on a newly-registered note's vault: field (default \"personal\")"` //nolint:lll // unbreakable env+desc struct-tag string
-	SkillsDir string   `targ:"flag,name=skills-dir,desc=skills source dir (default: the engram-owned deployed skills dir ~/.claude/engram/skills)"`                 //nolint:lll // unbreakable struct-tag string
+	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                                                                                                        //nolint:lll // unbreakable env+desc struct-tag string
+	VaultName string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on a newly-registered note's vault: field (default \"personal\")"`                                                                //nolint:lll // unbreakable env+desc struct-tag string
+	SkillsDir []string `targ:"flag,name=skills-dir,desc=preview only: scan these skills dirs (repeatable) with Claude Code user-skill rules instead of the default set; implies --dry-run and refuses --accept/--decline/--adopt"` //nolint:lll // unbreakable struct-tag string
 	DryRun    bool     `targ:"flag,name=dry-run,desc=list offers without prompting or writing"`
 	Accept    []string `targ:"flag,name=accept,desc=accept the matching offers without prompting: a skill key or prefix* pattern or @<scope-id> (repeatable)"`   //nolint:lll // unbreakable struct-tag string
 	Decline   []string `targ:"flag,name=decline,desc=decline the matching offers without prompting: a skill key or prefix* pattern or @<scope-id> (repeatable)"` //nolint:lll // unbreakable struct-tag string
-	Adopt     []string `targ:"flag,name=adopt,desc=adopt an existing runbook note as <name>'s skill note: <name>=<note-ref> (repeatable)"`                       //nolint:lll // unbreakable struct-tag string
+	Adopt     []string `targ:"flag,name=adopt,desc=adopt an existing runbook note as a skill key's note: <key>=<note-ref> (repeatable)"`                         //nolint:lll // unbreakable struct-tag string
 }
 
 // SkillRegistrationArgs holds RunSkillRegistration's inputs: the resolved
-// vault/vault-name, the skills source dir to scan, the dry-run flag, and any
-// explicit --accept/--decline/--adopt answers (skill-runbook-registration).
+// vault/vault-name, the home, the skills source dirs to scan, the dry-run
+// flag, and any explicit --accept/--decline/--adopt answers
+// (skill-runbook-registration).
 type SkillRegistrationArgs struct {
 	Vault     string
 	VaultName string
+	// Home is the user's home dir: a note's skill_source is written
+	// `~`-relative to it, and removal eligibility expands it (design D5, D8).
+	Home string
+	// SkillsDir is the default source set's one skills dir, whose skills are
+	// engram's own deployed copies (ShippedSkillSources) — until task 5.1
+	// resolves the default set with ResolveSkillSources.
 	SkillsDir string
-	DryRun    bool
-	Accept    []string
-	Decline   []string
-	// Adopt maps a skill name to the note-ref its existing runbook note is
+	// PreviewDirs are `--skills-dir`'s dirs: they replace the default set,
+	// each scanned with the Claude-user rules (bare keys), and the run is a
+	// read-only preview (design D9).
+	PreviewDirs []string
+	DryRun      bool
+	Accept      []string
+	Decline     []string
+	// Adopt maps a skill key to the note-ref its existing runbook note is
 	// adopted from (design D6). Parsed from RegisterSkillsArgs.Adopt's
-	// "<name>=<note-ref>" strings by the CLI-wiring layer.
+	// "<key>=<note-ref>" strings by the CLI-wiring layer.
 	Adopt map[string]string
 }
 
@@ -67,6 +79,8 @@ type SkillRegistrationDeps struct {
 	// SHALL never prompt or write without a terminal"). nil is treated as
 	// non-interactive.
 	IsTerminal func() bool
+	// SourceFS scans `--skills-dir`'s dirs (production: EdgeFS).
+	SourceFS SkillSourceFS
 	// Stdin supplies interactive prompt answers, read one line per offer via
 	// an internally-owned bufio.Scanner. Unused when IsTerminal is false (or
 	// nil) or every offer has an explicit --accept/--decline answer.
@@ -86,15 +100,23 @@ type SkillRegistrationDeps struct {
 
 // RunSkillRegistration orchestrates `engram register-skills` and `engram
 // update`'s post-deploy registration hook (skill-runbook-registration): it
-// loads the shipped skills off args.SkillsDir, runs any --adopt entries
-// first, computes the register/refresh/remove offers against the vault, and
-// then — for each offer, in order — acts on an explicit --accept/--decline
-// answer, prompts interactively when stdin is a terminal and this isn't a
-// dry run, or else leaves it unanswered. A dry run only previews offers and
-// touches nothing.
+// loads the skill sources, runs any --adopt entries first, computes the
+// register/refresh/remove offers against the vault, and then — for each
+// offer, in order — acts on an explicit --accept/--decline answer, prompts
+// interactively when stdin is a terminal and this isn't a dry run, or else
+// leaves it unanswered. A dry run only previews offers and touches nothing.
+//
+// With PreviewDirs (`--skills-dir`, design D9) the run is a read-only
+// preview of those dirs alone: any --accept, --decline or --adopt is refused
+// with errSkillsDirReadOnly before anything is scanned, and no removal is
+// offered.
 func RunSkillRegistration(
 	ctx context.Context, args SkillRegistrationArgs, deps SkillRegistrationDeps, stdout io.Writer,
 ) error {
+	if len(args.PreviewDirs) > 0 {
+		return previewSkillsDirs(args, deps, stdout)
+	}
+
 	answers, answersErr := ParseSkillAnswers(args.Accept, args.Decline)
 	if answersErr != nil {
 		return answersErr
@@ -105,18 +127,13 @@ func RunSkillRegistration(
 		return loadErr
 	}
 
-	shippedByName := skillsByName(shipped)
+	sources := ShippedSkillSources(args.SkillsDir, shipped)
 
 	if args.DryRun {
-		return runSkillRegistrationDryRun(args.Vault, args.SkillsDir, shipped, deps, stdout)
+		return previewSkillSources(args.Vault, args.Home, sources, false, deps, stdout)
 	}
 
-	adoptErr := runSkillAdoptions(ctx, args.Vault, args.Adopt, shippedByName, deps.Adopt, stdout)
-	if adoptErr != nil {
-		return adoptErr
-	}
-
-	return runSkillRegistrationOffers(ctx, args, answers, shipped, shippedByName, deps, stdout)
+	return answerSkillSources(ctx, args, answers, sources, deps, stdout)
 }
 
 // unexported constants.
@@ -150,35 +167,76 @@ const (
 
 // unexported variables.
 var (
-	// errAdoptSkillNotShipped reports an --adopt <name>=<ref> entry whose
-	// name matches no shipped skill — AdoptSkillNote needs the skill's
-	// current SKILL.md bytes to render the note's body, which only a shipped
-	// skill supplies.
-	errAdoptSkillNotShipped = errors.New("register-skills: adopt: skill not currently shipped")
+	// errAdoptKeyConflict reports an --adopt <key>=<ref> entry whose key's
+	// copies differ (design D4): there is no one file to mirror, and nothing
+	// is written for a conflicted key.
+	errAdoptKeyConflict = errors.New("register-skills: adopt: key conflict")
+	// errAdoptSkillNotShipped reports an --adopt <key>=<ref> entry whose key
+	// names no scanned, enabled skill — AdoptSkillNote needs the source
+	// file's current bytes to render the note's body.
+	errAdoptSkillNotShipped = errors.New("register-skills: adopt: key names no scanned skill")
 	// errMalformedAdoptFlag reports a --adopt flag that isn't shaped
-	// "<name>=<note-ref>" (both sides non-empty).
-	errMalformedAdoptFlag = errors.New("register-skills: --adopt must be <name>=<note-ref>")
+	// "<key>=<note-ref>" (both sides non-empty).
+	errMalformedAdoptFlag = errors.New("register-skills: --adopt must be <key>=<note-ref>")
+	// errSkillsDirNeedsWorkingDir reports a relative --skills-dir with no
+	// working directory to resolve it against.
+	errSkillsDirNeedsWorkingDir = errors.New("register-skills: --skills-dir: resolving a relative dir")
+	// errSkillsDirReadOnly refuses --accept, --decline and --adopt on a
+	// --skills-dir run, before anything is scanned (design D9).
+	errSkillsDirReadOnly = errors.New(
+		"register-skills: --skills-dir is a read-only preview; it cannot be combined with " +
+			"--accept, --decline or --adopt")
 	// errUnknownSkillOfferKind guards acceptSkillOffer's switch — unreachable
 	// in production since CompareSkillOffers only ever emits the three known
 	// SkillOfferKind values.
 	errUnknownSkillOfferKind = errors.New("register-skills: unknown offer kind")
 )
 
+// absolutePreviewDirs resolves each relative `--skills-dir` against the
+// working directory, which getwd supplies (called only when needed).
+func absolutePreviewDirs(dirs []string, getwd func() (string, error)) ([]string, error) {
+	absolute := make([]string, 0, len(dirs))
+
+	for _, dir := range dirs {
+		if filepath.IsAbs(dir) {
+			absolute = append(absolute, filepath.Clean(dir))
+
+			continue
+		}
+
+		if getwd == nil {
+			return nil, fmt.Errorf("%w %q: no working directory", errSkillsDirNeedsWorkingDir, dir)
+		}
+
+		cwd, cwdErr := getwd()
+		if cwdErr != nil {
+			return nil, fmt.Errorf("%w %q: %w", errSkillsDirNeedsWorkingDir, dir, cwdErr)
+		}
+
+		absolute = append(absolute, filepath.Join(cwd, dir))
+	}
+
+	return absolute, nil
+}
+
 // acceptSkillOffer dispatches an accepted offer to RegisterSkill, RefreshSkill,
-// or RemoveSkill, by kind.
+// or RemoveSkill, by kind. A Register or Refresh offer mirrors the candidate
+// it came from, looked up in noteSources.
 func acceptSkillOffer(
 	ctx context.Context,
 	vault, vaultName string,
 	offer SkillOffer,
-	shippedByName map[string]ShippedSkill,
+	noteSources map[string]SkillNoteSource,
 	deps SkillRegistrationDeps,
 	stdout io.Writer,
 ) error {
+	source := noteSources[skillCandidateRef(offer.Key, offer.SourcePath)]
+
 	switch offer.Kind {
 	case SkillOfferRegister:
-		return RegisterSkill(ctx, vault, vaultName, shippedByName[offer.Key], deps.Learn, stdout)
+		return RegisterSkill(ctx, vault, vaultName, source, deps.Learn, stdout)
 	case SkillOfferRefresh:
-		return RefreshSkill(ctx, vault, shippedByName[offer.Key], offer.Basename, deps.Accept, stdout)
+		return RefreshSkill(ctx, vault, source, offer.Basename, deps.Accept, stdout)
 	case SkillOfferRemove:
 		return RemoveSkill(vault, offer.Basename, deps.Accept, stdout)
 	default:
@@ -186,14 +244,75 @@ func acceptSkillOffer(
 	}
 }
 
+// adoptSourceFor returns the note source an --adopt entry for key mirrors:
+// the precedence winner among key's enabled candidates (design D4). A key
+// with no enabled candidate is errAdoptSkillNotShipped; a key whose copies
+// conflict is errAdoptKeyConflict.
+func adoptSourceFor(key string, sources ResolvedSkillSources, home string) (SkillNoteSource, error) {
+	matching := make([]SkillCandidate, 0, 1)
+
+	for _, candidate := range sources.Candidates {
+		if candidate.Key == key {
+			matching = append(matching, candidate)
+		}
+	}
+
+	groups, comparison := dedupeSkillCandidates(matching, sources.EngramSkillRoots)
+
+	switch {
+	case len(groups) == 0:
+		return SkillNoteSource{}, fmt.Errorf("%w: %q", errAdoptSkillNotShipped, key)
+	case groups[0].conflicted:
+		return SkillNoteSource{}, fmt.Errorf("%w: %s", errAdoptKeyConflict, strings.Join(comparison.Conflicts, "; "))
+	default:
+		return NewSkillNoteSource(groups[0].members[0], sources.EngramSkillRoots, home, sources.ResolvedHome), nil
+	}
+}
+
+// answerSkillSources runs the --adopt entries over sources, then computes
+// the offers and answers them through AnswerSkillOffers: an accepted offer
+// is carried out by acceptSkillOffer, a declined one records its hash
+// (RecordSkillDeclined).
+func answerSkillSources(
+	ctx context.Context,
+	args SkillRegistrationArgs,
+	answers SkillAnswers,
+	sources ResolvedSkillSources,
+	deps SkillRegistrationDeps,
+	stdout io.Writer,
+) error {
+	adoptErr := runSkillAdoptions(ctx, args, sources, deps.Adopt, stdout)
+	if adoptErr != nil {
+		return adoptErr
+	}
+
+	comparison, offersErr := computeSkillOffers(args.Vault, args.Home, sources, false, deps)
+	if offersErr != nil {
+		return offersErr
+	}
+
+	noteSources := skillNoteSourcesByRef(sources, args.Home)
+
+	return AnswerSkillOffers(SkillOfferAnswering{
+		Comparison:  comparison,
+		Answers:     answers,
+		Interactive: deps.IsTerminal != nil && deps.IsTerminal(),
+		Stdin:       deps.Stdin,
+		Accept: func(offer SkillOffer) error {
+			return acceptSkillOffer(ctx, args.Vault, args.VaultName, offer, noteSources, deps, stdout)
+		},
+		Decline: func(offer SkillOffer) error {
+			return RecordSkillDeclined(args.Vault, offer.Key, offer.Hash, deps.Accept.Read, deps.Accept.Write)
+		},
+	}, stdout)
+}
+
 // computeSkillOffers lists the vault, reads the decline state, and runs
-// CompareSkillOffers over the shipped skills of skillsDir — the
-// offer-computation shared by the dry-run preview and the answer loop. The
-// shipped skills are Claude-user candidates keyed by their bare names, and
-// skillsDir is their one read root, so every bare-key note is
-// removal-eligible, as before keyed sources existed.
+// CompareSkillOffers over sources — the offer-computation shared by the
+// dry-run preview and the answer loop. home expands a note's `~`-relative
+// skill_source; noRemovals suppresses removal offers (`--skills-dir`).
 func computeSkillOffers(
-	vault, skillsDir string, shipped []ShippedSkill, deps SkillRegistrationDeps,
+	vault, home string, sources ResolvedSkillSources, noRemovals bool, deps SkillRegistrationDeps,
 ) (SkillOfferComparison, error) {
 	names, listErr := deps.ListMD(vault)
 	if listErr != nil {
@@ -206,11 +325,13 @@ func computeSkillOffers(
 	}
 
 	comparison, offersErr := CompareSkillOffers(SkillOfferInput{
-		Vault:    vault,
-		Names:    names,
-		ReadFile: deps.Accept.Read,
-		Declined: declined,
-		Sources:  ShippedSkillSources(skillsDir, shipped),
+		Vault:      vault,
+		Names:      names,
+		ReadFile:   deps.Accept.Read,
+		Declined:   declined,
+		Home:       home,
+		Sources:    sources,
+		NoRemovals: noRemovals,
 	})
 	if offersErr != nil {
 		return SkillOfferComparison{}, fmt.Errorf("register-skills: %w", offersErr)
@@ -268,6 +389,7 @@ func newSkillRegistrationDeps(d Deps) SkillRegistrationDeps {
 	return SkillRegistrationDeps{
 		ListSkillsDir: d.FS.ReadDir,
 		ReadSkillFile: d.FS.ReadFile,
+		SourceFS:      d.FS,
 		ListMD:        vfs.ListMD,
 		IsTerminal:    d.IsTerminal,
 		Stdin:         d.Stdin,
@@ -291,20 +413,62 @@ func newSkillRegistrationDeps(d Deps) SkillRegistrationDeps {
 }
 
 // parseAdoptFlags parses RegisterSkillsArgs.Adopt's repeatable
-// "<name>=<note-ref>" strings into SkillRegistrationArgs.Adopt's map.
+// "<key>=<note-ref>" strings into SkillRegistrationArgs.Adopt's map. The key
+// ends at the first `=`.
 func parseAdoptFlags(raw []string) (map[string]string, error) {
 	adopt := make(map[string]string, len(raw))
 
 	for _, entry := range raw {
-		name, ref, found := strings.Cut(entry, "=")
-		if !found || name == "" || ref == "" {
+		key, ref, found := strings.Cut(entry, "=")
+		if !found || key == "" || ref == "" {
 			return nil, fmt.Errorf("%w: %q", errMalformedAdoptFlag, entry)
 		}
 
-		adopt[name] = ref
+		adopt[key] = ref
 	}
 
 	return adopt, nil
+}
+
+// previewSkillSources previews every computed offer under its scope header
+// (PreviewSkillOffers), after sources' scan warnings, and writes nothing,
+// prompts nothing (skill-runbook-registration: "`--dry-run` SHALL list
+// every offer and write nothing"). --adopt entries are not run under a
+// preview either — a dry run touches no vault state.
+func previewSkillSources(
+	vault, home string, sources ResolvedSkillSources, noRemovals bool, deps SkillRegistrationDeps, stdout io.Writer,
+) error {
+	comparison, offersErr := computeSkillOffers(vault, home, sources, noRemovals, deps)
+	if offersErr != nil {
+		return offersErr
+	}
+
+	comparison.Warnings = append(slices.Clone(sources.Warnings), comparison.Warnings...)
+
+	return PreviewSkillOffers(stdout, comparison)
+}
+
+// previewSkillsDirs is a `--skills-dir` run (design D9): it refuses any
+// --accept, --decline or --adopt before scanning, then scans each preview
+// dir with the Claude-user rules (bare keys, AssignSkillKeys with no
+// engram-owned root) in place of the default set, and previews the offers
+// with no removal offer.
+func previewSkillsDirs(args SkillRegistrationArgs, deps SkillRegistrationDeps, stdout io.Writer) error {
+	if len(args.Accept) > 0 || len(args.Decline) > 0 || len(args.Adopt) > 0 {
+		return errSkillsDirReadOnly
+	}
+
+	var sources ResolvedSkillSources
+
+	for _, dir := range args.PreviewDirs {
+		mergeSkillScanResult(&sources.SkillScanResult, ScanClaudeUserSkills(deps.SourceFS, dir))
+	}
+
+	keyed, keyWarnings := AssignSkillKeys(sources.Candidates, nil)
+	sources.Candidates = keyed
+	sources.Warnings = append(sources.Warnings, keyWarnings...)
+
+	return previewSkillSources(args.Vault, args.Home, sources, true, deps, stdout)
 }
 
 // promptForOffer writes offer's prompt to stdout and reads one line from
@@ -342,31 +506,31 @@ func promptFormatForOfferKind(kind SkillOfferKind) string {
 	}
 }
 
-// runSkillAdoptions runs every args --adopt entry, in sorted-by-name order
+// runSkillAdoptions runs every args --adopt entry, in sorted-by-key order
 // for determinism, via AdoptSkillNote — before offers are computed (design
-// D6/tasks.md 1.8: "adopt entries ... run first").
+// D6/tasks.md 1.8: "adopt entries ... run first"). Each key must name a
+// scanned, unconflicted skill (adoptSourceFor).
 func runSkillAdoptions(
 	ctx context.Context,
-	vault string,
-	adopt map[string]string,
-	shippedByName map[string]ShippedSkill,
+	args SkillRegistrationArgs,
+	sources ResolvedSkillSources,
 	deps SkillAdoptDeps,
 	stdout io.Writer,
 ) error {
-	names := make([]string, 0, len(adopt))
-	for name := range adopt {
-		names = append(names, name)
+	keys := make([]string, 0, len(args.Adopt))
+	for key := range args.Adopt {
+		keys = append(keys, key)
 	}
 
-	sort.Strings(names)
+	sort.Strings(keys)
 
-	for _, name := range names {
-		skill, found := shippedByName[name]
-		if !found {
-			return fmt.Errorf("%w: %q", errAdoptSkillNotShipped, name)
+	for _, key := range keys {
+		source, sourceErr := adoptSourceFor(key, sources, args.Home)
+		if sourceErr != nil {
+			return sourceErr
 		}
 
-		adoptErr := AdoptSkillNote(ctx, vault, skill, adopt[name], deps, stdout)
+		adoptErr := AdoptSkillNote(ctx, args.Vault, source, args.Adopt[key], deps, stdout)
 		if adoptErr != nil {
 			return adoptErr
 		}
@@ -375,62 +539,25 @@ func runSkillAdoptions(
 	return nil
 }
 
-// runSkillRegistrationDryRun previews every computed offer under its scope
-// header (PreviewSkillOffers) and writes nothing, prompts nothing
-// (skill-runbook-registration: "`--dry-run` SHALL list every offer and write
-// nothing").
-// --adopt entries are not run under --dry-run either — a dry run touches no
-// vault state.
-func runSkillRegistrationDryRun(
-	vault, skillsDir string, shipped []ShippedSkill, deps SkillRegistrationDeps, stdout io.Writer,
-) error {
-	comparison, offersErr := computeSkillOffers(vault, skillsDir, shipped, deps)
-	if offersErr != nil {
-		return offersErr
-	}
-
-	return PreviewSkillOffers(stdout, comparison)
+// skillCandidateRef identifies the candidate an offer came from by its key
+// and resolved source path (a NUL cannot occur in either).
+func skillCandidateRef(key, path string) string {
+	return key + "\x00" + path
 }
 
-// runSkillRegistrationOffers computes the current offers and answers them
-// through AnswerSkillOffers: an accepted offer is carried out by
-// acceptSkillOffer, a declined one records its hash (RecordSkillDeclined).
-func runSkillRegistrationOffers(
-	ctx context.Context,
-	args SkillRegistrationArgs,
-	answers SkillAnswers,
-	shipped []ShippedSkill,
-	shippedByName map[string]ShippedSkill,
-	deps SkillRegistrationDeps,
-	stdout io.Writer,
-) error {
-	comparison, offersErr := computeSkillOffers(args.Vault, args.SkillsDir, shipped, deps)
-	if offersErr != nil {
-		return offersErr
+// skillNoteSourcesByRef builds the note source of every candidate, indexed
+// by its key and resolved source path — the pair an offer carries.
+func skillNoteSourcesByRef(sources ResolvedSkillSources, home string) map[string]SkillNoteSource {
+	byRef := make(map[string]SkillNoteSource, len(sources.Candidates))
+
+	for _, candidate := range sources.Candidates {
+		ref := skillCandidateRef(candidate.Key, candidate.SourcePath)
+		if _, seen := byRef[ref]; !seen {
+			byRef[ref] = NewSkillNoteSource(candidate, sources.EngramSkillRoots, home, sources.ResolvedHome)
+		}
 	}
 
-	return AnswerSkillOffers(SkillOfferAnswering{
-		Comparison:  comparison,
-		Answers:     answers,
-		Interactive: deps.IsTerminal != nil && deps.IsTerminal(),
-		Stdin:       deps.Stdin,
-		Accept: func(offer SkillOffer) error {
-			return acceptSkillOffer(ctx, args.Vault, args.VaultName, offer, shippedByName, deps, stdout)
-		},
-		Decline: func(offer SkillOffer) error {
-			return RecordSkillDeclined(args.Vault, offer.Key, offer.Hash, deps.Accept.Read, deps.Accept.Write)
-		},
-	}, stdout)
-}
-
-// skillsByName indexes skills by name for accept-time lookup.
-func skillsByName(skills []ShippedSkill) map[string]ShippedSkill {
-	byName := make(map[string]ShippedSkill, len(skills))
-	for _, skill := range skills {
-		byName[skill.Name] = skill
-	}
-
-	return byName
+	return byRef
 }
 
 // toStringSet converts values to a set for O(1) membership checks.

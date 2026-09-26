@@ -299,6 +299,43 @@ func TestServeLearn_EmptyDeclaredIdentity_Rejected(t *testing.T) {
 	g.Expect(matches).To(BeEmpty(), "no note written when declared identity is empty")
 }
 
+// TestServeLearn_IgnoresSkillIdentityFields (ruling R31): the skill-note
+// identity fields are registration-only, so a remote client's served learn
+// carrying skillHash, skillKey and skillSource writes a runbook with none of
+// skill_hash, skill_key or skill_source — a served write can never pose as,
+// or shadow, a registered skill's note.
+func TestServeLearn_IgnoresSkillIdentityFields(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	deps := newTestDeps(io.Discard, io.Discard)
+	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
+
+	body := []byte(`{"type":"runbook","slug":"skill-route","position":"top","source":"remote",` +
+		`"situation":"s","doneWhen":"d","body":"b","user":"declared-user@example.com",` +
+		`"skillHash":"abc","SkillHash":"abc","skillKey":"route","SkillKey":"route",` +
+		`"skillSource":"~/x/SKILL.md","SkillSource":"~/x/SKILL.md"}`)
+
+	resp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{Body: body})
+	g.Expect(resp.Status).To(Equal(200))
+
+	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
+	g.Expect(globErr).NotTo(HaveOccurred())
+	g.Expect(matches).To(HaveLen(1))
+
+	if len(matches) == 0 {
+		return
+	}
+
+	raw, readErr := os.ReadFile(matches[0])
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(string(raw)).To(ContainSubstring("type: runbook"))
+	g.Expect(string(raw)).NotTo(ContainSubstring("skill_hash"))
+	g.Expect(string(raw)).NotTo(ContainSubstring("skill_key"))
+	g.Expect(string(raw)).NotTo(ContainSubstring("skill_source"))
+}
+
 // TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker covers the
 // core offer-write contract (serve-client-declared-identity): the server's
 // own configured Vault wins over anything in the request, user: comes from

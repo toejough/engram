@@ -50,18 +50,71 @@ type SkillAdoptDeps struct {
 	Embedder embed.Embedder
 }
 
-// AdoptSkillNote implements `engram register-skills --adopt <name>=<note-ref>`
+// SkillNoteSource is what a skill runbook note mirrors: the source file a
+// key's winning candidate was read from (design D3, D8). Register, Refresh
+// and Adopt write the key-derived slug (SkillKeySlug), skill_key,
+// skill_source and skill_hash from it, and the body's preamble names
+// PreamblePath.
+type SkillNoteSource struct {
+	// Key is the skill key; the note's slug derives from it.
+	Key string
+	// Name is the scope-local name (a skill's directory name); an
+	// engram-owned source's preamble names agent-instructions/skills/<Name>.
+	Name string
+	// SkillSource is the `~`-relative resolved source path (absolute when it
+	// lies under no home), recorded as the note's skill_source.
+	SkillSource string
+	// EngramOwned is true when the resolved source lies under an
+	// engram-owned skills root: the preamble then keeps today's bytes,
+	// naming the skill's edit location in the engram checkout.
+	EngramOwned bool
+	// Content is the source file's bytes: the note body and hash input.
+	Content []byte
+}
+
+// NewSkillNoteSource builds the note source for a keyed candidate:
+// EngramOwned when its resolved SourcePath lies under one of engramRoots,
+// and SkillSource home-relative (`~/…`) against the first of homes that
+// contains it — the home as given and its resolved form, since SourcePath
+// is fully resolved while the removal-eligibility check (design D5) expands
+// `~` against the home as given and matches a root's path or its resolved
+// path. A path under no home is kept absolute.
+func NewSkillNoteSource(candidate SkillCandidate, engramRoots []string, homes ...string) SkillNoteSource {
+	return SkillNoteSource{
+		Key:         candidate.Key,
+		Name:        candidate.Name,
+		SkillSource: homeRelativePath(candidate.SourcePath, homes),
+		EngramOwned: underEngramSkillRoot(candidate.SourcePath, engramRoots),
+		Content:     candidate.Content,
+	}
+}
+
+// PreamblePath is the file the note's preamble names (design D8):
+// `agent-instructions/skills/<n>/SKILL.md` for an engram-owned source,
+// byte-identical to the preamble of the notes registered before keys
+// existed, else the `~`-relative skill_source of a skill, command or
+// prompt.
+func (s SkillNoteSource) PreamblePath() string {
+	if s.EngramOwned {
+		return "agent-instructions/skills/" + s.Name + "/" + skillMDFilename
+	}
+
+	return s.SkillSource
+}
+
+// AdoptSkillNote implements `engram register-skills --adopt <key>=<note-ref>`
 // (skill-runbook-registration: "An existing runbook note SHALL be adoptable
 // as a skill's note"). It resolves noteRef the same way `engram amend
 // --target` does, requires the target to be a runbook note, renames it to
-// slug "skill-<name>" via RenameAndRewriteReferences (same Luhmann id and
-// date, inbound wikilinks rewritten, sidecar moved), replaces its body with
-// the current SKILL.md and preamble, stamps skill_hash, preserves every
-// other frontmatter field, and clears any pending marker — an adopted note
-// is a direct field-for-field promotion, never awaiting curation (design
-// D6: "the fields are kept and the note is not marked pending"). Adopting a
-// note already named skill-<name> is a no-op rename (idempotent) that still
-// refreshes body/hash.
+// the slug derived from source's key (SkillKeySlug) via
+// RenameAndRewriteReferences (same Luhmann id and date, inbound wikilinks
+// rewritten, sidecar moved), replaces its body with the current source file
+// and preamble, stamps skill_hash, skill_key and skill_source, preserves
+// every other frontmatter field, and clears any pending marker — an adopted
+// note is a direct field-for-field promotion, never awaiting curation
+// (design D6: "the fields are kept and the note is not marked pending").
+// Adopting a note already carrying the key's slug is a no-op rename
+// (idempotent) that still refreshes body and fields.
 //
 // Decision: pending is unconditionally cleared (set false), not merely left
 // alone — the spec's postcondition is "SHALL NOT be marked pending", and a
@@ -70,7 +123,7 @@ type SkillAdoptDeps struct {
 func AdoptSkillNote(
 	ctx context.Context,
 	vault string,
-	skill ShippedSkill,
+	source SkillNoteSource,
 	noteRef string,
 	deps SkillAdoptDeps,
 	stdout io.Writer,
@@ -87,12 +140,12 @@ func AdoptSkillNote(
 		return targetErr
 	}
 
-	conflictErr := checkAdoptConflict(vault, skill.Name, oldBasename, deps)
+	conflictErr := checkAdoptConflict(vault, source.Key, oldBasename, deps)
 	if conflictErr != nil {
 		return conflictErr
 	}
 
-	newBasename, basenameErr := skillNoteBasename(oldBasename, skill.Name)
+	newBasename, basenameErr := skillNoteBasename(oldBasename, source.Key)
 	if basenameErr != nil {
 		return basenameErr
 	}
@@ -102,7 +155,7 @@ func AdoptSkillNote(
 		return renameErr
 	}
 
-	updated, renderErr := applySkillNoteBody(raw, skill, false)
+	updated, renderErr := applySkillNoteBody(raw, source, false)
 	if renderErr != nil {
 		return renderErr
 	}
@@ -120,16 +173,18 @@ func AdoptSkillNote(
 }
 
 // RefreshSkill accepts a refresh offer: it replaces the note's body with the
-// current SKILL.md (preamble included), sets skill_hash to the current hash,
-// sets pending: true (so curation re-checks the fields against the new
-// text), and preserves every other frontmatter field — situation, done_when,
-// red_flags, triggers, created, and the basename all survive untouched
-// (skill-runbook-registration: "Accepting a refresh SHALL replace the body,
-// keep the fields, and mark the note pending").
+// current source file (preamble included), sets skill_hash to the current
+// hash and skill_key/skill_source to the current key and source — stamping
+// them onto a legacy note that lacks them, and following a plugin version
+// bump's new path — sets pending: true (so curation re-checks the fields
+// against the new text), and preserves every other frontmatter field —
+// situation, done_when, red_flags, triggers, created, and the basename all
+// survive untouched (skill-runbook-registration: "Accepting a refresh SHALL
+// replace the body, keep the fields, and mark the note pending").
 func RefreshSkill(
 	ctx context.Context,
 	vault string,
-	skill ShippedSkill,
+	source SkillNoteSource,
 	basename string,
 	deps SkillAcceptDeps,
 	stdout io.Writer,
@@ -148,7 +203,7 @@ func RefreshSkill(
 		return fmt.Errorf("register-skills: refresh: read %s: %w", basename, readErr)
 	}
 
-	updated, renderErr := applySkillNoteBody(raw, skill, true)
+	updated, renderErr := applySkillNoteBody(raw, source, true)
 	if renderErr != nil {
 		return renderErr
 	}
@@ -168,27 +223,29 @@ func RefreshSkill(
 	return nil
 }
 
-// RegisterSkill accepts a registration offer for skill: it creates the
-// skill's runbook note through the normal capture path (RunLearn), with a
-// fresh top-level Luhmann id, slug "skill-<name>", the preamble+SKILL.md
-// body, skill_hash, and pending: true — no situation, done_when, triggers, or
-// red_flags (skill-runbook-registration: "Accepting registration SHALL
-// create a pending note without runbook fields"). This is the only caller
-// that sets LearnArgs' unexported skipRunbookRequiredFields bypass;
-// `engram learn runbook`'s own situation/done_when requiredness is
-// unaffected.
+// RegisterSkill accepts a registration offer for source: it creates the
+// runbook note through the normal capture path (RunLearn), with a fresh
+// top-level Luhmann id, the slug derived from source's key, the
+// preamble+source-file body, skill_hash, skill_key, skill_source, and
+// pending: true — no situation, done_when, triggers, or red_flags
+// (skill-runbook-registration: "Accepting registration SHALL create a
+// pending note without runbook fields"). This is the only caller that sets
+// LearnArgs' unexported skipRunbookRequiredFields bypass; `engram learn
+// runbook`'s own situation/done_when requiredness is unaffected.
 func RegisterSkill(
-	ctx context.Context, vault, vaultName string, skill ShippedSkill, deps LearnDeps, stdout io.Writer,
+	ctx context.Context, vault, vaultName string, source SkillNoteSource, deps LearnDeps, stdout io.Writer,
 ) error {
 	args := LearnArgs{
 		Type:                      typeRunbook,
-		Slug:                      skillSlugPrefix + skill.Name,
+		Slug:                      SkillKeySlug(source.Key),
 		Vault:                     vault,
 		VaultName:                 vaultName,
 		Position:                  positionTop,
-		Source:                    skillRegistrationSource(skill.Name),
-		Body:                      skillNoteBody(skill.Name, skill.Content),
-		SkillHash:                 SkillContentHash(skill.Content),
+		Source:                    skillRegistrationSourcePrefix + source.PreamblePath(),
+		Body:                      skillNoteBody(source),
+		SkillHash:                 SkillContentHash(source.Content),
+		SkillKey:                  source.Key,
+		SkillSource:               source.SkillSource,
 		Pending:                   true,
 		skipRunbookRequiredFields: true,
 	}
@@ -220,8 +277,11 @@ const (
 	// mirrors (skill-runbook-registration, learn-runbook-capture: "the body
 	// SHALL begin with a one-line preamble stating it mirrors <skill path>
 	// and that procedure edits belong in the skill file").
-	skillNotePreambleFormat = "> Mirrors skill `agent-instructions/skills/%s/SKILL.md` — edit the procedure " +
+	skillNotePreambleFormat = "> Mirrors skill `%s` — edit the procedure " +
 		"there; the runbook fields on this note are authored here.\n"
+	// skillRegistrationSourcePrefix starts a freshly registered note's
+	// `source:` provenance text, followed by the preamble's path.
+	skillRegistrationSourcePrefix = "skill registration: "
 )
 
 // unexported variables.
@@ -234,13 +294,13 @@ var (
 )
 
 // applySkillNoteBody parses raw as a runbook note's frontmatter, replaces its
-// body with skill's current SKILL.md (preamble included) and its skill_hash
-// with skill's current content hash, sets pending, and leaves every other
-// frontmatter field (situation, done_when, red_flags, triggers, created,
-// source, repo, user, vault, issue, sources, tags, supersedes) exactly as
-// parsed — shared by RefreshSkill (pending=true) and AdoptSkillNote
-// (pending=false).
-func applySkillNoteBody(raw []byte, skill ShippedSkill, pending bool) (string, error) {
+// body with source's current file (preamble included), sets skill_hash,
+// skill_key and skill_source from source, sets pending, and leaves every
+// other frontmatter field (situation, done_when, red_flags, triggers,
+// created, source, repo, user, vault, issue, sources, tags, supersedes)
+// exactly as parsed — shared by RefreshSkill (pending=true) and
+// AdoptSkillNote (pending=false).
+func applySkillNoteBody(raw []byte, source SkillNoteSource, pending bool) (string, error) {
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
 		return "", errSkillNoteNoFrontmatter
@@ -253,33 +313,35 @@ func applySkillNoteBody(raw []byte, skill ShippedSkill, pending bool) (string, e
 		return "", fmt.Errorf("register-skills: parsing runbook frontmatter: %w", unmarshalErr)
 	}
 
-	doc.SkillHash = SkillContentHash(skill.Content)
+	doc.SkillHash = SkillContentHash(source.Content)
+	doc.SkillKey = source.Key
+	doc.SkillSource = source.SkillSource
 	doc.Pending = pending
 
 	body := renderRunbookBody(runbookFields{
-		Body:       skillNoteBody(skill.Name, skill.Content),
+		Body:       skillNoteBody(source),
 		Supersedes: doc.Supersedes,
 	})
 
 	return marshalFrontmatter(doc) + body, nil
 }
 
-// checkAdoptConflict errors when skillName is already registered to a
-// different note than oldBasename (skill-runbook-registration: "Error if a
-// different skill-<name> note already exists").
-func checkAdoptConflict(vault, skillName, oldBasename string, deps SkillAdoptDeps) error {
+// checkAdoptConflict errors when key is already registered to a different
+// note than oldBasename (skill-runbook-registration: "Error if a different
+// note for the key already exists").
+func checkAdoptConflict(vault, key, oldBasename string, deps SkillAdoptDeps) error {
 	names, listErr := deps.Rename.ListMD(vault)
 	if listErr != nil {
 		return fmt.Errorf("register-skills: adopt: listing %s: %w", vault, listErr)
 	}
 
-	existingBasename, _, found, findSkillErr := FindSkillNote(vault, skillName, names, deps.Rename.ReadFile)
+	existingBasename, _, found, findSkillErr := FindSkillNote(vault, key, names, deps.Rename.ReadFile)
 	if findSkillErr != nil {
 		return fmt.Errorf("register-skills: adopt: %w", findSkillErr)
 	}
 
 	if found && existingBasename != oldBasename {
-		return fmt.Errorf("%w: %q already registered as %q", errAdoptConflict, skillName, existingBasename)
+		return fmt.Errorf("%w: %q already registered as %q", errAdoptConflict, key, existingBasename)
 	}
 
 	return nil
@@ -290,7 +352,7 @@ func checkAdoptConflict(vault, skillName, oldBasename string, deps SkillAdoptDep
 // RenameAndRewriteReferences primitive — when they differ, and returns the
 // note's current raw content either way: the untouched raw when no rename
 // was needed, or a fresh read at the new path otherwise. Adopting a note
-// already named skill-<name> (oldBasename == newBasename) is therefore a
+// already carrying the key's slug (oldBasename == newBasename) is therefore a
 // no-op rename — the idempotent case. It also returns the paths of the
 // notes whose references the rename rewrote (nil when no rename ran).
 func ensureSkillNoteBasename(
@@ -311,6 +373,22 @@ func ensureSkillNoteBasename(
 	}
 
 	return fresh, rewritten, nil
+}
+
+// homeRelativePath returns path as `~/<rel>` against the first non-empty
+// home that strictly contains it, or path unchanged when none does.
+func homeRelativePath(path string, homes []string) string {
+	for _, home := range homes {
+		if home == "" || path == home || !pathWithinRoot(path, home) {
+			continue
+		}
+
+		rel, _ := filepath.Rel(home, path)
+
+		return homeRelPrefix + rel
+	}
+
+	return path
 }
 
 // resolveAdoptTarget scans the vault, resolves noteRef the same way `engram
@@ -344,30 +422,24 @@ func resolveAdoptTarget(vault, noteRef string, deps SkillAdoptDeps) (basename st
 	return basename, raw, nil
 }
 
-// skillNoteBasename computes the "skill-<name>" slug basename for oldBasename
-// — same Luhmann id and date, only the slug segment changes (skill-runbook-
-// registration D3/D6: adoption keeps the note's identity, it does not
-// re-mint one).
-func skillNoteBasename(oldBasename, skillName string) (string, error) {
+// skillNoteBasename computes the key-derived slug basename (SkillKeySlug)
+// for oldBasename — same Luhmann id and date, only the slug segment changes
+// (skill-runbook-registration D3/D6: adoption keeps the note's identity, it
+// does not re-mint one).
+func skillNoteBasename(oldBasename, key string) (string, error) {
 	id, date, ok := idAndDateFromNoteFilename(oldBasename + mdExt)
 	if !ok {
 		return "", fmt.Errorf("%w: %q", errAdoptUnparseableBasename, oldBasename)
 	}
 
-	return id + "." + date + "." + skillSlugPrefix + skillName, nil
+	return id + "." + date + "." + SkillKeySlug(key), nil
 }
 
 // skillNoteBody renders a skill runbook note's body: the one-line preamble
-// naming the skill file, a blank line, then the skill's current SKILL.md
-// bytes verbatim.
-func skillNoteBody(skillName string, skillContent []byte) string {
-	return fmt.Sprintf(skillNotePreambleFormat, skillName) + "\n" + string(skillContent)
-}
-
-// skillRegistrationSource returns the `source:` provenance text for a freshly
-// registered skill note.
-func skillRegistrationSource(skillName string) string {
-	return fmt.Sprintf("skill registration: agent-instructions/skills/%s/SKILL.md", skillName)
+// naming the mirrored file (PreamblePath), a blank line, then the source
+// file's current bytes verbatim.
+func skillNoteBody(source SkillNoteSource) string {
+	return fmt.Sprintf(skillNotePreambleFormat, source.PreamblePath()) + "\n" + string(source.Content)
 }
 
 // writeAdoptedNote writes the adopted note's updated content at full,

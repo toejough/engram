@@ -343,7 +343,8 @@ func TestResolveEngramSkillRoots(t *testing.T) {
 
 // TestResolveSkillSources_EngramRootThroughSymlinkedHome: `$HOME` is a
 // symlink and Pi's route resolves into the real engram root, so the entry
-// keeps the bare key.
+// keeps the bare key, and the resolved home is reported for writing
+// `~`-relative skill_source values (design D8).
 func TestResolveSkillSources_EngramRootThroughSymlinkedHome(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -359,6 +360,7 @@ func TestResolveSkillSources_EngramRootThroughSymlinkedHome(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(resolvedKeys(resolved)).To(Equal([]string{"route"}))
+	g.Expect(resolved.ResolvedHome).To(Equal(fakeHome), "skill_source is written relative to the resolved home too")
 }
 
 // TestResolveSkillSources_PiOnlyKeepsBareKeyAndRefreshesLegacyNote is the

@@ -139,11 +139,15 @@ func ReportSkillOfferProblems(stdout io.Writer, comparison SkillOfferComparison)
 
 // ShippedSkillSources presents the shipped skills of one skills directory
 // as resolved sources: Claude-user candidates keyed by their bare names,
-// read from skillsDir, which is recorded as the one read Claude-user root.
-// It adapts the single-directory register-skills flow to
-// CompareSkillOffers until the callers use ResolveSkillSources (task 5.1).
+// read from skillsDir, which is recorded as the one read Claude-user root
+// and as the one engram-owned root — the directory holds engram's own
+// skills, so their notes keep today's preamble (design D8). It adapts the
+// single-directory default flow to CompareSkillOffers until the callers use
+// ResolveSkillSources (task 5.1).
 func ShippedSkillSources(skillsDir string, shipped []ShippedSkill) ResolvedSkillSources {
 	var sources ResolvedSkillSources
+
+	sources.EngramSkillRoots = []string{skillsDir}
 
 	sources.Roots = []ScannedRoot{{
 		Path: skillsDir, Resolved: skillsDir, Scanned: true, Form: SkillRootFormClaudeUser,

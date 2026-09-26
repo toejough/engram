@@ -22,7 +22,8 @@ func TestRegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	skillsDir := t.TempDir()
+	home := t.TempDir()
+	skillsDir := filepath.Join(home, ".claude", "engram", "skills")
 
 	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "curate"), 0o750)).To(Succeed())
 	g.Expect(os.WriteFile(
@@ -32,9 +33,10 @@ func TestRegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
 	)).To(Succeed())
 
 	stderr := executeForTestWithDeps(t, []string{
-		"engram", "register-skills", "--accept", "curate", "--vault", vault, "--skills-dir", skillsDir,
+		"engram", "register-skills", "--accept", "curate", "--vault", vault,
 	}, func(d *cli.Deps) {
 		d.Embed = skillAcceptFakeEmbedder{}
+		d.UserHomeDir = func() (string, error) { return home, nil }
 	})
 
 	// A pending-offer nudge on the freshly-created note is expected
@@ -54,6 +56,18 @@ func TestRegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
 	}
 
 	g.Expect(found).To(BeTrue(), "expected a *.skill-curate.md note in %v", entries)
+
+	for _, entry := range entries {
+		if !strings.HasSuffix(entry.Name(), ".skill-curate.md") {
+			continue
+		}
+
+		note, noteErr := os.ReadFile(filepath.Join(vault, entry.Name()))
+		g.Expect(noteErr).NotTo(HaveOccurred())
+		g.Expect(string(note)).To(ContainSubstring("skill_key: curate\n"))
+		g.Expect(string(note)).To(ContainSubstring("skill_source: ~/.claude/engram/skills/curate/SKILL.md\n"))
+		g.Expect(string(note)).To(ContainSubstring("> Mirrors skill `agent-instructions/skills/curate/SKILL.md`"))
+	}
 }
 
 // TestRegisterSkillsCLI_AdoptRealNote drives an --adopt over the real
@@ -64,7 +78,8 @@ func TestRegisterSkillsCLI_AdoptRealNote(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	skillsDir := t.TempDir()
+	home := t.TempDir()
+	skillsDir := filepath.Join(home, ".claude", "engram", "skills")
 
 	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "curate"), 0o750)).To(Succeed())
 	g.Expect(os.WriteFile(
@@ -79,9 +94,10 @@ func TestRegisterSkillsCLI_AdoptRealNote(t *testing.T) {
 	)).To(Succeed())
 
 	stderr := executeForTestWithDeps(t, []string{
-		"engram", "register-skills", "--adopt", "curate=1049", "--vault", vault, "--skills-dir", skillsDir,
+		"engram", "register-skills", "--adopt", "curate=1049", "--vault", vault,
 	}, func(d *cli.Deps) {
 		d.Embed = skillAcceptFakeEmbedder{}
+		d.UserHomeDir = func() (string, error) { return home, nil }
 	})
 
 	g.Expect(stderr).To(BeEmpty())
@@ -160,9 +176,12 @@ func TestRegisterSkillsCLI_DryRunListsRegisterOffer(t *testing.T) {
 		d.Stdout = &stdout
 	})
 
+	resolvedSkillsDir, resolveErr := filepath.EvalSymlinks(skillsDir)
+	g.Expect(resolveErr).NotTo(HaveOccurred())
+
 	g.Expect(stderr).To(BeEmpty())
 	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register curate (" +
-		filepath.Join(skillsDir, "curate", "SKILL.md") + ")\n"))
+		filepath.Join(resolvedSkillsDir, "curate", "SKILL.md") + ")\n"))
 }
 
 // TestRegisterSkillsCLI_MalformedAdoptFlag covers --adopt values that aren't
@@ -172,14 +191,12 @@ func TestRegisterSkillsCLI_MalformedAdoptFlag(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
-	skillsDir := t.TempDir()
 
 	stderr := executeForTest(t, []string{
-		"engram", "register-skills", "--dry-run",
-		"--vault", vault, "--skills-dir", skillsDir, "--adopt", "not-a-pair",
+		"engram", "register-skills", "--dry-run", "--vault", vault, "--adopt", "not-a-pair",
 	})
 
-	g.Expect(stderr).To(ContainSubstring("<name>=<note-ref>"))
+	g.Expect(stderr).To(ContainSubstring("<key>=<note-ref>"))
 }
 
 // TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites drives the real
@@ -197,19 +214,23 @@ func TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := t.TempDir()
+	home := t.TempDir()
 	binPath := sharedEngramBinary(t)
+
+	engramDir := filepath.Join(home, ".claude", "engram")
+	g.Expect(os.MkdirAll(engramDir, 0o750)).To(Succeed())
+	g.Expect(os.Symlink(
+		filepath.Join(projectRoot(t), "agent-instructions", "skills"), filepath.Join(engramDir, "skills"),
+	)).To(Succeed())
 
 	devNull, openErr := os.Open(os.DevNull)
 	g.Expect(openErr).NotTo(HaveOccurred())
 
 	t.Cleanup(func() { _ = devNull.Close() })
 
-	run := exec.Command(binPath, "register-skills",
-		"--vault", vault,
-		"--skills-dir", filepath.Join(projectRoot(t), "agent-instructions", "skills"),
-	)
+	run := exec.Command(binPath, "register-skills", "--vault", vault)
 	run.Stdin = devNull
-	run.Env = append(os.Environ(), "ENGRAM_PARENT=")
+	run.Env = append(os.Environ(), "ENGRAM_PARENT=", "HOME="+home)
 
 	out, runErr := run.CombinedOutput()
 	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", out)
@@ -241,4 +262,87 @@ func TestRegisterSkillsCLI_RefusesOverServer(t *testing.T) {
 	})
 
 	g.Expect(stderr).To(ContainSubstring("host-local only"))
+}
+
+// TestRegisterSkillsCLI_RelativeSkillsDirNeedsWorkingDir: a relative
+// --skills-dir with no resolvable working directory is an error, not a scan
+// of some other directory.
+func TestRegisterSkillsCLI_RelativeSkillsDirNeedsWorkingDir(t *testing.T) {
+	t.Parallel()
+
+	for name, getwd := range map[string]func() (string, error){
+		"getwd fails": func() (string, error) { return "", os.ErrPermission },
+		"no getwd":    nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			stderr := executeForTestWithDeps(t, []string{
+				"engram", "register-skills", "--vault", t.TempDir(), "--skills-dir", "skills",
+			}, func(d *cli.Deps) {
+				d.Getwd = getwd
+			})
+
+			g.Expect(stderr).To(ContainSubstring("--skills-dir: resolving a relative dir"))
+		})
+	}
+}
+
+// TestRegisterSkillsCLI_SkillsDirIsRepeatablePreview covers `--skills-dir`
+// (design D9): repeatable, relative dirs resolve against the working
+// directory, and the run is a dry-run preview of bare keys that writes
+// nothing to the vault.
+func TestRegisterSkillsCLI_SkillsDirIsRepeatablePreview(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	cwd, resolveErr := filepath.EvalSymlinks(t.TempDir())
+	g.Expect(resolveErr).NotTo(HaveOccurred())
+
+	for _, skill := range []string{"one/curate", "two/c4"} {
+		g.Expect(os.MkdirAll(filepath.Join(cwd, skill), 0o750)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(cwd, skill, "SKILL.md"), []byte(skill), 0o600)).To(Succeed())
+	}
+
+	var stdout bytes.Buffer
+
+	stderr := executeForTestWithDeps(t, []string{
+		"engram", "register-skills", "--vault", vault, "--skills-dir", "one", "--skills-dir", filepath.Join(cwd, "two"),
+	}, func(d *cli.Deps) {
+		d.Stdout = &stdout
+		d.Getwd = func() (string, error) { return cwd, nil }
+		d.IsTerminal = func() bool { return true }
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout.String()).To(Equal("@claude-user (2)\n" +
+		"  would offer: register c4 (" + filepath.Join(cwd, "two", "c4", "SKILL.md") + ")\n" +
+		"  would offer: register curate (" + filepath.Join(cwd, "one", "curate", "SKILL.md") + ")\n"))
+
+	entries, readErr := os.ReadDir(vault)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
+}
+
+// TestRegisterSkillsCLI_SkillsDirRefusesAccept covers "Skills-dir runs are
+// preview-only": `--skills-dir agent-instructions/skills --accept route` is
+// refused with an error, and nothing is written.
+func TestRegisterSkillsCLI_SkillsDirRefusesAccept(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{
+		"engram", "register-skills", "--vault", vault,
+		"--skills-dir", filepath.Join(projectRoot(t), "agent-instructions", "skills"), "--accept", "route",
+	})
+
+	g.Expect(stderr).To(ContainSubstring("--skills-dir is a read-only preview"))
+
+	entries, readErr := os.ReadDir(vault)
+	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
 }

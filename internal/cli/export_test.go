@@ -41,6 +41,7 @@ var (
 	ErrResituateNoteNotFoundForTest        = errResituateNoteNotFound
 	ErrSkillOfferConflictForTest           = errSkillOfferConflict
 	ErrSkillRegistrationsVersionForTest    = errSkillRegistrationsVersion
+	ErrSkillsDirReadOnlyForTest            = errSkillsDirReadOnly
 	ErrVocabFamilyNoteMissing              = errVocabFamilyNoteMissing
 	ExportAnyHarnessFailed                 = anyHarnessFailed
 	ExportApplyIdentityBackfill            = applyIdentityBackfill
@@ -266,6 +267,21 @@ type ExportVocabNamingExemplar = vocabNamingExemplar
 
 // Exported naming-request types (vocab-derivational-refit Task 2.2).
 type ExportVocabNamingRequest = vocabNamingRequest
+
+// ExportAnswerSkillSources runs register-skills' adopt-then-answer flow over
+// fixture sources (answerSkillSources), parsing args' --accept/--decline
+// first as RunSkillRegistration does.
+func ExportAnswerSkillSources(
+	ctx context.Context, args SkillRegistrationArgs, sources ResolvedSkillSources,
+	deps SkillRegistrationDeps, stdout io.Writer,
+) error {
+	answers, answersErr := ParseSkillAnswers(args.Accept, args.Decline)
+	if answersErr != nil {
+		return answersErr
+	}
+
+	return answerSkillSources(ctx, args, answers, sources, deps, stdout)
+}
 
 // ExportAppendUniqueProvenance returns the provenances slice after adding
 // role twice via the helper; verifies idempotency in tests.

@@ -494,7 +494,9 @@ func runPostUpdateChecks(
 		}
 	}
 
-	registrationErr := runUpdateSkillRegistration(ctx, args.DryRun, vaultPath, report.Source.Root, deps, stdout)
+	registrationErr := runUpdateSkillRegistration(
+		ctx, args.DryRun, vaultPath, report.Home, report.Source.Root, deps, stdout,
+	)
 	if registrationErr != nil {
 		report.SkillRegistrationErr = registrationErr.Error()
 	}
@@ -575,7 +577,7 @@ func runUpdate(ctx context.Context, args UpdateArgs, deps updateDeps, stdout io.
 // skills-dir listing capability there's nothing to register against. An
 // empty sourceRoot (no resolved source) is the same no-op.
 func runUpdateSkillRegistration(
-	ctx context.Context, dryRun bool, vaultPath, sourceRoot string, deps updateDeps, stdout io.Writer,
+	ctx context.Context, dryRun bool, vaultPath, home, sourceRoot string, deps updateDeps, stdout io.Writer,
 ) error {
 	if deps.SkillReg.ListSkillsDir == nil || sourceRoot == "" {
 		return nil
@@ -584,6 +586,7 @@ func runUpdateSkillRegistration(
 	args := SkillRegistrationArgs{
 		Vault:     vaultPath,
 		VaultName: resolveVaultName("", deps.Env.Getenv),
+		Home:      home,
 		SkillsDir: filepath.Join(sourceRoot, "agent-instructions", "skills"),
 		DryRun:    dryRun,
 	}

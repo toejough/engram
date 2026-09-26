@@ -36,6 +36,11 @@ type ResolvedSkillSources struct {
 	// (ResolveEngramSkillRoots) the keys were built against; D4's
 	// engram-owned exception compares candidates' SourcePaths with them.
 	EngramSkillRoots []string
+	// ResolvedHome is home with every symlink resolved (empty when it does
+	// not resolve). Candidates' SourcePaths are fully resolved, so a
+	// `~`-relative skill_source is written against it when home itself is a
+	// symlink (design D8, NewSkillNoteSource).
+	ResolvedHome string
 }
 
 // SkillSourceDeps are the capabilities ResolveSkillSources needs: a
@@ -109,6 +114,10 @@ func ResolveSkillSources(
 	resolved.Candidates = keyed
 	resolved.Roots = withFailedRootsResolved(deps.FS, resolved.Roots)
 	resolved.EngramSkillRoots = engramRoots
+	resolvedHome, homeErr := ResolveSkillPath(deps.FS, home)
+	if homeErr == nil {
+		resolved.ResolvedHome = resolvedHome
+	}
 	resolved.Warnings = append(append(resolved.Warnings, rootWarnings...), keyWarnings...)
 	resolved.PluginManifestsRead = claudeResult.plugins.ManifestsRead
 	resolved.Plugins = claudeResult.plugins.Plugins

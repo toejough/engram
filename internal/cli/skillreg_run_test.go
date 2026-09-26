@@ -80,7 +80,7 @@ func TestRunSkillRegistration_AdoptUnshippedSkill_Errors(t *testing.T) {
 	}, deps, &stdout)
 
 	g.Expect(err).To(HaveOccurred())
-	g.Expect(err).To(MatchError(ContainSubstring("not currently shipped")))
+	g.Expect(err).To(MatchError(ContainSubstring("key names no scanned skill")))
 
 	// Untouched: the note under its old basename is still there.
 	_, stillThere := vault.get("1049.2026-09-21.curate-review-pending-offers.md")

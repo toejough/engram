@@ -31,7 +31,7 @@ func TestAdoptSkillNote_ClearsPreExistingPendingMarker(t *testing.T) {
 	basename := "1049.2026-09-21.curate-review-pending-offers"
 	vault.put(basename+".md", curatePromotedNoteFixturePending())
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n\n1. Judge offers.\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n\n1. Judge offers.\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -65,7 +65,7 @@ func TestAdoptSkillNote_ErrorsOnConflictingExistingSkillNote(t *testing.T) {
 	vault.put("2001.2026-01-01.curate-v2.md", curatePromotedNoteFixtureAt("2001", "2026-01-01"))
 	vault.put("9999.2026-01-01.skill-curate.md", curateSkillNoteFixture("already-registered-hash"))
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -92,7 +92,7 @@ func TestAdoptSkillNote_ErrorsOnMissingTarget(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -119,7 +119,7 @@ func TestAdoptSkillNote_ErrorsOnNonRunbookTarget(t *testing.T) {
 		"---\ntype: fact\nsituation: s\nsubject: sub\npredicate: pred\nobject: obj\n"+
 			"luhmann: \"2001\"\ncreated: 2026-01-01\nsource: s\nuser: u\nvault: v\n---\n\nInformation learned: s.\n")
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -146,7 +146,7 @@ func TestAdoptSkillNote_ErrorsOnUnparseableBasename(t *testing.T) {
 	vault.put("README.md",
 		"---\ntype: runbook\nsituation: s\ndone_when: d\nsource: s\nuser: u\nvault: v\n---\n\nbody\n")
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -174,7 +174,7 @@ func TestAdoptSkillNote_IdempotentOnAlreadyAdoptedNote(t *testing.T) {
 	basename := "1049.2026-09-21.skill-curate"
 	vault.put(basename+".md", curateSkillNoteFixture(cli.SkillContentHash([]byte("previous adopt"))))
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n\n1. Newer text.\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n\n1. Newer text.\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -210,7 +210,7 @@ func TestAdoptSkillNote_PropagatesEmbedError(t *testing.T) {
 	vault := newSkillAcceptFixtureVault()
 	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -237,7 +237,7 @@ func TestAdoptSkillNote_PropagatesFindSkillNoteError(t *testing.T) {
 	vault.put("9998.2026-01-01.skill-curate.md", curateSkillNoteFixture("hash-a"))
 	vault.put("9999.2026-01-02.skill-curate.md", curateSkillNoteFixture("hash-b"))
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -262,7 +262,7 @@ func TestAdoptSkillNote_PropagatesListMDError(t *testing.T) {
 	vault := newSkillAcceptFixtureVault()
 	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	renameDeps := skillAcceptRenameDeps(vault)
 	renameDeps.ListMD = func(string) ([]string, error) { return nil, errSkillAcceptForTest }
@@ -288,7 +288,7 @@ func TestAdoptSkillNote_PropagatesLockError(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     func(string) (func(), error) { return nil, errSkillAcceptForTest },
@@ -310,7 +310,7 @@ func TestAdoptSkillNote_PropagatesScanError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -335,7 +335,7 @@ func TestAdoptSkillNote_PropagatesWriteError(t *testing.T) {
 	vault := newSkillAcceptFixtureVault()
 	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	renameDeps := skillAcceptRenameDeps(vault)
 	renameDeps.WriteFile = func(string, []byte) error { return errSkillAcceptForTest }
@@ -377,7 +377,7 @@ func TestAdoptSkillNote_RebuildsReferrerSidecars(t *testing.T) {
 	referrerPath := "/vault/" + referrer + ".md"
 	g.Expect(embed.ComputeState(vault, referrerPath, fakeEmbedder.ModelID())).To(Equal(embed.StateOK))
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n\n1. Judge offers.\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n\n1. Judge offers.\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -414,7 +414,7 @@ func TestAdoptSkillNote_RenamesRewritesLinksPreservesFieldsClearsPending(t *test
 	vault.put(oldBasename+".vec.json", `{"model_id":"old"}`)
 	vault.put("2000.2026-09-22.some-other-note.md", referencingNoteFixture(oldBasename))
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n\n1. Judge offers.\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n\n1. Judge offers.\n"))
 
 	deps := cli.SkillAdoptDeps{
 		Lock:     noLock,
@@ -477,7 +477,7 @@ func TestRefreshSkill_PendingClearedBeforehandIsSetAgain(t *testing.T) {
 	basename := "1049.2026-09-21.skill-curate"
 	vault.put(basename+".md", curateSkillNoteFixture(cli.SkillContentHash([]byte("old"))))
 
-	newSkill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n\nRevised again.\n")}
+	newSkill := engramOwnedSkill("curate", []byte("# Curate\n\nRevised again.\n"))
 
 	var stdout bytes.Buffer
 
@@ -504,7 +504,7 @@ func TestRefreshSkill_PropagatesEmbedError(t *testing.T) {
 	basename := "1049.2026-09-21.skill-curate"
 	vault.put(basename+".md", curateSkillNoteFixture(cli.SkillContentHash([]byte("old"))))
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	deps := skillAcceptDeps(vault)
 	deps.Embedder = skillAcceptFailingEmbedder{}
@@ -521,7 +521,7 @@ func TestRefreshSkill_PropagatesLockError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 	deps := skillAcceptDeps(newSkillAcceptFixtureVault())
 	deps.Lock = func(string) (func(), error) { return nil, errSkillAcceptForTest }
 
@@ -543,7 +543,7 @@ func TestRefreshSkill_PropagatesMalformedFrontmatterError(t *testing.T) {
 	basename := "1049.2026-09-21.skill-curate"
 	vault.put(basename+".md", "no frontmatter here\n")
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	var stdout bytes.Buffer
 
@@ -557,7 +557,7 @@ func TestRefreshSkill_PropagatesReadError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 	deps := skillAcceptDeps(newSkillAcceptFixtureVault())
 
 	var stdout bytes.Buffer
@@ -576,7 +576,7 @@ func TestRefreshSkill_PropagatesWriteError(t *testing.T) {
 	basename := "1049.2026-09-21.skill-curate"
 	vault.put(basename+".md", curateSkillNoteFixture(cli.SkillContentHash([]byte("old"))))
 
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
 	deps := skillAcceptDeps(vault)
 	deps.Write = func(string, []byte) error { return errSkillAcceptForTest }
@@ -600,7 +600,7 @@ func TestRefreshSkill_RedFlagsSurviveRefresh(t *testing.T) {
 	basename := "1049.2026-09-21.skill-curate"
 	vault.put(basename+".md", curateSkillNoteFixture(cli.SkillContentHash([]byte("old"))))
 
-	newSkill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n\nRevised procedure.\n")}
+	newSkill := engramOwnedSkill("curate", []byte("# Curate\n\nRevised procedure.\n"))
 
 	var stdout bytes.Buffer
 
@@ -629,7 +629,7 @@ func TestRefreshSkill_ReplacesBodyKeepsFieldsAndMarksPending(t *testing.T) {
 	oldHash := cli.SkillContentHash([]byte("old curate body"))
 	vault.put(basename+".md", curateSkillNoteFixture(oldHash))
 
-	newSkill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n\nStep 1. New procedure text.\n")}
+	newSkill := engramOwnedSkill("curate", []byte("# Curate\n\nStep 1. New procedure text.\n"))
 
 	deps := skillAcceptDeps(vault)
 
@@ -672,7 +672,7 @@ func TestRegisterSkill_CreatesPendingNoteWithHashAndPreamble(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n\nStep 1. Judge each pending offer.\n")}
+	skill := engramOwnedSkill("curate", []byte("# Curate\n\nStep 1. Judge each pending offer.\n"))
 
 	var (
 		writtenPath    string
@@ -715,7 +715,7 @@ func TestRegisterSkill_NeverSetsRunbookFields(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	skill := cli.ShippedSkill{Name: "route", Content: []byte("# Route\n\nDelegate everything.\n")}
+	skill := engramOwnedSkill("route", []byte("# Route\n\nDelegate everything.\n"))
 
 	var (
 		writtenPath    string
@@ -909,15 +909,17 @@ func (v *skillAcceptFixtureVault) put(name, content string) {
 // skillAcceptFrontmatterProbe reads back the runbook frontmatter fields these
 // tests assert on.
 type skillAcceptFrontmatterProbe struct {
-	Type      string   `yaml:"type"`
-	Situation string   `yaml:"situation"`
-	DoneWhen  string   `yaml:"done_when"`
-	RedFlags  []string `yaml:"red_flags"`
-	Triggers  []string `yaml:"triggers"`
-	Luhmann   string   `yaml:"luhmann"`
-	Created   string   `yaml:"created"`
-	SkillHash string   `yaml:"skill_hash"`
-	Pending   bool     `yaml:"pending"`
+	Type        string   `yaml:"type"`
+	Situation   string   `yaml:"situation"`
+	DoneWhen    string   `yaml:"done_when"`
+	RedFlags    []string `yaml:"red_flags"`
+	Triggers    []string `yaml:"triggers"`
+	Luhmann     string   `yaml:"luhmann"`
+	Created     string   `yaml:"created"`
+	SkillHash   string   `yaml:"skill_hash"`
+	SkillKey    string   `yaml:"skill_key"`
+	SkillSource string   `yaml:"skill_source"`
+	Pending     bool     `yaml:"pending"`
 }
 
 // curatePromotedNoteFixture renders a pre-registration promoted note (no
