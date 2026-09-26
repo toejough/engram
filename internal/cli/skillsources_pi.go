@@ -86,6 +86,7 @@ func ResolvePiProjectTrust(fsys SkillSourceFS, agentDir, cwd string) (trusted bo
 // (resolved) top-level. Each existing level is recorded as its own root; a
 // missing level is absent, not failed. The same name at two levels is
 // emitted twice (a key conflict, task 2.3). Untrusted → nothing is read.
+// Candidates carry SourceSegment SkillSegmentAgents (ruling R11).
 func ScanAgentsProjectSkills(fsys SkillSourceFS, scan PiProjectScan) SkillScanResult {
 	var result SkillScanResult
 
@@ -113,7 +114,7 @@ func ScanAgentsProjectSkills(fsys SkillSourceFS, scan PiProjectScan) SkillScanRe
 
 	sortSkillCandidates(result.Candidates)
 
-	return result
+	return withSourceSegment(result, SkillSegmentAgents)
 }
 
 // ScanAgentsUserSkills scans ~/.agents/skills (design D2 source 5):
@@ -125,25 +126,33 @@ func ScanAgentsUserSkills(fsys SkillSourceFS, agentsSkillsRoot string) SkillScan
 
 // ScanPiProjectPrompts scans `.pi/prompts/*.md` in scan.Cwd (design D2
 // source 10; ScanPiPromptDir rules). Untrusted → nothing is read and no root
-// is recorded.
+// is recorded. Candidates carry SourceSegment SkillScopePiPrompt (ruling
+// R11).
 func ScanPiProjectPrompts(fsys SkillSourceFS, scan PiProjectScan) SkillScanResult {
 	if !scan.Trusted {
 		return SkillScanResult{}
 	}
 
-	return ScanPiPromptDir(fsys, filepath.Join(scan.Cwd, piConfigDirName, piPromptsDirName), scan.ScopeID)
+	return withSourceSegment(
+		ScanPiPromptDir(fsys, filepath.Join(scan.Cwd, piConfigDirName, piPromptsDirName), scan.ScopeID),
+		SkillScopePiPrompt,
+	)
 }
 
 // ScanPiProjectSkills scans `.pi/skills` in scan.Cwd only, never its
 // ancestors (design D2 source 10; Pi's project baseDir is `<cwd>/.pi`):
 // ScanPiSkillDir rules with root `.md` files. Untrusted → nothing is read
-// and no root is recorded.
+// and no root is recorded. Candidates carry SourceSegment SkillSegmentPi
+// (ruling R11).
 func ScanPiProjectSkills(fsys SkillSourceFS, scan PiProjectScan) SkillScanResult {
 	if !scan.Trusted {
 		return SkillScanResult{}
 	}
 
-	return ScanPiSkillDir(fsys, filepath.Join(scan.Cwd, piConfigDirName, piSkillsDirName), scan.ScopeID, true)
+	return withSourceSegment(
+		ScanPiSkillDir(fsys, filepath.Join(scan.Cwd, piConfigDirName, piSkillsDirName), scan.ScopeID, true),
+		SkillSegmentPi,
+	)
 }
 
 // ScanPiPromptDir scans one Pi prompt-template directory (Pi's
@@ -540,4 +549,13 @@ func resolveSkillPathOrClean(fsys SkillSourceFS, path string) string {
 	}
 
 	return resolved
+}
+
+// withSourceSegment returns result with segment stamped on every candidate.
+func withSourceSegment(result SkillScanResult, segment string) SkillScanResult {
+	for index := range result.Candidates {
+		result.Candidates[index].SourceSegment = segment
+	}
+
+	return result
 }

@@ -75,11 +75,19 @@ type SkillCandidate struct {
 	// against it (ApplyPiSettingsOverrides); other scanners leave it empty.
 	WalkedPath string
 	// SourceSegment is the key segment between the scope and the name for
-	// sources whose ScopeID does not determine it: `pi-settings` or
-	// `pi-pkg:<pkg-id>` (ScanPiConfiguredSources). A project candidate's
-	// ScopeID is `project:<r>`, so key construction (task 2.1) needs this to
-	// build `project:<r>:pi-settings:<n>` / `project:<r>:pi-pkg:<id>:<n>`.
-	// Empty for every other source.
+	// sources whose ScopeID does not determine it:
+	//   - `pi-settings` or `pi-pkg:<pkg-id>` for Pi configured sources, global
+	//     or project (ScanPiConfiguredSources);
+	//   - within a `project:<r>` scope, the segment of the matching user
+	//     scope (ruling R11): SkillSegmentPi for `.pi/skills`,
+	//     SkillSegmentAgents for `.agents/skills`, SkillScopePiPrompt for
+	//     `.pi/prompts` — so key construction (task 2.1) builds
+	//     `project:<r>:pi:<n>`, `project:<r>:agents:<n>`,
+	//     `project:<r>:pi-prompt:<n>`, `project:<r>:pi-settings:<n>` and
+	//     `project:<r>:pi-pkg:<id>:<n>` (design D3).
+	// Empty for every other source, including Claude project skills and
+	// commands (`project:<r>:<n>` / `project:<r>:cmd:<n>`, told apart by
+	// Kind).
 	SourceSegment string
 	// Disabled marks a file Pi finds but has switched off: a settings
 	// `!pattern`/`-path` over a default folder (ApplyPiSettingsOverrides,

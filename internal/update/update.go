@@ -205,6 +205,13 @@ type HandoffReporter interface {
 // Harness names a supported agent harness. The zero value is invalid.
 type Harness string
 
+// HarnessProber is the stat capability harness detection needs. Filesystem
+// satisfies it; callers outside this package (the skill-source resolver)
+// supply their own read-only adapter.
+type HarnessProber interface {
+	Stat(path string) (FileInfo, error)
+}
+
 // HarnessReport summarizes one harness install attempt.
 type HarnessReport struct {
 	Name      Harness
@@ -1448,6 +1455,15 @@ func (u *Updater) verifyModelNotLFSStub(cloneDir string) error {
 	return nil
 }
 
+// DetectHarnesses returns the supported harnesses whose probe directory
+// exists under home, in supportedHarnesses order — the one harness list
+// `engram update` installs to, exposed so other callers never re-hardcode
+// it. A probe that cannot be stat'ed for a reason other than not-exist is an
+// error.
+func DetectHarnesses(home string, prober HarnessProber) ([]HarnessSpec, error) {
+	return detectHarnesses(home, prober)
+}
+
 // unexported constants.
 const (
 	// dirPerm is the mode used when creating any harness target dir.
@@ -1999,13 +2015,13 @@ func describeGoInstall(source SourceInfo) string {
 
 // detectHarnesses returns the supported harnesses whose probe path exists
 // under home. Order is stable (matches supportedHarnesses).
-func detectHarnesses(home string, fileSystem Filesystem) ([]HarnessSpec, error) {
+func detectHarnesses(home string, prober HarnessProber) ([]HarnessSpec, error) {
 	detected := make([]HarnessSpec, 0, maxSupportedHarnesses)
 
 	for _, spec := range supportedHarnesses() {
 		probe := filepath.Join(home, spec.ProbeRel)
 
-		info, err := fileSystem.Stat(probe)
+		info, err := prober.Stat(probe)
 		switch {
 		case err == nil && info.IsDir():
 			detected = append(detected, spec)

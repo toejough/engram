@@ -27,7 +27,8 @@ type identityStamp struct {
 // git origin remote URL, falling back to the git root directory's basename
 // when no origin remote is configured, empty when the working directory
 // isn't inside a git repository at all (or any step fails). Never fails the
-// caller — every error path resolves to "".
+// caller — every error path resolves to "". The same git probes feed the
+// skill-source project identity (probeProjectIdentity).
 func detectRepo(
 	ctx context.Context,
 	getwd func() (string, error),
@@ -38,19 +39,16 @@ func detectRepo(
 		return ""
 	}
 
-	origin, _, remoteErr := commander.Run(ctx, dir, "git", "remote", "get-url", "origin")
-	if remoteErr == nil {
-		if url := strings.TrimSpace(string(origin)); url != "" {
-			return url
-		}
+	if url, found := gitOriginURL(ctx, commander, dir); found {
+		return url
 	}
 
-	top, _, rootErr := commander.Run(ctx, dir, "git", "rev-parse", "--show-toplevel")
-	if rootErr != nil {
+	top, inRepo := gitTopLevel(ctx, commander, dir)
+	if !inRepo {
 		return ""
 	}
 
-	return filepath.Base(strings.TrimSpace(string(top)))
+	return filepath.Base(top)
 }
 
 // detectUser resolves the user: frontmatter field: git config user.email
@@ -81,6 +79,20 @@ func detectUser(
 	return name
 }
 
+// gitOriginURL returns dir's `git remote get-url origin`, trimmed; found is
+// false when the command fails or prints nothing.
+func gitOriginURL(ctx context.Context, commander update.Commander, dir string) (string, bool) {
+	url, ok := runGit(ctx, commander, dir, "remote", "get-url", "origin")
+
+	return url, ok && url != ""
+}
+
+// gitTopLevel returns dir's `git rev-parse --show-toplevel`, trimmed; ok is
+// false when the command fails (dir is not inside a work tree).
+func gitTopLevel(ctx context.Context, commander update.Commander, dir string) (string, bool) {
+	return runGit(ctx, commander, dir, "rev-parse", "--show-toplevel")
+}
+
 // repoWithProjectFallback prefers a note's existing project: field over a
 // freshly detected repo when project is non-empty. Used only by identity
 // backfill: a single backfill invocation runs from one working directory but
@@ -108,4 +120,15 @@ func resolveVaultName(flagValue string, getenv func(string) string) string {
 	}
 
 	return defaultVaultName
+}
+
+// runGit runs `git <args>` in dir and returns its trimmed stdout; ok is false
+// when the command failed.
+func runGit(ctx context.Context, commander update.Commander, dir string, args ...string) (string, bool) {
+	out, _, err := commander.Run(ctx, dir, "git", args...)
+	if err != nil {
+		return "", false
+	}
+
+	return strings.TrimSpace(string(out)), true
 }

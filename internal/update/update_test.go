@@ -48,6 +48,34 @@ func TestDetectHarnesses_ClaudeOnly(t *testing.T) {
 	g.Expect(detected[0].Name).To(Equal(update.HarnessClaude))
 }
 
+// TestDetectHarnesses_ExportedTakesStatOnlyProber: the exported entry point
+// needs only Stat, so callers outside update (the skill-source resolver) can
+// detect harnesses over their own read-only filesystem.
+func TestDetectHarnesses_ExportedTakesStatOnlyProber(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fileSystem := newMemFS()
+	fileSystem.dirs["/home/joe/.pi"] = true
+
+	detected, err := update.DetectHarnesses("/home/joe", statOnlyProber{fileSystem: fileSystem})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil || len(detected) == 0 {
+		return
+	}
+
+	g.Expect(detected).To(HaveLen(1))
+	g.Expect(detected[0].Name).To(Equal(update.HarnessPi))
+	g.Expect(detected[0].SkillsTargetRel).To(Equal(filepath.Join(".pi", "agent", "skills")))
+
+	failing := statOnlyProber{fileSystem: fileSystem, errs: map[string]error{"/home/joe/.claude": fs.ErrPermission}}
+
+	_, statErr := update.DetectHarnesses("/home/joe", failing)
+	g.Expect(statErr).To(MatchError(fs.ErrPermission))
+}
+
 func TestDetectHarnesses_None(t *testing.T) {
 	t.Parallel()
 
@@ -1624,6 +1652,20 @@ type memInfo struct {
 func (m *memInfo) IsDir() bool { return m.isDir }
 
 func (m *memInfo) Mode() fs.FileMode { return m.mode }
+
+// statOnlyProber exposes only memFS's Stat, failing the paths in errs.
+type statOnlyProber struct {
+	fileSystem *memFS
+	errs       map[string]error
+}
+
+func (p statOnlyProber) Stat(path string) (update.FileInfo, error) {
+	if err, found := p.errs[path]; found {
+		return nil, err
+	}
+
+	return p.fileSystem.Stat(path)
+}
 
 func addChild(
 	fullPath, prefix string,

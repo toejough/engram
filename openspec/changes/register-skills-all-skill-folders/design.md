@@ -65,7 +65,12 @@ The real vault holds six skill notes: 1036 route, 1045 please, 1049 curate, 1053
 ## Decisions
 
 **D1. One resolver, `ResolveSkillSources(home, cwd)`, returns the candidates and the set of read roots that were read successfully.**
-- A candidate is `{Key, ScopeID, ReadRoot, SourcePath (resolved), Kind: skill|command|prompt, Content}`. The returned set of successful read roots is D5's `ScannedRoots`.
+- A candidate is `{Key, Name, ScopeID, SourceSegment, ReadRoot, SourcePath (resolved), WalkedPath, Kind: skill|command|prompt, Content, Disabled}`. The returned set of successful read roots is D5's `ScannedRoots`.
+  - `Name` is the scope-local name (directory name, file stem or command path). The scanners leave `Key` empty; key construction builds it from `ScopeID`, `SourceSegment`, `Kind` and `Name`.
+  - `SourceSegment` is the key segment that `ScopeID` does not determine: `pi-settings` or `pi-pkg:<pkg-id>` for Pi configured sources, and inside a `project:<r>` scope `pi`, `agents` or `pi-prompt` for `.pi/skills`, `.agents/skills` and `.pi/prompts`. It is empty otherwise.
+  - `WalkedPath` is the path as discovered, before symlink resolution. Pi settings patterns match against it.
+  - `Disabled` marks a file Pi finds but has switched off (D2 source 6, 7). It is never offered, and it counts as present for removal (D5).
+- The resolver also returns the project identity and, unchanged, the plugin scanner's facts: whether its manifests were read, each installed plugin's scanned status, and the plugin conflicts (D4, D5).
 - Harness roots come from `update`'s `supportedHarnesses`/`detectHarnesses`.
 - `registerSkillsTargets` and `runUpdateSkillRegistration` both call the resolver with the same home and the injected `Getwd`. The update hook stops passing `<sourceRoot>/agent-instructions/skills`, and runs after the sync, so it reads the freshly deployed engram copies. The re-exec child inherits cwd.
 
@@ -169,7 +174,7 @@ Alternative: record alias paths on the note. Rejected: it would write on runs wh
   A note whose `skill_source` lies under no scanned root is never removal-eligible. This is what makes a nested-only `sub/.claude/skills/foo` safe from the top level, keeps a worktree's note safe from the main checkout, and ties a `pi-settings:` note to its own entry (review N1, N3).
 - **Plugin keys.** `installed_plugins.json` and `settings.json` both parsed, there is no plugin conflict, and the plugin is either enabled with its `installPath` read, or absent from the manifest (uninstalled). An installed-but-disabled plugin is not scanned. An entry with no `enabledPlugins` value and a missing `installPath` (`work-on`) is not scanned.
 
-A removal is offered only when the note is eligible **and** no candidate (alias or not) has its key. With `--skills-dir`, no removal is offered.
+A removal is offered only when the note is eligible **and** no candidate (alias or not) has its key. A Disabled candidate counts as present: it holds its key, so its note is never offered for removal. With `--skills-dir`, no removal is offered.
 
 **Orphans (accepted):** a note becomes permanently ineligible for removal when its source root is no longer part of the source set. Examples: a Pi package dropped from `settings.json`, a `skills` entry deleted, a project deleted, or a `skill_source` whose symlink escapes its root. Such a note is left alone, and the user removes it by hand (Risks).
 

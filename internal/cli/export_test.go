@@ -100,6 +100,7 @@ var (
 	ExportNewUpdateDeps              = newUpdateDeps
 	ExportNewVocabDeps               = newVocabDeps
 	ExportNextLuhmannID              = nextLuhmannID
+	ExportNormalizeProjectRemote     = normalizeProjectRemote
 	ExportNoteAgeDays                = noteAgeDays
 	ExportNoteContainsAnyRemoval     = noteContainsAnyRemoval
 	ExportNoteHasPendingMarker       = noteHasPendingMarker
@@ -119,6 +120,7 @@ var (
 	ExportPrintLinkExamples             = printLinkExamples
 	ExportPrintNoteExamples             = printNoteExamples
 	ExportPrintStatsReport              = printStatsReport
+	ExportProbeProjectIdentity          = probeProjectIdentity
 	ExportProcessVocabDefinitionNote    = processVocabDefinitionNote
 	ExportReadCentroidsDoc              = readCentroidsDoc
 	ExportRecencyMultiplier             = recencyMultiplier

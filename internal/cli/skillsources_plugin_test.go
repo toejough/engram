@@ -578,8 +578,15 @@ func pluginStatusFor(scanned bool) string {
 }
 
 // writePluginManifests writes installed_plugins.json (v2) and settings.json
-// with the given enabledPlugins map.
+// with the given enabledPlugins map under pluginClaudeDir.
 func writePluginManifests(g Gomega, fsys *fakeSkillFS, installs []pluginInstall, enabled map[string]bool) {
+	writePluginManifestsAt(g, fsys, pluginClaudeDir, installs, enabled)
+}
+
+// writePluginManifestsAt is writePluginManifests under claudeDir.
+func writePluginManifestsAt(
+	g Gomega, fsys *fakeSkillFS, claudeDir string, installs []pluginInstall, enabled map[string]bool,
+) {
 	type entry struct {
 		Scope       string `json:"scope"`
 		InstallPath string `json:"installPath"`
@@ -614,6 +621,6 @@ func writePluginManifests(g Gomega, fsys *fakeSkillFS, installs []pluginInstall,
 
 	g.Expect(installedErr).NotTo(HaveOccurred())
 	g.Expect(settingsErr).NotTo(HaveOccurred())
-	fsys.file(pluginClaudeDir+pluginInstalledRel, string(installed))
-	fsys.file(pluginClaudeDir+pluginSettingsRel, string(settings))
+	fsys.file(claudeDir+pluginInstalledRel, string(installed))
+	fsys.file(claudeDir+pluginSettingsRel, string(settings))
 }
