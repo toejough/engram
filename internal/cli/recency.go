@@ -239,8 +239,8 @@ func noteAgeDays(lastUsed, created string, now time.Time) float64 {
 	return age
 }
 
-// parseCreatedFromNote extracts the top-level `created:` frontmatter date
-// (YYYY-MM-DD, surrounding quotes removed) from a note's raw bytes, or ""
+// parseCreatedFromNote extracts the top-level `created:` frontmatter value
+// (trimmed, otherwise verbatim) from a note's raw bytes, or ""
 // when absent. Only the frontmatter block is scanned (embed.SplitFrontmatter:
 // the closing fence is a whole unindented `---` line, so an indented `    ---`
 // inside a block scalar does not end it), and only unindented lines match,
@@ -253,7 +253,13 @@ func parseCreatedFromNote(note []byte) string {
 
 	for line := range strings.SplitSeq(string(frontmatter), "\n") {
 		if rest, found := strings.CutPrefix(line, "created:"); found {
-			return strings.Trim(strings.TrimSpace(rest), `"'`)
+			// The value is returned verbatim, quotes included: a quoted
+			// created: ("2026-07-01", as marshalFrontmatter writes it) then
+			// fails time.Parse and the note reads as age 0. Unquoting it would
+			// switch on recency decay for ~972 existing notes — a ranking
+			// change deferred to a measured follow-up (controller ruling R33;
+			// see the issue filed for it).
+			return strings.TrimSpace(rest)
 		}
 	}
 

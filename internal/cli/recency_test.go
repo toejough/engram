@@ -423,17 +423,19 @@ func TestParseCreatedFromNote_IndentedFenceInBlockScalar(t *testing.T) {
 	g.Expect(cli.ExportParseCreatedFromNote(note)).To(Equal("2026-06-10"))
 }
 
-// TestParseCreatedFromNote_QuotedValue verifies the quoted form every
-// marshalFrontmatter writer emits (created: "2026-06-10") parses to the bare
-// date, so noteAgeDays can use it.
-func TestParseCreatedFromNote_QuotedValue(t *testing.T) {
+// TestParseCreatedFromNote_QuotedValueIsVerbatim pins the pre-7df1a43c
+// result for a quoted created: (the form marshalFrontmatter writes): the
+// value comes back with its quotes, so it fails time.Parse and the note
+// keeps its current age-0 recency. Unquoting is a ranking change deferred
+// to a measured follow-up (controller ruling R33).
+func TestParseCreatedFromNote_QuotedValueIsVerbatim(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	note := []byte("---\ntype: fact\nluhmann: \"1\"\ncreated: \"2026-06-10\"\n---\n\nbody\n")
+	note := []byte("---\ntype: fact\nluhmann: \"1\"\ncreated: \"2026-07-01\"\n---\n\nbody\n")
 
-	g.Expect(cli.ExportParseCreatedFromNote(note)).To(Equal("2026-06-10"))
+	g.Expect(cli.ExportParseCreatedFromNote(note)).To(Equal(`"2026-07-01"`))
 }
 
 func TestParseTurnN(t *testing.T) {
