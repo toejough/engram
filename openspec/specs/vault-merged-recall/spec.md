@@ -136,7 +136,11 @@ noting the parent was unavailable.
 `engram show` and `engram show-chunk` SHALL accept a `--parent` flag. When
 `--parent` is set and `ENGRAM_PARENT` is configured, the command SHALL
 resolve the given ref against the parent vault's existing `/show` or
-`/show-chunk` endpoint instead of the local vault.
+`/show-chunk` endpoint instead of the local vault. Additionally, when
+`--parent` is NOT set, `ENGRAM_PARENT` is configured, `ENGRAM_SERVER` is not
+set, and the ref is not found locally, `engram show` and `engram show-chunk`
+SHALL fall back to resolving the ref against the parent and SHALL label the
+output as parent-sourced.
 
 #### Scenario: --parent routes to the configured parent
 - **WHEN** `engram show <ref> --parent` (or `engram show-chunk <id>
@@ -145,9 +149,16 @@ resolve the given ref against the parent vault's existing `/show` or
   vault
 
 #### Scenario: Without --parent, behavior is unchanged
-- **WHEN** `engram show` or `engram show-chunk` runs without `--parent`
-- **THEN** its behavior is unchanged from before this capability existed
-  (local-only, or `ENGRAM_SERVER`-exclusive if that is set)
+- **WHEN** `engram show` or `engram show-chunk` runs without `--parent` and the ref exists locally
+- **THEN** the local note is returned exactly as before this capability existed; the parent is not contacted (only a local miss changes, per the fallback scenario below)
+
+#### Scenario: Local miss falls back to the parent
+- **WHEN** `engram show <ref>` runs without `--parent`, `ENGRAM_PARENT` is set, `ENGRAM_SERVER` is not set, and the ref is not found locally
+- **THEN** the ref is resolved against the parent and the output is labeled as parent-sourced
+
+#### Scenario: Local miss with no parent configured is still an error
+- **WHEN** `engram show <ref>` runs without `--parent`, `ENGRAM_PARENT` is not set, and the ref is not found locally
+- **THEN** the command returns the same not-found error as before this capability existed
 
 #### Scenario: --parent without ENGRAM_PARENT configured is an error
 - **WHEN** `--parent` is passed but `ENGRAM_PARENT` is not set
@@ -183,4 +194,3 @@ regardless of `ENGRAM_PARENT`.
 - **THEN** `engram query`'s output is unchanged from its behavior before
   this capability existed, other than `items[]` now being capped at
   `--limit` per `recall-payload-cuts`
-

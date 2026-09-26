@@ -2,10 +2,11 @@
 
 ## Purpose
 
-The doc-surface enumeration procedure, carried by the please runbook set's Step 3 (Plan) sub-runbook (not a skill), is a non-waivable grep that runs when a planned change alters a repeated invariant (payload shape, cadence, naming convention) echoed across docs, diagrams, or skills. Before any plan proceeds, Gate A's docs/diagrams-alignment reviewer independently verifies the grep disposition list and runs its own independent discovery pass. Why: issue #685 (no dedicated ADR). Validation: dev/eval/LEDGER.md#685-doc-enumeration-grep and new headless probe harness dev/eval/cumulative/please_step3_probe/.
+The doc-surface enumeration procedure, carried by Step 3 (Plan) of the please skill (`agent-instructions/skills/please/SKILL.md`, whose optional vault runbook note mirrors the skill per capability `skill-runbook-registration`), is a non-waivable grep that runs when a planned change alters a repeated invariant (payload shape, cadence, naming convention) echoed across docs, diagrams, or skills. Before any plan proceeds, Gate A's docs/diagrams-alignment reviewer independently verifies the grep disposition list and runs its own independent discovery pass. Why: issue #685 (no dedicated ADR). Validation: dev/eval/LEDGER.md#685-doc-enumeration-grep and new headless probe harness dev/eval/cumulative/please_step3_probe/.
 ## Requirements
 ### Requirement: Plan author SHALL run doc-surface enumeration grep for repeated invariants
-When a planned change alters a repeated invariant (payload shape, sweep cadence, command set, count, naming convention echoed across docs/diagrams/skills), the plan author SHALL search the term, its synonyms, hyphenated forms, and the OLD text's echoes in labels and comments, then paste the per-file disposition list into the plan. This procedure SHALL be carried by the please runbook set's Step 3 (the doc-surface enumeration sub-runbook) rather than a `please` skill body.
+
+When a planned change alters a repeated invariant (payload shape, sweep cadence, command set, count, naming convention echoed across docs/diagrams/skills), the plan author SHALL search the term, its synonyms, hyphenated forms, and the OLD text's echoes in labels and comments, then paste the per-file disposition list into the plan. This procedure SHALL be carried by the please skill (`agent-instructions/skills/please/SKILL.md`, with its optional vault runbook note mirroring the skill) rather than a separate runbook body.
 
 #### Scenario: Planning a change to a repeated invariant
 - **WHEN** a plan alters something repeated across multiple files (a field name, a command, a convention)
@@ -16,8 +17,8 @@ When a planned change alters a repeated invariant (payload shape, sweep cadence,
 - **THEN** the author still runs the grep; cost scales with surface size, so small surfaces produce cheap greps, never exemptions
 
 #### Scenario: Carrier is the runbook, not a skill
-- **WHEN** an agent plans a change under the please runbook
-- **THEN** the top runbook's Step 3 body wikilinks (`[[basename]]`) the doc-surface enumeration sub-runbook, and the grep requirement above applies unchanged
+- **WHEN** an agent plans a change under the please skill
+- **THEN** the please skill carries the doc-surface enumeration requirement in its Step 3, and the grep requirement applies unchanged; the please skill's optional vault runbook note (when registered) mirrors this same requirement
 
 ### Requirement: Gate A docs/diagrams-alignment reviewer SHALL independently verify and discover
 Gate A's docs/diagrams-alignment reviewer SHALL verify the plan author's enumeration-grep disposition list against the actual files AND still run its own independent discovery pass — the author's list is never the reviewer's source, and its presence never narrows the reviewer's scan. The reviewer charge SHALL be carried by the please runbook set's adversarial-review-gates sub-runbook.
@@ -39,4 +40,3 @@ The enumeration grep SHALL run for every plan that alters a repeated invariant, 
 #### Scenario: Minimal change to a widely-referenced concept
 - **WHEN** a plan touches a concept that appears in many files (a field name, a command, a procedure)
 - **THEN** the author still runs the full grep; the cost/benefit does not exempt small changes
-

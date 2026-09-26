@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The engram shim (a new guidance file, `agent-instructions/guidance/shim.md`, deployed via `engram update --with-guidance`) is the only custom instruction text an agent needs; every procedure, including recall and learn, is a runbook note it finds and follows. This capability covers the follow half: what the shim requires of an agent once a `kind: runbook` note is returned, and the bootstrap action that works with no engram skill installed. Why: the runbook-vs-skill eval showed runbooks found 3/3 but restated-as-plan 0/6 and end-state 0/6 against a skill row of 3/3/2 (checkpoint 2026-09-13); design.md D1–D4.
+The engram shim (a new guidance file, `agent-instructions/guidance/shim.md`, deployed via `engram update --with-guidance`) is the only custom instruction text an agent needs to find and follow runbook notes; skills remain the shipping form of every engram procedure, and registered skills are mirrored as runbook notes (capability `skill-runbook-registration`) that the shim finds and follows alongside hand-captured runbooks. This capability covers the follow half: what the shim requires of an agent once a `kind: runbook` note is returned, and the bootstrap action that works with no engram skill installed. Why: the runbook-vs-skill eval showed runbooks found 3/3 but restated-as-plan 0/6 and end-state 0/6 against a skill row of 3/3/2 (checkpoint 2026-09-13); design.md D1–D4.
 ## Requirements
 ### Requirement: The shim SHALL name the first action as a literal `engram query` on every user request
 
@@ -180,3 +180,16 @@ signal of this shape.
 - **THEN** it names no specific skill or runbook, so a future tool-result signal of the
   same shape is covered without a further shim edit
 
+### Requirement: The follow-frame SHALL work on runbooks received from a parent vault
+When a `kind: runbook` item tagged `from_parent` is matched, the shim's follow-frame obligations (announce, restate, `done_when`, `red_flags`, transitive wikilink fetch) SHALL apply unchanged, and the bare `engram show <basename>` the frame instructs SHALL resolve the note (via the `show` parent fallback in capability `vault-merged-recall`) without the agent needing to know the note's origin.
+
+#### Scenario: Following a shared runbook
+- **WHEN** a client session with `ENGRAM_PARENT` set surfaces a runbook that exists only in the parent vault and runs `engram show <basename>`
+- **THEN** the full note is returned and the agent restates its steps as its plan
+
+### Requirement: Registered skills SHALL be the runbooks the shim finds, not replacements for skills
+The shim's bootstrap query and follow-frame SHALL operate on the runbook notes of registered skills (capability `skill-runbook-registration`) in addition to captured runbooks; a skill remaining installed as a skill SHALL NOT be treated as a reason to skip the follow-frame when its runbook note is matched.
+
+#### Scenario: Skill installed and registered
+- **WHEN** `curate` is deployed as a skill AND its runbook note is matched by the first-action query
+- **THEN** the agent applies the follow-frame to the matched runbook (announce, restate, red_flags, done_when) rather than deferring to the skill's own description-based firing
