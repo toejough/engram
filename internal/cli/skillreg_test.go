@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,7 +37,11 @@ func TestCompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce(t *tes
 		}
 
 		changedIdx := rapid.IntRange(0, len(skills)-1).Draw(rt, "changedIdx")
-		extra := rapid.SliceOfN(rapid.Byte(), 1, 8).Draw(rt, "extraBytes")
+		// A stale note's hash is content+staleSkillMarker, so appending exactly
+		// that byte would make the note current (no offer, correctly).
+		extra := rapid.SliceOfN(rapid.Byte(), 1, 8).
+			Filter(func(extra []byte) bool { return !bytes.Equal(extra, []byte{staleSkillMarker}) }).
+			Draw(rt, "extraBytes")
 		skills[changedIdx].Content = append(append([]byte{}, skills[changedIdx].Content...), extra...)
 
 		offersAfter, afterErr := cli.CompareSkillOffers("/vault", skills, names, vault.readFile, declined)
@@ -538,6 +543,9 @@ func TestRecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent(t *testing.T) {
 // unexported constants.
 const (
 	skillregFixtureVaultRoot = "/vault"
+	// staleSkillMarker is the byte genSkillregFixture appends to a skill's
+	// content to give a stale note a hash that does not match.
+	staleSkillMarker byte = 0xAA
 )
 
 // unexported variables.
@@ -600,7 +608,7 @@ func genSkillregFixture(rt *rapid.T) ([]cli.ShippedSkill, []string, *skillregFix
 
 		hash := cli.SkillContentHash(content)
 		if state == stateStale {
-			hash = cli.SkillContentHash(append(append([]byte{}, content...), 0xAA))
+			hash = cli.SkillContentHash(append(append([]byte{}, content...), staleSkillMarker))
 		}
 
 		noteName := fmt.Sprintf("%d.2026-01-01.skill-%s.md", i+1, name)
