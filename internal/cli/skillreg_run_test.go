@@ -352,9 +352,10 @@ func TestRunSkillRegistration_NonInteractive_NoAnswers_WritesNothingPrintsSummar
 	g.Expect(vault.files).To(BeEmpty())
 }
 
-// TestRunSkillRegistration_PromptEOF_Declines covers "EOF -> decline": an
-// exhausted stdin during an interactive prompt declines the offer.
-func TestRunSkillRegistration_PromptEOF_Declines(t *testing.T) {
+// TestRunSkillRegistration_PromptEOF_RecordsNothing covers ruling R29: an
+// exhausted stdin at an interactive per-offer prompt is no answer, so no
+// note and no decline is written.
+func TestRunSkillRegistration_PromptEOF_RecordsNothing(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -375,10 +376,7 @@ func TestRunSkillRegistration_PromptEOF_Declines(t *testing.T) {
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
-
-	declined, ok := vault.get("skill-registrations.json")
-	g.Expect(ok).To(BeTrue())
-	g.Expect(declined).To(ContainSubstring(cli.SkillContentHash(skillContent)))
+	g.Expect(vault.files).To(BeEmpty())
 }
 
 // TestRunSkillRegistration_PromptRefresh_Yes_ReplacesBody covers the refresh

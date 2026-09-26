@@ -86,7 +86,8 @@ type SkillOfferAnswering struct {
 //   - when interactive, a scope with more than one remaining register or
 //     refresh offer is asked once — accept all, decline all, review each, or
 //     skip (skip, end of input or any other answer records nothing); a
-//     single such offer, and every removal, gets its own y/N prompt;
+//     single such offer, and every removal, gets its own y/N prompt, where
+//     end of input likewise records nothing;
 //   - otherwise the offer is left outstanding.
 //
 // It then notes each --accept/--decline token that matched no offer, prints
@@ -251,8 +252,8 @@ func (a *skillOfferAnswerer) answerScope(scope offerScope) error {
 	return a.promptScope(scope.id, remaining)
 }
 
-// askGroup lists bulk and asks the grouped question once; end of input
-// and any unrecognized answer are a skip.
+// askGroup lists bulk and asks the grouped question once.
+// An unrecognised answer is treated as skip, as is end of input.
 func (a *skillOfferAnswerer) askGroup(scopeID string, bulk []SkillOffer) groupChoice {
 	for _, offer := range bulk {
 		_, _ = fmt.Fprintf(a.stdout, skillGroupPromptOfferFormat, offer.Kind, offer.Key)
@@ -276,10 +277,16 @@ func (a *skillOfferAnswerer) askGroup(scopeID string, bulk []SkillOffer) groupCh
 	}
 }
 
-// promptEach asks the per-offer y/N question for each offer.
+// promptEach asks the per-offer y/N question for each offer; end of input
+// is no answer and records nothing (ruling R29).
 func (a *skillOfferAnswerer) promptEach(offers []SkillOffer) error {
 	for _, offer := range offers {
-		actErr := a.act(offer, promptForOffer(offer, a.scanner, a.stdout))
+		answer := promptForOffer(offer, a.scanner, a.stdout)
+		if answer == SkillAnswerNone {
+			continue
+		}
+
+		actErr := a.act(offer, answer == SkillAnswerAccept)
 		if actErr != nil {
 			return actErr
 		}

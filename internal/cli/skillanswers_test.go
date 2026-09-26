@@ -255,6 +255,48 @@ func TestAnswerSkillOffers_NonInteractiveSummary_SingularOffer(t *testing.T) {
 		"engram: 1 skill runbook offer awaiting an answer: @plugin:superpowers 1 — run "))
 }
 
+// TestAnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines covers
+// ruling R29: end of input at a per-offer y/N prompt is no answer — for a
+// single offer, under "review each", and for a removal — so nothing is
+// accepted or declined, while an explicit "n" still declines.
+func TestAnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines(t *testing.T) {
+	t.Parallel()
+
+	removal := []cli.SkillOffer{{Kind: cli.SkillOfferRemove, Key: "old", ScopeID: "claude-user", Hash: "h-old"}}
+
+	cases := []struct {
+		name         string
+		offers       []cli.SkillOffer
+		stdin        string
+		wantDeclined []string
+	}{
+		{name: "single offer EOF", offers: superpowersOffers("a"), stdin: ""},
+		{name: "review each EOF", offers: superpowersOffers("a", "b"), stdin: "r\n"},
+		{name: "review each EOF after one no", offers: superpowersOffers("a", "b"), stdin: "r\nn\n",
+			wantDeclined: []string{"superpowers:a"}},
+		{name: "removal EOF", offers: removal, stdin: ""},
+		{name: "single offer no", offers: superpowersOffers("a"), stdin: "n\n", wantDeclined: []string{"superpowers:a"}},
+		{name: "review each no", offers: superpowersOffers("a", "b"), stdin: "r\n" + strings.Repeat("n\n", 2),
+			wantDeclined: []string{"superpowers:a", "superpowers:b"}},
+		{name: "removal no", offers: removal, stdin: "n\n", wantDeclined: []string{"old"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			rec := newAnswerRecorder()
+
+			var stdout bytes.Buffer
+
+			g.Expect(cli.AnswerSkillOffers(rec.answering(tc.offers, emptyAnswers(t), tc.stdin), &stdout)).To(Succeed())
+			g.Expect(rec.accepted).To(BeEmpty())
+			g.Expect(rec.declined).To(ConsistOf(stringsOrEmpty(tc.wantDeclined)))
+		})
+	}
+}
+
 // TestAnswerSkillOffers_PropagatesActionErrors covers an accept or decline
 // action failing: the run stops with that error.
 func TestAnswerSkillOffers_PropagatesActionErrors(t *testing.T) {

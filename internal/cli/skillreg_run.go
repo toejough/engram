@@ -308,18 +308,23 @@ func parseAdoptFlags(raw []string) (map[string]string, error) {
 }
 
 // promptForOffer writes offer's prompt to stdout and reads one line from
-// scanner: y/yes (case-insensitive) accepts; anything else, including EOF
-// (scanner.Scan returning false), declines (skill-runbook-registration).
-func promptForOffer(offer SkillOffer, scanner *bufio.Scanner, stdout io.Writer) bool {
+// scanner: y/yes (case-insensitive) accepts, and any other line declines.
+// End of input (scanner.Scan returning false) is no answer at all
+// (SkillAnswerNone): the offer is neither accepted nor declined, like the
+// grouped prompt's skip (ruling R29).
+func promptForOffer(offer SkillOffer, scanner *bufio.Scanner, stdout io.Writer) SkillAnswer {
 	_, _ = fmt.Fprintf(stdout, promptFormatForOfferKind(offer.Kind), offer.Key)
 
 	if !scanner.Scan() {
-		return false
+		return SkillAnswerNone
 	}
 
 	answer := strings.ToLower(strings.TrimSpace(scanner.Text()))
+	if answer == "y" || answer == "yes" {
+		return SkillAnswerAccept
+	}
 
-	return answer == "y" || answer == "yes"
+	return SkillAnswerDecline
 }
 
 // promptFormatForOfferKind returns the exact prompt text (design D4's table)
