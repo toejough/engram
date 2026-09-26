@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -96,7 +97,7 @@ func AdoptSkillNote(
 		return basenameErr
 	}
 
-	raw, renameErr := ensureSkillNoteBasename(vault, oldBasename, newBasename, raw, deps.Rename)
+	raw, rewritten, renameErr := ensureSkillNoteBasename(vault, oldBasename, newBasename, raw, deps.Rename)
 	if renameErr != nil {
 		return renameErr
 	}
@@ -108,16 +109,9 @@ func AdoptSkillNote(
 
 	full := filepath.Join(vault, newBasename+mdExt)
 
-	writeErr := deps.Rename.WriteFile(full, []byte(updated))
+	writeErr := writeAdoptedNote(ctx, full, updated, rewritten, deps)
 	if writeErr != nil {
-		return fmt.Errorf("register-skills: adopt: write %s: %w", newBasename, writeErr)
-	}
-
-	embedErr := writeAmendedSidecar(
-		ctx, AmendDeps{Write: deps.Rename.WriteFile, Embedder: deps.Embedder}, full, updated,
-	)
-	if embedErr != nil {
-		return embedErr
+		return writeErr
 	}
 
 	_, _ = fmt.Fprintln(stdout, full)
@@ -297,25 +291,26 @@ func checkAdoptConflict(vault, skillName, oldBasename string, deps SkillAdoptDep
 // note's current raw content either way: the untouched raw when no rename
 // was needed, or a fresh read at the new path otherwise. Adopting a note
 // already named skill-<name> (oldBasename == newBasename) is therefore a
-// no-op rename — the idempotent case.
+// no-op rename — the idempotent case. It also returns the paths of the
+// notes whose references the rename rewrote (nil when no rename ran).
 func ensureSkillNoteBasename(
 	vault, oldBasename, newBasename string, raw []byte, deps RenameRewriteDeps,
-) ([]byte, error) {
+) ([]byte, []string, error) {
 	if newBasename == oldBasename {
-		return raw, nil
+		return raw, nil, nil
 	}
 
-	renameErr := RenameAndRewriteReferences(deps, vault, map[string]string{oldBasename: newBasename})
+	rewritten, renameErr := RenameAndRewriteReferences(deps, vault, map[string]string{oldBasename: newBasename})
 	if renameErr != nil {
-		return nil, fmt.Errorf("register-skills: adopt: renaming %s: %w", oldBasename, renameErr)
+		return nil, nil, fmt.Errorf("register-skills: adopt: renaming %s: %w", oldBasename, renameErr)
 	}
 
 	fresh, readErr := deps.ReadFile(filepath.Join(vault, newBasename+mdExt))
 	if readErr != nil {
-		return nil, fmt.Errorf("register-skills: adopt: read %s: %w", newBasename, readErr)
+		return nil, nil, fmt.Errorf("register-skills: adopt: read %s: %w", newBasename, readErr)
 	}
 
-	return fresh, nil
+	return fresh, rewritten, nil
 }
 
 // resolveAdoptTarget scans the vault, resolves noteRef the same way `engram
@@ -373,4 +368,34 @@ func skillNoteBody(skillName string, skillContent []byte) string {
 // registered skill note.
 func skillRegistrationSource(skillName string) string {
 	return fmt.Sprintf("skill registration: agent-instructions/skills/%s/SKILL.md", skillName)
+}
+
+// writeAdoptedNote writes the adopted note's updated content at full,
+// rebuilds its sidecar, and rebuilds the sidecar of every referrer the adopt
+// rename rewrote (rewritten) — otherwise those referrers' content_hash no
+// longer matches their rewritten bodies and `engram embed status` reports
+// them stale.
+func writeAdoptedNote(ctx context.Context, full, updated string, rewritten []string, deps SkillAdoptDeps) error {
+	writeErr := deps.Rename.WriteFile(full, []byte(updated))
+	if writeErr != nil {
+		return fmt.Errorf("register-skills: adopt: write %s: %w",
+			strings.TrimSuffix(filepath.Base(full), mdExt), writeErr)
+	}
+
+	embedErr := writeAmendedSidecar(
+		ctx, AmendDeps{Write: deps.Rename.WriteFile, Embedder: deps.Embedder}, full, updated,
+	)
+	if embedErr != nil {
+		return embedErr
+	}
+
+	// The adopted note's own sidecar was just rebuilt from its final body.
+	referrers := slices.DeleteFunc(rewritten, func(path string) bool { return path == full })
+
+	referrerErr := RebuildNoteSidecars(ctx, deps.Rename, deps.Embedder, referrers)
+	if referrerErr != nil {
+		return fmt.Errorf("register-skills: adopt: rebuilding referrer sidecars: %w", referrerErr)
+	}
+
+	return nil
 }

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -29,6 +30,30 @@ type RenameRewriteDeps struct {
 	Rename func(oldPath, newPath string) error
 }
 
+// RebuildNoteSidecars re-embeds each note at paths and overwrites its
+// .vec.json sidecar (via writeAmendedSidecar, the same machinery amend and
+// register-skills use), so notes whose content RenameAndRewriteReferences
+// rewrote are not left stale for `engram embed status`.
+func RebuildNoteSidecars(
+	ctx context.Context, deps RenameRewriteDeps, embedder embed.Embedder, paths []string,
+) error {
+	sidecarDeps := AmendDeps{Write: deps.WriteFile, Embedder: embedder}
+
+	for _, path := range paths {
+		raw, readErr := deps.ReadFile(path)
+		if readErr != nil {
+			return fmt.Errorf("reading %s: %w", path, readErr)
+		}
+
+		embedErr := writeAmendedSidecar(ctx, sidecarDeps, path, string(raw))
+		if embedErr != nil {
+			return embedErr
+		}
+	}
+
+	return nil
+}
+
 // RenameAndRewriteReferences renames every vault note whose basename is a key in
 // renameMap to its mapped new basename (plus its .vec.json sidecar), updates the
 // renamed note's own frontmatter luhmann: field to the new ID, and — in the same
@@ -47,24 +72,38 @@ type RenameRewriteDeps struct {
 // completely untouched — WriteFile is never called for it.
 //
 // renameMap being empty is a no-op: ListMD is not even called.
-func RenameAndRewriteReferences(deps RenameRewriteDeps, vault string, renameMap map[string]string) error {
+//
+// It returns the (post-rename) path of every note whose references it
+// rewrote, in ListMD order: those notes' embedded content changed, so their
+// .vec.json sidecars are stale until rebuilt (RebuildNoteSidecars). A renamed
+// note whose only change is its luhmann: field is not listed — frontmatter
+// outside situation: does not feed embed.ContentHash.
+func RenameAndRewriteReferences(
+	deps RenameRewriteDeps, vault string, renameMap map[string]string,
+) ([]string, error) {
 	if len(renameMap) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	names, err := deps.ListMD(vault)
 	if err != nil {
-		return fmt.Errorf("listing %s: %w", vault, err)
+		return nil, fmt.Errorf("listing %s: %w", vault, err)
 	}
 
+	rewritten := make([]string, 0, len(names))
+
 	for _, name := range names {
-		renameErr := renameAndRewriteOneNote(deps, vault, name, renameMap)
+		path, renameErr := renameAndRewriteOneNote(deps, vault, name, renameMap)
 		if renameErr != nil {
-			return renameErr
+			return nil, renameErr
+		}
+
+		if path != "" {
+			rewritten = append(rewritten, path)
 		}
 	}
 
-	return nil
+	return rewritten, nil
 }
 
 // unexported variables.
@@ -76,42 +115,55 @@ var (
 // (regardless of whether it is itself being renamed), and — if it is being
 // renamed — renames the note file and its sidecar and updates its own luhmann:
 // frontmatter field.
-func renameAndRewriteOneNote(deps RenameRewriteDeps, vault, name string, renameMap map[string]string) error {
+//
+// It returns the note's final path when its references were rewritten, or ""
+// when they were not.
+func renameAndRewriteOneNote(
+	deps RenameRewriteDeps, vault, name string, renameMap map[string]string,
+) (string, error) {
 	basename, ok := vaultgraph.ParseBasename(name)
 	if !ok {
-		return nil
+		return "", nil
 	}
 
 	oldPath := filepath.Join(vault, name)
 
 	raw, err := deps.ReadFile(oldPath)
 	if err != nil {
-		return fmt.Errorf("reading %s: %w", oldPath, err)
+		return "", fmt.Errorf("reading %s: %w", oldPath, err)
 	}
 
 	updated, refsChanged := rewriteNoteReferences(string(raw), renameMap)
 
+	finalPath := oldPath
+
 	newBasename, renaming := renameMap[basename]
-	if !renaming {
-		if !refsChanged {
-			return nil
+	if renaming {
+		newPath, renameErr := renameOneNote(deps, oldPath, vault, newBasename, updated)
+		if renameErr != nil {
+			return "", renameErr
 		}
 
+		finalPath = newPath
+	} else if refsChanged {
 		writeErr := deps.WriteFile(oldPath, []byte(updated))
 		if writeErr != nil {
-			return fmt.Errorf("writing %s: %w", oldPath, writeErr)
+			return "", fmt.Errorf("writing %s: %w", oldPath, writeErr)
 		}
-
-		return nil
 	}
 
-	return renameOneNote(deps, oldPath, vault, newBasename, updated)
+	if !refsChanged {
+		return "", nil
+	}
+
+	return finalPath, nil
 }
 
 // renameOneNote renames oldPath's note file and its .vec.json sidecar to
-// newBasename, updates the note's own luhmann: frontmatter field, and writes
-// the (already reference-rewritten) updated content to the new path.
-func renameOneNote(deps RenameRewriteDeps, oldPath, vault, newBasename, updated string) error {
+// newBasename, updates the note's own luhmann: frontmatter field, writes the
+// (already reference-rewritten) updated content to the new path, and returns
+// that new path.
+func renameOneNote(deps RenameRewriteDeps, oldPath, vault, newBasename, updated string) (string, error) {
 	newID, _ := luhmann.FromBasename(newBasename)
 	updated = rewriteLuhmannIDField(updated, newID)
 
@@ -119,7 +171,7 @@ func renameOneNote(deps RenameRewriteDeps, oldPath, vault, newBasename, updated 
 
 	renameErr := deps.Rename(oldPath, newPath)
 	if renameErr != nil {
-		return fmt.Errorf("renaming %s to %s: %w", oldPath, newPath, renameErr)
+		return "", fmt.Errorf("renaming %s to %s: %w", oldPath, newPath, renameErr)
 	}
 
 	// Best-effort: not every note has an embedding sidecar.
@@ -127,10 +179,10 @@ func renameOneNote(deps RenameRewriteDeps, oldPath, vault, newBasename, updated 
 
 	writeErr := deps.WriteFile(newPath, []byte(updated))
 	if writeErr != nil {
-		return fmt.Errorf("writing %s: %w", newPath, writeErr)
+		return "", fmt.Errorf("writing %s: %w", newPath, writeErr)
 	}
 
-	return nil
+	return newPath, nil
 }
 
 // rewriteLuhmannIDField updates content's frontmatter luhmann: field to newID

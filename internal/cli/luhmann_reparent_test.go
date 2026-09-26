@@ -36,8 +36,11 @@ func TestRenameAndRewriteReferences_CascadingRenamesUseFinalMap(t *testing.T) {
 		"9b.2026-01-01.note-b": "9c2.2026-01-01.note-b",
 	}
 
-	err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", renameMap)
+	rewritten, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", renameMap)
 	g.Expect(err).NotTo(HaveOccurred())
+	// Only note-a's references changed (note-b links to nothing), and it is
+	// reported at its post-rename path so its sidecar can be rebuilt there.
+	g.Expect(rewritten).To(Equal([]string{"/vault/9c1.2026-01-01.note-a.md"}))
 
 	newAContent := string(fixture.written["/vault/9c1.2026-01-01.note-a.md"])
 	g.Expect(newAContent).To(ContainSubstring("[[9c2.2026-01-01.note-b]]"))
@@ -61,7 +64,7 @@ func TestRenameAndRewriteReferences_EmptyMapIsNoOp(t *testing.T) {
 		},
 	}
 
-	err := cli.RenameAndRewriteReferences(deps, "/vault", nil)
+	_, err := cli.RenameAndRewriteReferences(deps, "/vault", nil)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(listCalled).To(BeFalse())
 }
@@ -77,7 +80,7 @@ func TestRenameAndRewriteReferences_ListMDErrorPropagates(t *testing.T) {
 		ListMD: func(string) ([]string, error) { return nil, errReparentFixtureListMD },
 	}
 
-	err := cli.RenameAndRewriteReferences(deps, "/vault", map[string]string{"9a": "9b1"})
+	_, err := cli.RenameAndRewriteReferences(deps, "/vault", map[string]string{"9a": "9b1"})
 	g.Expect(err).To(MatchError(errReparentFixtureListMD))
 }
 
@@ -123,7 +126,7 @@ func TestRenameAndRewriteReferences_MultipleReferencesAcrossNotes(t *testing.T) 
 
 	renameMap := map[string]string{"9a.2026-01-01.old-topic": "9b1.2026-01-01.old-topic"}
 
-	err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", renameMap)
+	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", renameMap)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	legacy := string(fixture.written["/vault/"+legacyLinkName])
@@ -151,7 +154,7 @@ func TestRenameAndRewriteReferences_ReadFileErrorPropagates(t *testing.T) {
 		ReadFile: func(string) ([]byte, error) { return nil, errReparentFixtureReadFile },
 	}
 
-	err := cli.RenameAndRewriteReferences(deps, "/vault", map[string]string{"9a": "9b1"})
+	_, err := cli.RenameAndRewriteReferences(deps, "/vault", map[string]string{"9a": "9b1"})
 	g.Expect(err).To(MatchError(errReparentFixtureReadFile))
 }
 
@@ -173,7 +176,7 @@ func TestRenameAndRewriteReferences_RenameErrorPropagates(t *testing.T) {
 
 	renameMap := map[string]string{"9a.2026-01-01.old-topic": "9b1.2026-01-01.old-topic"}
 
-	err := cli.RenameAndRewriteReferences(deps, "/vault", renameMap)
+	_, err := cli.RenameAndRewriteReferences(deps, "/vault", renameMap)
 	g.Expect(err).To(MatchError(errReparentFixtureRename))
 }
 
@@ -193,7 +196,7 @@ func TestRenameAndRewriteReferences_RenamedNoteWithoutFrontmatterKeepsBody(t *te
 
 	renameMap := map[string]string{"9a.2026-01-01.old-topic": "9b1.2026-01-01.old-topic"}
 
-	err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", renameMap)
+	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", renameMap)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	newContent := string(fixture.written["/vault/9b1.2026-01-01.old-topic.md"])
@@ -216,7 +219,7 @@ func TestRenameAndRewriteReferences_RenamedNoteWithoutLuhmannKeyUnchanged(t *tes
 
 	renameMap := map[string]string{"9a.2026-01-01.old-topic": "9b1.2026-01-01.old-topic"}
 
-	err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", renameMap)
+	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", renameMap)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	newContent := string(fixture.written["/vault/9b1.2026-01-01.old-topic.md"])
@@ -247,7 +250,7 @@ func TestRenameAndRewriteReferences_SingleReferenceRewritten(t *testing.T) {
 
 	renameMap := map[string]string{"9a.2026-01-01.old-topic": "9b1.2026-01-01.old-topic"}
 
-	err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", renameMap)
+	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", renameMap)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(fixture.renamed).To(ConsistOf(
@@ -276,7 +279,7 @@ func TestRenameAndRewriteReferences_UnrelatedNoteUntouched(t *testing.T) {
 
 	fixture := newReparentFixture(map[string]string{unrelatedName: unrelatedBody})
 
-	err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", map[string]string{"9a": "9b1"})
+	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", map[string]string{"9a": "9b1"})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(fixture.written).To(BeEmpty())
 	g.Expect(fixture.renamed).To(BeEmpty())
@@ -300,7 +303,7 @@ func TestRenameAndRewriteReferences_WriteFileErrorPropagates(t *testing.T) {
 
 	renameMap := map[string]string{"9a.2026-01-01.old-topic": "9b1.2026-01-01.old-topic"}
 
-	err := cli.RenameAndRewriteReferences(deps, "/vault", renameMap)
+	_, err := cli.RenameAndRewriteReferences(deps, "/vault", renameMap)
 	g.Expect(err).To(MatchError(errReparentFixtureWriteFile))
 }
 

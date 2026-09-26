@@ -163,6 +163,69 @@ func TestRunReparentLuhmann_ApplyPipelineReindexesAndDetachesStaleEntry(t *testi
 	g.Expect(manifest).To(HaveKey(newPath), "new path must be indexed by RunIngest")
 }
 
+// TestRunReparentLuhmann_ApplyRebuildsReferrerSidecars covers the reparent
+// half of "embed status clean after a rename": a referrer whose
+// [[old-basename]] link apply rewrote must have its .vec.json sidecar rebuilt
+// so its content_hash matches the rewritten body.
+func TestRunReparentLuhmann_ApplyRebuildsReferrerSidecars(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+
+	referencer := "/vault/20.2026-01-03.unrelated-note.md"
+	files[referencer] = []byte(
+		"---\ntype: fact\nluhmann: \"20\"\ncreated: 2026-01-03\n---\n\nsee [[12.2026-01-02.second-note]] also.\n",
+	)
+
+	deps, _ := newReparentDeps(files, names)
+	fingerprint := reparentDeriveFingerprint(t, deps)
+
+	answers := `{"reparenting":[{"note":"12","position":"continuation","target":"7"}],"fingerprint":"` +
+		fingerprint + `"}`
+	files["/answers.json"] = []byte(answers)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	sidecarData, ok := files[embed.SidecarPath(referencer)]
+	g.Expect(ok).To(BeTrue(), "the rewritten referrer's sidecar must be rebuilt")
+
+	sidecar, unmarshalErr := embed.UnmarshalSidecar(sidecarData)
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+	g.Expect(sidecar.ContentHash).To(Equal(embed.ContentHash(files[referencer])))
+}
+
+// TestRunReparentLuhmann_ApplyReferrerSidecarRebuildFailurePropagates covers
+// a referrer sidecar rebuild failing after the rename: the error surfaces
+// (wrapping the embedder's) and the chunk pipeline is not run.
+func TestRunReparentLuhmann_ApplyReferrerSidecarRebuildFailurePropagates(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+	files["/vault/20.2026-01-03.unrelated-note.md"] = []byte(
+		"---\ntype: fact\nluhmann: \"20\"\ncreated: 2026-01-03\n---\n\nsee [[12.2026-01-02.second-note]] also.\n",
+	)
+
+	deps, _ := newReparentDeps(files, names)
+	deps.Embedder = reparentFailingEmbedder{}
+	fingerprint := reparentDeriveFingerprint(t, deps)
+
+	files["/answers.json"] = []byte(`{"reparenting":[{"note":"12","position":"continuation","target":"7"}],` +
+		`"fingerprint":"` + fingerprint + `"}`)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "/answers.json", false, deps, &stdout)
+	g.Expect(err).To(MatchError(errReparentEmbedFailed))
+	g.Expect(stdout.String()).NotTo(ContainSubstring("renamed"))
+}
+
 // TestRunReparentLuhmann_ApplyReportsFurtherCandidatesRemain covers spec
 // "Apply reports whether further candidates remain": after a successful
 // pipeline-complete apply, when the vault's now-current state still has an
@@ -583,7 +646,9 @@ func newReparentDeps(files map[string][]byte, names []string) (cli.ReparentDeps,
 		Remove: remove,
 	}
 
-	return cli.ReparentDeps{Rename: renameDeps, Ingest: ingestDeps, Prune: pruneDeps}, renames
+	return cli.ReparentDeps{
+		Rename: renameDeps, Ingest: ingestDeps, Prune: pruneDeps, Embedder: reparentFakeEmbedder{},
+	}, renames
 }
 
 func reparentDeriveFingerprint(t *testing.T, deps cli.ReparentDeps) string {

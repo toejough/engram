@@ -15,6 +15,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
@@ -351,6 +352,52 @@ func TestAdoptSkillNote_PropagatesWriteError(t *testing.T) {
 	err := cli.AdoptSkillNote(t.Context(), "/vault", skill, "1049", deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(errSkillAcceptForTest))
+}
+
+// TestAdoptSkillNote_RebuildsReferrerSidecars covers task 3.4's "embed status
+// clean after adoption": a note whose [[old-basename]] link the adopt rename
+// rewrote must have its .vec.json sidecar rebuilt, or embed status reports it
+// stale (content_hash no longer matches the rewritten body).
+func TestAdoptSkillNote_RebuildsReferrerSidecars(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	oldBasename := "1049.2026-09-21.curate-review-pending-offers"
+	referrer := "2000.2026-09-22.some-other-note"
+	referrerContent := referencingNoteFixture(oldBasename)
+	vault.put(oldBasename+".md", curatePromotedNoteFixture())
+	vault.put(referrer+".md", referrerContent)
+
+	fakeEmbedder := skillAcceptFakeEmbedder{}
+	sidecar, buildErr := embed.BuildSidecar(t.Context(), fakeEmbedder, []byte(referrerContent))
+	g.Expect(buildErr).NotTo(HaveOccurred())
+	vault.put(referrer+".vec.json", string(embed.MarshalSidecar(sidecar)))
+
+	referrerPath := "/vault/" + referrer + ".md"
+	g.Expect(embed.ComputeState(vault, referrerPath, fakeEmbedder.ModelID())).To(Equal(embed.StateOK))
+
+	skill := cli.ShippedSkill{Name: "curate", Content: []byte("# Curate\n\n1. Judge offers.\n")}
+
+	deps := cli.SkillAdoptDeps{
+		Lock:     noLock,
+		Scan:     func(v string) ([]vaultgraph.Note, error) { return vaultgraph.ScanVault(vault, v) },
+		Rename:   skillAcceptRenameDeps(vault),
+		Embedder: fakeEmbedder,
+	}
+
+	var stdout bytes.Buffer
+
+	err := cli.AdoptSkillNote(t.Context(), "/vault", skill, "1049", deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	rewritten, _ := vault.get(referrer + ".md")
+	g.Expect(rewritten).To(ContainSubstring("[[1049.2026-09-21.skill-curate]]"))
+	g.Expect(embed.ComputeState(vault, referrerPath, fakeEmbedder.ModelID())).To(Equal(embed.StateOK))
 }
 
 // TestAdoptSkillNote_RenamesRewritesLinksPreservesFieldsClearsPending covers

@@ -389,9 +389,10 @@ func newUpdateDeps(d Deps) updateDeps {
 		Exit:  d.Exit,
 		Vocab: newVocabDeps(d),
 		Reparent: ReparentDeps{
-			Rename: newRenameRewriteDeps(d),
-			Ingest: newIngestDeps(d),
-			Prune:  newPruneDeps(d),
+			Rename:   newRenameRewriteDeps(d),
+			Ingest:   newIngestDeps(d),
+			Prune:    newPruneDeps(d),
+			Embedder: d.Embed,
 		},
 		Identity: newIdentityDeps(d),
 		SkillReg: newSkillRegistrationDeps(d),

@@ -23,6 +23,9 @@ type ReparentDeps struct {
 	Rename RenameRewriteDeps
 	Ingest IngestDeps
 	Prune  PruneDeps
+	// Embedder rebuilds the .vec.json sidecar of every note whose content the
+	// rename rewrote, so `engram embed status` stays clean after a reparent.
+	Embedder embed.Embedder
 }
 
 // RunReparentLuhmann implements `engram update --reparent-luhmann`'s
@@ -132,6 +135,23 @@ type reparentNote struct {
 	ID       string
 	Filename string
 	Vector   []float32
+}
+
+// applyReparentRenames applies renameMap via RenameAndRewriteReferences and
+// rebuilds the sidecar of every note whose references it rewrote, so those
+// notes are not left stale for `engram embed status`.
+func applyReparentRenames(ctx context.Context, vault string, renameMap map[string]string, deps ReparentDeps) error {
+	rewritten, applyErr := RenameAndRewriteReferences(deps.Rename, vault, renameMap)
+	if applyErr != nil {
+		return fmt.Errorf("update --reparent-luhmann: applying renames: %w", applyErr)
+	}
+
+	sidecarErr := RebuildNoteSidecars(ctx, deps.Rename, deps.Embedder, rewritten)
+	if sidecarErr != nil {
+		return fmt.Errorf("update --reparent-luhmann: rebuilding rewritten notes' sidecars: %w", sidecarErr)
+	}
+
+	return nil
 }
 
 // buildReparentRenameMap computes the old-basename→new-basename rename map
@@ -446,9 +466,9 @@ func runReparentApply(
 		return nil
 	}
 
-	applyErr := RenameAndRewriteReferences(deps.Rename, vault, renameMap)
+	applyErr := applyReparentRenames(ctx, vault, renameMap, deps)
 	if applyErr != nil {
-		return fmt.Errorf("update --reparent-luhmann: applying renames: %w", applyErr)
+		return applyErr
 	}
 
 	_, _ = fmt.Fprintf(stdout, "update --reparent-luhmann: renamed %d note(s)\n", len(renameMap))
