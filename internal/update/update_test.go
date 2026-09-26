@@ -96,7 +96,7 @@ func TestEngramOwnedSkillsRels(t *testing.T) {
 	g := NewWithT(t)
 
 	g.Expect(update.EngramOwnedSkillsRels()).To(Equal([]string{
-		update.ClaudeEngramSkillsRel,
+		filepath.Join(".claude", "engram", "skills"),
 		filepath.Join(".pi", "agent", "engram", "skills"),
 	}))
 }

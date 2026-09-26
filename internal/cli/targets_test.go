@@ -340,8 +340,28 @@ func TestTargets(t *testing.T) {
 	t.Run("invokes update closure in dry-run mode", func(t *testing.T) {
 		t.Parallel()
 
-		_ = executeForTest(t, []string{
+		// Pin the home, working directory and vault to temp dirs: dry-run
+		// never re-execs, so the registration hook resolves the default skill
+		// sources in-process and must not read the developer's real
+		// ~/.claude, ~/.pi, repository or vault.
+		home, cwd, vault := t.TempDir(), t.TempDir(), t.TempDir()
+
+		_ = executeForTestWithDeps(t, []string{
 			"engram", "update", "--dry-run",
+		}, func(d *cli.Deps) {
+			d.UserHomeDir = func() (string, error) { return home, nil }
+			d.Getwd = func() (string, error) { return cwd, nil }
+			realGetenv := d.Getenv
+			d.Getenv = func(key string) string {
+				switch key {
+				case "ENGRAM_VAULT_PATH":
+					return vault
+				case "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME":
+					return filepath.Join(home, "xdg", key)
+				default:
+					return realGetenv(key)
+				}
+			}
 		})
 	})
 }

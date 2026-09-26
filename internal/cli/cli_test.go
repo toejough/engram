@@ -215,6 +215,7 @@ exit 0
 
 	cacheDir := filepath.Join(t.TempDir(), "cache")
 	run.Env = append(os.Environ(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir)
+	run.Env = append(run.Env, isolatedHomeEnv(t)...)
 	_ = run.Run()
 
 	// The update may succeed or fail (dry-run stops before Cmd.Run for
@@ -240,6 +241,7 @@ exit 0
 
 	cacheDir2 := filepath.Join(t.TempDir(), "cache2")
 	run2.Env = append(os.Environ(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir2)
+	run2.Env = append(run2.Env, isolatedHomeEnv(t)...)
 	_ = run2.Run()
 
 	// Assert marker still only contains invocations from the remote mode test
@@ -296,6 +298,30 @@ func expectSidecarValid(g Gomega, path string) {
 	g.Expect(parsed.SituationVector).To(HaveLen(parsed.Dims))
 	g.Expect(parsed.BodyVector).To(HaveLen(parsed.Dims))
 	g.Expect(parsed.ContentHash).To(HavePrefix("sha256:"))
+}
+
+// isolatedHomeEnv returns environment overrides pointing HOME, the XDG data
+// and config dirs and the engram vault at fresh temp dirs, so an `engram
+// update --dry-run` subprocess (whose skill-registration hook resolves every
+// default skill folder under HOME and reads the vault) never touches the
+// developer's real ~/.claude, ~/.pi or vault. The home holds an empty
+// ~/.claude, so update still detects the Claude Code harness.
+func isolatedHomeEnv(t *testing.T) []string {
+	t.Helper()
+
+	home := t.TempDir()
+
+	mkdirErr := os.MkdirAll(filepath.Join(home, ".claude"), 0o750)
+	if mkdirErr != nil {
+		t.Fatal(mkdirErr)
+	}
+
+	return []string{
+		"HOME=" + home,
+		"XDG_DATA_HOME=" + filepath.Join(home, ".local", "share"),
+		"XDG_CONFIG_HOME=" + filepath.Join(home, ".config"),
+		"ENGRAM_VAULT_PATH=" + filepath.Join(home, "vault"),
+	}
 }
 
 func projectRoot(t *testing.T) string {

@@ -612,9 +612,10 @@ func TestRunSkillRegistration_SkillsDirEntryWithoutSkillMD_Ignored(t *testing.T)
 
 // unexported constants.
 const (
+	// skillRegEngramRoot is the fixture home's Claude Code engram-owned
+	// skills root, where `engram update` deploys engram's skills.
 	skillRegEngramRoot = skillRegHome + "/.claude/engram/skills"
-	// skillRegHome is the fixture home; skillRegEngramRoot its Claude Code
-	// engram-owned skills root, where `engram update` deploys engram's skills.
+	// skillRegHome is the fixture home.
 	skillRegHome = "/home/reg"
 )
 

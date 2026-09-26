@@ -18,7 +18,7 @@ func TestAcceptSkillOffer_MissedSourceErrorsAndWritesNothing(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
-		g := NewWithT(t)
+		g := NewWithT(rt)
 
 		key := rapid.StringMatching(`[a-z][a-z0-9:-]{0,20}`).Draw(rt, "key")
 		path := "/" + rapid.StringMatching(`[a-z0-9/]{1,30}`).Draw(rt, "path")

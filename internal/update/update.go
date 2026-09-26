@@ -72,14 +72,6 @@ var (
 	// home-relative engram-owned root — the same value supportedHarnesses
 	// stamps onto that harness's HarnessSpec.EngramRootRel.
 	ClaudeEngramRootRel = filepath.Join(".claude", "engram") //nolint:gochecknoglobals // exported well-known path
-	// ClaudeEngramSkillsRel is the Claude Code harness's (HarnessClaude)
-	// home-relative canonical deployed skills dir: the `skills` subtree of
-	// its engram-owned root (ClaudeEngramRootRel), where `engram update`
-	// syncs real copies of the skills engram ships and which the harness
-	// surface dir (ClaudeSkillsTargetRel) symlinks into. It holds only
-	// engram's skills; registration scans the default source set, which
-	// reaches these copies through the surface dir's symlinks.
-	ClaudeEngramSkillsRel = filepath.Join(ClaudeEngramRootRel, engramRootSkillsSubdir) //nolint:gochecknoglobals,lll // exported well-known path
 	// ClaudeSkillsTargetRel is the Claude Code harness's (HarnessClaude)
 	// home-relative skills surface dir — the same value supportedHarnesses
 	// stamps onto that harness's HarnessSpec.SkillsTargetRel. It holds ALL
