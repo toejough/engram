@@ -200,3 +200,5 @@ All "now" rows (51 total) performed:
 **openspec/changes/register-skills-as-runbooks/specs/learn-branching-disposition/spec.md:** 59 done (delta spec fixed)
 
 Archive-time rows (8 total) not performed per scope: 21–23 (ADR amendments), 48–49 (ROADMAP amend-historical), 52, 53, 56 (spec Purpose lines)
+
+Note on row 58: the scenario title "Carrier is the runbook, not a skill" in `specs/please-doc-enumeration-gate/spec.md` is intentionally left stale; only its body was corrected. OpenSpec 1.9.0 has no scenario-level rename (RENAMED works on requirements only), and a MODIFIED block that drops an existing scenario title fails validation. Retitling needs a deliberate remove-then-re-add across two changes.

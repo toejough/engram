@@ -47,9 +47,9 @@ Conventions: TDD for every Go change (RED via `targ test`, then GREEN, refactor)
 
 ## 7. Docs, specs, enumeration
 
-- [ ] 7.1 Doc-surface enumeration for "retired"/"no longer a skill"/skill-count language and the reversed end goal: `CLAUDE.md`, `README.md`, `docs/GLOSSARY.md` (`skill`, `runbook`, write-memory entries), `docs/architecture/{adr (ADR-0026 amendment, ADR-0015 note), c1, c2, c3}.md`, `docs/ROADMAP.md` (#758/#759/write-memory "Shipped" rows amended, #760 re-scoped), `agent-instructions/guidance/shim.md` if it asserts skills are gone; write `enumeration.md`; independent fresh-context review; perform every row
+- [x] 7.1 Doc-surface enumeration for "retired"/"no longer a skill"/skill-count language and the reversed end goal: `CLAUDE.md`, `README.md`, `docs/GLOSSARY.md` (`skill`, `runbook`, write-memory entries), `docs/architecture/{adr (ADR-0026 amendment, ADR-0015 note), c1, c2, c3}.md`, `docs/ROADMAP.md` (#758/#759/write-memory "Shipped" rows amended, #760 re-scoped), `agent-instructions/guidance/shim.md` if it asserts skills are gone; write `enumeration.md`; independent fresh-context review; perform every row
 - [ ] 7.2 Archive-time task: replace `openspec/specs/guidance-runbook-follow-frame/spec.md`'s Purpose sentence "every procedure, including recall and learn, is a runbook note it finds and follows" with wording that registered skills are mirrored as runbook notes and skills remain the shipping form (a delta cannot edit Purpose)
-- [ ] 7.3 Archive-time task: amend the "retired" Purpose wording in `openspec/specs/write-memory-worker/spec.md` and any other main-spec Purpose line the enumeration finds
+- [ ] 7.3 Archive-time task: amend the "retired" Purpose wording in `openspec/specs/write-memory-worker/spec.md` and any other main-spec Purpose line the enumeration finds. Known wart, not an archive-time fix: the please-doc-enumeration-gate scenario title "Carrier is the runbook, not a skill" stays stale (see enumeration.md note on row 58)
 - [ ] 7.4 Comment on GitHub #757, #758, #759, #760 recording the regression, the pivot, and this change; do not close #760
 
 ## 8. Close-out
