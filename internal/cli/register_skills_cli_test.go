@@ -94,6 +94,46 @@ func TestRegisterSkillsCLI_AdoptRealNote(t *testing.T) {
 	g.Expect(string(newContent)).To(ContainSubstring("1. Judge offers."))
 }
 
+// TestRegisterSkillsCLI_DefaultSkillsDirIsEngramOwnedRoot covers the
+// --skills-dir default: with the flag omitted, register-skills reads engram's
+// own canonical deployed skills (~/.claude/engram/skills), NOT the Claude Code
+// harness surface dir (~/.claude/skills), which also holds the user's
+// non-engram skills (skill-runbook-registration: only skills engram ships are
+// registered). A real non-engram skill dir under ~/.claude/skills must
+// produce no offer.
+func TestRegisterSkillsCLI_DefaultSkillsDirIsEngramOwnedRoot(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	home := t.TempDir()
+	vault := t.TempDir()
+
+	writeSkill := func(dir, name string) {
+		skillDir := filepath.Join(home, dir, name)
+		g.Expect(os.MkdirAll(skillDir, 0o750)).To(Succeed())
+		g.Expect(os.WriteFile(
+			filepath.Join(skillDir, "SKILL.md"),
+			[]byte("---\nname: "+name+"\ndescription: d\n---\n\nbody\n"),
+			0o600,
+		)).To(Succeed())
+	}
+
+	writeSkill(filepath.Join(".claude", "skills"), "c4")
+	writeSkill(filepath.Join(".claude", "engram", "skills"), "recall")
+
+	var stdout bytes.Buffer
+
+	stderr := executeForTestWithDeps(t, []string{
+		"engram", "register-skills", "--dry-run", "--vault", vault,
+	}, func(d *cli.Deps) {
+		d.Stdout = &stdout
+		d.UserHomeDir = func() (string, error) { return home, nil }
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(stdout.String()).To(Equal("would offer: register recall\n"))
+}
+
 // TestRegisterSkillsCLI_DryRunListsRegisterOffer drives the real CLI wiring
 // (registerSkillsTargets, newSkillRegistrationDeps) end to end over temp
 // dirs: a shipped skill with no runbook note previews a register offer.

@@ -68,12 +68,23 @@ const (
 
 // Exported variables.
 var (
+	// ClaudeEngramRootRel is the Claude Code harness's (HarnessClaude)
+	// home-relative engram-owned root — the same value supportedHarnesses
+	// stamps onto that harness's HarnessSpec.EngramRootRel.
+	ClaudeEngramRootRel = filepath.Join(".claude", "engram") //nolint:gochecknoglobals // exported well-known path
+	// ClaudeEngramSkillsRel is the Claude Code harness's (HarnessClaude)
+	// home-relative canonical deployed skills dir: the `skills` subtree of
+	// its engram-owned root (ClaudeEngramRootRel), where `engram update`
+	// syncs real copies of the skills engram ships and which the harness
+	// surface dir (ClaudeSkillsTargetRel) symlinks into. It holds ONLY
+	// engram's skills, so it is `engram register-skills`'s --skills-dir
+	// default (skill-runbook-registration: only shipped skills register).
+	ClaudeEngramSkillsRel = filepath.Join(ClaudeEngramRootRel, engramRootSkillsSubdir) //nolint:gochecknoglobals,lll // exported well-known path
 	// ClaudeSkillsTargetRel is the Claude Code harness's (HarnessClaude)
-	// home-relative skills install dir — the same value supportedHarnesses
-	// stamps onto that harness's HarnessSpec.SkillsTargetRel. Exported for
-	// callers that need this one harness's deployed skills path outside a
-	// full harness-detection run (skill-runbook-registration: `engram
-	// register-skills`'s --skills-dir default).
+	// home-relative skills surface dir — the same value supportedHarnesses
+	// stamps onto that harness's HarnessSpec.SkillsTargetRel. It holds ALL
+	// of the user's skills (engram's only as symlinks), so it is NOT a
+	// source of engram's shipped skills; use ClaudeEngramSkillsRel for that.
 	ClaudeSkillsTargetRel = filepath.Join(".claude", "skills") //nolint:gochecknoglobals // exported well-known path
 	// ErrCommandNotFound is the Commander contract for "binary not on PATH":
 	// implementations translate their platform's not-found error (e.g.
@@ -955,7 +966,7 @@ func (u *Updater) applySkillLinks(rep *HarnessReport, spec HarnessSpec, skillOps
 
 	for _, name := range skillOrder {
 		link := filepath.Join(rep.SkillsRoot, name)
-		target := filepath.Join(rep.EngramRoot, "skills", name)
+		target := filepath.Join(rep.EngramRoot, engramRootSkillsSubdir, name)
 
 		adopted, linkErr := materializeOrAdopt(u.FS, link, target, dryRun)
 		if linkErr != nil {
@@ -1444,6 +1455,10 @@ const (
 	// engramMarkerFile is the ownership marker written at the top level of
 	// every engram-owned root (D2): its presence is what allows sync-deletion.
 	engramMarkerFile = ".engram-owned"
+	// engramRootSkillsSubdir is the subtree of an engram-owned root that
+	// holds the canonical (real, non-symlink) copies of engram's shipped
+	// skills, which each harness's skills surface dir symlinks into (D1).
+	engramRootSkillsSubdir = "skills"
 	// filePerm is the mode used when writing any copied file.
 	filePerm fs.FileMode = 0o644
 	// lfsPointerPrefix is the first line of every Git-LFS pointer file.
@@ -2095,7 +2110,7 @@ func intendedRootFiles(spec HarnessSpec, home string, skillOps, guidanceOps []Co
 		}
 
 		rel := strings.TrimPrefix(copyOp.Dst, skillsPrefix)
-		out = append(out, intendedRootFile{RelPath: filepath.Join("skills", rel), Src: copyOp.Src})
+		out = append(out, intendedRootFile{RelPath: filepath.Join(engramRootSkillsSubdir, rel), Src: copyOp.Src})
 	}
 
 	for _, copyOp := range guidanceOps {
@@ -2616,9 +2631,9 @@ func supportedHarnesses() []HarnessSpec {
 			Name:              HarnessClaude,
 			ProbeRel:          ".claude",
 			SkillsTargetRel:   ClaudeSkillsTargetRel,
-			GuidanceTargetRel: filepath.Join(".claude", "engram"),
+			GuidanceTargetRel: ClaudeEngramRootRel,
 			ImportsFileRel:    filepath.Join(".claude", "CLAUDE.md"),
-			EngramRootRel:     filepath.Join(".claude", "engram"),
+			EngramRootRel:     ClaudeEngramRootRel,
 			// Verified symlink-capable (skill discovered through a
 			// symlinked skill dir) — verification-verdicts.md.
 			DeployMode: DeployModeSymlink,

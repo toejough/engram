@@ -23,7 +23,7 @@ import (
 type RegisterSkillsArgs struct {
 	Vault     string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`                                         //nolint:lll // unbreakable env+desc struct-tag string
 	VaultName string   `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on a newly-registered note's vault: field (default \"personal\")"` //nolint:lll // unbreakable env+desc struct-tag string
-	SkillsDir string   `targ:"flag,name=skills-dir,desc=skills source dir (default: the deployed Claude Code skills dir under home)"`                               //nolint:lll // unbreakable struct-tag string
+	SkillsDir string   `targ:"flag,name=skills-dir,desc=skills source dir (default: the engram-owned deployed skills dir ~/.claude/engram/skills)"`                 //nolint:lll // unbreakable struct-tag string
 	DryRun    bool     `targ:"flag,name=dry-run,desc=list offers without prompting or writing"`
 	Accept    []string `targ:"flag,name=accept,desc=accept the named skill's current offer without prompting (repeatable)"`
 	Decline   []string `targ:"flag,name=decline,desc=decline the named skill's current offer without prompting (repeatable)"`              //nolint:lll // unbreakable struct-tag string

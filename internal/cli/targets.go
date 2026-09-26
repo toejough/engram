@@ -376,7 +376,7 @@ func registerSkillsTargets(
 
 			skillsDir := a.SkillsDir
 			if skillsDir == "" {
-				skillsDir = filepath.Join(home, update.ClaudeSkillsTargetRel)
+				skillsDir = filepath.Join(home, update.ClaudeEngramSkillsRel)
 			}
 
 			adopt, adoptErr := parseAdoptFlags(a.Adopt)
