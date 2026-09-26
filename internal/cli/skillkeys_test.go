@@ -271,7 +271,10 @@ func TestResolveEngramSkillRoots(t *testing.T) {
 
 		fsys := newFakeSkillFS().dir(engramClaudeSkills).dir(engramPiSkills)
 
-		g.Expect(cli.ResolveEngramSkillRoots(fsys, fakeHome)).To(ConsistOf(engramClaudeSkills, engramPiSkills))
+		roots, warnings := cli.ResolveEngramSkillRoots(fsys, fakeHome)
+
+		g.Expect(roots).To(ConsistOf(engramClaudeSkills, engramPiSkills))
+		g.Expect(warnings).To(BeEmpty())
 	})
 
 	t.Run("a missing root is left out", func(t *testing.T) {
@@ -280,7 +283,10 @@ func TestResolveEngramSkillRoots(t *testing.T) {
 
 		fsys := newFakeSkillFS().dir(engramPiSkills)
 
-		g.Expect(cli.ResolveEngramSkillRoots(fsys, fakeHome)).To(ConsistOf(engramPiSkills))
+		roots, warnings := cli.ResolveEngramSkillRoots(fsys, fakeHome)
+
+		g.Expect(roots).To(ConsistOf(engramPiSkills))
+		g.Expect(warnings).To(BeEmpty(), "a missing root is silent")
 	})
 
 	t.Run("symlinked home resolves to the real tree", func(t *testing.T) {
@@ -289,7 +295,9 @@ func TestResolveEngramSkillRoots(t *testing.T) {
 
 		fsys := newFakeSkillFS().dir(engramPiSkills).link("/links/home", fakeHome)
 
-		g.Expect(cli.ResolveEngramSkillRoots(fsys, "/links/home")).To(ConsistOf(engramPiSkills))
+		roots, _ := cli.ResolveEngramSkillRoots(fsys, "/links/home")
+
+		g.Expect(roots).To(ConsistOf(engramPiSkills))
 	})
 
 	t.Run("an engram root symlinked into another tree resolves to its target", func(t *testing.T) {
@@ -300,7 +308,36 @@ func TestResolveEngramSkillRoots(t *testing.T) {
 			dir("/real/.claude/engram/skills").
 			link("/fixture/home/.claude/engram", "/real/.claude/engram")
 
-		g.Expect(cli.ResolveEngramSkillRoots(fsys, "/fixture/home")).To(ConsistOf("/real/.claude/engram/skills"))
+		roots, _ := cli.ResolveEngramSkillRoots(fsys, "/fixture/home")
+
+		g.Expect(roots).To(ConsistOf("/real/.claude/engram/skills"))
+	})
+
+	t.Run("an unreadable root is left out with a warning (ruling R26)", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newFakeSkillFS().dir(engramClaudeSkills).dir(engramPiSkills).failLstat(engramPiSkills)
+
+		roots, warnings := cli.ResolveEngramSkillRoots(fsys, fakeHome)
+
+		g.Expect(roots).To(ConsistOf(engramClaudeSkills))
+		g.Expect(warnings).To(HaveLen(1))
+		g.Expect(warnings).To(ContainElement(ContainSubstring(engramPiSkills)))
+	})
+
+	t.Run("a link loop is left out with a warning (ruling R26)", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fsys := newFakeSkillFS().dir(engramClaudeSkills).
+			link(piAgentDir+"/engram", piAgentDir+"/loop").link(piAgentDir+"/loop", piAgentDir+"/engram")
+
+		roots, warnings := cli.ResolveEngramSkillRoots(fsys, fakeHome)
+
+		g.Expect(roots).To(ConsistOf(engramClaudeSkills))
+		g.Expect(warnings).To(HaveLen(1))
+		g.Expect(warnings).To(ContainElement(ContainSubstring(engramPiSkills)))
 	})
 }
 
@@ -350,7 +387,7 @@ func TestResolveSkillSources_PiOnlyKeepsBareKeyAndRefreshesLegacyNote(t *testing
 	vault := newSkillregFixtureVault()
 	vault.put(legacyRouteNote, legacySkillNote("1036", "route", cli.SkillContentHash([]byte("route"))))
 
-	offers, offerErr := cli.CompareSkillOffers("/vault", []cli.ShippedSkill{{
+	offers, offerErr := compareShippedSkills([]cli.ShippedSkill{{
 		Name: resolved.Candidates[0].Key, Content: resolved.Candidates[0].Content,
 	}}, []string{legacyRouteNote}, vault.readFile, map[string]string{})
 

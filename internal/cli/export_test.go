@@ -38,6 +38,7 @@ var (
 	ErrQAQuestionRequired                  = errQAQuestionRequired
 	ErrQASourceRequired                    = errQASourceRequired
 	ErrResituateNoteNotFoundForTest        = errResituateNoteNotFound
+	ErrSkillOfferConflictForTest           = errSkillOfferConflict
 	ErrVocabFamilyNoteMissing              = errVocabFamilyNoteMissing
 	ExportAnyHarnessFailed                 = anyHarnessFailed
 	ExportApplyIdentityBackfill            = applyIdentityBackfill

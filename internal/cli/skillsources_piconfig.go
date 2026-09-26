@@ -434,11 +434,16 @@ func (p piPackage) manifestEntries(
 func (p piPackage) scan(fsys SkillSourceFS) SkillScanResult {
 	var result SkillScanResult
 
-	for _, skipped := range p.skipRoots {
-		result.Roots = append(result.Roots, ScannedRoot{Path: skipped})
+	form := SkillRootFormPiPkg
+	if strings.HasPrefix(p.scopeID, SkillScopeProjectPrefix) {
+		form = SkillRootFormProject
 	}
 
-	record := ScannedRoot{Path: p.root}
+	for _, skipped := range p.skipRoots {
+		result.Roots = append(result.Roots, ScannedRoot{Path: skipped, Form: form})
+	}
+
+	record := ScannedRoot{Path: p.root, Form: form}
 
 	if p.entry.filter != nil && p.entry.filter.autoloadOff {
 		result.Warnings = append(result.Warnings, fmt.Sprintf(piAutoloadWarningFormat, p.entry.source))
@@ -671,6 +676,17 @@ func (s piSettingsScope) packageRef(entry piPackageEntry) piPackage {
 	return pkg
 }
 
+// rootForm is the removal-eligibility form of this settings file's entry
+// roots (design D5): each entry is its own pi-settings root, or a project
+// root for the project settings.
+func (s piSettingsScope) rootForm() SkillRootForm {
+	if s.project {
+		return SkillRootFormProject
+	}
+
+	return SkillRootFormPiSettings
+}
+
 // scanEntries scans one settings `skills` or `prompts` list (see
 // ScanPiConfiguredSources).
 func (s piSettingsScope) scanEntries(fsys SkillSourceFS, entries []string, kind SkillSourceKind) SkillScanResult {
@@ -694,7 +710,7 @@ func (s piSettingsScope) scanEntries(fsys SkillSourceFS, entries []string, kind 
 			fmt.Sprintf(piGlobstarWarningFormat, "settings "+filepath.Join(s.baseDir, piSettingsFilename)))
 
 		for _, root := range plain {
-			result.Roots = append(result.Roots, ScannedRoot{Path: root})
+			result.Roots = append(result.Roots, ScannedRoot{Path: root, Form: s.rootForm()})
 		}
 
 		return result
@@ -707,7 +723,7 @@ func (s piSettingsScope) scanEntries(fsys SkillSourceFS, entries []string, kind 
 		result.Candidates = append(result.Candidates, collected.candidates...)
 		result.Warnings = append(result.Warnings, collected.warnings...)
 		result.Roots = append(result.Roots, ScannedRoot{
-			Path: root, Resolved: collected.resolved, Scanned: collected.found && collected.ok,
+			Path: root, Resolved: collected.resolved, Scanned: collected.found && collected.ok, Form: s.rootForm(),
 		})
 	}
 

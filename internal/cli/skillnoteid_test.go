@@ -25,7 +25,7 @@ func TestCompareSkillOffers_LegacyNotesMakeNoOffer(t *testing.T) {
 		skills = append(skills, cli.ShippedSkill{Name: key, Content: []byte(key)})
 	}
 
-	offers, err := cli.CompareSkillOffers("/vault", skills, names, vault.readFile, map[string]string{})
+	offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(offers).To(BeEmpty())

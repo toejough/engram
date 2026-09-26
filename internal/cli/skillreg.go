@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -39,9 +38,15 @@ type ShippedSkill struct {
 // stores against Skill when the offer is declined.
 type SkillOffer struct {
 	Kind SkillOfferKind
-	// Skill is the shipped skill's name (Register/Refresh) or the name
-	// extracted from the orphaned note's slug (Remove).
-	Skill string
+	// Key is the skill key (design D3): the candidate's key for
+	// Register/Refresh, or the note's key for Remove.
+	Key string
+	// ScopeID is the answer scope (design D6): the candidate's scope, or,
+	// for a removal, the scope the note's key form names.
+	ScopeID string
+	// SourcePath is the candidate's resolved source file, or, for a
+	// removal, the note's recorded skill_source (empty when it has none).
+	SourcePath string
 	// Basename is the note's basename; empty for Register, since no note
 	// exists yet.
 	Basename string
@@ -53,61 +58,6 @@ type SkillOffer struct {
 // removing a note whose skill is no longer shipped (skill-runbook-
 // registration D4).
 type SkillOfferKind string
-
-// CompareSkillOffers computes the deterministic (sorted by skill name) list
-// of registration offers: a shipped skill with no note offers Register; one
-// whose note's skill_hash differs from the skill's current content hash
-// offers Refresh; a skill note whose skill is absent from skills offers
-// Remove; hashes matching or the acting hash already declined makes no
-// offer (skill-runbook-registration: "Registration SHALL offer, not act,
-// and remember declines by hash"). names is a vault ListMD-shaped listing
-// of full .md filenames; readFile reads a vault-joined path. A duplicate
-// skill note (found by FindSkillNote's identity rule) aborts the whole
-// comparison with errDuplicateSkillNote, naming every match, and makes no
-// change.
-func CompareSkillOffers(
-	vault string,
-	skills []ShippedSkill,
-	names []string,
-	readFile func(string) ([]byte, error),
-	declined map[string]string,
-) ([]SkillOffer, error) {
-	byKey := groupSkillNoteCandidates(vault, names, readFile)
-	shipped := make(map[string]bool, len(skills))
-	offers := make([]SkillOffer, 0, len(skills))
-
-	for _, skill := range skills {
-		shipped[skill.Name] = true
-
-		offer, hasOffer, err := compareOneShippedSkill(skill, byKey[skill.Name], declined)
-		if err != nil {
-			return nil, err
-		}
-
-		if hasOffer {
-			offers = append(offers, offer)
-		}
-	}
-
-	for skillName, matches := range byKey {
-		if shipped[skillName] {
-			continue
-		}
-
-		offer, hasOffer, err := removalOfferFor(skillName, matches, declined)
-		if err != nil {
-			return nil, err
-		}
-
-		if hasOffer {
-			offers = append(offers, offer)
-		}
-	}
-
-	sort.Slice(offers, func(i, j int) bool { return offers[i].Skill < offers[j].Skill })
-
-	return offers, nil
-}
 
 // FindSkillNote locates skill key key's runbook note among the vault's full
 // .md filenames (a ListMD-shaped listing), per skillNoteKey's identity rule:
@@ -232,15 +182,20 @@ var (
 type skillNoteCandidate struct {
 	Basename string
 	Hash     string
+	// Source is the note's recorded skill_source (`~`-relative resolved
+	// path), empty for a legacy note; removal eligibility (design D5) reads
+	// it for source-rooted key forms.
+	Source string
 }
 
 // skillNoteFrontmatterProbe extracts just the fields skill-note identity
 // needs from a candidate note's frontmatter: its declared type, its
 // skill_hash, and its skill_key, if any.
 type skillNoteFrontmatterProbe struct {
-	Type      string `yaml:"type"`
-	SkillHash string `yaml:"skill_hash"`
-	SkillKey  string `yaml:"skill_key"`
+	Type        string `yaml:"type"`
+	SkillHash   string `yaml:"skill_hash"`
+	SkillKey    string `yaml:"skill_key"`
+	SkillSource string `yaml:"skill_source"`
 }
 
 // skillRegistrationsDoc is the on-disk shape of skill-registrations.json —
@@ -251,38 +206,6 @@ type skillNoteFrontmatterProbe struct {
 type skillRegistrationsDoc struct {
 	SchemaVersion int               `json:"schema_version"`
 	Declined      map[string]string `json:"declined"`
-}
-
-// compareOneShippedSkill compares one shipped skill against its resolved
-// note matches, returning the offer CompareSkillOffers should record (if
-// any). Split out of CompareSkillOffers's loop to keep both functions
-// within the repo's cyclomatic-complexity budget.
-func compareOneShippedSkill(
-	skill ShippedSkill, matches []skillNoteCandidate, declined map[string]string,
-) (SkillOffer, bool, error) {
-	basename, noteHash, found, resolveErr := resolveSkillNoteMatches(matches)
-	if resolveErr != nil {
-		return SkillOffer{}, false, resolveErr
-	}
-
-	hash := SkillContentHash(skill.Content)
-
-	switch {
-	case !found:
-		if declined[skill.Name] == hash {
-			return SkillOffer{}, false, nil
-		}
-
-		return SkillOffer{Kind: SkillOfferRegister, Skill: skill.Name, Hash: hash}, true, nil
-	case noteHash != hash:
-		if declined[skill.Name] == hash {
-			return SkillOffer{}, false, nil
-		}
-
-		return SkillOffer{Kind: SkillOfferRefresh, Skill: skill.Name, Basename: basename, Hash: hash}, true, nil
-	default:
-		return SkillOffer{}, false, nil
-	}
 }
 
 // groupSkillNoteCandidates scans names for runbook notes carrying a
@@ -312,41 +235,24 @@ func groupSkillNoteCandidates(
 			continue
 		}
 
-		hash, key, isSkillNote := skillIdentityFromFrontmatter(raw)
+		probe, isSkillNote := skillIdentityFromFrontmatter(raw)
 		if !isSkillNote {
 			continue
 		}
 
+		key := probe.SkillKey
 		if key == "" {
 			key = slugRemainder
 		}
 
 		byKey[key] = append(byKey[key], skillNoteCandidate{
 			Basename: strings.TrimSuffix(name, mdExt),
-			Hash:     hash,
+			Hash:     probe.SkillHash,
+			Source:   probe.SkillSource,
 		})
 	}
 
 	return byKey
-}
-
-// removalOfferFor resolves skillName's note matches and returns a Remove
-// offer when the note's skill_hash isn't already declined. Split out of
-// CompareSkillOffers's loop to keep both functions within the repo's
-// cyclomatic-complexity budget.
-func removalOfferFor(
-	skillName string, matches []skillNoteCandidate, declined map[string]string,
-) (SkillOffer, bool, error) {
-	basename, noteHash, found, resolveErr := resolveSkillNoteMatches(matches)
-	if resolveErr != nil {
-		return SkillOffer{}, false, resolveErr
-	}
-
-	if !found || declined[skillName] == noteHash {
-		return SkillOffer{}, false, nil
-	}
-
-	return SkillOffer{Kind: SkillOfferRemove, Skill: skillName, Basename: basename, Hash: noteHash}, true, nil
 }
 
 // resolveSkillNoteMatches reduces a skill name's grouped note candidates to
@@ -368,26 +274,26 @@ func resolveSkillNoteMatches(matches []skillNoteCandidate) (basename string, has
 	}
 }
 
-// skillIdentityFromFrontmatter reports the note's skill_hash and skill_key
-// (empty for a legacy note) when raw parses as a runbook note's frontmatter
-// carrying a non-empty skill_hash; ok is false for any other note type, a
-// runbook with no skill_hash, or unparseable content.
-func skillIdentityFromFrontmatter(raw []byte) (hash, key string, ok bool) {
+// skillIdentityFromFrontmatter reports the note's skill_hash, skill_key
+// (empty for a legacy note) and skill_source when raw parses as a runbook
+// note's frontmatter carrying a non-empty skill_hash; ok is false for any
+// other note type, a runbook with no skill_hash, or unparseable content.
+func skillIdentityFromFrontmatter(raw []byte) (skillNoteFrontmatterProbe, bool) {
 	frontmatter, hasFrontmatter := splitFrontmatter(raw)
 	if !hasFrontmatter {
-		return "", "", false
+		return skillNoteFrontmatterProbe{}, false
 	}
 
 	var probe skillNoteFrontmatterProbe
 	if yaml.Unmarshal(frontmatter, &probe) != nil {
-		return "", "", false
+		return skillNoteFrontmatterProbe{}, false
 	}
 
 	if probe.Type != typeRunbook || probe.SkillHash == "" {
-		return "", "", false
+		return skillNoteFrontmatterProbe{}, false
 	}
 
-	return probe.SkillHash, probe.SkillKey, true
+	return probe, true
 }
 
 // skillNameFromNoteName extracts the skill name from a full .md filename

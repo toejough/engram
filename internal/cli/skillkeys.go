@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -53,22 +55,32 @@ func AssignSkillKeys(candidates []SkillCandidate, engramSkillRoots []string) ([]
 // ResolveEngramSkillRoots returns the fully symlink-resolved engram-owned
 // skills roots, `<home>/<EngramRootRel>/skills`, of every supported harness
 // (update.EngramOwnedSkillsRels), whether or not the harness is detected. A
-// root that cannot be resolved (typically absent) is left out: no candidate
-// can have been read from under it.
-func ResolveEngramSkillRoots(fsys SkillSourceFS, home string) []string {
+// root that does not exist is left out silently: no candidate can have been
+// read from under it. A root that fails to resolve for any other reason (a
+// permission error, a link loop) is left out with a warning (ruling R26),
+// since a copy read through it would then lose its bare key.
+func ResolveEngramSkillRoots(fsys SkillSourceFS, home string) ([]string, []string) {
 	rels := update.EngramOwnedSkillsRels()
 	roots := make([]string, 0, len(rels))
 
+	var warnings []string
+
 	for _, rel := range rels {
-		resolved, err := ResolveSkillPath(fsys, filepath.Join(home, rel))
+		root := filepath.Join(home, rel)
+
+		resolved, err := ResolveSkillPath(fsys, root)
 		if err != nil {
+			if !errors.Is(err, fs.ErrNotExist) {
+				warnings = append(warnings, fmt.Sprintf(engramRootUnresolvedWarningFormat, root, err))
+			}
+
 			continue
 		}
 
 		roots = append(roots, resolved)
 	}
 
-	return roots
+	return roots, warnings
 }
 
 // SkillKeySlug derives a skill note's slug from its key (design D3): the key
@@ -102,6 +114,10 @@ func SkillKeySlug(key string) string {
 
 // unexported constants.
 const (
+	// engramRootUnresolvedWarningFormat reports an engram-owned skills root
+	// that exists but cannot be resolved (ruling R26).
+	engramRootUnresolvedWarningFormat = "engram: cannot resolve the engram skills root %s: %v; " +
+		"copies read through it lose their bare key"
 	skillKeyNameColonProblem  = "its name contains `:`"
 	skillKeyNoSlugProblem     = "its key has no letter or digit for a note slug"
 	skillKeySegmentAnthropic  = "anthropic-skills"

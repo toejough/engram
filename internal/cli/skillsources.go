@@ -41,6 +41,11 @@ type ScannedRoot struct {
 	Resolved string
 	// Scanned is true only when the root was read successfully.
 	Scanned bool
+	// Form is the removal-eligibility form of the notes this root can prove
+	// absent (design D5). Scanners leave it empty; ResolveSkillSources and
+	// the Pi configured-source scanner stamp it. An empty Form (e.g. the
+	// synced directory itself, or a plugin root) never grants eligibility.
+	Form SkillRootForm
 }
 
 // SkillCandidate is one skill, command or prompt file found by a source

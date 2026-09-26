@@ -108,7 +108,7 @@ func RunSkillRegistration(
 	shippedByName := skillsByName(shipped)
 
 	if args.DryRun {
-		return runSkillRegistrationDryRun(args.Vault, shipped, deps, stdout)
+		return runSkillRegistrationDryRun(args.Vault, args.SkillsDir, shipped, deps, stdout)
 	}
 
 	adoptErr := runSkillAdoptions(ctx, args.Vault, args.Adopt, shippedByName, deps.Adopt, stdout)
@@ -180,9 +180,9 @@ func acceptSkillOffer(
 ) error {
 	switch offer.Kind {
 	case SkillOfferRegister:
-		return RegisterSkill(ctx, vault, vaultName, shippedByName[offer.Skill], deps.Learn, stdout)
+		return RegisterSkill(ctx, vault, vaultName, shippedByName[offer.Key], deps.Learn, stdout)
 	case SkillOfferRefresh:
-		return RefreshSkill(ctx, vault, shippedByName[offer.Skill], offer.Basename, deps.Accept, stdout)
+		return RefreshSkill(ctx, vault, shippedByName[offer.Key], offer.Basename, deps.Accept, stdout)
 	case SkillOfferRemove:
 		return RemoveSkill(vault, offer.Basename, deps.Accept, stdout)
 	default:
@@ -205,25 +205,36 @@ func checkAcceptDeclineConflict(accept, decline []string) error {
 }
 
 // computeSkillOffers lists the vault, reads the decline state, and runs
-// CompareSkillOffers — the offer-computation shared by the dry-run preview
-// and the answer loop.
-func computeSkillOffers(vault string, shipped []ShippedSkill, deps SkillRegistrationDeps) ([]SkillOffer, error) {
+// CompareSkillOffers over the shipped skills of skillsDir — the
+// offer-computation shared by the dry-run preview and the answer loop. The
+// shipped skills are Claude-user candidates keyed by their bare names, and
+// skillsDir is their one read root, so every bare-key note is
+// removal-eligible, as before keyed sources existed.
+func computeSkillOffers(
+	vault, skillsDir string, shipped []ShippedSkill, deps SkillRegistrationDeps,
+) (SkillOfferComparison, error) {
 	names, listErr := deps.ListMD(vault)
 	if listErr != nil {
-		return nil, fmt.Errorf("register-skills: listing vault: %w", listErr)
+		return SkillOfferComparison{}, fmt.Errorf("register-skills: listing vault: %w", listErr)
 	}
 
 	declined, declinedErr := ReadSkillRegistrations(vault, deps.Accept.Read)
 	if declinedErr != nil {
-		return nil, fmt.Errorf("register-skills: %w", declinedErr)
+		return SkillOfferComparison{}, fmt.Errorf("register-skills: %w", declinedErr)
 	}
 
-	offers, offersErr := CompareSkillOffers(vault, shipped, names, deps.Accept.Read, declined)
+	comparison, offersErr := CompareSkillOffers(SkillOfferInput{
+		Vault:    vault,
+		Names:    names,
+		ReadFile: deps.Accept.Read,
+		Declined: declined,
+		Sources:  ShippedSkillSources(skillsDir, shipped),
+	})
 	if offersErr != nil {
-		return nil, fmt.Errorf("register-skills: %w", offersErr)
+		return SkillOfferComparison{}, fmt.Errorf("register-skills: %w", offersErr)
 	}
 
-	return offers, nil
+	return comparison, nil
 }
 
 // loadShippedSkills lists skillsDir's immediate subdirectories and reads
@@ -318,7 +329,7 @@ func parseAdoptFlags(raw []string) (map[string]string, error) {
 // scanner: y/yes (case-insensitive) accepts; anything else, including EOF
 // (scanner.Scan returning false), declines (skill-runbook-registration).
 func promptForOffer(offer SkillOffer, scanner *bufio.Scanner, stdout io.Writer) bool {
-	_, _ = fmt.Fprintf(stdout, promptFormatForOfferKind(offer.Kind), offer.Skill)
+	_, _ = fmt.Fprintf(stdout, promptFormatForOfferKind(offer.Kind), offer.Key)
 
 	if !scanner.Scan() {
 		return false
@@ -374,18 +385,18 @@ func resolveOneSkillOffer(
 	unanswered *[]string,
 ) error {
 	switch {
-	case acceptSet[offer.Skill]:
+	case acceptSet[offer.Key]:
 		return acceptSkillOffer(ctx, args.Vault, args.VaultName, offer, shippedByName, deps, stdout)
-	case declineSet[offer.Skill]:
-		return RecordSkillDeclined(args.Vault, offer.Skill, offer.Hash, deps.Accept.Read, deps.Accept.Write)
+	case declineSet[offer.Key]:
+		return RecordSkillDeclined(args.Vault, offer.Key, offer.Hash, deps.Accept.Read, deps.Accept.Write)
 	case interactive:
 		if promptForOffer(offer, scanner, stdout) {
 			return acceptSkillOffer(ctx, args.Vault, args.VaultName, offer, shippedByName, deps, stdout)
 		}
 
-		return RecordSkillDeclined(args.Vault, offer.Skill, offer.Hash, deps.Accept.Read, deps.Accept.Write)
+		return RecordSkillDeclined(args.Vault, offer.Key, offer.Hash, deps.Accept.Read, deps.Accept.Write)
 	default:
-		*unanswered = append(*unanswered, offer.Skill)
+		*unanswered = append(*unanswered, offer.Key)
 
 		return nil
 	}
@@ -430,18 +441,18 @@ func runSkillAdoptions(
 // --adopt entries are not run under --dry-run either — a dry run touches no
 // vault state.
 func runSkillRegistrationDryRun(
-	vault string, shipped []ShippedSkill, deps SkillRegistrationDeps, stdout io.Writer,
+	vault, skillsDir string, shipped []ShippedSkill, deps SkillRegistrationDeps, stdout io.Writer,
 ) error {
-	offers, offersErr := computeSkillOffers(vault, shipped, deps)
+	comparison, offersErr := computeSkillOffers(vault, skillsDir, shipped, deps)
 	if offersErr != nil {
 		return offersErr
 	}
 
-	for _, offer := range offers {
-		_, _ = fmt.Fprintf(stdout, skillRegistrationDryRunOfferFormat, offer.Kind, offer.Skill)
+	for _, offer := range comparison.Offers {
+		_, _ = fmt.Fprintf(stdout, skillRegistrationDryRunOfferFormat, offer.Kind, offer.Key)
 	}
 
-	return nil
+	return ReportSkillOfferProblems(stdout, comparison)
 }
 
 // runSkillRegistrationOffers computes the current offers and, for each one:
@@ -457,10 +468,12 @@ func runSkillRegistrationOffers(
 	deps SkillRegistrationDeps,
 	stdout io.Writer,
 ) error {
-	offers, offersErr := computeSkillOffers(args.Vault, shipped, deps)
+	comparison, offersErr := computeSkillOffers(args.Vault, args.SkillsDir, shipped, deps)
 	if offersErr != nil {
 		return offersErr
 	}
+
+	offers := comparison.Offers
 
 	acceptSet := toStringSet(args.Accept)
 	declineSet := toStringSet(args.Decline)
@@ -475,7 +488,7 @@ func runSkillRegistrationOffers(
 	unanswered := make([]string, 0, len(offers))
 
 	for _, offer := range offers {
-		offeredNames[offer.Skill] = true
+		offeredNames[offer.Key] = true
 
 		actionErr := resolveOneSkillOffer(ctx, args, offer, shippedByName, acceptSet, declineSet,
 			interactive, scanner, deps, stdout, &unanswered)
@@ -491,7 +504,7 @@ func runSkillRegistrationOffers(
 		_, _ = fmt.Fprintf(stdout, skillRegistrationAwaitingAnswerFormat, strings.Join(unanswered, ", "))
 	}
 
-	return nil
+	return ReportSkillOfferProblems(stdout, comparison)
 }
 
 // skillsByName indexes skills by name for accept-time lookup.

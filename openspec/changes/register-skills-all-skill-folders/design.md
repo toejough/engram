@@ -144,6 +144,7 @@ The name is always the directory name, file stem, or command path, never a front
 - **Plugin names that repeat across marketplaces** (none today) are **not re-keyed**. That is a D4 plugin conflict: loud, with no offers, and the plugin scope is not scanned.
 - **Reserved plugin names** are `pi`, `agents`, `project`, `anthropic-skills`, `cmd`, `pi-settings`, `pi-pkg` and `pi-prompt`. A plugin with one of these names is skipped with a warning.
 - **Slug.** Lowercase the key, replace each run of characters outside `[a-z0-9]` with `-`, trim leading and trailing `-`, and prefix `skill-`. For example, `project:github.com/toejough/engram:openspec-propose` becomes `skill-project-github-com-toejough-engram-openspec-propose`.
+  Different keys may share a readable slug (e.g. `pi:a-b` and `pi-a:b` both give `skill-pi-a-b`). This is accepted (ruling R25): lookup is by `skill_key`, never by slug, and the Luhmann id keeps each note's basename unique.
 - **Stored fields and lookup.** New notes carry `skill_key` and `skill_source` (`~`-relative resolved path). Lookup is by `skill_key` on a runbook note with `skill_hash`. A skill note with no `skill_key` takes its key from its slug remainder, which covers the six legacy notes.
 
 Alternatives:

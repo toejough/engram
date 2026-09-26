@@ -26,14 +26,14 @@ func TestCompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce(t *tes
 			return
 		}
 
-		baseline, err := cli.CompareSkillOffers("/vault", skills, names, vault.readFile, map[string]string{})
+		baseline, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
 		if err != nil {
 			rt.Fatalf("CompareSkillOffers: %v", err)
 		}
 
 		declined := make(map[string]string, len(baseline))
 		for _, offer := range baseline {
-			declined[offer.Skill] = offer.Hash
+			declined[offer.Key] = offer.Hash
 		}
 
 		changedIdx := rapid.IntRange(0, len(skills)-1).Draw(rt, "changedIdx")
@@ -44,7 +44,7 @@ func TestCompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce(t *tes
 			Draw(rt, "extraBytes")
 		skills[changedIdx].Content = append(append([]byte{}, skills[changedIdx].Content...), extra...)
 
-		offersAfter, afterErr := cli.CompareSkillOffers("/vault", skills, names, vault.readFile, declined)
+		offersAfter, afterErr := compareShippedSkills(skills, names, vault.readFile, declined)
 		if afterErr != nil {
 			rt.Fatalf("CompareSkillOffers (after content change): %v", afterErr)
 		}
@@ -52,8 +52,8 @@ func TestCompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce(t *tes
 		matchCount := 0
 
 		for _, offer := range offersAfter {
-			if offer.Skill != skills[changedIdx].Name {
-				rt.Fatalf("unexpected offer for unrelated skill %q: %+v", offer.Skill, offer)
+			if offer.Key != skills[changedIdx].Name {
+				rt.Fatalf("unexpected offer for unrelated skill %q: %+v", offer.Key, offer)
 			}
 
 			matchCount++
@@ -75,17 +75,17 @@ func TestCompareSkillOffers_DeclineAllThenRecompute_YieldsNoOffers(t *testing.T)
 	rapid.Check(t, func(rt *rapid.T) {
 		skills, names, vault := genSkillregFixture(rt)
 
-		offers, err := cli.CompareSkillOffers("/vault", skills, names, vault.readFile, map[string]string{})
+		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
 		if err != nil {
 			rt.Fatalf("CompareSkillOffers: %v", err)
 		}
 
 		declined := make(map[string]string, len(offers))
 		for _, offer := range offers {
-			declined[offer.Skill] = offer.Hash
+			declined[offer.Key] = offer.Hash
 		}
 
-		offersAfter, afterErr := cli.CompareSkillOffers("/vault", skills, names, vault.readFile, declined)
+		offersAfter, afterErr := compareShippedSkills(skills, names, vault.readFile, declined)
 		if afterErr != nil {
 			rt.Fatalf("CompareSkillOffers (recompute): %v", afterErr)
 		}
@@ -112,7 +112,7 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 		vault := newSkillregFixtureVault()
 		skills := []cli.ShippedSkill{{Name: "curate", Content: content}}
 
-		offers, err := cli.CompareSkillOffers("/vault", skills, nil, vault.readFile, map[string]string{"curate": hash})
+		offers, err := compareShippedSkills(skills, nil, vault.readFile, map[string]string{"curate": hash})
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(offers).To(BeEmpty())
@@ -126,7 +126,7 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 		declined := map[string]string{"curate": cli.SkillContentHash([]byte("curate procedure v1"))}
 		skills := []cli.ShippedSkill{{Name: "curate", Content: []byte("curate procedure v2")}}
 
-		offers, err := cli.CompareSkillOffers("/vault", skills, nil, vault.readFile, declined)
+		offers, err := compareShippedSkills(skills, nil, vault.readFile, declined)
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(offers).To(HaveLen(1))
@@ -148,7 +148,7 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 		skills := []cli.ShippedSkill{{Name: "curate", Content: content}}
 		names := []string{"1049.2026-09-21.skill-curate.md"}
 
-		offers, err := cli.CompareSkillOffers("/vault", skills, names, vault.readFile, map[string]string{"curate": hash})
+		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{"curate": hash})
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(offers).To(BeEmpty())
@@ -163,7 +163,7 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 		names := []string{"1053.2026-09-21.skill-write-memory.md"}
 		declined := map[string]string{"write-memory": "wm-hash"}
 
-		offers, err := cli.CompareSkillOffers("/vault", nil, names, vault.readFile, declined)
+		offers, err := compareShippedSkills(nil, names, vault.readFile, declined)
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(offers).To(BeEmpty())
@@ -184,7 +184,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		vault := newSkillregFixtureVault()
 		skills := []cli.ShippedSkill{{Name: "curate", Content: []byte("curate procedure v1")}}
 
-		offers, err := cli.CompareSkillOffers("/vault", skills, nil, vault.readFile, map[string]string{})
+		offers, err := compareShippedSkills(skills, nil, vault.readFile, map[string]string{})
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(offers).To(HaveLen(1))
@@ -193,7 +193,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		}
 
 		g.Expect(offers[0].Kind).To(Equal(cli.SkillOfferRegister))
-		g.Expect(offers[0].Skill).To(Equal("curate"))
+		g.Expect(offers[0].Key).To(Equal("curate"))
 		g.Expect(offers[0].Basename).To(BeEmpty())
 		g.Expect(offers[0].Hash).To(Equal(cli.SkillContentHash([]byte("curate procedure v1"))))
 	})
@@ -207,7 +207,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		skills := []cli.ShippedSkill{{Name: "curate", Content: []byte("curate procedure v2")}}
 		names := []string{"1049.2026-09-21.skill-curate.md"}
 
-		offers, err := cli.CompareSkillOffers("/vault", skills, names, vault.readFile, map[string]string{})
+		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(offers).To(HaveLen(1))
@@ -216,7 +216,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		}
 
 		g.Expect(offers[0].Kind).To(Equal(cli.SkillOfferRefresh))
-		g.Expect(offers[0].Skill).To(Equal("curate"))
+		g.Expect(offers[0].Key).To(Equal("curate"))
 		g.Expect(offers[0].Basename).To(Equal("1049.2026-09-21.skill-curate"))
 		g.Expect(offers[0].Hash).To(Equal(cli.SkillContentHash([]byte("curate procedure v2"))))
 	})
@@ -229,7 +229,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		vault.put("1053.2026-09-21.skill-write-memory.md", runbookNote("wm-hash"))
 		names := []string{"1053.2026-09-21.skill-write-memory.md"}
 
-		offers, err := cli.CompareSkillOffers("/vault", nil, names, vault.readFile, map[string]string{})
+		offers, err := compareShippedSkills(nil, names, vault.readFile, map[string]string{})
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(offers).To(HaveLen(1))
@@ -238,7 +238,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		}
 
 		g.Expect(offers[0].Kind).To(Equal(cli.SkillOfferRemove))
-		g.Expect(offers[0].Skill).To(Equal("write-memory"))
+		g.Expect(offers[0].Key).To(Equal("write-memory"))
 		g.Expect(offers[0].Basename).To(Equal("1053.2026-09-21.skill-write-memory"))
 		g.Expect(offers[0].Hash).To(Equal("wm-hash"))
 	})
@@ -255,7 +255,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		skills := []cli.ShippedSkill{{Name: "curate", Content: content}}
 		names := []string{"1049.2026-09-21.skill-curate.md"}
 
-		offers, err := cli.CompareSkillOffers("/vault", skills, names, vault.readFile, map[string]string{})
+		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(offers).To(BeEmpty())
@@ -271,7 +271,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		skills := []cli.ShippedSkill{{Name: "curate", Content: []byte("v")}}
 		names := []string{"1049.2026-09-21.skill-curate.md", "1050.2026-09-22.skill-curate.md"}
 
-		offers, err := cli.CompareSkillOffers("/vault", skills, names, vault.readFile, map[string]string{})
+		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
 
 		g.Expect(err).To(MatchError(cli.ErrDuplicateSkillNoteForTest))
 		g.Expect(offers).To(BeNil())
@@ -578,8 +578,28 @@ func (v *skillregFixtureVault) readFile(path string) ([]byte, error) {
 	return []byte(content), nil
 }
 
+// compareShippedSkills runs CompareSkillOffers the way the single-directory
+// register-skills flow does (ShippedSkillSources over /skills) and returns
+// just the offers.
+func compareShippedSkills(
+	skills []cli.ShippedSkill, names []string, readFile func(string) ([]byte, error), declined map[string]string,
+) ([]cli.SkillOffer, error) {
+	comparison, err := cli.CompareSkillOffers(cli.SkillOfferInput{
+		Vault:    skillregFixtureVaultRoot,
+		Names:    names,
+		ReadFile: readFile,
+		Declined: declined,
+		Sources:  cli.ShippedSkillSources("/skills", skills),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return comparison.Offers, nil
+}
+
 // genSkillregFixture draws a random set of shipped skills (1-4, unique
-// names) and, for each, an independent note state: no note, a note whose
+// names and distinct contents) and, for each, an independent note state: no note, a note whose
 // skill_hash matches the skill's current content, or one whose skill_hash
 // is stale. Returns the skills, the vault's full .md filename listing, and
 // the backing fixture vault.
@@ -597,8 +617,10 @@ func genSkillregFixture(rt *rapid.T) ([]cli.ShippedSkill, []string, *skillregFix
 
 	for i := range count {
 		suffix := rapid.StringMatching(`[a-z0-9]{1,8}`).Draw(rt, fmt.Sprintf("skillNameSuffix%d", i))
-		content := rapid.SliceOfN(rapid.Byte(), 1, 24).Draw(rt, fmt.Sprintf("content%d", i))
 		name := fmt.Sprintf("skill%d-%s", i, suffix)
+		// The name prefix keeps every skill's bytes distinct, so no skill is an
+		// alias of another (design D4) and each is offered on its own.
+		content := append([]byte(name+":"), rapid.SliceOfN(rapid.Byte(), 1, 24).Draw(rt, fmt.Sprintf("content%d", i))...)
 		skills[i] = cli.ShippedSkill{Name: name, Content: content}
 
 		state := rapid.IntRange(stateNoNote, stateStale).Draw(rt, fmt.Sprintf("state%d", i))
