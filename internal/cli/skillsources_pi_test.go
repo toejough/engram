@@ -689,6 +689,7 @@ func TestScanPiUserPrompts_GlobalPromptNamedByStem(t *testing.T) {
 		ScopeID:    cli.SkillScopePiPrompt,
 		ReadRoot:   piPromptsRoot,
 		SourcePath: piPromptsRoot + "/review.md",
+		WalkedPath: piPromptsRoot + "/review.md",
 		Kind:       cli.SkillSourceKindPrompt,
 		Content:    []byte("---\ndescription: Review\n---\nReview it"),
 	}}))

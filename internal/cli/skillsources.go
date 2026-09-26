@@ -69,6 +69,26 @@ type SkillCandidate struct {
 	Kind SkillSourceKind
 	// Content is the file's bytes (the note body and hash input).
 	Content []byte
+	// WalkedPath is the file's path as discovered, before symlink
+	// resolution (e.g. `~/.pi/agent/skills/route/SKILL.md` for a symlinked
+	// skill). The Pi scanners set it, because Pi matches settings patterns
+	// against it (ApplyPiSettingsOverrides); other scanners leave it empty.
+	WalkedPath string
+	// SourceSegment is the key segment between the scope and the name for
+	// sources whose ScopeID does not determine it: `pi-settings` or
+	// `pi-pkg:<pkg-id>` (ScanPiConfiguredSources). A project candidate's
+	// ScopeID is `project:<r>`, so key construction (task 2.1) needs this to
+	// build `project:<r>:pi-settings:<n>` / `project:<r>:pi-pkg:<id>:<n>`.
+	// Empty for every other source.
+	SourceSegment string
+	// Disabled marks a file Pi finds but has switched off: a settings
+	// `!pattern`/`-path` over a default folder (ApplyPiSettingsOverrides,
+	// ruling R8), a settings include glob or `!`/`-` filter over a settings
+	// entry, or an object-form package filter (including `[]`) (ruling R10).
+	// A Disabled candidate MUST NOT be offered for registration or refresh,
+	// but it counts as PRESENT for removal eligibility, exactly like a
+	// disabled plugin keeping its notes.
+	Disabled bool
 }
 
 // SkillScanResult is what one source scanner returns: the candidates it
@@ -300,6 +320,8 @@ func ScanSyncedSkills(fsys SkillSourceFS, syncedRoot string) SkillScanResult {
 // unexported constants.
 const (
 	commandFileExt = ".md"
+	// jsonNullLiteral is the JSON null token.
+	jsonNullLiteral = "null"
 	// maxCommandDepth bounds command-directory recursion below the root; a
 	// deeper directory is reported and marks the root not scanned.
 	maxCommandDepth = 16
@@ -420,7 +442,7 @@ func (w commandWalker) walkSubdir(path, resolved string, prefix []string) bool {
 // anything else → errPluginCommandsUnsupported.
 func decodePluginCommandsField(field json.RawMessage) (paths []string, useDefault bool, err error) {
 	trimmed := strings.TrimSpace(string(field))
-	if trimmed == "" || trimmed == "null" {
+	if trimmed == "" || trimmed == jsonNullLiteral {
 		return nil, true, nil
 	}
 

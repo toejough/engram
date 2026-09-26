@@ -183,6 +183,7 @@ func ScanPiPromptDir(fsys SkillSourceFS, promptsRoot, scopeID string) SkillScanR
 			ScopeID:    scopeID,
 			ReadRoot:   resolvedRoot,
 			SourcePath: sourcePath,
+			WalkedPath: entryPath,
 			Kind:       SkillSourceKindPrompt,
 			Content:    content,
 		})
@@ -280,13 +281,14 @@ type piSkillWalker struct {
 	ancestors map[string]bool
 }
 
-// add appends one skill candidate.
-func (w piSkillWalker) add(name, sourcePath string, content []byte) {
+// add appends one skill candidate; walked is its file's discovered path.
+func (w piSkillWalker) add(name, walked, sourcePath string, content []byte) {
 	w.result.Candidates = append(w.result.Candidates, SkillCandidate{
 		Name:       name,
 		ScopeID:    w.scopeID,
 		ReadRoot:   w.readRoot,
 		SourcePath: sourcePath,
+		WalkedPath: walked,
 		Kind:       SkillSourceKindSkill,
 		Content:    content,
 	})
@@ -333,7 +335,7 @@ func (w piSkillWalker) rootFile(path, resolved string) bool {
 		return w.fail(path, readErr)
 	}
 
-	w.add(strings.TrimSuffix(filepath.Base(path), markdownFileExt), resolved, content)
+	w.add(strings.TrimSuffix(filepath.Base(path), markdownFileExt), path, resolved, content)
 
 	return true
 }
@@ -353,7 +355,7 @@ func (w piSkillWalker) skillFile(path, resolved string, entries []fs.DirEntry) (
 		}
 
 		if found {
-			w.add(filepath.Base(path), sourcePath, content)
+			w.add(filepath.Base(path), filepath.Join(path, skillMDFilename), sourcePath, content)
 
 			return true, true
 		}
@@ -413,7 +415,7 @@ func (w piSkillWalker) visitChild(path, entryPath string, depth int, includeRoot
 // decodePiJSONObject decodes content as a JSON object (Pi rejects a trust
 // store that is not one; `null` is not an object).
 func decodePiJSONObject(content []byte) (map[string]json.RawMessage, error) {
-	if bytes.Equal(bytes.TrimSpace(content), []byte("null")) {
+	if bytes.Equal(bytes.TrimSpace(content), []byte(jsonNullLiteral)) {
 		return nil, errPiJSONNotObject
 	}
 
