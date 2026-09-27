@@ -258,7 +258,7 @@ func parseCreatedFromNote(note []byte) string {
 			// fails time.Parse and the note reads as age 0. Unquoting it would
 			// switch on recency decay for ~972 existing notes — a ranking
 			// change deferred to a measured follow-up (controller ruling R33;
-			// see the issue filed for it).
+			// see https://github.com/toejough/engram/issues/774).
 			return strings.TrimSpace(rest)
 		}
 	}
