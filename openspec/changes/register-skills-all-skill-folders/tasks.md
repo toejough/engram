@@ -272,7 +272,7 @@ Every key is qualified by its source, and there is no engram-owned mechanism (va
      - **Seed the notes the checks need**, on this scratch copy only:
        - from `/tmp`: `--accept claude:c4`, one plugin skill, and one plugin command; `--decline @synced`. Confirm the declines are written as v2 with qualified keys.
        - from this worktree: `--accept project:github.com/toejough/engram:cmd:opsx:apply`.
-       - Confirm each accepted note carries `skill_key`, a `~`-relative `skill_source` under the fixture home, `pending: true`, the one-line preamble and a sidecar.
+       - Confirm each accepted note carries `skill_key`, `pending: true`, a sidecar, and a one-line preamble naming exactly its `skill_source`. Expected `skill_source`: `claude:c4` → `~/.claude/skills/c4/SKILL.md` (under the fixture home); the plugin skill, plugin command and project note → their ABSOLUTE real paths (`/Users/joe/.claude/plugins/cache/...`, `/Users/joe/repos/personal/engram/.claude/worktrees/runbook-vs-skill/.claude/commands/opsx/apply.md`), because `homeRelativePath` only shortens paths under the fixture home. This is correct behaviour under a fixture `HOME`; removal scoping matches absolute paths.
      - **Scoping checks.** Each one starts from the restored fixture:
        - From `/tmp`: no removal offer for the `project:github.com/toejough/engram:cmd:opsx:apply` note (its folder is not read there).
        - Set the accepted plugin's `enabledPlugins` to `false` in `<fx>/.claude/settings.json` → no removal offer for its notes. Then restore it.
