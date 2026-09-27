@@ -39,9 +39,9 @@ type SkillOfferComparison struct {
 	// conflict (design D4). Any conflict makes the run fail after every other
 	// offer is handled (ReportSkillOfferProblems).
 	Conflicts []string
-	// Warnings are non-failing lines. CompareSkillOffers adds none; the
-	// registration run prepends the scan and key warnings (design D4 has no
-	// diverged-copy warning: differing copies of one key always conflict).
+	// Warnings are non-failing lines. CompareSkillOffers adds none, since
+	// differing copies of one key always conflict (design D4); the
+	// registration run prepends the scan and key warnings.
 	Warnings []string
 }
 

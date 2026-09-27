@@ -103,6 +103,7 @@ func TestCompareSkillOffers_InstalledEngramSkillsAreOrdinaryKeys(t *testing.T) {
 		comparison := fixture.compare(g)
 
 		g.Expect(comparison.Conflicts).To(BeEmpty())
+		g.Expect(comparison.Warnings).To(BeEmpty())
 		g.Expect(offerSummaries(comparison)).To(Equal([]string{
 			"register pi:route " + engramPiSkills + "/route/SKILL.md",
 		}))

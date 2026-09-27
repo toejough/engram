@@ -439,7 +439,7 @@ func TestReadSkillRegistrations_RejectsUnknownFields(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillregFixtureVault()
-	vault.put("skill-registrations.json", `{"schema_version":1,"declined":{},"extra_field":true}`)
+	vault.put("skill-registrations.json", `{"schema_version":2,"declined":{},"extra_field":true}`)
 
 	_, err := cli.ReadSkillRegistrations("/vault", vault.readFile)
 
@@ -486,7 +486,7 @@ func TestRecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillregFixtureVault()
-	vault.put("skill-registrations.json", `{"schema_version":1,"declined":{"route":"aaa"}}`)
+	vault.put("skill-registrations.json", `{"schema_version":2,"declined":{"claude:route":"aaa"}}`)
 
 	var (
 		writtenPath string
@@ -499,7 +499,7 @@ func TestRecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact(t *testing.T) {
 		return nil
 	}
 
-	err := cli.RecordSkillDeclined("/vault", "curate", "bbb", vault.readFile, writeFile)
+	err := cli.RecordSkillDeclined("/vault", "claude:curate", "bbb", vault.readFile, writeFile)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(writtenPath).To(Equal("/vault/skill-registrations.json"))
@@ -509,7 +509,7 @@ func TestRecordSkillDeclined_SetsHashAndLeavesOtherEntriesIntact(t *testing.T) {
 	}
 
 	g.Expect(json.Unmarshal(writtenData, &doc)).To(Succeed())
-	g.Expect(doc.Declined).To(Equal(map[string]string{"route": "aaa", "curate": "bbb"}))
+	g.Expect(doc.Declined).To(Equal(map[string]string{"claude:route": "aaa", "claude:curate": "bbb"}))
 }
 
 // TestRecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent covers recording

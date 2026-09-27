@@ -75,9 +75,9 @@ func FindSkillNote(
 // rather than silently dropped, since this file has no third-party writer
 // whose forward-compatible fields it needs to tolerate.
 //
-// Schema versions 1 and 2 read the same way (design D7): a version-1 file's
-// entries are read as they are, keyed by unqualified skill names. A schema_version above 2 is
-// errSkillRegistrationsVersion, never an empty decline state.
+// Only schema version 2 is read (design D7): any other schema_version —
+// missing, below 2 or above 2 — is errSkillRegistrationsVersion, never an
+// empty decline state, so the caller writes nothing.
 func ReadSkillRegistrations(vault string, readFile func(string) ([]byte, error)) (map[string]string, error) {
 	data, readErr := readFile(filepath.Join(vault, skillRegistrationsFilename))
 	if readErr != nil {
@@ -98,8 +98,8 @@ func ReadSkillRegistrations(vault string, readFile func(string) ([]byte, error))
 		return nil, fmt.Errorf("%w %s: %w", errSkillRegistrationsDecode, skillRegistrationsFilename, decodeErr)
 	}
 
-	if doc.SchemaVersion > skillRegistrationsSchemaVersion {
-		return nil, fmt.Errorf("%w: %s has schema_version %d, this engram reads up to %d",
+	if doc.SchemaVersion != skillRegistrationsSchemaVersion {
+		return nil, fmt.Errorf("%w: %s has schema_version %d (0 when missing), this engram reads only %d",
 			errSkillRegistrationsVersion, skillRegistrationsFilename, doc.SchemaVersion, skillRegistrationsSchemaVersion)
 	}
 
@@ -115,9 +115,9 @@ func ReadSkillRegistrations(vault string, readFile func(string) ([]byte, error))
 // note's skill_hash for a Remove decline — leaving every other entry
 // untouched, and writes skill-registrations.json atomically via writeFile
 // (the existing atomic-write dep, composed by the caller). Every write
-// stamps schema version 2 in the unchanged {schema_version, declined}
-// shape, so the first write over a version-1 file migrates it keeping every
-// entry (design D7). An unreadable or too-new file is never written.
+// stamps schema version 2 in the unchanged {schema_version, declined} shape
+// (design D7). An unreadable file, or one whose schema_version is not 2, is
+// never written.
 func RecordSkillDeclined(
 	vault, key, hash string,
 	readFile func(string) ([]byte, error),
@@ -158,8 +158,8 @@ const (
 	skillRegistrationsFilename = "skill-registrations.json"
 	// skillRegistrationsSchemaVersion versions skill-registrations.json,
 	// mirroring vocab.centroids.json's schema_version convention: version 2
-	// keys declines by skill key (design D7); version 1 keyed them by
-	// unqualified skill name.
+	// keys declines by skill key (design D7), and it is the only version
+	// read.
 	skillRegistrationsSchemaVersion = 2
 	// skillSlugPrefix is the slug prefix a skill's runbook note carries:
 	// basename `<luhmann>.<date>.skill-<name>.md` (skill-runbook-
@@ -178,8 +178,8 @@ var (
 	// that fails to decode (malformed JSON or an unrecognized field — see
 	// ReadSkillRegistrations).
 	errSkillRegistrationsDecode = errors.New("skill registrations: decoding")
-	// errSkillRegistrationsVersion reports a skill-registrations.json
-	// written by a newer engram (schema_version above 2, design D7).
+	// errSkillRegistrationsVersion reports a skill-registrations.json whose
+	// schema_version is not 2: missing, below 2 or above 2 (design D7).
 	errSkillRegistrationsVersion = errors.New("skill registrations: unsupported schema version")
 )
 

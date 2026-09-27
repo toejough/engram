@@ -169,7 +169,7 @@ const (
 	// label: the answerable selector with its count).
 	skillScopeHeaderFormat = "@%s (%d)\n"
 	// skillSourceNoteFormat names a removal's note when it has no recorded
-	// skill_source (a legacy note).
+	// skill_source (e.g. a hand-written note carrying only skill_key).
 	skillSourceNoteFormat = "note %s"
 )
 

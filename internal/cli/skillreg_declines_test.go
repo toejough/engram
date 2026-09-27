@@ -13,8 +13,8 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestReadSkillRegistrations_AcceptsVersion2 covers design D7: a v2 file
-// reads like a v1 file.
+// TestReadSkillRegistrations_AcceptsVersion2 covers design D7: a v2 file's
+// declines are read keyed by skill key.
 func TestReadSkillRegistrations_AcceptsVersion2(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -28,58 +28,33 @@ func TestReadSkillRegistrations_AcceptsVersion2(t *testing.T) {
 	g.Expect(declined).To(Equal(map[string]string{"superpowers:brainstorming": "h1"}))
 }
 
-// TestReadSkillRegistrations_ReadsVersion1AsIs covers "Version-1 decline
-// still suppresses the offer": a v1 file's names are read as they are.
-func TestReadSkillRegistrations_ReadsVersion1AsIs(t *testing.T) {
+// TestReadSkillRegistrations_RejectsEveryVersionButTwo covers "Version-1 file
+// fails loudly" and "Unknown schema version fails loudly" (design D7: v1
+// reading is dropped): a schema_version below 2, above 2 or missing is an
+// error, never an empty decline state.
+func TestReadSkillRegistrations_RejectsEveryVersionButTwo(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	vault := newSkillregFixtureVault()
-	vault.put("skill-registrations.json", `{"schema_version":1,"declined":{"route":"h"}}`)
+	cases := map[string]string{
+		"version 1": `{"schema_version":1,"declined":{"route":"h"}}`,
+		"version 3": `{"schema_version":3,"declined":{"route":"h"}}`,
+		"missing":   `{"declined":{"route":"h"}}`,
+	}
 
-	declined, err := cli.ReadSkillRegistrations("/vault", vault.readFile)
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
 
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(declined).To(Equal(map[string]string{"route": "h"}))
-}
+			vault := newSkillregFixtureVault()
+			vault.put("skill-registrations.json", body)
 
-// TestReadSkillRegistrations_RejectsVersionAbove2 covers "Unknown schema
-// version fails loudly": a version above 2 is an error, not an empty state.
-func TestReadSkillRegistrations_RejectsVersionAbove2(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+			declined, err := cli.ReadSkillRegistrations("/vault", vault.readFile)
 
-	vault := newSkillregFixtureVault()
-	vault.put("skill-registrations.json", `{"schema_version":3,"declined":{"route":"h"}}`)
-
-	declined, err := cli.ReadSkillRegistrations("/vault", vault.readFile)
-
-	g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
-	g.Expect(declined).To(BeNil())
-}
-
-// TestRecordSkillDeclined_FirstWriteStampsVersion2KeepingEveryEntry covers
-// design D7's migration: the first write over a v1 file stamps v2 and keeps
-// every v1 entry, in the unchanged {schema_version, declined} shape.
-func TestRecordSkillDeclined_FirstWriteStampsVersion2KeepingEveryEntry(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newSkillregFixtureVault()
-	vault.put("skill-registrations.json", `{"schema_version":1,"declined":{"route":"aaa","curate":"ccc"}}`)
-
-	var written []byte
-
-	err := cli.RecordSkillDeclined("/vault", "superpowers:brainstorming", "bbb", vault.readFile,
-		func(_ string, data []byte) error {
-			written = data
-
-			return nil
+			g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
+			g.Expect(declined).To(BeNil())
 		})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(string(written)).To(Equal(
-		`{"schema_version":2,"declined":{"curate":"ccc","route":"aaa","superpowers:brainstorming":"bbb"}}`))
+	}
 }
 
 // TestRecordSkillDeclined_OlderReaderDecodesVersion2 covers design D7's
@@ -115,7 +90,7 @@ func TestRecordSkillDeclined_OlderReaderDecodesVersion2(t *testing.T) {
 }
 
 // TestRecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2 is the
-// invariant over any v1 or v2 decline state: a recorded decline yields a
+// invariant over any v2 decline state: a recorded decline yields a
 // v2 file holding every prior entry plus the new one (overwriting only its
 // own key), and reading it back returns exactly that map.
 func TestRecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2(t *testing.T) {
@@ -126,7 +101,6 @@ func TestRecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2(t *testing.T) {
 
 		keyGen := rapid.StringMatching(`[a-z]{1,3}(:[a-z]{1,3}){0,2}`)
 		prior := rapid.MapOf(keyGen, rapid.StringMatching(`[0-9a-f]{1,6}`)).Draw(rt, "prior")
-		version := rapid.IntRange(1, skillRegistrationsVersion2).Draw(rt, "version")
 		key := keyGen.Draw(rt, "key")
 		hash := rapid.StringMatching(`[0-9a-f]{1,6}`).Draw(rt, "hash")
 
@@ -135,7 +109,7 @@ func TestRecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2(t *testing.T) {
 
 		vault := newSkillregFixtureVault()
 		vault.put("skill-registrations.json",
-			fmt.Sprintf(`{"schema_version":%d,"declined":%s}`, version, priorJSON))
+			fmt.Sprintf(`{"schema_version":%d,"declined":%s}`, skillRegistrationsVersion2, priorJSON))
 
 		err := cli.RecordSkillDeclined("/vault", key, hash, vault.readFile, func(path string, data []byte) error {
 			vault.files[path] = string(data)
@@ -162,45 +136,88 @@ func TestRecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2(t *testing.T) {
 	})
 }
 
-// TestRecordSkillDeclined_VersionAbove2WritesNothing covers "Unknown schema
-// version fails loudly ... writes nothing".
-func TestRecordSkillDeclined_VersionAbove2WritesNothing(t *testing.T) {
+// TestRunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing covers
+// "Version-1 file fails loudly" and "Unknown schema version fails loudly" end
+// to end: registration reports the error and writes nothing, even with an
+// explicit --accept.
+func TestRunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	vault := newSkillregFixtureVault()
-	vault.put("skill-registrations.json", `{"schema_version":3,"declined":{}}`)
+	cases := map[string]string{
+		"version 1": `{"schema_version":1,"declined":{"route":"h"}}`,
+		"version 3": `{"schema_version":3,"declined":{}}`,
+		"missing":   `{"declined":{}}`,
+	}
 
-	err := cli.RecordSkillDeclined("/vault", "curate", "h", vault.readFile, func(string, []byte) error {
-		g.Fail("a version-3 file must never be overwritten")
+	for name, body := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
 
-		return nil
-	})
+			vault := newSkillAcceptFixtureVault()
+			vault.put("skill-registrations.json", body)
 
-	g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
+			sourceFS := skillsHomeFixture(map[string][]byte{"curate": []byte("# Curate\n")})
+			deps := skillRegistrationDepsFor(vault, sourceFS)
+
+			var stdout bytes.Buffer
+
+			err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+				Vault: "/vault", VaultName: "personal", Home: skillRegHome, Accept: []string{"claude:curate"},
+			}, deps, &stdout)
+
+			g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
+			g.Expect(vault.files).To(Equal(map[string]string{"/vault/skill-registrations.json": body}))
+		})
+	}
 }
 
-// TestRunSkillRegistration_VersionAbove2_ErrorsAndWritesNothing covers the
-// scenario end to end: registration reports the error and writes nothing,
-// even with an explicit --accept.
-func TestRunSkillRegistration_VersionAbove2_ErrorsAndWritesNothing(t *testing.T) {
+// TestSkillRegistrations_Property_OnlyVersion2IsRead is the invariant over
+// any schema_version, present or missing: version 2 reads back its declines;
+// every other version (missing included) is errSkillRegistrationsVersion on
+// read, and RecordSkillDeclined over it errors without writing.
+func TestSkillRegistrations_Property_OnlyVersion2IsRead(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	vault := newSkillAcceptFixtureVault()
-	vault.put("skill-registrations.json", `{"schema_version":3,"declined":{}}`)
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
 
-	sourceFS := skillsHomeFixture(map[string][]byte{"curate": []byte("# Curate\n")})
-	deps := skillRegistrationDepsFor(vault, sourceFS)
+		declinedJSON := `{"claude:route":"h"}`
+		body := `{"declined":` + declinedJSON + `}`
+		version, present := 0, rapid.Bool().Draw(rt, "present")
 
-	var stdout bytes.Buffer
+		if present {
+			version = rapid.IntRange(-3, 9).Draw(rt, "version")
+			body = fmt.Sprintf(`{"schema_version":%d,"declined":%s}`, version, declinedJSON)
+		}
 
-	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
-		Vault: "/vault", VaultName: "personal", Home: skillRegHome, Accept: []string{"curate"},
-	}, deps, &stdout)
+		vault := newSkillregFixtureVault()
+		vault.put("skill-registrations.json", body)
 
-	g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
-	g.Expect(vault.files).To(HaveLen(1))
+		declined, readErr := cli.ReadSkillRegistrations("/vault", vault.readFile)
+
+		wrote := false
+		recordErr := cli.RecordSkillDeclined("/vault", "claude:curate", "h2", vault.readFile,
+			func(string, []byte) error {
+				wrote = true
+
+				return nil
+			})
+
+		if present && version == skillRegistrationsVersion2 {
+			g.Expect(readErr).NotTo(HaveOccurred())
+			g.Expect(declined).To(Equal(map[string]string{"claude:route": "h"}))
+			g.Expect(recordErr).NotTo(HaveOccurred())
+			g.Expect(wrote).To(BeTrue())
+
+			return
+		}
+
+		g.Expect(readErr).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
+		g.Expect(declined).To(BeNil())
+		g.Expect(recordErr).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
+		g.Expect(wrote).To(BeFalse(), "a non-v2 file must never be overwritten")
+	})
 }
 
 // unexported constants.

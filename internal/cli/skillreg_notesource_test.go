@@ -3,8 +3,11 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/fs"
+	"maps"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -396,6 +399,89 @@ func TestRunSkillRegistration_AdoptTakesKeyOfAScannedSource(t *testing.T) {
 	g.Expect(stdout.String()).NotTo(ContainSubstring("awaiting an answer"))
 }
 
+// TestRunSkillRegistration_Property_SkillsDirKeysClaudeUserAndWritesNothing
+// is design D9's invariant over any preview dir and vault: every offer a
+// `--skills-dir` run lists is a register or refresh keyed `claude:<n>` under
+// the single @claude-user header, notes whose hash is current get no offer,
+// no removal is listed even for orphaned notes of every key form (one
+// recording a skill_source inside the preview dir), and nothing in the vault
+// changes, even with a terminal answering yes.
+func TestRunSkillRegistration_Property_SkillsDirKeysClaudeUserAndWritesNothing(t *testing.T) {
+	t.Parallel()
+
+	const previewDir = "/preview/skills"
+
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
+
+		names := rapid.SliceOfNDistinct(rapid.StringMatching(`[a-m][a-z0-9]{0,5}`), 1, 5, rapid.ID[string]).
+			Draw(rt, "names")
+
+		vault := newSkillAcceptFixtureVault()
+		fsys := newFakeSkillFS()
+		lines := make(map[string]string, len(names))
+
+		for index, name := range names {
+			content := "procedure " + name
+			fsys.file(previewDir+"/"+name+"/SKILL.md", content)
+
+			key := "claude:" + name
+			note := fmt.Sprintf("%d.2026-09-26.%s.md", skillsDirNoteLuhmannBase+index, cli.SkillKeySlug(key))
+			line := "  would offer: %s " + key + " (" + previewDir + "/" + name + "/SKILL.md)\n"
+
+			switch rapid.SampledFrom([]string{"none", "stale", "current"}).Draw(rt, "note-"+name) {
+			case "none":
+				lines[key] = fmt.Sprintf(line, "register")
+			case "stale":
+				vault.put(note, keyedSkillNote(cli.SkillContentHash([]byte("old")), key))
+				lines[key] = fmt.Sprintf(line, "refresh")
+			default:
+				vault.put(note, keyedSkillNote(cli.SkillContentHash([]byte(content)), key))
+			}
+		}
+
+		for index, key := range []string{
+			"claude:zgone", "claude:cmd:zgone", "pi:zgone", "agents:zgone", "anthropic-skills:zgone",
+			"superpowers:zgone", "project:repo:zgone",
+		} {
+			vault.put(fmt.Sprintf("%d.2026-09-26.%s.md", skillsDirOrphanLuhmannBase+index, cli.SkillKeySlug(key)),
+				strings.Replace(keyedSkillNote("gone-hash", key), "~/x/SKILL.md", previewDir+"/zgone/SKILL.md", 1))
+		}
+
+		before := maps.Clone(vault.files)
+
+		deps := skillRegistrationDepsFor(vault, fsys)
+		deps.Getwd = failingGetwd(g)
+		deps.IsTerminal = func() bool { return true }
+		deps.Stdin = strings.NewReader(strings.Repeat("y\n", len(names)+skillsDirOrphanCount))
+
+		var writes []string
+
+		recordWrites(&deps, vault, &writes)
+
+		var stdout bytes.Buffer
+
+		err := cli.RunSkillRegistration(context.Background(), cli.SkillRegistrationArgs{
+			Vault: "/vault", VaultName: "personal", Home: fakeHome, PreviewDirs: []string{previewDir},
+		}, deps, &stdout)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		var want strings.Builder
+
+		if len(lines) > 0 {
+			_, _ = fmt.Fprintf(&want, "@claude-user (%d)\n", len(lines))
+		}
+
+		for _, key := range slices.Sorted(maps.Keys(lines)) {
+			want.WriteString(lines[key])
+		}
+
+		g.Expect(stdout.String()).To(Equal(want.String()))
+		g.Expect(writes).To(BeEmpty())
+		g.Expect(vault.files).To(Equal(before))
+	})
+}
+
 // TestRunSkillRegistration_SkillsDirIsAReadOnlyPreview covers design D9 and
 // "Skills-dir runs are preview-only": several dirs replace the default set
 // and are scanned with Claude-user rules (a symlinked skill dir is found,
@@ -473,6 +559,15 @@ func TestRunSkillRegistration_SkillsDirRefusesAnswersBeforeScanning(t *testing.T
 		})
 	}
 }
+
+// unexported constants.
+const (
+	// skillsDirNoteLuhmannBase and skillsDirOrphanLuhmannBase number the
+	// property test's preview-dir notes and orphaned notes apart.
+	skillsDirNoteLuhmannBase   = 2000
+	skillsDirOrphanCount       = 7
+	skillsDirOrphanLuhmannBase = 3000
+)
 
 // unexported types.
 
