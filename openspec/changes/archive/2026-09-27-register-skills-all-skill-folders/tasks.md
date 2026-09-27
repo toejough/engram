@@ -178,7 +178,7 @@ Every Go task follows RED → GREEN → REFACTOR:
 ## 7. Docs, archive, install
 
 - [x] 7.1 Perform doc rows 1–12 of `enumeration.md`. For each row, grep that the new text is present and the old scope-limiting text is absent before ticking. Get a fresh-context reviewer to check every row against its file.
-- [ ] 7.2 Archive-time: rewrite the `Purpose` of `openspec/specs/skill-runbook-registration/spec.md` (enumeration row 20). Confirm `openspec archive` applied the RENAMED header ("…identified by its skill key") before the MODIFIED block, and that the synced spec has no "identified by its slug" header left.
+- [x] 7.2 Archive-time: rewrite the `Purpose` of `openspec/specs/skill-runbook-registration/spec.md` (enumeration row 20). Confirm `openspec archive` applied the RENAMED header ("…identified by its skill key") before the MODIFIED block, and that the synced spec has no "identified by its slug" header left.
 - [x] 7.3 Before archive, re-run the requirement-header collision sweep across all active changes and any archived-but-unsynced change, and read their tasks.md in full (vault notes 744/757).
 - [x] 7.4 Final install: `go install ./cmd/engram`, then `cd /tmp && engram register-skills --dry-run` once more. Record the output in the LEDGER row (enumeration row 11). Leave the real offers for Joe; never accept or decline on his behalf.
 
