@@ -52,6 +52,7 @@ func TestReadSkillRegistrations_RejectsEveryVersionButTwo(t *testing.T) {
 			declined, err := cli.ReadSkillRegistrations("/vault", vault.readFile)
 
 			g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
+			g.Expect(err).To(MatchError(ContainSubstring("delete /vault/skill-registrations.json to reset recorded declines")))
 			g.Expect(declined).To(BeNil())
 		})
 	}

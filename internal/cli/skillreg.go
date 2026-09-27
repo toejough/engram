@@ -99,8 +99,10 @@ func ReadSkillRegistrations(vault string, readFile func(string) ([]byte, error))
 	}
 
 	if doc.SchemaVersion != skillRegistrationsSchemaVersion {
-		return nil, fmt.Errorf("%w: %s has schema_version %d (0 when missing), this engram reads only %d",
-			errSkillRegistrationsVersion, skillRegistrationsFilename, doc.SchemaVersion, skillRegistrationsSchemaVersion)
+		return nil, fmt.Errorf("%w: %s has schema_version %d (0 when missing), this engram reads only %d; "+
+			"delete %s to reset recorded declines",
+			errSkillRegistrationsVersion, skillRegistrationsFilename, doc.SchemaVersion, skillRegistrationsSchemaVersion,
+			filepath.Join(vault, skillRegistrationsFilename))
 	}
 
 	if doc.Declined == nil {

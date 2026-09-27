@@ -28,4 +28,4 @@ No record → route it, even if it feels trivial. Don't guess it's a quick fix �
 **Red flag — you're going solo:** your next tool call is Read/Edit/Write/Bash on the work with no plan
 routed. Stop; plan and dispatch instead.
 
-For one dispatch's *how* use `route`; for a full end-to-end ask, `/please` — the skill triggered by that word (it may also carry a companion `skill-please` vault runbook note).
+For one dispatch's *how* use `route`; for a full end-to-end ask, `/please` — the skill triggered by that word (it may also carry a companion `skill-claude-please` vault runbook note).

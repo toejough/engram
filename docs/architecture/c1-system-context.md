@@ -420,7 +420,7 @@ Steps run **in order** — each starts only after the previous completes. They a
 (urgency / "no ceremony" do not authorize skipping) and **N/A only when the mechanism is absent**
 (no VCS for the step-6 commit; no transcript source for the closing `/learn`). Adversarial review
 gates A–D are integral stops, not optional: each fans out fresh per-angle reviewer subagents and
-blocks its step's completion until every finding is resolved (see the please skill, `agent-instructions/skills/please/SKILL.md`, and its mirrored vault runbook note `skill-please`; the former gates sub-runbook `1042` is merged into the single note).
+blocks its step's completion until every finding is resolved (see the please skill, `agent-instructions/skills/please/SKILL.md`, and its mirrored vault runbook note `skill-claude-please`; the former gates sub-runbook `1042` is merged into the single note).
 
 ```mermaid
 flowchart TD

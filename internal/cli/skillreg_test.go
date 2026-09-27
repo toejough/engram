@@ -460,7 +460,7 @@ func TestRecordSkillDeclined_PropagatesReadError(t *testing.T) {
 		return nil
 	}
 
-	err := cli.RecordSkillDeclined("/vault", "curate", "abc", readFile, writeFile)
+	err := cli.RecordSkillDeclined("/vault", "claude:curate", "abc", readFile, writeFile)
 
 	g.Expect(err).To(HaveOccurred())
 }
@@ -528,7 +528,7 @@ func TestRecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent(t *testing.T) {
 		return nil
 	}
 
-	err := cli.RecordSkillDeclined("/vault", "curate", "abc", vault.readFile, writeFile)
+	err := cli.RecordSkillDeclined("/vault", "claude:curate", "abc", vault.readFile, writeFile)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -537,7 +537,7 @@ func TestRecordSkillDeclined_WritesFirstEntryWhenFileIsAbsent(t *testing.T) {
 	}
 
 	g.Expect(json.Unmarshal(writtenData, &doc)).To(Succeed())
-	g.Expect(doc.Declined).To(Equal(map[string]string{"curate": "abc"}))
+	g.Expect(doc.Declined).To(Equal(map[string]string{"claude:curate": "abc"}))
 }
 
 // unexported constants.

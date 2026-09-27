@@ -529,7 +529,8 @@ convention 2026-07-10 (#678): definitions are recallable bare-`vocab`-tagged fac
 retired 2026-09-19, is restored by `register-skills-as-runbooks`
 (`openspec/changes/archive/2026-09-26-register-skills-as-runbooks/`): route ships again as a
 skill and the audit commands live in it. Its vault runbook note (`skill-route`) is a registered
-mirror of the skill, not the sole surface for this guidance.
+mirror of the skill, not the sole surface for this guidance. (Slug `skill-claude-route`, key
+`claude:route`, since `register-skills-all-skill-folders` qualified every key.)
 
 ---
 
@@ -1024,10 +1025,11 @@ commands (symlinks followed), claude.ai-synced skills, Pi user and agents skills
 `settings.json` skill/prompt paths and packages (subject to Pi's trust gate for project sources),
 enabled plugin skills and commands, and project-local Claude sources plus trusted Pi sources from
 the cwd up to the git root. Identity is a source-qualified **skill key** (a `cmd` segment for
-commands; `project:<host>/<owner>/<repo>:…` for project sources; a bare key reserved for Claude
-user skills and anything resolving under an engram-owned root, which keeps the six existing notes
-byte-for-byte unchanged), with the note slug derived from the key and `skill_key`/`skill_source`
-recorded on the note. A removal is offered only for a key whose source root was itself read
+commands; `project:<host>/<owner>/<repo>:…` for project sources; every key source-qualified
+(`claude:<n>`, `claude:cmd:<n>`, …; engram's installed skills are keyed by folder like any other
+source), with engram's six legacy notes migrated to `claude:<n>` by `--adopt`), with the note slug
+derived from the key and `skill_key`/`skill_source` recorded on the note. A removal is offered only
+for a key whose source root was itself read
 successfully, never inferred from an empty or unreadable directory. Offers are grouped by scope and
 answered by exact key, key-prefix pattern, or `@scope` selector; declines move to schema v2, keyed
 by skill key rather than bare name. Design: `openspec/changes/register-skills-all-skill-folders/design.md`.
