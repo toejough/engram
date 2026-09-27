@@ -818,6 +818,15 @@ func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 	return newestChunkItems(scored, n, provenanceDirect)
 }
 
+// ExportParseSkillKey exposes the skill key parser (parseSkillKey, design
+// D3): whether key is recognized, and its removal form, source-rootedness,
+// plugin name and answer scope.
+func ExportParseSkillKey(key string) (recognized bool, form SkillRootForm, sourced bool, plugin, scopeID string) {
+	parsed := parseSkillKey(key)
+
+	return parsed.recognized, parsed.form, parsed.sourced, parsed.plugin, parsed.scopeID
+}
+
 // ExportProvenanceRankFor exposes provenanceRankFor for whitebox testing.
 func ExportProvenanceRankFor(role string) int { return provenanceRankFor(role) }
 
@@ -1006,6 +1015,13 @@ func ExportSelectWithinCluster(
 	k int,
 ) []explorePick {
 	return selectWithinCluster(term, centroid, members, k)
+}
+
+// ExportSkillKeyRemovalEligible reports design D5 removal eligibility of a
+// note with key and recorded skill_source over input's roots and plugin
+// facts (skillRemovalEligibility.eligible).
+func ExportSkillKeyRemovalEligible(input SkillOfferInput, key, source string) bool {
+	return newSkillRemovalEligibility(input).eligible(key, source)
 }
 
 // ExportSnippet exposes the snippet helper for the content-cap tests.

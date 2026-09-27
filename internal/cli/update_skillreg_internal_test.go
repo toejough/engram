@@ -58,7 +58,7 @@ func TestRunUpdateSkillRegistration_DryRunListsOffers(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(Equal(
-		"@claude-user (1)\n  would offer: register curate (/home/x/.claude/skills/curate/SKILL.md)\n"))
+		"@claude-user (1)\n  would offer: register claude:curate (/home/x/.claude/skills/curate/SKILL.md)\n"))
 }
 
 // TestRunUpdateSkillRegistration_NoOpWhenSkillRegUnconfigured proves the

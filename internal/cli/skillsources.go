@@ -62,8 +62,7 @@ type ScannedRoot struct {
 type SkillCandidate struct {
 	// Key is the source-qualified skill key (design D3). Scanners leave it
 	// empty; AssignSkillKeys builds it from ScopeID, SourceSegment, Kind and
-	// Name (plus the engram-owned-root rule over SourcePath), and
-	// ResolveSkillSources stamps it on every candidate it returns.
+	// Name, and ResolveSkillSources stamps it on every candidate it returns.
 	Key string
 	// Name is the scope-local raw name: a skill's directory name, or a
 	// command's relative path with `/` replaced by `:` and `.md` stripped

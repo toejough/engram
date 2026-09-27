@@ -71,13 +71,13 @@ func TestCompareSkillOffers_Dedupe(t *testing.T) {
 		fixture := newOfferFixture()
 		fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
 		fixture.root(agentsUserRoot, cli.SkillRootFormAgentsUser, true)
-		fixture.candidate(offerCand("x", cli.SkillScopeClaudeUser, shared, "x body"))
+		fixture.candidate(offerCand("claude:x", cli.SkillScopeClaudeUser, shared, "x body"))
 		fixture.candidate(offerCand("agents:x", cli.SkillScopeAgentsUser, shared, "x body"))
 		fixture.note("agents:x", "old-hash", "")
 
 		comparison := fixture.compare(g)
 
-		g.Expect(offerSummaries(comparison)).To(Equal([]string{"register x " + shared}))
+		g.Expect(offerSummaries(comparison)).To(Equal([]string{"register claude:x " + shared}))
 	})
 
 	t.Run("same key with identical bytes collapses to one offer", func(t *testing.T) {
@@ -172,16 +172,19 @@ func TestCompareSkillOffers_Dedupe(t *testing.T) {
 
 		fixture := newOfferFixture()
 		fixture.sources.EngramSkillRoots = []string{engramClaudeSkills, engramPiSkills}
-		fixture.candidate(offerCand("route", cli.SkillScopeClaudeUser, engramClaudeSkills+"/route/SKILL.md", "route v2"))
-		fixture.candidate(offerCand("route", cli.SkillScopePiUser, engramPiSkills+"/route/SKILL.md", "route v1"))
-		fixture.note("route", cli.SkillContentHash([]byte("route v1")), "")
+		fixture.candidate(
+			offerCand("claude:route", cli.SkillScopeClaudeUser, engramClaudeSkills+"/route/SKILL.md", "route v2"))
+		fixture.candidate(offerCand("claude:route", cli.SkillScopePiUser, engramPiSkills+"/route/SKILL.md", "route v1"))
+		fixture.note("claude:route", cli.SkillContentHash([]byte("route v1")), "")
 
 		comparison := fixture.compare(g)
 
 		g.Expect(comparison.Conflicts).To(BeEmpty())
 		g.Expect(comparison.Warnings).To(HaveLen(1))
 		g.Expect(comparison.Warnings).To(ContainElement(And(ContainSubstring("route"), ContainSubstring("engram update"))))
-		g.Expect(offerSummaries(comparison)).To(Equal([]string{"refresh route " + engramClaudeSkills + "/route/SKILL.md"}))
+		g.Expect(offerSummaries(comparison)).To(Equal([]string{
+			"refresh claude:route " + engramClaudeSkills + "/route/SKILL.md",
+		}))
 	})
 
 	t.Run("a real user skill clashing with an engram copy is a conflict", func(t *testing.T) {
@@ -190,14 +193,14 @@ func TestCompareSkillOffers_Dedupe(t *testing.T) {
 
 		fixture := newOfferFixture()
 		fixture.sources.EngramSkillRoots = []string{engramClaudeSkills, engramPiSkills}
-		fixture.candidate(offerCand("route", cli.SkillScopeClaudeUser, userSkillsRoot+"/route/SKILL.md", "my route"))
-		fixture.candidate(offerCand("route", cli.SkillScopePiUser, engramPiSkills+"/route/SKILL.md", "route"))
+		fixture.candidate(offerCand("claude:route", cli.SkillScopeClaudeUser, userSkillsRoot+"/route/SKILL.md", "my route"))
+		fixture.candidate(offerCand("claude:route", cli.SkillScopePiUser, engramPiSkills+"/route/SKILL.md", "route"))
 
 		comparison := fixture.compare(g)
 
 		g.Expect(comparison.Warnings).To(BeEmpty())
 		g.Expect(comparison.Conflicts).To(Equal([]string{
-			"engram: skill key conflict: route at " + userSkillsRoot + "/route/SKILL.md and " +
+			"engram: skill key conflict: claude:route at " + userSkillsRoot + "/route/SKILL.md and " +
 				engramPiSkills + "/route/SKILL.md",
 		}))
 		g.Expect(comparison.Offers).To(BeEmpty())
@@ -209,9 +212,9 @@ func TestCompareSkillOffers_Dedupe(t *testing.T) {
 
 		fixture := newOfferFixture()
 		fixture.sources.EngramSkillRoots = []string{engramClaudeSkills, engramPiSkills}
-		fixture.candidate(offerCand("route", cli.SkillScopeClaudeUser, engramClaudeSkills+"/route/SKILL.md", "route"))
-		fixture.candidate(offerCand("route", cli.SkillScopePiUser, engramPiSkills+"/route/SKILL.md", "route"))
-		fixture.note("route", cli.SkillContentHash([]byte("route")), "")
+		fixture.candidate(offerCand("claude:route", cli.SkillScopeClaudeUser, engramClaudeSkills+"/route/SKILL.md", "route"))
+		fixture.candidate(offerCand("claude:route", cli.SkillScopePiUser, engramPiSkills+"/route/SKILL.md", "route"))
+		fixture.note("claude:route", cli.SkillContentHash([]byte("route")), "")
 
 		comparison := fixture.compare(g)
 
@@ -244,11 +247,11 @@ func TestCompareSkillOffers_Dedupe(t *testing.T) {
 
 		fixture := newOfferFixture()
 		fixture.candidate(offerCand("pi:bar", cli.SkillScopePiUser, piUserRoot+"/bar/SKILL.md", "same"))
-		fixture.candidate(offerCand("foo", cli.SkillScopeClaudeUser, userSkillsRoot+"/foo/SKILL.md", "same"))
+		fixture.candidate(offerCand("claude:foo", cli.SkillScopeClaudeUser, userSkillsRoot+"/foo/SKILL.md", "same"))
 
 		comparison := fixture.compare(g)
 
-		g.Expect(offerSummaries(comparison)).To(Equal([]string{"register foo " + userSkillsRoot + "/foo/SKILL.md"}))
+		g.Expect(offerSummaries(comparison)).To(Equal([]string{"register claude:foo " + userSkillsRoot + "/foo/SKILL.md"}))
 	})
 
 	t.Run("a copy of any note's skill_hash is an alias", func(t *testing.T) {
@@ -346,10 +349,10 @@ func TestCompareSkillOffers_OffersCarryKeyScopeAndSource(t *testing.T) {
 	fixture.root(piAgentDir+"/npm/node_modules/pk", cli.SkillRootFormPiPkg, true, "pi-pkg:pk:")
 	fixture.root(projectTop+"/.claude/skills", cli.SkillRootFormProject, true, projectScope+":")
 
-	fixture.candidate(offerCand("zeta", cli.SkillScopeClaudeUser, userSkillsRoot+"/zeta/SKILL.md", "zeta"))
-	fixture.candidate(offerCand("alpha", cli.SkillScopeClaudeUser, userSkillsRoot+"/alpha/SKILL.md", "alpha"))
-	fixture.note("gone", "h1", "")
-	fixture.note("cmd:gone", "h2", "")
+	fixture.candidate(offerCand("claude:zeta", cli.SkillScopeClaudeUser, userSkillsRoot+"/zeta/SKILL.md", "zeta"))
+	fixture.candidate(offerCand("claude:alpha", cli.SkillScopeClaudeUser, userSkillsRoot+"/alpha/SKILL.md", "alpha"))
+	fixture.note("claude:gone", "h1", "")
+	fixture.note("claude:cmd:gone", "h2", "")
 	fixture.note("pi:gone", "h3", "")
 	fixture.note("agents:gone", "h4", "")
 	fixture.note("pi-prompt:gone", "h5", "")
@@ -373,10 +376,10 @@ func TestCompareSkillOffers_OffersCarryKeyScopeAndSource(t *testing.T) {
 
 	g.Expect(views).To(Equal([]offerView{
 		{cli.SkillOfferRemove, "agents:gone", "agents-user", ""},
-		{cli.SkillOfferRemove, "cmd:gone", "claude-cmd", ""},
-		{cli.SkillOfferRegister, "alpha", "claude-user", userSkillsRoot + "/alpha/SKILL.md"},
-		{cli.SkillOfferRemove, "gone", "claude-user", ""},
-		{cli.SkillOfferRegister, "zeta", "claude-user", userSkillsRoot + "/zeta/SKILL.md"},
+		{cli.SkillOfferRemove, "claude:cmd:gone", "claude-cmd", ""},
+		{cli.SkillOfferRegister, "claude:alpha", "claude-user", userSkillsRoot + "/alpha/SKILL.md"},
+		{cli.SkillOfferRemove, "claude:gone", "claude-user", ""},
+		{cli.SkillOfferRegister, "claude:zeta", "claude-user", userSkillsRoot + "/zeta/SKILL.md"},
 		{cli.SkillOfferRemove, "pi-pkg:pk:gone", "pi-pkg:pk", "~/.pi/agent/npm/node_modules/pk/skills/gone/SKILL.md"},
 		{cli.SkillOfferRemove, "pi-prompt:gone", "pi-prompt", ""},
 		{cli.SkillOfferRemove, "pi-settings:gone", "pi-settings", "~/extra/gone/SKILL.md"},
@@ -399,17 +402,19 @@ func TestCompareSkillOffers_OffersMarkEngramOwnedSources(t *testing.T) {
 	fixture.home = fakeHome
 	fixture.sources.EngramSkillRoots = []string{engramClaudeSkills}
 	fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-	fixture.candidate(offerCand("route", cli.SkillScopeClaudeUser, engramClaudeSkills+"/route/SKILL.md", "route"))
-	fixture.candidate(offerCand("c4", cli.SkillScopeClaudeUser, userSkillsRoot+"/c4/SKILL.md", "c4"))
-	fixture.note("curate", "h1", "~/.claude/engram/skills/curate/SKILL.md")
-	fixture.note("gone", "h2", "~/.claude/skills/gone/SKILL.md")
+	fixture.candidate(offerCand("claude:route", cli.SkillScopeClaudeUser, engramClaudeSkills+"/route/SKILL.md", "route"))
+	fixture.candidate(offerCand("claude:c4", cli.SkillScopeClaudeUser, userSkillsRoot+"/c4/SKILL.md", "c4"))
+	fixture.note("claude:curate", "h1", "~/.claude/engram/skills/curate/SKILL.md")
+	fixture.note("claude:gone", "h2", "~/.claude/skills/gone/SKILL.md")
 
 	owned := map[string]bool{}
 	for _, offer := range fixture.compare(g).Offers {
 		owned[offer.Key] = offer.EngramOwned
 	}
 
-	g.Expect(owned).To(Equal(map[string]bool{"route": true, "c4": false, "curate": true, "gone": false}))
+	g.Expect(owned).To(Equal(map[string]bool{
+		"claude:route": true, "claude:c4": false, "claude:curate": true, "claude:gone": false,
+	}))
 }
 
 // TestCompareSkillOffers_RemovalEligibilityPlugins covers design D5 for
@@ -667,26 +672,26 @@ func TestCompareSkillOffers_RemovalEligibilityUserRoots(t *testing.T) {
 	t.Parallel()
 	runRemovalCases(t, []removalCase{
 		{
-			name: "unreadable ~/.claude/skills keeps bare-key notes",
+			name: "unreadable ~/.claude/skills keeps claude: notes",
 			setup: func(fixture *offerFixture) {
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, false)
-				fixture.note("c4", "h", "")
+				fixture.note("claude:c4", "h", "")
 			},
 		},
 		{
-			name: "readable ~/.claude/skills removes a gone bare-key note",
+			name: "readable ~/.claude/skills removes a gone claude: note",
 			setup: func(fixture *offerFixture) {
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-				fixture.note("c4", "h", "")
+				fixture.note("claude:c4", "h", "")
 			},
-			wantRemoved: []string{"c4"},
+			wantRemoved: []string{"claude:c4"},
 		},
 		{
 			name: "an alias keeps its note",
 			setup: func(fixture *offerFixture) {
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
 				fixture.root(piUserRoot, cli.SkillRootFormPiUser, true)
-				fixture.candidate(offerCand("ping", cli.SkillScopeClaudeUser, userSkillsRoot+"/ping/SKILL.md", "ping"))
+				fixture.candidate(offerCand("claude:ping", cli.SkillScopeClaudeUser, userSkillsRoot+"/ping/SKILL.md", "ping"))
 				fixture.candidate(offerCand("pi:ping", cli.SkillScopePiUser, piUserRoot+"/ping/SKILL.md", "ping"))
 				fixture.note("pi:ping", "h", "")
 			},
@@ -709,67 +714,67 @@ func TestCompareSkillOffers_RemovalEligibilityUserRoots(t *testing.T) {
 			},
 		},
 		{
-			// A bare key also comes from Pi and agents copies under the
-			// engram-owned roots, so an unreadable Pi root can hide a bare
+			// A claude: key also comes from Pi and agents copies under the
+			// engram-owned roots, so an unreadable Pi root can hide a claude:
 			// key's only copy (design D5).
-			name: "unreadable ~/.pi/agent/skills keeps bare-key notes",
+			name: "unreadable ~/.pi/agent/skills keeps claude: notes",
 			setup: func(fixture *offerFixture) {
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
 				fixture.root(piUserRoot, cli.SkillRootFormPiUser, false)
-				fixture.note("route", "h", "")
+				fixture.note("claude:route", "h", "")
 			},
 		},
 		{
-			name: "unreadable ~/.agents/skills keeps bare-key notes",
+			name: "unreadable ~/.agents/skills keeps claude: notes",
 			setup: func(fixture *offerFixture) {
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
 				fixture.root(agentsUserRoot, cli.SkillRootFormAgentsUser, false)
-				fixture.note("route", "h", "")
+				fixture.note("claude:route", "h", "")
 			},
 		},
 		{
-			name: "an unresolvable engram skills root keeps bare-key notes",
+			name: "an unresolvable engram skills root keeps claude: notes",
 			setup: func(fixture *offerFixture) {
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
 				fixture.sources.EngramSkillRootsUnresolved = true
-				fixture.note("route", "h", "")
+				fixture.note("claude:route", "h", "")
 			},
 		},
 		{
-			name: "an unread root overlapping an engram skills root keeps bare-key notes",
+			name: "an unread root overlapping an engram skills root keeps claude: notes",
 			setup: func(fixture *offerFixture) {
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
 				fixture.sources.EngramSkillRoots = []string{engramPiSkills}
 				fixture.root(piAgentDir+"/engram", cli.SkillRootFormPiSettings, false, "pi-settings:")
-				fixture.note("route", "h", "")
+				fixture.note("claude:route", "h", "")
 			},
 		},
 		{
-			name: "readable Pi, agents and engram roots let a gone bare-key note go",
+			name: "readable Pi, agents and engram roots let a gone claude: note go",
 			setup: func(fixture *offerFixture) {
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
 				fixture.root(piUserRoot, cli.SkillRootFormPiUser, true)
 				fixture.root(agentsUserRoot, cli.SkillRootFormAgentsUser, true)
 				fixture.sources.EngramSkillRoots = []string{engramPiSkills}
 				fixture.root(piAgentDir+"/engram", cli.SkillRootFormPiSettings, true, "pi-settings:")
-				fixture.note("route", "h", "")
+				fixture.note("claude:route", "h", "")
 			},
-			wantRemoved: []string{"route"},
+			wantRemoved: []string{"claude:route"},
 		},
 		{
 			name: "--skills-dir makes no removal offer",
 			setup: func(fixture *offerFixture) {
 				fixture.noRemovals = true
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-				fixture.note("c4", "h", "")
+				fixture.note("claude:c4", "h", "")
 			},
 		},
 		{
 			name: "a declined removal at the note's hash is not re-offered",
 			setup: func(fixture *offerFixture) {
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
-				fixture.note("c4", "h", "")
-				fixture.declined["c4"] = "h"
+				fixture.note("claude:c4", "h", "")
+				fixture.declined["claude:c4"] = "h"
 			},
 		},
 	})
@@ -1040,28 +1045,28 @@ func TestCompareSkillOffers_ResolvedProject(t *testing.T) {
 func TestCompareSkillOffers_ResolvedUserAndPi(t *testing.T) {
 	t.Parallel()
 
-	t.Run("unreadable ~/.claude/skills keeps bare-key notes", func(t *testing.T) {
+	t.Run("unreadable ~/.claude/skills keeps claude: notes", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
 		fsys := resolverFixture(g).failRead(userSkillsRoot)
-		notes := []offerNote{{key: "gone", hash: "h"}}
+		notes := []offerNote{{key: "claude:gone", hash: "h"}}
 
 		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
 
 		g.Expect(removedKeys(comparison)).To(BeEmpty())
 	})
 
-	t.Run("readable ~/.claude/skills offers a gone bare-key note for removal", func(t *testing.T) {
+	t.Run("readable ~/.claude/skills offers a gone claude: note for removal", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
 		fsys := resolverFixture(g)
-		notes := []offerNote{{key: "gone", hash: "h"}}
+		notes := []offerNote{{key: "claude:gone", hash: "h"}}
 
 		comparison := resolveAndCompare(g, fsys, "/tmp", cli.SkillSourceDeps{FS: fsys, Commander: scriptedGit{}}, notes)
 
-		g.Expect(removedKeys(comparison)).To(Equal([]string{"gone"}))
+		g.Expect(removedKeys(comparison)).To(Equal([]string{"claude:gone"}))
 	})
 
 	t.Run("a Pi-disabled skill makes no offer of any kind", func(t *testing.T) {
@@ -1195,7 +1200,7 @@ func TestResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarget(t *testing
 // itself and plugin roots carry neither.
 // TestResolveSkillSources_FlagsAnUnresolvableEngramRoot covers ruling R26
 // feeding design D5: an engram-owned skills root that exists but cannot be
-// resolved is flagged, so no bare-key note is offered for removal.
+// resolved is flagged, so no claude: note is offered for removal.
 func TestResolveSkillSources_FlagsAnUnresolvableEngramRoot(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1353,7 +1358,7 @@ func (fixture *offerFixture) drawPluginState(rt *rapid.T, plugin string, state i
 // reports its key and whether the model says its root was read.
 func (fixture *offerFixture) drawRemovalNote(rt *rapid.T, index int, fixedRead map[string]bool) (string, bool) {
 	formNames := []string{
-		"bare", "cmd", "pi", "agents", "pi-prompt", "synced", "pi-settings", "pi-pkg", "project", "plugin",
+		"claude", "claude-cmd", "pi", "agents", "pi-prompt", "synced", "pi-settings", "pi-pkg", "project", "plugin",
 	}
 	formName := rapid.SampledFrom(formNames).Draw(rt, fmt.Sprintf("form%d", index))
 	state := rapid.IntRange(0, removalStateCount-1).Draw(rt, fmt.Sprintf("state%d", index))
@@ -1465,9 +1470,9 @@ func drawDedupeUniverse(rt *rapid.T) *offerFixture {
 	}
 
 	slots := []slot{
-		{"a", cli.SkillScopeClaudeUser, userSkillsRoot + "/a/SKILL.md"},
-		{"a", cli.SkillScopeClaudeUser, engramClaudeSkills + "/a/SKILL.md"},
-		{"a", cli.SkillScopePiUser, engramPiSkills + "/a/SKILL.md"},
+		{"claude:a", cli.SkillScopeClaudeUser, userSkillsRoot + "/a/SKILL.md"},
+		{"claude:a", cli.SkillScopeClaudeUser, engramClaudeSkills + "/a/SKILL.md"},
+		{"pi:a", cli.SkillScopePiUser, engramPiSkills + "/a/SKILL.md"},
 		{"pi:a", cli.SkillScopePiUser, piUserRoot + "/x/a/SKILL.md"},
 		{"pi:a", cli.SkillScopePiUser, piUserRoot + "/y/a/SKILL.md"},
 		{"agents:a", cli.SkillScopeAgentsUser, agentsUserRoot + "/a/SKILL.md"},
@@ -1499,7 +1504,7 @@ func drawDedupeUniverse(rt *rapid.T) *offerFixture {
 		fixture.candidate(candidate)
 	}
 
-	noteKeys := []string{"a", "pi:a", "agents:a", "agents:b", "anthropic-skills:b", "tools:b", projectScope + ":b"}
+	noteKeys := []string{"claude:a", "pi:a", "agents:a", "agents:b", "anthropic-skills:b", "tools:b", projectScope + ":b"}
 	for _, key := range noteKeys {
 		if !rapid.Bool().Draw(rt, "hasNote:"+key) {
 			continue
@@ -1543,11 +1548,11 @@ func drawRemovalUniverse(rt *rapid.T) (*offerFixture, []string) {
 		fixedFailed[name] = state == removalStateFailed
 	}
 
-	// A bare key also comes from Pi and agents copies under the engram-owned
-	// roots: an unread Pi or agents root, or an unresolvable engram root,
-	// keeps every bare-key note (design D5).
+	// A claude: key also comes from Pi and agents copies under the
+	// engram-owned roots: an unread Pi or agents root, or an unresolvable
+	// engram root, keeps every claude: note (design D5).
 	fixture.sources.EngramSkillRootsUnresolved = rapid.Bool().Draw(rt, "engramRootsUnresolved")
-	fixedRead["bare"] = fixedRead["bare"] && !fixedFailed["pi"] && !fixedFailed["agents"] &&
+	fixedRead["claude"] = fixedRead["claude"] && !fixedFailed["pi"] && !fixedFailed["agents"] &&
 		!fixture.sources.EngramSkillRootsUnresolved
 
 	var expected []string
@@ -1616,11 +1621,11 @@ func offeredKeys(comparison cli.SkillOfferComparison) []string {
 // removalFixedForms are the single-root user key forms and their roots.
 func removalFixedForms() map[string]removalFormSpec {
 	return map[string]removalFormSpec{
-		"bare":      {prefix: "", root: userSkillsRoot, form: cli.SkillRootFormClaudeUser},
-		"cmd":       {prefix: "cmd:", root: fakeHome + "/.claude/commands", form: cli.SkillRootFormClaudeCmd},
-		"pi":        {prefix: "pi:", root: piUserRoot, form: cli.SkillRootFormPiUser},
-		"agents":    {prefix: "agents:", root: agentsUserRoot, form: cli.SkillRootFormAgentsUser},
-		"pi-prompt": {prefix: "pi-prompt:", root: piPromptsRoot, form: cli.SkillRootFormPiPrompt},
+		"claude":     {prefix: "claude:", root: userSkillsRoot, form: cli.SkillRootFormClaudeUser},
+		"claude-cmd": {prefix: "claude:cmd:", root: fakeHome + "/.claude/commands", form: cli.SkillRootFormClaudeCmd},
+		"pi":         {prefix: "pi:", root: piUserRoot, form: cli.SkillRootFormPiUser},
+		"agents":     {prefix: "agents:", root: agentsUserRoot, form: cli.SkillRootFormAgentsUser},
+		"pi-prompt":  {prefix: "pi-prompt:", root: piPromptsRoot, form: cli.SkillRootFormPiPrompt},
 	}
 }
 

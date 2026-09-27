@@ -479,7 +479,7 @@ func TestScanClaudePlugins_ReservedAndColonNamesAreSkipped(t *testing.T) {
 	t.Parallel()
 
 	for _, name := range []string{
-		"pi", "agents", "project", "anthropic-skills", "cmd", "pi-settings", "pi-pkg", "pi-prompt", "a:b",
+		"claude", "pi", "agents", "project", "anthropic-skills", "pi-settings", "pi-pkg", "pi-prompt", "a:b",
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

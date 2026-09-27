@@ -438,9 +438,8 @@ func previewSkillSources(
 
 // previewSkillsDirs is a `--skills-dir` run (design D9): it refuses any
 // --accept, --decline or --adopt before scanning, then scans each preview
-// dir with the Claude-user rules (bare keys, AssignSkillKeys with no
-// engram-owned root) in place of the default set, and previews the offers
-// with no removal offer.
+// dir with the Claude-user rules (keys `claude:<n>`) in place of the default
+// set, and previews the offers with no removal offer.
 func previewSkillsDirs(args SkillRegistrationArgs, deps SkillRegistrationDeps, stdout io.Writer) error {
 	if len(args.Accept) > 0 || len(args.Decline) > 0 || len(args.Adopt) > 0 {
 		return errSkillsDirReadOnly
@@ -452,7 +451,7 @@ func previewSkillsDirs(args SkillRegistrationArgs, deps SkillRegistrationDeps, s
 		mergeSkillScanResult(&sources.SkillScanResult, ScanClaudeUserSkills(deps.Sources.FS, dir))
 	}
 
-	keyed, keyWarnings := AssignSkillKeys(sources.Candidates, nil)
+	keyed, keyWarnings := AssignSkillKeys(sources.Candidates)
 	sources.Candidates = keyed
 	sources.Warnings = append(sources.Warnings, keyWarnings...)
 

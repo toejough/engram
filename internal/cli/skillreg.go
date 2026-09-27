@@ -55,11 +55,11 @@ type SkillOffer struct {
 type SkillOfferKind string
 
 // FindSkillNote locates skill key key's runbook note among the vault's full
-// .md filenames (a ListMD-shaped listing), per skillNoteKey's identity rule:
-// a runbook note carrying a non-empty skill_hash whose skill_key equals key,
-// or — for a legacy note with no skill_key — whose "skill-<remainder>" slug
-// remainder equals key (a bare key; design D3). found is false when no note
-// matches; errDuplicateSkillNote names every match when more than one does.
+// .md filenames (a ListMD-shaped listing), per groupSkillNoteCandidates'
+// identity rule: a runbook note carrying a non-empty skill_hash whose
+// recognized skill_key equals key (design D3). A slug never identifies a
+// note. found is false when no note matches; errDuplicateSkillNote names
+// every match when more than one does.
 func FindSkillNote(
 	vault, key string,
 	names []string,
@@ -188,15 +188,15 @@ var (
 	errSkillRegistrationsVersion = errors.New("skill registrations: unsupported schema version")
 )
 
-// skillNoteCandidate is one runbook note in the vault carrying a non-empty
-// skill_hash, keyed by the skill name extracted from its "skill-<name>"
-// slug (skill-runbook-registration D3).
+// skillNoteCandidate is one skill note in the vault: a runbook note with a
+// "skill-" slug carrying a non-empty skill_hash and a recognized skill_key
+// (design D3).
 type skillNoteCandidate struct {
 	Basename string
 	Hash     string
 	// Source is the note's recorded skill_source (`~`-relative resolved
-	// path), empty for a legacy note; removal eligibility (design D5) reads
-	// it for source-rooted key forms.
+	// path); removal eligibility (design D5) reads it for source-rooted key
+	// forms.
 	Source string
 }
 
@@ -220,25 +220,24 @@ type skillRegistrationsDoc struct {
 	Declined      map[string]string `json:"declined"`
 }
 
-// groupSkillNoteCandidates scans names for runbook notes carrying a
-// non-empty skill_hash whose basename slug has the "skill-<remainder>"
-// shape, grouped by skill key: the note's skill_key when it has one, else
-// its slug remainder, which is a legacy note's bare key (design D3; the six
-// pre-key notes route, please, curate, write-memory, learn and recall). A
-// note matching the slug shape but failing a check (wrong type, a runbook
+// groupSkillNoteCandidates scans names for skill notes, grouped by their
+// skill_key (design D3): runbook notes with a "skill-" slug carrying a
+// non-empty skill_hash and a recognized skill_key (parseSkillKey). There is
+// no slug fallback: an unkeyed note (skill_hash but no skill_key, like the
+// six legacy notes D11 migrates) and a note whose skill_key is unrecognized
+// are not skill notes — never matched to a key, never an alias source and
+// never a removal candidate. A note failing a check (wrong type, a runbook
 // with no skill_hash such as note 820, or an unreadable/unparseable file) is
-// excluded — same non-identity as an unrelated note with a coincidentally
-// matching slug. Only "skill-" slugs are read: registration always gives a
-// skill note the slug derived from its key (SkillKeySlug), which has that
-// prefix.
+// excluded the same way. Only "skill-" slugs are read: registration always
+// gives a skill note the slug derived from its key (SkillKeySlug), which has
+// that prefix.
 func groupSkillNoteCandidates(
 	vault string, names []string, readFile func(string) ([]byte, error),
 ) map[string][]skillNoteCandidate {
 	byKey := make(map[string][]skillNoteCandidate)
 
 	for _, name := range names {
-		slugRemainder, isSkillSlug := skillNameFromNoteName(name)
-		if !isSkillSlug {
+		if !hasSkillSlug(name) {
 			continue
 		}
 
@@ -248,16 +247,11 @@ func groupSkillNoteCandidates(
 		}
 
 		probe, isSkillNote := skillIdentityFromFrontmatter(raw)
-		if !isSkillNote {
+		if !isSkillNote || !parseSkillKey(probe.SkillKey).recognized {
 			continue
 		}
 
-		key := probe.SkillKey
-		if key == "" {
-			key = slugRemainder
-		}
-
-		byKey[key] = append(byKey[key], skillNoteCandidate{
+		byKey[probe.SkillKey] = append(byKey[probe.SkillKey], skillNoteCandidate{
 			Basename: strings.TrimSuffix(name, mdExt),
 			Hash:     probe.SkillHash,
 			Source:   probe.SkillSource,
@@ -265,6 +259,26 @@ func groupSkillNoteCandidates(
 	}
 
 	return byKey
+}
+
+// hasSkillSlug reports whether name is a full .md filename whose trailing
+// dot-segment (its slug) is a non-empty "skill-<…>" slug (basename
+// "<luhmann>.<date>.skill-<…>.md").
+func hasSkillSlug(name string) bool {
+	if !strings.HasSuffix(name, mdExt) {
+		return false
+	}
+
+	stem := strings.TrimSuffix(name, mdExt)
+
+	lastDot := strings.LastIndexByte(stem, '.')
+	if lastDot < 0 {
+		return false
+	}
+
+	remainder, isSkillSlug := strings.CutPrefix(stem[lastDot+1:], skillSlugPrefix)
+
+	return isSkillSlug && remainder != ""
 }
 
 // resolveSkillNoteMatches reduces a skill name's grouped note candidates to
@@ -287,7 +301,7 @@ func resolveSkillNoteMatches(matches []skillNoteCandidate) (basename string, has
 }
 
 // skillIdentityFromFrontmatter reports the note's skill_hash, skill_key
-// (empty for a legacy note) and skill_source when raw parses as a runbook
+// (empty for an unkeyed note) and skill_source when raw parses as a runbook
 // note's frontmatter carrying a non-empty skill_hash; ok is false for any
 // other note type, a runbook with no skill_hash, or unparseable content.
 func skillIdentityFromFrontmatter(raw []byte) (skillNoteFrontmatterProbe, bool) {
@@ -306,34 +320,4 @@ func skillIdentityFromFrontmatter(raw []byte) (skillNoteFrontmatterProbe, bool) 
 	}
 
 	return probe, true
-}
-
-// skillNameFromNoteName extracts the skill name from a full .md filename
-// whose trailing dot-segment (its slug) has the shape "skill-<name>"
-// (skill-runbook-registration D3: basename
-// "<luhmann>.<date>.skill-<name>.md"). Returns ("", false) when name
-// doesn't end in .md or its slug isn't a "skill-" slug.
-func skillNameFromNoteName(name string) (string, bool) {
-	if !strings.HasSuffix(name, mdExt) {
-		return "", false
-	}
-
-	stem := strings.TrimSuffix(name, mdExt)
-
-	lastDot := strings.LastIndexByte(stem, '.')
-	if lastDot < 0 {
-		return "", false
-	}
-
-	slug := stem[lastDot+1:]
-	if !strings.HasPrefix(slug, skillSlugPrefix) {
-		return "", false
-	}
-
-	skillName := strings.TrimPrefix(slug, skillSlugPrefix)
-	if skillName == "" {
-		return "", false
-	}
-
-	return skillName, true
 }

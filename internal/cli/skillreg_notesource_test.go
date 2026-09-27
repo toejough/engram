@@ -142,32 +142,6 @@ func TestRefreshSkill_FollowsPluginVersionBump(t *testing.T) {
 	g.Expect(skillNoteBodyOf(updated)).To(Equal(preambleNaming(newSource.SkillSource) + "\n# Brainstorming v2\n"))
 }
 
-// TestRefreshSkill_StampsLegacyNote covers "Refresh stamps a legacy note":
-// note 1036 had no skill_key; after the refresh it carries skill_key: route
-// and the deployed file's skill_source, keeps its basename, and its preamble
-// still names agent-instructions/skills/route/SKILL.md.
-func TestRefreshSkill_StampsLegacyNote(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := newSkillAcceptFixtureVault()
-	basename := "1036.2026-09-18.skill-route"
-	vault.put(basename+".md", legacySkillNote("1036", "route", cli.SkillContentHash([]byte("old route"))))
-
-	source := engramOwnedSkill("route", []byte("# Route v2\n"))
-
-	err := cli.RefreshSkill(t.Context(), "/vault", source, basename, skillAcceptDeps(vault), &bytes.Buffer{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	updated, found := vault.get(basename + ".md")
-	g.Expect(found).To(BeTrue())
-
-	doc := parseSkillAcceptFrontmatter(g, updated)
-	g.Expect(doc.SkillKey).To(Equal("route"))
-	g.Expect(doc.SkillSource).To(Equal("~/.claude/engram/skills/route/SKILL.md"))
-	g.Expect(skillNoteBodyOf(updated)).To(Equal(todaysPreamble("route") + "\n# Route v2\n"))
-}
-
 // TestRegisterSkill_EngramOwnedPreambleIsTodaysBytes asserts, for the six
 // engram skills behind the real notes (route, please, curate, write-memory,
 // learn, recall), that an engram-owned source gives the key-derived slug,
@@ -184,13 +158,13 @@ func TestRegisterSkill_EngramOwnedPreambleIsTodaysBytes(t *testing.T) {
 			content := "---\nname: " + name + "\ndescription: d\n---\n\nbody of " + name + "\n"
 			written := registerForTest(g, engramOwnedSkill(name, []byte(content)))
 
-			g.Expect(written.path).To(Equal("/vault/1.2026-09-25.skill-" + name + ".md"))
+			g.Expect(written.path).To(Equal("/vault/1.2026-09-25.skill-claude-" + name + ".md"))
 			g.Expect(skillNoteBodyOf(written.content)).To(Equal(todaysPreamble(name) + "\n" + content))
 			g.Expect(written.content).To(ContainSubstring(
 				"source: 'skill registration: agent-instructions/skills/" + name + "/SKILL.md'\n"))
 
 			doc := parseSkillAcceptFrontmatter(g, written.content)
-			g.Expect(doc.SkillKey).To(Equal(name))
+			g.Expect(doc.SkillKey).To(Equal("claude:" + name))
 			g.Expect(doc.SkillSource).To(Equal("~/.claude/engram/skills/" + name + "/SKILL.md"))
 			g.Expect(doc.Pending).To(BeTrue())
 		})
@@ -438,7 +412,7 @@ func TestRunSkillRegistration_AdoptTakesKeyOfAScannedSource(t *testing.T) {
 // TestRunSkillRegistration_SkillsDirIsAReadOnlyPreview covers design D9 and
 // "Skills-dir runs are preview-only": several dirs replace the default set
 // and are scanned with Claude-user rules (a symlinked skill dir is found,
-// keys are bare); the run lists offers under a scope header, prompts
+// keys are `claude:<n>`); the run lists offers under a scope header, prompts
 // nothing, writes nothing (a stale note is not refreshed, so its preamble is
 // never rewritten), and lists no removal offer.
 func TestRunSkillRegistration_SkillsDirIsAReadOnlyPreview(t *testing.T) {
@@ -446,8 +420,8 @@ func TestRunSkillRegistration_SkillsDirIsAReadOnlyPreview(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	vault.put("1036.2026-09-18.skill-route.md", legacySkillNote("1036", "route", cli.SkillContentHash([]byte("old"))))
-	vault.put("1053.2026-09-21.skill-write-memory.md", legacySkillNote("1053", "write-memory", "gone-hash"))
+	vault.put("1036.2026-09-18.skill-claude-route.md", keyedSkillNote(cli.SkillContentHash([]byte("old")), "claude:route"))
+	vault.put("1053.2026-09-21.skill-claude-write-memory.md", keyedSkillNote("gone-hash", "claude:write-memory"))
 
 	fsys := newFakeSkillFS().
 		file("/checkout/agent-instructions/skills/route/SKILL.md", "route v2").
@@ -473,8 +447,8 @@ func TestRunSkillRegistration_SkillsDirIsAReadOnlyPreview(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(stdout.String()).To(Equal("@claude-user (2)\n" +
-		"  would offer: register c4 (/elsewhere/real/c4/SKILL.md)\n" +
-		"  would offer: refresh route (/checkout/agent-instructions/skills/route/SKILL.md)\n"))
+		"  would offer: register claude:c4 (/elsewhere/real/c4/SKILL.md)\n" +
+		"  would offer: refresh claude:route (/checkout/agent-instructions/skills/route/SKILL.md)\n"))
 	g.Expect(writes).To(BeEmpty())
 }
 
@@ -545,7 +519,7 @@ type writtenNote struct {
 // engram-owned root, as NewSkillNoteSource builds it.
 func engramOwnedSkill(name string, content []byte) cli.SkillNoteSource {
 	return cli.SkillNoteSource{
-		Key: name, Name: name, EngramOwned: true,
+		Key: "claude:" + name, Name: name, EngramOwned: true,
 		SkillSource: "~/.claude/engram/skills/" + name + "/SKILL.md", Content: content,
 	}
 }

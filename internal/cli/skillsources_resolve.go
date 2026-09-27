@@ -33,8 +33,8 @@ type ResolvedSkillSources struct {
 	Plugins             []ClaudePluginStatus
 	PluginConflicts     []ClaudePluginConflict
 	// EngramSkillRoots are the fully resolved engram-owned skills roots
-	// (ResolveEngramSkillRoots) the keys were built against; D4's
-	// engram-owned exception compares candidates' SourcePaths with them.
+	// (ResolveEngramSkillRoots); D4's engram-owned exception compares
+	// candidates' SourcePaths with them.
 	EngramSkillRoots []string
 	// EngramSkillRootsUnresolved is true when an engram-owned skills root
 	// exists but could not be resolved (ruling R26): a copy read through it
@@ -71,8 +71,7 @@ type SkillSourceDeps struct {
 //
 // Keys are stamped here, as the last step, so every caller gets keyed
 // candidates from the one definition: AssignSkillKeys over the scanners'
-// output, against the resolved engram-owned skills roots of every supported
-// harness (ResolveEngramSkillRoots).
+// output.
 //
 // Outside a git repository no project source is read. The only error is a
 // harness probe that fails for a reason other than not-exist.
@@ -114,7 +113,7 @@ func ResolveSkillSources(
 		claudeResult.project, piResult.project,
 	)
 	engramRoots, rootWarnings := ResolveEngramSkillRoots(deps.FS, home)
-	keyed, keyWarnings := AssignSkillKeys(resolved.Candidates, engramRoots)
+	keyed, keyWarnings := AssignSkillKeys(resolved.Candidates)
 	resolved.Candidates = keyed
 	resolved.Roots = withFailedRootsResolved(deps.FS, resolved.Roots)
 	resolved.EngramSkillRoots = engramRoots

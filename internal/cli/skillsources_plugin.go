@@ -87,8 +87,9 @@ type ClaudePluginStatus struct {
 // Key empty.
 //
 // A plugin name installed from several marketplaces is a conflict (returned
-// in PluginConflicts, never re-keyed); a reserved name, or one containing
-// `:`, is skipped with a warning. Neither emits candidates.
+// in PluginConflicts, never re-keyed); an enabled plugin with a reserved
+// name, or one containing `:`, is skipped with a warning (a disabled one is
+// silent, like any disabled plugin). Neither emits candidates.
 func ScanClaudePlugins(fsys SkillSourceFS, scan ClaudePluginScan) ClaudePluginScanResult {
 	var result ClaudePluginScanResult
 
@@ -129,11 +130,6 @@ func ScanClaudePlugins(fsys SkillSourceFS, scan ClaudePluginScan) ClaudePluginSc
 			)
 		case !settingsUsable:
 			// Enablement is unknown: nothing is scanned (warned above).
-		case isReservedPluginName(name):
-			result.Warnings = append(
-				result.Warnings,
-				fmt.Sprintf(claudePluginReservedWarningFormat, name),
-			)
 		default:
 			var scanned SkillScanResult
 
@@ -331,19 +327,6 @@ func groupClaudePluginInstalls(
 	return byName
 }
 
-// isReservedPluginName reports whether a plugin name would collide with a
-// fixed key prefix (design D3) or cannot be a key segment (contains `:`).
-func isReservedPluginName(name string) bool {
-	switch name {
-	case SkillSegmentPi, SkillSegmentAgents, strings.TrimSuffix(SkillScopeProjectPrefix, skillKeySeparator),
-		skillKeySegmentAnthropic, skillKeySegmentCommand, SkillScopePiSettings,
-		strings.TrimSuffix(SkillScopePiPkgPrefix, skillKeySeparator), SkillScopePiPrompt:
-		return true
-	default:
-		return strings.Contains(name, skillKeySeparator)
-	}
-}
-
 // readClaudeEnabledPlugins reads settings.json's `enabledPlugins`. parsed is
 // true only when the file was read and parsed (design D5); usable is false
 // when the file exists but cannot be read or parsed, since enablement is
@@ -462,6 +445,14 @@ func scanClaudePlugin(
 	}
 
 	if !hasSetting && manifest.DefaultEnabled != nil && !*manifest.DefaultEnabled {
+		return result, false
+	}
+
+	// The reserved-name check runs only once the plugin is known to be
+	// enabled (design D3): a disabled reserved-name plugin prints nothing.
+	if isReservedPluginName(name) {
+		result.Warnings = append(result.Warnings, fmt.Sprintf(claudePluginReservedWarningFormat, name))
+
 		return result, false
 	}
 

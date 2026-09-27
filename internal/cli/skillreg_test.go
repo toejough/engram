@@ -52,7 +52,7 @@ func TestCompareSkillOffers_ContentChangeAfterDecline_ReOffersExactlyOnce(t *tes
 		matchCount := 0
 
 		for _, offer := range offersAfter {
-			if offer.Key != skills[changedIdx].Name {
+			if offer.Key != "claude:"+skills[changedIdx].Name {
 				rt.Fatalf("unexpected offer for unrelated skill %q: %+v", offer.Key, offer)
 			}
 
@@ -112,7 +112,7 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 		vault := newSkillregFixtureVault()
 		skills := []engramSkill{{Name: "curate", Content: content}}
 
-		offers, err := compareShippedSkills(skills, nil, vault.readFile, map[string]string{"curate": hash})
+		offers, err := compareShippedSkills(skills, nil, vault.readFile, map[string]string{"claude:curate": hash})
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(offers).To(BeEmpty())
@@ -123,7 +123,7 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 		g := NewWithT(t)
 
 		vault := newSkillregFixtureVault()
-		declined := map[string]string{"curate": cli.SkillContentHash([]byte("curate procedure v1"))}
+		declined := map[string]string{"claude:curate": cli.SkillContentHash([]byte("curate procedure v1"))}
 		skills := []engramSkill{{Name: "curate", Content: []byte("curate procedure v2")}}
 
 		offers, err := compareShippedSkills(skills, nil, vault.readFile, declined)
@@ -144,11 +144,11 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 		content := []byte("curate procedure v2")
 		hash := cli.SkillContentHash(content)
 		vault := newSkillregFixtureVault()
-		vault.put("1049.2026-09-21.skill-curate.md", runbookNote("stale-hash"))
+		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "stale-hash"))
 		skills := []engramSkill{{Name: "curate", Content: content}}
 		names := []string{"1049.2026-09-21.skill-curate.md"}
 
-		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{"curate": hash})
+		offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{"claude:curate": hash})
 
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(offers).To(BeEmpty())
@@ -159,9 +159,9 @@ func TestCompareSkillOffers_DeclineSuppression(t *testing.T) {
 		g := NewWithT(t)
 
 		vault := newSkillregFixtureVault()
-		vault.put("1053.2026-09-21.skill-write-memory.md", runbookNote("wm-hash"))
+		vault.put("1053.2026-09-21.skill-write-memory.md", claudeSkillNote("write-memory", "wm-hash"))
 		names := []string{"1053.2026-09-21.skill-write-memory.md"}
-		declined := map[string]string{"write-memory": "wm-hash"}
+		declined := map[string]string{"claude:write-memory": "wm-hash"}
 
 		offers, err := compareShippedSkills(nil, names, vault.readFile, declined)
 
@@ -193,7 +193,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		}
 
 		g.Expect(offers[0].Kind).To(Equal(cli.SkillOfferRegister))
-		g.Expect(offers[0].Key).To(Equal("curate"))
+		g.Expect(offers[0].Key).To(Equal("claude:curate"))
 		g.Expect(offers[0].Basename).To(BeEmpty())
 		g.Expect(offers[0].Hash).To(Equal(cli.SkillContentHash([]byte("curate procedure v1"))))
 	})
@@ -203,7 +203,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		g := NewWithT(t)
 
 		vault := newSkillregFixtureVault()
-		vault.put("1049.2026-09-21.skill-curate.md", runbookNote("stale-hash"))
+		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "stale-hash"))
 		skills := []engramSkill{{Name: "curate", Content: []byte("curate procedure v2")}}
 		names := []string{"1049.2026-09-21.skill-curate.md"}
 
@@ -216,7 +216,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		}
 
 		g.Expect(offers[0].Kind).To(Equal(cli.SkillOfferRefresh))
-		g.Expect(offers[0].Key).To(Equal("curate"))
+		g.Expect(offers[0].Key).To(Equal("claude:curate"))
 		g.Expect(offers[0].Basename).To(Equal("1049.2026-09-21.skill-curate"))
 		g.Expect(offers[0].Hash).To(Equal(cli.SkillContentHash([]byte("curate procedure v2"))))
 	})
@@ -226,7 +226,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		g := NewWithT(t)
 
 		vault := newSkillregFixtureVault()
-		vault.put("1053.2026-09-21.skill-write-memory.md", runbookNote("wm-hash"))
+		vault.put("1053.2026-09-21.skill-write-memory.md", claudeSkillNote("write-memory", "wm-hash"))
 		names := []string{"1053.2026-09-21.skill-write-memory.md"}
 
 		offers, err := compareShippedSkills(nil, names, vault.readFile, map[string]string{})
@@ -238,7 +238,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		}
 
 		g.Expect(offers[0].Kind).To(Equal(cli.SkillOfferRemove))
-		g.Expect(offers[0].Key).To(Equal("write-memory"))
+		g.Expect(offers[0].Key).To(Equal("claude:write-memory"))
 		g.Expect(offers[0].Basename).To(Equal("1053.2026-09-21.skill-write-memory"))
 		g.Expect(offers[0].Hash).To(Equal("wm-hash"))
 	})
@@ -251,7 +251,7 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		hash := cli.SkillContentHash(content)
 
 		vault := newSkillregFixtureVault()
-		vault.put("1049.2026-09-21.skill-curate.md", runbookNote(hash))
+		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", hash))
 		skills := []engramSkill{{Name: "curate", Content: content}}
 		names := []string{"1049.2026-09-21.skill-curate.md"}
 
@@ -266,8 +266,8 @@ func TestCompareSkillOffers_EachKind(t *testing.T) {
 		g := NewWithT(t)
 
 		vault := newSkillregFixtureVault()
-		vault.put("1049.2026-09-21.skill-curate.md", runbookNote("abc"))
-		vault.put("1050.2026-09-22.skill-curate.md", runbookNote("def"))
+		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "abc"))
+		vault.put("1050.2026-09-22.skill-curate.md", claudeSkillNote("curate", "def"))
 		skills := []engramSkill{{Name: "curate", Content: []byte("v")}}
 		names := []string{"1049.2026-09-21.skill-curate.md", "1050.2026-09-22.skill-curate.md"}
 
@@ -293,7 +293,7 @@ func TestFindSkillNote(t *testing.T) {
 		vault.put("1.2026-01-01.some-other-note.md", runbookNote("abc"))
 
 		basename, hash, found, err := cli.FindSkillNote(
-			"/vault", "curate", []string{"1.2026-01-01.some-other-note.md"}, vault.readFile,
+			"/vault", "claude:curate", []string{"1.2026-01-01.some-other-note.md"}, vault.readFile,
 		)
 
 		g.Expect(err).NotTo(HaveOccurred())
@@ -307,10 +307,10 @@ func TestFindSkillNote(t *testing.T) {
 		g := NewWithT(t)
 
 		vault := newSkillregFixtureVault()
-		vault.put("1049.2026-09-21.skill-curate.md", runbookNote("abc123"))
+		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "abc123"))
 
 		basename, hash, found, err := cli.FindSkillNote(
-			"/vault", "curate", []string{"1049.2026-09-21.skill-curate.md"}, vault.readFile,
+			"/vault", "claude:curate", []string{"1049.2026-09-21.skill-curate.md"}, vault.readFile,
 		)
 
 		g.Expect(err).NotTo(HaveOccurred())
@@ -324,11 +324,11 @@ func TestFindSkillNote(t *testing.T) {
 		g := NewWithT(t)
 
 		vault := newSkillregFixtureVault()
-		vault.put("1049.2026-09-21.skill-curate.md", runbookNote("abc"))
-		vault.put("1050.2026-09-22.skill-curate.md", runbookNote("def"))
+		vault.put("1049.2026-09-21.skill-curate.md", claudeSkillNote("curate", "abc"))
+		vault.put("1050.2026-09-22.skill-curate.md", claudeSkillNote("curate", "def"))
 
 		_, _, found, err := cli.FindSkillNote(
-			"/vault", "curate",
+			"/vault", "claude:curate",
 			[]string{"1049.2026-09-21.skill-curate.md", "1050.2026-09-22.skill-curate.md"},
 			vault.readFile,
 		)
@@ -348,7 +348,7 @@ func TestFindSkillNote(t *testing.T) {
 			"---\ntype: fact\nsituation: s\nsubject: s\npredicate: p\nobject: o\n---\n\nbody\n")
 
 		_, _, found, err := cli.FindSkillNote(
-			"/vault", "curate", []string{"1.2026-01-01.skill-curate.md"}, vault.readFile,
+			"/vault", "claude:curate", []string{"1.2026-01-01.skill-curate.md"}, vault.readFile,
 		)
 
 		g.Expect(err).NotTo(HaveOccurred())
@@ -363,7 +363,7 @@ func TestFindSkillNote(t *testing.T) {
 		vault.put("1.2026-01-01.skill-curate.md", "---\ntype: runbook\nsituation: s\ndone_when: d\n---\n\nbody\n")
 
 		_, _, found, err := cli.FindSkillNote(
-			"/vault", "curate", []string{"1.2026-01-01.skill-curate.md"}, vault.readFile,
+			"/vault", "claude:curate", []string{"1.2026-01-01.skill-curate.md"}, vault.readFile,
 		)
 
 		g.Expect(err).NotTo(HaveOccurred())
@@ -382,8 +382,8 @@ func TestFindSkillNote_IgnoresNonSkillOrMalformedEntries(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillregFixtureVault()
-	vault.put("notitle.md", runbookNote("x"))
-	vault.put("1.2026-01-01.skill-.md", runbookNote("y"))
+	vault.put("notitle.md", claudeSkillNote("curate", "x"))
+	vault.put("1.2026-01-01.skill-.md", claudeSkillNote("curate", "y"))
 	vault.put("1.2026-01-01.skill-curate.md", "not frontmatter at all\n")
 	vault.put("2.2026-01-01.skill-curate.md", "---\ntype: [unterminated\n---\n\nbody\n")
 
@@ -395,7 +395,7 @@ func TestFindSkillNote_IgnoresNonSkillOrMalformedEntries(t *testing.T) {
 		"2.2026-01-01.skill-curate.md",
 	}
 
-	_, _, found, err := cli.FindSkillNote("/vault", "curate", names, vault.readFile)
+	_, _, found, err := cli.FindSkillNote("/vault", "claude:curate", names, vault.readFile)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(found).To(BeFalse())
@@ -584,6 +584,12 @@ func (v *skillregFixtureVault) readFile(path string) ([]byte, error) {
 	return []byte(content), nil
 }
 
+// claudeSkillNote renders a minimal skill note for Claude user skill name:
+// a runbook carrying skill_hash and skill_key `claude:<name>`.
+func claudeSkillNote(name, hash string) string {
+	return keyedSkillNote(hash, "claude:"+name)
+}
+
 // compareShippedSkills runs CompareSkillOffers over engram's own skills
 // (engramSkillSources over /skills) and returns just the offers.
 func compareShippedSkills(
@@ -604,9 +610,9 @@ func compareShippedSkills(
 }
 
 // engramSkillSources presents skills as resolved sources read from one
-// engram-owned skills dir: Claude-user candidates keyed by their bare names,
+// engram-owned skills dir: Claude-user candidates keyed `claude:<name>`,
 // skillsDir recorded as the one read Claude-user root and the one
-// engram-owned root, so their notes keep today's preamble (design D8).
+// engram-owned root.
 func engramSkillSources(skillsDir string, skills []engramSkill) cli.ResolvedSkillSources {
 	var sources cli.ResolvedSkillSources
 
@@ -618,7 +624,7 @@ func engramSkillSources(skillsDir string, skills []engramSkill) cli.ResolvedSkil
 
 	for _, skill := range skills {
 		sources.Candidates = append(sources.Candidates, cli.SkillCandidate{
-			Key:        skill.Name,
+			Key:        "claude:" + skill.Name,
 			Name:       skill.Name,
 			ScopeID:    cli.SkillScopeClaudeUser,
 			ReadRoot:   skillsDir,
@@ -667,7 +673,7 @@ func genSkillregFixture(rt *rapid.T) ([]engramSkill, []string, *skillregFixtureV
 		}
 
 		noteName := fmt.Sprintf("%d.2026-01-01.skill-%s.md", i+1, name)
-		vault.put(noteName, runbookNote(hash))
+		vault.put(noteName, claudeSkillNote(name, hash))
 		names = append(names, noteName)
 	}
 
@@ -678,8 +684,8 @@ func newSkillregFixtureVault() *skillregFixtureVault {
 	return &skillregFixtureVault{root: skillregFixtureVaultRoot, files: map[string]string{}}
 }
 
-// runbookNote renders a minimal runbook note carrying skill_hash — just
-// enough frontmatter for skillIdentityFromFrontmatter's probe to parse.
+// runbookNote renders a minimal unkeyed runbook note carrying skill_hash
+// and no skill_key — no skill note (design D3).
 func runbookNote(hash string) string {
 	return "---\ntype: runbook\nsituation: s\ndone_when: d\nskill_hash: \"" + hash + "\"\n---\n\nbody\n"
 }

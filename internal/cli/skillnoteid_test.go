@@ -11,26 +11,6 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-// TestCompareSkillOffers_LegacyNotesMakeNoOffer: the scanned bare-key skills
-// match the six legacy notes' hashes, so there is no offer, and note 820 is
-// never offered for removal.
-func TestCompareSkillOffers_LegacyNotesMakeNoOffer(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault, names := legacyVault()
-
-	skills := make([]engramSkill, 0, len(legacyNotes))
-	for _, key := range legacyNotes {
-		skills = append(skills, engramSkill{Name: key, Content: []byte(key)})
-	}
-
-	offers, err := compareShippedSkills(skills, names, vault.readFile, map[string]string{})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(offers).To(BeEmpty())
-}
-
 func TestFindSkillNote_BySkillKey(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -55,13 +35,16 @@ func TestFindSkillNote_BySkillKey(t *testing.T) {
 }
 
 // TestFindSkillNote_IdentityProperty is model-based: over a generated vault
-// of keyed, legacy and hash-less notes, a key's lookup finds exactly the
-// notes the generator made for it with a skill_hash (skill_key when present,
-// else the slug remainder), reporting a duplicate when there are several.
+// of keyed, unkeyed and hash-less notes, a key's lookup finds exactly the
+// keyed notes the generator made for it with a skill_hash, reporting a
+// duplicate when there are several; an unkeyed note, whatever its slug, is
+// no key's note (design D3).
 func TestFindSkillNote_IdentityProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
-		keys := []string{"route", "curate", "superpowers:brainstorming", "cmd:opsx:apply", "pi:route"}
+		keys := []string{
+			"claude:route", "claude:curate", "superpowers:brainstorming", "claude:cmd:opsx:apply", "pi:route",
+		}
 		vault := newSkillregFixtureVault()
 		count := rapid.IntRange(0, 8).Draw(rt, "count")
 		names := make([]string, 0, count)
@@ -78,8 +61,6 @@ func TestFindSkillNote_IdentityProperty(t *testing.T) {
 				expected[key] = append(expected[key], basename)
 			case 1:
 				vault.put(basename+".md", runbookNote(hash))
-				legacyKey := strings.TrimPrefix(cli.SkillKeySlug(key), "skill-")
-				expected[legacyKey] = append(expected[legacyKey], basename)
 			default:
 				vault.put(basename+".md", "---\ntype: runbook\nsituation: s\ndone_when: d\n---\n\nb\n")
 			}
@@ -87,65 +68,36 @@ func TestFindSkillNote_IdentityProperty(t *testing.T) {
 			names = append(names, basename+".md")
 		}
 
-		for _, key := range append(keys, "superpowers-brainstorming", "cmd-opsx-apply", "pi-route") {
+		slugRemainders := []string{"claude-route", "route", "curate", "superpowers-brainstorming", "claude-cmd-opsx-apply"}
+		for _, key := range append(keys, slugRemainders...) {
 			basename, _, found, err := cli.FindSkillNote("/vault", key, names, vault.readFile)
 			assertNoteLookup(rt, key, expected[key], basename, found, err)
 		}
 	})
 }
 
-func TestFindSkillNote_KeyedAndLegacyDuplicateIsAnError(t *testing.T) {
+// TestFindSkillNote_KeyedNoteBesideAnUnkeyedOneIsNoDuplicate: an unkeyed
+// legacy note is no skill note, so it never duplicates the keyed note of
+// the same skill.
+func TestFindSkillNote_KeyedNoteBesideAnUnkeyedOneIsNoDuplicate(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	const (
 		legacy = "1049.2026-09-21.skill-curate.md"
-		keyed  = "2001.2026-09-26.skill-curate.md"
+		keyed  = "2001.2026-09-26.skill-claude-curate.md"
 	)
 
 	vault := newSkillregFixtureVault()
 	vault.put(legacy, legacySkillNote("1049", "curate", "abc"))
-	vault.put(keyed, keyedSkillNote("def", "curate"))
+	vault.put(keyed, keyedSkillNote("def", "claude:curate"))
 
-	_, _, found, err := cli.FindSkillNote("/vault", "curate", []string{legacy, keyed}, vault.readFile)
+	basename, hash, found, err := cli.FindSkillNote("/vault", "claude:curate", []string{legacy, keyed}, vault.readFile)
 
-	g.Expect(found).To(BeFalse())
-	g.Expect(err).To(MatchError(cli.ErrDuplicateSkillNoteForTest))
-	g.Expect(err).To(MatchError(ContainSubstring("1049.2026-09-21.skill-curate")))
-	g.Expect(err).To(MatchError(ContainSubstring("2001.2026-09-26.skill-curate")))
-}
-
-// TestFindSkillNote_LegacyNotesKeepTheirIdentity models the six legacy vault
-// notes (skill-<name> slug, skill_hash, no skill_key): each is its bare
-// key's note, and note 820 (a skill- slug without skill_hash) is no skill's.
-func TestFindSkillNote_LegacyNotesKeepTheirIdentity(t *testing.T) {
-	t.Parallel()
-
-	vault, names := legacyVault()
-
-	for luhmann, key := range legacyNotes {
-		t.Run(key, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			basename, hash, found, err := cli.FindSkillNote("/vault", key, names, vault.readFile)
-
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(found).To(BeTrue())
-			g.Expect(basename).To(HavePrefix(luhmann + "."))
-			g.Expect(hash).To(Equal(cli.SkillContentHash([]byte(key))))
-		})
-	}
-
-	t.Run("note 820 is not a skill note", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		_, _, found, err := cli.FindSkillNote("/vault", note820Key, names, vault.readFile)
-
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(found).To(BeFalse())
-	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeTrue())
+	g.Expect(basename).To(Equal(strings.TrimSuffix(keyed, ".md")))
+	g.Expect(hash).To(Equal("def"))
 }
 
 func TestFindSkillNote_SkillKeyWithoutHashIsNotASkillNote(t *testing.T) {

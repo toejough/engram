@@ -174,9 +174,8 @@ func AdoptSkillNote(
 
 // RefreshSkill accepts a refresh offer: it replaces the note's body with the
 // current source file (preamble included), sets skill_hash to the current
-// hash and skill_key/skill_source to the current key and source — stamping
-// them onto a legacy note that lacks them, and following a plugin version
-// bump's new path — sets pending: true (so curation re-checks the fields
+// hash and skill_key/skill_source to the current key and source — following
+// a plugin version bump's new path — sets pending: true (so curation re-checks the fields
 // against the new text), and preserves every other frontmatter field —
 // situation, done_when, red_flags, triggers, created, and the basename all
 // survive untouched (skill-runbook-registration: "Accepting a refresh SHALL

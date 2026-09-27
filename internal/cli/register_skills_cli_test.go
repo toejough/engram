@@ -34,7 +34,7 @@ func TestRegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
 	linkDeployedSkill(g, home, "curate")
 
 	stderr := executeForTestWithDeps(t, []string{
-		"engram", "register-skills", "--accept", "curate", "--vault", vault,
+		"engram", "register-skills", "--accept", "claude:curate", "--vault", vault,
 	}, func(d *cli.Deps) {
 		d.Embed = skillAcceptFakeEmbedder{}
 		d.UserHomeDir = func() (string, error) { return home, nil }
@@ -52,21 +52,21 @@ func TestRegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
 	found := false
 
 	for _, entry := range entries {
-		if strings.HasSuffix(entry.Name(), ".skill-curate.md") {
+		if strings.HasSuffix(entry.Name(), ".skill-claude-curate.md") {
 			found = true
 		}
 	}
 
-	g.Expect(found).To(BeTrue(), "expected a *.skill-curate.md note in %v", entries)
+	g.Expect(found).To(BeTrue(), "expected a *.skill-claude-curate.md note in %v", entries)
 
 	for _, entry := range entries {
-		if !strings.HasSuffix(entry.Name(), ".skill-curate.md") {
+		if !strings.HasSuffix(entry.Name(), ".skill-claude-curate.md") {
 			continue
 		}
 
 		note, noteErr := os.ReadFile(filepath.Join(vault, entry.Name()))
 		g.Expect(noteErr).NotTo(HaveOccurred())
-		g.Expect(string(note)).To(ContainSubstring("skill_key: curate\n"))
+		g.Expect(string(note)).To(ContainSubstring("skill_key: claude:curate\n"))
 		g.Expect(string(note)).To(ContainSubstring("skill_source: ~/.claude/engram/skills/curate/SKILL.md\n"))
 		g.Expect(string(note)).To(ContainSubstring("> Mirrors skill `agent-instructions/skills/curate/SKILL.md`"))
 	}
@@ -97,7 +97,7 @@ func TestRegisterSkillsCLI_AdoptRealNote(t *testing.T) {
 	)).To(Succeed())
 
 	stderr := executeForTestWithDeps(t, []string{
-		"engram", "register-skills", "--adopt", "curate=1049", "--vault", vault,
+		"engram", "register-skills", "--adopt", "claude:curate=1049", "--vault", vault,
 	}, func(d *cli.Deps) {
 		d.Embed = skillAcceptFakeEmbedder{}
 		d.UserHomeDir = func() (string, error) { return home, nil }
@@ -109,7 +109,7 @@ func TestRegisterSkillsCLI_AdoptRealNote(t *testing.T) {
 	_, oldStillThere := os.Stat(filepath.Join(vault, oldBasename))
 	g.Expect(oldStillThere).To(HaveOccurred())
 
-	newContent, readErr := os.ReadFile(filepath.Join(vault, "1049.2026-09-21.skill-curate.md"))
+	newContent, readErr := os.ReadFile(filepath.Join(vault, "1049.2026-09-21.skill-claude-curate.md"))
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(newContent)).To(ContainSubstring("1. Judge offers."))
 }
@@ -143,7 +143,7 @@ func TestRegisterSkillsCLI_DryRunListsRegisterOffer(t *testing.T) {
 	g.Expect(resolveErr).NotTo(HaveOccurred())
 
 	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register curate (" +
+	g.Expect(stdout.String()).To(Equal("@claude-user (1)\n  would offer: register claude:curate (" +
 		filepath.Join(resolvedSkillsDir, "curate", "SKILL.md") + ")\n"))
 }
 
@@ -255,7 +255,7 @@ func TestRegisterSkillsCLI_RelativeSkillsDirNeedsWorkingDir(t *testing.T) {
 
 // TestRegisterSkillsCLI_SkillsDirIsRepeatablePreview covers `--skills-dir`
 // (design D9): repeatable, relative dirs resolve against the working
-// directory, and the run is a dry-run preview of bare keys that writes
+// directory, and the run is a dry-run preview of `claude:` keys that writes
 // nothing to the vault.
 func TestRegisterSkillsCLI_SkillsDirIsRepeatablePreview(t *testing.T) {
 	t.Parallel()
@@ -282,8 +282,8 @@ func TestRegisterSkillsCLI_SkillsDirIsRepeatablePreview(t *testing.T) {
 
 	g.Expect(stderr).To(BeEmpty())
 	g.Expect(stdout.String()).To(Equal("@claude-user (2)\n" +
-		"  would offer: register c4 (" + filepath.Join(cwd, "two", "c4", "SKILL.md") + ")\n" +
-		"  would offer: register curate (" + filepath.Join(cwd, "one", "curate", "SKILL.md") + ")\n"))
+		"  would offer: register claude:c4 (" + filepath.Join(cwd, "two", "c4", "SKILL.md") + ")\n" +
+		"  would offer: register claude:curate (" + filepath.Join(cwd, "one", "curate", "SKILL.md") + ")\n"))
 
 	entries, readErr := os.ReadDir(vault)
 	g.Expect(readErr).NotTo(HaveOccurred())
@@ -291,7 +291,7 @@ func TestRegisterSkillsCLI_SkillsDirIsRepeatablePreview(t *testing.T) {
 }
 
 // TestRegisterSkillsCLI_SkillsDirRefusesAccept covers "Skills-dir runs are
-// preview-only": `--skills-dir agent-instructions/skills --accept route` is
+// preview-only": `--skills-dir agent-instructions/skills --accept claude:route` is
 // refused with an error, and nothing is written.
 func TestRegisterSkillsCLI_SkillsDirRefusesAccept(t *testing.T) {
 	t.Parallel()
@@ -301,7 +301,7 @@ func TestRegisterSkillsCLI_SkillsDirRefusesAccept(t *testing.T) {
 
 	stderr := executeForTest(t, []string{
 		"engram", "register-skills", "--vault", vault,
-		"--skills-dir", filepath.Join(projectRoot(t), "agent-instructions", "skills"), "--accept", "route",
+		"--skills-dir", filepath.Join(projectRoot(t), "agent-instructions", "skills"), "--accept", "claude:route",
 	})
 
 	g.Expect(stderr).To(ContainSubstring("--skills-dir is a read-only preview"))

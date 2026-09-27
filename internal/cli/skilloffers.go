@@ -211,12 +211,6 @@ func (m *deepestRootMatch) consider(root ScannedRoot, path, key string) {
 	}
 }
 
-// skillKeyForm is a qualified key prefix's removal form (design D5).
-type skillKeyForm struct {
-	form    SkillRootForm
-	sourced bool
-}
-
 // skillKeyGroup is one key's enabled candidates, in precedence order, after
 // same-path collapse. conflicted marks a key whose copies differ outside the
 // engram-owned exception.
@@ -241,21 +235,24 @@ type skillRemovalEligibility struct {
 }
 
 // eligible reports whether the note with key and recorded skill_source may
-// be offered for removal: its key form's root was read (design D5).
+// be offered for removal: its key form's root was read (design D5). An
+// unrecognized key (parseSkillKey) is never eligible.
 func (e skillRemovalEligibility) eligible(key, source string) bool {
-	form, sourced, plugin := skillKeyRemovalForm(key)
+	parsed := parseSkillKey(key)
 
 	switch {
-	case plugin != "":
-		scanned, installed := e.pluginScanned[plugin]
+	case !parsed.recognized:
+		return false
+	case parsed.plugin != "":
+		scanned, installed := e.pluginScanned[parsed.plugin]
 
-		return e.manifestsRead && !e.conflicted[plugin] && (!installed || scanned)
-	case form == SkillRootFormClaudeUser:
-		return e.fixedRootRead(form) && e.engramCopiesRead()
-	case !sourced:
-		return e.fixedRootRead(form)
+		return e.manifestsRead && !e.conflicted[parsed.plugin] && (!installed || scanned)
+	case parsed.form == SkillRootFormClaudeUser:
+		return e.fixedRootRead(parsed.form) && e.engramCopiesRead()
+	case !parsed.sourced:
+		return e.fixedRootRead(parsed.form)
 	default:
-		return e.sourceRootRead(form, key, source)
+		return e.sourceRootRead(parsed.form, key, source)
 	}
 }
 
@@ -549,7 +546,7 @@ func removalOffers(input SkillOfferInput, notes map[string]skillNoteCandidate) [
 		offers = append(offers, SkillOffer{
 			Kind:       SkillOfferRemove,
 			Key:        key,
-			ScopeID:    skillKeyScopeID(key),
+			ScopeID:    parseSkillKey(key).scopeID,
 			SourcePath: note.Source,
 			Basename:   note.Basename,
 			Hash:       note.Hash,
@@ -658,60 +655,6 @@ func skillCandidateLess(left, right SkillCandidate) bool {
 		return left.SourcePath < right.SourcePath
 	default:
 		return !left.Disabled && right.Disabled
-	}
-}
-
-// skillKeyPrefixForms maps a qualified key's first segment to its removal
-// form (design D5); any other first segment is a plugin name.
-func skillKeyPrefixForms() map[string]skillKeyForm {
-	return map[string]skillKeyForm{
-		skillKeySegmentCommand:       {form: SkillRootFormClaudeCmd},
-		SkillSegmentPi:               {form: SkillRootFormPiUser},
-		SkillSegmentAgents:           {form: SkillRootFormAgentsUser},
-		SkillScopePiPrompt:           {form: SkillRootFormPiPrompt},
-		skillKeySegmentAnthropic:     {form: SkillRootFormSynced, sourced: true},
-		SkillScopePiSettings:         {form: SkillRootFormPiSettings, sourced: true},
-		string(SkillRootFormPiPkg):   {form: SkillRootFormPiPkg, sourced: true},
-		string(SkillRootFormProject): {form: SkillRootFormProject, sourced: true},
-	}
-}
-
-// skillKeyRemovalForm classifies a note key by design D5: the form of the
-// root that must have been read, whether it is source-rooted (checked
-// against the note's skill_source), or, for a plugin key, the plugin name.
-func skillKeyRemovalForm(key string) (form SkillRootForm, sourced bool, plugin string) {
-	prefix, _, qualified := strings.Cut(key, skillKeySeparator)
-	if !qualified {
-		return SkillRootFormClaudeUser, false, ""
-	}
-
-	known, found := skillKeyPrefixForms()[prefix]
-	if !found {
-		return "", false, prefix
-	}
-
-	return known.form, known.sourced, ""
-}
-
-// skillKeyScopeID derives the answer scope (design D3's scope ID column)
-// from a key, for a removal offer that has no candidate to take it from.
-func skillKeyScopeID(key string) string {
-	prefix, rest, qualified := strings.Cut(key, skillKeySeparator)
-	if !qualified {
-		return SkillScopeClaudeUser
-	}
-
-	form, _, plugin := skillKeyRemovalForm(key)
-
-	switch {
-	case plugin != "":
-		return SkillScopePluginPrefix + plugin
-	case form == SkillRootFormPiPkg || form == SkillRootFormProject:
-		identity, _, _ := strings.Cut(rest, skillKeySeparator)
-
-		return prefix + skillKeySeparator + identity
-	default:
-		return string(form)
 	}
 }
 

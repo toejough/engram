@@ -51,8 +51,8 @@ func TestRegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource(t *testing.T) {
 	fixture := newResolveCLIFixture(t, g)
 
 	stderr := executeForTestWithDeps(t, []string{
-		"engram", "register-skills", "--vault", fixture.vault, "--accept", "curate", "--accept", "c4",
-		"--accept", "cmd:audit", "--accept", "project:*",
+		"engram", "register-skills", "--vault", fixture.vault, "--accept", "claude:curate", "--accept", "claude:c4",
+		"--accept", "claude:cmd:audit", "--accept", "project:*",
 	}, func(d *cli.Deps) {
 		fixture.customize(d)
 		d.Embed = skillAcceptFakeEmbedder{}
@@ -80,9 +80,9 @@ func TestRegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource(t *testing.T) {
 	}
 
 	g.Expect(sources).To(Equal(map[string]string{
-		"skill-curate.md":    "~/.claude/engram/skills/curate/SKILL.md",
-		"skill-c4.md":        "~/.claude/skills/c4/SKILL.md",
-		"skill-cmd-audit.md": "~/.claude/commands/audit.md",
+		"skill-claude-curate.md":    "~/.claude/engram/skills/curate/SKILL.md",
+		"skill-claude-c4.md":        "~/.claude/skills/c4/SKILL.md",
+		"skill-claude-cmd-audit.md": "~/.claude/commands/audit.md",
 		"skill-project-github-com-acme-widget-cmd-ship.md": filepath.Join(
 			fixture.resolvedCwd, ".claude", "commands", "ship.md"),
 	}))
@@ -177,10 +177,12 @@ func (f resolveCLIFixture) customize(d *cli.Deps) {
 // scope, scopes in sorted order.
 func (f resolveCLIFixture) expectedDryRun() string {
 	return "@claude-cmd (1)\n" +
-		"  would offer: register cmd:audit (" + filepath.Join(f.resolvedHome, ".claude", "commands", "audit.md") + ")\n" +
+		"  would offer: register claude:cmd:audit (" +
+		filepath.Join(f.resolvedHome, ".claude", "commands", "audit.md") + ")\n" +
 		"@claude-user (2)\n" +
-		"  would offer: register c4 (" + filepath.Join(f.resolvedHome, ".claude", "skills", "c4", "SKILL.md") + ")\n" +
-		"  would offer: register curate (" +
+		"  would offer: register claude:c4 (" +
+		filepath.Join(f.resolvedHome, ".claude", "skills", "c4", "SKILL.md") + ")\n" +
+		"  would offer: register claude:curate (" +
 		filepath.Join(f.resolvedHome, ".claude", "engram", "skills", "curate", "SKILL.md") + ")\n" +
 		"@project:github.com/acme/widget (1)\n" +
 		"  would offer: register project:github.com/acme/widget:cmd:ship (" +
@@ -189,7 +191,7 @@ func (f resolveCLIFixture) expectedDryRun() string {
 
 // newResolveCLIFixture builds the fixture: under the real home, engram's
 // deployed curate linked into ~/.claude/skills (as `engram update` deploys
-// it), a real c4 user skill and a cmd:audit user command; the home itself is
+// it), a real c4 user skill and an audit user command; the home itself is
 // reached through a symlink. The working directory is a git repository
 // whose origin is github.com/acme/widget, holding a project command.
 func newResolveCLIFixture(t *testing.T, g Gomega) resolveCLIFixture {

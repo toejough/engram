@@ -35,7 +35,7 @@ func TestRunSkillRegistration_AdoptRunsBeforeOffers_NoDuplicateOffer(t *testing.
 		Vault:     "/vault",
 		VaultName: "personal",
 		Home:      skillRegHome,
-		Adopt:     map[string]string{"curate": "1049"},
+		Adopt:     map[string]string{"claude:curate": "1049"},
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -45,7 +45,7 @@ func TestRunSkillRegistration_AdoptRunsBeforeOffers_NoDuplicateOffer(t *testing.
 	}
 
 	// Adopted: renamed to the skill- slug, hash stamped.
-	adopted, ok := vault.get("1049.2026-09-21.skill-curate.md")
+	adopted, ok := vault.get("1049.2026-09-21.skill-claude-curate.md")
 	g.Expect(ok).To(BeTrue())
 	g.Expect(adopted).To(ContainSubstring("skill_hash: " + cli.SkillContentHash(skillContent)))
 
@@ -72,7 +72,7 @@ func TestRunSkillRegistration_AdoptUnshippedSkill_Errors(t *testing.T) {
 		Vault:     "/vault",
 		VaultName: "personal",
 		Home:      skillRegHome,
-		Adopt:     map[string]string{"curate": "1049"},
+		Adopt:     map[string]string{"claude:curate": "1049"},
 	}, deps, &stdout)
 
 	g.Expect(err).To(HaveOccurred())
@@ -100,15 +100,15 @@ func TestRunSkillRegistration_BothNamedError(t *testing.T) {
 		Vault:     "/vault",
 		VaultName: "personal",
 		Home:      skillRegHome,
-		Accept:    []string{"curate"},
-		Decline:   []string{"curate"},
+		Accept:    []string{"claude:curate"},
+		Decline:   []string{"claude:curate"},
 	}, deps, &stdout)
 
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(ContainSubstring("both --accept and --decline")))
 
 	// Nothing was written — the vault holds no note or decline file.
-	_, noteWritten := vault.get("1.2026-09-25.skill-curate.md")
+	_, noteWritten := vault.get("1.2026-09-25.skill-claude-curate.md")
 	g.Expect(noteWritten).To(BeFalse())
 	_, declinedWritten := vault.get("skill-registrations.json")
 	g.Expect(declinedWritten).To(BeFalse())
@@ -116,15 +116,15 @@ func TestRunSkillRegistration_BothNamedError(t *testing.T) {
 
 // TestRunSkillRegistration_CompareSkillOffersError_Propagates covers
 // computeSkillOffers' CompareSkillOffers failure branch: two runbook notes
-// both carrying a skill_hash and ending in ".skill-curate.md" are a
+// both carrying a skill_hash and ending in ".skill-claude-curate.md" are a
 // duplicate the comparison refuses to resolve.
 func TestRunSkillRegistration_CompareSkillOffersError_Propagates(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	vault.put("9998.2026-01-01.skill-curate.md", curateSkillNoteFixture("hash-a"))
-	vault.put("9999.2026-01-02.skill-curate.md", curateSkillNoteFixture("hash-b"))
+	vault.put("9998.2026-01-01.skill-claude-curate.md", curateSkillNoteFixture("hash-a"))
+	vault.put("9999.2026-01-02.skill-claude-curate.md", curateSkillNoteFixture("hash-b"))
 
 	skillContent := []byte("# Curate\n")
 	sourceFS := skillsHomeFixture(map[string][]byte{"curate": skillContent})
@@ -173,8 +173,8 @@ func TestRunSkillRegistration_DryRun_PreviewsOffersWritesNothing(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(Equal("@claude-user (2)\n" +
-		"  would offer: register curate (" + skillRegSourcePath("curate") + ")\n" +
-		"  would offer: register route (" + skillRegSourcePath("route") + ")\n"))
+		"  would offer: register claude:curate (" + skillRegSourcePath("curate") + ")\n" +
+		"  would offer: register claude:route (" + skillRegSourcePath("route") + ")\n"))
 
 	g.Expect(vault.files).To(BeEmpty())
 }
@@ -197,13 +197,13 @@ func TestRunSkillRegistration_ExplicitAccept_NonInteractive_ActsWithoutPrompting
 		Vault:     "/vault",
 		VaultName: "personal",
 		Home:      skillRegHome,
-		Accept:    []string{"curate"},
+		Accept:    []string{"claude:curate"},
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).NotTo(ContainSubstring("Register skill"))
 
-	_, noteWritten := vault.get("1.2026-09-25.skill-curate.md")
+	_, noteWritten := vault.get("1.2026-09-25.skill-claude-curate.md")
 	g.Expect(noteWritten).To(BeTrue())
 }
 
@@ -252,7 +252,7 @@ func TestRunSkillRegistration_ExplicitDecline_NonInteractive_RecordsWithoutPromp
 		Vault:     "/vault",
 		VaultName: "personal",
 		Home:      skillRegHome,
-		Decline:   []string{"curate"},
+		Decline:   []string{"claude:curate"},
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -349,7 +349,7 @@ func TestRunSkillRegistration_PromptRefresh_Yes_ReplacesBody(t *testing.T) {
 
 	vault := newSkillAcceptFixtureVault()
 	oldHash := cli.SkillContentHash([]byte("old curate body"))
-	vault.put("1049.2026-09-21.skill-curate.md", curateSkillNoteFixture(oldHash))
+	vault.put("1049.2026-09-21.skill-claude-curate.md", curateSkillNoteFixture(oldHash))
 
 	newContent := []byte("# Curate\n\nRevised.\n")
 	sourceFS := skillsHomeFixture(map[string][]byte{"curate": newContent})
@@ -367,9 +367,9 @@ func TestRunSkillRegistration_PromptRefresh_Yes_ReplacesBody(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(ContainSubstring(
-		"Skill `curate` changed since its note was last synced. Update the note? [y/N] "))
+		"Skill `claude:curate` changed since its note was last synced. Update the note? [y/N] "))
 
-	updated, ok := vault.get("1049.2026-09-21.skill-curate.md")
+	updated, ok := vault.get("1049.2026-09-21.skill-claude-curate.md")
 	g.Expect(ok).To(BeTrue())
 	g.Expect(updated).To(ContainSubstring("Revised."))
 	g.Expect(updated).To(ContainSubstring("skill_hash: " + cli.SkillContentHash(newContent)))
@@ -398,7 +398,7 @@ func TestRunSkillRegistration_PromptRegister_No_RecordsDecline(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 
-	_, noteWritten := vault.get("1.2026-09-25.skill-curate.md")
+	_, noteWritten := vault.get("1.2026-09-25.skill-claude-curate.md")
 	g.Expect(noteWritten).To(BeFalse())
 
 	declined, ok := vault.get("skill-registrations.json")
@@ -429,9 +429,9 @@ func TestRunSkillRegistration_PromptRegister_Yes_CreatesNote(t *testing.T) {
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(ContainSubstring("Register skill `curate` as a vault runbook? [y/N] "))
+	g.Expect(stdout.String()).To(ContainSubstring("Register skill `claude:curate` as a vault runbook? [y/N] "))
 
-	written, ok := vault.get("1.2026-09-25.skill-curate.md")
+	written, ok := vault.get("1.2026-09-25.skill-claude-curate.md")
 	g.Expect(ok).To(BeTrue())
 	g.Expect(written).To(ContainSubstring("pending: true"))
 }
@@ -444,7 +444,7 @@ func TestRunSkillRegistration_PromptRemove_Yes_DeletesNote(t *testing.T) {
 
 	vault := newSkillAcceptFixtureVault()
 	basename := "1053.2026-09-21.skill-write-memory"
-	vault.put(basename+".md", curateSkillNoteFixture("wm-hash"))
+	vault.put(basename+".md", sourcedSkillNote(offerNote{key: "claude:write-memory", hash: "wm-hash"}))
 	vault.put(basename+".vec.json", `{"model_id":"m"}`)
 
 	// No shipped skills at all — write-memory's note is now orphaned.
@@ -463,7 +463,7 @@ func TestRunSkillRegistration_PromptRemove_Yes_DeletesNote(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(ContainSubstring(
-		"Skill `write-memory` is no longer found in its source. Remove its runbook note? [y/N] "))
+		"Skill `claude:write-memory` is no longer found in its source. Remove its runbook note? [y/N] "))
 
 	_, noteStillThere := vault.get(basename + ".md")
 	g.Expect(noteStillThere).To(BeFalse())
@@ -571,7 +571,7 @@ func TestRunSkillRegistration_ResolvesFromTheWorkingDirectory(t *testing.T) {
 	}{
 		"project cwd": {
 			getwd: func() (string, error) { return projectTop, nil },
-			want: "@claude-user (1)\n  would offer: register curate (" + skillRegSourcePath("curate") + ")\n" +
+			want: "@claude-user (1)\n  would offer: register claude:curate (" + skillRegSourcePath("curate") + ")\n" +
 				"@project:github.com/toejough/engram (1)\n" +
 				"  would offer: register project:github.com/toejough/engram:cmd:ship (" +
 				projectTop + "/.claude/commands/ship.md)\n",
@@ -639,7 +639,7 @@ func TestRunSkillRegistration_SkillsDirEntryWithoutSkillMD_Ignored(t *testing.T)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(Equal(
-		"@claude-user (1)\n  would offer: register curate (" + skillRegSourcePath("curate") + ")\n"))
+		"@claude-user (1)\n  would offer: register claude:curate (" + skillRegSourcePath("curate") + ")\n"))
 }
 
 // unexported constants.

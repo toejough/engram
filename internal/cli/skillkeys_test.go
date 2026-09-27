@@ -26,8 +26,8 @@ func TestAssignSkillKeys_BuildsDesignD3Keys(t *testing.T) {
 		kind           cli.SkillSourceKind
 		name, key      string
 	}{
-		{cli.SkillScopeClaudeUser, "", skill, "c4", "c4"},
-		{cli.SkillScopeClaudeCmd, "", command, "opsx:apply", "cmd:opsx:apply"},
+		{cli.SkillScopeClaudeUser, "", skill, "c4", "claude:c4"},
+		{cli.SkillScopeClaudeCmd, "", command, "opsx:apply", "claude:cmd:opsx:apply"},
 		{cli.SkillScopeSynced, "", skill, "pdf", "anthropic-skills:pdf"},
 		{cli.SkillScopePiUser, "", skill, "ping", "pi:ping"},
 		{cli.SkillScopeAgentsUser, "", skill, "ag", "agents:ag"},
@@ -57,7 +57,7 @@ func TestAssignSkillKeys_BuildsDesignD3Keys(t *testing.T) {
 			keyed, warnings := cli.AssignSkillKeys([]cli.SkillCandidate{{
 				Name: testCase.name, ScopeID: testCase.scope, SourceSegment: testCase.segment,
 				Kind: testCase.kind, SourcePath: "/elsewhere/" + testCase.name,
-			}}, []string{engramClaudeSkills, engramPiSkills})
+			}})
 
 			g.Expect(warnings).To(BeEmpty())
 			g.Expect(keyed).To(HaveLen(1))
@@ -78,7 +78,7 @@ func TestAssignSkillKeys_DisabledCandidatesAreKeyed(t *testing.T) {
 	keyed, warnings := cli.AssignSkillKeys([]cli.SkillCandidate{{
 		Name: "x", ScopeID: cli.SkillScopePiUser, Kind: cli.SkillSourceKindSkill,
 		SourcePath: piUserRoot + "/x/SKILL.md", Disabled: true,
-	}}, nil)
+	}})
 
 	g.Expect(warnings).To(BeEmpty())
 	g.Expect(keyed).To(HaveLen(1))
@@ -91,71 +91,12 @@ func TestAssignSkillKeys_DisabledCandidatesAreKeyed(t *testing.T) {
 	g.Expect(keyed[0].Disabled).To(BeTrue())
 }
 
-func TestAssignSkillKeys_EngramOwnedRootGivesBareKey(t *testing.T) {
-	t.Parallel()
-
-	for _, testCase := range []struct {
-		name       string
-		candidate  cli.SkillCandidate
-		wantKey    string
-		wantReason string
-	}{
-		{
-			name: "pi user copy of an engram skill",
-			candidate: cli.SkillCandidate{
-				Name: "route", ScopeID: cli.SkillScopePiUser, Kind: cli.SkillSourceKindSkill,
-				SourcePath: engramPiSkills + "/route/SKILL.md",
-			},
-			wantKey: "route",
-		},
-		{
-			name: "claude user symlink into the claude engram root",
-			candidate: cli.SkillCandidate{
-				Name: "recall", ScopeID: cli.SkillScopeClaudeUser, Kind: cli.SkillSourceKindSkill,
-				SourcePath: engramClaudeSkills + "/recall/SKILL.md",
-			},
-			wantKey: "recall",
-		},
-		{
-			name: "any source under an engram root",
-			candidate: cli.SkillCandidate{
-				Name: "learn", ScopeID: "pi-pkg:pk", SourceSegment: "pi-pkg:pk", Kind: cli.SkillSourceKindSkill,
-				SourcePath: engramPiSkills + "/learn/SKILL.md",
-			},
-			wantKey: "learn",
-		},
-		{
-			name: "a sibling sharing the root's string prefix is not under it",
-			candidate: cli.SkillCandidate{
-				Name: "route", ScopeID: cli.SkillScopePiUser, Kind: cli.SkillSourceKindSkill,
-				SourcePath: engramPiSkills + "-old/route/SKILL.md",
-			},
-			wantKey: "pi:route",
-		},
-	} {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			keyed, _ := cli.AssignSkillKeys(
-				[]cli.SkillCandidate{testCase.candidate}, []string{engramClaudeSkills, engramPiSkills},
-			)
-
-			g.Expect(keyed).To(HaveLen(1))
-
-			if len(keyed) != 1 {
-				return
-			}
-
-			g.Expect(keyed[0].Key).To(Equal(testCase.wantKey))
-		})
-	}
-}
-
 // TestAssignSkillKeys_KeyProperty checks D3's key rules over generated
-// candidates: every key is the name alone or ends in `:<name>`; keys of
-// distinct sources never collide; an engram-owned candidate's key is its
-// bare name; and every key's slug has the note-slug shape.
+// candidates: every key contains `:` and ends in `:<name>`; the key parser
+// recognizes it and maps it to exactly one removal form (a fixed or
+// source-rooted form, or a plugin) — the candidate's own — and to the
+// candidate's scope; keys of distinct sources never collide; and every
+// key's slug has the note-slug shape.
 func TestAssignSkillKeys_KeyProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
@@ -167,7 +108,7 @@ func TestAssignSkillKeys_KeyProperty(t *testing.T) {
 			candidate := drawKeyCandidate(rt, index)
 
 			identity := candidate.ScopeID + "|" + candidate.SourceSegment + "|" + string(candidate.Kind) + "|" +
-				candidate.Name + "|" + strconv.FormatBool(isEngramOwned(candidate))
+				candidate.Name
 			if identities[identity] {
 				continue
 			}
@@ -176,7 +117,7 @@ func TestAssignSkillKeys_KeyProperty(t *testing.T) {
 			candidates = append(candidates, candidate)
 		}
 
-		keyed, warnings := cli.AssignSkillKeys(candidates, []string{engramClaudeSkills, engramPiSkills})
+		keyed, warnings := cli.AssignSkillKeys(candidates)
 		if len(warnings) != 0 {
 			rt.Fatalf("unexpected warnings: %v", warnings)
 		}
@@ -190,7 +131,7 @@ func TestAssignSkillKeys_KeyProperty(t *testing.T) {
 		for index, candidate := range keyed {
 			assertKeyShape(rt, candidates[index], candidate.Key)
 
-			if other, seen := owners[candidate.Key]; seen && (!isBareKeyed(other) || !isBareKeyed(candidate)) {
+			if other, seen := owners[candidate.Key]; seen {
 				rt.Fatalf("key %q shared by %+v and %+v", candidate.Key, other, candidate)
 			}
 
@@ -231,12 +172,12 @@ func TestAssignSkillKeys_SkipsUnkeyableCandidates(t *testing.T) {
 			warning: "mystery",
 		},
 		{
-			name: "bare key with no slug characters",
+			name: "command with an empty namespace segment",
 			candidate: cli.SkillCandidate{
-				Name: "__", ScopeID: cli.SkillScopeClaudeUser, Kind: cli.SkillSourceKindSkill,
-				SourcePath: userSkillsRoot + "/__/SKILL.md",
+				Name: "ns::x", ScopeID: cli.SkillScopeClaudeCmd, Kind: cli.SkillSourceKindCommand,
+				SourcePath: fakeHome + "/.claude/commands/ns/x.md",
 			},
-			warning: "__",
+			warning: "claude:cmd:ns::x",
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -248,7 +189,7 @@ func TestAssignSkillKeys_SkipsUnkeyableCandidates(t *testing.T) {
 				SourcePath: userSkillsRoot + "/ok/SKILL.md",
 			}
 
-			keyed, warnings := cli.AssignSkillKeys([]cli.SkillCandidate{testCase.candidate, kept}, nil)
+			keyed, warnings := cli.AssignSkillKeys([]cli.SkillCandidate{testCase.candidate, kept})
 
 			g.Expect(keyed).To(HaveLen(1))
 
@@ -256,7 +197,7 @@ func TestAssignSkillKeys_SkipsUnkeyableCandidates(t *testing.T) {
 				return
 			}
 
-			g.Expect(keyed[0].Key).To(Equal("ok"))
+			g.Expect(keyed[0].Key).To(Equal("claude:ok"))
 			g.Expect(warnings).To(ConsistOf(ContainSubstring(testCase.warning)))
 		})
 	}
@@ -342,9 +283,9 @@ func TestResolveEngramSkillRoots(t *testing.T) {
 }
 
 // TestResolveSkillSources_EngramRootThroughSymlinkedHome: `$HOME` is a
-// symlink and Pi's route resolves into the real engram root, so the entry
-// keeps the bare key, and the resolved home is reported for writing
-// `~`-relative skill_source values (design D8).
+// symlink and Pi's route resolves into the real engram root; the entry is
+// keyed by its folder (`pi:route`), and the resolved home is reported for
+// writing `~`-relative skill_source values (design D8).
 func TestResolveSkillSources_EngramRootThroughSymlinkedHome(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -359,20 +300,21 @@ func TestResolveSkillSources_EngramRootThroughSymlinkedHome(t *testing.T) {
 	})
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(resolvedKeys(resolved)).To(Equal([]string{"route"}))
+	g.Expect(resolvedKeys(resolved)).To(Equal([]string{"pi:route"}))
 	g.Expect(resolved.ResolvedHome).To(Equal(fakeHome), "skill_source is written relative to the resolved home too")
 }
 
-// TestResolveSkillSources_PiOnlyKeepsBareKeyAndRefreshesLegacyNote is the
-// Pi-only scenario: no ~/.claude, Pi's route resolves under Pi's engram root,
-// so its key is `route` and a changed skill refreshes note 1036 rather than
-// registering `pi:route`.
-func TestResolveSkillSources_PiOnlyKeepsBareKeyAndRefreshesLegacyNote(t *testing.T) {
+// TestResolveSkillSources_PiOnlyKeysByFolderAndIgnoresLegacyNote is the
+// Pi-only fork case (design Risks): no ~/.claude, Pi's route resolves under
+// Pi's engram root and is keyed `pi:route`; the unkeyed legacy note 1036 is
+// no skill note, so it is neither refreshed nor an alias, and `pi:route` is
+// offered for registration.
+func TestResolveSkillSources_PiOnlyKeysByFolderAndIgnoresLegacyNote(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	fsys := newFakeSkillFS().
-		file(engramPiSkills+"/route/SKILL.md", "route, next release").
+		file(engramPiSkills+"/route/SKILL.md", "route").
 		link(piUserRoot+"/route", engramPiSkills+"/route")
 
 	resolved, err := cli.ResolveSkillSources(context.Background(), fakeHome, "/", cli.SkillSourceDeps{
@@ -380,28 +322,18 @@ func TestResolveSkillSources_PiOnlyKeepsBareKeyAndRefreshesLegacyNote(t *testing
 	})
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(resolvedKeys(resolved)).To(Equal([]string{"route"}))
-
-	if len(resolved.Candidates) != 1 {
-		return
-	}
+	g.Expect(resolvedKeys(resolved)).To(Equal([]string{"pi:route"}))
 
 	vault := newSkillregFixtureVault()
 	vault.put(legacyRouteNote, legacySkillNote("1036", "route", cli.SkillContentHash([]byte("route"))))
 
-	offers, offerErr := compareShippedSkills([]engramSkill{{
-		Name: resolved.Candidates[0].Key, Content: resolved.Candidates[0].Content,
-	}}, []string{legacyRouteNote}, vault.readFile, map[string]string{})
+	comparison, offerErr := cli.CompareSkillOffers(cli.SkillOfferInput{
+		Vault: skillregFixtureVaultRoot, Names: []string{legacyRouteNote}, ReadFile: vault.readFile,
+		Declined: map[string]string{}, Home: fakeHome, Sources: resolved,
+	})
 
 	g.Expect(offerErr).NotTo(HaveOccurred())
-	g.Expect(offers).To(HaveLen(1))
-
-	if len(offers) != 1 {
-		return
-	}
-
-	g.Expect(offers[0].Kind).To(Equal(cli.SkillOfferRefresh))
-	g.Expect(offers[0].Basename).To(Equal(strings.TrimSuffix(legacyRouteNote, ".md")))
+	g.Expect(offerScopes(comparison)).To(Equal([]string{"register pi:route pi-user"}))
 }
 
 func TestResolveSkillSources_StampsKeysAndDropsColonNames(t *testing.T) {
@@ -416,8 +348,8 @@ func TestResolveSkillSources_StampsKeysAndDropsColonNames(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(resolvedKeys(resolved)).To(Equal([]string{
-		"c4",
-		"cmd:audit",
+		"claude:c4",
+		"claude:cmd:audit",
 		"anthropic-skills:pdf",
 		"pi:ping",
 		"agents:ag",
@@ -479,6 +411,8 @@ func TestSkillKeySlug(t *testing.T) {
 	for key, slug := range map[string]string{
 		"x":                         "skill-x",
 		"route":                     "skill-route",
+		"claude:route":              "skill-claude-route",
+		"claude:cmd:audit":          "skill-claude-cmd-audit",
 		"superpowers:brainstorming": "skill-superpowers-brainstorming",
 		"project:github.com/toejough/engram:openspec-propose": "skill-project-github-com-toejough-engram-openspec-propose",
 		"project:github.com/toejough/engram:cmd:opsx:apply":   "skill-project-github-com-toejough-engram-cmd-opsx-apply",
@@ -534,15 +468,28 @@ var (
 	noteSlugPattern = regexp.MustCompile(`^skill-[a-z0-9]+(-[a-z0-9]+)*$`)
 )
 
-// assertKeyShape checks one generated candidate's key against D3's shape.
+// assertKeyShape checks one generated candidate's key against D3's shape:
+// qualified, ending in the name, recognized by the key parser as exactly
+// the candidate's removal form and scope, with a note-slug-shaped slug.
 func assertKeyShape(rt *rapid.T, candidate cli.SkillCandidate, key string) {
-	switch {
-	case isBareKeyed(candidate):
-		if key != candidate.Name {
-			rt.Fatalf("bare-key candidate %+v got key %q", candidate, key)
-		}
-	case !strings.HasSuffix(key, ":"+candidate.Name):
-		rt.Fatalf("key %q of %+v does not end in :%s", key, candidate, candidate.Name)
+	if !strings.Contains(key, ":") || !strings.HasSuffix(key, ":"+candidate.Name) {
+		rt.Fatalf("key %q of %+v is not qualified or does not end in :%s", key, candidate, candidate.Name)
+	}
+
+	recognized, form, sourced, plugin, scopeID := cli.ExportParseSkillKey(key)
+	wantForm, wantSourced, wantPlugin := expectedRemovalForm(candidate)
+
+	if !recognized || form != wantForm || sourced != wantSourced || plugin != wantPlugin {
+		rt.Fatalf("key %q of %+v parses as recognized=%v form=%q sourced=%v plugin=%q, want form=%q sourced=%v plugin=%q",
+			key, candidate, recognized, form, sourced, plugin, wantForm, wantSourced, wantPlugin)
+	}
+
+	if (form == "") == (plugin == "") {
+		rt.Fatalf("key %q maps to form %q and plugin %q, not exactly one", key, form, plugin)
+	}
+
+	if scopeID != candidate.ScopeID {
+		rt.Fatalf("key %q parses to scope %q, want %q", key, scopeID, candidate.ScopeID)
 	}
 
 	if !noteSlugPattern.MatchString(cli.SkillKeySlug(key)) {
@@ -552,7 +499,7 @@ func assertKeyShape(rt *rapid.T, candidate cli.SkillCandidate, key string) {
 
 // drawKeyCandidate draws a candidate of any D3 source with a colon-free
 // name (commands may have namespace segments), sometimes placed under an
-// engram-owned root.
+// engram-owned root, which never changes its key.
 func drawKeyCandidate(rt *rapid.T, index int) cli.SkillCandidate {
 	label := func(what string) string { return fmt.Sprintf("%s%d", what, index) }
 
@@ -606,17 +553,31 @@ func drawKeyCandidate(rt *rapid.T, index int) cli.SkillCandidate {
 	return candidate
 }
 
-// isBareKeyed reports whether D3 gives a generated candidate the bare key:
-// a Claude user skill, or anything under an engram-owned root.
-func isBareKeyed(candidate cli.SkillCandidate) bool {
-	return candidate.ScopeID == cli.SkillScopeClaudeUser || isEngramOwned(candidate)
-}
+// expectedRemovalForm is the test's own oracle for the removal form a
+// generated candidate's scope gives its key (design D3, D5).
+func expectedRemovalForm(candidate cli.SkillCandidate) (cli.SkillRootForm, bool, string) {
+	fixed := map[string]cli.SkillRootForm{
+		cli.SkillScopeClaudeUser: cli.SkillRootFormClaudeUser, cli.SkillScopeClaudeCmd: cli.SkillRootFormClaudeCmd,
+		cli.SkillScopePiUser: cli.SkillRootFormPiUser, cli.SkillScopeAgentsUser: cli.SkillRootFormAgentsUser,
+		cli.SkillScopePiPrompt: cli.SkillRootFormPiPrompt,
+	}
 
-// isEngramOwned reports whether a generated candidate lies under an
-// engram-owned root (the test's own oracle, by string prefix).
-func isEngramOwned(candidate cli.SkillCandidate) bool {
-	return strings.HasPrefix(candidate.SourcePath, engramClaudeSkills+"/") ||
-		strings.HasPrefix(candidate.SourcePath, engramPiSkills+"/")
+	scope := candidate.ScopeID
+
+	switch {
+	case fixed[scope] != "":
+		return fixed[scope], false, ""
+	case scope == cli.SkillScopeSynced:
+		return cli.SkillRootFormSynced, true, ""
+	case scope == cli.SkillScopePiSettings:
+		return cli.SkillRootFormPiSettings, true, ""
+	case strings.HasPrefix(scope, "pi-pkg:"):
+		return cli.SkillRootFormPiPkg, true, ""
+	case strings.HasPrefix(scope, "project:"):
+		return cli.SkillRootFormProject, true, ""
+	default:
+		return "", false, strings.TrimPrefix(scope, "plugin:")
+	}
 }
 
 // legacySkillNote renders a skill note shaped like the six legacy vault

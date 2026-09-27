@@ -49,7 +49,7 @@ func TestAdoptSkillNote_ClearsPreExistingPendingMarker(t *testing.T) {
 		return
 	}
 
-	updated, _ := vault.get("1049.2026-09-21.skill-curate.md")
+	updated, _ := vault.get("1049.2026-09-21.skill-claude-curate.md")
 	doc := parseSkillAcceptFrontmatter(g, updated)
 	g.Expect(doc.Pending).To(BeFalse())
 }
@@ -63,7 +63,7 @@ func TestAdoptSkillNote_ErrorsOnConflictingExistingSkillNote(t *testing.T) {
 
 	vault := newSkillAcceptFixtureVault()
 	vault.put("2001.2026-01-01.curate-v2.md", curatePromotedNoteFixtureAt("2001", "2026-01-01"))
-	vault.put("9999.2026-01-01.skill-curate.md", curateSkillNoteFixture("already-registered-hash"))
+	vault.put("9999.2026-01-01.skill-claude-curate.md", curateSkillNoteFixture("already-registered-hash"))
 
 	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
@@ -163,7 +163,7 @@ func TestAdoptSkillNote_ErrorsOnUnparseableBasename(t *testing.T) {
 }
 
 // TestAdoptSkillNote_IdempotentOnAlreadyAdoptedNote covers "Idempotent:
-// adopting a note already named skill-<name> just refreshes body/hash" — no
+// adopting a note already named with its key's slug just refreshes body/hash" — no
 // rename occurs (the basename is unchanged), but the body and hash still
 // update.
 func TestAdoptSkillNote_IdempotentOnAlreadyAdoptedNote(t *testing.T) {
@@ -171,7 +171,7 @@ func TestAdoptSkillNote_IdempotentOnAlreadyAdoptedNote(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	basename := "1049.2026-09-21.skill-curate"
+	basename := "1049.2026-09-21.skill-claude-curate"
 	vault.put(basename+".md", curateSkillNoteFixture(cli.SkillContentHash([]byte("previous adopt"))))
 
 	skill := engramOwnedSkill("curate", []byte("# Curate\n\n1. Newer text.\n"))
@@ -227,15 +227,15 @@ func TestAdoptSkillNote_PropagatesEmbedError(t *testing.T) {
 
 // TestAdoptSkillNote_PropagatesFindSkillNoteError covers checkAdoptConflict's
 // FindSkillNote failure branch: two existing notes both carry a skill_hash
-// matching curate's slug, so FindSkillNote reports a duplicate.
+// with skill_key claude:curate, so FindSkillNote reports a duplicate.
 func TestAdoptSkillNote_PropagatesFindSkillNoteError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
 	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
-	vault.put("9998.2026-01-01.skill-curate.md", curateSkillNoteFixture("hash-a"))
-	vault.put("9999.2026-01-02.skill-curate.md", curateSkillNoteFixture("hash-b"))
+	vault.put("9998.2026-01-01.skill-claude-curate.md", curateSkillNoteFixture("hash-a"))
+	vault.put("9999.2026-01-02.skill-claude-curate.md", curateSkillNoteFixture("hash-b"))
 
 	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
 
@@ -396,13 +396,13 @@ func TestAdoptSkillNote_RebuildsReferrerSidecars(t *testing.T) {
 	}
 
 	rewritten, _ := vault.get(referrer + ".md")
-	g.Expect(rewritten).To(ContainSubstring("[[1049.2026-09-21.skill-curate]]"))
+	g.Expect(rewritten).To(ContainSubstring("[[1049.2026-09-21.skill-claude-curate]]"))
 	g.Expect(embed.ComputeState(vault, referrerPath, fakeEmbedder.ModelID())).To(Equal(embed.StateOK))
 }
 
 // TestAdoptSkillNote_RenamesRewritesLinksPreservesFieldsClearsPending covers
 // the spec's "Adopting a previously promoted note" scenario: note 1049 is
-// renamed to the skill-curate slug, inbound links are rewritten, its fields
+// renamed to the skill-claude-curate slug, inbound links are rewritten, its fields
 // are unchanged, and it carries skill_hash with no pending marker.
 func TestAdoptSkillNote_RenamesRewritesLinksPreservesFieldsClearsPending(t *testing.T) {
 	t.Parallel()
@@ -433,7 +433,7 @@ func TestAdoptSkillNote_RenamesRewritesLinksPreservesFieldsClearsPending(t *test
 		return
 	}
 
-	newBasename := "1049.2026-09-21.skill-curate"
+	newBasename := "1049.2026-09-21.skill-claude-curate"
 
 	newContent, ok := vault.get(newBasename + ".md")
 	g.Expect(ok).To(BeTrue())
@@ -474,7 +474,7 @@ func TestRefreshSkill_PendingClearedBeforehandIsSetAgain(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	basename := "1049.2026-09-21.skill-curate"
+	basename := "1049.2026-09-21.skill-claude-curate"
 	vault.put(basename+".md", curateSkillNoteFixture(cli.SkillContentHash([]byte("old"))))
 
 	newSkill := engramOwnedSkill("curate", []byte("# Curate\n\nRevised again.\n"))
@@ -501,7 +501,7 @@ func TestRefreshSkill_PropagatesEmbedError(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	basename := "1049.2026-09-21.skill-curate"
+	basename := "1049.2026-09-21.skill-claude-curate"
 	vault.put(basename+".md", curateSkillNoteFixture(cli.SkillContentHash([]byte("old"))))
 
 	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
@@ -527,7 +527,7 @@ func TestRefreshSkill_PropagatesLockError(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.RefreshSkill(t.Context(), "/vault", skill, "1049.2026-09-21.skill-curate", deps, &stdout)
+	err := cli.RefreshSkill(t.Context(), "/vault", skill, "1049.2026-09-21.skill-claude-curate", deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(errSkillAcceptForTest))
 }
@@ -540,7 +540,7 @@ func TestRefreshSkill_PropagatesMalformedFrontmatterError(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	basename := "1049.2026-09-21.skill-curate"
+	basename := "1049.2026-09-21.skill-claude-curate"
 	vault.put(basename+".md", "no frontmatter here\n")
 
 	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
@@ -562,7 +562,7 @@ func TestRefreshSkill_PropagatesReadError(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	err := cli.RefreshSkill(t.Context(), "/vault", skill, "1049.2026-09-21.skill-curate", deps, &stdout)
+	err := cli.RefreshSkill(t.Context(), "/vault", skill, "1049.2026-09-21.skill-claude-curate", deps, &stdout)
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -573,7 +573,7 @@ func TestRefreshSkill_PropagatesWriteError(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	basename := "1049.2026-09-21.skill-curate"
+	basename := "1049.2026-09-21.skill-claude-curate"
 	vault.put(basename+".md", curateSkillNoteFixture(cli.SkillContentHash([]byte("old"))))
 
 	skill := engramOwnedSkill("curate", []byte("# Curate\n"))
@@ -597,7 +597,7 @@ func TestRefreshSkill_RedFlagsSurviveRefresh(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	basename := "1049.2026-09-21.skill-curate"
+	basename := "1049.2026-09-21.skill-claude-curate"
 	vault.put(basename+".md", curateSkillNoteFixture(cli.SkillContentHash([]byte("old"))))
 
 	newSkill := engramOwnedSkill("curate", []byte("# Curate\n\nRevised procedure.\n"))
@@ -625,7 +625,7 @@ func TestRefreshSkill_ReplacesBodyKeepsFieldsAndMarksPending(t *testing.T) {
 	g := NewWithT(t)
 
 	vault := newSkillAcceptFixtureVault()
-	basename := "1049.2026-09-21.skill-curate"
+	basename := "1049.2026-09-21.skill-claude-curate"
 	oldHash := cli.SkillContentHash([]byte("old curate body"))
 	vault.put(basename+".md", curateSkillNoteFixture(oldHash))
 
@@ -665,7 +665,7 @@ func TestRefreshSkill_ReplacesBodyKeepsFieldsAndMarksPending(t *testing.T) {
 
 // TestRegisterSkill_CreatesPendingNoteWithHashAndPreamble covers the
 // "Accepted registration" scenario (skill-runbook-registration): registering
-// curate creates a runbook note ending in .skill-curate.md carrying the
+// curate creates a runbook note ending in .skill-claude-curate.md carrying the
 // skill's text, skill_hash, pending: true, and a .vec.json sidecar.
 func TestRegisterSkill_CreatesPendingNoteWithHashAndPreamble(t *testing.T) {
 	t.Parallel()
@@ -691,7 +691,7 @@ func TestRegisterSkill_CreatesPendingNoteWithHashAndPreamble(t *testing.T) {
 		return
 	}
 
-	g.Expect(writtenPath).To(Equal("/vault/1.2026-09-25.skill-curate.md"))
+	g.Expect(writtenPath).To(Equal("/vault/1.2026-09-25.skill-claude-curate.md"))
 
 	content := string(writtenContent)
 	g.Expect(content).To(ContainSubstring("type: runbook"))
@@ -700,7 +700,7 @@ func TestRegisterSkill_CreatesPendingNoteWithHashAndPreamble(t *testing.T) {
 	g.Expect(content).To(ContainSubstring("Mirrors skill `agent-instructions/skills/curate/SKILL.md`"))
 	g.Expect(content).To(ContainSubstring("Step 1. Judge each pending offer."))
 
-	_, sidecarWritten := vault.get("1.2026-09-25.skill-curate.vec.json")
+	_, sidecarWritten := vault.get("1.2026-09-25.skill-claude-curate.vec.json")
 	g.Expect(sidecarWritten).To(BeTrue(), "register must embed on write")
 }
 
@@ -973,9 +973,9 @@ func curatePromotedNoteFixturePending() string {
 		"1. Find pending offers.\n2. Judge each.\n"
 }
 
-// curateSkillNoteFixture renders an already-registered skill-curate note
-// (basename 1049.2026-09-21.skill-curate) carrying skill_hash and the
-// authored fields adoption/refresh must preserve.
+// curateSkillNoteFixture renders an already-registered `claude:curate` note
+// (basename 1049.2026-09-21.skill-claude-curate) carrying skill_hash,
+// skill_key and the authored fields adoption/refresh must preserve.
 func curateSkillNoteFixture(hash string) string {
 	return "---\n" +
 		"type: runbook\n" +
@@ -993,6 +993,7 @@ func curateSkillNoteFixture(hash string) string {
 		"user: joe\n" +
 		"vault: personal\n" +
 		"skill_hash: \"" + hash + "\"\n" +
+		"skill_key: \"claude:curate\"\n" +
 		"pending: false\n" +
 		"---\n\n" +
 		"> Mirrors skill `agent-instructions/skills/curate/SKILL.md` — edit the procedure there; " +
