@@ -206,8 +206,9 @@ Every key is qualified by its source, and there is no engram-owned mechanism (va
     - the preamble is ``> Mirrors skill `<skill_source>`.``;
     - `skill_key: claude:curate` and `skill_source` are stamped, `skill_hash` is unchanged, and there is no `pending`.
   - Update the base-scenario tests: "Note located by slug" (a slug alone locates nothing) and "Duplicate notes are an error" (two notes with `skill_key: claude:curate`).
-- [ ] 8.2b RED→GREEN (+ rapid property: a note whose `skill_key` first segment names no source family is never matched and never removal-eligible, for any roots and candidates): unrecognized `skill_key` (D3; spec scenario "An unrecognized skill_key is never matched or removed").
-  - The key parser reports "unrecognized" for a key whose first segment is no source family and no installed plugin (e.g. `route`, `engram:route` with no `engram` plugin). Eligibility treats that as never eligible, and it never falls through to a `claude` or plugin form.
+- [ ] 8.2b RED→GREEN (+ rapid property: an unrecognized key, and only an unrecognized key, is never matched and never removal-eligible for any roots and candidates; every other generated `<x>:<n>` with `<x>` not a reserved form is judged by the plugin rule): unrecognized `skill_key` (D3; spec scenario "An unrecognized skill_key is never matched or removed").
+  - The key parser reports "unrecognized" in exactly three cases: no `:` (e.g. `route`); an empty segment (e.g. `claude:`, `pi::x`); a reserved-form prefix whose tail lacks that form's shape (e.g. `project:github.com/toejough/engram`, `pi-pkg:x`, `claude:cmd:`). Eligibility treats unrecognized as never eligible.
+  - Any other `<x>:<n…>` is plugin `<x>`'s key under D5's plugin rule. Fixture: `engram:route` with no `engram` plugin in a readable `installed_plugins.json` and a parsed `settings.json` → offered for removal, exactly like `ralph-loop:cmd:help`.
 - [ ] 8.3 RED→GREEN: delete the whole engram-owned mechanism, the multi-root bare-key eligibility and the collision special cases (design Context, D1, D4, D5, D8).
   - Delete, by name:
     - `ResolveEngramSkillRoots` and `underEngramSkillRoot` (`skillkeys.go:55-84`, `:220-230`), and `engramRootUnresolvedWarningFormat` (`skillkeys.go:117`);
@@ -247,7 +248,7 @@ Every key is qualified by its source, and there is no engram-owned mechanism (va
   3. From this worktree, and again from `internal/`: `$BIN register-skills --dry-run </dev/null`. Expect **83 = 70 + 13** `@project:github.com/toejough/engram`, with identical output from both directories.
   4. From this worktree: `$BIN update --dry-run </dev/null`. A dry run never installs or re-execs (`internal/update/update.go:300`, `:1262`). Its registration offers must equal step 3's.
   5. **Adopt rehearsal on a FRESH vault copy with the REAL HOME.** Adopt writes only to the vault. Do not reuse 6.3's mutated copy or its fixture HOME: under a fixture HOME, `homeRelativePath` yields absolute `skill_source` paths.
-     - `cp -R "${XDG_DATA_HOME:-$HOME/.local/share}/engram/vault" <scratchpad>/vault-r3`.
+     - `cp -R ~/.local/share/engram/vault <scratchpad>/vault-r3`. This is the literal vault path: `XDG_DATA_HOME` is unset on this machine (checked 2026-09-26), and Joe's shell is fish, so no bash `${…:-…}` syntax is used. Run every command in 8.8 as written; each is valid in both fish and bash.
      - `cd /tmp && $BIN register-skills --vault <scratchpad>/vault-r3 --adopt claude:route=1036 --adopt claude:please=1045 --adopt claude:curate=1049 --adopt claude:write-memory=1053 --adopt claude:learn=1067 --adopt claude:recall=1068 </dev/null`. Non-interactive: it prompts for nothing and writes no other offer.
      - Check each of the six:
        - it is renamed `<id>.<date>.skill-claude-<n>.md`, and no `skill-<n>` basename remains;
@@ -259,12 +260,26 @@ Every key is qualified by its source, and there is no engram-owned mechanism (va
        - there is no `pending`.
      - `cd /tmp && $BIN register-skills --vault <scratchpad>/vault-r3 --dry-run </dev/null` → **64**, none for engram's six. From this worktree with the same `--vault` → **77**.
      - `$BIN embed status --vault <scratchpad>/vault-r3` is clean.
-  6. Scoping under the minimal fixture home, on a **separate** fresh vault copy (6.3's setup, minus its superseded `.claude/engram` requirement). Accept one plugin skill and one plugin command, and decline `@synced`; declines are written as v2 with qualified keys. Then check:
-     - from `/tmp`, no removal offer for a project note;
-     - a disabled plugin → no removal offer;
-     - an uninstalled plugin → exactly its removal offers;
-     - `chmod 000` on the fixture skills dir → no `claude:` removal offers;
-     - with no fixture `.agents` and an EACCES fixture `.pi/agent/skills`, deleting a `claude:` skill from the fixture skills dir → its removal offer appears (the R39 case).
+  6. **Scoping under a minimal fixture home built from REAL directories.**
+     - **Safety rule:** nothing reached through a symlink into Joe's real home is ever chmod-ed, deleted or written. Every `chmod` and `rm` below acts only on a real directory or file that the fixture itself created. Before each one, check that the target is not a symlink (`test ! -L <target>`) and that `realpath <target>` starts with `realpath <fx>`. macOS `chmod` follows symlinks, so a symlink is never chmod-ed.
+     - **Build `<fx>` = `<scratchpad>/fx-r3`** (not 6.3's fixture, whose skills folders are symlinks into the real home):
+       - `<fx>/.claude/skills`: a real directory holding **copies** made with `cp -RL` from `~/.claude/skills/` of `c4`, `dev`, `mycelium`, `property-rigor`, the six engram skills and `synced`. The copies are byte-identical, so keys and hashes match the real layout.
+       - `<fx>/.claude/commands`: a real directory holding a `cp -L` copy of `audit.md`.
+       - `<fx>/.claude/plugins/installed_plugins.json` and `<fx>/.claude/settings.json`: edited copies. `installPath`s still point into the real `~/.claude/plugins/cache`, which is only read and never modified.
+       - `<fx>/.pi/agent/skills`: a real directory holding `cp -RL` copies of `ping` and the six engram skills; plus copied `settings.json` and `trust.json`.
+       - No `<fx>/.agents`.
+     - **Fresh vault:** a **separate** fresh vault copy, `cp -R ~/.local/share/engram/vault <scratchpad>/vault-r3-scope`. Run every command as `env HOME=<fx> $BIN register-skills --vault <scratchpad>/vault-r3-scope … </dev/null`.
+     - **Seed the notes the checks need**, on this scratch copy only:
+       - from `/tmp`: `--accept claude:c4`, one plugin skill, and one plugin command; `--decline @synced`. Confirm the declines are written as v2 with qualified keys.
+       - from this worktree: `--accept project:github.com/toejough/engram:cmd:opsx:apply`.
+       - Confirm each accepted note carries `skill_key`, a `~`-relative `skill_source` under the fixture home, `pending: true`, the one-line preamble and a sidecar.
+     - **Scoping checks.** Each one starts from the restored fixture:
+       - From `/tmp`: no removal offer for the `project:github.com/toejough/engram:cmd:opsx:apply` note (its folder is not read there).
+       - Set the accepted plugin's `enabledPlugins` to `false` in `<fx>/.claude/settings.json` → no removal offer for its notes. Then restore it.
+       - Delete that plugin from `<fx>/.claude/plugins/installed_plugins.json` → exactly its removal offers, each needing an exact-key answer. Then restore the file.
+       - `chmod 000 <fx>/.claude/skills` (the fixture's own real directory) → no removal offer for `claude:c4`. Then `chmod 755` it.
+       - **The R39 case:** with no `<fx>/.agents`, run `chmod 000 <fx>/.pi/agent/skills` and `rm -r <fx>/.claude/skills/c4` (the fixture's own copy) → a removal offer for `claude:c4` appears. Then `chmod 755 <fx>/.pi/agent/skills`.
+     - `$BIN embed status --vault <scratchpad>/vault-r3-scope` is clean.
 - [ ] 8.9 Docs: perform enumeration rows 26–35 and 37 (row 36 is done by 8.11, row 38 by 8.7). For each row, grep that the new text is present and the old text (bare keys `route`/`cmd:audit`, "bare `<n>`", "engram's own six keep bare keys", the old `skill-<n>` slugs of the six) is absent. Then get a fresh-context reviewer to check every row against its file (vault note 1072).
 - [ ] 8.10 Before archive, re-run 7.3's requirement-header collision sweep across all active changes (vault notes 744/757). Then run `openspec validate register-skills-all-skill-folders --strict`.
 - [ ] 8.11 **Final step, only with Joe's explicit approval: install and migrate** (D11). Install and adopt form one approved step, so no installed binary ever shows the six offers against unkeyed notes.
