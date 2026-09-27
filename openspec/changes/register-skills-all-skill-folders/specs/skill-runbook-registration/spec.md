@@ -28,7 +28,7 @@ Harness sources SHALL be scanned only for harnesses that `engram update` detects
 
 #### Scenario: Symlinked user skill is found
 - **WHEN** `~/.claude/skills/route` is a symlink to `~/.claude/engram/skills/route` containing `SKILL.md`
-- **THEN** registration treats it as a scanned skill whose source is the resolved `~/.claude/engram/skills/route/SKILL.md`
+- **THEN** registration treats it as the scanned Claude user skill `claude:route` whose source is the resolved `~/.claude/engram/skills/route/SKILL.md`
 
 #### Scenario: Dangling symlink is skipped
 - **WHEN** `~/.claude/skills/qa` is a symlink whose target does not exist
@@ -111,12 +111,12 @@ Harness sources SHALL be scanned only for harnesses that `engram update` detects
 - **THEN** only that `installPath`'s skills and commands are scanned
 
 ### Requirement: Each scanned skill or command SHALL have a source-qualified key
-Each scanned entry SHALL have a key determined by its source:
+Each scanned entry SHALL have a key determined by the source folder it was found in. Every key SHALL begin with a source qualifier; no key SHALL be bare. A skill that engram installs SHALL be keyed like any other entry of the folder it is found in:
 
 | Source | Key |
 | --- | --- |
-| Claude Code user skill, or any entry whose resolved path lies under an engram-owned root | `<n>` |
-| Claude Code user command | `cmd:<name>` |
+| Claude Code user skill | `claude:<n>` |
+| Claude Code user command | `claude:cmd:<name>` |
 | claude.ai-synced skill | `anthropic-skills:<n>` |
 | Pi user skill | `pi:<n>` |
 | `~/.agents/skills` skill | `agents:<n>` |
@@ -135,8 +135,7 @@ The components are defined as follows:
 - `<pkg-id>` is the npm name, git `<host>/<path>`, or `~`-relative local path.
 - `<r>` is the origin remote's host followed by its path, fully normalized: lowercased, with userinfo and any port removed, and without a trailing `.git` or `/` (e.g. `github.com/toejough/engram`). Without an origin, it is `local/` followed by the basename of the parent of the absolute `git rev-parse --git-common-dir`.
 - A working directory outside any git repository SHALL contribute no project entries.
-- A plugin named `pi`, `agents`, `project`, `anthropic-skills`, `cmd`, `pi-settings`, `pi-pkg`, or `pi-prompt` SHALL be skipped with a warning.
-- "Lies under an engram-owned root" SHALL be decided on fully symlink-resolved paths: the entry's resolved file under the resolved `<home>/<engram root>/skills` of any supported harness.
+- A plugin named `claude`, `pi`, `agents`, `project`, `anthropic-skills`, `cmd`, `pi-settings`, `pi-pkg`, or `pi-prompt` SHALL be skipped with a warning.
 
 The note slug SHALL be `skill-` followed by the key lowercased, with every run of characters outside `[a-z0-9]` replaced by `-`, and with leading and trailing `-` trimmed.
 
@@ -156,13 +155,17 @@ The note slug SHALL be `skill-` followed by the key lowercased, with every run o
 - **WHEN** two repositories are both named `engram`, with origins `ssh://git@GitHub.com:22/toejough/engram.git` and `https://gitlab.com/toejough/engram`, and each has a project skill `deploy`
 - **THEN** their keys are `project:github.com/toejough/engram:deploy` and `project:gitlab.com/toejough/engram:deploy`
 
-#### Scenario: Pi-only machine keeps the engram skill's bare key
-- **WHEN** `~/.claude` does not exist, `~/.pi/agent/skills/route` resolves under `~/.pi/agent/engram/skills`, and note `1036.2026-09-18.skill-route.md` exists
-- **THEN** the Pi entry's key is `route` and, after an engram release changes the skill, registration offers to refresh note 1036 rather than to register `pi:route`
+#### Scenario: Engram-installed skills are keyed by their folder
+- **WHEN** `~/.claude/skills/route` links to `~/.claude/engram/skills/route` and `~/.pi/agent/skills/route` links to `~/.pi/agent/engram/skills/route`
+- **THEN** the entries' keys are `claude:route` and `pi:route`, and no key is bare
 
-#### Scenario: Engram-owned root reached through a symlinked home
-- **WHEN** `$HOME` is a symlink to `/Users/joe` and `$HOME/.pi/agent/skills/route` resolves to `/Users/joe/.pi/agent/engram/skills/route`
-- **THEN** the entry's key is `route`, not `pi:route`
+#### Scenario: Claude user command key
+- **WHEN** `~/.claude/commands/audit.md` is scanned
+- **THEN** its key is `claude:cmd:audit` and its note slug is `skill-claude-cmd-audit`
+
+#### Scenario: A plugin named claude is reserved
+- **WHEN** an enabled plugin `claude@m` is installed
+- **THEN** registration skips it with a warning and makes no offer for any `claude:` key from it
 
 #### Scenario: Prompt template key
 - **WHEN** `~/.pi/agent/prompts/review.md` is scanned
@@ -175,13 +178,13 @@ Entries with the same key SHALL collapse when byte-identical. When they differ, 
 
 A plugin name installed from more than one marketplace SHALL be a plugin conflict. Registration SHALL report it, SHALL make no offer for any of its keys, and SHALL treat its scope as not scanned.
 
-The single exception is a bare key whose differing copies ALL lie under engram-owned roots. A real user skill `~/.claude/skills/<n>` that clashes with an engram-owned copy of the same bare key SHALL be an ordinary key conflict with a failure status. Under the exception, when the copies' bytes differ, the entry first in source precedence SHALL be used, and registration SHALL print one warning suggesting `engram update`, without a conflict or a failure status.
+There SHALL be no exception for any source, including skills that engram installs.
 
-An entry whose SHA-256 equals that of an entry earlier in source precedence in the same run, or equals the `skill_hash` of any existing skill note, SHALL be an alias. An alias SHALL make no offer and SHALL NOT be recorded anywhere, but it SHALL count as present for its key.
+An entry whose SHA-256 equals that of an entry earlier in source precedence in the same run, or equals the `skill_hash` of any existing skill note (a note carrying `skill_key`), SHALL be an alias. An alias SHALL make no offer and SHALL NOT be recorded anywhere, but it SHALL count as present for its key.
 
 #### Scenario: Pi copy of an engram skill makes no offer
-- **WHEN** `~/.pi/agent/skills/route` and `~/.claude/skills/route` resolve to byte-identical files and note 1036 carries that hash
-- **THEN** registration makes no offer for either
+- **WHEN** `~/.pi/agent/skills/route` and `~/.claude/skills/route` are byte-identical, and a note keyed `claude:route` carries that hash
+- **THEN** registration makes no offer for `claude:route` or `pi:route`, and `pi:route` counts as present
 
 #### Scenario: Two Pi skills with one name and different content
 - **WHEN** Pi recursion finds `~/.pi/agent/skills/a/foo/SKILL.md` and `~/.pi/agent/skills/b/foo/SKILL.md` with different bytes
@@ -195,13 +198,9 @@ An entry whose SHA-256 equals that of an entry earlier in source precedence in t
 - **WHEN** plugins `tools@alpha` and `tools@beta` are both installed and enabled
 - **THEN** registration reports a plugin conflict for `tools`, makes no offer for any `tools:` key, and offers no removal of existing `tools:` notes
 
-#### Scenario: Diverged engram copies use precedence
-- **WHEN** `~/.claude/skills/route` and `~/.pi/agent/skills/route` both resolve under engram-owned roots with different bytes
-- **THEN** registration compares the Claude copy with note 1036, prints one warning suggesting `engram update`, and reports no conflict
-
-#### Scenario: A user skill clashing with an engram skill is a conflict
-- **WHEN** `~/.pi/agent/skills/route` resolves under `~/.pi/agent/engram/skills`, and `~/.claude/skills/route` is a real directory (not a symlink into an engram root) with different bytes
-- **THEN** registration reports a key conflict for `route` naming both paths, makes no offer for `route`, and exits with a failure status
+#### Scenario: Diverged harness copies are separate keys
+- **WHEN** `~/.claude/skills/route` and `~/.pi/agent/skills/route` differ in bytes, a note keyed `claude:route` carries the Claude copy's hash, and no note or decline covers the Pi copy's hash
+- **THEN** registration makes no offer for `claude:route`, offers to register `pi:route`, and reports no conflict and no warning
 
 #### Scenario: Two synced buckets hold the same skill
 - **WHEN** two synced buckets both hold `pdf/SKILL.md` with identical bytes
@@ -216,11 +215,11 @@ A source root SHALL count as read only when its read succeeded. A read error of 
 
 A skill note SHALL be eligible for removal only as follows:
 
-- For bare, `cmd:`, `pi:`, `agents:`, and `pi-prompt:` keys: the fixed user root for that form was read (`~/.claude/skills` for every bare key, `~/.claude/commands`, `~/.pi/agent/skills`, `~/.agents/skills`, `~/.pi/agent/prompts`). Without a readable `~/.claude/skills`, no bare-key note SHALL be removal-eligible. A bare-key note SHALL also require every root that emitted or could emit an engram-owned copy to have been read: `~/.pi/agent/skills` and `~/.agents/skills` when recorded, every root overlapping an engram-owned skills root, and the engram-owned roots themselves.
+- For `claude:`, `claude:cmd:`, `pi:`, `agents:`, and `pi-prompt:` keys: the one fixed user root for that form was read (`~/.claude/skills`, `~/.claude/commands`, `~/.pi/agent/skills`, `~/.agents/skills`, `~/.pi/agent/prompts` respectively), and no other root is consulted.
 - For `anthropic-skills:`, `pi-settings:`, `pi-pkg:`, and `project:` keys: the specific root containing the note's recorded `skill_source` was read in this run. That root is the synced bucket whose `manifest.json` parsed, the settings entry's path, the package root, or the exact project directory.
 - For plugin keys: `installed_plugins.json` and `settings.json` both parsed, the plugin has no plugin conflict, and it is either enabled with its `installPath` read, or absent from the manifest.
 
-A note whose `skill_source` lies under no read root SHALL NOT be eligible. Registration SHALL offer to remove a skill note only when it is eligible and no scanned entry, alias or not, has its key. It SHALL make no removal offer when `--skills-dir` is given.
+A note's eligibility SHALL depend only on the roots of its own key form: whether any other form's root was read SHALL NOT change it. A note whose `skill_source` lies under no read root SHALL NOT be eligible. A runbook note carrying `skill_hash` but no `skill_key` SHALL never be offered for removal. Registration SHALL offer to remove a skill note only when it is eligible and no scanned entry, alias or not, has its key. It SHALL make no removal offer when `--skills-dir` is given.
 
 #### Scenario: Project skill note from another directory
 - **WHEN** a note has key `project:github.com/toejough/engram:openspec-propose` and registration runs from a directory outside that repository
@@ -243,12 +242,16 @@ A note whose `skill_source` lies under no read root SHALL NOT be eligible. Regis
 - **THEN** registration offers to remove that note
 
 #### Scenario: Unreadable user skills directory
-- **WHEN** listing `~/.claude/skills` fails and bare-key notes for non-engram skills exist
+- **WHEN** listing `~/.claude/skills` fails and `claude:` notes exist
 - **THEN** no removal offer is made for them
 
-#### Scenario: Unreadable Pi copy keeps a bare-key note
-- **WHEN** `~/.claude/skills` is readable but lacks the `route` link, and `~/.pi/agent/skills/route` fails with a permission error
-- **THEN** no removal offer is made for the `route` note
+#### Scenario: Another namespace's missing root does not block removal
+- **WHEN** `~/.agents/skills` does not exist, `~/.pi/agent/skills` fails with a permission error, `~/.claude/skills` is read and lacks `c4`, and a note keyed `claude:c4` exists
+- **THEN** registration offers to remove the `claude:c4` note
+
+#### Scenario: Unkeyed legacy note is never offered for removal
+- **WHEN** runbook note `1036.2026-09-18.skill-route.md` carries `skill_hash` and no `skill_key`, and every source root was read
+- **THEN** no removal offer is made for it
 
 #### Scenario: Synced manifest missing
 - **WHEN** `~/.claude/skills/synced/` holds no bucket with a readable `manifest.json` and `anthropic-skills:*` notes exist
@@ -281,8 +284,8 @@ A note whose `skill_source` lies under no read root SHALL NOT be eligible. Regis
 ### Requirement: Offers SHALL be grouped by scope for answering
 Each offer SHALL belong to a scope, identified as follows:
 
-- `claude-user` for bare keys.
-- `claude-cmd` for `cmd:` keys.
+- `claude-user` for `claude:` skill keys.
+- `claude-cmd` for `claude:cmd:` keys.
 - `synced`, `pi-user`, `agents-user`, and `pi-settings` for those sources.
 - `pi-pkg:<pkg-id>` for a Pi package.
 - `plugin:<plugin>` for a plugin.
@@ -310,8 +313,8 @@ Removal offers SHALL be answered only by an exact key or an individual prompt, n
 - **WHEN** `engram register-skills --decline 'superpowers:*' --accept superpowers:brainstorming` runs
 - **THEN** `superpowers:brainstorming` is registered and the other `superpowers` offers are declined
 
-#### Scenario: Bare user scope is nameable
-- **WHEN** `engram register-skills --decline @claude-user` runs with register offers for `c4` and `dev`
+#### Scenario: Claude user scope is nameable
+- **WHEN** `engram register-skills --decline @claude-user` runs with register offers for `claude:c4` and `claude:dev`
 - **THEN** both are recorded as declined
 
 #### Scenario: Removals are never bulk-accepted
@@ -323,11 +326,11 @@ Removal offers SHALL be answered only by an exact key or an individual prompt, n
 - **THEN** nothing is written or recorded for that scope's offers and the next run offers them again
 
 ### Requirement: Declines SHALL be keyed by skill key with version-1 compatibility
-`skill-registrations.json` SHALL map keys to declined hashes under `schema_version: 2`. A version-1 file SHALL be read with its names taken as bare keys, and the next write SHALL stamp version 2 while keeping every entry. A file with a `schema_version` above 2 SHALL be an error, not an empty decline state.
+`skill-registrations.json` SHALL map keys to declined hashes under `schema_version: 2`. A version-1 file SHALL be read with each name `<n>` taken as the key `claude:<n>`, and the next write SHALL stamp version 2 while keeping every entry. A file with a `schema_version` above 2 SHALL be an error, not an empty decline state.
 
 #### Scenario: Version-1 decline still suppresses the offer
-- **WHEN** `skill-registrations.json` is `{"schema_version":1,"declined":{"route":"<h>"}}` and the scanned `route` skill hashes to `<h>` with no note
-- **THEN** no offer is made for `route`
+- **WHEN** `skill-registrations.json` is `{"schema_version":1,"declined":{"route":"<h>"}}` and the scanned `claude:route` skill hashes to `<h>` with no note
+- **THEN** no offer is made for `claude:route`
 
 #### Scenario: Unknown schema version fails loudly
 - **WHEN** `skill-registrations.json` has `schema_version: 3`
@@ -354,23 +357,23 @@ A registered skill's or command's runbook note SHALL meet these conditions:
 - It SHALL carry `skill_hash`, the SHA-256 of the bytes its body was last copied from.
 - When it is created, adopted, or refreshed by this version, it SHALL also carry `skill_key` (its key) and `skill_source` (the resolved source path it was last copied from, home-relative with `~`).
 
-Registration SHALL identify a key's note as the runbook note carrying `skill_hash` whose `skill_key` equals the key. For a note with no `skill_key`, it SHALL be the note whose slug is `skill-` followed by the key. A runbook note without `skill_hash` SHALL NOT be a skill note. More than one match for a key SHALL be an error naming the notes.
+Registration SHALL identify a key's note as the runbook note carrying `skill_hash` whose `skill_key` equals the key. A note's slug SHALL never identify it. A runbook note without `skill_hash`, or with `skill_hash` but no `skill_key`, SHALL NOT be a skill note: it SHALL NOT be matched to any key, SHALL NOT make any entry an alias, and SHALL NOT be offered for removal. More than one match for a key SHALL be an error naming the notes.
 
 #### Scenario: Note located by slug
-- **WHEN** the vault contains `1049.2026-09-21.skill-curate.md` of type runbook with a `skill_hash` field
-- **THEN** registration treats it as the `curate` skill's note
+- **WHEN** the vault contains `1049.2026-09-21.skill-curate.md` of type runbook with a `skill_hash` field and no `skill_key`
+- **THEN** registration does not treat it as the note of `claude:curate` or of any other key, because a slug alone never locates a skill note
 
 #### Scenario: Duplicate notes are an error
-- **WHEN** two runbook notes with `skill_hash` both end in `.skill-curate.md`
-- **THEN** registration reports an error naming both and makes no change for `curate`
+- **WHEN** two runbook notes with `skill_hash` both carry `skill_key: claude:curate`
+- **THEN** registration reports an error naming both and makes no change for `claude:curate`
 
 #### Scenario: Note located by skill_key
 - **WHEN** a runbook note carries `skill_hash` and `skill_key: superpowers:brainstorming`
 - **THEN** registration treats it as the note for key `superpowers:brainstorming`
 
-#### Scenario: Legacy notes keep their identity
+#### Scenario: Unkeyed legacy notes are ignored until adopted
 - **WHEN** the vault holds notes 1036, 1045, 1049, 1053, 1067, and 1068 with `skill-<name>` slugs, no `skill_key`, and `skill_hash` equal to the scanned skills' hashes
-- **THEN** registration makes no offer for them and does not rewrite them
+- **THEN** registration does not rewrite them and makes no refresh or removal offer for them, and it offers to register `claude:<name>` for each of the six skills
 
 #### Scenario: A skill-prefixed slug without skill_hash is not a skill note
 - **WHEN** a runbook note's slug is `skill-edits-validated-by-baseline-pressure-tests` and it has no `skill_hash`
@@ -406,11 +409,11 @@ Accepting a registration offer SHALL create a runbook note through the normal ca
 - The note SHALL carry `skill_hash`, `skill_key`, `skill_source`, and `pending: true`.
 - It SHALL carry no `situation`, `triggers`, `done_when`, or `red_flags`.
 
-The preamble SHALL name `agent-instructions/skills/<n>/SKILL.md` when the resolved source lies under an engram-owned root, and otherwise the home-relative resolved source path.
+The preamble SHALL name the home-relative resolved source path (`skill_source`) for every note, with no special case for any source.
 
 #### Scenario: Accepted registration
-- **WHEN** the user accepts registration of `curate`
-- **THEN** a runbook note ending in `.skill-curate.md` exists with the skill's text, `skill_hash`, `pending: true`, no runbook fields, and a `.vec.json` sidecar
+- **WHEN** the user accepts registration of `claude:curate`, whose resolved source is `~/.claude/engram/skills/curate/SKILL.md`
+- **THEN** a runbook note ending in `.skill-claude-curate.md`, whose preamble names `~/.claude/engram/skills/curate/SKILL.md`, exists with the skill's text, `skill_hash`, `pending: true`, no runbook fields, and a `.vec.json` sidecar
 
 #### Scenario: Plugin skill preamble names its real file
 - **WHEN** the user accepts registration of `superpowers:brainstorming` whose resolved source is `~/.claude/plugins/cache/claude-plugins-official/superpowers/6.4.1/skills/brainstorming/SKILL.md`
@@ -425,7 +428,7 @@ Accepting a refresh offer SHALL do the following:
 
 - replace the note's body with the current source file, preamble included;
 - set `skill_hash` to the current hash;
-- set `skill_key` and `skill_source` to the current key and resolved source, adding them when absent;
+- set `skill_source` to the current resolved source, keeping `skill_key`;
 - preserve `situation`, `triggers`, `done_when`, `red_flags`, `created`, and the basename;
 - rebuild the sidecar;
 - set `pending: true`, so curation re-checks the fields against the new text.
@@ -433,10 +436,6 @@ Accepting a refresh offer SHALL do the following:
 #### Scenario: Accepted refresh
 - **WHEN** the user accepts a refresh of a note whose skill changed
 - **THEN** the note has the new body and hash, its authored fields and basename are unchanged, and it carries `pending: true`
-
-#### Scenario: Refresh stamps a legacy note
-- **WHEN** the user accepts a refresh of note `1036.2026-09-18.skill-route.md`, which has no `skill_key`
-- **THEN** the note carries `skill_key: route` and `skill_source` naming the resolved deployed file, its basename is unchanged, and its preamble still names `agent-instructions/skills/route/SKILL.md`
 
 #### Scenario: Refresh follows a plugin version bump
 - **WHEN** a plugin skill's bytes change with a new `installPath` version and the refresh is accepted
@@ -454,19 +453,19 @@ When stdin is not a terminal and no `--accept`/`--decline` answer covers an offe
 
 - `--accept <key|pattern|@scope>` and `--decline <key|pattern|@scope>` (repeatable) SHALL answer the matching offers without prompting.
 - `--dry-run` SHALL list every offer and write nothing.
-- `--skills-dir <dir>` (repeatable) SHALL replace the default source set with the listed directories, each scanned with Claude Code user-skill rules and bare keys. The run SHALL be read-only: it SHALL behave as `--dry-run`, SHALL refuse `--accept`, `--decline`, and `--adopt`, and SHALL make no removal offer.
+- `--skills-dir <dir>` (repeatable) SHALL replace the default source set with the listed directories, each scanned with Claude Code user-skill rules and keyed `claude:<n>`. The run SHALL be read-only: it SHALL behave as `--dry-run`, SHALL refuse `--accept`, `--decline`, and `--adopt`, and SHALL make no removal offer.
 
 #### Scenario: Agent relays the user's answer
-- **WHEN** `engram register-skills --accept curate --decline route` runs non-interactively
-- **THEN** curate's offer is carried out, route's current hash is recorded as declined, and other offers are only reported
+- **WHEN** `engram register-skills --accept claude:curate --decline claude:route` runs non-interactively
+- **THEN** `claude:curate`'s offer is carried out, `claude:route`'s current hash is recorded as declined, and other offers are only reported
 
 #### Scenario: Dry run
 - **WHEN** `engram register-skills --dry-run` runs
 - **THEN** it prints each offer it would make and writes nothing
 
 #### Scenario: Skills-dir runs are preview-only
-- **WHEN** `engram register-skills --skills-dir agent-instructions/skills --accept route` runs
-- **THEN** it refuses with an error before scanning, and without `--accept` it lists offers, writes nothing, never rewrites a note's preamble, and lists no removal offer
+- **WHEN** `engram register-skills --skills-dir agent-instructions/skills --accept claude:route` runs
+- **THEN** it refuses with an error before scanning, and without `--accept` it lists offers keyed `claude:<n>`, writes nothing, never rewrites a note's preamble, and lists no removal offer
 
 ### Requirement: An existing runbook note SHALL be adoptable as a skill's note
 `engram register-skills --adopt <key>=<note-ref>` SHALL act on the referenced runbook note as follows:
@@ -479,5 +478,5 @@ When stdin is not a terminal and no `--accept`/`--decline` answer covers an offe
 `<key>` SHALL name a scanned skill or command. The adopted note SHALL NOT be marked pending.
 
 #### Scenario: Adopting a previously promoted note
-- **WHEN** `engram register-skills --adopt curate=1049` runs
-- **THEN** note 1049 is renamed to `1049.2026-09-21.skill-curate.md`, links to its old basename now point to the new one, its body is the curate skill, its fields are unchanged, and it has `skill_hash` and no `pending` marker
+- **WHEN** `engram register-skills --adopt claude:curate=1049` runs and note 1049 is `1049.2026-09-21.skill-curate.md` with no `skill_key`
+- **THEN** note 1049 is renamed to `1049.2026-09-21.skill-claude-curate.md`, links to its old basename now point to the new one, its body is the curate skill preceded by a preamble naming its `skill_source`, its runbook fields are unchanged, and it has `skill_hash`, `skill_key: claude:curate`, `skill_source`, and no `pending` marker

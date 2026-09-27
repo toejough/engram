@@ -4,6 +4,20 @@
 
 Joe reversed the Non-Goal (vault note 1066a). Registration covers every default skill folder the harnesses load, and (review round 1) every command folder and Pi's configured skill sources too, and (review round 2) Pi prompt templates. The decline reader never checks `schema_version` (`skillreg.go:146-160`; it decodes `{schema_version, declined}` with `DisallowUnknownFields`).
 
+**Joe's decision (round 3, final review, vault note 1073a): qualify every key with its source; no bare keys.** The implemented draft gave engram's own skills and Claude user skills one shared, unqualified namespace (`route`, `c4`). That namespace needed a special case in every rule that touched it:
+- removal eligibility for a bare key spanned several roots (`engramCopiesRead`, `EngramSkillRootsUnresolved`; ruling R38's M1), so a merely missing `~/.agents/skills` blocked every bare-key removal (ruling R39, parked);
+- a user-vs-engram collision rule (a real `~/.claude/skills/<n>` clashing with an engram-owned copy was a conflict, and the engram exception applied only when every copy was engram-owned; ruling R27(c));
+- a legacy slug-remainder fallback that re-keyed an unkeyed note by its slug, and could re-key a note if `skill_key` were ever dropped (the U6 finding carried into U9).
+
+**Joe's decision (round 3, second part): no engram-owned namespace or mechanism.** An `engram:<n>` owner namespace was drafted and declined (D3 alternative (f)). Skills that engram installs are treated like any other source: they are keyed by the folder they are found in (`claude:route` through `~/.claude/skills`, `pi:route` through `~/.pi/agent/skills`), and identical copies collapse by the ordinary alias rule (D4). The whole engram-owned mechanism is deleted:
+- `ResolveEngramSkillRoots` and `ResolvedSkillSources.EngramSkillRoots`/`EngramSkillRootsUnresolved`;
+- every engram-owned-root check (key construction, `offerEngramOwned`, `SkillNoteSource.EngramOwned`);
+- ruling R26's engram-root warnings;
+- the diverged-engram-copies exception in D4;
+- the preamble special case in D8.
+
+This revision deletes the special cases rather than relocating them. Claude user skills key as `claude:<n>`, and Claude user commands as `claude:cmd:<n>`. Each namespace has exactly one removal rule (D5). The cost is a one-time migration of Joe's six legacy notes to `claude:<n>` (D11), plus the fork cases listed in Risks, which are accepted. The previous change is on this same unmerged branch, so no other install has legacy notes. This supersedes ruling R39: its residual disappears.
+
 **Harness rules (docs, checked 2026-09-26):**
 - **Claude Code** (code.claude.com/docs/en/skills, plugins/manifest-reference, plugins/components; fetched by a docs agent):
   - Project skills load from `.claude/skills/` "in the directory where you start the session" and "every parent directory up to the repository root". Nested skills below cwd load lazily.
@@ -44,14 +58,16 @@ Joe reversed the Non-Goal (vault note 1066a). Registration covers every default 
 | Pi project | `.pi/skills`, `.agents/skills`, `.pi/settings.json` | none in engram. `~/repos/personal/{pi-skills,pi-lmstudio,pi-vim-mode,pi-auto-resume-on-compaction}/.pi/skills` hold 6 each. `trust.json` trusts `/Users/joe/repos/personal` | 0 here |
 | Git identity | worktree | `git remote get-url origin` = `ssh://git@github.com/toejough/engram.git`. `--show-toplevel` = the worktree dir. `--git-common-dir` = `/Users/joe/repos/personal/engram/.git` | — |
 
-The real vault holds six skill notes: 1036 route, 1045 please, 1049 curate, 1053 write-memory, 1067 learn, 1068 recall. Their `skill_hash` values equal the deployed SHAs, their preambles name `agent-instructions/skills/<n>/SKILL.md`, and there is no `skill-registrations.json`. Note 820 has a `skill-` slug but no `skill_hash`. `engram register-skills --dry-run` from `/tmp` prints nothing today.
+The real vault holds six skill notes: 1036 route, 1045 please, 1049 curate, 1053 write-memory, 1067 learn, 1068 recall. Their slugs are `skill-<n>`, their `skill_hash` values equal the deployed SHAs, they carry **no `skill_key`** (they predate keys), their preambles name `agent-instructions/skills/<n>/SKILL.md`, and there is no `skill-registrations.json`. Note 820 has a `skill-` slug but no `skill_hash`. `engram register-skills --dry-run` from `/tmp` printed nothing before this change.
 
 ## Goals / Non-Goals
 
 **Goals:**
 - One definition of the default source set, used by both standalone `register-skills` and the `engram update` hook.
 - Every skill, command, and Pi prompt template a harness loads by default, or that Pi's settings configure, can be offered, with copies collapsed.
-- A stable, source-qualified identity that leaves the six existing notes byte-for-byte unchanged, with no offers for them. This must hold on every harness mix, including a Pi-only machine.
+- A stable identity in which **every key is qualified by its source**, with no bare keys. Skills that engram installs get no special treatment: they are keyed by the folder they are found in, like any other skill.
+- Each key namespace has exactly one removal-eligibility rule, with no cross-namespace special cases.
+- Joe's six legacy notes are migrated once to `claude:<n>`, by `--adopt`, with his approval (D11). Their `skill_hash` and the skill text in their bodies stay the same. Their basenames and preamble lines change.
 - Never offer a removal unless the source's read actually succeeded.
 - About 77 first-run offers remain answerable, both interactively and through an agent.
 
@@ -72,6 +88,7 @@ The real vault holds six skill notes: 1036 route, 1045 please, 1049 curate, 1053
   - `Disabled` marks a file Pi finds but has switched off (D2 source 6, 7). It is never offered, and it counts as present for removal (D5).
 - The resolver also returns the project identity and, unchanged, the plugin scanner's facts: whether its manifests were read, each installed plugin's scanned status, and the plugin conflicts (D4, D5).
 - Harness roots come from `update`'s `supportedHarnesses`/`detectHarnesses`.
+- The resolver no longer resolves or returns engram-owned roots (round 3): `ResolveEngramSkillRoots`, `EngramSkillRoots` and `EngramSkillRootsUnresolved` are deleted. Engram's deployed skills are read only through the harness folders that link to them, like any other symlinked skill.
 - `registerSkillsTargets` and `runUpdateSkillRegistration` both call the resolver with the same home and the injected `Getwd`. The update hook stops passing `<sourceRoot>/agent-instructions/skills`, and runs after the sync, so it reads the freshly deployed engram copies. The re-exec child inherits cwd.
 
 Alternatives:
@@ -118,12 +135,12 @@ The name is always the directory name, file stem, or command path, never a front
 
 **Joe's decision (round 2): keys come from the folder or path, never from frontmatter `name:`.** A harness display name (e.g. hookify `writing-rules` shown as `writing-hookify-rules`) may be added later as a separate field that plays no part in identity. Alternative: key on `name:`, as the Claude docs describe for plugin skills. Rejected: it breaks the requirement "Skill files SHALL carry no engram-specific metadata", and a key would change whenever a frontmatter line is edited.
 
-**D3. Identity is a source-qualified key with distinct `cmd`/`pi-prompt` segments, and the slug is derived from the key.**
+**D3. Identity is a source-qualified key with distinct `cmd`/`pi-prompt` segments, and the slug is derived from the key.** Every key starts with a source qualifier; there is no bare key (round 3).
 
 | Source | Key | Scope ID (answer selector `@<id>`) |
 | --- | --- | --- |
-| Claude user skill, **and any candidate whose resolved path lies under an engram-owned root** (`<home>/<EngramRootRel>/skills` for each supported harness: `~/.claude/engram/skills`, `~/.pi/agent/engram/skills`) | `<n>` | `claude-user` |
-| Claude user command | `cmd:<ns:…:n>` | `claude-cmd` |
+| Claude user skill (including engram's installed skills, which `~/.claude/skills` links to) | `claude:<n>` | `claude-user` |
+| Claude user command | `claude:cmd:<ns:…:n>` | `claude-cmd` |
 | synced | `anthropic-skills:<n>` | `synced` |
 | Pi user | `pi:<n>` | `pi-user` |
 | agents user | `agents:<n>` | `agents-user` |
@@ -140,34 +157,39 @@ The name is always the directory name, file stem, or command path, never a front
 - `<r>` is the project identity. It is `<host>/<owner>/<repo>`: the host plus the path of `git remote get-url origin`, fully normalized: the whole string lowercased, userinfo (`git@`, `user:token@`) and any `:port` stripped, and a trailing `.git` and `/` removed. The ssh://, https:// and scp `git@host:owner/repo` forms all parse, so `ssh://git@GitHub.com:22/Toejough/Engram.git` and `https://github.com/toejough/engram` both give `github.com/toejough/engram`. SSH host aliases are a known limitation (Risks). The host is included so that github.com/x/y and gitlab.com/x/y never share a key (review round 2). With no origin, `<r>` is `local/<basename of the parent of git rev-parse --path-format=absolute --git-common-dir>`, which is stable across worktrees. Two remote-less repos with the same basename share it (Risks). The same `local/<name>` fallback also applies when an origin exists but fails to normalize — a hostless remote (a bare local path, a `file://` URL) or one whose parsed form would keep a residual `:` (e.g. an IPv6 host), which would make keys unparseable (ruling R20).
 - Examples from this worktree: `project:github.com/toejough/engram:openspec-propose`, and `project:github.com/toejough/engram:cmd:opsx:apply` (slug `skill-project-github-com-toejough-engram-cmd-opsx-apply`).
 - A cwd outside any git repo contributes no project sources.
-- The engram-owned-root rule (review B2) means Pi's copies of engram's skills always carry the key `route`, never `pi:route`. So a Pi-only machine matches note 1036, and a release never forks a `pi:route` note. The comparison is made on **fully symlink-resolved paths on both sides**: the candidate's resolved `SKILL.md` must be under the resolved `<home>/<EngramRootRel>/skills`. This covers a symlinked `$HOME`, and fixtures whose engram root is a symlink into the real one.
+- **No engram-owned rule** (round 3; this reverses review B2's bare-key rule). Engram's installed skills are keyed by the folder they are found in, like anything else. On this machine, `~/.claude/skills/route` links to `~/.claude/engram/skills/route` and keys as `claude:route`. `~/.pi/agent/skills/route` links to the separate real copy `~/.pi/agent/engram/skills/route` and keys as `pi:route`. The two copies are SHA-identical (checked 2026-09-26 for all six), so `pi:route` is an alias of the higher-precedence `claude:route` (D4). It makes no offer and counts as present. The fork cases this admits are accepted in Risks.
+- A real, non-engram `~/.claude/skills/route` is simply `claude:route`. No collision rule exists: a key's copies either collapse or conflict under D4's ordinary rules.
 - **Plugin names that repeat across marketplaces** (none today) are **not re-keyed**. That is a D4 plugin conflict: loud, with no offers, and the plugin scope is not scanned.
-- **Reserved plugin names** are `pi`, `agents`, `project`, `anthropic-skills`, `cmd`, `pi-settings`, `pi-pkg` and `pi-prompt`. A plugin with one of these names is skipped with a warning.
-- **Slug.** Lowercase the key, replace each run of characters outside `[a-z0-9]` with `-`, trim leading and trailing `-`, and prefix `skill-`. For example, `project:github.com/toejough/engram:openspec-propose` becomes `skill-project-github-com-toejough-engram-openspec-propose`.
+- **Reserved plugin names** are `claude`, `pi`, `agents`, `project`, `anthropic-skills`, `cmd`, `pi-settings`, `pi-pkg` and `pi-prompt`. A plugin with one of these names is skipped with the existing warning (`engram: plugin "<name>" uses a reserved name; it is not scanned`). `claude` is new in round 3, because `claude:` is now the Claude user scopes' key prefix. No installed plugin is named `claude` (checked against `installed_plugins.json` 2026-09-26; `claude-code-setup`, `claude-hud` and `claude-md-management` are distinct names). `engram` is **not** reserved: an `engram` plugin is an ordinary plugin (`engram:<n>` keys), and the installed but disabled `engram@engram` prints no warning. `cmd` stays reserved, although `cmd:` is no longer a top-level key form, because reservation is conservative and changes nothing on this machine.
+- **Parsing a key's namespace.** The first segment names the source family. For `claude`, a key with at least three segments whose second is `cmd` is a user command (`claude:cmd:<ns:…:n>`). Otherwise it is a user skill: a skill directory literally named `cmd` gives `claude:cmd`, with two segments. This is the same shape plugins already use (`<plugin>:cmd:…`).
+- **Slug.** Lowercase the key, replace each run of characters outside `[a-z0-9]` with `-`, trim leading and trailing `-`, and prefix `skill-`. For example, `project:github.com/toejough/engram:openspec-propose` becomes `skill-project-github-com-toejough-engram-openspec-propose`, `claude:route` becomes `skill-claude-route`, and `claude:cmd:audit` becomes `skill-claude-cmd-audit`.
   Different keys may share a readable slug (e.g. `pi:a-b` and `pi-a:b` both give `skill-pi-a-b`). This is accepted (ruling R25): lookup is by `skill_key`, never by slug, and the Luhmann id keeps each note's basename unique.
-- **Stored fields and lookup.** New notes carry `skill_key` and `skill_source` (`~`-relative resolved path). Lookup is by `skill_key` on a runbook note with `skill_hash`. A skill note with no `skill_key` takes its key from its slug remainder, which covers the six legacy notes.
+- **Stored fields and lookup.** Notes carry `skill_key` and `skill_source` (`~`-relative resolved path). A **skill note** is a runbook note, with a `skill-` slug (ruling R23), carrying both `skill_hash` and `skill_key`. Lookup is by `skill_key` only. **There is no slug fallback** (round 3): a runbook note with `skill_hash` but no `skill_key` (an unkeyed legacy note) is not a skill note. It is never matched to a key, is not an alias source (D4), and is never offered for removal (D5). D11 covers the six such notes in the real vault.
 
 Alternatives:
 - (a) The last origin segment (round-1 draft). Rejected by review: it collides across owners and flips between worktrees.
-- (b) Always harness-qualify. Rejected: the six notes would be renamed and re-offered.
+- (b) Always qualify by source, including engram's installed skills. This was rejected in round 1 because the six notes would be renamed and re-offered. **It was adopted in round 3**: D11's one-time migration pays for the rename.
 - (c) Qualify only on collision, including the round-2 `<plugin>@<marketplace>` re-keying. Rejected: a key would change as other things are installed, splitting identity and later offering spurious removals of still-installed skills (review N2).
 - (d) `<owner>/<repo>` without the host (round 2). Rejected: it collides across forges.
+- (e) Bare keys for Claude user skills and engram-owned copies, with a slug fallback for the six legacy notes (the implemented draft). Rejected by Joe at final review (vault note 1073a): the shared unqualified namespace needed the multi-root eligibility rule, the user-vs-engram collision rule and the legacy fallback (Context). Qualifying every key costs one migration and deletes all three.
+- (f) An engram owner namespace, `engram:<n>` (drafted in round 3, then declined by Joe). Every copy under any harness's engram skills root would share one key. The engram roots would be scanned directly as source 0, removal would need every detected harness's engram root (with not-exist counting as absence), and diverged copies would collapse by precedence with a warning. Its benefit was that engram's skills never fork per harness (the Risks fork cases). Its cost was keeping a whole engram-owned mechanism: root resolution, a second not-exist rule, a diverged-copy exception, a reserved `engram` plugin name (which makes the installed `engram@engram` warn on every run), and a preamble special case. Declined: engram's installed skills are treated like any other source, and the forks are accepted.
 
 **D4. Dedupe: resolved path, then same key, then content.**
 1. Entries that resolve to the same file become one candidate.
 2. Two candidates with the same key and the **same scope** collapse when their SHAs are identical. When the SHAs differ, that is a **key conflict**. Examples: Pi recursion finds `a/foo` and `b/foo`; two synced buckets both hold `pdf`; two Pi settings directories both hold `x`. Registration reports `engram: skill key conflict: <key> at <path1> and <path2>`, makes no offer of any kind for that key, and exits with a failure status after all other offers are handled. The update hook records the failure without rolling anything back.
    - This covers the same name at two levels of a project chain (`.claude/skills`, `.claude/commands`, `.agents/skills`). There is no nearest-wins (review N1).
    - **Plugin conflict:** a plugin name installed from more than one marketplace is reported once, `engram: plugin name conflict: <plugin> in <m1>, <m2>`. It makes no offer for any of its keys, and its scope is not scanned, so there are no removals (review N2).
-   - **Engram-owned exception (the only one):** it applies only when **every** differing copy of the bare key lies under an engram-owned root. A user's own real `~/.claude/skills/<n>` (not a symlink into an engram root) that clashes with an engram-owned copy of the same bare key is an ordinary key conflict with a failure exit. Under the exception, entries under engram-owned roots share bare keys across harnesses. When their bytes differ (e.g. a Pi copy not yet synced), the first in precedence (Claude's) wins, and one warning line suggests `engram update`. This is not a conflict and not a failure (review N4).
-3. A candidate whose SHA equals that of a higher-precedence candidate in this run, or equals any existing skill note's `skill_hash`, is an **alias**. It makes no offer and is recorded nowhere, but it still counts as present for its key (D5).
-   - Aliasing runs before the refresh check, so a key whose new bytes equal another note's `skill_hash` gets no refresh offer. Every member of a key group, including the non-winning copies under the engram-owned exception and every copy of a conflicted key, still acts as an alias source for later candidates (ruling R27). Both choices are conservative: they can only suppress an offer, and they never write or remove anything.
+   - **There is no exception** (round 3). The engram-owned exception is deleted: a key's differing copies are always a conflict. So are ruling R27(c) ("every copy must be engram-owned") and the user-vs-engram collision rule. Engram's installed copies on different harnesses have different keys (`claude:route`, `pi:route`), so they never share a key group. When their bytes are equal they alias (step 3); when they differ, each is compared with its own note (Risks).
+3. A candidate whose SHA equals that of a higher-precedence candidate in this run, or equals any existing skill note's `skill_hash`, is an **alias**. It makes no offer and is recorded nowhere, but it still counts as present for its key (D5). "Skill note" is D3's keyed note: an unkeyed legacy note's `skill_hash` makes nothing an alias.
+   - Aliasing runs before the refresh check, so a key whose new bytes equal another note's `skill_hash` gets no refresh offer. Every member of a key group, including every copy of a conflicted key, still acts as an alias source for later candidates (ruling R27(b)). Both choices are conservative: they can only suppress an offer, and they never write or remove anything.
 
 Alternative: record alias paths on the note. Rejected: it would write on runs where the procedure did not change.
 
 **D5. A removal needs proof that the note's own source was read.** A read counts **only when it succeeded**; a read error, including not-exist, means not scanned, never empty. The resolver records every root it read successfully (fully symlink-resolved) as `ScannedRoots`. Each note's removal eligibility is decided by its key form:
 
-- **Single-root user forms.** These are the bare key (Claude user or engram-owned), `cmd:`, `pi:`, `agents:` and `pi-prompt:`. The fixed root for that form must be in `ScannedRoots`: `~/.claude/skills` for every bare key, `~/.claude/commands`, `~/.pi/agent/skills`, `~/.agents/skills` or `~/.pi/agent/prompts`. As in the spec, a machine without a readable `~/.claude/skills` (e.g. Pi-only) never offers removal of bare-key notes.
-  - A bare key also comes from engram-owned copies read through other roots (a Pi or agents copy linked into an engram-owned root). So a bare-key note additionally needs every root that emitted, or could emit, such a copy to have been read: `~/.pi/agent/skills` and `~/.agents/skills` when they are recorded, every recorded root that lies at, under or above an engram-owned skills root, and the engram-owned roots themselves (none may have failed to resolve, ruling R26). Example: `~/.claude/skills` is readable but lacks the `route` link, and `~/.pi/agent/skills/route` fails with EACCES; the note for `route` is not offered for removal.
+- **One rule per namespace (round 3).** A note's eligibility depends only on the roots of its own key form. The read status of another namespace's roots never changes it. This is the property the deleted multi-root rule broke.
+- **Single-root user forms.** These are `claude:` (skills), `claude:cmd:`, `pi:`, `agents:` and `pi-prompt:`. The one fixed root for that form must be in `ScannedRoots`: `~/.claude/skills`, `~/.claude/commands`, `~/.pi/agent/skills`, `~/.agents/skills` or `~/.pi/agent/prompts` respectively. A machine without a readable `~/.claude/skills` (e.g. Pi-only) never offers removal of `claude:` notes. A missing `~/.agents/skills` blocks only `agents:` removals.
+  - **Deleted (round 3):** the bare-key rule that also required `~/.pi/agent/skills`, `~/.agents/skills`, every root overlapping an engram-owned root, and the engram roots themselves (`engramCopiesRead`, `EngramSkillRootsUnresolved`; ruling R38's M1 and ruling R26). With it goes ruling R39's residual, where a merely missing `~/.agents/skills` blocked every bare-key removal. A `claude:` note is found only through `~/.claude/skills`, so that root alone proves it absent.
 - **Source-rooted forms.** These are `anthropic-skills:`, `pi-settings:…`, `pi-pkg:…` and every `project:…` key. The **specific root that contains the note's recorded `skill_source`** must be in `ScannedRoots`:
   - the synced bucket whose `manifest.json` parsed (per bucket, so a failing bucket never exposes its notes);
   - the settings entry's resolved path;
@@ -178,18 +200,19 @@ Alternative: record alias paths on the note. Rejected: it would write on runs wh
   A note whose `skill_source` lies under no scanned root is never removal-eligible. This is what makes a nested-only `sub/.claude/skills/foo` safe from the top level, keeps a worktree's note safe from the main checkout, and ties a `pi-settings:` note to its own entry (review N1, N3).
 - **Plugin keys.** `installed_plugins.json` and `settings.json` both parsed, there is no plugin conflict, and the plugin is either enabled with its `installPath` read, or absent from the manifest (uninstalled). An installed-but-disabled plugin is not scanned. An entry with no `enabledPlugins` value and a missing `installPath` (`work-on`) is not scanned.
 
-A removal is offered only when the note is eligible **and** no candidate (alias or not) has its key. A Disabled candidate counts as present: it holds its key, so its note is never offered for removal. With `--skills-dir`, no removal is offered.
+A removal is offered only when the note is eligible **and** no candidate (alias or not) has its key. A Disabled candidate counts as present: it holds its key, so its note is never offered for removal. With `--skills-dir`, no removal is offered. An **unkeyed** note (a `skill_hash` runbook with no `skill_key`, D3) is never a removal candidate: it has no key to prove absent, and D11 migrates the only six such notes.
 
 **Orphans (accepted):** a note becomes permanently ineligible for removal when its source root is no longer part of the source set. Examples: a Pi package dropped from `settings.json`, a `skills` entry deleted, a project deleted, or a `skill_source` whose symlink escapes its root. Such a note is left alone, and the user removes it by hand (Risks).
 
 Alternatives:
 - (a) Existence-based scanning (round-1 draft). Rejected by review: an unreadable directory would look empty and flood the user with removals.
 - (a2) Per-scope scanned-ness (round-2 draft). Rejected by review: it cannot tell which entry, bucket, or project directory a note came from.
+- (a3) The multi-root bare-key rule (final-review fix wave, ruling R38's M1). Deleted in round 3 together with bare keys. A key found through more than one root needed every such root read, and a missing root then blocked unrelated removals (ruling R39).
 - (b) A `last_seen` counter. Rejected: hidden state, and it still misfires on a machine without the project checked out.
 
 **D6. Grouping, selectors and precedence.**
 - Offers are sorted by (scope ID, key). Each scope ID has a display label: the plugin, synced, or project name plus a count. The label **is the answerable selector**, so the summary shows `@plugin:superpowers (15)` and the user answers with `--decline @plugin:superpowers`.
-- **Answers** to `--accept`/`--decline` take one of three forms: an exact key, a key-prefix pattern ending in `*` (e.g. `superpowers:cmd:*`), or a scope selector `@<scope-id>`. `@claude-user` names the bare-key scope; `*` names everything.
+- **Answers** to `--accept`/`--decline` take one of three forms: an exact key, a key-prefix pattern ending in `*` (e.g. `superpowers:cmd:*`), or a scope selector `@<scope-id>`. `@claude-user` names the `claude:<n>` skills, `@claude-cmd` names the `claude:cmd:` commands, and `*` names everything.
 - **Precedence for an offer.** An exact key wins. Otherwise the longest matching `*` pattern (by prefix length) wins. Otherwise a scope selector applies. The same key, pattern or selector named in both `--accept` and `--decline` is refused before anything happens.
 - **Interactive prompting.**
   - A scope with more than one register or refresh offer is asked once: `[a]ccept all / [d]ecline all / [r]eview each / [s]kip for now`. Skip records nothing. EOF counts as skip.
@@ -203,15 +226,16 @@ Alternatives:
 - (b) Per-skill prompts only. Rejected: about 77 sequential prompts.
 - (c) Store declines per scope. Rejected: declines stay per key and hash, and "decline all" records each key.
 
-**D7. Declines are keyed by skill key, in schema v2.** `skill-registrations.json` becomes `{schema_version: 2, declined: {<key>: <hash>}}`. The new reader accepts v1 and v2, since v1 names equal the bare keys of the same skills. The first write stamps v2. A version above 2 is an error. Because today's reader ignores `schema_version` and the field set is unchanged, **an older binary still reads a v2 file**. It sees the extra keys and never matches them, so the version bump documents the change in key meaning rather than guarding compatibility. The real vault has no such file.
+**D7. Declines are keyed by skill key, in schema v2.** `skill-registrations.json` becomes `{schema_version: 2, declined: {<key>: <hash>}}`. The new reader accepts v1 and v2. A v1 name `<n>` is read as the key `claude:<n>` (round 3). The v1 writer only ever recorded skills from one Claude skills folder (`~/.claude/engram/skills` or `agent-instructions/skills`), and those are the same skills that now key as `claude:<n>` through `~/.claude/skills`. This is a one-line format conversion, not an identity rule. The first write stamps v2. A version above 2 is an error. Because today's reader ignores `schema_version` and the field set is unchanged, **an older binary still reads a v2 file**. It sees the extra keys and never matches them, so the version bump documents the change in key meaning rather than guarding compatibility. The real vault has no such file.
 
 Alternative: leave the file at v1. Rejected: it would give no record that keys are now source-qualified.
 
-**D8. The preamble names the real source.** When the resolved source lies under an engram-owned root, the preamble keeps its current bytes, ``> Mirrors skill `agent-instructions/skills/<n>/SKILL.md` — …``, which is the edit location. Otherwise the preamble names the `~`-relative `skill_source`: a plugin skill or command file, a synced file, a Pi or package file, or a project file.
-- An accepted refresh also stamps `skill_key` and `skill_source` onto a legacy note, and updates `skill_source` (and with it the preamble) after a plugin version bump.
+**D8. The preamble names the real source.** For **every** note, the preamble is ``> Mirrors skill `<skill_source>` — edit the procedure there; the runbook fields on this note are authored here.``, where `<skill_source>` is the `~`-relative resolved source path: a Claude user or Pi skill, a plugin skill or command file, a synced file, a Pi or package file, or a project file. Round 3 deletes the engram-owned special case that kept ``agent-instructions/skills/<n>/SKILL.md`` (`SkillNoteSource.EngramOwned`, and the special case in `PreamblePath`). The same applies to the register provenance text `source: skill registration: <path>`.
+- For engram's installed skills, the preamble therefore names the deployed file, e.g. `~/.claude/engram/skills/route/SKILL.md`, rather than the edit location in the engram checkout. The preamble text of the six migrated notes changes at migration (D11). This is accepted as part of treating engram's skills like any other source (Risks).
+- An accepted refresh updates `skill_source` (and with it the preamble) after a plugin version bump. There is no longer a legacy-note stamping case: refresh only ever acts on a keyed note (D3).
 - A version bump whose bytes are identical makes no refresh offer, so the old path remains until the next real change.
 
-**D9. `--skills-dir` is preview-only.** `--skills-dir <dir>` (repeatable) replaces the default set. Each directory is scanned with the Claude-user rules (bare keys). The run is **read-only**: it implies `--dry-run` and refuses `--accept`, `--decline` and `--adopt`, and it makes no removal offers.
+**D9. `--skills-dir` is preview-only.** `--skills-dir <dir>` (repeatable) replaces the default set. Each directory is scanned with the Claude-user rules, and its entries key as `claude:<n>` in scope `claude-user` (round 3; previously bare). The run is **read-only**: it implies `--dry-run` and refuses `--accept`, `--decline` and `--adopt`, and it makes no removal offers.
 
 This fixes two problems (review B5):
 - A note accepted from a non-default directory would later get a spurious removal offer from the default scan.
@@ -220,6 +244,24 @@ This fixes two problems (review B5):
 Alternative: treat `<checkout>/agent-instructions/skills` as engram-owned and let other directories write. Rejected: it fixes the preamble problem but not the orphaned-note problem.
 
 **D10. No paid eval.** The mechanism is deterministic and unit-testable with DI fakes. It is checked with the real binary against the real home, and against a vault copy with a minimal fixture home.
+
+**D11. Legacy notes: ignored until adopted, then migrated once with `--adopt` (round 3).**
+- Exactly six unkeyed notes exist: Joe's 1036 route, 1045 please, 1049 curate, 1053 write-memory, 1067 learn and 1068 recall. Each has a `skill-<n>` slug and a `skill_hash`, but no `skill_key`. No other install has any, because the change that wrote them is on this same unmerged branch.
+- **The slug-remainder fallback is deleted outright.** Until migration, the six are not skill notes (D3). They make no alias (D4) and are never offered for removal (D5). Registration offers `register claude:<n>` for each of engram's six skills, found through `~/.claude/skills`; this is expected. The Pi copies are SHA-identical aliases of those candidates, so `pi:<n>` makes no offer.
+- **Accepting one of those six register offers before migration would create a second note for the same skill.** So migration comes before any answer to `@claude-user` (Risks, and the ordering in tasks section 8).
+- **Migration** uses the existing adopt mechanism, as one command run with Joe's explicit approval as the final real-vault task:
+  `engram register-skills --adopt claude:route=1036 --adopt claude:please=1045 --adopt claude:curate=1049 --adopt claude:write-memory=1053 --adopt claude:learn=1067 --adopt claude:recall=1068`
+  For each note, adopt does the following:
+  - renames it to the key-derived slug, e.g. `1036.2026-09-18.skill-route.md` becomes `1036.2026-09-18.skill-claude-route.md`, keeping its Luhmann id and date;
+  - rewrites every inbound wikilink and rebuilds the rewritten referrers' sidecars;
+  - replaces the body with the current source file plus the D8 preamble;
+  - stamps `skill_key: claude:<n>` and `skill_source: ~/.claude/engram/skills/<n>/SKILL.md`;
+  - keeps `skill_hash` (the source bytes are unchanged) and every runbook field, and clears `pending`.
+- **What changes and what doesn't:**
+  - The skill text in each body is byte-identical.
+  - Each preamble line changes from naming ``agent-instructions/skills/<n>/SKILL.md`` to naming ``~/.claude/engram/skills/<n>/SKILL.md`` (D8), and each basename changes.
+  - Doc references to the old slugs `skill-please`, `skill-route` and `skill-write-memory` are rewritten by the enumeration rows.
+- **After migration** the dry run from `/tmp` shows 64 offers and none for engram's six (Migration Plan).
 
 ## Risks / Trade-offs
 
@@ -240,6 +282,15 @@ Alternative: treat `<checkout>/agent-instructions/skills` as engram-owned and le
 - **[Trade-off] Plugin `skill_source` embeds a version.** → Refresh is keyed to a byte change, so the path can go stale. The key, not the path, is the identity.
 - **[Risk] A dry run inside `engram update` reads the currently deployed engram copies.** → The preview can miss a refresh that the real run will offer. Documented in the dry-run output.
 - **[Risk] Pi's ignore files are not honored** (ruling R7). Pi skips skills and prompts hidden by `.gitignore`, `.ignore` or `.fdignore` rules (`package-manager.js:73`, `:107-126`); engram does not read those files. → As a result, engram may offer a skill that Pi skips. The user can decline it, and removal is unaffected, because scanning only ever finds more files, never fewer. A follow-up issue tracks parity.
+- **[Risk, accepted] Engram's installed skills can fork per harness** (round 3, alternative (f) declined). Each copy is keyed by its folder, so one engram skill can end up with a `claude:<n>` note and a `pi:<n>` note:
+  - **A Pi-only vault or machine.** There, engram's skills key as `pi:<n>`. A vault shared with a Claude machine sees a `pi:<n>` register offer whenever the Pi bytes match no keyed note (e.g. after a release, when the Claude machine refreshed first or has not refreshed yet).
+  - **Diverged harness copies.** When Pi's copy is not yet synced and the `claude:<n>` refresh is accepted, Pi's old bytes then match nothing, so `pi:<n>` is offered for registration until `engram update` syncs Pi. The offer can be declined by hash.
+  - **A harness removed.** When `~/.claude` goes away, the `claude:<n>` notes become orphans: never removal-eligible, because `~/.claude/skills` is not read. `pi:<n>` aliases their hashes until the next release changes the bytes, and then `pi:<n>` is offered as a new note.
+
+  → Accepted. Every such offer is explicit and declinable, and nothing is written without an answer. On a machine with both harnesses synced, the copies are SHA-identical and alias to one `claude:<n>` note.
+- **[Risk, accepted] The preamble of engram's skill notes names the deployed copy** (`~/.claude/engram/skills/<n>/SKILL.md`), which `engram update` overwrites, rather than `agent-instructions/skills/<n>/SKILL.md` in the checkout (D8). → Accepted as part of treating engram's skills like any other source. The procedure's real edit location is documented in CLAUDE.md and README.
+- **[Risk] Answering the six `claude:<n>` register offers before migration duplicates notes** (D11). → Migration is ordered before any answer. The pre-migration dry-run expectations name the six offers explicitly, and task 8 says not to accept them.
+- **[Risk] Renamed basenames.** Adopt rewrites vault wikilinks, but text outside the vault that names the old slugs does not follow: `delegate.md:31`, `GLOSSARY.md:58`, `c1-system-context.md:423` and `adr.md:531`. → These are enumeration rows 26–29 (plus rows 30–38 for key examples and the doc text written this cycle).
 - **[Risk] A key conflict hides that key** (same name at two project levels, two Pi entries, two synced buckets, or a plugin in two marketplaces). → It is reported loudly with both paths and a failure exit status. Nothing is written for the key.
 
 ## Migration Plan
@@ -248,8 +299,12 @@ Alternative: treat `<checkout>/agent-instructions/skills` as engram-owned and le
 2. Wire both callers and update the comments.
 3. Verify against the real layout: a real-binary dry run from `/tmp` (64 offers) and from this worktree (77). Then, on a scratch vault copy with a minimal fixture home, verify accept, decline and removal-scoping.
 4. Perform the enumeration rows, install, and run a final read-only dry run. Joe answers the real offers himself.
+5. **Round 3 (qualify every key; tasks section 8).** TDD the key change, the deletions (legacy fallback, multi-root eligibility, the engram-owned mechanism) and per-namespace eligibility. Then re-run the real-layout verification. The expected counts are derived from the measured current dry run (64 from `/tmp`) and the checked SHA identity of the Claude and Pi copies:
+   - **Before migration:** 70 from `/tmp`: the same 64, with `@claude-user` rising from 4 to 10 because of `register claude:{curate,learn,please,recall,route,write-memory}`. No `pi:` offer for the six, since the Pi copies alias. No refresh, removal, conflict or warning. 83 from this worktree (70 + 13 project).
+   - **After migration:** 64 from `/tmp`, none for engram's six. 77 from this worktree.
+6. **Migrate the six real notes** (D11), only after Joe explicitly approves the exact `--adopt` command. Then confirm the post-migration counts and `engram embed status`, and commit the vault.
 
-Rollback: revert the commits. Notes created under new keys are ordinary pending runbook notes and can be removed by hand. Older binaries read a v2 `skill-registrations.json` unchanged (D7).
+Rollback: revert the commits. Notes created under new keys are ordinary pending runbook notes and can be removed by hand. Older binaries read a v2 `skill-registrations.json` unchanged (D7). Adopted notes keep their Luhmann ids. A migration is reverted with `git revert` of its vault commit.
 
 ## Resolved Questions (Joe, round 2)
 
@@ -257,6 +312,12 @@ Rollback: revert the commits. Notes created under new keys are ordinary pending 
 - **`enabledPlugins` absent:** follow the docs. Fall back to `plugin.json` `defaultEnabled`, which defaults to true (D2).
 - **Pi prompt templates:** included, with the reserved `pi-prompt` segment (D2, D3). None exist on this machine, so the expected counts are unchanged.
 
+## Resolved Questions (Joe, round 3)
+
+- **Bare keys:** none. Every key is qualified by its source (vault note 1073a). The multi-root eligibility rule, the user-vs-engram collision rule and the legacy slug fallback are deleted (Context).
+- **An `engram:` owner namespace:** declined. Engram's installed skills are keyed by their folder, like any other source, and the fork cases are accepted (D3 alternative (f), Risks).
+
 ## Open Questions
 
 - None blocking. Should a later change add an orphan listing or pruning command (Risks)?
+- D7 reads a v1 decline name as `claude:<n>`. The v1 format never left this branch and the real vault has no file, so an alternative is to drop v1 reading entirely. The current choice keeps D7's compatibility promise.

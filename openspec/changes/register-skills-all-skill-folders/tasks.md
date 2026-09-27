@@ -57,19 +57,19 @@ Every Go task follows RED → GREEN → REFACTOR:
 
 - [x] 2.1 RED→GREEN (+ rapid property): key construction per D3.
   - `cmd` segment for commands.
-  - Engram-owned-root rule: anything whose fully symlink-resolved path is under the resolved `<home>/<EngramRootRel>/skills` for any supported harness gets the bare key. Fixtures: a symlinked `$HOME`, and a fixture home whose engram root is a symlink into another tree. Scenario: a Pi-only machine yields key `route` and a refresh offer for note 1036, not `pi:route`.
+  - *(Superseded by 8.1/8.3: no engram-owned rule, no bare keys.)* Engram-owned-root rule: anything whose fully symlink-resolved path is under the resolved `<home>/<EngramRootRel>/skills` for any supported harness gets the bare key. Fixtures: a symlinked `$HOME`, and a fixture home whose engram root is a symlink into another tree. Scenario: a Pi-only machine yields key `route` and a refresh offer for note 1036, not `pi:route`.
   - `pi-prompt` segment for prompts; entry names containing `:` are skipped with a warning; `pi-prompt` is added to the reserved plugin names.
   - Key → slug always matches `^skill-[a-z0-9]+(-[a-z0-9]+)*$`, and a bare `x` → `skill-x`.
 - [x] 2.2 RED→GREEN: note identity.
   - Match by `skill_key` on a runbook with `skill_hash`.
-  - Legacy fallback: the slug remainder is a bare key.
+  - Legacy fallback: the slug remainder is a bare key. *(Superseded by 8.2: fallback deleted.)*
   - The note-820 fixture (a `skill-` slug without `skill_hash`) is not a skill note.
   - A duplicate match is an error naming both.
 - [x] 2.3 RED→GREEN (+ rapid property: the offer set is independent of scan order; an alias never creates an offer):
   - Same-path collapse.
   - Same key: identical → collapse; different → conflict line naming both paths, no offer for that key, failure exit status after all other offers. This includes the same name at two project-chain levels.
   - Plugin conflict (a name in two marketplaces) → no offers, scope not scanned.
-  - Engram-owned bare keys with different bytes → the first in precedence wins, plus one warning, with no conflict and no failure, but only when every copy is under an engram-owned root. A real `~/.claude/skills/<n>` clashing with an engram-owned copy → a conflict with a failure exit (spec scenario).
+  - *(Superseded by 8.3: exception deleted.)* Engram-owned bare keys with different bytes → the first in precedence wins, plus one warning, with no conflict and no failure, but only when every copy is under an engram-owned root. A real `~/.claude/skills/<n>` clashing with an engram-owned copy → a conflict with a failure exit (spec scenario).
   - Alias = SHA equal to a higher-precedence candidate or to any note's `skill_hash`.
 - [x] 2.4 RED→GREEN (+ rapid property: never a removal offer for a note whose eligibility root (a fixed user root, the root containing its `skill_source`, or the plugin manifest rule) was not read, or whose key has any candidate, alias included):
   - Eligibility per D5, including matching the resolved `skill_source` prefix against `ScannedRoots` for synced (per bucket), `pi-settings`, `pi-pkg` and `project` notes.
@@ -117,7 +117,7 @@ Every Go task follows RED → GREEN → REFACTOR:
 
 ## 6. Verification against the real layout (no paid eval)
 
-- [x] 6.1 Run `go install ./cmd/engram`, then `cd /tmp && engram register-skills --dry-run` (real home and vault, read-only). Expected, measured 2026-09-26 with the offer-computation rules applied to the real files: **64 offers, all `register`, no refresh, no removal, no conflict**, broken down as:
+- [x] 6.1 *(Expected output superseded by 8.7 for round 3's keys.)* Run `go install ./cmd/engram`, then `cd /tmp && engram register-skills --dry-run` (real home and vault, read-only). Expected, measured 2026-09-26 with the offer-computation rules applied to the real files: **64 offers, all `register`, no refresh, no removal, no conflict**, broken down as:
 
   | Scope | Offers |
   | --- | --- |
@@ -146,7 +146,7 @@ Every Go task follows RED → GREEN → REFACTOR:
   - Both `skill-creator:skill-creator` and `anthropic-skills:skill-creator` are offered, since their hashes differ.
 
   Explain any difference before continuing.
-- [x] 6.2 From this worktree, `engram register-skills --dry-run`. Expected **77 = 64 + 13 `@project:github.com/toejough/engram`**:
+- [x] 6.2 *(Expected output superseded by 8.7.)* From this worktree, `engram register-skills --dry-run`. Expected **77 = 64 + 13 `@project:github.com/toejough/engram`**:
   - 6 `openspec-*` skills.
   - `cmd:commit`.
   - 6 `cmd:opsx:*`.
@@ -181,3 +181,61 @@ Every Go task follows RED → GREEN → REFACTOR:
 - [ ] 7.2 Archive-time: rewrite the `Purpose` of `openspec/specs/skill-runbook-registration/spec.md` (enumeration row 20). Confirm `openspec archive` applied the RENAMED header ("…identified by its skill key") before the MODIFIED block, and that the synced spec has no "identified by its slug" header left.
 - [x] 7.3 Before archive, re-run the requirement-header collision sweep across all active changes and any archived-but-unsynced change, and read their tasks.md in full (vault notes 744/757).
 - [x] 7.4 Final install: `go install ./cmd/engram`, then `cd /tmp && engram register-skills --dry-run` once more. Record the output in the LEDGER row (enumeration row 11). Leave the real offers for Joe; never accept or decline on his behalf.
+
+## 8. Qualify every key (Joe's round-3 decision; design Context, D3, D4, D5, D7, D8, D9, D11)
+
+Every key is qualified by its source, and there is no engram-owned mechanism (vault note 1073a). This section **supersedes ruling R39**: its parked residual, where a missing `~/.agents/skills` blocked every bare-key removal, disappears together with bare keys. Each task is RED → GREEN → REFACTOR under the conventions at the top of this file, and completed tasks above stay ticked.
+
+- [ ] 8.1 RED→GREEN (+ rapid property: every key `AssignSkillKeys` produces contains `:`, and its first segment maps to exactly one removal form): key construction (D3).
+  - Claude user skills key as `claude:<n>`, and Claude user commands as `claude:cmd:<ns:…:n>`. Engram's installed skills key by folder (`claude:route`, `pi:route`), with no path-based exception.
+  - `skillKeyRemovalForm` and `skillKeyScopeID` parse `claude:<n>` → `claude-user` and `claude:cmd:…` (three or more segments) → `claude-cmd`. A skill named `cmd` gives `claude:cmd` → `claude-user`. A key without `:` is not a skill key: the parser no longer maps it to `claude-user`.
+  - Add `claude` to the reserved plugin names; `engram` is **not** reserved. Fixtures: an enabled `claude@m` plugin is skipped with the reserved warning; a disabled `engram@engram` prints no warning.
+  - Slugs: `claude:route` → `skill-claude-route`, and `claude:cmd:audit` → `skill-claude-cmd-audit`.
+- [ ] 8.2 RED→GREEN (+ rapid property: for any vault, an unkeyed note never appears in any offer, and adding or removing unkeyed notes never changes the offer set): delete the legacy slug-remainder fallback (D3, D11).
+  - `groupSkillNoteCandidates` groups only notes that carry `skill_key`. An unkeyed `skill_hash` note is not matched, is not an alias source, and is never a removal candidate.
+  - Fixture: the six legacy notes (slugs `skill-<n>`, `skill_hash` equal to the scanned bytes, no `skill_key`) yield exactly six `register claude:<n>` offers, and no refresh or removal.
+  - Delete the refresh path's legacy stamping ("adding them when absent") and its test (MODIFIED refresh requirement).
+  - Update the base-scenario tests: "Note located by slug" (a slug alone locates nothing) and "Duplicate notes are an error" (two notes with `skill_key: claude:curate`).
+- [ ] 8.3 RED→GREEN: delete the whole engram-owned mechanism, the multi-root bare-key eligibility and the collision special cases (design Context, D1, D4, D5, D8).
+  - Delete `ResolveEngramSkillRoots`, `underEngramSkillRoot`, `ResolvedSkillSources.EngramSkillRoots`/`EngramSkillRootsUnresolved`, the R26 warning, `offerEngramOwned`, `SkillOffer.EngramOwned`, `SkillNoteSource.EngramOwned`, and the engram branch in `PreamblePath`. Also delete `update.EngramOwnedSkillsRels` if nothing else calls it; grep first.
+  - Delete `engramCopiesRead` and the `claude-user` special case in `skillRemovalEligibility.eligible`.
+  - Delete D4's diverged-engram exception (`allEngram`, `skilloffers.go:448`): differing copies of a key are always a conflict.
+  - `offerPromptSource` shows the source for every offer that has one.
+  - Tests: a real `~/.claude/skills/route` plus an engram-linked `~/.pi/agent/skills/route` → `claude:route` and `pi:route`, no conflict, no warning; diverged Claude and Pi copies → `pi:route` offered, no warning (spec scenario); the Pi copy byte-identical → `pi:route` alias, no offer.
+  - Every preamble names `skill_source`. Accepting `claude:curate` from `~/.claude/engram/skills/curate` names that path in both the preamble and the `source:` provenance (spec scenarios).
+  - Grep: `grep -rn -E "EngramOwned|engramCopiesRead|ResolveEngramSkillRoots|underEngramSkillRoot|EngramSkillRoots" internal cmd` returns nothing.
+- [ ] 8.4 RED→GREEN (+ rapid properties: (a) **namespace isolation**: flipping the read status of any root whose form differs from a note's key form never changes that note's eligibility; (b) a `claude:` note is eligible exactly when every root recorded with form `claude-user` was read; the same holds for each fixed form): per-namespace removal eligibility (D5).
+  - Spec scenarios: "Another namespace's missing root does not block removal" (the R39 case: no `~/.agents/skills`, EACCES on `~/.pi/agent/skills`, `claude:c4` offered for removal); "Unreadable user skills directory"; "Unkeyed legacy note is never offered for removal".
+- [ ] 8.5 RED→GREEN: `--skills-dir` entries key as `claude:<n>` in scope `claude-user`, and the run stays read-only (D9, spec scenario "Skills-dir runs are preview-only").
+- [ ] 8.6 RED→GREEN: declines v1 → v2 read each v1 name `<n>` as `claude:<n>`, and the first write stamps v2 with those keys (D7, spec scenario "Version-1 decline still suppresses the offer").
+- [ ] 8.7 Code comments and `targ check-full`.
+  - Rewrite every comment naming bare keys or engram-owned roots in `internal/cli/skill*.go`, `internal/cli/update.go` and `internal/update/update.go` (flag text too). Grep `grep -n -i -E "bare key|bare-key|bare keys|lose their bare|engram-owned (root|copy|copies|source)" internal/cli/skill*.go internal/update/update.go`: it must return nothing, apart from `update.go`'s deploy-sync uses of "engram-owned root", which are unrelated to registration and stay.
+  - `targ check-full` green; collect every failure before fixing any.
+- [ ] 8.8 Re-run the real-layout verification (6.1–6.4) with round 3's expected output, **before migration**. Use `go install ./cmd/engram` and run only read-only dry runs; never answer the six `claude:<n>` register offers (D11 Risks). Record any difference and explain it (ruling R4).
+  - From `/tmp`: **70 offers, all `register`, no refresh, no removal, no conflict, no warning.** The table in 6.1 applies with `@claude-user` changed to **10**: `claude:{c4,dev,mycelium,property-rigor}` plus `claude:{curate,learn,please,recall,route,write-memory}`. `@claude-cmd` is `claude:cmd:audit`. Also confirm:
+    - there is no `pi:` offer for engram's six (the Pi copies are SHA-identical aliases);
+    - there is no bare key anywhere in the output;
+    - there is no reserved-name warning for `engram@engram`.
+  - From this worktree: **83 = 70 + 13** `@project:github.com/toejough/engram`. The output is identical from `internal/`.
+  - Scratch vault under the minimal fixture home (6.3 setup):
+    - Repeat 6.3's accept, decline and scoping checks with the new keys.
+    - Remove the fixture's `.agents` and confirm a `claude:` removal offer still appears when its skill is gone (the R39 case).
+    - Run the D11 adopt command **on the scratch copy only**. Then check:
+      - the six notes are renamed `skill-claude-<n>`, inbound links are rewritten, and `skill_hash` is unchanged;
+      - the skill text after the preamble line is byte-identical (diff the body below the preamble);
+      - the preamble names `~/.claude/engram/skills/<n>/SKILL.md`;
+      - `skill_key`/`skill_source` are present, and `pending` is absent;
+      - the next dry run shows 64 from `/tmp` and 77 from the worktree, with none for engram's six;
+      - `engram embed status --vault <copy>` is clean.
+  - `engram update --dry-run` from this worktree shows the same offers as the worktree dry run.
+- [ ] 8.9 Docs: perform enumeration rows 26–38 (round 3; row 38 is done by 8.7). For each row, grep that the new text is present and the old text (bare keys `route`/`cmd:audit`, "bare `<n>`", "engram's own six keep bare keys", the old `skill-<n>` slugs of the six) is absent. Then get a fresh-context reviewer to check every row against its file (vault note 1072). Append the round-3 result to LEDGER row `register-skills-all-skill-folders`.
+- [ ] 8.10 Before archive, re-run 7.3's requirement-header collision sweep across all active changes (vault notes 744/757). Then run `openspec validate register-skills-all-skill-folders --strict`.
+- [ ] 8.11 **Final real-vault task, only with Joe's explicit approval:** migrate the six legacy notes (D11).
+  - Show Joe the exact command and **stop until he says yes**:
+    `engram register-skills --adopt claude:route=1036 --adopt claude:please=1045 --adopt claude:curate=1049 --adopt claude:write-memory=1053 --adopt claude:learn=1067 --adopt claude:recall=1068`
+  - Before running it, confirm that no `skill-claude-<n>` note exists yet: nobody has accepted the six register offers.
+  - After it runs:
+    - `cd /tmp && engram register-skills --dry-run` shows **64** offers, none for engram's six. From this worktree it shows **77**.
+    - `engram embed status` is clean.
+    - `git -C <vault> status` shows the six renames plus the referrers whose links were rewritten. Commit the vault.
+  - Leave every other offer for Joe to answer himself.
