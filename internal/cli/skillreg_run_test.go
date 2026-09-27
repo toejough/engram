@@ -2,16 +2,121 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io/fs"
+	"maps"
 	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
 
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
+
+// TestRunSkillRegistration_AdoptLinkedNotes_OrderIndependent covers several
+// adopts in one run where one adopted note links to another (the real vault:
+// route's red_flags link write-memory's note): the link is rewritten to the
+// linked note's new basename, both notes' sidecars are fresh, and the vault
+// ends the same whichever order the adopts run in.
+func TestRunSkillRegistration_AdoptLinkedNotes_OrderIndependent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	routeContent := []byte("# Route\n\n1. Pick a tier.\n")
+	writeMemoryContent := []byte("# Write memory\n\n1. Compose the command.\n")
+	sources := map[string]cli.SkillNoteSource{
+		"claude:route":        installedEngramSkill("route", routeContent),
+		"claude:write-memory": installedEngramSkill("write-memory", writeMemoryContent),
+	}
+	refs := map[string]string{"claude:route": "1036", "claude:write-memory": "1053"}
+
+	// Each order adopts through AdoptSkillNote directly; the run itself
+	// (sorted keys) is a third arm.
+	orders := [][]string{
+		{"claude:route", "claude:write-memory"},
+		{"claude:write-memory", "claude:route"},
+	}
+	finals := make([]map[string]string, 0, len(orders)+1)
+
+	for _, order := range orders {
+		vault := linkedAdoptFixtureVault(t.Context(), g)
+		deps := skillRegistrationDepsFor(vault, skillsHomeFixture(nil)).Adopt
+
+		for _, key := range order {
+			var stdout bytes.Buffer
+
+			g.Expect(cli.AdoptSkillNote(t.Context(), "/vault", sources[key], refs[key], deps, &stdout)).To(Succeed())
+		}
+
+		finals = append(finals, vault.files)
+	}
+
+	runVault := linkedAdoptFixtureVault(t.Context(), g)
+	runDeps := skillRegistrationDepsFor(runVault, skillsHomeFixture(map[string][]byte{
+		"route": routeContent, "write-memory": writeMemoryContent,
+	}))
+
+	var stdout bytes.Buffer
+
+	g.Expect(cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome, Adopt: refs,
+	}, runDeps, &stdout)).To(Succeed())
+
+	finals = append(finals, runVault.files)
+
+	const (
+		routeBasename       = "1036.2026-09-22.skill-claude-route"
+		writeMemoryBasename = "1053.2026-09-22.skill-claude-write-memory"
+	)
+
+	for _, final := range finals[1:] {
+		g.Expect(final).To(Equal(finals[0]), "the adopt order must not change the result")
+	}
+
+	routeNote := finals[0]["/vault/"+routeBasename+".md"]
+	g.Expect(routeNote).To(ContainSubstring("[[" + writeMemoryBasename + "]]"))
+	g.Expect(routeNote).NotTo(ContainSubstring("[[1053.2026-09-22.write-memory-worker]]"))
+
+	for _, basename := range []string{routeBasename, writeMemoryBasename} {
+		g.Expect(embed.ComputeState(runVault, "/vault/"+basename+".md", skillAcceptFakeEmbedder{}.ModelID())).
+			To(Equal(embed.StateOK), basename+"'s sidecar must be fresh")
+	}
+
+	for _, old := range []string{"1036.2026-09-22.route-dispatch", "1053.2026-09-22.write-memory-worker"} {
+		g.Expect(finals[0]).NotTo(HaveKey("/vault/" + old + ".md"))
+		g.Expect(finals[0]).NotTo(HaveKey("/vault/" + old + ".vec.json"))
+	}
+}
+
+// TestRunSkillRegistration_AdoptOneNoteToTwoKeys_ErrorsAndWritesNothing
+// covers adopt never silently re-keying a note within one run: two --adopt
+// entries naming the same note are refused before any adopt writes.
+func TestRunSkillRegistration_AdoptOneNoteToTwoKeys_ErrorsAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
+
+	before := maps.Clone(vault.files)
+
+	deps := skillRegistrationDepsFor(vault, skillsHomeFixture(map[string][]byte{
+		"curate": []byte("# Curate\n"), "route": []byte("# Route\n"),
+	}))
+
+	var stdout bytes.Buffer
+
+	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome,
+		Adopt: map[string]string{"claude:curate": "1049", "claude:route": "1049.2026-09-21.curate-review-pending-offers"},
+	}, deps, &stdout)
+
+	g.Expect(err).To(MatchError(cli.ErrAdoptTargetKeyedForTest))
+	g.Expect(vault.files).To(Equal(before), "a refused adopt run must write nothing")
+}
 
 // TestRunSkillRegistration_AdoptRunsBeforeOffers_NoDuplicateOffer covers
 // "adopt runs before offers": adopting curate's existing promoted note first
@@ -659,6 +764,46 @@ var (
 )
 
 // unexported test helpers.
+
+// linkedAdoptFixtureVault holds two promoted, unkeyed runbook notes — route
+// (1036) whose red_flags link write-memory's note (1053), mirroring the real
+// vault — each with a fresh sidecar.
+func linkedAdoptFixtureVault(ctx context.Context, g Gomega) *skillAcceptFixtureVault {
+	vault := newSkillAcceptFixtureVault()
+	notes := map[string]string{
+		"1036.2026-09-22.route-dispatch": promotedRunbookFixture("1036", "2026-09-22",
+			"never dispatch without [[1053.2026-09-22.write-memory-worker]]"),
+		"1053.2026-09-22.write-memory-worker": promotedRunbookFixture("1053", "2026-09-22", "never write unhanded"),
+	}
+
+	for basename, content := range notes {
+		vault.put(basename+".md", content)
+
+		sidecar, buildErr := embed.BuildSidecar(ctx, skillAcceptFakeEmbedder{}, []byte(content))
+		g.Expect(buildErr).NotTo(HaveOccurred())
+		vault.put(basename+".vec.json", string(embed.MarshalSidecar(sidecar)))
+	}
+
+	return vault
+}
+
+// promotedRunbookFixture renders a promoted, unkeyed runbook note with one
+// red flag.
+func promotedRunbookFixture(id, date, redFlag string) string {
+	return "---\n" +
+		"type: runbook\n" +
+		"situation: doing the work note " + id + " covers\n" +
+		"done_when: the work is done\n" +
+		"red_flags:\n" +
+		"    - \"" + redFlag + "\"\n" +
+		"luhmann: \"" + id + "\"\n" +
+		"created: " + date + "\n" +
+		"source: promoted\n" +
+		"user: joe\n" +
+		"vault: personal\n" +
+		"---\n\n" +
+		"1. Do it.\n"
+}
 
 // skillRegSourcePath is the resolved SKILL.md path of an engram skill in
 // skillsHomeFixture's home.

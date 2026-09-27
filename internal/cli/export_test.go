@@ -26,6 +26,7 @@ const (
 
 // Exported variables.
 var (
+	ErrAdoptTargetKeyedForTest             = errAdoptTargetKeyed
 	ErrAnswerInBothFlagsForTest            = errAnswerInBothFlags
 	ErrCheckFailedForTest                  = errCheckFailed
 	ErrCountBadFilterForTest               = errCountBadFilter

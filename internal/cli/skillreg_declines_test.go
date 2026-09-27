@@ -140,36 +140,49 @@ func TestRecordSkillDeclined_Property_KeepsEveryEntryAndStampsV2(t *testing.T) {
 // TestRunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing covers
 // "Version-1 file fails loudly" and "Unknown schema version fails loudly" end
 // to end: registration reports the error and writes nothing, even with an
-// explicit --accept.
+// explicit --accept or an --adopt (which must not rename, rewrite or
+// re-embed its note before the decline file is validated).
 func TestRunSkillRegistration_NonVersion2File_ErrorsAndWritesNothing(t *testing.T) {
 	t.Parallel()
 
-	cases := map[string]string{
+	bodies := map[string]string{
 		"version 1": `{"schema_version":1,"declined":{"route":"h"}}`,
 		"version 3": `{"schema_version":3,"declined":{}}`,
 		"missing":   `{"declined":{}}`,
 	}
+	answers := map[string]cli.SkillRegistrationArgs{
+		"accept": {Accept: []string{"claude:curate"}},
+		"adopt":  {Adopt: map[string]string{"claude:curate": "1049"}},
+	}
 
-	for name, body := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
+	for bodyName, body := range bodies {
+		for answerName, answer := range answers {
+			t.Run(bodyName+"/"+answerName, func(t *testing.T) {
+				t.Parallel()
+				g := NewWithT(t)
 
-			vault := newSkillAcceptFixtureVault()
-			vault.put("skill-registrations.json", body)
+				vault := newSkillAcceptFixtureVault()
+				vault.put("skill-registrations.json", body)
+				vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
+				vault.put("2000.2026-09-22.some-other-note.md",
+					referencingNoteFixture("1049.2026-09-21.curate-review-pending-offers"))
 
-			sourceFS := skillsHomeFixture(map[string][]byte{"curate": []byte("# Curate\n")})
-			deps := skillRegistrationDepsFor(vault, sourceFS)
+				before := maps.Clone(vault.files)
 
-			var stdout bytes.Buffer
+				sourceFS := skillsHomeFixture(map[string][]byte{"curate": []byte("# Curate\n")})
+				deps := skillRegistrationDepsFor(vault, sourceFS)
 
-			err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
-				Vault: "/vault", VaultName: "personal", Home: skillRegHome, Accept: []string{"claude:curate"},
-			}, deps, &stdout)
+				var stdout bytes.Buffer
 
-			g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
-			g.Expect(vault.files).To(Equal(map[string]string{"/vault/skill-registrations.json": body}))
-		})
+				args := answer
+				args.Vault, args.VaultName, args.Home = "/vault", "personal", skillRegHome
+
+				err := cli.RunSkillRegistration(t.Context(), args, deps, &stdout)
+
+				g.Expect(err).To(MatchError(cli.ErrSkillRegistrationsVersionForTest))
+				g.Expect(vault.files).To(Equal(before), "the vault must be byte-unchanged")
+			})
+		}
 	}
 }
 

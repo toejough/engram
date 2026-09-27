@@ -276,6 +276,12 @@ func adoptSourceFor(key string, sources ResolvedSkillSources, home string) (Skil
 // the offers and answers them through AnswerSkillOffers: an accepted offer
 // is carried out by acceptSkillOffer, a declined one records its hash
 // (RecordSkillDeclined).
+//
+// Every read that can fail the run — the decline state (a non-v2 file must
+// write nothing, design D7), the vault listing and the offer comparison — is
+// done before the first --adopt writes, so a failing read leaves the vault
+// untouched. The decline state is read once and reused; the comparison is
+// recomputed after the adopts, since they rename and re-key notes.
 func answerSkillSources(
 	ctx context.Context,
 	args SkillRegistrationArgs,
@@ -284,12 +290,24 @@ func answerSkillSources(
 	deps SkillRegistrationDeps,
 	stdout io.Writer,
 ) error {
+	declined, declinedErr := readSkillDeclines(args.Vault, deps)
+	if declinedErr != nil {
+		return declinedErr
+	}
+
+	if len(args.Adopt) > 0 {
+		_, preflightErr := computeSkillOffers(args.Vault, args.Home, sources, false, declined, deps)
+		if preflightErr != nil {
+			return preflightErr
+		}
+	}
+
 	adoptErr := runSkillAdoptions(ctx, args, sources, deps.Adopt, stdout)
 	if adoptErr != nil {
 		return adoptErr
 	}
 
-	comparison, offersErr := computeSkillOffers(args.Vault, args.Home, sources, false, deps)
+	comparison, offersErr := computeSkillOffers(args.Vault, args.Home, sources, false, declined, deps)
 	if offersErr != nil {
 		return offersErr
 	}
@@ -314,21 +332,21 @@ func answerSkillSources(
 	}, stdout)
 }
 
-// computeSkillOffers lists the vault, reads the decline state, and runs
-// CompareSkillOffers over sources — the offer-computation shared by the
-// dry-run preview and the answer loop. home expands a note's `~`-relative
-// skill_source; noRemovals suppresses removal offers (`--skills-dir`).
+// computeSkillOffers lists the vault and runs CompareSkillOffers over
+// sources against the declined state (readSkillDeclines) — the
+// offer-computation shared by the dry-run preview and the answer loop. home
+// expands a note's `~`-relative skill_source; noRemovals suppresses removal
+// offers (`--skills-dir`).
 func computeSkillOffers(
-	vault, home string, sources ResolvedSkillSources, noRemovals bool, deps SkillRegistrationDeps,
+	vault, home string,
+	sources ResolvedSkillSources,
+	noRemovals bool,
+	declined map[string]string,
+	deps SkillRegistrationDeps,
 ) (SkillOfferComparison, error) {
 	names, listErr := deps.ListMD(vault)
 	if listErr != nil {
 		return SkillOfferComparison{}, fmt.Errorf("register-skills: listing vault: %w", listErr)
-	}
-
-	declined, declinedErr := ReadSkillRegistrations(vault, deps.Accept.Read)
-	if declinedErr != nil {
-		return SkillOfferComparison{}, fmt.Errorf("register-skills: %w", declinedErr)
 	}
 
 	comparison, offersErr := CompareSkillOffers(SkillOfferInput{
@@ -426,7 +444,12 @@ func parseAdoptFlags(raw []string) (map[string]string, error) {
 func previewSkillSources(
 	vault, home string, sources ResolvedSkillSources, noRemovals bool, deps SkillRegistrationDeps, stdout io.Writer,
 ) error {
-	comparison, offersErr := computeSkillOffers(vault, home, sources, noRemovals, deps)
+	declined, declinedErr := readSkillDeclines(vault, deps)
+	if declinedErr != nil {
+		return declinedErr
+	}
+
+	comparison, offersErr := computeSkillOffers(vault, home, sources, noRemovals, declined, deps)
 	if offersErr != nil {
 		return offersErr
 	}
@@ -493,6 +516,18 @@ func promptFormatForOfferKind(kind SkillOfferKind) string {
 	}
 }
 
+// readSkillDeclines reads the vault's decline state
+// (ReadSkillRegistrations): a missing file is an empty state, and any other
+// read or schema failure is an error (design D7).
+func readSkillDeclines(vault string, deps SkillRegistrationDeps) (map[string]string, error) {
+	declined, declinedErr := ReadSkillRegistrations(vault, deps.Accept.Read)
+	if declinedErr != nil {
+		return nil, fmt.Errorf("register-skills: %w", declinedErr)
+	}
+
+	return declined, nil
+}
+
 // resolveDefaultSkillSources resolves the default source set
 // (ResolveSkillSources) from home and deps.Getwd's working directory. With
 // no working directory it fails rather than silently resolving without the
@@ -519,8 +554,11 @@ func resolveDefaultSkillSources(
 
 // runSkillAdoptions runs every args --adopt entry, in sorted-by-key order
 // for determinism, via AdoptSkillNote — before offers are computed (design
-// D6/tasks.md 1.8: "adopt entries ... run first"). Each key must name a
-// scanned, unconflicted skill (adoptSourceFor).
+// D6/tasks.md 1.8: "adopt entries ... run first"). Every entry is validated
+// before the first one writes: each key must name a scanned, unconflicted
+// skill (adoptSourceFor), and each target must resolve to a runbook note
+// that is unkeyed or already keyed to that same key and that no other entry
+// names (checkAdoptTargetKey) — adopt never silently re-keys a note.
 func runSkillAdoptions(
 	ctx context.Context,
 	args SkillRegistrationArgs,
@@ -535,13 +573,36 @@ func runSkillAdoptions(
 
 	sort.Strings(keys)
 
+	adoptSources := make(map[string]SkillNoteSource, len(keys))
+	claimedBy := make(map[string]string, len(keys))
+
 	for _, key := range keys {
 		source, sourceErr := adoptSourceFor(key, sources, args.Home)
 		if sourceErr != nil {
 			return sourceErr
 		}
 
-		adoptErr := AdoptSkillNote(ctx, args.Vault, source, args.Adopt[key], deps, stdout)
+		basename, raw, targetErr := resolveAdoptTarget(args.Vault, args.Adopt[key], deps)
+		if targetErr != nil {
+			return targetErr
+		}
+
+		keyErr := checkAdoptTargetKey(basename, raw, key)
+		if keyErr != nil {
+			return keyErr
+		}
+
+		if other, claimed := claimedBy[basename]; claimed {
+			return fmt.Errorf("%w: %s is named by both --adopt %q and --adopt %q",
+				errAdoptTargetKeyed, basename, other, key)
+		}
+
+		claimedBy[basename] = key
+		adoptSources[key] = source
+	}
+
+	for _, key := range keys {
+		adoptErr := AdoptSkillNote(ctx, args.Vault, adoptSources[key], args.Adopt[key], deps, stdout)
 		if adoptErr != nil {
 			return adoptErr
 		}

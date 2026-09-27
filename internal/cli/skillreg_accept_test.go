@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"sort"
 	"strings"
 	"testing"
@@ -398,6 +399,39 @@ func TestAdoptSkillNote_RebuildsReferrerSidecars(t *testing.T) {
 	rewritten, _ := vault.get(referrer + ".md")
 	g.Expect(rewritten).To(ContainSubstring("[[1049.2026-09-21.skill-claude-curate]]"))
 	g.Expect(embed.ComputeState(vault, referrerPath, fakeEmbedder.ModelID())).To(Equal(embed.StateOK))
+}
+
+// TestAdoptSkillNote_RefusesNoteKeyedToAnotherSkill covers adopt never
+// silently re-keying a note: a target whose skill_key is already set to a
+// different key is refused before anything is written (re-adopting to the
+// SAME key stays allowed — TestAdoptSkillNote_IdempotentOnAlreadyAdoptedNote).
+func TestAdoptSkillNote_RefusesNoteKeyedToAnotherSkill(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1049.2026-09-21.skill-claude-curate.md", curateSkillNoteFixture(cli.SkillContentHash([]byte("x"))))
+	vault.put("1049.2026-09-21.skill-claude-curate.vec.json", `{"model_id":"m"}`)
+	vault.put("2000.2026-09-22.some-other-note.md", referencingNoteFixture("1049.2026-09-21.skill-claude-curate"))
+
+	before := maps.Clone(vault.files)
+
+	deps := cli.SkillAdoptDeps{
+		Lock:     noLock,
+		Scan:     func(v string) ([]vaultgraph.Note, error) { return vaultgraph.ScanVault(vault, v) },
+		Rename:   skillAcceptRenameDeps(vault),
+		Embedder: skillAcceptFakeEmbedder{},
+	}
+
+	var stdout bytes.Buffer
+
+	err := cli.AdoptSkillNote(t.Context(), "/vault", installedEngramSkill("route", []byte("# Route\n")), "1049",
+		deps, &stdout)
+
+	g.Expect(err).To(MatchError(cli.ErrAdoptTargetKeyedForTest))
+	g.Expect(err).To(MatchError(ContainSubstring(`"claude:curate"`)))
+	g.Expect(err).To(MatchError(ContainSubstring(`"claude:route"`)))
+	g.Expect(vault.files).To(Equal(before), "a refused adopt must write nothing")
 }
 
 // TestAdoptSkillNote_RenamesRewritesLinksPreservesFieldsClearsPending covers

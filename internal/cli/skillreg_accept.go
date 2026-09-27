@@ -118,6 +118,11 @@ func AdoptSkillNote(
 		return targetErr
 	}
 
+	keyErr := checkAdoptTargetKey(oldBasename, raw, source.Key)
+	if keyErr != nil {
+		return keyErr
+	}
+
 	conflictErr := checkAdoptConflict(vault, source.Key, oldBasename, deps)
 	if conflictErr != nil {
 		return conflictErr
@@ -262,8 +267,12 @@ const (
 
 // unexported variables.
 var (
-	errAdoptConflict            = errors.New("register-skills: adopt: skill already registered to a different note")
-	errAdoptNoteNotFound        = errors.New("register-skills: adopt: note not found")
+	errAdoptConflict     = errors.New("register-skills: adopt: skill already registered to a different note")
+	errAdoptNoteNotFound = errors.New("register-skills: adopt: note not found")
+	// errAdoptTargetKeyed refuses an adopt whose target note is already
+	// keyed to a different skill (or is claimed by another --adopt entry in
+	// the same run): adopt never silently re-keys a note.
+	errAdoptTargetKeyed         = errors.New("register-skills: adopt: note is already keyed to a different skill")
 	errAdoptTargetNotRunbook    = errors.New("register-skills: adopt: target is not a runbook note")
 	errAdoptUnparseableBasename = errors.New("register-skills: adopt: note basename has no Luhmann id/date")
 	errSkillNoteNoFrontmatter   = errors.New("register-skills: note has no parseable frontmatter")
@@ -318,6 +327,27 @@ func checkAdoptConflict(vault, key, oldBasename string, deps SkillAdoptDeps) err
 
 	if found && existingBasename != oldBasename {
 		return fmt.Errorf("%w: %q already registered as %q", errAdoptConflict, key, existingBasename)
+	}
+
+	return nil
+}
+
+// checkAdoptTargetKey refuses an adopt target (basename, raw content) whose
+// skill_key is already set to a key other than key: adopt never silently
+// re-keys a note. An unkeyed note, or one already keyed to key (the
+// idempotent re-adopt), passes.
+func checkAdoptTargetKey(basename string, raw []byte, key string) error {
+	frontmatter, _ := splitFrontmatter(raw)
+
+	var probe skillNoteFrontmatterProbe
+
+	unmarshalErr := yaml.Unmarshal(frontmatter, &probe)
+	if unmarshalErr != nil {
+		return fmt.Errorf("register-skills: adopt: parsing %s frontmatter: %w", basename, unmarshalErr)
+	}
+
+	if probe.SkillKey != "" && probe.SkillKey != key {
+		return fmt.Errorf("%w: %s is keyed %q, not %q", errAdoptTargetKeyed, basename, probe.SkillKey, key)
 	}
 
 	return nil
