@@ -66,7 +66,11 @@ func TestParseWikilinks_DedupedSubsetProperty(t *testing.T) {
 			builder.WriteString(target)
 			builder.WriteString("]] ")
 
-			all = append(all, target)
+			// ParseWikilinks normalizes a legacy .md-suffixed target to its
+			// extension-less form (vault-wikilink-resolution), and the
+			// generator can draw one (e.g. "..md" → "."), so the expected
+			// targets are the normalized inputs.
+			all = append(all, strings.TrimSuffix(target, ".md"))
 		}
 
 		got := vaultgraph.ParseWikilinks([]byte(builder.String()))
