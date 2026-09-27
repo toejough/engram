@@ -1032,7 +1032,7 @@ derived from the key and `skill_key`/`skill_source` recorded on the note. A remo
 for a key whose source root was itself read
 successfully, never inferred from an empty or unreadable directory. Offers are grouped by scope and
 answered by exact key, key-prefix pattern, or `@scope` selector; declines move to schema v2, keyed
-by skill key rather than bare name. Design: `openspec/changes/register-skills-all-skill-folders/design.md`.
+by skill key rather than bare name. Design: `openspec/changes/archive/2026-09-27-register-skills-all-skill-folders/design.md`.
 
 ---
 
