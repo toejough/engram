@@ -11,6 +11,8 @@ import (
 
 	. "github.com/onsi/gomega"
 
+	"go.yaml.in/yaml/v3"
+
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/vaultgraph"
@@ -178,6 +180,57 @@ func TestRunSkillRegistration_AdoptLinkedNotes_OrderIndependent(t *testing.T) {
 	for _, old := range []string{"1036.2026-09-22.route-dispatch", "1053.2026-09-22.write-memory-worker"} {
 		g.Expect(finals[0]).NotTo(HaveKey("/vault/" + old + ".md"))
 		g.Expect(finals[0]).NotTo(HaveKey("/vault/" + old + ".vec.json"))
+	}
+}
+
+// TestRunSkillRegistration_AdoptMultiLineLuhmannValues covers adopting
+// notes whose luhmann: value sits on a continuation line — a block scalar
+// (`luhmann: >-` then `  1050`) and a plain value on the next line
+// (`luhmann:` then `  1051`) — in one batch with an ordinary note: every
+// entry is adopted, and each adopted note's frontmatter decodes with its
+// luhmann: equal to its id on a single line.
+func TestRunSkillRegistration_AdoptMultiLineLuhmannValues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
+	vault.put("1050.2026-09-21.route-draft.md", multiLineLuhmannRunbookFixture("luhmann: >-\n  1050\n"))
+	vault.put("1051.2026-09-21.memory-draft.md", multiLineLuhmannRunbookFixture("luhmann:\n  1051\n"))
+
+	deps := skillRegistrationDepsFor(vault, skillsHomeFixture(map[string][]byte{
+		"curate": []byte("# Curate\n"), "route": []byte("# Route\n"), "write-memory": []byte("# Write memory\n"),
+	}))
+
+	var stdout bytes.Buffer
+
+	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome,
+		Adopt: map[string]string{"claude:curate": "1049", "claude:route": "1050", "claude:write-memory": "1051"},
+	}, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	adopted := map[string]string{
+		"1049.2026-09-21.skill-claude-curate":       "1049",
+		"1050.2026-09-21.skill-claude-route":        "1050",
+		"1051.2026-09-21.skill-claude-write-memory": "1051",
+	}
+
+	for basename, id := range adopted {
+		content, ok := vault.get(basename + ".md")
+		g.Expect(ok).To(BeTrue(), basename+" must exist")
+		g.Expect(content).To(ContainSubstring("luhmann: \"" + id + "\"\n"))
+
+		frontmatter, _, _ := strings.Cut(strings.TrimPrefix(content, "---\n"), "\n---\n")
+
+		var decoded struct {
+			Luhmann  string `yaml:"luhmann"`
+			SkillKey string `yaml:"skill_key"`
+		}
+
+		g.Expect(yaml.Unmarshal([]byte(frontmatter), &decoded)).To(Succeed(), basename+" must decode")
+		g.Expect(decoded.Luhmann).To(Equal(id))
+		g.Expect(decoded.SkillKey).NotTo(BeEmpty())
 	}
 }
 
@@ -934,6 +987,13 @@ func linkedAdoptFixtureVault(ctx context.Context, g Gomega) *skillAcceptFixtureV
 	}
 
 	return vault
+}
+
+// multiLineLuhmannRunbookFixture renders a promoted, unkeyed runbook note
+// with the given luhmann: entry (which may span continuation lines).
+func multiLineLuhmannRunbookFixture(luhmannEntry string) string {
+	return "---\ntype: runbook\nsituation: s\ndone_when: d\n" + luhmannEntry +
+		"created: 2026-09-21\nsource: s\n---\n\nbody\n"
 }
 
 // promotedRunbookFixture renders a promoted, unkeyed runbook note with one

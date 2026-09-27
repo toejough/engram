@@ -12,6 +12,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/toejough/engram/internal/embed"
+	"github.com/toejough/engram/internal/luhmann"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
@@ -137,7 +138,7 @@ func AdoptSkillNote(
 	// decode rejects is refused untouched — never renamed and left unkeyed.
 	// The render is repeated below on the post-rename content, which the
 	// rename's wikilink rewrite may have changed.
-	_, preRenderErr := applySkillNoteBody(raw, source, false)
+	_, preRenderErr := applySkillNoteBody(adoptRenderInput(raw, oldBasename, newBasename), source, false)
 	if preRenderErr != nil {
 		return preRenderErr
 	}
@@ -289,6 +290,22 @@ var (
 	errAdoptUnparseableBasename = errors.New("register-skills: adopt: note basename has no Luhmann id/date")
 	errSkillNoteNoFrontmatter   = errors.New("register-skills: note has no parseable frontmatter")
 )
+
+// adoptRenderInput returns the content an adopt's rename leaves for the
+// note before its body is rendered: raw with its luhmann: field rewritten to
+// newBasename's id (as renameOneNote does) when the adopt renames the note,
+// or raw itself when the basename is unchanged and no rename runs. Rendering
+// this before the rename covers exactly what the post-rename render sees,
+// short of the inbound-wikilink rewrite.
+func adoptRenderInput(raw []byte, oldBasename, newBasename string) []byte {
+	if oldBasename == newBasename {
+		return raw
+	}
+
+	newID, _ := luhmann.FromBasename(newBasename)
+
+	return []byte(rewriteLuhmannIDField(string(raw), newID))
+}
 
 // applySkillNoteBody parses raw as a runbook note's frontmatter, replaces its
 // body with source's current file (preamble included), sets skill_hash,

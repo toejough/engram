@@ -656,7 +656,8 @@ func toStringSet(values []string) map[string]bool {
 // cannot rely on another entry re-keying the key's note away; the basename
 // carries a Luhmann id and date (skillNoteBasename); and the note renders
 // (the pure applySkillNoteBody, result discarded — its full frontmatter
-// decode rejects wrong-typed fields the key probe accepts). It does not
+// decode rejects wrong-typed fields the key probe accepts) from exactly the
+// content the rename will leave (adoptRenderInput). It does not
 // cover I/O failures of the rename, write or embed that follow.
 func validateAdoptEntry(
 	key string, args SkillRegistrationArgs, sources ResolvedSkillSources, deps SkillAdoptDeps,
@@ -681,12 +682,12 @@ func validateAdoptEntry(
 		return SkillNoteSource{}, "", conflictErr
 	}
 
-	_, basenameErr := skillNoteBasename(basename, key)
+	newBasename, basenameErr := skillNoteBasename(basename, key)
 	if basenameErr != nil {
 		return SkillNoteSource{}, "", basenameErr
 	}
 
-	_, renderErr := applySkillNoteBody(raw, source, false)
+	_, renderErr := applySkillNoteBody(adoptRenderInput(raw, basename, newBasename), source, false)
 	if renderErr != nil {
 		return SkillNoteSource{}, "", renderErr
 	}

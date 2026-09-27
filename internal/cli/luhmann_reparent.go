@@ -187,9 +187,12 @@ func renameOneNote(deps RenameRewriteDeps, oldPath, vault, newBasename, updated 
 }
 
 // rewriteLuhmannIDField updates content's frontmatter luhmann: field to newID
-// (double-quoted, matching the vault convention — see quotedString). Content
-// with no frontmatter, or frontmatter with no luhmann: key, is returned
-// unchanged.
+// (double-quoted, matching the vault convention — see quotedString). The
+// key's entire value is replaced — continuation lines included (a block
+// scalar, a plain value on following indented lines, a multi-line quoted
+// scalar; see yamlValueEndLine) — so the result is always one
+// `luhmann: "<id>"` line and the frontmatter still decodes. Content with no
+// frontmatter, or frontmatter with no luhmann: key, is returned unchanged.
 func rewriteLuhmannIDField(content, newID string) string {
 	frontmatter, body, ok := splitFrontmatterAndBody(content)
 	if !ok {
@@ -202,9 +205,14 @@ func rewriteLuhmannIDField(content, newID string) string {
 	}
 
 	lines := strings.Split(frontmatter, "\n")
-	lines[idx] = fmt.Sprintf("luhmann: %q", newID)
+	end := yamlValueEndLine(lines, idx, "luhmann")
 
-	return fmStart + strings.Join(lines, "\n") + fmEnd + body
+	rewritten := make([]string, 0, len(lines)-(end-idx)+1)
+	rewritten = append(rewritten, lines[:idx]...)
+	rewritten = append(rewritten, fmt.Sprintf("luhmann: %q", newID))
+	rewritten = append(rewritten, lines[end:]...)
+
+	return fmStart + strings.Join(rewritten, "\n") + fmEnd + body
 }
 
 // rewriteNoteReferences rewrites content's frontmatter supersedes: note: fields
@@ -292,4 +300,85 @@ func rewriteWikilinks(text string, renameMap map[string]string) (string, bool) {
 	})
 
 	return rewritten, changed
+}
+
+// yamlBlockValueEndLine returns the index one past the last continuation
+// line of an unquoted value whose key line is lines[idx]: following indented
+// lines (a block scalar, a plain scalar or nested collection continued below
+// the key) and interior blank lines, plus column-0 `- ` items when the key
+// line holds no value (emptyKeyLine, a compact sequence). Trailing blank
+// lines are left in place.
+func yamlBlockValueEndLine(lines []string, idx int, emptyKeyLine bool) int {
+	end := idx + 1
+
+	for next := idx + 1; next < len(lines); next++ {
+		line := lines[next]
+
+		switch {
+		case strings.TrimSpace(line) == "":
+			continue
+		case line[0] == ' ' || line[0] == '\t',
+			emptyKeyLine && (line == "-" || strings.HasPrefix(line, "- ")):
+			end = next + 1
+		default:
+			return end
+		}
+	}
+
+	return end
+}
+
+// yamlQuoteCloses reports whether text holds the closing quote of a YAML
+// scalar quoted with quote: an unescaped `"` for a double-quoted scalar, or
+// a single quote that is not one of a doubled pair (two single quotes
+// escape one) for a single-quoted scalar.
+func yamlQuoteCloses(text string, quote byte) bool {
+	for i := 0; i < len(text); i++ {
+		switch {
+		case quote == '"' && text[i] == '\\':
+			i++
+		case text[i] != quote:
+			continue
+		case quote == '\'' && i+1 < len(text) && text[i+1] == '\'':
+			i++
+		default:
+			return true
+		}
+	}
+
+	return false
+}
+
+// yamlQuotedValueEndLine returns the index one past the line closing the
+// quoted scalar rest opens on lines[idx] (rest is the key line's value,
+// starting at its opening quote).
+func yamlQuotedValueEndLine(lines []string, idx int, rest string) int {
+	quote := rest[0]
+
+	if yamlQuoteCloses(rest[1:], quote) {
+		return idx + 1
+	}
+
+	for next := idx + 1; next < len(lines); next++ {
+		if yamlQuoteCloses(lines[next], quote) {
+			return next + 1
+		}
+	}
+
+	return len(lines)
+}
+
+// yamlValueEndLine returns the index one past the last line of the value of
+// the top-level key whose `key:` line is lines[idx]: a quoted value left
+// open on the key line runs through the line that closes it
+// (yamlQuotedValueEndLine); any other value runs through its continuation
+// lines (yamlBlockValueEndLine).
+func yamlValueEndLine(lines []string, idx int, key string) int {
+	rest := strings.TrimSpace(strings.TrimPrefix(lines[idx], key+":"))
+
+	if rest != "" && (rest[0] == '"' || rest[0] == '\'') {
+		return yamlQuotedValueEndLine(lines, idx, rest)
+	}
+
+	return yamlBlockValueEndLine(lines, idx, rest == "")
 }
