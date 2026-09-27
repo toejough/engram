@@ -188,15 +188,15 @@ Every key is qualified by its source, and there is no engram-owned mechanism (va
 
 **Ordering guard (D11).** Tasks 8.1–8.10 never run `go install`. Every real-binary check in 8.8 uses a binary built into the scratchpad. The global install happens only in 8.11, immediately before the adopt, in the step Joe approves. Until then, the installed `engram` (this branch's pre-round-3 build, ruling R36) still carries the legacy fallback, so it never offers the six `claude:<n>` registrations.
 
-- [ ] 8.1 RED→GREEN (+ rapid property: every key `AssignSkillKeys` produces contains `:`, and its first segment maps to exactly one removal form): key construction (D3).
+- [x] 8.1 RED→GREEN (+ rapid property: every key `AssignSkillKeys` produces contains `:`, and its first segment maps to exactly one removal form): key construction (D3).
   - Claude user skills key as `claude:<n>`, and Claude user commands as `claude:cmd:<ns:…:n>`. Engram's installed skills key by folder (`claude:route`, `pi:route`), with no path-based exception.
   - `skillKeyRemovalForm` and `skillKeyScopeID` parse `claude:<n>` → `claude-user` and `claude:cmd:…` (three or more segments) → `claude-cmd`. A skill named `cmd` gives `claude:cmd` → `claude-user`. Remove the `cmd` → `claude-cmd` entry from `skillKeyPrefixForms`.
   - Slugs: `claude:route` → `skill-claude-route`, and `claude:cmd:audit` → `skill-claude-cmd-audit`.
-- [ ] 8.1b RED→GREEN: reserved plugin names (D3; spec scenarios "A plugin named claude is reserved", "A disabled reserved-name plugin is silent", "A plugin named cmd is an ordinary plugin").
+- [x] 8.1b RED→GREEN: reserved plugin names (D3; spec scenarios "A plugin named claude is reserved", "A disabled reserved-name plugin is silent", "A plugin named cmd is an ordinary plugin").
   - The reserved set is exactly the top-level key forms: `claude`, `pi`, `agents`, `project`, `anthropic-skills`, `pi-settings`, `pi-pkg` and `pi-prompt`. Add `claude` and drop `cmd`; `engram` is not reserved.
   - Move the reserved-name check (`skillsources_plugin.go:132`) to after enablement is decided (`claudePluginInstallToScan`). A disabled reserved-name plugin prints nothing, and an enabled one warns and is not scanned.
   - Fixtures: enabled `claude@m` warns; disabled `pi@m` is silent; `cmd@m` yields `cmd:x`; the real-shaped disabled `engram@engram` is silent.
-- [ ] 8.2 RED→GREEN (+ rapid property: for any vault, adding or removing unkeyed notes never changes the offer set): delete the legacy slug-remainder fallback (D3, D11).
+- [x] 8.2 RED→GREEN (+ rapid property: for any vault, adding or removing unkeyed notes never changes the offer set): delete the legacy slug-remainder fallback (D3, D11).
   - `groupSkillNoteCandidates` groups only notes that carry `skill_key`. An unkeyed `skill_hash` note is not matched, is not an alias source, and is never a removal candidate.
   - Fixture: the six legacy notes (slugs `skill-<n>`, `skill_hash` equal to the scanned bytes, no `skill_key`) yield exactly six `register claude:<n>` offers, and no refresh or removal.
   - **Keep** the unconditional `skill_key`/`skill_source` setter in `applySkillNoteBody` (`skillreg_accept.go:~317`), because adopt depends on it. Delete only the legacy wording in `RefreshSkill`'s doc comment (`skillreg_accept.go:178`, "stamping them onto a legacy note that lacks them") and the refresh-of-an-unkeyed-note test.
@@ -206,10 +206,10 @@ Every key is qualified by its source, and there is no engram-owned mechanism (va
     - the preamble is ``> Mirrors skill `<skill_source>`.``;
     - `skill_key: claude:curate` and `skill_source` are stamped, `skill_hash` is unchanged, and there is no `pending`.
   - Update the base-scenario tests: "Note located by slug" (a slug alone locates nothing) and "Duplicate notes are an error" (two notes with `skill_key: claude:curate`).
-- [ ] 8.2b RED→GREEN (+ rapid property: an unrecognized key, and only an unrecognized key, is never matched and never removal-eligible for any roots and candidates; every other generated `<x>:<n>` with `<x>` not a reserved form is judged by the plugin rule): unrecognized `skill_key` (D3; spec scenario "An unrecognized skill_key is never matched or removed").
+- [x] 8.2b RED→GREEN (+ rapid property: an unrecognized key, and only an unrecognized key, is never matched and never removal-eligible for any roots and candidates; every other generated `<x>:<n>` with `<x>` not a reserved form is judged by the plugin rule): unrecognized `skill_key` (D3; spec scenario "An unrecognized skill_key is never matched or removed").
   - The key parser reports "unrecognized" in exactly three cases: no `:` (e.g. `route`); an empty segment (e.g. `claude:`, `pi::x`); a reserved-form prefix whose tail lacks that form's shape (e.g. `project:github.com/toejough/engram`, `pi-pkg:x`, `claude:cmd:`). Eligibility treats unrecognized as never eligible.
   - Any other `<x>:<n…>` is plugin `<x>`'s key under D5's plugin rule. Fixture: `engram:route` with no `engram` plugin in a readable `installed_plugins.json` and a parsed `settings.json` → offered for removal, exactly like `ralph-loop:cmd:help`.
-- [ ] 8.3 RED→GREEN: delete the whole engram-owned mechanism, the multi-root bare-key eligibility and the collision special cases (design Context, D1, D4, D5, D8).
+- [x] 8.3 RED→GREEN: delete the whole engram-owned mechanism, the multi-root bare-key eligibility and the collision special cases (design Context, D1, D4, D5, D8).
   - Delete, by name:
     - `ResolveEngramSkillRoots` and `underEngramSkillRoot` (`skillkeys.go:55-84`, `:220-230`), and `engramRootUnresolvedWarningFormat` (`skillkeys.go:117`);
     - `ResolvedSkillSources.EngramSkillRoots`/`EngramSkillRootsUnresolved` (`skillsources_resolve.go:35-42`, `:116-121`);
@@ -221,11 +221,11 @@ Every key is qualified by its source, and there is no engram-owned mechanism (va
   - One preamble format for every note, ``> Mirrors skill `%s`.`` (`skillNotePreambleFormat`, `skillreg_accept.go:280`), without "edit the procedure there …". The register provenance `source: skill registration: <skill_source>` also names `skill_source`.
   - Tests: a real `~/.claude/skills/route` plus an engram-linked `~/.pi/agent/skills/route` → `claude:route` and `pi:route`, no conflict, no warning; diverged Claude and Pi copies → `pi:route` offered, no warning (spec scenario); a byte-identical Pi copy → `pi:route` alias, no offer; accepting `claude:curate` from `~/.claude/engram/skills/curate` → a preamble of exactly ``> Mirrors skill `~/.claude/engram/skills/curate/SKILL.md`.``
   - Deletion grep, which must return nothing: `grep -rn -i -E "engram-?owned|engramRoot|EngramSkillRoot|allEngram|engramCopies|bare[ -]key" internal/cli/skill*.go`
-- [ ] 8.4 RED→GREEN (+ rapid properties: (a) **namespace isolation**: flipping the read status of any root whose form differs from a note's key form never changes that note's eligibility; (b) a `claude:` note is eligible exactly when every root recorded with form `claude-user` was read, and the same holds for each fixed form): per-namespace removal eligibility (D5).
+- [x] 8.4 RED→GREEN (+ rapid properties: (a) **namespace isolation**: flipping the read status of any root whose form differs from a note's key form never changes that note's eligibility; (b) a `claude:` note is eligible exactly when every root recorded with form `claude-user` was read, and the same holds for each fixed form): per-namespace removal eligibility (D5).
   - Spec scenarios: "Another namespace's missing root does not block removal" (the R39 case: no `~/.agents/skills`, EACCES on `~/.pi/agent/skills`, `claude:c4` offered for removal); "Unreadable user skills directory"; "Unkeyed legacy note is never offered for removal".
-- [ ] 8.5 RED→GREEN: `--skills-dir` entries key as `claude:<n>` in scope `claude-user`, and the run stays read-only (D9, spec scenario "Skills-dir runs are preview-only").
-- [ ] 8.6 RED→GREEN: drop v1 decline reading (D7; spec scenarios "Version-1 file fails loudly", "Unknown schema version fails loudly"). Any `schema_version` other than 2, missing included, is an error, and nothing is written; a missing file means no declines. Delete the v1 test fixture and the v1 comments (`skillreg.go:84`, `:167`).
-- [ ] 8.7 Code comments and `targ check-full`.
+- [x] 8.5 RED→GREEN: `--skills-dir` entries key as `claude:<n>` in scope `claude-user`, and the run stays read-only (D9, spec scenario "Skills-dir runs are preview-only").
+- [x] 8.6 RED→GREEN: drop v1 decline reading (D7; spec scenarios "Version-1 file fails loudly", "Unknown schema version fails loudly"). Any `schema_version` other than 2, missing included, is an error, and nothing is written; a missing file means no declines. Delete the v1 test fixture and the v1 comments (`skillreg.go:84`, `:167`).
+- [x] 8.7 Code comments and `targ check-full`.
   - Rewrite or delete the stale comments, including these, found by grep at `cec56b71`:
     - `skillanswers.go:386`;
     - `skillkeys.go:15-32`, `:90`;
@@ -236,7 +236,7 @@ Every key is qualified by its source, and there is no engram-owned mechanism (va
     - `skillreg_run.go:45`, `:141`, `:441-442`.
   - Re-run 8.3's deletion grep; it must return nothing. `internal/cli/update.go` has only 1,055 lines, so its registration comments are checked by `grep -n -i -E "bare[ -]key|engram-?owned (skills? )?root" internal/cli/update.go` and reviewed by hand. Deploy-sync's own uses of "engram-owned root" in `internal/update/update.go` stay, apart from lines 1459-1474 (8.3).
   - `targ check-full` green; collect every failure before fixing any.
-- [ ] 8.8 Re-run the real-layout verification before migration, written out in full. **Never run `go install` here** (ordering guard). Record any difference and explain it (ruling R4).
+- [x] 8.8 Re-run the real-layout verification before migration, written out in full. **Never run `go install` here** (ordering guard). Record any difference and explain it (ruling R4).
   1. Build: `go build -o <scratchpad>/engram-r3 ./cmd/engram`. Call it `$BIN` below.
   2. From `/tmp`: `cd /tmp && $BIN register-skills --dry-run </dev/null` (real home, real vault, read-only). Expect **70 offers, all `register`, no refresh, no removal, no conflict, no warning**, with these scopes:
      - `@claude-user` **10**: `claude:{c4,dev,mycelium,property-rigor}` plus `claude:{curate,learn,please,recall,route,write-memory}`;
@@ -280,9 +280,9 @@ Every key is qualified by its source, and there is no engram-owned mechanism (va
        - `chmod 000 <fx>/.claude/skills` (the fixture's own real directory) → no removal offer for `claude:c4`. Then `chmod 755` it.
        - **The R39 case:** with no `<fx>/.agents`, run `chmod 000 <fx>/.pi/agent/skills` and `rm -r <fx>/.claude/skills/c4` (the fixture's own copy) → a removal offer for `claude:c4` appears. Then `chmod 755 <fx>/.pi/agent/skills`.
      - `$BIN embed status --vault <scratchpad>/vault-r3-scope` is clean.
-- [ ] 8.9 Docs: perform enumeration rows 26–35 and 37 (row 36 is done by 8.11, row 38 by 8.7). For each row, grep that the new text is present and the old text (bare keys `route`/`cmd:audit`, "bare `<n>`", "engram's own six keep bare keys", the old `skill-<n>` slugs of the six) is absent. Then get a fresh-context reviewer to check every row against its file (vault note 1072).
-- [ ] 8.10 Before archive, re-run 7.3's requirement-header collision sweep across all active changes (vault notes 744/757). Then run `openspec validate register-skills-all-skill-folders --strict`.
-- [ ] 8.11 **Final step, only with Joe's explicit approval: install and migrate** (D11). Install and adopt form one approved step, so no installed binary ever shows the six offers against unkeyed notes.
+- [x] 8.9 Docs: perform enumeration rows 26–35 and 37 (row 36 is done by 8.11, row 38 by 8.7). For each row, grep that the new text is present and the old text (bare keys `route`/`cmd:audit`, "bare `<n>`", "engram's own six keep bare keys", the old `skill-<n>` slugs of the six) is absent. Then get a fresh-context reviewer to check every row against its file (vault note 1072).
+- [x] 8.10 Before archive, re-run 7.3's requirement-header collision sweep across all active changes (vault notes 744/757). Then run `openspec validate register-skills-all-skill-folders --strict`.
+- [x] 8.11 **Final step, only with Joe's explicit approval: install and migrate** (D11). Install and adopt form one approved step, so no installed binary ever shows the six offers against unkeyed notes.
   - Show Joe both commands and **stop until he says yes**:
     `go install ./cmd/engram`
     `cd /tmp && engram register-skills --adopt claude:route=1036 --adopt claude:please=1045 --adopt claude:curate=1049 --adopt claude:write-memory=1053 --adopt claude:learn=1067 --adopt claude:recall=1068 </dev/null`
