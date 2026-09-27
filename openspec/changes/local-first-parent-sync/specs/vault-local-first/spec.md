@@ -39,11 +39,15 @@ Every subcommand that resolves a vault path SHALL ensure that an initialized vau
 - **THEN** no vault file is created or modified, and no creation line is printed
 
 ### Requirement: Every vault SHALL have a stable vault ID
-Every vault SHALL have a random identifier stored in the tracked file `<vault>/.engram-vault-id`. A new vault SHALL get one when it is created. An existing vault without one SHALL get one only when `engram serve` starts on it, or when a command first contacts a parent from it. `engram update` SHALL print a notify-only notice while the file exists but is not committed in a git-backed vault. The ID SHALL never change once written.
+Every vault SHALL have a random identifier stored in the tracked file `<vault>/.engram-vault-id`. A new vault SHALL get one when it is created. An existing vault without one SHALL get one only when `engram serve` starts on it, or when a command first contacts a parent from it. The file SHALL be created with exclusive create and then re-read, so that concurrent creators all end up using the single ID that won. The random source SHALL be injected, so tests are deterministic. `engram update` SHALL print a notify-only notice while the file exists but is not committed in a git-backed vault. The ID SHALL change only through `engram vault-id --regenerate`.
 
 #### Scenario: serve stamps an existing vault
 - **WHEN** `engram serve` starts on an existing vault that has no `.engram-vault-id`
 - **THEN** the file is created with a new ID, and later starts reuse it unchanged
+
+#### Scenario: Concurrent creation converges
+- **WHEN** two processes create the ID for the same vault at the same moment
+- **THEN** exactly one file is written, and both processes use its ID
 
 #### Scenario: Uncommitted ID is flagged
 - **WHEN** `engram update` runs on a git-backed vault whose `.engram-vault-id` is untracked
@@ -56,9 +60,27 @@ Transient exchange state SHALL live in `<vault>/.engram/`: the outbox, declined 
 - **WHEN** an offer is queued in a git-backed vault
 - **THEN** `git status --porcelain` in the vault shows no change caused by exchange state
 
+### Requirement: A copied or cloned vault SHALL NOT exchange until its identity is resolved
+When the vault ID is created, the untracked exchange state SHALL record the vault's location: the ID, the hostname, and the absolute vault path. Before any exchange (serving, merging, offering, or pulling down), a command SHALL compare that record with the current vault ID, hostname and path. When the record is missing (a fresh `git clone`) or differs (a `cp -R`, or a move), the command SHALL do no exchange, `engram serve` SHALL refuse to start, and exactly one warning SHALL name both `engram vault-id --regenerate` and `engram vault-id --claim`.
+- `engram vault-id --regenerate` SHALL mint a new ID, rewrite `.engram-vault-id` and the location record, and change no note.
+- `engram vault-id --claim` SHALL rewrite the location record only.
+- `engram vault-id` with no flag SHALL print the ID and the result of the location check.
+
+#### Scenario: A cloned child is caught before it offers
+- **WHEN** vault A is cloned with git to a new host, and the clone runs `engram learn` with `ENGRAM_PARENT` set
+- **THEN** the note is written locally, no offer is sent, and the warning names both `engram vault-id` remedies
+
+#### Scenario: Regenerate gives a copy its own identity
+- **WHEN** `engram vault-id --regenerate` runs in a copied vault
+- **THEN** its ID differs from the original's, exchange resumes, and no note file changed
+
+#### Scenario: Claim accepts a moved vault
+- **WHEN** a vault is moved to a new path and `engram vault-id --claim` runs
+- **THEN** the ID is unchanged and exchange resumes
+
 ### Requirement: A vault SHALL NOT exchange with itself
-When a parent reports the same vault ID as the local vault, the command SHALL NOT merge, offer, or pull down. It SHALL print exactly one warning, and SHALL behave as if no parent were configured.
+When a parent reports the same vault ID as the local vault, the command SHALL NOT merge, offer, or pull down. It SHALL print exactly one warning naming `engram vault-id --regenerate`, and SHALL behave as if no parent were configured.
 
 #### Scenario: A copied vault served back to itself
 - **WHEN** a copy of vault V is served and V's environment points `ENGRAM_PARENT` at it
-- **THEN** `engram query` returns local-only results with a warning, and no offer is sent
+- **THEN** `engram query` returns local-only results with a warning naming `engram vault-id --regenerate`, and no offer is sent

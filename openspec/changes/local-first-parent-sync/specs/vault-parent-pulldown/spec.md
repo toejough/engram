@@ -56,7 +56,7 @@ Its top-level `repo`/`user`/`vault` SHALL be stamped locally. It SHALL NOT carry
 ### Requirement: Pull-down SHALL be idempotent, remember declines, and be loop-free
 Under the write lock, a pull-down SHALL re-check its skip rule and SHALL write nothing when either of these holds:
 - a local note (live or pending) has any link (`offered`, `pulled`, or `covered`) to the envelope's basename or to one of its aliases, and that link's hash equals the envelope's exchange hash. When that local note is live, the pull-down SHALL bump its sidecar `LastUsed` instead;
-- the vault's declined-pull record holds that basename with that exchange hash.
+- the vault's declined-pull record holds that exchange hash under the envelope's basename or under any alias in the fetched content (so a parent-side rename does not bring back a declined note).
 
 A bare `engram amend --discard` of a note whose primary link is `via: pulled` SHALL add that basename and hash to the declined-pull record. A parent note whose exchange hash changed since the last pull, or since it was declined, SHALL arrive as another pending offer. A pulled-down note SHALL never be offered back to the parent unless its content is later changed locally (capability `vault-parent-offers`).
 
@@ -70,6 +70,10 @@ A bare `engram amend --discard` of a note whose primary link is `via: pulled` SH
 
 #### Scenario: A declined pull is remembered
 - **WHEN** a pulled copy of P is discarded outright, and P is activated again unchanged
+- **THEN** nothing is written
+
+#### Scenario: A decline survives a parent rename
+- **WHEN** a declined parent note is renamed on the parent (its old basename now in its `aliases`) and activated again unchanged
 - **THEN** nothing is written
 
 #### Scenario: A changed parent note arrives as a new offer

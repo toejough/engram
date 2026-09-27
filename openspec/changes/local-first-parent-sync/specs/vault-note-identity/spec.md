@@ -1,7 +1,13 @@
 ## ADDED Requirements
 
 ### Requirement: Exchanged notes SHALL carry a stable exchange ID
-A note SHALL gain an `xid` frontmatter field, a random identifier, the first time it is queued as an offer, pulled down, or received as a served offer. An `xid` SHALL never change once written, including across renames. A note never involved in exchange SHALL carry no `xid`.
+A note SHALL gain an `xid` frontmatter field, a random identifier, lazily: the first time it takes part in exchange (queued as an offer, pulled down, or received as a served offer). No migration, backfill, or `update` step SHALL stamp `xid` on existing notes. An `xid` SHALL never change once written, including across renames. A note never involved in exchange SHALL carry no `xid`.
+
+Every frontmatter field this capability adds (`xid`, `parent` and its members, `aliases`, `offer` and its members, including `offer.path`) SHALL be omitted when empty (`omitempty`). A note that never takes part in exchange SHALL therefore serialize exactly as it did before this capability.
+
+#### Scenario: No backfill
+- **WHEN** `engram update` runs on a vault whose notes have never taken part in exchange
+- **THEN** no note gains an `xid`, and no note file changes
 
 #### Scenario: The xid survives a rename
 - **WHEN** a note carrying `xid` is renamed by Luhmann reparenting

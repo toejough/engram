@@ -6,7 +6,7 @@ Engram has two mutually exclusive ways to reach a parent vault. `ENGRAM_SERVER` 
 
 - **BREAKING**: remove the thin-client `ENGRAM_SERVER` mode. When `ENGRAM_SERVER` is set, **every** `engram` command, `engram serve` included, exits non-zero before any work, with an error telling the user to set `ENGRAM_PARENT` to the same URL. There is no compat shim and no exemption. `engram serve` itself still exists as the parent side, reached by children through `ENGRAM_PARENT`.
 - Every environment always has its own local vault. The first run of any command that resolves the vault path creates it, and a one-line notice says so (folds in #766).
-- Each vault gains a stable **vault ID**, stored in a tracked file `.engram-vault-id`. Transient exchange state (the outbox, declined pulls, and the parent cache with backoff) lives in `<vault>/.engram/`, which ignores itself through its own `.gitignore`. The vault's tracked root `.gitignore` is never modified.
+- Each vault gains a stable **vault ID**, stored in a tracked file `.engram-vault-id` and created with exclusive create. A location record catches copies and clones before they exchange, and `engram vault-id --regenerate` or `--claim` resolves them. Transient exchange state (the outbox, declined pulls, and the parent cache with backoff) lives in `<vault>/.engram/`, which ignores itself through its own `.gitignore`. The vault's tracked root `.gitignore` is never modified.
 - `engram learn` writes locally and then **offers** the note to the parent. A content-changing `engram amend` or `engram resituate` is offered too: as an amend of the linked parent counterpart when one exists, otherwise as a new note.
   - Bookkeeping stays local: `--activate`, `--clear-pending`, `--discard`, identity backfill, `learn qa`, and `--supersedes`/`--chunk-source`-only amends. Joe accepted this split.
   - One exception to the bookkeeping rule: accepting a served offer (`--clear-pending` on it) is itself offered further up, which is multi-level propagation (Joe).
@@ -20,7 +20,7 @@ Engram has two mutually exclusive ways to reach a parent vault. `ENGRAM_SERVER` 
   - `/learn` places offers at top level, updates a pending offer from the same origin in place, and returns a receipt with the basename, the vault ID and the resolved target;
   - every note type marked `pending: true` counts as pending;
   - remote requests cannot set link or identity fields.
-- Curation gains `engram amend --discard --into <existing>`. Bookkeeping amends stop re-stamping `repo`/`user`/`vault`, so an accepted offer keeps its author. `resituate` preserves every field it doesn't change.
+- Curation gains `engram amend --discard --into <existing>`, and bookkeeping on a served offer must pass `--expect-hash`, so an offer updated in place after it was judged is never silently accepted or discarded. Served offers carry the list of vaults they have passed through (`offer.path`), and a vault refuses one that already contains its own ID. Bookkeeping amends stop re-stamping `repo`/`user`/`vault`, so an accepted offer keeps its author. `resituate` preserves every field it doesn't change.
 - Transcript chunks never travel. Only notes do.
 - The recall, learn and curate skills are updated through `superpowers:writing-skills` TDD, using hermetic headless arms.
 - Supersedes #746. #745 is resolved by design (design D9).

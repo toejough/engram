@@ -80,17 +80,29 @@ Deleted:
 - For an existing vault, it is written lazily by only two things: `engram serve` at startup, and the first command that contacts a parent. Read-only use of an existing vault never creates it.
 - Because the file is tracked, its first creation in an existing git-backed vault is a **deliberate one-time vault commit**: migration step 3 for Joe's real vault. `engram update` prints a notice while the file exists but is untracked or uncommitted.
 - The server reports its vault ID in every exchange response (D4, D7, D8). Links are keyed by that ID, never by URL, so a hostname or IP change breaks nothing (review M11).
-- **Self-parent guard:** when the parent reports the local vault's own ID (for example, a copied vault served back to itself), the command does no exchange (no merge, no offers, no pull-down) and prints one warning.
+- **Creation (review r3-4).** The ID comes from a `RandRead` primitive: `crypto/rand` behind DI, the first random source in `cli.Primitives`, and faked in tests. It is written with the existing exclusive-create primitive (`WriteFileExcl`, O_CREATE|O_EXCL) and then **re-read**. If two processes race, both end up using whichever ID won.
+- **Location record.** When the ID is created, the untracked `.engram/home.json` records `{vault_id, host, path}` (hostname and absolute vault path).
+- **Copy and clone detection (r3-4).** Before any exchange (serve start, merge, offer, pull-down), the command checks `home.json` against the current vault ID, host and path. If `home.json` is missing, which is what a `git clone` looks like because `.engram/` is not tracked, or doesn't match, which is what a `cp -R` or a move to another path or host looks like, the command does no exchange (`serve` refuses to start) and prints one warning naming both remedies:
+  - `engram vault-id --regenerate`: this is a copy. Mint a new ID, rewrite `.engram-vault-id` and `home.json`, and keep every note unchanged. Links point at *parent* IDs and stay valid, and outbox payloads take the new origin ID when they are sent.
+  - `engram vault-id --claim`: this is the same vault, moved or re-cloned. Rewrite `home.json` only.
+
+  `engram vault-id` with no flag prints the ID and the location check result.
+
+  This covers the collision cases:
+  - Two children sharing an ID (one cloned from the other) are caught at the clone's first exchange, before any offer carries a shared `offer.origin`.
+  - A child cloned from its parent is caught by the same check. If `home.json` was also copied, it is caught by the self-parent guard below, whose warning names `engram vault-id --regenerate`.
+- **Self-parent guard:** when the parent reports the local vault's own ID, the command does no exchange (no merge, no offers, no pull-down) and prints one warning naming `engram vault-id --regenerate`.
 
 **State directory.** Transient exchange state lives in `<vault>/.engram/`:
 - `outbox.json` (D6);
 - `declined.json` (D8);
 - `parent.json`, which caches `{url, vault_id, backoff_until, failures}` (D6);
+- `home.json`, which holds the ID's location record (see above);
 - `.gitignore` containing `*`, so git ignores the directory and everything in it, **including that `.gitignore` itself**.
 
 The vault's tracked root `.gitignore` is never modified (G12). The directory is created at the same moment as the vault ID and holds no identity. If it is lost (for example, by cloning a vault), the only effect is that queued offers are re-queued on the next content write.
 
-A copied vault (`cp -R`, as `runbook-retrieval-probe` does) carries the same ID and state. That is harmless: repeated sends are idempotent (D6), and serving a copy back to itself trips the self-parent guard.
+A copied vault (`cp -R`, as `runbook-retrieval-probe` does) carries the same ID and state, but its path differs from `home.json`, so it does no exchange until someone runs `--regenerate` or `--claim`. A read-only copy used by probes never exchanges at all.
 
 *Rejected alternatives:*
 - **Create only on `update`, or warn without creating** (#766's options 1 and 3). Joe chose "any command".
@@ -112,6 +124,16 @@ A copied vault (`cp -R`, as `runbook-retrieval-probe` does) carries the same ID 
 - dedupe rule 2.
 
 `embed.ContentHash` stays unchanged for sidecar staleness, which is its own job.
+
+**Field classification (r3-5).** One explicit table lists every YAML key of the fact, feedback and runbook frontmatter structs as either *offered* (hashed) or *not offered*. A reflection test over the three structs' `yaml` tags fails when any key is missing from the table. A future field therefore can't silently fall outside the hash.
+
+**Versioning (r3-5).** Hashes carry a version prefix (`xh1:`). Comparing two hashes gives one of three results: *equal*, *changed*, or *unknown*. The result is *unknown* when either side has a different or missing prefix. What each consumer does with *unknown*:
+- **Loop suppression** fires only on *equal*. An *unknown* write is offered, which is harmless because server-side idempotency and in-place updates absorb it.
+- **Pull-down skip, decline match, rejected-entry re-arm, and the send/apply change check** treat *unknown* as *not changed*. So a version bump causes no mass re-pull, re-arm or re-queue.
+- **Dedupe rule 2** requires *equal*.
+- A stale-version hash is replaced the next time that link or entry is written by an exchange.
+
+**Stored hash (r3-5).** The receipt returns `stored_hash`: the exchange hash of the pending note as the parent actually wrote it. The child records that value in the link, not the hash it computed for what it sent.
 
 **Hash stability.** The hash is stable across the exchange's own rewrites. None of the following touch a hashed field:
 - the parent link;
@@ -138,8 +160,12 @@ parent:                  # links to the configured parent's notes (multi-valued,
     - {note: 0812.2026-08-01.y, via: covered, hash: xh1:…}   # parent notes this note was judged to cover
   author: {repo: …, user: …, vault: …}   # pulled notes only: the parent note's authorship (review M6)
 aliases: [1101.2026-09-27.z, 12.2026-06-01.old-name]   # basenames this note answers to in ITS OWN vault
-offer: {origin: <child vault id>:<child xid>, key: …, for: <basename>}   # served pending notes only (D7)
+offer: {origin: <child vault id>:<child xid>, key: …, for: <basename>, path: [<vault id>, …]}   # served offers (D7); kept after acceptance
 ```
+
+Every new field (`xid`, `parent` and its members, `aliases`, `offer` and its members) is `omitempty`. A note that never takes part in exchange serializes exactly as it does today.
+
+**`xid` is stamped lazily and never backfilled.** A note gets its `xid` the first time it takes part in exchange: when it is queued as an offer, pulled down, or received as a served offer. No migration or `update` step stamps existing notes.
 
 **Link roles (`via`).**
 - `offered` / `pulled`: the note's primary counterpart. There is at most one primary, and amend-offers target it.
@@ -222,7 +248,7 @@ On the child, the outbox is keyed by `xid`, which is rename-stable, so a child-s
      - Otherwise, record the link as described under Receipt.
      - If the note's current exchange hash differs from the hash that was sent, keep the entry queued.
      - Entries enqueued concurrently are kept.
-- **Idempotency.** `offer.key = sha256(offer.origin + exchange hash)`. The server's handling is in D7.
+- **Idempotency.** `offer.key = sha256(offer.origin + exchange hash)`, and `offer.path = [local vault id]` (D7). The server's handling is in D7.
 - **When it drains.** After any successful parent contact in the same command: `learn`, content `amend`, `resituate`, `query` (after the parent `/query` succeeds), `activate` (after a pull-down), and `update`.
 - **Failures and backoff (M9).**
   - A transport error, timeout or 5xx stops the drain and records `attempts`/`last_error` on the entry.
@@ -232,8 +258,8 @@ On the child, the outbox is keyed by `xid`, which is rename-stable, so a child-s
   - Success resets `failures`.
   - A 4xx marks the entry `rejected` with its `rejected_hash`, and the drain continues. The entry re-arms only when the note's exchange hash changes.
 - **Reporting.** `engram update` prints a notify-only outbox notice: the count, the oldest entry's age, the rejected entries, and the backoff state.
-- **Receipt.** The receipt is `{status, luhmann, basename, pending: true, vault_id, for?}` (D7).
-  - Under the lock, the receipt sets `parent.vault` and makes `{note: basename, via: offered, hash: <sent hash>}` the primary link.
+- **Receipt.** The receipt is `{status, luhmann, basename, pending: true, vault_id, stored_hash, for?}` (D7).
+  - Under the lock, the receipt sets `parent.vault` and makes `{note: basename, via: offered, hash: <stored_hash>}` the primary link. The send/apply change check still compares the note's current hash with the hash that was *sent*.
   - When `for` is present, the primary becomes the resolved target's basename (H3).
   - The write is frontmatter-only: no re-embed and no identity re-stamp.
   - A receipt without `vault_id`/`basename` comes from a pre-change parent. The command stops exchange with an error saying the parent is too old (H7).
@@ -254,11 +280,23 @@ The served set becomes `query`, `show`, `activate` and `learn`:
 A served learn is handled as follows:
 
 - **Placement.** The server ignores `target`/`position` and places the note at top level (G8).
-- **Pending in place (H3).** When a pending note already carries the same `offer.origin`, the server rewrites that pending note's content in place (it stays pending, keeps its basename, and updates `offer.key`) and returns its receipt. There is never a second pending offer from the same origin note. If the `offer.key` also matches, nothing is written.
-- **Target resolution.** Otherwise `offer.for` is resolved against live basenames, then against live notes' `aliases`, then against pending notes. A pending target is updated in place, as above. A target that doesn't resolve is dropped, and the offer becomes a new note.
-- **Receipt.** `{status: "offer received", luhmann, basename, pending: true, vault_id, for}`. `for` is the resolved live target's basename, when there is one.
+- **Loop refusal (r3-7).** `offer.path` lists every vault ID the offer has already passed through. The child sends `[own id]`, and propagation (D12) appends the propagating vault's ID. A server whose own ID is already in `offer.path` answers 409 and writes nothing. This covers misconfigured cycles of three or more vaults. A 409 is a 4xx, so the child marks the entry rejected.
+- **Origin matching (H3, r3-3, r3-7).** All of the following happens in **one locked section**: the lookup, the rewrite, the re-embed, and building the receipt. The server checks these cases in order:
+  1. **A pending note with the same `offer.origin`.**
+     - If its `offer.key` also matches, write nothing and return its receipt.
+     - Otherwise rewrite that pending note in place: its content, `offer.key` and `offer.path`. It stays pending and keeps its basename.
+     - **Re-embed it** when its exchange hash changed.
+     - Return its receipt.
+  2. **A live note with the same `offer.origin`** (an offer already accepted, since `offer` survives acceptance).
+     - If the `offer.key` matches, write nothing and return that live note's receipt. This is a retry after acceptance, and it must not create a second pending offer.
+     - Otherwise write a new pending note with `offer.for` pointing at that live note.
+  3. **Otherwise, resolve `offer.for`** against live basenames, then live notes' `aliases`, then pending notes.
+     - If it resolves to a **pending note of a different origin**, the server does **not** overwrite it. It writes a new pending note whose `offer.for` names that pending note (no cross-origin overwrite).
+     - If it resolves to a live note, the server writes a new pending note whose `offer.for` names it.
+     - If it doesn't resolve, `offer.for` is dropped and the offer becomes a new pending note.
+- **Receipt.** `{status: "offer received", luhmann, basename, pending: true, vault_id, stored_hash, for}`. `stored_hash` is the exchange hash of what the server stored. `for` is the resolved **live** target's basename, when there is one.
 - **Pending detection (G1).** Any note type with `pending: true` is pending. The real vault was checked read-only on 2026-09-27 and holds zero pending notes.
-- **Wire safety.** `LearnArgs` carries `Parent`, `Aliases`, `Xid`, `SkillHash`, `SkillKey` and `SkillSource` as `json:"-"`. The only new remote-settable fields are `offer.{origin,key,for}`, and they land only on pending notes, which curation reviews.
+- **Wire safety.** `LearnArgs` carries `Parent`, `Aliases`, `Xid`, `SkillHash`, `SkillKey` and `SkillSource` as `json:"-"`. The only new remote-settable fields are `offer.{origin,key,for,path}`, and they land only on pending notes, which curation reviews.
 
 `GET /show?note=<basename>&raw=1` (H7) returns a JSON envelope, `{vault_id, basename, content, exchange_hash}`. `content` is the file's bytes verbatim, and `basename` is the current name after alias resolution. A missing note returns 404. A parent that predates this change returns rendered text, and the child detects this (not JSON, or no `vault_id`) and fails with "parent too old".
 
@@ -292,7 +330,7 @@ A served learn is handled as follows:
 
 **Other activate behavior.**
 - Each ref that could not be activated is reported on stderr. The command exits non-zero if any ref failed (the #746 addendum).
-- **Declines (H5).** A bare `amend --discard` of a pulled note (one with a `via: pulled` primary link) adds `{basename, hash}` to `declined.json`. A declined note is not pulled again unless its hash changes. A changed parent note is new information (Joe's decision 6).
+- **Declines (H5).** A bare `amend --discard` of a pulled note (one with a `via: pulled` primary link) adds `{basename, hash}` to `declined.json`. The decline check matches the envelope's basename **or any alias in the fetched content**, so a parent-side rename doesn't bring a declined note back (r3-8). A declined note is not pulled again unless its hash changes. A changed parent note is new information (Joe's decision 6).
 - **Loop rule.** A pulled note is never offered back up:
   - it is pending;
   - `--clear-pending` is bookkeeping;
@@ -341,6 +379,7 @@ A served learn is handled as follows:
   - Otherwise it becomes E's primary.
 
   E is not re-embedded, and nothing is queued.
+- **Judged-version check (r3-2).** An in-place update (D7) can land between curation's judgment and its bookkeeping, which would silently accept or discard content nobody judged. So `--clear-pending`, `--discard --into` and a bare `--discard` on a note carrying `offer.origin` **require** `--expect-hash <exchange hash>`, and fail without changing anything when the note's current hash differs. The curator then re-judges. `engram show` prints a note's current exchange hash as a header line (`# exchange_hash: xh1:…`), and the curate skill passes that value.
 - **Bookkeeping amends no longer re-stamp identity (M6, G11).** `--activate`, `--clear-pending`, `--discard --into` and a link-only receipt write preserve `repo`/`user`/`vault`. So an accepted served offer (absent) keeps the child's declared identity.
   - For a covered or near fold, the offer's author is not carried onto E. E keeps its own author, because it is E's content. This loss is documented and accepted, and the offer's basename survives in `E.aliases`.
   - Content amends still re-stamp, as `vault-note-identity` requires. The requirement "Amend re-stamps identity fields on every write" is MODIFIED to say this.
@@ -349,6 +388,7 @@ A served learn is handled as follows:
   - **curate:**
     - offers now also arrive by pull-down (`via: pulled`);
     - judge an offer with `offer.for` against that note first;
+    - read the offer's `# exchange_hash` from `engram show` and pass it as `--expect-hash` on every bookkeeping step, re-judging if the check fails;
     - covered and near end with `--discard --into <existing>`;
     - discarding a pulled note outright records a decline;
     - curation stays host-local.
@@ -370,11 +410,22 @@ A served learn is handled as follows:
   - dedupe (never both copies);
   - pull-down idempotency;
   - link survival at every rewrite site.
-- **Skill TDD (H6).** Each RED and GREEN arm is a fresh headless `claude -p` process, not a subagent (user feedback: subagents inherit session context). Each arm runs with:
-  - `HOME`, `XDG_DATA_HOME` and `ENGRAM_VAULT_PATH` pointed at per-arm scratch directories;
-  - the skill under test (old for RED, new for GREEN) installed only at `$HOME/.claude/skills/<name>/SKILL.md`;
-  - the branch's built binary first on `PATH`;
-  - auth passed through the environment (`CLAUDE_CODE_OAUTH_TOKEN`/`ANTHROPIC_API_KEY`), never through the real `~/.claude`.
+- **Skill TDD (H6, r3-1).** Each RED and GREEN arm is a fresh headless `claude -p` process, not a subagent (user feedback: subagents inherit session context).
+  - **Environment.** Each arm is launched with `env -i` and an explicit allowlist, so none of this session's variables reach it: `CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_CHILD_SESSION`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_MESSAGING_SOCKET`/`_TOKEN`, `CLAUDE_CODE_BRIDGE_SESSION_ID`, `CLAUDE_PID` and the rest. `ENGRAM_PARENT`, `ENGRAM_SERVER` and `ENGRAM_VAULT_NAME` are therefore unset. A scenario that needs a parent sets `ENGRAM_PARENT` explicitly in the allowlist.
+  - **Working directory.** The arm runs from a non-repo `$ARM/work`, so no project `CLAUDE.md` or rules load.
+  - **Auth.** The access token is read from the macOS keychain item `Claude Code-credentials` (JSON field `claudeAiOauth.accessToken`). It is passed only as `CLAUDE_CODE_OAUTH_TOKEN`, and is never printed or written to a file.
+  - **Permissions.** Permission mode is `--permission-mode bypassPermissions`, which is safe because everything the arm can touch is scratch.
+  - **Verified invocation** (2026-09-27, claude 2.1.282, run from `$ARM/work`). A trivial prompt returned `PONG`. A second probe returned the marker from a skill installed only under `$ARM/home/.claude/skills/marker-probe/`, and answered NO to "does your context mention 'AI-Used' or 'engram query'", which shows that neither the real `~/.claude/CLAUDE.md` nor the project `CLAUDE.md` loaded. The command:
+
+    ```
+    TOK=$(security find-generic-password -s "Claude Code-credentials" -w | python3 -c 'import json,sys; print(json.load(sys.stdin)["claudeAiOauth"]["accessToken"])')
+    cd "$ARM/work" && env -i HOME="$ARM/home" USER="$USER" PATH="$ARM/bin:/usr/bin:/bin" TERM=dumb \
+      XDG_DATA_HOME="$ARM/xdg" ENGRAM_VAULT_PATH="$ARM/vault" CLAUDE_CODE_OAUTH_TOKEN="$TOK" \
+      /Users/joe/.local/bin/claude -p "<prompt>" --permission-mode bypassPermissions
+    ```
+
+    `$ARM/bin/engram` is the branch build. The keychain token is short-lived, so it is re-read per arm batch.
+  - **Skill placement.** The skill under test (old for RED, new for GREEN) is installed only at `$ARM/home/.claude/skills/<name>/SKILL.md`.
 
   Each arm is gated by a delivery check before scoring: a marker from the treatment text must appear in the transcript (vault note on verifying treatment delivery). Deploying with `engram update` happens only after merge and `go install`.
 - **Real-binary verification.** `engram serve` on `127.0.0.1` over a scratch parent vault, a scratch child, and a recording TCP proxy in front of serve (serve does not log requests), so request counts are observable. See tasks group 11. `update`'s drain is covered only by unit tests: `update` runs `go install` and re-execs, so it gets no real-binary run in scratch. That is stated in the LEDGER row.
@@ -384,6 +435,7 @@ A served learn is handled as follows:
 - **M14: accepted offers propagate (decided: yes).** When curation accepts a served offer (`--clear-pending` on a note carrying `offer.origin`), that counts as a local learn at that level. It is enqueued as a learn-offer to that vault's own parent.
   - Near folds on that vault are content amends and go up anyway (D5).
   - **No loop:** an accepted note is never offered to the vault it came from. If the offer's origin vault ID (the part of `offer.origin` before `:`) equals the configured parent's vault ID, nothing is enqueued. In the single-parent tree this can happen only through a misconfiguration, but the check is unconditional.
+  - **Longer cycles:** the onward offer carries the accepted note's `offer.path` with this vault's ID appended. Any server already on that path refuses it (D7), which covers misconfigured cycles of three or more.
   - Pulled notes (`via: pulled`) are never propagated, because their accept is bookkeeping (D8).
   - *Rejected:* stopping at the first level. It is inconsistent with near folds propagating, and it defeats the personal → team → org tree.
 - **B1: the bounce-once is intended (decided: yes).** A pulled note P that local curation judges *near* is folded into local note L through a content amend. L is then offered up once: as an amend-offer targeting L's primary link, or as a learn-offer when L has none. Parent curation then judges P's content plus the local addition.
@@ -405,7 +457,7 @@ A served learn is handled as follows:
 
 1. Upgrade the parent host first: vault ID, receipt, envelope, dedupe keys, in-place pending, route removals.
 2. Upgrade the children. Any host with `ENGRAM_SERVER` set gets the hard error and switches to `ENGRAM_PARENT`. The first command creates the local vault.
-3. On a git-backed vault, commit the new `.engram-vault-id` once, deliberately (Joe's real vault: one vault commit, `vault: add vault id`).
+3. On a git-backed vault, commit the new `.engram-vault-id` once, deliberately. **When this happens on Joe's real vault:** the ID file is created only when `engram serve` next starts on it after the upgrade (the host's served vault), or at its first parent contact if that host ever sets `ENGRAM_PARENT`. The commit (`vault: add vault id`) is made right after that first creation. `engram update` keeps flagging the untracked file until it is committed. If neither event ever happens on that vault, no file is created and the step is skipped.
 4. Rollback: revert. Older binaries' typed rewriters drop `xid`/`parent`/`aliases`/`offer`, which is harmless. The `.engram/` directory is ignored.
 
 ## Open Questions

@@ -1,7 +1,12 @@
 ## ADDED Requirements
 
 ### Requirement: The exchange hash SHALL cover every offered content field
-The exchange hash of a note SHALL be a hash over its `type`, `situation`, `subject`, `predicate`, `object`, `behavior`, `impact`, `action`, `done_when`, `red_flags`, `triggers`, and body text, in a canonical serialization. It SHALL NOT depend on any other frontmatter field: identity, `pending`, `tags`, `sources`, `supersedes`, `xid`, `parent`, `aliases`, `offer`, or skill fields. Exchange SHALL use the exchange hash, not the sidecar content hash, for every one of these:
+The exchange hash of a note SHALL be a hash over its `type`, `situation`, `subject`, `predicate`, `object`, `behavior`, `impact`, `action`, `done_when`, `red_flags`, `triggers`, and body text, in a canonical serialization. It SHALL NOT depend on any other frontmatter field: identity, `pending`, `tags`, `sources`, `supersedes`, `xid`, `parent`, `aliases`, `offer`, or skill fields. Every YAML key of the fact, feedback, and runbook frontmatter structs SHALL be classified, in one explicit table, as offered (hashed) or not offered. A test SHALL fail when a key is unclassified. Hashes SHALL carry a version prefix. A comparison in which either side has a different or missing version SHALL be *unknown*, not *changed*:
+- loop suppression SHALL fire only on *equal*;
+- the pull-down skip, decline matching, rejected-entry re-arm, and the send/apply change check SHALL treat *unknown* as *not changed*;
+- dedupe SHALL require *equal*.
+
+Exchange SHALL use the exchange hash, not the sidecar content hash, for every one of these:
 - link hashes;
 - loop suppression;
 - idempotency keys;
@@ -14,9 +19,17 @@ The exchange hash of a note SHALL be a hash over its `type`, `situation`, `subje
 - **WHEN** only a feedback note's `impact`, or only a runbook note's `done_when`, `red_flags`, or `triggers`, is changed
 - **THEN** the note's exchange hash changes
 
+#### Scenario: Every frontmatter key is classified
+- **WHEN** a YAML key is added to the fact, feedback, or runbook frontmatter struct without being classified as offered or not offered
+- **THEN** the classification test fails
+
 #### Scenario: Non-content fields do not move the hash
 - **WHEN** only a note's `repo`, `user`, `pending`, `tags`, or `parent` link changes
 - **THEN** its exchange hash is unchanged
+
+#### Scenario: A hash version change is unknown, not changed
+- **WHEN** a link records a hash with an older version prefix, and the parent note is activated again
+- **THEN** the pull-down treats it as not changed and writes nothing, and a later exchange of that link records the current-version hash
 
 ### Requirement: Local writes SHALL be offered to the parent
 When `ENGRAM_PARENT` is set (and the self-parent guard of capability `vault-local-first` does not apply), the writes listed below SHALL first complete locally, exactly as they do without a parent, and SHALL then be queued as offers:
@@ -59,7 +72,7 @@ Offers SHALL carry notes only, never transcript chunks.
 
 #### Scenario: Accepting a served offer propagates upward
 - **WHEN** a vault that serves children and has its own `ENGRAM_PARENT` clears the pending marker on a served offer whose origin is a child vault
-- **THEN** a learn-offer for that note is queued to its own parent
+- **THEN** a learn-offer for that note is queued to its own parent, carrying the accepted note's `offer.path` with this vault's ID appended
 
 #### Scenario: An accepted offer never returns to its origin vault
 - **WHEN** the accepted note's `offer.origin` names the configured parent's vault ID
@@ -86,7 +99,7 @@ Offers SHALL carry notes only, never transcript chunks.
 - **THEN** learn, amend, and resituate behave exactly as before this capability, and no exchange state is written
 
 ### Requirement: Offer payloads SHALL be translated for the parent vault
-An offer SHALL be built from the note's current content at send time. It SHALL NOT carry `target`, `position`, or `chunkSources`. Each `supersedes` entry naming a local note SHALL be rewritten to that note's primary-link parent basename, and SHALL be omitted when there is none. The offer SHALL declare the note's own `user`/`repo` frontmatter values, falling back to the sending process's detection only when they are empty. It SHALL carry `offer.origin` (the local vault ID and the note's `xid`), `offer.key`, and `offer.for` for amend-offers.
+An offer SHALL be built from the note's current content at send time. It SHALL NOT carry `target`, `position`, or `chunkSources`. Each `supersedes` entry naming a local note SHALL be rewritten to that note's primary-link parent basename, and SHALL be omitted when there is none. The offer SHALL declare the note's own `user`/`repo` frontmatter values, falling back to the sending process's detection only when they are empty. It SHALL carry `offer.origin` (the local vault ID and the note's `xid`), `offer.key`, `offer.path` (the vault IDs the offer has passed through: the local ID for a direct offer, and the accepted note's `offer.path` plus the local ID for a propagated one), and `offer.for` for amend-offers.
 
 #### Scenario: Placement is not sent
 - **WHEN** a note learned with `--target 12 --position child` is offered
@@ -159,11 +172,11 @@ After a transport failure or timeout against the parent, the vault's parent cach
 - **THEN** the parent returns the receipt of the pending note it already has, and the parent vault holds one pending note for that offer
 
 ### Requirement: A receipt SHALL record the parent counterpart on the local note
-When the parent returns an offer receipt, the local note SHALL record the parent's vault ID. It SHALL set its primary link to `{note: <resolved target basename when the receipt names one, else the receipt's basename>, via: offered, hash: <offered exchange hash>}`. Recording the link SHALL be a frontmatter-only rewrite under the vault lock. It SHALL NOT re-embed the note, and SHALL NOT re-stamp `repo`/`user`/`vault`. A receipt that lacks a vault ID or a basename SHALL stop exchange with an error saying the parent is too old, and SHALL leave the entry queued.
+When the parent returns an offer receipt, the local note SHALL record the parent's vault ID. It SHALL set its primary link to `{note: <resolved target basename when the receipt names one, else the receipt's basename>, via: offered, hash: <the receipt's stored_hash>}`. The link records the hash the parent stored, not the hash the child computed. Recording the link SHALL be a frontmatter-only rewrite under the vault lock. It SHALL NOT re-embed the note, and SHALL NOT re-stamp `repo`/`user`/`vault`. A receipt that lacks a vault ID or a basename SHALL stop exchange with an error saying the parent is too old, and SHALL leave the entry queued.
 
 #### Scenario: Receipt links the note
 - **WHEN** the parent answers a learn-offer for local note L with basename `1100.2026-09-27.x`
-- **THEN** L's primary link is `{note: 1100.2026-09-27.x, via: offered, hash: <offered hash>}` under the parent's vault ID, and L's sidecar vector is unchanged
+- **THEN** L's primary link is `{note: 1100.2026-09-27.x, via: offered, hash: <stored_hash>}` under the parent's vault ID, and L's sidecar vector is unchanged
 
 #### Scenario: Re-link to the resolved target
 - **WHEN** an amend-offer's receipt names a resolved target E different from L's current primary

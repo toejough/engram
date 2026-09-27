@@ -7,6 +7,7 @@ A served `learn` response SHALL be a JSON object carrying:
 - `basename`: the pending note's basename, without `.md`;
 - `pending`: `true`;
 - `vault_id`: the served vault's ID (capability `vault-local-first`);
+- `stored_hash`: the exchange hash of the note as stored;
 - `for`: the resolved live target's basename, present only when the offer resolved to a live note.
 
 It SHALL NOT report any curation outcome (capability `vault-offer-curation`).
@@ -15,24 +16,39 @@ It SHALL NOT report any curation outcome (capability `vault-offer-curation`).
 - **WHEN** a served `learn` request creates pending note `1100.2026-09-27.x.md` on the vault with ID `9a1e`
 - **THEN** the response carries `status: offer received`, `luhmann: 1100`, `basename: 1100.2026-09-27.x`, `pending: true`, and `vault_id: 9a1e`
 
-### Requirement: Served learn SHALL update a pending offer from the same origin in place
-A served `learn` request MAY carry `offer.origin`, `offer.key`, and `offer.for`. The server SHALL handle them in this order:
-1. When a pending note already carries the same `offer.origin`, the server SHALL rewrite that pending note's content and `offer.key` in place (it stays pending and keeps its basename), and SHALL return its receipt. When its `offer.key` already matches, the server SHALL write nothing and SHALL return the receipt.
-2. Otherwise, `offer.for` SHALL be resolved against live notes' basenames, then against live notes' `aliases`, then against pending notes. A resolved pending note SHALL be updated in place, as in step 1. A resolved live note E SHALL leave E unchanged and live, SHALL record `offer.for: E` on a new pending note, and SHALL report `for: E` in the receipt.
-3. A target that does not resolve SHALL be dropped, and the offer SHALL be written as a new pending note.
+### Requirement: Served learn SHALL update a pending offer in place only for the same origin
+A served `learn` request MAY carry `offer.origin`, `offer.key`, `offer.for`, and `offer.path`. The server SHALL refuse the request with a 409 and SHALL write nothing when its own vault ID is already in `offer.path`. Otherwise it SHALL do all of the following in one locked section: the lookup, any rewrite, any re-embed, and building the receipt. It SHALL check these cases in order:
+1. **A pending note carries the same `offer.origin`.** When its `offer.key` also matches, the server SHALL write nothing and SHALL return its receipt. Otherwise it SHALL rewrite that pending note's content, `offer.key`, and `offer.path` in place (the note stays pending and keeps its basename), SHALL re-embed it when its exchange hash changed, and SHALL return its receipt.
+2. **A live note carries the same `offer.origin`** (an accepted offer). When the `offer.key` matches, the server SHALL write nothing and SHALL return that live note's receipt. Otherwise it SHALL write a new pending note whose `offer.for` names that live note.
+3. **Otherwise**, `offer.for` SHALL be resolved against live notes' basenames, then their `aliases`, then pending notes.
+   - A resolved **pending note of a different origin** SHALL NOT be modified. The server SHALL write a new pending note whose `offer.for` names it.
+   - A resolved live note E SHALL be left unchanged and live. The server SHALL write a new pending note with `offer.for: E`, and SHALL report `for: E` in the receipt.
+   - A target that does not resolve SHALL be dropped, and the offer SHALL be written as a new pending note.
 
-The server SHALL place every new pending note at top level, ignoring any caller-supplied `target` or `position`.
+The server SHALL place every new pending note at top level, ignoring any caller-supplied `target` or `position`. The receipt SHALL carry `stored_hash`, the exchange hash of the note as stored.
 
 #### Scenario: An amend before curation updates the pending offer
 - **WHEN** a child offers note L (creating pending N1), amends L, and the amend-offer arrives before the host has curated N1
-- **THEN** N1 now carries the amended content, and no second pending note exists
+- **THEN** N1 now carries the amended content and a re-embedded sidecar, and no second pending note exists
 
 #### Scenario: A duplicate key writes nothing
 - **WHEN** a second served `learn` arrives with the same `offer.origin` and `offer.key` as an existing pending note
 - **THEN** the response is that note's receipt, and no vault file changes
 
+#### Scenario: A retry after acceptance writes nothing
+- **WHEN** an offer was accepted (its note is live and still carries `offer.origin`), and the same offer is retried with the same key
+- **THEN** the response is the live note's receipt, and no pending note is created
+
+#### Scenario: No cross-origin overwrite
+- **WHEN** an offer from origin B names, in `offer.for`, a pending note that came from origin A
+- **THEN** A's pending note is unchanged, and a new pending note with `offer.for` naming A's note is written
+
+#### Scenario: A cycle is refused
+- **WHEN** a served `learn` arrives whose `offer.path` already contains the server's own vault ID
+- **THEN** the response is a 409, and nothing is written
+
 #### Scenario: An amend-offer names a live target
-- **WHEN** a served `learn` arrives with `offer.for` naming live note E, and no pending note shares its origin
+- **WHEN** a served `learn` arrives with `offer.for` naming live note E, and no note shares its origin
 - **THEN** a new pending note carries `offer.for: E`, E itself is unchanged and still live, and the receipt carries `for: E`
 
 #### Scenario: A renamed target resolves through aliases
@@ -48,7 +64,7 @@ The server SHALL place every new pending note at top level, ignoring any caller-
 - **THEN** the pending note receives a new top-level Luhmann ID
 
 ### Requirement: Served learn SHALL NOT let callers set link, identity, or registration fields
-The request decoding SHALL NOT populate a note's `parent`, `aliases`, `xid`, `skill_hash`, `skill_key`, or `skill_source`, whatever the key spelling in the request body. The only caller-settable exchange fields SHALL be `offer.origin`, `offer.key`, and `offer.for`, and they SHALL land only on pending notes.
+The request decoding SHALL NOT populate a note's `parent`, `aliases`, `xid`, `skill_hash`, `skill_key`, or `skill_source`, whatever the key spelling in the request body. The only caller-settable exchange fields SHALL be `offer.origin`, `offer.key`, `offer.for`, and `offer.path`, and they SHALL land only on pending notes.
 
 #### Scenario: Remote-set origin fields are ignored
 - **WHEN** a served `learn` request body includes `parent`, `aliases`, `xid`, `skillHash`, or `SkillKey` keys (camelCase or PascalCase)

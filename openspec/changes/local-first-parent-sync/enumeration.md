@@ -110,7 +110,11 @@ The `CLAUDE.md` and `agent-instructions/` search returned **no** `ENGRAM_SERVER`
 | 49 | internal/cli/primitives.go:104-109 | `Primitives.HTTP` doc naming "ENGRAM_SERVER-mode" | rewrite | "parent-sync requests". |
 | 50 | internal/cli/show.go:19-23 | `Parent` doc "inert when ENGRAM_SERVER is also set" | rewrite | Drop the clause. |
 | 51 | cmd/engram/serve.go:1-2, 29-36 | "ENGRAM_SERVER client mode"; 30s client | code | Say "ENGRAM_PARENT parent-sync client". Add a dialer connect timeout ≤ 3s (M9) as a thin-api primitive. |
-| 52 | new: `internal/cli/exchangehash.go`, `outbox.go`, `exchangestate.go`, `pulldown.go` | none | code | D3, D6, D2, D8. DI only (ADR-0013, `targ check-thin-api`). |
+| 52 | new: `internal/cli/exchangehash.go`, `outbox.go`, `exchangestate.go`, `pulldown.go` | none | code | D3 (including the key classification table), D6, D2, D8. DI only (ADR-0013, `targ check-thin-api`). |
+| 52a | internal/cli/primitives.go + cmd/engram/main.go group functions | no random source | code | Add a `RandRead` primitive (`crypto/rand`) for vault IDs, `xid` and nothing else. Thin-api shape (r3-4). |
+| 52b | internal/cli/targets.go (new `vault-id` target) | none | code | `engram vault-id [--regenerate \| --claim]` (D2, r3-4). The ID file is created via `WriteFileExcl` (deps.go:98), then re-read. |
+| 52c | internal/cli/show.go | no exchange hash output | code | Print a `# exchange_hash: xh1:…` header line (D10, r3-2). |
+| 52d | internal/cli/amend.go (flags) | no `--expect-hash` | code | `--expect-hash`, required for bookkeeping on notes carrying `offer.origin` (D10, r3-2). |
 
 ## B. Go tests
 
@@ -140,7 +144,7 @@ The `CLAUDE.md` and `agent-instructions/` search returned **no** `ENGRAM_SERVER`
 
 | # | Location | Current | Disposition | Replacement / reason |
 | --- | --- | --- | --- | --- |
-| 72 | whole repo | 20 files with `ENGRAM_SERVER` | code | Run task 12.4 **after** archive: `grep -rln ENGRAM_SERVER --exclude-dir=.git .`. The only files allowed to hit are: `internal/cli/serve_client.go` (guard constant); the guard test file; `openspec/specs/vault-local-first/spec.md`; `openspec/changes/archive/**`; `docs/architecture/adr.md` (ADR-0029); `README.md` (the migration sentence only, row 88); `docs/GLOSSARY.md` (the `ENGRAM_SERVER` removed-mode entry, row 92); `.review/events.jsonl`; `dev/eval/audit/results/transcript-events.jsonl`. Any other hit fails the task. |
+| 72 | whole repo | 20 files with `ENGRAM_SERVER` | code | Run task 12.4 **after** archive: `grep -rln ENGRAM_SERVER --exclude-dir=.git .`. The only files allowed to hit are: `internal/cli/serve_client.go` (guard constant); the guard test file; `openspec/specs/vault-local-first/spec.md`; `openspec/changes/archive/**`; `openspec/specs/vault-serve-api/spec.md` and `openspec/specs/recall-payload-cuts/spec.md` (their synced text names the removed mode); `docs/architecture/adr.md` (ADR-0029); `README.md` (the migration sentence only, row 88); `docs/GLOSSARY.md` (the `ENGRAM_SERVER` removed-mode entry, row 92); `agent-instructions/skills/learn/SKILL.md` (the "never set `ENGRAM_SERVER`" line, row 103); `dev/eval/LEDGER.md` (the new row, row 102); `.review/events.jsonl`; `dev/eval/audit/results/transcript-events.jsonl`. Any other hit fails the task. |
 
 ## D. Specs (`openspec/specs/`)
 
@@ -190,7 +194,7 @@ The `CLAUDE.md` and `agent-instructions/` search returned **no** `ENGRAM_SERVER`
 | 104 | agent-instructions/skills/curate/SKILL.md:3-8 (description) | "…or engram serve has just accepted a served write…" | rewrite | "…or a child's offer or a pulled-down parent note is pending…". |
 | 105 | agent-instructions/skills/curate/SKILL.md:13 | "A served `engram learn`/`engram amend` write lands as a **pending offer**" | rewrite | "An offer (a served `engram learn` from a child, or a parent note pulled down by `engram activate`) lands as a **pending offer**". |
 | 106 | agent-instructions/skills/curate/SKILL.md:19-21 | "`engram serve`'s only job on a write is authenticate, stamp identity, persist the pending marker, respond…" | rewrite | "`engram serve`'s only job on an offer is stamp the declared identity, persist the pending marker (or update the same origin's pending offer in place), respond; a pull-down's only job is fetch and persist the pending copy…". Keep host-local and off the request path. |
-| 107 | agent-instructions/skills/curate/SKILL.md:63-64 (covered/near) | ends with `engram amend --discard` | rewrite | End with `--discard --into <existing>`. Judge `offer.for` first. Discarding a pulled note outright records a decline. Accepting a served offer on a vault that has a parent sends it onward automatically. |
+| 107 | agent-instructions/skills/curate/SKILL.md:63-64 (covered/near) | ends with `engram amend --discard` | rewrite | Read the offer's `# exchange_hash` from `engram show` when judging, and pass it as `--expect-hash` on every bookkeeping step. If the check fails, re-judge. End with `--discard --into <existing>`. Judge `offer.for` first. Discarding a pulled note outright records a decline. Accepting a served offer on a vault that has a parent sends it onward automatically. |
 | 108 | agent-instructions/skills/curate/SKILL.md:97, 102 (red flags) | "covered/near both end in `--discard`"; served-request flag | rewrite | "…end in `--discard --into <existing>`". Keep the host-local flag. |
 | 109 | agent-instructions/skills/recall/SKILL.md:207-220 (Step 2.7) | activate used notes; local paths | rewrite | Activate the `from_parent` notes you used the same way: this pulls them down as local pending copies. The next payload's `pending_offers` reflects only local offers, so curate them after the user's request. Glance does this too (row 86). |
 | 110 | agent-instructions/skills/recall/SKILL.md:330-339 (red flags) | — | append | "You ran `engram amend` on a `from_parent` item → it does not resolve locally; activate it (pull-down) and let curation fold it". |

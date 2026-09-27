@@ -21,8 +21,17 @@
   - Read-only use of an existing vault with no parent writes nothing.
   - `serve` stamps a missing vault ID, and later starts reuse it.
   - `update` warns when a git-backed vault's ID file is untracked.
-  - Self-parent guard: when the parent reports the local ID, there is no merge, offer or pull-down, and one warning is printed.
-- [ ] 2.2 GREEN: shared `ensureVault` in dispatch, plus an `exchangestate` adapter (vault ID and `.engram/`) behind DI. (E30, E46, E47, E52)
+  - Self-parent guard: when the parent reports the local ID, there is no merge, offer or pull-down, and one warning names `engram vault-id --regenerate`.
+  - The ID file is created exclusively with `WriteFileExcl`, then re-read: two racing creators both end up with the winner's ID.
+  - The ID comes from the injected `RandRead` (a fake gives a deterministic ID).
+  - Location check (`.engram/home.json` holding ID, host and path):
+    - a missing record (clone) or a mismatch (copy or move) means no exchange, `serve` refuses to start, and one warning names `--regenerate` and `--claim`;
+    - `engram vault-id --regenerate` mints a new ID and changes no note file;
+    - `--claim` rewrites only the record;
+    - with no flag, the command prints the ID and the check result.
+
+  (review r3-4)
+- [ ] 2.2 GREEN: shared `ensureVault` in dispatch, plus an `exchangestate` adapter (vault ID, `.engram/`, `home.json`) behind DI. Add the `RandRead` primitive and the `vault-id` target. (E30, E46, E47, E52, E52a, E52b)
 
 ## 3. Exchange hash, `xid`, links, aliases (design D3, D4)
 
@@ -30,7 +39,12 @@
   - changing any one offered field (per type) changes the hash;
   - changing any one non-offered field (`repo`, `user`, `vault`, `pending`, `tags`, `sources`, `supersedes`, `xid`, `parent`, `aliases`, `offer`, `skill_*`) does not.
 
-  Also a golden test that the server and the child compute the same value for the same file. (E52)
+  Also:
+  - a golden test that the server and the child compute the same value for the same file;
+  - a **reflection test** over the fact, feedback and runbook struct `yaml` tags, which fails when any key is missing from the offered / not-offered table;
+  - a three-way comparison (equal / changed / unknown), where a different or missing version prefix gives *unknown*, and a per-consumer test of what *unknown* does (D3).
+
+  (E52; r3-5)
 - [ ] 3.2 RED: exchange-field survival tests next to `skillfields_survival_test.go`. For every rewrite site listed in `vault-note-identity`, with a note carrying `xid`, `parent` (vault, links incl. `covered`, author), `aliases` and `offer`, all four survive byte-equal. The sites are:
   - amend (content, `--supersedes`, `--activate`, `--clear-pending`);
   - resituate;
@@ -42,7 +56,11 @@
   - register-skills refresh and adopt.
 
   Include a rapid property over random notes. (E69)
-- [ ] 3.3 GREEN: add `xid`, `parent{vault, links[{note,via,hash}], author{repo,user,vault}}`, `aliases` and `offer{origin,key,for}` to the fact, feedback and runbook frontmatter structs, and hand-copy them wherever a site re-renders. (E34, E42, E44)
+- [ ] 3.3 GREEN: add `xid`, `parent{vault, links[{note,via,hash}], author{repo,user,vault}}`, `aliases` and `offer{origin,key,for,path}` to the fact, feedback and runbook frontmatter structs, every one `omitempty`, and hand-copy them wherever a site re-renders.
+  - A test shows that a note with none of them serializes byte-identically to today.
+  - No backfill: `update` stamps no `xid`.
+
+  (E34, E42, E44; r3-8)
 - [ ] 3.4 RED→GREEN: `resituate` preserves every untouched field (`pending`, `sources`, `tags`, `supersedes`, `vocab_version`, `issue`, `project`, and the exchange fields), changing only `situation` and the body opener. Replace the field-list hand-copy with a round-trip. (E41, E70; review M7)
 - [ ] 3.5 RED→GREEN: a rename appends the old basename to `aliases` in the same write (`RenameAndRewriteReferences`, and the adopt rename). A rename keeps `xid`. (E43, E44; review H2)
 - [ ] 3.6 RED→GREEN: bookkeeping amends (`--activate` alone, `--clear-pending`, `--discard --into` on the target, link-only receipt writes) do not re-stamp `repo`/`user`/`vault`. Content, `--supersedes` and `--chunk-source` amends still do. Update the existing expectations. (E37, E71; review M6)
@@ -52,14 +70,17 @@
 
 - [ ] 4.1 RED→GREEN: every note type with `pending: true` is pending. Invert `offer_test.go:136-147`. Before the change, re-confirm read-only that the real vault holds zero `pending: true` notes. (E31, E67)
 - [ ] 4.2 RED→GREEN: `ServeRoutes` is exactly query, show, activate and learn. `/amend`, `/query-chunks` and `/show-chunk` have no route. Delete the handlers and their tests. (E23–E25, E64, E65)
-- [ ] 4.3 RED→GREEN: served learn:
+- [ ] 4.3 RED→GREEN: served learn, with the lookup, rewrite, re-embed and receipt all in **one locked section** (a test asserts the lock spans them):
+  - `offer.path` containing the server's own ID → 409, no write;
   - top-level placement;
-  - a new pending note gets a server `xid` and records `offer.{origin,key,for}`;
-  - same `offer.origin` pending → update in place (the H3 scenario: an amend before curation leaves exactly one pending note);
-  - same key → no write;
-  - `offer.for` resolves live → alias → pending;
+  - a new pending note gets a server `xid` and records `offer.{origin,key,for,path}`;
+  - a same-origin pending note is updated in place, and re-embedded when its hash changed (H3: an amend before curation leaves exactly one pending note); a same key → no write;
+  - a same-origin **live** note with the same key → no write and that note's receipt (a retry after acceptance); a different key → a new pending note with `offer.for` naming it;
+  - `offer.for` resolves live → alias → pending, and a pending target of a **different origin** is never overwritten (instead a new pending note gets `offer.for` naming it);
   - unresolved → dropped;
-  - receipt `{status, luhmann, basename, pending, vault_id, for?}`.
+  - receipt `{status, luhmann, basename, pending, vault_id, stored_hash, for?}`.
+
+  (r3-3, r3-5, r3-7)
 
   (E26, E27)
 - [ ] 4.4 RED→GREEN: `/show?raw=1` returns a JSON envelope `{vault_id, basename, content, exchange_hash}`; `content` is byte-exact; it resolves through `aliases`; a missing note is a 404. Non-raw output is unchanged. (E28; review H7)
@@ -98,7 +119,7 @@
 
   (E18, E20)
 - [ ] 5.6 RED→GREEN: applying a receipt:
-  - a frontmatter-only write of `parent.vault` plus the primary link (with no re-embed and no re-stamp);
+  - a frontmatter-only write of `parent.vault` plus the primary link, whose hash is the receipt's `stored_hash` (with no re-embed and no re-stamp);
   - the `for` re-link (H3);
   - a changed hash keeps the entry queued;
   - no `vault_id` → "parent too old", and the entry stays queued.
@@ -130,7 +151,7 @@
 - [ ] 6.2 RED: the skip rule, re-checked under the write lock:
   - an unchanged re-activation writes nothing and bumps the linked live note;
   - a `covered` link skips;
-  - a bare `--discard` of a pulled note records a decline, and an unchanged re-pull writes nothing;
+  - a bare `--discard` of a pulled note records a decline, and an unchanged re-pull writes nothing, including after a parent-side rename (the decline matches the fetched content's `aliases`);
   - a changed hash creates a new pending offer;
   - `--clear-pending` on a pulled note queues nothing;
   - a local content edit queues an amend-offer to its origin.
@@ -167,23 +188,29 @@
   - no re-embed, no re-stamp, no offer.
 
   A bare `--discard` is unchanged, except that it records a decline for a pulled note. `--into` without `--discard` is an error. (E38)
+- [ ] 8.2 RED→GREEN: judged-version check (r3-2). On a note carrying `offer.origin`, `--clear-pending`, `--discard --into` and a bare `--discard` require `--expect-hash`. They fail without changing anything when it is missing or differs from the current exchange hash. `engram show` prints `# exchange_hash: …`. (E52c, E52d)
 
 ## 9. Skill edits (design D10, D11): `superpowers:writing-skills` TDD in hermetic headless arms
 
-> Each RED and GREEN arm is a fresh `claude -p` process, never a subagent (subagents inherit session context). Each arm runs with:
-> - `HOME=$ARM/home`, `XDG_DATA_HOME=$ARM/xdg`, `ENGRAM_VAULT_PATH=$ARM/vault`;
-> - `PATH=$S/bin:$PATH`, where `$S/bin/engram` is built from this branch;
-> - the skill under test (old for RED, new for GREEN) installed only at `$ARM/home/.claude/skills/<name>/SKILL.md`;
-> - auth only through env (`CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY`);
-> - the vault state seeded by the scenario script;
-> - a `timeout`, with no `--max-turns`.
+> Each RED and GREEN arm is a fresh `claude -p` process, never a subagent (subagents inherit session context). Every arm is hermetic, per design D11 (r3-1):
+> - Launch with `env -i` and only this allowlist: `HOME=$ARM/home`, `USER`, `PATH=$ARM/bin:/usr/bin:/bin`, `TERM=dumb`, `XDG_DATA_HOME=$ARM/xdg`, `ENGRAM_VAULT_PATH=$ARM/vault`, `CLAUDE_CODE_OAUTH_TOKEN`, and `ENGRAM_PARENT` only when the scenario needs a parent.
+> - Nothing else is inherited: no `CLAUDECODE`, `CLAUDE_CODE_*` session, entrypoint or messaging variables, and no `ENGRAM_SERVER` or `ENGRAM_VAULT_NAME`.
+> - `$ARM/bin/engram` is this branch's build.
+> - The cwd is `$ARM/work`, which is not a repo, so no project `CLAUDE.md` or rules load.
+> - The token comes from the macOS keychain item `Claude Code-credentials` (`claudeAiOauth.accessToken`). It is passed only through the environment, never printed or stored, and re-read per batch.
+> - The permission flag is `--permission-mode bypassPermissions` (everything the arm can touch is scratch).
+> - Each arm has a `timeout` and no `--max-turns`.
+> - The skill under test (old for RED, new for GREEN) is installed only at `$ARM/home/.claude/skills/<name>/SKILL.md`.
+> - The vault state is seeded by the scenario script.
+>
+> The exact invocation recorded in design D11 was verified on 2026-09-27: `PONG`, the skill marker was loaded, and no user or project `CLAUDE.md` was present. Re-run that dry probe before the first arm of each batch.
 >
 > Before scoring, gate each arm on treatment delivery: a marker phrase unique to the arm's SKILL.md must appear in its transcript. Otherwise the arm is invalid, not a result. The real `~/.claude` and the real vault are never read or written. Deploying with `engram update` is task 12.3, after merge.
 
 - [ ] 9.1 curate. The scenario vault holds a pulled-down pending offer covered by a local note, a served amend-offer with `offer.for`, and a pulled note the agent should reject.
   - RED expectation: a bare `--discard` (the link is lost), `offer.for` ignored.
   - Edit per E104–E108.
-  - GREEN: `offer.for` is judged first, covered/near end with `--discard --into`, and the rejection uses a bare `--discard`.
+  - GREEN: `offer.for` is judged first, every bookkeeping step passes `--expect-hash` with the judged hash, covered/near end with `--discard --into`, and the rejection uses a bare `--discard`. Seed a mid-judgment in-place update, and check that the agent re-judges after the hash check fails.
 - [ ] 9.2 recall. The scenario is a scratch child plus a scratch parent `serve`, whose merged payload has a used `from_parent` note.
   - RED expectation: activation is skipped, or `engram amend` is tried on the parent note.
   - Edit per E109–E111.
@@ -204,7 +231,7 @@
 
 - [ ] 11.1 Set up the scratch environment:
   - `S=$(mktemp -d)`, then `go build -o $S/bin/engram ./cmd/engram`.
-  - Record the real vault's `git -C ~/.local/share/engram/vault rev-parse HEAD` and `status --porcelain` before and after group 11. Both must be unchanged.
+  - Before and after group 11, record `stat` (mtime and size) plus a `shasum` for only the paths this run could touch if isolation failed: `~/.local/share/engram/vault/.engram-vault-id`, `~/.local/share/engram/vault/.engram/`, and the newest 20 `*.md`/`*.vec.json` files by mtime in that vault. They must be unchanged. The vault's HEAD is **not** compared, because other sessions legitimately commit to it (r3-8).
   - Parent: `XDG_DATA_HOME=$S/p-xdg $S/bin/engram serve --addr 127.0.0.1:$PP --vault $S/p-vault`, with `ENGRAM_PARENT`/`ENGRAM_SERVER` unset in its env.
   - In front of it, a **recording TCP proxy** on `127.0.0.1:$PX` that appends `method path` per request to `$S/requests.log`. A small script in `$S` is enough. Serve does not log requests, so every "no request" or "N requests" check reads this log.
   - Child: every command runs with `XDG_DATA_HOME=$S/c-xdg ENGRAM_PARENT=http://127.0.0.1:$PX`, from `cd $S` (not a repo).
@@ -237,4 +264,4 @@
 - [ ] 12.2 Run a fresh-context implementation review with argumentation. Then rebase on main, re-test, and `git merge --ff-only`.
 - [ ] 12.3 After the merge and `go install ./cmd/engram`: deploy the skills with `engram update`, and verify the deployed copies are byte-identical to the sources. The registration refresh offers for the skill mirrors (E112) go through normal curation.
 - [ ] 12.4 Archive with `/opsx:archive`, after running the note-651 scenario parity diff and the E73/E76/E80/E82 Purpose rewrites. **Then** run the E72 sweep against the post-archive tree, with its allowlist.
-- [ ] 12.5 On Joe's real vault, after deployment, commit the new `.engram-vault-id` as a single deliberate vault commit (`vault: add vault id`).
+- [ ] 12.5 Real-vault ID commit (r3-8). The host's vault gets `.engram-vault-id` only when `engram serve` next starts on it after the upgrade (the host's served vault), or at its first parent contact if that host ever sets `ENGRAM_PARENT`. Right after that first creation, commit it as a single deliberate vault commit (`vault: add vault id`), and confirm `engram update`'s untracked-ID notice is gone. If neither event happens by archive time, record "skipped: no ID created" in the LEDGER row. The task is then done, and the commit follows whenever the file first appears.
