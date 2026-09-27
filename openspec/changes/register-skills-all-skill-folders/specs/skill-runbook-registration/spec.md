@@ -135,7 +135,7 @@ The components are defined as follows:
 - `<pkg-id>` is the npm name, git `<host>/<path>`, or `~`-relative local path.
 - `<r>` is the origin remote's host followed by its path, fully normalized: lowercased, with userinfo and any port removed, and without a trailing `.git` or `/` (e.g. `github.com/toejough/engram`). Without an origin, it is `local/` followed by the basename of the parent of the absolute `git rev-parse --git-common-dir`.
 - A working directory outside any git repository SHALL contribute no project entries.
-- A plugin named `claude`, `pi`, `agents`, `project`, `anthropic-skills`, `cmd`, `pi-settings`, `pi-pkg`, or `pi-prompt` SHALL be skipped with a warning.
+- An enabled plugin named `claude`, `pi`, `agents`, `project`, `anthropic-skills`, `pi-settings`, `pi-pkg`, or `pi-prompt` SHALL be skipped with a warning. The reserved-name check SHALL apply only after enablement is decided: a disabled plugin with a reserved name SHALL contribute nothing and print no warning.
 
 The note slug SHALL be `skill-` followed by the key lowercased, with every run of characters outside `[a-z0-9]` replaced by `-`, and with leading and trailing `-` trimmed.
 
@@ -166,6 +166,14 @@ The note slug SHALL be `skill-` followed by the key lowercased, with every run o
 #### Scenario: A plugin named claude is reserved
 - **WHEN** an enabled plugin `claude@m` is installed
 - **THEN** registration skips it with a warning and makes no offer for any `claude:` key from it
+
+#### Scenario: A disabled reserved-name plugin is silent
+- **WHEN** a plugin `pi@m` is installed with `enabledPlugins` set to `false`
+- **THEN** registration makes no offer for it and prints no warning
+
+#### Scenario: A plugin named cmd is an ordinary plugin
+- **WHEN** an enabled plugin `cmd@m` ships `skills/x/SKILL.md`
+- **THEN** its key is `cmd:x`
 
 #### Scenario: Prompt template key
 - **WHEN** `~/.pi/agent/prompts/review.md` is scanned
@@ -325,12 +333,12 @@ Removal offers SHALL be answered only by an exact key or an individual prompt, n
 - **WHEN** the user answers skip for a scope at the interactive prompt
 - **THEN** nothing is written or recorded for that scope's offers and the next run offers them again
 
-### Requirement: Declines SHALL be keyed by skill key with version-1 compatibility
-`skill-registrations.json` SHALL map keys to declined hashes under `schema_version: 2`. A version-1 file SHALL be read with each name `<n>` taken as the key `claude:<n>`, and the next write SHALL stamp version 2 while keeping every entry. A file with a `schema_version` above 2 SHALL be an error, not an empty decline state.
+### Requirement: Declines SHALL be keyed by skill key under schema version 2
+`skill-registrations.json` SHALL map keys to declined hashes under `schema_version: 2`. A file whose `schema_version` is anything other than 2 (missing, below 2, or above 2) SHALL be an error, not an empty decline state, and registration SHALL write nothing. A missing file SHALL mean no declines.
 
-#### Scenario: Version-1 decline still suppresses the offer
-- **WHEN** `skill-registrations.json` is `{"schema_version":1,"declined":{"route":"<h>"}}` and the scanned `claude:route` skill hashes to `<h>` with no note
-- **THEN** no offer is made for `claude:route`
+#### Scenario: Version-1 file fails loudly
+- **WHEN** `skill-registrations.json` is `{"schema_version":1,"declined":{"route":"<h>"}}`
+- **THEN** registration reports an error and writes nothing
 
 #### Scenario: Unknown schema version fails loudly
 - **WHEN** `skill-registrations.json` has `schema_version: 3`
@@ -357,7 +365,7 @@ A registered skill's or command's runbook note SHALL meet these conditions:
 - It SHALL carry `skill_hash`, the SHA-256 of the bytes its body was last copied from.
 - When it is created, adopted, or refreshed by this version, it SHALL also carry `skill_key` (its key) and `skill_source` (the resolved source path it was last copied from, home-relative with `~`).
 
-Registration SHALL identify a key's note as the runbook note carrying `skill_hash` whose `skill_key` equals the key. A note's slug SHALL never identify it. A runbook note without `skill_hash`, or with `skill_hash` but no `skill_key`, SHALL NOT be a skill note: it SHALL NOT be matched to any key, SHALL NOT make any entry an alias, and SHALL NOT be offered for removal. More than one match for a key SHALL be an error naming the notes.
+Registration SHALL identify a key's note as the runbook note carrying `skill_hash` whose `skill_key` equals the key. A note's slug SHALL never identify it. A runbook note without `skill_hash`, or with `skill_hash` but no `skill_key`, SHALL NOT be a skill note: it SHALL NOT be matched to any key, SHALL NOT make any entry an alias, and SHALL NOT be offered for removal. A note whose `skill_key` is not a key any source can produce (its first segment names no source family, e.g. a hand-edited `route` or `engram:route` with no installed `engram` plugin) SHALL never be matched to a scanned entry and SHALL never be offered for removal. More than one match for a key SHALL be an error naming the notes.
 
 #### Scenario: Note located by slug
 - **WHEN** the vault contains `1049.2026-09-21.skill-curate.md` of type runbook with a `skill_hash` field and no `skill_key`
@@ -374,6 +382,10 @@ Registration SHALL identify a key's note as the runbook note carrying `skill_has
 #### Scenario: Unkeyed legacy notes are ignored until adopted
 - **WHEN** the vault holds notes 1036, 1045, 1049, 1053, 1067, and 1068 with `skill-<name>` slugs, no `skill_key`, and `skill_hash` equal to the scanned skills' hashes
 - **THEN** registration does not rewrite them and makes no refresh or removal offer for them, and it offers to register `claude:<name>` for each of the six skills
+
+#### Scenario: An unrecognized skill_key is never matched or removed
+- **WHEN** a runbook note carries `skill_hash` and `skill_key: route`, and every source root was read
+- **THEN** registration matches it to no entry and offers no removal of it
 
 #### Scenario: A skill-prefixed slug without skill_hash is not a skill note
 - **WHEN** a runbook note's slug is `skill-edits-validated-by-baseline-pressure-tests` and it has no `skill_hash`
@@ -405,11 +417,11 @@ Declining an offer SHALL record the current hash against the key in the vault-ro
 ### Requirement: Accepting registration SHALL create a pending note without runbook fields
 Accepting a registration offer SHALL create a runbook note through the normal capture path: a fresh Luhmann id, the slug derived from the key, and embedding on write.
 
-- The body SHALL be the skill's `SKILL.md` or the command's `.md` file, preceded by a one-line preamble naming the file it mirrors.
+- The body SHALL be the skill's `SKILL.md` or the command's `.md` file, preceded by the one-line preamble ``> Mirrors skill `<skill_source>`.``
 - The note SHALL carry `skill_hash`, `skill_key`, `skill_source`, and `pending: true`.
 - It SHALL carry no `situation`, `triggers`, `done_when`, or `red_flags`.
 
-The preamble SHALL name the home-relative resolved source path (`skill_source`) for every note, with no special case for any source.
+The preamble SHALL name the home-relative resolved source path (`skill_source`) with the same wording for every note, and SHALL NOT tell the reader where to edit the procedure.
 
 #### Scenario: Accepted registration
 - **WHEN** the user accepts registration of `claude:curate`, whose resolved source is `~/.claude/engram/skills/curate/SKILL.md`
