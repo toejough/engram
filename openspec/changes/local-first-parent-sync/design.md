@@ -81,8 +81,14 @@ Deleted:
 - Because the file is tracked, its first creation in an existing git-backed vault is a **deliberate one-time vault commit**: migration step 3 for Joe's real vault. `engram update` prints a notice while the file exists but is untracked or uncommitted.
 - The server reports its vault ID in every exchange response (D4, D7, D8). Links are keyed by that ID, never by URL, so a hostname or IP change breaks nothing (review M11).
 - **Creation (review r3-4).** The ID comes from a `RandRead` primitive: `crypto/rand` behind DI, the first random source in `cli.Primitives`, and faked in tests. It is written with the existing exclusive-create primitive (`WriteFileExcl`, O_CREATE|O_EXCL) and then **re-read**. If two processes race, both end up using whichever ID won.
-- **Location record.** When the ID is created, the untracked `.engram/home.json` records `{vault_id, host, path}` (hostname and absolute vault path).
-- **Copy and clone detection (r3-4).** Before any exchange (serve start, merge, offer, pull-down), the command checks `home.json` against the current vault ID, host and path. If `home.json` is missing, which is what a `git clone` looks like because `.engram/` is not tracked, or doesn't match, which is what a `cp -R` or a move to another path or host looks like, the command does no exchange (`serve` refuses to start) and prints one warning naming both remedies:
+- **Location record.** When the ID is created, the untracked `.engram/home.json` records `{vault_id, path}`. `path` is the canonical vault path, `EvalSymlinks(Abs(Clean(path)))`. There is **no hostname**: DHCP, `.local` renames and containers change hostnames without the vault moving, so a hostname would give false positives (r4 H-A).
+- **Copy and clone detection (r3-4, r4 H-A).** Before a **child-side write exchange**, meaning sending an offer or pulling down, the command checks `home.json` against the current vault ID and canonical path. The record fails the check in two cases:
+  - it is missing, which is what a `git clone` looks like, because `.engram/` is not tracked;
+  - it doesn't match, which is what a `cp -R` or a move looks like.
+
+  When the check fails, the command does no offer or pull-down: it still writes locally and queues offers, and prints one warning naming both remedies. A merged query is read-only and still runs, with the same warning.
+
+  **`engram serve` warns and starts anyway.** Refusing would turn a false positive into a host outage: launchd restarts it, it refuses again, children back off, and offers pile up. The collision this guards against is two *children* sharing an origin, which the child-side check prevents. The remedies are:
   - `engram vault-id --regenerate`: this is a copy. Mint a new ID, rewrite `.engram-vault-id` and `home.json`, and keep every note unchanged. Links point at *parent* IDs and stay valid, and outbox payloads take the new origin ID when they are sent.
   - `engram vault-id --claim`: this is the same vault, moved or re-cloned. Rewrite `home.json` only.
 
@@ -90,7 +96,8 @@ Deleted:
 
   This covers the collision cases:
   - Two children sharing an ID (one cloned from the other) are caught at the clone's first exchange, before any offer carries a shared `offer.origin`.
-  - A child cloned from its parent is caught by the same check. If `home.json` was also copied, it is caught by the self-parent guard below, whose warning names `engram vault-id --regenerate`.
+  - A child cloned from its parent is caught by the same check. If `home.json` was also copied and the path matches, it is caught by the self-parent guard below, whose warning names `engram vault-id --regenerate`.
+  - A served vault that fails the check still serves (with the warning). Its own children are unaffected, because they identify it by its reported ID.
 - **Self-parent guard:** when the parent reports the local vault's own ID, the command does no exchange (no merge, no offers, no pull-down) and prints one warning naming `engram vault-id --regenerate`.
 
 **State directory.** Transient exchange state lives in `<vault>/.engram/`:
@@ -100,7 +107,12 @@ Deleted:
 - `home.json`, which holds the ID's location record (see above);
 - `.gitignore` containing `*`, so git ignores the directory and everything in it, **including that `.gitignore` itself**.
 
-The vault's tracked root `.gitignore` is never modified (G12). The directory is created at the same moment as the vault ID and holds no identity. If it is lost (for example, by cloning a vault), the only effect is that queued offers are re-queued on the next content write.
+The vault's tracked root `.gitignore` is never modified (G12). The directory is created at the same moment as the vault ID.
+
+**Losing `.engram/`** (for example, through a fresh clone or a cleanup) has three effects:
+1. The location record is gone, so child-side offers and pull-downs pause until `engram vault-id --claim` (the same vault) or `--regenerate` (a copy) runs.
+2. Queued offers are lost from the outbox. Their notes re-queue on the next content write.
+3. Declined pulls and the backoff state are forgotten, so a declined parent note can come back once as a pending offer.
 
 A copied vault (`cp -R`, as `runbook-retrieval-probe` does) carries the same ID and state, but its path differs from `home.json`, so it does no exchange until someone runs `--regenerate` or `--claim`. A read-only copy used by probes never exchanges at all.
 
@@ -280,6 +292,7 @@ The served set becomes `query`, `show`, `activate` and `learn`:
 A served learn is handled as follows:
 
 - **Placement.** The server ignores `target`/`position` and places the note at top level (G8).
+- **Input validation (r4 L-C).** `offer.path` may hold at most 16 entries, and each entry must be exactly 32 lowercase hex characters. `offer.origin` must be `<32 hex>:<32 hex>`. Anything else gets a 400 and nothing is written. A 400 is a 4xx, so the child marks the entry rejected.
 - **Loop refusal (r3-7).** `offer.path` lists every vault ID the offer has already passed through. The child sends `[own id]`, and propagation (D12) appends the propagating vault's ID. A server whose own ID is already in `offer.path` answers 409 and writes nothing. This covers misconfigured cycles of three or more vaults. A 409 is a 4xx, so the child marks the entry rejected.
 - **Origin matching (H3, r3-3, r3-7).** All of the following happens in **one locked section**: the lookup, the rewrite, the re-embed, and building the receipt. The server checks these cases in order:
   1. **A pending note with the same `offer.origin`.**
@@ -379,7 +392,10 @@ A served learn is handled as follows:
   - Otherwise it becomes E's primary.
 
   E is not re-embedded, and nothing is queued.
-- **Judged-version check (r3-2).** An in-place update (D7) can land between curation's judgment and its bookkeeping, which would silently accept or discard content nobody judged. So `--clear-pending`, `--discard --into` and a bare `--discard` on a note carrying `offer.origin` **require** `--expect-hash <exchange hash>`, and fail without changing anything when the note's current hash differs. The curator then re-judges. `engram show` prints a note's current exchange hash as a header line (`# exchange_hash: xh1:…`), and the curate skill passes that value.
+- **Judged-version check (r3-2).** An in-place update (D7) can land between curation's judgment and its bookkeeping, which would silently accept or discard content nobody judged. So `--clear-pending`, `--discard --into` and a bare `--discard` on a note carrying `offer.origin`, whether it is pending or **live** (r4 L-D), **require** `--expect-hash <exchange hash>`, and fail without changing anything when the note's current hash differs. The curator then re-judges.
+  - `offer` survives acceptance, so a later host-side discard of a once-offered live note needs the hash too. Otherwise a same-origin retry could race it.
+  - `--expect-hash` is accepted, and verified, on any note, including pulled-down notes. It is required only where `offer.origin` is present, and the curate skill passes it on every offer.
+  - **Where the hash is shown (r4 M-B):** for notes carrying `xid`, `engram show` prints `# exchange_hash: xh1:…` as its first line, before the frontmatter. For other notes, the output is byte-identical to today's. On the parent fallback, `# from_parent: true` comes first, then the parent's own output, starting with its header. The served non-raw `/show` returns exactly the local output. This is specified in `vault-offer-curation`, and the affected scenarios in `vault-merged-recall` and `vault-serve-api` are amended to match.
 - **Bookkeeping amends no longer re-stamp identity (M6, G11).** `--activate`, `--clear-pending`, `--discard --into` and a link-only receipt write preserve `repo`/`user`/`vault`. So an accepted served offer (absent) keeps the child's declared identity.
   - For a covered or near fold, the offer's author is not carried onto E. E keeps its own author, because it is E's content. This loss is documented and accepted, and the offer's basename survives in `E.aliases`.
   - Content amends still re-stamp, as `vault-note-identity` requires. The requirement "Amend re-stamps identity fields on every write" is MODIFIED to say this.
@@ -410,24 +426,81 @@ A served learn is handled as follows:
   - dedupe (never both copies);
   - pull-down idempotency;
   - link survival at every rewrite site.
-- **Skill TDD (H6, r3-1).** Each RED and GREEN arm is a fresh headless `claude -p` process, not a subagent (user feedback: subagents inherit session context).
-  - **Environment.** Each arm is launched with `env -i` and an explicit allowlist, so none of this session's variables reach it: `CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`, `CLAUDE_CODE_CHILD_SESSION`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_MESSAGING_SOCKET`/`_TOKEN`, `CLAUDE_CODE_BRIDGE_SESSION_ID`, `CLAUDE_PID` and the rest. `ENGRAM_PARENT`, `ENGRAM_SERVER` and `ENGRAM_VAULT_NAME` are therefore unset. A scenario that needs a parent sets `ENGRAM_PARENT` explicitly in the allowlist.
-  - **Working directory.** The arm runs from a non-repo `$ARM/work`, so no project `CLAUDE.md` or rules load.
-  - **Auth.** The access token is read from the macOS keychain item `Claude Code-credentials` (JSON field `claudeAiOauth.accessToken`). It is passed only as `CLAUDE_CODE_OAUTH_TOKEN`, and is never printed or written to a file.
-  - **Permissions.** Permission mode is `--permission-mode bypassPermissions`, which is safe because everything the arm can touch is scratch.
-  - **Verified invocation** (2026-09-27, claude 2.1.282, run from `$ARM/work`). A trivial prompt returned `PONG`. A second probe returned the marker from a skill installed only under `$ARM/home/.claude/skills/marker-probe/`, and answered NO to "does your context mention 'AI-Used' or 'engram query'", which shows that neither the real `~/.claude/CLAUDE.md` nor the project `CLAUDE.md` loaded. The command:
+- **Skill TDD (H6, r3-1, r4 S1): hermetic *and* confined.** Each RED and GREEN arm is a fresh headless `claude -p` process, not a subagent (user feedback: subagents inherit session context).
+  - **Environment.** Each arm is launched with `env -i` and only this allowlist:
+    - `HOME=$ARM/home`, `USER`, `PATH=$ARM/bin:/usr/bin:/bin`, `TERM=dumb`, `TMPDIR=$ARM/tmp`;
+    - `XDG_DATA_HOME=$ARM/xdg`, `ENGRAM_VAULT_PATH=$ARM/vault`;
+    - `CLAUDE_CODE_OAUTH_TOKEN`;
+    - `ENGRAM_PARENT`, only for a scenario that needs the scratch parent.
 
-    ```
-    TOK=$(security find-generic-password -s "Claude Code-credentials" -w | python3 -c 'import json,sys; print(json.load(sys.stdin)["claudeAiOauth"]["accessToken"])')
-    cd "$ARM/work" && env -i HOME="$ARM/home" USER="$USER" PATH="$ARM/bin:/usr/bin:/bin" TERM=dumb \
-      XDG_DATA_HOME="$ARM/xdg" ENGRAM_VAULT_PATH="$ARM/vault" CLAUDE_CODE_OAUTH_TOKEN="$TOK" \
-      /Users/joe/.local/bin/claude -p "<prompt>" --permission-mode bypassPermissions
+    None of this session's `CLAUDECODE`/`CLAUDE_CODE_*`/`CLAUDE_PID` variables reach the arm, and neither do `ENGRAM_SERVER` or `ENGRAM_VAULT_NAME`.
+  - **Working directory.** `$ARM/work`, which is not a repo, so no project `CLAUDE.md` or rules load.
+  - **Auth.** The token is read from the macOS keychain item `Claude Code-credentials` (`claudeAiOauth.accessToken`) into a shell variable and passed only through `env -i`. The launcher never echoes it: no `set -x`, no logging, no file. It is re-read per batch.
+  - **Layer 1, permissions (no `bypassPermissions`).**
+    - `--allowedTools "Bash(engram:*)" "Read" "Glob" "Grep"`;
+    - `--disallowedTools "WebFetch" "WebSearch" "Bash(git:*)" "Bash(curl:*)" "Bash(security:*)"`;
+    - `permissions.deny` in the arm's settings: `Read(//Users/joe/.local/share/engram/**)`, `Read(//Users/joe/.claude/**)`, `Read(//Users/joe/.ssh/**)`, `Read(//Users/joe/repos/**)`. The Read, Glob and Grep tools are **not** covered by the OS sandbox, which isolates only Bash (per the Claude Code sandboxing docs, "Scope").
+    - In `-p` mode, an unlisted tool or a command that needs approval is simply not run.
+  - **Layer 2, OS sandbox** (Claude Code's built-in sandbox, which uses Seatbelt on macOS). The keys were checked against code.claude.com/docs/en/sandboxing and settings-reference on 2026-09-27. They go in `$ARM/home/.claude/settings.json`:
+
+    ```json
+    {
+      "sandbox": {
+        "enabled": true, "failIfUnavailable": true,
+        "allowUnsandboxedCommands": false, "autoAllowBashIfSandboxed": false,
+        "filesystem": {
+          "allowWrite": ["$ARM"],
+          "denyRead": ["/Users/joe/.local/share/engram", "/Users/joe/.claude", "/Users/joe/.ssh", "/Users/joe/repos"]
+        },
+        "network": { "allowedDomains": [], "strictAllowlist": true }
+      },
+      "permissions": { "deny": ["Read(//Users/joe/.local/share/engram/**)", "Read(//Users/joe/.claude/**)",
+                                "Read(//Users/joe/.ssh/**)", "Read(//Users/joe/repos/**)"] }
+    }
     ```
 
-    `$ARM/bin/engram` is the branch build. The keychain token is short-lived, so it is re-read per arm batch.
+    - The one arm that needs the scratch `serve` (task 9.2) instead uses `"network": {"allowedDomains": ["127.0.0.1", "localhost"], "allowLocalBinding": true, "strictAllowlist": true}`.
+    - `autoAllowBashIfSandboxed` **must be `false`**. With `true`, sandboxed Bash bypasses the `Bash(engram:*)` allowlist (see the evidence below).
+  - **Confinement evidence** (2026-09-27, claude 2.1.282, macOS). All probe arms were run under the settings above. The probes marked "(Bash allowed)" deliberately opened layer 1 to test layer 2 alone.
+    - **Layer 2 (Bash allowed):**
+      - `ls /Users/joe/.local/share/engram/vault` → `Operation not permitted`.
+      - `touch /Users/joe/engram-sandbox-probe-DELETE-ME` → `Operation not permitted`, and the file was absent afterwards.
+      - `touch /tmp/…` and `touch /private/tmp/…` → `Operation not permitted`.
+      - `cat /Users/joe/.ssh/known_hosts` → `Operation not permitted`.
+      - `curl https://example.com` → `CONNECT tunnel failed, response 403`.
+      - Controls: `touch $ARM/work/…` and `touch $TMPDIR/…` succeeded.
+      - Read tool on the real vault → "denied by your permission settings".
+    - **Loopback (Bash allowed):**
+      - With only `allowedDomains: ["127.0.0.1","localhost"]`, connecting to a local HTTP server failed (curl exit 7, with or without the proxy).
+      - Adding `allowLocalBinding: true` made it succeed.
+      - `example.com` stayed at 403.
+    - **Layer 1 (the allow and deny lists above):**
+      - With `autoAllowBashIfSandboxed: true`, `cat /etc/hosts` and `engram query; cat /etc/hosts` **ran**. That is the reason for `false`.
+      - With `false`:
+        - `git status` → denied;
+        - `security list-keychains` → denied;
+        - `cat /etc/hosts` → blocked;
+        - `engram query; cat /etc/hosts` and `engram query && ls /` → blocked as a whole;
+        - `ENGRAM_PARENT=http://127.0.0.1:8093 engram learn` → "requires approval", which means not run in `-p`;
+        - `engram query` → ran (a stub binary);
+        - `engram --vault /Users/joe/.local/share/engram/vault …` → **allowed by layer 1**. Layer 2 is what blocks it, because every read or write of that path is denied, as the `ls` probe shows.
+        - WebFetch was not even offered to the model.
+    - **After the probes:**
+      - no file under the real vault (outside `.git/`) was newer than the probe start;
+      - no top-level `~/.claude` file was newer;
+      - `$ARM` was deleted.
+  - **Residual risk (the loopback arm only).** `allowLocalBinding` opens every loopback port, including a host `engram serve` on `127.0.0.1:8093`. Mitigations:
+    - `ENGRAM_PARENT` is fixed by the launcher to the scratch port;
+    - an env-prefixed override is not run (verified above);
+    - `engram` has no URL flag;
+    - the worst case is a pending offer on the host, which curation gates and the post-run check detects.
+  - **Per-batch procedure:**
+    1. Run the confinement probe arm first: read the real vault path, write outside `$ARM`, and reach the network. **All three must fail.** Keep its transcript with the batch's results.
+    2. Run the arms.
+    3. Delete `$ARM`.
+    4. Check that no real-vault file (outside `.git/`) and no top-level `~/.claude` file is newer than the batch start marker.
   - **Skill placement.** The skill under test (old for RED, new for GREEN) is installed only at `$ARM/home/.claude/skills/<name>/SKILL.md`.
 
-  Each arm is gated by a delivery check before scoring: a marker from the treatment text must appear in the transcript (vault note on verifying treatment delivery). Deploying with `engram update` happens only after merge and `go install`.
 - **Real-binary verification.** `engram serve` on `127.0.0.1` over a scratch parent vault, a scratch child, and a recording TCP proxy in front of serve (serve does not log requests), so request counts are observable. See tasks group 11. `update`'s drain is covered only by unit tests: `update` runs `go install` and re-execs, so it gets no real-binary run in scratch. That is stated in the LEDGER row.
 
 ### D12: Multi-level propagation and bounce-once (Joe decided 2026-09-27)
@@ -449,7 +522,8 @@ A served learn is handled as follows:
 - **[A covered fold loses the offer author's attribution]** → Documented (D10). The basename survives in `aliases`.
 - **[Version skew]** → A pre-change parent is detected by a missing `vault_id` in the receipt, the envelope or the query payload. Exchange stops with a "parent too old" error, and queries stay local-only with a warning. Upgrade the parent first.
 - **[The tracked `.engram-vault-id` dirties an existing vault's git once]** → This is a deliberate one-time commit (migration step 3), and `update` flags it until it is committed.
-- **[`.engram/` state is lost on a fresh clone]** → Queued offers re-queue on the next content write. Links and IDs live in tracked files, so nothing that matters is lost.
+- **[`.engram/` is lost, for example on a fresh clone]** → Child-side exchange pauses with a warning until `--claim`/`--regenerate` runs. Queued offers re-queue on the next content write. Forgotten declines can bring a declined parent note back once, for curation to discard. Links and IDs live in tracked files, so no note content is lost.
+- **[The location check gives a false positive]** (for example, a symlinked vault path) → The path is canonicalized with `EvalSymlinks`, and there is no hostname in the record. `serve` never refuses to start, so the worst case is a paused child and a warning naming `--claim`.
 - **[A remote client aims `offer.for` or `offer.origin` at arbitrary notes]** → It can only create or update pending notes, and it can't change a live note. Curation reviews every one. `offer.origin` impersonation can overwrite another child's *pending* offer, which is the same trust level as today's unauthenticated serve (network reachability).
 - **[Drain latency on query]** → The drain runs only after a successful parent contact, with backoff and a connect timeout, and usually has nothing to send.
 

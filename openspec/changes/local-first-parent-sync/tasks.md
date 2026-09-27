@@ -24,8 +24,10 @@
   - Self-parent guard: when the parent reports the local ID, there is no merge, offer or pull-down, and one warning names `engram vault-id --regenerate`.
   - The ID file is created exclusively with `WriteFileExcl`, then re-read: two racing creators both end up with the winner's ID.
   - The ID comes from the injected `RandRead` (a fake gives a deterministic ID).
-  - Location check (`.engram/home.json` holding ID, host and path):
-    - a missing record (clone) or a mismatch (copy or move) means no exchange, `serve` refuses to start, and one warning names `--regenerate` and `--claim`;
+  - Location check (`.engram/home.json` holding the ID and the canonical path `EvalSymlinks(Abs(Clean(path)))`, **no hostname**):
+    - a missing record (clone) or a mismatch (copy or move) means no offer and no pull-down, while local writes and queuing continue, merged query still runs, and one warning names `--regenerate` and `--claim`;
+    - `engram serve` **warns and starts anyway**;
+    - a symlinked path to the same vault passes, and a hostname change passes;
     - `engram vault-id --regenerate` mints a new ID and changes no note file;
     - `--claim` rewrites only the record;
     - with no flag, the command prints the ID and the check result.
@@ -72,6 +74,7 @@
 - [ ] 4.2 RED→GREEN: `ServeRoutes` is exactly query, show, activate and learn. `/amend`, `/query-chunks` and `/show-chunk` have no route. Delete the handlers and their tests. (E23–E25, E64, E65)
 - [ ] 4.3 RED→GREEN: served learn, with the lookup, rewrite, re-embed and receipt all in **one locked section** (a test asserts the lock spans them):
   - `offer.path` containing the server's own ID → 409, no write;
+  - `offer.path` with more than 16 entries, or any entry that is not exactly 32 lowercase hex characters, or an `offer.origin` not of the form `<32 hex>:<32 hex>` → 400, no write (r4 L-C);
   - top-level placement;
   - a new pending note gets a server `xid` and records `offer.{origin,key,for,path}`;
   - a same-origin pending note is updated in place, and re-embedded when its hash changed (H3: an amend before curation leaves exactly one pending note); a same key → no write;
@@ -188,24 +191,28 @@
   - no re-embed, no re-stamp, no offer.
 
   A bare `--discard` is unchanged, except that it records a decline for a pulled note. `--into` without `--discard` is an error. (E38)
-- [ ] 8.2 RED→GREEN: judged-version check (r3-2). On a note carrying `offer.origin`, `--clear-pending`, `--discard --into` and a bare `--discard` require `--expect-hash`. They fail without changing anything when it is missing or differs from the current exchange hash. `engram show` prints `# exchange_hash: …`. (E52c, E52d)
+- [ ] 8.2 RED→GREEN: judged-version check (r3-2). On a note carrying `offer.origin`, pending **or live** (L-D), `--clear-pending`, `--discard --into` and a bare `--discard` require `--expect-hash`. They fail without changing anything when it is missing or differs from the current exchange hash. `--expect-hash` is accepted and verified on any note, including pulled ones.
+  - `engram show` prints `# exchange_hash: …` as the first line **only** for notes carrying `xid`; other notes are byte-identical to today.
+  - Fallback order: `# from_parent: true`, then the parent's header.
+  - Served non-raw `/show` equals the local output.
+
+  (E52c, E52d; r4 M-B)
 
 ## 9. Skill edits (design D10, D11): `superpowers:writing-skills` TDD in hermetic headless arms
 
-> Each RED and GREEN arm is a fresh `claude -p` process, never a subagent (subagents inherit session context). Every arm is hermetic, per design D11 (r3-1):
-> - Launch with `env -i` and only this allowlist: `HOME=$ARM/home`, `USER`, `PATH=$ARM/bin:/usr/bin:/bin`, `TERM=dumb`, `XDG_DATA_HOME=$ARM/xdg`, `ENGRAM_VAULT_PATH=$ARM/vault`, `CLAUDE_CODE_OAUTH_TOKEN`, and `ENGRAM_PARENT` only when the scenario needs a parent.
-> - Nothing else is inherited: no `CLAUDECODE`, `CLAUDE_CODE_*` session, entrypoint or messaging variables, and no `ENGRAM_SERVER` or `ENGRAM_VAULT_NAME`.
-> - `$ARM/bin/engram` is this branch's build.
-> - The cwd is `$ARM/work`, which is not a repo, so no project `CLAUDE.md` or rules load.
-> - The token comes from the macOS keychain item `Claude Code-credentials` (`claudeAiOauth.accessToken`). It is passed only through the environment, never printed or stored, and re-read per batch.
-> - The permission flag is `--permission-mode bypassPermissions` (everything the arm can touch is scratch).
-> - Each arm has a `timeout` and no `--max-turns`.
-> - The skill under test (old for RED, new for GREEN) is installed only at `$ARM/home/.claude/skills/<name>/SKILL.md`.
-> - The vault state is seeded by the scenario script.
+> Each RED and GREEN arm is a fresh `claude -p` process, never a subagent. Every arm is **hermetic and confined**, exactly as in design D11 (r3-1, r4 S1):
+> - **Launch.** `env -i` with only `HOME=$ARM/home`, `USER`, `PATH=$ARM/bin:/usr/bin:/bin`, `TERM=dumb`, `TMPDIR=$ARM/tmp`, `XDG_DATA_HOME=$ARM/xdg`, `ENGRAM_VAULT_PATH=$ARM/vault`, `CLAUDE_CODE_OAUTH_TOKEN`, and `ENGRAM_PARENT` only for 9.2 (the scratch serve port) and 9.3 (a dead port, which the sandbox blocks anyway). The cwd is `$ARM/work` (not a repo). `$ARM/bin/engram` is the branch build.
+> - **Token.** Read from the keychain item `Claude Code-credentials` (`claudeAiOauth.accessToken`) into a shell variable. The launcher never echoes it (no `set -x`, no logging), and re-reads it per batch.
+> - **Layer 1, permissions.** `--allowedTools "Bash(engram:*)" "Read" "Glob" "Grep"` and `--disallowedTools "WebFetch" "WebSearch" "Bash(git:*)" "Bash(curl:*)" "Bash(security:*)"`, plus `permissions.deny` `Read(//…)` rules for the real vault, `~/.claude`, `~/.ssh` and `~/repos`. **No `bypassPermissions`.**
+> - **Layer 2, OS sandbox.** The design D11 `sandbox` block goes in `$ARM/home/.claude/settings.json`: `enabled`, `failIfUnavailable`, `allowUnsandboxedCommands: false`, **`autoAllowBashIfSandboxed: false`**, `allowWrite: [$ARM]`, the `denyRead` list, and `network.allowedDomains: []` with `strictAllowlist`. For 9.2 only, the network block is `["127.0.0.1","localhost"]` with `allowLocalBinding: true`.
+> - **Per batch:**
+>   1. First run the **confinement probe arm**: read `/Users/joe/.local/share/engram/vault`, write `/Users/joe/<probe>` and `/tmp/<probe>`, and `curl https://example.com`. All must fail, with a control write inside `$ARM` succeeding. Keep that transcript with the batch results. If any probe succeeds, stop the batch.
+>   2. Run the arms, each with a `timeout` and no `--max-turns`, and the skill under test installed only at `$ARM/home/.claude/skills/<name>/SKILL.md`.
+>   3. Delete `$ARM`.
+>   4. Confirm that no real-vault file (outside `.git/`) and no top-level `~/.claude` file is newer than the batch start marker.
+> - **Delivery gate.** Before scoring, gate each arm on treatment delivery: a marker phrase unique to the arm's SKILL.md must appear in its transcript. Otherwise the arm is invalid, not a result.
 >
-> The exact invocation recorded in design D11 was verified on 2026-09-27: `PONG`, the skill marker was loaded, and no user or project `CLAUDE.md` was present. Re-run that dry probe before the first arm of each batch.
->
-> Before scoring, gate each arm on treatment delivery: a marker phrase unique to the arm's SKILL.md must appear in its transcript. Otherwise the arm is invalid, not a result. The real `~/.claude` and the real vault are never read or written. Deploying with `engram update` is task 12.3, after merge.
+> Deploying with `engram update` is task 12.3, after merge.
 
 - [ ] 9.1 curate. The scenario vault holds a pulled-down pending offer covered by a local note, a served amend-offer with `offer.for`, and a pulled note the agent should reject.
   - RED expectation: a bare `--discard` (the link is lost), `offer.for` ignored.

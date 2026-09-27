@@ -60,15 +60,32 @@ Transient exchange state SHALL live in `<vault>/.engram/`: the outbox, declined 
 - **WHEN** an offer is queued in a git-backed vault
 - **THEN** `git status --porcelain` in the vault shows no change caused by exchange state
 
-### Requirement: A copied or cloned vault SHALL NOT exchange until its identity is resolved
-When the vault ID is created, the untracked exchange state SHALL record the vault's location: the ID, the hostname, and the absolute vault path. Before any exchange (serving, merging, offering, or pulling down), a command SHALL compare that record with the current vault ID, hostname and path. When the record is missing (a fresh `git clone`) or differs (a `cp -R`, or a move), the command SHALL do no exchange, `engram serve` SHALL refuse to start, and exactly one warning SHALL name both `engram vault-id --regenerate` and `engram vault-id --claim`.
+### Requirement: A copied or cloned vault SHALL NOT offer or pull down until its identity is resolved
+When the vault ID is created, the untracked exchange state SHALL record the vault's location: the ID and the canonical vault path (symlinks evaluated, made absolute, cleaned). It SHALL NOT include a hostname.
+
+Before sending an offer or pulling down, a command SHALL compare that record with the current vault ID and canonical path. When the record is missing (a fresh `git clone`) or differs (a `cp -R`, or a move), the command SHALL send no offer and perform no pull-down; local writes and outbox queuing SHALL proceed. Exactly one warning SHALL name both `engram vault-id --regenerate` and `engram vault-id --claim`. A merged query SHALL still run, with the same warning. `engram serve` SHALL print the same warning and SHALL start anyway.
+- `engram vault-id --regenerate` SHALL mint a new ID, rewrite `.engram-vault-id` and the location record, and change no note.
+- `engram vault-id --claim` SHALL rewrite the location record only.
+- `engram vault-id` with no flag SHALL print the ID and the result of the location check.
 - `engram vault-id --regenerate` SHALL mint a new ID, rewrite `.engram-vault-id` and the location record, and change no note.
 - `engram vault-id --claim` SHALL rewrite the location record only.
 - `engram vault-id` with no flag SHALL print the ID and the result of the location check.
 
 #### Scenario: A cloned child is caught before it offers
 - **WHEN** vault A is cloned with git to a new host, and the clone runs `engram learn` with `ENGRAM_PARENT` set
-- **THEN** the note is written locally, no offer is sent, and the warning names both `engram vault-id` remedies
+- **THEN** the note is written locally and queued, no offer is sent, and the warning names both `engram vault-id` remedies
+
+#### Scenario: serve starts despite a mismatched record
+- **WHEN** `engram serve` starts on a vault whose location record is missing or differs
+- **THEN** it prints the warning and serves normally
+
+#### Scenario: A symlinked path is not a false positive
+- **WHEN** the same vault is reached through a symlink to its recorded path
+- **THEN** the location check passes
+
+#### Scenario: A hostname change is not a false positive
+- **WHEN** the host's name changes and the vault path does not
+- **THEN** the location check passes
 
 #### Scenario: Regenerate gives a copy its own identity
 - **WHEN** `engram vault-id --regenerate` runs in a copied vault

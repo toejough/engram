@@ -1,7 +1,32 @@
 ## ADDED Requirements
 
 ### Requirement: Bookkeeping on a served offer SHALL verify the judged version
-`engram amend --clear-pending`, `--discard --into`, and a bare `--discard` on a note carrying `offer.origin` SHALL require `--expect-hash <exchange hash>`. They SHALL fail, and change nothing, when the note's current exchange hash differs from that value (the offer was updated in place after it was judged). `engram show` SHALL print a note's current exchange hash as a header line, so curation can pass the value it judged.
+`engram amend --clear-pending`, `--discard --into`, and a bare `--discard` on a note carrying `offer.origin` SHALL require `--expect-hash <exchange hash>`. They SHALL fail, and change nothing, when the note's current exchange hash differs from that value (the offer was updated in place after it was judged). This SHALL apply whether the note is pending or live. Because `offer` survives acceptance, a later host-side discard of a once-offered live note also needs `--expect-hash`, since a same-origin retry could otherwise race it.
+
+`--expect-hash` SHALL be accepted on any note, including pulled-down notes and notes never offered. When it is given, it SHALL be verified the same way; it is required only on notes carrying `offer.origin`. The curate skill passes it on every offer.
+
+#### Scenario: A pulled note accepts an expected hash
+- **WHEN** `engram amend --target P --clear-pending --expect-hash H` runs on a pulled-down note whose current exchange hash is H
+- **THEN** the marker is cleared
+
+#### Scenario: A once-offered live note needs the hash to be discarded
+- **WHEN** `engram amend --target E --discard` runs on a live note that still carries `offer.origin`, without `--expect-hash`
+- **THEN** the command fails, and E is unchanged
+
+### Requirement: engram show SHALL print an exchanged note's exchange hash
+For a note that carries `xid` (a note that has taken part in exchange), `engram show` SHALL print `# exchange_hash: <hash>` as its first output line, before the frontmatter. For a note without `xid`, its output SHALL be unchanged. On the local-miss parent fallback, the `# from_parent: true` label SHALL come first, followed by the parent's `show` output, which starts with the parent note's own exchange-hash line when that note carries `xid`. The served `show` route without `raw` SHALL return exactly the local `engram show` output, header included.
+
+#### Scenario: Header on an exchanged note
+- **WHEN** `engram show <basename>` runs on a pending offer carrying `xid`
+- **THEN** the first line is `# exchange_hash: xh1:…`, and the note's frontmatter follows
+
+#### Scenario: No header on an unexchanged note
+- **WHEN** `engram show <basename>` runs on a note without `xid`
+- **THEN** the output is byte-identical to its output before this capability
+
+#### Scenario: Label order on the parent fallback
+- **WHEN** `engram show <ref>` falls back to the parent for a note carrying `xid`
+- **THEN** line 1 is `# from_parent: true` and line 2 is the parent note's `# exchange_hash:` line
 
 #### Scenario: An offer updated after judgment is not silently accepted
 - **WHEN** curation judges pending offer N at hash H1, the child's amend then updates N in place to H2, and curation runs `engram amend --target N --clear-pending --expect-hash H1`

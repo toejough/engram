@@ -187,7 +187,7 @@ the parent: chunks never cross vaults, so there is no parent chunk lookup.
 
 #### Scenario: Without --parent, behavior is unchanged
 - **WHEN** `engram show` or `engram show-chunk` runs without `--parent` and the ref exists locally
-- **THEN** the local note is returned exactly as before this capability existed; the parent is not contacted (only a local miss changes, per the fallback scenario below)
+- **THEN** the local note is returned exactly as before this capability existed, except that a note carrying `xid` starts with an `# exchange_hash:` header line (capability `vault-offer-curation`); the parent is not contacted (only a local miss changes, per the fallback scenario below)
 
 #### Scenario: Local miss falls back to the parent
 - **WHEN** `engram show <ref>` runs without `--parent`, `ENGRAM_PARENT` is set, and the ref is not found locally

@@ -113,7 +113,7 @@ The `CLAUDE.md` and `agent-instructions/` search returned **no** `ENGRAM_SERVER`
 | 52 | new: `internal/cli/exchangehash.go`, `outbox.go`, `exchangestate.go`, `pulldown.go` | none | code | D3 (including the key classification table), D6, D2, D8. DI only (ADR-0013, `targ check-thin-api`). |
 | 52a | internal/cli/primitives.go + cmd/engram/main.go group functions | no random source | code | Add a `RandRead` primitive (`crypto/rand`) for vault IDs, `xid` and nothing else. Thin-api shape (r3-4). |
 | 52b | internal/cli/targets.go (new `vault-id` target) | none | code | `engram vault-id [--regenerate \| --claim]` (D2, r3-4). The ID file is created via `WriteFileExcl` (deps.go:98), then re-read. |
-| 52c | internal/cli/show.go | no exchange hash output | code | Print a `# exchange_hash: xh1:…` header line (D10, r3-2). |
+| 52c | internal/cli/show.go (+ serve_client.go:31/435 fallback label order) | no exchange hash output | code | For notes carrying `xid` only, print `# exchange_hash: xh1:…` as the first line. Other notes are byte-identical. On the parent fallback, the `# from_parent: true` label comes first (D10; `vault-offer-curation`; r4 M-B). |
 | 52d | internal/cli/amend.go (flags) | no `--expect-hash` | code | `--expect-hash`, required for bookkeeping on notes carrying `offer.origin` (D10, r3-2). |
 
 ## B. Go tests

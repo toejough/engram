@@ -17,7 +17,12 @@ It SHALL NOT report any curation outcome (capability `vault-offer-curation`).
 - **THEN** the response carries `status: offer received`, `luhmann: 1100`, `basename: 1100.2026-09-27.x`, `pending: true`, and `vault_id: 9a1e`
 
 ### Requirement: Served learn SHALL update a pending offer in place only for the same origin
-A served `learn` request MAY carry `offer.origin`, `offer.key`, `offer.for`, and `offer.path`. The server SHALL refuse the request with a 409 and SHALL write nothing when its own vault ID is already in `offer.path`. Otherwise it SHALL do all of the following in one locked section: the lookup, any rewrite, any re-embed, and building the receipt. It SHALL check these cases in order:
+A served `learn` request MAY carry `offer.origin`, `offer.key`, `offer.for`, and `offer.path`. The server SHALL answer 400, and SHALL write nothing, in any of these cases:
+- `offer.path` has more than 16 entries;
+- any entry of `offer.path` is not exactly 32 lowercase hexadecimal characters;
+- `offer.origin` is not two such 32-character identifiers joined by `:`.
+
+The server SHALL refuse the request with a 409, and SHALL write nothing, when its own vault ID is already in `offer.path`. Otherwise it SHALL do all of the following in one locked section: the lookup, any rewrite, any re-embed, and building the receipt. It SHALL check these cases in order:
 1. **A pending note carries the same `offer.origin`.** When its `offer.key` also matches, the server SHALL write nothing and SHALL return its receipt. Otherwise it SHALL rewrite that pending note's content, `offer.key`, and `offer.path` in place (the note stays pending and keeps its basename), SHALL re-embed it when its exchange hash changed, and SHALL return its receipt.
 2. **A live note carries the same `offer.origin`** (an accepted offer). When the `offer.key` matches, the server SHALL write nothing and SHALL return that live note's receipt. Otherwise it SHALL write a new pending note whose `offer.for` names that live note.
 3. **Otherwise**, `offer.for` SHALL be resolved against live notes' basenames, then their `aliases`, then pending notes.
@@ -42,6 +47,10 @@ The server SHALL place every new pending note at top level, ignoring any caller-
 #### Scenario: No cross-origin overwrite
 - **WHEN** an offer from origin B names, in `offer.for`, a pending note that came from origin A
 - **THEN** A's pending note is unchanged, and a new pending note with `offer.for` naming A's note is written
+
+#### Scenario: A malformed or oversized path is rejected
+- **WHEN** a served `learn` arrives whose `offer.path` has 17 entries, or has an entry that is not 32 hex characters
+- **THEN** the response is a 400, and nothing is written
 
 #### Scenario: A cycle is refused
 - **WHEN** a served `learn` arrives whose `offer.path` already contains the server's own vault ID
@@ -77,7 +86,7 @@ The served `show` route SHALL accept a `raw` parameter. With `raw=1`, it SHALL r
 - `content`: the note file's bytes, unmodified, with no `red_flags` preview cap and no appended links section;
 - `exchange_hash` (capability `vault-parent-offers`).
 
-A missing note SHALL produce a 404 with an error body, not a 500. Without `raw`, the route's output SHALL be unchanged.
+A missing note SHALL produce a 404 with an error body, not a 500. Without `raw`, the route SHALL return exactly the local `engram show` output, including the exchange-hash header line for notes carrying `xid` (capability `vault-offer-curation`).
 
 #### Scenario: Raw show is exact
 - **WHEN** `GET /show?note=<basename>&raw=1` is served for an existing note
