@@ -30,7 +30,7 @@ Luhmann-ID lineage and Maps of Content for synthesis. Used as both noun
 A markdown file (`SKILL.md`) that defines an agent behavior, installed into
 each harness's skills directory by `engram update`. Engram ships six:
 [`recall`](#recall-skill), [`learn`](#learn-skill), `please`, `route`, `curate`, and [`write-memory`](#write-memory-skill).
-Each skill may additionally have one registered vault runbook note (basename slug `skill-<name>`, frontmatter `skill_hash`) mirroring its SKILL.md, offered by `engram update`/`engram register-skills` and reviewed via the `curate` skill's pending-offer flow — a retrieval surface alongside the skill, not a replacement for it.
+Any skill or command in the default folders (not only engram's six) may have one registered vault runbook note, identified by its **skill key**. Keys: bare `<n>` for Claude user skills and anything under an engram-owned root; `cmd:<n>`; `<plugin>:<n>` / `<plugin>:cmd:<n>`; `anthropic-skills:<n>`; `pi:<n>`; `agents:<n>`; `pi-settings:<n>`; `pi-pkg:<id>:<n>`; `pi-prompt:<n>`; `project:<owner>/<repo>:…`. The slug is derived from the key (non-`[a-z0-9]` runs → `-`), and the note carries frontmatter `skill_hash`, `skill_key`, and `skill_source`, offered by `engram update`/`engram register-skills` and reviewed via the `curate` skill's pending-offer flow — a retrieval surface alongside the skill, not a replacement for it. Distinct from the plain skill/command name: the **skill key** is what identity and lookup use, and is stable across harnesses for engram's own skills.
 Distinct from **slash command** — the user-facing `/name` trigger that invokes
 a skill in a harness (Claude Code's term). (The `command` file/deploy mechanism —
 a per-harness wrapper under `agent-instructions/commands/` for a harness whose
@@ -42,7 +42,7 @@ A vault note with `type: runbook` that carries a procedure: a `situation` (when 
 a `done_when` completion bar, a body of steps (which may wikilink sub-runbooks, written as
 `[[basename]]`), optional `red_flags`, and optional `triggers` (see **trigger** below).
 Retrieved by `engram query` and followed per the shim's follow frame (announce, restate as
-a plan, read red flags, verify `done_when`) in addition to, not instead of, being loaded as an installed skill. It is the mechanically-derived carrier for a registered skill's mirror note (basename slug `skill-<name>`, frontmatter `skill_hash`) — `please`, `route`, `curate`, and `write-memory` alike (`please`'s former three sub-runbooks merged back into its one note/skill body). Written with
+a plan, read red flags, verify `done_when`) in addition to, not instead of, being loaded as an installed skill. It is the mechanically-derived carrier for a registered skill's mirror note (slug derived from its skill key, frontmatter `skill_hash`/`skill_key`/`skill_source`) — engram's skills and any other registered skill or command alike (`please`'s former three sub-runbooks merged back into its one note/skill body). Written with
 `engram learn runbook`.
 Distinct from **skill** — a `SKILL.md` deployed to each harness's skills directory; a skill and its runbook mirror coexist.
 

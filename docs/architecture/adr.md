@@ -1016,6 +1016,22 @@ or refreshed note is a pending offer (`pending: true`, now recognized on runbook
 follow-frame are unchanged. Links: `openspec/changes/archive/2026-09-26-register-skills-as-runbooks`,
 `openspec/specs/skill-runbook-registration/spec.md`.
 
+**Amendment (2026-09-26, openspec change `register-skills-all-skill-folders`): registration
+covers every default skill folder, not just engram's six.** This lifts the earlier Non-Goal (vault
+note 1066a), which had scoped registration to engram's own shipped skills. `engram
+update`/`engram register-skills` now scan one shared default source set: Claude user skills and
+commands (symlinks followed), claude.ai-synced skills, Pi user and agents skills, Pi's configured
+`settings.json` skill/prompt paths and packages (subject to Pi's trust gate for project sources),
+enabled plugin skills and commands, and project-local Claude sources plus trusted Pi sources from
+the cwd up to the git root. Identity is a source-qualified **skill key** (a `cmd` segment for
+commands; `project:<host>/<owner>/<repo>:…` for project sources; a bare key reserved for Claude
+user skills and anything resolving under an engram-owned root, which keeps the six existing notes
+byte-for-byte unchanged), with the note slug derived from the key and `skill_key`/`skill_source`
+recorded on the note. A removal is offered only for a key whose source root was itself read
+successfully, never inferred from an empty or unreadable directory. Offers are grouped by scope and
+answered by exact key, key-prefix pattern, or `@scope` selector; declines move to schema v2, keyed
+by skill key rather than bare name. Design: `openspec/changes/register-skills-all-skill-folders/design.md`.
+
 ---
 
 ## ADR-0027 — The human-memory taxonomy as coverage checklist (not architecture): north star for memory-system decisions
