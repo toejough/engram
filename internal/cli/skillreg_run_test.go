@@ -16,6 +16,35 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// TestRunSkillRegistration_AdoptAmbiguousBareID_WritesNothing covers a
+// bare-id --adopt ref that matches more than one note: refused up front as
+// ambiguous, before any entry writes — never resolved by listing order,
+// which an earlier entry's rename could change.
+func TestRunSkillRegistration_AdoptAmbiguousBareID_WritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1049.2026-09-21.t.md", promotedRunbookFixture("1049", "2026-09-21", "never t"))
+	vault.put("1049.2026-09-21.zzz.md", promotedRunbookFixture("1049", "2026-09-21", "never zzz"))
+
+	before := maps.Clone(vault.files)
+
+	deps := skillRegistrationDepsFor(vault, skillsHomeFixture(map[string][]byte{
+		"curate": []byte("# Curate\n"), "route": []byte("# Route\n"),
+	}))
+
+	var stdout bytes.Buffer
+
+	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome,
+		Adopt: map[string]string{"claude:curate": "1049.2026-09-21.zzz", "claude:route": "1049"},
+	}, deps, &stdout)
+
+	g.Expect(err).To(MatchError(cli.ErrAdoptAmbiguousRefForTest))
+	g.Expect(vault.files).To(Equal(before), "a refused adopt run must write nothing")
+}
+
 // TestRunSkillRegistration_AdoptKeyRegisteredElsewhere_WritesNothing covers
 // a multi-entry --adopt whose later entry (sorted order) adopts a key the
 // vault already registers to a different note: the conflict is caught in
@@ -247,6 +276,35 @@ func TestRunSkillRegistration_AdoptUnparseableBasenameLater_WritesNothing(t *tes
 	}, deps, &stdout)
 
 	g.Expect(err).To(MatchError(ContainSubstring("no Luhmann id/date")))
+	g.Expect(vault.files).To(Equal(before), "a refused adopt run must write nothing")
+}
+
+// TestRunSkillRegistration_AdoptUnrenderableLater_WritesNothing covers a
+// multi-entry --adopt whose later entry targets a runbook note whose
+// frontmatter the key probe accepts but the full render rejects (a string
+// red_flags): refused in validation, before the earlier entry writes.
+func TestRunSkillRegistration_AdoptUnrenderableLater_WritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
+	vault.put("1050.2026-09-21.route-draft.md", unrenderableRunbookFixture("1050"))
+
+	before := maps.Clone(vault.files)
+
+	deps := skillRegistrationDepsFor(vault, skillsHomeFixture(map[string][]byte{
+		"curate": []byte("# Curate\n"), "route": []byte("# Route\n"),
+	}))
+
+	var stdout bytes.Buffer
+
+	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome,
+		Adopt: map[string]string{"claude:curate": "1049", "claude:route": "1050"},
+	}, deps, &stdout)
+
+	g.Expect(err).To(HaveOccurred())
 	g.Expect(vault.files).To(Equal(before), "a refused adopt run must write nothing")
 }
 
@@ -941,4 +999,12 @@ func skillsHomeFixture(skills map[string][]byte) *fakeSkillFS {
 	}
 
 	return fsys
+}
+
+// unrenderableRunbookFixture renders a runbook note whose red_flags is a
+// plain string: the skill-key probe accepts it, the full frontmatter decode
+// the adopt render needs does not.
+func unrenderableRunbookFixture(id string) string {
+	return "---\ntype: runbook\nsituation: s\ndone_when: d\nred_flags: just one string\n" +
+		"luhmann: \"" + id + "\"\ncreated: 2026-09-21\n---\n\nbody\n"
 }

@@ -564,11 +564,11 @@ func resolveDefaultSkillSources(
 // runSkillAdoptions runs every args --adopt entry, in sorted-by-key order
 // for determinism, via AdoptSkillNote — before offers are computed (design
 // D6/tasks.md 1.8: "adopt entries ... run first"). Every entry is validated
-// before the first one writes, with every check AdoptSkillNote itself runs
-// (validateAdoptEntry; AdoptSkillNote keeps them as defense in depth), and
-// no two entries may name the same target note — adopt never silently
-// re-keys a note. A key named by two entries is refused earlier, by
-// parseAdoptFlags.
+// before the first one writes (validateAdoptEntry; AdoptSkillNote keeps its
+// own checks as defense in depth), and no two entries may name the same
+// target note — adopt never silently re-keys a note. Each entry then writes
+// to the basename validation resolved, never re-resolving its raw ref. A
+// key named by two entries is refused earlier, by parseAdoptFlags.
 func runSkillAdoptions(
 	ctx context.Context,
 	args SkillRegistrationArgs,
@@ -584,6 +584,7 @@ func runSkillAdoptions(
 	sort.Strings(keys)
 
 	adoptSources := make(map[string]SkillNoteSource, len(keys))
+	targets := make(map[string]string, len(keys))
 	claimedBy := make(map[string]string, len(keys))
 
 	for _, key := range keys {
@@ -599,10 +600,13 @@ func runSkillAdoptions(
 
 		claimedBy[basename] = key
 		adoptSources[key] = source
+		targets[key] = basename
 	}
 
+	// Each entry writes to the basename validation resolved, never
+	// re-resolving the raw ref against a vault earlier entries renamed.
 	for _, key := range keys {
-		adoptErr := AdoptSkillNote(ctx, args.Vault, adoptSources[key], args.Adopt[key], deps, stdout)
+		adoptErr := AdoptSkillNote(ctx, args.Vault, adoptSources[key], targets[key], deps, stdout)
 		if adoptErr != nil {
 			return adoptErr
 		}
@@ -642,14 +646,18 @@ func toStringSet(values []string) map[string]bool {
 	return set
 }
 
-// validateAdoptEntry runs every per-entry check AdoptSkillNote runs, against
-// the vault as it stands before any entry writes, and returns the entry's
-// note source and its target's basename: the key names a scanned,
-// unconflicted skill (adoptSourceFor); the target resolves to a runbook
-// note (resolveAdoptTarget) keyed to no other skill (checkAdoptTargetKey);
-// the key is registered to no other note (checkAdoptConflict) — so an entry
-// cannot rely on another entry re-keying the key's note away; and the
-// target's basename carries a Luhmann id and date (skillNoteBasename).
+// validateAdoptEntry runs, against the vault as it stands before any entry
+// writes, the checks AdoptSkillNote runs before its rename, and returns the
+// entry's note source and its target's resolved basename: the key names a
+// scanned, unconflicted skill (adoptSourceFor); the ref resolves to exactly
+// one note, a runbook (resolveAdoptTarget — an ambiguous bare id is
+// refused); that note is keyed to no other skill (checkAdoptTargetKey); the
+// key is registered to no other note (checkAdoptConflict), so an entry
+// cannot rely on another entry re-keying the key's note away; the basename
+// carries a Luhmann id and date (skillNoteBasename); and the note renders
+// (the pure applySkillNoteBody, result discarded — its full frontmatter
+// decode rejects wrong-typed fields the key probe accepts). It does not
+// cover I/O failures of the rename, write or embed that follow.
 func validateAdoptEntry(
 	key string, args SkillRegistrationArgs, sources ResolvedSkillSources, deps SkillAdoptDeps,
 ) (SkillNoteSource, string, error) {
@@ -676,6 +684,11 @@ func validateAdoptEntry(
 	_, basenameErr := skillNoteBasename(basename, key)
 	if basenameErr != nil {
 		return SkillNoteSource{}, "", basenameErr
+	}
+
+	_, renderErr := applySkillNoteBody(raw, source, false)
+	if renderErr != nil {
+		return SkillNoteSource{}, "", renderErr
 	}
 
 	return source, basename, nil

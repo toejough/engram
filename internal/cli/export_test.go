@@ -26,6 +26,7 @@ const (
 
 // Exported variables.
 var (
+	ErrAdoptAmbiguousRefForTest            = errAdoptAmbiguousRef
 	ErrAdoptConflictForTest                = errAdoptConflict
 	ErrAdoptTargetKeyedForTest             = errAdoptTargetKeyed
 	ErrAnswerInBothFlagsForTest            = errAnswerInBothFlags

@@ -133,6 +133,15 @@ func AdoptSkillNote(
 		return basenameErr
 	}
 
+	// Render before any rename or write, so a note the full frontmatter
+	// decode rejects is refused untouched — never renamed and left unkeyed.
+	// The render is repeated below on the post-rename content, which the
+	// rename's wikilink rewrite may have changed.
+	_, preRenderErr := applySkillNoteBody(raw, source, false)
+	if preRenderErr != nil {
+		return preRenderErr
+	}
+
 	raw, rewritten, renameErr := ensureSkillNoteBasename(vault, oldBasename, newBasename, raw, deps.Rename)
 	if renameErr != nil {
 		return renameErr
@@ -267,6 +276,9 @@ const (
 
 // unexported variables.
 var (
+	// errAdoptAmbiguousRef refuses an adopt ref (a bare Luhmann id) that
+	// matches more than one note.
+	errAdoptAmbiguousRef = errors.New("register-skills: adopt: note ref matches more than one note")
 	errAdoptConflict     = errors.New("register-skills: adopt: skill already registered to a different note")
 	errAdoptNoteNotFound = errors.New("register-skills: adopt: note not found")
 	// errAdoptTargetKeyed refuses an adopt whose target note is already
@@ -381,6 +393,32 @@ func ensureSkillNoteBasename(
 	return fresh, rewritten, nil
 }
 
+// findAdoptNote resolves noteRef the way `engram amend --target` does (a
+// Luhmann id or a basename, wikilink brackets allowed) but refuses a ref
+// matching more than one note (errAdoptAmbiguousRef) rather than taking
+// the first in listing order — an order an earlier adopt's rename can
+// change.
+func findAdoptNote(notes []vaultgraph.Note, noteRef string) (string, error) {
+	target := normalizeNoteRef(noteRef)
+	matches := make([]string, 0, 1)
+
+	for _, note := range notes {
+		if note.LuhmannID == target || note.Basename == target {
+			matches = append(matches, note.Basename)
+		}
+	}
+
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("%w: %q", errAdoptNoteNotFound, noteRef)
+	case 1:
+		return matches[0], nil
+	default:
+		return "", fmt.Errorf("%w: %q matches %s — name the note by its full basename",
+			errAdoptAmbiguousRef, noteRef, strings.Join(matches, ", "))
+	}
+}
+
 // homeRelativePath returns path as `~/<rel>` against the first non-empty
 // home that strictly contains it, or path unchanged when none does.
 func homeRelativePath(path string, homes []string) string {
@@ -408,12 +446,12 @@ func resolveAdoptTarget(vault, noteRef string, deps SkillAdoptDeps) (basename st
 		return "", nil, fmt.Errorf("register-skills: adopt: scan: %w", scanErr)
 	}
 
-	relPath, findErr := findNote(notes, noteRef)
+	basename, findErr := findAdoptNote(notes, noteRef)
 	if findErr != nil {
-		return "", nil, fmt.Errorf("%w: %q", errAdoptNoteNotFound, noteRef)
+		return "", nil, findErr
 	}
 
-	basename = strings.TrimSuffix(relPath, mdExt)
+	relPath := pathOf(basename)
 
 	raw, readErr := deps.Rename.ReadFile(filepath.Join(vault, relPath))
 	if readErr != nil {

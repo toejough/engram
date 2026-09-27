@@ -500,6 +500,35 @@ func TestAdoptSkillNote_RenamesRewritesLinksPreservesFieldsClearsPending(t *test
 	g.Expect(newSidecarExists).To(BeTrue())
 }
 
+// TestAdoptSkillNote_RenderFailureLeavesNoteUnrenamed covers a single adopt
+// whose render fails (a string red_flags the full decode rejects): the note
+// is rendered before any rename or write, so it is left unrenamed and the
+// vault byte-unchanged — one entry is never half-applied.
+func TestAdoptSkillNote_RenderFailureLeavesNoteUnrenamed(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1050.2026-09-21.route-draft.md", unrenderableRunbookFixture("1050"))
+
+	before := maps.Clone(vault.files)
+
+	deps := cli.SkillAdoptDeps{
+		Lock:     noLock,
+		Scan:     func(v string) ([]vaultgraph.Note, error) { return vaultgraph.ScanVault(vault, v) },
+		Rename:   skillAcceptRenameDeps(vault),
+		Embedder: skillAcceptFakeEmbedder{},
+	}
+
+	var stdout bytes.Buffer
+
+	err := cli.AdoptSkillNote(t.Context(), "/vault", installedEngramSkill("route", []byte("# Route\n")),
+		"1050", deps, &stdout)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(vault.files).To(Equal(before), "a failed render must leave the note unrenamed")
+}
+
 // TestRefreshSkill_PendingClearedBeforehandIsSetAgain covers "refresh of a
 // note with pending cleared sets it again": a note whose pending marker was
 // already cleared by curation still ends up pending: true after a refresh.
