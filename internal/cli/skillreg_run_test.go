@@ -463,7 +463,7 @@ func TestRunSkillRegistration_PromptRemove_Yes_DeletesNote(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(ContainSubstring(
-		"Skill `write-memory` is no longer shipped. Remove its runbook note? [y/N] "))
+		"Skill `write-memory` is no longer found in its source. Remove its runbook note? [y/N] "))
 
 	_, noteStillThere := vault.get(basename + ".md")
 	g.Expect(noteStillThere).To(BeFalse())
@@ -499,6 +499,38 @@ func TestRunSkillRegistration_ReadSkillRegistrationsError_Propagates(t *testing.
 
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(errSkillsDirForTest))
+}
+
+// TestRunSkillRegistration_RealRunsPrintScanWarnings covers the scanner and
+// key-builder warnings on every path, not only --dry-run: a `:` skill name
+// is skipped with a warning on an interactive run and on a non-interactive
+// one alike (skill-runbook-registration: "An entry whose name contains `:`
+// SHALL be skipped with a warning").
+func TestRunSkillRegistration_RealRunsPrintScanWarnings(t *testing.T) {
+	t.Parallel()
+
+	for name, interactive := range map[string]bool{"interactive": true, "non-interactive": false} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := newSkillAcceptFixtureVault()
+			sourceFS := skillsHomeFixture(nil).file(skillRegHome+"/.claude/skills/bad:name/SKILL.md", "# Bad\n")
+			deps := skillRegistrationDepsFor(vault, sourceFS)
+			deps.IsTerminal = func() bool { return interactive }
+			deps.Stdin = strings.NewReader("")
+
+			var stdout bytes.Buffer
+
+			err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+				Vault: "/vault", VaultName: "personal", Home: skillRegHome,
+			}, deps, &stdout)
+
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(stdout.String()).To(ContainSubstring(`engram: skipping skill "bad:name"`))
+			g.Expect(vault.files).To(BeEmpty())
+		})
+	}
 }
 
 // TestRunSkillRegistration_ResolveError_Propagates covers the default

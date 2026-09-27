@@ -196,15 +196,22 @@ func ScanCommandDir(fsys SkillSourceFS, commandsRoot, scopeID string) SkillScanR
 // scanner's job). Absent or null → `<pluginRoot>/commands`. A path string or
 // an array of path strings replaces that default: each path (relative to
 // pluginRoot) is a commands directory (ScanCommandDir rules) or a single
-// command file named by its stem. Any other form — notably the object map —
-// is unsupported: it is skipped with a warning and `<pluginRoot>/commands` is
-// recorded as not scanned (design D2 source 8, Non-Goals).
+// `.md` command file named by its stem. Any other form — notably the object
+// map — is unsupported: it is skipped with a warning and
+// `<pluginRoot>/commands` is recorded as not scanned (design D2 source 8,
+// Non-Goals).
+//
+// A declared path must stay inside the plugin (declaredPluginPath): an
+// absolute path, one escaping pluginRoot lexically or through a symlink, or
+// one that does not exist is refused with a warning and recorded as a root
+// that was not scanned, so the plugin counts as not scanned. A single
+// command file that is not `.md` is refused the same way.
 func ScanPluginCommands(
 	fsys SkillSourceFS, pluginRoot string, commandsField json.RawMessage, scopeID string,
 ) SkillScanResult {
 	defaultDir := filepath.Join(pluginRoot, pluginCommandsDirName)
 
-	paths, useDefault, decodeErr := decodePluginCommandsField(commandsField)
+	paths, useDefault, decodeErr := decodePluginPathsField(commandsField)
 
 	switch {
 	case decodeErr != nil:
@@ -219,9 +226,13 @@ func ScanPluginCommands(
 	var result SkillScanResult
 
 	for _, declared := range paths {
-		path := declared
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(pluginRoot, path)
+		path, problem := declaredPluginPath(fsys, pluginRoot, declared)
+		if problem != "" {
+			result.Roots = append(result.Roots, ScannedRoot{Path: path})
+			result.Warnings = append(result.Warnings, fmt.Sprintf(pluginDeclaredPathWarningFormat,
+				pluginRoot, pluginCommandsDirName, declared, problem))
+
+			continue
 		}
 
 		mergeSkillScanResult(&result, scanCommandPath(fsys, path, scopeID))
@@ -355,24 +366,35 @@ const (
 	maxCommandDepth = 16
 	// maxSkillPathLinks bounds symlink hops while resolving one path (the
 	// same bound filepath.EvalSymlinks uses).
-	maxSkillPathLinks                      = 255
+	maxSkillPathLinks = 255
+	// pluginCommandNotMarkdownWarningFormat reports a declared single
+	// command file that is not `.md`.
+	pluginCommandNotMarkdownWarningFormat  = "engram: plugin command %s is not a .md file; it is not scanned"
 	pluginCommandsDirName                  = "commands"
 	pluginCommandsUnsupportedWarningFormat = "engram: plugin %s: unsupported plugin.json `commands` form " +
 		"(object map or non-path value); its commands are not scanned"
-	skillSourceReadWarningFormat = "engram: cannot read skill source %s: %v; its root is not scanned"
-	syncedDirName                = "synced"
-	syncedManifestFilename       = "manifest.json"
+	// pluginDeclaredPathWarningFormat reports a plugin.json `skills` or
+	// `commands` path that is refused (declaredPluginPath): the plugin, the
+	// field, the declared path and the problem.
+	pluginDeclaredPathWarningFormat = "engram: plugin %s: plugin.json `%s` path %s %s; the plugin is not scanned"
+	pluginPathAbsoluteProblem       = "is absolute"
+	pluginPathEscapesProblem        = "leads outside the plugin directory"
+	pluginPathMissingProblem        = "does not exist"
+	skillSourceReadWarningFormat    = "engram: cannot read skill source %s: %v; its root is not scanned"
+	syncedDirName                   = "synced"
+	syncedManifestFilename          = "manifest.json"
 )
 
 // unexported variables.
 var (
 	_                    SkillSourceFS = EdgeFS(nil)
 	errCommandDirTooDeep               = errors.New("command directory nesting exceeds the depth limit")
-	// errPluginCommandsUnsupported reports a plugin.json `commands` value
-	// that is neither a path string nor an array of path strings.
-	errPluginCommandsUnsupported = errors.New("unsupported plugin.json commands form")
-	errSkillPathLinkLoop         = errors.New("too many symlinks")
-	errSkillPathNotAbsolute      = errors.New("skill source path is not absolute")
+	// errPluginPathsFieldUnsupported reports a plugin.json `skills` or
+	// `commands` value that is neither a path string nor an array of path
+	// strings.
+	errPluginPathsFieldUnsupported = errors.New("unsupported plugin.json path form")
+	errSkillPathLinkLoop           = errors.New("too many symlinks")
+	errSkillPathNotAbsolute        = errors.New("skill source path is not absolute")
 )
 
 // commandWalker carries one ScanCommandDir walk's fixed inputs and output.
@@ -471,10 +493,41 @@ func (w commandWalker) walkSubdir(path, resolved string, prefix []string) bool {
 	return w.walk(resolved, entries, prefix)
 }
 
-// decodePluginCommandsField decodes plugin.json's `commands` value: absent or
-// null → useDefault; a string → one path; an array of strings → those paths;
-// anything else → errPluginCommandsUnsupported.
-func decodePluginCommandsField(field json.RawMessage) (paths []string, useDefault bool, err error) {
+// declaredPluginPath joins one plugin.json `skills` or `commands` path onto
+// pluginRoot and checks that it stays inside the plugin, returning the
+// joined path and a non-empty problem when it is refused: an absolute path,
+// a path leaving pluginRoot lexically (`..`) or, once every symlink is
+// resolved, leaving the resolved pluginRoot, or a path that does not exist.
+// A resolution failure other than not-exist is left for the scanner to
+// report as a read error.
+func declaredPluginPath(fsys SkillSourceFS, pluginRoot, declared string) (path, problem string) {
+	if filepath.IsAbs(declared) {
+		return filepath.Clean(declared), pluginPathAbsoluteProblem
+	}
+
+	path = filepath.Join(pluginRoot, declared)
+	if !pathWithinRoot(path, pluginRoot) {
+		return path, pluginPathEscapesProblem
+	}
+
+	resolved, resolveErr := ResolveSkillPath(fsys, path)
+
+	switch {
+	case errors.Is(resolveErr, fs.ErrNotExist):
+		return path, pluginPathMissingProblem
+	case resolveErr != nil:
+		return path, ""
+	case !pathWithinRoot(resolved, resolveSkillPathOrClean(fsys, pluginRoot)):
+		return path, pluginPathEscapesProblem
+	default:
+		return path, ""
+	}
+}
+
+// decodePluginPathsField decodes a plugin.json path field (`skills` or
+// `commands`): absent or null → absent; a string → one path; an array of
+// strings → those paths; anything else → errPluginPathsFieldUnsupported.
+func decodePluginPathsField(field json.RawMessage) (paths []string, absent bool, err error) {
 	trimmed := strings.TrimSpace(string(field))
 	if trimmed == "" || trimmed == jsonNullLiteral {
 		return nil, true, nil
@@ -490,7 +543,7 @@ func decodePluginCommandsField(field json.RawMessage) (paths []string, useDefaul
 		return many, false, nil
 	}
 
-	return nil, false, errPluginCommandsUnsupported
+	return nil, false, errPluginPathsFieldUnsupported
 }
 
 // finishResolvedSkillPath returns resolved with its FileInfo, looking the
@@ -568,21 +621,7 @@ func readSkillChild(
 		return "", nil, false, nil
 	}
 
-	skillPath, skillInfo, skillErr := resolveSkillPathInfo(fsys, filepath.Join(resolvedDir, skillMDFilename))
-	if skillErr != nil {
-		return "", nil, false, ignoreNotExist(skillErr)
-	}
-
-	if skillInfo.IsDir() {
-		return "", nil, false, nil
-	}
-
-	content, readErr := fsys.ReadFile(skillPath)
-	if readErr != nil {
-		return "", nil, false, ignoreNotExist(readErr)
-	}
-
-	return skillPath, content, true, nil
+	return readMarkdownFile(fsys, filepath.Join(resolvedDir, skillMDFilename))
 }
 
 // readSkillSourceRoot resolves and lists one source root. The returned record
@@ -640,7 +679,8 @@ func resolveSkillPathInfo(fsys SkillSourceFS, path string) (string, fs.FileInfo,
 }
 
 // scanCommandPath scans one declared plugin commands path: a directory
-// (ScanCommandDir rules) or a single command file named by its stem.
+// (ScanCommandDir rules) or a single `.md` command file named by its stem.
+// Any other file is refused with a warning and recorded as not scanned.
 func scanCommandPath(fsys SkillSourceFS, path, scopeID string) SkillScanResult {
 	var result SkillScanResult
 
@@ -654,6 +694,13 @@ func scanCommandPath(fsys SkillSourceFS, path, scopeID string) SkillScanResult {
 
 	if info.IsDir() {
 		return ScanCommandDir(fsys, path, scopeID)
+	}
+
+	if !strings.HasSuffix(filepath.Base(path), commandFileExt) {
+		result.Roots = []ScannedRoot{{Path: path, Resolved: resolved}}
+		result.Warnings = []string{fmt.Sprintf(pluginCommandNotMarkdownWarningFormat, path)}
+
+		return result
 	}
 
 	name := strings.TrimSuffix(filepath.Base(path), commandFileExt)

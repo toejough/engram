@@ -134,9 +134,13 @@ func RunSkillRegistration(
 
 // unexported constants.
 const (
-	skillMDFilename           = "SKILL.md"
-	skillRefreshPromptFormat  = "Skill `%s` changed since its note was last synced. Update the note? [y/N] "
-	skillRegisterPromptFormat = "Register skill `%s` as a vault runbook? [y/N] "
+	skillMDFilename = "SKILL.md"
+	// skillRefreshPromptFormat, skillRegisterPromptFormat and
+	// skillRemovePromptFormat are the per-offer prompts (design D4's table):
+	// each takes the offer's key and offerPromptSource's " (<source>)", which
+	// is empty for an engram-owned offer.
+	skillRefreshPromptFormat  = "Skill `%s`%s changed since its note was last synced. Update the note? [y/N] "
+	skillRegisterPromptFormat = "Register skill `%s`%s as a vault runbook? [y/N] "
 	// skillRegistrationAwaitingAnswerFormat is the one-line, non-interactive
 	// summary of every offer left unanswered this run (skill-runbook-
 	// registration: "Registration SHALL never prompt or write without a
@@ -158,7 +162,7 @@ const (
 	// one-line note, and registration continues (skill-runbook-registration:
 	// "Registration SHALL be invocable standalone with explicit answers").
 	skillRegistrationNoOfferFormat = "engram: no pending offer for skill %q — ignoring --%s\n"
-	skillRemovePromptFormat        = "Skill `%s` is no longer shipped. Remove its runbook note? [y/N] "
+	skillRemovePromptFormat        = "Skill `%s`%s is no longer found in its source. Remove its runbook note? [y/N] "
 )
 
 // unexported variables.
@@ -290,6 +294,10 @@ func answerSkillSources(
 		return offersErr
 	}
 
+	// The scan and key warnings are printed on every path, not only the
+	// preview (skill-runbook-registration: skipped entries are skipped
+	// "with a warning").
+	comparison.Warnings = append(slices.Clone(sources.Warnings), comparison.Warnings...)
 	noteSources := skillNoteSourcesByRef(sources, args.Home)
 
 	return AnswerSkillOffers(SkillOfferAnswering{
@@ -457,7 +465,7 @@ func previewSkillsDirs(args SkillRegistrationArgs, deps SkillRegistrationDeps, s
 // (SkillAnswerNone): the offer is neither accepted nor declined, like the
 // grouped prompt's skip (ruling R29).
 func promptForOffer(offer SkillOffer, scanner *bufio.Scanner, stdout io.Writer) SkillAnswer {
-	_, _ = fmt.Fprintf(stdout, promptFormatForOfferKind(offer.Kind), offer.Key)
+	_, _ = fmt.Fprintf(stdout, promptFormatForOfferKind(offer.Kind), offer.Key, offerPromptSource(offer))
 
 	if !scanner.Scan() {
 		return SkillAnswerNone

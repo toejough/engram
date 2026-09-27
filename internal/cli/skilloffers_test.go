@@ -387,6 +387,31 @@ func TestCompareSkillOffers_OffersCarryKeyScopeAndSource(t *testing.T) {
 	}))
 }
 
+// TestCompareSkillOffers_OffersMarkEngramOwnedSources covers the
+// EngramOwned flag the prompts use to decide whether to show a source path:
+// a candidate or a removal's recorded skill_source under an engram-owned
+// root is engram-owned; anything else is not.
+func TestCompareSkillOffers_OffersMarkEngramOwnedSources(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newOfferFixture()
+	fixture.home = fakeHome
+	fixture.sources.EngramSkillRoots = []string{engramClaudeSkills}
+	fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+	fixture.candidate(offerCand("route", cli.SkillScopeClaudeUser, engramClaudeSkills+"/route/SKILL.md", "route"))
+	fixture.candidate(offerCand("c4", cli.SkillScopeClaudeUser, userSkillsRoot+"/c4/SKILL.md", "c4"))
+	fixture.note("curate", "h1", "~/.claude/engram/skills/curate/SKILL.md")
+	fixture.note("gone", "h2", "~/.claude/skills/gone/SKILL.md")
+
+	owned := map[string]bool{}
+	for _, offer := range fixture.compare(g).Offers {
+		owned[offer.Key] = offer.EngramOwned
+	}
+
+	g.Expect(owned).To(Equal(map[string]bool{"route": true, "c4": false, "curate": true, "gone": false}))
+}
+
 // TestCompareSkillOffers_RemovalEligibilityPlugins covers design D5 for
 // plugin notes: the manifest rule.
 func TestCompareSkillOffers_RemovalEligibilityPlugins(t *testing.T) {
@@ -682,6 +707,54 @@ func TestCompareSkillOffers_RemovalEligibilityUserRoots(t *testing.T) {
 				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
 				fixture.note("pi:ping", "h", "")
 			},
+		},
+		{
+			// A bare key also comes from Pi and agents copies under the
+			// engram-owned roots, so an unreadable Pi root can hide a bare
+			// key's only copy (design D5).
+			name: "unreadable ~/.pi/agent/skills keeps bare-key notes",
+			setup: func(fixture *offerFixture) {
+				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+				fixture.root(piUserRoot, cli.SkillRootFormPiUser, false)
+				fixture.note("route", "h", "")
+			},
+		},
+		{
+			name: "unreadable ~/.agents/skills keeps bare-key notes",
+			setup: func(fixture *offerFixture) {
+				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+				fixture.root(agentsUserRoot, cli.SkillRootFormAgentsUser, false)
+				fixture.note("route", "h", "")
+			},
+		},
+		{
+			name: "an unresolvable engram skills root keeps bare-key notes",
+			setup: func(fixture *offerFixture) {
+				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+				fixture.sources.EngramSkillRootsUnresolved = true
+				fixture.note("route", "h", "")
+			},
+		},
+		{
+			name: "an unread root overlapping an engram skills root keeps bare-key notes",
+			setup: func(fixture *offerFixture) {
+				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+				fixture.sources.EngramSkillRoots = []string{engramPiSkills}
+				fixture.root(piAgentDir+"/engram", cli.SkillRootFormPiSettings, false, "pi-settings:")
+				fixture.note("route", "h", "")
+			},
+		},
+		{
+			name: "readable Pi, agents and engram roots let a gone bare-key note go",
+			setup: func(fixture *offerFixture) {
+				fixture.root(userSkillsRoot, cli.SkillRootFormClaudeUser, true)
+				fixture.root(piUserRoot, cli.SkillRootFormPiUser, true)
+				fixture.root(agentsUserRoot, cli.SkillRootFormAgentsUser, true)
+				fixture.sources.EngramSkillRoots = []string{engramPiSkills}
+				fixture.root(piAgentDir+"/engram", cli.SkillRootFormPiSettings, true, "pi-settings:")
+				fixture.note("route", "h", "")
+			},
+			wantRemoved: []string{"route"},
 		},
 		{
 			name: "--skills-dir makes no removal offer",
@@ -1120,6 +1193,24 @@ func TestResolveSkillPathBestEffort_FollowsLinkChainsToAMissingTarget(t *testing
 // removal-eligibility form of the notes it can prove absent, and each
 // source-rooted root the key prefixes it vouches for; the synced directory
 // itself and plugin roots carry neither.
+// TestResolveSkillSources_FlagsAnUnresolvableEngramRoot covers ruling R26
+// feeding design D5: an engram-owned skills root that exists but cannot be
+// resolved is flagged, so no bare-key note is offered for removal.
+func TestResolveSkillSources_FlagsAnUnresolvableEngramRoot(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	clean, err := cli.ResolveSkillSources(context.Background(), fakeHome, projectTop, resolverDeps(resolverFixture(g)))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(clean.EngramSkillRootsUnresolved).To(BeFalse())
+
+	fsys := resolverFixture(g).dir(engramPiSkills).failLstat(engramPiSkills)
+
+	resolved, err := cli.ResolveSkillSources(context.Background(), fakeHome, projectTop, resolverDeps(fsys))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(resolved.EngramSkillRootsUnresolved).To(BeTrue())
+}
+
 func TestResolveSkillSources_StampsRootForms(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1438,6 +1529,7 @@ func drawRemovalUniverse(rt *rapid.T) (*offerFixture, []string) {
 	fixture.sources.PluginManifestsRead = rapid.Bool().Draw(rt, "manifestsRead")
 
 	fixedRead := map[string]bool{}
+	fixedFailed := map[string]bool{}
 
 	for _, name := range slices.Sorted(maps.Keys(removalFixedForms())) {
 		spec := removalFixedForms()[name]
@@ -1448,7 +1540,15 @@ func drawRemovalUniverse(rt *rapid.T) (*offerFixture, []string) {
 		}
 
 		fixedRead[name] = state == removalStateRead
+		fixedFailed[name] = state == removalStateFailed
 	}
+
+	// A bare key also comes from Pi and agents copies under the engram-owned
+	// roots: an unread Pi or agents root, or an unresolvable engram root,
+	// keeps every bare-key note (design D5).
+	fixture.sources.EngramSkillRootsUnresolved = rapid.Bool().Draw(rt, "engramRootsUnresolved")
+	fixedRead["bare"] = fixedRead["bare"] && !fixedFailed["pi"] && !fixedFailed["agents"] &&
+		!fixture.sources.EngramSkillRootsUnresolved
 
 	var expected []string
 

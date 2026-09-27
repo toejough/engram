@@ -105,6 +105,10 @@ func CompareSkillOffers(input SkillOfferInput) (SkillOfferComparison, error) {
 		comparison.Offers = append(comparison.Offers, removalOffers(input, notes)...)
 	}
 
+	for index := range comparison.Offers {
+		comparison.Offers[index].EngramOwned = offerEngramOwned(comparison.Offers[index], input)
+	}
+
 	sort.Slice(comparison.Offers, func(i, j int) bool {
 		left, right := comparison.Offers[i], comparison.Offers[j]
 		if left.ScopeID != right.ScopeID {
@@ -229,6 +233,11 @@ type skillRemovalEligibility struct {
 	manifestsRead bool
 	pluginScanned map[string]bool
 	conflicted    map[string]bool
+	// engramRoots are the resolved engram-owned skills roots, and
+	// engramUnresolved is set when one of them could not be resolved: a
+	// bare key also comes from copies under them (engramCopiesRead).
+	engramRoots      []string
+	engramUnresolved bool
 }
 
 // eligible reports whether the note with key and recorded skill_source may
@@ -241,11 +250,37 @@ func (e skillRemovalEligibility) eligible(key, source string) bool {
 		scanned, installed := e.pluginScanned[plugin]
 
 		return e.manifestsRead && !e.conflicted[plugin] && (!installed || scanned)
+	case form == SkillRootFormClaudeUser:
+		return e.fixedRootRead(form) && e.engramCopiesRead()
 	case !sourced:
 		return e.fixedRootRead(form)
 	default:
 		return e.sourceRootRead(form, key, source)
 	}
+}
+
+// engramCopiesRead reports whether every root that emitted, or could have
+// emitted, an engram-owned copy (whose key is bare, like a Claude user
+// skill's) was read (design D5): the Pi and agents user roots, every root
+// overlapping an engram-owned skills root, and the engram-owned roots
+// themselves (none failed to resolve).
+func (e skillRemovalEligibility) engramCopiesRead() bool {
+	if e.engramUnresolved {
+		return false
+	}
+
+	for _, root := range e.roots {
+		if root.Scanned {
+			continue
+		}
+
+		if root.Form == SkillRootFormPiUser || root.Form == SkillRootFormAgentsUser ||
+			rootOverlapsAny(root, e.engramRoots) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // fixedRootRead reports whether form's fixed user root was recorded and
@@ -440,6 +475,9 @@ func newSkillRemovalEligibility(input SkillOfferInput) skillRemovalEligibility {
 		manifestsRead: input.Sources.PluginManifestsRead,
 		pluginScanned: make(map[string]bool, len(input.Sources.Plugins)),
 		conflicted:    make(map[string]bool, len(input.Sources.PluginConflicts)),
+
+		engramRoots:      input.Sources.EngramSkillRoots,
+		engramUnresolved: input.Sources.EngramSkillRootsUnresolved,
 	}
 
 	for _, plugin := range input.Sources.Plugins {
@@ -451,6 +489,29 @@ func newSkillRemovalEligibility(input SkillOfferInput) skillRemovalEligibility {
 	}
 
 	return eligibility
+}
+
+// offerEngramOwned reports whether offer's source lies under an engram-owned
+// skills root: a candidate's resolved path, or a removal's recorded
+// skill_source expanded against the resolved home or the home as given.
+func offerEngramOwned(offer SkillOffer, input SkillOfferInput) bool {
+	roots := input.Sources.EngramSkillRoots
+
+	if offer.Kind != SkillOfferRemove {
+		return underEngramSkillRoot(offer.SourcePath, roots)
+	}
+
+	if offer.SourcePath == "" {
+		return false
+	}
+
+	for _, home := range []string{input.Sources.ResolvedHome, input.Home} {
+		if underEngramSkillRoot(expandHomeRel(offer.SourcePath, home), roots) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // pluginConflictLines renders one line per plugin name conflict, sorted by
@@ -541,6 +602,24 @@ func rootDepthContaining(root ScannedRoot, path string) (int, bool) {
 	}
 
 	return depth, contains
+}
+
+// rootOverlapsAny reports whether root (by its resolved path or its path as
+// given) lies at or under one of paths, or holds one of them.
+func rootOverlapsAny(root ScannedRoot, paths []string) bool {
+	for _, rootPath := range []string{root.Resolved, root.Path} {
+		if rootPath == "" {
+			continue
+		}
+
+		for _, path := range paths {
+			if pathWithinRoot(rootPath, path) || pathWithinRoot(path, rootPath) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // rootVouchesFor reports whether key is one of root's key prefixes followed

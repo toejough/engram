@@ -178,7 +178,6 @@ const (
 // unexported variables.
 var (
 	errClaudeInstalledPluginsVersion = errors.New("unsupported installed_plugins.json version")
-	errClaudePluginSkillsField       = errors.New("unsupported plugin.json skills form")
 )
 
 // claudePluginInstall is one installed_plugins.json entry for one plugin key.
@@ -296,27 +295,6 @@ func claudePluginInstallToScan(
 	install, applies := applicableClaudeInstall(fsys, key.installs, scan.RepoTopLevel)
 
 	return install, hasSetting, applies && install.InstallPath != ""
-}
-
-// decodeClaudePluginSkillsField decodes plugin.json's `skills` value: absent
-// or null → none; a string → one path; an array of strings → those paths.
-func decodeClaudePluginSkillsField(field json.RawMessage) ([]string, error) {
-	trimmed := strings.TrimSpace(string(field))
-	if trimmed == "" || trimmed == jsonNullLiteral {
-		return nil, nil
-	}
-
-	var single string
-	if json.Unmarshal(field, &single) == nil {
-		return []string{single}, nil
-	}
-
-	var many []string
-	if json.Unmarshal(field, &many) == nil {
-		return many, nil
-	}
-
-	return nil, errClaudePluginSkillsField
 }
 
 // dedupeSkillCandidatesBySource keeps the first candidate per kind, name
@@ -518,7 +496,8 @@ func scanClaudePluginContents(
 
 // scanClaudePluginSkills scans the default skills/ directory (when the
 // installPath listing holds one) plus each plugin.json `skills` path into
-// result. It returns false when a declared path cannot be used.
+// result. It returns false when a declared path cannot be used, including
+// one declaredPluginPath refuses (absolute, leaving the plugin, missing).
 func scanClaudePluginSkills(
 	fsys SkillSourceFS, result *SkillScanResult, root string, field json.RawMessage,
 	scopeID, pluginKey string, hasDefault bool,
@@ -527,7 +506,7 @@ func scanClaudePluginSkills(
 		mergeSkillScanResult(result, ScanSkillChildren(fsys, filepath.Join(root, claudePluginSkillsDirName), scopeID))
 	}
 
-	paths, err := decodeClaudePluginSkillsField(field)
+	paths, _, err := decodePluginPathsField(field)
 	if err != nil {
 		result.Warnings = append(result.Warnings, fmt.Sprintf(claudePluginSkillsFieldWarningFormat, pluginKey))
 
@@ -537,7 +516,17 @@ func scanClaudePluginSkills(
 	ok := true
 
 	for _, declared := range paths {
-		ok = scanDeclaredPluginSkillPath(fsys, result, root, filepath.Join(root, declared), scopeID, pluginKey) && ok
+		path, problem := declaredPluginPath(fsys, root, declared)
+		if problem != "" {
+			result.Roots = append(result.Roots, ScannedRoot{Path: path})
+			result.Warnings = append(result.Warnings, fmt.Sprintf(pluginDeclaredPathWarningFormat,
+				pluginKey, claudePluginSkillsDirName, declared, problem))
+			ok = false
+
+			continue
+		}
+
+		ok = scanDeclaredPluginSkillPath(fsys, result, root, path, scopeID, pluginKey) && ok
 	}
 
 	return ok

@@ -477,6 +477,7 @@ func TestScanPluginCommands_MissingDeclaredPathIsNotScanned(t *testing.T) {
 	g.Expect(candidateNames(result)).To(Equal([]string{"b"}))
 	gone, _ := rootScanned(result, pluginRoot+"/gone.md")
 	g.Expect(gone).To(BeFalse())
+	g.Expect(warningsMention(result, "./gone.md")).To(BeTrue(), "%v", result.Warnings)
 	extra, _ := rootScanned(result, pluginRoot+"/extra")
 	g.Expect(extra).To(BeTrue())
 }

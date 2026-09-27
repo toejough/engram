@@ -162,7 +162,7 @@ const (
 	// (design D6), after listing them.
 	skillGroupPromptFormat = "@%s (%d): [a]ccept all / [d]ecline all / [r]eview each / [s]kip for now "
 	// skillGroupPromptOfferFormat lists one offer above the group question.
-	skillGroupPromptOfferFormat = "  %s %s\n"
+	skillGroupPromptOfferFormat = "  %s %s%s\n"
 	// skillOutstandingScopeFormat is one `@<scope-id> <count>` summary label.
 	skillOutstandingScopeFormat = "@%s %d"
 	// skillScopeHeaderFormat heads a scope's --dry-run listing (design D6's
@@ -256,7 +256,7 @@ func (a *skillOfferAnswerer) answerScope(scope offerScope) error {
 // An unrecognised answer is treated as skip, as is end of input.
 func (a *skillOfferAnswerer) askGroup(scopeID string, bulk []SkillOffer) groupChoice {
 	for _, offer := range bulk {
-		_, _ = fmt.Fprintf(a.stdout, skillGroupPromptOfferFormat, offer.Kind, offer.Key)
+		_, _ = fmt.Fprintf(a.stdout, skillGroupPromptOfferFormat, offer.Kind, offer.Key, offerPromptSource(offer))
 	}
 
 	_, _ = fmt.Fprintf(a.stdout, skillGroupPromptFormat, scopeID, len(bulk))
@@ -380,6 +380,17 @@ func groupOffersByScope(offers []SkillOffer) []offerScope {
 	}
 
 	return scopes
+}
+
+// offerPromptSource is the " (<source>)" a prompt shows after an offer's key
+// so the user sees which file they are accepting: empty for an engram-owned
+// offer, and for a removal with no recorded skill_source.
+func offerPromptSource(offer SkillOffer) string {
+	if offer.EngramOwned || offer.SourcePath == "" {
+		return ""
+	}
+
+	return " (" + offer.SourcePath + ")"
 }
 
 // offerSourceLabel is the source a --dry-run line names: the offer's

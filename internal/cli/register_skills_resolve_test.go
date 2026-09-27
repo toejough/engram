@@ -100,6 +100,30 @@ func TestRegisterSkillsCLI_SymlinkedHomeRoundTripsSkillSource(t *testing.T) {
 	g.Expect(stdout.String()).To(BeEmpty())
 }
 
+// TestUpdateSkillRegistration_RealRunPrintsScanWarnings covers the update
+// hook printing the scanner and key-builder warnings on a real (non-dry)
+// run: a `:` skill name is skipped with a warning, as under --dry-run.
+func TestUpdateSkillRegistration_RealRunPrintsScanWarnings(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixture := newResolveCLIFixture(t, g)
+
+	badSkill := filepath.Join(fixture.resolvedHome, ".claude", "skills", "bad:name")
+	g.Expect(os.MkdirAll(badSkill, 0o750)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(badSkill, "SKILL.md"), []byte("# Bad\n"), 0o600)).To(Succeed())
+
+	deps := newTestDeps(&bytes.Buffer{}, &bytes.Buffer{})
+	fixture.customize(&deps)
+
+	var updateOut bytes.Buffer
+
+	err := cli.ExportRunUpdateSkillRegistrationFromDeps(
+		context.Background(), deps, false, fixture.vault, fixture.home, &updateOut)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(updateOut.String()).To(ContainSubstring(`engram: skipping skill "bad:name"`))
+}
+
 // TestUpdateSkillRegistration_SeesTheSameOffersAsRegisterSkills covers task
 // 5.2 and update-deploy-sync's "Update and register-skills see the same
 // offers": over one set of production-composed Deps (same home, vault and

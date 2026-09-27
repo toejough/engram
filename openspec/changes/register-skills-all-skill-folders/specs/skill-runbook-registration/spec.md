@@ -216,7 +216,7 @@ A source root SHALL count as read only when its read succeeded. A read error of 
 
 A skill note SHALL be eligible for removal only as follows:
 
-- For bare, `cmd:`, `pi:`, `agents:`, and `pi-prompt:` keys: the fixed user root for that form was read (`~/.claude/skills` for every bare key, `~/.claude/commands`, `~/.pi/agent/skills`, `~/.agents/skills`, `~/.pi/agent/prompts`). Without a readable `~/.claude/skills`, no bare-key note SHALL be removal-eligible.
+- For bare, `cmd:`, `pi:`, `agents:`, and `pi-prompt:` keys: the fixed user root for that form was read (`~/.claude/skills` for every bare key, `~/.claude/commands`, `~/.pi/agent/skills`, `~/.agents/skills`, `~/.pi/agent/prompts`). Without a readable `~/.claude/skills`, no bare-key note SHALL be removal-eligible. A bare-key note SHALL also require every root that emitted or could emit an engram-owned copy to have been read: `~/.pi/agent/skills` and `~/.agents/skills` when recorded, every root overlapping an engram-owned skills root, and the engram-owned roots themselves.
 - For `anthropic-skills:`, `pi-settings:`, `pi-pkg:`, and `project:` keys: the specific root containing the note's recorded `skill_source` was read in this run. That root is the synced bucket whose `manifest.json` parsed, the settings entry's path, the package root, or the exact project directory.
 - For plugin keys: `installed_plugins.json` and `settings.json` both parsed, the plugin has no plugin conflict, and it is either enabled with its `installPath` read, or absent from the manifest.
 
@@ -245,6 +245,10 @@ A note whose `skill_source` lies under no read root SHALL NOT be eligible. Regis
 #### Scenario: Unreadable user skills directory
 - **WHEN** listing `~/.claude/skills` fails and bare-key notes for non-engram skills exist
 - **THEN** no removal offer is made for them
+
+#### Scenario: Unreadable Pi copy keeps a bare-key note
+- **WHEN** `~/.claude/skills` is readable but lacks the `route` link, and `~/.pi/agent/skills/route` fails with a permission error
+- **THEN** no removal offer is made for the `route` note
 
 #### Scenario: Synced manifest missing
 - **WHEN** `~/.claude/skills/synced/` holds no bucket with a readable `manifest.json` and `anthropic-skills:*` notes exist

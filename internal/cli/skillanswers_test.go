@@ -297,6 +297,80 @@ func TestAnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines(t *testing
 	}
 }
 
+// TestAnswerSkillOffers_PromptsNameNonEngramSources covers the source path
+// shown in the per-offer and grouped prompts for every offer whose source is
+// not engram-owned, so the user sees which file they are accepting; an
+// engram-owned offer, and an offer with no recorded source, show none.
+func TestAnswerSkillOffers_PromptsNameNonEngramSources(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		offers []cli.SkillOffer
+		stdin  string
+		want   string
+	}{
+		"register from a plugin": {
+			offers: []cli.SkillOffer{{
+				Kind: cli.SkillOfferRegister, Key: "evil:cmd:x", ScopeID: "plugin:evil", SourcePath: "/cache/evil/x.md",
+			}},
+			stdin: "n\n",
+			want:  "Register skill `evil:cmd:x` (/cache/evil/x.md) as a vault runbook? [y/N] ",
+		},
+		"refresh from a plugin": {
+			offers: []cli.SkillOffer{{
+				Kind: cli.SkillOfferRefresh, Key: "evil:x", ScopeID: "plugin:evil", SourcePath: "/cache/evil/x/SKILL.md",
+			}},
+			stdin: "n\n",
+			want: "Skill `evil:x` (/cache/evil/x/SKILL.md) changed since its note was last synced. " +
+				"Update the note? [y/N] ",
+		},
+		"removal with a recorded source": {
+			offers: []cli.SkillOffer{{
+				Kind: cli.SkillOfferRemove, Key: "old", ScopeID: "claude-user", SourcePath: "~/.claude/skills/old/SKILL.md",
+			}},
+			stdin: "n\n",
+			want: "Skill `old` (~/.claude/skills/old/SKILL.md) is no longer found in its source. " +
+				"Remove its runbook note? [y/N] ",
+		},
+		"engram-owned register": {
+			offers: []cli.SkillOffer{{
+				Kind: cli.SkillOfferRegister, Key: "route", ScopeID: "claude-user",
+				SourcePath: "/h/.claude/engram/skills/route/SKILL.md", EngramOwned: true,
+			}},
+			stdin: "n\n",
+			want:  "Register skill `route` as a vault runbook? [y/N] ",
+		},
+		"grouped offers list their sources": {
+			offers: []cli.SkillOffer{
+				{Kind: cli.SkillOfferRegister, Key: "evil:a", ScopeID: "plugin:evil", SourcePath: "/cache/evil/a/SKILL.md"},
+				{
+					Kind: cli.SkillOfferRegister, Key: "evil:b", ScopeID: "plugin:evil",
+					SourcePath: "/cache/evil/b/SKILL.md", EngramOwned: true,
+				},
+			},
+			stdin: "s\n",
+			want: "  register evil:a (/cache/evil/a/SKILL.md)\n  register evil:b\n" +
+				"@plugin:evil (2): [a]ccept all / [d]ecline all / [r]eview each / [s]kip for now ",
+		},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			rec := newAnswerRecorder()
+
+			var stdout bytes.Buffer
+
+			err := cli.AnswerSkillOffers(rec.answering(testCase.offers, emptyAnswers(t), testCase.stdin), &stdout)
+
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(stdout.String()).To(Equal(testCase.want))
+		})
+	}
+}
+
 // TestAnswerSkillOffers_PropagatesActionErrors covers an accept or decline
 // action failing: the run stops with that error.
 func TestAnswerSkillOffers_PropagatesActionErrors(t *testing.T) {
@@ -343,7 +417,8 @@ func TestAnswerSkillOffers_RemovalsPromptIndividually(t *testing.T) {
 	g.Expect(rec.accepted).To(Equal([]string{"c4", "dev", "gone"}))
 	g.Expect(rec.declined).To(Equal([]string{"old"}))
 	g.Expect(stdout.String()).To(ContainSubstring("@claude-user (2): [a]ccept all"))
-	g.Expect(stdout.String()).To(ContainSubstring("Skill `gone` is no longer shipped. Remove its runbook note? [y/N] "))
+	g.Expect(stdout.String()).To(ContainSubstring(
+		"Skill `gone` is no longer found in its source. Remove its runbook note? [y/N] "))
 }
 
 // TestAnswerSkillOffers_ReviewEach_PromptsPerOffer covers "review each":

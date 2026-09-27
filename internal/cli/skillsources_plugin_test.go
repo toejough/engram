@@ -99,6 +99,96 @@ func TestScanClaudePlugins_ConflictProperty(t *testing.T) {
 	})
 }
 
+// TestScanClaudePlugins_DeclaredPathsStayInsideThePlugin covers the
+// plugin.json path guard: an absolute declared path, a `..` escape, or a
+// path whose symlinks resolve outside the resolved installPath is refused
+// with a warning and marks the plugin not scanned, for `skills` and
+// `commands` alike; so is a single command file that is not `.md`. None of
+// the escaping files is read into a candidate.
+func TestScanClaudePlugins_DeclaredPathsStayInsideThePlugin(t *testing.T) {
+	t.Parallel()
+
+	root := pluginCacheRoot + "/m/p/1"
+	secret := "/home/.ssh"
+
+	cases := map[string]struct {
+		manifest string
+		setup    func(*fakeSkillFS)
+		warning  string
+	}{
+		"absolute command path": {
+			manifest: `{"commands":["` + secret + `/id_rsa.md"]}`,
+			warning:  secret + "/id_rsa.md",
+		},
+		"dot-dot command escape": {
+			manifest: `{"commands":["../../../../../.ssh/id_rsa.md"]}`,
+			warning:  "../../../../../.ssh/id_rsa.md",
+		},
+		"dot-dot command escape without .md": {
+			manifest: `{"commands":["../../../../../.ssh/id_rsa"]}`,
+			warning:  "../../../../../.ssh/id_rsa",
+		},
+		"symlinked command dir escaping": {
+			manifest: `{"commands":"./cmds"}`,
+			setup:    func(f *fakeSkillFS) { f.link(root+"/cmds", secret) },
+			warning:  "./cmds",
+		},
+		"absolute skills path": {
+			manifest: `{"skills":["` + secret + `"]}`,
+			warning:  secret,
+		},
+		"dot-dot skills escape": {
+			manifest: `{"skills":"../../../../../.ssh"}`,
+			warning:  "../../../../../.ssh",
+		},
+		"symlinked skill folder escaping": {
+			manifest: `{"skills":["./one"]}`,
+			setup:    func(f *fakeSkillFS) { f.link(root+"/one", secret+"/leak") },
+			warning:  "./one",
+		},
+		"non-md command file": {
+			manifest: `{"commands":["./commands/setup.txt"]}`,
+			setup:    func(f *fakeSkillFS) { f.file(root+"/commands/setup.txt", "not markdown") },
+			warning:  "setup.txt",
+		},
+		"missing declared command path": {
+			manifest: `{"commands":["./gone.md"]}`,
+			warning:  "./gone.md",
+		},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			fsys := newFakeSkillFS().
+				file(root+"/skills/ok/SKILL.md", "ok").
+				file(root+"/.claude-plugin/plugin.json", testCase.manifest).
+				file(secret+"/id_rsa.md", "PRIVATE KEY").
+				file(secret+"/id_rsa", "PRIVATE KEY").
+				file(secret+"/leak/SKILL.md", "PRIVATE KEY").
+				file(secret+"/SKILL.md", "PRIVATE KEY")
+			if testCase.setup != nil {
+				testCase.setup(fsys)
+			}
+
+			writePluginManifests(g, fsys, []pluginInstall{{key: "p@m", installPath: root}},
+				map[string]bool{"p@m": true})
+
+			result := cli.ScanClaudePlugins(fsys, pluginScanInput())
+
+			g.Expect(pluginStatus(result, "p")).To(Equal(pluginStatusNotScanned))
+			g.Expect(warningsMention(result.SkillScanResult, testCase.warning)).To(BeTrue(), "%v", result.Warnings)
+
+			for _, candidate := range result.Candidates {
+				g.Expect(string(candidate.Content)).NotTo(Equal("PRIVATE KEY"), candidate.SourcePath)
+				g.Expect(candidate.SourcePath).To(HavePrefix(root + "/"))
+			}
+		})
+	}
+}
+
 func TestScanClaudePlugins_DisabledPluginReadsNothingBeyondManifests(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -472,7 +562,7 @@ func TestScanClaudePlugins_UnscannablePluginContents(t *testing.T) {
 			f.file(root+"/skills/ok/SKILL.md", "ok").
 				file(root+"/.claude-plugin/plugin.json", `{"skills":{"a":1}}`)
 		}},
-		"declared skills path missing": {setup: func(f *fakeSkillFS) {
+		"declared skills path missing": {warns: true, setup: func(f *fakeSkillFS) {
 			f.file(root+"/skills/ok/SKILL.md", "ok").
 				file(root+"/.claude-plugin/plugin.json", `{"skills":["./nowhere"]}`)
 		}},

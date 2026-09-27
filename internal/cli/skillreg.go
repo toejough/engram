@@ -41,6 +41,11 @@ type SkillOffer struct {
 	// exists yet.
 	Basename string
 	Hash     string
+	// EngramOwned marks an offer whose source lies under an engram-owned
+	// skills root (the candidate's resolved path, or a removal's recorded
+	// skill_source). The prompts show the source path of every other offer,
+	// so the user sees which file they are accepting.
+	EngramOwned bool
 }
 
 // SkillOfferKind identifies what a SkillOffer proposes: creating a note for
