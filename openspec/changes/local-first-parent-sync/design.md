@@ -435,11 +435,12 @@ A served learn is handled as follows:
 
     None of this session's `CLAUDECODE`/`CLAUDE_CODE_*`/`CLAUDE_PID` variables reach the arm, and neither do `ENGRAM_SERVER` or `ENGRAM_VAULT_NAME`.
   - **Working directory.** `$ARM/work`, which is not a repo, so no project `CLAUDE.md` or rules load.
+  - **`$ARM` lives outside `/Users/joe`** (final rec 1). It is `ARM=$(mktemp -d /private/tmp/engram-arm.XXXXXX)` (or under `/var/folders`), so the whole home directory can be denied without denying the arm itself.
   - **Auth.** The token is read from the macOS keychain item `Claude Code-credentials` (`claudeAiOauth.accessToken`) into a shell variable and passed only through `env -i`. The launcher never echoes it: no `set -x`, no logging, no file. It is re-read per batch.
   - **Layer 1, permissions (no `bypassPermissions`).**
     - `--allowedTools "Bash(engram:*)" "Read" "Glob" "Grep"`;
     - `--disallowedTools "WebFetch" "WebSearch" "Bash(git:*)" "Bash(curl:*)" "Bash(security:*)"`;
-    - `permissions.deny` in the arm's settings: `Read(//Users/joe/.local/share/engram/**)`, `Read(//Users/joe/.claude/**)`, `Read(//Users/joe/.ssh/**)`, `Read(//Users/joe/repos/**)`. The Read, Glob and Grep tools are **not** covered by the OS sandbox, which isolates only Bash (per the Claude Code sandboxing docs, "Scope").
+    - `permissions.deny` in the arm's settings is `Read(//Users/joe/**)`, the **whole home directory** (final rec 1). The Read, Glob and Grep tools are **not** covered by the OS sandbox, which isolates only Bash (per the Claude Code sandboxing docs, "Scope"). Denying only a few directories left `~/.aws`, `~/.config/gh` and `~/.netrc` readable.
     - In `-p` mode, an unlisted tool or a command that needs approval is simply not run.
   - **Layer 2, OS sandbox** (Claude Code's built-in sandbox, which uses Seatbelt on macOS). The keys were checked against code.claude.com/docs/en/sandboxing and settings-reference on 2026-09-27. They go in `$ARM/home/.claude/settings.json`:
 
@@ -450,12 +451,11 @@ A served learn is handled as follows:
         "allowUnsandboxedCommands": false, "autoAllowBashIfSandboxed": false,
         "filesystem": {
           "allowWrite": ["$ARM"],
-          "denyRead": ["/Users/joe/.local/share/engram", "/Users/joe/.claude", "/Users/joe/.ssh", "/Users/joe/repos"]
+          "denyRead": ["/Users/joe"]
         },
         "network": { "allowedDomains": [], "strictAllowlist": true }
       },
-      "permissions": { "deny": ["Read(//Users/joe/.local/share/engram/**)", "Read(//Users/joe/.claude/**)",
-                                "Read(//Users/joe/.ssh/**)", "Read(//Users/joe/repos/**)"] }
+      "permissions": { "deny": ["Read(//Users/joe/**)"] }
     }
     ```
 
@@ -489,13 +489,26 @@ A served learn is handled as follows:
       - no file under the real vault (outside `.git/`) was newer than the probe start;
       - no top-level `~/.claude` file was newer;
       - `$ARM` was deleted.
+    - **Final-rec re-probe** (2026-09-27, `$ARM=/private/tmp/engram-arm.YihVgc`, `denyRead: ["/Users/joe"]`, `Read(//Users/joe/**)`, real layer-1 flags):
+      - **Denied:**
+        - Read `/Users/joe/.gitconfig`;
+        - Glob `*` in `/Users/joe/.config/gh`;
+        - Grep `user` in `/Users/joe/.gitconfig`;
+        - Read on the real vault's `.gitignore`.
+      - **Succeeded (controls):** Read, Glob and Grep inside `$ARM/work`, and `engram …` through `Bash(engram:*)`.
+      - **Still confined:** a stub `engram` that tried to list the real vault path, `touch /Users/joe/arm-probe-DELETE-ME`, and reach `example.com`. The sandbox blocked it: the network got `deny network-outbound example.com:443`, the file was absent afterwards, and the arm reported all three blocked.
+      - **After the run:** no real-vault file (outside `.git/`) and no top-level `~/.claude` file was newer than the start marker, and `$ARM` was deleted.
   - **Residual risk (the loopback arm only).** `allowLocalBinding` opens every loopback port, including a host `engram serve` on `127.0.0.1:8093`. Mitigations:
     - `ENGRAM_PARENT` is fixed by the launcher to the scratch port;
     - an env-prefixed override is not run (verified above);
     - `engram` has no URL flag;
     - the worst case is a pending offer on the host, which curation gates and the post-run check detects.
   - **Per-batch procedure:**
-    1. Run the confinement probe arm first: read the real vault path, write outside `$ARM`, and reach the network. **All three must fail.** Keep its transcript with the batch's results.
+    1. Run the confinement probe arm first, as two invocations under the batch's `settings.json`:
+       - with `--allowedTools "Bash"`, which opens layer 1 to test layer 2: read the real vault path, write to `/Users/joe/<probe>` and `/tmp/<probe>`, and `curl https://example.com`;
+       - with the real layer-1 flags: **Read, Glob and Grep** on `/Users/joe/.gitconfig`, `/Users/joe/.config/gh` and the real vault.
+
+       **All of these must fail**, while the controls inside `$ARM` succeed. Keep the transcripts with the batch's results.
     2. Run the arms.
     3. Delete `$ARM`.
     4. Check that no real-vault file (outside `.git/`) and no top-level `~/.claude` file is newer than the batch start marker.

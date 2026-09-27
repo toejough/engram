@@ -201,12 +201,17 @@
 ## 9. Skill edits (design D10, D11): `superpowers:writing-skills` TDD in hermetic headless arms
 
 > Each RED and GREEN arm is a fresh `claude -p` process, never a subagent. Every arm is **hermetic and confined**, exactly as in design D11 (r3-1, r4 S1):
+> - **`$ARM`.** `ARM=$(mktemp -d /private/tmp/engram-arm.XXXXXX)`, outside `/Users/joe`.
 > - **Launch.** `env -i` with only `HOME=$ARM/home`, `USER`, `PATH=$ARM/bin:/usr/bin:/bin`, `TERM=dumb`, `TMPDIR=$ARM/tmp`, `XDG_DATA_HOME=$ARM/xdg`, `ENGRAM_VAULT_PATH=$ARM/vault`, `CLAUDE_CODE_OAUTH_TOKEN`, and `ENGRAM_PARENT` only for 9.2 (the scratch serve port) and 9.3 (a dead port, which the sandbox blocks anyway). The cwd is `$ARM/work` (not a repo). `$ARM/bin/engram` is the branch build.
 > - **Token.** Read from the keychain item `Claude Code-credentials` (`claudeAiOauth.accessToken`) into a shell variable. The launcher never echoes it (no `set -x`, no logging), and re-reads it per batch.
-> - **Layer 1, permissions.** `--allowedTools "Bash(engram:*)" "Read" "Glob" "Grep"` and `--disallowedTools "WebFetch" "WebSearch" "Bash(git:*)" "Bash(curl:*)" "Bash(security:*)"`, plus `permissions.deny` `Read(//…)` rules for the real vault, `~/.claude`, `~/.ssh` and `~/repos`. **No `bypassPermissions`.**
-> - **Layer 2, OS sandbox.** The design D11 `sandbox` block goes in `$ARM/home/.claude/settings.json`: `enabled`, `failIfUnavailable`, `allowUnsandboxedCommands: false`, **`autoAllowBashIfSandboxed: false`**, `allowWrite: [$ARM]`, the `denyRead` list, and `network.allowedDomains: []` with `strictAllowlist`. For 9.2 only, the network block is `["127.0.0.1","localhost"]` with `allowLocalBinding: true`.
+> - **Layer 1, permissions.** `--allowedTools "Bash(engram:*)" "Read" "Glob" "Grep"` and `--disallowedTools "WebFetch" "WebSearch" "Bash(git:*)" "Bash(curl:*)" "Bash(security:*)"`, plus `permissions.deny: ["Read(//Users/joe/**)"]`, the whole home directory, because Read, Glob and Grep sit outside the OS sandbox. **No `bypassPermissions`.**
+> - **Layer 2, OS sandbox.** The design D11 `sandbox` block goes in `$ARM/home/.claude/settings.json`: `enabled`, `failIfUnavailable`, `allowUnsandboxedCommands: false`, **`autoAllowBashIfSandboxed: false`**, `allowWrite: [$ARM]`, `denyRead: ["/Users/joe"]`, and `network.allowedDomains: []` with `strictAllowlist`. For 9.2 only, the network block is `["127.0.0.1","localhost"]` with `allowLocalBinding: true`.
 > - **Per batch:**
->   1. First run the **confinement probe arm**: read `/Users/joe/.local/share/engram/vault`, write `/Users/joe/<probe>` and `/tmp/<probe>`, and `curl https://example.com`. All must fail, with a control write inside `$ARM` succeeding. Keep that transcript with the batch results. If any probe succeeds, stop the batch.
+>   1. First run the **confinement probe arm**, per design D11:
+>      - a Bash-opened invocation: read `/Users/joe/.local/share/engram/vault`, write `/Users/joe/<probe>` and `/tmp/<probe>`, and `curl https://example.com`;
+>      - a real-flags invocation: **Read, Glob and Grep** on `/Users/joe/.gitconfig`, `/Users/joe/.config/gh` and the real vault.
+>
+>      All must fail, with the control Read, Glob, Grep and write inside `$ARM` succeeding. Keep the transcripts with the batch results. If any probe succeeds, stop the batch.
 >   2. Run the arms, each with a `timeout` and no `--max-turns`, and the skill under test installed only at `$ARM/home/.claude/skills/<name>/SKILL.md`.
 >   3. Delete `$ARM`.
 >   4. Confirm that no real-vault file (outside `.git/`) and no top-level `~/.claude` file is newer than the batch start marker.
@@ -219,6 +224,11 @@
   - Edit per E104–E108.
   - GREEN: `offer.for` is judged first, every bookkeeping step passes `--expect-hash` with the judged hash, covered/near end with `--discard --into`, and the rejection uses a bare `--discard`. Seed a mid-judgment in-place update, and check that the agent re-judges after the hash check fails.
 - [ ] 9.2 recall. The scenario is a scratch child plus a scratch parent `serve`, whose merged payload has a used `from_parent` note.
+  - **Launcher preconditions (final rec 2), all asserted before the arm starts; the arm is aborted if any fails:**
+    - The scratch `serve` runs on a **random free port** `$PP`: pick one with a bind-to-0 helper and never hardcode it. Its vault is `$ARM/parent-vault`, run with `XDG_DATA_HOME=$ARM/p-xdg`.
+    - The port in `ENGRAM_PARENT` equals `$PP`, and `$PP` is not `8093`.
+    - `curl -s "http://127.0.0.1:$PP/query?phrase=probe&dedupe-keys=1"` returns a `vault_id` equal to `$(cat $ARM/parent-vault/.engram-vault-id)`. The launcher runs this outside the arm.
+    - Stop the scratch `serve` after the arm, before `$ARM` is deleted.
   - RED expectation: activation is skipped, or `engram amend` is tried on the parent note.
   - Edit per E109–E111.
   - GREEN: the agent activates it (the pending copy appears), never amends it, and treats the local `pending_offers` as after-task curation.
