@@ -26,12 +26,14 @@ const (
 
 // Exported variables.
 var (
+	ErrAdoptConflictForTest                = errAdoptConflict
 	ErrAdoptTargetKeyedForTest             = errAdoptTargetKeyed
 	ErrAnswerInBothFlagsForTest            = errAnswerInBothFlags
 	ErrCheckFailedForTest                  = errCheckFailed
 	ErrCountBadFilterForTest               = errCountBadFilter
 	ErrCountBothModesForTest               = errCountBothModes
 	ErrCountNoModeForTest                  = errCountNoMode
+	ErrDuplicateAdoptKeyForTest            = errDuplicateAdoptKey
 	ErrDuplicateSkillNoteForTest           = errDuplicateSkillNote
 	ErrLearnBadTierForTest                 = errLearnBadTier
 	ErrQAAnswerSourceRequired              = errQAAnswerSourceRequired
@@ -818,6 +820,9 @@ func ExportNewVaultNotesMetaWithTerms(terms map[string][]VaultTermMember) AllVau
 func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 	return newestChunkItems(scored, n, provenanceDirect)
 }
+
+// ExportParseAdoptFlags exposes parseAdoptFlags for property testing.
+func ExportParseAdoptFlags(raw []string) (map[string]string, error) { return parseAdoptFlags(raw) }
 
 // ExportParseSkillKey exposes the skill key parser (parseSkillKey, design
 // D3): whether key is recognized, and its removal form, source-rootedness,

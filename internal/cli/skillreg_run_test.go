@@ -16,6 +16,67 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
+// TestRunSkillRegistration_AdoptKeyRegisteredElsewhere_WritesNothing covers
+// a multi-entry --adopt whose later entry (sorted order) adopts a key the
+// vault already registers to a different note: the conflict is caught in
+// validation, before the earlier entry renames its note, so the vault is
+// byte-unchanged (the reproduced partial write: claude:route keyed on 1036,
+// then --adopt claude:curate=1049 --adopt claude:route=1045).
+func TestRunSkillRegistration_AdoptKeyRegisteredElsewhere_WritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1036.2026-09-22.skill-claude-route.md", keyedSkillNote("route-hash", "claude:route"))
+	vault.put("1045.2026-09-23.route-draft.md", promotedRunbookFixture("1045", "2026-09-23", "never guess"))
+	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
+
+	before := maps.Clone(vault.files)
+
+	deps := skillRegistrationDepsFor(vault, skillsHomeFixture(map[string][]byte{
+		"curate": []byte("# Curate\n"), "route": []byte("# Route\n"),
+	}))
+
+	var stdout bytes.Buffer
+
+	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome,
+		Adopt: map[string]string{"claude:curate": "1049", "claude:route": "1045"},
+	}, deps, &stdout)
+
+	g.Expect(err).To(MatchError(cli.ErrAdoptConflictForTest))
+	g.Expect(vault.files).To(Equal(before), "a refused adopt run must write nothing")
+}
+
+// TestRunSkillRegistration_AdoptKeyWhileBatchRekeysItsNote_WritesNothing
+// covers an entry adopting key K onto note N while the vault's K-note is
+// another note that a second entry in the same batch would re-key away:
+// refused before any write, never resolved by ordering.
+func TestRunSkillRegistration_AdoptKeyWhileBatchRekeysItsNote_WritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1036.2026-09-22.skill-claude-route.md", keyedSkillNote("route-hash", "claude:route"))
+	vault.put("1045.2026-09-23.route-draft.md", promotedRunbookFixture("1045", "2026-09-23", "never guess"))
+
+	before := maps.Clone(vault.files)
+
+	deps := skillRegistrationDepsFor(vault, skillsHomeFixture(map[string][]byte{
+		"route": []byte("# Route\n"), "write-memory": []byte("# Write memory\n"),
+	}))
+
+	var stdout bytes.Buffer
+
+	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome,
+		Adopt: map[string]string{"claude:route": "1045", "claude:write-memory": "1036"},
+	}, deps, &stdout)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(vault.files).To(Equal(before), "a refused adopt run must write nothing")
+}
+
 // TestRunSkillRegistration_AdoptLinkedNotes_OrderIndependent covers several
 // adopts in one run where one adopted note links to another (the real vault:
 // route's red_flags link write-memory's note): the link is rewritten to the
@@ -157,6 +218,36 @@ func TestRunSkillRegistration_AdoptRunsBeforeOffers_NoDuplicateOffer(t *testing.
 	// No further offer (prompt, decline, or summary line) for curate.
 	g.Expect(stdout.String()).NotTo(ContainSubstring("Register skill"))
 	g.Expect(stdout.String()).NotTo(ContainSubstring("awaiting an answer"))
+}
+
+// TestRunSkillRegistration_AdoptUnparseableBasenameLater_WritesNothing covers
+// a multi-entry --adopt whose later entry (sorted order) targets a runbook
+// note whose basename has no Luhmann id/date: refused in validation, before
+// the earlier entry writes.
+func TestRunSkillRegistration_AdoptUnparseableBasenameLater_WritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newSkillAcceptFixtureVault()
+	vault.put("1049.2026-09-21.curate-review-pending-offers.md", curatePromotedNoteFixture())
+	vault.put("README.md",
+		"---\ntype: runbook\nsituation: s\ndone_when: d\nsource: s\nuser: u\nvault: v\n---\n\nbody\n")
+
+	before := maps.Clone(vault.files)
+
+	deps := skillRegistrationDepsFor(vault, skillsHomeFixture(map[string][]byte{
+		"curate": []byte("# Curate\n"), "route": []byte("# Route\n"),
+	}))
+
+	var stdout bytes.Buffer
+
+	err := cli.RunSkillRegistration(t.Context(), cli.SkillRegistrationArgs{
+		Vault: "/vault", VaultName: "personal", Home: skillRegHome,
+		Adopt: map[string]string{"claude:curate": "1049", "claude:route": "README"},
+	}, deps, &stdout)
+
+	g.Expect(err).To(MatchError(ContainSubstring("no Luhmann id/date")))
+	g.Expect(vault.files).To(Equal(before), "a refused adopt run must write nothing")
 }
 
 // TestRunSkillRegistration_AdoptUnshippedSkill_Errors covers --adopt naming a

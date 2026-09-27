@@ -147,6 +147,63 @@ func TestRegisterSkillsCLI_DryRunListsRegisterOffer(t *testing.T) {
 		filepath.Join(resolvedSkillsDir, "curate", "SKILL.md") + ")\n"))
 }
 
+// TestRegisterSkillsCLI_DuplicateAdoptKey_WritesNothing covers two --adopt
+// entries claiming the same key for different notes: refused before any
+// adopt writes (a later flag must never silently replace an earlier one).
+func TestRegisterSkillsCLI_DuplicateAdoptKey_WritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const note = "---\ntype: runbook\nsituation: s\ndone_when: d\n---\n\nbody\n"
+
+	vault := t.TempDir()
+	notes := map[string]string{
+		"1045.2026-09-22.curate-draft.md":                 note,
+		"1049.2026-09-21.curate-review-pending-offers.md": note,
+	}
+
+	for name, content := range notes {
+		g.Expect(os.WriteFile(filepath.Join(vault, name), []byte(content), 0o600)).To(Succeed())
+	}
+
+	home := t.TempDir()
+	skillsDir := filepath.Join(home, ".claude", "engram", "skills")
+
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "curate"), 0o750)).To(Succeed())
+	g.Expect(os.WriteFile(
+		filepath.Join(skillsDir, "curate", "SKILL.md"),
+		[]byte("---\nname: curate\ndescription: judge pending offers\n---\n\nbody\n"),
+		0o600,
+	)).To(Succeed())
+	linkDeployedSkill(g, home, "curate")
+
+	stderr := executeForTestWithDeps(t, []string{
+		"engram", "register-skills", "--vault", vault,
+		"--adopt", "claude:curate=1049", "--adopt", "claude:curate=1045",
+	}, func(d *cli.Deps) {
+		d.Embed = skillAcceptFakeEmbedder{}
+		d.UserHomeDir = func() (string, error) { return home, nil }
+		d.Getwd = func() (string, error) { return home, nil }
+	})
+
+	g.Expect(stderr).To(ContainSubstring("claude:curate"))
+	g.Expect(stderr).To(ContainSubstring("more than one --adopt"))
+
+	entries, readErr := os.ReadDir(vault)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	after := make(map[string]string, len(entries))
+
+	for _, entry := range entries {
+		content, fileErr := os.ReadFile(filepath.Join(vault, entry.Name()))
+		g.Expect(fileErr).NotTo(HaveOccurred())
+
+		after[entry.Name()] = string(content)
+	}
+
+	g.Expect(after).To(Equal(notes), "a refused adopt run must write nothing")
+}
+
 // TestRegisterSkillsCLI_MalformedAdoptFlag covers --adopt values that aren't
 // shaped "<name>=<note-ref>".
 func TestRegisterSkillsCLI_MalformedAdoptFlag(t *testing.T) {
