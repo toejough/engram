@@ -1,173 +1,208 @@
 # Enumeration: local-first-parent-sync
 
-This change alters three invariants:
+This change alters five invariants:
 
-- **Remote mode.** There is no longer an `ENGRAM_SERVER` thin client. Setting the variable is a hard error.
-- **Where writes land.** A write always lands locally first, and is then offered to the parent when `ENGRAM_PARENT` is set.
-- **What a merged query shows.** It shows one copy of each note (the local one), plus pull-down on activate.
+- **Remote mode.** There is no `ENGRAM_SERVER` thin client; setting it is a hard error for every command.
+- **Where writes land.** Always locally first, then offered to the parent when `ENGRAM_PARENT` is set.
+- **What a merged query shows.** One copy of each note (the local one), no parent chunks, and pull-down on activate.
+- **What the served API exposes.** `query`, `show`, `activate`, `learn`.
+- **Which amends re-stamp identity.** Content amends only.
 
-Every row below that names `ENGRAM_SERVER`, the thin client, served `amend`, the `{status, luhmann}` receipt, runbook-pending-needs-`skill_hash`, or read-only-parent wording must be rewritten, deleted, or explicitly kept.
+Every row below that names any of the following must be rewritten, deleted, or explicitly kept:
 
-**Search (2026-09-27, worktree `runbook-vs-skill`, branch `local-first-parent-sync` @ `e1930b56`).**
+- `ENGRAM_SERVER` or the thin client;
+- served `amend`, `query-chunks`, or `show-chunk`;
+- `show-chunk --parent`;
+- the `{status, luhmann}` receipt;
+- runbook-pending-needs-`skill_hash`;
+- amend re-stamping on every write;
+- `resituate`'s field loss;
+- read-only-parent wording.
 
-```
-grep -rn "ENGRAM_SERVER" --exclude-dir=.git .
-```
+**Search (revised 2026-09-27, round 2, worktree `runbook-vs-skill`, branch `local-first-parent-sync`).**
 
-This gave 19 files outside the archive (listed below) and 15 files / 54 lines inside `openspec/changes/archive/`.
+1. `grep -rln ENGRAM_SERVER --exclude-dir=.git .` gives **20 files outside the archive**:
+   - `.review/events.jsonl`
+   - `cmd/engram/serve_integration_test.go`
+   - `cmd/engram/serve.go`
+   - `dev/eval/audit/results/transcript-events.jsonl`
+   - `docs/GLOSSARY.md`
+   - `internal/cli/{deps.go, learn.go, merged_query_dispatch_test.go, primitives.go, register_skills_cli_test.go, serve_client_test.go, serve_client.go, show_chunk.go, show.go, targets_test.go, targets.go}`
+   - `openspec/specs/{recall-payload-cuts, vault-merged-recall, vault-serve-api}/spec.md`
+   - `README.md`
 
-The same search was repeated for these related identifiers:
+   Round 1 said 19. That was a miscount of the same list. The archive holds a further 15 files / 54 lines.
 
-- `serverBase`, `envServerBase`, `fetchQuery`, `fetchQueryChunks`, `fetchActivate`, `fetchAmend`, `fetchLearn`
-- `printOfferReceipt`, `offerReceipt`, `serveAmend`, `/amend`
-- `errDiscardOverServer`, `errRegisterSkillsOverServer`, `ExportServerBase`, `noteHasPendingMarker`
-- `thin client`, `transparent HTTP`, `served learn/amend`, `two doors`
+2. The same search for these related identifiers, across `internal/`, `cmd/`, `docs/`, `openspec/specs/`, `agent-instructions/`, `README.md` and `CLAUDE.md`:
+   - `serverBase`, `fetchQuery`, `fetchQueryChunks`, `fetchAmend`, `fetchShowChunk`, `dispatchShowChunk`
+   - `serveAmend`, `serveQueryChunks`, `serveShowChunk`, `/amend`, `/query-chunks`, `/show-chunk`
+   - `errDiscardOverServer`, `errRegisterSkillsOverServer`, `ExportServerBase`, `noteHasPendingMarker`
+   - `RenameAndRewriteReferences`, `adoptRenderInput`, `rerenderFact`, `rerenderFeedback`
+   - `served write`, `two doors`, `re-stamp`
 
-That search covered `internal/`, `cmd/`, `docs/`, `openspec/specs/`, `agent-instructions/`, `README.md` and `CLAUDE.md`. Every row was read at the cited line before its disposition was written (vault note 1072). The `CLAUDE.md` and `agent-instructions/` search returned **no** `ENGRAM_SERVER` hits. The skill rows below come from the served/offer wording instead.
+3. Every row was read at the cited line before its disposition was written (vault note 1072).
+
+The `CLAUDE.md` and `agent-instructions/` search returned **no** `ENGRAM_SERVER` hits. The skill rows come from the served/offer wording.
 
 **Disposition key:**
 
 - *delete*: remove the code or text.
-- *rewrite*: replace the text.
-- *append*: add without editing the history.
-- *code*: a Go change, made in a TDD task.
-- *archive-time*: a Purpose-section edit, which a delta cannot make.
+- *rewrite*: replace it.
+- *append*: add without editing history.
+- *code*: a Go change in a TDD task.
+- *archive-time*: a Purpose edit, which deltas cannot make.
 - *no change*: the reason is given in the row.
 
-**Verification rule for performing rows.** After each edit, grep for the new text (it must be present) and for the old text (it must be absent) before ticking the row. Row 60 must end with zero `ENGRAM_SERVER` hits outside the allowlist it names.
+**Verification rule for performing rows.** After each edit, grep for the new text (it must be present) and for the old text (it must be absent) before ticking the row. Row 72 runs **after archive** (task 12.4).
 
 ## A. Go production code
 
 | # | Location (verified) | Current | Disposition | Replacement / reason |
 | --- | --- | --- | --- | --- |
-| 1 | internal/cli/serve_client.go:20 | `envServerBase = "ENGRAM_SERVER"` | code | Keep the constant only for the hard-error guard (D1), and rename it `envRemovedServer`. |
-| 2 | internal/cli/serve_client.go:397-406 | `serverBase(deps)` | delete | It is replaced by the pre-dispatch guard (D1). |
-| 3 | internal/cli/targets.go:146-156 | amend: `serverBase` branch, `errDiscardOverServer` refusal, `fetchAmend` | delete | Amend always runs locally; content amends enqueue an offer (D5/D6). |
-| 4 | internal/cli/targets.go:214-218 | query: `fetchQuery` branch ahead of the parent merge | delete | The merge is the only remote path. |
-| 5 | internal/cli/targets.go:244-248 | query-chunks: `fetchQueryChunks` branch | delete | It runs locally. |
-| 6 | internal/cli/targets.go:269-273, 280-284, 291-295 | learn feedback/fact/runbook: `fetchLearn` branches | delete | Learn is always local and then enqueues an offer (D5/D6). |
-| 7 | internal/cli/targets.go:371-375 + errRegisterSkillsOverServer (124-129) | register-skills refusal | delete | The D1 guard covers this. |
-| 8 | internal/cli/targets.go:117-123 | `errDiscardOverServer` + its comment | delete | There is no server mode to guard. |
-| 9 | internal/cli/targets.go:356-357 | comment naming both refusal errors | rewrite | Drop the `ENGRAM_SERVER` refusal clause. |
-| 10 | internal/cli/targets.go:446-450 | activate: `fetchActivate` branch | code | Replace it with local-first resolution, a parent fallback that pulls down, and `--parent` (D8). |
-| 11 | internal/cli/targets.go:478-482, 500-504 | show/show-chunk: server branches ahead of `--parent` | delete | `--parent` and the fallback remain. |
-| 12 | internal/cli/targets.go:428-431 (serve desc) | "Serve query/query-chunks/show/show-chunk/activate/learn/amend over HTTP … learn/amend land as …" | code | Drop `amend` and say "learn lands as a pending offer" (D7). |
-| 13 | internal/cli/serve_client.go:158-167 | `fetchActivate` | code | Repurpose it as the best-effort parent `/activate` after a pull-down (D8 step 4), and say "parent" in its doc. |
-| 14 | internal/cli/serve_client.go:169-184 | `fetchAmend` | delete | Amend-offers go over `/learn` (D7). |
-| 15 | internal/cli/serve_client.go:206-225 | `fetchLearn` "through ENGRAM_SERVER" | code | Becomes the offer sender used by the outbox drain (D6): it takes a payload built from the note, adds `offer.{for,key}`, and returns the parsed receipt. |
-| 16 | internal/cli/serve_client.go:227-243 | `fetchQuery`, `fetchQueryChunks` | delete | No caller is left. |
-| 17 | internal/cli/serve_client.go:42-61 (`buildQueryParams` doc :43) | "shared by fetchQuery (ENGRAM_SERVER…) and fetchQueryPayload" | code | Its only caller will be the parent fetch. Add `dedupe-keys=1` (D4). |
-| 18 | internal/cli/serve_client.go:93-96, 266, 284-292, 335-337 | comments naming `ENGRAM_SERVER` | rewrite | Say "parent" instead. |
-| 19 | internal/cli/serve_client.go:365-383 | `printOfferReceipt` `{status, luhmann}` | code | Parse the extended receipt (`basename`, `pending`) for linking (D4), and warn when `basename` is missing. |
-| 20 | internal/cli/serve.go:122 + serveAmend (292-336) | `POST /amend` route | delete | Removed from the served set (D7). |
-| 21 | internal/cli/serve.go:158-165 (`offerReceipt`) | `{Status, Luhmann}` | code | Add `Basename`, `Pending` (D4). |
-| 22 | internal/cli/serve.go:349-384 (`serveLearn`) | honors client target/position | code | Force top-level placement, resolve `offer.for`, dedupe on `offer.key`, and return the extended receipt (D7). |
-| 23 | internal/cli/serve.go:438-450 (`serveShow`) | any error → 500; rendered output | code | Add the `raw=1` byte-exact mode and a 404 for not-found (D8). |
-| 24 | internal/cli/serve.go:390-414 (`serveQuery`) | no dedupe keys | code | Add the `dedupe-keys=1` parameter (D4). |
-| 25 | internal/cli/offer.go:89-114 (`noteHasPendingMarker`) | runbook pending only with `skill_hash` | code | Any type with `pending: true` counts as pending (D7/G1). The real vault was checked read-only on 2026-09-27: no pending notes. |
-| 26 | internal/cli/offer.go:150 | comment "served learn/amend write is awaiting curation" | rewrite | "an offered or pulled-down note is awaiting curation". |
-| 27 | internal/cli/learn.go:86-98 | `SkillHash`/`SkillKey`/`SkillSource` `json:"-"` | code | Add the `Parent`/`Aliases` fields tagged `json:"-"`, plus `Offer` (the only new wire-settable field) (D3/D7). |
-| 28 | internal/cli/learn.go:274, 316, 395 | fact/feedback/runbook frontmatter structs | code | Add `parent` (nested) and `aliases` (D3). |
-| 29 | internal/cli/learn.go:573-575 | `learnArgsFrom*` doc: "ENGRAM_SERVER-mode (fetchLearn) dispatch" | rewrite | Say "and the offer payload builder". |
-| 30 | internal/cli/learn.go (RunLearn ~:204) | local write only | code | Enqueue under the lock, then drain (D6). |
-| 31 | internal/cli/amend.go:22-77, 156, 460-474 | `--discard` only; no offer | code | Add `--into` (D10). A content amend enqueues an offer (D5). Survival of `parent`/`aliases` in `overrideFactFields`/`overrideFeedbackFields`/`applyRunbookAmend`. |
-| 32 | internal/cli/amend.go:53 | comment "never touches the served /amend path" | rewrite | That path no longer exists. Drop the clause. |
-| 33 | internal/cli/activate.go:13-16, 38-75 | `{Vault, Notes}`; errors only when all fail | code | Add `--parent`, pull-down, per-ref stderr reporting, and non-zero on any failure (D8). |
-| 34 | internal/cli/resituate.go:223, 256 | hand-copied field list | code | Copy `parent`/`aliases` (D3 survival) and enqueue an offer (D5). |
-| 35 | internal/cli/identity_backfill.go:61, 90 | typed round-trip | code | Survival of `parent`/`aliases`. No offer. |
-| 36 | internal/cli/skillreg_accept.go:317 (`applySkillNoteBody`), 102, 511 | typed runbook round-trip | code | Survival of `parent`/`aliases`. |
-| 37 | internal/cli/merged_query.go:100-136, 177-191 | no dedupe; flat score sort; zero budget | code | Dedupe (D4), direct-before-explore ordering + note floor (#744), budget block (#743), drain after success (D6). |
-| 38 | internal/cli/qa.go:221 + vault_init.go:44 | `ensureVaultDir` from learn/qa only | code | Run the shared `ensureVault` on every vault-resolving command, print the creation notice, and add the outbox line to `.gitignore` (D2). |
-| 39 | internal/cli/update.go (vault notices, ~:481, 904) | pending-offer notice etc. | code | Add the outbox notice and the drain (D6). |
-| 40 | internal/cli/deps.go:74-80 | `Deps.Fetch` doc: "Used by CLI targets when ENGRAM_SERVER is set" | rewrite | "Used for parent requests (ENGRAM_PARENT) and by nothing else". |
-| 41 | internal/cli/primitives.go:104-109 | `Primitives.HTTP` doc naming "ENGRAM_SERVER-mode CLI targets" | rewrite | "parent-sync requests". |
-| 42 | internal/cli/show.go:19-23, show_chunk.go:16-20 | `Parent` flag doc: "inert when ENGRAM_SERVER is also set" | rewrite | Drop the clause. |
-| 43 | cmd/engram/serve.go:1-2, 29-36 | file comment and `fetchClientTimeout`/`fetchHTTPClient` docs "ENGRAM_SERVER client mode" | rewrite | "ENGRAM_PARENT parent-sync client". The code is unchanged (thin-api). |
-| 44 | new: `internal/cli/outbox.go` (+ FS adapter via `Primitives`) | none | code | Outbox load/save (temp-rename), enqueue, drain (D6). DI only (ADR-0013, `targ check-thin-api`). |
-| 45 | new: `internal/cli/pulldown.go` | none | code | Raw fetch, local pending write, idempotency (D8). |
+| 1 | internal/cli/serve_client.go:20 | `envServerBase = "ENGRAM_SERVER"` | code | Keep it only for the D1 guard, renamed `envRemovedServer`. |
+| 2 | internal/cli/serve_client.go:397-406 | `serverBase(deps)` | delete | Replaced by the pre-dispatch guard (D1). The guard also covers `serve`. |
+| 3 | internal/cli/targets.go:146-156 | amend: `serverBase` branch, `errDiscardOverServer`, `fetchAmend` | delete | Amend is always local. Content amends enqueue offers (D5/D6). |
+| 4 | internal/cli/targets.go:214-218 | query: `fetchQuery` branch | delete | The merge is the only remote path. |
+| 5 | internal/cli/targets.go:244-248 | query-chunks: `fetchQueryChunks` branch | delete | Local only. The `query-chunks` CLI command itself stays. |
+| 6 | internal/cli/targets.go:269-273, 280-284, 291-295 | learn ×3: `fetchLearn` branches | delete | Always local, then enqueue (D6). |
+| 7 | internal/cli/targets.go:371-375 + :124-129 | register-skills refusal and `errRegisterSkillsOverServer` | delete | The D1 guard covers it. |
+| 8 | internal/cli/targets.go:117-123 | `errDiscardOverServer` + comment | delete | — |
+| 9 | internal/cli/targets.go:356-357 | comment naming both refusals | rewrite | Drop the clause. |
+| 10 | internal/cli/targets.go:446-450 | activate: `fetchActivate` branch | code | Local-first resolution (`.md` exists), pull-down fallback, `--parent`, and no bare-ID parent lookup (D8). |
+| 11 | internal/cli/targets.go:478-482 | show: server branch | delete | `--parent` and the fallback remain. |
+| 12 | internal/cli/targets.go:500-517 | show-chunk: server branch **and** the `--parent` branch | delete | Q1: there is no parent chunk path. |
+| 13 | internal/cli/show_chunk.go:16-20 | `ShowChunkArgs.Parent` flag | delete | Q1. |
+| 14 | internal/cli/serve_client.go:119 `dispatchShowChunk`, :290 `fetchShowChunk`, :295 `fetchShowChunkFallback` | parent chunk fallback | delete | Q1. `show-chunk` resolves locally only. |
+| 15 | internal/cli/targets.go:428-431 (serve desc) | "Serve query/query-chunks/show/show-chunk/activate/learn/amend over HTTP … learn/amend land as …" | code | "Serve query/show/activate/learn … learn lands as a pending offer" (D7). |
+| 16 | internal/cli/serve_client.go:158-167 `fetchActivate` | thin-client activate | code | Repurposed as the best-effort parent `/activate` after pull-down (Q2, D8). |
+| 17 | internal/cli/serve_client.go:169-184 `fetchAmend` | — | delete | Amend-offers use `/learn`. |
+| 18 | internal/cli/serve_client.go:206-225 `fetchLearn` | "through ENGRAM_SERVER" | code | Becomes the offer sender. It takes the payload built at send time and returns the parsed receipt (D6). |
+| 19 | internal/cli/serve_client.go:227-243 `fetchQuery`, `fetchQueryChunks` | — | delete | No callers remain. |
+| 20 | internal/cli/serve_client.go:42-61 `buildQueryParams` (doc :43) | shared with `fetchQuery` | code | Parent fetch only. Adds `dedupe-keys=1` (D7). |
+| 21 | internal/cli/serve_client.go:93-96, 266, 284-289, 335-337 | comments naming `ENGRAM_SERVER` | rewrite | Say "parent". |
+| 22 | internal/cli/serve_client.go:365-383 `printOfferReceipt` | `{status, luhmann}` | code | Parse `{status, luhmann, basename, pending, vault_id, for}`. A missing `vault_id` means "parent too old" (D6). |
+| 23 | internal/cli/serve.go:117, 418 (`/query-chunks`, `serveQueryChunks`) | served chunk query | delete | Q4. |
+| 24 | internal/cli/serve.go:119, 455 (`/show-chunk`, `serveShowChunk`) | served chunk show | delete | Q1 (the parent chunk path). |
+| 25 | internal/cli/serve.go:122, 292-336 (`/amend`, `serveAmend`) | served amend | delete | D7. |
+| 26 | internal/cli/serve.go:158-165 `offerReceipt` | `{Status, Luhmann}` | code | Add `Basename`, `Pending`, `VaultID`, `For`. |
+| 27 | internal/cli/serve.go:349-384 `serveLearn` | honors target/position; always a new note | code | Top-level placement, in-place update by `offer.origin`, `offer.key` no-op, `offer.for` resolution (live → alias → pending), `xid` stamp (D7). |
+| 28 | internal/cli/serve.go:438-450 `serveShow` | errors → 500; rendered | code | `raw=1` JSON envelope with alias resolution, 404 for not-found (D7). |
+| 29 | internal/cli/serve.go:390-414 `serveQuery` | no dedupe keys | code | `dedupe-keys=1`: `vault_id`, `exchange_hash`, `aliases` (D7). |
+| 30 | cmd/engram/serve.go (serve startup) + `ensureVault` | no vault ID | code | Stamp `.engram-vault-id` on serve start (D2). |
+| 31 | internal/cli/offer.go:89-114 `noteHasPendingMarker` | runbook pending only with `skill_hash` | code | Any type counts (G1). The real vault was re-checked read-only: zero pending notes. |
+| 32 | internal/cli/offer.go:150 | "served learn/amend write is awaiting curation" | rewrite | "an offered or pulled-down note is awaiting curation". |
+| 33 | internal/cli/learn.go:86-98 | skill fields `json:"-"` | code | Add `Parent`, `Aliases`, `Xid` as `json:"-"`. `Offer{Origin,Key,For}` is the only new wire field (D7). |
+| 34 | internal/cli/learn.go:274, 316, 395 | fact/feedback/runbook frontmatter structs | code | Add `xid`, `parent` (nested: `vault`, `links[]`, `author`), `aliases`, `offer` (D4; review M13). |
+| 35 | internal/cli/learn.go:573-575 | `learnArgsFrom*` doc: "ENGRAM_SERVER-mode (fetchLearn) dispatch" | rewrite | "and the offer payload builder". |
+| 36 | internal/cli/learn.go (RunLearn ~:204) | local write only | code | Stamp `xid`, then enqueue under the lock, then drain (D6). |
+| 37 | internal/cli/amend.go:170-181 | identity re-stamp on every call | code | Re-stamp only on content, `--supersedes` and `--chunk-source` amends (D10, G11). |
+| 38 | internal/cli/amend.go:22-77, 156, 460-474 | `--discard` only | code | Add `--into` (alias union, link merge). A bare `--discard` of a pulled note records a decline. Content amends enqueue. `--clear-pending` of a served offer enqueues upward (M14). Survival of the exchange fields. |
+| 39 | internal/cli/amend.go:53 | "never touches the served /amend path" | rewrite | Drop it. |
+| 40 | internal/cli/activate.go:13-16, 38-75 | `{Vault, Notes}`; sidecar-based; errors only when all refs fail | code | `--parent`, `.md`-exists hit, no fetch under the lock, skip re-checked under the write lock, declines, per-ref reporting, non-zero on any failure (D8). |
+| 41 | internal/cli/resituate.go:223, 256 | hand-copied field list; drops `pending`/`sources`/`tags`/`supersedes`/`vocab_version` | code | Round-trip that changes only `situation` and the body opener, preserving everything else, including the exchange fields (M7). Enqueue an offer (D5). |
+| 42 | internal/cli/identity_backfill.go:61, 90 | typed round-trip | code | Survival of the exchange fields. No offer. |
+| 43 | internal/cli/luhmann_reparent.go:82 `RenameAndRewriteReferences` | rename without an alias | code | Append the old basename to `aliases` in the same write (H2). |
+| 44 | internal/cli/skillreg_accept.go:300 `adoptRenderInput`, :317 `applySkillNoteBody`, :102, :511 | adopt rename; typed round-trip | code | Append an alias on adopt rename. Survival of the exchange fields. |
+| 45 | internal/cli/merged_query.go:100-136, 177-191 | no dedupe; parent chunks kept; flat sort; zero budget; hint ORed | code | Drop parent chunks. Dedupe (D4/D9) with the M4 substitution. Direct-before-explore ordering and the M3 floor (#744). Budget (#743). Local-only hint (H4). Backoff. Drain after success. Self-parent guard. |
+| 46 | internal/cli/qa.go:221 + vault_init.go:44 | `ensureVaultDir` from learn/qa only | code | `ensureVault` on every vault-resolving command. Vault ID plus `.engram/` with its self-ignoring `.gitignore`. The root `.gitignore` is untouched (D2). |
+| 47 | internal/cli/update.go (vault notices ~:481, 904) | pending notice, etc. | code | Outbox/backoff notice, uncommitted-vault-ID notice, drain (D2/D6). |
+| 48 | internal/cli/deps.go:74-80 `Deps.Fetch` doc | "Used by CLI targets when ENGRAM_SERVER is set" | rewrite | "parent requests (ENGRAM_PARENT)". |
+| 49 | internal/cli/primitives.go:104-109 | `Primitives.HTTP` doc naming "ENGRAM_SERVER-mode" | rewrite | "parent-sync requests". |
+| 50 | internal/cli/show.go:19-23 | `Parent` doc "inert when ENGRAM_SERVER is also set" | rewrite | Drop the clause. |
+| 51 | cmd/engram/serve.go:1-2, 29-36 | "ENGRAM_SERVER client mode"; 30s client | code | Say "ENGRAM_PARENT parent-sync client". Add a dialer connect timeout ≤ 3s (M9) as a thin-api primitive. |
+| 52 | new: `internal/cli/exchangehash.go`, `outbox.go`, `exchangestate.go`, `pulldown.go` | none | code | D3, D6, D2, D8. DI only (ADR-0013, `targ check-thin-api`). |
 
 ## B. Go tests
 
 | # | Location (verified) | Current | Disposition | Replacement / reason |
 | --- | --- | --- | --- | --- |
-| 46 | internal/cli/serve_client_test.go:27-448 (`TestEngramServer_*`, 17 tests) | thin-client routing | delete | Replaced by row 47's guard test and by the offer, outbox and pull-down tests. |
-| 47 | new test | none | code | `TestEngramServerSet_HardErrorsEveryCommand`: table over every subcommand; no FS or Fetch call; message names `ENGRAM_PARENT`. |
-| 48 | internal/cli/serve_client_test.go:733 `TestServerBase_NilGetenv`; :827 `TestShowChunkParent_InertWhenEngramServerSet`; :998 `TestShowParent_InertWhenEngramServerSet` | server-mode assertions | delete | The behavior they test is gone. |
-| 49 | internal/cli/serve_client_test.go comments :25, 286, 401, 662-664, 896, 970, 1019, 1089, 1116 | mention `ENGRAM_SERVER` | rewrite | Say "parent". |
-| 50 | internal/cli/merged_query_dispatch_test.go:19-44 `TestTargets_Query_BothEnvVarsSet_ServerTakesPrecedence` | precedence | delete | Row 47 covers `ENGRAM_SERVER`. |
-| 51 | internal/cli/register_skills_cli_test.go:269-284 `TestRegisterSkillsCLI_RefusesOverServer` | refusal | delete | Row 47 covers it. |
-| 52 | internal/cli/targets_test.go:552 | comment | rewrite | Drop the mention. |
-| 53 | internal/cli/export_test.go:164 `ExportServerBase` | export | delete | — |
-| 54 | cmd/engram/serve_integration_test.go:69 | comment "engram serve/ENGRAM_SERVER" | rewrite | "engram serve / ENGRAM_PARENT". |
-| 55 | internal/cli/query_integration_test.go:122-138 `envWithoutEngramParent`; register_skills_cli_test.go:254 | strips only `ENGRAM_PARENT` | code | Also strip `ENGRAM_SERVER`, so that a developer shell that still has it set cannot fail the subprocess tests. |
-| 56 | internal/cli/serve_test.go:56, 101-180, 528 (`/amend` route and tests) | served amend | code | Delete the `/amend` route tests. Keep `TestServeLearn_IgnoresSkillIdentityFields` (:307) and extend it with `parent`/`aliases` keys. Add tests for receipt, `offer.for`, `offer.key`, placement, raw show and dedupe keys. |
-| 57 | internal/cli/offer_test.go:136-147 | asserts a runbook without `skill_hash` is NOT pending | code | Invert it (G1). |
-| 58 | internal/cli/serve_client_test.go:608, 626 `TestLocal{Amend,Learn}_NeverSetsPendingMarker` | local writes never pending | no change | Still true. Offers are pending on the parent, not locally. |
-| 59 | internal/cli/skillfields_survival_test.go | skill-field survival per rewrite site | code | Add sibling `parent`/`aliases` survival tests for every site named in `vault-note-identity`. |
+| 53 | internal/cli/serve_client_test.go:27-448 (`TestEngramServer_*`, 17 tests) | thin-client routing | delete | Replaced by row 54 and the exchange tests. |
+| 54 | new test | — | code | `TestEngramServerSet_HardErrorsEveryCommand`: every subcommand including `serve` makes no FS, lock, Fetch or bind call, and names `ENGRAM_PARENT`. |
+| 55 | internal/cli/serve_client_test.go:733, 827, 998 | `TestServerBase_NilGetenv`, `TestShowChunkParent_InertWhenEngramServerSet`, `TestShowParent_InertWhenEngramServerSet` | delete | — |
+| 56 | internal/cli/serve_client_test.go:743, 780, 803, 850, 875 | `TestShowChunkFallback_*` ×3, `TestShowChunkParent_RoutesThroughFetch`, `TestShowChunkParent_WithoutEngramParentErrors` | code | Delete. Replace with a test that `show-chunk` never contacts the parent and that `--parent` is an unknown flag (Q1). Keep `TestShowChunkTarget_LocalDispatch` (:903). |
+| 57 | internal/cli/serve_client_test.go comments :25, 286, 401, 662-664, 896, 970, 1019, 1089, 1116 | mention `ENGRAM_SERVER` | rewrite | Say "parent". |
+| 58 | internal/cli/merged_query_dispatch_test.go:19-44 | precedence test | delete | — |
+| 59 | internal/cli/register_skills_cli_test.go:269-284 | refusal test | delete | — |
+| 60 | internal/cli/targets_test.go:552 | comment | rewrite | — |
+| 61 | internal/cli/export_test.go:164 `ExportServerBase` | — | delete | — |
+| 62 | cmd/engram/serve_integration_test.go:69 | comment | rewrite | "engram serve / ENGRAM_PARENT". |
+| 63 | internal/cli/query_integration_test.go:122-138; register_skills_cli_test.go:254 | strips only `ENGRAM_PARENT` | code | Also strip `ENGRAM_SERVER`. |
+| 64 | internal/cli/serve_test.go:56, 101-180, 528 | `/amend` route and its tests | code | Delete them. The route set becomes exactly four. |
+| 65 | internal/cli/serve_test.go:398 `TestServeQueryChunks_EmptyIndexSucceeds`, :535 `TestServeShowChunk_NotFoundReturnsError` | chunk routes | delete | Q1/Q4. |
+| 66 | internal/cli/serve_test.go:307 `TestServeLearn_IgnoresSkillIdentityFields` | skill fields blocked | code | Extend it with `parent`/`aliases`/`xid` keys, both spellings. Add tests for the receipt, in-place update, key no-op, `for` resolution, placement, raw envelope, and dedupe keys. |
+| 67 | internal/cli/offer_test.go:136-147 | runbook without `skill_hash` is not pending | code | Invert it (G1). |
+| 68 | internal/cli/serve_client_test.go:608, 626 | local writes never pending | no change | Still true. |
+| 69 | internal/cli/skillfields_survival_test.go | skill-field survival per site | code | Add exchange-field survival siblings at every site in `vault-note-identity`. |
+| 70 | internal/cli/resituate_test.go | expects the current field set | code | Add assertions that every untouched field is preserved (M7). |
+| 71 | internal/cli/amend_test.go, internal/cli/identity_test.go | restamp-on-every-write expectations | code | Update them. Bookkeeping amends preserve identity (D10). |
 
-## C. Final sweep
+## C. Final sweep (after archive)
 
 | # | Location | Current | Disposition | Replacement / reason |
 | --- | --- | --- | --- | --- |
-| 60 | whole repo | 19 files with `ENGRAM_SERVER` | code | After all rows, `grep -rn ENGRAM_SERVER --exclude-dir=.git .` hits **only**: the D1 guard constant and its test; the four spec deltas/REMOVED blocks and ADR-0029; README's migration sentence; `openspec/changes/archive/**`; `.review/events.jsonl`; `dev/eval/audit/results/transcript-events.jsonl`. The last two are historical capture and stay. |
+| 72 | whole repo | 20 files with `ENGRAM_SERVER` | code | Run task 12.4 **after** archive: `grep -rln ENGRAM_SERVER --exclude-dir=.git .`. The only files allowed to hit are: `internal/cli/serve_client.go` (guard constant); the guard test file; `openspec/specs/vault-local-first/spec.md`; `openspec/changes/archive/**`; `docs/architecture/adr.md` (ADR-0029); `README.md` (the migration sentence only, row 88); `docs/GLOSSARY.md` (the `ENGRAM_SERVER` removed-mode entry, row 92); `.review/events.jsonl`; `dev/eval/audit/results/transcript-events.jsonl`. Any other hit fails the task. |
 
 ## D. Specs (`openspec/specs/`)
 
 | # | Location (verified) | Current | Disposition | Replacement / reason |
 | --- | --- | --- | --- | --- |
-| 61 | vault-serve-api/spec.md:3 (Purpose) | "Lets remote environments with no local checkout or binary path use the vault over HTTP…" | archive-time | "Lets child environments, each with its own local vault, exchange notes with this parent over HTTP (offers up, pull-down reads), reusing the CLI's code paths and locks…" |
-| 62 | vault-serve-api/spec.md:30-35 "The CLI is a transparent HTTP client when ENGRAM_SERVER is set" | requirement | delete (REMOVED in delta) | See the delta. |
-| 63 | vault-serve-api/spec.md:5, 23, 37, 57 | served set incl. `amend`; `learn`/`amend` wording | rewrite (MODIFIED in delta) | See the delta. |
-| 64 | vault-merged-recall/spec.md:3-6 (Purpose) | "Lets a node with its own local vault also merge…" | archive-time | Add: "…and dedupe linked or identical notes, keeping the local copy; merge is the standard path for any environment with a parent". |
-| 65 | vault-merged-recall/spec.md:20, 135 | "`ENGRAM_SERVER` is not" clauses | rewrite (MODIFIED in delta) | — |
-| 66 | vault-merged-recall/spec.md:167, 185 | precedence and server-exclusive requirements | delete (REMOVED in delta); :185 is re-ADDED as local-only | — |
-| 67 | recall-payload-cuts/spec.md:40-41 | "local, `ENGRAM_SERVER`-exclusive, and `ENGRAM_PARENT`-merged" | rewrite (MODIFIED in delta) | — |
-| 68 | vault-offer-curation/spec.md:3 (Purpose) | "Gives served writes a curated acceptance step…: a note arriving over the API…" | archive-time | "Gives offered notes — arriving from a child over the API, or pulled down from the parent — a curated acceptance step…". |
-| 69 | vault-offer-curation/spec.md:7, 14, 28, 55, 112 | served learn/amend; activate; curation actions; receipt; runbook scope | rewrite (MODIFIED in delta) | — |
-| 70 | vault-note-identity/spec.md:3 (Purpose) | "…(filtering, attribution, future multi-vault exchange)" | archive-time | Replace "future multi-vault exchange" with "parent exchange: URL-qualified `parent` links and `aliases`". |
-| 71 | guidance-runbook-follow-frame/spec.md:183-187 | parent runbook resolved via the `show` fallback | no change | The show fallback is kept (MODIFIED text only drops the `ENGRAM_SERVER` clause). |
-| 72 | runbook-lexical-triggers/spec.md:25-34 "Served round-trip" | a client builds a served query | no change | The parent's served `/query` still receives `--text` from the merged query. |
-| 73 | learn-rate-skill-only (active change) tasks 3.2-3.4 | re-measures learn firing against the baseline | no change | Collision sweep: no shared capability or requirement header. Row 96's learn SKILL.md edit adds offer wording and no firing cues, so it does not confound W2. Record the edit date in that change's LEDGER row if 3.2 runs after it. |
+| 73 | vault-serve-api/spec.md:3 (Purpose) | "Lets remote environments with no local checkout or binary path use the vault over HTTP…" | archive-time | "Lets child environments, each with its own local vault, exchange notes with this parent over HTTP (offers up, notes-only reads and raw pull-down), reusing the CLI's code paths and locks…" |
+| 74 | vault-serve-api/spec.md:30-35 | thin-client requirement | delete (REMOVED in delta) | — |
+| 75 | vault-serve-api/spec.md:5, 23, 37, 57 | served set incl. `amend`/`query-chunks`/`show-chunk`; learn/amend wording | rewrite (MODIFIED) | — |
+| 76 | vault-merged-recall/spec.md:3-6 (Purpose) | "Lets a node with its own local vault also merge…" | archive-time | "…merge its parent's notes (never chunks), deduped to the local copy, as the standard path for any environment with a parent". |
+| 77 | vault-merged-recall/spec.md:20, 37, 123, 135 | `ENGRAM_SERVER` clauses; parent chunks in budgets; show-chunk parent routing; no backoff | rewrite (MODIFIED) | — |
+| 78 | vault-merged-recall/spec.md:167, 185 | precedence; server-exclusive | delete (REMOVED); :185 is re-ADDED as local-only | — |
+| 79 | recall-payload-cuts/spec.md:40-41 | "local, `ENGRAM_SERVER`-exclusive, and `ENGRAM_PARENT`-merged" | rewrite (MODIFIED) | — |
+| 80 | vault-offer-curation/spec.md:3 (Purpose) | "Gives served writes a curated acceptance step…" | archive-time | "Gives offered notes, whether arriving from a child over the API or pulled down from the parent, a curated acceptance step…". |
+| 81 | vault-offer-curation/spec.md:7, 14, 28, 55, 69 (scenario "Merged query carries the hint" :92), 112 | served learn/amend; activate; curation actions; receipt; hint ORed across sources; runbook scope | rewrite (MODIFIED) | The hint is local-only (H4). |
+| 82 | vault-note-identity/spec.md:3 (Purpose) | "…(filtering, attribution, future multi-vault exchange)" | archive-time | "…parent exchange: `xid`, vault-qualified `parent` links, `aliases`". |
+| 83 | vault-note-identity/spec.md:48 "Amend re-stamps identity fields on every write" | every amend re-stamps | rewrite (MODIFIED) | Content amends only (D10). |
+| 84 | guidance-runbook-follow-frame/spec.md:183-187 | parent runbook via `show` fallback | no change | The `show` fallback is kept. Only `show-chunk`'s is removed. |
+| 85 | runbook-lexical-triggers/spec.md:25-34 "Served round-trip" | a client builds a served query | no change | The merged query still sends `--text` to the parent's `/query`. |
+| 86 | recall-glance-deep-dial/spec.md:9-15 | glance activates used notes but creates no notes via learn/amend | no change | A glance activation of a `from_parent` note pulls down a *pending* copy through `activate`. That is not learn or amend, and not live knowledge (design D10). The recall skill text says so (row 101). |
+| 87 | learn-rate-skill-only (active change) tasks 3.2-3.4 | re-measure of learn firing | no change | The collision sweep found no shared capability or header. Row 103's learn edit adds offer wording and no firing cues. If task 3.2 runs after it, record the date in that change's LEDGER row. |
 
 ## E. Docs
 
 | # | Location (verified) | Current (abridged) | Disposition | Replacement / reason |
 | --- | --- | --- | --- | --- |
-| 74 | README.md:93 (text on :93; :94 shares the fallback) | "On a local miss, with `ENGRAM_SERVER` unset and `--parent` not passed, `engram show`/`engram show-chunk` fall back to `ENGRAM_PARENT`…" | rewrite | Drop "with `ENGRAM_SERVER` unset". |
-| 75 | README.md:95 (`engram amend …`), :96 (`engram activate …`) | no `--into`; activate local only | rewrite | `amend` gains `[--discard [--into <existing>]]`. `activate` gains `[--parent]`: a local miss with `ENGRAM_PARENT` set pulls the parent note down as a local pending offer. |
-| 76 | README.md:105-109 (two-doors section) | "exposing only a fixed subset (`…activate, learn, amend`)"; "A served `learn`/`amend` always lands as a pending offer" | rewrite | Drop `amend` from the served subset. "A served `learn` (an offer from a child) always lands as a pending offer; so does a note a child pulls down from its parent." |
-| 77 | README.md:111 | "Set `ENGRAM_SERVER=http://host:port` to make the CLI a transparent HTTP client…" | rewrite | "`ENGRAM_SERVER` is no longer supported — setting it is a hard error; set `ENGRAM_PARENT` to the same URL." Keep the identity half (a served `learn` stamps the declared `user:`, and there is no edge auth). |
-| 78 | README.md:113-115 ("Merged recall: `ENGRAM_PARENT`") | "`ENGRAM_SERVER` is exclusive…"; "…takes full precedence…" | rewrite | Rewrite it as "Parent sync: `ENGRAM_PARENT`". Cover: the local vault is always created; learn and content amend are offered, with the outbox; merged query dedupes, keeping local; activate pulls down; chunks never travel. Keep the model_id, `from_parent`, `--parent` and unreachable-parent sentences. |
-| 79 | README.md:117 | "…in every mode — local, `ENGRAM_SERVER`-exclusive, and `ENGRAM_PARENT`-merged alike" | rewrite | "…local and `ENGRAM_PARENT`-merged alike". |
-| 80 | docs/GLOSSARY.md:453 | "On the served path (`ENGRAM_SERVER`), `text` is capped at 2 KB" | rewrite | "On the served path (a parent's `/query`, reached via `ENGRAM_PARENT`)…". |
-| 81 | docs/GLOSSARY.md (new entries) | no entries for pending offer / outbox / parent link / pull-down | append | Add `### parent link`, `### outbox`, `### pull-down`, and `### offer` (learn-offer / amend-offer), each pointing to its capability. |
-| 82 | docs/architecture/adr.md (after ADR-0028, ~:1086+) | none | append | New **ADR-0029 — Local-first parent sync**: decision 784a; removal of `ENGRAM_SERVER`; D1–D11 in summary; alternatives rejected; link to this change. Also append a one-line forward pointer to ADR-0027's memory-poisoning bullet (:1067) noting that pull-down makes parent content pass local curation. |
-| 83 | docs/architecture/c2-containers.md:41 (C1 row) | "`/curate` (judges `engram serve` pending offers)" | rewrite | "(judges pending offers — served from children or pulled down from the parent)". |
-| 84 | docs/architecture/c2-containers.md:44 (C4 Vault row) | "`.luhmann.lock` (flock)" | rewrite | Add "`.engram-outbox.json` (queued parent offers, gitignored)". |
-| 85 | docs/architecture/c3-components.md component table (after K13, :112) | no serve, merge, or parent-sync component | append | Add a K row for `cli/serve.go` + `cli/serve_client.go` + `cli/merged_query.go` + `cli/outbox.go` + `cli/pulldown.go`: offers, outbox, merged dedupe, pull-down. |
-| 86 | docs/architecture/c1-system-context.md (systems table :46-47) | no parent-vault external system | append | Add an external system "Parent engram vault (`engram serve`)" and a relation "offers notes / merged query / pull-down". |
-| 87 | docs/ROADMAP.md:100 (NOW rank 17, #766) | "#766 create the local vault automatically…" | rewrite | Mark it folded into `local-first-parent-sync`. Add a NOW row for this change (next free rank). |
-| 88 | dev/eval/LEDGER.md (new row) | none | append | A `local-first-parent-sync` row: unit coverage summary and real-binary verification outcomes (task group 12). No paid eval. |
+| 88 | README.md:111 | "Set `ENGRAM_SERVER=http://host:port` to make the CLI a transparent HTTP client…" | rewrite | "`ENGRAM_SERVER` is no longer supported: setting it is a hard error for every command; set `ENGRAM_PARENT` to the same URL." Keep the identity half (a served `learn` stamps the declared `user:`, and there is no edge auth). This is the only allowed README hit in row 72. |
+| 89 | README.md:93 | "On a local miss, with `ENGRAM_SERVER` unset and `--parent` not passed…" | rewrite | Drop "with `ENGRAM_SERVER` unset". |
+| 90 | README.md:94 (`engram show-chunk … [--parent]`) | `--parent` resolves against `ENGRAM_PARENT`; fallback | rewrite | Remove `[--parent]` and the fallback sentence: chunks never cross vaults. |
+| 91 | README.md:95 (`engram amend …`), :96 (`engram activate …`) | no `--into`; activate local only | rewrite | `amend`: `[--discard [--into <existing>]]`. `activate`: `[--parent]`, where a local miss with `ENGRAM_PARENT` set pulls a parent note down as a local pending offer. |
+| 92 | docs/GLOSSARY.md:453 | "On the served path (`ENGRAM_SERVER`), `text` is capped at 2 KB" | rewrite | "On the served path (a parent's `/query`)…". Add an `### ENGRAM_SERVER (removed)` entry giving the migration. |
+| 93 | README.md:105-109 (two-doors section) | served subset lists `query-chunks`, `show-chunk`, `amend`; "A served `learn`/`amend` always lands as a pending offer" | rewrite | Subset: `query`, `show`, `activate`, `learn`. "A served `learn` (a child's offer) lands as a pending offer; so does a note a child pulls down from its parent." |
+| 94 | README.md:113-115 ("Merged recall: `ENGRAM_PARENT`") | "`ENGRAM_SERVER` is exclusive…"; "…takes full precedence…"; `show`/`show-chunk --parent` | rewrite | Rewrite it as "Parent sync: `ENGRAM_PARENT`". Cover: the local vault and vault ID; learn, content amend and accepted-offer propagation, with the outbox and backoff; notes-only merge with dedupe that keeps local; activate pulls down; chunks never travel; the fleet impact. Keep the model_id, `from_parent` and unreachable-parent sentences. |
+| 95 | README.md:117 | "…local, `ENGRAM_SERVER`-exclusive, and `ENGRAM_PARENT`-merged alike" | rewrite | "…local and `ENGRAM_PARENT`-merged alike". |
+| 96 | docs/GLOSSARY.md (new entries) | none | append | `### offer` (learn-offer / amend-offer), `### outbox`, `### exchange hash`, `### parent link`, `### pull-down`, `### vault ID`, `### xid`, `### ENGRAM_SERVER (removed)`. |
+| 97 | docs/FEATURES.md (whole file, 25 lines) | a pointer to `openspec/specs/` plus a mission rollup | no change | It has no per-capability rows. New capabilities are covered by its pointer to `openspec/specs/`. Verified: `grep -n -i "serve\|parent\|offer\|merge\|show-chunk\|activate"` returns no hits. |
+| 98 | docs/architecture/adr.md (after ADR-0028) + :1067 | none; ADR-0027's memory-poisoning bullet says "`serve` accepts external offers" | append | **ADR-0029 — Local-first parent sync** (decision 784a, D1–D12, rejected alternatives). Add a forward pointer at :1067: pulled-down parent content also passes local curation. |
+| 99 | docs/architecture/c2-containers.md:41 (C1), :44 (C4 Vault) | "`/curate` (judges `engram serve` pending offers)"; vault = notes + sidecar + `.luhmann.lock` | rewrite | C1: "(judges pending offers, whether served from children or pulled down from the parent)". C4: add `.engram-vault-id` (tracked) and `.engram/` (self-ignored exchange state). |
+| 100 | docs/architecture/c3-components.md table (after K13, :112); c1-system-context.md systems table (:46-47) | no parent-sync component; no parent-vault system | append | A K row for serve, serve_client, merged_query, outbox, pulldown and exchangehash. An external system "Parent engram vault (`engram serve`)" with its relation. |
+| 101 | docs/ROADMAP.md:100 (#766) | "#766 create the local vault automatically…" | rewrite | Mark it folded into `local-first-parent-sync`. Add a NOW row for this change. |
+| 102 | dev/eval/LEDGER.md (new row) | none | append | Unit coverage summary and the group-11 real-binary outcomes. It states that `update`'s drain has no real-binary run. |
 
-## F. Skills (each edit through `superpowers:writing-skills` RED→GREEN→REFACTOR)
+## F. Skills (each edit through `superpowers:writing-skills`, hermetic headless arms, task group 9)
 
 | # | Location (verified) | Current | Disposition | Replacement / reason |
 | --- | --- | --- | --- | --- |
-| 89 | agent-instructions/skills/curate/SKILL.md:3-8 (description) | "…or engram serve has just accepted a served write…" | rewrite | "…or a child's offer or a pulled-down parent note is pending…". Host-local only, as now. |
-| 90 | agent-instructions/skills/curate/SKILL.md:13 | "A served `engram learn`/`engram amend` write lands as a **pending offer**" | rewrite | "An offer — a served `engram learn` from a child, or a parent note pulled down by `engram activate` — lands as a **pending offer**". |
-| 91 | agent-instructions/skills/curate/SKILL.md:63-64 (covered/near rows) | `… then engram amend --discard` | rewrite | End with `engram amend --target <offer> --discard --into <existing>` (D10). Add: judge an offer with `offer.for` against that note first. |
-| 92 | agent-instructions/skills/curate/SKILL.md:97, 102 (red flags) | "covered/near both end in `--discard`"; "curated from inside a served HTTP request" | rewrite | "…end in `--discard --into <existing>`". Keep the host-local flag. |
-| 93 | agent-instructions/skills/recall/SKILL.md:207-220 (Step 2.7) | activate used notes; paths are local | rewrite | "Activate `from_parent` items you used the same way — this pulls them down as local pending offers; the next payload's `pending_offers` then routes to curation." |
-| 94 | agent-instructions/skills/recall/SKILL.md:330-339 (red flags) | none about parent items | append | New row: "You ran `engram amend` on a `from_parent` item → it does not resolve locally; activate it (pull-down) and let curation fold it". |
-| 95 | agent-instructions/skills/recall/SKILL.md:108 | "One call; the binary merges ranking server-side." | rewrite | "One call; with `ENGRAM_PARENT` set the binary merges local and parent results and dedupes, keeping local copies." |
-| 96 | agent-instructions/skills/learn/SKILL.md (Step 2 write sites) | no parent wording | append | One sentence: with `ENGRAM_PARENT` set, every write is also offered to the parent automatically. A "parent unreachable; N offer(s) queued" warning is not a failure. Never set `ENGRAM_SERVER`. |
-| 97 | vault runbook mirrors `skill-claude-curate`, `skill-claude-recall`, `skill-claude-learn` | mirror the old SKILL.md | no change (by hand) | Refreshed through `engram update` registration offers after deploy (`skill-runbook-registration`). Never edited by hand, and not in the real vault during this change. |
-| 98 | dev/eval/cumulative/runbook_vs_skill/phase2/encodings/taskCurate/** | frozen eval fixtures | no change | Frozen historical fixtures. |
+| 103 | agent-instructions/skills/learn/SKILL.md (Step 2 write sites) | no parent wording | append | With `ENGRAM_PARENT` set, writes are offered automatically. "parent unreachable … queued" is not a failure. Never set `ENGRAM_SERVER`. |
+| 104 | agent-instructions/skills/curate/SKILL.md:3-8 (description) | "…or engram serve has just accepted a served write…" | rewrite | "…or a child's offer or a pulled-down parent note is pending…". |
+| 105 | agent-instructions/skills/curate/SKILL.md:13 | "A served `engram learn`/`engram amend` write lands as a **pending offer**" | rewrite | "An offer (a served `engram learn` from a child, or a parent note pulled down by `engram activate`) lands as a **pending offer**". |
+| 106 | agent-instructions/skills/curate/SKILL.md:19-21 | "`engram serve`'s only job on a write is authenticate, stamp identity, persist the pending marker, respond…" | rewrite | "`engram serve`'s only job on an offer is stamp the declared identity, persist the pending marker (or update the same origin's pending offer in place), respond; a pull-down's only job is fetch and persist the pending copy…". Keep host-local and off the request path. |
+| 107 | agent-instructions/skills/curate/SKILL.md:63-64 (covered/near) | ends with `engram amend --discard` | rewrite | End with `--discard --into <existing>`. Judge `offer.for` first. Discarding a pulled note outright records a decline. Accepting a served offer on a vault that has a parent sends it onward automatically. |
+| 108 | agent-instructions/skills/curate/SKILL.md:97, 102 (red flags) | "covered/near both end in `--discard`"; served-request flag | rewrite | "…end in `--discard --into <existing>`". Keep the host-local flag. |
+| 109 | agent-instructions/skills/recall/SKILL.md:207-220 (Step 2.7) | activate used notes; local paths | rewrite | Activate the `from_parent` notes you used the same way: this pulls them down as local pending copies. The next payload's `pending_offers` reflects only local offers, so curate them after the user's request. Glance does this too (row 86). |
+| 110 | agent-instructions/skills/recall/SKILL.md:330-339 (red flags) | — | append | "You ran `engram amend` on a `from_parent` item → it does not resolve locally; activate it (pull-down) and let curation fold it". |
+| 111 | agent-instructions/skills/recall/SKILL.md:108 | "One call; the binary merges ranking server-side." | rewrite | "One call; with `ENGRAM_PARENT` set the binary merges the parent's notes (never chunks) and dedupes, keeping local copies." |
+| 112 | vault runbook mirrors `skill-claude-{curate,recall,learn}` | mirror the old SKILL.md | no change (by hand) | Refreshed by registration offers after the post-merge `engram update` (task 12.3). Never hand-edited. |
+| 113 | dev/eval/cumulative/runbook_vs_skill/phase2/encodings/taskCurate/** | frozen fixtures | no change | Frozen historical fixtures. |
 
 ## G. Historical (no change)
 
 | # | Location | Reason |
 | --- | --- | --- |
-| 99 | openspec/changes/archive/** (15 files, 54 lines naming `ENGRAM_SERVER`) | Archive history of the changes that formed the specs. |
-| 100 | .review/events.jsonl:26, 28; dev/eval/audit/results/transcript-events.jsonl:44, 61, 324, 516 | Captured review and transcript events. |
-| 101 | docs/research/2026-08-30-memory-taxonomy-engram-map.md:19, 41, 87 | Dated research snapshot. It mentions `ENGRAM_PARENT`/`--parent` accurately for its date. |
+| 114 | openspec/changes/archive/** (15 files, 54 lines naming `ENGRAM_SERVER`) | Archive history. |
+| 115 | .review/events.jsonl:26, 28; dev/eval/audit/results/transcript-events.jsonl:44, 61, 324, 516 | Captured events. |
+| 116 | docs/research/2026-08-30-memory-taxonomy-engram-map.md:19, 41, 87 | Dated research snapshot. It is accurate for its date. |
+| 117 | README.md:87 (`engram query-chunks`, the local command) | The local CLI command stays. Only the served route is deleted (Q4). |
