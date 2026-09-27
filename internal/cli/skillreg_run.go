@@ -42,8 +42,8 @@ type SkillRegistrationArgs struct {
 	// `~`-relative to it, and removal eligibility expands it (design D5, D8).
 	Home string
 	// PreviewDirs are `--skills-dir`'s dirs: they replace the default set,
-	// each scanned with the Claude-user rules (bare keys), and the run is a
-	// read-only preview (design D9).
+	// each scanned with the Claude-user rules (keys `claude:<n>`), and the
+	// run is a read-only preview (design D9).
 	PreviewDirs []string
 	DryRun      bool
 	Accept      []string
@@ -138,7 +138,7 @@ const (
 	// skillRefreshPromptFormat, skillRegisterPromptFormat and
 	// skillRemovePromptFormat are the per-offer prompts (design D4's table):
 	// each takes the offer's key and offerPromptSource's " (<source>)", which
-	// is empty for an engram-owned offer.
+	// is empty only for a removal with no recorded skill_source.
 	skillRefreshPromptFormat  = "Skill `%s`%s changed since its note was last synced. Update the note? [y/N] "
 	skillRegisterPromptFormat = "Register skill `%s`%s as a vault runbook? [y/N] "
 	// skillRegistrationAwaitingAnswerFormat is the one-line, non-interactive
@@ -260,7 +260,7 @@ func adoptSourceFor(key string, sources ResolvedSkillSources, home string) (Skil
 		}
 	}
 
-	groups, comparison := dedupeSkillCandidates(matching, sources.EngramSkillRoots)
+	groups, comparison := dedupeSkillCandidates(matching)
 
 	switch {
 	case len(groups) == 0:
@@ -268,7 +268,7 @@ func adoptSourceFor(key string, sources ResolvedSkillSources, home string) (Skil
 	case groups[0].conflicted:
 		return SkillNoteSource{}, fmt.Errorf("%w: %s", errAdoptKeyConflict, strings.Join(comparison.Conflicts, "; "))
 	default:
-		return NewSkillNoteSource(groups[0].members[0], sources.EngramSkillRoots, home, sources.ResolvedHome), nil
+		return NewSkillNoteSource(groups[0].members[0], home, sources.ResolvedHome), nil
 	}
 }
 
@@ -564,7 +564,7 @@ func skillNoteSourcesByRef(sources ResolvedSkillSources, home string) map[string
 	for _, candidate := range sources.Candidates {
 		ref := skillCandidateRef(candidate.Key, candidate.SourcePath)
 		if _, seen := byRef[ref]; !seen {
-			byRef[ref] = NewSkillNoteSource(candidate, sources.EngramSkillRoots, home, sources.ResolvedHome)
+			byRef[ref] = NewSkillNoteSource(candidate, home, sources.ResolvedHome)
 		}
 	}
 

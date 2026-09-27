@@ -41,11 +41,6 @@ type SkillOffer struct {
 	// exists yet.
 	Basename string
 	Hash     string
-	// EngramOwned marks an offer whose source lies under an engram-owned
-	// skills root (the candidate's resolved path, or a removal's recorded
-	// skill_source). The prompts show the source path of every other offer,
-	// so the user sees which file they are accepting.
-	EngramOwned bool
 }
 
 // SkillOfferKind identifies what a SkillOffer proposes: creating a note for
@@ -81,7 +76,7 @@ func FindSkillNote(
 // whose forward-compatible fields it needs to tolerate.
 //
 // Schema versions 1 and 2 read the same way (design D7): a version-1 file's
-// names are the bare keys of the same skills. A schema_version above 2 is
+// entries are read as they are, keyed by unqualified skill names. A schema_version above 2 is
 // errSkillRegistrationsVersion, never an empty decline state.
 func ReadSkillRegistrations(vault string, readFile func(string) ([]byte, error)) (map[string]string, error) {
 	data, readErr := readFile(filepath.Join(vault, skillRegistrationsFilename))
@@ -163,8 +158,8 @@ const (
 	skillRegistrationsFilename = "skill-registrations.json"
 	// skillRegistrationsSchemaVersion versions skill-registrations.json,
 	// mirroring vocab.centroids.json's schema_version convention: version 2
-	// keys declines by skill key (design D7); version 1 keyed them by skill
-	// name, which equals the bare key.
+	// keys declines by skill key (design D7); version 1 keyed them by
+	// unqualified skill name.
 	skillRegistrationsSchemaVersion = 2
 	// skillSlugPrefix is the slug prefix a skill's runbook note carries:
 	// basename `<luhmann>.<date>.skill-<name>.md` (skill-runbook-

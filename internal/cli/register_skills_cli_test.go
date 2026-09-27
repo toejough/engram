@@ -68,7 +68,7 @@ func TestRegisterSkillsCLI_AcceptRegistersRealNote(t *testing.T) {
 		g.Expect(noteErr).NotTo(HaveOccurred())
 		g.Expect(string(note)).To(ContainSubstring("skill_key: claude:curate\n"))
 		g.Expect(string(note)).To(ContainSubstring("skill_source: ~/.claude/engram/skills/curate/SKILL.md\n"))
-		g.Expect(string(note)).To(ContainSubstring("> Mirrors skill `agent-instructions/skills/curate/SKILL.md`"))
+		g.Expect(string(note)).To(ContainSubstring("\n> Mirrors skill `~/.claude/engram/skills/curate/SKILL.md`.\n"))
 	}
 }
 

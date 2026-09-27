@@ -203,90 +203,11 @@ func TestAssignSkillKeys_SkipsUnkeyableCandidates(t *testing.T) {
 	}
 }
 
-func TestResolveEngramSkillRoots(t *testing.T) {
-	t.Parallel()
-
-	t.Run("plain home lists every supported harness's root that exists", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(engramClaudeSkills).dir(engramPiSkills)
-
-		roots, warnings := cli.ResolveEngramSkillRoots(fsys, fakeHome)
-
-		g.Expect(roots).To(ConsistOf(engramClaudeSkills, engramPiSkills))
-		g.Expect(warnings).To(BeEmpty())
-	})
-
-	t.Run("a missing root is left out", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(engramPiSkills)
-
-		roots, warnings := cli.ResolveEngramSkillRoots(fsys, fakeHome)
-
-		g.Expect(roots).To(ConsistOf(engramPiSkills))
-		g.Expect(warnings).To(BeEmpty(), "a missing root is silent")
-	})
-
-	t.Run("symlinked home resolves to the real tree", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(engramPiSkills).link("/links/home", fakeHome)
-
-		roots, _ := cli.ResolveEngramSkillRoots(fsys, "/links/home")
-
-		g.Expect(roots).To(ConsistOf(engramPiSkills))
-	})
-
-	t.Run("an engram root symlinked into another tree resolves to its target", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().
-			dir("/real/.claude/engram/skills").
-			link("/fixture/home/.claude/engram", "/real/.claude/engram")
-
-		roots, _ := cli.ResolveEngramSkillRoots(fsys, "/fixture/home")
-
-		g.Expect(roots).To(ConsistOf("/real/.claude/engram/skills"))
-	})
-
-	t.Run("an unreadable root is left out with a warning (ruling R26)", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(engramClaudeSkills).dir(engramPiSkills).failLstat(engramPiSkills)
-
-		roots, warnings := cli.ResolveEngramSkillRoots(fsys, fakeHome)
-
-		g.Expect(roots).To(ConsistOf(engramClaudeSkills))
-		g.Expect(warnings).To(HaveLen(1))
-		g.Expect(warnings).To(ContainElement(ContainSubstring(engramPiSkills)))
-	})
-
-	t.Run("a link loop is left out with a warning (ruling R26)", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		fsys := newFakeSkillFS().dir(engramClaudeSkills).
-			link(piAgentDir+"/engram", piAgentDir+"/loop").link(piAgentDir+"/loop", piAgentDir+"/engram")
-
-		roots, warnings := cli.ResolveEngramSkillRoots(fsys, fakeHome)
-
-		g.Expect(roots).To(ConsistOf(engramClaudeSkills))
-		g.Expect(warnings).To(HaveLen(1))
-		g.Expect(warnings).To(ContainElement(ContainSubstring(engramPiSkills)))
-	})
-}
-
-// TestResolveSkillSources_EngramRootThroughSymlinkedHome: `$HOME` is a
-// symlink and Pi's route resolves into the real engram root; the entry is
+// TestResolveSkillSources_PiLinkThroughSymlinkedHome: `$HOME` is a symlink
+// and Pi's route resolves into engram's installed copy; the entry is
 // keyed by its folder (`pi:route`), and the resolved home is reported for
 // writing `~`-relative skill_source values (design D8).
-func TestResolveSkillSources_EngramRootThroughSymlinkedHome(t *testing.T) {
+func TestResolveSkillSources_PiLinkThroughSymlinkedHome(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -448,9 +369,9 @@ func TestSkillKeySlug_Property(t *testing.T) {
 			rt.Fatalf("slug of remainder %q is %q, want %q", remainder, cli.SkillKeySlug(remainder), slug)
 		}
 
-		bare := rapid.StringMatching(`[a-z0-9]+(-[a-z0-9]+)*`).Draw(rt, "bare")
-		if cli.SkillKeySlug(bare) != "skill-"+bare {
-			rt.Fatalf("bare key %q slug %q", bare, cli.SkillKeySlug(bare))
+		plain := rapid.StringMatching(`[a-z0-9]+(-[a-z0-9]+)*`).Draw(rt, "plain")
+		if cli.SkillKeySlug(plain) != "skill-"+plain {
+			rt.Fatalf("slug-shaped input %q gives slug %q", plain, cli.SkillKeySlug(plain))
 		}
 	})
 }
@@ -498,8 +419,8 @@ func assertKeyShape(rt *rapid.T, candidate cli.SkillCandidate, key string) {
 }
 
 // drawKeyCandidate draws a candidate of any D3 source with a colon-free
-// name (commands may have namespace segments), sometimes placed under an
-// engram-owned root, which never changes its key.
+// name (commands may have namespace segments), sometimes placed under
+// engram's installed skills folder, which never changes its key.
 func drawKeyCandidate(rt *rapid.T, index int) cli.SkillCandidate {
 	label := func(what string) string { return fmt.Sprintf("%s%d", what, index) }
 

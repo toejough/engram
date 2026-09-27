@@ -610,13 +610,11 @@ func compareShippedSkills(
 }
 
 // engramSkillSources presents skills as resolved sources read from one
-// engram-owned skills dir: Claude-user candidates keyed `claude:<name>`,
-// skillsDir recorded as the one read Claude-user root and the one
-// engram-owned root.
+// skills dir: Claude-user candidates keyed `claude:<name>`, and skillsDir
+// recorded as the one read Claude-user root.
 func engramSkillSources(skillsDir string, skills []engramSkill) cli.ResolvedSkillSources {
 	var sources cli.ResolvedSkillSources
 
-	sources.EngramSkillRoots = []string{skillsDir}
 	sources.Roots = []cli.ScannedRoot{{
 		Path: skillsDir, Resolved: skillsDir, Scanned: true, Form: cli.SkillRootFormClaudeUser,
 	}}

@@ -32,14 +32,6 @@ type ResolvedSkillSources struct {
 	PluginManifestsRead bool
 	Plugins             []ClaudePluginStatus
 	PluginConflicts     []ClaudePluginConflict
-	// EngramSkillRoots are the fully resolved engram-owned skills roots
-	// (ResolveEngramSkillRoots); D4's engram-owned exception compares
-	// candidates' SourcePaths with them.
-	EngramSkillRoots []string
-	// EngramSkillRootsUnresolved is true when an engram-owned skills root
-	// exists but could not be resolved (ruling R26): a copy read through it
-	// may be missing, so no bare-key note is removal-eligible (design D5).
-	EngramSkillRootsUnresolved bool
 	// ResolvedHome is home with every symlink resolved (empty when it does
 	// not resolve). Candidates' SourcePaths are fully resolved, so a
 	// `~`-relative skill_source is written against it when home itself is a
@@ -112,17 +104,14 @@ func ResolveSkillSources(
 		claudeResult.user, piResult.user, claudeResult.plugins.SkillScanResult,
 		claudeResult.project, piResult.project,
 	)
-	engramRoots, rootWarnings := ResolveEngramSkillRoots(deps.FS, home)
 	keyed, keyWarnings := AssignSkillKeys(resolved.Candidates)
 	resolved.Candidates = keyed
 	resolved.Roots = withFailedRootsResolved(deps.FS, resolved.Roots)
-	resolved.EngramSkillRoots = engramRoots
-	resolved.EngramSkillRootsUnresolved = len(rootWarnings) > 0
 	resolvedHome, homeErr := ResolveSkillPath(deps.FS, home)
 	if homeErr == nil {
 		resolved.ResolvedHome = resolvedHome
 	}
-	resolved.Warnings = append(append(resolved.Warnings, rootWarnings...), keyWarnings...)
+	resolved.Warnings = append(resolved.Warnings, keyWarnings...)
 	resolved.PluginManifestsRead = claudeResult.plugins.ManifestsRead
 	resolved.Plugins = claudeResult.plugins.Plugins
 	resolved.PluginConflicts = claudeResult.plugins.PluginConflicts

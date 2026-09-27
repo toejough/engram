@@ -297,11 +297,11 @@ func TestAnswerSkillOffers_PerOfferPrompt_EOFRecordsNothingNoDeclines(t *testing
 	}
 }
 
-// TestAnswerSkillOffers_PromptsNameNonEngramSources covers the source path
-// shown in the per-offer and grouped prompts for every offer whose source is
-// not engram-owned, so the user sees which file they are accepting; an
-// engram-owned offer, and an offer with no recorded source, show none.
-func TestAnswerSkillOffers_PromptsNameNonEngramSources(t *testing.T) {
+// TestAnswerSkillOffers_PromptsNameEverySource covers the source path shown
+// in the per-offer and grouped prompts for every offer that has one, engram's
+// installed skills included (design D8: no special case), so the user sees
+// which file they are accepting.
+func TestAnswerSkillOffers_PromptsNameEverySource(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
@@ -332,24 +332,24 @@ func TestAnswerSkillOffers_PromptsNameNonEngramSources(t *testing.T) {
 			want: "Skill `old` (~/.claude/skills/old/SKILL.md) is no longer found in its source. " +
 				"Remove its runbook note? [y/N] ",
 		},
-		"engram-owned register": {
+		"register of an installed engram skill": {
 			offers: []cli.SkillOffer{{
 				Kind: cli.SkillOfferRegister, Key: "route", ScopeID: "claude-user",
-				SourcePath: "/h/.claude/engram/skills/route/SKILL.md", EngramOwned: true,
+				SourcePath: "/h/.claude/engram/skills/route/SKILL.md",
 			}},
 			stdin: "n\n",
-			want:  "Register skill `route` as a vault runbook? [y/N] ",
+			want:  "Register skill `route` (/h/.claude/engram/skills/route/SKILL.md) as a vault runbook? [y/N] ",
 		},
 		"grouped offers list their sources": {
 			offers: []cli.SkillOffer{
 				{Kind: cli.SkillOfferRegister, Key: "evil:a", ScopeID: "plugin:evil", SourcePath: "/cache/evil/a/SKILL.md"},
 				{
 					Kind: cli.SkillOfferRegister, Key: "evil:b", ScopeID: "plugin:evil",
-					SourcePath: "/cache/evil/b/SKILL.md", EngramOwned: true,
+					SourcePath: "/cache/evil/b/SKILL.md",
 				},
 			},
 			stdin: "s\n",
-			want: "  register evil:a (/cache/evil/a/SKILL.md)\n  register evil:b\n" +
+			want: "  register evil:a (/cache/evil/a/SKILL.md)\n  register evil:b (/cache/evil/b/SKILL.md)\n" +
 				"@plugin:evil (2): [a]ccept all / [d]ecline all / [r]eview each / [s]kip for now ",
 		},
 	}

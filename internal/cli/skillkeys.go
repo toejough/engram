@@ -1,14 +1,9 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
-	"path/filepath"
 	"slices"
 	"strings"
-
-	"github.com/toejough/engram/internal/update"
 )
 
 // AssignSkillKeys stamps each candidate's source-qualified key (design D3)
@@ -21,7 +16,7 @@ import (
 // pi-prompt and the Pi configured scopes), then SourceSegment when set, then
 // `cmd` for a command or `pi-prompt` for a prompt (unless SourceSegment
 // already is `pi-prompt`), then the name — joined by `:`. Every key is
-// qualified: there is no bare key, and no path-based exception, so engram's
+// qualified by its source, with no path-based exception, so engram's
 // installed skills are keyed by the folder they are found in (`claude:route`
 // through ~/.claude/skills, `pi:route` through ~/.pi/agent/skills).
 //
@@ -50,37 +45,6 @@ func AssignSkillKeys(candidates []SkillCandidate) ([]SkillCandidate, []string) {
 	}
 
 	return keyed, warnings
-}
-
-// ResolveEngramSkillRoots returns the fully symlink-resolved engram-owned
-// skills roots, `<home>/<EngramRootRel>/skills`, of every supported harness
-// (update.EngramOwnedSkillsRels), whether or not the harness is detected. A
-// root that does not exist is left out silently: no candidate can have been
-// read from under it. A root that fails to resolve for any other reason (a
-// permission error, a link loop) is left out with a warning (ruling R26),
-// since a copy read through it would then lose its bare key.
-func ResolveEngramSkillRoots(fsys SkillSourceFS, home string) ([]string, []string) {
-	rels := update.EngramOwnedSkillsRels()
-	roots := make([]string, 0, len(rels))
-
-	var warnings []string
-
-	for _, rel := range rels {
-		root := filepath.Join(home, rel)
-
-		resolved, err := ResolveSkillPath(fsys, root)
-		if err != nil {
-			if !errors.Is(err, fs.ErrNotExist) {
-				warnings = append(warnings, fmt.Sprintf(engramRootUnresolvedWarningFormat, root, err))
-			}
-
-			continue
-		}
-
-		roots = append(roots, resolved)
-	}
-
-	return roots, warnings
 }
 
 // SkillKeySlug derives a skill note's slug from its key (design D3): the key
@@ -115,10 +79,6 @@ func SkillKeySlug(key string) string {
 
 // unexported constants.
 const (
-	// engramRootUnresolvedWarningFormat reports an engram-owned skills root
-	// that exists but cannot be resolved (ruling R26).
-	engramRootUnresolvedWarningFormat = "engram: cannot resolve the engram skills root %s: %v; " +
-		"copies read through it lose their bare key"
 	// skillKeyMinSegments is the fewest segments a recognized key has: a
 	// source qualifier and a name (design D3).
 	skillKeyMinSegments      = 2
@@ -369,16 +329,4 @@ func sourcedSkillKey(form SkillRootForm, scopeID string, shaped bool) parsedSkil
 	}
 
 	return parsedSkillKey{recognized: true, form: form, sourced: true, scopeID: scopeID}
-}
-
-// underEngramSkillRoot reports whether the resolved path lies strictly
-// under one of the resolved engram-owned skills roots.
-func underEngramSkillRoot(path string, roots []string) bool {
-	for _, root := range roots {
-		if path != root && pathWithinRoot(path, root) {
-			return true
-		}
-	}
-
-	return false
 }

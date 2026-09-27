@@ -54,52 +54,30 @@ type SkillAdoptDeps struct {
 // key's winning candidate was read from (design D3, D8). Register, Refresh
 // and Adopt write the key-derived slug (SkillKeySlug), skill_key,
 // skill_source and skill_hash from it, and the body's preamble names
-// PreamblePath.
+// SkillSource.
 type SkillNoteSource struct {
 	// Key is the skill key; the note's slug derives from it.
 	Key string
-	// Name is the scope-local name (a skill's directory name); an
-	// engram-owned source's preamble names agent-instructions/skills/<Name>.
-	Name string
 	// SkillSource is the `~`-relative resolved source path (absolute when it
-	// lies under no home), recorded as the note's skill_source.
+	// lies under no home), recorded as the note's skill_source and named by
+	// its preamble and register provenance (design D8).
 	SkillSource string
-	// EngramOwned is true when the resolved source lies under an
-	// engram-owned skills root: the preamble then keeps today's bytes,
-	// naming the skill's edit location in the engram checkout.
-	EngramOwned bool
 	// Content is the source file's bytes: the note body and hash input.
 	Content []byte
 }
 
-// NewSkillNoteSource builds the note source for a keyed candidate:
-// EngramOwned when its resolved SourcePath lies under one of engramRoots,
-// and SkillSource home-relative (`~/…`) against the first of homes that
+// NewSkillNoteSource builds the note source for a keyed candidate, with
+// SkillSource home-relative (`~/…`) against the first of homes that
 // contains it — the home as given and its resolved form, since SourcePath
 // is fully resolved while the removal-eligibility check (design D5) expands
 // `~` against the home as given and matches a root's path or its resolved
 // path. A path under no home is kept absolute.
-func NewSkillNoteSource(candidate SkillCandidate, engramRoots []string, homes ...string) SkillNoteSource {
+func NewSkillNoteSource(candidate SkillCandidate, homes ...string) SkillNoteSource {
 	return SkillNoteSource{
 		Key:         candidate.Key,
-		Name:        candidate.Name,
 		SkillSource: homeRelativePath(candidate.SourcePath, homes),
-		EngramOwned: underEngramSkillRoot(candidate.SourcePath, engramRoots),
 		Content:     candidate.Content,
 	}
-}
-
-// PreamblePath is the file the note's preamble names (design D8):
-// `agent-instructions/skills/<n>/SKILL.md` for an engram-owned source,
-// byte-identical to the preamble of the notes registered before keys
-// existed, else the `~`-relative skill_source of a skill, command or
-// prompt.
-func (s SkillNoteSource) PreamblePath() string {
-	if s.EngramOwned {
-		return "agent-instructions/skills/" + s.Name + "/" + skillMDFilename
-	}
-
-	return s.SkillSource
 }
 
 // AdoptSkillNote implements `engram register-skills --adopt <key>=<note-ref>`
@@ -240,7 +218,7 @@ func RegisterSkill(
 		Vault:                     vault,
 		VaultName:                 vaultName,
 		Position:                  positionTop,
-		Source:                    skillRegistrationSourcePrefix + source.PreamblePath(),
+		Source:                    skillRegistrationSourcePrefix + source.SkillSource,
 		Body:                      skillNoteBody(source),
 		SkillHash:                 SkillContentHash(source.Content),
 		SkillKey:                  source.Key,
@@ -272,14 +250,13 @@ func RemoveSkill(vault, basename string, deps SkillAcceptDeps, stdout io.Writer)
 // unexported constants.
 const (
 	// skillNotePreambleFormat is the one-line body preamble every skill
-	// runbook note (register or refresh) carries, naming the skill file it
-	// mirrors (skill-runbook-registration, learn-runbook-capture: "the body
-	// SHALL begin with a one-line preamble stating it mirrors <skill path>
-	// and that procedure edits belong in the skill file").
-	skillNotePreambleFormat = "> Mirrors skill `%s` — edit the procedure " +
-		"there; the runbook fields on this note are authored here.\n"
+	// runbook note (register, refresh or adopt) carries, naming the skill
+	// file it mirrors with the same wording for every source, and never
+	// where to edit it (design D8; learn-runbook-capture: "the body SHALL
+	// begin with the one-line preamble ``> Mirrors skill `<skill path>`.``").
+	skillNotePreambleFormat = "> Mirrors skill `%s`.\n"
 	// skillRegistrationSourcePrefix starts a freshly registered note's
-	// `source:` provenance text, followed by the preamble's path.
+	// `source:` provenance text, followed by its skill_source.
 	skillRegistrationSourcePrefix = "skill registration: "
 )
 
@@ -435,10 +412,10 @@ func skillNoteBasename(oldBasename, key string) (string, error) {
 }
 
 // skillNoteBody renders a skill runbook note's body: the one-line preamble
-// naming the mirrored file (PreamblePath), a blank line, then the source
+// naming the mirrored file (SkillSource), a blank line, then the source
 // file's current bytes verbatim.
 func skillNoteBody(source SkillNoteSource) string {
-	return fmt.Sprintf(skillNotePreambleFormat, source.PreamblePath()) + "\n" + string(source.Content)
+	return fmt.Sprintf(skillNotePreambleFormat, source.SkillSource) + "\n" + string(source.Content)
 }
 
 // writeAdoptedNote writes the adopted note's updated content at full,

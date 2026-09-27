@@ -383,10 +383,10 @@ func groupOffersByScope(offers []SkillOffer) []offerScope {
 }
 
 // offerPromptSource is the " (<source>)" a prompt shows after an offer's key
-// so the user sees which file they are accepting: empty for an engram-owned
-// offer, and for a removal with no recorded skill_source.
+// so the user sees which file they are accepting, for every offer with a
+// source; empty only for a removal with no recorded skill_source.
 func offerPromptSource(offer SkillOffer) string {
-	if offer.EngramOwned || offer.SourcePath == "" {
+	if offer.SourcePath == "" {
 		return ""
 	}
 

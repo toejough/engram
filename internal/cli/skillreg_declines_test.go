@@ -29,7 +29,7 @@ func TestReadSkillRegistrations_AcceptsVersion2(t *testing.T) {
 }
 
 // TestReadSkillRegistrations_ReadsVersion1AsIs covers "Version-1 decline
-// still suppresses the offer": a v1 file's names are read as bare keys.
+// still suppresses the offer": a v1 file's names are read as they are.
 func TestReadSkillRegistrations_ReadsVersion1AsIs(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

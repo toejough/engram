@@ -169,8 +169,8 @@ func keyedSkillNote(hash, key string) string {
 		"\"\nskill_source: ~/x/SKILL.md\n---\n\nbody\n"
 }
 
-// legacyVault holds the six legacy skill notes (hash of their bare key's
-// name as content) plus a note-820-shaped runbook without skill_hash.
+// legacyVault holds the six legacy skill notes (hash of the skill's name as
+// content) plus a note-820-shaped runbook without skill_hash.
 func legacyVault() (*skillregFixtureVault, []string) {
 	vault := newSkillregFixtureVault()
 	names := make([]string, 0, len(legacyNotes)+1)

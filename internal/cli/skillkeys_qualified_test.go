@@ -84,8 +84,8 @@ func TestAdoptSkillNote_MigratesAnUnkeyedLegacyNote(t *testing.T) {
 	g.Expect(doc.Luhmann).To(Equal("1049"))
 	g.Expect(doc.Pending).To(BeFalse())
 	g.Expect(adopted).NotTo(ContainSubstring("pending"))
-	g.Expect(skillNoteBodyOf(adopted)).To(HavePrefix("> Mirrors skill `" + doc.SkillSource + "`"))
-	g.Expect(skillNoteBodyOf(adopted)).To(HaveSuffix("\n" + string(content)))
+	g.Expect(skillNoteBodyOf(adopted)).To(Equal("> Mirrors skill `~/.claude/skills/curate/SKILL.md`.\n\n"+string(content)),
+		"the preamble is exactly the D8 form, with no edit-location clause")
 
 	rewritten, _ := vault.get(referrer + ".md")
 	g.Expect(rewritten).To(ContainSubstring("[[" + newBasename + "]]"))

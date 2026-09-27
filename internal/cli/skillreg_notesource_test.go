@@ -45,39 +45,32 @@ func TestAdoptSkillNote_QualifiedKeyStampsKeySlugAndSource(t *testing.T) {
 	g.Expect(skillNoteBodyOf(adopted)).To(Equal(preambleNaming(source.SkillSource) + "\n# Brainstorming\n"))
 }
 
-// TestNewSkillNoteSource covers design D8's inputs: an engram-owned source
-// keeps today's preamble, every other source names its `~`-relative resolved
-// path, through the home or its resolved form, and a path outside both
-// homes stays absolute.
+// TestNewSkillNoteSource covers design D8's inputs: every source, engram's
+// installed skills included, records its `~`-relative resolved path,
+// through the home or its resolved form, and a path outside both homes
+// stays absolute.
 func TestNewSkillNoteSource(t *testing.T) {
 	t.Parallel()
-
-	engramRoot := fakeHome + "/.claude/engram/skills"
 
 	cases := []struct {
 		name        string
 		candidate   cli.SkillCandidate
 		homes       []string
 		wantSource  string
-		wantPath    string
-		wantEngram  bool
 		wantKeyName string
 	}{
 		{
-			name:        "engram-owned skill",
-			candidate:   offerCand("route", cli.SkillScopeClaudeUser, engramRoot+"/route/SKILL.md", "r"),
+			name:        "engram's installed skill",
+			candidate:   offerCand("claude:route", cli.SkillScopeClaudeUser, engramClaudeSkills+"/route/SKILL.md", "r"),
 			homes:       []string{fakeHome},
 			wantSource:  "~/.claude/engram/skills/route/SKILL.md",
-			wantPath:    "agent-instructions/skills/route/SKILL.md",
-			wantEngram:  true,
-			wantKeyName: "route",
+			wantKeyName: "claude:route",
 		},
 		{
 			name:        "user skill",
 			candidate:   offerCand("c4", cli.SkillScopeClaudeUser, fakeHome+"/.claude/skills/c4/SKILL.md", "c"),
 			homes:       []string{fakeHome},
 			wantSource:  "~/.claude/skills/c4/SKILL.md",
-			wantPath:    "~/.claude/skills/c4/SKILL.md",
 			wantKeyName: "c4",
 		},
 		{
@@ -86,7 +79,6 @@ func TestNewSkillNoteSource(t *testing.T) {
 				"/real/joe/.claude/skills/synced/b1/pdf/SKILL.md", "p"),
 			homes:       []string{"/links/joe", "/real/joe"},
 			wantSource:  "~/.claude/skills/synced/b1/pdf/SKILL.md",
-			wantPath:    "~/.claude/skills/synced/b1/pdf/SKILL.md",
 			wantKeyName: "anthropic-skills:pdf",
 		},
 		{
@@ -95,7 +87,6 @@ func TestNewSkillNoteSource(t *testing.T) {
 				"/work/x/.claude/commands/go.md", "g"),
 			homes:       []string{fakeHome, ""},
 			wantSource:  "/work/x/.claude/commands/go.md",
-			wantPath:    "/work/x/.claude/commands/go.md",
 			wantKeyName: "project:local/x:cmd:go",
 		},
 	}
@@ -105,12 +96,10 @@ func TestNewSkillNoteSource(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
 
-			source := cli.NewSkillNoteSource(testCase.candidate, []string{engramRoot}, testCase.homes...)
+			source := cli.NewSkillNoteSource(testCase.candidate, testCase.homes...)
 
 			g.Expect(source.Key).To(Equal(testCase.wantKeyName))
 			g.Expect(source.SkillSource).To(Equal(testCase.wantSource))
-			g.Expect(source.EngramOwned).To(Equal(testCase.wantEngram))
-			g.Expect(source.PreamblePath()).To(Equal(testCase.wantPath))
 			g.Expect(source.Content).To(Equal(testCase.candidate.Content))
 		})
 	}
@@ -142,12 +131,12 @@ func TestRefreshSkill_FollowsPluginVersionBump(t *testing.T) {
 	g.Expect(skillNoteBodyOf(updated)).To(Equal(preambleNaming(newSource.SkillSource) + "\n# Brainstorming v2\n"))
 }
 
-// TestRegisterSkill_EngramOwnedPreambleIsTodaysBytes asserts, for the six
-// engram skills behind the real notes (route, please, curate, write-memory,
-// learn, recall), that an engram-owned source gives the key-derived slug,
-// skill_key, skill_source, and a body and `source:` byte-identical to
-// today's (design D8).
-func TestRegisterSkill_EngramOwnedPreambleIsTodaysBytes(t *testing.T) {
+// TestRegisterSkill_EngramInstalledPreambleNamesDeployedFile asserts, for
+// the six engram skills behind the real notes (route, please, curate,
+// write-memory, learn, recall), that a copy read through ~/.claude/skills
+// gives the key-derived slug, skill_key, skill_source, and a preamble and
+// `source:` naming the deployed file with no special case (design D8).
+func TestRegisterSkill_EngramInstalledPreambleNamesDeployedFile(t *testing.T) {
 	t.Parallel()
 
 	for _, name := range []string{"route", "please", "curate", "write-memory", "learn", "recall"} {
@@ -156,12 +145,12 @@ func TestRegisterSkill_EngramOwnedPreambleIsTodaysBytes(t *testing.T) {
 			g := NewWithT(t)
 
 			content := "---\nname: " + name + "\ndescription: d\n---\n\nbody of " + name + "\n"
-			written := registerForTest(g, engramOwnedSkill(name, []byte(content)))
+			written := registerForTest(g, installedEngramSkill(name, []byte(content)))
 
 			g.Expect(written.path).To(Equal("/vault/1.2026-09-25.skill-claude-" + name + ".md"))
-			g.Expect(skillNoteBodyOf(written.content)).To(Equal(todaysPreamble(name) + "\n" + content))
+			g.Expect(skillNoteBodyOf(written.content)).To(Equal(deployedPreamble(name) + "\n" + content))
 			g.Expect(written.content).To(ContainSubstring(
-				"source: 'skill registration: agent-instructions/skills/" + name + "/SKILL.md'\n"))
+				"source: 'skill registration: ~/.claude/engram/skills/" + name + "/SKILL.md'\n"))
 
 			doc := parseSkillAcceptFrontmatter(g, written.content)
 			g.Expect(doc.SkillKey).To(Equal("claude:" + name))
@@ -191,7 +180,6 @@ func TestRegisterSkill_NonEngramSourcesNamePathAndKeySlug(t *testing.T) {
 			name: "project command",
 			source: cli.SkillNoteSource{
 				Key:         "project:github.com/toejough/engram:cmd:opsx:apply",
-				Name:        "opsx:apply",
 				SkillSource: "~/repos/engram/.claude/commands/opsx/apply.md",
 				Content:     []byte("---\ndescription: apply\nargument-hint: <change>\n---\n\nApply it.\n"),
 			},
@@ -201,7 +189,6 @@ func TestRegisterSkill_NonEngramSourcesNamePathAndKeySlug(t *testing.T) {
 			name: "Pi prompt template",
 			source: cli.SkillNoteSource{
 				Key:         "pi-prompt:review",
-				Name:        "review",
 				SkillSource: "~/.pi/agent/prompts/review.md",
 				Content:     []byte("Review $1.\n"),
 			},
@@ -249,7 +236,7 @@ func TestRegisterSkill_SkillSourceRoundTripsThroughRemovalEligibility(t *testing
 		candidate := offerCand("anthropic-skills:"+name, cli.SkillScopeSynced,
 			resolvedHome+rootRel+"/"+name+"/SKILL.md", "content of "+name)
 
-		source := cli.NewSkillNoteSource(candidate, nil, home, resolvedHome)
+		source := cli.NewSkillNoteSource(candidate, home, resolvedHome)
 		if !strings.HasPrefix(source.SkillSource, "~/") {
 			rt.Fatalf("skill_source %q is not ~-relative", source.SkillSource)
 		}
@@ -513,15 +500,10 @@ type writtenNote struct {
 	content string
 }
 
-// unexported functions.
-
-// engramOwnedSkill is an engram skill deployed under the Claude Code
-// engram-owned root, as NewSkillNoteSource builds it.
-func engramOwnedSkill(name string, content []byte) cli.SkillNoteSource {
-	return cli.SkillNoteSource{
-		Key: "claude:" + name, Name: name, EngramOwned: true,
-		SkillSource: "~/.claude/engram/skills/" + name + "/SKILL.md", Content: content,
-	}
+// deployedPreamble is the preamble of an engram skill installed under the
+// Claude Code engram skills folder, spelled out byte for byte (design D8).
+func deployedPreamble(name string) string {
+	return "> Mirrors skill `~/.claude/engram/skills/" + filepath.Join(name, "SKILL.md") + "`.\n"
 }
 
 // failingGetwd is a Getwd that fails the test: a --skills-dir run never
@@ -532,6 +514,18 @@ func failingGetwd(g Gomega) func() (string, error) {
 		g.Expect("the working directory").To(BeEmpty(), "the default source set was resolved")
 
 		return "", fs.ErrPermission
+	}
+}
+
+// unexported functions.
+
+// installedEngramSkill is an engram skill deployed under
+// ~/.claude/engram/skills and read through ~/.claude/skills, as
+// NewSkillNoteSource builds it.
+func installedEngramSkill(name string, content []byte) cli.SkillNoteSource {
+	return cli.SkillNoteSource{
+		Key:         "claude:" + name,
+		SkillSource: "~/.claude/engram/skills/" + name + "/SKILL.md", Content: content,
 	}
 }
 
@@ -556,18 +550,17 @@ func keyedSkillNoteFixture(source cli.SkillNoteSource) string {
 // pluginSkillSource is superpowers' brainstorming skill at a plugin version.
 func pluginSkillSource(version, content string) cli.SkillNoteSource {
 	return cli.SkillNoteSource{
-		Key:  "superpowers:brainstorming",
-		Name: "brainstorming",
+		Key: "superpowers:brainstorming",
 		SkillSource: "~/.claude/plugins/cache/claude-plugins-official/superpowers/" + version +
 			"/skills/brainstorming/SKILL.md",
 		Content: []byte(content),
 	}
 }
 
-// preambleNaming is the expected preamble line for a non-engram source.
+// preambleNaming is the expected preamble line for any source (design D8):
+// exactly “> Mirrors skill `<skill_source>`.“, with no edit-location clause.
 func preambleNaming(path string) string {
-	return "> Mirrors skill `" + path + "` — edit the procedure there; " +
-		"the runbook fields on this note are authored here.\n"
+	return "> Mirrors skill `" + path + "`.\n"
 }
 
 // recordWrites wraps every vault write dep of deps to record its path.
@@ -618,11 +611,4 @@ func skillNoteBodyOf(content string) string {
 	_, body, _ := strings.Cut(strings.TrimPrefix(content, "---\n"), "\n---\n\n")
 
 	return strings.TrimSuffix(body, "\n")
-}
-
-// todaysPreamble is the preamble every engram skill note carries today,
-// spelled out byte for byte.
-func todaysPreamble(name string) string {
-	return "> Mirrors skill `agent-instructions/skills/" + filepath.Join(name, "SKILL.md") +
-		"` — edit the procedure there; the runbook fields on this note are authored here.\n"
 }

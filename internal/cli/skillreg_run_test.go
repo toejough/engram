@@ -367,7 +367,8 @@ func TestRunSkillRegistration_PromptRefresh_Yes_ReplacesBody(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stdout.String()).To(ContainSubstring(
-		"Skill `claude:curate` changed since its note was last synced. Update the note? [y/N] "))
+		"Skill `claude:curate` (" + skillRegSourcePath("curate") + ") changed since its note was last synced. " +
+			"Update the note? [y/N] "))
 
 	updated, ok := vault.get("1049.2026-09-21.skill-claude-curate.md")
 	g.Expect(ok).To(BeTrue())
@@ -429,7 +430,8 @@ func TestRunSkillRegistration_PromptRegister_Yes_CreatesNote(t *testing.T) {
 	}, deps, &stdout)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(ContainSubstring("Register skill `claude:curate` as a vault runbook? [y/N] "))
+	g.Expect(stdout.String()).To(ContainSubstring(
+		"Register skill `claude:curate` (" + skillRegSourcePath("curate") + ") as a vault runbook? [y/N] "))
 
 	written, ok := vault.get("1.2026-09-25.skill-claude-curate.md")
 	g.Expect(ok).To(BeTrue())
@@ -644,9 +646,9 @@ func TestRunSkillRegistration_SkillsDirEntryWithoutSkillMD_Ignored(t *testing.T)
 
 // unexported constants.
 const (
-	// skillRegEngramRoot is the fixture home's Claude Code engram-owned
-	// skills root, where `engram update` deploys engram's skills.
-	skillRegEngramRoot = skillRegHome + "/.claude/engram/skills"
+	// skillRegDeployedSkills is the fixture home's ~/.claude/engram/skills,
+	// where `engram update` deploys engram's skills.
+	skillRegDeployedSkills = skillRegHome + "/.claude/engram/skills"
 	// skillRegHome is the fixture home.
 	skillRegHome = "/home/reg"
 )
@@ -661,7 +663,7 @@ var (
 // skillRegSourcePath is the resolved SKILL.md path of an engram skill in
 // skillsHomeFixture's home.
 func skillRegSourcePath(name string) string {
-	return skillRegEngramRoot + "/" + name + "/SKILL.md"
+	return skillRegDeployedSkills + "/" + name + "/SKILL.md"
 }
 
 // skillRegistrationDepsFor composes SkillRegistrationDeps over vault (via the
@@ -692,14 +694,14 @@ func skillRegistrationDepsFor(vault *skillAcceptFixtureVault, sourceFS cli.Skill
 }
 
 // skillsHomeFixture builds skillRegHome with a Claude Code harness: each of
-// skills is deployed under the engram-owned root and linked into
+// skills is deployed under ~/.claude/engram/skills and linked into
 // ~/.claude/skills, as `engram update` deploys engram's skills.
 func skillsHomeFixture(skills map[string][]byte) *fakeSkillFS {
 	fsys := newFakeSkillFS().dir(skillRegHome + "/.claude/skills")
 
 	for name, content := range skills {
 		fsys.file(skillRegSourcePath(name), string(content))
-		fsys.link(skillRegHome+"/.claude/skills/"+name, skillRegEngramRoot+"/"+name)
+		fsys.link(skillRegHome+"/.claude/skills/"+name, skillRegDeployedSkills+"/"+name)
 	}
 
 	return fsys

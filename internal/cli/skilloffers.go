@@ -39,8 +39,9 @@ type SkillOfferComparison struct {
 	// conflict (design D4). Any conflict makes the run fail after every other
 	// offer is handled (ReportSkillOfferProblems).
 	Conflicts []string
-	// Warnings are non-failing lines: one per engram-owned bare key whose
-	// copies differ in bytes (the first in precedence wins).
+	// Warnings are non-failing lines. CompareSkillOffers adds none; the
+	// registration run prepends the scan and key warnings (design D4 has no
+	// diverged-copy warning: differing copies of one key always conflict).
 	Warnings []string
 }
 
@@ -56,8 +57,7 @@ type SkillOfferInput struct {
 	// Home expands a note's `~`-relative skill_source.
 	Home string
 	// Sources is ResolveSkillSources' output: keyed candidates, the roots
-	// read (with their removal-eligibility forms), the engram-owned roots and
-	// the plugin facts.
+	// read (with their removal-eligibility forms) and the plugin facts.
 	Sources ResolvedSkillSources
 	// NoRemovals suppresses every removal offer (`--skills-dir`, design D9).
 	NoRemovals bool
@@ -77,8 +77,7 @@ type SkillRootForm string
 //   - entries resolving to one file collapse to the first;
 //   - entries sharing a key collapse when byte-identical; when they differ,
 //     the key is a conflict (a Conflicts line naming every path, no offer),
-//     unless every copy lies under an engram-owned root, where the first
-//     wins with one warning;
+//     for every source alike;
 //   - a key's winner whose hash equals that of an earlier candidate or any
 //     skill note's skill_hash is an alias and makes no offer;
 //   - otherwise it offers Register (no note) or Refresh (a stale note),
@@ -86,7 +85,7 @@ type SkillRootForm string
 //
 // A skill note is offered for removal only when no candidate at all —
 // disabled, collapsed, conflicted or alias — holds its key, its key form's
-// root was read (skillRemovalEligibility), and its skill_hash is not
+// own root was read (skillRemovalEligibility), and its skill_hash is not
 // declined; NoRemovals suppresses every removal. A plugin name conflict adds
 // a Conflicts line; the plugin scanner already emitted none of its
 // candidates. Offers are sorted by (ScopeID, Key). A duplicate skill note
@@ -97,16 +96,12 @@ func CompareSkillOffers(input SkillOfferInput) (SkillOfferComparison, error) {
 		return SkillOfferComparison{}, notesErr
 	}
 
-	groups, comparison := dedupeSkillCandidates(input.Sources.Candidates, input.Sources.EngramSkillRoots)
+	groups, comparison := dedupeSkillCandidates(input.Sources.Candidates)
 	comparison.Conflicts = append(pluginConflictLines(input.Sources.PluginConflicts), comparison.Conflicts...)
 	comparison.Offers = candidateOffers(groups, notes, input.Declined)
 
 	if !input.NoRemovals {
 		comparison.Offers = append(comparison.Offers, removalOffers(input, notes)...)
-	}
-
-	for index := range comparison.Offers {
-		comparison.Offers[index].EngramOwned = offerEngramOwned(comparison.Offers[index], input)
 	}
 
 	sort.Slice(comparison.Offers, func(i, j int) bool {
@@ -143,10 +138,6 @@ func ReportSkillOfferProblems(stdout io.Writer, comparison SkillOfferComparison)
 
 // unexported constants.
 const (
-	// engramCopiesDifferWarningFormat is the one warning for an engram-owned
-	// bare key whose copies differ (design D4's exception).
-	engramCopiesDifferWarningFormat = "engram: engram skill %s differs between %s; using %s — " +
-		"run `engram update` to resync the copies"
 	// homeRelPrefix prefixes a `~`-relative skill_source.
 	homeRelPrefix = "~" + string(filepath.Separator)
 	// pluginConflictLineFormat reports a plugin name installed from several
@@ -212,8 +203,7 @@ func (m *deepestRootMatch) consider(root ScannedRoot, path, key string) {
 }
 
 // skillKeyGroup is one key's enabled candidates, in precedence order, after
-// same-path collapse. conflicted marks a key whose copies differ outside the
-// engram-owned exception.
+// same-path collapse. conflicted marks a key whose copies differ.
 type skillKeyGroup struct {
 	key        string
 	members    []SkillCandidate
@@ -227,16 +217,14 @@ type skillRemovalEligibility struct {
 	manifestsRead bool
 	pluginScanned map[string]bool
 	conflicted    map[string]bool
-	// engramRoots are the resolved engram-owned skills roots, and
-	// engramUnresolved is set when one of them could not be resolved: a
-	// bare key also comes from copies under them (engramCopiesRead).
-	engramRoots      []string
-	engramUnresolved bool
 }
 
 // eligible reports whether the note with key and recorded skill_source may
-// be offered for removal: its key form's root was read (design D5). An
-// unrecognized key (parseSkillKey) is never eligible.
+// be offered for removal (design D5). Each key form has exactly one rule,
+// which consults only that form's roots: a single-root user form needs its
+// fixed root read, a source-rooted form the root holding the note's
+// skill_source, and a plugin key the plugin manifests. An unrecognized key
+// (parseSkillKey) is never eligible.
 func (e skillRemovalEligibility) eligible(key, source string) bool {
 	parsed := parseSkillKey(key)
 
@@ -247,37 +235,11 @@ func (e skillRemovalEligibility) eligible(key, source string) bool {
 		scanned, installed := e.pluginScanned[parsed.plugin]
 
 		return e.manifestsRead && !e.conflicted[parsed.plugin] && (!installed || scanned)
-	case parsed.form == SkillRootFormClaudeUser:
-		return e.fixedRootRead(parsed.form) && e.engramCopiesRead()
 	case !parsed.sourced:
 		return e.fixedRootRead(parsed.form)
 	default:
 		return e.sourceRootRead(parsed.form, key, source)
 	}
-}
-
-// engramCopiesRead reports whether every root that emitted, or could have
-// emitted, an engram-owned copy (whose key is bare, like a Claude user
-// skill's) was read (design D5): the Pi and agents user roots, every root
-// overlapping an engram-owned skills root, and the engram-owned roots
-// themselves (none failed to resolve).
-func (e skillRemovalEligibility) engramCopiesRead() bool {
-	if e.engramUnresolved {
-		return false
-	}
-
-	for _, root := range e.roots {
-		if root.Scanned {
-			continue
-		}
-
-		if root.Form == SkillRootFormPiUser || root.Form == SkillRootFormAgentsUser ||
-			rootOverlapsAny(root, e.engramRoots) {
-			return false
-		}
-	}
-
-	return true
 }
 
 // fixedRootRead reports whether form's fixed user root was recorded and
@@ -371,10 +333,8 @@ func candidateOffers(
 // dedupeSkillCandidates orders the enabled candidates by precedence,
 // collapses entries resolving to one file, and groups the rest by key,
 // marking conflicts. It returns the groups in precedence order and a
-// comparison holding the key-conflict lines and engram-copy warnings.
-func dedupeSkillCandidates(
-	candidates []SkillCandidate, engramRoots []string,
-) ([]skillKeyGroup, SkillOfferComparison) {
+// comparison holding the key-conflict lines.
+func dedupeSkillCandidates(candidates []SkillCandidate) ([]skillKeyGroup, SkillOfferComparison) {
 	active := make([]SkillCandidate, 0, len(candidates))
 
 	for _, candidate := range candidates {
@@ -409,7 +369,7 @@ func dedupeSkillCandidates(
 	var comparison SkillOfferComparison
 
 	for index := range groups {
-		judgeSkillKeyGroup(&groups[index], engramRoots, &comparison)
+		judgeSkillKeyGroup(&groups[index], &comparison)
 	}
 
 	return groups, comparison
@@ -431,18 +391,15 @@ func joinPathList(paths []string) string {
 	return strings.Join(paths[:len(paths)-1], ", ") + " and " + paths[len(paths)-1]
 }
 
-// judgeSkillKeyGroup marks group conflicted when its members' bytes differ,
-// unless every member lies under an engram-owned root (design D4's only
-// exception), where the first wins and one warning is recorded.
-func judgeSkillKeyGroup(group *skillKeyGroup, engramRoots []string, comparison *SkillOfferComparison) {
+// judgeSkillKeyGroup marks group conflicted when its members' bytes differ
+// (design D4: no source is exempt), recording one line naming every path.
+func judgeSkillKeyGroup(group *skillKeyGroup, comparison *SkillOfferComparison) {
 	first := SkillContentHash(group.members[0].Content)
 	differs := false
-	allEngram := true
 	paths := make([]string, 0, len(group.members))
 
 	for _, member := range group.members {
 		differs = differs || SkillContentHash(member.Content) != first
-		allEngram = allEngram && underEngramSkillRoot(member.SourcePath, engramRoots)
 		paths = append(paths, member.SourcePath)
 	}
 
@@ -451,13 +408,6 @@ func judgeSkillKeyGroup(group *skillKeyGroup, engramRoots []string, comparison *
 	}
 
 	slices.Sort(paths)
-
-	if allEngram {
-		comparison.Warnings = append(comparison.Warnings, fmt.Sprintf(engramCopiesDifferWarningFormat,
-			group.key, joinPathList(paths), group.members[0].SourcePath))
-
-		return
-	}
 
 	group.conflicted = true
 	comparison.Conflicts = append(comparison.Conflicts,
@@ -472,9 +422,6 @@ func newSkillRemovalEligibility(input SkillOfferInput) skillRemovalEligibility {
 		manifestsRead: input.Sources.PluginManifestsRead,
 		pluginScanned: make(map[string]bool, len(input.Sources.Plugins)),
 		conflicted:    make(map[string]bool, len(input.Sources.PluginConflicts)),
-
-		engramRoots:      input.Sources.EngramSkillRoots,
-		engramUnresolved: input.Sources.EngramSkillRootsUnresolved,
 	}
 
 	for _, plugin := range input.Sources.Plugins {
@@ -486,29 +433,6 @@ func newSkillRemovalEligibility(input SkillOfferInput) skillRemovalEligibility {
 	}
 
 	return eligibility
-}
-
-// offerEngramOwned reports whether offer's source lies under an engram-owned
-// skills root: a candidate's resolved path, or a removal's recorded
-// skill_source expanded against the resolved home or the home as given.
-func offerEngramOwned(offer SkillOffer, input SkillOfferInput) bool {
-	roots := input.Sources.EngramSkillRoots
-
-	if offer.Kind != SkillOfferRemove {
-		return underEngramSkillRoot(offer.SourcePath, roots)
-	}
-
-	if offer.SourcePath == "" {
-		return false
-	}
-
-	for _, home := range []string{input.Sources.ResolvedHome, input.Home} {
-		if underEngramSkillRoot(expandHomeRel(offer.SourcePath, home), roots) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // pluginConflictLines renders one line per plugin name conflict, sorted by
@@ -599,24 +523,6 @@ func rootDepthContaining(root ScannedRoot, path string) (int, bool) {
 	}
 
 	return depth, contains
-}
-
-// rootOverlapsAny reports whether root (by its resolved path or its path as
-// given) lies at or under one of paths, or holds one of them.
-func rootOverlapsAny(root ScannedRoot, paths []string) bool {
-	for _, rootPath := range []string{root.Resolved, root.Path} {
-		if rootPath == "" {
-			continue
-		}
-
-		for _, path := range paths {
-			if pathWithinRoot(rootPath, path) || pathWithinRoot(path, rootPath) {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 // rootVouchesFor reports whether key is one of root's key prefixes followed

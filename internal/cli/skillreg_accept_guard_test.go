@@ -27,7 +27,7 @@ func TestAcceptSkillOffer_MissedSourceErrorsAndWritesNothing(t *testing.T) {
 		// A source exists, but only for a different path of the same key.
 		noteSources := map[string]cli.SkillNoteSource{}
 		if rapid.Bool().Draw(rt, "decoy") {
-			noteSources[key+"\x00"+path+"-other"] = cli.SkillNoteSource{Key: key, Name: key, Content: []byte("x")}
+			noteSources[key+"\x00"+path+"-other"] = cli.SkillNoteSource{Key: key, Content: []byte("x")}
 		}
 
 		vault := newSkillAcceptFixtureVault()
@@ -55,7 +55,7 @@ func TestAcceptSkillOffer_UnknownKindErrorsAndWritesNothing(t *testing.T) {
 	vault := newSkillAcceptFixtureVault()
 	offer := cli.SkillOffer{Kind: cli.SkillOfferKind("rename"), Key: "curate", SourcePath: "/s/curate/SKILL.md"}
 	noteSources := map[string]cli.SkillNoteSource{
-		"curate\x00/s/curate/SKILL.md": {Key: "curate", Name: "curate", Content: []byte("x")},
+		"curate\x00/s/curate/SKILL.md": {Key: "curate", Content: []byte("x")},
 	}
 
 	err := cli.ExportAcceptSkillOffer(t.Context(), "/vault", "personal", offer, noteSources,
