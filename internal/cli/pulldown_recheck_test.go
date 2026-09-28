@@ -274,6 +274,73 @@ func TestActivate_ServedParentPendingAndRecheck(t *testing.T) {
 	}))
 }
 
+// TestCurateNearOrder_PulledOffer (final review F10) traces the curate
+// skill's near row for a pulled offer O folded into a live local note E
+// that has no primary link. Amending E first drains at once with E still
+// unlinked, so the bounce goes up as a learn-offer and E's primary becomes
+// the parent's new pending note; folding first gives E O's pulled link as
+// its primary, so the amend goes up as an amend-offer for the pulled
+// note's parent counterpart (design D12 B1).
+func TestCurateNearOrder_PulledOffer(t *testing.T) {
+	t.Parallel()
+
+	for name, testCase := range map[string]struct {
+		foldFirst bool
+		wantFor   string
+	}{
+		"amend then fold": {foldFirst: false, wantFor: ""},
+		"fold then amend": {foldFirst: true, wantFor: "7.2026-09-01.near"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newWiringEnv(t)
+			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.near", "c", ""))
+			env.plant("3.2026-09-20.existing.md", []byte("---\ntype: fact\ntier: L2\nsituation: when local\n"+
+				"subject: l\npredicate: m\nobject: n\nluhmann: \"3\"\ncreated: \"2026-09-20\"\nsource: test\n"+
+				"user: alice\nvault: personal\n---\n\nInformation learned: when local, l m n.\n"))
+
+			env.run("activate", "--note", parentNote+".md")
+
+			offers := slices.DeleteFunc(env.linkedCopies(parentNote), func(name string) bool {
+				return name == "3.2026-09-20.existing.md"
+			})
+			g.Expect(offers).To(HaveLen(1))
+
+			if len(offers) != 1 {
+				return
+			}
+
+			offer := strings.TrimSuffix(offers[0], ".md")
+			amend := func() {
+				env.run("amend", "--target", "3.2026-09-20.existing", "--object", "n plus the pulled claim")
+			}
+			fold := func() {
+				env.run("amend", "--target", offer, "--discard", "--into", "3.2026-09-20.existing",
+					"--expect-hash", env.exchangeHashOf(offers[0]))
+			}
+
+			if testCase.foldFirst {
+				fold()
+				amend()
+			} else {
+				amend()
+				fold()
+			}
+
+			g.Expect(env.exitCodes()).To(BeEmpty())
+
+			sent := env.parent.offers()
+			g.Expect(sent).To(HaveLen(1))
+
+			if len(sent) == 1 {
+				g.Expect(sent[0].Offer.For).To(Equal(testCase.wantFor))
+			}
+		})
+	}
+}
+
 // acceptedPulledCopy pulls parentNote down, clears the copy's pending
 // marker, and returns the accepted local copy's file name.
 func acceptedPulledCopy(t *testing.T, env *wiringEnv, parentNote string) string {
