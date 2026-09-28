@@ -26,6 +26,7 @@ const (
 	ExportLocationOK                = locationOK
 	ExportOfferAccepted             = offerAccepted
 	ExportOfferFailed               = offerFailed
+	ExportOfferRefused              = offerRefused
 	ExportOfferRejected             = offerRejected
 	ExportOfferSkipped              = offerSkipped
 	ExportOfferTooOld               = offerTooOld

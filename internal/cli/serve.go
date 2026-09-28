@@ -163,6 +163,14 @@ type activateRequest struct {
 	Notes []string `json:"notes"`
 }
 
+// cycleRefusal is the 409 body for an offer whose path already holds this
+// vault's ID: the error plus the vault ID, so a child that is its own parent
+// (or sits on the cycle) can recognize and cache it (ruling S12).
+type cycleRefusal struct {
+	Error   string `json:"error"`
+	VaultID string `json:"vault_id"` //nolint:tagliatelle // design D7 fixes the exchange's snake_case keys
+}
+
 // errResponse is the JSON response body for any served-route failure.
 type errResponse struct {
 	Error string `json:"error"`
@@ -205,6 +213,14 @@ func capQueryText(text string) string {
 	}
 
 	return text[:end]
+}
+
+// cycleRefusalResponse is the 409 loop refusal carrying this vault's ID.
+func cycleRefusalResponse(err error, vaultID string) ServeResponse {
+	//nolint:errchkjson // plain string fields never fail to encode
+	body, _ := json.Marshal(cycleRefusal{Error: err.Error(), VaultID: vaultID})
+
+	return ServeResponse{Status: statusConflict, Body: body}
 }
 
 // firstQueryParam returns key's first query value, or "" when absent.
@@ -321,7 +337,7 @@ func serveLearn(deps Deps, vault, vaultName string) ServeHandler {
 
 		switch {
 		case errors.Is(runErr, errOfferCycle):
-			return jsonErrorResponse(statusConflict, runErr)
+			return cycleRefusalResponse(runErr, vaultID)
 		case runErr != nil:
 			return jsonErrorResponse(statusInternalServerError, runErr)
 		}

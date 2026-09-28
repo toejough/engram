@@ -161,6 +161,28 @@ func TestServeLearn_ConcurrentSameOriginLeavesOnePending(t *testing.T) {
 	g.Expect(noteFiles(t, vault)).To(HaveLen(1), "exactly one pending note for one origin")
 }
 
+// TestServeLearn_CycleRefusalReportsVaultID (ruling S12): the 409 loop
+// refusal carries the server's vault ID, so a child whose own ID it is can
+// recognize itself as its own parent and cache the parent's ID.
+func TestServeLearn_CycleRefusalReportsVaultID(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newServeVault(t)
+	resp := serveLearnRequest(t, vault,
+		offeredFact("looped", "object", offerOf(childOrigin, "k", "", childVaultID, serverVaultID)))
+
+	g.Expect(resp.Status).To(Equal(409))
+
+	var body struct {
+		Error   string `json:"error"`
+		VaultID string `json:"vault_id"` //nolint:tagliatelle // the D7 wire key
+	}
+	g.Expect(json.Unmarshal(resp.Body, &body)).To(Succeed())
+	g.Expect(body.Error).NotTo(BeEmpty())
+	g.Expect(body.VaultID).To(Equal(serverVaultID))
+}
+
 // TestServeLearn_DuplicateKeyWritesNothing: the same origin and key as an
 // existing pending note return that note's receipt and change no file.
 func TestServeLearn_DuplicateKeyWritesNothing(t *testing.T) {

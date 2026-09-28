@@ -41,10 +41,7 @@ var (
 	// bounded total timeout beats http.DefaultClient's unbounded one, and
 	// the dialer bounds the connect step.
 	//nolint:gochecknoglobals // shared client, real net/http state
-	fetchHTTPClient = &http.Client{
-		Timeout:   fetchClientTimeout,
-		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, DialContext: fetchConnectDialer.DialContext},
-	}
+	fetchHTTPClient = &http.Client{Timeout: fetchClientTimeout, Transport: newFetchTransport()}
 	// readHeaderTimeout bounds how long the server waits to read a
 	// request's headers (mitigates slow-header/slowloris-style stalls).
 	// Same var-not-const reasoning as fetchClientTimeout above.
@@ -80,6 +77,18 @@ func httpPrimitives() cli.HTTPPrims {
 		ListenAndServe: realListenAndServe,
 		Fetch:          realFetch,
 	}
+}
+
+// newFetchTransport clones http.DefaultTransport — keeping its proxy,
+// TLS-handshake and idle-connection defaults — and bounds the connect step
+// with fetchConnectDialer.
+func newFetchTransport() *http.Transport {
+	//nolint:forcetypeassert // http.DefaultTransport is always an *http.Transport
+	defaults := http.DefaultTransport.(*http.Transport)
+	transport := defaults.Clone()
+	transport.DialContext = fetchConnectDialer.DialContext
+
+	return transport
 }
 
 // readFetchResponse reduces a non-nil *http.Response to cli.FetchResponse.

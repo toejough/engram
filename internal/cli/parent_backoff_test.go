@@ -3,8 +3,7 @@ package cli_test
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
+	"io"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -241,8 +240,9 @@ func TestTargets_Query_ParentClientErrorDoesNotBackOff(t *testing.T) {
 	run()
 	g.Expect(fetches.Load()).To(Equal(int32(2)))
 
-	raw, readErr := os.ReadFile(filepath.Join(vault, ".engram", "parent.json"))
-	if readErr == nil {
-		g.Expect(string(raw)).NotTo(ContainSubstring(`"failures":1`))
-	}
+	cache, cacheErr := cli.ExportLoadParentCache(
+		cli.ExportExchangeStateFromDeps(newTestDeps(io.Discard, io.Discard)), vault)
+	g.Expect(cacheErr).NotTo(HaveOccurred())
+	g.Expect(cache.Failures).To(BeZero())
+	g.Expect(cache.BackoffUntil.IsZero()).To(BeTrue())
 }

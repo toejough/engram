@@ -29,19 +29,19 @@ const (
 	// createdVaultFormat is ensureVault's single stderr line for a vault it
 	// just created — it makes a mistyped --vault/ENGRAM_VAULT_PATH visible
 	// (#766's typo concern).
-	createdVaultFormat    = "engram: created new vault at %s\n"
-	homeRecordFile        = "home.json"
-	locationMismatch      = "mismatch"
-	locationMissing       = "missing"
-	locationNoID          = "no vault id"
-	locationOK            = "ok"
+	createdVaultFormat = "engram: created new vault at %s\n"
+	homeRecordFile     = "home.json"
+	locationMismatch   = "mismatch"
+	locationMissing    = "missing"
+	locationNoID       = "no vault id"
+	locationOK         = "ok"
+	// locationWarningFormat is the one warning a failed location check
+	// prints (child-side exchange pauses; serve still starts). It names both
+	// remedies so the user can pick the one matching what happened.
 	locationWarningFormat = "engram: warning: vault %s failed its location check " +
 		"(%s — a copied, moved or cloned vault?); exchange with the parent is paused; " +
 		"if this vault is a copy, run `engram vault-id --regenerate`; " +
 		"if it is the same vault moved or re-cloned, run `engram vault-id --claim`\n"
-	// locationWarningFormat is the one warning a failed location check
-	// prints (child-side exchange pauses; serve still starts). It names both
-	// remedies so the user can pick the one matching what happened.
 	// parentBackoffWarningFormat is the one warning a command prints when
 	// the backoff window makes it skip the parent.
 	parentBackoffWarningFormat = "engram: parent unreachable (retry after %s); %d offer(s) queued\n"

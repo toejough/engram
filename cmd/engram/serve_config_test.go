@@ -26,6 +26,21 @@ func TestFetchHTTPClient_ConnectTimeoutAtMostThreeSeconds(t *testing.T) {
 		return
 	}
 
+	// Built from http.DefaultTransport's clone: the default TLS-handshake,
+	// idle-connection and proxy settings are kept, only the dial changes.
+	defaults, isDefaultTransport := http.DefaultTransport.(*http.Transport)
+	g.Expect(isDefaultTransport).To(BeTrue())
+
+	if defaults == nil {
+		return
+	}
+
+	g.Expect(transport).NotTo(BeIdenticalTo(defaults))
 	g.Expect(transport.DialContext).NotTo(BeNil())
 	g.Expect(transport.Proxy).NotTo(BeNil())
+	g.Expect(transport.TLSHandshakeTimeout).To(Equal(defaults.TLSHandshakeTimeout))
+	g.Expect(transport.TLSHandshakeTimeout).To(BeNumerically(">", 0))
+	g.Expect(transport.IdleConnTimeout).To(Equal(defaults.IdleConnTimeout))
+	g.Expect(transport.IdleConnTimeout).To(BeNumerically(">", 0))
+	g.Expect(transport.MaxIdleConns).To(Equal(defaults.MaxIdleConns))
 }
