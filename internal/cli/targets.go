@@ -444,13 +444,24 @@ func showActivateTargets(
 	home string,
 ) []any {
 	return append([]any{
-		targ.Targ(func(_ context.Context, a ActivateArgs) {
+		targ.Targ(func(ctx context.Context, a ActivateArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+
+			// --parent with no parent reads and writes nothing (not even a
+			// first-use vault).
+			if a.Parent && parentBase(deps) == "" {
+				errHandler(errParentNotConfigured)
+
+				return
+			}
 
 			errHandler(runInVault(deps, a.Vault, func() error {
-				return RunActivate(a, newActivateDeps(deps))
+				return RunActivate(ctx, a, newPullingActivateDeps(deps, a))
 			}))
-		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
+		}).Name("activate").Description(
+			"Mark note(s) as recently used (bumps LastUsed in sidecar); a parent-only note is pulled down " +
+				"as a local pending offer"),
 		targ.Targ(func(_ context.Context, a CountArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 

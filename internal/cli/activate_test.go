@@ -1,8 +1,10 @@
 package cli_test
 
 import (
+	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -119,9 +121,12 @@ func TestNewActivateDeps_BumpsRealSidecar(t *testing.T) {
 		return
 	}
 
+	// The note file itself makes the ref a local hit (design D8, M8).
+	g.Expect(os.WriteFile(notePath, []byte("---\ntype: fact\n---\n"), 0o600)).To(Succeed())
+
 	deps := cli.ExportNewActivateDeps(cli.ExportNewTestOsDeps())
 
-	runErr := cli.ExportRunActivate(cli.ActivateArgs{Notes: []string{notePath}}, deps)
+	runErr := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Notes: []string{notePath}}, deps)
 	g.Expect(runErr).NotTo(HaveOccurred())
 
 	if runErr != nil {
@@ -164,9 +169,10 @@ func TestRunActivateAcceptsAbsoluteNotePath(t *testing.T) {
 		},
 		Write:      func(p string, b []byte) error { store[p] = b; return nil },
 		LogWarning: func(string, ...any) {},
+		NoteExists: func(string) bool { return true },
 	}
 	// Vault set, but an ABSOLUTE note must NOT be joined to it.
-	err := cli.ExportRunActivate(cli.ActivateArgs{Vault: "/vault", Notes: []string{abs}}, deps)
+	err := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Vault: "/vault", Notes: []string{abs}}, deps)
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
@@ -178,13 +184,14 @@ func TestRunActivateAllFailReturnsError(t *testing.T) {
 	write := func(_ string, _ []byte) error { return nil }
 	fixedNow := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
 
-	err := cli.ExportRunActivate(
+	err := cli.ExportRunActivate(context.Background(),
 		cli.ActivateArgs{Notes: []string{"missing1.md", "missing2.md"}},
 		cli.ActivateDeps{
 			Now:        func() time.Time { return fixedNow },
 			Read:       read,
 			Write:      write,
 			LogWarning: func(string, ...any) {},
+			NoteExists: func(p string) bool { return !strings.Contains(p, "missing") },
 		},
 	)
 	g.Expect(err).To(HaveOccurred(), "all failed must return an error")
@@ -225,13 +232,14 @@ func TestRunActivateBumpsAllNotes(t *testing.T) {
 	fixedDate := "2026-06-17"
 	fixedNow := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
 
-	err := cli.ExportRunActivate(
+	err := cli.ExportRunActivate(context.Background(),
 		cli.ActivateArgs{Notes: []string{"a.md", "b.md"}},
 		cli.ActivateDeps{
 			Now:        func() time.Time { return fixedNow },
 			Read:       read,
 			Write:      write,
 			LogWarning: func(string, ...any) {},
+			NoteExists: func(p string) bool { return !strings.Contains(p, "missing") },
 		},
 	)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -271,16 +279,17 @@ func TestRunActivateLogsContinuesOnBadPath(t *testing.T) {
 
 	fixedNow := time.Date(2026, 6, 17, 12, 0, 0, 0, time.UTC)
 
-	err := cli.ExportRunActivate(
+	err := cli.ExportRunActivate(context.Background(),
 		cli.ActivateArgs{Notes: []string{"missing.md", "good.md"}},
 		cli.ActivateDeps{
 			Now:        func() time.Time { return fixedNow },
 			Read:       read,
 			Write:      write,
 			LogWarning: func(f string, _ ...any) { warnings = append(warnings, f) },
+			NoteExists: func(p string) bool { return !strings.Contains(p, "missing") },
 		},
 	)
-	g.Expect(err).NotTo(HaveOccurred(), "partial failure (some succeeded) must not error")
+	g.Expect(err).To(HaveOccurred(), "any failed ref fails the command (design D8, #746)")
 	g.Expect(warnings).To(HaveLen(1), "bad path must log a warning")
 
 	sc, derr := embed.UnmarshalSidecar(store[goodSidecar])
@@ -313,9 +322,10 @@ func TestRunActivateResolvesRelativeNoteAgainstVault(t *testing.T) {
 		},
 		Write:      func(p string, b []byte) error { store[p] = b; return nil },
 		LogWarning: func(string, ...any) {},
+		NoteExists: func(string) bool { return true },
 	}
 
-	err := cli.ExportRunActivate(cli.ActivateArgs{Vault: vault, Notes: []string{noteBase}}, deps)
+	err := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Vault: vault, Notes: []string{noteBase}}, deps)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -382,9 +392,10 @@ func TestRunActivate_LocksVaultAroundBumpLoop(t *testing.T) {
 			return nil
 		},
 		LogWarning: func(string, ...any) {},
+		NoteExists: func(string) bool { return true },
 	}
 
-	err := cli.ExportRunActivate(cli.ActivateArgs{Vault: vault, Notes: []string{noteName}}, deps)
+	err := cli.ExportRunActivate(context.Background(), cli.ActivateArgs{Vault: vault, Notes: []string{noteName}}, deps)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

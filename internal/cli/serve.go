@@ -273,7 +273,7 @@ func jsonOKResponse() ServeResponse {
 // marker, no curation (design.md Decisions — activate never mutates note
 // content, so there's no new claim for curation to judge).
 func serveActivate(deps Deps, vault string) ServeHandler {
-	return serveHandlerFunc(func(_ context.Context, req ServeRequest) ServeResponse {
+	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
 		var body activateRequest
 
 		unmarshalErr := json.Unmarshal(req.Body, &body)
@@ -283,7 +283,8 @@ func serveActivate(deps Deps, vault string) ServeHandler {
 
 		args := ActivateArgs{Vault: vault, Notes: body.Notes}
 
-		runErr := RunActivate(args, newActivateDeps(deps))
+		// Local only: a served activate never reaches past this vault.
+		runErr := RunActivate(ctx, args, newActivateDeps(deps))
 		if runErr != nil {
 			return jsonErrorResponse(statusInternalServerError, runErr)
 		}

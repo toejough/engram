@@ -127,6 +127,11 @@ type AmendDeps struct {
 	// Offers connects amend to the parent outbox (design D5, D6). The zero
 	// value — no parent configured — offers nothing.
 	Offers offerHooks
+	// RecordDecline records a bare discard of a pulled note (one whose
+	// primary link is via pulled) in the vault's declined-pull record, so
+	// the unchanged parent note is not pulled again (design D8, H5). Nil
+	// records nothing.
+	RecordDecline func(vault string, entry declinedPull) error
 }
 
 // RunAmend modifies a note in place. It applies --supersedes entries to the
@@ -438,6 +443,32 @@ func applyVocabAssignmentAfterAmend(deps AmendDeps, vault, notePath, amended str
 	warnIfPendingOffers(vault, deps.ListMD, deps.Read, deps.LogWarning)
 }
 
+// declinePulledNote records the decline before a bare discard of a pulled
+// note deletes it — first, so a failed record leaves the note in place
+// rather than letting it come back.
+func declinePulledNote(deps AmendDeps, vault, full string) error {
+	if deps.RecordDecline == nil {
+		return nil
+	}
+
+	raw, readErr := deps.Read(full)
+	if readErr != nil {
+		return fmt.Errorf("amend: discard: %w", readErr)
+	}
+
+	link, pulled := pulledPrimaryLink(raw)
+	if !pulled {
+		return nil
+	}
+
+	recordErr := deps.RecordDecline(vault, declinedPull{Basename: link.Note, Hash: link.Hash})
+	if recordErr != nil {
+		return fmt.Errorf("amend: discard: %w", recordErr)
+	}
+
+	return nil
+}
+
 // discardNote deletes the note and its sidecar under the vault lock RunAmend
 // already holds — the curate runbook's "covered" outcome
 // (vault-offer-curation): the pending offer's content is already covered by
@@ -458,6 +489,17 @@ func discardNote(deps AmendDeps, full string, stdout io.Writer) error {
 	_, _ = fmt.Fprintln(stdout, full)
 
 	return nil
+}
+
+// discardWithDecline is a bare --discard: a pulled note's decline is
+// recorded first, then the note and its sidecar are deleted.
+func discardWithDecline(deps AmendDeps, vault, full string, stdout io.Writer) error {
+	declineErr := declinePulledNote(deps, vault, full)
+	if declineErr != nil {
+		return declineErr
+	}
+
+	return discardNote(deps, full, stdout)
 }
 
 // mergeChunkSources returns a deduped union of existing and incoming chunk ids.
@@ -520,6 +562,9 @@ func newAmendDeps(d Deps) AmendDeps {
 		// false-fire on the untagged trigger.
 		ListMD: vfs.ListMD,
 		Offers: newOfferHooks(d),
+		RecordDecline: func(vault string, entry declinedPull) error {
+			return recordDeclinedPull(exchangeStateFromDeps(d), vault, entry)
+		},
 	}
 }
 
@@ -727,7 +772,7 @@ func runAmendLocked(ctx context.Context, args AmendArgs, deps AmendDeps, stdout 
 	full := filepath.Join(args.Vault, relPath)
 
 	if args.Discard {
-		return false, discardNote(deps, full, stdout)
+		return false, discardWithDecline(deps, args.Vault, full, stdout)
 	}
 
 	raw, readErr := deps.Read(full)

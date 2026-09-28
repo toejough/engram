@@ -11,8 +11,9 @@ import (
 
 // unexported constants.
 const (
-	parentKey = "parent"
-	xidKey    = "xid"
+	offerFieldKey = "offer"
+	parentKey     = "parent"
+	xidKey        = "xid"
 )
 
 // unexported variables.

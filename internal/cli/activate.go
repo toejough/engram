@@ -1,18 +1,27 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/toejough/engram/internal/embed"
+	"github.com/toejough/engram/internal/luhmann"
 )
 
 // ActivateArgs holds parsed flags for `engram activate`.
 type ActivateArgs struct {
 	Vault string   `targ:"flag,name=vault,env=ENGRAM_VAULT_PATH,desc=vault root (default $XDG_DATA_HOME/engram/vault)"`
 	Notes []string `targ:"flag,name=note,desc=note path to mark used (repeatable)"`
+	// Parent resolves every ref against ENGRAM_PARENT, pulling it down,
+	// even when a local file of that name exists (design D8).
+	Parent bool `targ:"flag,name=parent,desc=resolve each ref against ENGRAM_PARENT (pulling it down) instead of the local vault"` //nolint:lll // single struct-tag string
+	// VaultName is the vault: identity stamped on a pulled-down copy.
+	VaultName string `targ:"flag,name=vault-name,env=ENGRAM_VAULT_NAME,desc=vault name stamped on a pulled-down note's vault: field (default \"personal\")"` //nolint:lll // single struct-tag string
 }
 
 // ActivateDeps holds injected dependencies for RunActivate.
@@ -30,45 +39,51 @@ type ActivateDeps struct {
 	Read       func(string) ([]byte, error)
 	Write      func(string, []byte) error
 	LogWarning func(string, ...any)
+	// NoteExists reports whether a note's .md file exists: that, not its
+	// sidecar, makes a ref a local hit (design D8, M8).
+	NoteExists func(path string) bool
+	// Pull pulls a ref down from the configured parent (design D8); nil
+	// when no parent is configured, and for a served activate, which never
+	// reaches past its own vault. It runs with no vault lock held.
+	Pull func(ctx context.Context, ref string) error
+	// Finish runs once after every pull, with no lock held (the drain
+	// after a parent contact, design D6); nil when there is no parent.
+	Finish func(ctx context.Context)
 }
 
-// RunActivate bumps the LastUsed field on each note's sidecar to today's date.
-// A bad path is logged and skipped (log-and-continue). Returns nil if at least
-// one note was successfully activated; returns an error only when ALL fail.
-func RunActivate(args ActivateArgs, deps ActivateDeps) error {
-	// Acquire the vault lock before the bump loop so a concurrent amend/resituate
-	// re-embed cannot clobber the freshly-written vectors with stale ones. bumpLastUsed
-	// must NOT re-acquire the lock (RunAmend already holds it when it calls
-	// reEmbedAndActivate→bumpLastUsed — re-acquiring would self-deadlock).
-	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
-	if lockErr != nil {
-		return fmt.Errorf("activate: acquiring vault lock: %w", lockErr)
+// RunActivate marks each ref used (design D8). A ref whose .md exists
+// locally is a hit: its sidecar's LastUsed is bumped (a note without a
+// sidecar still counts). A miss — or every ref with --parent — is pulled
+// down from the parent when the ref is a basename or <basename>.md; a bare
+// Luhmann ID never goes to the parent. Each failed ref is reported, and
+// the command fails when any ref failed.
+func RunActivate(ctx context.Context, args ActivateArgs, deps ActivateDeps) error {
+	if args.Parent && deps.Pull == nil {
+		return errParentNotConfigured
 	}
 
-	defer release()
+	remote, failures, lockErr := activateLocally(args, deps)
+	if lockErr != nil {
+		return lockErr
+	}
 
-	date := deps.Now().Format(noteDateFormat)
-
-	failures := 0
-
-	for _, notePath := range args.Notes {
-		full := notePath
-		if !filepath.IsAbs(full) {
-			full = filepath.Join(args.Vault, notePath)
-		}
-
-		sidecarPath := embed.SidecarPath(full)
-
-		bumpErr := bumpLastUsed(sidecarPath, date, deps.Read, deps.Write)
-		if bumpErr != nil {
-			deps.LogWarning("activate: skipping %s: %v", notePath, bumpErr)
+	// Pulls run after the local pass released the vault lock: each takes
+	// the lock only for its own write (no fetch under the lock).
+	for _, ref := range remote {
+		pullErr := deps.Pull(ctx, ref)
+		if pullErr != nil {
+			deps.LogWarning("activate: %s: %v", ref, pullErr)
 
 			failures++
 		}
 	}
 
-	if failures == len(args.Notes) && len(args.Notes) > 0 {
-		return errActivateAllFailed
+	if len(remote) > 0 && deps.Finish != nil {
+		deps.Finish(ctx)
+	}
+
+	if failures > 0 {
+		return fmt.Errorf("%w: %d of %d", errActivateFailed, failures, len(args.Notes))
 	}
 
 	return nil
@@ -76,8 +91,69 @@ func RunActivate(args ActivateArgs, deps ActivateDeps) error {
 
 // unexported variables.
 var (
-	errActivateAllFailed = errors.New("activate: all note paths failed")
+	errActivateFailed   = errors.New("activate: note ref(s) failed")
+	errActivateNotFound = errors.New("note not found")
+	errActivateNotSent  = errors.New("not sent to the parent: only a basename or <basename>.md is " +
+		"(a bare Luhmann ID or a path never is)")
 )
+
+// activateLocally is RunActivate's locked pass: it bumps every local hit
+// and returns the refs to pull from the parent and the failure count.
+func activateLocally(args ActivateArgs, deps ActivateDeps) ([]string, int, error) {
+	// Acquire the vault lock before the bump loop so a concurrent amend/resituate
+	// re-embed cannot clobber the freshly-written vectors with stale ones. bumpLastUsed
+	// must NOT re-acquire the lock (RunAmend already holds it when it calls
+	// reEmbedAndActivate→bumpLastUsed — re-acquiring would self-deadlock).
+	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
+	if lockErr != nil {
+		return nil, 0, fmt.Errorf("activate: acquiring vault lock: %w", lockErr)
+	}
+
+	defer release()
+
+	date := deps.Now().Format(noteDateFormat)
+	remote := make([]string, 0, len(args.Notes))
+	failures := 0
+
+	for _, ref := range args.Notes {
+		refErr := activateRef(args, deps, ref, date, &remote)
+		if refErr != nil {
+			deps.LogWarning("activate: %s: %v", ref, refErr)
+
+			failures++
+		}
+	}
+
+	return remote, failures, nil
+}
+
+// activateRef resolves one ref in the locked pass: a local hit is bumped,
+// a parent candidate is queued onto remote, anything else fails.
+func activateRef(args ActivateArgs, deps ActivateDeps, ref, date string, remote *[]string) error {
+	if !args.Parent {
+		full := localNotePath(args.Vault, ref)
+		if deps.NoteExists(full) {
+			bumpErr := bumpLastUsed(embed.SidecarPath(full), date, deps.Read, deps.Write)
+			if bumpErr != nil && !errors.Is(bumpErr, fs.ErrNotExist) {
+				return bumpErr
+			}
+
+			return nil
+		}
+
+		if deps.Pull == nil {
+			return errActivateNotFound
+		}
+	}
+
+	if !isParentCandidate(ref) {
+		return fmt.Errorf("%w; %w", errActivateNotFound, errActivateNotSent)
+	}
+
+	*remote = append(*remote, ref)
+
+	return nil
+}
 
 // bumpLastUsed reads a note's sidecar, sets LastUsed=date, and rewrites it.
 // Vectors/ContentHash are preserved (LastUsed is metadata) so it never triggers
@@ -117,6 +193,35 @@ func bumpLastUsed(
 	return nil
 }
 
+// isParentCandidate reports whether ref may be resolved against the
+// parent: a basename or <basename>.md — never a bare Luhmann ID, which is
+// minted per vault (M8), and never a path.
+func isParentCandidate(ref string) bool {
+	name := normalizeNoteRef(ref)
+	if strings.ContainsAny(name, `/\`) {
+		return false
+	}
+
+	_, isBasename := luhmann.FromBasename(name)
+
+	return isBasename
+}
+
+// localNotePath is ref's note file: an absolute path as given, otherwise
+// joined to the vault, with .md added when the ref omits it.
+func localNotePath(vault, ref string) string {
+	full := ref
+	if !filepath.IsAbs(full) {
+		full = filepath.Join(vault, ref)
+	}
+
+	if !strings.HasSuffix(full, mdExt) {
+		full += mdExt
+	}
+
+	return full
+}
+
 // newActivateDeps composes RunActivate's dependencies from the injected edge
 // Deps (pure composition — no direct I/O; #700). Sidecar writes go through
 // WriteFileAtomic (temp+rename) so concurrent readers always see either the
@@ -132,5 +237,10 @@ func newActivateDeps(d Deps) ActivateDeps {
 			return d.FS.WriteFileAtomic(path, data, sidecarPerm)
 		},
 		LogWarning: logWarningTo(d.Stderr),
+		NoteExists: func(path string) bool {
+			_, statErr := d.FS.Stat(path)
+
+			return statErr == nil
+		},
 	}
 }

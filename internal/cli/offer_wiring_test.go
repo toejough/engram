@@ -353,6 +353,11 @@ type recordingParent struct {
 	receipt     string
 	rejection   string
 	log         []recordedRequest
+	// pull-down (design D8): the parent's notes served by GET /show?raw=1,
+	// how /show answers, and whether POST /activate fails.
+	notes        []fakeParentNote
+	showMode     string
+	activateDown bool
 }
 
 func (p *recordingParent) fetch(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
@@ -367,6 +372,14 @@ func (p *recordingParent) fetch(_ context.Context, method, url string, body []by
 
 	if strings.Contains(url, "/query") {
 		return p.queryResponse(url), nil
+	}
+
+	if strings.Contains(url, "/show") {
+		return p.showResponse(url), nil
+	}
+
+	if strings.Contains(url, "/activate") {
+		return p.activateResponse()
 	}
 
 	if p.learnDown {
@@ -498,6 +511,10 @@ type wiringEnv struct {
 	randFails  bool
 	lastStdout string
 	lastStderr string
+	// wrap, when set, adjusts the command's deps last (lock/fetch probes).
+	wrap    func(*cli.Deps)
+	exitsMu sync.Mutex
+	exits   []int
 }
 
 func (e *wiringEnv) advance(by time.Duration) {
@@ -515,6 +532,12 @@ func (e *wiringEnv) customize(deps *cli.Deps) {
 
 	if e.randFails {
 		deps.RandRead = func([]byte) (int, error) { return 0, errors.New("no entropy") }
+	}
+
+	deps.Exit = e.recordExit
+
+	if e.wrap != nil {
+		e.wrap(deps)
 	}
 }
 

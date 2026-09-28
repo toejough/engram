@@ -38,7 +38,7 @@ var (
 	// errEngramServerRemoved is the D1 hard error for a set ENGRAM_SERVER.
 	errEngramServerRemoved = errors.New("ENGRAM_SERVER is no longer supported")
 	// errParentNotConfigured is returned when --parent is passed to
-	// show/show-chunk but ENGRAM_PARENT is not set.
+	// show/show-chunk/activate but ENGRAM_PARENT is not set.
 	errParentNotConfigured = errors.New("--parent requires ENGRAM_PARENT to be configured")
 	// errParentUnreachable marks a parent request that failed as an outage
 	// (a transport error, timeout or 5xx), which backs the parent off.
