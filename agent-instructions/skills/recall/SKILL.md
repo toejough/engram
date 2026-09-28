@@ -33,7 +33,8 @@ Recall runs in one of two **modes**, selected by the caller (the mode word is th
   It both *applies* memory to this decision **and** *grows the vault* (crystallizes, persists synthesis).
   Use it when the decision is weighty or irreversible, when you want recall to also learn, or when in doubt.
 - **`glance` (opt-in, cheap — for firing often).** A pass that is **read-only with respect to vault knowledge**
-  (Step 2.7 `activate` still bumps the used-notes recency metadata — that is kept, not a knowledge write). Run
+  (Step 2.7 `activate` still bumps the used-notes recency metadata and pulls a used `from_parent` note down as a
+  pending copy — both kept, neither a knowledge write). Run
   Steps 0–3.5 with **~3 phrases** (not 10) and **keep the read side** — Step 2.5A (read candidates), **Step 2.5B
   (apply the recency weight)**, Step 2.7 (activate used notes), the Step 3 synthesis, and Step 3.5 (the
   re-entry query, when triggered) — but **skip the write side**: Step 2.5C (coverage amend/learn), Step 4
@@ -105,7 +106,8 @@ engram query --lazy-chunks \
   # ... one --phrase per Step 1 phrase (deep: 10; glance: ~3)
 ```
 
-One call; the binary merges ranking server-side. `engram query` always runs the unified D1
+One call; with `ENGRAM_PARENT` set the binary merges the parent's notes (never chunks) and dedupes,
+keeping local copies. `engram query` always runs the unified D1
 clustering of the matched notes+chunks in one pass and emits `candidate_l2s: [{path, cosine, content}]`
 per cluster — the within-cluster top-5 notes, and nothing else; explore-sampled notes are never
 cluster members. Separately, the binary samples explore notes from vocab-term centroids near the
@@ -130,6 +132,8 @@ judge coverage. The payload's `items` mix:
   full content inline). A `runbook` note is a task-type-keyed "how to approach X" procedure
   (`situation`, numbered steps, `done_when`) — it competes and ranks purely by situation-similarity
   like `fact`/`feedback`, with no dedicated Step-1 phrase or query flag of its own.
+- `from_parent: true` — a note from the parent vault with no local copy yet. Apply it like any note,
+  but it does not resolve locally: never `engram amend` it. Using it means activating it (Step 2.7).
 - `provenance: explore` — notes sampled from vocab-term centroids rather than matched by a phrase
   (see Step 2). Treat them as part of the delivered note set for judging Step 2.5/3; each carries
   `source_term` naming the centroid it came from.
@@ -191,6 +195,13 @@ because it lacks a recent instance.
 | **Near** | A candidate addresses the same situation but omits ≥ 1 substantive claim the members evidence (judge against the recency-weighted view — a candidate that only matches the superseded content is **near**, not covered) | `engram amend --target <candidate-path> --chunk-source <chunk-ids> --subject ... --predicate ... --object ...` (or `--behavior/--impact/--action`) — re-synthesize content from all members, recency-weighted. Add `--supersedes "<basename>\|<type>\|<claim>"` if this note corrects a surfaced note. |
 | **Absent** | No candidate addresses the situation | Invoke the **write-memory** skill with this handoff — kind=fact or feedback (pick per the cluster's principle), situation + content fields, `--source "<descriptive>"`, the cluster's chunk-source IDs, plus supersedes details if the new note corrects a surfaced note. write-memory composes, executes, and reports the note path. |
 
+**A `from_parent` item is never an amend target, and neither is its pending pulled copy.** When one
+covers the cluster, the action is Step 2.7's `engram activate` (which pulls it down) — no
+`amend --activate`, no `--chunk-source`, and no new note restating it. Curation settles the pulled
+copy later. Even when the user asks you to enrich or record against the note that states the rule,
+the copy becomes an amend target only after curation has accepted it (it is then a live local note):
+curate first, then amend.
+
 **One write per cluster; one representative note per cluster.** The representative is always a note
 (never a chunk). For `absent`, write exactly one note (fact *or* feedback) covering
 the cluster's principle. Do not write one fact and one feedback note for the same cluster.
@@ -214,6 +225,12 @@ engram activate \
   --note "<path of note you cited in Step 3>"
   # ... one --note per used note only
 ```
+
+Activate the `from_parent` notes you used the same way, by their `path`: this pulls them down as
+local pending copies. Glance does this too. The pending-offers warning that follows names your own
+pulled copies (the next payload's `pending_offers` reflects only local offers): it is expected, not
+an error. Finish the user's request first, then curate them with the curate skill, and say in your
+reply that you did. Never amend the pulled copy.
 
 Do NOT activate every returned note. Do NOT activate recent-channel items (chunks are never
 activated). Activating only what you used lets superseded-but-surfaced notes fade via recency
@@ -326,6 +343,7 @@ wikilinks, skip the QA capture (D2 bar: ≥1 citation required).
 | You applied a cosine threshold to decide covered/near/absent | Coverage is agent-judged from content; cosine only nominates candidates |
 | A candidate matching only the superseded content → you marked it "covered" | Apply the recency weight first; a candidate that misses the conflict is "near" |
 | You wrote two notes (a fact AND a feedback) for one cluster | One representative note per cluster — pick the right kind |
+| You ran `engram amend` on a `from_parent` item or on its still-pending pulled copy | Activate it (pull-down) and let curation settle the copy; amend only a live local note |
 | You called `engram learn --target` to update a note in place | Updates use `engram amend`; `engram learn` is create-only |
 | A `≥0.95` cluster → you activated without reading the candidates | Read first; high cosine nominates, it does not decide |
 | You called `engram show` on a note already in `items[]` | NOTE members in `items[]` carry `content` — use it directly. CHUNK items carry no content under `--lazy-chunks` (`budget.lazy_chunks: true`) — `engram show-chunk <source#anchor>` to read their evidence. |

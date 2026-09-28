@@ -215,6 +215,13 @@ Rules:
 - **No moments of any kind → write nothing.** Routine work is already captured by Step 1;
   a session with no corrections, no save-requests, no reversals, and no confirmed approaches is a two-command learn (sweep + report).
 
+**With `ENGRAM_PARENT` set, every write is offered to the parent automatically.** The note is
+written locally first; the binary then offers it upward, with nothing for you to run. A warning
+`engram: parent unreachable (retry after …); N offer(s) queued` means the write is **done**: the
+note is in the local vault, and the offer waits in the queue until a later engram command reaches
+the parent. Report the note as saved, and that its offer is queued for the parent. Do not re-run the
+write, and never set `ENGRAM_SERVER` (that mode is gone; setting it is a hard error).
+
 ## Step 2.5 — Ad-hoc QA capture (only when a new substantive Q&A occurred this session)
 
 Scan THIS session for substantive answered questions: a question was substantively answered if
@@ -297,4 +304,5 @@ skill does not invoke either command itself — that is the acting agent's (or u
 | You skipped the sweep because "nothing changed" | The sweep IS the check — it costs seconds when nothing changed — skipping because a sweep already ran this session is the prescribed exception |
 | `--tier` flags or L3/ADR writing | Tiers are not part of learn anymore |
 | You corrected a repo doc (CORRECTION/postscript) and skipped the vault note | Write the vault note for the reversal's root cause — record-correction is not capture |
+| A write printed `parent unreachable … offer(s) queued` and you're retrying it, calling it failed, or reaching for `ENGRAM_SERVER` | The note is saved locally and the offer is queued — report it as done |
 | At Step 2.5 you're about to write a QA pair for a question you just answered with your OWN Step 2 note this turn | Don't — that note is already the capture; the Gate excludes this case even though it nominally meets the substantive-answer bar |

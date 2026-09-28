@@ -3,23 +3,24 @@ name: curate
 description: >
   Use when an engram vault holds pending offers awaiting review — engram query's payload shows
   pending_offers: true, an engram update notice names pending offers, a write-path warning nudge
-  fires after engram learn/amend/resituate, or engram serve has just accepted a served write.
-  Also use when explicitly asked to curate, review, or triage pending offers in a vault. Runs
-  host-local only; never invoked from inside engram serve's request handling.
+  fires after engram learn/amend/resituate, or a child's offer or a pulled-down parent note is
+  pending. Also use when explicitly asked to curate, review, or triage pending offers in a vault.
+  Runs host-local only; never invoked from inside engram serve's request handling.
 ---
 
 # Curate — Judge Pending Offers Against the Host Vault
 
-A served `engram learn`/`engram amend` write lands as a **pending offer**: a real note file,
-marked `pending: true`, that hasn't yet been reviewed against the vault's existing (non-pending)
-notes. Curation is that review — the same agent-judged covered/near/absent reasoning `recall`'s
-Step 2.5 performs against query candidates, applied instead to a pending offer against the host
-vault's existing notes.
+An offer (a served `engram learn` from a child, or a parent note pulled down by `engram activate`)
+lands as a **pending offer**: a real note file, marked `pending: true`, that hasn't yet been
+reviewed against the vault's existing (non-pending) notes. Curation is that review — the same
+agent-judged covered/near/absent reasoning `recall`'s Step 2.5 performs against query candidates,
+applied instead to a pending offer against the host vault's existing notes.
 
-**Host-local only, on your own initiative.** `engram serve`'s only job on a write is authenticate,
-stamp identity, persist the pending marker, respond — judgment happens later, off the request
-path, never synchronously inside the HTTP request that created the offer. Invoke this skill
-reactively, whenever you notice one of the three surfacing signals (query payload flag, update
+**Host-local only, on your own initiative.** `engram serve`'s only job on an offer is stamp the
+declared identity, persist the pending marker (or update the same origin's pending offer in place),
+respond; a pull-down's only job is fetch and persist the pending copy — judgment happens later, off
+the request path, never synchronously inside the HTTP request that created the offer. Invoke this
+skill reactively, whenever you notice one of the three surfacing signals (query payload flag, update
 notice, write-path nudge), or whenever explicitly asked to curate.
 
 ## Special Case — Pending Skill Runbook Notes
@@ -51,18 +52,41 @@ exist (`pending_offers: true` in its payload), not which ones. There is no CLI l
 grep -l '^pending: true$' <vault>/*.md
 ```
 
-Read each match in full (frontmatter + body) — that's the offer's claim.
+Read each match in full with `engram show <offer>` — that's the offer's claim. Its first line,
+`# exchange_hash: xh1:…`, is **the version you judged**: write it down with your judgment. (A note
+without `xid` has no such line; then there is no hash to pass.)
 
 ## Step 2 — Judge each offer against the host vault's existing notes
 
-`engram query --phrase "<offer's situation>"` finds related existing notes the normal way (it
-already excludes offers, so every result is a real candidate to judge against). For each offer:
+**An offer carrying `offer.for: <note>` is an amend-offer for that note: judge it against that note
+first** (`engram show <note>`), before any query. It is usually near (it adds a claim) or covered.
+
+Otherwise, `engram query --phrase "<offer's situation>"` finds related existing notes the normal way
+(it already excludes offers, so every result is a real candidate to judge against).
+
+Every bookkeeping step on an offer (`--clear-pending`, `--discard`, `--discard --into`) passes
+`--expect-hash <the version you judged>`. The binary refuses it on a served offer without the hash.
 
 | Outcome | Criterion | Action |
 | --- | --- | --- |
-| **Covered** | an existing note already states the offer's claim, no material omission | reinforce it: `engram amend --target <existing> --activate --chunk-source <ids>` (carry forward any chunk-source the offer already had) [`--supersedes ...` if it corrects a different, outdated note] — then discard the offer: `engram amend --target <offer> --discard` |
-| **Near** | overlaps an existing note's topic but adds ≥1 substantive claim the existing note omits | fold the new claim in: `engram amend --target <existing> --chunk-source <ids> --subject/--predicate/--object` (or `--behavior/--impact/--action`) [`--supersedes ...` if correcting] — then discard the now-redundant offer: `engram amend --target <offer> --discard` |
-| **Absent** | no existing note addresses the offer's situation | accept as-is, clear its own marker: `engram amend --target <offer> --clear-pending` |
+| **Covered** | an existing note already states the offer's claim, no material omission | reinforce it: `engram amend --target <existing> --activate --chunk-source <ids>` (carry forward any chunk-source the offer already had) [`--supersedes ...` if it corrects a different, outdated note] — then `engram amend --target <offer> --discard --into <existing> --expect-hash <hash>` |
+| **Near** | overlaps an existing note's topic but adds ≥1 substantive claim the existing note omits | fold the new claim in: `engram amend --target <existing> --chunk-source <ids> --subject/--predicate/--object` (or `--behavior/--impact/--action`) [`--supersedes ...` if correcting] — then `engram amend --target <offer> --discard --into <existing> --expect-hash <hash>` |
+| **Absent** | no existing note addresses the offer's situation | accept as-is, clear its own marker: `engram amend --target <offer> --clear-pending --expect-hash <hash>`. On a vault that has its own parent, accepting a served offer offers it onward automatically — nothing more to do |
+| **Rejected** | the offer is wrong: an existing note (or a user correction) contradicts it, or it is advice you would never apply | `engram amend --target <offer> --discard --expect-hash <hash>` — a bare `--discard`, **never `--into`**. For a pulled-down note this records a decline, so it is not pulled again unless the parent changes it. Folding it `--into` the note that contradicts it would record the bad note as covered by it |
+
+**`--into` is what keeps the offer's identity.** It adds the offer's basename and aliases to the
+existing note's `aliases` and moves its parent links onto that note, so a merged query dedupes the
+parent's copy and an unchanged parent note is never pulled down again. A bare `--discard` of a
+covered or near offer loses all of that.
+
+**If `<existing>` is itself a pending offer**, judge and settle it first (its own row above, with
+its own hash), then fold the second offer into it.
+
+**When `--expect-hash` fails** ("the note changed since it was judged"), the offer was updated in
+place after you read it — new content nobody has judged. Do not copy the new hash out of the error
+or out of `engram show | head -1`. Re-read the whole offer with `engram show`, judge it again from
+scratch (a new claim can turn covered into near, or add a claim you must fold in), redo that row's
+actions, and pass the new hash.
 
 Judge content, never a cosine/similarity score alone — recall's own documented mistake, and the
 same trap here: a high score can still be an unrelated false positive, a low one can still be the
@@ -94,7 +118,12 @@ accepted should now surface in normal results.
 | Sign you're off-script | What you should be doing |
 | --- | --- |
 | You rewrote the OFFER note's own content | Near enriches the EXISTING note; the offer itself is only ever discarded or marker-cleared, never content-amended |
-| You cleared an offer's marker after folding or discarding its content elsewhere | Only absent clears the marker and keeps the note; covered/near both end in `--discard` |
+| You cleared an offer's marker after folding or discarding its content elsewhere | Only absent clears the marker and keeps the note; covered/near both end in `--discard --into <existing>` |
+| You ran a bare `--discard` on a covered or near offer | `--discard --into <existing>` — a bare discard loses the offer's basename, aliases and parent links |
+| You folded a wrong or contradicted offer `--into` the note that contradicts it | Rejected is a bare `--discard`; `--into` means "covered by" |
+| A bookkeeping amend without `--expect-hash` | Pass the `# exchange_hash` of the version you judged, every time |
+| After a hash mismatch you retried with the new hash without re-judging | Re-read the whole offer and judge it again; the update may carry a claim you must fold in |
+| You judged an `offer.for` offer by query alone | Judge it against the `offer.for` note first |
 | You ran `engram learn` for the absent case | The note already exists as the offer — `--clear-pending` is the entire action, no new write |
 | You handed a judgment off to `write-memory` | write-memory composes brand-new `engram learn` calls only; curation is self-contained `engram amend` |
 | You used `engram query` to find pending offers | Query excludes them by design — scan the vault's `.md` files directly for `pending: true` |
