@@ -37,8 +37,9 @@ recency-channel assembly and before content-budget capping. Before this
 requirement, `--limit` was report-only metadata (`Budget.Limit`); item
 count was governed entirely by clustering/candidate-nomination sizing
 (`matchPhraseLimit`, `matchSetCap`, `candidateNoteK`), with no hard
-ceiling. This applies identically to local, `ENGRAM_SERVER`-exclusive, and
-`ENGRAM_PARENT`-merged query modes.
+ceiling. This applies identically to local and `ENGRAM_PARENT`-merged query modes
+(the `ENGRAM_SERVER` thin-client mode no longer exists — capability
+`vault-local-first`).
 
 `--limit` SHALL NOT count or drop trigger hits (items whose `provenances`
 include `trigger`, capability `runbook-lexical-triggers`): they are placed
