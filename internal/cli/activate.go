@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -42,6 +43,12 @@ type ActivateDeps struct {
 	// NoteExists reports whether a note's .md file exists: that, not its
 	// sidecar, makes a ref a local hit (design D8, M8).
 	NoteExists func(path string) bool
+	// Resolve, when set, replaces the path-based local lookup: it maps a
+	// ref to its note file and reports whether one exists. A served
+	// activate sets it to resolve only against the vault's listed note
+	// names (final review F2); the local CLI leaves it nil and keeps
+	// resolving absolute and vault-relative paths.
+	Resolve func(ref string) (string, bool, error)
 	// Pull pulls a ref down from the configured parent (design D8); nil
 	// when no parent is configured, and for a served activate, which never
 	// reaches past its own vault. It runs with no vault lock held.
@@ -72,6 +79,8 @@ func RunActivate(ctx context.Context, args ActivateArgs, deps ActivateDeps) erro
 
 // unexported variables.
 var (
+	errActivateBadRef = errors.New("activate: a served ref must be a vault note name " +
+		"(no absolute path, path separator or \"..\")")
 	errActivateFailed   = errors.New("activate: note ref(s) failed")
 	errActivateNotFound = errors.New("note not found")
 	errActivateNotSent  = errors.New("not sent to the parent: only a basename or <basename>.md is " +
@@ -150,8 +159,12 @@ func activateRef(args ActivateArgs, deps ActivateDeps, ref, date string) (bool, 
 		return true, nil
 	}
 
-	full := localNotePath(args.Vault, ref)
-	if deps.NoteExists(full) {
+	full, found, resolveErr := resolveLocalRef(args, deps, ref)
+	if resolveErr != nil {
+		return false, resolveErr
+	}
+
+	if found {
 		return false, bumpLocalHit(deps, full, date)
 	}
 
@@ -264,6 +277,27 @@ func isParentCandidate(ref string) bool {
 	return isBasename
 }
 
+// listedNoteResolver resolves a served ref only against the vault's listed
+// note names (final review F2), as the raw show route does: the ref is
+// matched, never joined into a path, so it cannot reach outside the vault.
+func listedNoteResolver(deps Deps, vault string) func(ref string) (string, bool, error) {
+	listMD := listMDFromFS(deps.FS)
+
+	return func(ref string) (string, bool, error) {
+		names, listErr := listMD(vault)
+		if listErr != nil {
+			return "", false, fmt.Errorf("activate: listing notes: %w", listErr)
+		}
+
+		fileName := normalizeNoteRef(ref) + mdExt
+		if !slices.Contains(names, fileName) {
+			return "", false, nil
+		}
+
+		return filepath.Join(vault, fileName), true, nil
+	}
+}
+
 // localNotePath is ref's note file: an absolute path as given, otherwise
 // joined to the vault, with .md added when the ref omits it.
 func localNotePath(vault, ref string) string {
@@ -300,4 +334,30 @@ func newActivateDeps(d Deps) ActivateDeps {
 			return statErr == nil
 		},
 	}
+}
+
+// resolveLocalRef maps ref to its local note file and reports whether the
+// note exists: through deps.Resolve when set, otherwise as a path
+// (localNotePath) whose .md must exist.
+func resolveLocalRef(args ActivateArgs, deps ActivateDeps, ref string) (string, bool, error) {
+	if deps.Resolve != nil {
+		return deps.Resolve(ref)
+	}
+
+	full := localNotePath(args.Vault, ref)
+
+	return full, deps.NoteExists(full), nil
+}
+
+// validateServedActivateRefs rejects a served activate whose refs are not
+// plain note names: an absolute path, a path separator or ".." anywhere
+// fails the whole request before anything is touched (final review F2).
+func validateServedActivateRefs(refs []string) error {
+	for _, ref := range refs {
+		if filepath.IsAbs(ref) || strings.ContainsAny(ref, `/\`) || strings.Contains(ref, "..") {
+			return fmt.Errorf("%w: %q", errActivateBadRef, ref)
+		}
+	}
+
+	return nil
 }

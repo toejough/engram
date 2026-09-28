@@ -95,6 +95,93 @@ func TestServeActivate_CommitsDirectly(t *testing.T) {
 	g.Expect(sidecar.LastUsed).To(Equal(time.Now().Format("2006-01-02")))
 }
 
+// TestServeActivate_RejectsRefsOutsideTheVault (final review F2): a served
+// activate resolves refs only against the vault's listed note names; an
+// absolute path, a path separator or ".." is a 400, nothing is bumped
+// (not even a valid ref in the same request), and a sidecar outside the
+// vault is never touched.
+func TestServeActivate_RejectsRefsOutsideTheVault(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	outsideNote := filepath.Join(root, "outside", "1.2026-01-01.outside.md")
+
+	for name, ref := range map[string]string{
+		"absolute path":     outsideNote,
+		"etc path":          "/etc/x",
+		"dot-dot relative":  "../outside/1.2026-01-01.outside.md",
+		"dot-dot bare":      "..",
+		"subdirectory":      "sub/1.2026-01-01.a-note.md",
+		"backslash":         `..\outside\1.2026-01-01.outside.md`,
+		"dot-dot in a name": "1.2026-01-01..md",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			base := t.TempDir()
+			vault := filepath.Join(base, "vault")
+			g.Expect(os.MkdirAll(vault, 0o700)).To(Succeed())
+			g.Expect(os.MkdirAll(filepath.Join(base, "outside"), 0o700)).To(Succeed())
+
+			notePath := writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+			outside := writeServeVaultFile(t, filepath.Join(base, "outside"), "1.2026-01-01.outside.md")
+
+			staleSidecar := embed.MarshalSidecar(embed.Sidecar{
+				SchemaVersion: embed.SidecarSchemaVersion, LastUsed: "2020-01-01",
+			})
+			g.Expect(os.WriteFile(embed.SidecarPath(notePath), staleSidecar, 0o600)).To(Succeed())
+			g.Expect(os.WriteFile(embed.SidecarPath(outside), staleSidecar, 0o600)).To(Succeed())
+
+			// The absolute-path case names this subtest's own outside note.
+			target := strings.Replace(ref, outsideNote, outside, 1)
+
+			routes := cli.ServeRoutes(newTestDeps(io.Discard, io.Discard), vault, "personal", t.TempDir())
+
+			body, marshalErr := json.Marshal(map[string][]string{"notes": {"1.2026-01-01.a-note.md", target}})
+			g.Expect(marshalErr).NotTo(HaveOccurred())
+
+			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
+			g.Expect(resp.Status).To(Equal(400))
+			g.Expect(string(resp.Body)).To(ContainSubstring("error"))
+
+			g.Expect(os.ReadFile(embed.SidecarPath(outside))).To(Equal(staleSidecar), "outside sidecar untouched")
+			g.Expect(os.ReadFile(embed.SidecarPath(notePath))).To(Equal(staleSidecar), "nothing bumped")
+		})
+	}
+}
+
+// TestServeActivate_ResolvesOnlyListedNames (final review F2): a served
+// ref resolves only to a listed vault note — with or without .md — and a
+// name that is not a listed note is not found (404), never probed as a
+// path.
+func TestServeActivate_ResolvesOnlyListedNames(t *testing.T) {
+	t.Parallel()
+
+	for ref, status := range map[string]int{
+		"1.2026-01-01.a-note.md": 200,
+		"1.2026-01-01.a-note":    200,
+		"1.2026-01-01.a-note.MD": 404,
+		"1":                      404,
+	} {
+		t.Run(ref, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+			routes := cli.ServeRoutes(newTestDeps(io.Discard, io.Discard), vault, "personal", t.TempDir())
+
+			body, marshalErr := json.Marshal(map[string][]string{"notes": {ref}})
+			g.Expect(marshalErr).NotTo(HaveOccurred())
+
+			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
+			g.Expect(resp.Status).To(Equal(status))
+		})
+	}
+}
+
 // TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate covers tasks.md
 // 10.3/ADR-0013: a local `engram learn` writer and a served POST /learn
 // writer racing the SAME vault never lose an update or collide on a

@@ -309,10 +309,19 @@ func serveActivate(deps Deps, vault string) ServeHandler {
 			return jsonErrorResponse(statusBadRequest, unmarshalErr)
 		}
 
+		refErr := validateServedActivateRefs(body.Notes)
+		if refErr != nil {
+			return jsonErrorResponse(statusBadRequest, refErr)
+		}
+
 		args := ActivateArgs{Vault: vault, Notes: body.Notes}
 
-		// Local only: a served activate never reaches past this vault.
-		result, runErr := activateRefs(ctx, args, newActivateDeps(deps))
+		// Local only: a served activate never reaches past this vault, and
+		// resolves refs only against its listed note names (final review F2).
+		activate := newActivateDeps(deps)
+		activate.Resolve = listedNoteResolver(deps, vault)
+
+		result, runErr := activateRefs(ctx, args, activate)
 		if runErr != nil {
 			return jsonErrorResponse(statusInternalServerError, runErr)
 		}
