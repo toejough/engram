@@ -58,6 +58,8 @@ const (
 // unexported variables.
 var (
 	errOfferLoopRefused = errors.New("the parent refused the offer as a loop (its vault ID is on offer.path)")
+	errOfferMalformed   = errors.New("the parent's offer receipt is malformed: its vault_id is not 32 lowercase " +
+		"hex, or its basename or for is not a Luhmann basename free of '/', '\\' and '|'")
 	errOfferRejected    = errors.New("the parent rejected the offer")
 	errOfferSelfParent  = errors.New("the parent reports this vault's own ID")
 	errOfferServerError = errors.New("the parent failed the offer")
@@ -285,6 +287,13 @@ func classifyReceipt(body []byte) offerSendResult {
 
 	if receipt.VaultID == "" || receipt.Basename == "" {
 		return offerSendResult{Outcome: offerTooOld, Receipt: receipt, Err: errParentTooOld}
+	}
+
+	// Parent-supplied identifiers land in frontmatter and later offers, so
+	// a malformed one is an undecodable reply, never a link (F6).
+	if !isExchangeID(receipt.VaultID) || !isExchangeBasename(receipt.Basename) ||
+		(receipt.For != "" && !isExchangeBasename(receipt.For)) {
+		return offerSendResult{Outcome: offerFailed, Err: fmt.Errorf("%w: %w", errOfferUndecodable, errOfferMalformed)}
 	}
 
 	return offerSendResult{Outcome: offerAccepted, Receipt: receipt}
@@ -605,11 +614,11 @@ func queuedOfferCount(box outboxFile) int {
 }
 
 // refusingVaultID reads the refusing parent's vault ID from a loop
-// refusal's 409 body ("" when it carries none).
+// refusal's 409 body ("" when it carries none, or a malformed one).
 func refusingVaultID(body []byte) string {
 	var refusal cycleRefusal
 
-	if json.Unmarshal(body, &refusal) != nil {
+	if json.Unmarshal(body, &refusal) != nil || !isExchangeID(refusal.VaultID) {
 		return ""
 	}
 

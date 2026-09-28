@@ -130,6 +130,24 @@ func TestTargets_Amend_StampsXIDOnFirstOffer(t *testing.T) {
 	}
 }
 
+// TestTargets_Learn_MalformedReceiptKeepsEntry (final review F6): a
+// receipt naming a basename that carries a '|' leaves the note unlinked
+// and the entry queued with the failure recorded (handled as an
+// undecodable receipt is, ruling S11).
+func TestTargets_Learn_MalformedReceiptKeepsEntry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.parent.setReceipt(`{"status":"offer received","luhmann":"7","basename":"7.2026-09-28.x|evil",` +
+		`"pending":true,"vault_id":"` + parentVaultID + `","stored_hash":"xh1:ab"}`)
+
+	notePath := env.learnFact("malformed")
+	g.Expect(env.outboxEntries()).To(HaveLen(1))
+	g.Expect(env.outboxEntries()).To(ContainElement(HaveKeyWithValue("last_error", ContainSubstring("malformed"))))
+	g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("parent:"))
+}
+
 // TestTargets_Learn_NoParentWritesNoExchangeState (spec "No parent
 // configured"): nothing is queued, stamped or sent.
 func TestTargets_Learn_NoParentWritesNoExchangeState(t *testing.T) {

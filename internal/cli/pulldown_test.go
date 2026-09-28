@@ -235,6 +235,34 @@ func TestActivate_LocalHitNeverContactsParent(t *testing.T) {
 	}
 }
 
+// TestActivate_MalformedEnvelopeWritesNothing (final review F6): an
+// envelope whose vault_id is not 32 lowercase hex, or whose basename is
+// not a Luhmann basename free of '/', '\\' and '|', is a malformed reply:
+// nothing is written and the bad vault ID is never cached.
+func TestActivate_MalformedEnvelopeWritesNothing(t *testing.T) {
+	t.Parallel()
+
+	for name, setup := range map[string]func(*recordingParent){
+		"vault_id not hex":   func(p *recordingParent) { p.vaultID = "../../not-a-vault" },
+		"basename with pipe": func(p *recordingParent) { p.showMode = "bad-basename" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newWiringEnv(t)
+			parentNote := env.parent.addNote(pulledFact("7.2026-09-01.malformed", "c", ""))
+			setup(env.parent)
+
+			_, stderr := env.run("activate", "--note", parentNote+".md")
+			g.Expect(stderr).To(ContainSubstring("malformed"))
+			g.Expect(env.exitCodes()).To(Equal([]int{1}))
+			g.Expect(env.noteFiles()).To(BeEmpty())
+			g.Expect(env.parentCache().VaultID).To(BeEmpty())
+		})
+	}
+}
+
 // TestActivate_MissWithoutParentFails: with no parent configured a miss
 // is a failed ref and nothing is fetched.
 func TestActivate_MissWithoutParentFails(t *testing.T) {
@@ -1167,13 +1195,18 @@ func (p *recordingParent) showResponse(target string) cli.FetchResponse {
 			return cli.FetchResponse{Status: 200, Body: []byte(`{"basename":"` + note.basename + `"}`)}
 		}
 
+		basename := note.basename
+		if p.showMode == "bad-basename" {
+			basename += "|claim"
+		}
+
 		hash, _ := cli.ExportExchangeHash([]byte(note.content))
 		if p.showMode == "wrong-hash" {
 			hash = "xh1:" + strings.Repeat("0", 64)
 		}
 
 		body, marshalErr := json.Marshal(map[string]string{
-			"vault_id": p.reportedVaultID(), "basename": note.basename,
+			"vault_id": p.reportedVaultID(), "basename": basename,
 			"content": note.content, "exchange_hash": hash,
 		})
 		if marshalErr != nil {

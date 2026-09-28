@@ -29,6 +29,8 @@ const (
 var (
 	errPullHashMismatch = errors.New("the pulled copy's exchange hash differs from the parent's " +
 		"(the parent note does not round-trip)")
+	errPullMalformed = errors.New("the parent's /show?raw=1 reply is malformed: its vault_id is not 32 " +
+		"lowercase hex, or its basename is not a Luhmann basename free of '/', '\\' and '|'")
 	errPullNoFrontmatter = errors.New("the parent note has no frontmatter")
 	errPullNotFound      = errors.New("not found on the parent")
 	errPullPaused        = errors.New("exchange with the parent is paused (see the warning above)")
@@ -100,6 +102,14 @@ func (s *pullSession) fetchEnvelope(ctx context.Context, name string) (rawShowRe
 		s.noteContact("")
 
 		return rawShowResponse{}, errPullTooOld
+	}
+
+	// The envelope's vault ID and basename are stored in the pulled copy's
+	// frontmatter and in declined.json: a malformed one writes nothing (F6).
+	if !isExchangeID(envelope.VaultID) || !isExchangeBasename(envelope.Basename) {
+		s.noteContact("")
+
+		return rawShowResponse{}, errPullMalformed
 	}
 
 	s.noteContact(envelope.VaultID)

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/toejough/engram/internal/luhmann"
 	"github.com/toejough/engram/internal/update"
 )
 
@@ -309,6 +310,21 @@ func gateParentContact(store outboxStore, vault, parentURL string, ignoreBackoff
 	return false
 }
 
+// isExchangeBasename reports whether name is a note basename another vault
+// may hand this one (final review F6): a Luhmann basename with no path
+// separator and no '|' (which would corrupt the note|type|claim supersedes
+// encoding). Parent-supplied basenames are stored in frontmatter,
+// declined.json and offers, so anything else is a malformed reply.
+func isExchangeBasename(name string) bool {
+	if strings.ContainsAny(name, `/\|`) {
+		return false
+	}
+
+	_, isBasename := luhmann.FromBasename(name)
+
+	return isBasename
+}
+
 // isExchangeID reports whether id is an exchange identifier — a vault ID
 // or an xid: exactly 32 lowercase hex characters.
 func isExchangeID(id string) bool {
@@ -429,7 +445,9 @@ func noteParentSuccess(cache parentCache, parentURL, vaultID string) parentCache
 	cache.Failures = 0
 	cache.BackoffUntil = time.Time{}
 
-	if vaultID != "" {
+	// Only a well-formed vault ID is remembered: the parent reports it, so
+	// a malformed one is ignored (final review F6).
+	if isExchangeID(vaultID) {
 		cache.VaultID = vaultID
 	}
 

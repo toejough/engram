@@ -81,6 +81,82 @@ func TestClassifyOfferResponse(t *testing.T) {
 	}
 }
 
+// TestClassifyOfferResponse_ForbiddenBasenameCharsProperty (final review
+// F6): whatever else a 2xx receipt holds, a basename carrying '/', '\\'
+// or '|' is never accepted.
+func TestClassifyOfferResponse_ForbiddenBasenameCharsProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		prefix := rapid.StringMatching(`[0-9][0-9a-z]{0,3}\.2026-09-2[0-9]\.[a-z-]{0,8}`).Draw(rt, "prefix")
+		bad := rapid.SampledFrom([]string{"/", `\`, "|"}).Draw(rt, "bad")
+		suffix := rapid.StringMatching(`[a-z./|-]{0,6}`).Draw(rt, "suffix")
+
+		body, err := json.Marshal(map[string]any{
+			"status": "offer received", "luhmann": "7", "basename": prefix + bad + suffix,
+			"pending": true, "vault_id": seqID(90), "stored_hash": "xh1:ab",
+		})
+		if err != nil {
+			rt.Fatal(err)
+		}
+
+		result := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 200, Body: body}, nil)
+		if result.Outcome == cli.ExportOfferAccepted {
+			rt.Fatalf("accepted a receipt with basename %q", prefix+bad+suffix)
+		}
+	})
+}
+
+// TestClassifyOfferResponse_MalformedParentIdentifiers (final review F6):
+// a 2xx receipt whose vault_id is not 32 lowercase hex, or whose basename
+// or for is not a Luhmann basename free of '/', '\\' and '|', is a
+// malformed reply — never accepted, handled like an undecodable one; a 409
+// loop refusal with a malformed vault_id carries no refusing vault ID.
+func TestClassifyOfferResponse_MalformedParentIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	receipt := func(vaultID, basename, forTarget string) []byte {
+		body, err := json.Marshal(map[string]any{
+			"status": "offer received", "luhmann": "7", "basename": basename, "pending": true,
+			"vault_id": vaultID, "stored_hash": "xh1:ab", "for": forTarget,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return body
+	}
+
+	for name, body := range map[string][]byte{
+		"vault_id not hex":        receipt("not-a-vault-id", "7.2026-09-27.x", ""),
+		"vault_id uppercase":      receipt(strings.ToUpper(seqID(90)), "7.2026-09-27.x", ""),
+		"basename with slash":     receipt(seqID(90), "7.2026-09-27.x/../../etc", ""),
+		"basename with backslash": receipt(seqID(90), `7.2026-09-27.x\y`, ""),
+		"basename with pipe":      receipt(seqID(90), "7.2026-09-27.x|claim", ""),
+		"basename not luhmann":    receipt(seqID(90), "notes", ""),
+		"for with pipe":           receipt(seqID(90), "7.2026-09-27.x", "3.2026-09-01.y|z"),
+		"for not luhmann":         receipt(seqID(90), "7.2026-09-27.x", "../y"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			result := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 200, Body: body}, nil)
+			g.Expect(result.Outcome).To(Equal(cli.ExportOfferFailed))
+			g.Expect(result.Err).To(MatchError(ContainSubstring("malformed")))
+		})
+	}
+
+	t.Run("409 loop with a malformed vault_id", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		result := loopRefusal("not-a-vault-id")
+		g.Expect(result.Outcome).To(Equal(cli.ExportOfferRefused))
+		g.Expect(result.Receipt.VaultID).To(BeEmpty())
+	})
+}
+
 // TestClassifyOfferResponse_StatusClassesProperty: every status class maps
 // to one outcome — 5xx always fails, 4xx always rejects.
 func TestClassifyOfferResponse_StatusClassesProperty(t *testing.T) {
@@ -392,6 +468,41 @@ func TestDrainOutbox_LocationCheckFailureSendsNothing(t *testing.T) {
 	g.Expect(parent.sent).To(BeEmpty())
 	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
 	g.Expect(env.stderr.String()).To(ContainSubstring("vault-id --claim"))
+}
+
+// TestDrainOutbox_MalformedReceiptKeepsEntry (final review F6, F11): a
+// drain that receives a receipt with a malformed basename or vault ID
+// applies nothing, keeps the entry queued and records the failure on it.
+func TestDrainOutbox_MalformedReceiptKeepsEntry(t *testing.T) {
+	t.Parallel()
+
+	for name, body := range map[string]string{
+		"malformed basename": `{"status":"offer received","luhmann":"7","basename":"7.2026-09-27.x|y",` +
+			`"pending":true,"vault_id":"` + seqID(90) + `","stored_hash":"xh1:ab"}`,
+		"malformed vault_id": `{"status":"offer received","luhmann":"7","basename":"7.2026-09-27.x",` +
+			`"pending":true,"vault_id":"../not-an-id","stored_hash":"xh1:ab"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newOutboxEnv(t)
+			env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+			env.enqueue(xidA)
+
+			malformed := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 200, Body: []byte(body)}, nil)
+
+			parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: malformed}}
+			_, _ = env.drain(parent)
+			g.Expect(parent.applied).To(BeEmpty())
+
+			box := env.outbox()
+			g.Expect(entryXIDs(box)).To(Equal([]string{xidA}))
+			g.Expect(box.Entries[0].State).To(Equal("queued"))
+			g.Expect(box.Entries[0].Attempts).To(Equal(1))
+			g.Expect(box.Entries[0].LastError).To(ContainSubstring("malformed"))
+		})
+	}
 }
 
 // TestDrainOutbox_ReceiptWriteFailureKeepsEntry: when recording an accepted
