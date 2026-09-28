@@ -242,6 +242,39 @@ func TestServeShow_RawEnvelope(t *testing.T) {
 	}
 }
 
+// TestServeShow_RawHidesPendingNotes (final review F8): the raw route
+// never serves a pending note — by basename or by alias — so a child can't
+// pull another child's unvetted offer down as a parent note; a live note
+// is served as before.
+func TestServeShow_RawHidesPendingNotes(t *testing.T) {
+	t.Parallel()
+
+	for name, ref := range map[string]string{
+		"by basename": "8.2026-01-08.pending-offer",
+		"by alias":    "3.2026-01-03.pending-old-name",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := newServeVault(t)
+			writeVaultNote(t, vault, "8.2026-01-08.pending-offer.md",
+				pendingOfferFactNote("8", "aliases:\n  - 3.2026-01-03.pending-old-name\n"))
+			writeVaultNote(t, vault, "9.2026-01-09.live.md", liveFactNote("9", ""))
+
+			routes := cli.ServeRoutes(serveTestDeps(), vault, "personal", "")
+			show := func(note string) cli.ServeResponse {
+				return routeFor(t, routes, "/show").Serve(t.Context(), cli.ServeRequest{
+					Query: map[string][]string{"note": {note}, "raw": {"1"}},
+				})
+			}
+
+			g.Expect(show(ref).Status).To(Equal(404))
+			g.Expect(show("9.2026-01-09.live").Status).To(Equal(200))
+		})
+	}
+}
+
 // unexported constants.
 const (
 	// manyRedFlagsRunbook has more red flags than engram show's preview cap,

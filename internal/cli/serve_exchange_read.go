@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -83,7 +84,9 @@ func addDedupeKeys(deps Deps, vault string, payloadYAML []byte) ([]byte, error) 
 // rawShowEnvelope resolves ref against the vault's note basenames, then
 // against notes' aliases, and returns its raw envelope. The ref is only ever
 // matched against listed names, never joined into a path, so it cannot reach
-// outside the vault. A miss wraps errShowNoteNotFound.
+// outside the vault. A pending note is never served (final review F8): it
+// is unvetted content, not this vault's note, so a child can't pull another
+// child's offer down. A miss wraps errShowNoteNotFound.
 func rawShowEnvelope(deps Deps, vault, ref string) (rawShowResponse, error) {
 	name := normalizeNoteRef(ref)
 	if name == "" {
@@ -101,7 +104,10 @@ func rawShowEnvelope(deps Deps, vault, ref string) (rawShowResponse, error) {
 	}
 
 	if slices.Contains(names, name+mdExt) {
-		return rawShowFor(deps, vault, vaultID, name+mdExt)
+		envelope, showErr := rawShowFor(deps, vault, vaultID, name+mdExt)
+		if !errors.Is(showErr, errShowNoteNotFound) {
+			return envelope, showErr
+		}
 	}
 
 	notes, scanErr := scanExchangeNotes(vault, func(string) ([]string, error) { return names, nil }, deps.FS.ReadFile)
@@ -110,7 +116,7 @@ func rawShowEnvelope(deps Deps, vault, ref string) (rawShowResponse, error) {
 	}
 
 	for _, note := range notes {
-		if slices.Contains(note.exchange.Aliases, name) {
+		if !note.pending && slices.Contains(note.exchange.Aliases, name) {
 			return rawShowFor(deps, vault, vaultID, note.basename+mdExt)
 		}
 	}
@@ -123,6 +129,10 @@ func rawShowFor(deps Deps, vault, vaultID, fileName string) (rawShowResponse, er
 	raw, readErr := deps.FS.ReadFile(filepath.Join(vault, fileName))
 	if readErr != nil {
 		return rawShowResponse{}, fmt.Errorf("show: read %s: %w", fileName, readErr)
+	}
+
+	if noteHasPendingMarker(raw) {
+		return rawShowResponse{}, fmt.Errorf("%w: %q is a pending offer", errShowNoteNotFound, fileName)
 	}
 
 	hash, hashErr := exchangeHash(raw)
