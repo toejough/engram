@@ -172,7 +172,7 @@ parent:                  # links to the configured parent's notes (multi-valued,
     - {note: 0812.2026-08-01.y, via: covered, hash: xh1:…}   # parent notes this note was judged to cover
   author: {repo: …, user: …, vault: …}   # pulled notes only: the parent note's authorship (review M6)
 aliases: [1101.2026-09-27.z, 12.2026-06-01.old-name]   # basenames this note answers to in ITS OWN vault
-offer: {origin: <child vault id>:<child xid>, key: …, for: <basename>, path: [<vault id>, …]}   # served offers (D7); kept after acceptance
+offer: {origin: <child vault id>:<child xid>, key: …, prior_keys: […], for: <basename>, path: [<vault id>, …]}   # served offers (D7); kept after acceptance
 ```
 
 Every new field (`xid`, `parent` and its members, `aliases`, `offer` and its members) is `omitempty`. A note that never takes part in exchange serializes exactly as it does today.
@@ -295,9 +295,10 @@ A served learn is handled as follows:
 - **Input validation (r4 L-C).** `offer.path` may hold at most 16 entries, and each entry must be exactly 32 lowercase hex characters. `offer.origin` must be `<32 hex>:<32 hex>`, and `offer.key`/`offer.path` require an `offer.origin`. Anything else gets a 400 and nothing is written. A 400 is a 4xx, so the child marks the entry rejected.
 - **Loop refusal (r3-7).** `offer.path` lists every vault ID the offer has already passed through. The child sends `[own id]`, and propagation (D12) appends the propagating vault's ID. A server whose own ID is already in `offer.path` answers 409 and writes nothing. This covers misconfigured cycles of three or more vaults. A 409 is a 4xx, so the child marks the entry rejected.
 - **Origin matching (H3, r3-3, r3-7).** All of the following happens in **one locked section**: the lookup, the rewrite, the re-embed, and building the receipt. The server checks these cases in order:
-  0. **Idempotency first: any note, live or pending, with the same non-empty `offer.key`.** Write nothing and return that note's receipt. This comes before the origin cases, so a late retry of an already-accepted key can never rewrite a newer same-origin pending amend back to old content (data loss).
+  0. **Idempotency first: any note, live or pending, that has already recorded the same non-empty `offer.key`**, as its current key or in `offer.prior_keys`. Write nothing and return that note's current receipt. This comes before the origin cases, so a late retry of an already-accepted or a superseded key can never rewrite the note back to old content (data loss; rulings S9, S10).
   1. **A pending note with the same `offer.origin`.**
      - Rewrite that pending note in place: its content, `offer.key` and `offer.path`. It stays pending and keeps its basename.
+     - Move the superseded `offer.key` into `offer.prior_keys`, a bounded history of the most recent 8 keys (oldest dropped). `prior_keys` is omitempty, rides under the not-offered `offer` key (so it never enters the exchange hash), is never settable from the wire, and survives acceptance like the rest of `offer`, so a late retry after acceptance is still a no-op.
      - **Re-embed it** when its exchange hash changed.
      - Return its receipt.
   2. **A live note with the same `offer.origin`** (an offer already accepted, since `offer` survives acceptance) and a new key. A same-key retry after acceptance was already answered by case 0 and creates no second pending offer.

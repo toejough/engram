@@ -138,6 +138,11 @@ type LearnArgs struct {
 	// (learnArgsFromRunbook only ever populates the exported fields above),
 	// so ordinary captured-runbook validation is unchanged.
 	skipRunbookRequiredFields bool
+
+	// priorOfferKeys is the superseded-key history a served learn's in-place
+	// rewrite carries onto the pending note (offer.prior_keys, ruling S10).
+	// Unexported, so no request body can set it.
+	priorOfferKeys []string
 }
 
 // LearnDeps holds injected dependencies for RunLearn. All fields are
@@ -581,10 +586,11 @@ func exchangeFromArgs(args LearnArgs) exchangeFrontmatter {
 		Parent:  args.Parent,
 		Aliases: args.Aliases,
 		Offer: offerRecord{
-			Origin: args.Offer.Origin,
-			Key:    args.Offer.Key,
-			For:    args.Offer.For,
-			Path:   args.Offer.Path,
+			Origin:    args.Offer.Origin,
+			Key:       args.Offer.Key,
+			PriorKeys: args.priorOfferKeys,
+			For:       args.Offer.For,
+			Path:      args.Offer.Path,
 		},
 	}
 }

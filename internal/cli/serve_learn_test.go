@@ -372,6 +372,57 @@ func TestServeLearn_LateRetryOfAcceptedKeyWritesNothing(t *testing.T) {
 	g.Expect(receipt.Pending).To(BeFalse())
 }
 
+// TestServeLearn_LateRetryOfSupersededKeyWritesNothing (ruling S10): a
+// pending offer rewritten from K1 to K2 keeps K1 in offer.prior_keys, so a
+// late K1 retry returns the current receipt and never reverts the note —
+// and the history survives acceptance, so the same holds for the live note.
+func TestServeLearn_LateRetryOfSupersededKeyWritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newServeVault(t)
+	deps := serveTestDeps()
+
+	first := offeredFact("offered", "first-object", offerOf(childOrigin, "key-one", "", childVaultID))
+	g.Expect(serveLearnWith(t, deps, vault, first).Status).To(Equal(200))
+
+	second := serveLearnWith(t, deps, vault,
+		offeredFact("offered", "second-object", offerOf(childOrigin, "key-two", "", childVaultID)))
+	g.Expect(second.Status).To(Equal(200))
+
+	current := decodeReceipt(t, second)
+	notePath := filepath.Join(vault, current.Basename+".md")
+	g.Expect(readFileString(t, notePath)).To(MatchRegexp(`prior_keys:\s*\n\s*- key-one`))
+
+	before := snapshotVault(t, vault)
+
+	late := serveLearnWith(t, deps, vault, first)
+	g.Expect(late.Status).To(Equal(200))
+	g.Expect(snapshotVault(t, vault)).To(Equal(before), "a late K1 retry never reverts the K2 content")
+	g.Expect(decodeReceipt(t, late)).To(Equal(current))
+
+	// Accept the offer: the history survives, so a late K1 retry after
+	// acceptance is still a no-op answered by the live note.
+	cleared := false
+
+	amendErr := cli.ExportRunAmend(context.Background(),
+		cli.AmendArgs{Vault: vault, Target: current.Luhmann, Pending: &cleared},
+		cli.ExportNewAmendDeps(deps), io.Discard)
+	g.Expect(amendErr).NotTo(HaveOccurred())
+
+	accepted := readFileString(t, notePath)
+	g.Expect(accepted).NotTo(ContainSubstring("pending: true"))
+	g.Expect(accepted).To(MatchRegexp(`prior_keys:\s*\n\s*- key-one`))
+
+	afterAccept := snapshotVault(t, vault)
+
+	lateAfterAccept := serveLearnWith(t, deps, vault, first)
+	g.Expect(lateAfterAccept.Status).To(Equal(200))
+	g.Expect(snapshotVault(t, vault)).To(Equal(afterAccept))
+	g.Expect(decodeReceipt(t, lateAfterAccept).Basename).To(Equal(current.Basename))
+	g.Expect(decodeReceipt(t, lateAfterAccept).Pending).To(BeFalse())
+}
+
 // TestServeLearn_LockSpansLookupWriteEmbedReceipt: every note read (the
 // origin/for lookup), the note write and the sidecar re-embed happen inside
 // the one vault-lock section — for a new pending note and for an in-place
@@ -496,6 +547,42 @@ func TestServeLearn_PathValidationProperty(t *testing.T) {
 	})
 }
 
+// TestServeLearn_PriorKeysAreBounded: the superseded-key history keeps only
+// the most recent keys, oldest dropped, and the wire cannot set it.
+func TestServeLearn_PriorKeysAreBounded(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newServeVault(t)
+	deps := serveTestDeps()
+
+	const rewrites = 12
+
+	var receipt receiptBody
+
+	for index := range rewrites {
+		resp := serveLearnWith(t, deps, vault, offeredFact("offered", fmt.Sprintf("object-%d", index),
+			offerOf(childOrigin, fmt.Sprintf("key-%02d", index), "", childVaultID)))
+		g.Expect(resp.Status).To(Equal(200))
+
+		receipt = decodeReceipt(t, resp)
+	}
+
+	written := readFileString(t, filepath.Join(vault, receipt.Basename+".md"))
+	g.Expect(written).To(ContainSubstring("key: key-11"))
+	g.Expect(strings.Count(written, "- key-")).To(Equal(maxPriorOfferKeys))
+	g.Expect(written).To(ContainSubstring("- key-10"))
+	g.Expect(written).To(ContainSubstring("- key-03"))
+	g.Expect(written).NotTo(ContainSubstring("- key-02"), "the oldest keys are dropped")
+
+	forged := serveLearnRequestBody(t, vault, `{"type":"fact","slug":"forged","situation":"s","subject":"a",`+
+		`"predicate":"b","object":"c","user":"u@example.com","offer":{"origin":"`+childOrigin+`","key":"k",`+
+		`"prior_keys":["forged-prior"],"priorKeys":["forged-prior"],"PriorKeys":["forged-prior"]}}`)
+	g.Expect(forged.Status).To(Equal(200))
+	g.Expect(readFileString(t, filepath.Join(vault, decodeReceipt(t, forged).Basename+".md"))).
+		NotTo(ContainSubstring("forged-prior"), "prior keys are never settable from the wire")
+}
+
 // TestServeLearn_StoredHashMatchesChildHash (golden property, design D3
 // "Stored hash"): for any offered content, the stored_hash the parent
 // returns equals the exchange hash the child computes over its own note
@@ -581,6 +668,7 @@ const (
 	childVaultID        = "c0ffee00c0ffee00c0ffee00c0ffee00"
 	childXID            = "0123456789abcdef0123456789abcdef"
 	maxOfferPathEntries = 16
+	maxPriorOfferKeys   = 8
 	otherOrigin         = "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0:b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1"
 	serverVaultID       = "9a1e9a1e9a1e9a1e9a1e9a1e9a1e9a1e"
 )
@@ -776,6 +864,14 @@ func serveLearnRequest(t *testing.T, vault string, args cli.LearnArgs) cli.Serve
 	t.Helper()
 
 	return serveLearnWith(t, serveTestDeps(), vault, args)
+}
+
+// serveLearnRequestBody posts a raw JSON body to /learn.
+func serveLearnRequestBody(t *testing.T, vault, body string) cli.ServeResponse {
+	t.Helper()
+
+	return routeFor(t, cli.ServeRoutes(serveTestDeps(), vault, "personal", ""), "/learn").
+		Serve(context.Background(), cli.ServeRequest{Body: []byte(body)})
 }
 
 // serveLearnWith posts args to /learn on the route set built from deps.

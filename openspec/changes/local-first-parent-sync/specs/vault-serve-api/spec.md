@@ -24,8 +24,8 @@ A served `learn` request MAY carry `offer.origin`, `offer.key`, `offer.for`, and
 - `offer.key` or `offer.path` is present without `offer.origin`.
 
 The server SHALL refuse the request with a 409, and SHALL write nothing, when its own vault ID is already in `offer.path`. Otherwise it SHALL do all of the following in one locked section: the lookup, any rewrite, any re-embed, and building the receipt. It SHALL check these cases in order:
-0. **Any note, live or pending, carries the same non-empty `offer.key`** (a retry). The server SHALL write nothing and SHALL return that note's receipt. This check comes first, so a late retry of an already-accepted key never rewrites a newer same-origin pending amend.
-1. **A pending note carries the same `offer.origin`.** The server SHALL rewrite that pending note's content, `offer.key`, and `offer.path` in place (the note stays pending and keeps its basename), SHALL re-embed it when its exchange hash changed, and SHALL return its receipt.
+0. **Any note, live or pending, has already recorded the same non-empty `offer.key`**, as its current `offer.key` or in `offer.prior_keys` (a retry). The server SHALL write nothing and SHALL return that note's current receipt. This check comes first, so a late retry of an already-accepted or superseded key never rewrites the note back to older content.
+1. **A pending note carries the same `offer.origin`.** The server SHALL rewrite that pending note's content, `offer.key`, and `offer.path` in place, SHALL move the superseded `offer.key` into `offer.prior_keys` (keeping the most recent 8, oldest dropped) (the note stays pending and keeps its basename), SHALL re-embed it when its exchange hash changed, and SHALL return its receipt.
 2. **A live note carries the same `offer.origin`** (an accepted offer, with a new key). The server SHALL write a new pending note whose `offer.for` names that live note.
 3. **Otherwise**, `offer.for` SHALL be resolved against live notes' basenames, then their `aliases`, then pending notes.
    - A resolved **pending note of a different origin** SHALL NOT be modified. The server SHALL write a new pending note whose `offer.for` names it.
@@ -49,6 +49,10 @@ The server SHALL place every new pending note at top level, ignoring any caller-
 #### Scenario: A late retry never reverts a newer amend
 - **WHEN** an accepted live note carries `offer.origin` O and `offer.key` K1, a newer pending amend from O carries `offer.key` K2, and a retry of O with K1 arrives late
 - **THEN** the response is the live note's receipt, and the pending amend is unchanged — no vault file changes
+
+#### Scenario: A late retry of a superseded key never reverts the note
+- **WHEN** a child offers note L with key K1 (creating pending N1), amends L so N1 is rewritten in place with key K2, and the K1 offer is then retried late — before or after N1 is accepted
+- **THEN** the response is N1's current receipt, N1 still carries the K2 content, and no vault file changes
 
 #### Scenario: A key without an origin is rejected
 - **WHEN** a served `learn` arrives whose offer carries `offer.key` or `offer.path` but no `offer.origin`
@@ -83,7 +87,7 @@ The server SHALL place every new pending note at top level, ignoring any caller-
 - **THEN** the pending note receives a new top-level Luhmann ID
 
 ### Requirement: Served learn SHALL NOT let callers set link, identity, or registration fields
-The request decoding SHALL NOT populate a note's `parent`, `aliases`, `xid`, `skill_hash`, `skill_key`, or `skill_source`, whatever the key spelling in the request body. The only caller-settable exchange fields SHALL be `offer.origin`, `offer.key`, `offer.for`, and `offer.path`, and they SHALL land only on pending notes.
+The request decoding SHALL NOT populate a note's `parent`, `aliases`, `xid`, `offer.prior_keys`, `skill_hash`, `skill_key`, or `skill_source`, whatever the key spelling in the request body. The only caller-settable exchange fields SHALL be `offer.origin`, `offer.key`, `offer.for`, and `offer.path`, and they SHALL land only on pending notes.
 
 #### Scenario: Remote-set origin fields are ignored
 - **WHEN** a served `learn` request body includes `parent`, `aliases`, `xid`, `skillHash`, or `SkillKey` keys (camelCase or PascalCase)

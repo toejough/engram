@@ -22,6 +22,9 @@ const (
 	// maxOfferPathEntries bounds offer.path (design D7 r4 L-C): a real
 	// parent tree is a few levels deep, so a longer path is malformed.
 	maxOfferPathEntries = 16
+	// maxPriorOfferKeys bounds offer.prior_keys: a child re-sends at most a
+	// handful of superseded keys, so older ones are dropped.
+	maxPriorOfferKeys = 8
 )
 
 // unexported variables.
@@ -71,14 +74,15 @@ type servedLearnDeps struct {
 // applyServedOffer runs idempotency, origin matching and offer.for
 // resolution over the vault's notes (design D7). The caller holds the vault
 // lock. Idempotency comes first: a key already recorded on any note, live
-// or pending, is a retry and writes nothing — otherwise a late retry of an
+// or pending, as its current or a superseded key, is a retry and writes
+// nothing — otherwise a late retry of an
 // accepted key could rewrite a newer same-origin pending amend back to old
 // content.
 func applyServedOffer(
 	ctx context.Context, args LearnArgs, deps servedLearnDeps, notes []exchangeNote,
 ) (offerReceipt, error) {
 	if index := slices.IndexFunc(notes, func(note exchangeNote) bool {
-		return offerKeysMatch(note.exchange.Offer.Key, args.Offer.Key)
+		return noteRecordsOfferKey(note, args.Offer.Key)
 	}); index >= 0 {
 		return receiptForNote(notes[index], notes, deps.vaultID)
 	}
@@ -126,6 +130,18 @@ func luhmannOfBasename(basename string) string {
 	id, _ := luhmann.FromBasename(basename)
 
 	return id
+}
+
+// noteRecordsOfferKey reports whether a note already recorded key: as its
+// current offer.key or as a superseded one in offer.prior_keys.
+func noteRecordsOfferKey(note exchangeNote, key string) bool {
+	if offerKeysMatch(note.exchange.Offer.Key, key) {
+		return true
+	}
+
+	return slices.ContainsFunc(note.exchange.Offer.PriorKeys, func(prior string) bool {
+		return offerKeysMatch(prior, key)
+	})
 }
 
 // offerKeysMatch reports whether an incoming offer.key repeats a recorded
@@ -231,6 +247,7 @@ func rewritePendingOffer(
 	args.Parent = note.exchange.Parent
 	args.Aliases = note.exchange.Aliases
 	args.Offer.For = note.exchange.Offer.For
+	args.priorOfferKeys = supersedeOfferKey(note.exchange.Offer.PriorKeys, note.exchange.Offer.Key)
 
 	when, parseErr := time.Parse(dateFormat, note.created)
 	if parseErr != nil {
@@ -339,6 +356,22 @@ func scanExchangeNotes(
 	}
 
 	return notes, nil
+}
+
+// supersedeOfferKey appends a superseded key to the prior-key history,
+// keeping the most recent maxPriorOfferKeys (oldest dropped). An empty key
+// is not recorded.
+func supersedeOfferKey(prior []string, superseded string) []string {
+	history := slices.Clone(prior)
+	if superseded != "" && !slices.Contains(history, superseded) {
+		history = append(history, superseded)
+	}
+
+	if len(history) > maxPriorOfferKeys {
+		history = history[len(history)-maxPriorOfferKeys:]
+	}
+
+	return history
 }
 
 // validateOffer checks a served learn's offer before anything else runs

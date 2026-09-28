@@ -31,12 +31,17 @@ type noteAuthor struct {
 // offerRecord is a served offer's bookkeeping (design D7): Origin is
 // "<origin vault id>:<origin xid>", Key the idempotency key, For the
 // basename an amend-offer targets, and Path the vault IDs the offer has
-// passed through.
+// passed through. PriorKeys holds the keys an in-place rewrite superseded
+// (the most recent maxPriorOfferKeys, oldest dropped), so a late retry of
+// a superseded key is recognized and never reverts the note (ruling S10).
+// Only served learn's in-place rewrite sets it; it rides under the
+// not-offered "offer" key, so it never enters the exchange hash.
 type offerRecord struct {
-	Origin string   `json:"-" yaml:"origin,omitempty"`
-	Key    string   `json:"-" yaml:"key,omitempty"`
-	For    string   `json:"-" yaml:"for,omitempty"`
-	Path   []string `json:"-" yaml:"path,omitempty"`
+	Origin    string   `json:"-" yaml:"origin,omitempty"`
+	Key       string   `json:"-" yaml:"key,omitempty"`
+	PriorKeys []string `json:"-" yaml:"prior_keys,omitempty"`
+	For       string   `json:"-" yaml:"for,omitempty"`
+	Path      []string `json:"-" yaml:"path,omitempty"`
 }
 
 // parentLink is one link to a parent note: Note is the parent basename, Via
