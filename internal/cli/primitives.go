@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"time"
@@ -181,7 +183,7 @@ func NewDeps(prims Primitives, stdin io.Reader, stdout, stderr io.Writer, exit f
 		NewServeMux:    prims.HTTP.NewServeMux,
 		RegisterRoute:  prims.HTTP.RegisterRoute,
 		ListenAndServe: prims.HTTP.ListenAndServe,
-		Fetch:          prims.HTTP.Fetch,
+		Fetch:          limitFetchResponse(prims.HTTP.Fetch),
 		RandRead:       prims.Proc.RandRead,
 		EvalSymlinks:   prims.FS.EvalSymlinks,
 	}
@@ -211,6 +213,11 @@ func NewDeps(prims Primitives, stdin io.Reader, stdout, stderr io.Writer, exit f
 	return deps
 }
 
+// unexported variables.
+var (
+	errFetchResponseTooLarge = errors.New("fetch: the parent's response exceeds the size limit")
+)
+
 // envOrEmpty reads key via getenv, tolerating a nil (unwired) capability.
 func envOrEmpty(getenv func(string) string, key string) string {
 	if getenv == nil {
@@ -218,4 +225,27 @@ func envOrEmpty(getenv func(string) string, key string) string {
 	}
 
 	return getenv(key)
+}
+
+// limitFetchResponse wraps the raw fetch so a parent response longer than
+// maxFetchResponseBytes is an error (final review F7). The HTTP edge reads
+// at most FetchResponseReadLimit bytes, so a longer body arrives exactly
+// one byte over the limit rather than silently truncated. A nil fetch
+// stays nil.
+func limitFetchResponse(
+	fetch func(ctx context.Context, method, url string, body []byte) (FetchResponse, error),
+) func(ctx context.Context, method, url string, body []byte) (FetchResponse, error) {
+	if fetch == nil {
+		return nil
+	}
+
+	return func(ctx context.Context, method, url string, body []byte) (FetchResponse, error) {
+		resp, fetchErr := fetch(ctx, method, url, body)
+		if fetchErr == nil && len(resp.Body) > maxFetchResponseBytes {
+			return FetchResponse{}, fmt.Errorf("%w: %s %s: over %d bytes",
+				errFetchResponseTooLarge, method, url, maxFetchResponseBytes)
+		}
+
+		return resp, fetchErr
+	}
 }

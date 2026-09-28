@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"io/fs"
@@ -121,6 +122,43 @@ func TestNewDeps_DebugSinkSyncsEveryWrite(t *testing.T) {
 
 	g.Expect(sink.contents()).To(gomega.Equal("line one\nline two\n"))
 	g.Expect(sink.syncCount()).To(gomega.Equal(2), "per-line Sync is the tail -F liveness contract")
+}
+
+// TestNewDeps_FetchRejectsOversizedResponse (final review F7): the HTTP
+// edge reads at most FetchResponseReadLimit bytes of a parent response;
+// a body longer than the accepted maximum is an error, never a silently
+// truncated payload, and a body at the maximum passes through unchanged.
+func TestNewDeps_FetchRejectsOversizedResponse(t *testing.T) {
+	t.Parallel()
+
+	for name, size := range map[string]int{
+		"at the maximum": cli.ExportMaxFetchResponseBytes,
+		"over it":        cli.FetchResponseReadLimit,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
+
+			body := bytes.Repeat([]byte("x"), size)
+			prims := cli.Primitives{HTTP: cli.HTTPPrims{
+				Fetch: func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+					return cli.FetchResponse{Status: 200, Body: body}, nil
+				},
+			}}
+
+			deps := cli.NewDeps(prims, nil, io.Discard, io.Discard, func(int) {})
+
+			resp, err := deps.Fetch(t.Context(), "GET", "http://parent/query", nil)
+			if size > cli.ExportMaxFetchResponseBytes {
+				g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("exceeds")))
+
+				return
+			}
+
+			g.Expect(err).NotTo(gomega.HaveOccurred())
+			g.Expect(resp.Body).To(gomega.HaveLen(size))
+		})
+	}
 }
 
 func TestNewDeps_StartsForceExitWatcherFromPrimitive(t *testing.T) {

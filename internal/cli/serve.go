@@ -11,6 +11,21 @@ import (
 	"unicode/utf8"
 )
 
+// Exported constants.
+const (
+	// FetchResponseReadLimit is how many bytes of one parent response the
+	// HTTP edge reads (final review F7): one more than the largest response
+	// accepted, so NewDeps' Fetch can tell an oversized body from one at
+	// the limit instead of silently truncating it.
+	FetchResponseReadLimit = maxFetchResponseBytes + 1
+	// MaxServeRequestBytes caps one served request body (final review F7):
+	// an offer or activate body is a few KB, so 4 MiB leaves ample room
+	// while bounding what an unauthenticated caller can make the server
+	// buffer. The HTTP edge enforces it; a handler answers 413 when the
+	// body could not be read in full.
+	MaxServeRequestBytes = 4 << 20
+)
+
 // FetchResponse is one HTTP response reduced to primitive types.
 type FetchResponse struct {
 	Status int
@@ -59,6 +74,9 @@ type ServeRequest struct {
 	Header map[string][]string
 	// Body is the raw request body. POST routes only.
 	Body []byte
+	// BodyErr is the error reading Body in full (for one, a body over
+	// MaxServeRequestBytes); every route answers 413 when it is set.
+	BodyErr error
 }
 
 // ServeResponse is one HTTP response reduced to primitive types.
@@ -128,10 +146,10 @@ func RunServe(ctx context.Context, args ServeArgs, deps Deps) error {
 // the server at a different vault path.
 func ServeRoutes(deps Deps, vault, vaultName, chunksDir string) []ServeRoute {
 	return []ServeRoute{
-		{Method: methodGet, Pattern: "/query", Handler: serveQuery(deps, vault, chunksDir)},
-		{Method: methodGet, Pattern: "/show", Handler: serveShow(deps, vault)},
-		{Method: methodPost, Pattern: "/activate", Handler: serveActivate(deps, vault)},
-		{Method: methodPost, Pattern: "/learn", Handler: serveLearn(deps, vault, vaultName)},
+		{Method: methodGet, Pattern: "/query", Handler: requireReadBody(serveQuery(deps, vault, chunksDir))},
+		{Method: methodGet, Pattern: "/show", Handler: requireReadBody(serveShow(deps, vault))},
+		{Method: methodPost, Pattern: "/activate", Handler: requireReadBody(serveActivate(deps, vault))},
+		{Method: methodPost, Pattern: "/learn", Handler: requireReadBody(serveLearn(deps, vault, vaultName))},
 	}
 }
 
@@ -139,6 +157,10 @@ func ServeRoutes(deps Deps, vault, vaultName, chunksDir string) []ServeRoute {
 const (
 	// loopRefusalReason discriminates the 409 loop refusal (ruling S13).
 	loopRefusalReason = "loop"
+	// maxFetchResponseBytes is the largest parent response accepted (final
+	// review F7): a merged query asks for unbounded budgets, so it is
+	// generous, but bounded so a malicious parent can't exhaust memory.
+	maxFetchResponseBytes = 16 << 20
 	// maxQueryTextBytes caps the served /query text param (2 KB).
 	maxQueryTextBytes         = 2048
 	methodGet                 = "GET"
@@ -150,10 +172,13 @@ const (
 	statusInternalServerError = 500
 	statusNotFound            = 404
 	statusOK                  = 200
+	// statusRequestTooLarge answers a body over MaxServeRequestBytes.
+	statusRequestTooLarge = 413
 )
 
 // unexported variables.
 var (
+	errServeBodyUnreadable = errors.New("serve: request body unreadable or over the size limit")
 	// errServeEmptyIdentity guards the identity floor (serve-client-
 	// declared-identity): a served learn must claim SOME identity —
 	// the server trusts whatever is declared (no edge-authentication header
@@ -295,6 +320,21 @@ func jsonOKResponse() ServeResponse {
 	body, _ := json.Marshal(okResponse{Status: okStatus}) //nolint:errchkjson // a plain string field never fails to encode
 
 	return ServeResponse{Status: statusOK, Body: body}
+}
+
+// requireReadBody answers 413 for a request whose body could not be read
+// in full (final review F7) — over MaxServeRequestBytes at the HTTP edge —
+// and otherwise hands the request to next, so no route ever acts on a
+// truncated body.
+func requireReadBody(next ServeHandler) ServeHandler {
+	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
+		if req.BodyErr != nil {
+			return jsonErrorResponse(statusRequestTooLarge,
+				fmt.Errorf("%w: %w", errServeBodyUnreadable, req.BodyErr))
+		}
+
+		return next.Serve(ctx, req)
+	})
 }
 
 // serveActivate handles POST /activate: commits directly, no pending-offer

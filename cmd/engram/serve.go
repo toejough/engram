@@ -49,19 +49,23 @@ var (
 )
 
 // httpHandlerFor adapts one cli.ServeHandler to a real net/http.HandlerFunc.
+// The body is read through http.MaxBytesReader (cli.MaxServeRequestBytes);
+// a read error rides on the request as BodyErr, which the routes answer
+// with 413 (final review F7).
 // Query/Header are assigned straight from the real request's own map-typed
 // fields (net/url.Values / net/http.Header both have underlying type
 // map[string][]string, so they're directly assignable to cli.ServeRequest's
 // fields — no conversion or per-entry copy needed).
 func httpHandlerFor(handler cli.ServeHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
+		body, readErr := io.ReadAll(http.MaxBytesReader(w, r.Body, cli.MaxServeRequestBytes))
 		reqURL := r.URL
 
 		resp := handler.Serve(r.Context(), cli.ServeRequest{
-			Query:  reqURL.Query(),
-			Header: r.Header,
-			Body:   body,
+			Query:   reqURL.Query(),
+			Header:  r.Header,
+			Body:    body,
+			BodyErr: readErr,
 		})
 
 		w.WriteHeader(resp.Status)
@@ -104,12 +108,13 @@ func readFetchResponse(resp *http.Response) (cli.FetchResponse, error) {
 }
 
 // readNonNilResponse reads and closes resp's body, reducing it to
-// cli.FetchResponse. No defer (targ check-thin-api forbids defer
+// cli.FetchResponse. It reads at most cli.FetchResponseReadLimit bytes;
+// internal/cli rejects a body over the accepted maximum (final review F7). No defer (targ check-thin-api forbids defer
 // statements in cmd/engram's declarations): body is closed unconditionally,
 // right after the read, sequentially.
 func readNonNilResponse(resp *http.Response) (cli.FetchResponse, error) {
 	body := resp.Body
-	respBody, readErr := io.ReadAll(body)
+	respBody, readErr := io.ReadAll(io.LimitReader(body, cli.FetchResponseReadLimit))
 	closeErr := body.Close()
 
 	if readErr != nil {

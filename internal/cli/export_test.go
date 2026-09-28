@@ -139,6 +139,7 @@ var (
 	ExportMarshalFrontmatter               = marshalFrontmatter
 	ExportMatchClustersToTerms             = matchClustersToTerms
 	ExportMatchTriggers                    = matchTriggers
+	ExportMaxFetchResponseBytes            = maxFetchResponseBytes
 	ExportMaxTurnBySource                  = maxTurnBySource
 	ExportMintDefinitionNote               = mintDefinitionNote
 	ExportMostRecentlyUsedNoteItems        = mostRecentlyUsedNoteItems

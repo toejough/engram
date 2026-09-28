@@ -182,6 +182,20 @@ func TestServeActivate_ResolvesOnlyListedNames(t *testing.T) {
 	}
 }
 
+// TestServeBodyCaps (final review F7): the caps are sane — a request body
+// is capped at a few MiB, and the fetch read limit is one byte over the
+// largest response accepted, so an oversized response is detected rather
+// than silently truncated.
+func TestServeBodyCaps(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	g.Expect(cli.MaxServeRequestBytes).To(BeNumerically(">=", 1<<20))
+	g.Expect(cli.MaxServeRequestBytes).To(BeNumerically("<=", 16<<20))
+	g.Expect(cli.FetchResponseReadLimit).To(Equal(cli.ExportMaxFetchResponseBytes + 1))
+	g.Expect(cli.ExportMaxFetchResponseBytes).To(BeNumerically(">=", cli.MaxServeRequestBytes))
+}
+
 // TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate covers tasks.md
 // 10.3/ADR-0013: a local `engram learn` writer and a served POST /learn
 // writer racing the SAME vault never lose an update or collide on a
@@ -506,6 +520,34 @@ func TestServeRoutes_MethodsAndPatterns(t *testing.T) {
 		"/activate": "POST",
 		"/learn":    "POST",
 	}))
+}
+
+// TestServeRoutes_UnreadableBodyIs413 (final review F7): a request whose
+// body could not be read in full — over MaxServeRequestBytes, which the
+// HTTP edge enforces — is answered 413 by every route, and nothing is
+// written.
+func TestServeRoutes_UnreadableBodyIs413(t *testing.T) {
+	t.Parallel()
+
+	for _, pattern := range []string{"/learn", "/activate", "/query", "/show"} {
+		t.Run(pattern, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+			before := snapshotVault(t, vault)
+			routes := cli.ServeRoutes(serveTestDeps(), vault, "personal", t.TempDir())
+
+			resp := routeFor(t, routes, pattern).Serve(t.Context(), cli.ServeRequest{
+				Body:    []byte(`{"notes":["1.2026-01-01.a-note.md"]}`),
+				BodyErr: errors.New("http: request body too large"),
+			})
+			g.Expect(resp.Status).To(Equal(413))
+			g.Expect(snapshotVault(t, vault)).To(Equal(before))
+		})
+	}
 }
 
 // TestServeShow_MatchesLocalOutput covers GET /show: response matches
