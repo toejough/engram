@@ -277,7 +277,7 @@
 
 ## 12. Close-out
 
-- [ ] 12.1 `targ check-full` is clean. Run the requirement-collision sweep (vault note 744) again across all active changes and any archived-but-unsynced change, and read every sibling's tasks.md in full (vault note 757).
+- [x] 12.1 `targ check-full` is clean. Run the requirement-collision sweep (vault note 744) again across all active changes and any archived-but-unsynced change, and read every sibling's tasks.md in full (vault note 757).
 - [ ] 12.2 Run a fresh-context implementation review with argumentation. Then rebase on main, re-test, and `git merge --ff-only`.
 - [ ] 12.3 After the merge and `go install ./cmd/engram`: deploy the skills with `engram update`, and verify the deployed copies are byte-identical to the sources. The registration refresh offers for the skill mirrors (E112) go through normal curation.
 - [ ] 12.4 Archive with `/opsx:archive`, after running the note-651 scenario parity diff and the E73/E76/E80/E82 Purpose rewrites. **Then** run the E72 sweep against the post-archive tree, with its allowlist.
