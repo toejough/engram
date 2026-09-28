@@ -1064,7 +1064,7 @@ by skill key rather than bare name. Design: `openspec/changes/archive/2026-09-27
   - *Promotion/demotion (loading-tier migration)* ↔ #728's adapter probe (vault-ward direction); the hot-runbook→always-loaded direction is future work contingent on #737.
 - **Deferred, with rationale (revisit conditions named, not silently dropped):**
   - *Background consolidation (replay over never-queried episodes):* complementary-learning-systems theory calls it mandatory; the engineering evidence (sleep-time compute) is first-party and thin. Engram's consolidation stays pull/moment-triggered. Revisit when third-party replications land or a measured gap (valuable episodes provably never consolidating) appears.
-  - *Memory poisoning / write-provenance trust tiers:* `ingest --auto` persists transcripts unjudged and `serve` accepts external offers; unaddressed by design for today's single-operator vault. Revisit as the vault graph (ADR-topology, note 784) grows beyond one trusted operator. Known unowned gap, deliberately not an issue yet (Joe, 2026-08-30).
+  - *Memory poisoning / write-provenance trust tiers:* `ingest --auto` persists transcripts unjudged and `serve` accepts external offers; unaddressed by design for today's single-operator vault. Revisit as the vault graph (ADR-topology, note 784) grows beyond one trusted operator. Known unowned gap, deliberately not an issue yet (Joe, 2026-08-30). Forward pointer: ADR-0029's local-first parent sync (2026-09-27) does not close this gap — a served offer and a pulled-down parent note both land as an unjudged pending note, and it is local curation, not any edge trust check, that gates them into the live vault.
 
 **Consequences.**
 
@@ -1114,6 +1114,185 @@ Link: `docs/research/2026-08-30-memory-taxonomy-synthesis.md` (+ 5 sibling brief
 - [Git precondition fragments the user base] → degradation is defined per capability (ESTIMATE oracle; prune refused); core engram is unaffected.
 
 Link: ADR-0027; review thread `5974d361…` (Joe's rubric comment, 2026-08-30); `dev/eval/LEDGER.md` anchors `harder-regime-op-cost-unmeasurable`, `failure-mining-mid-task-gap`, `recall-moments-headless-flip`, `687-surprise-harvest`, `c1-c2-warm-op-negatives`; vault notes 98, 112, 288, 495, 505, 803, 819, 824, 853, 855; #739 #718 #742 #737 #736 #735.
+
+---
+
+## ADR-0029 — Local-first parent sync: every vault local, exchange by offer, never chunks
+
+**Status:** Accepted (2026-09-27).
+
+**Context.** Engram reached a parent vault in two mutually exclusive ways: `ENGRAM_SERVER`, a thin
+HTTP client with no local vault at all (every write landed only on the remote, and a down server
+failed every command), and `ENGRAM_PARENT`, a read-only merge that never wrote upward. Neither did
+what an environment actually needs — keep its own memory, share what it learns upward, pull down
+what it uses — and a host configured with `ENGRAM_PARENT` could run for weeks with no local vault
+(#766). `ENGRAM_SERVER`'s ten dispatch branches (`internal/cli/targets.go`) also meant every served
+`learn`/`amend` bypassed local curation history, and the merge itself carried defects: explore
+picks crowding out direct matches (#744), an all-zero budget block (#743), and parent *chunks*
+riding along in merged results with no dedupe. On 2026-09-27 Joe replaced both modes with one
+local-first, symmetric model (vault note 784a, updating note 784's exchange topology — a
+single-parent tree, personal → team → org, never a mesh) and settled the round-1 review's open
+questions the same day: no parent chunks in merged results ever (`show-chunk --parent` and the
+whole parent chunk path removed); pull-down does a best-effort `/activate` bump on the parent;
+`/query-chunks` is deleted; `serve` gets no exemption from the `ENGRAM_SERVER` hard error; and,
+in a follow-up ruling, an accepted served offer propagates upward (M14) and a locally-folded
+pulled note bouncing back up once is intended (B1).
+
+**Decision** (design D1–D12, full detail in `openspec/changes/local-first-parent-sync/design.md`):
+
+- **D1 — `ENGRAM_SERVER` is a hard error, for every command including `serve`.** A single
+  pre-dispatch guard exits non-zero before any vault, chunk-index or network access, naming
+  `ENGRAM_PARENT` as the replacement. No compat shim, no exemption.
+- **D2 — Every environment always has a local vault, and a stable vault ID.** The vault is created
+  on the first command that resolves its path (folding in #766), with a one-line stderr notice. A
+  32-hex-character random **vault ID** lives in the tracked `<vault>/.engram-vault-id`; exchange
+  links key on this ID, never on URL or hostname, so DNS/IP churn breaks nothing. An untracked
+  `.engram/home.json` location record catches a `cp -R` copy or a `git clone` before it exchanges;
+  `engram vault-id --regenerate`/`--claim` resolve the two cases, and a self-parent guard refuses
+  exchange when the parent reports the local vault's own ID. Transient exchange state
+  (`outbox.json`, `declined.json`, `parent.json`, `home.json`) lives in `<vault>/.engram/`, which
+  `.gitignore`s itself — the vault's tracked root `.gitignore` is never touched.
+- **D3 — A new exchange hash covers exactly the offered content fields.** `xh1:` + SHA-256 over a
+  canonical JSON of `type`, `situation`, the fact/feedback/runbook fields, `done_when`,
+  `red_flags`, `triggers`, and the body — never identity, `pending`, `tags`, `sources`,
+  `supersedes`, or exchange bookkeeping. It replaces `embed.ContentHash` in every exchange
+  comparison (loop suppression, `offer.key`, pull-down skip/decline, rejected-offer re-arm, dedupe
+  rule 2); `embed.ContentHash` keeps its own job (sidecar staleness). A reflection test fails when
+  a struct field is missing from the offered/not-offered classification table. Version-prefix
+  mismatches compare as *unknown*, treated as *not changed* everywhere except dedupe.
+- **D4 — Multi-valued parent links, aliases, and a rename-stable exchange ID.** New optional
+  frontmatter: `xid` (this note's own exchange ID, stamped lazily, never backfilled); `parent`
+  (`vault`, `links: [{note, via: offered|pulled|covered, hash}]`, `author`) — at most one primary
+  link (`offered`/`pulled`), any number of `covered` links; `aliases` (basenames this note answers
+  to in its own vault); `offer` (a served offer's origin/key/prior_keys/for/path, kept after
+  acceptance). Only the exchange paths set these; every other rewrite site preserves them
+  byte-for-byte, each with its own survival test. Renames append the old basename to `aliases`, so
+  a parent's or a child's reference to the renamed note keeps resolving. Dedupe treats a parent
+  item and a local note as the same note when a link names the parent's basename/alias, or when
+  both have equal, non-empty exchange hashes.
+- **D5 — What's offered vs. bookkeeping.** `learn` (not `learn qa`), a content `amend`, and
+  `resituate` are offered; `--activate`, most `--clear-pending`, `--discard`,
+  `--supersedes`/`--chunk-source`-only amends, identity backfill, and anything whose exchange hash
+  already equals the primary link's are bookkeeping (never offered). The one exception:
+  `--clear-pending` on a note carrying `offer.origin` (accepting a served offer) is itself offered
+  upward when this vault has its own parent (M14). The offer payload carries the note's own
+  `user`/`repo`, never `target`/`position`/`chunkSources`, and never `tags` — tags are this vault's
+  own vocabulary, the same reasoning as D8's pull-down strip.
+- **D6 — A local outbox, drain, and backoff.** `<vault>/.engram/outbox.json` queues offers under
+  the vault lock in the same critical section as the note write, so a local write never fails
+  because of the parent. The drain builds each entry's payload from the note's *current* content at
+  send time, sends oldest-first with no lock held, then re-locks and merges. A transport
+  error/timeout/5xx keeps the entry queued and backs the parent off
+  (`min(15m, 30s × 2^(failures-1))`); a 4xx marks it rejected until the note's hash changes.
+  `offer.key = sha256(offer.origin + exchange hash)` makes retries idempotent.
+- **D7 — `/learn` is the only write route; pending offers update in place.** The served set shrinks
+  to `query`, `show`, `activate`, `learn` — `/amend`, `/query-chunks` and `/show-chunk` are deleted.
+  A served learn checks, in one locked section: idempotency first (an already-recorded
+  `offer.key`, current or in `offer.prior_keys`, is a no-op returning the existing receipt — this
+  runs before every other case, so a late retry can never revert accepted content); then a pending
+  note from the same origin is rewritten in place (superseded key moved to `prior_keys`, capped at
+  8); then a live note from the same origin gets a new pending note; otherwise `offer.for` resolves
+  against live basenames/aliases/pending notes, never overwriting a different origin's pending
+  note. `offer.path` bounds propagation depth (16 entries max) and a server whose own ID is already
+  on the path refuses with 409, catching misconfigured cycles.
+- **D8 — Pull-down on activate.** `engram activate` resolves locally first; on a miss, a
+  basename-shaped ref (never a bare Luhmann ID — IDs are per-vault) is fetched from the parent's
+  `GET /show?raw=1` and written as a **new local pending offer**, never live — curation judges it
+  before it counts as knowledge. A skip check (an existing link at the same hash, or a prior
+  decline) avoids re-pulling unchanged notes; a changed parent note is new information and pulls
+  again. After release of the lock, a best-effort `POST /activate` bumps the note's use on the
+  parent — never fatal, never queued. A pulled note is never offered back up unless it's later
+  edited locally, which offers it once (B1, the intended "bounce-once").
+- **D9 — Merged query is the primary path, notes only.** The child requests `dedupe-keys=1` and
+  drops every parent `kind: chunk` item before any other step — the recency channel and chunk
+  budgets are local-only, and `show-chunk --parent` is gone. Dedupe runs before ordering; trigger
+  hits lead (local then parent), then direct items by score, then explore items by score — fixing
+  #744. A note floor keeps a minimum of qualifying note-kind items even under a tight `--limit`.
+  The budget block reports merge-applied values — fixing #743. `pending_offers` reflects local
+  offers only, since a child can't curate its parent.
+- **D10 — Curation gains a fold, and stops re-stamping identity on bookkeeping.**
+  `engram amend --discard --into <existing>` unions the offer's basename and aliases into
+  `<existing>.aliases`, and folds its parent links into `<existing>`'s: an existing link keeps its
+  role and takes the offer's hash; the offer's primary (`offered`/`pulled`) stays primary only when
+  `<existing>` has none, otherwise it becomes `covered` — and a fold promotes a held `covered` link
+  to the offer's primary role when `<existing>` has no primary of its own. When the offer links a
+  different parent vault than `<existing>` does, `<existing>`'s links under the old vault are
+  dropped (links count only under the current parent, matching a receipt's own replacement rule).
+  `<existing>` keeps its own author; the offer's author is not carried (documented loss, the
+  basename survives in `aliases`). A **judged-version check** guards every curation bookkeeping
+  step on an offer (`--clear-pending`, `--discard`, `--discard --into`, pending or live): it
+  requires `--expect-hash`, and only an **equal** hash passes — a hash of another version, or an
+  *unknown*-classified one, fails exactly as a changed one does, so the curator re-judges rather
+  than silently accepting or discarding content nobody reviewed. Bookkeeping amends
+  (`--activate`, `--clear-pending`, `--discard --into`, a link-only receipt write) no longer
+  re-stamp `repo`/`user`/`vault`, so an accepted offer keeps its declared author. `resituate`
+  preserves every field it doesn't change.
+- **D11 — Tests: DI fakes plus hermetic headless skill arms.** Go unit tests use the `Deps.Fetch`
+  seam and FS/lock fakes. Skill TDD (recall/learn/curate) runs each RED/GREEN arm as a fresh
+  headless `claude -p` process (never a subagent, which would inherit session context), under an
+  `env -i` allowlist, a working directory outside any repo, and two confinement layers: Claude
+  Code's own permission allow/deny lists, and its OS sandbox (Seatbelt on macOS) with
+  `filesystem.denyRead: ["/Users/joe"]` and `autoAllowBashIfSandboxed: false` (which, if left
+  `true`, was confirmed to let sandboxed Bash bypass the `Bash(engram:*)` allowlist entirely).
+  **A residual gap was found and closed in the same pass:** the sandbox always allows sandboxed
+  Bash *writes* into `/private/tmp/claude-<uid>` — the host session's own harness-script
+  directory, which runs outside the sandbox — and neither `filesystem.allowWrite` scoping nor
+  `CLAUDE_CODE_TMPDIR` stops that. The required narrowing is `filesystem.denyWrite` listing each
+  existing entry of that directory (denying the directory itself breaks Bash), verified every
+  batch by a probe that attempts a write into it and must fail. The residual after narrowing: an
+  arm can still create *new* top-level files in that directory, and can still *read* anything under
+  `/private/tmp`. Each batch's before/after check of the real vault and `~/.claude` (confirming
+  nothing there is newer than the batch start) is saved to a file, not just asserted in the
+  transcript. Real-binary verification runs `engram serve` over a scratch parent/child pair behind
+  a recording TCP proxy; `update`'s drain gets no real-binary run (it re-execs a freshly installed
+  binary) and is covered by unit tests only.
+- **D12 — Multi-level propagation and the bounce-once.** Accepting a served offer counts as a local
+  learn at that level and is enqueued upward (M14), skipped only when the offer's own origin vault
+  is the configured parent (no loop in the single-parent tree) and otherwise checked against
+  `offer.path` for longer misconfigured cycles. A pulled note folded by curation into a local note
+  is offered up once more, as an amend targeting the local note's primary link, or a new learn-offer
+  when it has none (B1) — the parent's curated result comes back down only on the next use.
+
+**Consequences.**
+
+- `ENGRAM_SERVER` is gone: every fleet host that set it must switch to `ENGRAM_PARENT` before
+  upgrading, and its first command afterward creates an empty local vault.
+- Every host that already sets `ENGRAM_PARENT` starts offering its writes on upgrade, so the
+  parent's `pending_offers` queue grows by the fleet's write rate — curating it becomes expected
+  upkeep, surfaced by the hint and by `engram update`'s notice.
+- The real vault gets one deliberate `.engram-vault-id` commit, made the first time `engram serve`
+  starts on it (or it first contacts a parent) after the upgrade; `engram update` flags the file
+  until it's committed.
+- Closes #766 (vault-on-first-use), #743 (zero budget block) and #744 (explore crowding); closes
+  #745 by design (every environment now has local clusters, so no cross-vault cluster carrying is
+  needed) and #746 as superseded (offers plus `activate --parent` replace it).
+- `internal/cli`'s `serve_client.go`, `serve.go`, and the frontmatter structs change; new files
+  land for the exchange hash, the outbox/state adapters, and pull-down — all through DI
+  (ADR-0013, `targ check-thin-api`).
+
+**Risks / Trade-offs:**
+
+- [Fleet curation-queue growth] → surfaced by `pending_offers` and `engram update`'s notice; the
+  proposal's Impact section calls this out as expected upkeep, not a defect.
+- [An unlinked near-duplicate note shows twice across a merge] → accepted; a later `activate`
+  pull-down and a curation fold heal it through the link graph.
+- [A covered fold loses the offer's own author attribution] → documented (D10); the basename
+  survives in `aliases`, and the losing side is deliberate (the note's content is now
+  `<existing>`'s).
+- [Version skew: an upgraded child against a pre-change parent] → detected by a missing `vault_id`
+  in the receipt/envelope/query payload; exchange stops with a "parent too old" error and queries
+  stay local-only with a warning.
+- [`.engram/` is lost — a fresh clone, a cleanup] → child-side exchange pauses with a warning until
+  `--claim`/`--regenerate` runs; queued offers re-queue on the next content write; forgotten
+  declines can bring a declined parent note back once, for curation to discard again. No note
+  content is lost — links and IDs live in tracked files.
+- [A remote client aims `offer.for`/`offer.origin` at arbitrary notes] → it can only create or
+  update *pending* notes, never a live one; curation reviews every one. The trust model is
+  unchanged from today's unauthenticated `serve` (network reachability).
+
+Link: `openspec/changes/local-first-parent-sync/{proposal.md,design.md}`; vault notes 784, 784a;
+`internal/cli/{serve.go,serve_client.go,serve_learn.go,serve_exchange_read.go,outbox.go,pulldown.go,merged_query.go,exchangehash.go,exchangefields.go,amend_fold.go}`;
+#766 #743 #744 #745 #746.
 
 ---
 

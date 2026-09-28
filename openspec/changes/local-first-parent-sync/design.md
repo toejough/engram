@@ -235,6 +235,7 @@ On the child, the outbox is keyed by `xid`, which is rename-stable, so a child-s
 
 **Payload** (built at send time, D6):
 - It never carries `target`, `position` or `chunkSources`.
+- It never carries `tags`, either: tags are this vault's own vocabulary assignment, and the parent's own vocab assigns its tags on receipt (the same reasoning as D8's pull-down strip).
 - Each `supersedes` entry is translated to that note's primary-link parent basename, or dropped if there is none.
 - `user`/`repo` are the **note's own** frontmatter values; the draining caller's detection is used only when they are empty (review M5).
 - It carries `offer.origin = <local vault id>:<xid>`, `offer.key`, and (for amend-offers) `offer.for`.
@@ -390,6 +391,9 @@ A served learn is handled as follows:
 - `engram amend --target O --discard --into E` deletes O and its sidecar. It unions O's basename **and all of O's `aliases`** into `E.aliases` (M12), and it unions O's `parent.links` into E's:
   - O's `offered` or `pulled` primary becomes a `covered` link on E when E already has a primary.
   - Otherwise it becomes E's primary.
+  - A link E already holds keeps its role and takes the offer's hash — the version just judged — except that a held `covered` link to the offer's primary note is promoted to that primary role when E has no primary of its own.
+  - When the offer links a different parent vault than E does, E's links under the old vault are dropped, the same as a receipt drops them (D6). Links count only under the current parent.
+  - `--expect-hash` (below) passes only on an **equal** hash; a hash from another version, or one that compares *unknown* against the recorded value, fails exactly as a changed one does — conservative, so the curator re-judges rather than folding a version nobody reviewed.
 
   E is not re-embedded, and nothing is queued.
 - **Judged-version check (r3-2).** An in-place update (D7) can land between curation's judgment and its bookkeeping, which would silently accept or discard content nobody judged. So `--clear-pending`, `--discard --into` and a bare `--discard` on a note carrying `offer.origin`, whether it is pending or **live** (r4 L-D), **require** `--expect-hash <exchange hash>`, and fail without changing anything when the note's current hash differs. The curator then re-judges.
@@ -451,13 +455,26 @@ A served learn is handled as follows:
         "allowUnsandboxedCommands": false, "autoAllowBashIfSandboxed": false,
         "filesystem": {
           "allowWrite": ["$ARM"],
-          "denyRead": ["/Users/joe"]
+          "denyRead": ["/Users/joe"],
+          "denyWrite": ["<each existing entry of /private/tmp/claude-<uid> at batch setup time>"]
         },
         "network": { "allowedDomains": [], "strictAllowlist": true }
       },
       "permissions": { "deny": ["Read(//Users/joe/**)"] }
     }
     ```
+
+    - **The host-session-scratch gap (found and closed in this pass).** Claude Code's sandbox
+      always allows sandboxed Bash *writes* into `/private/tmp/claude-<uid>` — this session's own
+      harness-script directory, which runs outside the sandbox — regardless of `allowWrite`
+      scoping or the `CLAUDE_CODE_TMPDIR` env var; neither stops it. The narrowing is
+      `filesystem.denyWrite` listing **each existing entry** of `/private/tmp/claude-<uid>` (`ls`
+      it at batch setup time, before launching any arm — its membership changes across sessions,
+      so this list is generated per batch, not hardcoded). Denying the directory path itself
+      (rather than its individual entries) breaks Bash. **Residual after narrowing:** an arm can
+      still create *new* top-level files or directories under `/private/tmp/claude-<uid>` (only
+      pre-existing entries are denied), and can still *read* anything under `/private/tmp`
+      (`denyWrite` does not imply `denyRead`).
 
     - The one arm that needs the scratch `serve` (task 9.2) instead uses `"network": {"allowedDomains": ["127.0.0.1", "localhost"], "allowLocalBinding": true, "strictAllowlist": true}`.
     - `autoAllowBashIfSandboxed` **must be `false`**. With `true`, sandboxed Bash bypasses the `Bash(engram:*)` allowlist (see the evidence below).
@@ -505,13 +522,13 @@ A served learn is handled as follows:
     - the worst case is a pending offer on the host, which curation gates and the post-run check detects.
   - **Per-batch procedure:**
     1. Run the confinement probe arm first, as two invocations under the batch's `settings.json`:
-       - with `--allowedTools "Bash"`, which opens layer 1 to test layer 2: read the real vault path, write to `/Users/joe/<probe>` and `/tmp/<probe>`, and `curl https://example.com`;
+       - with `--allowedTools "Bash"`, which opens layer 1 to test layer 2: read the real vault path, write to `/Users/joe/<probe>` and `/tmp/<probe>`, `curl https://example.com`, **and attempt a write into `/private/tmp/claude-<uid>` at one of the existing entries just listed in `denyWrite`**;
        - with the real layer-1 flags: **Read, Glob and Grep** on `/Users/joe/.gitconfig`, `/Users/joe/.config/gh` and the real vault.
 
        **All of these must fail**, while the controls inside `$ARM` succeed. Keep the transcripts with the batch's results.
     2. Run the arms.
     3. Delete `$ARM`.
-    4. Check that no real-vault file (outside `.git/`) and no top-level `~/.claude` file is newer than the batch start marker.
+    4. Check that no real-vault file (outside `.git/`) and no top-level `~/.claude` file is newer than the batch start marker, and **save this before/after check to a file** alongside the batch's other results — not just asserted in the transcript.
   - **Skill placement.** The skill under test (old for RED, new for GREEN) is installed only at `$ARM/home/.claude/skills/<name>/SKILL.md`.
 
 - **Real-binary verification.** `engram serve` on `127.0.0.1` over a scratch parent vault, a scratch child, and a recording TCP proxy in front of serve (serve does not log requests), so request counts are observable. See tasks group 11. `update`'s drain is covered only by unit tests: `update` runs `go install` and re-execs, so it gets no real-binary run in scratch. That is stated in the LEDGER row.

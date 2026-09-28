@@ -18,6 +18,7 @@ flowchart LR
     vault(S4 · Agent-memory vault)
     sessions(S5 · Harness session stores)
     gotool(S6 · Go toolchain)
+    parentvault("S7 · Parent engram vault<br/>(engram serve)")
 
     user -->|"R1: directs work via prompts"| harness
     harness -->|"R2: invokes /recall, /learn, /please, /route, /curate, /write-memory (skills) and runs engram CLI"| engram
@@ -25,9 +26,10 @@ flowchart LR
     engram -->|"R4: reads session transcripts; re-chunks only mtime/size/hash-changed sources (manifest.json)"| sessions
     engram -->|"R5: invokes git clone + go install for self-update, then re-execs the fresh binary (ADR-0023)"| gotool
     engram -->|"R6: writes refreshed skill files during engram update; --with-guidance adds guidance (Claude Code, Pi)"| harness
+    engram -->|"R7: with ENGRAM_PARENT set, offers/pulls notes over HTTP (query, show, activate, learn) — never chunks"| parentvault
 
     class user person
-    class harness,vault,sessions,gotool external
+    class harness,vault,sessions,gotool,parentvault external
     class engram container
 
     click user href "#s1-engram-operator"
@@ -36,6 +38,7 @@ flowchart LR
     click vault href "#s4-agent-memory-vault"
     click sessions href "#s5-harness-session-stores"
     click gotool href "#s6-go-toolchain"
+    click parentvault href "#s7-parent-engram-vault"
 ```
 
 ## Element catalog
@@ -48,6 +51,7 @@ flowchart LR
 | <a id="s4-agent-memory-vault"></a>S4 | Agent-memory vault | External system | Luhmann zettelkasten on the local filesystem — a FLAT layout: notes live at the vault root (each with a sibling `.vec.json` embedding sidecar). The `Permanent/` and `MOCs/` tiers are retired (2026-06-12 flat-vault migration); subdirectories are ignored by the scanner | `$ENGRAM_VAULT_PATH` or `$XDG_DATA_HOME/engram/vault` (typically `~/.local/share/engram/vault`) |
 | <a id="s5-harness-session-stores"></a>S5 | Harness session stores | External system | The LLM harness's per-session transcript storage; engram reads them at the filesystem level, not via a harness API | Claude Code: `~/.claude/projects/<slug>/*.jsonl`; Pi: session JSONL under swept ancestor `.pi` dirs or explicit `--pi-sessions` dirs (JSONL only; the OpenCode SQLite backend was never wired into production ingest and was removed in the 2026-06-20 deep clean) |
 | <a id="s6-go-toolchain"></a>S6 | Go toolchain | External system | Resolves module versions and installs the engram binary during `engram update` | `go` binary on `$PATH` |
+| <a id="s7-parent-engram-vault"></a>S7 | Parent engram vault (`engram serve`) | External system | Another engram instance's HTTP door, configured via `ENGRAM_PARENT` (the vault-graph is a tree — personal → team → org — never a mesh, so a node has at most one parent). Exposes only `query`, `show`, `activate` and `learn`; a served `learn` (an offer, from either direction) writes or updates a pending note on the far side, and its receipt's `pending` field reports that note's true state — `false` only for an idempotent retry of an already-accepted offer, which changes nothing (ADR-0029) | `ENGRAM_PARENT=http://host:port`, another host's own `$ENGRAM_VAULT_PATH` |
 
 ## Relationships
 
@@ -59,6 +63,7 @@ flowchart LR
 | <a id="r4"></a>R4 | S2 Engram | S5 Harness session stores | `engram ingest` re-chunks only sources whose mtime/size/hash changed vs the `manifest.json` in `$XDG_DATA_HOME/engram/chunks`; reads JSONL transcripts (Claude Code `~/.claude/projects/<slug>/*.jsonl`; Pi session JSONL under ancestor `.pi` dirs or `--pi-sessions` dirs) for changed sources only |
 | <a id="r5"></a>R5 | S2 Engram | S6 Go toolchain | During `engram update`, invokes `go install` (local clone) or clones the repo and builds from the clone (remote mode, never `go install …@latest`; #645) to self-update, then re-execs the freshly installed binary to run the sync phase (ADR-0023) |
 | <a id="r6"></a>R6 | S2 Engram | S3 LLM coding harness | During `engram update`, syncs refreshed `agent-instructions/skills/` to engram-owned roots (`~/.claude/engram/skills/`, `~/.pi/agent/engram/skills/`, etc.; ADR-0022 D1) and materializes them as symlinks in each harness's surface dirs (`~/.claude/skills/`, `~/.pi/agent/skills/`); removals from the source propagate (sync-delete); first update performs dark migration of pre-existing copies to symlinks; dangling symlinks are cleaned up. `--with-guidance` additionally syncs guidance docs to the root's `guidance/` subtree (`~/.claude/engram/guidance/`, `~/.pi/agent/engram/guidance/`; canonical paths) and materializes symlinks; compat symlinks at flat paths (`~/.claude/engram/*.md`) resolve existing `@import` lines (opt-in). Manifest-mode fallback for harnesses whose discovery fails symlink verification (ADR-0022 D7) |
+| <a id="r7"></a>R7 | S2 Engram | S7 Parent engram vault | With `ENGRAM_PARENT` set: `engram query` fetches the parent's `/query?dedupe-keys=1` and merges notes only (never chunks) into the local payload; `engram learn`/a content `amend`/`resituate` offer the note to the parent's `/learn`, queuing in a local outbox on failure and draining with backoff; `engram activate` on a local miss pulls the parent's note down via `GET /show?raw=1` as a new local pending offer, then best-effort bumps its use on the parent (ADR-0029) |
 
 ## Key flows
 

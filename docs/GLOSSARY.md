@@ -450,7 +450,7 @@ matched-set cap, and `--limit` (a hit may have similarity score 0); `--project` 
 it. A runbook can only be a hit if it has a compatible embedding sidecar (the trigger index is
 built from the compatible-sidecar set, and a query errors before matching when a non-empty
 vault has none). A hit is a candidate only — the agent still judges it against the runbook's own
-applicability text. On the served path (`ENGRAM_SERVER`), `text` is capped at 2 KB (silent
+applicability text. On the served path (a parent's `/query`), `text` is capped at 2 KB (silent
 truncation).
 
 ---
@@ -735,6 +735,80 @@ preventing eval/test sessions from bloating the main chunk index.
 Explicit sweep roots (`--sweep`, `--transcript`, `--markdown`) and an
 isolated index (`ENGRAM_CHUNKS_DIR`) bypass the exclusion for deliberate
 test ingestion.
+
+---
+
+## Parent sync (`ENGRAM_PARENT`)
+
+### offer
+A pending note created by exchange, in either direction: a **learn-offer** (a new note with no
+parent counterpart) or an **amend-offer** (targets an existing parent counterpart via its primary
+`parent.links` entry). Offers arrive from a child over `engram serve`'s `/learn` route, or from a
+parent pulled down by `engram activate` (a **pull**, `via: pulled`). Every offer lands with the
+pending-offer marker and is judged by curation the same way, regardless of direction (design D5,
+D7, D8).
+
+### outbox
+`<vault>/.engram/outbox.json`: the child-side queue of offers the parent hasn't yet accepted. An
+offerable write (`learn`, a content `amend`/`resituate`, or accepting a served offer whose origin
+isn't the configured parent) stamps the note's `xid` and adds or refreshes its entry under the
+vault lock, in the same critical section as the note write — so a local write never fails because
+of the parent. The drain builds each entry's payload from the note's *current* content at send
+time (an offline learn followed by amends goes up as one offer), sends oldest-`queued`-first with
+no lock held, then re-locks and merges the result. A transport error or 5xx keeps the entry queued
+and backs the parent off (`.engram/parent.json`'s `backoff_until`); a 4xx marks it `rejected` until
+the note's exchange hash changes (design D6).
+
+### exchange hash
+`xh1:` + a SHA-256 over the canonical JSON of every **offered** content field (`type`, `situation`,
+the fact/feedback/runbook-specific fields, `done_when`, `red_flags`, `triggers`, and the body) —
+never identity, `pending`, `tags`, `sources`, `supersedes`, or any exchange bookkeeping field
+(design D3). It replaces `embed.ContentHash` everywhere exchange compares two versions of a note:
+loop suppression, `offer.key`, pull-down skip/decline matching, the rejected-offer re-arm, and
+dedupe rule 2. A version-prefix mismatch compares as *unknown*, which every consumer except dedupe
+treats as *not changed* — so a hash-format upgrade never causes a mass re-pull or re-offer. Shown
+by `engram show` as a `# exchange_hash: xh1:…` header line on any note carrying `xid`, and required
+as `--expect-hash` on `engram amend --clear-pending`/`--discard`/`--discard --into` of a note
+carrying `offer.origin` (design D10) — a curator's judged version, not the exchange's own
+change-tracking, so only an *equal* hash passes.
+
+### parent link
+The `parent:` frontmatter block (`vault`, `links: [{note, via, hash}]`, `author`) that ties a note
+to its counterpart(s) in the configured parent's vault, keyed by that parent's vault ID rather
+than by URL. `via` is `offered`/`pulled` for the note's one primary counterpart, or `covered` for
+a parent note this note was judged (by a curation fold) to also cover. Set only by the exchange
+paths — the offer receipt, pull-down, `amend --discard --into`, a rename's alias step, and served
+learn — and preserved byte-for-byte by every other rewrite (design D4).
+
+### pull-down
+`engram activate`'s parent path (design D8, Q2): on a local miss, a basename-shaped ref that isn't
+found is fetched from the parent's `GET /show?raw=1` and written as a **new local pending offer**
+(never live) — a pulled note is judged by curation like any other offer before it counts as
+knowledge. A pull is skipped when a local note already links the same basename/alias at the same
+hash, or the pull was previously declined at that hash (`.engram/declined.json`). After the write,
+`engram` best-effort bumps the note's use on the parent (`POST /activate`) — a failure there is
+never fatal and never queued. A pulled note is never offered back up unless it is later edited
+locally (then it goes up once, as design D12's "bounce-once").
+
+### vault ID
+A stable 32-hex-character random ID stored in the tracked `<vault>/.engram-vault-id` file,
+created (with an untracked `.engram/home.json` location record) the first time a vault contacts a
+parent or serves one. Exchange links and the outbox's parent cache key on this ID, never on URL or
+hostname, so a DNS/IP change breaks nothing. `engram vault-id` prints the ID and a copy/clone
+check against `home.json`; `--regenerate` mints a fresh ID for a copy (`cp -R`), `--claim`
+re-records the same vault's new location (design D2).
+
+### xid
+A note's own random exchange ID, stamped lazily the first time it takes part in exchange (queued,
+pulled, or served-received) and never backfilled or changed afterward. The outbox is keyed by
+`xid` rather than basename, so a local rename never orphans a queued offer (design D4, D6).
+
+### ENGRAM_SERVER (removed)
+The old thin-client mode: set, the CLI ran entirely against a remote vault over HTTP with zero
+local file access. Removed. Setting `ENGRAM_SERVER` is now a hard error for every `engram`
+command, including `engram serve` itself, before any vault or network access. **Migration:** set
+`ENGRAM_PARENT` to the same URL — every environment now keeps its own local vault and exchanges
+notes with that parent instead of proxying every command to it (design D1).
 
 ---
 

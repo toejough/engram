@@ -74,13 +74,13 @@ The `CLAUDE.md` and `agent-instructions/` search returned **no** `ENGRAM_SERVER`
 | 13 | internal/cli/show_chunk.go:16-20 | `ShowChunkArgs.Parent` flag | delete | Q1. |
 | 14 | internal/cli/serve_client.go:119 `dispatchShowChunk`, :290 `fetchShowChunk`, :295 `fetchShowChunkFallback` | parent chunk fallback | delete | Q1. `show-chunk` resolves locally only. |
 | 15 | internal/cli/targets.go:428-431 (serve desc) | "Serve query/query-chunks/show/show-chunk/activate/learn/amend over HTTP … learn/amend land as …" | code | "Serve query/show/activate/learn … learn lands as a pending offer" (D7). |
-| 16 | internal/cli/serve_client.go:158-167 `fetchActivate` | thin-client activate | code | Repurposed as the best-effort parent `/activate` after pull-down (Q2, D8). |
+| 16 | internal/cli/pulldown.go:208 `(*pullSession).signalUse` (corrected from serve_client.go:158-167 `fetchActivate`, which this replaces) | thin-client activate | code | Repurposed as the best-effort parent `/activate` after pull-down (Q2, D8). |
 | 17 | internal/cli/serve_client.go:169-184 `fetchAmend` | — | delete | Amend-offers use `/learn`. |
-| 18 | internal/cli/serve_client.go:206-225 `fetchLearn` | "through ENGRAM_SERVER" | code | Becomes the offer sender. It takes the payload built at send time and returns the parsed receipt (D6). |
+| 18 | internal/cli/outbox.go `newOfferSender` (corrected from serve_client.go:206-225 `fetchLearn`, which this replaces) | "through ENGRAM_SERVER" | code | Becomes the offer sender. It takes the payload built at send time and returns the parsed receipt (D6). |
 | 19 | internal/cli/serve_client.go:227-243 `fetchQuery`, `fetchQueryChunks` | — | delete | No callers remain. |
 | 20 | internal/cli/serve_client.go:42-61 `buildQueryParams` (doc :43) | shared with `fetchQuery` | code | Parent fetch only. Adds `dedupe-keys=1` (D7). |
 | 21 | internal/cli/serve_client.go:93-96, 266, 284-289, 335-337 | comments naming `ENGRAM_SERVER` | rewrite | Say "parent". |
-| 22 | internal/cli/serve_client.go:365-383 `printOfferReceipt` | `{status, luhmann}` | code | Parse `{status, luhmann, basename, pending, vault_id, for}`. A missing `vault_id` means "parent too old" (D6). |
+| 22 | internal/cli/outbox.go `newOfferSender`/`classifyOfferResponse` (corrected from serve_client.go:365-383 `printOfferReceipt`, which this replaces) | `{status, luhmann}` | code | Parse `{status, luhmann, basename, pending, vault_id, for}`. A missing `vault_id` means "parent too old" (D6). |
 | 23 | internal/cli/serve.go:117, 418 (`/query-chunks`, `serveQueryChunks`) | served chunk query | delete | Q4. |
 | 24 | internal/cli/serve.go:119, 455 (`/show-chunk`, `serveShowChunk`) | served chunk show | delete | Q1 (the parent chunk path). |
 | 25 | internal/cli/serve.go:122, 292-336 (`/amend`, `serveAmend`) | served amend | delete | D7. |
