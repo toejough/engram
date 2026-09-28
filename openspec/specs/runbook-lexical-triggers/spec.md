@@ -1,7 +1,9 @@
 # runbook-lexical-triggers Specification
 
 ## Purpose
-TBD - created by archiving change runbook-lexical-triggers. Update Purpose after archive.
+
+Literal trigger strings on a runbook note's `triggers:` field, populated by repeatable `--trigger` flags on `engram learn runbook` and `engram amend`, matched case-insensitively against the user's raw message via `engram query --text`. A trigger hit surfaces its runbook first, ahead of every similarity-ranked item and exempt from `--limit`, because semantic matching against an agent's paraphrase of the request misses a literal cue like `/please` too often for cue-triggered skills to retire into runbooks on similarity alone.
+
 ## Requirements
 ### Requirement: Runbook notes MAY carry a `triggers` field of literal cue strings
 A runbook note SHALL support an optional frontmatter field `triggers` (a list of strings), each a literal cue that, when present in the user's raw message, identifies this runbook as applicable. `engram learn runbook` SHALL accept a repeatable `--trigger <text>` flag that populates it in order; `engram amend` SHALL accept the same flag with replace-whole semantics. A trigger SHALL be rejected at write time if it is empty, whitespace-only, or shorter than 3 characters after trimming.

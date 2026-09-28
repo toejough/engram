@@ -180,7 +180,7 @@
 - [x] 7.3 RED: ordering and floor (#744, M2, M3). Direct before explore, and `--limit` by position. The floor fixture from the spec scenario (5 chunks at 0.9 plus 3 notes at 0.5 under `--limit 5`). The issue's reproduction shape (10 phrases, explore scores 0.75–0.89).
 - [x] 7.4 RED: the budget block (#743), and the pending hint reflecting local offers only (H4).
 - [x] 7.5 GREEN: rework `mergeQueryPayloads`/`runMergedQuery`, including the backoff check, the self-parent guard, and the drain after success. (E45)
-- [ ] 7.6 After merge: close #745 (design D9 reasoning), #746 (superseded, citing D8), #743, #744 and #766.
+- [x] 7.6 After merge: close #745 (design D9 reasoning), #746 (superseded, citing D8), #743, #744 and #766. (done 2026-09-28: 744/746/766 closed; 743/745 were already closed)
 
 ## 8. Curation fold (design D10)
 
@@ -281,4 +281,4 @@
 - [x] 12.2 Run a fresh-context implementation review with argumentation. Then rebase on main, re-test, and `git merge --ff-only`.
 - [x] 12.3 After the merge and `go install ./cmd/engram`: deploy the skills with `engram update`, and verify the deployed copies are byte-identical to the sources. The registration refresh offers for the skill mirrors (E112) go through normal curation.
 - [x] 12.4 Archive with `/opsx:archive`, after running the note-651 scenario parity diff and the E73/E76/E80/E82 Purpose rewrites. **Then** run the E72 sweep against the post-archive tree, with its allowlist.
-- [ ] 12.5 Real-vault ID commit (r3-8). The host's vault gets `.engram-vault-id` only when `engram serve` next starts on it after the upgrade (the host's served vault), or at its first parent contact if that host ever sets `ENGRAM_PARENT`. Right after that first creation, commit it as a single deliberate vault commit (`vault: add vault id`), and confirm `engram update`'s untracked-ID notice is gone. If neither event happens by archive time, record "skipped: no ID created" in the LEDGER row. The task is then done, and the commit follows whenever the file first appears.
+- [x] 12.5 Real-vault ID commit (r3-8). The host's vault gets `.engram-vault-id` only when `engram serve` next starts on it after the upgrade (the host's served vault), or at its first parent contact if that host ever sets `ENGRAM_PARENT`. Right after that first creation, commit it as a single deliberate vault commit (`vault: add vault id`), and confirm `engram update`'s untracked-ID notice is gone. If neither event happens by archive time, record "skipped: no ID created" in the LEDGER row. The task is then done, and the commit follows whenever the file first appears. (skipped: no ID created at archive, 2026-09-28; commit `vault: add vault id` follows the first serve on the host vault)

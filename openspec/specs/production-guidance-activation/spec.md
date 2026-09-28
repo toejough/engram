@@ -1,7 +1,9 @@
 # production-guidance-activation Specification
 
 ## Purpose
-TBD - created by archiving change activate-shim-guidance. Update Purpose after archive.
+
+Which engram guidance files a real harness config (`CLAUDE.md` for Claude Code, `AGENTS.md` for Pi) is expected to import: `shim.md`'s runbook-follow-frame joins `recall.md`, `delegate.md`, and `learn.md` in that set, additively, since `recall`/`learn`/`write-memory` are not yet promoted to runbooks (issue #760) and `shim.md` does not reproduce their content. Distinct from `update-deploy-sync`, which only gets the files onto disk — this is the separate policy decision of which deployed files a session's own config actually activates.
+
 ## Requirements
 ### Requirement: A production harness config SHALL import shim.md alongside the existing engram guidance imports
 A harness's own config file (`CLAUDE.md` for Claude Code, `AGENTS.md` for Pi) that already imports

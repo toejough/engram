@@ -1,7 +1,9 @@
 # memory-loop-audit Specification
 
 ## Purpose
-TBD - created by archiving change memory-loop-audit. Update Purpose after archive.
+
+The requirements any tool measuring the memory loop against real transcripts must meet: detect moments — failures, corrections, rework, successes, and subagent dispatches — by reading them in context rather than keyword-matching, check point-in-time whether a relevant memory already existed when each moment happened, and only emit draft outcome records for a person to act on, never act on them itself. Why: docs/architecture/adr.md ADR-0028 — engram is meant to close the loop that lets a fixed-weight LLM learn from experience, and this audit is the step that looks back and labels what happened a win or a loss.
+
 ## Requirements
 ### Requirement: Moments SHALL be detected semantically, and successes and dispatches are moments
 

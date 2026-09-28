@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD — recall's note-channel payload splits into an exploit half (cosine-nearest notes) and an explore half sampled from global vocab clusters by query→centroid proximity, replacing tag nomination as the cross-cluster diversity mechanism.
+Recall's note-channel payload splits into an exploit half (cosine-nearest notes, floors and caps unchanged) and an explore half sampled from global vocab clusters by query→centroid proximity — softmax-weighted per cluster, centroid-proximal within it — replacing tag nomination as the cross-cluster diversity mechanism, since nomination discarded geometry at both trust-critical points: write-time nearest-centroid stamps with no margin, and unranked set-membership dumps with no core-vs-fringe distinction.
 
 ## Requirements
 
