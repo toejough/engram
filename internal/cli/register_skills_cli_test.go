@@ -251,7 +251,7 @@ func TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites(t *testing.T) {
 	run := exec.Command(binPath, "register-skills", "--vault", vault)
 	run.Stdin = devNull
 	run.Dir = home
-	run.Env = append(os.Environ(), "ENGRAM_PARENT=", "ENGRAM_SERVER=", "HOME="+home)
+	run.Env = append(os.Environ(), "ENGRAM_PARENT=", removedServerEnvVar+"=", "HOME="+home)
 
 	out, runErr := run.CombinedOutput()
 	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", out)

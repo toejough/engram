@@ -80,6 +80,14 @@ func TestEngramServerSet_NeverFetchesAsAlias(t *testing.T) {
 	})
 }
 
+// unexported constants.
+const (
+	// removedServerEnvVar is the removed thin-client variable the D1 guard
+	// refuses. Other subprocess tests strip it by this name so an ambient
+	// host setting cannot trip the hard error.
+	removedServerEnvVar = "ENGRAM_SERVER"
+)
+
 // unexported variables.
 var (
 	errRecorderCapability = errors.New("recorder: capability must not be called")
@@ -149,7 +157,7 @@ func (r *capabilityRecorder) primitives(serverURL string) cli.Primitives {
 		},
 		Proc: cli.ProcPrims{
 			Getenv: func(key string) string {
-				if key == "ENGRAM_SERVER" {
+				if key == removedServerEnvVar {
 					return serverURL
 				}
 

@@ -125,7 +125,7 @@ func buildSyntheticBody(theme string, clusterID, members int) string {
 }
 
 // envWithoutEngramRemotes returns the current process environment with any
-// ENGRAM_PARENT or ENGRAM_SERVER entry stripped, for subprocess tests that
+// ENGRAM_PARENT or removedServerEnvVar entry stripped, for subprocess tests that
 // must not inherit an ambient parent-merge configuration (or the removed
 // thin-client variable, now a hard error) from the host running the test.
 func envWithoutEngramRemotes() []string {
@@ -133,7 +133,7 @@ func envWithoutEngramRemotes() []string {
 	filtered := make([]string, 0, len(base))
 
 	for _, kv := range base {
-		if strings.HasPrefix(kv, "ENGRAM_PARENT=") || strings.HasPrefix(kv, "ENGRAM_SERVER=") {
+		if strings.HasPrefix(kv, "ENGRAM_PARENT=") || strings.HasPrefix(kv, removedServerEnvVar+"=") {
 			continue
 		}
 

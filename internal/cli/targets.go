@@ -97,7 +97,7 @@ func ProjectSlugFromPath(path string) string {
 func Targets(deps Deps) []any {
 	errHandler := newErrHandler(deps.Stderr, deps.Exit)
 
-	// Pre-dispatch guard (design D1): a set ENGRAM_SERVER refuses every
+	// Pre-dispatch guard (design D1): a set envRemovedServer refuses every
 	// command, serve included, before any target — and so any vault, chunk
 	// index, lock, fetch or bind — is built. Production Exit never returns;
 	// the nil target list only matters to a recording Exit in tests.

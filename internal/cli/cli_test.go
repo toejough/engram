@@ -252,7 +252,7 @@ exit 0
 }
 
 // envWithoutDebugLog returns a copy of the current process environment
-// (already stripped of ENGRAM_PARENT/ENGRAM_SERVER) with
+// (already stripped by envWithoutEngramRemotes) with
 // any ENGRAM_DEBUG_LOG entries removed — the correct shape for a negative
 // control that isolates a single variable. Wiping the environment entirely
 // (Env = []string{}) is wrong: it also strips HOME/XDG/PATH/GOCOVERDIR,
