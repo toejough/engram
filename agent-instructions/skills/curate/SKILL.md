@@ -36,7 +36,8 @@ never discard it, and always keep it in the vault.
 - `triggers`: literal user phrasings that should fire it (e.g. "code review", "style check"; may be empty)
 - `red_flags`: the skill's key failure modes, total rendered under 1200 bytes
 
-Amend the note: `engram amend --target <basename> --situation "<text>" --done-when "<text>" --red-flag "<text>" --trigger "<phrase>"` (repeat `--trigger` and `--red-flag` for multiple entries). Then clear the marker: `engram amend --target <basename> --clear-pending`.
+Amend the note: `engram amend --target <basename> --situation "<text>" --done-when "<text>" --red-flag "<text>" --trigger "<phrase>"` (repeat `--trigger` and `--red-flag` for multiple entries). Then clear the marker: `engram amend --target <basename> --clear-pending` (a skill note has no xid, so
+`engram show` prints no `# exchange_hash` line and there is no `--expect-hash` to pass).
 
 **For refreshed notes (fields already present):** Re-check each field against the skill's current body.
 Amend any that no longer fit, keeping `red_flags` under the 1200-byte rendered cap. Then clear the
@@ -64,8 +65,9 @@ first** (`engram show <note>`), before any query. It is usually near (it adds a 
 Otherwise, `engram query --phrase "<offer's situation>"` finds related existing notes the normal way
 (it already excludes offers, so every result is a real candidate to judge against).
 
-Every bookkeeping step on an offer (`--clear-pending`, `--discard`, `--discard --into`) passes
-`--expect-hash <the version you judged>`. The binary refuses it on a served offer without the hash.
+Every bookkeeping step (`--clear-pending`, `--discard`, `--discard --into`) on an offer whose
+`engram show` printed an `# exchange_hash` line passes `--expect-hash <the version you judged>`. The
+binary refuses it on a served offer without the hash.
 
 | Outcome | Criterion | Action |
 | --- | --- | --- |
@@ -97,7 +99,7 @@ composed and executed directly. `write-memory`'s contract only composes brand-ne
 calls from scratch content fields — an offer's content already exists as a file, so there's
 nothing to compose from scratch, not even in the absent case.
 
-## Step 3 — Why covered and near both discard the offer
+## Step 3 — Why covered and near both fold the offer away (`--discard --into`)
 
 recall's Step 2.5 never leaves a leftover file behind: its "candidate" is an idea in the agent's
 head at query time, not yet written anywhere — covered/near there just means "don't write it" or

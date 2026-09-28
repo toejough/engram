@@ -34,7 +34,8 @@ Recall runs in one of two **modes**, selected by the caller (the mode word is th
   Use it when the decision is weighty or irreversible, when you want recall to also learn, or when in doubt.
 - **`glance` (opt-in, cheap — for firing often).** A pass that is **read-only with respect to vault knowledge**
   (Step 2.7 `activate` still bumps the used-notes recency metadata and pulls a used `from_parent` note down as a
-  pending copy — both kept, neither a knowledge write). Run
+  pending copy — both kept, neither a knowledge write; glance leaves that copy pending, and curating it is a
+  separate curate-skill step after the user's request, not part of glance). Run
   Steps 0–3.5 with **~3 phrases** (not 10) and **keep the read side** — Step 2.5A (read candidates), **Step 2.5B
   (apply the recency weight)**, Step 2.7 (activate used notes), the Step 3 synthesis, and Step 3.5 (the
   re-entry query, when triggered) — but **skip the write side**: Step 2.5C (coverage amend/learn), Step 4
@@ -227,10 +228,12 @@ engram activate \
 ```
 
 Activate the `from_parent` notes you used the same way, by their `path`: this pulls them down as
-local pending copies. Glance does this too. The pending-offers warning that follows names your own
-pulled copies (the next payload's `pending_offers` reflects only local offers): it is expected, not
-an error. Finish the user's request first, then curate them with the curate skill, and say in your
-reply that you did. Never amend the pulled copy.
+local pending copies. Glance does this too. `engram activate` prints each pulled copy's path, and may
+print the generic "vault holds pending offer(s) awaiting curation" warning — it names no notes, but
+your pulled copies are now among the pending offers (the next query's `pending_offers` counts only
+local offers). That is expected, not an error. Curating them is not part of recall, in either mode:
+leave the copies pending, finish the user's request, then run the curate skill as a separate step and
+say in your reply that you did (or that they await curation). Never amend the pulled copy.
 
 Do NOT activate every returned note. Do NOT activate recent-channel items (chunks are never
 activated). Activating only what you used lets superseded-but-surfaced notes fade via recency
