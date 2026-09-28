@@ -429,9 +429,13 @@ type queryItem struct {
 	// only, via queryPayload.ModelID).
 	ModelID string `yaml:"model_id,omitempty"`
 	// FromParent is true when this item was produced by ENGRAM_PARENT
-	// rather than the local vault (vault-merged-recall) — always false,
-	// omitted from non-merged payloads.
-	FromParent bool `yaml:"from_parent,omitempty"`
+	// rather than the local vault (vault-merged-recall) — nil (and thus
+	// omitted) on a non-merged payload; on a merged payload it is always
+	// set, explicitly false for a local item, so *bool (not bool) is
+	// required — a bare bool with omitempty would drop a false value's
+	// key even when the merge path meant to show it (ruling S29). Same
+	// omit-when-nil idiom as ClusterID/InDegree above.
+	FromParent *bool `yaml:"from_parent,omitempty"`
 	// ExchangeHash and Aliases are a note item's dedupe keys (design D7):
 	// set only on a served query asked for dedupe-keys=1, omitted
 	// everywhere else.

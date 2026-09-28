@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	"go.yaml.in/yaml/v3"
 )
 
 // TestMergeQueryPayloads_AdvisoryFlagsAreLocalOnly verifies RefitPending and
@@ -163,6 +164,28 @@ func TestMergeQueryPayloads_LimitDoesNotStarveRecencyChannel(t *testing.T) {
 		"recency-channel item must survive --limit even when Channel 1 alone already reaches it")
 }
 
+// TestMergeQueryPayloads_LocalItemMarshalsExplicitFromParentFalse verifies a
+// merged payload's local item carries an explicit from_parent: false in the
+// marshaled YAML (design D9, ruling S29) — not merely a false Go field value
+// that an omitempty tag would silently drop from the output.
+func TestMergeQueryPayloads_LocalItemMarshalsExplicitFromParentFalse(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	local := queryPayload{
+		ModelID: "local-model",
+		Items:   []queryItem{{Path: "local-item.md", Score: 0.9}},
+	}
+	parent := queryPayload{ModelID: "parent-model"}
+
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
+
+	out, marshalErr := yaml.Marshal(merged)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+	g.Expect(string(out)).To(ContainSubstring("from_parent: false"))
+}
+
 // TestMergeQueryPayloads_MismatchedModelIDStillMerges verifies the merge
 // proceeds unconditionally regardless of model_id mismatch (design.md
 // Decision 3 — no refuse, no fallback on mismatch).
@@ -287,8 +310,8 @@ func TestMergeQueryPayloads_TagsItemsWithOriginAndModelID(t *testing.T) {
 	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
 
 	g.Expect(merged.Items).To(ConsistOf(
-		queryItem{Path: "local-item", Score: 0.9, ModelID: "local-model", FromParent: false},
-		queryItem{Path: "parent-item", Score: 0.5, ModelID: "parent-model", FromParent: true},
+		queryItem{Path: "local-item", Score: 0.9, ModelID: "local-model", FromParent: new(false)},
+		queryItem{Path: "parent-item", Score: 0.5, ModelID: "parent-model", FromParent: new(true)},
 	))
 }
 

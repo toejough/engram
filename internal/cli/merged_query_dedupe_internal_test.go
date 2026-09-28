@@ -33,7 +33,7 @@ func TestDedupeProperty_NeverBothLiveLocalAndMatchedParent(t *testing.T) {
 			notes, QueryArgs{Limit: -1})
 
 		for _, outParent := range merged.Items {
-			if !outParent.FromParent {
+			if outParent.FromParent == nil || !*outParent.FromParent {
 				continue
 			}
 
@@ -441,7 +441,7 @@ func TestMergeQueryPayloads_PendingLocalCopyDoesNotSuppress(t *testing.T) {
 
 	g.Expect(merged.Items).To(HaveLen(1))
 	g.Expect(merged.Items[0].Path).To(Equal("900.parent.md"))
-	g.Expect(merged.Items[0].FromParent).To(BeTrue())
+	g.Expect(merged.Items[0].FromParent).To(HaveValue(BeTrue()))
 }
 
 // TestMergeQueryPayloads_PrimaryLinkDedupes: a linked note that ranked
@@ -463,7 +463,7 @@ func TestMergeQueryPayloads_PrimaryLinkDedupes(t *testing.T) {
 
 	g.Expect(merged.Items).To(HaveLen(1))
 	g.Expect(merged.Items[0].Path).To(Equal("5.local.md"))
-	g.Expect(merged.Items[0].FromParent).To(BeFalse())
+	g.Expect(merged.Items[0].FromParent).To(HaveValue(BeFalse()))
 }
 
 // TestMergeQueryPayloads_StripsDedupeKeys: exchange_hash and aliases never
@@ -544,7 +544,7 @@ func TestMergeQueryPayloads_SubstitutesUnrankedLocalCopy(t *testing.T) {
 		Provenances: []string{provenanceDirect, provenanceClusterRep},
 		Content:     capRedFlagsForPreview(stripWikilinks(string(local.raw))),
 		ModelID:     testLocalModel,
-		FromParent:  false,
+		FromParent:  new(false),
 	}))
 }
 
@@ -704,7 +704,7 @@ func liveNotesInOutput(items []queryItem, notes []exchangeNote) []exchangeNote {
 		}
 
 		if slices.ContainsFunc(items, func(item queryItem) bool {
-			return !item.FromParent && item.Path == note.basename+mdExt
+			return (item.FromParent == nil || !*item.FromParent) && item.Path == note.basename+mdExt
 		}) {
 			out = append(out, note)
 		}

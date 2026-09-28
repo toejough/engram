@@ -98,6 +98,28 @@ func TestPendingOfferCurateInstruction_IsExpectedUpkeep(t *testing.T) {
 	g.Expect(instruction).NotTo(ContainSubstring("\n"))
 }
 
+// TestQueryPayload_NoFromParentKeyWithoutMerge verifies a non-merged payload
+// (no ENGRAM_PARENT / no merge step involved) carries no from_parent key at
+// all, matching today's output byte-for-byte (hard constraint, ruling S29):
+// the merged-only field must never leak into an ordinary local query.
+func TestQueryPayload_NoFromParentKeyWithoutMerge(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []cli.ExportResolvedItem{
+		cli.ExportNewResolvedItem("1.a.md", "---\ntype: fact\n---\nbody"),
+	}
+
+	out, err := cli.ExportRenderQueryPayloadPendingOffersWithItems(false, items)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(out).NotTo(ContainSubstring("from_parent"))
+}
+
 // TestQueryPayload_PendingOffersHintOmittedWhenFalse: without pending offers
 // neither the flag nor the hint appears, so the payload is byte-identical to
 // one built before the hint existed.

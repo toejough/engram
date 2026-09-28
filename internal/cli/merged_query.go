@@ -283,13 +283,17 @@ func splitRecencyChannel(items []queryItem) (main, recent []queryItem) {
 }
 
 // tagItems returns a copy of items with ModelID and FromParent set per the
-// node that produced them.
+// node that produced them. queryItem.FromParent is *bool (design D9, ruling
+// S29) so a merged item's false value still marshals an explicit
+// from_parent: false instead of being dropped by omitempty.
 func tagItems(items []queryItem, modelID string, fromParent bool) []queryItem {
 	out := make([]queryItem, len(items))
 
+	flag := new(fromParent)
+
 	for i, item := range items {
 		item.ModelID = modelID
-		item.FromParent = fromParent
+		item.FromParent = flag
 		out[i] = item
 	}
 

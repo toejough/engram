@@ -54,6 +54,10 @@ func TestTargets_Query_MergedMode_CombinesLocalAndParent(t *testing.T) {
 	}
 
 	g.Expect(paths).To(ContainElements("1.fact.md", "parent-note.md"))
+	g.Expect(stdout).To(ContainSubstring("from_parent: false"),
+		"the local item must be tagged from_parent: false per vault-merged-recall (ruling S29)")
+	g.Expect(stdout).To(ContainSubstring("from_parent: true"),
+		"the parent item must be tagged from_parent: true per vault-merged-recall")
 }
 
 // TestTargets_Query_MergedMode_LocalErrorSurfacesWhenParentSucceeds

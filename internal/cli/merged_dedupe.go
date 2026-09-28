@@ -241,7 +241,7 @@ func substituteLocalItem(parentItem queryItem, local exchangeNote, localModelID 
 		Content:     content,
 		SourceTerm:  sourceTerm,
 		ModelID:     localModelID,
-		FromParent:  false,
+		FromParent:  new(false),
 	}
 }
 
