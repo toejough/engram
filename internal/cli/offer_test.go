@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/vaultgraph"
@@ -126,20 +127,48 @@ func TestNoteHasPendingMarker(t *testing.T) {
 	g.Expect(cli.ExportNoteHasPendingMarker([]byte("not frontmatter at all"))).To(BeFalse())
 }
 
-// TestNoteHasPendingMarker_SkillRunbook covers the skill-runbook-registration
-// extension (vault-offer-curation ADDED requirement "The pending-offer marker
-// SHALL apply to skill runbook notes"): a runbook note is a pending offer
-// only when it carries BOTH `pending: true` and a non-empty `skill_hash`. A
-// runbook with `pending: true` but no `skill_hash` is unchanged behavior —
-// not a pending offer — and neither is a `skill_hash`-carrying runbook that
-// isn't pending.
-func TestNoteHasPendingMarker_SkillRunbook(t *testing.T) {
+// TestNoteHasPendingMarker_EveryNoteType covers the pending-offer marker on
+// every note type (vault-offer-curation "The pending-offer marker SHALL
+// apply to every note type", design D7 G1): a runbook with `pending: true`
+// is a pending offer with or without `skill_hash`, and a `skill_hash`
+// runbook that isn't pending is not one.
+func TestNoteHasPendingMarker_EveryNoteType(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingSkillRunbookNote))).To(BeTrue())
-	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingRunbookNoSkillHashNote))).To(BeFalse())
+	g.Expect(cli.ExportNoteHasPendingMarker([]byte(pendingRunbookNoSkillHashNote))).To(BeTrue())
 	g.Expect(cli.ExportNoteHasPendingMarker([]byte(nonPendingSkillRunbookNote))).To(BeFalse())
+}
+
+// TestNoteHasPendingMarker_PendingFlagDecidesForEveryType is the property
+// behind G1: for every offerable note type, with or without `skill_hash`,
+// the note is a pending offer exactly when it carries `pending: true`.
+func TestNoteHasPendingMarker_PendingFlagDecidesForEveryType(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		noteType := rapid.SampledFrom([]string{"fact", "feedback", "runbook"}).Draw(rt, "type")
+		pending := rapid.Bool().Draw(rt, "pending")
+		skillHash := rapid.SampledFrom([]string{"", "abc123"}).Draw(rt, "skillHash")
+
+		frontmatter := "---\ntype: " + noteType + "\nsituation: s\nluhmann: \"9\"\ncreated: 2026-01-09\n" +
+			"source: agent\nuser: u\nvault: personal\n"
+		if skillHash != "" {
+			frontmatter += "skill_hash: " + skillHash + "\n"
+		}
+
+		if pending {
+			frontmatter += "pending: true\n"
+		}
+
+		note := frontmatter + "---\n\nbody\n"
+
+		if cli.ExportNoteHasPendingMarker([]byte(note)) != pending {
+			rt.Fatalf("type %s skill_hash %q pending %v: marker reported %v",
+				noteType, skillHash, pending, !pending)
+		}
+	})
 }
 
 // TestVaultHasPendingOffers covers the engram-update detector: a vault

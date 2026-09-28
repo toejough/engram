@@ -427,10 +427,10 @@ func serveTargets(
 				return RunServe(withLog(ctx), a, deps)
 			}))
 		}).Name("serve").Description(
-			"Serve query/query-chunks/show/show-chunk/activate/learn/amend over HTTP: this node's " +
-				"network door (explicit bind address required; the local CLI is the same node's local " +
-				"door and never runs through this — see README's two-doors model); learn/amend land as " +
-				"pending offers, attributed to the caller's client-declared identity"),
+			"Serve query/show/activate/learn over HTTP: this node's network door for child vaults " +
+				"(explicit bind address required; the local CLI is the same node's local door and never " +
+				"runs through this — see README's two-doors model); learn lands as a pending offer, " +
+				"attributed to the caller's client-declared identity"),
 	}
 }
 

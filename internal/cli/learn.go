@@ -196,29 +196,9 @@ type LearnOffer struct {
 // computes the next Luhmann ID, and writes the file. args.Vault must
 // already be resolved by the caller via resolveVault.
 func RunLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Writer) error {
-	slugErr := validateSlug(args.Slug)
-	if slugErr != nil {
-		return fmt.Errorf("learn: %w", slugErr)
-	}
-
-	projectErr := validateProjectSlug(args.Project)
-	if projectErr != nil {
-		return fmt.Errorf("learn: %w", projectErr)
-	}
-
-	issueErr := validateIssueID(args.Issue)
-	if issueErr != nil {
-		return fmt.Errorf("learn: %w", issueErr)
-	}
-
-	tagErr := validateTags(args.Tags)
-	if tagErr != nil {
-		return fmt.Errorf("learn: %w", tagErr)
-	}
-
-	triggerErr := validateTriggers(args.Triggers)
-	if triggerErr != nil {
-		return fmt.Errorf("learn: %w", triggerErr)
+	inputErr := validateLearnInput(args)
+	if inputErr != nil {
+		return inputErr
 	}
 
 	vault := args.Vault
@@ -509,6 +489,7 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, identi
 			Pending: args.Pending,
 			Issue:   args.Issue, Tier: tierOrDefault(args.Tier),
 			ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
+			Exchange: exchangeFromArgs(args),
 		}
 
 		return renderFeedbackFrontmatter(f, when) + renderFeedbackBody(f), nil
@@ -524,6 +505,7 @@ func assembleLearnContent(args LearnArgs, luhmann string, when time.Time, identi
 			Pending: args.Pending,
 			Issue:   args.Issue, Tier: tierOrDefault(args.Tier),
 			ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
+			Exchange: exchangeFromArgs(args),
 		}
 
 		return renderFactFrontmatter(f, when) + renderFactBody(f), nil
@@ -560,6 +542,7 @@ func assembleRunbookContent(
 		ChunkSources: args.ChunkSources, Tags: args.Tags, Supersedes: parsedSupersedes,
 		RedFlags: args.RedFlags, Triggers: args.Triggers,
 		SkillHash: args.SkillHash, SkillKey: args.SkillKey, SkillSource: args.SkillSource,
+		Exchange: exchangeFromArgs(args),
 	}
 
 	return renderRunbookFrontmatter(f, when) + renderRunbookBody(f), nil
@@ -585,6 +568,24 @@ func autoEmbedNote(ctx context.Context, deps LearnDeps, notePath, content string
 	writeErr := deps.WriteSidecar(embed.SidecarPath(notePath), embed.MarshalSidecar(sidecar))
 	if writeErr != nil && deps.LogWarning != nil {
 		deps.LogWarning("learn: sidecar write failed for %s: %v", notePath, writeErr)
+	}
+}
+
+// exchangeFromArgs is the exchange frontmatter a learn writes: the in-process
+// XID, Parent and Aliases, and the offer record. Only the exchange paths
+// set any of them (a served learn's offer only after validation, design
+// D7); a plain local learn leaves them all empty, so nothing renders.
+func exchangeFromArgs(args LearnArgs) exchangeFrontmatter {
+	return exchangeFrontmatter{
+		XID:     args.XID,
+		Parent:  args.Parent,
+		Aliases: args.Aliases,
+		Offer: offerRecord{
+			Origin: args.Offer.Origin,
+			Key:    args.Offer.Key,
+			For:    args.Offer.For,
+			Path:   args.Offer.Path,
+		},
 	}
 }
 
@@ -900,6 +901,37 @@ func validateIssueID(id string) error {
 	return nil
 }
 
+// validateLearnInput checks the learn arguments that need no vault: slug,
+// project, issue, tags and triggers.
+func validateLearnInput(args LearnArgs) error {
+	slugErr := validateSlug(args.Slug)
+	if slugErr != nil {
+		return fmt.Errorf("learn: %w", slugErr)
+	}
+
+	projectErr := validateProjectSlug(args.Project)
+	if projectErr != nil {
+		return fmt.Errorf("learn: %w", projectErr)
+	}
+
+	issueErr := validateIssueID(args.Issue)
+	if issueErr != nil {
+		return fmt.Errorf("learn: %w", issueErr)
+	}
+
+	tagErr := validateTags(args.Tags)
+	if tagErr != nil {
+		return fmt.Errorf("learn: %w", tagErr)
+	}
+
+	triggerErr := validateTriggers(args.Triggers)
+	if triggerErr != nil {
+		return fmt.Errorf("learn: %w", triggerErr)
+	}
+
+	return nil
+}
+
 // validateProjectSlug rejects non-empty slugs that don't fit the kebab-case
 // shape. Empty is allowed: project is optional metadata, absence is a
 // universal-principle marker.
@@ -973,29 +1005,24 @@ func validateTriggers(triggers []string) error {
 	return nil
 }
 
-// writeLearnUnderLock acquires the vault lock, computes the next Luhmann ID,
-// assembles file content, and writes it. The lock spans listing existing IDs
-// through writing the new file to prevent ID collisions.
-func writeLearnUnderLock(
+// writeLearnLocked computes the next Luhmann ID, assembles the file content
+// and writes it, then embeds it and assigns vocab. The caller holds the
+// vault lock, which spans listing existing IDs through writing the new file
+// to prevent ID collisions. It returns the written path and content.
+func writeLearnLocked(
 	ctx context.Context,
 	args LearnArgs,
 	deps LearnDeps,
 	vault string,
-) (string, error) {
-	release, lockErr := deps.Lock(vault)
-	if lockErr != nil {
-		return "", fmt.Errorf("learn: acquiring lock: %w", lockErr)
-	}
-	defer release()
-
+) (string, string, error) {
 	existing, listErr := deps.ListIDs(vault)
 	if listErr != nil {
-		return "", fmt.Errorf("learn: listing existing IDs: %w", listErr)
+		return "", "", fmt.Errorf("learn: listing existing IDs: %w", listErr)
 	}
 
 	luhmann, idErr := nextLuhmannID(existing, args.Target, args.Position)
 	if idErr != nil {
-		return "", fmt.Errorf("learn: %w", idErr)
+		return "", "", fmt.Errorf("learn: %w", idErr)
 	}
 
 	when := deps.Now()
@@ -1009,16 +1036,35 @@ func writeLearnUnderLock(
 
 	content, contentErr := assembleLearnContent(args, luhmann, when, identity)
 	if contentErr != nil {
-		return "", fmt.Errorf("learn: %w", contentErr)
+		return "", "", fmt.Errorf("learn: %w", contentErr)
 	}
 
 	writeErr := deps.WriteNew(path, []byte(content))
 	if writeErr != nil {
-		return "", fmt.Errorf("learn: writing %s: %w", path, writeErr)
+		return "", "", fmt.Errorf("learn: writing %s: %w", path, writeErr)
 	}
 
 	autoEmbedNote(ctx, deps, path, content)
 	applyVocabAssignmentAfterLearn(deps, vault, path, content)
 
-	return path, nil
+	return path, content, nil
+}
+
+// writeLearnUnderLock acquires the vault lock and writes the new note under
+// it (writeLearnLocked).
+func writeLearnUnderLock(
+	ctx context.Context,
+	args LearnArgs,
+	deps LearnDeps,
+	vault string,
+) (string, error) {
+	release, lockErr := deps.Lock(vault)
+	if lockErr != nil {
+		return "", fmt.Errorf("learn: acquiring lock: %w", lockErr)
+	}
+	defer release()
+
+	path, _, err := writeLearnLocked(ctx, args, deps, vault)
+
+	return path, err
 }

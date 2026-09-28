@@ -52,8 +52,7 @@ func TestRunServe_RegistersAllRoutesAndClassifiesShutdownErr(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("listen failed")))
 
 	g.Expect(registered).To(Equal(map[string]bool{
-		"GET /query": true, "GET /query-chunks": true, "GET /show": true, "GET /show-chunk": true,
-		"POST /activate": true, "POST /learn": true, "POST /amend": true,
+		"GET /query": true, "GET /show": true, "POST /activate": true, "POST /learn": true,
 	}))
 
 	// ctx canceled: the SAME ListenAndServe error is treated as expected
@@ -94,94 +93,6 @@ func TestServeActivate_CommitsDirectly(t *testing.T) {
 	sidecar, unmarshalErr := embed.UnmarshalSidecar(raw)
 	g.Expect(unmarshalErr).NotTo(HaveOccurred())
 	g.Expect(sidecar.LastUsed).To(Equal(time.Now().Format("2006-01-02")))
-}
-
-// TestServeAmend_DiscardIsAlwaysBlocked covers the server-side half of the
-// vault-offer-curation discard guard: a client-supplied "discard": true in
-// the POST body must never delete an arbitrary vault note — serveAmend
-// forces Discard false after decode (discard is host-local curation only,
-// per design.md's "never crosses the wire" decision), so the note survives
-// and is instead handled as a normal served amend (pending offer).
-func TestServeAmend_DiscardIsAlwaysBlocked(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	notePath := writeServeVaultFile(t, vault, "5.2026-01-01.existing.md")
-
-	deps := newTestDeps(io.Discard, io.Discard)
-	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
-
-	body, marshalErr := json.Marshal(map[string]any{"target": "5", "discard": true, "user": "declared@example.com"})
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	resp := routeFor(t, routes, "/amend").Serve(t.Context(), cli.ServeRequest{Body: body})
-
-	g.Expect(resp.Status).To(Equal(200))
-
-	raw, readErr := os.ReadFile(notePath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(string(raw)).To(ContainSubstring("pending: true"))
-}
-
-// TestServeAmend_EmptyDeclaredIdentity_Rejected covers the identity floor
-// (serve-client-declared-identity): a served amend whose body carries no
-// (or an empty) user: value is refused before any write happens — no
-// edge-authentication header is consulted at all.
-func TestServeAmend_EmptyDeclaredIdentity_Rejected(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	notePath := writeServeVaultFile(t, vault, "5.2026-01-01.existing.md")
-
-	deps := newTestDeps(io.Discard, io.Discard)
-	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
-
-	body, marshalErr := json.Marshal(cli.AmendArgs{Target: "5", Object: "amended-object"})
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	resp := routeFor(t, routes, "/amend").Serve(t.Context(), cli.ServeRequest{Body: body})
-	g.Expect(resp.Status).To(Equal(400))
-
-	raw, readErr := os.ReadFile(notePath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(string(raw)).NotTo(ContainSubstring("amended-object"), "no write happens when identity is empty")
-}
-
-// TestServeAmend_StampsClientDeclaredIdentityAndPendingMarker covers POST
-// /amend: same identity/pending contract as learn, applied to an existing
-// note. No edge-authentication header is sent at all — the declared user:
-// value in the body is trusted directly (serve-client-declared-identity).
-func TestServeAmend_StampsClientDeclaredIdentityAndPendingMarker(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	writeServeVaultFile(t, vault, "5.2026-01-01.existing.md")
-
-	deps := newTestDeps(io.Discard, io.Discard)
-	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
-
-	args := cli.AmendArgs{
-		Target: "5", Object: "amended-object",
-		Repo: "git@github.com:example/remote.git", User: "declared-user@example.com",
-	}
-	body, marshalErr := json.Marshal(args)
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	resp := routeFor(t, routes, "/amend").Serve(t.Context(), cli.ServeRequest{Body: body})
-
-	g.Expect(resp.Status).To(Equal(200))
-
-	raw, readErr := os.ReadFile(filepath.Join(vault, "5.2026-01-01.existing.md"))
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	written := string(raw)
-	g.Expect(written).To(ContainSubstring("user: declared-user@example.com"))
-	g.Expect(written).To(ContainSubstring("repo: git@github.com:example/remote.git"))
-	g.Expect(written).To(ContainSubstring("pending: true"))
-	g.Expect(written).To(ContainSubstring("object: amended-object"))
 }
 
 // TestServeLearn_ConcurrentWithLocalLearn_NoLostUpdate covers tasks.md
@@ -344,8 +255,8 @@ func TestServeLearn_IgnoresSkillIdentityFields(t *testing.T) {
 // own configured Vault wins over anything in the request, user: comes from
 // the request body's client-declared value (no edge-authentication header
 // involved at all), repo: passes through the client-supplied value
-// unchanged, the note lands pending: true, and the response is a
-// {status, luhmann} receipt that never carries note content.
+// unchanged, the note lands pending: true, and the response is the offer
+// receipt, which never carries note content.
 func TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -373,7 +284,7 @@ func TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker(t *testing.T) {
 	g.Expect(json.Unmarshal(resp.Body, &receipt)).To(Succeed())
 	g.Expect(receipt.Status).To(Equal("offer received"))
 	g.Expect(receipt.Luhmann).NotTo(BeEmpty())
-	g.Expect(string(resp.Body)).NotTo(ContainSubstring("served-fact"), "response never leaks note content")
+	g.Expect(string(resp.Body)).NotTo(ContainSubstring("a served write"), "response never leaks note content")
 
 	matches, globErr := filepath.Glob(filepath.Join(vault, "*.md"))
 	g.Expect(globErr).NotTo(HaveOccurred())
@@ -392,25 +303,6 @@ func TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker(t *testing.T) {
 	g.Expect(written).To(ContainSubstring("pending: true"))
 	g.Expect(written).To(ContainSubstring("vault: personal"),
 		"empty VaultName falls back to the server's configured value")
-}
-
-// TestServeQueryChunks_EmptyIndexSucceeds covers GET /query-chunks: an
-// empty chunks dir is a valid, successful (not error) response — matches
-// RunChunkQuery's own "empty index: emit the empty payload without waking
-// the embedder" documented behavior.
-func TestServeQueryChunks_EmptyIndexSucceeds(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := newTestDeps(io.Discard, io.Discard)
-	routes := cli.ServeRoutes(deps, t.TempDir(), "personal", t.TempDir())
-
-	resp := routeFor(t, routes, "/query-chunks").Serve(t.Context(), cli.ServeRequest{
-		Query: map[string][]string{"phrase": {"anything"}, "limit": {"3"}},
-	})
-
-	g.Expect(resp.Status).To(Equal(200))
-	g.Expect(string(resp.Body)).To(ContainSubstring("total_chunks: 0"))
 }
 
 // TestServeQuery_ExcludesPendingOffersAndSetsModelID covers GET /query:
@@ -505,10 +397,10 @@ func TestServeQuery_TextCappedAtTwoKB(t *testing.T) {
 	}
 }
 
-// TestServeRoutes_MethodsAndPatterns covers the API contract's route table:
-// the four read routes are GET, the three write routes are POST, and no
-// host-only command (ingest/vocab refit/prune/check/update/resituate) gets
-// a route.
+// TestServeRoutes_MethodsAndPatterns covers the API contract's route table
+// (design D7): exactly query and show (GET) and activate and learn (POST).
+// No other command — amend, query-chunks, show-chunk, or any host-only
+// command — gets a route.
 func TestServeRoutes_MethodsAndPatterns(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -522,37 +414,11 @@ func TestServeRoutes_MethodsAndPatterns(t *testing.T) {
 	}
 
 	g.Expect(got).To(Equal(map[string]string{
-		"/query":        "GET",
-		"/query-chunks": "GET",
-		"/show":         "GET",
-		"/show-chunk":   "GET",
-		"/activate":     "POST",
-		"/learn":        "POST",
-		"/amend":        "POST",
+		"/query":    "GET",
+		"/show":     "GET",
+		"/activate": "POST",
+		"/learn":    "POST",
 	}))
-}
-
-// TestServeShowChunk_NotFoundReturnsError covers GET /show-chunk: an
-// unmatched chunk id surfaces as a 500 JSON error body, not a panic or a
-// silently-empty success.
-func TestServeShowChunk_NotFoundReturnsError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := newTestDeps(io.Discard, io.Discard)
-	routes := cli.ServeRoutes(deps, t.TempDir(), "personal", t.TempDir())
-
-	resp := routeFor(t, routes, "/show-chunk").Serve(t.Context(), cli.ServeRequest{
-		Query: map[string][]string{"id": {"missing#anchor"}},
-	})
-
-	g.Expect(resp.Status).To(Equal(500))
-
-	var errBody struct {
-		Error string `json:"error"`
-	}
-	g.Expect(json.Unmarshal(resp.Body, &errBody)).To(Succeed())
-	g.Expect(errBody.Error).NotTo(BeEmpty())
 }
 
 // TestServeShow_MatchesLocalOutput covers GET /show: response matches

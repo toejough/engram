@@ -432,11 +432,19 @@ type queryItem struct {
 	// rather than the local vault (vault-merged-recall) — always false,
 	// omitted from non-merged payloads.
 	FromParent bool `yaml:"from_parent,omitempty"`
+	// ExchangeHash and Aliases are a note item's dedupe keys (design D7):
+	// set only on a served query asked for dedupe-keys=1, omitted
+	// everywhere else.
+	ExchangeHash string   `yaml:"exchange_hash,omitempty"`
+	Aliases      []string `yaml:"aliases,omitempty"`
 }
 
 // queryPayload is the top-level YAML document.
 type queryPayload struct {
 	Version int `yaml:"version"`
+	// VaultID is the served vault's ID (design D7): set only on a served
+	// query asked for dedupe-keys=1, omitted everywhere else.
+	VaultID string `yaml:"vault_id,omitempty"`
 	// PendingOffers is true when the vault holds at least one pending-offer
 	// note awaiting curation (vault-offer-curation) — computed fresh on
 	// every call, local and served alike. It and its hint are declared before

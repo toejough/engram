@@ -6,9 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strconv"
-	"strings"
 	"unicode/utf8"
 )
 
@@ -119,21 +117,20 @@ func RunServe(ctx context.Context, args ServeArgs, deps Deps) error {
 }
 
 // ServeRoutes composes the served command set's HTTP routes (vault-serve-
-// api): the four read-only GET routes and the three write POST routes.
-// Every handler calls the existing Run* function for its command directly
-// — no reimplementation of command logic here (tasks.md 2.2) — sharing the
-// CLI's existing vault locks (ADR-0013). vault/vaultName/chunksDir are
-// resolved once by RunServe and baked into every handler closure; a served
-// request can never redirect the server at a different vault path.
+// api, design D7): exactly query and show (GET) and activate and learn
+// (POST). amend, query-chunks and show-chunk have no route — children offer
+// amendments through learn, and chunks never cross vaults. Every handler
+// calls the existing code path for its command — no reimplementation of
+// command logic here (tasks.md 2.2) — sharing the CLI's existing vault
+// locks (ADR-0013). vault/vaultName/chunksDir are resolved once by RunServe
+// and baked into every handler closure; a served request can never redirect
+// the server at a different vault path.
 func ServeRoutes(deps Deps, vault, vaultName, chunksDir string) []ServeRoute {
 	return []ServeRoute{
 		{Method: methodGet, Pattern: "/query", Handler: serveQuery(deps, vault, chunksDir)},
-		{Method: methodGet, Pattern: "/query-chunks", Handler: serveQueryChunks(deps, chunksDir)},
 		{Method: methodGet, Pattern: "/show", Handler: serveShow(deps, vault)},
-		{Method: methodGet, Pattern: "/show-chunk", Handler: serveShowChunk(deps, chunksDir)},
 		{Method: methodPost, Pattern: "/activate", Handler: serveActivate(deps, vault)},
 		{Method: methodPost, Pattern: "/learn", Handler: serveLearn(deps, vault, vaultName)},
-		{Method: methodPost, Pattern: "/amend", Handler: serveAmend(deps, vault, vaultName, chunksDir)},
 	}
 }
 
@@ -146,14 +143,16 @@ const (
 	offerReceivedStatus       = "offer received"
 	okStatus                  = "ok"
 	statusBadRequest          = 400
+	statusConflict            = 409
 	statusInternalServerError = 500
+	statusNotFound            = 404
 	statusOK                  = 200
 )
 
 // unexported variables.
 var (
 	// errServeEmptyIdentity guards the identity floor (serve-client-
-	// declared-identity): a served learn/amend must claim SOME identity —
+	// declared-identity): a served learn must claim SOME identity —
 	// the server trusts whatever is declared (no edge-authentication header
 	// required or consulted), but an empty claim is refused outright.
 	errServeEmptyIdentity = errors.New("serve: user: must be non-empty")
@@ -167,15 +166,6 @@ type activateRequest struct {
 // errResponse is the JSON response body for any served-route failure.
 type errResponse struct {
 	Error string `json:"error"`
-}
-
-// offerReceipt is the JSON response body for a served learn/amend that
-// created a pending offer — deliberately never the note content (design.md
-// API Contract): fire-and-forget, the offering caller never learns the
-// curation outcome.
-type offerReceipt struct {
-	Status  string `json:"status"`
-	Luhmann string `json:"luhmann"`
 }
 
 // okResponse is the JSON response body for a served activate that
@@ -235,6 +225,14 @@ func intQueryParam(query map[string][]string, key string) int {
 	return n
 }
 
+// jsonBodyResponse marshals body under 200. Every caller passes a struct of
+// plain string and bool fields, which never fails to encode.
+func jsonBodyResponse(body any) ServeResponse {
+	encoded, _ := json.Marshal(body) //nolint:errchkjson // see doc comment
+
+	return ServeResponse{Status: statusOK, Body: encoded}
+}
+
 // jsonErrorResponse marshals err into an errResponse body under status.
 func jsonErrorResponse(status int, err error) ServeResponse {
 	//nolint:errchkjson // a plain string field never fails to encode
@@ -246,36 +244,6 @@ func jsonErrorResponse(status int, err error) ServeResponse {
 // jsonOKResponse marshals a plain okResponse body under 200.
 func jsonOKResponse() ServeResponse {
 	body, _ := json.Marshal(okResponse{Status: okStatus}) //nolint:errchkjson // a plain string field never fails to encode
-
-	return ServeResponse{Status: statusOK, Body: body}
-}
-
-// luhmannFromNotePath extracts the leading Luhmann-ID segment from a note
-// path printed by RunLearn/RunAmend (learnPath's "<luhmann>.<date>.<slug>.md"
-// convention — the ID is always the first dot-separated component).
-func luhmannFromNotePath(path string) string {
-	base := filepath.Base(path)
-
-	id, _, found := strings.Cut(base, ".")
-	if !found {
-		return base
-	}
-
-	return id
-}
-
-// offerReceiptResponse builds the {status, luhmann} response for a served
-// learn/amend that created a pending offer (design.md API Contract) —
-// deliberately never the note content, extracting only the Luhmann ID from
-// the path RunLearn/RunAmend printed to their captured stdout buffer.
-func offerReceiptResponse(printedPath []byte) ServeResponse {
-	path := strings.TrimSpace(string(printedPath))
-
-	//nolint:errchkjson // plain string fields never fail to encode
-	body, _ := json.Marshal(offerReceipt{
-		Status:  offerReceivedStatus,
-		Luhmann: luhmannFromNotePath(path),
-	})
 
 	return ServeResponse{Status: statusOK, Body: body}
 }
@@ -303,63 +271,18 @@ func serveActivate(deps Deps, vault string) ServeHandler {
 	})
 }
 
-// serveAmend handles POST /amend: an AmendArgs-shaped JSON body. Same
-// identity/repo/vaultName handling as serveLearn. The amended note is
-// marked a pending offer (Pending=&true) rather than left immediately live.
-func serveAmend(deps Deps, vault, vaultName, chunksDir string) ServeHandler {
-	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
-		var args AmendArgs
-
-		unmarshalErr := json.Unmarshal(req.Body, &args)
-		if unmarshalErr != nil {
-			return jsonErrorResponse(statusBadRequest, unmarshalErr)
-		}
-
-		identity := args.User
-		if identity == "" {
-			return jsonErrorResponse(statusBadRequest, errServeEmptyIdentity)
-		}
-
-		args.Vault = vault
-		if args.VaultName == "" {
-			args.VaultName = vaultName
-		}
-
-		args.ChunksDir = chunksDir
-		pending := true
-		args.Pending = &pending
-		// Discard is host-local only (vault-offer-curation's design: curation
-		// "never crosses the wire") — force false so a client body can never
-		// turn a served amend into a delete of an arbitrary vault note.
-		args.Discard = false
-
-		clientRepo := args.Repo
-		amendDeps := newAmendDeps(deps)
-		amendDeps.DetectUser = func(context.Context) string { return identity }
-		amendDeps.DetectRepo = func(context.Context) string { return clientRepo }
-
-		var buf bytes.Buffer
-
-		runErr := RunAmend(ctx, args, amendDeps, &buf)
-		if runErr != nil {
-			return jsonErrorResponse(statusInternalServerError, runErr)
-		}
-
-		return offerReceiptResponse(buf.Bytes())
-	})
-}
-
-// serveLearn handles POST /learn: a LearnArgs-shaped JSON body. The body's
-// own User field (client-detected, no verification — serve-client-declared-
-// identity) stamps user:, rejected outright when empty; its Repo field
-// (also client-detected, no privilege) passes through unchanged rather than
-// being re-detected server-side, which would resolve to the server
-// process's own repo context instead of the remote caller's (design.md
-// Decisions). Vault is forced to this server's configured value; VaultName
-// falls back to it when the client didn't supply one. Always lands as a
-// pending offer — never commits as an immediately-live note (vault-offer-
-// curation) — and the response never includes note content (design.md API
-// Contract).
+// serveLearn handles POST /learn: a LearnArgs-shaped JSON body, a child's
+// offer (design D7). The body's own User field (client-detected, no
+// verification — serve-client-declared-identity) stamps user:, rejected
+// outright when empty; its Repo field (also client-detected, no privilege)
+// passes through unchanged rather than being re-detected server-side, which
+// would resolve to the server process's own repo context instead of the
+// remote caller's. Vault is forced to this server's configured value;
+// VaultName falls back to it when the client didn't supply one. The offer
+// is validated first (400, or 409 for a cycle, with nothing written), then
+// lands as a pending offer — new, or the same origin's updated in place —
+// never as an immediately-live note (vault-offer-curation). The response is
+// the offer receipt, never note content.
 func serveLearn(deps Deps, vault, vaultName string) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
 		var args LearnArgs
@@ -369,9 +292,14 @@ func serveLearn(deps Deps, vault, vaultName string) ServeHandler {
 			return jsonErrorResponse(statusBadRequest, unmarshalErr)
 		}
 
-		identity := args.User
-		if identity == "" {
-			return jsonErrorResponse(statusBadRequest, errServeEmptyIdentity)
+		validateErr := validateServedLearn(args)
+		if validateErr != nil {
+			return jsonErrorResponse(statusBadRequest, validateErr)
+		}
+
+		vaultID, idErr := stampVaultID(exchangeStateFromDeps(deps), vault)
+		if idErr != nil {
+			return jsonErrorResponse(statusInternalServerError, idErr)
 		}
 
 		args.Vault = vault
@@ -379,28 +307,35 @@ func serveLearn(deps Deps, vault, vaultName string) ServeHandler {
 			args.VaultName = vaultName
 		}
 
-		args.Pending = true
-
-		clientRepo := args.Repo
+		identity, clientRepo := args.User, args.Repo
 		learnDeps := newLearnDeps(deps)
 		learnDeps.DetectUser = func(context.Context) string { return identity }
 		learnDeps.DetectRepo = func(context.Context) string { return clientRepo }
 
-		var buf bytes.Buffer
+		receipt, runErr := runServedLearn(ctx, args, servedLearnDeps{
+			learn:    learnDeps,
+			readFile: deps.FS.ReadFile,
+			mintXID:  func() (string, error) { return mintXID(deps.RandRead) },
+			vaultID:  vaultID,
+		})
 
-		runErr := RunLearn(ctx, args, learnDeps, &buf)
-		if runErr != nil {
+		switch {
+		case errors.Is(runErr, errOfferCycle):
+			return jsonErrorResponse(statusConflict, runErr)
+		case runErr != nil:
 			return jsonErrorResponse(statusInternalServerError, runErr)
 		}
 
-		return offerReceiptResponse(buf.Bytes())
+		return jsonBodyResponse(receipt)
 	})
 }
 
 // serveQuery handles GET /query: QueryArgs-shaped query params, response
 // byte-identical to a local `engram query` invocation (design.md API
 // Contract) — the handler captures RunQuery's stdout verbatim rather than
-// re-deriving the payload.
+// re-deriving the payload. With dedupe-keys=1 (design D7) the payload also
+// carries the vault ID and each note item's exchange hash and aliases, the
+// keys a child's merged query dedupes by.
 func serveQuery(deps Deps, vault, chunksDir string) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
 		args := QueryArgs{
@@ -423,60 +358,57 @@ func serveQuery(deps Deps, vault, chunksDir string) ServeHandler {
 			return jsonErrorResponse(statusInternalServerError, err)
 		}
 
-		return ServeResponse{Status: statusOK, Body: buf.Bytes()}
+		if !boolQueryParam(req.Query, "dedupe-keys") {
+			return ServeResponse{Status: statusOK, Body: buf.Bytes()}
+		}
+
+		keyed, keyErr := addDedupeKeys(deps, vault, buf.Bytes())
+		if keyErr != nil {
+			return jsonErrorResponse(statusInternalServerError, keyErr)
+		}
+
+		return ServeResponse{Status: statusOK, Body: keyed}
 	})
 }
 
-// serveQueryChunks handles GET /query-chunks: ChunkQueryArgs-shaped query
-// params, response shape matching local `engram query-chunks`.
-func serveQueryChunks(deps Deps, chunksDir string) ServeHandler {
-	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
-		args := ChunkQueryArgs{
-			Phrases:   req.Query["phrase"],
-			ChunksDir: chunksDir,
-			Limit:     intQueryParam(req.Query, "limit"),
-		}
-
-		var buf bytes.Buffer
-
-		err := RunChunkQuery(ctx, args, newChunkQueryDeps(deps), &buf)
-		if err != nil {
-			return jsonErrorResponse(statusInternalServerError, err)
-		}
-
-		return ServeResponse{Status: statusOK, Body: buf.Bytes()}
-	})
-}
-
-// serveShow handles GET /show?note=<ref>, response matching local `engram show`.
+// serveShow handles GET /show?note=<ref>, response matching local `engram
+// show`. With raw=1 (design D7 H7) it returns the note's raw JSON envelope
+// instead. A missing note is a 404.
 func serveShow(deps Deps, vault string) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
-		args := ShowArgs{Ref: firstQueryParam(req.Query, "note"), VaultPath: vault}
+		ref := firstQueryParam(req.Query, "note")
+
+		if boolQueryParam(req.Query, "raw") {
+			envelope, rawErr := rawShowEnvelope(deps, vault, ref)
+			if rawErr != nil {
+				return jsonErrorResponse(showErrorStatus(rawErr), rawErr)
+			}
+
+			return jsonBodyResponse(envelope)
+		}
+
+		args := ShowArgs{Ref: ref, VaultPath: vault}
 
 		var buf bytes.Buffer
 
 		err := RunShow(ctx, args, newShowDeps(deps), &buf)
 		if err != nil {
-			return jsonErrorResponse(statusInternalServerError, err)
+			return jsonErrorResponse(showErrorStatus(err), err)
 		}
 
 		return ServeResponse{Status: statusOK, Body: buf.Bytes()}
 	})
 }
 
-// serveShowChunk handles GET /show-chunk?id=<source#anchor>, response
-// matching local `engram show-chunk`.
-func serveShowChunk(deps Deps, chunksDir string) ServeHandler {
-	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
-		args := ShowChunkArgs{Ref: firstQueryParam(req.Query, "id"), ChunksDir: chunksDir}
-
-		var buf bytes.Buffer
-
-		err := RunShowChunk(ctx, args, newShowChunkDeps(deps), &buf)
-		if err != nil {
-			return jsonErrorResponse(statusInternalServerError, err)
-		}
-
-		return ServeResponse{Status: statusOK, Body: buf.Bytes()}
-	})
+// showErrorStatus maps a show failure to its HTTP status: a missing note is
+// a 404, an empty ref a 400, anything else a 500.
+func showErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, errShowNoteNotFound):
+		return statusNotFound
+	case errors.Is(err, errShowEmptyRef):
+		return statusBadRequest
+	default:
+		return statusInternalServerError
+	}
 }

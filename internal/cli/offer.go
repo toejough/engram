@@ -43,7 +43,7 @@ const (
 )
 
 // excludePendingOffers filters notes down to those NOT carrying the
-// pending-offer marker (vault-offer-curation), so served writes awaiting
+// pending-offer marker (vault-offer-curation), so offered notes awaiting
 // curation never surface in normal query results. Returns the filtered
 // slice and whether at least one pending offer was found — computed in one
 // pass (single read per note) so query pays no extra I/O for the
@@ -78,13 +78,10 @@ func excludePendingOffers(
 	return kept, anyPending
 }
 
-// noteHasPendingMarker reports whether raw is a pending offer: a fact or
-// feedback note carrying frontmatter `pending: true`, or a runbook note
-// carrying both `pending: true` and a non-empty `skill_hash` (a pending
-// skill-registration offer — vault-offer-curation, skill-runbook-registration).
-// A runbook note with `pending: true` but no `skill_hash` is NOT a pending
-// offer — unchanged behavior, so a stray pending flag on an ordinary
-// hand-edited runbook doesn't vanish from query results. Any other note type
+// noteHasPendingMarker reports whether raw is a pending offer: a fact,
+// feedback or runbook note carrying frontmatter `pending: true`, whether or
+// not it carries `skill_hash` (vault-offer-curation "The pending-offer
+// marker SHALL apply to every note type", design D7 G1). Any other note type
 // (e.g. vocab definitions) and unparseable content report false.
 func noteHasPendingMarker(raw []byte) bool {
 	frontmatter, ok := splitFrontmatter(raw)
@@ -98,19 +95,10 @@ func noteHasPendingMarker(raw []byte) bool {
 	}
 
 	var probe struct {
-		Pending   bool   `yaml:"pending"`
-		SkillHash string `yaml:"skill_hash"`
+		Pending bool `yaml:"pending"`
 	}
 
-	if yaml.Unmarshal(frontmatter, &probe) != nil || !probe.Pending {
-		return false
-	}
-
-	if noteType == typeRunbook {
-		return probe.SkillHash != ""
-	}
-
-	return true
+	return yaml.Unmarshal(frontmatter, &probe) == nil && probe.Pending
 }
 
 // notesHavePendingOfferByName scans names-in-hand (a vault ListMD result)
@@ -145,9 +133,9 @@ func pendingOffersHint(pending bool) string {
 	return ""
 }
 
-// vaultHasPendingOffers reports whether vaultPath holds at least one
-// fact/feedback note carrying the pending-offer marker — the signal that a
-// served learn/amend write is awaiting curation. Stateless and unbatched (a
+// vaultHasPendingOffers reports whether vaultPath holds at least one note
+// carrying the pending-offer marker — the signal that
+// an offered or pulled-down note is awaiting curation. Stateless and unbatched (a
 // fresh scan every call, nothing persisted), deliberately not the
 // vocab-refit trigger's stateful/batched shape (design.md Decisions):
 // offers are lower-volume and costlier to leave silently stale. A

@@ -707,6 +707,9 @@ func ExportNewPruneDeps(d Deps) PruneDeps { return newPruneDeps(d) }
 // ExportNewQaDeps exposes the pure Deps→LearnQADeps composition for tests.
 func ExportNewQaDeps(d Deps) LearnQADeps { return newQaDeps(d) }
 
+// ExportNewQueryDeps exposes the pure Deps→QueryDeps composition for tests.
+func ExportNewQueryDeps(d Deps) QueryDeps { return newQueryDeps(d) }
+
 // ExportNewRecencyParams builds a recencyParams for tests.
 func ExportNewRecencyParams(halfLifeDays, tailWeight float64, floor int) recencyParams {
 	return recencyParams{halfLifeDays: halfLifeDays, tailWeight: tailWeight, floor: floor}

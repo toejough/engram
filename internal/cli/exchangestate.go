@@ -50,11 +50,11 @@ const (
 // unexported variables.
 var (
 	errNoVaultIDToClaim = errors.New("vault-id --claim: this vault has no vault ID yet")
+	errShortRandomRead  = errors.New("short random read")
 	errVaultIDInvalid   = errors.New("invalid vault id: .engram-vault-id must hold 32 lowercase hex characters " +
 		"(empty or corrupt after a partial write or a git conflict?) — run `engram vault-id --regenerate`")
 	errVaultIDRereadGave = errors.New("vault id: .engram-vault-id is empty or corrupt " +
 		"(a partial write or a git conflict?) — run `engram vault-id --regenerate`")
-	errVaultIDShortRead = errors.New("vault id: short random read")
 )
 
 // exchangeState is the exchange-state adapter: the vault-ID file, the
@@ -233,21 +233,44 @@ func exchangeStateFromDeps(deps Deps) exchangeState {
 	return newExchangeState(deps.FS, deps.RandRead, deps.EvalSymlinks, deps.Getwd)
 }
 
-// mintVaultID draws vaultIDBytes from the injected random source and
-// returns them hex-encoded (32 lowercase hex characters).
-func mintVaultID(randRead func([]byte) (int, error)) (string, error) {
+// isExchangeID reports whether id is an exchange identifier — a vault ID
+// or an xid: exactly 32 lowercase hex characters.
+func isExchangeID(id string) bool {
+	if len(id) != vaultIDHexLen || strings.ToLower(id) != id {
+		return false
+	}
+
+	_, decodeErr := hex.DecodeString(id)
+
+	return decodeErr == nil
+}
+
+// mintExchangeID draws vaultIDBytes from the injected random source and
+// returns them hex-encoded (32 lowercase hex characters); label names the
+// identifier in errors.
+func mintExchangeID(randRead func([]byte) (int, error), label string) (string, error) {
 	raw := make([]byte, vaultIDBytes)
 
 	read, readErr := randRead(raw)
 	if readErr != nil {
-		return "", fmt.Errorf("vault id: random source: %w", readErr)
+		return "", fmt.Errorf("%s: random source: %w", label, readErr)
 	}
 
 	if read != vaultIDBytes {
-		return "", errVaultIDShortRead
+		return "", fmt.Errorf("%s: %w", label, errShortRandomRead)
 	}
 
 	return hex.EncodeToString(raw), nil
+}
+
+// mintVaultID mints a new vault ID (design D2).
+func mintVaultID(randRead func([]byte) (int, error)) (string, error) {
+	return mintExchangeID(randRead, "vault id")
+}
+
+// mintXID mints a note's exchange ID (design D4).
+func mintXID(randRead func([]byte) (int, error)) (string, error) {
+	return mintExchangeID(randRead, "xid")
 }
 
 func newExchangeState(
@@ -263,12 +286,7 @@ func newExchangeState(
 // tolerated) as exactly 32 lowercase hex characters.
 func parseVaultID(raw []byte) (string, error) {
 	id := strings.TrimSpace(string(raw))
-	if len(id) != vaultIDHexLen || strings.ToLower(id) != id {
-		return "", errVaultIDInvalid
-	}
-
-	_, decodeErr := hex.DecodeString(id)
-	if decodeErr != nil {
+	if !isExchangeID(id) {
 		return "", errVaultIDInvalid
 	}
 
