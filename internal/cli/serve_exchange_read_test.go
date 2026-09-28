@@ -91,6 +91,54 @@ func TestServeQuery_DedupeKeysOnlyOnRequest(t *testing.T) {
 	g.Expect(string(keyed.Body)).NotTo(MatchRegexp(`(?m)^\s+aliases: \[\]`), "an empty aliases list is omitted")
 }
 
+// TestServeQuery_DedupeKeysSkipUnhashableNote: a note whose exchange hash
+// cannot be computed loses only its own keys (with a warning); the query
+// still succeeds and every other note keeps its keys.
+func TestServeQuery_DedupeKeysSkipUnhashableNote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newServeVault(t)
+
+	var stderr bytes.Buffer
+
+	deps := serveTestDeps()
+	deps.Stderr = &stderr
+
+	learnLocal(t, deps, vault, cli.LearnArgs{
+		Type: "fact", Slug: "good-note", Position: "top", Source: "local",
+		Situation: "dedupe coverage good", Subject: "engram", Predicate: "hashes", Object: "notes",
+	})
+	learnLocal(t, deps, vault, cli.LearnArgs{
+		Type: "fact", Slug: "odd-note", Position: "top", Source: "local",
+		Situation: "dedupe coverage odd", Subject: "engram", Predicate: "hashes", Object: "oddly",
+	})
+	addFrontmatterLines(t, noteFileWithSuffix(t, vault, "odd-note.md"), "triggers: not-a-list\n")
+
+	routes := cli.ServeRoutes(deps, vault, "personal", "")
+	resp := routeFor(t, routes, "/query").Serve(t.Context(), cli.ServeRequest{
+		Query: map[string][]string{"phrase": {"dedupe coverage"}, "dedupe-keys": {"1"}},
+	})
+	g.Expect(resp.Status).To(Equal(200), string(resp.Body))
+
+	var payload struct {
+		Items []struct {
+			Path         string `yaml:"path"`
+			ExchangeHash string `yaml:"exchange_hash"`
+		} `yaml:"items"`
+	}
+	g.Expect(yaml.Unmarshal(resp.Body, &payload)).To(Succeed())
+
+	hashes := map[string]string{}
+	for _, item := range payload.Items {
+		hashes[item.Path] = item.ExchangeHash
+	}
+
+	g.Expect(hashes).To(HaveKeyWithValue(ContainSubstring("odd-note"), BeEmpty()))
+	g.Expect(hashes).To(HaveKeyWithValue(ContainSubstring("good-note"), HavePrefix("xh1:")))
+	g.Expect(stderr.String()).To(ContainSubstring("odd-note"))
+}
+
 // TestServeShow_ErrorStatuses: an empty ref is a 400; a listed note that
 // cannot be read, or whose frontmatter cannot be parsed for its exchange
 // hash, is a 500 — never a 404 or a partial envelope.

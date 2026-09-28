@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
-### Requirement: Served learn SHALL return an offer receipt naming the pending note and the vault
+### Requirement: Served learn SHALL return an offer receipt naming the note and the vault
 A served `learn` response SHALL be a JSON object carrying:
 - `status`: `offer received`;
-- `luhmann`: the pending note's Luhmann ID;
-- `basename`: the pending note's basename, without `.md`;
-- `pending`: `true`;
+- `luhmann`: the Luhmann ID of the note the offer landed on;
+- `basename`: that note's basename, without `.md`;
+- `pending`: that note's true pending state — `true` for a pending offer, `false` when a retry matched an already-accepted live note;
 - `vault_id`: the served vault's ID (capability `vault-local-first`);
 - `stored_hash`: the exchange hash of the note as stored;
 - `for`: the resolved live target's basename, present only when the offer resolved to a live note.
@@ -20,11 +20,13 @@ It SHALL NOT report any curation outcome (capability `vault-offer-curation`).
 A served `learn` request MAY carry `offer.origin`, `offer.key`, `offer.for`, and `offer.path`. The server SHALL answer 400, and SHALL write nothing, in any of these cases:
 - `offer.path` has more than 16 entries;
 - any entry of `offer.path` is not exactly 32 lowercase hexadecimal characters;
-- `offer.origin` is not two such 32-character identifiers joined by `:`.
+- `offer.origin` is not two such 32-character identifiers joined by `:`;
+- `offer.key` or `offer.path` is present without `offer.origin`.
 
 The server SHALL refuse the request with a 409, and SHALL write nothing, when its own vault ID is already in `offer.path`. Otherwise it SHALL do all of the following in one locked section: the lookup, any rewrite, any re-embed, and building the receipt. It SHALL check these cases in order:
-1. **A pending note carries the same `offer.origin`.** When its `offer.key` also matches, the server SHALL write nothing and SHALL return its receipt. Otherwise it SHALL rewrite that pending note's content, `offer.key`, and `offer.path` in place (the note stays pending and keeps its basename), SHALL re-embed it when its exchange hash changed, and SHALL return its receipt.
-2. **A live note carries the same `offer.origin`** (an accepted offer). When the `offer.key` matches, the server SHALL write nothing and SHALL return that live note's receipt. Otherwise it SHALL write a new pending note whose `offer.for` names that live note.
+0. **Any note, live or pending, carries the same non-empty `offer.key`** (a retry). The server SHALL write nothing and SHALL return that note's receipt. This check comes first, so a late retry of an already-accepted key never rewrites a newer same-origin pending amend.
+1. **A pending note carries the same `offer.origin`.** The server SHALL rewrite that pending note's content, `offer.key`, and `offer.path` in place (the note stays pending and keeps its basename), SHALL re-embed it when its exchange hash changed, and SHALL return its receipt.
+2. **A live note carries the same `offer.origin`** (an accepted offer, with a new key). The server SHALL write a new pending note whose `offer.for` names that live note.
 3. **Otherwise**, `offer.for` SHALL be resolved against live notes' basenames, then their `aliases`, then pending notes.
    - A resolved **pending note of a different origin** SHALL NOT be modified. The server SHALL write a new pending note whose `offer.for` names it.
    - A resolved live note E SHALL be left unchanged and live. The server SHALL write a new pending note with `offer.for: E`, and SHALL report `for: E` in the receipt.
@@ -42,7 +44,15 @@ The server SHALL place every new pending note at top level, ignoring any caller-
 
 #### Scenario: A retry after acceptance writes nothing
 - **WHEN** an offer was accepted (its note is live and still carries `offer.origin`), and the same offer is retried with the same key
-- **THEN** the response is the live note's receipt, and no pending note is created
+- **THEN** the response is the live note's receipt with `pending: false`, and no pending note is created
+
+#### Scenario: A late retry never reverts a newer amend
+- **WHEN** an accepted live note carries `offer.origin` O and `offer.key` K1, a newer pending amend from O carries `offer.key` K2, and a retry of O with K1 arrives late
+- **THEN** the response is the live note's receipt, and the pending amend is unchanged — no vault file changes
+
+#### Scenario: A key without an origin is rejected
+- **WHEN** a served `learn` arrives whose offer carries `offer.key` or `offer.path` but no `offer.origin`
+- **THEN** the response is a 400, and nothing is written
 
 #### Scenario: No cross-origin overwrite
 - **WHEN** an offer from origin B names, in `offer.for`, a pending note that came from origin A

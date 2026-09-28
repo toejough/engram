@@ -270,7 +270,7 @@ On the child, the outbox is keyed by `xid`, which is rename-stable, so a child-s
   - Success resets `failures`.
   - A 4xx marks the entry `rejected` with its `rejected_hash`, and the drain continues. The entry re-arms only when the note's exchange hash changes.
 - **Reporting.** `engram update` prints a notify-only outbox notice: the count, the oldest entry's age, the rejected entries, and the backoff state.
-- **Receipt.** The receipt is `{status, luhmann, basename, pending: true, vault_id, stored_hash, for?}` (D7).
+- **Receipt.** The receipt is `{status, luhmann, basename, pending, vault_id, stored_hash, for?}` (D7). `pending` is the note's true state: `false` when a retry matched an already-accepted live note.
   - Under the lock, the receipt sets `parent.vault` and makes `{note: basename, via: offered, hash: <stored_hash>}` the primary link. The send/apply change check still compares the note's current hash with the hash that was *sent*.
   - When `for` is present, the primary becomes the resolved target's basename (H3).
   - The write is frontmatter-only: no re-embed and no identity re-stamp.
@@ -292,22 +292,21 @@ The served set becomes `query`, `show`, `activate` and `learn`:
 A served learn is handled as follows:
 
 - **Placement.** The server ignores `target`/`position` and places the note at top level (G8).
-- **Input validation (r4 L-C).** `offer.path` may hold at most 16 entries, and each entry must be exactly 32 lowercase hex characters. `offer.origin` must be `<32 hex>:<32 hex>`. Anything else gets a 400 and nothing is written. A 400 is a 4xx, so the child marks the entry rejected.
+- **Input validation (r4 L-C).** `offer.path` may hold at most 16 entries, and each entry must be exactly 32 lowercase hex characters. `offer.origin` must be `<32 hex>:<32 hex>`, and `offer.key`/`offer.path` require an `offer.origin`. Anything else gets a 400 and nothing is written. A 400 is a 4xx, so the child marks the entry rejected.
 - **Loop refusal (r3-7).** `offer.path` lists every vault ID the offer has already passed through. The child sends `[own id]`, and propagation (D12) appends the propagating vault's ID. A server whose own ID is already in `offer.path` answers 409 and writes nothing. This covers misconfigured cycles of three or more vaults. A 409 is a 4xx, so the child marks the entry rejected.
 - **Origin matching (H3, r3-3, r3-7).** All of the following happens in **one locked section**: the lookup, the rewrite, the re-embed, and building the receipt. The server checks these cases in order:
+  0. **Idempotency first: any note, live or pending, with the same non-empty `offer.key`.** Write nothing and return that note's receipt. This comes before the origin cases, so a late retry of an already-accepted key can never rewrite a newer same-origin pending amend back to old content (data loss).
   1. **A pending note with the same `offer.origin`.**
-     - If its `offer.key` also matches, write nothing and return its receipt.
-     - Otherwise rewrite that pending note in place: its content, `offer.key` and `offer.path`. It stays pending and keeps its basename.
+     - Rewrite that pending note in place: its content, `offer.key` and `offer.path`. It stays pending and keeps its basename.
      - **Re-embed it** when its exchange hash changed.
      - Return its receipt.
-  2. **A live note with the same `offer.origin`** (an offer already accepted, since `offer` survives acceptance).
-     - If the `offer.key` matches, write nothing and return that live note's receipt. This is a retry after acceptance, and it must not create a second pending offer.
-     - Otherwise write a new pending note with `offer.for` pointing at that live note.
+  2. **A live note with the same `offer.origin`** (an offer already accepted, since `offer` survives acceptance) and a new key. A same-key retry after acceptance was already answered by case 0 and creates no second pending offer.
+     - Write a new pending note with `offer.for` pointing at that live note.
   3. **Otherwise, resolve `offer.for`** against live basenames, then live notes' `aliases`, then pending notes.
      - If it resolves to a **pending note of a different origin**, the server does **not** overwrite it. It writes a new pending note whose `offer.for` names that pending note (no cross-origin overwrite).
      - If it resolves to a live note, the server writes a new pending note whose `offer.for` names it.
      - If it doesn't resolve, `offer.for` is dropped and the offer becomes a new pending note.
-- **Receipt.** `{status: "offer received", luhmann, basename, pending: true, vault_id, stored_hash, for}`. `stored_hash` is the exchange hash of what the server stored. `for` is the resolved **live** target's basename, when there is one.
+- **Receipt.** `{status: "offer received", luhmann, basename, pending, vault_id, stored_hash, for}`. `pending` is the note's true state: `true` for a pending offer, `false` when a retry matched an already-accepted live note. `stored_hash` is the exchange hash of what the server stored. `for` is the resolved **live** target's basename, when there is one.
 - **Pending detection (G1).** Any note type with `pending: true` is pending. The real vault was checked read-only on 2026-09-27 and holds zero pending notes.
 - **Wire safety.** `LearnArgs` carries `Parent`, `Aliases`, `Xid`, `SkillHash`, `SkillKey` and `SkillSource` as `json:"-"`. The only new remote-settable fields are `offer.{origin,key,for,path}`, and they land only on pending notes, which curation reviews.
 

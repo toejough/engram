@@ -124,6 +124,43 @@ func TestServeLearn_AmendBeforeCurationUpdatesInPlace(t *testing.T) {
 	g.Expect(noteFiles(t, vault)).To(HaveLen(1), "no second pending note")
 }
 
+// TestServeLearn_ConcurrentSameOriginLeavesOnePending: same-origin offers
+// racing each other through the served learn leave exactly one pending note
+// (the lookup and the write share one locked section).
+func TestServeLearn_ConcurrentSameOriginLeavesOnePending(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newServeVault(t)
+	deps := serveTestDeps()
+
+	const racers = 6
+
+	var wg sync.WaitGroup
+
+	statuses := make([]int, racers)
+
+	for index := range racers {
+		wg.Add(1)
+
+		go func(index int) {
+			defer wg.Done()
+
+			args := offeredFact("raced", fmt.Sprintf("object-%d", index),
+				offerOf(childOrigin, fmt.Sprintf("key-%d", index), "", childVaultID))
+			statuses[index] = serveLearnWith(t, deps, vault, args).Status
+		}(index)
+	}
+
+	wg.Wait()
+
+	for _, status := range statuses {
+		g.Expect(status).To(Equal(200))
+	}
+
+	g.Expect(noteFiles(t, vault)).To(HaveLen(1), "exactly one pending note for one origin")
+}
+
 // TestServeLearn_DuplicateKeyWritesNothing: the same origin and key as an
 // existing pending note return that note's receipt and change no file.
 func TestServeLearn_DuplicateKeyWritesNothing(t *testing.T) {
@@ -282,6 +319,8 @@ func TestServeLearn_InvalidOfferIsRejected(t *testing.T) {
 		{"origin without separator", offerOf(childVaultID+childXID, "k", ""), 400},
 		{"origin with a short half", offerOf(childVaultID+":abc", "k", ""), 400},
 		{"origin with three parts", offerOf(childOrigin+":"+childXID, "k", ""), 400},
+		{"key without origin", offerOf("", "k", ""), 400},
+		{"path without origin", offerOf("", "", "", childVaultID), 400},
 		{"cycle through this server", offerOf(childOrigin, "k", "", childVaultID, serverVaultID), 409},
 	}
 
@@ -305,6 +344,32 @@ func TestServeLearn_InvalidOfferIsRejected(t *testing.T) {
 			g.Expect(errBody.Error).NotTo(BeEmpty())
 		})
 	}
+}
+
+// TestServeLearn_LateRetryOfAcceptedKeyWritesNothing (idempotency first):
+// a late retry whose key was already recorded — here on an accepted live
+// note — returns that note's receipt and writes nothing, even though a newer
+// same-origin pending amend exists; it must never rewrite that amend back to
+// the old content.
+func TestServeLearn_LateRetryOfAcceptedKeyWritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newServeVault(t)
+	writeVaultNote(t, vault, "4.2026-01-04.accepted.md",
+		liveFactNote("4", "offer:\n  origin: "+childOrigin+"\n  key: key-one\n"))
+	writeVaultNote(t, vault, "5.2026-01-05.newer-amend.md",
+		pendingOfferFactNote("5", "offer:\n  origin: "+childOrigin+"\n  key: key-two\n"))
+
+	before := snapshotVault(t, vault)
+
+	resp := serveLearnRequest(t, vault, offeredFact("accepted", "old-content", offerOf(childOrigin, "key-one", "")))
+	g.Expect(resp.Status).To(Equal(200))
+	g.Expect(snapshotVault(t, vault)).To(Equal(before), "the newer pending amend is untouched")
+
+	receipt := decodeReceipt(t, resp)
+	g.Expect(receipt.Basename).To(Equal("4.2026-01-04.accepted"))
+	g.Expect(receipt.Pending).To(BeFalse())
 }
 
 // TestServeLearn_LockSpansLookupWriteEmbedReceipt: every note read (the
@@ -489,6 +554,25 @@ func TestServeLearn_StoredHashMatchesChildHash(t *testing.T) {
 			rt.Fatalf("stored_hash %q != child hash %q", receipt.StoredHash, childHash)
 		}
 	})
+}
+
+// TestServeLearn_UnreadableNoteFailsTheRequest: a note the lookup cannot
+// read (other than one deleted meanwhile) fails the request with a 5xx the
+// child retries — skipping it could miss a same-origin pending offer and
+// write a second one.
+func TestServeLearn_UnreadableNoteFailsTheRequest(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newServeVault(t)
+	pending := writeVaultNote(t, vault, "5.2026-01-05.pending.md",
+		pendingOfferFactNote("5", "offer:\n  origin: "+childOrigin+"\n  key: key-one\n"))
+	g.Expect(os.Chmod(pending, 0o000)).To(Succeed())
+
+	resp := serveLearnRequest(t, vault, offeredFact("second", "object", offerOf(childOrigin, "key-two", "")))
+
+	g.Expect(resp.Status).To(Equal(500))
+	g.Expect(noteFiles(t, vault)).To(HaveLen(1), "no second pending note")
 }
 
 // unexported constants.

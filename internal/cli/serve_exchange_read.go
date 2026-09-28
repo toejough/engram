@@ -22,7 +22,8 @@ type rawShowResponse struct {
 
 // addDedupeKeys adds a query payload's dedupe keys (design D7): the vault
 // ID at top level and, on each note item, its exchange hash and non-empty
-// aliases. Chunk items get none. Only the dedupe-keys request pays for the
+// aliases. Chunk items get none, and a note whose keys can't be computed
+// is skipped with a warning. Only the dedupe-keys request pays for the
 // re-encode; a plain served query stays byte-identical to a local one.
 func addDedupeKeys(deps Deps, vault string, payloadYAML []byte) ([]byte, error) {
 	vaultID, idErr := stampVaultID(exchangeStateFromDeps(deps), vault)
@@ -38,6 +39,7 @@ func addDedupeKeys(deps Deps, vault string, payloadYAML []byte) ([]byte, error) 
 	}
 
 	payload.VaultID = vaultID
+	warn := logWarningTo(deps.Stderr)
 
 	for index := range payload.Items {
 		item := &payload.Items[index]
@@ -45,14 +47,20 @@ func addDedupeKeys(deps Deps, vault string, payloadYAML []byte) ([]byte, error) 
 			continue
 		}
 
+		// One note whose keys can't be computed loses only its own keys:
+		// the child then treats it as undeduped, never the whole query.
 		raw, readErr := deps.FS.ReadFile(filepath.Join(vault, item.Path))
 		if readErr != nil {
-			return nil, fmt.Errorf("query: dedupe keys: reading %s: %w", item.Path, readErr)
+			warn("query: dedupe keys: skipping %s: %v", item.Path, readErr)
+
+			continue
 		}
 
 		hash, hashErr := exchangeHash(raw)
 		if hashErr != nil {
-			return nil, fmt.Errorf("query: dedupe keys: %s: %w", item.Path, hashErr)
+			warn("query: dedupe keys: skipping %s: %v", item.Path, hashErr)
+
+			continue
 		}
 
 		item.ExchangeHash = hash

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -67,47 +68,32 @@ type servedLearnDeps struct {
 	vaultID  string
 }
 
-// applySameOriginLive handles an offer whose origin matches a live note — an
-// already-accepted offer (design D7 case 2): the same key is a retry, answered
-// with the live note's receipt and no write; a new key becomes a new pending
-// note whose offer.for names the live note.
-func applySameOriginLive(
-	ctx context.Context, args LearnArgs, deps servedLearnDeps, live exchangeNote, notes []exchangeNote,
-) (offerReceipt, error) {
-	if offerKeysMatch(live.exchange.Offer.Key, args.Offer.Key) {
-		return receiptForNote(live, notes, deps.vaultID)
-	}
-
-	args.Offer.For = live.basename
-
-	return writeNewPendingOffer(ctx, args, deps, live.basename)
-}
-
-// applySameOriginPending handles an offer whose origin matches a pending
-// note (design D7 case 1): the same key writes nothing and returns its
-// receipt; a new key rewrites it in place.
-func applySameOriginPending(
-	ctx context.Context, args LearnArgs, deps servedLearnDeps, pending exchangeNote, notes []exchangeNote,
-) (offerReceipt, error) {
-	if offerKeysMatch(pending.exchange.Offer.Key, args.Offer.Key) {
-		return receiptForNote(pending, notes, deps.vaultID)
-	}
-
-	return rewritePendingOffer(ctx, args, deps, pending, notes)
-}
-
-// applyServedOffer runs the origin matching and offer.for resolution over
-// the vault's notes (design D7 cases 1–3). The caller holds the vault lock.
+// applyServedOffer runs idempotency, origin matching and offer.for
+// resolution over the vault's notes (design D7). The caller holds the vault
+// lock. Idempotency comes first: a key already recorded on any note, live
+// or pending, is a retry and writes nothing — otherwise a late retry of an
+// accepted key could rewrite a newer same-origin pending amend back to old
+// content.
 func applyServedOffer(
 	ctx context.Context, args LearnArgs, deps servedLearnDeps, notes []exchangeNote,
 ) (offerReceipt, error) {
+	if index := slices.IndexFunc(notes, func(note exchangeNote) bool {
+		return offerKeysMatch(note.exchange.Offer.Key, args.Offer.Key)
+	}); index >= 0 {
+		return receiptForNote(notes[index], notes, deps.vaultID)
+	}
+
 	if args.Offer.Origin != "" {
 		if note, found := findByOrigin(notes, args.Offer.Origin, true); found {
-			return applySameOriginPending(ctx, args, deps, note, notes)
+			return rewritePendingOffer(ctx, args, deps, note, notes)
 		}
 
+		// An accepted offer's origin, with a new key: a new pending note
+		// whose offer.for names the live note.
 		if note, found := findByOrigin(notes, args.Offer.Origin, false); found {
-			return applySameOriginLive(ctx, args, deps, note, notes)
+			args.Offer.For = note.basename
+
+			return writeNewPendingOffer(ctx, args, deps, note.basename)
 		}
 	}
 
@@ -262,9 +248,10 @@ func rewritePendingOffer(
 		return offerReceipt{}, fmt.Errorf("serve: %w", contentErr)
 	}
 
-	writeErr := deps.learn.WriteNote(note.path, []byte(content))
-	if writeErr != nil {
-		return offerReceipt{}, fmt.Errorf("serve: rewriting %s: %w", note.basename, writeErr)
+	// Hash before writing, so a hash failure never follows a completed write.
+	stored, hashErr := exchangeHash([]byte(content))
+	if hashErr != nil {
+		return offerReceipt{}, fmt.Errorf("serve: %s: %w", note.basename, hashErr)
 	}
 
 	previous, previousErr := exchangeHash(note.raw)
@@ -272,9 +259,9 @@ func rewritePendingOffer(
 		previous = ""
 	}
 
-	stored, hashErr := exchangeHash([]byte(content))
-	if hashErr != nil {
-		return offerReceipt{}, fmt.Errorf("serve: %s: %w", note.basename, hashErr)
+	writeErr := deps.learn.WriteNote(note.path, []byte(content))
+	if writeErr != nil {
+		return offerReceipt{}, fmt.Errorf("serve: rewriting %s: %w", note.basename, writeErr)
 	}
 
 	// Re-embedding is safe to repeat, so it runs unless the content is
@@ -320,7 +307,9 @@ func runServedLearn(ctx context.Context, args LearnArgs, deps servedLearnDeps) (
 }
 
 // scanExchangeNotes reads every fact, feedback and runbook note in vault
-// for served learn's lookup. An unreadable or unparseable note is skipped.
+// for served learn's lookup. A note removed since listing, or one that is
+// not an exchange note or does not parse, is skipped; any other read error
+// fails the scan.
 func scanExchangeNotes(
 	vault string, listMD func(string) ([]string, error), readFile func(string) ([]byte, error),
 ) ([]exchangeNote, error) {
@@ -333,8 +322,15 @@ func scanExchangeNotes(
 
 	for _, name := range names {
 		raw, readErr := readFile(filepath.Join(vault, name))
+		if errors.Is(readErr, fs.ErrNotExist) {
+			continue // removed since it was listed
+		}
+
+		// Any other read failure fails the request (a 5xx the child
+		// retries): skipping the note could miss a same-origin pending offer
+		// and write a second one.
 		if readErr != nil {
-			continue
+			return nil, fmt.Errorf("serve: reading %s: %w", name, readErr)
 		}
 
 		if note, ok := parseExchangeNote(vault, name, raw); ok {
@@ -361,6 +357,12 @@ func validateOffer(offer LearnOffer) error {
 	}
 
 	if offer.Origin == "" {
+		// key and path belong to an origin (spec vault-serve-api): without
+		// one they could collide with another origin's keys.
+		if offer.Key != "" || len(offer.Path) > 0 {
+			return fmt.Errorf("%w: offer.key and offer.path require offer.origin", errOfferInvalid)
+		}
+
 		return nil
 	}
 
