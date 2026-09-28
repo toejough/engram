@@ -375,6 +375,12 @@ type Report struct {
 	// returns (via vaultIDUncommitted); opaque data here.
 	VaultIDUncommitted bool
 
+	// OutboxNotice is the parent-exchange notice (design D6): the queued
+	// offer count, the oldest entry's age, each rejected entry with its
+	// error, and the backoff state — empty when the outbox is idle. Set by
+	// the cli package after Run returns; opaque data here.
+	OutboxNotice string
+
 	// SkillRegistrationErr, when non-empty, is a skill-registration failure's
 	// message (skill-runbook-registration). Set by the cli package after
 	// running its post-deploy registration hook — Updater.Run itself never

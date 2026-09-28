@@ -436,21 +436,6 @@ func noteParentSuccess(cache parentCache, parentURL, vaultID string) parentCache
 	return cache
 }
 
-// noteParentVaultID is the cache with the parent's reported vault ID
-// remembered and the backoff counters untouched (a loop refusal is neither
-// a success nor an outage).
-func noteParentVaultID(cache parentCache, parentURL, vaultID string) parentCache {
-	if cache.URL != parentURL {
-		cache = parentCache{URL: parentURL}
-	}
-
-	if vaultID != "" {
-		cache.VaultID = vaultID
-	}
-
-	return cache
-}
-
 // parentCachePath is <vault>/.engram/parent.json.
 func parentCachePath(vault string) string {
 	return filepath.Join(vault, stateDirName, parentCacheFile)

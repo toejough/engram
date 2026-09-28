@@ -183,8 +183,9 @@ func applyDrainStep(
 
 		return applyAcceptedStep(step, box, found.note, apply)
 	case offerRejected:
-		// An answer about the offer, not the parent's health: the backoff
-		// counters are left alone (the command's own contact resets them).
+		// An answer about the offer — and an answer is a reachable parent,
+		// so the backoff resets (ruling S14).
+		*cache = noteParentSuccess(*cache, parentURL, "")
 		result.Rejected++
 
 		return updateOutboxEntry(box, step, func(entry *outboxEntry) {
@@ -196,10 +197,9 @@ func applyDrainStep(
 	case offerRefused:
 		// The self-parent case (rulings S12, S13): the parent's vault ID is
 		// cached so the pre-exchange self-parent guard engages; the entry
-		// stays queued (never rejected) until a regenerate clears it. A
-		// refusal is neither a success nor an outage, so the backoff
-		// counters are left alone.
-		*cache = noteParentVaultID(*cache, parentURL, step.outcome.Receipt.VaultID)
+		// stays queued (never rejected) until a regenerate clears it. The
+		// refusal is an answer, so the backoff resets too (ruling S14).
+		*cache = noteParentSuccess(*cache, parentURL, step.outcome.Receipt.VaultID)
 
 		return updateOutboxEntry(keepOutboxEntryQueued(box, step), step, func(entry *outboxEntry) {
 			entry.LastError = errorText(step.outcome.Err)
@@ -207,9 +207,12 @@ func applyDrainStep(
 	case offerFailed:
 		*cache = noteParentFailure(*cache, parentURL, now)
 		result.Unreachable, result.RetryAfter = true, cache.BackoffUntil
-	case offerTooOld, offerSkipped:
+	case offerTooOld:
 		// A too-old parent (ruling S11: the drain stopped, the entry stays
-		// queued) or a payload never sent: record the error only.
+		// queued) still answered, so the backoff resets (ruling S14).
+		*cache = noteParentSuccess(*cache, parentURL, "")
+	case offerSkipped:
+		// A payload never sent: the parent was not contacted.
 	}
 
 	return updateOutboxEntry(box, step, func(entry *outboxEntry) {

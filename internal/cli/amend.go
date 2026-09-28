@@ -124,6 +124,9 @@ type AmendDeps struct {
 	// Must use full filenames (not stripped basenames) to avoid false-firing the
 	// untagged-rate trigger on every amend.
 	ListMD func(vault string) ([]string, error)
+	// Offers connects amend to the parent outbox (design D5, D6). The zero
+	// value — no parent configured — offers nothing.
+	Offers offerHooks
 }
 
 // RunAmend modifies a note in place. It applies --supersedes entries to the
@@ -132,59 +135,15 @@ type AmendDeps struct {
 // (idempotent), and overwrites only the supplied content fields. Re-embeds only when content changed. --activate bumps
 // LastUsed in the same write.
 func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Writer) error {
-	// Acquire the vault lock before any read-modify-write on the note so
-	// concurrent amend/resituate/learn runs cannot produce lost updates.
-	// Helpers called within (reEmbedAndActivate, bumpLastUsed) must NOT
-	// re-acquire — doing so would self-deadlock on a per-fd flock.
-	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
-	if lockErr != nil {
-		return fmt.Errorf("amend: acquiring vault lock: %w", lockErr)
+	queued, err := runAmendLocked(ctx, args, deps, stdout)
+	if err != nil {
+		return err
 	}
 
-	defer release()
-
-	notes, scanErr := deps.Scan(args.Vault)
-	if scanErr != nil {
-		return fmt.Errorf("amend: scan: %w", scanErr)
+	// The drain runs after the vault lock is released (design D6).
+	if queued {
+		deps.Offers.drain(ctx, args.Vault)
 	}
-
-	relPath, findErr := findNote(notes, args.Target)
-	if findErr != nil {
-		return fmt.Errorf("%w: %q", errAmendNoteNotFound, args.Target)
-	}
-
-	full := filepath.Join(args.Vault, relPath)
-
-	if args.Discard {
-		return discardNote(deps, full, stdout)
-	}
-
-	raw, readErr := deps.Read(full)
-	if readErr != nil {
-		return fmt.Errorf("amend: read %s: %w", relPath, readErr)
-	}
-
-	parsedSupersedes, validateErr := validateAmendInputs(args, deps)
-	if validateErr != nil {
-		return validateErr
-	}
-
-	identity := amendIdentity(ctx, args, deps)
-
-	amended, contentChanged, amendErr := amendContent(raw, args, parsedSupersedes, identity)
-	if amendErr != nil {
-		return amendErr
-	}
-
-	writeErr := deps.Write(full, []byte(amended))
-	if writeErr != nil {
-		return fmt.Errorf("amend: write %s: %w", relPath, writeErr)
-	}
-
-	reEmbedAndActivate(ctx, args, deps, full, relPath, amended, contentChanged)
-	applyVocabAssignmentAfterAmend(deps, args.Vault, full, amended)
-
-	_, _ = fmt.Fprintln(stdout, full)
 
 	return nil
 }
@@ -560,6 +519,7 @@ func newAmendDeps(d Deps) AmendDeps {
 		// Must use ListMD (not stripped basenames) — basename filtering causes
 		// false-fire on the untagged trigger.
 		ListMD: vfs.ListMD,
+		Offers: newOfferHooks(d),
 	}
 }
 
@@ -736,6 +696,74 @@ func renderAmendedRunbook(
 	}
 
 	return marshalFrontmatter(doc) + renderRunbookBody(f)
+}
+
+// runAmendLocked is RunAmend's locked section: the note read-modify-write,
+// and — with a parent configured — the offer's xid stamp and outbox entry
+// in the same critical section (design D6). It reports whether an offer
+// was queued.
+func runAmendLocked(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Writer) (bool, error) {
+	// Acquire the vault lock before any read-modify-write on the note so
+	// concurrent amend/resituate/learn runs cannot produce lost updates.
+	// Helpers called within (reEmbedAndActivate, bumpLastUsed) must NOT
+	// re-acquire — doing so would self-deadlock on a per-fd flock.
+	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
+	if lockErr != nil {
+		return false, fmt.Errorf("amend: acquiring vault lock: %w", lockErr)
+	}
+
+	defer release()
+
+	notes, scanErr := deps.Scan(args.Vault)
+	if scanErr != nil {
+		return false, fmt.Errorf("amend: scan: %w", scanErr)
+	}
+
+	relPath, findErr := findNote(notes, args.Target)
+	if findErr != nil {
+		return false, fmt.Errorf("%w: %q", errAmendNoteNotFound, args.Target)
+	}
+
+	full := filepath.Join(args.Vault, relPath)
+
+	if args.Discard {
+		return false, discardNote(deps, full, stdout)
+	}
+
+	raw, readErr := deps.Read(full)
+	if readErr != nil {
+		return false, fmt.Errorf("amend: read %s: %w", relPath, readErr)
+	}
+
+	parsedSupersedes, validateErr := validateAmendInputs(args, deps)
+	if validateErr != nil {
+		return false, validateErr
+	}
+
+	identity := amendIdentity(ctx, args, deps)
+
+	rendered, contentChanged, amendErr := amendContent(raw, args, parsedSupersedes, identity)
+	if amendErr != nil {
+		return false, amendErr
+	}
+
+	staged, xid := deps.Offers.stageWrite(args.Vault,
+		offerWrite{command: offerCmdAmend, amend: args, raw: []byte(rendered)})
+	amended := string(staged)
+
+	writeErr := deps.Write(full, staged)
+	if writeErr != nil {
+		return false, fmt.Errorf("amend: write %s: %w", relPath, writeErr)
+	}
+
+	queued := deps.Offers.queue(args.Vault, xid)
+
+	reEmbedAndActivate(ctx, args, deps, full, relPath, amended, contentChanged)
+	applyVocabAssignmentAfterAmend(deps, args.Vault, full, amended)
+
+	_, _ = fmt.Fprintln(stdout, full)
+
+	return queued, nil
 }
 
 // validateAmendInputs checks the chunk-source ids, supersedes entries and

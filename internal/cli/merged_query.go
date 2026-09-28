@@ -155,9 +155,12 @@ func prepareParentContact(deps Deps, vault string) {
 
 // recordQueryContactFailure backs off after a query that could not reach
 // the parent (a transport error, timeout or 5xx); a 4xx is an answer, not
-// an outage. Failing to record it is not fatal to the query.
+// an outage, so it resets the backoff like any answer (ruling S14).
+// Failing to record either is not fatal to the query.
 func recordQueryContactFailure(store outboxStore, vault, parentURL string, fetchErr error) {
 	if !errors.Is(fetchErr, errParentUnreachable) {
+		_ = recordParentSuccess(store, vault, parentURL, "")
+
 		return
 	}
 
@@ -228,7 +231,16 @@ func runMergedQuery(ctx context.Context, deps Deps, parentBaseURL string, args Q
 		return localErr
 	}
 
-	return encodeQueryPayload(stdout, mergeQueryPayloads(localPayload, parentPayload, args))
+	encodeErr := encodeQueryPayload(stdout, mergeQueryPayloads(localPayload, parentPayload, args))
+	if encodeErr != nil {
+		return encodeErr
+	}
+
+	// The parent answered, so the outbox drains (design D6); the gate
+	// already passed for this command.
+	drainForCommand(ctx, deps, args.VaultPath, parentBaseURL, true)
+
+	return nil
 }
 
 // splitRecencyChannel separates items into main (non-recency) and

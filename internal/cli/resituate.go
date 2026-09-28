@@ -38,6 +38,9 @@ type ResituateDeps struct {
 	ListMD          func(vault string) ([]string, error)
 	LogWarning      func(format string, args ...any)
 	Now             func() time.Time
+	// Offers connects resituate to the parent outbox (design D5, D6, E41).
+	// The zero value — no parent configured — offers nothing.
+	Offers offerHooks
 }
 
 // RunResituate rewrites a single note's situation in both places it lives —
@@ -54,50 +57,15 @@ func RunResituate(
 	deps ResituateDeps,
 	stdout io.Writer,
 ) error {
-	// Acquire the vault lock before any read-modify-write on the note so
-	// concurrent amend/resituate/learn runs cannot produce lost updates.
-	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
-	if lockErr != nil {
-		return fmt.Errorf("resituate: acquiring vault lock: %w", lockErr)
+	queued, err := runResituateLocked(ctx, args, deps, stdout)
+	if err != nil {
+		return err
 	}
 
-	defer release()
-
-	notes, scanErr := deps.Scan(args.Vault)
-	if scanErr != nil {
-		return fmt.Errorf("resituate: scan: %w", scanErr)
+	// The drain runs after the vault lock is released (design D6).
+	if queued {
+		deps.Offers.drain(ctx, args.Vault)
 	}
-
-	relPath, findErr := findNote(notes, args.Note)
-	if findErr != nil {
-		return findErr
-	}
-
-	full := filepath.Join(args.Vault, relPath)
-
-	raw, readErr := deps.Read(full)
-	if readErr != nil {
-		return fmt.Errorf("resituate: read %s: %w", relPath, readErr)
-	}
-
-	content, renderErr := resituateContent(raw, args.Situation)
-	if renderErr != nil {
-		return renderErr
-	}
-
-	writeErr := deps.Write(full, []byte(content))
-	if writeErr != nil {
-		return fmt.Errorf("resituate: write %s: %w", relPath, writeErr)
-	}
-
-	embedErr := writeResituatedSidecar(ctx, deps, full, content)
-	if embedErr != nil {
-		return embedErr
-	}
-
-	applyVocabAssignmentAfterResituate(deps, args.Vault, full, content)
-
-	_, _ = fmt.Fprintln(stdout, full)
 
 	return nil
 }
@@ -174,6 +142,7 @@ func newResituateDeps(d Deps) ResituateDeps {
 		ListMD:     vfs.ListMD,
 		LogWarning: logWarningTo(d.Stderr),
 		Now:        d.Now,
+		Offers:     newOfferHooks(d),
 	}
 }
 
@@ -292,6 +261,64 @@ func resituateTyped[T any](
 	_, rest, _ := bytes.Cut(body, []byte("\n"))
 
 	return marshalFrontmatter(doc) + newOpener + "\n" + string(rest), nil
+}
+
+// runResituateLocked is RunResituate's locked section: the rewrite, the
+// re-embed, and — with a parent configured — the offer's xid stamp and
+// outbox entry in the same critical section (design D6). It reports
+// whether an offer was queued.
+func runResituateLocked(ctx context.Context, args ResituateArgs, deps ResituateDeps, stdout io.Writer) (bool, error) {
+	// Acquire the vault lock before any read-modify-write on the note so
+	// concurrent amend/resituate/learn runs cannot produce lost updates.
+	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
+	if lockErr != nil {
+		return false, fmt.Errorf("resituate: acquiring vault lock: %w", lockErr)
+	}
+
+	defer release()
+
+	notes, scanErr := deps.Scan(args.Vault)
+	if scanErr != nil {
+		return false, fmt.Errorf("resituate: scan: %w", scanErr)
+	}
+
+	relPath, findErr := findNote(notes, args.Note)
+	if findErr != nil {
+		return false, findErr
+	}
+
+	full := filepath.Join(args.Vault, relPath)
+
+	raw, readErr := deps.Read(full)
+	if readErr != nil {
+		return false, fmt.Errorf("resituate: read %s: %w", relPath, readErr)
+	}
+
+	rendered, renderErr := resituateContent(raw, args.Situation)
+	if renderErr != nil {
+		return false, renderErr
+	}
+
+	staged, xid := deps.Offers.stageWrite(args.Vault, offerWrite{command: offerCmdResituate, raw: []byte(rendered)})
+	content := string(staged)
+
+	writeErr := deps.Write(full, staged)
+	if writeErr != nil {
+		return false, fmt.Errorf("resituate: write %s: %w", relPath, writeErr)
+	}
+
+	queued := deps.Offers.queue(args.Vault, xid)
+
+	embedErr := writeResituatedSidecar(ctx, deps, full, content)
+	if embedErr != nil {
+		return queued, embedErr
+	}
+
+	applyVocabAssignmentAfterResituate(deps, args.Vault, full, content)
+
+	_, _ = fmt.Fprintln(stdout, full)
+
+	return queued, nil
 }
 
 // splitFrontmatter returns the YAML bytes between the leading "---\n" line

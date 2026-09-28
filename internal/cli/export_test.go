@@ -25,6 +25,12 @@ const (
 	ExportLocationNoID              = locationNoID
 	ExportLocationOK                = locationOK
 	ExportOfferAccepted             = offerAccepted
+	ExportOfferCmdAmend             = offerCmdAmend
+	ExportOfferCmdIdentityBackfill  = offerCmdIdentityBackfill
+	ExportOfferCmdLearn             = offerCmdLearn
+	ExportOfferCmdLearnQA           = offerCmdLearnQA
+	ExportOfferCmdRegistration      = offerCmdRegistration
+	ExportOfferCmdResituate         = offerCmdResituate
 	ExportOfferFailed               = offerFailed
 	ExportOfferRefused              = offerRefused
 	ExportOfferRejected             = offerRejected
@@ -328,6 +334,12 @@ type ExportVocabNamingExemplar = vocabNamingExemplar
 // Exported naming-request types (vocab-derivational-refit Task 2.2).
 type ExportVocabNamingRequest = vocabNamingRequest
 
+// OfferCommandForTest names the classification's command type.
+type OfferCommandForTest = offerCommand
+
+// OfferHooksForTest names the write paths' outbox hooks.
+type OfferHooksForTest = offerHooks
+
 type OfferNoteForTest = offerNote
 
 type OfferOutcomeForTest = offerOutcome
@@ -335,6 +347,9 @@ type OfferOutcomeForTest = offerOutcome
 type OfferReceiptForTest = offerReceipt
 
 type OfferSendResultForTest = offerSendResult
+
+// OfferWriteForTest names one classified write.
+type OfferWriteForTest = offerWrite
 
 type OutboxFileForTest = outboxFile
 
@@ -385,10 +400,22 @@ func ExportApplyMatchEvidenceBonus(
 	return applyMatchEvidenceBonus(similarities, evidenced, bonus)
 }
 
+// ExportApplyReceiptToContent exposes the pure receipt rewrite (design D6).
+func ExportApplyReceiptToContent(raw []byte, receipt OfferReceiptForTest) (string, error) {
+	return applyReceiptToContent(raw, receipt)
+}
+
 // ExportApplyVocabAssignmentAfterResituate exposes applyVocabAssignmentAfterResituate
 // so resituate_test can assert the vocab-assignment + trigger wiring.
 func ExportApplyVocabAssignmentAfterResituate(deps ResituateDeps, vault, notePath, content string) {
 	applyVocabAssignmentAfterResituate(deps, vault, notePath, content)
+}
+
+// ExportAssembleLearnContent renders a note the way learn does.
+func ExportAssembleLearnContent(args LearnArgs, luhmann string, when time.Time, repo, user, vault string) (
+	string, error,
+) {
+	return assembleLearnContent(args, luhmann, when, identityStamp{Repo: repo, User: user, Vault: vault})
 }
 
 // ExportBreakRepresentativeTie is a whitebox handle on the tiebreak helper
@@ -419,6 +446,24 @@ func ExportBuildChunkIDSet(
 	readFile func(path string) ([]byte, error),
 ) (map[string]bool, error) {
 	return buildChunkIDSet(chunksDir, listIndexes, readFile)
+}
+
+// ExportBuildOfferPayload builds a note's /learn payload (design D5) with
+// fixed detection results and a supersedes-target table.
+func ExportBuildOfferPayload(
+	note OfferNoteForTest, localID, parentID, detectedRepo, detectedUser string, supersedes map[string]string,
+) ([]byte, error) {
+	return buildOfferPayload(note, offerPayloadContext{
+		localVaultID:  localID,
+		parentVaultID: parentID,
+		detectRepo:    func() string { return detectedRepo },
+		detectUser:    func() string { return detectedUser },
+		supersedesTarget: func(local string) (string, bool) {
+			target, found := supersedes[local]
+
+			return target, found
+		},
+	})
 }
 
 // ExportCapChunkContent builds queryItems from parallel kind/content slices,
@@ -456,6 +501,11 @@ func ExportCapItemsToLimit(paths []string, limit int) []string {
 	}
 
 	return out
+}
+
+// ExportClassifyOffer runs design D5's classification.
+func ExportClassifyOffer(command OfferCommandForTest, amend AmendArgs, raw []byte, parentVaultID string) bool {
+	return classifyOffer(offerWrite{command: command, amend: amend, raw: raw}, parentVaultID)
 }
 
 // ExportClearChunkContent builds queryItems from parallel kind/content slices,
@@ -734,6 +784,24 @@ func ExportNewNoteResolvedItemWithScore(notePath string, score, baseScore float3
 	return resolvedItem{notePath: notePath, score: score, baseScore: baseScore}
 }
 
+// ExportNewOfferHooks builds offer hooks from explicit steps.
+func ExportNewOfferHooks(
+	stage func(string, OfferWriteForTest) ([]byte, string, error),
+	enqueue func(vault, xid string) error,
+	warn func(string, ...any),
+) OfferHooksForTest {
+	return offerHooks{
+		stage: stage, enqueue: enqueue, warn: warn,
+		mintXID: func() (string, error) { return "", nil },
+		drain:   func(context.Context, string) {},
+	}
+}
+
+// ExportNewPayloadBuilder is the production payload builder over deps.
+func ExportNewPayloadBuilder(deps Deps, vault, parentURL string) func(OfferNoteForTest) ([]byte, error) {
+	return newPayloadBuilder(context.Background(), deps, outboxStoreFromDeps(deps), vault, parentURL)
+}
+
 // ExportNewPruneDeps returns production PruneDeps composed from d.
 func ExportNewPruneDeps(d Deps) PruneDeps { return newPruneDeps(d) }
 
@@ -898,6 +966,16 @@ func ExportNewVaultNotesMetaWithTerms(terms map[string][]VaultTermMember) AllVau
 // ExportNewestChunkItems exposes newestChunkItems with the direct provenance.
 func ExportNewestChunkItems(scored []scoredChunk, n int) []resolvedItem {
 	return newestChunkItems(scored, n, provenanceDirect)
+}
+
+// ExportOfferHooksQueue runs the hooks' post-write queue step.
+func ExportOfferHooksQueue(hooks OfferHooksForTest, vault, xid string) bool {
+	return hooks.queue(vault, xid)
+}
+
+// ExportOfferHooksStageWrite runs the hooks' staging step.
+func ExportOfferHooksStageWrite(hooks OfferHooksForTest, vault string, raw []byte) ([]byte, string) {
+	return hooks.stageWrite(vault, offerWrite{command: offerCmdLearn, raw: raw})
 }
 
 // ExportParseAdoptFlags exposes parseAdoptFlags for property testing.
@@ -1102,6 +1180,9 @@ func ExportSelectWithinCluster(
 	return selectWithinCluster(term, centroid, members, k)
 }
 
+// ExportSetXIDField exposes the lazy xid stamp.
+func ExportSetXIDField(content, xid string) (string, error) { return setXIDField(content, xid) }
+
 // ExportSkillKeyRemovalEligible reports design D5 removal eligibility of a
 // note with key and recorded skill_source over input's roots and plugin
 // facts (skillRemovalEligibility.eligible).
@@ -1128,10 +1209,21 @@ func ExportTermsWithExploitEvidence(
 	return termsWithExploitEvidence(members, exploitPaths)
 }
 
+// ExportUpdateExchange is update's production parent-exchange step.
+func ExportUpdateExchange(deps Deps) func(ctx context.Context, vault string, dryRun bool) string {
+	return newUpdateExchange(deps)
+}
+
 // ExportUpdateFSFromEdge adapts an EdgeFS to update.Filesystem the way
 // newUpdateDeps does.
 func ExportUpdateFSFromEdge(fsys EdgeFS) update.Filesystem {
 	return &updateFSFromEdge{fs: fsys}
+}
+
+// UpdateReportWithOutboxNotice is an update report carrying only an outbox
+// notice.
+func UpdateReportWithOutboxNotice(notice string) update.Report {
+	return update.Report{OutboxNotice: notice}
 }
 
 // resolvedItemLessForTest exposes resolvedItemLess over bare provenance/score

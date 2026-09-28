@@ -101,6 +101,41 @@ func TestClassifyOfferResponse_StatusClassesProperty(t *testing.T) {
 	})
 }
 
+// TestDrainOutbox_AnyAnswerResetsBackoff (ruling S14): a rejection, a
+// cycle refusal and a too-old receipt are all answers from a reachable
+// parent, so each resets the failure count and the backoff window.
+func TestDrainOutbox_AnyAnswerResetsBackoff(t *testing.T) {
+	t.Parallel()
+
+	tooOld := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 200, Body: []byte(`{"status":"ok"}`)}, nil)
+	answers := map[string]cli.OfferSendResultForTest{
+		"rejection":     rejected("no"),
+		"cycle refusal": loopRefusal(seqID(33)),
+		"too old":       tooOld,
+	}
+
+	for name, answer := range answers {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			env := newOutboxEnv(t)
+			env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+			env.enqueue(xidA)
+
+			_, failErr := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+			g.Expect(failErr).NotTo(HaveOccurred())
+
+			_, _ = env.drain(&fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: answer}})
+
+			cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
+			g.Expect(cacheErr).NotTo(HaveOccurred())
+			g.Expect(cache.Failures).To(BeZero())
+			g.Expect(cache.BackoffUntil.IsZero()).To(BeTrue())
+		})
+	}
+}
+
 // TestDrainOutbox_BuildsPayloadAtSendTime: an offline learn followed by an
 // amend goes up as one offer carrying the latest content.
 func TestDrainOutbox_BuildsPayloadAtSendTime(t *testing.T) {
@@ -536,7 +571,7 @@ func TestDrainOutbox_SelfParentRefusalThenRegenerateSends(t *testing.T) {
 	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
 	g.Expect(cacheErr).NotTo(HaveOccurred())
 	g.Expect(cache.VaultID).To(Equal(env.localID))
-	g.Expect(cache.Failures).To(Equal(1), "a refusal is neither a success nor an outage")
+	g.Expect(cache.Failures).To(BeZero(), "a refusal is an answer: the backoff resets (ruling S14)")
 
 	regenState := cli.ExportNewExchangeState(env.fsys, seqRand(60), identityPath,
 		func() (string, error) { return "/", nil })
@@ -1381,11 +1416,15 @@ func runPropertyDrain(rt *rapid.T, env *outboxEnv, model *outboxModel, xids []st
 	outcomes := map[string]cli.OfferSendResultForTest{}
 
 	for _, xid := range xids {
-		switch rapid.IntRange(0, 2).Draw(rt, fmt.Sprintf("outcome-%d-%s", step, xid)) {
+		switch rapid.IntRange(0, 4).Draw(rt, fmt.Sprintf("outcome-%d-%s", step, xid)) {
 		case 1:
 			outcomes[xid] = rejected("no")
 		case 2:
 			outcomes[xid] = cli.ExportClassifyOfferResponse(cli.FetchResponse{}, errors.New("down"))
+		case 3: // a cycle refusal from another vault (ruling S14)
+			outcomes[xid] = loopRefusal(seqID(33))
+		case 4: // a self-parent refusal naming this vault
+			outcomes[xid] = loopRefusal(env.localID)
 		}
 	}
 

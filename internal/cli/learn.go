@@ -183,6 +183,9 @@ type LearnDeps struct {
 	// Must use full filenames (not stripped basenames) to avoid false-firing the
 	// untagged-rate trigger on every learn.
 	ListMD func(vault string) ([]string, error)
+	// Offers connects learn to the parent outbox (design D5, D6). The zero
+	// value — no parent configured — offers nothing.
+	Offers offerHooks
 }
 
 // LearnOffer is a served learn's offer record on the wire (design D7):
@@ -208,12 +211,17 @@ func RunLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 
 	vault := args.Vault
 
-	path, writeErr := writeLearnUnderLock(ctx, args, deps, vault)
+	path, queued, writeErr := writeLearnUnderLock(ctx, args, deps, vault)
 	if writeErr != nil {
 		return writeErr
 	}
 
 	_, _ = fmt.Fprintln(stdout, path)
+
+	// The drain runs after the vault lock is released (design D6).
+	if queued {
+		deps.Offers.drain(ctx, vault)
+	}
 
 	return nil
 }
@@ -726,6 +734,7 @@ func newLearnDeps(d Deps) LearnDeps {
 		// Must be full filenames (not stripped basenames) — ListBasenames
 		// filters to Luhmann IDs, causing 100% false-fire on the untagged trigger.
 		ListMD: listMDFromFS(d.FS),
+		Offers: newOfferHooks(d),
 	}
 }
 
@@ -1057,20 +1066,36 @@ func writeLearnLocked(
 }
 
 // writeLearnUnderLock acquires the vault lock and writes the new note under
-// it (writeLearnLocked).
+// it (writeLearnLocked). With a parent configured, an offerable learn gets
+// an xid before it is rendered and is queued in the same critical section
+// as the write (design D6); queued reports whether it was.
 func writeLearnUnderLock(
 	ctx context.Context,
 	args LearnArgs,
 	deps LearnDeps,
 	vault string,
-) (string, error) {
+) (string, bool, error) {
 	release, lockErr := deps.Lock(vault)
 	if lockErr != nil {
-		return "", fmt.Errorf("learn: acquiring lock: %w", lockErr)
+		return "", false, fmt.Errorf("learn: acquiring lock: %w", lockErr)
 	}
 	defer release()
 
-	path, _, err := writeLearnLocked(ctx, args, deps, vault)
+	if deps.Offers.enabled() && args.XID == "" && !args.Pending && args.SkillHash == "" {
+		xid, mintErr := deps.Offers.mintXID()
+		if mintErr != nil {
+			deps.Offers.warn("offer: could not mint an xid: %v", mintErr)
+		} else {
+			args.XID = xid
+		}
+	}
 
-	return path, err
+	path, content, err := writeLearnLocked(ctx, args, deps, vault)
+	if err != nil {
+		return "", false, err
+	}
+
+	_, xid := deps.Offers.stageWrite(vault, offerWrite{command: offerCmdLearn, raw: []byte(content)})
+
+	return path, deps.Offers.queue(vault, xid), nil
 }

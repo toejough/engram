@@ -117,6 +117,10 @@ type updateDeps struct {
 	// ExportNewUpdateDepsFrom) is a safe no-op — runUpdateSkillRegistration
 	// skips entirely when its source filesystem is nil.
 	SkillReg SkillRegistrationDeps
+	// Exchange drains the parent outbox (outside --dry-run, ignoring the
+	// backoff window) and returns the outbox notice (design D6). Optional:
+	// nil (older updateDeps fixtures) skips it.
+	Exchange func(ctx context.Context, vault string, dryRun bool) string
 }
 
 // updateEnvFromDeps adapts cli.Deps' env funcs to update.Env.
@@ -398,6 +402,7 @@ func newUpdateDeps(d Deps) updateDeps {
 		},
 		Identity: newIdentityDeps(d),
 		SkillReg: newSkillRegistrationDeps(d),
+		Exchange: newUpdateExchange(d),
 	}
 }
 
@@ -482,6 +487,10 @@ func runPostUpdateChecks(
 	report.VaultHasNotesMissingIdentity = notesMissingIdentityFields(vaultPath, deps.FS)
 	report.VaultHasPendingOffers = vaultHasPendingOffers(vaultPath, deps.FS)
 	report.VaultIDUncommitted = vaultIDUncommitted(ctx, vaultPath, deps.FS, deps.Cmd)
+
+	if deps.Exchange != nil {
+		report.OutboxNotice = deps.Exchange(ctx, vaultPath, args.DryRun)
+	}
 
 	if args.RegenVocab {
 		regenErr := applyVocabRegen(ctx, vaultPath, deps.Vocab, args.DryRun, deps.FS, report)
@@ -997,6 +1006,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	writeIdentityBackfillHint(&buffer, report)
 	writePendingOfferHint(&buffer, report)
 	writeVaultIDUncommittedHint(&buffer, report)
+	buffer.WriteString(report.OutboxNotice)
 	writeSkillRegistrationErrorHint(&buffer, report)
 
 	_, err := out.Write(buffer.Bytes())
