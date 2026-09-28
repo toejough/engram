@@ -17,7 +17,9 @@ import (
 // unexported constants.
 const (
 	envParentBase = "ENGRAM_PARENT"
-	envServerBase = "ENGRAM_SERVER"
+	// envRemovedServer names the removed thin-client variable; it survives
+	// only for the pre-dispatch guard that refuses it (design D1).
+	envRemovedServer = "ENGRAM_SERVER"
 	// httpStatusMultipleChoices is the first non-2xx status code — used to
 	// bound the "success" range without importing net/http here.
 	httpStatusMultipleChoices = 300
@@ -33,15 +35,16 @@ const (
 
 // unexported variables.
 var (
+	// errEngramServerRemoved is the D1 hard error for a set ENGRAM_SERVER.
+	errEngramServerRemoved = errors.New("ENGRAM_SERVER is no longer supported")
 	// errParentNotConfigured is returned when --parent is passed to
 	// show/show-chunk but ENGRAM_PARENT is not set.
 	errParentNotConfigured = errors.New("--parent requires ENGRAM_PARENT to be configured")
 	errServeClientNonOK    = errors.New("serve client: non-OK response")
 )
 
-// buildQueryParams builds /query's query-string params from args, shared by
-// fetchQuery (byte-copy, ENGRAM_SERVER-exclusive mode) and
-// fetchQueryPayload (parsed, ENGRAM_PARENT merge fetch).
+// buildQueryParams builds the parent /query request's query-string params
+// from args, for fetchQueryPayload (the ENGRAM_PARENT merge fetch).
 func buildQueryParams(args QueryArgs) map[string][]string {
 	query := map[string][]string{}
 
@@ -93,8 +96,8 @@ func describeErrorBody(body []byte) string {
 // not-found miss with ENGRAM_PARENT configured — falls back to the parent
 // and labels the result as parent-sourced (vault-merged-recall D8: "Local
 // miss falls back to the parent"). Callers reach this only after ruling out
-// ENGRAM_SERVER and an explicit --parent, both of which take precedence and
-// never fall through here. A local hit, or any error other than a miss
+// an explicit --parent, which takes precedence and never falls through
+// here. A local hit, or any error other than a miss
 // (e.g. an empty ref), returns as-is without contacting the parent; a miss
 // with no parent configured surfaces the same not-found error as before
 // this capability existed ("Local miss with no parent configured is still
@@ -155,34 +158,6 @@ func encodeQuery(query map[string][]string) string {
 	return strings.Join(parts, "&")
 }
 
-// fetchActivate routes `engram activate` through ENGRAM_SERVER: commits
-// directly on the host (design.md Decisions — never an offer).
-func fetchActivate(ctx context.Context, deps Deps, base string, args ActivateArgs) error {
-	//nolint:errchkjson // activateRequest is a plain []string field — never fails to encode
-	body, _ := json.Marshal(activateRequest{Notes: args.Notes})
-
-	_, fetchErr := fetchRaw(ctx, deps, base, methodPost, "/activate", nil, body)
-
-	return fetchErr
-}
-
-// fetchAmend routes `engram amend` through ENGRAM_SERVER. Same
-// repo/user-stamping and offer-receipt handling as fetchLearn.
-func fetchAmend(ctx context.Context, deps Deps, base string, args AmendArgs, stdout io.Writer) error {
-	args.Repo = detectRepo(ctx, deps.Getwd, deps.Commander)
-	args.User = detectUser(ctx, deps.Commander, deps.Username)
-
-	//nolint:errchkjson // AmendArgs is all strings/[]string/bool/*bool fields — never fails to encode
-	body, _ := json.Marshal(args)
-
-	resp, fetchErr := fetchRaw(ctx, deps, base, methodPost, "/amend", nil, body)
-	if fetchErr != nil {
-		return fetchErr
-	}
-
-	return printOfferReceipt(resp.Body, stdout)
-}
-
 // fetchAndCopy issues a GET request and writes the response body verbatim
 // to stdout — byte-identical to a local invocation's own stdout, since the
 // served handler captured that same command's Run* stdout output
@@ -203,50 +178,11 @@ func fetchAndCopy(
 	return nil
 }
 
-// fetchLearn routes `engram learn` through ENGRAM_SERVER: stamps args.Repo
-// and args.User with this client's own detected repo/user (client-detected,
-// no privilege/verification — design.md Decisions, serve-client-declared-
-// identity), lands as a pending offer on the host, and prints the offer
-// receipt rather than a note path — the response deliberately never carries
-// note content.
-func fetchLearn(ctx context.Context, deps Deps, base string, args LearnArgs, stdout io.Writer) error {
-	args.Repo = detectRepo(ctx, deps.Getwd, deps.Commander)
-	args.User = detectUser(ctx, deps.Commander, deps.Username)
-
-	//nolint:errchkjson // LearnArgs is all strings/[]string/bool fields — never fails to encode
-	body, _ := json.Marshal(args)
-
-	resp, fetchErr := fetchRaw(ctx, deps, base, methodPost, "/learn", nil, body)
-	if fetchErr != nil {
-		return fetchErr
-	}
-
-	return printOfferReceipt(resp.Body, stdout)
-}
-
-// fetchQuery routes `engram query` through ENGRAM_SERVER.
-func fetchQuery(ctx context.Context, deps Deps, base string, args QueryArgs, stdout io.Writer) error {
-	return fetchAndCopy(ctx, deps, base, "/query", buildQueryParams(args), stdout)
-}
-
-// fetchQueryChunks routes `engram query-chunks` through ENGRAM_SERVER.
-func fetchQueryChunks(ctx context.Context, deps Deps, base string, args ChunkQueryArgs, stdout io.Writer) error {
-	query := map[string][]string{}
-
-	if len(args.Phrases) > 0 {
-		query["phrase"] = args.Phrases
-	}
-
-	setIntParam(query, "limit", args.Limit)
-
-	return fetchAndCopy(ctx, deps, base, "/query-chunks", query, stdout)
-}
-
 // fetchQueryPayload routes a parent query (ENGRAM_PARENT merge mode)
-// through the same /query route fetchQuery uses, but decodes the response
-// into the same queryPayload type the local pipeline produces — instead of
-// piping bytes to stdout — so the merge orchestrator can combine it with
-// the local payload before a single render.
+// through the parent's /query route and decodes the response into the same
+// queryPayload type the local pipeline produces — instead of piping bytes
+// to stdout — so the merge orchestrator can combine it with the local
+// payload before a single render.
 func fetchQueryPayload(ctx context.Context, deps Deps, base string, args QueryArgs) (queryPayload, error) {
 	resp, fetchErr := fetchRaw(ctx, deps, base, methodGet, "/query", buildQueryParams(args), nil)
 	if fetchErr != nil {
@@ -263,7 +199,7 @@ func fetchQueryPayload(ctx context.Context, deps Deps, base string, args QueryAr
 	return payload, nil
 }
 
-// fetchRaw issues one ENGRAM_SERVER-mode request and returns its response,
+// fetchRaw issues one parent request and returns its response,
 // erroring on transport failure or a non-2xx status (the error message
 // prefers the server's {"error": "..."} body when present).
 func fetchRaw(
@@ -281,12 +217,12 @@ func fetchRaw(
 	return resp, nil
 }
 
-// fetchShow routes `engram show` through ENGRAM_SERVER.
+// fetchShow fetches `engram show` output for a ref from the parent.
 func fetchShow(ctx context.Context, deps Deps, base string, args ShowArgs, stdout io.Writer) error {
 	return fetchAndCopy(ctx, deps, base, "/show", map[string][]string{"note": {args.Ref}}, stdout)
 }
 
-// fetchShowChunk routes `engram show-chunk` through ENGRAM_SERVER.
+// fetchShowChunk fetches `engram show-chunk` output for an id from the parent.
 func fetchShowChunk(ctx context.Context, deps Deps, base string, args ShowChunkArgs, stdout io.Writer) error {
 	return fetchAndCopy(ctx, deps, base, "/show-chunk", map[string][]string{"id": {args.Ref}}, stdout)
 }
@@ -333,9 +269,8 @@ func isURLUnreserved(c byte) bool {
 }
 
 // parentBase returns the ENGRAM_PARENT base URL (e.g. "http://host:port"),
-// or "" when unset — mirrors serverBase, but additive rather than
-// exclusive: unlike ENGRAM_SERVER, a set ENGRAM_PARENT does not replace
-// local behavior, it adds a merge step on top of it (design.md Decision 5).
+// or "" when unset. It is additive: a set ENGRAM_PARENT never replaces local
+// behavior, it adds a merge step on top of it (design.md Decision 5).
 func parentBase(deps Deps) string {
 	if deps.Getenv == nil {
 		return ""
@@ -362,24 +297,19 @@ func percentEncode(s string) string {
 	return b.String()
 }
 
-// printOfferReceipt decodes a served learn/amend's {status, luhmann} body
-// and prints it — the client-mode counterpart to local learn/amend
-// printing the written note's path, deliberately different since a served
-// write's fate is a pending offer, not an immediately-live note.
-func printOfferReceipt(body []byte, stdout io.Writer) error {
-	var receipt offerReceipt
-
-	unmarshalErr := json.Unmarshal(body, &receipt)
-	if unmarshalErr != nil {
-		return fmt.Errorf("serve client: decoding offer receipt: %w", unmarshalErr)
+// removedServerError returns the D1 hard error when ENGRAM_SERVER is set,
+// naming ENGRAM_PARENT with the same URL, or nil when it is unset. Never an
+// alias: the value is only echoed back in the message, never contacted.
+func removedServerError(deps Deps) error {
+	removed := envOrEmpty(deps.Getenv, envRemovedServer)
+	if removed == "" {
+		return nil
 	}
 
-	_, writeErr := fmt.Fprintf(stdout, "%s: %s\n", receipt.Status, receipt.Luhmann)
-	if writeErr != nil {
-		return fmt.Errorf("serve client: write response: %w", writeErr)
-	}
-
-	return nil
+	return fmt.Errorf(
+		"%w; set ENGRAM_PARENT=%s instead — every environment now keeps its own local vault "+
+			"and offers notes to the parent",
+		errEngramServerRemoved, removed)
 }
 
 // resolveParentOrError returns ENGRAM_PARENT's base URL, or
@@ -392,17 +322,6 @@ func resolveParentOrError(deps Deps) (string, error) {
 	}
 
 	return parent, nil
-}
-
-// serverBase returns the ENGRAM_SERVER base URL (e.g. "http://host:port"),
-// or "" when unset — the signal that a served CLI target should run
-// locally instead of routing through the HTTP client (tasks.md 8.1).
-func serverBase(deps Deps) string {
-	if deps.Getenv == nil {
-		return ""
-	}
-
-	return deps.Getenv(envServerBase)
 }
 
 // setBoolParam sets key to a single "true"/"false" query value when value

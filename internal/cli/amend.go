@@ -50,7 +50,7 @@ type AmendArgs struct {
 	// it. Local `engram amend` never needs to SET pending (only served
 	// writes do that), so a one-way clear flag is all the CLI exposes;
 	// targets.go translates ClearPending=true into Pending=&false before
-	// calling RunAmend, local-only (never touches the served /amend path).
+	// calling RunAmend.
 	ClearPending bool `json:"clearPending" targ:"flag,name=clear-pending,desc=clear the pending-offer marker set by a served write (vault-offer-curation)"` //nolint:lll // single unbreakable struct-tag string
 	// Pending sets/clears the pending-offer marker directly. nil (the CLI
 	// default — no targ tag, never a flag) leaves the note's existing

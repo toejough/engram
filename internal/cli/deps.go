@@ -76,7 +76,7 @@ type Deps struct {
 	// internal-purity rule disallows net/url under internal/, so the raw
 	// primitive takes a plain string) and returns its response reduced to
 	// primitive types (production: real net/http.Client, composed in
-	// cmd/engram). Used by CLI targets when ENGRAM_SERVER is set.
+	// cmd/engram). Used for parent requests (ENGRAM_PARENT).
 	Fetch func(ctx context.Context, method, url string, body []byte) (FetchResponse, error)
 }
 

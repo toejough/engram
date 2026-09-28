@@ -15,35 +15,6 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestTargets_Query_BothEnvVarsSet_ServerTakesPrecedence verifies that when
-// both ENGRAM_SERVER and ENGRAM_PARENT are set, `engram query` behaves
-// exactly as it does with only ENGRAM_SERVER set — a single fetch to the
-// server, no merge attempt, ENGRAM_PARENT inert.
-func TestTargets_Query_BothEnvVarsSet_ServerTakesPrecedence(t *testing.T) {
-	g := NewWithT(t)
-
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	fetchCalls := 0
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "query", "--phrase", "x"},
-		func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, _, url string, _ []byte) (cli.FetchResponse, error) {
-				fetchCalls++
-
-				g.Expect(url).To(ContainSubstring("http://vault-host:8420/query"))
-
-				return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nitems: []\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("version: 1\nitems: []\n"))
-	g.Expect(fetchCalls).To(Equal(1), "only ENGRAM_SERVER's single exclusive fetch, no parent merge attempt")
-}
-
 // TestTargets_Query_MergedMode_CombinesLocalAndParent exercises
 // vault-merged-recall end-to-end through Targets(): ENGRAM_PARENT set,
 // a real local vault with one note, a mocked parent response with one

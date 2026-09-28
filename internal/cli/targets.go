@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -97,6 +96,18 @@ func ProjectSlugFromPath(path string) string {
 // explicit logger argument.
 func Targets(deps Deps) []any {
 	errHandler := newErrHandler(deps.Stderr, deps.Exit)
+
+	// Pre-dispatch guard (design D1): a set ENGRAM_SERVER refuses every
+	// command, serve included, before any target — and so any vault, chunk
+	// index, lock, fetch or bind — is built. Production Exit never returns;
+	// the nil target list only matters to a recording Exit in tests.
+	guardErr := removedServerError(deps)
+	if guardErr != nil {
+		errHandler(guardErr)
+
+		return nil
+	}
+
 	logger := debuglog.New(deps.DebugLog, "engram", deps.Now)
 
 	withLog := func(ctx context.Context) context.Context {
@@ -112,23 +123,6 @@ func Targets(deps Deps) []any {
 	)
 }
 
-// unexported variables.
-var (
-	// errDiscardOverServer guards amend --discard: curation runs host-local
-	// only (vault-offer-curation's design: it "never crosses the wire"), so
-	// routing a discard through ENGRAM_SERVER is refused locally rather than
-	// silently POSTed — the server forces Discard=false on any served amend
-	// (see serveAmend), which would otherwise re-stamp and re-pend the target
-	// note instead of doing what the caller asked.
-	errDiscardOverServer = errors.New("amend --discard is host-local only; unset ENGRAM_SERVER to discard a note")
-	// errRegisterSkillsOverServer guards `engram register-skills`: like
-	// amend --discard, it judges and writes vault notes on the user's own
-	// terminal (prompting, declines) — never something to route over the
-	// wire (skill-runbook-registration).
-	errRegisterSkillsOverServer = errors.New(
-		"register-skills is host-local only; unset ENGRAM_SERVER to run it")
-)
-
 // amendResituateTargets returns the amend and resituate subcommands. Split out
 // of maintenanceTargets to stay within the per-function length budget.
 func amendResituateTargets(
@@ -143,18 +137,6 @@ func amendResituateTargets(
 			errHandler(RunResituate(withLog(ctx), a, newResituateDeps(deps), deps.Stdout))
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 		targ.Targ(func(ctx context.Context, a AmendArgs) {
-			if base := serverBase(deps); base != "" {
-				if a.Discard {
-					errHandler(errDiscardOverServer)
-
-					return
-				}
-
-				errHandler(fetchAmend(withLog(ctx), deps, base, a, deps.Stdout))
-
-				return
-			}
-
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
@@ -211,12 +193,6 @@ func ingestQueryTargets(
 
 	return append([]any{
 		targ.Targ(func(ctx context.Context, a QueryArgs) {
-			if base := serverBase(deps); base != "" {
-				errHandler(fetchQuery(withLog(ctx), deps, base, a, deps.Stdout))
-
-				return
-			}
-
 			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
 
@@ -241,12 +217,6 @@ func ingestQueryTargets(
 				"keep the embedded chunks (still searchable). --duplicates retroactively collapses " +
 				"exact-content-hash groups to one canonical member (safe by construction)"),
 		targ.Targ(func(ctx context.Context, a ChunkQueryArgs) {
-			if base := serverBase(deps); base != "" {
-				errHandler(fetchQueryChunks(withLog(ctx), deps, base, a, deps.Stdout))
-
-				return
-			}
-
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
 			errHandler(RunChunkQuery(withLog(ctx), a, newChunkQueryDeps(deps), deps.Stdout))
 		}).Name("query-chunks").Description("Semantic search over the chunk index (YAML output)"),
@@ -266,34 +236,16 @@ func learnUpdateTargets(
 	return []any{
 		targ.Group("learn",
 			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
-				if base := serverBase(deps); base != "" {
-					errHandler(fetchLearn(withLog(ctx), deps, base, learnArgsFromFeedback(a), deps.Stdout))
-
-					return
-				}
-
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, deps, deps.Stdout))
 			}).Name("feedback").Description("Write a feedback note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
-				if base := serverBase(deps); base != "" {
-					errHandler(fetchLearn(withLog(ctx), deps, base, learnArgsFromFact(a), deps.Stdout))
-
-					return
-				}
-
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 				errHandler(runLearnFromFactArgs(withLog(ctx), a, deps, deps.Stdout))
 			}).Name("fact").Description("Write a fact note to the vault"),
 			targ.Targ(func(ctx context.Context, a LearnRunbookArgs) {
-				if base := serverBase(deps); base != "" {
-					errHandler(fetchLearn(withLog(ctx), deps, base, learnArgsFromRunbook(a), deps.Stdout))
-
-					return
-				}
-
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 				errHandler(runLearnFromRunbookArgs(withLog(ctx), a, deps, deps.Stdout))
@@ -353,8 +305,7 @@ func newErrHandler(stderr io.Writer, exit func(int)) func(error) {
 }
 
 // registerSkillsTargets returns the `engram register-skills` subcommand
-// (skill-runbook-registration): host-local only (errRegisterSkillsOverServer,
-// mirroring amend --discard's errDiscardOverServer). It calls the shared
+// (skill-runbook-registration). It calls the shared
 // source resolver (ResolveSkillSources, design D1) over home and the working
 // directory — the same default skill, command and prompt set `engram
 // update`'s registration hook scans. --skills-dir is repeatable (relative to
@@ -368,12 +319,6 @@ func registerSkillsTargets(
 ) []any {
 	return []any{
 		targ.Targ(func(ctx context.Context, a RegisterSkillsArgs) {
-			if base := serverBase(deps); base != "" {
-				errHandler(errRegisterSkillsOverServer)
-
-				return
-			}
-
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 
@@ -442,13 +387,7 @@ func showActivateTargets(
 	home string,
 ) []any {
 	return append([]any{
-		targ.Targ(func(ctx context.Context, a ActivateArgs) {
-			if base := serverBase(deps); base != "" {
-				errHandler(fetchActivate(withLog(ctx), deps, base, a))
-
-				return
-			}
-
+		targ.Targ(func(_ context.Context, a ActivateArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 			errHandler(RunActivate(a, newActivateDeps(deps)))
 		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
@@ -475,12 +414,6 @@ func showTargets(
 ) []any {
 	return []any{
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
-			if base := serverBase(deps); base != "" {
-				errHandler(fetchShow(withLog(ctx), deps, base, a, deps.Stdout))
-
-				return
-			}
-
 			if a.Parent {
 				parent, parentErr := resolveParentOrError(deps)
 				if parentErr != nil {
@@ -497,12 +430,6 @@ func showTargets(
 			errHandler(dispatchShow(withLog(ctx), deps, a, home, deps.Stdout))
 		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
 		targ.Targ(func(ctx context.Context, a ShowChunkArgs) {
-			if base := serverBase(deps); base != "" {
-				errHandler(fetchShowChunk(withLog(ctx), deps, base, a, deps.Stdout))
-
-				return
-			}
-
 			if a.Parent {
 				parent, parentErr := resolveParentOrError(deps)
 				if parentErr != nil {

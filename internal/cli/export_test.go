@@ -161,7 +161,6 @@ var (
 	ExportRunVocabTagDefinitions        = runVocabTagDefinitions
 	ExportScanNonVocabNotes             = scanNonVocabNotes
 	ExportSelectStates                  = selectStates
-	ExportServerBase                    = serverBase
 	ExportShouldEmbed                   = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}

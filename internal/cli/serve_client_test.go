@@ -21,449 +21,33 @@ import (
 	"github.com/toejough/engram/internal/embed"
 )
 
-// TestEngramServer_Activate_RoutesThroughFetch covers `engram activate`
-// client-mode dispatch (a write with no receipt to print — commits
-// directly, per design.md Decisions).
-func TestEngramServer_Activate_RoutesThroughFetch(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t, []string{"engram", "activate", "--note", "1.a.md"}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-			got = fakeFetchCall{method: method, url: url, body: body}
-
-			return cli.FetchResponse{Status: 200, Body: []byte(`{"status":"ok"}`)}, nil
-		}
-	})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(BeEmpty())
-	g.Expect(got.method).To(Equal("POST"))
-	g.Expect(got.url).To(Equal("http://vault-host:8420/activate"))
-	g.Expect(string(got.body)).To(ContainSubstring("1.a.md"))
-}
-
-// TestEngramServer_Amend_DiscardRefusedLocally covers the client-side guard:
-// `--discard` is refused before any network call when ENGRAM_SERVER is set,
-// rather than being POSTed to a server that would silently force it off
-// (serveAmend) and re-pend the target note instead of discarding it.
-func TestEngramServer_Amend_DiscardRefusedLocally(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	fetchCalled := false
-
-	_, stderr := executeCapturingBoth(t,
-		[]string{"engram", "amend", "--target", "1", "--discard"},
-		func(d *cli.Deps) {
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				fetchCalled = true
-
-				return cli.FetchResponse{}, nil
-			}
-		})
-
-	g.Expect(stderr).To(ContainSubstring("host-local"))
-	g.Expect(fetchCalled).To(BeFalse())
-}
-
-// TestEngramServer_Amend_StampsRepoAndPrintsReceipt mirrors
-// TestEngramServer_Learn_StampsRepoAndPrintsReceipt for `engram amend`.
-func TestEngramServer_Amend_StampsRepoAndPrintsReceipt(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "amend", "--target", "1", "--object", "amended"},
-		func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url, body: body}
-				receipt, _ := json.Marshal(map[string]string{"status": "offer received", "luhmann": "1"})
-
-				return cli.FetchResponse{Status: 200, Body: receipt}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("offer received: 1\n"))
-	g.Expect(got.method).To(Equal("POST"))
-	g.Expect(got.url).To(Equal("http://vault-host:8420/amend"))
-
-	var sent cli.AmendArgs
-	g.Expect(json.Unmarshal(got.body, &sent)).To(Succeed())
-	g.Expect(sent.Object).To(Equal("amended"))
-}
-
-// TestEngramServer_Amend_StampsUser mirrors
-// TestEngramServer_Learn_StampsUser for `engram amend`.
-func TestEngramServer_Amend_StampsUser(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "amend", "--target", "1", "--object", "amended"},
-		func(d *cli.Deps) {
-			d.Commander = fakeGitCommander{configOut: "agent@example.com\n"}
-			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url, body: body}
-				receipt, _ := json.Marshal(map[string]string{"status": "offer received", "luhmann": "1"})
-
-				return cli.FetchResponse{Status: 200, Body: receipt}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("offer received: 1\n"))
-
-	var sent cli.AmendArgs
-	g.Expect(json.Unmarshal(got.body, &sent)).To(Succeed())
-	g.Expect(sent.User).To(Equal("agent@example.com"))
-}
-
-// TestEngramServer_Learn_Runbook_PrintsReceipt mirrors
-// TestEngramServer_Learn_StampsRepoAndPrintsReceipt for the runbook kind: a
-// served `engram learn runbook` POSTs LearnArgs-shaped JSON and prints the
-// offer receipt rather than a note path.
-func TestEngramServer_Learn_Runbook_PrintsReceipt(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t, []string{
-		"engram", "learn", "runbook",
-		"--slug", "served-runbook", "--source", "test",
-		"--situation", "a served write", "--done-when", "the write completes",
-	}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-			got = fakeFetchCall{method: method, url: url, body: body}
-			receipt, _ := json.Marshal(map[string]string{"status": "offer received", "luhmann": "9"})
-
-			return cli.FetchResponse{Status: 200, Body: receipt}, nil
-		}
-	})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("offer received: 9\n"))
-	g.Expect(got.method).To(Equal("POST"))
-	g.Expect(got.url).To(Equal("http://vault-host:8420/learn"))
-
-	var sent cli.LearnArgs
-	g.Expect(json.Unmarshal(got.body, &sent)).To(Succeed())
-	g.Expect(sent.Situation).To(Equal("a served write"))
-	g.Expect(sent.Type).To(Equal("runbook"))
-}
-
-// TestEngramServer_Learn_StampsRepoAndPrintsReceipt covers task 8.1 for a
-// write command: `engram learn fact` with ENGRAM_SERVER set POSTs
-// LearnArgs-shaped JSON (including this client's own detected repo:) and
-// prints the offer receipt rather than a note path.
-func TestEngramServer_Learn_StampsRepoAndPrintsReceipt(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t, []string{
-		"engram", "learn", "fact",
-		"--slug", "served", "--source", "test",
-		"--situation", "a served write", "--subject", "engram", "--predicate", "serves", "--object", "writes",
-	}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-			got = fakeFetchCall{method: method, url: url, body: body}
-			receipt, _ := json.Marshal(map[string]string{"status": "offer received", "luhmann": "9"})
-
-			return cli.FetchResponse{Status: 200, Body: receipt}, nil
-		}
-	})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("offer received: 9\n"))
-	g.Expect(got.method).To(Equal("POST"))
-	g.Expect(got.url).To(Equal("http://vault-host:8420/learn"))
-
-	var sent cli.LearnArgs
-	g.Expect(json.Unmarshal(got.body, &sent)).To(Succeed())
-	g.Expect(sent.Situation).To(Equal("a served write"))
-	g.Expect(sent.Type).To(Equal("fact"))
-}
-
-// TestEngramServer_Learn_StampsUser covers the client-side half of
-// serve-client-declared-identity: `engram learn` with ENGRAM_SERVER set
-// populates the outgoing LearnArgs body's User field via the same
-// detectUser call the local (non-served) path already uses, mirroring how
-// Repo is already populated via detectRepo.
-func TestEngramServer_Learn_StampsUser(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t, []string{
-		"engram", "learn", "fact",
-		"--slug", "served", "--source", "test",
-		"--situation", "a served write", "--subject", "engram", "--predicate", "serves", "--object", "writes",
-	}, func(d *cli.Deps) {
-		d.Commander = fakeGitCommander{configOut: "agent@example.com\n"}
-		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-			got = fakeFetchCall{method: method, url: url, body: body}
-			receipt, _ := json.Marshal(map[string]string{"status": "offer received", "luhmann": "9"})
-
-			return cli.FetchResponse{Status: 200, Body: receipt}, nil
-		}
-	})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("offer received: 9\n"))
-
-	var sent cli.LearnArgs
-	g.Expect(json.Unmarshal(got.body, &sent)).To(Succeed())
-	g.Expect(sent.User).To(Equal("agent@example.com"))
-}
-
-// TestEngramServer_MalformedReceipt_SurfacesDecodeError covers
-// printOfferReceipt's error branch: a served write's success response that
-// isn't valid {status,luhmann} JSON surfaces as a client-side error rather
-// than being silently mis-printed.
-func TestEngramServer_MalformedReceipt_SurfacesDecodeError(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	_, stderr := executeCapturingBoth(t, []string{
-		"engram", "learn", "fact",
-		"--slug", "served", "--source", "test",
-		"--situation", "s", "--subject", "a", "--predicate", "b", "--object", "c",
-	}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-			return cli.FetchResponse{Status: 200, Body: []byte("not json")}, nil
-		}
-	})
-
-	g.Expect(stderr).To(ContainSubstring("decoding offer receipt"))
-}
-
-// TestEngramServer_NonOKResponse_MalformedBody_FallsBackToRawText covers
-// describeErrorBody's non-JSON fallback branch: a non-2xx response whose
-// body isn't {"error": "..."} JSON still surfaces its raw text.
-func TestEngramServer_NonOKResponse_MalformedBody_FallsBackToRawText(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note"}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-			return cli.FetchResponse{Status: 500, Body: []byte("  internal error, not json  ")}, nil
-		}
-	})
-
-	g.Expect(stderr).To(ContainSubstring("internal error, not json"))
-}
-
-// TestEngramServer_NonOKResponse_SurfacesError covers the client-side
-// error path: a non-2xx served response surfaces as a CLI error rather
-// than being silently swallowed.
-func TestEngramServer_NonOKResponse_SurfacesError(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note"}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-			errBody, _ := json.Marshal(map[string]string{"error": "note not found"})
-
-			return cli.FetchResponse{Status: 404, Body: errBody}, nil
-		}
-	})
-
-	g.Expect(stderr).To(ContainSubstring("note not found"))
-}
-
-// TestEngramServer_QueryChunks_RoutesThroughFetch covers `engram
-// query-chunks` client-mode dispatch.
-func TestEngramServer_QueryChunks_RoutesThroughFetch(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "query-chunks", "--phrase", "hello", "--limit", "3"},
-		func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url, body: body}
-
-				return cli.FetchResponse{Status: 200, Body: []byte("items: []\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("items: []\n"))
-	g.Expect(got.method).To(Equal("GET"))
-	g.Expect(got.url).To(Equal("http://vault-host:8420/query-chunks?limit=3&phrase=hello"))
-}
-
-// TestEngramServer_Query_AllParamsSet exercises every setBoolParam/
-// setIntParam/setStringParam "value present" branch in one call (the
-// negative/absent branches are already covered by
-// TestEngramServer_Query_RoutesThroughFetch, which sets none of them).
-func TestEngramServer_Query_AllParamsSet(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t, []string{
-		"engram", "query", "--phrase", "hello",
-		"--limit", "7", "--project", "engram", "--content-budget", "9", "--recent-fill", "2",
-		"--lazy-chunks", "--timings",
-	}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-			got = fakeFetchCall{method: method, url: url, body: body}
-
-			return cli.FetchResponse{Status: 200, Body: []byte("ok\n")}, nil
-		}
-	})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("ok\n"))
-	g.Expect(got.url).To(Equal(
-		"http://vault-host:8420/query?content-budget=9&lazy-chunks=true&limit=7" +
-			"&phrase=hello&project=engram&recent-fill=2&timings=true",
-	))
-}
-
-// TestEngramServer_Query_RoutesThroughFetch covers task 8.1: with
-// ENGRAM_SERVER set, `engram query` issues a GET /query request instead of
-// touching local files, and copies the server's response body verbatim to
-// stdout (design.md API Contract: byte-identical to local).
-func TestEngramServer_Query_RoutesThroughFetch(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t, []string{"engram", "query", "--phrase", "hello world"},
-		func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url, body: body}
-
-				return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nitems: []\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("version: 1\nitems: []\n"), "GET response body is copied verbatim")
-	g.Expect(got.method).To(Equal("GET"))
-	g.Expect(got.url).To(Equal("http://vault-host:8420/query?phrase=hello%20world"))
-}
-
-// TestEngramServer_Query_TextRoundTripsByteIdentically: a 1 KB --text with
-// quotes, newlines, '&', '=', '%' and non-ASCII characters survives the
-// hand-rolled query encoder unchanged when decoded by a standard parser.
-func TestEngramServer_Query_TextRoundTripsByteIdentically(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	const unit = "say \"hi\"\nfoo&bar=baz 100% naïve привет мир /please\t"
-
-	text := strings.Repeat(unit, 1024/len(unit))
-	g.Expect(utf8.ValidString(text)).To(BeTrue(), "fixture must be valid UTF-8")
-
-	var got fakeFetchCall
-
-	_, stderr := executeCapturingBoth(t, []string{"engram", "query", "--text", text},
-		func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, target string, body []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: target, body: body}
-
-				return cli.FetchResponse{Status: 200, Body: []byte("ok\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-
-	parsed, parseErr := url.Parse(got.url)
-	g.Expect(parseErr).NotTo(HaveOccurred())
-
-	if parseErr != nil {
-		return
-	}
-
-	g.Expect(parsed.Query().Get("text")).To(Equal(text))
-	g.Expect(parsed.Query()["phrase"]).To(BeEmpty())
-}
-
-// TestEngramServer_ShowChunk_RoutesThroughFetch covers `engram show-chunk`
-// client-mode dispatch.
-func TestEngramServer_ShowChunk_RoutesThroughFetch(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show-chunk", "src.md#anchor"}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-			got = fakeFetchCall{method: method, url: url, body: body}
-
-			return cli.FetchResponse{Status: 200, Body: []byte("chunk text\n")}, nil
-		}
-	})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("chunk text\n"))
-	g.Expect(got.method).To(Equal("GET"))
-	g.Expect(got.url).To(Equal("http://vault-host:8420/show-chunk?id=src.md%23anchor"))
-}
-
-// TestEngramServer_Show_PercentEncodesQueryValues covers the hand-rolled
-// query encoder (internal/ may not import net/url): a note ref containing
-// characters needing escaping round-trips correctly into the URL.
-func TestEngramServer_Show_PercentEncodesQueryValues(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.2026-01-01.a note"},
-		func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url, body: body}
-
-				return cli.FetchResponse{Status: 200, Body: []byte("note content\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("note content\n"))
-	g.Expect(got.url).To(Equal("http://vault-host:8420/show?note=1.2026-01-01.a%20note"))
-}
-
-// TestEngramServer_Unset_RunsLocally covers the negative case: with
-// ENGRAM_SERVER unset, deps.Fetch is never invoked and the command runs
-// against local files as usual.
-func TestEngramServer_Unset_RunsLocally(t *testing.T) {
+// TestFetchQueryPayload_AllParamsSet exercises every setBoolParam/
+// setIntParam/setStringParam "value present" branch of the parent /query
+// request in one call (the absent branches are covered by the other
+// TestFetchQueryPayload_* tests, which set none of them).
+func TestFetchQueryPayload_AllParamsSet(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	vault := t.TempDir()
-	writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+	var got fakeFetchCall
 
-	fetchCalled := false
+	deps := cli.Deps{Fetch: func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+		got = fakeFetchCall{method: method, url: url}
 
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1", "--vault", vault}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
-			fetchCalled = true
+		return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nitems: []\n")}, nil
+	}}
 
-			return cli.FetchResponse{}, nil
-		}
+	_, err := cli.ExportFetchQueryPayload(context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{
+		Phrases: []string{"hello"}, Limit: 7, Project: "engram", ContentBudget: 9, RecentFill: 2,
+		LazyChunks: true, Timings: true,
 	})
 
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(fetchCalled).To(BeFalse())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got.method).To(Equal("GET"))
+	g.Expect(got.url).To(Equal(
+		"http://parent-host:8420/query?content-budget=9&lazy-chunks=true&limit=7" +
+			"&phrase=hello&project=engram&recent-fill=2&timings=true",
+	))
 }
 
 // TestFetchQueryPayload_DecodesSuccessfulResponse covers the happy path: a
@@ -513,6 +97,41 @@ func TestFetchQueryPayload_NonOKStatusErrors(t *testing.T) {
 		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{})
 
 	g.Expect(err).To(MatchError(ContainSubstring("boom")))
+}
+
+// TestFetchQueryPayload_TextRoundTripsByteIdentically: a 1 KB --text with
+// quotes, newlines, '&', '=', '%' and non-ASCII characters survives the
+// hand-rolled query encoder unchanged when decoded by a standard parser.
+func TestFetchQueryPayload_TextRoundTripsByteIdentically(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const unit = "say \"hi\"\nfoo&bar=baz 100% naïve привет мир /please\t"
+
+	text := strings.Repeat(unit, 1024/len(unit))
+	g.Expect(utf8.ValidString(text)).To(BeTrue(), "fixture must be valid UTF-8")
+
+	var got fakeFetchCall
+
+	deps := cli.Deps{Fetch: func(_ context.Context, method, target string, _ []byte) (cli.FetchResponse, error) {
+		got = fakeFetchCall{method: method, url: target}
+
+		return cli.FetchResponse{Status: 200, Body: []byte("version: 1\nitems: []\n")}, nil
+	}}
+
+	_, err := cli.ExportFetchQueryPayload(
+		context.Background(), deps, "http://parent-host:8420", cli.QueryArgs{Text: text})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	parsed, parseErr := url.Parse(got.url)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	g.Expect(parsed.Query().Get("text")).To(Equal(text))
+	g.Expect(parsed.Query()["phrase"]).To(BeEmpty())
 }
 
 // TestFetchQueryPayload_TransportErrorPropagates covers a transport-level
@@ -659,10 +278,8 @@ func TestParentBase_NilGetenv(t *testing.T) {
 }
 
 // TestParentBase_ReadsEngramParentEnv covers parentBase resolving from the
-// ENGRAM_PARENT environment variable, mirroring how serverBase resolves
-// ENGRAM_SERVER — a separate env var, not a QueryArgs flag (design.md
-// Decision 5's precedent: ENGRAM_SERVER is dispatch-level, not threaded
-// through args).
+// ENGRAM_PARENT environment variable — dispatch-level, not a QueryArgs
+// flag threaded through args (design.md Decision 5).
 func TestParentBase_ReadsEngramParentEnv(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -725,16 +342,6 @@ func TestServeTarget_ResolvesArgsAndCallsRunServe(t *testing.T) {
 
 	g.Expect(stderr).To(BeEmpty())
 	g.Expect(gotAddr).To(Equal("127.0.0.1:0"))
-}
-
-// TestServerBase_NilGetenv covers serverBase's nil-safety guard (a minimal
-// zero-value Deps, as production code can construct when Getenv is
-// unwired — matches the same nil-tolerance convention as homeOrEmpty).
-func TestServerBase_NilGetenv(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	g.Expect(cli.ExportServerBase(cli.Deps{})).To(Equal(""))
 }
 
 // TestShowChunkFallback_LocalHitDoesNotContactParent mirrors
@@ -810,8 +417,8 @@ func TestShowChunkFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
 
 	stdout, stderr := executeCapturingBoth(t,
 		[]string{"engram", "show-chunk", "src.md#anchor", "--chunks-dir", chunksDir}, func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url, body: body}
+			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url}
 
 				return cli.FetchResponse{Status: 200, Body: []byte("parent chunk text\n")}, nil
 			}
@@ -820,29 +427,6 @@ func TestShowChunkFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
 	g.Expect(stderr).To(BeEmpty())
 	g.Expect(got.url).To(Equal("http://parent-host:8420/show-chunk?id=src.md%23anchor"))
 	g.Expect(stdout).To(Equal("# from_parent: true\nparent chunk text\n"))
-}
-
-// TestShowChunkParent_InertWhenEngramServerSet mirrors
-// TestShowParent_InertWhenEngramServerSet for show-chunk.
-func TestShowChunkParent_InertWhenEngramServerSet(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "show-chunk", "src.md#anchor", "--parent"}, func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url, body: body}
-
-				return cli.FetchResponse{Status: 200, Body: []byte("server chunk text\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("server chunk text\n"))
-	g.Expect(got.url).To(Equal("http://vault-host:8420/show-chunk?id=src.md%23anchor"))
 }
 
 // TestShowChunkParent_RoutesThroughFetch mirrors TestShowParent_RoutesThroughFetch
@@ -855,8 +439,8 @@ func TestShowChunkParent_RoutesThroughFetch(t *testing.T) {
 
 	stdout, stderr := executeCapturingBoth(t,
 		[]string{"engram", "show-chunk", "src.md#anchor", "--parent"}, func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url, body: body}
+			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url}
 
 				return cli.FetchResponse{Status: 200, Body: []byte("parent chunk text\n")}, nil
 			}
@@ -893,8 +477,7 @@ func TestShowChunkParent_WithoutEngramParentErrors(t *testing.T) {
 }
 
 // TestShowChunkTarget_LocalDispatch covers show-chunk's local (non-served)
-// branch through Targets() — the ENGRAM_SERVER-set branch is covered by
-// TestEngramServer_ShowChunk_RoutesThroughFetch. Getenv is stubbed to "" for
+// branch through Targets(). Getenv is stubbed to "" for
 // the same reason as TestTargets_QueryEmptyVault: this test means to
 // exercise the local-only not-found path, and newTestDeps wires the real
 // os.Getenv, so an ambient ENGRAM_PARENT would otherwise route the miss
@@ -967,7 +550,7 @@ func TestShowFallback_LocalMissNoParentConfiguredErrorsUnchanged(t *testing.T) {
 }
 
 // TestShowFallback_LocalMissRoutesToParentLabeled covers "Local miss falls
-// back to the parent": with ENGRAM_PARENT configured, no ENGRAM_SERVER, and
+// back to the parent": with ENGRAM_PARENT configured and
 // no local match, bare `engram show <ref>` resolves the ref against the
 // parent and labels the output as parent-sourced (vault-merged-recall D8).
 func TestShowFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
@@ -980,8 +563,8 @@ func TestShowFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
 
 	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.missing", "--vault", vault},
 		func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url, body: body}
+			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url}
 
 				return cli.FetchResponse{Status: 200, Body: []byte("parent note content\n")}, nil
 			}
@@ -992,31 +575,70 @@ func TestShowFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
 	g.Expect(stdout).To(Equal("# from_parent: true\nparent note content\n"))
 }
 
-// TestShowParent_InertWhenEngramServerSet covers the precedence rule: with
-// both ENGRAM_SERVER and ENGRAM_PARENT set, `--parent` is ignored — the
-// command routes to ENGRAM_SERVER exactly as it would without --parent.
-func TestShowParent_InertWhenEngramServerSet(t *testing.T) {
+// TestShowParent_NonOKResponse_MalformedBody_FallsBackToRawText covers
+// describeErrorBody's non-JSON fallback branch: a non-2xx parent response
+// whose body isn't {"error": "..."} JSON still surfaces its raw text.
+func TestShowParent_NonOKResponse_MalformedBody_FallsBackToRawText(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
-	t.Setenv("ENGRAM_SERVER", "http://vault-host:8420")
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note", "--parent"},
+		func(d *cli.Deps) {
+			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
+			d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+				return cli.FetchResponse{Status: 500, Body: []byte("  internal error, not json  ")}, nil
+			}
+		})
+
+	g.Expect(stderr).To(ContainSubstring("internal error, not json"))
+}
+
+// TestShowParent_NonOKResponse_SurfacesError covers the parent client's
+// error path: a non-2xx parent response surfaces as a CLI error rather
+// than being silently swallowed.
+func TestShowParent_NonOKResponse_SurfacesError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note", "--parent"},
+		func(d *cli.Deps) {
+			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
+			d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+				errBody, _ := json.Marshal(map[string]string{"error": "note not found"})
+
+				return cli.FetchResponse{Status: 404, Body: errBody}, nil
+			}
+		})
+
+	g.Expect(stderr).To(ContainSubstring("note not found"))
+}
+
+// TestShowParent_PercentEncodesQueryValues covers the hand-rolled query
+// encoder (internal/ may not import net/url): a note ref containing
+// characters needing escaping round-trips correctly into the parent URL.
+func TestShowParent_PercentEncodesQueryValues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
 
 	var got fakeFetchCall
 
-	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent"}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-			got = fakeFetchCall{method: method, url: url, body: body}
+	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.2026-01-01.a note", "--parent"},
+		func(d *cli.Deps) {
+			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
+			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url}
 
-			return cli.FetchResponse{Status: 200, Body: []byte("server note content\n")}, nil
-		}
-	})
+				return cli.FetchResponse{Status: 200, Body: []byte("note content\n")}, nil
+			}
+		})
 
 	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("server note content\n"))
-	g.Expect(got.url).To(Equal("http://vault-host:8420/show?note=1.hub"))
+	g.Expect(stdout).To(Equal("note content\n"))
+	g.Expect(got.url).To(Equal("http://parent-host:8420/show?note=1.2026-01-01.a%20note"))
 }
 
 // TestShowParent_RoutesThroughFetch covers `engram show <ref> --parent`
-// routing to ENGRAM_PARENT via the same fetchShow path ENGRAM_SERVER uses.
+// routing to the parent (ENGRAM_PARENT) via fetchShow.
 func TestShowParent_RoutesThroughFetch(t *testing.T) {
 	g := NewWithT(t)
 	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
@@ -1024,8 +646,8 @@ func TestShowParent_RoutesThroughFetch(t *testing.T) {
 	var got fakeFetchCall
 
 	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent"}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
-			got = fakeFetchCall{method: method, url: url, body: body}
+		d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+			got = fakeFetchCall{method: method, url: url}
 
 			return cli.FetchResponse{Status: 200, Body: []byte("parent note content\n")}, nil
 		}
@@ -1060,6 +682,31 @@ func TestShowParent_WithoutEngramParentErrors(t *testing.T) {
 	g.Expect(fetchCalled).To(BeFalse())
 }
 
+// TestShow_NoParent_RunsLocally covers the negative case: with no
+// ENGRAM_PARENT, deps.Fetch is never invoked and the command runs against
+// local files as usual.
+func TestShow_NoParent_RunsLocally(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+	fetchCalled := false
+
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1", "--vault", vault}, func(d *cli.Deps) {
+		d.Getenv = func(string) string { return "" }
+		d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
+			fetchCalled = true
+
+			return cli.FetchResponse{}, nil
+		}
+	})
+
+	g.Expect(stderr).To(BeEmpty())
+	g.Expect(fetchCalled).To(BeFalse())
+}
+
 // TestWriteParentSourced_BodyWriteErrorWraps covers writeParentSourced's
 // second write-error branch: the marker line writes fine, but the body
 // write fails.
@@ -1086,12 +733,10 @@ var (
 	errWriteNTimesThenFail = errors.New("writeNTimesThenFail: write failed")
 )
 
-// fakeFetchCall records one deps.Fetch invocation for ENGRAM_SERVER-mode
-// client tests.
+// fakeFetchCall records one deps.Fetch invocation for parent-client tests.
 type fakeFetchCall struct {
 	method string
 	url    string
-	body   []byte
 }
 
 // writeNTimesThenFail succeeds on its first n calls to Write, then fails —
@@ -1113,7 +758,7 @@ func (w *writeNTimesThenFail) Write(p []byte) (int, error) {
 
 // executeCapturingBoth runs an engram CLI command through targ like
 // executeForTestWithDeps, but returns BOTH stdout and stderr — needed here
-// because ENGRAM_SERVER-mode reads/receipts print to stdout, unlike
+// because parent reads print to stdout, unlike
 // executeForTestWithDeps's error-path-only stderr capture.
 func executeCapturingBoth(t *testing.T, args []string, customize func(*cli.Deps)) (string, string) {
 	t.Helper()
@@ -1132,4 +777,17 @@ func executeCapturingBoth(t *testing.T, args []string, customize func(*cli.Deps)
 	}
 
 	return stdout.String(), stderr.String()
+}
+
+// parentOnlyGetenv returns a Getenv stub that reports only
+// ENGRAM_PARENT=parent, so a parallel test needs no t.Setenv and never
+// depends on the ambient environment.
+func parentOnlyGetenv(parent string) func(string) string {
+	return func(key string) string {
+		if key == "ENGRAM_PARENT" {
+			return parent
+		}
+
+		return ""
+	}
 }

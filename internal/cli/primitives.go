@@ -102,7 +102,7 @@ type Primitives struct {
 	EmbedRuntime embed.Runtime
 
 	// HTTP server-listen and client-fetch capabilities for `engram serve`
-	// and `ENGRAM_SERVER`-mode CLI targets (consumed directly by NewDeps —
+	// and parent-sync requests (consumed directly by NewDeps —
 	// internal/ never imports net/http, depguard #700's internal-purity
 	// rule; ServeRoute/ServeRequest/ServeResponse are the primitive-typed
 	// boundary cmd/engram's real net/http.ServeMux translates against).

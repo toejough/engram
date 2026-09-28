@@ -251,7 +251,7 @@ func TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites(t *testing.T) {
 	run := exec.Command(binPath, "register-skills", "--vault", vault)
 	run.Stdin = devNull
 	run.Dir = home
-	run.Env = append(os.Environ(), "ENGRAM_PARENT=", "HOME="+home)
+	run.Env = append(os.Environ(), "ENGRAM_PARENT=", "ENGRAM_SERVER=", "HOME="+home)
 
 	out, runErr := run.CombinedOutput()
 	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", out)
@@ -264,25 +264,6 @@ func TestRegisterSkillsCLI_NonTerminalStdinNeverPromptsOrWrites(t *testing.T) {
 	entries, readErr := os.ReadDir(vault)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(entries).To(BeEmpty(), "expected vault to remain untouched, found: %v", entries)
-}
-
-// TestRegisterSkillsCLI_RefusesOverServer covers "Refuse when ENGRAM_SERVER
-// is set (host-local only)", mirroring amend --discard's refusal.
-func TestRegisterSkillsCLI_RefusesOverServer(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	stderr := executeForTestWithDeps(t, []string{"engram", "register-skills", "--dry-run"}, func(d *cli.Deps) {
-		d.Getenv = func(key string) string {
-			if key == "ENGRAM_SERVER" {
-				return "http://example.invalid"
-			}
-
-			return ""
-		}
-	})
-
-	g.Expect(stderr).To(ContainSubstring("host-local only"))
 }
 
 // TestRegisterSkillsCLI_RelativeSkillsDirNeedsWorkingDir: a relative

@@ -31,6 +31,7 @@ func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 		"--predicate", "leak when",
 		"--object", "ctx is ignored",
 	)
+	run.Env = envWithoutEngramRemotes()
 	runOut, runErr := run.CombinedOutput()
 	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
 
@@ -85,6 +86,7 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 		"--impact", "leaks goroutines",
 		"--action", "check ctx.Done()",
 	)
+	run.Env = envWithoutEngramRemotes()
 	runOut, runErr := run.CombinedOutput()
 	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
 
@@ -146,7 +148,7 @@ func TestOpenDebugFile_EndToEnd(t *testing.T) {
 	run := exec.Command(binPath, "--help")
 
 	cacheDir := filepath.Join(t.TempDir(), "cache")
-	run.Env = append(os.Environ(), "ENGRAM_DEBUG_LOG="+debugFile, "XDG_CACHE_HOME="+cacheDir)
+	run.Env = append(envWithoutEngramRemotes(), "ENGRAM_DEBUG_LOG="+debugFile, "XDG_CACHE_HOME="+cacheDir)
 	_ = run.Run()
 
 	// Assert the debug file was created (proof of reach). The file may be
@@ -214,7 +216,7 @@ exit 0
 	run.Dir = workDir
 
 	cacheDir := filepath.Join(t.TempDir(), "cache")
-	run.Env = append(os.Environ(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir)
+	run.Env = append(envWithoutEngramRemotes(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir)
 	run.Env = append(run.Env, isolatedHomeEnv(t)...)
 	_ = run.Run()
 
@@ -240,7 +242,7 @@ exit 0
 	run2.Dir = projectRoot(t)
 
 	cacheDir2 := filepath.Join(t.TempDir(), "cache2")
-	run2.Env = append(os.Environ(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir2)
+	run2.Env = append(envWithoutEngramRemotes(), "PATH="+shimDir+":"+os.Getenv("PATH"), "XDG_CACHE_HOME="+cacheDir2)
 	run2.Env = append(run2.Env, isolatedHomeEnv(t)...)
 	_ = run2.Run()
 
@@ -249,14 +251,15 @@ exit 0
 	g.Expect(markerData).NotTo(BeEmpty())
 }
 
-// envWithoutDebugLog returns a copy of the current process environment with
+// envWithoutDebugLog returns a copy of the current process environment
+// (already stripped of ENGRAM_PARENT/ENGRAM_SERVER) with
 // any ENGRAM_DEBUG_LOG entries removed — the correct shape for a negative
 // control that isolates a single variable. Wiping the environment entirely
 // (Env = []string{}) is wrong: it also strips HOME/XDG/PATH/GOCOVERDIR,
 // which breaks the subprocess's data-dir resolution and, under `targ
 // check-full`'s coverage-instrumented runner, coverage propagation.
 func envWithoutDebugLog() []string {
-	base := os.Environ()
+	base := envWithoutEngramRemotes()
 	filtered := make([]string, 0, len(base))
 
 	for _, kv := range base {

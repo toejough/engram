@@ -66,7 +66,7 @@ func TestServeAndFetch_LearnRoundTrip(t *testing.T) {
 // TestServeAndFetch_ShowRoundTrip drives GET /show through a real
 // net/http.ServeMux (realNewServeMux/realRegisterRoute) served by
 // httptest.Server, fetched via realFetch — the same primitives `engram
-// serve`/ENGRAM_SERVER wire in production, exercised over an actual TCP
+// serve` / ENGRAM_PARENT wire in production, exercised over an actual TCP
 // connection rather than direct handler calls.
 func TestServeAndFetch_ShowRoundTrip(t *testing.T) {
 	t.Parallel()

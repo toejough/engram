@@ -549,7 +549,7 @@ func TestTargets_PruneEmpty(t *testing.T) {
 //
 // Getenv is also stubbed to "" here: newTestDeps wires the real os.Getenv
 // (by design — merged_query_dispatch_test.go and serve_client_test.go rely
-// on that plus t.Setenv to test ENGRAM_PARENT/ENGRAM_SERVER for real), so
+// on that plus t.Setenv to test ENGRAM_PARENT for real), so
 // on any machine where ENGRAM_PARENT happens to be set in the ambient
 // environment, parentBase(deps) would pick it up and route into the
 // ENGRAM_PARENT-merge path — which needs deps.Fetch, never wired here —

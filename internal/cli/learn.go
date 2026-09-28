@@ -570,9 +570,9 @@ func extractLuhmannFromFilename(name string) (string, bool) {
 	return luhmann.FromBasename(strings.TrimSuffix(name, mdExt))
 }
 
-// learnArgsFromFact converts LearnFactArgs to LearnArgs — shared by local
-// (runLearnFromFactArgs) and ENGRAM_SERVER-mode (fetchLearn) dispatch, so
-// the field mapping lives in exactly one place.
+// learnArgsFromFact converts LearnFactArgs to LearnArgs for local dispatch
+// (runLearnFromFactArgs) and the offer payload builder, so the field mapping
+// lives in exactly one place.
 func learnArgsFromFact(a LearnFactArgs) LearnArgs {
 	return LearnArgs{
 		Type:         typeFact,
