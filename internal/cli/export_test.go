@@ -257,6 +257,10 @@ type ExportAllVaultNotesMeta = AllVaultNotesMeta
 type ExportCompatibleSidecar = compatibleSidecar
 
 // Exported derivation types (vocab-derivational-refit Task 1).
+// ExportDeclinedPull aliases declinedPull so cli_test can wire
+// AmendDeps.RecordDecline.
+type ExportDeclinedPull = declinedPull
+
 type ExportDerivedCluster = derivedCluster
 
 type ExportExistingVocabTerm = existingVocabTerm

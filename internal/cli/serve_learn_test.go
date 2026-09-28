@@ -429,8 +429,11 @@ func TestServeLearn_LateRetryOfSupersededKeyWritesNothing(t *testing.T) {
 	// acceptance is still a no-op answered by the live note.
 	cleared := false
 
+	judged, hashErr := cli.ExportExchangeHash([]byte(readFileString(t, notePath)))
+	g.Expect(hashErr).NotTo(HaveOccurred())
+
 	amendErr := cli.ExportRunAmend(context.Background(),
-		cli.AmendArgs{Vault: vault, Target: current.Luhmann, Pending: &cleared},
+		cli.AmendArgs{Vault: vault, Target: current.Luhmann, Pending: &cleared, ExpectHash: judged},
 		cli.ExportNewAmendDeps(deps), io.Discard)
 	g.Expect(amendErr).NotTo(HaveOccurred())
 

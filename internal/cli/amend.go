@@ -65,6 +65,15 @@ type AmendArgs struct {
 	// RunAmend short-circuits to delete-and-return as soon as the target is
 	// resolved; every content-amend flag is ignored when this is set.
 	Discard bool `json:"discard" targ:"flag,name=discard,desc=delete the note and its sidecar instead of amending (vault-offer-curation)"` //nolint:lll // single unbreakable struct-tag string
+	// Into names the existing note a --discard folds the target into
+	// (design D10): the target's basename and aliases join Into's aliases,
+	// and its parent links join Into's. Only valid with --discard.
+	Into string `json:"into" targ:"flag,name=into,desc=with --discard: fold the note's basename and aliases and parent links into this existing note (vault-offer-curation)"` //nolint:lll // single unbreakable struct-tag string
+	// ExpectHash is the exchange hash curation judged (design D10 r3-2).
+	// When given, the amend fails without writing unless the target's
+	// current exchange hash equals it. It is required for --clear-pending
+	// and --discard on a note carrying offer.origin.
+	ExpectHash string `json:"expectHash" targ:"flag,name=expect-hash,desc=fail unless the note's current exchange hash equals this (shown by engram show)"` //nolint:lll // single unbreakable struct-tag string
 
 	// Repo carries a served write's client-detected repo: value across the
 	// wire. See LearnArgs.Repo for the full rationale — same
@@ -140,6 +149,10 @@ type AmendDeps struct {
 // (idempotent), and overwrites only the supplied content fields. Re-embeds only when content changed. --activate bumps
 // LastUsed in the same write.
 func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Writer) error {
+	if args.Into != "" && !args.Discard {
+		return errAmendIntoWithoutDiscard
+	}
+
 	queued, err := runAmendLocked(ctx, args, deps, stdout)
 	if err != nil {
 		return err
@@ -771,13 +784,13 @@ func runAmendLocked(ctx context.Context, args AmendArgs, deps AmendDeps, stdout 
 
 	full := filepath.Join(args.Vault, relPath)
 
-	if args.Discard {
-		return false, discardWithDecline(deps, args.Vault, full, stdout)
+	raw, readErr := readJudgedTarget(args, deps, full, relPath)
+	if readErr != nil {
+		return false, readErr
 	}
 
-	raw, readErr := deps.Read(full)
-	if readErr != nil {
-		return false, fmt.Errorf("amend: read %s: %w", relPath, readErr)
+	if args.Discard {
+		return false, discardTarget(deps, args, notes, full, raw, stdout)
 	}
 
 	parsedSupersedes, validateErr := validateAmendInputs(args, deps)

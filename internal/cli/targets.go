@@ -153,7 +153,7 @@ func amendResituateTargets(
 				return RunAmend(withLog(ctx), a, newAmendDeps(deps), deps.Stdout)
 			}))
 		}).Name("amend").Description(
-			"Amend a note in place: supersedes, provenance-merge, field-replacement, activate, discard"),
+			"Amend a note in place: supersedes, provenance-merge, field-replacement, activate, discard, fold (--into)"),
 	}
 }
 

@@ -77,7 +77,8 @@ func TestTargets_M14OriginIsParentWithdrawnAtSendTime(t *testing.T) {
 		pending: true, origin: parentVaultID + ":" + xidB, path: []string{parentVaultID},
 	}.render(t))
 
-	env.run("amend", "--target", "5.2026-09-27.served", "--clear-pending")
+	env.run("amend", "--target", "5.2026-09-27.served", "--clear-pending",
+		"--expect-hash", env.exchangeHashOf("5.2026-09-27.served.md"))
 	g.Expect(env.parent.offers()).To(BeEmpty())
 	g.Expect(env.outboxEntries()).To(BeEmpty())
 }

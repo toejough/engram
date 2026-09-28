@@ -56,7 +56,8 @@ func TestTargets_Amend_ClearPendingOfParentsOfferNeverReturns(t *testing.T) {
 		pending: true, origin: parentVaultID + ":" + xidB, path: []string{parentVaultID},
 	}.render(t))
 
-	env.run("amend", "--target", "5.2026-09-27.served", "--clear-pending")
+	env.run("amend", "--target", "5.2026-09-27.served", "--clear-pending",
+		"--expect-hash", env.exchangeHashOf("5.2026-09-27.served.md"))
 	g.Expect(env.parent.offers()).To(HaveLen(1), "only the first learn was offered")
 }
 
@@ -73,7 +74,8 @@ func TestTargets_Amend_ClearPendingOfServedOfferPropagates(t *testing.T) {
 	env.plant("1.2026-09-27.note.md",
 		offerTestNote{pending: true, origin: child + ":" + xidB, path: []string{child}}.render(t))
 
-	_, stderr := env.run("amend", "--target", "1.2026-09-27.note", "--clear-pending")
+	_, stderr := env.run("amend", "--target", "1.2026-09-27.note", "--clear-pending",
+		"--expect-hash", env.exchangeHashOf("1.2026-09-27.note.md"))
 	g.Expect(stderr).To(BeEmpty())
 
 	offers := env.parent.offers()
@@ -546,6 +548,19 @@ func (e *wiringEnv) deps() cli.Deps {
 	e.customize(&deps)
 
 	return deps
+}
+
+// exchangeHashOf is the current exchange hash of the vault note name — the
+// version curation judged, passed as --expect-hash (design D10 r3-2).
+func (e *wiringEnv) exchangeHashOf(name string) string {
+	e.t.Helper()
+
+	hash, err := cli.ExportExchangeHash([]byte(readFileString(e.t, filepath.Join(e.vault, name))))
+	if err != nil {
+		e.t.Fatal(err)
+	}
+
+	return hash
 }
 
 // learnFact learns a fact note and returns its path.

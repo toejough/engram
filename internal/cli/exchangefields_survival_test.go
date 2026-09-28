@@ -55,6 +55,9 @@ func TestExchangeFieldsSurvive_Amend(t *testing.T) {
 				)
 
 				args.Vault, args.Target = "/vault", "1aa"
+				// The fixture carries offer.origin, so clearing its marker
+				// names the judged version (design D10 r3-2).
+				args.ExpectHash = mustExchangeHash(t, before)
 
 				var buf bytes.Buffer
 
@@ -83,7 +86,7 @@ func TestExchangeFieldsSurvive_AmendProperty(t *testing.T) {
 		)
 
 		pending := false
-		args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Pending: &pending}
+		args := cli.AmendArgs{Vault: "/vault", Target: "1aa", Pending: &pending, ExpectHash: mustExchangeHash(rt, before)}
 
 		var buf bytes.Buffer
 

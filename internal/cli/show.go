@@ -57,16 +57,40 @@ func RunShow(_ context.Context, args ShowArgs, deps ShowDeps, stdout io.Writer) 
 		return fmt.Errorf("show: read %s: %w", notePath, readErr)
 	}
 
-	renderShow(stdout, capRedFlagsForPreview(string(body)), note.Outgoing)
+	renderShow(stdout, exchangeHashHeader(body)+capRedFlagsForPreview(string(body)), note.Outgoing)
 
 	return nil
 }
+
+// unexported constants.
+const (
+	exchangeHashHeaderPrefix = "# exchange_hash: "
+)
 
 // unexported variables.
 var (
 	errShowEmptyRef     = errors.New("show: empty note reference")
 	errShowNoteNotFound = errors.New("show: note not found")
 )
+
+// exchangeHashHeader is the `# exchange_hash: <hash>` line engram show
+// prints first for a note carrying xid (design D10 r4 M-B; spec
+// vault-offer-curation), so curation can pass the judged version as
+// --expect-hash. A note without xid gets no header, so its output is
+// byte-identical to before exchange existed.
+func exchangeHashHeader(raw []byte) string {
+	exchange, decodeErr := decodeExchangeFrontmatter(raw)
+	if decodeErr != nil || exchange.XID == "" {
+		return ""
+	}
+
+	hash, hashErr := exchangeHash(raw)
+	if hashErr != nil {
+		return ""
+	}
+
+	return exchangeHashHeaderPrefix + hash + "\n"
+}
 
 // newShowDeps wires RunShow from the injected CLI capabilities — pure
 // composition over EdgeFS (#700).

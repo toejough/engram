@@ -444,7 +444,9 @@ func exchangeKeyValueGen(key string) *rapid.Generator[any] {
 	}
 }
 
-func mustExchangeHash(rt *rapid.T, note string) string {
+func mustExchangeHash(rt failer, note string) string {
+	rt.Helper()
+
 	hash, err := cli.ExportExchangeHash([]byte(note))
 	if err != nil {
 		rt.Fatalf("exchange hash of\n%s\nfailed: %v", note, err)

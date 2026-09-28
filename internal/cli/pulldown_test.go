@@ -493,30 +493,25 @@ func TestActivate_PullDownFetchesWithNoLockHeld(t *testing.T) {
 }
 
 // TestActivate_PullSequencesNeverDuplicate is 6.2's rapid property (H5,
-// M8): any sequence of activate, clear-pending, discard and fold on an
-// unchanged parent note never leaves more than one local note linked to
-// it.
+// M8): any sequence of activate, clear-pending, discard and fold (the real
+// `amend --discard --into`, design D10; ruling S17) on an unchanged parent
+// note never leaves more than one local note linked to it.
 func TestActivate_PullSequencesNeverDuplicate(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
 		env := newWiringEnvIn(rt, t.TempDir())
 		parentNote := env.parent.addNote(pulledFact("7.2026-09-01.sequence", "c", ""))
-		model := &foldTarget{links: "    - note: 9.2026-09-01.other\n      via: offered\n      hash: xh1:other\n"}
-		model.plant(env)
+		env.plant(foldTargetFile, []byte(localNoteWithLinks(parentVaultID,
+			"    - note: 9.2026-09-01.other\n      via: offered\n      hash: xh1:other\n")))
 
 		steps := rapid.SliceOfN(rapid.SampledFrom([]string{"activate", "clear-pending", "discard", "fold"}), 1, 8).
 			Draw(rt, "steps")
 
 		for _, step := range steps {
-			applyPullStep(rt, env, model, parentNote, step)
+			applyPullStep(rt, env, parentNote, step)
 
 			linked := env.linkedCopies(parentNote)
-			if model.covers(parentNote) {
-				linked = slices.DeleteFunc(linked, func(name string) bool { return name == foldTargetFile })
-				linked = append(linked, foldTargetFile)
-			}
-
 			if len(linked) > 1 {
 				rt.Fatalf("after %v: %d local notes linked to %s: %v", steps, len(linked), parentNote, linked)
 			}
@@ -951,31 +946,6 @@ type fakeParentNote struct {
 	content  string
 }
 
-// foldTarget is the rapid model's live local note E that pulled copies are
-// folded into (D10's effect, simulated until `--discard --into` lands):
-// its links as rendered YAML list items.
-type foldTarget struct {
-	links string
-}
-
-func (f *foldTarget) covers(parentNote string) bool {
-	return strings.Contains(f.links, "note: "+parentNote+"\n")
-}
-
-// fold records D10's union: the folded copy's primary link becomes a
-// covered link on E (which already has a primary).
-func (f *foldTarget) fold(env *wiringEnv, link pulledLink) {
-	if !f.covers(link.Note) {
-		f.links += "    - note: " + link.Note + "\n      via: covered\n      hash: " + link.Hash + "\n"
-	}
-
-	f.plant(env)
-}
-
-func (f *foldTarget) plant(env *wiringEnv) {
-	env.plant(foldTargetFile, []byte(localNoteWithLinks(parentVaultID, f.links)))
-}
-
 // lockProbe records fetches made while a vault lock is held.
 type lockProbe struct {
 	mu      sync.Mutex
@@ -1393,7 +1363,7 @@ func (e *wiringEnv) writeState(name, content string) {
 }
 
 // applyPullStep runs one step of the rapid sequence.
-func applyPullStep(rt *rapid.T, env *wiringEnv, model *foldTarget, parentNote, step string) {
+func applyPullStep(rt *rapid.T, env *wiringEnv, parentNote, step string) {
 	if step == "activate" {
 		env.run("activate", "--note", parentNote+".md")
 
@@ -1413,12 +1383,14 @@ func applyPullStep(rt *rapid.T, env *wiringEnv, model *foldTarget, parentNote, s
 	case "discard":
 		env.run("amend", "--target", strings.TrimSuffix(target, ".md"), "--discard")
 	case "fold":
-		copied := decodePulledCopy(env.t, []byte(readFileString(env.t, filepath.Join(env.vault, target))))
-		_ = os.Remove(filepath.Join(env.vault, target))
-		_ = os.Remove(filepath.Join(env.vault, strings.TrimSuffix(target, ".md")+".vec.json"))
+		_, stderr := env.run("amend", "--target", strings.TrimSuffix(target, ".md"), "--discard",
+			"--into", strings.TrimSuffix(foldTargetFile, ".md"), "--expect-hash", env.exchangeHashOf(target))
+		if _, stillThere := os.Stat(filepath.Join(env.vault, target)); stillThere == nil {
+			rt.Fatalf("fold left %s in place: %s", target, stderr)
+		}
 
-		if len(copied.Parent.Links) > 0 {
-			model.fold(env, copied.Parent.Links[0])
+		if !slices.Contains(env.linkedCopies(parentNote), foldTargetFile) {
+			rt.Fatalf("after folding %s, %s does not link %s", target, foldTargetFile, parentNote)
 		}
 	}
 }
