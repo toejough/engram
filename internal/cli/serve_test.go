@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,6 +94,40 @@ func TestServeActivate_CommitsDirectly(t *testing.T) {
 	sidecar, unmarshalErr := embed.UnmarshalSidecar(raw)
 	g.Expect(unmarshalErr).NotTo(HaveOccurred())
 	g.Expect(sidecar.LastUsed).To(Equal(time.Now().Format("2006-01-02")))
+}
+
+// TestServeActivate_ListsVaultDirectoryOnceForMultipleRefs (final
+// re-review residual, ruling S34): resolving N refs in one served
+// activate request must cost one directory listing, not one per ref —
+// before the fix, an unauthenticated request with many short refs cost on
+// the order of len(refs) ReadDir calls while holding the vault lock.
+func TestServeActivate_ListsVaultDirectoryOnceForMultipleRefs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	names := []string{"1.2026-01-01.a-note.md", "2.2026-01-01.b-note.md", "3.2026-01-01.c-note.md"}
+	for _, name := range names {
+		notePath := writeServeVaultFile(t, vault, name)
+		sidecarPath := embed.SidecarPath(notePath)
+		g.Expect(os.WriteFile(
+			sidecarPath, embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion}), 0o600,
+		)).To(Succeed())
+	}
+
+	deps := newTestDeps(io.Discard, io.Discard)
+	counting := &readDirCountingFS{EdgeFS: deps.FS}
+	deps.FS = counting
+
+	routes := cli.ServeRoutes(deps, vault, "personal", t.TempDir())
+
+	body, marshalErr := json.Marshal(map[string][]string{"notes": names})
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
+	g.Expect(resp.Status).To(Equal(200))
+	g.Expect(counting.count()).To(Equal(1), "expected exactly one vault directory listing for 3 refs in one request")
 }
 
 // TestServeActivate_RejectsRefsOutsideTheVault (final review F2): a served
@@ -569,6 +604,32 @@ func TestServeShow_MatchesLocalOutput(t *testing.T) {
 
 	g.Expect(resp.Status).To(Equal(200))
 	g.Expect(string(resp.Body)).To(ContainSubstring("subject: a"))
+}
+
+// readDirCountingFS wraps an EdgeFS, counting ReadDir calls (final
+// re-review residual, ruling S34): served activate resolves every ref
+// against the same listed-name set, so it must list the vault directory
+// once per REQUEST, not once per ref.
+type readDirCountingFS struct {
+	cli.EdgeFS
+
+	mu    sync.Mutex
+	calls int
+}
+
+func (s *readDirCountingFS) ReadDir(path string) ([]fs.DirEntry, error) {
+	s.mu.Lock()
+	s.calls++
+	s.mu.Unlock()
+
+	return s.EdgeFS.ReadDir(path)
+}
+
+func (s *readDirCountingFS) count() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.calls
 }
 
 // learnLocal writes a note directly (not through the served offer path)

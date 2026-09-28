@@ -347,11 +347,14 @@ func isParentCandidate(ref string) bool {
 // listedNoteResolver resolves a served ref only against the vault's listed
 // note names (final review F2), as the raw show route does: the ref is
 // matched, never joined into a path, so it cannot reach outside the vault.
+// The listing itself runs once, here, at resolver-creation time — once per
+// served request — rather than once per returned closure call, so an
+// N-ref request costs one ReadDir, not N (final re-review residual,
+// ruling S34).
 func listedNoteResolver(deps Deps, vault string) func(ref string) (string, bool, error) {
-	listMD := listMDFromFS(deps.FS)
+	names, listErr := listMDFromFS(deps.FS)(vault)
 
 	return func(ref string) (string, bool, error) {
-		names, listErr := listMD(vault)
 		if listErr != nil {
 			return "", false, fmt.Errorf("activate: listing notes: %w", listErr)
 		}
