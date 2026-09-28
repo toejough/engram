@@ -112,6 +112,22 @@ var (
 	reparentWikilinkPattern = regexp.MustCompile(`\[\[([^\]\n]+)\]\]`)
 )
 
+// isTopLevelYAMLLine reports whether line starts a top-level frontmatter key:
+// it is non-blank and starts neither with indentation nor with a column-0
+// sequence item or comment (both of which continue the preceding key).
+func isTopLevelYAMLLine(line string) bool {
+	if line == "" {
+		return false
+	}
+
+	switch line[0] {
+	case ' ', '\t', '-', '#':
+		return false
+	default:
+		return true
+	}
+}
+
 // renameAndRewriteOneNote handles a single vault note: rewrites its references
 // (regardless of whether it is itself being renamed), and — if it is being
 // renamed — renames the note file and its sidecar and updates its own luhmann:
@@ -248,11 +264,25 @@ func rewriteNoteReferences(content string, renameMap map[string]string) (string,
 // note: value naming an old basename (with or without the .md suffix — the
 // convention is to store the full filename, but both forms are tolerated) to
 // the corresponding new basename, preserving whichever suffix form was present.
+// Only lines inside the top-level supersedes: block are touched: other
+// note: values (a parent link's note, design D4) name notes in another vault,
+// never a local reference, so a local rename must leave them alone.
 func rewriteSupersedesFrontmatterNotes(frontmatter string, renameMap map[string]string) (string, bool) {
 	lines := strings.Split(frontmatter, "\n")
 	changed := false
+	inSupersedes := false
 
 	for i, line := range lines {
+		if isTopLevelYAMLLine(line) {
+			inSupersedes = strings.TrimRight(line, " ") == "supersedes:"
+
+			continue
+		}
+
+		if !inSupersedes {
+			continue
+		}
+
 		trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "- "))
 
 		value, found := strings.CutPrefix(trimmed, "note:")

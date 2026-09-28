@@ -246,6 +246,7 @@ func rerenderFact(frontmatter, body []byte, situation string) (string, error) {
 		Vault:     doc.Vault,
 		Issue:     string(doc.Issue),
 		Tier:      doc.Tier,
+		Exchange:  doc.Exchange,
 	}
 
 	return renderFactFrontmatter(fields, when) + renderFactBody(fields) + relatedTail(body), nil
@@ -279,6 +280,7 @@ func rerenderFeedback(frontmatter, body []byte, situation string) (string, error
 		Vault:     doc.Vault,
 		Issue:     string(doc.Issue),
 		Tier:      doc.Tier,
+		Exchange:  doc.Exchange,
 	}
 
 	return renderFeedbackFrontmatter(fields, when) + renderFeedbackBody(fields) + relatedTail(body), nil

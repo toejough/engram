@@ -260,6 +260,8 @@ type factFields struct {
 	// note) — learn/amend never populate it, so factFrontmatterDoc's
 	// omitempty keeps it absent from ordinary fact notes.
 	VocabVersion string
+	// Exchange is carried through re-renders unchanged (design D4).
+	Exchange exchangeFrontmatter
 }
 
 // factFrontmatterDoc is the YAML shape of a fact's frontmatter. Field order
@@ -284,6 +286,8 @@ type factFrontmatterDoc struct {
 	VocabVersion string            `yaml:"vocab_version,omitempty"`
 	Tags         []string          `yaml:"tags,omitempty"`
 	Supersedes   []supersedesEntry `yaml:"supersedes,omitempty"`
+	// Exchange carries the exchange fields (design D4); all omitempty.
+	Exchange exchangeFrontmatter `json:"-" yaml:",inline"`
 }
 
 type feedbackFields struct {
@@ -303,6 +307,8 @@ type feedbackFields struct {
 	ChunkSources []string
 	Tags         []string
 	Supersedes   []supersedesEntry
+	// Exchange is carried through re-renders unchanged (design D4).
+	Exchange exchangeFrontmatter
 }
 
 // feedbackFrontmatterDoc is the YAML shape of a feedback note's frontmatter.
@@ -325,6 +331,8 @@ type feedbackFrontmatterDoc struct {
 	Sources    []string          `yaml:"sources,omitempty"`
 	Tags       []string          `yaml:"tags,omitempty"`
 	Supersedes []supersedesEntry `yaml:"supersedes,omitempty"`
+	// Exchange carries the exchange fields (design D4); all omitempty.
+	Exchange exchangeFrontmatter `json:"-" yaml:",inline"`
 }
 
 // quotedString is a YAML scalar that always renders double-quoted. Used for
@@ -377,6 +385,8 @@ type runbookFields struct {
 	// learn` surface sets them.
 	SkillKey    string
 	SkillSource string
+	// Exchange is carried through re-renders unchanged (design D4).
+	Exchange exchangeFrontmatter
 }
 
 // runbookFrontmatterDoc is the YAML shape of a runbook note's frontmatter.
@@ -416,6 +426,8 @@ type runbookFrontmatterDoc struct {
 	Sources     []string          `yaml:"sources,omitempty"`
 	Tags        []string          `yaml:"tags,omitempty"`
 	Supersedes  []supersedesEntry `yaml:"supersedes,omitempty"`
+	// Exchange carries the exchange fields (design D4); all omitempty.
+	Exchange exchangeFrontmatter `json:"-" yaml:",inline"`
 }
 
 // applyLearnVocabAssignment performs only the term-assignment part of
@@ -716,6 +728,7 @@ func renderFactFrontmatter(f factFields, when time.Time) string {
 		VocabVersion: f.VocabVersion,
 		Tags:         f.Tags,
 		Supersedes:   f.Supersedes,
+		Exchange:     f.Exchange,
 	})
 }
 
@@ -748,6 +761,7 @@ func renderFeedbackFrontmatter(f feedbackFields, when time.Time) string {
 		Sources:    f.ChunkSources,
 		Tags:       f.Tags,
 		Supersedes: f.Supersedes,
+		Exchange:   f.Exchange,
 	})
 }
 
@@ -783,6 +797,7 @@ func renderRunbookFrontmatter(f runbookFields, when time.Time) string {
 		Sources:     f.ChunkSources,
 		Tags:        f.Tags,
 		Supersedes:  f.Supersedes,
+		Exchange:    f.Exchange,
 	})
 }
 

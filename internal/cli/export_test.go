@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"reflect"
 	"time"
 
 	"github.com/toejough/engram/internal/chunk"
@@ -16,6 +17,7 @@ import (
 const (
 	ExportDefaultContentBudget      = defaultContentBudget
 	ExportDefaultRecentFill         = defaultRecentFill
+	ExportExchangeHashPrefix        = exchangeHashPrefix
 	ExportExploreMatchEvidenceBonus = exploreMatchEvidenceBonus
 	ExportExploreTemperatureDefault = exploreTemperatureDefault
 	ExportLocationMismatch          = locationMismatch
@@ -75,6 +77,7 @@ var (
 	ExportChunkIndexHasPrunableDuplicates  = chunkIndexHasPrunableDuplicates
 	ExportClaimVaultLocation               = claimVaultLocation
 	ExportClearRemovedTermsFromMembers     = clearRemovedTermsFromMembers
+	ExportCompareExchangeHashes            = compareExchangeHashes
 	ExportCountQAPairs                     = countQAPairs
 	ExportCountTriggerVaultNotes           = countTriggerVaultNotes
 	ExportDefaultRecencyParams             = defaultRecencyParams
@@ -86,12 +89,19 @@ var (
 	ExportEnsureVault                      = ensureVault
 	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
+	ExportExchangeHash                     = exchangeHash
+	ExportExchangeHashChanged              = exchangeHashChanged
+	ExportExchangeHashesMatch              = exchangeHashesMatch
+	ExportExchangeKeyClassification        = exchangeKeyClassification
 	ExportExchangeStateFromDeps            = exchangeStateFromDeps
 	ExportExcludePendingOffers             = excludePendingOffers
 	ExportExtractLuhmannFromFilename       = extractLuhmannFromFilename
 	ExportFetchQueryPayload                = fetchQueryPayload
 	ExportFillRecencyBand                  = fillRecencyBand
 	ExportFinishUpdate                     = finishUpdate
+	ExportHashChanged                      = hashChanged
+	ExportHashEqual                        = hashEqual
+	ExportHashUnknown                      = hashUnknown
 	ExportIDAndDateFromNoteFilename        = idAndDateFromNoteFilename
 	ExportIndexPathFor                     = indexPathFor
 	ExportInitVaultFromFS                  = initVaultFromFS
@@ -171,6 +181,7 @@ var (
 	ExportRunUpdate                     = runUpdate
 	ExportRunVocabTagDefinitions        = runVocabTagDefinitions
 	ExportScanNonVocabNotes             = scanNonVocabNotes
+	ExportScrubDeletedNoteReferences    = scrubDeletedNoteReferences
 	ExportSelectStates                  = selectStates
 	ExportSelfParentGuard               = selfParentGuard
 	ExportShouldEmbed                   = func(args EmbedApplyArgs, state embed.State) bool {
@@ -231,6 +242,9 @@ type ExportExplorePick = explorePick
 type ExportFactFields = factFields
 
 type ExportFeedbackFields = feedbackFields
+
+// ExportHashComparison aliases hashComparison for cli_test.
+type ExportHashComparison = hashComparison
 
 // ExportMergeClusterRepsCall is a simplified wrapper around mergeClusterReps
 // that takes plain slices instead of unexported types, for whitebox testing.
@@ -458,6 +472,16 @@ func ExportDedupeAndBackfill(
 	exploitPaths map[string]struct{},
 ) []explorePick {
 	return dedupeAndBackfill(allocated, order, rankedByTerm, exploitPaths)
+}
+
+// ExportFrontmatterDocTypes returns the fact, feedback and runbook
+// frontmatter struct types, for the exchange-key classification test.
+func ExportFrontmatterDocTypes() []reflect.Type {
+	return []reflect.Type{
+		reflect.TypeFor[factFrontmatterDoc](),
+		reflect.TypeFor[feedbackFrontmatterDoc](),
+		reflect.TypeFor[runbookFrontmatterDoc](),
+	}
 }
 
 // Exported functions.

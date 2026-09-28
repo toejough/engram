@@ -142,6 +142,37 @@ func TestRenameAndRewriteReferences_MultipleReferencesAcrossNotes(t *testing.T) 
 	g.Expect(superFMMD).To(ContainSubstring("note: 9b1.2026-01-01.old-topic.md\n"))
 }
 
+// TestRenameAndRewriteReferences_OnlySupersedesNoteFieldsAreRewritten pins
+// the scope of the frontmatter note: rewrite: a supersedes: entry is
+// rewritten whether its sequence is indented or at column 0, while a note:
+// key under any other top-level key (a parent link naming a note in another
+// vault, design D4) is left alone.
+func TestRenameAndRewriteReferences_OnlySupersedesNoteFieldsAreRewritten(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const referrerName = "9g.2026-01-01.referrer.md"
+
+	const referrerBody = "---\ntype: fact\nluhmann: \"9g\"\nsupersedes:\n" +
+		"- note: 9a.2026-01-01.old-topic\n  type: updates\n  claim: refined\n" +
+		"parent:\n    vault: abc\n    links:\n        - note: 9a.2026-01-01.old-topic\n          via: offered\n" +
+		"---\n\nBody.\n"
+
+	fixture := newReparentFixture(map[string]string{
+		"9a.2026-01-01.old-topic.md": "---\ntype: fact\nluhmann: \"9a\"\n---\n\nSome fact.\n",
+		referrerName:                 referrerBody,
+	})
+
+	_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault",
+		map[string]string{"9a.2026-01-01.old-topic": "9b1.2026-01-01.old-topic"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	referrer := string(fixture.written["/vault/"+referrerName])
+	g.Expect(referrer).To(ContainSubstring("- note: 9b1.2026-01-01.old-topic\n  type: updates"))
+	g.Expect(referrer).To(ContainSubstring("        - note: 9a.2026-01-01.old-topic\n          via: offered"))
+}
+
 // TestRenameAndRewriteReferences_ReadFileErrorPropagates asserts a ReadFile
 // failure on any listed note is wrapped and returned.
 func TestRenameAndRewriteReferences_ReadFileErrorPropagates(t *testing.T) {
