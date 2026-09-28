@@ -40,7 +40,10 @@ var (
 	// errParentNotConfigured is returned when --parent is passed to
 	// show/show-chunk but ENGRAM_PARENT is not set.
 	errParentNotConfigured = errors.New("--parent requires ENGRAM_PARENT to be configured")
-	errServeClientNonOK    = errors.New("serve client: non-OK response")
+	// errParentUnreachable marks a parent request that failed as an outage
+	// (a transport error, timeout or 5xx), which backs the parent off.
+	errParentUnreachable = errors.New("parent unreachable")
+	errServeClientNonOK  = errors.New("serve client: non-OK response")
 )
 
 // buildQueryParams builds the parent /query request's query-string params
@@ -212,7 +215,12 @@ func fetchRaw(
 ) (FetchResponse, error) {
 	resp, fetchErr := deps.Fetch(ctx, method, buildURL(base, path, query), body)
 	if fetchErr != nil {
-		return FetchResponse{}, fmt.Errorf("serve client: %s %s: %w", method, path, fetchErr)
+		return FetchResponse{}, fmt.Errorf("serve client: %s %s: %w (%w)", method, path, fetchErr, errParentUnreachable)
+	}
+
+	if resp.Status >= statusInternalServerError {
+		return resp, fmt.Errorf("%w: %s %s: %s (%w)",
+			errServeClientNonOK, method, path, describeErrorBody(resp.Body), errParentUnreachable)
 	}
 
 	if resp.Status < statusOK || resp.Status >= httpStatusMultipleChoices {

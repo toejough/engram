@@ -11,28 +11,41 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/toejough/engram/internal/update"
 )
 
 // unexported constants.
 const (
+	// backoffBase is the first backoff window after a failed parent
+	// contact; each consecutive failure doubles it up to backoffCap
+	// (design D6, M9).
+	backoffBase = 30 * time.Second
+	backoffCap  = 15 * time.Minute
+	// backoffMaxShift is the doubling count past which the window is
+	// always the cap (30s << 5 = 16m > 15m), so the shift never overflows.
+	backoffMaxShift = 5
 	// createdVaultFormat is ensureVault's single stderr line for a vault it
 	// just created — it makes a mistyped --vault/ENGRAM_VAULT_PATH visible
 	// (#766's typo concern).
-	createdVaultFormat = "engram: created new vault at %s\n"
-	homeRecordFile     = "home.json"
-	locationMismatch   = "mismatch"
-	locationMissing    = "missing"
-	locationNoID       = "no vault id"
-	locationOK         = "ok"
-	// locationWarningFormat is the one warning a failed location check
-	// prints (child-side exchange pauses; serve still starts). It names both
-	// remedies so the user can pick the one matching what happened.
+	createdVaultFormat    = "engram: created new vault at %s\n"
+	homeRecordFile        = "home.json"
+	locationMismatch      = "mismatch"
+	locationMissing       = "missing"
+	locationNoID          = "no vault id"
+	locationOK            = "ok"
 	locationWarningFormat = "engram: warning: vault %s failed its location check " +
 		"(%s — a copied, moved or cloned vault?); exchange with the parent is paused; " +
 		"if this vault is a copy, run `engram vault-id --regenerate`; " +
 		"if it is the same vault moved or re-cloned, run `engram vault-id --claim`\n"
+	// locationWarningFormat is the one warning a failed location check
+	// prints (child-side exchange pauses; serve still starts). It names both
+	// remedies so the user can pick the one matching what happened.
+	// parentBackoffWarningFormat is the one warning a command prints when
+	// the backoff window makes it skip the parent.
+	parentBackoffWarningFormat = "engram: parent unreachable (retry after %s); %d offer(s) queued\n"
+	parentCacheFile            = "parent.json"
 	// repairedVaultFormat is repairVaultID's single stderr line.
 	repairedVaultFormat = "engram: stamped the missing vault ID of %s\n"
 	// selfParentWarningFormat is the self-parent guard's one warning.
@@ -81,6 +94,31 @@ type exchangeStateFS interface {
 type homeRecord struct {
 	VaultID string `json:"vault_id"` //nolint:tagliatelle // design D2 fixes home.json's snake_case keys
 	Path    string `json:"path"`
+}
+
+// parentCache is .engram/parent.json: the configured parent's URL, its
+// reported vault ID, and the backoff state (design D2, D6). The backoff
+// belongs to the URL that failed: a cache for another URL is ignored.
+type parentCache struct {
+	URL          string    `json:"url"`
+	VaultID      string    `json:"vault_id,omitempty"`     //nolint:tagliatelle // design D2 fixes parent.json's keys
+	BackoffUntil time.Time `json:"backoff_until,omitzero"` //nolint:tagliatelle // design D2 fixes parent.json's keys
+	Failures     int       `json:"failures"`
+}
+
+// backoffDelay is the backoff window after the given number of
+// consecutive failures: 30s doubling per failure, capped at 15 minutes.
+func backoffDelay(failures int) time.Duration {
+	if failures < 1 {
+		return 0
+	}
+
+	shift := failures - 1
+	if shift >= backoffMaxShift {
+		return backoffCap
+	}
+
+	return min(backoffBase<<shift, backoffCap)
 }
 
 // canonicalVaultPath returns EvalSymlinks(Abs(Clean(vault))), with Abs
@@ -166,6 +204,18 @@ func claimVaultLocation(state exchangeState, vault string) (string, error) {
 	return id, nil
 }
 
+// ensureExchangeStateDir readies .engram/ for an exchange-state writer
+// (outbox, parent cache): the vault ID is stamped first, so .engram/ keeps
+// meaning created-by-engram (ruling S4), then the directory is ensured.
+func ensureExchangeStateDir(state exchangeState, vault string) error {
+	_, stampErr := stampVaultID(state, vault)
+	if stampErr != nil {
+		return stampErr
+	}
+
+	return ensureStateDir(state, vault)
+}
+
 // ensureStateDir creates <vault>/.engram/ and its self-ignoring .gitignore
 // (written only when missing). The vault's tracked root .gitignore is never
 // touched (G12).
@@ -233,6 +283,32 @@ func exchangeStateFromDeps(deps Deps) exchangeState {
 	return newExchangeState(deps.FS, deps.RandRead, deps.EvalSymlinks, deps.Getwd)
 }
 
+// gateParentContact decides whether a command may contact the parent now.
+// Inside the backoff window it prints the one warning (retry time and
+// queued-offer count) and returns false; `engram update` passes
+// ignoreBackoff and always tries (design D6).
+func gateParentContact(store outboxStore, vault, parentURL string, ignoreBackoff bool) bool {
+	if ignoreBackoff {
+		return true
+	}
+
+	cache, cacheErr := loadParentCache(store.state, vault)
+	if cacheErr != nil || cache.URL != parentURL || !store.now().Before(cache.BackoffUntil) {
+		return true
+	}
+
+	queued := 0
+
+	box, boxErr := loadOutbox(store.state, vault)
+	if boxErr == nil {
+		queued = queuedOfferCount(box)
+	}
+
+	_, _ = fmt.Fprintf(store.stderr, parentBackoffWarningFormat, cache.BackoffUntil.Format(time.RFC3339), queued)
+
+	return false
+}
+
 // isExchangeID reports whether id is an exchange identifier — a vault ID
 // or an xid: exactly 32 lowercase hex characters.
 func isExchangeID(id string) bool {
@@ -243,6 +319,53 @@ func isExchangeID(id string) bool {
 	_, decodeErr := hex.DecodeString(id)
 
 	return decodeErr == nil
+}
+
+// loadParentCache reads .engram/parent.json; a missing file is an empty
+// cache.
+func loadParentCache(state exchangeState, vault string) (parentCache, error) {
+	raw, readErr := state.fs.ReadFile(parentCachePath(vault))
+	if errors.Is(readErr, fs.ErrNotExist) {
+		return parentCache{}, nil
+	}
+
+	if readErr != nil {
+		return parentCache{}, fmt.Errorf("parent cache: %w", readErr)
+	}
+
+	var cache parentCache
+
+	unmarshalErr := json.Unmarshal(raw, &cache)
+	if unmarshalErr != nil {
+		return parentCache{}, fmt.Errorf("parent cache: %s: %w", parentCacheFile, unmarshalErr)
+	}
+
+	return cache, nil
+}
+
+// lockedUpdateParentCache applies change to parent.json under the vault
+// lock, writing only when the cache changed.
+func lockedUpdateParentCache(
+	store outboxStore, vault string, change func(parentCache) parentCache,
+) (parentCache, error) {
+	unlock, lockErr := store.lock(vault)
+	if lockErr != nil {
+		return parentCache{}, fmt.Errorf("parent cache: %w", lockErr)
+	}
+
+	defer unlock()
+
+	cache, loadErr := loadParentCache(store.state, vault)
+	if loadErr != nil {
+		return parentCache{}, loadErr
+	}
+
+	updated := change(cache)
+	if updated == cache {
+		return cache, nil
+	}
+
+	return updated, saveParentCache(store.state, vault, updated)
 }
 
 // mintExchangeID draws vaultIDBytes from the injected random source and
@@ -282,6 +405,42 @@ func newExchangeState(
 	return exchangeState{fs: fsys, randRead: randRead, evalSymlinks: evalSymlinks, getwd: getwd}
 }
 
+// noteParentFailure is the cache after one more consecutive failure against
+// parentURL: the window grows (a cache for another URL starts over).
+func noteParentFailure(cache parentCache, parentURL string, now time.Time) parentCache {
+	if cache.URL != parentURL {
+		cache = parentCache{URL: parentURL}
+	}
+
+	cache.Failures++
+	cache.BackoffUntil = now.Add(backoffDelay(cache.Failures))
+
+	return cache
+}
+
+// noteParentSuccess is the cache after a successful contact with
+// parentURL: the failure count and window reset, and a reported vault ID
+// is remembered.
+func noteParentSuccess(cache parentCache, parentURL, vaultID string) parentCache {
+	if cache.URL != parentURL {
+		cache = parentCache{URL: parentURL}
+	}
+
+	cache.Failures = 0
+	cache.BackoffUntil = time.Time{}
+
+	if vaultID != "" {
+		cache.VaultID = vaultID
+	}
+
+	return cache
+}
+
+// parentCachePath is <vault>/.engram/parent.json.
+func parentCachePath(vault string) string {
+	return filepath.Join(vault, stateDirName, parentCacheFile)
+}
+
 // parseVaultID validates the ID file's content (trailing whitespace
 // tolerated) as exactly 32 lowercase hex characters.
 func parseVaultID(raw []byte) (string, error) {
@@ -310,6 +469,29 @@ func readVaultID(state exchangeState, vault string) (string, bool, error) {
 	}
 
 	return id, true, nil
+}
+
+// recordParentFailure records a failed contact (a transport error,
+// timeout or 5xx) and returns the retry time.
+func recordParentFailure(store outboxStore, vault, parentURL string) (time.Time, error) {
+	now := store.now()
+
+	cache, err := lockedUpdateParentCache(store, vault, func(cache parentCache) parentCache {
+		return noteParentFailure(cache, parentURL, now)
+	})
+
+	return cache.BackoffUntil, err
+}
+
+// recordParentSuccess records a successful contact: the backoff resets and
+// the parent's reported vault ID (when known) is cached. An idle success
+// writes nothing.
+func recordParentSuccess(store outboxStore, vault, parentURL, vaultID string) error {
+	_, err := lockedUpdateParentCache(store, vault, func(cache parentCache) parentCache {
+		return noteParentSuccess(cache, parentURL, vaultID)
+	})
+
+	return err
 }
 
 // regenerateVaultID (`engram vault-id --regenerate`) mints a new ID and
@@ -376,6 +558,27 @@ func rereadWinningVaultID(state exchangeState, vault string) (string, error) {
 	}
 
 	return "", errVaultIDRereadGave
+}
+
+// saveParentCache writes parent.json atomically, stamping the vault ID
+// before .engram/ is created (ruling S4).
+func saveParentCache(state exchangeState, vault string, cache parentCache) error {
+	dirErr := ensureExchangeStateDir(state, vault)
+	if dirErr != nil {
+		return dirErr
+	}
+
+	encoded, marshalErr := json.Marshal(cache)
+	if marshalErr != nil {
+		return fmt.Errorf("parent cache: %w", marshalErr)
+	}
+
+	writeErr := state.fs.WriteFileAtomic(parentCachePath(vault), append(encoded, '\n'), vaultFilePerm)
+	if writeErr != nil {
+		return fmt.Errorf("parent cache: %w", writeErr)
+	}
+
+	return nil
 }
 
 // selfParentGuard reports whether the parent's reported vault ID is this

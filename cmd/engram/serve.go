@@ -1,6 +1,6 @@
-// Thin net/http capability wrappers for `engram serve` and ENGRAM_SERVER
-// client mode. This file is the only place in the repo (outside its own
-// tests) that imports net/http — mirrors hugot.go's "only place that
+// Thin net/http capability wrappers for `engram serve` and the
+// ENGRAM_PARENT parent-sync client. This file is the only place in the repo
+// (outside its own tests) that imports net/http — mirrors hugot.go's "only place that
 // imports hugot" convention. All routing, identity resolution, and
 // offer-write logic lives in internal/cli (#700); every declaration here
 // stays a single-call/simple-error-wrapper body (targ check-thin-api) — no
@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -26,14 +27,24 @@ import (
 // unexported variables.
 var (
 	errFetchNilResponse = errors.New("fetch: nil response with no error")
-	// fetchClientTimeout bounds one ENGRAM_SERVER-mode client request.
-	// A var, not a computed const: thin-api requires cmd/engram consts to
-	// be literals or re-exports.
+	// fetchClientTimeout bounds one parent-sync (ENGRAM_PARENT) request in
+	// total. A var, not a computed const: thin-api requires cmd/engram
+	// consts to be literals or re-exports.
 	fetchClientTimeout = 30 * time.Second //nolint:gochecknoglobals // real net/http config
-	// fetchHTTPClient is the client ENGRAM_SERVER-mode CLI targets fetch
-	// through; a bounded timeout beats http.DefaultClient's unbounded one.
+	// fetchConnectDialer dials parent connections with fetchConnectTimeout.
+	//nolint:gochecknoglobals // shared dialer, real net config
+	fetchConnectDialer = &net.Dialer{Timeout: fetchConnectTimeout}
+	// fetchConnectTimeout bounds connecting to the parent (design D6, M9):
+	// an unreachable host costs at most 3s, once per backoff window.
+	fetchConnectTimeout = 3 * time.Second //nolint:gochecknoglobals // real net/http config
+	// fetchHTTPClient is the client parent-sync requests fetch through; a
+	// bounded total timeout beats http.DefaultClient's unbounded one, and
+	// the dialer bounds the connect step.
 	//nolint:gochecknoglobals // shared client, real net/http state
-	fetchHTTPClient = &http.Client{Timeout: fetchClientTimeout}
+	fetchHTTPClient = &http.Client{
+		Timeout:   fetchClientTimeout,
+		Transport: &http.Transport{Proxy: http.ProxyFromEnvironment, DialContext: fetchConnectDialer.DialContext},
+	}
 	// readHeaderTimeout bounds how long the server waits to read a
 	// request's headers (mitigates slow-header/slowloris-style stalls).
 	// Same var-not-const reasoning as fetchClientTimeout above.

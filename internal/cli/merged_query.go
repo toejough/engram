@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -152,6 +153,17 @@ func prepareParentContact(deps Deps, vault string) {
 	warnVaultLocation(state, vault, deps.Stderr)
 }
 
+// recordQueryContactFailure backs off after a query that could not reach
+// the parent (a transport error, timeout or 5xx); a 4xx is an answer, not
+// an outage. Failing to record it is not fatal to the query.
+func recordQueryContactFailure(store outboxStore, vault, parentURL string, fetchErr error) {
+	if !errors.Is(fetchErr, errParentUnreachable) {
+		return
+	}
+
+	_, _ = recordParentFailure(store, vault, parentURL)
+}
+
 // resolveLimit maps the raw --limit flag value to the effective cap: 0
 // (unset) → the baked default (defaultQueryLimit); positive → that
 // explicit value.
@@ -194,12 +206,22 @@ func runLocalQueryPayload(ctx context.Context, deps Deps, args QueryArgs) (query
 func runMergedQuery(ctx context.Context, deps Deps, parentBaseURL string, args QueryArgs, stdout io.Writer) error {
 	prepareParentContact(deps, args.VaultPath)
 
+	store := outboxStoreFromDeps(deps)
+	if !gateParentContact(store, args.VaultPath, parentBaseURL, false) {
+		return RunQuery(ctx, args, newQueryDeps(deps), stdout)
+	}
+
 	parentPayload, parentErr := fetchQueryPayload(ctx, deps, parentBaseURL, unboundedQueryArgs(args))
 	if parentErr != nil {
+		recordQueryContactFailure(store, args.VaultPath, parentBaseURL, parentErr)
 		logWarningTo(deps.Stderr)("query: parent unavailable, returning local-only results: %v", parentErr)
 
 		return RunQuery(ctx, args, newQueryDeps(deps), stdout)
 	}
+
+	// A successful contact resets the backoff; failing to record that is
+	// not fatal to the query.
+	_ = recordParentSuccess(store, args.VaultPath, parentBaseURL, "")
 
 	localPayload, localErr := runLocalQueryPayload(ctx, deps, unboundedQueryArgs(args))
 	if localErr != nil {

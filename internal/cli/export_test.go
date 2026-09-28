@@ -24,6 +24,11 @@ const (
 	ExportLocationMissing           = locationMissing
 	ExportLocationNoID              = locationNoID
 	ExportLocationOK                = locationOK
+	ExportOfferAccepted             = offerAccepted
+	ExportOfferFailed               = offerFailed
+	ExportOfferRejected             = offerRejected
+	ExportOfferSkipped              = offerSkipped
+	ExportOfferTooOld               = offerTooOld
 	ExportVocabNameMatchThreshold   = vocabNameMatchThreshold
 	ExportVocabOriginDerived        = vocabOriginDerived
 	ExportVocabOriginProposed       = vocabOriginProposed
@@ -43,6 +48,7 @@ var (
 	ErrDuplicateAdoptKeyForTest            = errDuplicateAdoptKey
 	ErrDuplicateSkillNoteForTest           = errDuplicateSkillNote
 	ErrLearnBadTierForTest                 = errLearnBadTier
+	ErrParentTooOldForTest                 = errParentTooOld
 	ErrQAAnswerSourceRequired              = errQAAnswerSourceRequired
 	ErrQACertaintyInvalid                  = errQACertaintyInvalid
 	ErrQAContributorNotFound               = errQAContributorNotFound
@@ -66,6 +72,7 @@ var (
 	ExportApplyVocabKHysteresis            = applyVocabKHysteresis
 	ExportAutoEmbedNote                    = autoEmbedNote
 	ExportBackfillIdentity                 = backfillIdentity
+	ExportBackoffDelay                     = backoffDelay
 	ExportBuildNamingRequests              = buildNamingRequests
 	ExportBuildSupersedesInverse           = BuildSupersedesInverse
 	ExportBumpLastUsed                     = bumpLastUsed
@@ -76,6 +83,7 @@ var (
 	ExportChunkIndexHasEmptyFiles          = chunkIndexHasEmptyFiles
 	ExportChunkIndexHasPrunableDuplicates  = chunkIndexHasPrunableDuplicates
 	ExportClaimVaultLocation               = claimVaultLocation
+	ExportClassifyOfferResponse            = classifyOfferResponse
 	ExportClearRemovedTermsFromMembers     = clearRemovedTermsFromMembers
 	ExportCompareExchangeHashes            = compareExchangeHashes
 	ExportCountQAPairs                     = countQAPairs
@@ -86,6 +94,8 @@ var (
 	ExportDetectRepo                       = detectRepo
 	ExportDetectUser                       = detectUser
 	ExportDiscardNote                      = discardNote
+	ExportDrainOutbox                      = drainOutbox
+	ExportEnqueueOutbox                    = enqueueOutbox
 	ExportEnsureVault                      = ensureVault
 	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
@@ -99,6 +109,7 @@ var (
 	ExportFetchQueryPayload                = fetchQueryPayload
 	ExportFillRecencyBand                  = fillRecencyBand
 	ExportFinishUpdate                     = finishUpdate
+	ExportGateParentContact                = gateParentContact
 	ExportHashChanged                      = hashChanged
 	ExportHashEqual                        = hashEqual
 	ExportHashUnknown                      = hashUnknown
@@ -114,6 +125,8 @@ var (
 	ExportLoadAllVaultNotesMeta            = loadAllVaultNotesMeta
 	ExportLoadAssignmentTermVectors        = loadAssignmentTermVectors
 	ExportLoadCurrentVocabVersion          = loadCurrentVocabVersion
+	ExportLoadOutbox                       = loadOutbox
+	ExportLoadParentCache                  = loadParentCache
 	ExportLoadTermVectors                  = loadTermVectors
 	ExportMarshalFrontmatter               = marshalFrontmatter
 	ExportMatchClustersToTerms             = matchClustersToTerms
@@ -127,6 +140,8 @@ var (
 	ExportNewErrHandler                    = newErrHandler
 	ExportNewExchangeState                 = newExchangeState
 	ExportNewIdentityDeps                  = newIdentityDeps
+	ExportNewOfferSender                   = newOfferSender
+	ExportNewOutboxStore                   = newOutboxStore
 	// ExportNewUpdateDeps exposes the production pure composition for tests.
 	ExportNewUpdateDeps              = newUpdateDeps
 	ExportNewVocabDeps               = newVocabDeps
@@ -155,6 +170,8 @@ var (
 	ExportProcessVocabDefinitionNote    = processVocabDefinitionNote
 	ExportReadCentroidsDoc              = readCentroidsDoc
 	ExportRecencyMultiplier             = recencyMultiplier
+	ExportRecordParentFailure           = recordParentFailure
+	ExportRecordParentSuccess           = recordParentSuccess
 	ExportRegenVocab                    = regenVocab
 	ExportRegenerateVaultID             = regenerateVaultID
 	ExportRemoveNoteReferences          = removeNoteReferences
@@ -190,6 +207,7 @@ var (
 	ExportShouldSkipDir                   = shouldSkipDir
 	ExportSlugFromNoteFilename            = slugFromNoteFilename
 	ExportSplitFrontmatter                = splitFrontmatter
+	ExportStampNoteXID                    = stampNoteXID
 	ExportStampVaultID                    = stampVaultID
 	ExportStripLegacyVocabChannel         = stripLegacyVocabChannel
 	ExportTermFromDefinitionSlug          = termFromDefinitionSlug
@@ -216,6 +234,8 @@ var (
 	ExportWriteVocabVersionToFamilyNote   = writeVocabVersionToFamilyNote
 	IsReservedPluginNameForTest           = isReservedPluginName
 )
+
+type DrainResultForTest = drainResult
 
 // ExchangeStateForTest exposes the unexported exchange-state adapter type
 // so tests can name it in helper signatures.
@@ -306,6 +326,18 @@ type ExportVocabNamingExemplar = vocabNamingExemplar
 
 // Exported naming-request types (vocab-derivational-refit Task 2.2).
 type ExportVocabNamingRequest = vocabNamingRequest
+
+type OfferNoteForTest = offerNote
+
+type OfferOutcomeForTest = offerOutcome
+
+type OfferReceiptForTest = offerReceipt
+
+type OfferSendResultForTest = offerSendResult
+
+type OutboxFileForTest = outboxFile
+
+type OutboxStoreForTest = outboxStore
 
 // ExportAcceptSkillOffer carries out one accepted offer (acceptSkillOffer)
 // against noteSources, the candidates' note sources by key and path.
