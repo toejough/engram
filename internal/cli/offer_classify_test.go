@@ -64,6 +64,11 @@ func TestClassifyOffer(t *testing.T) {
 			offerTestNote{parentVault: parentVaultID, linkVia: "offered", linkHash: "xh0:old"}, true},
 		{"a link under another parent's vault never suppresses", cli.ExportOfferCmdAmend, contentAmend,
 			offerTestNote{parentVault: seqID(77), linkVia: "offered", linkMatches: true}, true},
+		{"parent ID unknown: an equal link hash never suppresses", cli.ExportOfferCmdAmend, contentAmend,
+			offerTestNote{parentVault: parentVaultID, linkVia: "offered", linkMatches: true, unknownParent: true}, true},
+		{"parent ID unknown: a served offer's clear-pending is queued for the send-time check",
+			cli.ExportOfferCmdAmend, clearPending,
+			offerTestNote{origin: parentVaultID + ":" + xidA, path: []string{parentVaultID}, unknownParent: true}, true},
 		{"near-fold of a pulled note into L bounces up once (B1)", cli.ExportOfferCmdAmend, contentAmend,
 			offerTestNote{
 				parentVault: parentVaultID, linkVia: "offered", linkHash: "xh1:before-fold",
@@ -76,7 +81,12 @@ func TestClassifyOffer(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
 
-			got := cli.ExportClassifyOffer(testCase.command, testCase.amend, testCase.note.render(t), parentVaultID)
+			known := parentVaultID
+			if testCase.note.unknownParent {
+				known = ""
+			}
+
+			got := cli.ExportClassifyOffer(testCase.command, testCase.amend, testCase.note.render(t), known)
 			g.Expect(got).To(Equal(testCase.want))
 		})
 	}
@@ -203,6 +213,8 @@ type offerTestNote struct {
 	linkHash    string
 	linkMatches bool
 	coveredNote string
+	// unknownParent classifies with no cached parent vault ID.
+	unknownParent bool
 }
 
 // render builds the note. A link whose hash must match is filled in with

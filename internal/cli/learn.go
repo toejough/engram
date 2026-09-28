@@ -1095,7 +1095,16 @@ func writeLearnUnderLock(
 		return "", false, err
 	}
 
+	// Only a note written with its xid is queued: staging never stamps one
+	// here (the note is already on disk), so no entry can orphan (S16).
+	if args.XID == "" {
+		return path, false, nil
+	}
+
 	_, xid := deps.Offers.stageWrite(vault, offerWrite{command: offerCmdLearn, raw: []byte(content)})
+	if xid != args.XID {
+		return path, false, nil
+	}
 
 	return path, deps.Offers.queue(vault, xid), nil
 }

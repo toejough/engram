@@ -48,6 +48,11 @@ const (
 	// itself (the self-parent case). Keep the entries queued, cache the
 	// parent's vault ID, stop the drain and warn once (ruling S12).
 	offerRefused
+	// offerWithdrawn: the send-time re-check (ruling S16) found the offer
+	// must not go to this parent — its origin vault is the parent, or the
+	// parent already holds its content. The parent was not contacted; the
+	// entry is dropped unless the note changed since.
+	offerWithdrawn
 )
 
 // unexported variables.
@@ -57,6 +62,7 @@ var (
 	errOfferSelfParent  = errors.New("the parent reports this vault's own ID")
 	errOfferServerError = errors.New("the parent failed the offer")
 	errOfferUndecodable = errors.New("the parent's offer receipt does not decode")
+	errOfferWithdrawn   = errors.New("offer withdrawn at send time")
 	errParentTooOld     = errors.New("the parent is too old: its offer receipt carries no vault_id or basename " +
 		"(upgrade engram on the parent host)")
 )
@@ -204,21 +210,38 @@ func applyDrainStep(
 		return updateOutboxEntry(keepOutboxEntryQueued(box, step), step, func(entry *outboxEntry) {
 			entry.LastError = errorText(step.outcome.Err)
 		}), nil
+	case offerWithdrawn:
+		if !exchangeHashChanged(step.hash, found.note.Hash) {
+			return removeOutboxEntry(box, step.xid), nil
+		}
+
+		return box, nil
+	case offerFailed, offerTooOld, offerSkipped:
+	}
+
+	return applyUnsentStep(step, box, cache, now, parentURL, result), nil
+}
+
+// applyUnsentStep folds a send that produced no receipt: an unreachable
+// parent backs off; a too-old parent still answered, so the backoff resets
+// (rulings S11, S14: the drain stopped, the entry stays queued); a payload
+// never sent leaves the parent cache alone. Each records the attempt.
+func applyUnsentStep(
+	step drainStep, box outboxFile, cache *parentCache, now time.Time, parentURL string, result *drainResult,
+) outboxFile {
+	switch step.outcome.Outcome {
 	case offerFailed:
 		*cache = noteParentFailure(*cache, parentURL, now)
 		result.Unreachable, result.RetryAfter = true, cache.BackoffUntil
 	case offerTooOld:
-		// A too-old parent (ruling S11: the drain stopped, the entry stays
-		// queued) still answered, so the backoff resets (ruling S14).
 		*cache = noteParentSuccess(*cache, parentURL, "")
-	case offerSkipped:
-		// A payload never sent: the parent was not contacted.
+	case offerAccepted, offerRejected, offerRefused, offerSkipped, offerWithdrawn:
 	}
 
 	return updateOutboxEntry(box, step, func(entry *outboxEntry) {
 		entry.Attempts++
 		entry.LastError = errorText(step.outcome.Err)
-	}), nil
+	})
 }
 
 // classifyOfferResponse maps a parent /learn response to the drain's
@@ -393,7 +416,7 @@ func judgeSendOutcome(outcome offerSendResult, localID string, stderr io.Writer)
 		return outcome, true, nil
 	case offerFailed:
 		return outcome, true, nil
-	case offerRejected, offerSkipped:
+	case offerRejected, offerSkipped, offerWithdrawn:
 	}
 
 	return outcome, false, nil
@@ -516,6 +539,10 @@ func newOfferSender(
 ) func(context.Context, offerNote) offerSendResult {
 	return func(ctx context.Context, note offerNote) offerSendResult {
 		body, buildErr := buildPayload(note)
+		if errors.Is(buildErr, errOfferWithdrawn) {
+			return offerSendResult{Outcome: offerWithdrawn, Err: buildErr}
+		}
+
 		if buildErr != nil {
 			return offerSendResult{
 				Outcome: offerSkipped,

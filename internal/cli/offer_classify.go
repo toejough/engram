@@ -75,9 +75,9 @@ func amendIsOffered(args AmendArgs, note offerClassNote, parentVaultID string) b
 		return false
 	}
 
-	originVault, _, _ := strings.Cut(note.exchange.Offer.Origin, ":")
-
-	return parentVaultID == "" || originVault != parentVaultID
+	// With the parent's ID unknown the offer is queued; the drain learns
+	// the ID before sending and withdraws it then (offerWithdrawnReason).
+	return !originIsVault(note.exchange.Offer.Origin, parentVaultID)
 }
 
 // classifyOffer is design D5's table as one pure function over the write
@@ -107,6 +107,14 @@ func classifyOffer(write offerWrite, parentVaultID string) bool {
 	link, linked := primaryParentLink(note.exchange, parentVaultID)
 
 	return !linked || !exchangeHashesMatch(link.Hash, note.hash)
+}
+
+// originIsVault reports whether an offer.origin's vault part is vaultID
+// (never for an unknown vault ID).
+func originIsVault(origin, vaultID string) bool {
+	originVault, _, _ := strings.Cut(origin, ":")
+
+	return vaultID != "" && originVault == vaultID
 }
 
 // parseOfferClassNote reads the fields the classification needs; ok is
@@ -144,11 +152,11 @@ func parseOfferClassNote(raw []byte) (offerClassNote, bool) {
 }
 
 // primaryParentLink returns the note's primary link (via offered or
-// pulled) to the configured parent. A link recorded under another vault ID
-// is not the parent's; when the parent's ID is not known yet, the note's
-// own recorded vault stands in for it.
+// pulled) to the configured parent, whose vault ID must be known: a link
+// recorded under any other vault ID — or any link at all while the
+// parent's ID is unknown — is never the parent's (ruling S16).
 func primaryParentLink(exchange exchangeFrontmatter, parentVaultID string) (parentLink, bool) {
-	if exchange.Parent.Vault == "" || (parentVaultID != "" && exchange.Parent.Vault != parentVaultID) {
+	if parentVaultID == "" || exchange.Parent.Vault != parentVaultID {
 		return parentLink{}, false
 	}
 

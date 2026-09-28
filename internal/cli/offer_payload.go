@@ -115,6 +115,11 @@ func buildOfferPayload(note offerNote, pctx offerPayloadContext) ([]byte, error)
 		return nil, fmt.Errorf("%w: %w", errOfferNoteUnparseable, unmarshalErr)
 	}
 
+	withdrawErr := offerWithdrawnReason(note, doc.Exchange, pctx.parentVaultID)
+	if withdrawErr != nil {
+		return nil, withdrawErr
+	}
+
 	slug, slugErr := slugOfBasename(note.Basename)
 	if slugErr != nil {
 		return nil, slugErr
@@ -157,8 +162,15 @@ func offerRecordFor(note offerNote, exchange exchangeFrontmatter, pctx offerPayl
 	path := []string{pctx.localVaultID}
 	if exchange.Offer.Origin != "" {
 		// An accepted served offer going onward (M14, D12): the path it
-		// already travelled, plus this vault.
-		path = append(slices.Clone(exchange.Offer.Path), pctx.localVaultID)
+		// already travelled — at least its origin vault — plus this vault.
+		travelled := slices.Clone(exchange.Offer.Path)
+		if len(travelled) == 0 {
+			originVault, _, _ := strings.Cut(exchange.Offer.Origin, ":")
+			travelled = []string{originVault}
+		}
+
+		travelled = append(travelled, pctx.localVaultID)
+		path = travelled
 	}
 
 	record := LearnOffer{Origin: origin, Key: offerKey(origin, note.Hash), Path: path}
@@ -168,6 +180,23 @@ func offerRecordFor(note offerNote, exchange exchangeFrontmatter, pctx offerPayl
 	}
 
 	return record
+}
+
+// offerWithdrawnReason is the send-time re-check, with the parent's ID now
+// known (ruling S16): an offer whose origin vault is the parent never goes
+// back to it (D12, unconditional), and one whose content equals its
+// primary link's hash is a loop (D5). Either is withdrawn, not sent.
+func offerWithdrawnReason(note offerNote, exchange exchangeFrontmatter, parentVaultID string) error {
+	if originIsVault(exchange.Offer.Origin, parentVaultID) {
+		return fmt.Errorf("%w: its origin vault %s is the parent", errOfferWithdrawn, parentVaultID)
+	}
+
+	link, linked := primaryParentLink(exchange, parentVaultID)
+	if linked && exchangeHashesMatch(link.Hash, note.Hash) {
+		return fmt.Errorf("%w: the parent already holds this content (%s)", errOfferWithdrawn, link.Note)
+	}
+
+	return nil
 }
 
 // orDetected is the note's own value, or the detected one when it is empty.

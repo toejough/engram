@@ -343,11 +343,16 @@ type recordedRequest struct {
 // recordingParent is a fake parent over Deps.Fetch: POST /learn answers
 // with a receipt (or is down), GET /query with an empty payload.
 type recordingParent struct {
-	mu        sync.Mutex
-	down      bool
-	receipt   string
-	rejection string
-	log       []recordedRequest
+	mu          sync.Mutex
+	vaultID     string
+	storedHash  string
+	queryStatus int
+	queryNoID   bool
+	learnDown   bool
+	down        bool
+	receipt     string
+	rejection   string
+	log         []recordedRequest
 }
 
 func (p *recordingParent) fetch(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
@@ -361,9 +366,20 @@ func (p *recordingParent) fetch(_ context.Context, method, url string, body []by
 	}
 
 	if strings.Contains(url, "/query") {
-		return cli.FetchResponse{Status: 200, Body: []byte("version: 1\n")}, nil
+		return p.queryResponse(url), nil
 	}
 
+	if p.learnDown {
+		p.log[len(p.log)-1].failed = true
+
+		return cli.FetchResponse{}, errors.New("dial tcp: connection refused")
+	}
+
+	return p.learnResponse(body)
+}
+
+// learnResponse answers POST /learn (the caller holds mu).
+func (p *recordingParent) learnResponse(body []byte) (cli.FetchResponse, error) {
 	if p.rejection != "" {
 		return cli.FetchResponse{Status: 400, Body: []byte(p.rejection)}, nil
 	}
@@ -375,9 +391,14 @@ func (p *recordingParent) fetch(_ context.Context, method, url string, body []by
 	var args cli.LearnArgs
 	_ = json.Unmarshal(body, &args)
 
+	stored := p.storedHash
+	if stored == "" {
+		stored = "xh1:stored"
+	}
+
 	receipt, marshalErr := json.Marshal(cli.OfferReceiptForTest{
 		Status: "offer received", Luhmann: "1100", Basename: "1100.2026-09-28." + args.Slug,
-		Pending: true, VaultID: parentVaultID, StoredHash: "xh1:stored",
+		Pending: true, VaultID: p.reportedVaultID(), StoredHash: stored,
 	})
 	if marshalErr != nil {
 		return cli.FetchResponse{}, marshalErr
@@ -403,6 +424,30 @@ func (p *recordingParent) offers() []cli.LearnArgs {
 	}
 
 	return offers
+}
+
+// queryResponse answers GET /query (the caller holds mu): the vault ID only
+// when dedupe keys are asked for.
+func (p *recordingParent) queryResponse(url string) cli.FetchResponse {
+	if p.queryStatus != 0 {
+		return cli.FetchResponse{Status: p.queryStatus, Body: []byte(`{"error":"bad probe"}`)}
+	}
+
+	body := "version: 1\n"
+	if !p.queryNoID && (strings.Contains(url, "dedupe-keys=true") || strings.Contains(url, "dedupe-keys=1")) {
+		body += "vault_id: " + p.reportedVaultID() + "\n"
+	}
+
+	return cli.FetchResponse{Status: 200, Body: []byte(body)}
+}
+
+// reportedVaultID is the fake parent's vault ID (the caller holds mu).
+func (p *recordingParent) reportedVaultID() string {
+	if p.vaultID == "" {
+		return parentVaultID
+	}
+
+	return p.vaultID
 }
 
 func (p *recordingParent) requests() []recordedRequest {
@@ -433,6 +478,13 @@ func (p *recordingParent) setRejection(rejection string) {
 	p.rejection = rejection
 }
 
+func (p *recordingParent) setStoredHash(hash string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.storedHash = hash
+}
+
 // wiringEnv is one child vault on disk with a fake parent and a settable
 // clock, driven through cli.Targets.
 type wiringEnv struct {
@@ -443,6 +495,8 @@ type wiringEnv struct {
 	embeds     *atomic.Int32
 	clockMu    sync.Mutex
 	clock      time.Time
+	randFails  bool
+	lastStdout string
 	lastStderr string
 }
 
@@ -458,6 +512,10 @@ func (e *wiringEnv) customize(deps *cli.Deps) {
 	deps.Now = e.now
 	deps.Fetch = e.parent.fetch
 	deps.Embed = embedCounter{calls: e.embeds}
+
+	if e.randFails {
+		deps.RandRead = func([]byte) (int, error) { return 0, errors.New("no entropy") }
+	}
 }
 
 func (e *wiringEnv) deps() cli.Deps {
@@ -532,7 +590,7 @@ func (e *wiringEnv) run(args ...string) (string, string) {
 
 	stdout, stderr := executeCapturingBoth(e.t, append(append([]string{"engram"}, args...), "--vault", e.vault),
 		e.customize)
-	e.lastStderr = stderr
+	e.lastStdout, e.lastStderr = stdout, stderr
 
 	return stdout, stderr
 }

@@ -55,6 +55,7 @@ var (
 	ErrDuplicateAdoptKeyForTest            = errDuplicateAdoptKey
 	ErrDuplicateSkillNoteForTest           = errDuplicateSkillNote
 	ErrLearnBadTierForTest                 = errLearnBadTier
+	ErrOfferWithdrawnForTest               = errOfferWithdrawn
 	ErrParentTooOldForTest                 = errParentTooOld
 	ErrQAAnswerSourceRequired              = errQAAnswerSourceRequired
 	ErrQACertaintyInvalid                  = errQACertaintyInvalid

@@ -38,6 +38,8 @@ func TestBuildOfferPayload_CoveredOrForeignLinkIsLearnOffer(t *testing.T) {
 		"covered only":    {parentVault: parentVaultID, linkVia: "covered", linkHash: "xh1:x"},
 		"another parent":  {parentVault: seqID(77), linkVia: "offered", linkHash: "xh1:x"},
 		"pulled, foreign": {parentVault: seqID(78), linkVia: "pulled", linkHash: "xh1:x"},
+		// S16: with the parent's ID unknown, no link stands in for it.
+		"parent ID unknown": {parentVault: parentVaultID, linkVia: "offered", linkHash: "xh1:x", unknownParent: true},
 	}
 
 	for name, spec := range cases {
@@ -45,7 +47,12 @@ func TestBuildOfferPayload_CoveredOrForeignLinkIsLearnOffer(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
 
-			payload := decodePayload(t, payloadNote(t, spec), parentVaultID)
+			known := parentVaultID
+			if spec.unknownParent {
+				known = ""
+			}
+
+			payload := decodePayload(t, payloadNote(t, spec), known)
 			g.Expect(payload.Offer.For).To(BeEmpty())
 		})
 	}
@@ -72,6 +79,17 @@ func TestBuildOfferPayload_DeclaresNotesOwnIdentity(t *testing.T) {
 	g.Expect(json.Unmarshal(body, &fallback)).To(Succeed())
 	g.Expect(fallback.User).To(Equal("bob"))
 	g.Expect(fallback.Repo).To(Equal("detected-repo"))
+}
+
+// TestBuildOfferPayload_EmptyPathSeedsFromOrigin (S16): an accepted served
+// offer that recorded no offer.path starts its path from its origin vault.
+func TestBuildOfferPayload_EmptyPathSeedsFromOrigin(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	child := seqID(40)
+	payload := decodePayload(t, payloadNote(t, offerTestNote{origin: child + ":" + xidB}), parentVaultID)
+	g.Expect(payload.Offer.Path).To(Equal([]string{child, seqID(60)}))
 }
 
 // TestBuildOfferPayload_OriginKeyAndPath: offer.origin is <local id>:<xid>,
@@ -233,6 +251,28 @@ func TestBuildOfferPayload_SupersedesTranslatedOrDropped(t *testing.T) {
 	var wire cli.LearnArgs
 	g.Expect(json.Unmarshal(body, &wire)).To(Succeed())
 	g.Expect(wire.Supersedes).To(Equal([]string{"70.2026-09-01.pa|updates|claim a"}))
+}
+
+// TestBuildOfferPayload_WithdrawnAtSendTime (S16, D12): with the parent's ID
+// known at send time, an offer whose origin vault is the parent, or whose
+// content equals its primary link's hash, is withdrawn, not sent.
+func TestBuildOfferPayload_WithdrawnAtSendTime(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]offerTestNote{
+		"origin is the parent": {origin: parentVaultID + ":" + xidB, path: []string{parentVaultID}},
+		"equal link hash":      {parentVault: parentVaultID, linkVia: "offered", linkMatches: true},
+	}
+
+	for name, spec := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			_, err := cli.ExportBuildOfferPayload(payloadNote(t, spec), seqID(60), parentVaultID, "", "bob", nil)
+			g.Expect(err).To(MatchError(cli.ErrOfferWithdrawnForTest))
+		})
+	}
 }
 
 func decodePayload(t *testing.T, note cli.OfferNoteForTest, parentID string) cli.LearnArgs {

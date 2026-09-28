@@ -2,9 +2,12 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
+
+	"go.yaml.in/yaml/v3"
 )
 
 // unexported constants.
@@ -12,6 +15,9 @@ const (
 	// offerDrainWarningFormat reports a drain that stopped or failed to
 	// record a receipt; the local write it followed already succeeded.
 	offerDrainWarningFormat = "offer: %v"
+	// parentIDProbePhrase is the phrase of the vault-ID probe query; any
+	// phrase works, the probe reads only the payload's vault_id.
+	parentIDProbePhrase = "vault id"
 )
 
 // offerHooks connects a local write path to the parent outbox (design D5,
@@ -95,6 +101,10 @@ func drainForCommand(ctx context.Context, deps Deps, vault, parentURL string, ig
 		return
 	}
 
+	if !ensureParentVaultID(ctx, deps, store, vault, parentURL) {
+		return
+	}
+
 	result, drainErr := drainOutbox(ctx, store, vault, parentURL,
 		newOfferSender(deps.Fetch, parentURL, newPayloadBuilder(ctx, deps, store, vault, parentURL)),
 		newReceiptApplier(deps))
@@ -113,6 +123,72 @@ func drainForCommand(ctx context.Context, deps Deps, vault, parentURL string, ig
 	if drainErr != nil {
 		logWarningTo(deps.Stderr)(offerDrainWarningFormat, drainErr)
 	}
+}
+
+// ensureParentVaultID makes sure the configured parent's vault ID is known
+// before any offer is built (ruling S16): links, loop suppression, offer.for
+// and the supersedes translation all key on it, and a link recorded for
+// another vault never stands in. When the cache has no ID for parentURL and
+// offers are queued, the drain's first contact is a cheap `GET
+// /query?dedupe-keys=1`, whose vault_id is cached. It reports whether the
+// drain may proceed; each failure prints its one warning.
+func ensureParentVaultID(ctx context.Context, deps Deps, store outboxStore, vault, parentURL string) bool {
+	box, boxErr := loadOutbox(store.state, vault)
+	if boxErr != nil || len(box.Entries) == 0 || cachedParentVaultID(store.state, vault, parentURL) != "" {
+		return true // an empty or unreadable outbox is the drain's own business
+	}
+
+	parentID, fetchErr := fetchParentVaultID(ctx, deps, parentURL)
+	if fetchErr != nil {
+		if !errors.Is(fetchErr, errParentUnreachable) {
+			_ = recordParentSuccess(store, vault, parentURL, "")
+			logWarningTo(deps.Stderr)(offerDrainWarningFormat, fetchErr)
+
+			return false
+		}
+
+		retry, _ := recordParentFailure(store, vault, parentURL)
+		_, _ = fmt.Fprintf(deps.Stderr, parentBackoffWarningFormat, retry.Format(time.RFC3339), queuedOfferCount(box))
+
+		return false
+	}
+
+	if parentID == "" {
+		_ = recordParentSuccess(store, vault, parentURL, "")
+		logWarningTo(deps.Stderr)(offerDrainWarningFormat, errParentTooOld)
+
+		return false
+	}
+
+	recordErr := recordParentSuccess(store, vault, parentURL, parentID)
+	if recordErr != nil {
+		logWarningTo(deps.Stderr)(offerDrainWarningFormat, recordErr)
+
+		return false
+	}
+
+	return true
+}
+
+// fetchParentVaultID asks the parent for its vault ID with a one-item
+// `GET /query?dedupe-keys=1` ("" from a parent too old to report it).
+func fetchParentVaultID(ctx context.Context, deps Deps, parentURL string) (string, error) {
+	resp, fetchErr := fetchRaw(ctx, deps, parentURL, methodGet, "/query", map[string][]string{
+		"phrase": {parentIDProbePhrase}, "limit": {"1"}, "lazy-chunks": {"true"}, "dedupe-keys": {"1"},
+	}, nil)
+	if fetchErr != nil {
+		return "", fetchErr
+	}
+
+	var payload struct {
+		VaultID string `yaml:"vault_id"`
+	}
+
+	if yaml.Unmarshal(resp.Body, &payload) != nil {
+		return "", nil //nolint:nilerr // an undecodable payload is a parent too old to report its ID
+	}
+
+	return payload.VaultID, nil
 }
 
 // newOfferHooks composes the production hooks: disabled when ENGRAM_PARENT
