@@ -346,3 +346,23 @@ func TestMergeQueryPayloads_TriggerHitsLeadAndBypassLimit(t *testing.T) {
 
 	g.Expect(paths).To(Equal([]string{"local-trig", "parent-trig", "local-high"}))
 }
+
+// TestTagItems_EachItemGetsItsOwnFromParentPointer verifies tagItems gives
+// every item its own *bool rather than sharing one pointer across the whole
+// call (review finding: a shared pointer is safe only as long as nothing
+// ever writes through it; a per-item pointer removes that trap for free).
+func TestTagItems_EachItemGetsItsOwnFromParentPointer(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	tagged := tagItems([]queryItem{{Path: "a"}, {Path: "b"}}, "model", false)
+
+	g.Expect(tagged[0].FromParent).NotTo(BeNil())
+	g.Expect(tagged[1].FromParent).NotTo(BeNil())
+	g.Expect(tagged[0].FromParent).ToNot(BeIdenticalTo(tagged[1].FromParent),
+		"each item must get its own *bool, not a pointer shared with every other item from the same call")
+
+	*tagged[0].FromParent = true
+	g.Expect(*tagged[1].FromParent).To(BeFalse(), "mutating one item's FromParent must not affect another's")
+}

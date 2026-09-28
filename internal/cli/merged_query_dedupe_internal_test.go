@@ -32,8 +32,15 @@ func TestDedupeProperty_NeverBothLiveLocalAndMatchedParent(t *testing.T) {
 			queryPayload{ModelID: testParentModel, VaultID: reportedID, Items: parentItems},
 			notes, QueryArgs{Limit: -1})
 
+		for _, item := range merged.Items {
+			if item.FromParent == nil {
+				rt.Fatalf("item %s has a nil FromParent: every merged item must carry an explicit "+
+					"from_parent tag, true or false (ruling S29)", item.Path)
+			}
+		}
+
 		for _, outParent := range merged.Items {
-			if outParent.FromParent == nil || !*outParent.FromParent {
+			if !*outParent.FromParent {
 				continue
 			}
 
@@ -704,7 +711,12 @@ func liveNotesInOutput(items []queryItem, notes []exchangeNote) []exchangeNote {
 		}
 
 		if slices.ContainsFunc(items, func(item queryItem) bool {
-			return (item.FromParent == nil || !*item.FromParent) && item.Path == note.basename+mdExt
+			if item.FromParent == nil {
+				panic("liveNotesInOutput: item " + item.Path +
+					" has a nil FromParent: every merged item must carry an explicit tag (ruling S29)")
+			}
+
+			return !*item.FromParent && item.Path == note.basename+mdExt
 		}) {
 			out = append(out, note)
 		}

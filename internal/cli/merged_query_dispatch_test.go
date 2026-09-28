@@ -49,14 +49,19 @@ func TestTargets_Query_MergedMode_CombinesLocalAndParent(t *testing.T) {
 	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
 
 	paths := make([]string, len(parsed.Items))
+	fromParentByPath := make(map[string]*bool, len(parsed.Items))
+
 	for i, item := range parsed.Items {
 		paths[i] = item.Path
+		fromParentByPath[item.Path] = item.FromParent
 	}
 
 	g.Expect(paths).To(ContainElements("1.fact.md", "parent-note.md"))
-	g.Expect(stdout).To(ContainSubstring("from_parent: false"),
+	// Bound to path, not a whole-stdout substring search, so a swapped tag
+	// (parent-note.md: false, 1.fact.md: true) would fail this assertion.
+	g.Expect(fromParentByPath["1.fact.md"]).To(HaveValue(BeFalse()),
 		"the local item must be tagged from_parent: false per vault-merged-recall (ruling S29)")
-	g.Expect(stdout).To(ContainSubstring("from_parent: true"),
+	g.Expect(fromParentByPath["parent-note.md"]).To(HaveValue(BeTrue()),
 		"the parent item must be tagged from_parent: true per vault-merged-recall")
 }
 

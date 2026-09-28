@@ -102,17 +102,9 @@ func (f fixedVectorEmbedder) ModelID() string { return f.modelID }
 
 // queryParsed is the shared YAML parse target for query payload tests.
 type queryParsed struct {
-	Version int      `yaml:"version"`
-	Phrases []string `yaml:"phrases"`
-	Items   []struct {
-		Path        string   `yaml:"path"`
-		Kind        string   `yaml:"kind"`
-		Score       float32  `yaml:"score"`
-		Provenances []string `yaml:"provenances"`
-		ClusterID   *int     `yaml:"cluster_id,omitempty"`
-		InDegree    *int     `yaml:"in_degree,omitempty"`
-		Content     string   `yaml:"content"`
-	} `yaml:"items"`
+	Version  int               `yaml:"version"`
+	Phrases  []string          `yaml:"phrases"`
+	Items    []queryParsedItem `yaml:"items"`
 	Clusters []struct {
 		ID         int     `yaml:"id"`
 		Phrase     string  `yaml:"phrase"`
@@ -137,6 +129,20 @@ type queryParsed struct {
 		ItemsWithFullContent int `yaml:"items_with_full_content"`
 		Limit                int `yaml:"limit"`
 	} `yaml:"budget"`
+}
+
+// queryParsedItem is the shared YAML parse target for one query payload
+// item, named (not an inline anonymous struct) so helper functions across
+// test files can take []queryParsedItem instead of repeating the field list.
+type queryParsedItem struct {
+	Path        string   `yaml:"path"`
+	Kind        string   `yaml:"kind"`
+	Score       float32  `yaml:"score"`
+	Provenances []string `yaml:"provenances"`
+	ClusterID   *int     `yaml:"cluster_id,omitempty"`
+	InDegree    *int     `yaml:"in_degree,omitempty"`
+	Content     string   `yaml:"content"`
+	FromParent  *bool    `yaml:"from_parent,omitempty"`
 }
 
 // plantDualVector writes a note with distinct situation and body vectors so

@@ -354,15 +354,7 @@ func TestCluster_RecentDeduplicatesAgainstMatchedSet(t *testing.T) {
 
 // assertMatchedNotDuplicated asserts the given path appears exactly once in
 // items[] and does NOT carry provenance "recent" (it is in the matched set).
-func assertMatchedNotDuplicated(g Gomega, items []struct {
-	Path        string   `yaml:"path"`
-	Kind        string   `yaml:"kind"`
-	Score       float32  `yaml:"score"`
-	Provenances []string `yaml:"provenances"`
-	ClusterID   *int     `yaml:"cluster_id,omitempty"`
-	InDegree    *int     `yaml:"in_degree,omitempty"`
-	Content     string   `yaml:"content"`
-}, matchedPath string,
+func assertMatchedNotDuplicated(g Gomega, items []queryParsedItem, matchedPath string,
 ) {
 	matchedAppearances := 0
 
@@ -386,15 +378,7 @@ func assertMatchedNotDuplicated(g Gomega, items []struct {
 
 // assertRecentPresent asserts the given path appears in items[] with
 // provenance "recent".
-func assertRecentPresent(g Gomega, items []struct {
-	Path        string   `yaml:"path"`
-	Kind        string   `yaml:"kind"`
-	Score       float32  `yaml:"score"`
-	Provenances []string `yaml:"provenances"`
-	ClusterID   *int     `yaml:"cluster_id,omitempty"`
-	InDegree    *int     `yaml:"in_degree,omitempty"`
-	Content     string   `yaml:"content"`
-}, recentPath string,
+func assertRecentPresent(g Gomega, items []queryParsedItem, recentPath string,
 ) {
 	foundRecent := false
 
@@ -411,15 +395,7 @@ func assertRecentPresent(g Gomega, items []struct {
 }
 
 // countRecentItems counts how many items in parsed.Items carry provenance "recent".
-func countRecentItems(items []struct {
-	Path        string   `yaml:"path"`
-	Kind        string   `yaml:"kind"`
-	Score       float32  `yaml:"score"`
-	Provenances []string `yaml:"provenances"`
-	ClusterID   *int     `yaml:"cluster_id,omitempty"`
-	InDegree    *int     `yaml:"in_degree,omitempty"`
-	Content     string   `yaml:"content"`
-},
+func countRecentItems(items []queryParsedItem,
 ) int {
 	count := 0
 
@@ -433,15 +409,7 @@ func countRecentItems(items []struct {
 }
 
 // recentPathSet returns the set of item paths that carry provenance "recent".
-func recentPathSet(items []struct {
-	Path        string   `yaml:"path"`
-	Kind        string   `yaml:"kind"`
-	Score       float32  `yaml:"score"`
-	Provenances []string `yaml:"provenances"`
-	ClusterID   *int     `yaml:"cluster_id,omitempty"`
-	InDegree    *int     `yaml:"in_degree,omitempty"`
-	Content     string   `yaml:"content"`
-},
+func recentPathSet(items []queryParsedItem,
 ) map[string]bool {
 	out := make(map[string]bool)
 
