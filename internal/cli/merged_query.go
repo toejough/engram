@@ -64,8 +64,9 @@ func hasProvenance(item queryItem, role string) bool {
 //  6. --content-budget (or --lazy-chunks) is applied once, and the budget
 //     block reports the applied values (#743).
 //
-// Clusters stay the local node's own, and the pending-offer hint reflects
-// local offers only (H4): a child can't curate its parent.
+// Clusters stay the local node's own, and the pending-offer hint and the
+// refit flag reflect the local vault only (H4, ruling S20): a child can
+// neither curate its parent's offers nor run its parent's refit.
 func mergeQueryPayloads(local, parent queryPayload, localNotes []exchangeNote, args QueryArgs) queryPayload {
 	localItems := tagItems(local.Items, local.ModelID, false)
 	parentItems := dedupeParentItems(dropParentChunks(tagItems(parent.Items, parent.ModelID, true)),
@@ -93,7 +94,7 @@ func mergeQueryPayloads(local, parent queryPayload, localNotes []exchangeNote, a
 		Phrases:           local.Phrases,
 		Items:             items,
 		Clusters:          local.Clusters,
-		RefitPending:      local.RefitPending || parent.RefitPending,
+		RefitPending:      local.RefitPending,
 		PendingOffers:     local.PendingOffers,
 		PendingOffersHint: pendingOffersHint(local.PendingOffers),
 		ModelID:           local.ModelID,
@@ -127,18 +128,23 @@ func mergedContentPolicy(items []queryItem, args QueryArgs) ([]queryItem, int) {
 // prepareParentContact runs design D2's parent-contact bookkeeping for a
 // command about to contact the parent: a missing vault ID is stamped, and a
 // failed location check prints its one warning (read-only contacts still
-// run). Neither is fatal. command prefixes the stamp warning.
-func prepareParentContact(deps Deps, command, vault string) {
+// run). Neither is fatal. It reports whether the vault ID is stamped: when
+// it is not, the caller skips the contact's own bookkeeping (backoff gate,
+// outcome record, drain), so nothing creates .engram/ without a stamp
+// (ruling S4). command prefixes the stamp warning.
+func prepareParentContact(deps Deps, command, vault string) bool {
 	state := exchangeStateFromDeps(deps)
 
 	_, stampErr := stampVaultID(state, vault)
 	if stampErr != nil {
 		logWarningTo(deps.Stderr)("%s: could not stamp the vault ID: %v", command, stampErr)
 
-		return
+		return false
 	}
 
 	warnVaultLocation(state, vault, deps.Stderr)
+
+	return true
 }
 
 // recordParentContact records a parent request's outcome for backoff: a
@@ -199,10 +205,10 @@ func runMergedQuery(ctx context.Context, deps Deps, parentBaseURL string, args Q
 	vault := args.VaultPath
 	localOnly := func() error { return RunQuery(ctx, args, newQueryDeps(deps), stdout) }
 
-	prepareParentContact(deps, "query", vault)
+	stamped := prepareParentContact(deps, "query", vault)
 
 	store := outboxStoreFromDeps(deps)
-	if !gateParentContact(store, vault, parentBaseURL, false) {
+	if stamped && !gateParentContact(store, vault, parentBaseURL, false) {
 		return localOnly()
 	}
 
@@ -212,7 +218,9 @@ func runMergedQuery(ctx context.Context, deps Deps, parentBaseURL string, args Q
 	}
 
 	parentPayload, parentErr := fetchQueryPayload(ctx, deps, parentBaseURL, unboundedQueryArgs(args))
-	recordParentContact(store, vault, parentBaseURL, parentPayload.VaultID, parentErr)
+	if stamped {
+		recordParentContact(store, vault, parentBaseURL, parentPayload.VaultID, parentErr)
+	}
 
 	if parentErr != nil {
 		logWarningTo(deps.Stderr)("query: parent unavailable, returning local-only results: %v", parentErr)
@@ -236,8 +244,10 @@ func runMergedQuery(ctx context.Context, deps Deps, parentBaseURL string, args Q
 	}
 
 	// The parent answered, so the outbox drains (design D6); the gate
-	// already passed for this command.
-	drainForCommand(ctx, deps, vault, parentBaseURL, true)
+	// already passed for this command. An unstamped vault has no outbox.
+	if stamped {
+		drainForCommand(ctx, deps, vault, parentBaseURL, true)
+	}
 
 	return nil
 }

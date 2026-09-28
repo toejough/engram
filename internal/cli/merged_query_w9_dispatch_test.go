@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -185,6 +186,33 @@ func TestShowParent_BackoffMakesNoRequest(t *testing.T) {
 	g.Expect(stderr).To(ContainSubstring("engram: parent unreachable (retry after "))
 }
 
+// TestShowParent_FailedStampSkipsContactBookkeeping: when the vault ID
+// can't be stamped, the contact still runs but its bookkeeping is skipped,
+// so no later write creates .engram/ without a stamp (ruling S4).
+func TestShowParent_FailedStampSkipsContactBookkeeping(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+
+	var fetches atomic.Int32
+
+	_, _ = executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent", "--vault", vault},
+		func(d *cli.Deps) {
+			d.FS = &failFirstIDWriteFS{EdgeFS: d.FS}
+			d.Getenv = parentOnlyGetenv(parentURL)
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetches.Add(1)
+
+				return cli.FetchResponse{}, errors.New("dial tcp: connection refused")
+			}
+		})
+
+	g.Expect(fetches.Load()).To(Equal(int32(1)))
+	g.Expect(filepath.Join(vault, ".engram")).NotTo(BeAnExistingFile())
+	g.Expect(filepath.Join(vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
+}
+
 // TestShowParent_StampsVaultIDOnParentContact: `show --parent` is a parent
 // contact, so it stamps a missing vault ID (ruling S3).
 func TestShowParent_StampsVaultIDOnParentContact(t *testing.T) {
@@ -242,6 +270,38 @@ func TestTargets_Query_Merged_DedupesLinkedLocalNote(t *testing.T) {
 	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
 	g.Expect(parsed.Items).To(HaveLen(1))
 	g.Expect(parsed.Items[0].Path).To(Equal("1.2026-09-01.local.md"))
+}
+
+// TestTargets_Query_Merged_FailedStampSkipsContactBookkeeping is the merged
+// query's counterpart: the parent is still asked, but no backoff record or
+// drain creates .engram/ without a stamp (ruling S4).
+func TestTargets_Query_Merged_FailedStampSkipsContactBookkeeping(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	plantRealVaultNote(t, vault, "1.fact.md",
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0})
+
+	var fetches atomic.Int32
+
+	stdout, _ := executeCapturingBoth(t,
+		[]string{"engram", "query", "--phrase", "x", "--vault", vault, "--chunks-dir", t.TempDir()},
+		func(d *cli.Deps) {
+			d.FS = &failFirstIDWriteFS{EdgeFS: d.FS}
+			d.Getenv = parentOnlyGetenv(parentURL)
+			d.Embed = fixedVectorEmbedder{modelID: "m@4", vector: []float32{1, 0, 0, 0}}
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetches.Add(1)
+
+				return cli.FetchResponse{}, errors.New("dial tcp: connection refused")
+			}
+		})
+
+	g.Expect(fetches.Load()).To(Equal(int32(1)))
+	g.Expect(stdout).To(ContainSubstring("1.fact.md"))
+	g.Expect(filepath.Join(vault, ".engram")).NotTo(BeAnExistingFile())
+	g.Expect(filepath.Join(vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
 }
 
 // TestTargets_Query_Merged_RequestsDedupeKeysAndCachesVaultID: the merged
@@ -326,3 +386,24 @@ func TestTargets_Query_Merged_SelfParentReturnsLocalOnly(t *testing.T) {
 const (
 	w9ParentVaultID = "9a1e9a1e9a1e9a1e9a1e9a1e9a1e9a1e"
 )
+
+// unexported variables.
+var (
+	errStampTransient = errors.New("transient: disk busy")
+)
+
+// failFirstIDWriteFS fails the first exclusive create of the vault ID file
+// (a transient stamp failure) and passes every other call through.
+type failFirstIDWriteFS struct {
+	cli.EdgeFS
+
+	failed atomic.Bool
+}
+
+func (f *failFirstIDWriteFS) WriteFileExcl(path string, data []byte, perm fs.FileMode) error {
+	if filepath.Base(path) == ".engram-vault-id" && f.failed.CompareAndSwap(false, true) {
+		return errStampTransient
+	}
+
+	return f.EdgeFS.WriteFileExcl(path, data, perm)
+}

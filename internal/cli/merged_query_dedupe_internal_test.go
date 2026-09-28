@@ -22,10 +22,14 @@ func TestDedupeProperty_NeverBothLiveLocalAndMatchedParent(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		notes, localItems := drawLocalNotes(rt)
 		parentItems := drawParentItems(rt)
+		// The vault ID the parent reports in this query: the one local
+		// links were recorded under, another vault's, or none (a parent
+		// too old to report it).
+		reportedID := rapid.SampledFrom([]string{testParentVaultID, testOtherVaultID, ""}).Draw(rt, "reportedID")
 
 		merged := mergeQueryPayloads(
 			queryPayload{ModelID: testLocalModel, Items: localItems},
-			queryPayload{ModelID: testParentModel, VaultID: testParentVaultID, Items: parentItems},
+			queryPayload{ModelID: testParentModel, VaultID: reportedID, Items: parentItems},
 			notes, QueryArgs{Limit: -1})
 
 		for _, outParent := range merged.Items {
@@ -40,7 +44,7 @@ func TestDedupeProperty_NeverBothLiveLocalAndMatchedParent(t *testing.T) {
 			})]
 
 			for _, note := range liveNotesInOutput(merged.Items, notes) {
-				if dedupeMatches(sent, note, testParentVaultID) {
+				if sameNoteByD4(sent, note, reportedID) {
 					rt.Fatalf("output holds live local %s and the parent item %s it matches",
 						note.basename, outParent.Path)
 				}
@@ -256,14 +260,22 @@ func TestMergeQueryPayloads_FloorOnIssueShape(t *testing.T) {
 	)
 
 	localItems := make([]queryItem, 0, exploreCount+chunkCount)
-	parentItems := make([]queryItem, 0, noteCount)
+	parentItems := make([]queryItem, 0, exploreCount+noteCount)
 
+	// Explore picks from both sources, on the centroid-cosine scale
+	// (0.75–0.89) that outranks every direct match.
 	for index := range exploreCount {
-		localItems = append(localItems, queryItem{
+		pick := queryItem{
 			Path: fmt.Sprintf("explore-%02d.md", index), Kind: typeFeedback,
 			Score:       0.75 + float32(index%15)/100,
 			Provenances: []string{provenanceExplore}, SourceTerm: "term",
-		})
+		}
+
+		if index%2 == 0 {
+			parentItems = append(parentItems, pick)
+		} else {
+			localItems = append(localItems, pick)
+		}
 	}
 
 	for index := range chunkCount {
@@ -573,20 +585,6 @@ func (failingListFS) ReadDir(string) ([]fs.DirEntry, error) { return nil, errFai
 // equal hashes occur.
 func dedupeBodies() []string { return []string{"alpha body", "beta body", "gamma body"} }
 
-// dedupeMatches is the property's oracle for the D4 dedupe rule.
-func dedupeMatches(parentItem queryItem, note exchangeNote, parentVaultID string) bool {
-	names := append([]string{strings.TrimSuffix(parentItem.Path, mdExt)}, parentItem.Aliases...)
-
-	if note.exchange.Parent.Vault == parentVaultID && slices.ContainsFunc(note.exchange.Parent.Links,
-		func(link parentLink) bool { return slices.Contains(names, link.Note) }) {
-		return true
-	}
-
-	hash, _ := exchangeHash(note.raw)
-
-	return exchangeHashesMatch(hash, parentItem.ExchangeHash)
-}
-
 // dedupeNames is the pool of parent basenames the property draws from.
 func dedupeNames() []string { return []string{"1.a", "2.b", "3.c", "4.d"} }
 
@@ -725,6 +723,27 @@ func mustExchangeHash(t interface {
 	}
 
 	return hash
+}
+
+// sameNoteByD4 is the property's oracle, stated as design D4 words it:
+// parent item P and live local note L are the same note when (1) the parent
+// reported a vault ID, L's parent.vault is that ID, and one of L's links
+// names P's basename or one of P's aliases; or (2) both exchange hashes are
+// known and equal.
+func sameNoteByD4(parentItem queryItem, note exchangeNote, reportedID string) bool {
+	parentBasename := strings.TrimSuffix(parentItem.Path, mdExt)
+
+	if reportedID != "" && note.exchange.Parent.Vault == reportedID {
+		for _, link := range note.exchange.Parent.Links {
+			if link.Note == parentBasename || slices.Contains(parentItem.Aliases, link.Note) {
+				return true
+			}
+		}
+	}
+
+	localHash, hashErr := exchangeHash(note.raw)
+
+	return hashErr == nil && localHash != "" && parentItem.ExchangeHash != "" && localHash == parentItem.ExchangeHash
 }
 
 // scoresDescending reports whether items are in non-increasing score order.

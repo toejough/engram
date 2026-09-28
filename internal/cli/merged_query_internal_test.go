@@ -8,6 +8,25 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// TestMergeQueryPayloads_AdvisoryFlagsAreLocalOnly verifies RefitPending and
+// PendingOffers follow the local vault only: a child can neither run its
+// parent's refit nor curate its parent's offers (H4, ruling S20).
+func TestMergeQueryPayloads_AdvisoryFlagsAreLocalOnly(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	fromParent := mergeQueryPayloads(queryPayload{},
+		queryPayload{RefitPending: true, PendingOffers: true}, nil, QueryArgs{})
+	g.Expect(fromParent.RefitPending).To(BeFalse())
+	g.Expect(fromParent.PendingOffers).To(BeFalse())
+
+	fromLocal := mergeQueryPayloads(queryPayload{RefitPending: true, PendingOffers: true},
+		queryPayload{}, nil, QueryArgs{})
+	g.Expect(fromLocal.RefitPending).To(BeTrue())
+	g.Expect(fromLocal.PendingOffers).To(BeTrue())
+}
+
 // TestMergeQueryPayloads_ClustersStayLocalOnly verifies the merged payload
 // does not mix local and parent clusters — no cross-node cluster grouping
 // is computed (spec: "Merged results are not re-clustered across nodes").
@@ -158,23 +177,6 @@ func TestMergeQueryPayloads_MismatchedModelIDStillMerges(t *testing.T) {
 	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
 
 	g.Expect(merged.Items).To(HaveLen(2))
-}
-
-// TestMergeQueryPayloads_ORsAdvisoryFlags verifies RefitPending is true in
-// the merged payload if either source has it; PendingOffers follows the
-// local vault only (H4).
-func TestMergeQueryPayloads_ORsAdvisoryFlags(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	local := queryPayload{RefitPending: false, PendingOffers: true}
-	parent := queryPayload{RefitPending: true, PendingOffers: false}
-
-	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
-
-	g.Expect(merged.RefitPending).To(BeTrue())
-	g.Expect(merged.PendingOffers).To(BeTrue())
 }
 
 // TestMergeQueryPayloads_PayloadModelIDIsQueryingNodesOwn verifies the

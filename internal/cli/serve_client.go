@@ -250,9 +250,13 @@ func fetchShow(ctx context.Context, deps Deps, base string, args ShowArgs, stdou
 // fetchShowContact runs one show request against the parent as a parent
 // contact: the vault ID is stamped and the location checked first (ruling
 // S3), the backoff gate may skip the request (errParentBackedOff, after its
-// one warning), and the outcome is recorded for backoff (ruling S11).
+// one warning), and the outcome is recorded for backoff (ruling S11). A
+// failed stamp skips the gate and the record (ruling S4).
 func fetchShowContact(ctx context.Context, deps Deps, parent string, args ShowArgs, stdout io.Writer) error {
-	prepareParentContact(deps, "show", args.VaultPath)
+	if !prepareParentContact(deps, "show", args.VaultPath) {
+		// Unstamped: contact without bookkeeping (ruling S4).
+		return fetchShow(ctx, deps, parent, args, stdout)
+	}
 
 	store := outboxStoreFromDeps(deps)
 	if !gateParentContact(store, args.VaultPath, parent, false) {
