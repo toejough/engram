@@ -1157,9 +1157,12 @@ pulled note bouncing back up once is intended (B1).
   `red_flags`, `triggers`, and the body — never identity, `pending`, `tags`, `sources`,
   `supersedes`, or exchange bookkeeping. It replaces `embed.ContentHash` in every exchange
   comparison (loop suppression, `offer.key`, pull-down skip/decline, rejected-offer re-arm, dedupe
-  rule 2); `embed.ContentHash` keeps its own job (sidecar staleness). A reflection test fails when
-  a struct field is missing from the offered/not-offered classification table. Version-prefix
-  mismatches compare as *unknown*, treated as *not changed* everywhere except dedupe.
+  rule 2, `--expect-hash`); `embed.ContentHash` keeps its own job (sidecar staleness). A reflection
+  test fails when a struct field is missing from the offered/not-offered classification table.
+  Version-prefix mismatches compare as *unknown*: loop suppression, dedupe rule 2, and
+  `--expect-hash` all require an *equal* hash and never pass on *unknown*; only the pull-down skip,
+  decline matching, the rejected-offer re-arm, and the send/apply change check treat *unknown* as
+  *not changed*.
 - **D4 — Multi-valued parent links, aliases, and a rename-stable exchange ID.** New optional
   frontmatter: `xid` (this note's own exchange ID, stamped lazily, never backfilled); `parent`
   (`vault`, `links: [{note, via: offered|pulled|covered, hash}]`, `author`) — at most one primary
@@ -1279,9 +1282,14 @@ pulled note bouncing back up once is intended (B1).
 - [A covered fold loses the offer's own author attribution] → documented (D10); the basename
   survives in `aliases`, and the losing side is deliberate (the note's content is now
   `<existing>`'s).
-- [Version skew: an upgraded child against a pre-change parent] → detected by a missing `vault_id`
-  in the receipt/envelope/query payload; exchange stops with a "parent too old" error and queries
-  stay local-only with a warning.
+- [Version skew: an upgraded child against a pre-change parent] → an offer's receipt (D6) and a
+  pull-down's envelope (D8) are both detected by a missing `vault_id`, and exchange stops with a
+  "parent too old" error. A merged query does **not** carry this check (ruling S27, verified in
+  code): `runMergedQuery`/`fetchQueryPayload` never inspect the query payload's `vault_id`, so a
+  query against a pre-change parent still merges the parent's results, unrefused. Parent chunk
+  items are still dropped unconditionally, and the merge's dedupe just finds no match on the old
+  payload's missing `vault_id`/`exchange_hash` keys, so a note can show twice instead of being
+  deduped — degraded, not refused.
 - [`.engram/` is lost — a fresh clone, a cleanup] → child-side exchange pauses with a warning until
   `--claim`/`--regenerate` runs; queued offers re-queue on the next content write; forgotten
   declines can bring a declined parent note back once, for curation to discard again. No note
@@ -1289,6 +1297,36 @@ pulled note bouncing back up once is intended (B1).
 - [A remote client aims `offer.for`/`offer.origin` at arbitrary notes] → it can only create or
   update *pending* notes, never a live one; curation reviews every one. The trust model is
   unchanged from today's unauthenticated `serve` (network reachability).
+
+**Rejected alternatives** (design.md :72, :119–123, :158–160, :214–218, :280–283, :319–321,
+:355–357, :543, :546):
+
+- **D1.** An alias shim for `ENGRAM_SERVER` (Joe ruled it out), and exempting `serve` from the hard
+  error (Q5).
+- **D2.** Creating the vault only on `update`, or warning without creating (#766's other two
+  options); putting the outbox in the vault root and appending the tracked `.gitignore` (dirties
+  the vault repo on every host); keying state under `$XDG_DATA_HOME` by vault path (orphaned on a
+  move, doesn't travel with the vault); keying links by URL (breaks on a hostname/IP change, M11).
+- **D3.** Extending `embed.ContentHash` (would stale every existing sidecar and force a full
+  re-embed); hashing the whole file (identity/link fields would change the hash, and loop
+  suppression would never fire).
+- **D4.** A single link per note (can't record that a note covers a second parent note once it
+  already has a counterpart, H5); keying the outbox/idempotency by basename (a rename loses the
+  entry, H2); rewriting outbox keys on rename (works, but `xid` makes it unnecessary); recording
+  the child's basename on the parent (remote-set, and the child can rename).
+- **D6.** A per-offer snapshot directory (sends stale content and duplicates); JSONL (coalescing
+  needs rewrites); sending synchronously and failing the local write (contradicts "local writes
+  always succeed"); no backoff (up to 30s per command while the parent is down, M9).
+- **D7.** Keeping `/amend` (two offer routes for one concept); a new `/offer` route (duplicates
+  `/learn`'s code path); a raw text body for `/show?raw=1` (an old parent's rendered response can't
+  be told apart from it, H7).
+- **D8.** A `parent:` path prefix in payloads (breaks consumers, including bare `engram show
+  <basename>` in the shim); writing the pulled note live (bypasses curation); reusing `/show`'s
+  rendered output (it's altered, G4).
+- **D12 (M14).** Stopping propagation at the first level — inconsistent with near folds
+  propagating, and it defeats the personal → team → org tree.
+- **D12 (B1).** A `--from-pull` fold marker that suppresses the bounce-once offer — it would lose
+  the local addition upstream, which is the point of decision 3.
 
 Link: `openspec/changes/local-first-parent-sync/{proposal.md,design.md}`; vault notes 784, 784a;
 `internal/cli/{serve.go,serve_client.go,serve_learn.go,serve_exchange_read.go,outbox.go,pulldown.go,merged_query.go,exchangehash.go,exchangefields.go,amend_fold.go}`;

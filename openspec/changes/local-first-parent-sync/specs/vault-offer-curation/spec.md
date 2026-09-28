@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Bookkeeping on a served offer SHALL verify the judged version
-`engram amend --clear-pending`, `--discard --into`, and a bare `--discard` on a note carrying `offer.origin` SHALL require `--expect-hash <exchange hash>`. They SHALL fail, and change nothing, when the note's current exchange hash differs from that value (the offer was updated in place after it was judged). This SHALL apply whether the note is pending or live. Because `offer` survives acceptance, a later host-side discard of a once-offered live note also needs `--expect-hash`, since a same-origin retry could otherwise race it.
+`engram amend --clear-pending`, `--discard --into`, and a bare `--discard` on a note carrying `offer.origin` SHALL require `--expect-hash <exchange hash>`. They SHALL succeed only when the note's current exchange hash is *equal* to `--expect-hash`, and SHALL fail, changing nothing, in every other case: when the current hash *differs* (the offer was updated in place after it was judged), when the comparison is *unknown* (a version-prefix mismatch on either side — capability `vault-parent-offers`), and when the note's current exchange hash cannot be computed at all (S21; for example, the note has no frontmatter). None of these three failure cases is distinguished from the others by the command's outcome: nothing changes, and the curator re-reads the note and judges it again. This SHALL apply whether the note is pending or live. Because `offer` survives acceptance, a later host-side discard of a once-offered live note also needs `--expect-hash`, since a same-origin retry could otherwise race it.
 
 `--expect-hash` SHALL be accepted on any note, including pulled-down notes and notes never offered. When it is given, it SHALL be verified the same way; it is required only on notes carrying `offer.origin`. The curate skill passes it on every offer.
 
@@ -12,6 +12,28 @@
 #### Scenario: A once-offered live note needs the hash to be discarded
 - **WHEN** `engram amend --target E --discard` runs on a live note that still carries `offer.origin`, without `--expect-hash`
 - **THEN** the command fails, and E is unchanged
+
+#### Scenario: An unknown-version comparison fails like a changed one
+- **WHEN** `engram amend --target N --clear-pending --expect-hash H` runs, and comparing `H` against N's current exchange hash is *unknown* (one of the two carries a different or missing hash-format version) rather than *equal* or *changed*
+- **THEN** the command fails exactly as it would on a changed hash, and N is unchanged
+
+### Requirement: A curation fold SHALL merge parent links precisely
+`engram amend --target O --discard --into E` merges O's `parent` links into E's (capability `vault-note-identity` states the basic case: O's primary link becomes E's primary when E has none, otherwise it becomes `covered`). This capability SHALL refine that merge with three further rules:
+- A link E already holds for the same parent basename as one of O's links SHALL keep E's own `via` role, and SHALL take O's link's `hash` — the version curation just judged. This holds even when O's link for that basename is itself O's primary, as long as E already has a primary link of its own (so O's primary link does not overwrite an existing role).
+- When O's `parent.vault` differs from E's, E's existing links under E's previous `parent.vault` SHALL be dropped, and E's `parent.vault` SHALL become O's `parent.vault`, carrying only O's links forward. Links SHALL count only under E's current parent vault, consistent with `vault-note-identity`'s "links count only while `parent.vault` equals the vault ID the configured parent reports."
+- When E holds no primary link of its own, and E already holds a `covered` link to the same basename as O's primary (`offered`/`pulled`) link, that held `covered` link SHALL be promoted to E's primary role, taking O's link's hash.
+
+#### Scenario: An existing link keeps its role and takes the offer's hash
+- **WHEN** E has its own primary link `{note: Q, via: offered, hash: HQ}` and also holds `{note: P, via: covered, hash: H1}`, and O's primary link is `{note: P, via: offered, hash: H2}` under the same parent vault as E
+- **THEN** after the fold, E's primary link is still `{note: Q, via: offered, hash: HQ}`, and E's link to P is still `via: covered` but now carries `hash: H2`
+
+#### Scenario: A vault switch drops links under the old vault
+- **WHEN** E's `parent.vault` is V1 with links under V1, and O's `parent` links are all under a different vault V2
+- **THEN** after the fold, E's `parent.vault` is V2, none of E's V1 links remain, and E's links are exactly O's links translated onto E
+
+#### Scenario: A held covered link is promoted to primary
+- **WHEN** E has no primary link of its own but holds `{note: P, via: covered, hash: H1}`, and O's primary link is `{note: P, via: offered, hash: H2}` under the same parent vault as E
+- **THEN** after the fold, E's link to P is `{note: P, via: offered, hash: H2}` — promoted to primary
 
 ### Requirement: engram show SHALL print an exchanged note's exchange hash
 For a note that carries `xid` (a note that has taken part in exchange), `engram show` SHALL print `# exchange_hash: <hash>` as its first output line, before the frontmatter. For a note without `xid`, its output SHALL be unchanged. On the local-miss parent fallback, the `# from_parent: true` label SHALL come first, followed by the parent's `show` output, which starts with the parent note's own exchange-hash line when that note carries `xid`. The served `show` route without `raw` SHALL return exactly the local `engram show` output, header included.

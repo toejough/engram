@@ -1,8 +1,8 @@
 # L2 — Container view
 
 Decomposes **S2 · Engram** (from [L1](c1-system-context.md)) into its runnable/
-deployable containers. External systems (harness, session stores, Go toolchain) are
-carried over from L1. Reflects the current system; verified-defect
+deployable containers. External systems (harness, session stores, Go toolchain, the
+parent engram vault) are carried over from L1. Reflects the current system; verified-defect
 annotations (⚠) mark places the implementation diverges from intent and are
 re-verified each time this doc is edited — detail in
 [memory-invariants](memory-invariants.md).
@@ -21,6 +21,7 @@ flowchart TB
     vault[("C4 · Vault<br/>flat root: *.md + *.vec.json + .luhmann.lock")]
     sessions(["S5 · Session stores (Claude + Pi .jsonl)"])
     gotool(["S6 · Go toolchain"])
+    parentvault(["S7 · Parent engram vault (engram serve)"])
 
     agent -->|"runs /recall, /learn, /please, /route, /curate, /write-memory"| skills
     skills -->|"C1→C2: subprocess engram ingest/learn/query"| cli
@@ -28,11 +29,12 @@ flowchart TB
     cli -->|"C2→C4: read/write notes+sidecars under flock"| vault
     cli -->|"C2→S5: read transcripts; re-chunk/re-embed changed content only (manifest.json staleness)"| sessions
     cli -->|"engram update: go install, then re-execs the fresh binary for the sync phase (ENGRAM_UPDATE_REEXEC loop guard, ADR-0023), which syncs agent-instructions/{skills,guidance} to engram-owned roots and materializes symlinks; removals propagate; dark migration on first sync (ADR-0022)"| gotool
+    cli -->|"C2→S7: with ENGRAM_PARENT set, offers/pulls notes over HTTP (query, show, activate, learn) — never chunks (ADR-0029)"| parentvault
 
     class agent person
     class skills,cli,model container
     class vault store
-    class sessions,gotool external
+    class sessions,gotool,parentvault external
 ```
 
 ## Container catalog
@@ -52,6 +54,7 @@ flowchart TB
 | C2 → C4 | Reads notes+sidecars at query time; writes notes+sidecars atomically (temp-file + rename) under the vault flock (`.luhmann.lock`) — every writer holds it: `learn` (id-compute→write, O_EXCL), `amend`, `resituate`, `activate`. The flock is acquired only at command entry points. The wikilink graph is built from note bodies at query time. `engram learn qa` writes Q&A pairs — Q-notes excluded from the query pipeline, A-notes competing as synthesis notes, machine-written edge lines (see [GLOSSARY](../GLOSSARY.md): qa-question / qa-answer / contributors). |
 | C2 → S5 | `engram ingest --auto` reads Claude and Pi `.jsonl`; re-chunks and re-embeds only sources whose mtime/size/hash changed vs the `manifest.json` written to `$XDG_DATA_HOME/engram/chunks`; strips harness noise; byte-capped with continuation signalling. `--auto` additionally skips session-log directories whose slugified project path starts with a non-persistent-workspace prefix (`-private-tmp-`, `-tmp-`, `-var-folders-`, `-private-var-folders-` — slugified forms of `/private/tmp`, `/tmp`, and macOS `$TMPDIR`), preventing eval/test runs from bloating the main chunk index (configurable via the `non_persistent_prefixes` key in `.engram/sweep.json`). Two opt-in levers bypass the skip for deliberate test ingestion: explicit `--sweep <dir>` / `--transcript <file>` / `--markdown <file>` / `--pi-sessions <dir>` — manual sweep roots carry no prefix exclusion — or an isolated index + vault via `ENGRAM_CHUNKS_DIR` / `ENGRAM_VAULT_PATH`. |
 | C2 → S6 | `engram update` runs `go install`, then re-execs the fresh binary for the sync phase (ENGRAM_UPDATE_REEXEC loop guard, ADR-0023), which syncs refreshed artifacts to engram-owned roots per harness (`~/.claude/engram/`, etc.; ADR-0022 D1) and materializes symlinks into each harness's surface dirs (`~/.claude/skills/`, etc.); removals from the source propagate on every update (sync-delete); first update performs dark migration of pre-existing copies; `--with-guidance` also syncs guidance docs to the root's `guidance/` subtree and materializes symlinks, plus compat symlinks at flat paths for existing `@import` lines (opt-in); manifest-mode fallback for harnesses whose discovery fails symlink verification. |
+| C2 → S7 | With `ENGRAM_PARENT` set: `engram query` fetches the parent's `/query?dedupe-keys=1` and merges notes only (never chunks) into the local payload; `engram learn`/a content `amend`/`resituate` offer the note, queued in a local outbox and drained with backoff to the parent's `/learn`; `engram activate` on a local miss pulls the parent's note down via `GET /show?raw=1` as a new local pending offer, then best-effort bumps its use on the parent (ADR-0029). |
 
 ### Flowchart: ingest/chunking (C2→S5)
 

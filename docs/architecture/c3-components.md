@@ -46,17 +46,22 @@ flowchart TB
     subgraph PW[engram amend / resituate / activate — write-modifier processes]
       wm["K4w · amend · resituate · activate<br/>read-modify-write a note/sidecar under .luhmann.lock; share K4/K5/K10 kernels"]
     end
+    subgraph PS[engram serve — process]
+      srv["K14 · serve<br/>query/show/activate/learn HTTP door; served learn: idempotency-first, in-place pending update, 409 loop refusal"]
+    end
 
     %% shared kernels: compiled into multiple subcommand processes; never call across them
     embed["K5 · embed (shared kernel)<br/>Text(body) · ContentHash · Sidecar · embedder"]
     lz["K10 · luhmann (shared kernel)<br/>ParseID · LetterLess"]
     dbg["K11 · debuglog (cross-cutting, all targets)<br/>pure: writer+clock injected; sink composed in internal/cli/debugsink.go"]
     prims["K13 · cmd/engram — edge primitives + entry point<br/>single-statement main() + thin per-group functions → cli.Primitives → cli.NewDeps<br/>(ALL adapter composition in internal/cli); targ check-thin-api-enforced"]
+    px["K14 (child side) · exchange kernel (shared)<br/>offer build/classify · outbox drain · merged-query dedupe · pull-down; compiled into query/learn/wm"]
 
     vault[("C4 · Vault")]
     model[["C3 · MiniLM"]]
     sessions(["S5 · Session stores"])
     gotool(["S6 · Go toolchain"])
+    parentvault(["S7 · Parent engram vault"])
 
     skills -->|"shell engram ingest --auto"| ing
     skills -->|"shell engram learn (args)"| learn
@@ -73,23 +78,33 @@ flowchart TB
     learn --> embed
     learn --> lz
     learn -->|note+sidecar under flock| vault
+    learn --> px
 
     query --> embed
     query --> vg
     query --> cl
     query -->|stdout payload| skills
+    query --> px
     vg --> lz
     vg -->|read notes/wikilinks| vault
+
+    wm --> px
 
     eb --> embed
     eb -->|re-embed sidecars| vault
     embed --- model
     upd -->|go install| gotool
 
-    class ing,learn,query,vg,cl,eb,embed,upd,lz,prune,prims comp
+    px -->|"ENGRAM_PARENT: offer /learn, merge /query, pull /show?raw=1 — never chunks"| parentvault
+    px --> embed
+    px -->|pending offer note+sidecar, outbox.json under .engram/| vault
+    srv -->|"served /learn: in-place pending update or new pending note"| vault
+    srv --> embed
+
+    class ing,learn,query,vg,cl,eb,embed,upd,lz,prune,prims,px,srv comp
     class dbg xcut
     class vault store
-    class skills,sessions,gotool ext
+    class skills,sessions,gotool,parentvault ext
 
     g0[["⚠ G0: BuildGraph resolves basename; learn writes bare ids → most edges dropped (census in memory-invariants.md)"]]:::defect
     vg -.-> g0
@@ -110,7 +125,7 @@ flowchart TB
 | K5b | `cli/embed.go` | `RunEmbedApply`, `RunEmbedStatus`, `selectStates` | The `engram embed apply/status` subcommand (separate process, operator-run for model migration): re-embeds notes whose sidecar is missing/stale/incompatible via the shared K5 package; `apply` writes sidecars, `status` reports counts. Wired in `targets.go` (grep `Name("embed")`). | drives **M4** remediation |
 | K12 | `cli/prune.go` + `cli/prune_duplicates.go` | `RunPrune`, `pruneDuplicatesLocked` | The `engram prune` subcommand (operator-run GC): reads the chunk-index manifest and, for every source whose file no longer exists, drops its manifest entry — the per-source index file (embedded chunk vectors) is left on disk, since chunk search discovers `.jsonl` files by directory scan and never consults the manifest, so detached chunks stay fully searchable (#659). Acquires `flock(.manifest.lock)` around the manifest read-modify-write (shared with `ingest`) so a concurrent ingest/prune cannot lose updates — #660. A separate `--empty` mode (`pruneEmptyLocked`, + `--dry-run`) instead removes existing 0-byte `.jsonl` index files left by a zero-record source under the `rebuildIndex` guard (#694) — ranking-neutral, re-reading each file live at delete time rather than deleting off a frozen enumeration. A third mode, `--duplicates` (`pruneDuplicatesLocked`, + `--dry-run`, ADR-0021), is the one branch here that DOES remove index files the default mode would keep: it groups the manifest by (content hash, chunking class), keeps one canonical member per group (`selectCanonical`), and removes every other member's index file + manifest entry — but only when the canonical's own index file exists right now AND verifiably covers every one of the duplicate's own chunk records (`canonicalCoversDuplicateRecords`); otherwise the removal is refused rather than performed, reported as a bulk-summarized structural refusal (no canonical index at all — a zero-chunk source) or an individually-named anomalous refusal (a sibling's surviving index proves real content exists). Per-item removal failures are reported via `deps.LogWarning` and the run exits non-zero without stopping. Not part of the recall/learn/please flows — manual cleanup only. Wired in `targets.go` (grep `Name("prune")`) alongside ingest/query. | — |
 | K13 | `cmd/engram` | edge primitives + entry point | Single-statement `main()` composing `cli.Primitives` from checker-thin per-capability-group functions (FS/Lock/Exec/Proc — raw os/syscall/filepath/hugot/exec capability references + sanctioned closures, each group function returning its composite literal directly); `targ check-thin-api`-enforced; ALL adapter composition (EdgeFS, FileLocker, commander, hugot backend, debug sink, signal force-exit) lives in `internal/cli` via `cli.NewDeps`, integration-tested there with real FS/env (#700). | — |
-| K14 | `cli/serve.go`, `cli/serve_client.go`, `cli/serve_learn.go`, `cli/serve_exchange_read.go`, `cli/merged_query.go`, `cli/outbox.go`, `cli/pulldown.go`, `cli/exchangehash.go`, `cli/exchangefields.go`, `cli/exchangestate.go` | `RunServe`, offer sender (`newOfferSender`), `runMergedQuery`/`mergeQueryPayloads`, outbox drain (`drainOutbox`), pull-down (`pullSession`), `exchangeHash` | Parent sync (ADR-0029, design `local-first-parent-sync`): `engram serve` exposes `query`/`show`/`activate`/`learn` only (`/amend`, `/query-chunks`, `/show-chunk` removed); a served `learn` writes or in-place-updates a pending offer keyed by `offer.origin`/`offer.key`, idempotent and loop-refusing via `offer.path`. The child side builds offer payloads from `exchangeHash`-classified content fields, queues them in `<vault>/.engram/outbox.json` under the vault lock, and drains with backoff on parent failure. `mergeQueryPayloads` interleaves the parent's `/query?dedupe-keys=1` response into the local payload, dropping every `kind: chunk` item and deduping notes via parent links. `pullSession` resolves an `engram activate` miss against the parent's `GET /show?raw=1`, writing a new local pending offer and best-effort bumping the parent's own use. | — |
+| K14 | `cli/serve.go`, `cli/serve_client.go`, `cli/serve_learn.go`, `cli/serve_exchange_read.go`, `cli/merged_query.go`, `cli/merged_dedupe.go`, `cli/outbox.go`, `cli/offer_payload.go`, `cli/offer_classify.go`, `cli/offer_wiring.go`, `cli/amend_fold.go`, `cli/pulldown.go`, `cli/vaultid.go`, `cli/exchangehash.go`, `cli/exchangefields.go`, `cli/exchangestate.go` | `RunServe`, offer sender (`newOfferSender`), `runMergedQuery`/`mergeQueryPayloads`/`matchLocalNote`, outbox drain (`drainOutbox`), pull-down (`pullSession`), `exchangeHash`, `foldParentLinks` | Parent sync (ADR-0029, design `local-first-parent-sync`): `engram serve` exposes `query`/`show`/`activate`/`learn` only (`/amend`, `/query-chunks`, `/show-chunk` removed); a served `learn` writes or in-place-updates a pending offer keyed by `offer.origin`/`offer.key`, idempotent and loop-refusing via `offer.path`. The child side classifies and builds offer payloads (`offer_classify.go`, `offer_payload.go`; enqueue hooks in `offer_wiring.go`) from `exchangeHash`-classified content fields, queues them in `<vault>/.engram/outbox.json` under the vault lock, and drains with backoff on parent failure. `mergeQueryPayloads` interleaves the parent's `/query?dedupe-keys=1` response into the local payload, dropping every `kind: chunk` item and deduping notes (`merged_dedupe.go`'s `matchLocalNote`) either by a parent link under the reported vault ID or by dedupe rule 2 — an equal, known exchange hash (design D4). `pullSession` resolves an `engram activate` miss against the parent's `GET /show?raw=1`, writing a new local pending offer and best-effort bumping the parent's own use. `amend_fold.go` is curation's `--discard --into` fold (`foldParentLinks`, `checkJudgedVersion`), and `vaultid.go` is `engram vault-id`/`--regenerate`/`--claim`. | — |
 
 ## The recurring defect shape (feeds the Phase-4 ADR) — corrected per Phase-2 antagonist
 The canonical example of the silent-mismatch bug class:

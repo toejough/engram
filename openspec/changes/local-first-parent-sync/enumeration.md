@@ -208,5 +208,5 @@ The `CLAUDE.md` and `agent-instructions/` search returned **no** `ENGRAM_SERVER`
 | --- | --- | --- |
 | 114 | openspec/changes/archive/** (15 files, 54 lines naming `ENGRAM_SERVER`) | Archive history. |
 | 115 | .review/events.jsonl:26, 28; dev/eval/audit/results/transcript-events.jsonl:44, 61, 324, 516 | Captured events. |
-| 116 | docs/research/2026-08-30-memory-taxonomy-engram-map.md:19, 41, 87 | Dated research snapshot. It is accurate for its date. |
+| 116 | docs/research/2026-08-30-memory-taxonomy-engram-map.md:19, 35, 41, 46 | Dated research snapshot. It is accurate for its date. |
 | 117 | README.md:87 (`engram query-chunks`, the local command) | The local CLI command stays. Only the served route is deleted (Q4). |

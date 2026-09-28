@@ -765,20 +765,24 @@ the fact/feedback/runbook-specific fields, `done_when`, `red_flags`, `triggers`,
 never identity, `pending`, `tags`, `sources`, `supersedes`, or any exchange bookkeeping field
 (design D3). It replaces `embed.ContentHash` everywhere exchange compares two versions of a note:
 loop suppression, `offer.key`, pull-down skip/decline matching, the rejected-offer re-arm, and
-dedupe rule 2. A version-prefix mismatch compares as *unknown*, which every consumer except dedupe
-treats as *not changed* — so a hash-format upgrade never causes a mass re-pull or re-offer. Shown
-by `engram show` as a `# exchange_hash: xh1:…` header line on any note carrying `xid`, and required
-as `--expect-hash` on `engram amend --clear-pending`/`--discard`/`--discard --into` of a note
-carrying `offer.origin` (design D10) — a curator's judged version, not the exchange's own
-change-tracking, so only an *equal* hash passes.
+dedupe rule 2. A version-prefix mismatch compares as *unknown*. **Loop suppression, dedupe rule 2,
+and `--expect-hash` all require an *equal* hash** — an *unknown* comparison never passes any of
+them. Only the pull-down skip, decline matching, the rejected-entry re-arm, and the send/apply
+change check treat *unknown* as *not changed* — so a hash-format upgrade never causes a mass
+re-pull or re-offer, without ever letting an unknown hash stand in for a match. Shown by
+`engram show` as a `# exchange_hash: xh1:…` header line on any note carrying `xid`, and required as
+`--expect-hash` on `engram amend --clear-pending`/`--discard`/`--discard --into` of a note carrying
+`offer.origin` (design D10) — a curator's judged version, not the exchange's own change-tracking,
+so only an *equal* hash passes.
 
 ### parent link
 The `parent:` frontmatter block (`vault`, `links: [{note, via, hash}]`, `author`) that ties a note
 to its counterpart(s) in the configured parent's vault, keyed by that parent's vault ID rather
 than by URL. `via` is `offered`/`pulled` for the note's one primary counterpart, or `covered` for
 a parent note this note was judged (by a curation fold) to also cover. Set only by the exchange
-paths — the offer receipt, pull-down, `amend --discard --into`, a rename's alias step, and served
-learn — and preserved byte-for-byte by every other rewrite (design D4).
+paths — the offer receipt, pull-down, `amend --discard --into`, and served learn — and preserved
+byte-for-byte by every other rewrite, including a rename (which appends to `aliases` only, never
+touching `parent:`) (design D4).
 
 ### pull-down
 `engram activate`'s parent path (design D8, Q2): on a local miss, a basename-shaped ref that isn't
