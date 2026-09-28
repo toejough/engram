@@ -58,32 +58,13 @@ type ActivateDeps struct {
 // Luhmann ID never goes to the parent. Each failed ref is reported, and
 // the command fails when any ref failed.
 func RunActivate(ctx context.Context, args ActivateArgs, deps ActivateDeps) error {
-	if args.Parent && deps.Pull == nil {
-		return errParentNotConfigured
+	result, err := activateRefs(ctx, args, deps)
+	if err != nil {
+		return err
 	}
 
-	remote, failures, lockErr := activateLocally(args, deps)
-	if lockErr != nil {
-		return lockErr
-	}
-
-	// Pulls run after the local pass released the vault lock: each takes
-	// the lock only for its own write (no fetch under the lock).
-	for _, ref := range remote {
-		pullErr := deps.Pull(ctx, ref)
-		if pullErr != nil {
-			deps.LogWarning("activate: %s: %v", ref, pullErr)
-
-			failures++
-		}
-	}
-
-	if len(remote) > 0 && deps.Finish != nil {
-		deps.Finish(ctx)
-	}
-
-	if failures > 0 {
-		return fmt.Errorf("%w: %d of %d", errActivateFailed, failures, len(args.Notes))
+	if len(result.Failed) > 0 {
+		return fmt.Errorf("%w: %d of %d", errActivateFailed, len(result.Failed), len(args.Notes))
 	}
 
 	return nil
@@ -97,62 +78,127 @@ var (
 		"(a bare Luhmann ID or a path never is)")
 )
 
-// activateLocally is RunActivate's locked pass: it bumps every local hit
-// and returns the refs to pull from the parent and the failure count.
-func activateLocally(args ActivateArgs, deps ActivateDeps) ([]string, int, error) {
+// activateFailure is one ref that could not be activated, and why.
+type activateFailure struct {
+	Ref   string `json:"ref"`
+	Error string `json:"error"`
+	// notFound marks a ref with no note to activate (a client error), as
+	// opposed to a failure while activating one.
+	notFound bool
+}
+
+// activateResult is the per-ref outcome of an activate: the refs that
+// were activated and those that failed. A served activate returns it as
+// its body when some refs failed.
+type activateResult struct {
+	Activated []string          `json:"activated"`
+	Failed    []activateFailure `json:"failed"`
+}
+
+// fail records a failed ref and reports it.
+func (r *activateResult) fail(deps ActivateDeps, ref string, err error) {
+	deps.LogWarning("activate: %s: %v", ref, err)
+
+	r.Failed = append(r.Failed, activateFailure{
+		Ref: ref, Error: err.Error(), notFound: errors.Is(err, errActivateNotFound),
+	})
+}
+
+// activateLocally is the locked pass: it bumps every local hit, records
+// each ref's outcome, and returns the refs to pull from the parent.
+func activateLocally(args ActivateArgs, deps ActivateDeps, result *activateResult) ([]string, error) {
 	// Acquire the vault lock before the bump loop so a concurrent amend/resituate
 	// re-embed cannot clobber the freshly-written vectors with stale ones. bumpLastUsed
 	// must NOT re-acquire the lock (RunAmend already holds it when it calls
 	// reEmbedAndActivate→bumpLastUsed — re-acquiring would self-deadlock).
 	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
 	if lockErr != nil {
-		return nil, 0, fmt.Errorf("activate: acquiring vault lock: %w", lockErr)
+		return nil, fmt.Errorf("activate: acquiring vault lock: %w", lockErr)
 	}
 
 	defer release()
 
 	date := deps.Now().Format(noteDateFormat)
 	remote := make([]string, 0, len(args.Notes))
-	failures := 0
 
 	for _, ref := range args.Notes {
-		refErr := activateRef(args, deps, ref, date, &remote)
-		if refErr != nil {
-			deps.LogWarning("activate: %s: %v", ref, refErr)
+		pull, refErr := activateRef(args, deps, ref, date)
 
-			failures++
+		switch {
+		case refErr != nil:
+			result.fail(deps, ref, refErr)
+		case pull:
+			remote = append(remote, ref)
+		default:
+			result.Activated = append(result.Activated, ref)
 		}
 	}
 
-	return remote, failures, nil
+	return remote, nil
 }
 
 // activateRef resolves one ref in the locked pass: a local hit is bumped,
-// a parent candidate is queued onto remote, anything else fails.
-func activateRef(args ActivateArgs, deps ActivateDeps, ref, date string, remote *[]string) error {
-	if !args.Parent {
-		full := localNotePath(args.Vault, ref)
-		if deps.NoteExists(full) {
-			bumpErr := bumpLastUsed(embed.SidecarPath(full), date, deps.Read, deps.Write)
-			if bumpErr != nil && !errors.Is(bumpErr, fs.ErrNotExist) {
-				return bumpErr
-			}
-
-			return nil
+// a parent candidate is reported for pulling, anything else fails.
+func activateRef(args ActivateArgs, deps ActivateDeps, ref, date string) (bool, error) {
+	if args.Parent {
+		// --parent never looks locally, so a non-candidate ref is only "not
+		// sent", never "not found".
+		if !isParentCandidate(ref) {
+			return false, errActivateNotSent
 		}
 
-		if deps.Pull == nil {
-			return errActivateNotFound
-		}
+		return true, nil
+	}
+
+	full := localNotePath(args.Vault, ref)
+	if deps.NoteExists(full) {
+		return false, bumpLocalHit(deps, full, date)
+	}
+
+	if deps.Pull == nil {
+		return false, errActivateNotFound
 	}
 
 	if !isParentCandidate(ref) {
-		return fmt.Errorf("%w; %w", errActivateNotFound, errActivateNotSent)
+		return false, fmt.Errorf("%w; %w", errActivateNotFound, errActivateNotSent)
 	}
 
-	*remote = append(*remote, ref)
+	return true, nil
+}
 
-	return nil
+// activateRefs runs activate and returns each ref's outcome; the error is
+// only for a failure of the whole command (no parent for --parent, or the
+// vault lock).
+func activateRefs(ctx context.Context, args ActivateArgs, deps ActivateDeps) (activateResult, error) {
+	if args.Parent && deps.Pull == nil {
+		return activateResult{}, errParentNotConfigured
+	}
+
+	var result activateResult
+
+	remote, lockErr := activateLocally(args, deps, &result)
+	if lockErr != nil {
+		return activateResult{}, lockErr
+	}
+
+	// Pulls run after the local pass released the vault lock: each takes
+	// the lock only for its own write (no fetch under the lock).
+	for _, ref := range remote {
+		pullErr := deps.Pull(ctx, ref)
+		if pullErr != nil {
+			result.fail(deps, ref, pullErr)
+
+			continue
+		}
+
+		result.Activated = append(result.Activated, ref)
+	}
+
+	if len(remote) > 0 && deps.Finish != nil {
+		deps.Finish(ctx)
+	}
+
+	return result, nil
 }
 
 // bumpLastUsed reads a note's sidecar, sets LastUsed=date, and rewrites it.
@@ -188,6 +234,17 @@ func bumpLastUsed(
 	writeErr := write(sidecarPath, embed.MarshalSidecar(sidecar))
 	if writeErr != nil {
 		return fmt.Errorf("activate: writing sidecar %s: %w", sidecarPath, writeErr)
+	}
+
+	return nil
+}
+
+// bumpLocalHit bumps a local hit's sidecar; a note without a sidecar is
+// still a hit (M8).
+func bumpLocalHit(deps ActivateDeps, full, date string) error {
+	bumpErr := bumpLastUsed(embed.SidecarPath(full), date, deps.Read, deps.Write)
+	if bumpErr != nil && !errors.Is(bumpErr, fs.ErrNotExist) {
+		return bumpErr
 	}
 
 	return nil

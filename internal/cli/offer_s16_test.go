@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -106,7 +107,7 @@ func TestTargets_NotOfferedPathsQueueNothing(t *testing.T) {
 			env.run("amend", "--target", "1.2026-09-27.note", "--supersedes", "2.2026-09-27.old|updates|c")
 		},
 		"chunk-source only": func(env *wiringEnv) {
-			chunks := env.t.TempDir()
+			chunks := env.tempDir()
 			env.mustWrite(filepath.Join(chunks, "index.jsonl"), chunkLine)
 			env.plant("1.2026-09-27.note.md", offerTestNote{}.render(env.t))
 			env.run("amend", "--target", "1.2026-09-27.note", "--chunk-source", "s#a", "--chunks-dir", chunks)
@@ -123,7 +124,8 @@ func TestTargets_NotOfferedPathsQueueNothing(t *testing.T) {
 			raw := strings.Replace(string(offerTestNote{}.render(env.t)), "user: alice\nvault: personal\n", "", 1)
 			env.plant("1.2026-09-27.note.md", []byte(raw))
 
-			stamped, err := cli.ExportBackfillIdentity(env.t.Context(), env.vault, cli.ExportNewIdentityDeps(env.deps()), false)
+			stamped, err := cli.ExportBackfillIdentity(
+				context.Background(), env.vault, cli.ExportNewIdentityDeps(env.deps()), false)
 			if err != nil || stamped != 1 {
 				env.t.Fatalf("backfill stamped %d: %v", stamped, err)
 			}
@@ -274,7 +276,7 @@ func (e *wiringEnv) runLearn(args cli.LearnArgs) {
 	deps := e.deps()
 	deps.Stderr = &stderr
 
-	err := cli.RunLearn(e.t.Context(), args, cli.ExportNewLearnDeps(deps), &stdout)
+	err := cli.RunLearn(context.Background(), args, cli.ExportNewLearnDeps(deps), &stdout)
 	if err != nil {
 		e.t.Fatalf("learn: %v", err)
 	}

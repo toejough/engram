@@ -501,7 +501,7 @@ func (p *recordingParent) setStoredHash(hash string) {
 // wiringEnv is one child vault on disk with a fake parent and a settable
 // clock, driven through cli.Targets.
 type wiringEnv struct {
-	t          *testing.T
+	t          failer
 	vault      string
 	parentURL  string
 	parent     *recordingParent
@@ -618,11 +618,32 @@ func (e *wiringEnv) run(args ...string) (string, string) {
 	return stdout, stderr
 }
 
+// tempDir makes a scratch directory beside the vault (removed with the
+// test's own temp root).
+func (e *wiringEnv) tempDir() string {
+	e.t.Helper()
+
+	dir, err := os.MkdirTemp(filepath.Dir(e.vault), "scratch-*")
+	if err != nil {
+		e.t.Fatal(err)
+	}
+
+	return dir
+}
+
 func newWiringEnv(t *testing.T) *wiringEnv {
 	t.Helper()
 
+	return newWiringEnvIn(t, t.TempDir())
+}
+
+// newWiringEnvIn is newWiringEnv over a given vault directory, reporting
+// through tb (a *rapid.T inside a property, so rapid can shrink).
+func newWiringEnvIn(tb failer, vault string) *wiringEnv {
+	tb.Helper()
+
 	return &wiringEnv{
-		t: t, vault: t.TempDir(), parentURL: parentURL, parent: &recordingParent{},
+		t: tb, vault: vault, parentURL: parentURL, parent: &recordingParent{},
 		embeds: &atomic.Int32{}, clock: time.Date(2026, 9, 28, 10, 0, 0, 0, time.UTC),
 	}
 }

@@ -3,6 +3,7 @@ package cli_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -96,6 +97,23 @@ func TestActivate_CoveredLinkSkipsAndBumpsLiveNote(t *testing.T) {
 	g.Expect(env.parent.activated()).To(Equal([]string{parentNote + ".md"}))
 }
 
+// TestActivate_DeclineIsKeyedByParentVault (ruling S18, S16): a decline
+// recorded under another parent vault does not suppress the same
+// basename and hash under the current parent.
+func TestActivate_DeclineIsKeyedByParentVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.elsewhere", "c", ""))
+	env.stampVault("")
+	env.writeState("declined.json", fmt.Sprintf(`{"version":1,"entries":[{"vault":%q,"basename":%q,"hash":%q}]}`,
+		seqID(77), parentNote, env.parent.hashOf(t, parentNote)))
+
+	env.run("activate", "--note", parentNote+".md")
+	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
+}
+
 // TestActivate_DeclinedPullIsRemembered (spec "A declined pull is
 // remembered", "A decline survives a parent rename", H5, r3-8): a bare
 // --discard of a pulled copy records a decline; an unchanged re-pull —
@@ -123,7 +141,7 @@ func TestActivate_DeclinedPullIsRemembered(t *testing.T) {
 
 			_, discardErr := env.run("amend", "--target", strings.TrimSuffix(copies[0], ".md"), "--discard")
 			g.Expect(env.exitCodes()).To(BeEmpty(), discardErr)
-			g.Expect(env.declined()).To(ConsistOf(declinedEntry{Basename: parentNote, Hash: hash}))
+			g.Expect(env.declined()).To(ConsistOf(declinedEntry{Vault: parentVaultID, Basename: parentNote, Hash: hash}))
 
 			if rename {
 				env.parent.rename(parentNote, "12.2026-09-25.declined-renamed")
@@ -134,6 +152,22 @@ func TestActivate_DeclinedPullIsRemembered(t *testing.T) {
 			g.Expect(env.exitCodes()).To(BeEmpty())
 		})
 	}
+}
+
+// TestActivate_HashMismatchWritesNothing: an envelope whose exchange hash
+// does not match its content is refused; nothing is written.
+func TestActivate_HashMismatchWritesNothing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	parentNote := env.parent.addNote(pulledFact("7.2026-09-01.mismatch", "c", ""))
+	env.parent.showMode = "wrong-hash"
+
+	_, stderr := env.run("activate", "--note", parentNote+".md")
+	g.Expect(stderr).To(ContainSubstring("exchange hash differs"))
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+	g.Expect(env.noteFiles()).To(BeEmpty())
 }
 
 // TestActivate_LocalContentEditOffersToOrigin (decision 3, B1): after an
@@ -251,6 +285,22 @@ func TestActivate_ParentActivateFailureIsNotFatal(t *testing.T) {
 	g.Expect(env.linkedCopies(parentNote)).To(HaveLen(1))
 	g.Expect(env.outboxEntries()).To(BeEmpty())
 	g.Expect(env.parentCache().Failures).To(BeZero(), "a failed best-effort bump never backs the parent off")
+}
+
+// TestActivate_ParentFlagPathRefIsNotSent (ruling S18): with --parent a
+// path ref is refused as "not sent", never as "not found" (it was never
+// looked up locally).
+func TestActivate_ParentFlagPathRefIsNotSent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+
+	_, stderr := env.run("activate", "--parent", "--note", "/elsewhere/7.2026-09-01.x.md")
+	g.Expect(stderr).To(ContainSubstring("not sent to the parent"))
+	g.Expect(stderr).NotTo(ContainSubstring("not found"))
+	g.Expect(env.parent.requests()).To(BeEmpty())
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
 }
 
 // TestActivate_ParentFlagPullsEvenOnLocalHit (D8 step 2): with --parent a
@@ -450,7 +500,7 @@ func TestActivate_PullSequencesNeverDuplicate(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(rt *rapid.T) {
-		env := newWiringEnv(t)
+		env := newWiringEnvIn(rt, t.TempDir())
 		parentNote := env.parent.addNote(pulledFact("7.2026-09-01.sequence", "c", ""))
 		model := &foldTarget{links: "    - note: 9.2026-09-01.other\n      via: offered\n      hash: xh1:other\n"}
 		model.plant(env)
@@ -670,6 +720,24 @@ func TestActivate_RecheckUnderTheWriteLock(t *testing.T) {
 	g.Expect(env.exitCodes()).To(BeEmpty())
 }
 
+// TestActivate_UnrecordableBackoffIsReported (ruling S18): when the
+// failed contact cannot be recorded, the warning names that error instead
+// of a zero retry time.
+func TestActivate_UnrecordableBackoffIsReported(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.stampVault("")
+	env.parent.setDown(true)
+	env.wrap = func(deps *cli.Deps) { deps.FS = parentCacheWriteFailsFS{EdgeFS: deps.FS} }
+
+	_, stderr := env.run("activate", "--note", "7.2026-09-01.gone.md")
+	g.Expect(stderr).To(ContainSubstring("the backoff could not be recorded"))
+	g.Expect(stderr).NotTo(ContainSubstring("retry after 0001"))
+	g.Expect(env.exitCodes()).To(Equal([]int{1}))
+}
+
 // TestActivate_UnusableExchangeStatePauses: exchange state that cannot be
 // read or stamped pauses the pull-down with a warning; nothing is fetched
 // or written.
@@ -748,7 +816,7 @@ func TestAmend_DiscardDeclineRecording(t *testing.T) {
 		env.run("amend", "--target", "3.2026-09-20.local", "--discard")
 		env.run("amend", "--target", "4.2026-09-20.again", "--discard")
 		g.Expect(env.exitCodes()).To(BeEmpty())
-		g.Expect(env.declined()).To(Equal([]declinedEntry{{Basename: "7.2026-09-01.p", Hash: "xh1:p"}}))
+		g.Expect(env.declined()).To(Equal([]declinedEntry{{Vault: parentVaultID, Basename: "7.2026-09-01.p", Hash: "xh1:p"}}))
 	})
 
 	t.Run("an offered note is not declined", func(t *testing.T) {
@@ -766,6 +834,94 @@ func TestAmend_DiscardDeclineRecording(t *testing.T) {
 	})
 }
 
+// TestAmend_DiscardOfPulledNoteStampsNothingUnconfigured (ruling S18, spec
+// vault-local-first): with no parent configured and no vault ID, a bare
+// discard of a pulled note deletes it and records no decline — no vault ID
+// and no .engram/ are created.
+func TestAmend_DiscardOfPulledNoteStampsNothingUnconfigured(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.parentURL = ""
+	env.plant("3.2026-09-20.local.md", []byte(localNoteWithLinks(parentVaultID,
+		"    - note: 7.2026-09-01.p\n      via: pulled\n      hash: xh1:p\n")))
+
+	_, stderr := env.run("amend", "--target", "3.2026-09-20.local", "--discard")
+	g.Expect(env.exitCodes()).To(BeEmpty(), stderr)
+	g.Expect(env.noteFiles()).To(BeEmpty())
+	g.Expect(filepath.Join(env.vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
+	g.Expect(filepath.Join(env.vault, ".engram")).NotTo(BeADirectory())
+}
+
+// TestServeActivate_StatusByOutcome (ruling S18): a served activate
+// answers 5xx only for a server-side failure — none found is 404 and a
+// partial result 200, each with the per-ref result.
+func TestServeActivate_StatusByOutcome(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]struct {
+		notes     []string
+		corrupt   bool
+		status    int
+		activated []string
+		failed    []string
+	}{
+		"none found": {notes: []string{"9.2026-01-01.gone.md"}, status: 404, failed: []string{"9.2026-01-01.gone.md"}},
+		"partial": {
+			notes: []string{"1.2026-01-01.a-note.md", "9.2026-01-01.gone.md"}, status: 200,
+			activated: []string{"1.2026-01-01.a-note.md"}, failed: []string{"9.2026-01-01.gone.md"},
+		},
+		"unreadable sidecar": {notes: []string{"1.2026-01-01.a-note.md"}, corrupt: true, status: 500},
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			notePath := writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+			sidecar := embed.MarshalSidecar(embed.Sidecar{SchemaVersion: embed.SidecarSchemaVersion})
+			if testCase.corrupt {
+				sidecar = []byte("{not json")
+			}
+
+			g.Expect(os.WriteFile(embed.SidecarPath(notePath), sidecar, 0o600)).To(Succeed())
+
+			routes := cli.ServeRoutes(newTestDeps(&strings.Builder{}, &strings.Builder{}), vault, "personal", t.TempDir())
+
+			body, marshalErr := json.Marshal(map[string][]string{"notes": testCase.notes})
+			g.Expect(marshalErr).NotTo(HaveOccurred())
+
+			resp := routeFor(t, routes, "/activate").Serve(t.Context(), cli.ServeRequest{Body: body})
+			g.Expect(resp.Status).To(Equal(testCase.status))
+
+			if testCase.failed == nil {
+				return
+			}
+
+			var result struct {
+				Activated []string `json:"activated"`
+				Failed    []struct {
+					Ref string `json:"ref"`
+				} `json:"failed"`
+			}
+
+			g.Expect(json.Unmarshal(resp.Body, &result)).To(Succeed())
+			g.Expect(result.Activated).To(Equal(testCase.activated))
+
+			failedRefs := make([]string, 0, len(result.Failed))
+			for _, failure := range result.Failed {
+				failedRefs = append(failedRefs, failure.Ref)
+			}
+
+			g.Expect(failedRefs).To(Equal(testCase.failed))
+		})
+	}
+}
+
 // unexported constants.
 const (
 	foldTargetFile = "2.2026-09-20.fold-target.md"
@@ -777,8 +933,14 @@ const (
 		"aliases:\n    - 4.2026-08-01.older-name\noffer:\n  origin: " + xidD + ":" + xidB + "\n"
 )
 
+// unexported variables.
+var (
+	errParentCacheWrite = errors.New("parent cache write refused")
+)
+
 // declinedEntry is one .engram/declined.json entry.
 type declinedEntry struct {
+	Vault    string `json:"vault"`
 	Basename string `json:"basename"`
 	Hash     string `json:"hash"`
 }
@@ -850,6 +1012,19 @@ func (p *lockProbe) wrap(deps *cli.Deps) {
 
 		return fetch(ctx, method, target, body)
 	}
+}
+
+// parentCacheWriteFailsFS fails every write of .engram/parent.json.
+type parentCacheWriteFailsFS struct {
+	cli.EdgeFS
+}
+
+func (f parentCacheWriteFailsFS) WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
+	if filepath.Base(path) == "parent.json" {
+		return errParentCacheWrite
+	}
+
+	return f.EdgeFS.WriteFileAtomic(path, data, perm)
 }
 
 // probedLocker counts held locks for lockProbe.
@@ -1023,6 +1198,9 @@ func (p *recordingParent) showResponse(target string) cli.FetchResponse {
 		}
 
 		hash, _ := cli.ExportExchangeHash([]byte(note.content))
+		if p.showMode == "wrong-hash" {
+			hash = "xh1:" + strings.Repeat("0", 64)
+		}
 
 		body, marshalErr := json.Marshal(map[string]string{
 			"vault_id": p.reportedVaultID(), "basename": note.basename,

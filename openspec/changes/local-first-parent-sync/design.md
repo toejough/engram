@@ -328,7 +328,7 @@ A served learn is handled as follows:
 2. **Parent candidate.** On a local miss with `ENGRAM_PARENT` set (or always with `--parent`), the ref is a parent candidate only if it is a basename or `<basename>.md`. A bare Luhmann ID never goes to the parent (M8), because IDs are minted per vault.
 3. **Fetch.** With **no lock held**, fetch `/show?raw=1` and validate the envelope.
 4. **Write under the lock.**
-   - Re-check the skip rule. Skip when a local note has a link (any `via`) to the envelope's basename, or to any of its aliases, and that link's `hash` equals the envelope's exchange hash. Also skip when `declined.json` holds that basename with that hash. When the skip hits a live linked note, bump that note's `LastUsed`.
+   - Re-check the skip rule. Skip when a local note has a link (any `via`) to the envelope's basename, or to any of its aliases, and that link's `hash` equals the envelope's exchange hash. Also skip when `declined.json` holds that basename with that hash under the envelope's vault ID (ruling S18). When the skip hits a live linked note, bump that note's `LastUsed`.
    - Otherwise write a new pending local note with:
      - a fresh top-level Luhmann ID and its own `xid`;
      - the parent body **verbatim**, so the exchange hash matches;
@@ -339,11 +339,11 @@ A served learn is handled as follows:
    - The parent's own `parent`, `aliases`, `offer`, `xid`, `skill_*`, `sources`, `supersedes` and `tags` are stripped. Local vocab reassigns tags.
    - The note is embedded on write.
    - A type other than fact, feedback or runbook is refused.
-5. **Best-effort parent bump (Q2).** After releasing the lock, POST `/activate` for the parent note. A failure here is not queued and not fatal.
+5. **Best-effort parent bump (Q2).** After releasing the lock, POST `/activate` for the parent note. A failure here is not queued and not fatal. The served `/activate` answers 5xx only for a server-side failure: 404 when no ref was found, 200 with the per-ref result when some were (S18).
 
 **Other activate behavior.**
 - Each ref that could not be activated is reported on stderr. The command exits non-zero if any ref failed (the #746 addendum).
-- **Declines (H5).** A bare `amend --discard` of a pulled note (one with a `via: pulled` primary link) adds `{basename, hash}` to `declined.json`. The decline check matches the envelope's basename **or any alias in the fetched content**, so a parent-side rename doesn't bring a declined note back (r3-8). A declined note is not pulled again unless its hash changes. A changed parent note is new information (Joe's decision 6).
+- **Declines (H5).** A bare `amend --discard` of a pulled note (one with a `via: pulled` primary link) adds `{vault, basename, hash}` to `declined.json`, keyed by the link's parent vault ID as links are (S16, S18). With no parent configured and no vault ID, nothing is recorded, since recording would stamp an ID (S18). The decline check matches the envelope's basename **or any alias in the fetched content**, so a parent-side rename doesn't bring a declined note back (r3-8). A declined note is not pulled again unless its hash changes. A changed parent note is new information (Joe's decision 6).
 - **Loop rule.** A pulled note is never offered back up:
   - it is pending;
   - `--clear-pending` is bookkeeping;

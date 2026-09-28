@@ -46,9 +46,11 @@ type declinedFile struct {
 	Entries []declinedPull `json:"entries"`
 }
 
-// declinedPull is one declined parent note: its basename and the exchange
-// hash that was declined.
+// declinedPull is one declined parent note: the parent's vault ID (a
+// decline is keyed by vault, as links are — ruling S16), its basename and
+// the exchange hash that was declined.
 type declinedPull struct {
+	Vault    string `json:"vault"`
 	Basename string `json:"basename"`
 	Hash     string `json:"hash"`
 }
@@ -81,8 +83,7 @@ func (s *pullSession) fetchEnvelope(ctx context.Context, name string) (rawShowRe
 		if errors.Is(fetchErr, errParentUnreachable) {
 			s.paused = true
 
-			retry, _ := recordParentFailure(s.store, s.vault, s.parentURL)
-			_, _ = fmt.Fprintf(s.deps.Stderr, parentBackoffWarningFormat, retry.Format(time.RFC3339), s.queuedOffers())
+			s.warnUnreachable()
 
 			return rawShowResponse{}, fmt.Errorf("%w: %w", errPullUnreachable, fetchErr)
 		}
@@ -246,7 +247,22 @@ func (s *pullSession) skipOrBump(envelope rawShowResponse, source pulledSource) 
 		return false, declinedErr
 	}
 
-	return declineMatches(declined, names, envelope.ExchangeHash), nil
+	return declineMatches(declined, envelope.VaultID, names, envelope.ExchangeHash), nil
+}
+
+// warnUnreachable records a failed contact and prints the one backoff
+// warning; when the failure cannot be recorded there is no retry time to
+// report, so the warning names the error instead.
+func (s *pullSession) warnUnreachable() {
+	retry, recordErr := recordParentFailure(s.store, s.vault, s.parentURL)
+	if recordErr != nil {
+		logWarningTo(s.deps.Stderr)("activate: the parent is unreachable, and the backoff could not be recorded: %v",
+			recordErr)
+
+		return
+	}
+
+	_, _ = fmt.Fprintf(s.deps.Stderr, parentBackoffWarningFormat, retry.Format(time.RFC3339), s.queuedOffers())
 }
 
 // writeUnderLock takes the vault lock, re-checks the skip rule, and writes
@@ -384,12 +400,13 @@ func cloneNode(node *yaml.Node) *yaml.Node {
 	return &clone
 }
 
-// declineMatches reports whether declined.json holds a decline of one of
-// names whose hash is not changed from hash (unknown counts as not
-// changed, D3).
-func declineMatches(file declinedFile, names []string, hash string) bool {
+// declineMatches reports whether declined.json holds a decline, under
+// parentVaultID, of one of names whose hash is not changed from hash
+// (unknown counts as not changed, D3).
+func declineMatches(file declinedFile, parentVaultID string, names []string, hash string) bool {
 	return slices.ContainsFunc(file.Entries, func(entry declinedPull) bool {
-		return slices.Contains(names, entry.Basename) && !exchangeHashChanged(entry.Hash, hash)
+		return entry.Vault == parentVaultID && slices.Contains(names, entry.Basename) &&
+			!exchangeHashChanged(entry.Hash, hash)
 	})
 }
 
@@ -534,12 +551,13 @@ func pullStrippedKeys() []string {
 	}
 }
 
-// pulledPrimaryLink returns a note's primary link when it is via pulled —
-// the link a bare discard declines (design D8).
-func pulledPrimaryLink(raw []byte) (parentLink, bool) {
+// pulledDecline is the decline a bare discard of a note records: its
+// primary link, when that link is via pulled, under the note's parent
+// vault ID (design D8).
+func pulledDecline(raw []byte) (declinedPull, bool) {
 	frontmatter, found := splitFrontmatter(raw)
 	if !found {
-		return parentLink{}, false
+		return declinedPull{}, false
 	}
 
 	var probe struct {
@@ -547,16 +565,17 @@ func pulledPrimaryLink(raw []byte) (parentLink, bool) {
 	}
 
 	if yaml.Unmarshal(frontmatter, &probe) != nil {
-		return parentLink{}, false
+		return declinedPull{}, false
 	}
 
 	for _, link := range probe.Parent.Links {
 		if link.Via == linkViaOffered || link.Via == linkViaPulled {
-			return link, link.Via == linkViaPulled
+			return declinedPull{Vault: probe.Parent.Vault, Basename: link.Note, Hash: link.Hash},
+				link.Via == linkViaPulled
 		}
 	}
 
-	return parentLink{}, false
+	return declinedPull{}, false
 }
 
 // pulledSlug is the slug of a parent basename (<id>.<date>.<slug>), or a
@@ -576,6 +595,28 @@ func pulledSlug(basename string) string {
 	}
 
 	return slug
+}
+
+// recordDeclineUnlessUnstamped records a decline (recordDeclinedPull),
+// except in a vault with no parent configured and no vault ID: stamping an
+// ID there would break "stamp only on serve start or first parent
+// contact" (spec vault-local-first; ruling S18), and such a vault can
+// never pull the note again anyway until it contacts a parent.
+func recordDeclineUnlessUnstamped(
+	state exchangeState, vault string, parentConfigured bool, entry declinedPull,
+) error {
+	if !parentConfigured {
+		_, stamped, idErr := readVaultID(state, vault)
+		if idErr != nil {
+			return idErr
+		}
+
+		if !stamped {
+			return nil
+		}
+	}
+
+	return recordDeclinedPull(state, vault, entry)
 }
 
 // recordDeclinedPull adds a declined parent note to declined.json (design

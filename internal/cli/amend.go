@@ -456,12 +456,12 @@ func declinePulledNote(deps AmendDeps, vault, full string) error {
 		return fmt.Errorf("amend: discard: %w", readErr)
 	}
 
-	link, pulled := pulledPrimaryLink(raw)
+	entry, pulled := pulledDecline(raw)
 	if !pulled {
 		return nil
 	}
 
-	recordErr := deps.RecordDecline(vault, declinedPull{Basename: link.Note, Hash: link.Hash})
+	recordErr := deps.RecordDecline(vault, entry)
 	if recordErr != nil {
 		return fmt.Errorf("amend: discard: %w", recordErr)
 	}
@@ -563,7 +563,7 @@ func newAmendDeps(d Deps) AmendDeps {
 		ListMD: vfs.ListMD,
 		Offers: newOfferHooks(d),
 		RecordDecline: func(vault string, entry declinedPull) error {
-			return recordDeclinedPull(exchangeStateFromDeps(d), vault, entry)
+			return recordDeclineUnlessUnstamped(exchangeStateFromDeps(d), vault, parentBase(d) != "", entry)
 		},
 	}
 }

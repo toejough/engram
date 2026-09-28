@@ -855,7 +855,7 @@ func nonEmptyLines(text string) []string {
 	return lines
 }
 
-func readFileString(t *testing.T, path string) string {
+func readFileString(t failer, path string) string {
 	t.Helper()
 
 	data, err := os.ReadFile(path)

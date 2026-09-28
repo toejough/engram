@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"unicode/utf8"
 )
@@ -196,6 +197,33 @@ func (f serveHandlerFunc) Serve(ctx context.Context, req ServeRequest) ServeResp
 	return f(ctx, req)
 }
 
+// activateResponse maps a served activate's per-ref outcome to a status,
+// so a 5xx only ever means a server-side failure (ruling S18): every ref
+// activated is 200 {"status":"ok"}; a ref that failed while being
+// activated (not merely missing) is 500; otherwise none found is 404 and a
+// partial result 200, each with the per-ref result as the body.
+func activateResponse(result activateResult) ServeResponse {
+	if len(result.Failed) == 0 {
+		return jsonOKResponse()
+	}
+
+	status := statusOK
+
+	switch {
+	case slices.ContainsFunc(result.Failed, func(failure activateFailure) bool { return !failure.notFound }):
+		status = statusInternalServerError
+	case len(result.Activated) == 0:
+		status = statusNotFound
+	}
+
+	body, marshalErr := json.Marshal(result)
+	if marshalErr != nil {
+		return jsonErrorResponse(statusInternalServerError, marshalErr)
+	}
+
+	return ServeResponse{Status: status, Body: body}
+}
+
 // boolQueryParam parses key's first query value as a bool (strconv.ParseBool);
 // absent or unparseable values report false.
 func boolQueryParam(query map[string][]string, key string) bool {
@@ -284,12 +312,12 @@ func serveActivate(deps Deps, vault string) ServeHandler {
 		args := ActivateArgs{Vault: vault, Notes: body.Notes}
 
 		// Local only: a served activate never reaches past this vault.
-		runErr := RunActivate(ctx, args, newActivateDeps(deps))
+		result, runErr := activateRefs(ctx, args, newActivateDeps(deps))
 		if runErr != nil {
 			return jsonErrorResponse(statusInternalServerError, runErr)
 		}
 
-		return jsonOKResponse()
+		return activateResponse(result)
 	})
 }
 

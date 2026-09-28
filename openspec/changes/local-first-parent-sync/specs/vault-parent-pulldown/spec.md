@@ -56,9 +56,9 @@ Its top-level `repo`/`user`/`vault` SHALL be stamped locally. It SHALL NOT carry
 ### Requirement: Pull-down SHALL be idempotent, remember declines, and be loop-free
 Under the write lock, a pull-down SHALL re-check its skip rule and SHALL write nothing when either of these holds:
 - a local note (live or pending) has any link (`offered`, `pulled`, or `covered`) to the envelope's basename or to one of its aliases, and that link's hash equals the envelope's exchange hash. When that local note is live, the pull-down SHALL bump its sidecar `LastUsed` instead;
-- the vault's declined-pull record holds that exchange hash under the envelope's basename or under any alias in the fetched content (so a parent-side rename does not bring back a declined note).
+- the vault's declined-pull record holds that exchange hash, under the envelope's vault ID, for the envelope's basename or any alias in the fetched content (so a parent-side rename does not bring back a declined note, and a decline under one parent never suppresses a note of another).
 
-A bare `engram amend --discard` of a note whose primary link is `via: pulled` SHALL add that basename and hash to the declined-pull record. A parent note whose exchange hash changed since the last pull, or since it was declined, SHALL arrive as another pending offer. A pulled-down note SHALL never be offered back to the parent unless its content is later changed locally (capability `vault-parent-offers`).
+A bare `engram amend --discard` of a note whose primary link is `via: pulled` SHALL add that basename and hash, keyed by the link's parent vault ID, to the declined-pull record — except in a vault with no parent configured and no vault ID, where recording would stamp a vault ID (capability `vault-local-first`), so nothing is recorded. A parent note whose exchange hash changed since the last pull, or since it was declined, SHALL arrive as another pending offer. A pulled-down note SHALL never be offered back to the parent unless its content is later changed locally (capability `vault-parent-offers`).
 
 #### Scenario: Re-activating an unchanged parent note
 - **WHEN** parent note P is activated twice with no change to P in between
@@ -85,7 +85,7 @@ A bare `engram amend --discard` of a note whose primary link is `via: pulled` SH
 - **THEN** no offer is queued for it
 
 ### Requirement: Pull-down SHALL also signal use to the parent
-After a pull-down or a skip, once the vault lock is released, `activate` SHALL send a best-effort `activate` request for the parent note to the parent. A failure of that request SHALL NOT fail the command, and SHALL NOT be queued.
+After a pull-down or a skip, once the vault lock is released, `activate` SHALL send a best-effort `activate` request for the parent note to the parent. A failure of that request SHALL NOT fail the command, and SHALL NOT be queued. A served `activate` SHALL answer with a server-error status only for a failure on the server side: when no ref was found it SHALL answer 404, and when only some refs were found it SHALL answer 200; both carry the per-ref result (the activated refs, and each failed ref with its error).
 
 #### Scenario: Parent recency is bumped
 - **WHEN** parent note P is activated from a child and the parent is reachable

@@ -760,7 +760,7 @@ func (w *writeNTimesThenFail) Write(p []byte) (int, error) {
 // executeForTestWithDeps, but returns BOTH stdout and stderr — needed here
 // because parent reads print to stdout, unlike
 // executeForTestWithDeps's error-path-only stderr capture.
-func executeCapturingBoth(t *testing.T, args []string, customize func(*cli.Deps)) (string, string) {
+func executeCapturingBoth(t failer, args []string, customize func(*cli.Deps)) (string, string) {
 	t.Helper()
 
 	var stdout, stderr bytes.Buffer
