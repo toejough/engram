@@ -414,7 +414,7 @@ A served learn is handled as follows:
     - offers now also arrive by pull-down (`via: pulled`);
     - judge an offer with `offer.for` against that note first;
     - read the offer's `# exchange_hash` from `engram show` and pass it as `--expect-hash` on every bookkeeping step, re-judging if the check fails;
-    - covered and near end with `--discard --into <existing>`;
+    - covered and near fold the offer away with `--discard --into <existing>`; near does that fold **before** its content amend of `<existing>`, because the content amend is offered at once and only after the fold does `<existing>` carry a pulled offer's link, so the bounce goes up as an amend-offer for the parent note rather than a learn-offer (final review F10, confirmed by a unit trace and confined RED/GREEN arms);
     - discarding a pulled note outright records a decline;
     - curation stays host-local.
   - **recall:**

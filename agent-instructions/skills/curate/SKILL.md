@@ -72,7 +72,7 @@ binary refuses it on a served offer without the hash.
 | Outcome | Criterion | Action |
 | --- | --- | --- |
 | **Covered** | an existing note already states the offer's claim, no material omission | reinforce it: `engram amend --target <existing> --activate --chunk-source <ids>` (carry forward any chunk-source the offer already had) [`--supersedes ...` if it corrects a different, outdated note] — then `engram amend --target <offer> --discard --into <existing> --expect-hash <hash>` |
-| **Near** | overlaps an existing note's topic but adds ≥1 substantive claim the existing note omits | fold the new claim in: `engram amend --target <existing> --chunk-source <ids> --subject/--predicate/--object` (or `--behavior/--impact/--action`) [`--supersedes ...` if correcting] — then `engram amend --target <offer> --discard --into <existing> --expect-hash <hash>` |
+| **Near** | overlaps an existing note's topic but adds ≥1 substantive claim the existing note omits | first fold the offer away: `engram amend --target <offer> --discard --into <existing> --expect-hash <hash>` — then fold the new claim in: `engram amend --target <existing> --chunk-source <ids> --subject/--predicate/--object` (or `--behavior/--impact/--action`) [`--supersedes ...` if correcting]. In that order: the content amend is offered to the parent at once, and only after the fold does `<existing>` carry a pulled offer's parent link, so the amend goes up as an amend-offer for the parent note it came from, not as a new note |
 | **Absent** | no existing note addresses the offer's situation | accept as-is, clear its own marker: `engram amend --target <offer> --clear-pending --expect-hash <hash>`. On a vault that has its own parent, accepting a served offer offers it onward automatically — nothing more to do |
 | **Rejected** | the offer is wrong: an existing note (or a user correction) contradicts it, or it is advice you would never apply | `engram amend --target <offer> --discard --expect-hash <hash>` — a bare `--discard`, **never `--into`**. For a pulled-down note this records a decline, so it is not pulled again unless the parent changes it. Folding it `--into` the note that contradicts it would record the bad note as covered by it |
 
@@ -120,7 +120,8 @@ accepted should now surface in normal results.
 | Sign you're off-script | What you should be doing |
 | --- | --- |
 | You rewrote the OFFER note's own content | Near enriches the EXISTING note; the offer itself is only ever discarded or marker-cleared, never content-amended |
-| You cleared an offer's marker after folding or discarding its content elsewhere | Only absent clears the marker and keeps the note; covered/near both end in `--discard --into <existing>` |
+| You cleared an offer's marker after folding or discarding its content elsewhere | Only absent clears the marker and keeps the note; covered/near both fold the offer away with `--discard --into <existing>` |
+| You amended `<existing>`'s content before folding a near offer into it | Fold first (`--discard --into <existing>`), then amend: a pulled offer's parent link must be on `<existing>` before the amend is offered up |
 | You ran a bare `--discard` on a covered or near offer | `--discard --into <existing>` — a bare discard loses the offer's basename, aliases and parent links |
 | You folded a wrong or contradicted offer `--into` the note that contradicts it | Rejected is a bare `--discard`; `--into` means "covered by" |
 | A bookkeeping amend without `--expect-hash` | Pass the `# exchange_hash` of the version you judged, every time |
