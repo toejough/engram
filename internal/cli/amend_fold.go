@@ -147,7 +147,9 @@ func foldInto(
 // every link the offer held joins into's links under the offer's parent
 // vault. The offer's primary (offered or pulled) stays primary only when
 // into has none; otherwise it becomes covered. A link into already holds
-// keeps its role and takes the offer's hash, the version just judged.
+// takes the offer's hash, the version just judged, and keeps its role —
+// except that a held covered link to the offer's primary note is promoted
+// to that primary role when into has no primary.
 // When the offer links a different parent vault than into does, into's
 // links under the old vault are dropped, as a receipt drops them (D6).
 // The offer's author is not carried: into keeps its own (D10).
@@ -168,13 +170,6 @@ func foldParentLinks(into, offer parentLinks) parentLinks {
 	hasPrimary := slices.ContainsFunc(folded.Links, func(link parentLink) bool { return isPrimaryLink(link.Via) })
 
 	for _, link := range offer.Links {
-		index := slices.IndexFunc(folded.Links, func(held parentLink) bool { return held.Note == link.Note })
-		if index >= 0 {
-			folded.Links[index].Hash = link.Hash
-
-			continue
-		}
-
 		if isPrimaryLink(link.Via) {
 			if hasPrimary {
 				link.Via = linkViaCovered
@@ -183,7 +178,17 @@ func foldParentLinks(into, offer parentLinks) parentLinks {
 			hasPrimary = true
 		}
 
-		folded.Links = append(folded.Links, link)
+		index := slices.IndexFunc(folded.Links, func(held parentLink) bool { return held.Note == link.Note })
+		if index < 0 {
+			folded.Links = append(folded.Links, link)
+
+			continue
+		}
+
+		folded.Links[index].Hash = link.Hash
+		if isPrimaryLink(link.Via) {
+			folded.Links[index].Via = link.Via
+		}
 	}
 
 	return folded

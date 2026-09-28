@@ -96,6 +96,31 @@ func TestRunAmend_DiscardIntoMakesOfferPrimaryWhenTargetHasNone(t *testing.T) {
 	g.Expect(folded.XID).To(BeEmpty(), "a fold stamps no xid on E")
 }
 
+// TestRunAmend_DiscardIntoPromotesHeldCoveredLink: E has no primary but
+// already covers the parent note that O holds as its pulled primary. The
+// fold promotes E's held link to O's primary role and hash (D10: O's
+// primary stays primary when E has none).
+func TestRunAmend_DiscardIntoPromotesHeldCoveredLink(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newFoldVault()
+	vault.put(foldExistingName, foldNote(foldExchange{
+		vault: foldParentVault, links: []foldLink{{"7.2026-09-01.parent", "covered", "xh1:old"}},
+	}, false))
+	vault.put(foldOfferName, foldNote(foldExchange{
+		xid: foldXIDO, vault: foldParentVault, links: []foldLink{{"7.2026-09-01.parent", "pulled", "xh1:new"}},
+	}, true))
+
+	err := vault.amend(t.Context(), cli.AmendArgs{Target: foldOfferBase, Discard: true, Into: foldExistingBase})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	folded := decodeFoldExchange(t, vault.files[foldExistingName])
+	g.Expect(folded.Parent.Links).To(Equal([]foldLinkYAML{
+		{Note: "7.2026-09-01.parent", Via: "pulled", Hash: "xh1:new"},
+	}))
+}
+
 // TestRunAmend_DiscardIntoPropertyUnionsIdentity is 8.1's rule over random
 // alias and link sets (postcondition oracles derived from D10/D4, not from
 // the implementation): E ends with every alias it had plus O's basename and
@@ -176,7 +201,9 @@ func TestRunAmend_ExpectHashTruthTable(t *testing.T) {
 	t.Parallel()
 
 	modes := map[string]cli.AmendArgs{
-		"clear-pending": {ClearPending: true},
+		// The CLI turns --clear-pending into Pending=false (targets.go);
+		// RunAmend gets both.
+		"clear-pending": {ClearPending: true, Pending: new(bool)},
 		"discard":       {Discard: true},
 		"discard-into":  {Discard: true, Into: foldExistingBase},
 		"activate":      {Activate: true},
@@ -199,7 +226,7 @@ func TestRunAmend_ExpectHashTruthTable(t *testing.T) {
 								links: []foldLink{{"7.2026-09-01.parent", "pulled", "xh1:p"}},
 							}, pending)
 							vault.put(foldOfferName, offer)
-							vault.put(strings.TrimSuffix(foldOfferName, ".md")+".vec.json", []byte(`{"last_used":"2026-01-01"}`))
+							vault.put(strings.TrimSuffix(foldOfferName, ".md")+".vec.json", validFoldSidecar())
 							before := maps.Clone(vault.files)
 
 							args := base
@@ -211,6 +238,7 @@ func TestRunAmend_ExpectHashTruthTable(t *testing.T) {
 							succeeds := expect == "correct" || (expect == "none" && (!origin || !slices.Contains(requiring, mode)))
 							if succeeds {
 								g.Expect(err).NotTo(HaveOccurred())
+								expectModeEffect(g, vault, mode)
 
 								return
 							}
@@ -531,6 +559,7 @@ func assertFoldLinks(rt *rapid.T, existing, offer foldExchange, got foldParentYA
 	}
 
 	assertFoldLinksCarried(rt, existing, offer, got)
+	assertOfferPrimaryKept(rt, existing, offer, got)
 }
 
 // assertFoldLinksCarried: every link O held is on E, and — under a shared
@@ -560,6 +589,28 @@ func assertFoldLinksCarried(rt *rapid.T, existing, offer foldExchange, got foldP
 		if isPrimaryVia(link.via) && got.Links[index].Via != link.via {
 			rt.Fatalf("E's primary %s demoted: %v", link.note, got.Links)
 		}
+	}
+}
+
+// assertOfferPrimaryKept: when E has no primary under O's parent vault, O's
+// primary stays primary on E (D10), even when E already held a covered
+// link to that same parent note.
+func assertOfferPrimaryKept(rt *rapid.T, existing, offer foldExchange, got foldParentYAML) {
+	offerPrimary := slices.IndexFunc(offer.links, func(link foldLink) bool { return isPrimaryVia(link.via) })
+	if offerPrimary < 0 {
+		return
+	}
+
+	existingHasPrimary := existing.vault == offer.vault &&
+		slices.ContainsFunc(existing.links, func(link foldLink) bool { return isPrimaryVia(link.via) })
+	if existingHasPrimary {
+		return
+	}
+
+	note := offer.links[offerPrimary].note
+	isOfferPrimary := func(link foldLinkYAML) bool { return link.Note == note && isPrimaryVia(link.Via) }
+	if !slices.ContainsFunc(got.Links, isOfferPrimary) {
+		rt.Fatalf("E had no primary, yet O's primary %s is not E's primary: %v", note, got.Links)
 	}
 }
 
@@ -631,6 +682,30 @@ func drawFoldExchange(rt *rapid.T, label string) foldExchange {
 	}
 
 	return drawn
+}
+
+// expectModeEffect asserts that a successful bookkeeping amend did its
+// work: clear-pending cleared the marker, discard deleted the note, the
+// fold deleted it and recorded it on E, and activate bumped LastUsed.
+func expectModeEffect(g Gomega, vault *foldVault, mode string) {
+	sidecar := strings.TrimSuffix(foldOfferName, ".md") + ".vec.json"
+
+	switch mode {
+	case "clear-pending":
+		g.Expect(vault.files).To(HaveKey(foldOfferName))
+		g.Expect(string(vault.files[foldOfferName])).NotTo(ContainSubstring("pending: true"))
+	case "discard":
+		g.Expect(vault.files).NotTo(HaveKey(foldOfferName))
+		g.Expect(vault.files).NotTo(HaveKey(sidecar))
+	case "discard-into":
+		g.Expect(vault.files).NotTo(HaveKey(foldOfferName))
+		g.Expect(vault.files).NotTo(HaveKey(sidecar))
+		g.Expect(string(vault.files[foldExistingName])).To(ContainSubstring("- " + foldOfferBase + "\n"))
+		g.Expect(string(vault.files[foldExistingName])).To(ContainSubstring("note: 7.2026-09-01.parent"))
+	case "activate":
+		g.Expect(vault.files).To(HaveKey(foldOfferName))
+		g.Expect(string(vault.files[sidecar])).To(ContainSubstring("2026-09-28"))
+	}
 }
 
 // expectOnlyExchangeKeysChanged: after removing the parent and aliases keys,
@@ -739,6 +814,20 @@ func linksEqual(existing foldExchange, got foldParentYAML) bool {
 
 func newFoldVault() *foldVault {
 	return &foldVault{files: map[string][]byte{}}
+}
+
+// validFoldSidecar is a sidecar embed.UnmarshalSidecar accepts, so an
+// activate can bump its LastUsed.
+func validFoldSidecar() []byte {
+	return embed.MarshalSidecar(embed.Sidecar{
+		SchemaVersion:    embed.SidecarSchemaVersion,
+		EmbeddingModelID: "m@1",
+		Dims:             1,
+		SituationVector:  []float32{0.1},
+		BodyVector:       []float32{0.2},
+		ContentHash:      "sha256:x",
+		LastUsed:         "2026-01-01",
+	})
 }
 
 func writeFoldFile(t *testing.T, path, content string) {
