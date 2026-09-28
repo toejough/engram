@@ -651,52 +651,6 @@ func TestRunAmend_FieldReplacement_Runbook_SituationOnly_PreservesBody(t *testin
 	g.Expect(body).To(ContainSubstring("1. old step"))
 }
 
-// TestRunAmend_IdentityOnlyReStamp_DoesNotTriggerReEmbed verifies that an
-// amend with only --supersedes (no content-changing flag) — which re-stamps
-// identity — is a provenance-only change and never triggers a re-embed
-// (vault-note-identity: "Amend does not trigger re-embed for identity-only
-// changes").
-func TestRunAmend_IdentityOnlyReStamp_DoesNotTriggerReEmbed(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	const basename = "1aa.2026-01-01.test.md"
-
-	noteContent := makeFactNote("ctx", "A")
-
-	embedCalled := false
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
-		DetectUser: func(context.Context) string { return "agent@example.com" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read:  func(string) ([]byte, error) { return noteContent, nil },
-		Write: func(string, []byte) error { return nil },
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
-		},
-		Now:      func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
-		Embedder: &spyEmbedder{called: &embedCalled},
-	}
-	// Only --supersedes — this amend re-stamps identity but changes no content.
-	args := cli.AmendArgs{
-		Vault: "/vault", Target: "1aa", VaultName: "personal",
-		Supersedes: []string{"9.2026-01-01.old|narrows|older claim"},
-	}
-
-	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(embedCalled).To(BeFalse(), "identity-only re-stamp is provenance-only and must not trigger re-embed")
-}
-
 // TestRunAmend_LocksVaultAroundReadModifyWrite asserts that RunAmend acquires
 // the vault lock BEFORE reading the note and releases it AFTER writing, so
 // concurrent amend/resituate/learn runs cannot produce lost updates.
@@ -1378,6 +1332,52 @@ func TestRunAmend_Runbook_TriggersReplaceWholeList(t *testing.T) {
 	g.Expect(body).NotTo(ContainSubstring("/old-one"))
 	g.Expect(body).NotTo(ContainSubstring("old two cue"))
 	g.Expect(body).To(ContainSubstring("1. step"))
+}
+
+// TestRunAmend_SupersedesOnlyReStamp_DoesNotTriggerReEmbed verifies that an
+// amend with only --supersedes (no content-changing flag) — which re-stamps
+// identity — is a provenance-only change and never triggers a re-embed
+// (vault-note-identity: "Amend does not trigger re-embed for identity-only
+// changes").
+func TestRunAmend_SupersedesOnlyReStamp_DoesNotTriggerReEmbed(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	const basename = "1aa.2026-01-01.test.md"
+
+	noteContent := makeFactNote("ctx", "A")
+
+	embedCalled := false
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
+		DetectUser: func(context.Context) string { return "agent@example.com" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read:  func(string) ([]byte, error) { return noteContent, nil },
+		Write: func(string, []byte) error { return nil },
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		Now:      func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+		Embedder: &spyEmbedder{called: &embedCalled},
+	}
+	// Only --supersedes — this amend re-stamps identity but changes no content.
+	args := cli.AmendArgs{
+		Vault: "/vault", Target: "1aa", VaultName: "personal",
+		Supersedes: []string{"9.2026-01-01.old|narrows|older claim"},
+	}
+
+	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(embedCalled).To(BeFalse(), "identity-only re-stamp is provenance-only and must not trigger re-embed")
 }
 
 func TestRunAmend_UnknownNoteType_Errors(t *testing.T) {

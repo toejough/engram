@@ -17,7 +17,9 @@ import (
 // TestRenameAndRewriteReferences_AppendsOldBasenameToAliases is the spec
 // scenario "A rename records the old name" (vault-note-identity, design D4
 // H2): the renamed note's aliases gain its old basename in the rename's one
-// write, after any aliases it already had and never twice; its xid is kept.
+// write, after any aliases it already had and never twice; its new basename
+// is dropped from the list (a note renamed back is not its own alias); its
+// xid is kept.
 func TestRenameAndRewriteReferences_AppendsOldBasenameToAliases(t *testing.T) {
 	t.Parallel()
 
@@ -39,6 +41,10 @@ func TestRenameAndRewriteReferences_AppendsOldBasenameToAliases(t *testing.T) {
 		"flow-style aliases":  {"aliases: [5.2026-01-01.a]\n", appended},
 		"compact sequence":    {"aliases:\n- 5.2026-01-01.a\n", appended},
 		"old name already in": {onlyOld, onlyOld},
+		"renamed back to a former name": {
+			existing + "    - " + newBasename + "\n", appended,
+		},
+		"only alias is the new name": {"aliases:\n    - " + newBasename + "\n", onlyOld},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -60,9 +66,10 @@ func TestRenameAndRewriteReferences_AppendsOldBasenameToAliases(t *testing.T) {
 }
 
 // TestRenameAndRewriteReferences_AppendsOldBasenameToAliasesProperty: for
-// any existing aliases, a renamed note's aliases become the old list plus
-// the old basename (once), and every other frontmatter key but luhmann is
-// unchanged; a note that is only a referrer keeps its aliases.
+// any existing aliases, a renamed note's aliases become the old list minus
+// the new basename, plus the old basename (once), and every other
+// frontmatter key but luhmann is unchanged; a note that is only a referrer
+// keeps its aliases.
 func TestRenameAndRewriteReferences_AppendsOldBasenameToAliasesProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
@@ -72,6 +79,10 @@ func TestRenameAndRewriteReferences_AppendsOldBasenameToAliasesProperty(t *testi
 
 		if rapid.Bool().Draw(rt, "oldAlreadyAliased") {
 			aliases = append(aliases, oldBasename)
+		}
+
+		if rapid.Bool().Draw(rt, "newAlreadyAliased") {
+			aliases = append(aliases, newBasename)
 		}
 
 		exchange := exchangeFixture{XID: "7f3c0a9e1b2d4c5f8a6e9d0c1b2a3f4e", Aliases: aliases}
@@ -86,7 +97,7 @@ func TestRenameAndRewriteReferences_AppendsOldBasenameToAliasesProperty(t *testi
 			rt.Fatalf("rename: %v", err)
 		}
 
-		want := slices.Clone(aliases)
+		want := slices.DeleteFunc(slices.Clone(aliases), func(name string) bool { return name == newBasename })
 		if !slices.Contains(want, oldBasename) {
 			want = append(want, oldBasename)
 		}

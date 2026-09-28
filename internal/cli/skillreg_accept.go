@@ -305,7 +305,7 @@ func adoptRenderInput(raw []byte, oldBasename, newBasename string) ([]byte, erro
 
 	newID, _ := luhmann.FromBasename(newBasename)
 
-	aliased, aliasErr := appendAliasField(rewriteLuhmannIDField(string(raw), newID), oldBasename)
+	aliased, aliasErr := appendAliasField(rewriteLuhmannIDField(string(raw), newID), oldBasename, newBasename)
 	if aliasErr != nil {
 		return nil, fmt.Errorf("register-skills: adopt: recording alias on %s: %w", oldBasename, aliasErr)
 	}

@@ -122,13 +122,15 @@ var (
 )
 
 // appendAliasField appends alias to content's frontmatter aliases: list
-// (design D4 H2: a renamed note answers to its old basename), creating the
-// list when absent and leaving content unchanged when alias is already
-// listed or content has no frontmatter. Only the aliases: key is touched:
+// (design D4 H2: a renamed note answers to its old basename) and drops
+// current, the note's new basename, from it (a note renamed back to a
+// former name is not its own alias). It creates the list when absent and
+// leaves content unchanged when the list already holds exactly that or
+// content has no frontmatter. Only the aliases: key is touched:
 // an existing list, in any YAML sequence style, is replaced in place by the
 // block form the frontmatter writer emits; a new list goes before offer:
 // when present (the writer's key order), else at the end.
-func appendAliasField(content, alias string) (string, error) {
+func appendAliasField(content, alias, current string) (string, error) {
 	frontmatter, body, ok := splitFrontmatterAndBody(content)
 	if !ok {
 		return content, nil
@@ -151,11 +153,16 @@ func appendAliasField(content, alias string) (string, error) {
 		}
 	}
 
-	if slices.Contains(existing.Aliases, alias) {
+	aliases := slices.DeleteFunc(slices.Clone(existing.Aliases), func(name string) bool { return name == current })
+	if !slices.Contains(aliases, alias) {
+		aliases = append(aliases, alias)
+	}
+
+	if slices.Equal(aliases, existing.Aliases) {
 		return content, nil
 	}
 
-	existing.Aliases = append(existing.Aliases, alias)
+	existing.Aliases = aliases
 	rendered, _ := yaml.Marshal(existing)
 	block := strings.TrimSuffix(string(rendered), "\n")
 
@@ -244,7 +251,7 @@ func renameOneNote(deps RenameRewriteDeps, oldPath, vault, oldBasename, newBasen
 	newID, _ := luhmann.FromBasename(newBasename)
 	updated = rewriteLuhmannIDField(updated, newID)
 
-	updated, aliasErr := appendAliasField(updated, oldBasename)
+	updated, aliasErr := appendAliasField(updated, oldBasename, newBasename)
 	if aliasErr != nil {
 		return "", fmt.Errorf("recording alias on %s: %w", oldPath, aliasErr)
 	}

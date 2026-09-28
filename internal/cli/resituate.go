@@ -262,8 +262,14 @@ func resituateContent(raw []byte, situation string) (string, error) {
 // situation replaced (design D10 M7): every other field, including pending,
 // sources, tags, supersedes, vocab_version, issue, project and the exchange
 // fields, is re-marshaled as parsed. The body keeps everything after its
-// first line; only that opener is rebuilt around the new situation. The
-// created date is still validated so a malformed note is refused untouched.
+// first line; only that opener is rebuilt around the new situation.
+//
+// created: is re-emitted as the string the note holds, not rebuilt from the
+// parsed date (the old hand-copy re-formatted it through time.Time). It is
+// still parsed, only to refuse a malformed note untouched: parseCreated is
+// strict about the 2006-01-02 layout, so any value that passes is already
+// in canonical form, and keeping the string means resituate can never
+// reformat a date it did not change.
 func resituateTyped[T any](
 	frontmatter, body []byte,
 	situation, kind string,

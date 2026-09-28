@@ -13,6 +13,31 @@ import (
 	"pgregory.net/rapid"
 )
 
+// TestRunResituate_KeepsCreatedString pins that resituate re-emits the
+// note's own created: string (quoted by the frontmatter writer, as learn
+// writes it) rather than a date rebuilt from time.Parse.
+func TestRunResituate_KeepsCreatedString(t *testing.T) {
+	t.Parallel()
+
+	for name, created := range map[string]string{
+		"unquoted": "created: 2026-03-04\n",
+		"quoted":   "created: \"2026-03-04\"\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			before := "---\ntype: fact\nsituation: old\nsubject: a\npredicate: b\nobject: c\nluhmann: \"1aa\"\n" +
+				created + "source: test\nuser: u\nvault: v\n---\n\nInformation learned: when in old, a b c.\n\n"
+
+			after, _, err := runExchangeSurvivalResituate(t.Context(), before)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(yamlKeyBlock(after, "created")).To(Equal(`created: "2026-03-04"`))
+			g.Expect(frontmatterOf(after)["created"]).To(Equal("2026-03-04"))
+		})
+	}
+}
+
 // TestRunResituate_PreservesEveryUntouchedField is the spec scenario: a
 // pending note carrying tags, sources, supersedes, vocab_version, issue,
 // project, parent and aliases comes out of resituate with all of them and

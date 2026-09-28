@@ -20,28 +20,32 @@ import (
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
-// TestRunAmend_BookkeepingAmendsKeepIdentity: --activate alone and
-// --clear-pending (alone or together) leave repo:, user: and vault: as the
-// note declared them, even when the running environment detects others.
+// TestRunAmend_BookkeepingAmendsKeepIdentity: on every note type (fact and
+// feedback via applyTypedAmend, runbook via applyRunbookAmend), --activate
+// alone and --clear-pending (alone or together) leave repo:, user: and
+// vault: as the note declared them, even when the running environment
+// detects others.
 func TestRunAmend_BookkeepingAmendsKeepIdentity(t *testing.T) {
 	t.Parallel()
 
 	cleared := false
 
-	for name, args := range map[string]cli.AmendArgs{
-		"activate alone":           {Activate: true},
-		"clear-pending":            {Pending: &cleared},
-		"activate + clear-pending": {Activate: true, Pending: &cleared},
-	} {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
+	for _, noteType := range identityAmendTypes {
+		for name, args := range map[string]cli.AmendArgs{
+			"activate alone":           {Activate: true},
+			"clear-pending":            {Pending: &cleared},
+			"activate + clear-pending": {Activate: true, Pending: &cleared},
+		} {
+			t.Run(noteType+"/"+name, func(t *testing.T) {
+				t.Parallel()
+				g := NewWithT(t)
 
-			written, err := runIdentityAmend(t.Context(), args)
-			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(written).NotTo(BeEmpty(), "the bookkeeping amend must actually have rewritten the note")
-			expectDeclaredIdentity(g, written)
-		})
+				written, err := runIdentityAmend(t.Context(), noteType, args)
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(written).NotTo(BeEmpty(), "the bookkeeping amend must actually have rewritten the note")
+				expectDeclaredIdentity(g, written)
+			})
+		}
 	}
 }
 
@@ -54,18 +58,20 @@ func TestRunAmend_ClearPendingKeepsOfferAuthor(t *testing.T) {
 
 	cleared := false
 
-	written, err := runIdentityAmend(t.Context(), cli.AmendArgs{Pending: &cleared})
+	written, err := runIdentityAmend(t.Context(), "fact", cli.AmendArgs{Pending: &cleared})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(written).To(ContainSubstring("user: alice@example.com"))
 	g.Expect(written).NotTo(ContainSubstring("pending: true"))
 }
 
 // TestRunAmend_IdentityRestampProperty: over any combination of amend flags,
-// identity is re-stamped exactly when a content flag, --supersedes or
-// --chunk-source is present; otherwise the declared identity survives.
+// on any note type, identity is re-stamped exactly when one of that type's
+// content flags, --supersedes or --chunk-source is present; otherwise the
+// declared identity survives.
 func TestRunAmend_IdentityRestampProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
+		noteType := rapid.SampledFrom(identityAmendTypes).Draw(rt, "noteType")
 		args := cli.AmendArgs{Activate: rapid.Bool().Draw(rt, "activate")}
 
 		if rapid.Bool().Draw(rt, "clearPending") {
@@ -73,9 +79,9 @@ func TestRunAmend_IdentityRestampProperty(t *testing.T) {
 			args.Pending = &cleared
 		}
 
-		restamps := drawRestampingFlags(rt, &args)
+		restamps := drawRestampingFlags(rt, noteType, &args)
 
-		written, err := runIdentityAmend(t.Context(), args)
+		written, err := runIdentityAmend(t.Context(), noteType, args)
 		if err != nil {
 			rt.Fatalf("amend: %v", err)
 		}
@@ -98,27 +104,52 @@ const (
 	identityAmendChunk = "session.jsonl#a1"
 )
 
-// drawRestampingFlags sets a random subset of the content, --supersedes and
-// --chunk-source flags on args, reporting whether it set any.
-func drawRestampingFlags(rt *rapid.T, args *cli.AmendArgs) bool {
+// unexported variables.
+var (
+	identityAmendTypes = []string{"fact", "feedback", "runbook"}
+)
+
+// drawRestampingFlags sets a random subset of noteType's content flags,
+// --supersedes and --chunk-source on args, reporting whether it set any.
+func drawRestampingFlags(rt *rapid.T, noteType string, args *cli.AmendArgs) bool {
 	restamps := false
 	text := rapid.StringMatching(`[a-z][a-z ]{0,12}[a-z]`)
 
-	for _, flag := range []struct {
+	type flag struct {
 		name string
 		set  func(value string)
-	}{
-		{"situation", func(value string) { args.Situation = value }},
-		{"subject", func(value string) { args.Subject = value }},
-		{"predicate", func(value string) { args.Predicate = value }},
-		{"object", func(value string) { args.Object = value }},
-		{"supersedes", func(value string) {
-			args.Supersedes = []string{"9.2026-01-01.old|narrows|" + value}
-		}},
-		{"chunkSource", func(string) { args.ChunkSources = []string{identityAmendChunk} }},
-	} {
-		if rapid.Bool().Draw(rt, flag.name) {
-			flag.set(text.Draw(rt, flag.name+"Value"))
+	}
+
+	flags := map[string][]flag{
+		"fact": {
+			{"situation", func(value string) { args.Situation = value }},
+			{"subject", func(value string) { args.Subject = value }},
+			{"predicate", func(value string) { args.Predicate = value }},
+			{"object", func(value string) { args.Object = value }},
+		},
+		"feedback": {
+			{"situation", func(value string) { args.Situation = value }},
+			{"behavior", func(value string) { args.Behavior = value }},
+			{"impact", func(value string) { args.Impact = value }},
+			{"action", func(value string) { args.Action = value }},
+		},
+		"runbook": {
+			{"situation", func(value string) { args.Situation = value }},
+			{"doneWhen", func(value string) { args.DoneWhen = value }},
+			{"body", func(value string) { args.Body = "1. " + value }},
+			{"redFlag", func(value string) { args.RedFlags = []string{value} }},
+			{"trigger", func(value string) { args.Triggers = []string{"cue " + value} }},
+		},
+	}[noteType]
+
+	flags = append(flags,
+		flag{"supersedes", func(value string) { args.Supersedes = []string{"9.2026-01-01.old|narrows|" + value} }},
+		flag{"chunkSource", func(string) { args.ChunkSources = []string{identityAmendChunk} }},
+	)
+
+	for _, each := range flags {
+		if rapid.Bool().Draw(rt, each.name) {
+			each.set(text.Draw(rt, each.name+"Value"))
 
 			restamps = true
 		}
@@ -134,16 +165,27 @@ func expectDeclaredIdentity(g Gomega, written string) {
 	g.Expect(written).NotTo(ContainSubstring("bob"))
 }
 
-// runIdentityAmend amends a pending fact note declared by alice from an
-// environment that detects bob, returning the written note ("" when the note
-// was never written).
-func runIdentityAmend(ctx context.Context, args cli.AmendArgs) (string, error) {
+// runIdentityAmend amends a pending note of noteType declared by alice from
+// an environment that detects bob, returning the written note ("" when the
+// note was never written).
+func runIdentityAmend(ctx context.Context, noteType string, args cli.AmendArgs) (string, error) {
 	const basename = "1aa.2026-01-01.offer.md"
 
-	note := []byte("---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: B\n" +
+	content := map[string]string{
+		"fact":     "situation: ctx\nsubject: A\npredicate: has\nobject: B\n",
+		"feedback": "situation: ctx\nbehavior: skipped\nimpact: broke\naction: do it\n",
+		"runbook":  "situation: ctx\ndone_when: done\n",
+	}[noteType]
+	body := map[string]string{
+		"fact":     "Information learned: when in ctx, A has B.\n\n",
+		"feedback": "Lesson learned: when ctx, do it.\n\n",
+		"runbook":  "1. step\n",
+	}[noteType]
+
+	note := []byte("---\ntype: " + noteType + "\ntier: L2\n" + content +
 		"luhmann: \"1aa\"\ncreated: \"2026-01-01\"\nsource: test\n" +
 		"repo: github.com/alice/widgets\nuser: alice@example.com\nvault: alice-vault\npending: true\n" +
-		"---\n\nInformation learned: when in ctx, A has B.\n\n")
+		"---\n\n" + body)
 
 	var written []byte
 
