@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"slices"
-	"sort"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -52,77 +51,42 @@ func hasProvenance(item queryItem, role string) bool {
 	return slices.Contains(item.Provenances, role)
 }
 
-// interleaveAlternating combines two item slices by alternating between
-// them (a, b, a, b, ...) rather than claiming a true cross-source
-// chronological order — queryItem carries no timestamp field, so no such
-// order is derivable from a rendered payload (design.md Decision 7). Each
-// source's own items are already newest-first in their own relative order.
-func interleaveAlternating(a, b []queryItem) []queryItem {
-	out := make([]queryItem, 0, len(a)+len(b))
-
-	for i, j := 0, 0; i < len(a) || j < len(b); {
-		if i < len(a) {
-			out = append(out, a[i])
-			i++
-		}
-
-		if j < len(b) {
-			out = append(out, b[j])
-			j++
-		}
-	}
-
-	return out
-}
-
-// mergeByScoreDesc combines two item slices into one, sorted by descending
-// score.
-func mergeByScoreDesc(a, b []queryItem) []queryItem {
-	out := make([]queryItem, 0, len(a)+len(b))
-	out = append(out, a...)
-	out = append(out, b...)
-
-	sort.SliceStable(out, func(i, j int) bool {
-		return out[i].Score > out[j].Score
-	})
-
-	return out
-}
-
 // mergeQueryPayloads combines a local and parent queryPayload into one
-// merged payload (vault-merged-recall): items are tagged with model_id and
-// from_parent, score-ranked items from both sources are interleaved by
-// descending score, recency-channel items are combined separately and
-// capped to --recent-fill, the whole set is capped to --limit, and
-// --content-budget is reapplied over the final merged set. Clusters are
-// not fused across nodes (spec: "Merged results are not re-clustered
-// across nodes") — the merged payload keeps only the local node's own
-// cluster structure.
-func mergeQueryPayloads(local, parent queryPayload, args QueryArgs) queryPayload {
-	localMain, localRecent := splitRecencyChannel(tagItems(local.Items, local.ModelID, false))
-	parentMain, parentRecent := splitRecencyChannel(tagItems(parent.Items, parent.ModelID, true))
+// merged payload (vault-merged-recall, design D9):
+//  1. every parent chunk item is dropped, including the parent's recency
+//     channel (Q1);
+//  2. parent notes that match a live local note are deduped, keeping the
+//     local note (D4; substituted per M4 when it did not rank locally);
+//  3. trigger hits lead, local before parent, exempt from --limit;
+//  4. direct items then explore picks, each by score, are capped to
+//     --limit by position with the note floor (M3, #744);
+//  5. the local recency channel follows, capped to --recent-fill;
+//  6. --content-budget (or --lazy-chunks) is applied once, and the budget
+//     block reports the applied values (#743).
+//
+// Clusters stay the local node's own, and the pending-offer hint reflects
+// local offers only (H4): a child can't curate its parent.
+func mergeQueryPayloads(local, parent queryPayload, localNotes []exchangeNote, args QueryArgs) queryPayload {
+	localItems := tagItems(local.Items, local.ModelID, false)
+	parentItems := dedupeParentItems(dropParentChunks(tagItems(parent.Items, parent.ModelID, true)),
+		localItems, localNotes, parent.VaultID, local.ModelID)
 
-	// --limit caps Channel 1 (relevance-ranked) only — Channel 2 (recency)
-	// has its own dedicated budget (--recent-fill) and must not be
-	// displaced just because Channel 1 alone already reaches --limit
-	// (mirrors renderQueryPayload's same fix for the single-source path).
-	// Trigger hits (runbook-lexical-triggers) lead the merged list, local
-	// before parent, and are exempt from --limit like in the single-source path.
+	localMain, localRecent := splitRecencyChannel(localItems)
 	localTriggered, localMain := splitTriggerItems(localMain)
-	parentTriggered, parentMain := splitTriggerItems(parentMain)
-	triggered := make([]queryItem, 0, len(localTriggered)+len(parentTriggered))
-	triggered = append(triggered, localTriggered...)
-	triggered = append(triggered, parentTriggered...)
+	parentTriggered, parentMain := splitTriggerItems(parentItems)
 
-	capped := capItemsToLimit(mergeByScoreDesc(localMain, parentMain), resolveLimit(args.Limit))
-	mainMerged := make([]queryItem, 0, len(triggered)+len(capped))
-	mainMerged = append(mainMerged, triggered...)
-	mainMerged = append(mainMerged, capped...)
-	recentMerged := capItemsToLimit(
-		interleaveAlternating(localRecent, parentRecent), resolveRecentFill(args.RecentFill))
+	limit := resolveLimit(args.Limit)
+	channelOne := capMergedChannelOne(append(localMain, parentMain...), limit)
+	recent := capItemsToLimit(localRecent, resolveRecentFill(args.RecentFill))
 
-	mainMerged = append(mainMerged, recentMerged...)
-	items, _ := capChunkContent(mainMerged, resolveContentBudget(args.ContentBudget))
+	items := make([]queryItem, 0, len(localTriggered)+len(parentTriggered)+len(channelOne)+len(recent))
+	items = append(items, localTriggered...)
+	items = append(items, parentTriggered...)
+	items = append(items, channelOne...)
+	items = append(items, recent...)
+	stripDedupeKeys(items)
+
+	items, snipped := mergedContentPolicy(items, args)
 
 	return queryPayload{
 		Version:           1,
@@ -130,22 +94,46 @@ func mergeQueryPayloads(local, parent queryPayload, args QueryArgs) queryPayload
 		Items:             items,
 		Clusters:          local.Clusters,
 		RefitPending:      local.RefitPending || parent.RefitPending,
-		PendingOffers:     local.PendingOffers || parent.PendingOffers,
-		PendingOffersHint: pendingOffersHint(local.PendingOffers || parent.PendingOffers),
+		PendingOffers:     local.PendingOffers,
+		PendingOffersHint: pendingOffersHint(local.PendingOffers),
 		ModelID:           local.ModelID,
+		Budget: queryBudget{
+			PhrasesQueried:       len(local.Phrases),
+			TotalNotes:           local.Budget.TotalNotes,
+			WithEmbeddings:       local.Budget.WithEmbeddings,
+			ClustersFound:        len(local.Clusters),
+			DirectHitsReturned:   countDirectHits(items),
+			ItemsWithFullContent: countItemsWithContent(items) - snipped,
+			Limit:                limit,
+			ContentBudget:        resolveContentBudget(args.ContentBudget),
+			ChunksSnippeted:      snipped,
+			ExploreAllocated:     sumExploreAllocated(local.Budget.ExploreAllocated, parent.Budget.ExploreAllocated),
+			LazyChunks:           args.LazyChunks,
+		},
 	}
 }
 
-// prepareParentContact runs design D2's parent-contact bookkeeping: the
-// first command that contacts a parent stamps a missing vault ID, and a
-// failed location check prints its one warning (a merged query is
-// read-only, so it still runs). Neither is fatal to the query.
-func prepareParentContact(deps Deps, vault string) {
+// mergedContentPolicy is applyContentPolicy for the merged set: lazy mode
+// clears chunk content (nothing is snippeted); otherwise --content-budget
+// caps full-content chunks once over the merged items.
+func mergedContentPolicy(items []queryItem, args QueryArgs) ([]queryItem, int) {
+	if args.LazyChunks {
+		return clearChunkContent(items), 0
+	}
+
+	return capChunkContent(items, resolveContentBudget(args.ContentBudget))
+}
+
+// prepareParentContact runs design D2's parent-contact bookkeeping for a
+// command about to contact the parent: a missing vault ID is stamped, and a
+// failed location check prints its one warning (read-only contacts still
+// run). Neither is fatal. command prefixes the stamp warning.
+func prepareParentContact(deps Deps, command, vault string) {
 	state := exchangeStateFromDeps(deps)
 
 	_, stampErr := stampVaultID(state, vault)
 	if stampErr != nil {
-		logWarningTo(deps.Stderr)("query: could not stamp the vault ID: %v", stampErr)
+		logWarningTo(deps.Stderr)("%s: could not stamp the vault ID: %v", command, stampErr)
 
 		return
 	}
@@ -153,18 +141,18 @@ func prepareParentContact(deps Deps, vault string) {
 	warnVaultLocation(state, vault, deps.Stderr)
 }
 
-// recordQueryContactFailure backs off after a query that could not reach
-// the parent (a transport error, timeout or 5xx); a 4xx is an answer, not
-// an outage, so it resets the backoff like any answer (ruling S14).
-// Failing to record either is not fatal to the query.
-func recordQueryContactFailure(store outboxStore, vault, parentURL string, fetchErr error) {
-	if !errors.Is(fetchErr, errParentUnreachable) {
-		_ = recordParentSuccess(store, vault, parentURL, "")
+// recordParentContact records a parent request's outcome for backoff: a
+// transport error, timeout or 5xx backs off; any answer, including a 4xx,
+// resets it (ruling S14) and caches the vault ID the parent reported, when
+// known. Failing to record either is not fatal.
+func recordParentContact(store outboxStore, vault, parentURL, vaultID string, fetchErr error) {
+	if errors.Is(fetchErr, errParentUnreachable) {
+		_, _ = recordParentFailure(store, vault, parentURL)
 
 		return
 	}
 
-	_, _ = recordParentFailure(store, vault, parentURL)
+	_ = recordParentSuccess(store, vault, parentURL, vaultID)
 }
 
 // resolveLimit maps the raw --limit flag value to the effective cap: 0
@@ -201,46 +189,71 @@ func runLocalQueryPayload(ctx context.Context, deps Deps, args QueryArgs) (query
 }
 
 // runMergedQuery orchestrates ENGRAM_PARENT-gated local+parent query fusion
-// (vault-merged-recall). The parent is fetched first: on failure, it
-// degrades to an ordinary local-only RunQuery call (no merge, no unbounded
-// dance) and emits a non-fatal warning (spec: "Parent unavailability
-// degrades to local-only results"). On success, both sources are fetched
-// at unbounded budgets and merged.
+// (vault-merged-recall, design D9). It degrades to an ordinary local-only
+// RunQuery (no merge, no drain) when the parent is backed off, is this
+// vault itself (the self-parent guard, checked on the cached ID before the
+// request and on the reported ID after it), or fails — the last with a
+// non-fatal warning. Otherwise both sources are fetched at unbounded
+// budgets, merged, and the outbox drains.
 func runMergedQuery(ctx context.Context, deps Deps, parentBaseURL string, args QueryArgs, stdout io.Writer) error {
-	prepareParentContact(deps, args.VaultPath)
+	vault := args.VaultPath
+	localOnly := func() error { return RunQuery(ctx, args, newQueryDeps(deps), stdout) }
+
+	prepareParentContact(deps, "query", vault)
 
 	store := outboxStoreFromDeps(deps)
-	if !gateParentContact(store, args.VaultPath, parentBaseURL, false) {
-		return RunQuery(ctx, args, newQueryDeps(deps), stdout)
+	if !gateParentContact(store, vault, parentBaseURL, false) {
+		return localOnly()
+	}
+
+	localID, _, _ := readVaultID(store.state, vault)
+	if selfParentGuard(localID, cachedParentVaultID(store.state, vault, parentBaseURL), deps.Stderr) {
+		return localOnly()
 	}
 
 	parentPayload, parentErr := fetchQueryPayload(ctx, deps, parentBaseURL, unboundedQueryArgs(args))
+	recordParentContact(store, vault, parentBaseURL, parentPayload.VaultID, parentErr)
+
 	if parentErr != nil {
-		recordQueryContactFailure(store, args.VaultPath, parentBaseURL, parentErr)
 		logWarningTo(deps.Stderr)("query: parent unavailable, returning local-only results: %v", parentErr)
 
-		return RunQuery(ctx, args, newQueryDeps(deps), stdout)
+		return localOnly()
 	}
 
-	// A successful contact resets the backoff; failing to record that is
-	// not fatal to the query.
-	_ = recordParentSuccess(store, args.VaultPath, parentBaseURL, "")
+	if selfParentGuard(localID, parentPayload.VaultID, deps.Stderr) {
+		return localOnly()
+	}
 
 	localPayload, localErr := runLocalQueryPayload(ctx, deps, unboundedQueryArgs(args))
 	if localErr != nil {
 		return localErr
 	}
 
-	encodeErr := encodeQueryPayload(stdout, mergeQueryPayloads(localPayload, parentPayload, args))
+	encodeErr := encodeQueryPayload(stdout,
+		mergeQueryPayloads(localPayload, parentPayload, scanDedupeNotes(deps, vault), args))
 	if encodeErr != nil {
 		return encodeErr
 	}
 
 	// The parent answered, so the outbox drains (design D6); the gate
 	// already passed for this command.
-	drainForCommand(ctx, deps, args.VaultPath, parentBaseURL, true)
+	drainForCommand(ctx, deps, vault, parentBaseURL, true)
 
 	return nil
+}
+
+// scanDedupeNotes reads the local exchange notes for the merged query's
+// dedupe. A scan failure is warned and merges without dedupe rather than
+// failing a read-only query.
+func scanDedupeNotes(deps Deps, vault string) []exchangeNote {
+	notes, scanErr := scanExchangeNotes(vault, listMDFromFS(deps.FS), deps.FS.ReadFile)
+	if scanErr != nil {
+		logWarningTo(deps.Stderr)("query: could not read local notes for dedupe: %v", scanErr)
+
+		return nil
+	}
+
+	return notes
 }
 
 // splitRecencyChannel separates items into main (non-recency) and

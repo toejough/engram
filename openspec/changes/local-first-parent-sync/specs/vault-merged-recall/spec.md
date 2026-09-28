@@ -7,7 +7,7 @@ Before ordering and capping, a merged query SHALL treat a parent note item P as 
 
 The merged payload SHALL keep L and not P. When L is already among the local items, P SHALL be dropped. Otherwise P SHALL be replaced by a substituted item for L, which carries:
 - `path`: L's basename plus `.md`;
-- `kind: note`;
+- `kind`: L's non-chunk (note) kind, as a local query renders it (`fact`, `feedback`, or `runbook`);
 - `content`: L's content, rendered as a local query renders a note;
 - `score` and `provenances`: P's;
 - `source_term`: P's, only when P's provenances include `explore`;
@@ -49,7 +49,7 @@ A merged query SHALL order its non-trigger Channel 1 items in two groups:
 1. **direct items**: items whose `provenances` include none of `trigger`, `explore`, or `recent`, from both sources, by descending `score`;
 2. **explore items**: items whose `provenances` include `explore`, from both sources, by descending `score`.
 
-It SHALL then apply `--limit` by position. Let Q be the direct items whose `kind` is `note` and whose `score` is at least 0.25. When the capped set keeps fewer than min(5, |Q|) members of Q, the lowest-positioned kept direct items whose `kind` is `chunk` SHALL be replaced, one for one, by the highest-scoring excluded members of Q, until that minimum is kept or no kept direct chunk item remains. The direct group SHALL then be restored to score order.
+It SHALL then apply `--limit` by position. Let Q be the direct items whose `kind` is a non-chunk (note) kind (any `kind` other than `chunk`) and whose `score` is at least 0.25. When the capped set keeps fewer than min(5, |Q|) members of Q, the lowest-positioned kept direct items whose `kind` is `chunk` SHALL be replaced, one for one, by the highest-scoring excluded members of Q, until that minimum is kept or no kept direct chunk item remains. The direct group SHALL then be restored to score order.
 
 #### Scenario: High-scoring explore picks do not crowd out direct matches
 - **WHEN** a merged query with `--limit 10` has 12 explore picks scoring 0.8–0.9 and 15 direct items scoring 0.5–0.7 across both sources

@@ -363,7 +363,7 @@ A served learn is handled as follows:
   - If L is already in the local items, P is dropped.
   - Otherwise L's item takes P's place. The **substituted item (M4)** has:
     - `path`: L's basename plus `.md`;
-    - `kind: note`;
+    - `kind`: L's non-chunk (note) kind, as a local query renders it (`fact`, `feedback` or `runbook`; ruling S19);
     - `content`: L's content, rendered exactly as a local query renders a note;
     - `score` and `provenances`: P's;
     - `model_id`: the local model;
@@ -376,7 +376,7 @@ A served learn is handled as follows:
   3. **Explore items**: `provenances` include `explore`, from both sources, by descending `score`.
 
   `--limit` then caps the direct and explore items by position.
-- **Note floor (M3).** Let Q be the direct items with `kind: note` and `score` ≥ 0.25. When the cap keeps fewer than `min(5, |Q|)` items from Q, the lowest-positioned kept direct `kind: chunk` items are replaced by the highest-scoring excluded members of Q, one for one, until that minimum is met or no kept direct chunk item remains. The replacements are placed back in score order.
+- **Note floor (M3).** Let Q be the direct items with a non-chunk (note) kind and `score` ≥ 0.25 (ruling S19: any `kind` other than `chunk`, matching the local note floor). When the cap keeps fewer than `min(5, |Q|)` items from Q, the lowest-positioned kept direct `kind: chunk` items are replaced by the highest-scoring excluded members of Q, one for one, until that minimum is met or no kept direct chunk item remains. The replacements are placed back in score order.
 - **Budget (#743).** The budget block reports the merge-applied values:
   - `limit`, `content_budget`, `lazy_chunks`;
   - `chunks_snippeted`, taken from `capChunkContent`'s return;

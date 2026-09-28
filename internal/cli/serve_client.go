@@ -23,13 +23,12 @@ const (
 	// httpStatusMultipleChoices is the first non-2xx status code — used to
 	// bound the "success" range without importing net/http here.
 	httpStatusMultipleChoices = 300
-	// parentSourcedMarker labels engram show/show-chunk's local-miss parent
-	// fallback output as parent-sourced (vault-merged-recall D8) — the
+	// parentSourcedMarker labels engram show's local-miss parent fallback
+	// output as parent-sourced (vault-merged-recall D8) — the
 	// human-readable analog of a merged query payload's per-item
 	// from_parent tag. Only the fallback path is labeled; the explicit
-	// --parent route (fetchShow/fetchShowChunk) stays byte-identical to a
-	// direct parent request, unlabeled, per the delta spec's "Without
-	// --parent, behavior is unchanged" scenario.
+	// --parent route (fetchShow) stays byte-identical to a direct parent
+	// request, unlabeled. show-chunk never contacts the parent (Q1).
 	parentSourcedMarker = "# from_parent: true\n"
 )
 
@@ -37,8 +36,11 @@ const (
 var (
 	// errEngramServerRemoved is the D1 hard error for a set ENGRAM_SERVER.
 	errEngramServerRemoved = errors.New("ENGRAM_SERVER is no longer supported")
+	// errParentBackedOff is returned when a show's parent request is
+	// skipped inside the backoff window (design D6).
+	errParentBackedOff = errors.New("parent contact skipped inside the backoff window")
 	// errParentNotConfigured is returned when --parent is passed to
-	// show/show-chunk/activate but ENGRAM_PARENT is not set.
+	// show/activate but ENGRAM_PARENT is not set.
 	errParentNotConfigured = errors.New("--parent requires ENGRAM_PARENT to be configured")
 	// errParentUnreachable marks a parent request that failed as an outage
 	// (a transport error, timeout or 5xx), which backs the parent off.
@@ -123,24 +125,30 @@ func dispatchShow(ctx context.Context, deps Deps, args ShowArgs, home string, st
 		return localErr
 	}
 
-	return fetchShowFallback(ctx, deps, parent, args, stdout)
+	fallbackErr := fetchShowFallback(ctx, deps, parent, args, stdout)
+	if errors.Is(fallbackErr, errParentBackedOff) {
+		return localErr
+	}
+
+	return fallbackErr
 }
 
-// dispatchShowChunk is dispatchShow's show-chunk counterpart.
-func dispatchShowChunk(ctx context.Context, deps Deps, args ShowChunkArgs, home string, stdout io.Writer) error {
-	args.ChunksDir = ResolveChunksDir(args.ChunksDir, home, deps.Getenv)
-
-	localErr := RunShowChunk(ctx, args, newShowChunkDeps(deps), stdout)
-	if localErr == nil || !errors.Is(localErr, errShowChunkNotFound) {
-		return localErr
+// dispatchShowParent runs `engram show --parent`: the ref is resolved
+// against ENGRAM_PARENT only, as a parent contact (rulings S3, S11).
+func dispatchShowParent(ctx context.Context, deps Deps, args ShowArgs, home string, stdout io.Writer) error {
+	parent, parentErr := resolveParentOrError(deps)
+	if parentErr != nil {
+		return parentErr
 	}
 
-	parent := parentBase(deps)
-	if parent == "" {
-		return localErr
+	args.VaultPath = resolveVault(args.VaultPath, home, deps.Getenv)
+
+	ensureErr := ensureVault(deps, args.VaultPath)
+	if ensureErr != nil {
+		return ensureErr
 	}
 
-	return fetchShowChunkFallback(ctx, deps, parent, args, stdout)
+	return fetchShowContact(ctx, deps, parent, args, stdout)
 }
 
 // encodeQuery percent-encodes query into a "k=v&k=v" string, keys sorted
@@ -187,12 +195,16 @@ func fetchAndCopy(
 }
 
 // fetchQueryPayload routes a parent query (ENGRAM_PARENT merge mode)
-// through the parent's /query route and decodes the response into the same
-// queryPayload type the local pipeline produces — instead of piping bytes
-// to stdout — so the merge orchestrator can combine it with the local
-// payload before a single render.
+// through the parent's /query route, asking for the dedupe keys (design
+// D9), and decodes the response into the same queryPayload type the local
+// pipeline produces — instead of piping bytes to stdout — so the merge
+// orchestrator can combine it with the local payload before a single
+// render.
 func fetchQueryPayload(ctx context.Context, deps Deps, base string, args QueryArgs) (queryPayload, error) {
-	resp, fetchErr := fetchRaw(ctx, deps, base, methodGet, "/query", buildQueryParams(args), nil)
+	params := buildQueryParams(args)
+	params["dedupe-keys"] = []string{"1"}
+
+	resp, fetchErr := fetchRaw(ctx, deps, base, methodGet, "/query", params, nil)
 	if fetchErr != nil {
 		return queryPayload{}, fetchErr
 	}
@@ -235,21 +247,22 @@ func fetchShow(ctx context.Context, deps Deps, base string, args ShowArgs, stdou
 	return fetchAndCopy(ctx, deps, base, "/show", map[string][]string{"note": {args.Ref}}, stdout)
 }
 
-// fetchShowChunk fetches `engram show-chunk` output for an id from the parent.
-func fetchShowChunk(ctx context.Context, deps Deps, base string, args ShowChunkArgs, stdout io.Writer) error {
-	return fetchAndCopy(ctx, deps, base, "/show-chunk", map[string][]string{"id": {args.Ref}}, stdout)
-}
+// fetchShowContact runs one show request against the parent as a parent
+// contact: the vault ID is stamped and the location checked first (ruling
+// S3), the backoff gate may skip the request (errParentBackedOff, after its
+// one warning), and the outcome is recorded for backoff (ruling S11).
+func fetchShowContact(ctx context.Context, deps Deps, parent string, args ShowArgs, stdout io.Writer) error {
+	prepareParentContact(deps, "show", args.VaultPath)
 
-// fetchShowChunkFallback is fetchShowFallback's show-chunk counterpart.
-func fetchShowChunkFallback(ctx context.Context, deps Deps, base string, args ShowChunkArgs, stdout io.Writer) error {
-	var buf bytes.Buffer
-
-	fetchErr := fetchShowChunk(ctx, deps, base, args, &buf)
-	if fetchErr != nil {
-		return fetchErr
+	store := outboxStoreFromDeps(deps)
+	if !gateParentContact(store, args.VaultPath, parent, false) {
+		return errParentBackedOff
 	}
 
-	return writeParentSourced(stdout, buf.Bytes())
+	fetchErr := fetchShow(ctx, deps, parent, args, stdout)
+	recordParentContact(store, args.VaultPath, parent, "", fetchErr)
+
+	return fetchErr
 }
 
 // fetchShowFallback fetches ref from the parent for dispatchShow's
@@ -260,7 +273,7 @@ func fetchShowChunkFallback(ctx context.Context, deps Deps, base string, args Sh
 func fetchShowFallback(ctx context.Context, deps Deps, base string, args ShowArgs, stdout io.Writer) error {
 	var buf bytes.Buffer
 
-	fetchErr := fetchShow(ctx, deps, base, args, &buf)
+	fetchErr := fetchShowContact(ctx, deps, base, args, &buf)
 	if fetchErr != nil {
 		return fetchErr
 	}
@@ -326,8 +339,8 @@ func removedServerError(deps Deps) error {
 }
 
 // resolveParentOrError returns ENGRAM_PARENT's base URL, or
-// errParentNotConfigured when unset — the shared guard for show/show-chunk's
-// --parent flag.
+// errParentNotConfigured when unset — the shared guard for show's and
+// activate's --parent flag.
 func resolveParentOrError(deps Deps) (string, error) {
 	parent := parentBase(deps)
 	if parent == "" {
@@ -362,8 +375,7 @@ func setStringParam(query map[string][]string, key string, value string) {
 }
 
 // writeParentSourced writes the parent-sourced marker line followed by body
-// verbatim — the shared tail of fetchShowFallback and
-// fetchShowChunkFallback.
+// verbatim — the tail of fetchShowFallback.
 func writeParentSourced(stdout io.Writer, body []byte) error {
 	_, writeErr := io.WriteString(stdout, parentSourcedMarker)
 	if writeErr != nil {

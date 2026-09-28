@@ -19,7 +19,7 @@ func TestMergeQueryPayloads_ClustersStayLocalOnly(t *testing.T) {
 	local := queryPayload{Clusters: []queryCluster{{ID: 0, Phrase: "local phrase"}}}
 	parent := queryPayload{Clusters: []queryCluster{{ID: 0, Phrase: "parent phrase"}}}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
 
 	g.Expect(merged.Clusters).To(Equal(local.Clusters))
 }
@@ -45,7 +45,7 @@ func TestMergeQueryPayloads_CombinesAndSortsByScore(t *testing.T) {
 		},
 	}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
 
 	paths := make([]string, len(merged.Items))
 	for i, item := range merged.Items {
@@ -68,16 +68,19 @@ func TestMergeQueryPayloads_ContentBudgetCapsMergedChunks(t *testing.T) {
 
 	local := queryPayload{Items: []queryItem{
 		{Path: "l1", Kind: chunkItemKind, Score: 0.9, Content: long},
-		{Path: "l2", Kind: chunkItemKind, Score: 0.7, Content: long},
+		{Path: "l2", Kind: chunkItemKind, Score: 0.8, Content: long},
+		{Path: "l3", Kind: chunkItemKind, Score: 0.7, Content: long},
 	}}
+	// Parent chunks are dropped (Q1), so they never compete for the budget.
 	parent := queryPayload{Items: []queryItem{
-		{Path: "p1", Kind: chunkItemKind, Score: 0.8, Content: long},
+		{Path: "p1", Kind: chunkItemKind, Score: 0.85, Content: long},
 	}}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{ContentBudget: 2})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{ContentBudget: 2})
 
-	// Rank order: l1 (0.9), p1 (0.8), l2 (0.7) — content-budget=2 keeps the
+	// Rank order: l1 (0.9), l2 (0.8), l3 (0.7) — content-budget=2 keeps the
 	// first two chunks full, snippets the third.
+	g.Expect(merged.Items).To(HaveLen(3))
 	g.Expect(merged.Items[0].Content).To(Equal(long))
 	g.Expect(merged.Items[1].Content).To(Equal(long))
 	g.Expect(merged.Items[2].Content).NotTo(Equal(long))
@@ -97,7 +100,7 @@ func TestMergeQueryPayloads_LimitCapsTotalMergedSet(t *testing.T) {
 		{Path: "p1", Score: 0.85}, {Path: "p2", Score: 0.75},
 	}}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{Limit: 3})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{Limit: 3})
 
 	g.Expect(merged.Items).To(HaveLen(3))
 	g.Expect(merged.Items[0].Path).To(Equal("l1"))
@@ -127,7 +130,7 @@ func TestMergeQueryPayloads_LimitDoesNotStarveRecencyChannel(t *testing.T) {
 	local := queryPayload{Items: items}
 	parent := queryPayload{}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{Limit: 20})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{Limit: 20})
 
 	found := false
 
@@ -152,13 +155,14 @@ func TestMergeQueryPayloads_MismatchedModelIDStillMerges(t *testing.T) {
 	local := queryPayload{ModelID: "m@4", Items: []queryItem{{Path: "a", Score: 0.5}}}
 	parent := queryPayload{ModelID: "m@5-different", Items: []queryItem{{Path: "b", Score: 0.3}}}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
 
 	g.Expect(merged.Items).To(HaveLen(2))
 }
 
-// TestMergeQueryPayloads_ORsAdvisoryFlags verifies RefitPending and
-// PendingOffers are true in the merged payload if either source has them.
+// TestMergeQueryPayloads_ORsAdvisoryFlags verifies RefitPending is true in
+// the merged payload if either source has it; PendingOffers follows the
+// local vault only (H4).
 func TestMergeQueryPayloads_ORsAdvisoryFlags(t *testing.T) {
 	t.Parallel()
 
@@ -167,7 +171,7 @@ func TestMergeQueryPayloads_ORsAdvisoryFlags(t *testing.T) {
 	local := queryPayload{RefitPending: false, PendingOffers: true}
 	parent := queryPayload{RefitPending: true, PendingOffers: false}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
 
 	g.Expect(merged.RefitPending).To(BeTrue())
 	g.Expect(merged.PendingOffers).To(BeTrue())
@@ -184,14 +188,14 @@ func TestMergeQueryPayloads_PayloadModelIDIsQueryingNodesOwn(t *testing.T) {
 	local := queryPayload{ModelID: "local-model"}
 	parent := queryPayload{ModelID: "parent-model"}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
 
 	g.Expect(merged.ModelID).To(Equal("local-model"))
 }
 
 // TestMergeQueryPayloads_PendingOffersHintFollowsFlag verifies the merged
-// payload carries the curate hint exactly when its merged PendingOffers flag
-// is true (from either source), and omits it otherwise.
+// payload carries the curate hint exactly when the local PendingOffers flag
+// is true, and omits it otherwise.
 func TestMergeQueryPayloads_PendingOffersHintFollowsFlag(t *testing.T) {
 	t.Parallel()
 
@@ -199,14 +203,10 @@ func TestMergeQueryPayloads_PendingOffersHintFollowsFlag(t *testing.T) {
 
 	withHint := queryPayload{PendingOffers: true, PendingOffersHint: pendingOfferCurateInstruction}
 
-	fromLocal := mergeQueryPayloads(withHint, queryPayload{}, QueryArgs{})
+	fromLocal := mergeQueryPayloads(withHint, queryPayload{}, nil, QueryArgs{})
 	g.Expect(fromLocal.PendingOffersHint).To(Equal(pendingOfferCurateInstruction))
 
-	fromParent := mergeQueryPayloads(queryPayload{}, withHint, QueryArgs{})
-	g.Expect(fromParent.PendingOffers).To(BeTrue())
-	g.Expect(fromParent.PendingOffersHint).To(Equal(pendingOfferCurateInstruction))
-
-	neither := mergeQueryPayloads(queryPayload{}, queryPayload{}, QueryArgs{})
+	neither := mergeQueryPayloads(queryPayload{}, queryPayload{}, nil, QueryArgs{})
 	g.Expect(neither.PendingOffers).To(BeFalse())
 	g.Expect(neither.PendingOffersHint).To(BeEmpty())
 }
@@ -226,15 +226,15 @@ func TestMergeQueryPayloads_RecencyItemsDoNotCountAgainstMainRanking(t *testing.
 	}}
 	parent := queryPayload{}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
 
 	g.Expect(merged.Items[0].Path).To(Equal("matched-low"), "matched item ranks before recency channel")
 	g.Expect(merged.Items[1].Path).To(Equal("recent"))
 }
 
 // TestMergeQueryPayloads_RecentFillCapsMergedRecencyChannel verifies
-// --recent-fill caps the combined recency-channel item count across both
-// sources, not each source independently.
+// --recent-fill caps the merged recency channel, which holds local chunks
+// only.
 func TestMergeQueryPayloads_RecentFillCapsMergedRecencyChannel(t *testing.T) {
 	t.Parallel()
 
@@ -243,13 +243,15 @@ func TestMergeQueryPayloads_RecentFillCapsMergedRecencyChannel(t *testing.T) {
 	local := queryPayload{Items: []queryItem{
 		{Path: "l-recent-1", Score: 0, Provenances: []string{provenanceRecent}},
 		{Path: "l-recent-2", Score: 0, Provenances: []string{provenanceRecent}},
+		{Path: "l-recent-3", Score: 0, Provenances: []string{provenanceRecent}},
 	}}
+	// The parent's recency channel is dropped (Q1).
 	parent := queryPayload{Items: []queryItem{
 		{Path: "p-recent-1", Score: 0, Provenances: []string{provenanceRecent}},
 		{Path: "p-recent-2", Score: 0, Provenances: []string{provenanceRecent}},
 	}}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{RecentFill: 2})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{RecentFill: 2})
 
 	recentCount := 0
 
@@ -280,7 +282,7 @@ func TestMergeQueryPayloads_TagsItemsWithOriginAndModelID(t *testing.T) {
 		Items:   []queryItem{{Path: "parent-item", Score: 0.5}},
 	}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{})
 
 	g.Expect(merged.Items).To(ConsistOf(
 		queryItem{Path: "local-item", Score: 0.9, ModelID: "local-model", FromParent: false},
@@ -310,7 +312,7 @@ func TestMergeQueryPayloads_TriggerHitsLeadAndBypassLimit(t *testing.T) {
 		},
 	}
 
-	merged := mergeQueryPayloads(local, parent, QueryArgs{Limit: 1})
+	merged := mergeQueryPayloads(local, parent, nil, QueryArgs{Limit: 1})
 
 	paths := make([]string, len(merged.Items))
 	for i, item := range merged.Items {

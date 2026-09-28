@@ -500,14 +500,7 @@ func showTargets(
 	return []any{
 		targ.Targ(func(ctx context.Context, a ShowArgs) {
 			if a.Parent {
-				parent, parentErr := resolveParentOrError(deps)
-				if parentErr != nil {
-					errHandler(parentErr)
-
-					return
-				}
-
-				errHandler(fetchShow(withLog(ctx), deps, parent, a, deps.Stdout))
+				errHandler(dispatchShowParent(withLog(ctx), deps, a, home, deps.Stdout))
 
 				return
 			}
@@ -515,20 +508,8 @@ func showTargets(
 			errHandler(dispatchShow(withLog(ctx), deps, a, home, deps.Stdout))
 		}).Name("show").Description("Print a note and its outbound wikilink targets (read-only)"),
 		targ.Targ(func(ctx context.Context, a ShowChunkArgs) {
-			if a.Parent {
-				parent, parentErr := resolveParentOrError(deps)
-				if parentErr != nil {
-					errHandler(parentErr)
-
-					return
-				}
-
-				errHandler(fetchShowChunk(withLog(ctx), deps, parent, a, deps.Stdout))
-
-				return
-			}
-
-			errHandler(dispatchShowChunk(withLog(ctx), deps, a, home, deps.Stdout))
+			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
+			errHandler(RunShowChunk(withLog(ctx), a, newShowChunkDeps(deps), deps.Stdout))
 		}).Name("show-chunk").Description("Print a chunk's text by its source#anchor id (read-only)"),
 	}
 }

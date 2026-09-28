@@ -16,7 +16,6 @@ import (
 
 	"github.com/toejough/targ"
 
-	"github.com/toejough/engram/internal/chunk"
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/embed"
 )
@@ -45,7 +44,7 @@ func TestFetchQueryPayload_AllParamsSet(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(got.method).To(Equal("GET"))
 	g.Expect(got.url).To(Equal(
-		"http://parent-host:8420/query?content-budget=9&lazy-chunks=true&limit=7" +
+		"http://parent-host:8420/query?content-budget=9&dedupe-keys=1&lazy-chunks=true&limit=7" +
 			"&phrase=hello&project=engram&recent-fill=2&timings=true",
 	))
 }
@@ -344,145 +343,9 @@ func TestServeTarget_ResolvesArgsAndCallsRunServe(t *testing.T) {
 	g.Expect(gotAddr).To(Equal("127.0.0.1:0"))
 }
 
-// TestShowChunkFallback_LocalHitDoesNotContactParent mirrors
-// TestShowFallback_LocalHitDoesNotContactParent for show-chunk: a locally
-// resolvable chunk id is returned without ever consulting ENGRAM_PARENT.
-func TestShowChunkFallback_LocalHitDoesNotContactParent(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	chunksDir := t.TempDir()
-	records := []chunk.Record{
-		{Source: "/s/a.jsonl", Anchor: "turn-1", ContentHash: "sha256:aa", Text: "local chunk text"},
-	}
-
-	data, encodeErr := chunk.EncodeRecords(records)
-	g.Expect(encodeErr).NotTo(HaveOccurred())
-
-	if encodeErr != nil {
-		return
-	}
-
-	g.Expect(os.WriteFile(filepath.Join(chunksDir, "idx.jsonl"), data, 0o600)).To(Succeed())
-
-	fetchCalled := false
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "show-chunk", "/s/a.jsonl#turn-1", "--chunks-dir", chunksDir}, func(d *cli.Deps) {
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				fetchCalled = true
-
-				return cli.FetchResponse{}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(fetchCalled).To(BeFalse())
-	g.Expect(stdout).To(Equal("local chunk text\n"))
-}
-
-// TestShowChunkFallback_LocalMissNoParentConfiguredErrorsUnchanged mirrors
-// TestShowFallback_LocalMissNoParentConfiguredErrorsUnchanged for
-// show-chunk.
-func TestShowChunkFallback_LocalMissNoParentConfiguredErrorsUnchanged(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	chunksDir := t.TempDir()
-	fetchCalled := false
-
-	_, stderr := executeCapturingBoth(t,
-		[]string{"engram", "show-chunk", "src.md#anchor", "--chunks-dir", chunksDir}, func(d *cli.Deps) {
-			d.Getenv = func(string) string { return "" }
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				fetchCalled = true
-
-				return cli.FetchResponse{}, nil
-			}
-		})
-
-	g.Expect(stderr).To(ContainSubstring("chunk not found"))
-	g.Expect(fetchCalled).To(BeFalse())
-}
-
-// TestShowChunkFallback_LocalMissRoutesToParentLabeled mirrors
-// TestShowFallback_LocalMissRoutesToParentLabeled for show-chunk.
-func TestShowChunkFallback_LocalMissRoutesToParentLabeled(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	chunksDir := t.TempDir()
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "show-chunk", "src.md#anchor", "--chunks-dir", chunksDir}, func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url}
-
-				return cli.FetchResponse{Status: 200, Body: []byte("parent chunk text\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(got.url).To(Equal("http://parent-host:8420/show-chunk?id=src.md%23anchor"))
-	g.Expect(stdout).To(Equal("# from_parent: true\nparent chunk text\n"))
-}
-
-// TestShowChunkParent_RoutesThroughFetch mirrors TestShowParent_RoutesThroughFetch
-// for `engram show-chunk --parent`.
-func TestShowChunkParent_RoutesThroughFetch(t *testing.T) {
-	g := NewWithT(t)
-	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
-
-	var got fakeFetchCall
-
-	stdout, stderr := executeCapturingBoth(t,
-		[]string{"engram", "show-chunk", "src.md#anchor", "--parent"}, func(d *cli.Deps) {
-			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
-				got = fakeFetchCall{method: method, url: url}
-
-				return cli.FetchResponse{Status: 200, Body: []byte("parent chunk text\n")}, nil
-			}
-		})
-
-	g.Expect(stderr).To(BeEmpty())
-	g.Expect(stdout).To(Equal("parent chunk text\n"))
-	g.Expect(got.url).To(Equal("http://parent-host:8420/show-chunk?id=src.md%23anchor"))
-}
-
-// TestShowChunkParent_WithoutEngramParentErrors mirrors
-// TestShowParent_WithoutEngramParentErrors for show-chunk. Getenv is
-// stubbed to "" for the same reason: t.Parallel() forbids t.Setenv, so
-// this can't force ENGRAM_PARENT unset that way, and must not depend on
-// the ambient environment actually leaving it unset.
-func TestShowChunkParent_WithoutEngramParentErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fetchCalled := false
-
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show-chunk", "src.md#anchor", "--parent"},
-		func(d *cli.Deps) {
-			d.Getenv = func(string) string { return "" }
-			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-				fetchCalled = true
-
-				return cli.FetchResponse{}, nil
-			}
-		})
-
-	g.Expect(stderr).NotTo(BeEmpty())
-	g.Expect(fetchCalled).To(BeFalse())
-}
-
 // TestShowChunkTarget_LocalDispatch covers show-chunk's local (non-served)
-// branch through Targets(). Getenv is stubbed to "" for
-// the same reason as TestTargets_QueryEmptyVault: this test means to
-// exercise the local-only not-found path, and newTestDeps wires the real
-// os.Getenv, so an ambient ENGRAM_PARENT would otherwise route the miss
-// into dispatchShowChunk's vault-merged-recall fallback, which needs
-// deps.Fetch — never wired here.
+// branch through Targets(). Getenv is stubbed to "" so the test never
+// depends on the ambient environment (show-chunk resolves locally only).
 func TestShowChunkTarget_LocalDispatch(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -582,7 +445,7 @@ func TestShowParent_NonOKResponse_MalformedBody_FallsBackToRawText(t *testing.T)
 	t.Parallel()
 	g := NewWithT(t)
 
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note", "--parent"},
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note", "--parent", "--vault", t.TempDir()},
 		func(d *cli.Deps) {
 			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
 			d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
@@ -600,7 +463,7 @@ func TestShowParent_NonOKResponse_SurfacesError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note", "--parent"},
+	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "missing-note", "--parent", "--vault", t.TempDir()},
 		func(d *cli.Deps) {
 			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
 			d.Fetch = func(_ context.Context, _, _ string, _ []byte) (cli.FetchResponse, error) {
@@ -622,7 +485,8 @@ func TestShowParent_PercentEncodesQueryValues(t *testing.T) {
 
 	var got fakeFetchCall
 
-	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.2026-01-01.a note", "--parent"},
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show", "1.2026-01-01.a note", "--parent", "--vault", t.TempDir()},
 		func(d *cli.Deps) {
 			d.Getenv = parentOnlyGetenv("http://parent-host:8420")
 			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
@@ -645,13 +509,14 @@ func TestShowParent_RoutesThroughFetch(t *testing.T) {
 
 	var got fakeFetchCall
 
-	stdout, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent"}, func(d *cli.Deps) {
-		d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
-			got = fakeFetchCall{method: method, url: url}
+	stdout, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show", "1.hub", "--parent", "--vault", t.TempDir()}, func(d *cli.Deps) {
+			d.Fetch = func(_ context.Context, method, url string, _ []byte) (cli.FetchResponse, error) {
+				got = fakeFetchCall{method: method, url: url}
 
-			return cli.FetchResponse{Status: 200, Body: []byte("parent note content\n")}, nil
-		}
-	})
+				return cli.FetchResponse{Status: 200, Body: []byte("parent note content\n")}, nil
+			}
+		})
 
 	g.Expect(stderr).To(BeEmpty())
 	g.Expect(stdout).To(Equal("parent note content\n"))
@@ -669,14 +534,15 @@ func TestShowParent_WithoutEngramParentErrors(t *testing.T) {
 
 	fetchCalled := false
 
-	_, stderr := executeCapturingBoth(t, []string{"engram", "show", "1.hub", "--parent"}, func(d *cli.Deps) {
-		d.Getenv = func(string) string { return "" }
-		d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
-			fetchCalled = true
+	_, stderr := executeCapturingBoth(t,
+		[]string{"engram", "show", "1.hub", "--parent", "--vault", t.TempDir()}, func(d *cli.Deps) {
+			d.Getenv = func(string) string { return "" }
+			d.Fetch = func(context.Context, string, string, []byte) (cli.FetchResponse, error) {
+				fetchCalled = true
 
-			return cli.FetchResponse{}, nil
-		}
-	})
+				return cli.FetchResponse{}, nil
+			}
+		})
 
 	g.Expect(stderr).NotTo(BeEmpty())
 	g.Expect(fetchCalled).To(BeFalse())
