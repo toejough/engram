@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"go.yaml.in/yaml/v3"
+
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/luhmann"
 )
@@ -53,9 +55,17 @@ type ActivateDeps struct {
 	// when no parent is configured, and for a served activate, which never
 	// reaches past its own vault. It runs with no vault lock held.
 	Pull func(ctx context.Context, ref string) error
-	// Finish runs once after every pull, with no lock held (the drain
-	// after a parent contact, design D6); nil when there is no parent.
+	// Finish runs once after every pull and recheck, with no lock held
+	// (the drain after a parent contact, design D6); nil when there is no
+	// parent.
 	Finish func(ctx context.Context)
+	// Recheck re-checks one parent link of a local hit against the parent
+	// (ruling S31): the parent note's current exchange hash, fetched
+	// through the gated, backoff-aware contact, is pulled down as a pending
+	// offer when it is not the link's and was not declined. nil when no
+	// parent is configured, and for a served activate. It runs with no
+	// vault lock held; its failure never fails the local activate.
+	Recheck func(ctx context.Context, link linkedParentNote) error
 }
 
 // RunActivate marks each ref used (design D8). A ref whose .md exists
@@ -113,25 +123,36 @@ func (r *activateResult) fail(deps ActivateDeps, ref string, err error) {
 	})
 }
 
+// linkedParentNote is one parent note a local note links to: the parent
+// vault ID the link is keyed under and the parent basename.
+type linkedParentNote struct {
+	vault    string
+	basename string
+}
+
 // activateLocally is the locked pass: it bumps every local hit, records
-// each ref's outcome, and returns the refs to pull from the parent.
-func activateLocally(args ActivateArgs, deps ActivateDeps, result *activateResult) ([]string, error) {
+// each ref's outcome, and returns the refs to pull from the parent and,
+// when rechecks are wired, the parent notes the local hits link to.
+func activateLocally(
+	args ActivateArgs, deps ActivateDeps, result *activateResult,
+) ([]string, []linkedParentNote, error) {
 	// Acquire the vault lock before the bump loop so a concurrent amend/resituate
 	// re-embed cannot clobber the freshly-written vectors with stale ones. bumpLastUsed
 	// must NOT re-acquire the lock (RunAmend already holds it when it calls
 	// reEmbedAndActivate→bumpLastUsed — re-acquiring would self-deadlock).
 	release, lockErr := acquireOptionalLock(deps.Lock, args.Vault)
 	if lockErr != nil {
-		return nil, fmt.Errorf("activate: acquiring vault lock: %w", lockErr)
+		return nil, nil, fmt.Errorf("activate: acquiring vault lock: %w", lockErr)
 	}
 
 	defer release()
 
 	date := deps.Now().Format(noteDateFormat)
 	remote := make([]string, 0, len(args.Notes))
+	rechecks := make([]linkedParentNote, 0, len(args.Notes))
 
 	for _, ref := range args.Notes {
-		pull, refErr := activateRef(args, deps, ref, date)
+		pull, local, refErr := activateRef(args, deps, ref, date)
 
 		switch {
 		case refErr != nil:
@@ -140,43 +161,48 @@ func activateLocally(args ActivateArgs, deps ActivateDeps, result *activateResul
 			remote = append(remote, ref)
 		default:
 			result.Activated = append(result.Activated, ref)
+
+			if deps.Recheck != nil {
+				rechecks = appendParentLinks(rechecks, deps.Read, local)
+			}
 		}
 	}
 
-	return remote, nil
+	return remote, rechecks, nil
 }
 
-// activateRef resolves one ref in the locked pass: a local hit is bumped,
-// a parent candidate is reported for pulling, anything else fails.
-func activateRef(args ActivateArgs, deps ActivateDeps, ref, date string) (bool, error) {
+// activateRef resolves one ref in the locked pass: a local hit is bumped
+// (and its note file returned), a parent candidate is reported for
+// pulling, anything else fails.
+func activateRef(args ActivateArgs, deps ActivateDeps, ref, date string) (bool, string, error) {
 	if args.Parent {
 		// --parent never looks locally, so a non-candidate ref is only "not
 		// sent", never "not found".
 		if !isParentCandidate(ref) {
-			return false, errActivateNotSent
+			return false, "", errActivateNotSent
 		}
 
-		return true, nil
+		return true, "", nil
 	}
 
 	full, found, resolveErr := resolveLocalRef(args, deps, ref)
 	if resolveErr != nil {
-		return false, resolveErr
+		return false, "", resolveErr
 	}
 
 	if found {
-		return false, bumpLocalHit(deps, full, date)
+		return false, full, bumpLocalHit(deps, full, date)
 	}
 
 	if deps.Pull == nil {
-		return false, errActivateNotFound
+		return false, "", errActivateNotFound
 	}
 
 	if !isParentCandidate(ref) {
-		return false, fmt.Errorf("%w; %w", errActivateNotFound, errActivateNotSent)
+		return false, "", fmt.Errorf("%w; %w", errActivateNotFound, errActivateNotSent)
 	}
 
-	return true, nil
+	return true, "", nil
 }
 
 // activateRefs runs activate and returns each ref's outcome; the error is
@@ -189,7 +215,7 @@ func activateRefs(ctx context.Context, args ActivateArgs, deps ActivateDeps) (ac
 
 	var result activateResult
 
-	remote, lockErr := activateLocally(args, deps, &result)
+	remote, rechecks, lockErr := activateLocally(args, deps, &result)
 	if lockErr != nil {
 		return activateResult{}, lockErr
 	}
@@ -207,11 +233,52 @@ func activateRefs(ctx context.Context, args ActivateArgs, deps ActivateDeps) (ac
 		result.Activated = append(result.Activated, ref)
 	}
 
-	if len(remote) > 0 && deps.Finish != nil {
+	// Rechecks of linked local hits are best-effort (ruling S31): the local
+	// activate already succeeded, so a failed recheck — the parent
+	// unreachable, backed off, or the note gone there — changes nothing.
+	for _, link := range rechecks {
+		_ = deps.Recheck(ctx, link)
+	}
+
+	if len(remote)+len(rechecks) > 0 && deps.Finish != nil {
 		deps.Finish(ctx)
 	}
 
 	return result, nil
+}
+
+// appendParentLinks appends the parent notes the local note at path links
+// to (each link's basename under the note's parent vault), skipping ones
+// already collected. An unreadable or link-less note adds nothing.
+func appendParentLinks(
+	links []linkedParentNote, read func(string) ([]byte, error), path string,
+) []linkedParentNote {
+	raw, readErr := read(path)
+	if readErr != nil {
+		return links
+	}
+
+	frontmatter, found := splitFrontmatter(raw)
+	if !found {
+		return links
+	}
+
+	var probe struct {
+		Parent parentLinks `yaml:"parent"`
+	}
+
+	if yaml.Unmarshal(frontmatter, &probe) != nil || !isExchangeID(probe.Parent.Vault) {
+		return links
+	}
+
+	for _, link := range probe.Parent.Links {
+		target := linkedParentNote{vault: probe.Parent.Vault, basename: link.Note}
+		if isExchangeBasename(link.Note) && !slices.Contains(links, target) {
+			links = append(links, target)
+		}
+	}
+
+	return links
 }
 
 // bumpLastUsed reads a note's sidecar, sets LastUsed=date, and rewrites it.

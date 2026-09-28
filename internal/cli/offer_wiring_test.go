@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -378,6 +379,9 @@ type recordingParent struct {
 	notes        []fakeParentNote
 	showMode     string
 	activateDown bool
+	// queryNotes makes GET /query return every parent note as a direct
+	// note item, with its dedupe keys when they are asked for.
+	queryNotes bool
 }
 
 func (p *recordingParent) fetch(_ context.Context, method, url string, body []byte) (cli.FetchResponse, error) {
@@ -466,9 +470,29 @@ func (p *recordingParent) queryResponse(url string) cli.FetchResponse {
 		return cli.FetchResponse{Status: p.queryStatus, Body: []byte(`{"error":"bad probe"}`)}
 	}
 
+	dedupeKeys := strings.Contains(url, "dedupe-keys=true") || strings.Contains(url, "dedupe-keys=1")
+
 	body := "version: 1\n"
-	if !p.queryNoID && (strings.Contains(url, "dedupe-keys=true") || strings.Contains(url, "dedupe-keys=1")) {
+	if !p.queryNoID && dedupeKeys {
 		body += "vault_id: " + p.reportedVaultID() + "\n"
+	}
+
+	if p.queryNotes && len(p.notes) > 0 {
+		var items strings.Builder
+
+		items.WriteString("items:\n")
+
+		for _, note := range p.notes {
+			items.WriteString("  - path: " + note.basename + ".md\n    kind: fact\n    score: 0.9\n" +
+				"    provenances: [direct]\n    content: " + strconv.Quote(note.content) + "\n")
+
+			if dedupeKeys {
+				hash, _ := cli.ExportExchangeHash([]byte(note.content))
+				items.WriteString("    exchange_hash: " + hash + "\n")
+			}
+		}
+
+		body += items.String()
 	}
 
 	return cli.FetchResponse{Status: 200, Body: []byte(body)}

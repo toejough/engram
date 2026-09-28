@@ -212,6 +212,48 @@ func (s *pullSession) queuedOffers() int {
 	return queuedOfferCount(box)
 }
 
+// recheck re-checks one parent link of a local hit (ruling S31, final
+// review F1): the merged query keeps a linked local copy in place of its
+// parent note, so a use of that copy is where a changed parent note comes
+// back down. It skips a link under another parent vault (without contact
+// when the parent's ID is cached), then fetches the raw envelope through
+// the same gated, backoff-aware contact as a pull and writes under the
+// lock exactly as a pull does: nothing when the parent's hash is the
+// link's (or a declined one), otherwise a new pending copy. It never
+// signals use to the parent.
+func (s *pullSession) recheck(ctx context.Context, link linkedParentNote) error {
+	cached := cachedParentVaultID(s.store.state, s.vault, s.parentURL)
+	if cached != "" && cached != link.vault {
+		return nil
+	}
+
+	if !s.prepare() {
+		return errPullPaused
+	}
+
+	envelope, fetchErr := s.fetchEnvelope(ctx, link.basename+mdExt)
+	if fetchErr != nil {
+		return fetchErr
+	}
+
+	if selfParentGuard(s.localID, envelope.VaultID, s.deps.Stderr) {
+		s.paused = true
+
+		return errPullSelfParent
+	}
+
+	if envelope.VaultID != link.vault {
+		return nil
+	}
+
+	source, parseErr := parsePulledSource(envelope)
+	if parseErr != nil {
+		return parseErr
+	}
+
+	return s.writeUnderLock(ctx, envelope, source)
+}
+
 // signalUse is the best-effort parent bump (design D8 step 5, Q2): POST
 // /activate for the parent note after the lock is released. Its failure is
 // neither fatal nor queued, and never backs the parent off.
@@ -508,6 +550,7 @@ func newPullingActivateDeps(deps Deps, args ActivateArgs) ActivateDeps {
 	}
 
 	activate.Pull = session.pull
+	activate.Recheck = session.recheck
 	activate.Finish = session.finish
 
 	return activate
