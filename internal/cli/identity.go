@@ -23,6 +23,16 @@ type identityStamp struct {
 	Vault string
 }
 
+// stamp overwrites repo, user and vault with the stamp's values. A nil stamp
+// (a bookkeeping amend) leaves them as they are.
+func (s *identityStamp) stamp(repo, user, vault *string) {
+	if s == nil {
+		return
+	}
+
+	*repo, *user, *vault = s.Repo, s.User, s.Vault
+}
+
 // detectRepo resolves the repo: frontmatter field: the working directory's
 // git origin remote URL, falling back to the git root directory's basename
 // when no origin remote is configured, empty when the working directory

@@ -21,6 +21,35 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
+// TestExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty (ruling S6): the
+// canonical body normalizes CRLF to LF and ends in exactly one newline, so the
+// LF, CRLF, and missing-final-newline spellings of the same body hash equally
+// on both sides of an exchange.
+func TestExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		note := exchangeHashNoteGen().Draw(rt, "note")
+		lines := rapid.SliceOfN(exchangeBodyGen(), 1, 4).Draw(rt, "lines")
+		frontmatter, _ := yaml.Marshal(note.fields)
+		head := "---\n" + string(frontmatter) + "---\n\n"
+
+		lf := strings.Join(lines, "\n")
+		crlf := strings.Join(lines, "\r\n")
+		want := mustExchangeHash(rt, head+lf+"\n")
+
+		for name, body := range map[string]string{
+			"LF, no final newline":   lf,
+			"CRLF":                   crlf + "\r\n",
+			"CRLF, no final newline": crlf,
+		} {
+			if got := mustExchangeHash(rt, head+body); got != want {
+				rt.Fatalf("%s body hashed %s, LF body hashed %s", name, got, want)
+			}
+		}
+	})
+}
+
 // TestExchangeHash_ClassificationCoversEveryFrontmatterKey is the r3-5
 // reflection test: every YAML key of the fact, feedback and runbook
 // frontmatter structs is classified as offered or not offered, and the table
@@ -284,6 +313,31 @@ func TestExchangeHash_UnknownPerConsumer(t *testing.T) {
 			g.Expect(consumer.decide("", "")).To(Equal(consumer.want.unknown), "on unknown (missing)")
 		})
 	}
+}
+
+// TestExchangeHash_UnterminatedFrontmatterIsWholeTextBody pins the hash of a
+// note whose leading "---" block never closes: it is not an error, and the
+// whole text is the body with every offered frontmatter field empty. This is
+// the reading every other engram path already takes (embed.SplitFrontmatter
+// finds no frontmatter, so ExtractBody, ContentHash and show all treat the
+// text as body), and an error would let one malformed note stall an outbox
+// drain or a dedupe pass. Two such notes still hash differently whenever
+// their text differs.
+func TestExchangeHash_UnterminatedFrontmatterIsWholeTextBody(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	note := "---\ntype: fact\nsituation: never closed\n\nbody text\n"
+
+	canonical := `{"action":"","behavior":"",` +
+		`"body":"---\ntype: fact\nsituation: never closed\n\nbody text\n",` +
+		`"done_when":"","impact":"","object":"","predicate":"","red_flags":[],` +
+		`"situation":"","subject":"","triggers":[],"type":""}`
+	sum := sha256.Sum256([]byte(canonical))
+
+	got, err := cli.ExportExchangeHash([]byte(note))
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got).To(Equal("xh1:" + hex.EncodeToString(sum[:])))
 }
 
 // unexported variables.

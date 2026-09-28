@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
+
+	"go.yaml.in/yaml/v3"
 
 	"github.com/toejough/engram/internal/embed"
 	"github.com/toejough/engram/internal/luhmann"
@@ -56,8 +59,9 @@ func RebuildNoteSidecars(
 
 // RenameAndRewriteReferences renames every vault note whose basename is a key in
 // renameMap to its mapped new basename (plus its .vec.json sidecar), updates the
-// renamed note's own frontmatter luhmann: field to the new ID, and — in the same
-// pass — rewrites every note's [[old-basename]] wikilink (including the legacy
+// renamed note's own frontmatter luhmann: field to the new ID, appends the old
+// basename to the renamed note's aliases (in that same write), and — in the
+// same pass — rewrites every note's [[old-basename]] wikilink (including the legacy
 // [[old-basename.md]] form) in its body AND any frontmatter string field,
 // "Supersedes: [[old-basename]]" body line, and
 // frontmatter supersedes: list note: field naming an old basename, to the
@@ -77,8 +81,8 @@ func RebuildNoteSidecars(
 // It returns the (post-rename) path of every note whose references it
 // rewrote, in ListMD order: those notes' embedded content changed, so their
 // .vec.json sidecars are stale until rebuilt (RebuildNoteSidecars). A renamed
-// note whose only change is its luhmann: field is not listed — frontmatter
-// outside situation: does not feed embed.ContentHash.
+// note whose only changes are its luhmann: field and aliases is not listed —
+// frontmatter outside situation: does not feed embed.ContentHash.
 func RenameAndRewriteReferences(
 	deps RenameRewriteDeps, vault string, renameMap map[string]string,
 ) ([]string, error) {
@@ -107,10 +111,65 @@ func RenameAndRewriteReferences(
 	return rewritten, nil
 }
 
+// unexported constants.
+const (
+	aliasesKey = "aliases"
+)
+
 // unexported variables.
 var (
 	reparentWikilinkPattern = regexp.MustCompile(`\[\[([^\]\n]+)\]\]`)
 )
+
+// appendAliasField appends alias to content's frontmatter aliases: list
+// (design D4 H2: a renamed note answers to its old basename), creating the
+// list when absent and leaving content unchanged when alias is already
+// listed or content has no frontmatter. Only the aliases: key is touched:
+// an existing list, in any YAML sequence style, is replaced in place by the
+// block form the frontmatter writer emits; a new list goes before offer:
+// when present (the writer's key order), else at the end.
+func appendAliasField(content, alias string) (string, error) {
+	frontmatter, body, ok := splitFrontmatterAndBody(content)
+	if !ok {
+		return content, nil
+	}
+
+	var existing struct {
+		Aliases []string `yaml:"aliases"`
+	}
+
+	lines := strings.Split(frontmatter, "\n")
+	start := yamlKeyLineIndex(frontmatter, aliasesKey)
+	end := start
+
+	if start >= 0 {
+		end = yamlValueEndLine(lines, start, aliasesKey)
+
+		unmarshalErr := yaml.Unmarshal([]byte(strings.Join(lines[start:end], "\n")), &existing)
+		if unmarshalErr != nil {
+			return "", fmt.Errorf("parsing aliases: %w", unmarshalErr)
+		}
+	}
+
+	if slices.Contains(existing.Aliases, alias) {
+		return content, nil
+	}
+
+	existing.Aliases = append(existing.Aliases, alias)
+	rendered, _ := yaml.Marshal(existing)
+	block := strings.TrimSuffix(string(rendered), "\n")
+
+	if start < 0 {
+		return fmStart + insertYAMLBlock(frontmatter, block, yamlKeyLineIndex(frontmatter, "offer")) + fmEnd + body, nil
+	}
+
+	kept := make([]string, 0, len(lines)-(end-start)+1)
+	kept = append(kept, lines[:start]...)
+	kept = append(kept, block)
+	kept = append(kept, lines[end:]...)
+
+	return fmStart + strings.Join(kept, "\n") + fmEnd + body, nil
+}
 
 // isTopLevelYAMLLine reports whether line starts a top-level frontmatter key:
 // it is non-blank and starts neither with indentation nor with a column-0
@@ -156,7 +215,7 @@ func renameAndRewriteOneNote(
 
 	newBasename, renaming := renameMap[basename]
 	if renaming {
-		newPath, renameErr := renameOneNote(deps, oldPath, vault, newBasename, updated)
+		newPath, renameErr := renameOneNote(deps, oldPath, vault, basename, newBasename, updated)
 		if renameErr != nil {
 			return "", renameErr
 		}
@@ -177,12 +236,18 @@ func renameAndRewriteOneNote(
 }
 
 // renameOneNote renames oldPath's note file and its .vec.json sidecar to
-// newBasename, updates the note's own luhmann: frontmatter field, writes the
-// (already reference-rewritten) updated content to the new path, and returns
-// that new path.
-func renameOneNote(deps RenameRewriteDeps, oldPath, vault, newBasename, updated string) (string, error) {
+// newBasename, updates the note's own luhmann: frontmatter field, appends
+// oldBasename to its aliases (design D4 H2), writes the (already
+// reference-rewritten) updated content to the new path in one write, and
+// returns that new path.
+func renameOneNote(deps RenameRewriteDeps, oldPath, vault, oldBasename, newBasename, updated string) (string, error) {
 	newID, _ := luhmann.FromBasename(newBasename)
 	updated = rewriteLuhmannIDField(updated, newID)
+
+	updated, aliasErr := appendAliasField(updated, oldBasename)
+	if aliasErr != nil {
+		return "", fmt.Errorf("recording alias on %s: %w", oldPath, aliasErr)
+	}
 
 	newPath := filepath.Join(vault, newBasename+mdExt)
 

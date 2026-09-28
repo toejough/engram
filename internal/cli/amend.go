@@ -101,10 +101,12 @@ type AmendDeps struct {
 	// called by the content-amend path.
 	Remove func(path string) error
 	// DetectRepo and DetectUser resolve the repo:/user: identity fields
-	// fresh on every amend call (see internal/cli/identity.go) — amend
-	// re-stamps them unconditionally, it never preserves the note's prior
-	// values. Vault: is resolved from args.VaultName by the caller
-	// (targets.go), same as args.Vault's path resolution.
+	// fresh on every content, --supersedes or --chunk-source amend (see
+	// internal/cli/identity.go), which re-stamps them regardless of the
+	// note's prior values; bookkeeping amends (--activate, --clear-pending)
+	// never call them and preserve the note's values. Vault: is resolved
+	// from args.VaultName by the caller (targets.go), same as args.Vault's
+	// path resolution.
 	DetectRepo   func(ctx context.Context) string
 	DetectUser   func(ctx context.Context) string
 	LoadChunkIDs func(
@@ -167,11 +169,7 @@ func RunAmend(ctx context.Context, args AmendArgs, deps AmendDeps, stdout io.Wri
 		return validateErr
 	}
 
-	identity := identityStamp{
-		Repo:  deps.DetectRepo(ctx),
-		User:  deps.DetectUser(ctx),
-		Vault: args.VaultName,
-	}
+	identity := amendIdentity(ctx, args, deps)
 
 	amended, contentChanged, amendErr := amendContent(raw, args, parsedSupersedes, identity)
 	if amendErr != nil {
@@ -220,7 +218,7 @@ type fieldOverride struct {
 type typedAmend[T any] struct {
 	kind     string
 	created  func(doc T) string
-	override func(doc *T, args AmendArgs, parsedSupersedes []supersedesEntry, identity identityStamp) bool
+	override func(doc *T, args AmendArgs, parsedSupersedes []supersedesEntry, identity *identityStamp) bool
 	render   func(doc T, when time.Time, body string, contentChanged bool) string
 }
 
@@ -228,7 +226,7 @@ type typedAmend[T any] struct {
 // updated content, whether the semantic content changed (triggers re-embed),
 // and any error. Provenance-only or supersedes-only changes do NOT set contentChanged.
 func amendContent(
-	raw []byte, args AmendArgs, parsedSupersedes []supersedesEntry, identity identityStamp,
+	raw []byte, args AmendArgs, parsedSupersedes []supersedesEntry, identity *identityStamp,
 ) (string, bool, error) {
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
@@ -249,6 +247,36 @@ func amendContent(
 	return updated, contentChanged, nil
 }
 
+// amendIdentity returns the identity a content-changing amend re-stamps, or
+// nil for a bookkeeping amend, which preserves the note's declared
+// repo:/user:/vault: (vault-note-identity, design D10 M6/G11). Only a
+// re-stamping amend runs identity detection.
+func amendIdentity(ctx context.Context, args AmendArgs, deps AmendDeps) *identityStamp {
+	if !amendRestampsIdentity(args) {
+		return nil
+	}
+
+	return &identityStamp{
+		Repo:  deps.DetectRepo(ctx),
+		User:  deps.DetectUser(ctx),
+		Vault: args.VaultName,
+	}
+}
+
+// amendRestampsIdentity reports whether an amend changes content or
+// relations — any content flag, --supersedes or --chunk-source — and so
+// re-stamps identity. --activate and --clear-pending alone are bookkeeping.
+func amendRestampsIdentity(args AmendArgs) bool {
+	contentFlags := []string{
+		args.Situation, args.Subject, args.Predicate, args.Object,
+		args.Behavior, args.Impact, args.Action, args.DoneWhen, args.Body,
+	}
+
+	return slices.ContainsFunc(contentFlags, func(value string) bool { return value != "" }) ||
+		len(args.RedFlags) > 0 || len(args.Triggers) > 0 ||
+		len(args.Supersedes) > 0 || len(args.ChunkSources) > 0
+}
+
 // applyAmendVocabAssignment performs only the term-assignment part of
 // applyVocabAssignmentAfterAmend, keeping the trigger check outside this
 // early-return chain.
@@ -265,7 +293,7 @@ func applyFactAmend(
 	args AmendArgs,
 	body string,
 	parsedSupersedes []supersedesEntry,
-	identity identityStamp,
+	identity *identityStamp,
 ) (string, bool, error) {
 	return applyTypedAmend(frontmatter, args, body, parsedSupersedes, identity, typedAmend[factFrontmatterDoc]{
 		kind:     "fact",
@@ -282,7 +310,7 @@ func applyFeedbackAmend(
 	args AmendArgs,
 	body string,
 	parsedSupersedes []supersedesEntry,
-	identity identityStamp,
+	identity *identityStamp,
 ) (string, bool, error) {
 	return applyTypedAmend(frontmatter, args, body, parsedSupersedes, identity, typedAmend[feedbackFrontmatterDoc]{
 		kind:     "feedback",
@@ -315,7 +343,7 @@ func applyFieldReplacement(
 	args AmendArgs,
 	body, noteType string,
 	parsedSupersedes []supersedesEntry,
-	identity identityStamp,
+	identity *identityStamp,
 ) (string, bool, error) {
 	frontmatter, _ := splitFrontmatter(raw) // already validated upstream
 
@@ -346,7 +374,7 @@ func applyRunbookAmend(
 	args AmendArgs,
 	body string,
 	parsedSupersedes []supersedesEntry,
-	identity identityStamp,
+	identity *identityStamp,
 ) (string, bool, error) {
 	var doc runbookFrontmatterDoc
 
@@ -361,7 +389,7 @@ func applyRunbookAmend(
 	}
 
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
-	doc.Repo, doc.User, doc.Vault = identity.Repo, identity.User, identity.Vault
+	identity.stamp(&doc.Repo, &doc.User, &doc.Vault)
 
 	if args.Pending != nil {
 		doc.Pending = *args.Pending
@@ -410,7 +438,7 @@ func applyTypedAmend[T any](
 	args AmendArgs,
 	body string,
 	parsedSupersedes []supersedesEntry,
-	identity identityStamp,
+	identity *identityStamp,
 	spec typedAmend[T],
 ) (string, bool, error) {
 	var doc T
@@ -539,10 +567,10 @@ func newAmendDeps(d Deps) AmendDeps {
 // supplied situation/subject/predicate/object overrides, reporting whether a
 // semantic field changed. Supersedes is written to doc.Supersedes when non-nil.
 func overrideFactFields(
-	doc *factFrontmatterDoc, args AmendArgs, parsedSupersedes []supersedesEntry, identity identityStamp,
+	doc *factFrontmatterDoc, args AmendArgs, parsedSupersedes []supersedesEntry, identity *identityStamp,
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
-	doc.Repo, doc.User, doc.Vault = identity.Repo, identity.User, identity.Vault
+	identity.stamp(&doc.Repo, &doc.User, &doc.Vault)
 
 	if args.Pending != nil {
 		doc.Pending = *args.Pending
@@ -567,10 +595,10 @@ func overrideFeedbackFields(
 	doc *feedbackFrontmatterDoc,
 	args AmendArgs,
 	parsedSupersedes []supersedesEntry,
-	identity identityStamp,
+	identity *identityStamp,
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
-	doc.Repo, doc.User, doc.Vault = identity.Repo, identity.User, identity.Vault
+	identity.stamp(&doc.Repo, &doc.User, &doc.Vault)
 
 	if args.Pending != nil {
 		doc.Pending = *args.Pending

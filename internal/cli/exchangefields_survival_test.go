@@ -9,12 +9,13 @@ package cli_test
 //
 // Renames are the one licensed change: a rename appends the old basename to
 // the renamed note's own aliases (task 3.5), so the renamed-note cases assert
-// the original aliases block survives as a prefix.
+// the exact aliases list: the original entries, then the old basename.
 
 import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -112,8 +113,8 @@ func TestExchangeFieldsSurvive_AmendProperty(t *testing.T) {
 }
 
 // TestExchangeFieldsSurvive_AmendResituateProperty is the property form for
-// resituate, which re-renders fact/feedback notes from a hand-copied field
-// list rather than the parsed doc.
+// resituate, which round-trips the fact/feedback frontmatter doc with only
+// situation replaced.
 func TestExchangeFieldsSurvive_AmendResituateProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
@@ -223,7 +224,7 @@ func TestExchangeFieldsSurvive_RegisterSkillsAdopt(t *testing.T) {
 				return
 			}
 
-			expectExchangeFieldsSurviveRename(g, before, after)
+			expectExchangeFieldsSurviveRename(g, before, after, basename)
 		})
 	}
 }
@@ -291,14 +292,14 @@ func TestExchangeFieldsSurvive_ReparentRenamesNote(t *testing.T) {
 
 			after := string(fixture.written["/vault/"+newBasename+".md"])
 			g.Expect(after).To(ContainSubstring(`luhmann: "3"`), "the rename must actually have rewritten the note")
-			expectExchangeFieldsSurviveRename(g, before, after)
+			expectExchangeFieldsSurviveRename(g, before, after, oldBasename)
 		})
 	}
 }
 
 // TestExchangeFieldsSurvive_Resituate covers `engram resituate`
-// (resituate.go rerenderFact / rerenderFeedback), which rebuilds the
-// frontmatter from a hand-copied field list.
+// (resituate.go rerenderFact / rerenderFeedback), which round-trips the
+// frontmatter doc with only situation replaced.
 func TestExchangeFieldsSurvive_Resituate(t *testing.T) {
 	t.Parallel()
 
@@ -468,8 +469,14 @@ func TestExchangeFieldsSurvive_WikilinkRewrite(t *testing.T) {
 			g.Expect(err).NotTo(HaveOccurred())
 
 			after := string(fixture.written["/vault/"+exchangeSurvivalNoteName])
-			g.Expect(after).To(ContainSubstring("[[4.2026-01-01.old-target]]"),
-				"the wikilink must actually have been rewritten")
+			linkKey := "situation"
+			if noteType == "runbook" {
+				linkKey = "red_flags"
+			}
+
+			g.Expect(yamlKeyBlock(after, linkKey)).To(ContainSubstring("[[4.2026-01-01.old-target]]"),
+				"the frontmatter wikilink must actually have been rewritten")
+			g.Expect(yamlKeyBlock(after, linkKey)).NotTo(ContainSubstring(exchangeSurvivalLinkTarget))
 			expectExchangeFieldsUnchanged(g, before, after)
 		})
 	}
@@ -521,6 +528,16 @@ type exchangeFixtureParent struct {
 	Vault  string                `yaml:"vault,omitempty"`
 	Links  []exchangeFixtureLink `yaml:"links,omitempty"`
 	Author exchangeFixtureAuthor `yaml:"author,omitempty"`
+}
+
+// aliasesBlock renders the aliases: block a frontmatter writer emits for
+// aliases.
+func aliasesBlock(aliases []string) string {
+	block, _ := yaml.Marshal(struct {
+		Aliases []string `yaml:"aliases"`
+	}{aliases})
+
+	return strings.TrimSuffix(string(block), "\n")
 }
 
 // assertExchangeFieldsUnchanged is expectExchangeFieldsUnchanged for rapid.
@@ -698,18 +715,19 @@ func exchangeSurvivalSkillNote(exchange exchangeFixture) string {
 }
 
 // expectExchangeFieldsSurviveRename asserts the renamed note keeps xid,
-// parent and offer byte-unchanged and keeps its original aliases as a prefix
-// (a rename may append the old basename, task 3.5).
-func expectExchangeFieldsSurviveRename(g Gomega, before, after string) {
+// parent and offer byte-unchanged and that its aliases are exactly the
+// fixture's aliases followed by oldBasename (a rename appends the old
+// basename, task 3.5).
+func expectExchangeFieldsSurviveRename(g Gomega, before, after, oldBasename string) {
 	for _, key := range []string{"xid", "parent", "offer"} {
 		want := yamlKeyBlock(before, key)
 		g.Expect(want).NotTo(BeEmpty(), "fixture must carry "+key)
 		g.Expect(yamlKeyBlock(after, key)).To(Equal(want), key+" must be byte-unchanged")
 	}
 
-	wantAliases := yamlKeyBlock(before, "aliases")
-	g.Expect(wantAliases).NotTo(BeEmpty(), "fixture must carry aliases")
-	g.Expect(yamlKeyBlock(after, "aliases")).To(HavePrefix(wantAliases), "the original aliases must be kept")
+	wantAliases := append(slices.Clone(exchangeSurvivalFixture().Aliases), oldBasename)
+	g.Expect(yamlKeyBlock(after, "aliases")).To(Equal(aliasesBlock(wantAliases)),
+		"aliases must be the original entries followed by the old basename")
 }
 
 // expectExchangeFieldsUnchanged asserts every exchange field's raw YAML block

@@ -687,7 +687,7 @@ func validateAdoptEntry(
 		return SkillNoteSource{}, "", basenameErr
 	}
 
-	_, renderErr := applySkillNoteBody(adoptRenderInput(raw, basename, newBasename), source, false)
+	renderErr := checkAdoptRenders(raw, basename, newBasename, source)
 	if renderErr != nil {
 		return SkillNoteSource{}, "", renderErr
 	}

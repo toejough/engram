@@ -97,6 +97,19 @@ type LearnArgs struct {
 	SkillKey    string `json:"-"`
 	SkillSource string `json:"-"`
 
+	// XID, Parent and Aliases are the exchange frontmatter fields (design
+	// D4). Only the exchange paths set them, in process; they are tagged
+	// `json:"-"` so a served learn request can never populate them, whatever
+	// the key spelling (design D7 wire safety).
+	XID     string      `json:"-"`
+	Parent  parentLinks `json:"-"`
+	Aliases []string    `json:"-"`
+
+	// Offer is the only exchange field a served learn decodes (design D7):
+	// the offer's origin, idempotency key, amend target and vault path. It
+	// lands only on pending notes, which curation reviews.
+	Offer LearnOffer `json:"offer"`
+
 	// Repo carries a served write's client-detected repo: value across the
 	// wire. repo: carries no privilege (design.md Decisions), so a served
 	// learn handler passes it through via LearnDeps.DetectRepo unchanged
@@ -165,6 +178,17 @@ type LearnDeps struct {
 	// Must use full filenames (not stripped basenames) to avoid false-firing the
 	// untagged-rate trigger on every learn.
 	ListMD func(vault string) ([]string, error)
+}
+
+// LearnOffer is a served learn's offer record on the wire (design D7):
+// Origin is "<origin vault id>:<origin xid>", Key the idempotency key, For
+// the basename an amend-offer targets, and Path the vault IDs the offer has
+// passed through.
+type LearnOffer struct {
+	Origin string   `json:"origin"`
+	Key    string   `json:"key"`
+	For    string   `json:"for"`
+	Path   []string `json:"path"`
 }
 
 // RunLearn orchestrates the learn subcommand: validates inputs, ensures the

@@ -3,12 +3,116 @@ package cli_test
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	"slices"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/cli"
 )
+
+// TestRenameAndRewriteReferences_AppendsOldBasenameToAliases is the spec
+// scenario "A rename records the old name" (vault-note-identity, design D4
+// H2): the renamed note's aliases gain its old basename in the rename's one
+// write, after any aliases it already had and never twice; its xid is kept.
+func TestRenameAndRewriteReferences_AppendsOldBasenameToAliases(t *testing.T) {
+	t.Parallel()
+
+	const (
+		oldBasename = "1100.2026-09-27.x"
+		newBasename = "12a.2026-09-27.x"
+		head        = "---\ntype: fact\nluhmann: \"1100\"\nxid: 7f3c0a9e1b2d4c5f8a6e9d0c1b2a3f4e\n"
+	)
+
+	const (
+		existing = "aliases:\n    - 5.2026-01-01.a\n"
+		appended = existing + "    - " + oldBasename + "\n"
+		onlyOld  = "aliases:\n    - " + oldBasename + "\n"
+	)
+
+	for name, tc := range map[string]struct{ aliases, want string }{
+		"no aliases yet":      {"", onlyOld},
+		"existing aliases":    {existing, appended},
+		"flow-style aliases":  {"aliases: [5.2026-01-01.a]\n", appended},
+		"compact sequence":    {"aliases:\n- 5.2026-01-01.a\n", appended},
+		"old name already in": {onlyOld, onlyOld},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			fixture := newReparentFixture(map[string]string{
+				oldBasename + ".md": head + tc.aliases + "---\n\nBody.\n",
+			})
+
+			_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault",
+				map[string]string{oldBasename: newBasename})
+			g.Expect(err).NotTo(HaveOccurred())
+
+			g.Expect(fixture.written).To(HaveLen(1), "the alias lands in the rename's one write")
+			g.Expect(string(fixture.written["/vault/"+newBasename+".md"])).To(Equal(
+				"---\ntype: fact\nluhmann: \"12a\"\nxid: 7f3c0a9e1b2d4c5f8a6e9d0c1b2a3f4e\n" + tc.want + "---\n\nBody.\n"))
+		})
+	}
+}
+
+// TestRenameAndRewriteReferences_AppendsOldBasenameToAliasesProperty: for
+// any existing aliases, a renamed note's aliases become the old list plus
+// the old basename (once), and every other frontmatter key but luhmann is
+// unchanged; a note that is only a referrer keeps its aliases.
+func TestRenameAndRewriteReferences_AppendsOldBasenameToAliasesProperty(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		oldBasename := basenameGen().Draw(rt, "old")
+		newBasename := "77.2026-01-01.renamed"
+		aliases := rapid.SliceOfN(basenameGen(), 0, 3).Draw(rt, "aliases")
+
+		if rapid.Bool().Draw(rt, "oldAlreadyAliased") {
+			aliases = append(aliases, oldBasename)
+		}
+
+		exchange := exchangeFixture{XID: "7f3c0a9e1b2d4c5f8a6e9d0c1b2a3f4e", Aliases: aliases}
+		note := exchangeSurvivalNote("fact", exchange)
+		referrer := exchangeSurvivalNote("feedback", exchange)
+		referrer = strings.Replace(referrer, exchangeSurvivalLinkTarget, oldBasename, 1)
+
+		fixture := newReparentFixture(map[string]string{oldBasename + ".md": note, "5.2026-01-01.ref.md": referrer})
+
+		_, err := cli.RenameAndRewriteReferences(fixture.deps(), "/vault", map[string]string{oldBasename: newBasename})
+		if err != nil {
+			rt.Fatalf("rename: %v", err)
+		}
+
+		want := slices.Clone(aliases)
+		if !slices.Contains(want, oldBasename) {
+			want = append(want, oldBasename)
+		}
+
+		before := frontmatterOf(note)
+		after := frontmatterOf(string(fixture.written["/vault/"+newBasename+".md"]))
+
+		if got := fmt.Sprint(after["aliases"]); got != fmt.Sprint(want) {
+			rt.Fatalf("aliases = %s, want %v", got, want)
+		}
+
+		delete(before, "aliases")
+		delete(before, "luhmann")
+		delete(after, "aliases")
+		delete(after, "luhmann")
+
+		if !reflect.DeepEqual(before, after) {
+			rt.Fatalf("a rename changed more than luhmann and aliases:\nbefore %v\nafter  %v", before, after)
+		}
+
+		if written, ok := fixture.written["/vault/5.2026-01-01.ref.md"]; ok &&
+			fmt.Sprint(frontmatterOf(string(written))["aliases"]) != fmt.Sprint(frontmatterOf(referrer)["aliases"]) {
+			rt.Fatalf("a referrer's aliases changed")
+		}
+	})
+}
 
 // TestRenameAndRewriteReferences_CascadingRenamesUseFinalMap asserts note A,
 // itself being renamed, and referencing note B — also being renamed in the
@@ -236,7 +340,8 @@ func TestRenameAndRewriteReferences_RenamedNoteWithoutFrontmatterKeepsBody(t *te
 
 // TestRenameAndRewriteReferences_RenamedNoteWithoutLuhmannKeyUnchanged
 // asserts a renamed note whose frontmatter has no luhmann: key is renamed
-// with its frontmatter otherwise untouched.
+// with its frontmatter otherwise untouched, apart from the old-basename
+// alias every rename records.
 func TestRenameAndRewriteReferences_RenamedNoteWithoutLuhmannKeyUnchanged(t *testing.T) {
 	t.Parallel()
 
@@ -254,7 +359,8 @@ func TestRenameAndRewriteReferences_RenamedNoteWithoutLuhmannKeyUnchanged(t *tes
 	g.Expect(err).NotTo(HaveOccurred())
 
 	newContent := string(fixture.written["/vault/9b1.2026-01-01.old-topic.md"])
-	g.Expect(newContent).To(Equal(oldBody))
+	g.Expect(newContent).To(Equal("---\ntype: fact\naliases:\n    - 9a.2026-01-01.old-topic\n---\n\nSome fact.\n"),
+		"only the old-basename alias is added")
 }
 
 // TestRenameAndRewriteReferences_SingleReferenceRewritten asserts one note

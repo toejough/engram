@@ -45,6 +45,23 @@ type exchangeHashFields struct {
 	Triggers  []string `yaml:"triggers"`
 }
 
+// canonicalExchangeBody returns the body text an exchange hash covers:
+// embed.BodyText with CRLF line endings normalized to LF and exactly one
+// final newline (none for an empty body), so the same body hashes the same
+// whatever line endings or final newline a file or transport gave it (ruling
+// S6). A note whose leading "---" block never closes has no frontmatter, as
+// everywhere else in engram, so its whole text is the body.
+func canonicalExchangeBody(raw []byte) string {
+	body := strings.ReplaceAll(string(embed.BodyText(raw)), "\r\n", "\n")
+	body = strings.TrimRight(body, "\n")
+
+	if body == "" {
+		return ""
+	}
+
+	return body + "\n"
+}
+
 // compareExchangeHashes compares two exchange hashes three ways: unknown
 // when either side lacks the current version prefix, otherwise equal or
 // changed.
@@ -62,10 +79,10 @@ func compareExchangeHashes(first, second string) hashComparison {
 
 // exchangeHash returns a note's exchange hash: the version prefix plus the
 // sha256 of the canonical (sorted-key) JSON of every offered frontmatter
-// field and the note's body text (embed.BodyText), with absent fields as
-// empty strings or lists. It is the one function both the server and the
-// child use, so the same file hashes the same on both sides. It depends on no
-// non-offered field — identity, pending, tags, sources, supersedes, skill
+// field and the note's canonical body text (canonicalExchangeBody), with
+// absent fields as empty strings or lists. It is the one function both the
+// server and the child use, so the same file hashes the same on both sides.
+// It depends on no non-offered field — identity, pending, tags, sources, supersedes, skill
 // fields, or the exchange fields themselves.
 func exchangeHash(raw []byte) (string, error) {
 	var fields exchangeHashFields
@@ -91,7 +108,7 @@ func exchangeHash(raw []byte) (string, error) {
 		"done_when": fields.DoneWhen,
 		"red_flags": nonNilStrings(fields.RedFlags),
 		"triggers":  nonNilStrings(fields.Triggers),
-		"body":      string(embed.BodyText(raw)),
+		"body":      canonicalExchangeBody(raw),
 	})
 	sum := sha256.Sum256(canonical)
 

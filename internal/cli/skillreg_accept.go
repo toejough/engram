@@ -87,7 +87,7 @@ func NewSkillNoteSource(candidate SkillCandidate, homes ...string) SkillNoteSour
 // --target` does, requires the target to be a runbook note, renames it to
 // the slug derived from source's key (SkillKeySlug) via
 // RenameAndRewriteReferences (same Luhmann id and date, inbound wikilinks
-// rewritten, sidecar moved), replaces its body with the current source file
+// rewritten, sidecar moved, old basename appended to aliases), replaces its body with the current source file
 // and preamble, stamps skill_hash, skill_key and skill_source, preserves
 // every other frontmatter field, and clears any pending marker — an adopted
 // note is a direct field-for-field promotion, never awaiting curation
@@ -138,7 +138,7 @@ func AdoptSkillNote(
 	// decode rejects is refused untouched — never renamed and left unkeyed.
 	// The render is repeated below on the post-rename content, which the
 	// rename's wikilink rewrite may have changed.
-	_, preRenderErr := applySkillNoteBody(adoptRenderInput(raw, oldBasename, newBasename), source, false)
+	preRenderErr := checkAdoptRenders(raw, oldBasename, newBasename, source)
 	if preRenderErr != nil {
 		return preRenderErr
 	}
@@ -293,18 +293,24 @@ var (
 
 // adoptRenderInput returns the content an adopt's rename leaves for the
 // note before its body is rendered: raw with its luhmann: field rewritten to
-// newBasename's id (as renameOneNote does) when the adopt renames the note,
-// or raw itself when the basename is unchanged and no rename runs. Rendering
-// this before the rename covers exactly what the post-rename render sees,
-// short of the inbound-wikilink rewrite.
-func adoptRenderInput(raw []byte, oldBasename, newBasename string) []byte {
+// newBasename's id and oldBasename appended to its aliases (as renameOneNote
+// does) when the adopt renames the note, or raw itself when the basename is
+// unchanged and no rename runs. Rendering this before the rename covers
+// exactly what the post-rename render sees, short of the inbound-wikilink
+// rewrite, so a note the rename would refuse is refused untouched.
+func adoptRenderInput(raw []byte, oldBasename, newBasename string) ([]byte, error) {
 	if oldBasename == newBasename {
-		return raw
+		return raw, nil
 	}
 
 	newID, _ := luhmann.FromBasename(newBasename)
 
-	return []byte(rewriteLuhmannIDField(string(raw), newID))
+	aliased, aliasErr := appendAliasField(rewriteLuhmannIDField(string(raw), newID), oldBasename)
+	if aliasErr != nil {
+		return nil, fmt.Errorf("register-skills: adopt: recording alias on %s: %w", oldBasename, aliasErr)
+	}
+
+	return []byte(aliased), nil
 }
 
 // applySkillNoteBody parses raw as a runbook note's frontmatter, replaces its
@@ -359,6 +365,20 @@ func checkAdoptConflict(vault, key, oldBasename string, deps SkillAdoptDeps) err
 	}
 
 	return nil
+}
+
+// checkAdoptRenders renders what an adopt would write for raw, before any
+// rename or write (adoptRenderInput), so a note the rename or the full
+// frontmatter decode would reject is refused untouched.
+func checkAdoptRenders(raw []byte, oldBasename, newBasename string, source SkillNoteSource) error {
+	renderInput, inputErr := adoptRenderInput(raw, oldBasename, newBasename)
+	if inputErr != nil {
+		return inputErr
+	}
+
+	_, renderErr := applySkillNoteBody(renderInput, source, false)
+
+	return renderErr
 }
 
 // checkAdoptTargetKey refuses an adopt target (basename, raw content) whose

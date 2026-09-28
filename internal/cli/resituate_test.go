@@ -582,7 +582,7 @@ var (
 )
 
 // factNoteBody builds a fact note whose body is a single line with no
-// trailing newline, exercising relatedTail's no-newline branch.
+// trailing newline, exercising resituate's no-rest-of-body branch.
 func factNoteBody(body string) string {
 	return "---\ntype: fact\nsituation: s\nsubject: a\npredicate: b\nobject: c\n" +
 		"luhmann: \"9zz\"\ncreated: \"2026-05-10\"\nsource: agent\n---\n" + body

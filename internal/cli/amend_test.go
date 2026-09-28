@@ -359,9 +359,10 @@ func TestRunAmend_Activate_PreservesLastUsedAcrossReEmbed(t *testing.T) {
 		"activate must stamp today's LastUsed on the re-embedded sidecar")
 }
 
-// TestRunAmend_AddsIdentityFieldsToPreExistingNote verifies amending a note
-// written before this capability existed (no repo:/user:/vault: fields at
-// all) adds them, same as any other amend.
+// TestRunAmend_AddsIdentityFieldsToPreExistingNote verifies a --chunk-source
+// amend of a note written before this capability existed (no
+// repo:/user:/vault: fields at all) adds them, same as any other re-stamping
+// amend.
 func TestRunAmend_AddsIdentityFieldsToPreExistingNote(t *testing.T) {
 	t.Parallel()
 
@@ -382,11 +383,13 @@ func TestRunAmend_AddsIdentityFieldsToPreExistingNote(t *testing.T) {
 		Read:  func(string) ([]byte, error) { return noteContent, nil },
 		Write: func(_ string, data []byte) error { written = data; return nil },
 		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{}, nil
+			return map[string]bool{"session.jsonl#a1": true}, nil
 		},
 		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
 	}
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal"}
+	args := cli.AmendArgs{
+		Vault: "/vault", Target: "1aa", VaultName: "personal", ChunkSources: []string{"session.jsonl#a1"},
+	}
 
 	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -649,9 +652,10 @@ func TestRunAmend_FieldReplacement_Runbook_SituationOnly_PreservesBody(t *testin
 }
 
 // TestRunAmend_IdentityOnlyReStamp_DoesNotTriggerReEmbed verifies that an
-// amend with no content-changing flags — one that only re-stamps identity —
-// is a provenance-only change and never triggers a re-embed (matches the
-// existing supersedes-only/provenance-only category, amend.go:171).
+// amend with only --supersedes (no content-changing flag) — which re-stamps
+// identity — is a provenance-only change and never triggers a re-embed
+// (vault-note-identity: "Amend does not trigger re-embed for identity-only
+// changes").
 func TestRunAmend_IdentityOnlyReStamp_DoesNotTriggerReEmbed(t *testing.T) {
 	t.Parallel()
 
@@ -677,8 +681,11 @@ func TestRunAmend_IdentityOnlyReStamp_DoesNotTriggerReEmbed(t *testing.T) {
 		Now:      func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
 		Embedder: &spyEmbedder{called: &embedCalled},
 	}
-	// No content flags set — this amend only re-stamps identity.
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal"}
+	// Only --supersedes — this amend re-stamps identity but changes no content.
+	args := cli.AmendArgs{
+		Vault: "/vault", Target: "1aa", VaultName: "personal",
+		Supersedes: []string{"9.2026-01-01.old|narrows|older claim"},
+	}
 
 	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -1016,10 +1023,10 @@ func TestRunAmend_ReEmbedFailure_WarnsAndContinues(t *testing.T) {
 	g.Expect(logged).To(ContainSubstring("embed failed"))
 }
 
-// TestRunAmend_ReStampsIdentityFields verifies amend overwrites a note's
-// repo:/user:/vault: with the current environment's freshly detected
+// TestRunAmend_ReStampsIdentityFields verifies a content amend overwrites a
+// note's repo:/user:/vault: with the current environment's freshly detected
 // values, even when the note's existing values differ — identity fields
-// track the last writer, not the note's origin.
+// track the last content writer, not the note's origin.
 func TestRunAmend_ReStampsIdentityFields(t *testing.T) {
 	t.Parallel()
 
@@ -1049,7 +1056,7 @@ func TestRunAmend_ReStampsIdentityFields(t *testing.T) {
 		},
 		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
 	}
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal"}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal", Object: "C"}
 
 	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
 	g.Expect(err).NotTo(HaveOccurred())
@@ -1098,7 +1105,7 @@ func TestRunAmend_RepoReStamp_IgnoresProjectField(t *testing.T) {
 		},
 		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
 	}
-	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal"}
+	args := cli.AmendArgs{Vault: "/vault", Target: "1aa", VaultName: "personal", Object: "C"}
 
 	err := cli.ExportRunAmend(t.Context(), args, deps, &bytes.Buffer{})
 	g.Expect(err).NotTo(HaveOccurred())

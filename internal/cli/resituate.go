@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -202,88 +203,35 @@ func peekNoteType(frontmatter []byte) string {
 	return probe.Type
 }
 
-// relatedTail returns the trailing section of a fact/feedback body after the
-// formula line: the body is `formula-line\n` followed by `\n<tail>`, where
-// tail is any trailing block (e.g. a machine-line block like `Supersedes:`)
-// resituate treats as opaque payload to preserve untouched. Cutting the first
-// line and the single blank line after it yields the tail in the exact shape
-// renderFactBody / renderFeedbackBody re-prepend, so an empty tail round-trips
-// to `formula\n\n` and a populated tail round-trips byte-identically.
-func relatedTail(body []byte) string {
-	_, after, found := bytes.Cut(body, []byte("\n"))
-	if !found {
-		return ""
-	}
-
-	return string(bytes.TrimPrefix(after, []byte("\n")))
-}
-
-// rerenderFact rebuilds a fact note with the new situation in both the
-// frontmatter and the body formula, preserving the existing related-to tail.
+// rerenderFact rewrites a fact note's situation: and body opener, leaving
+// every other frontmatter field and the rest of the body as they were.
 func rerenderFact(frontmatter, body []byte, situation string) (string, error) {
-	var doc factFrontmatterDoc
+	return resituateTyped(frontmatter, body, situation, "fact",
+		func(doc *factFrontmatterDoc, situation string) string {
+			doc.Situation = situation
 
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil {
-		return "", fmt.Errorf("resituate: parsing fact frontmatter: %w", unmarshalErr)
-	}
-
-	when, createdErr := parseCreated(doc.Created)
-	if createdErr != nil {
-		return "", createdErr
-	}
-
-	fields := factFields{
-		Situation: situation,
-		Subject:   doc.Subject,
-		Predicate: doc.Predicate,
-		Object:    doc.Object,
-		Luhmann:   string(doc.Luhmann),
-		Source:    doc.Source,
-		Project:   doc.Project,
-		Repo:      doc.Repo,
-		User:      doc.User,
-		Vault:     doc.Vault,
-		Issue:     string(doc.Issue),
-		Tier:      doc.Tier,
-		Exchange:  doc.Exchange,
-	}
-
-	return renderFactFrontmatter(fields, when) + renderFactBody(fields) + relatedTail(body), nil
+			return doc.Created
+		},
+		func(doc factFrontmatterDoc) string {
+			return renderFactBody(factFields{
+				Situation: doc.Situation, Subject: doc.Subject, Predicate: doc.Predicate, Object: doc.Object,
+			})
+		})
 }
 
-// rerenderFeedback rebuilds a feedback note with the new situation in both the
-// frontmatter and the body formula, preserving the existing related-to tail.
+// rerenderFeedback rewrites a feedback note's situation: and body opener,
+// leaving every other frontmatter field and the rest of the body as they
+// were.
 func rerenderFeedback(frontmatter, body []byte, situation string) (string, error) {
-	var doc feedbackFrontmatterDoc
+	return resituateTyped(frontmatter, body, situation, "feedback",
+		func(doc *feedbackFrontmatterDoc, situation string) string {
+			doc.Situation = situation
 
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil {
-		return "", fmt.Errorf("resituate: parsing feedback frontmatter: %w", unmarshalErr)
-	}
-
-	when, createdErr := parseCreated(doc.Created)
-	if createdErr != nil {
-		return "", createdErr
-	}
-
-	fields := feedbackFields{
-		Situation: situation,
-		Behavior:  doc.Behavior,
-		Impact:    doc.Impact,
-		Action:    doc.Action,
-		Luhmann:   string(doc.Luhmann),
-		Source:    doc.Source,
-		Project:   doc.Project,
-		Repo:      doc.Repo,
-		User:      doc.User,
-		Vault:     doc.Vault,
-		Issue:     string(doc.Issue),
-		Tier:      doc.Tier,
-		Exchange:  doc.Exchange,
-	}
-
-	return renderFeedbackFrontmatter(fields, when) + renderFeedbackBody(fields) + relatedTail(body), nil
+			return doc.Created
+		},
+		func(doc feedbackFrontmatterDoc) string {
+			return renderFeedbackBody(feedbackFields{Situation: doc.Situation, Action: doc.Action})
+		})
 }
 
 // resituateContent re-renders raw with situation replaced. For fact and
@@ -308,6 +256,36 @@ func resituateContent(raw []byte, situation string) (string, error) {
 	default:
 		return "", fmt.Errorf("%w: %q", errResituateUnknownType, noteType)
 	}
+}
+
+// resituateTyped round-trips a note's typed frontmatter doc with only its
+// situation replaced (design D10 M7): every other field, including pending,
+// sources, tags, supersedes, vocab_version, issue, project and the exchange
+// fields, is re-marshaled as parsed. The body keeps everything after its
+// first line; only that opener is rebuilt around the new situation. The
+// created date is still validated so a malformed note is refused untouched.
+func resituateTyped[T any](
+	frontmatter, body []byte,
+	situation, kind string,
+	resituate func(doc *T, situation string) (created string),
+	opener func(doc T) string,
+) (string, error) {
+	var doc T
+
+	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
+	if unmarshalErr != nil {
+		return "", fmt.Errorf("resituate: parsing %s frontmatter: %w", kind, unmarshalErr)
+	}
+
+	_, createdErr := parseCreated(resituate(&doc, situation))
+	if createdErr != nil {
+		return "", createdErr
+	}
+
+	newOpener, _, _ := strings.Cut(opener(doc), "\n")
+	_, rest, _ := bytes.Cut(body, []byte("\n"))
+
+	return marshalFrontmatter(doc) + newOpener + "\n" + string(rest), nil
 }
 
 // splitFrontmatter returns the YAML bytes between the leading "---\n" line

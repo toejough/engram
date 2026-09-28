@@ -299,11 +299,12 @@ func TestServeLearn_EmptyDeclaredIdentity_Rejected(t *testing.T) {
 	g.Expect(matches).To(BeEmpty(), "no note written when declared identity is empty")
 }
 
-// TestServeLearn_IgnoresSkillIdentityFields (ruling R31): the skill-note
-// identity fields are registration-only, so a remote client's served learn
-// carrying skillHash, skillKey and skillSource writes a runbook with none of
-// skill_hash, skill_key or skill_source — a served write can never pose as,
-// or shadow, a registered skill's note.
+// TestServeLearn_IgnoresSkillIdentityFields (ruling R31, design D7 wire
+// safety): the skill-note identity fields are registration-only and the
+// exchange fields (xid, parent, aliases) exchange-only, so a remote client's
+// served learn carrying any of them, in camelCase or PascalCase, writes a
+// runbook with none of their values — a served write can never pose as, or
+// shadow, a registered skill's note, nor forge a link or alias.
 func TestServeLearn_IgnoresSkillIdentityFields(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -314,8 +315,7 @@ func TestServeLearn_IgnoresSkillIdentityFields(t *testing.T) {
 
 	body := []byte(`{"type":"runbook","slug":"skill-route","position":"top","source":"remote",` +
 		`"situation":"s","doneWhen":"d","body":"b","user":"declared-user@example.com",` +
-		`"skillHash":"abc","SkillHash":"abc","skillKey":"route","SkillKey":"route",` +
-		`"skillSource":"~/x/SKILL.md","SkillSource":"~/x/SKILL.md"}`)
+		forgedExchangeKeys + `}`)
 
 	resp := routeFor(t, routes, "/learn").Serve(t.Context(), cli.ServeRequest{Body: body})
 	g.Expect(resp.Status).To(Equal(200))
@@ -334,6 +334,9 @@ func TestServeLearn_IgnoresSkillIdentityFields(t *testing.T) {
 	g.Expect(string(raw)).NotTo(ContainSubstring("skill_hash"))
 	g.Expect(string(raw)).NotTo(ContainSubstring("skill_key"))
 	g.Expect(string(raw)).NotTo(ContainSubstring("skill_source"))
+	g.Expect(string(raw)).NotTo(ContainSubstring("forged"), "no forged exchange or skill value may land")
+	g.Expect(string(raw)).NotTo(ContainSubstring("aliases:"))
+	g.Expect(string(raw)).NotTo(ContainSubstring("parent:"))
 }
 
 // TestServeLearn_StampsClientDeclaredIdentityAndPendingMarker covers the
