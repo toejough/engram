@@ -21,8 +21,9 @@ const (
 	// MaxServeRequestBytes caps one served request body (final review F7):
 	// an offer or activate body is a few KB, so 4 MiB leaves ample room
 	// while bounding what an unauthenticated caller can make the server
-	// buffer. The HTTP edge enforces it; a handler answers 413 when the
-	// body could not be read in full.
+	// buffer. The HTTP edge enforces it; a route answers 413 only when the
+	// body itself exceeded this cap, and 400 for any other body-read
+	// failure (S34 residual).
 	MaxServeRequestBytes = 4 << 20
 )
 
@@ -75,8 +76,13 @@ type ServeRequest struct {
 	// Body is the raw request body. POST routes only.
 	Body []byte
 	// BodyErr is the error reading Body in full (for one, a body over
-	// MaxServeRequestBytes); every route answers 413 when it is set.
+	// MaxServeRequestBytes); every route answers 400 when it is set, or
+	// 413 when BodyTooLarge is also set (S34 residual).
 	BodyErr error
+	// BodyTooLarge reports whether BodyErr is specifically the body
+	// exceeding MaxServeRequestBytes, as opposed to any other read
+	// failure (e.g. a client disconnect). Meaningless when BodyErr is nil.
+	BodyTooLarge bool
 }
 
 // ServeResponse is one HTTP response reduced to primitive types.
@@ -178,7 +184,14 @@ const (
 
 // unexported variables.
 var (
-	errServeBodyUnreadable = errors.New("serve: request body unreadable or over the size limit")
+	// errServeBodyTooLarge answers 413: the body itself exceeded
+	// MaxServeRequestBytes (S34 residual — split from the generic
+	// unreadable-body case, which answers 400 instead).
+	errServeBodyTooLarge = errors.New("serve: request body over the size limit")
+	// errServeBodyUnreadable answers 400: any other body-read failure
+	// (e.g. a client disconnect), never conflated with the over-the-cap
+	// case above.
+	errServeBodyUnreadable = errors.New("serve: request body unreadable")
 	// errServeEmptyIdentity guards the identity floor (serve-client-
 	// declared-identity): a served learn must claim SOME identity —
 	// the server trusts whatever is declared (no edge-authentication header
@@ -322,14 +335,20 @@ func jsonOKResponse() ServeResponse {
 	return ServeResponse{Status: statusOK, Body: body}
 }
 
-// requireReadBody answers 413 for a request whose body could not be read
-// in full (final review F7) — over MaxServeRequestBytes at the HTTP edge —
-// and otherwise hands the request to next, so no route ever acts on a
-// truncated body.
+// requireReadBody answers for a request whose body could not be read in
+// full (final review F7) — 413 only when the body itself exceeded
+// MaxServeRequestBytes at the HTTP edge (BodyTooLarge), and 400 for any
+// other body-read failure (S34 residual) — and otherwise hands the
+// request to next, so no route ever acts on a truncated body.
 func requireReadBody(next ServeHandler) ServeHandler {
 	return serveHandlerFunc(func(ctx context.Context, req ServeRequest) ServeResponse {
-		if req.BodyErr != nil {
+		if req.BodyErr != nil && req.BodyTooLarge {
 			return jsonErrorResponse(statusRequestTooLarge,
+				fmt.Errorf("%w: %w", errServeBodyTooLarge, req.BodyErr))
+		}
+
+		if req.BodyErr != nil {
+			return jsonErrorResponse(statusBadRequest,
 				fmt.Errorf("%w: %w", errServeBodyUnreadable, req.BodyErr))
 		}
 

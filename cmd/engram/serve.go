@@ -48,10 +48,22 @@ var (
 	readHeaderTimeout = 10 * time.Second //nolint:gochecknoglobals // real net/http config
 )
 
+// bodyReadErrIsTooLarge reports whether err is specifically
+// http.MaxBytesReader's over-the-cap error (S34 residual) — the one case
+// httpHandlerFor's caller (internal/cli's requireReadBody) answers 413
+// for. Any other body-read failure (a client disconnect, a reset
+// connection) is not this case, and answers 400 instead.
+func bodyReadErrIsTooLarge(err error) bool {
+	var maxBytesErr *http.MaxBytesError
+
+	return errors.As(err, &maxBytesErr)
+}
+
 // httpHandlerFor adapts one cli.ServeHandler to a real net/http.HandlerFunc.
 // The body is read through http.MaxBytesReader (cli.MaxServeRequestBytes);
-// a read error rides on the request as BodyErr, which the routes answer
-// with 413 (final review F7).
+// a read error rides on the request as BodyErr, classified via BodyTooLarge
+// (S34 residual) so the routes answer 413 only when the body itself
+// exceeded the cap, and 400 for any other read failure (final review F7).
 // Query/Header are assigned straight from the real request's own map-typed
 // fields (net/url.Values / net/http.Header both have underlying type
 // map[string][]string, so they're directly assignable to cli.ServeRequest's
@@ -62,10 +74,11 @@ func httpHandlerFor(handler cli.ServeHandler) http.HandlerFunc {
 		reqURL := r.URL
 
 		resp := handler.Serve(r.Context(), cli.ServeRequest{
-			Query:   reqURL.Query(),
-			Header:  r.Header,
-			Body:    body,
-			BodyErr: readErr,
+			Query:        reqURL.Query(),
+			Header:       r.Header,
+			Body:         body,
+			BodyErr:      readErr,
+			BodyTooLarge: bodyReadErrIsTooLarge(readErr),
 		})
 
 		w.WriteHeader(resp.Status)

@@ -557,11 +557,11 @@ func TestServeRoutes_MethodsAndPatterns(t *testing.T) {
 	}))
 }
 
-// TestServeRoutes_UnreadableBodyIs413 (final review F7): a request whose
-// body could not be read in full — over MaxServeRequestBytes, which the
-// HTTP edge enforces — is answered 413 by every route, and nothing is
-// written.
-func TestServeRoutes_UnreadableBodyIs413(t *testing.T) {
+// TestServeRoutes_OtherBodyReadErrorIs400 (final re-review residual,
+// ruling S34): a body-read error that is NOT the over-the-cap case (e.g. a
+// client disconnect) answers 400 on every route, never 413 — only an
+// oversized body warrants 413 — and nothing is written.
+func TestServeRoutes_OtherBodyReadErrorIs400(t *testing.T) {
 	t.Parallel()
 
 	for _, pattern := range []string{"/learn", "/activate", "/query", "/show"} {
@@ -577,7 +577,35 @@ func TestServeRoutes_UnreadableBodyIs413(t *testing.T) {
 
 			resp := routeFor(t, routes, pattern).Serve(t.Context(), cli.ServeRequest{
 				Body:    []byte(`{"notes":["1.2026-01-01.a-note.md"]}`),
-				BodyErr: errors.New("http: request body too large"),
+				BodyErr: errors.New("unexpected EOF"),
+			})
+			g.Expect(resp.Status).To(Equal(400))
+			g.Expect(snapshotVault(t, vault)).To(Equal(before))
+		})
+	}
+}
+
+// TestServeRoutes_OversizedBodyIs413 (final review F7; final re-review
+// residual, ruling S34): a request body over MaxServeRequestBytes answers
+// 413 on every route, and nothing is written.
+func TestServeRoutes_OversizedBodyIs413(t *testing.T) {
+	t.Parallel()
+
+	for _, pattern := range []string{"/learn", "/activate", "/query", "/show"} {
+		t.Run(pattern, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			vault := t.TempDir()
+			writeServeVaultFile(t, vault, "1.2026-01-01.a-note.md")
+
+			before := snapshotVault(t, vault)
+			routes := cli.ServeRoutes(serveTestDeps(), vault, "personal", t.TempDir())
+
+			resp := routeFor(t, routes, pattern).Serve(t.Context(), cli.ServeRequest{
+				Body:         []byte(`{"notes":["1.2026-01-01.a-note.md"]}`),
+				BodyErr:      errors.New("http: request body too large"),
+				BodyTooLarge: true,
 			})
 			g.Expect(resp.Status).To(Equal(413))
 			g.Expect(snapshotVault(t, vault)).To(Equal(before))
