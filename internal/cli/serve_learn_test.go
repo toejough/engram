@@ -176,10 +176,12 @@ func TestServeLearn_CycleRefusalReportsVaultID(t *testing.T) {
 
 	var body struct {
 		Error   string `json:"error"`
+		Reason  string `json:"reason"`
 		VaultID string `json:"vault_id"` //nolint:tagliatelle // the D7 wire key
 	}
 	g.Expect(json.Unmarshal(resp.Body, &body)).To(Succeed())
 	g.Expect(body.Error).NotTo(BeEmpty())
+	g.Expect(body.Reason).To(Equal("loop"))
 	g.Expect(body.VaultID).To(Equal(serverVaultID))
 }
 

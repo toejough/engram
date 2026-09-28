@@ -43,7 +43,15 @@ func TestClassifyOfferResponse(t *testing.T) {
 		{"500", cli.FetchResponse{Status: 500, Body: []byte(`{"error":"boom"}`)}, nil, cli.ExportOfferFailed},
 		{"503", cli.FetchResponse{Status: 503}, nil, cli.ExportOfferFailed},
 		{"400", cli.FetchResponse{Status: 400, Body: []byte(`{"error":"bad"}`)}, nil, cli.ExportOfferRejected},
-		{"409", cli.FetchResponse{Status: 409, Body: []byte(`{"error":"cycle"}`)}, nil, cli.ExportOfferRefused},
+		{
+			"409 without reason",
+			cli.FetchResponse{Status: 409, Body: []byte(`{"error":"cycle"}`)}, nil, cli.ExportOfferRejected,
+		},
+		{
+			"409 loop",
+			cli.FetchResponse{Status: 409, Body: []byte(`{"error":"cycle","reason":"loop","vault_id":"` + parentVaultID + `"}`)},
+			nil, cli.ExportOfferRefused,
+		},
 		{"200 receipt", cli.FetchResponse{Status: 200, Body: []byte(receipt)}, nil, cli.ExportOfferAccepted},
 		{
 			"200 without vault_id",
@@ -83,12 +91,8 @@ func TestClassifyOfferResponse_StatusClassesProperty(t *testing.T) {
 		result := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: status}, nil)
 
 		want := cli.ExportOfferRejected
-
-		switch {
-		case status >= 500:
+		if status >= 500 {
 			want = cli.ExportOfferFailed
-		case status == 409:
-			want = cli.ExportOfferRefused
 		}
 
 		if result.Outcome != want {
@@ -178,6 +182,44 @@ func TestDrainOutbox_ConcurrentEnqueueSurvives(t *testing.T) {
 	_, err := env.drain(parent)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidD}))
+}
+
+// TestDrainOutbox_CycleRefusalRejectsAndContinues (ruling S13, D7): a 409
+// loop refusal from a parent whose ID is NOT this vault's is a real cycle
+// (A→B→C→A): that entry is rejected, the drain continues, and one warning
+// names the refusing vault (not --regenerate). A refusal leaves the backoff
+// counters alone.
+func TestDrainOutbox_CycleRefusalRejectsAndContinues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.writeNote("3.2026-09-27.c.md", xidC, "c", false)
+	env.enqueue(xidA)
+	env.enqueue(xidB)
+	env.enqueue(xidC)
+
+	refusal := loopRefusal(parentVaultID)
+	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: refusal, xidB: refusal}}
+
+	result, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA, xidB, xidC}))
+	g.Expect(result.Rejected).To(Equal(2))
+
+	box := env.outbox()
+	g.Expect(entryXIDs(box)).To(Equal([]string{xidA, xidB}))
+	g.Expect(box.Entries[0].State).To(Equal("rejected"))
+	g.Expect(box.Entries[0].RejectedHash).To(Equal(mustHash(t, env.noteRaw("1.2026-09-27.a.md"))))
+	g.Expect(box.Entries[1].State).To(Equal("rejected"))
+
+	lines := nonEmptyLines(env.stderr.String())
+	g.Expect(lines).To(HaveLen(1))
+	g.Expect(lines[0]).To(ContainSubstring(parentVaultID))
+	g.Expect(lines[0]).To(ContainSubstring("cycle"))
+	g.Expect(lines[0]).NotTo(ContainSubstring("--regenerate"))
 }
 
 // TestDrainOutbox_DeletedDuringSendDiscardsReceipt (M10): a receipt for a
@@ -315,41 +357,6 @@ func TestDrainOutbox_LocationCheckFailureSendsNothing(t *testing.T) {
 	g.Expect(parent.sent).To(BeEmpty())
 	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
 	g.Expect(env.stderr.String()).To(ContainSubstring("vault-id --claim"))
-}
-
-// TestDrainOutbox_PathLoopRefusalKeepsQueued (ruling S12): a 409 for a
-// longer cycle (the parent's ID is already on the offer's path, but it is
-// not this vault) also keeps the entries queued, caches the parent's ID,
-// stops, and warns once naming --regenerate.
-func TestDrainOutbox_PathLoopRefusalKeepsQueued(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := newOutboxEnv(t)
-	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
-	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
-	env.enqueue(xidA)
-	env.enqueue(xidB)
-
-	refusal := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 409, Body: []byte(
-		`{"error":"serve: offer already passed through this vault","vault_id":"` + parentVaultID + `"}`)}, nil)
-
-	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: refusal}}
-	_, err := env.drain(parent)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA}))
-
-	box := env.outbox()
-	g.Expect(entryXIDs(box)).To(Equal([]string{xidA, xidB}))
-	g.Expect(box.Entries[0].State).To(Equal("queued"))
-
-	lines := nonEmptyLines(env.stderr.String())
-	g.Expect(lines).To(HaveLen(1))
-	g.Expect(lines[0]).To(ContainSubstring("vault-id --regenerate"))
-
-	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
-	g.Expect(cacheErr).NotTo(HaveOccurred())
-	g.Expect(cache.VaultID).To(Equal(parentVaultID))
 }
 
 // TestDrainOutbox_ReceiptWriteFailureKeepsEntry: when recording an accepted
@@ -505,9 +512,11 @@ func TestDrainOutbox_SelfParentRefusalThenRegenerateSends(t *testing.T) {
 	env.enqueue(xidA)
 	env.enqueue(xidB)
 
-	refusal := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 409, Body: []byte(
-		`{"error":"serve: offer already passed through this vault","vault_id":"` + env.localID + `"}`)}, nil)
+	refusal := loopRefusal(env.localID)
 	refusing := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: refusal, xidB: refusal}}
+
+	_, failErr := cli.ExportRecordParentFailure(env.store, env.vault, parentURL)
+	g.Expect(failErr).NotTo(HaveOccurred())
 
 	result, err := env.drain(refusing)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -527,6 +536,7 @@ func TestDrainOutbox_SelfParentRefusalThenRegenerateSends(t *testing.T) {
 	cache, cacheErr := cli.ExportLoadParentCache(env.state, env.vault)
 	g.Expect(cacheErr).NotTo(HaveOccurred())
 	g.Expect(cache.VaultID).To(Equal(env.localID))
+	g.Expect(cache.Failures).To(Equal(1), "a refusal is neither a success nor an outage")
 
 	regenState := cli.ExportNewExchangeState(env.fsys, seqRand(60), identityPath,
 		func() (string, error) { return "/", nil })
@@ -680,6 +690,30 @@ func TestDrainOutbox_TransportFailureStopsAndRecords(t *testing.T) {
 	g.Expect(cache.Failures).To(Equal(1))
 	g.Expect(cache.BackoffUntil).To(BeTemporally("==", env.now().Add(30*time.Second)))
 	g.Expect(result.RetryAfter).To(BeTemporally("==", env.now().Add(30*time.Second)))
+}
+
+// TestDrainOutbox_UnmarkedConflictRejectsAndContinues (ruling S13): a 409
+// without the loop discriminator (another cause, or a parent predating it)
+// is an ordinary rejection; the drain continues.
+func TestDrainOutbox_UnmarkedConflictRejectsAndContinues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newOutboxEnv(t)
+	env.writeNote("1.2026-09-27.a.md", xidA, "a", false)
+	env.writeNote("2.2026-09-27.b.md", xidB, "b", false)
+	env.enqueue(xidA)
+	env.enqueue(xidB)
+
+	conflict := cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 409, Body: []byte(
+		`{"error":"serve: offer already passed through this vault","vault_id":"` + env.localID + `"}`)}, nil)
+	parent := &fakeParent{script: map[string]cli.OfferSendResultForTest{xidA: conflict}}
+
+	_, err := env.drain(parent)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(sentXIDs(parent)).To(Equal([]string{xidA, xidB}))
+	g.Expect(entryXIDs(env.outbox())).To(Equal([]string{xidA}))
+	g.Expect(env.outbox().Entries[0].State).To(Equal("rejected"))
 }
 
 // TestEnqueueOutbox_CoalescesByXID: at most one entry per note; a repeat
@@ -1256,6 +1290,13 @@ func entryXIDs(box cli.OutboxFileForTest) []string {
 	}
 
 	return xids
+}
+
+// loopRefusal is a classified 409 loop refusal from the vault refusingID.
+func loopRefusal(refusingID string) cli.OfferSendResultForTest {
+	return cli.ExportClassifyOfferResponse(cli.FetchResponse{Status: 409, Body: []byte(
+		`{"error":"serve: offer already passed through this vault","reason":"loop","vault_id":"` +
+			refusingID + `"}`)}, nil)
 }
 
 // mustHash is the note's exchange hash.

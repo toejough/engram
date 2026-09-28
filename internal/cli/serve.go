@@ -136,6 +136,8 @@ func ServeRoutes(deps Deps, vault, vaultName, chunksDir string) []ServeRoute {
 
 // unexported constants.
 const (
+	// loopRefusalReason discriminates the 409 loop refusal (ruling S13).
+	loopRefusalReason = "loop"
 	// maxQueryTextBytes caps the served /query text param (2 KB).
 	maxQueryTextBytes         = 2048
 	methodGet                 = "GET"
@@ -167,7 +169,10 @@ type activateRequest struct {
 // vault's ID: the error plus the vault ID, so a child that is its own parent
 // (or sits on the cycle) can recognize and cache it (ruling S12).
 type cycleRefusal struct {
-	Error   string `json:"error"`
+	Error string `json:"error"`
+	// Reason is the explicit discriminator ("loop"), so a child never
+	// reads another 409 cause as a loop (ruling S13).
+	Reason  string `json:"reason"`
 	VaultID string `json:"vault_id"` //nolint:tagliatelle // design D7 fixes the exchange's snake_case keys
 }
 
@@ -218,7 +223,7 @@ func capQueryText(text string) string {
 // cycleRefusalResponse is the 409 loop refusal carrying this vault's ID.
 func cycleRefusalResponse(err error, vaultID string) ServeResponse {
 	//nolint:errchkjson // plain string fields never fail to encode
-	body, _ := json.Marshal(cycleRefusal{Error: err.Error(), VaultID: vaultID})
+	body, _ := json.Marshal(cycleRefusal{Error: err.Error(), Reason: loopRefusalReason, VaultID: vaultID})
 
 	return ServeResponse{Status: statusConflict, Body: body}
 }

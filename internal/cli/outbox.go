@@ -14,12 +14,11 @@ import (
 
 // unexported constants.
 const (
-	learnRoute = "/learn"
-	// loopRefusedWarningFormat is the one warning for a 409 loop refusal
-	// from a parent that is not this vault (a longer cycle, ruling S12).
-	loopRefusedWarningFormat = "engram: warning: the parent (vault %s) refused an offer as a loop — its ID is " +
-		"already on the offer's path; exchange with it is paused; if this vault is a copy of a vault on that " +
-		"path, run `engram vault-id --regenerate`\n"
+	// cycleRefusedWarningFormat is the one warning per drain for a loop
+	// refusal from a vault other than this one (ruling S13).
+	cycleRefusedWarningFormat = "engram: warning: parent cycle or misconfiguration detected: vault %s refused " +
+		"an offer because its ID is already on the offer's path; the offer is marked rejected\n"
+	learnRoute          = "/learn"
 	outboxFileName      = "outbox.json"
 	outboxStateQueued   = "queued"
 	outboxStateRejected = "rejected"
@@ -184,7 +183,8 @@ func applyDrainStep(
 
 		return applyAcceptedStep(step, box, found.note, apply)
 	case offerRejected:
-		*cache = noteParentSuccess(*cache, parentURL, "")
+		// An answer about the offer, not the parent's health: the backoff
+		// counters are left alone (the command's own contact resets them).
 		result.Rejected++
 
 		return updateOutboxEntry(box, step, func(entry *outboxEntry) {
@@ -194,10 +194,12 @@ func applyDrainStep(
 			entry.LastError = errorText(step.outcome.Err)
 		}), nil
 	case offerRefused:
-		// A loop refusal (ruling S12): the parent answered, and its vault
-		// ID is cached so the pre-exchange self-parent guard engages; the
-		// entry stays queued (never rejected) until a regenerate clears it.
-		*cache = noteParentSuccess(*cache, parentURL, step.outcome.Receipt.VaultID)
+		// The self-parent case (rulings S12, S13): the parent's vault ID is
+		// cached so the pre-exchange self-parent guard engages; the entry
+		// stays queued (never rejected) until a regenerate clears it. A
+		// refusal is neither a success nor an outage, so the backoff
+		// counters are left alone.
+		*cache = noteParentVaultID(*cache, parentURL, step.outcome.Receipt.VaultID)
 
 		return updateOutboxEntry(keepOutboxEntryQueued(box, step), step, func(entry *outboxEntry) {
 			entry.LastError = errorText(step.outcome.Err)
@@ -227,7 +229,7 @@ func classifyOfferResponse(resp FetchResponse, fetchErr error) offerSendResult {
 	case resp.Status >= statusInternalServerError:
 		return offerSendResult{Outcome: offerFailed, Err: fmt.Errorf("%w (%w): status %d: %s",
 			errOfferServerError, errParentUnreachable, resp.Status, describeErrorBody(resp.Body))}
-	case resp.Status == statusConflict:
+	case resp.Status == statusConflict && isLoopRefusal(resp.Body):
 		return offerSendResult{
 			Outcome: offerRefused,
 			Receipt: offerReceipt{VaultID: refusingVaultID(resp.Body)},
@@ -241,9 +243,16 @@ func classifyOfferResponse(resp FetchResponse, fetchErr error) offerSendResult {
 			errOfferServerError, resp.Status)}
 	}
 
+	return classifyReceipt(resp.Body)
+}
+
+// classifyReceipt decodes a 2xx /learn body: a full receipt is accepted, an
+// undecodable one is treated as an outage, and one without vault_id or
+// basename comes from a too-old parent (H7).
+func classifyReceipt(body []byte) offerSendResult {
 	var receipt offerReceipt
 
-	decodeErr := json.Unmarshal(resp.Body, &receipt)
+	decodeErr := json.Unmarshal(body, &receipt)
 	if decodeErr != nil {
 		return offerSendResult{Outcome: offerFailed, Err: fmt.Errorf("%w: %w", errOfferUndecodable, decodeErr)}
 	}
@@ -350,6 +359,14 @@ func fifoEntries(entries []outboxEntry) []outboxEntry {
 	return ordered
 }
 
+// isLoopRefusal reports whether a 409 body carries the loop discriminator
+// (ruling S13); any other 409 is an ordinary rejection.
+func isLoopRefusal(body []byte) bool {
+	var refusal cycleRefusal
+
+	return json.Unmarshal(body, &refusal) == nil && refusal.Reason == loopRefusalReason
+}
+
 // judgeSendOutcome decides what the send phase does with one outcome:
 // whether to record it for the merge, and whether the drain stops (an
 // unreachable parent, a too-old parent, or a receipt naming this vault).
@@ -366,9 +383,9 @@ func judgeSendOutcome(outcome offerSendResult, localID string, stderr io.Writer)
 			}, true, nil
 		}
 	case offerRefused:
-		if !selfParentGuard(localID, outcome.Receipt.VaultID, stderr) {
-			_, _ = fmt.Fprintf(stderr, loopRefusedWarningFormat, outcome.Receipt.VaultID)
-		}
+		// Only the self-parent refusal reaches here (a cycle refusal was
+		// already turned into a rejection by resolveCycleRefusal).
+		selfParentGuard(localID, outcome.Receipt.VaultID, stderr)
 
 		return outcome, true, nil
 	case offerFailed:
@@ -557,8 +574,8 @@ func queuedOfferCount(box outboxFile) int {
 	return count
 }
 
-// refusingVaultID reads the refusing parent's vault ID from a 409 body
-// ("" when it carries none — a parent predating ruling S12).
+// refusingVaultID reads the refusing parent's vault ID from a loop
+// refusal's 409 body ("" when it carries none).
 func refusingVaultID(body []byte) string {
 	var refusal cycleRefusal
 
@@ -576,6 +593,26 @@ func removeOutboxEntry(box outboxFile, xid string) outboxFile {
 	})
 
 	return box
+}
+
+// resolveCycleRefusal turns a loop refusal from a vault other than this one
+// — a real parent cycle (A→B→C→A) or a misconfiguration — into a rejection
+// of that entry (design D7), warning once per drain with the refusing vault
+// ID. A refusal naming this vault itself (the self-parent case) passes
+// through unchanged.
+func resolveCycleRefusal(
+	outcome offerSendResult, localID string, stderr io.Writer, warned *bool,
+) offerSendResult {
+	if outcome.Outcome != offerRefused || (localID != "" && outcome.Receipt.VaultID == localID) {
+		return outcome
+	}
+
+	if !*warned {
+		_, _ = fmt.Fprintf(stderr, cycleRefusedWarningFormat, outcome.Receipt.VaultID)
+		*warned = true
+	}
+
+	return offerSendResult{Outcome: offerRejected, Err: outcome.Err}
 }
 
 // saveOutbox writes the outbox atomically. The state directory is created
@@ -645,6 +682,7 @@ func sendOutboxEntries(
 	send func(context.Context, offerNote) offerSendResult,
 ) ([]drainStep, error) {
 	steps := make([]drainStep, 0, len(snapshot.Entries))
+	cycleWarned := false
 
 	for _, entry := range fifoEntries(snapshot.Entries) {
 		found, ok := notes[entry.XID]
@@ -658,7 +696,7 @@ func sendOutboxEntries(
 			continue
 		}
 
-		outcome := send(ctx, found.note)
+		outcome := resolveCycleRefusal(send(ctx, found.note), localID, stderr, &cycleWarned)
 
 		judged, stop, stopErr := judgeSendOutcome(outcome, localID, stderr)
 		steps = append(steps, drainStep{xid: entry.XID, queued: entry.Queued, hash: found.note.Hash, outcome: judged})
