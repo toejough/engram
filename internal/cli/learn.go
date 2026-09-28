@@ -137,8 +137,6 @@ type LearnArgs struct {
 type LearnDeps struct {
 	Now           func() time.Time
 	Getenv        func(string) string
-	StatDir       func(string) error
-	InitVault     func(string) error
 	ListIDs       func(vault string) ([]string, error)
 	ListBasenames func(vault string) ([]string, error)
 	Lock          func(vault string) (release func(), err error)
@@ -200,11 +198,6 @@ func RunLearn(ctx context.Context, args LearnArgs, deps LearnDeps, stdout io.Wri
 	}
 
 	vault := args.Vault
-
-	vaultErr := ensureVaultDir(deps.StatDir, deps.InitVault, vault, "learn")
-	if vaultErr != nil {
-		return vaultErr
-	}
 
 	path, writeErr := writeLearnUnderLock(ctx, args, deps, vault)
 	if writeErr != nil {
@@ -665,8 +658,6 @@ func newLearnDeps(d Deps) LearnDeps {
 	return LearnDeps{
 		Now:           d.Now,
 		Getenv:        d.Getenv,
-		StatDir:       statDirFromFS(d.FS),
-		InitVault:     initVaultFromFS(d.FS),
 		ListIDs:       listIDsFromFS(d.FS),
 		ListBasenames: listBasenamesFromFS(d.FS),
 		Lock:          vaultLockFromLocker(d.Lock),

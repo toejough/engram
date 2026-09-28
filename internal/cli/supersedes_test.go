@@ -172,8 +172,6 @@ func TestLearnFeedback_Supersedes_WrittenToFrontmatterAndBody(t *testing.T) {
 		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
-		StatDir:       func(string) error { return nil },
-		InitVault:     func(string) error { return nil },
 		ListIDs:       func(string) ([]string, error) { return nil, nil },
 		ListBasenames: func(string) ([]string, error) { return nil, nil },
 		Lock:          func(string) (func(), error) { return func() {}, nil },

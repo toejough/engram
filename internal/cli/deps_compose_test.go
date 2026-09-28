@@ -14,36 +14,44 @@ import (
 	"github.com/toejough/engram/internal/cli"
 )
 
-func TestNewLearnDeps_InitVault_IdempotentAndPreservesEdits(t *testing.T) {
+// TestInitVaultFromFS_FailuresSurface: a mkdir failure (parent is a regular
+// file) and a starter-write failure (read-only vault dir) both surface.
+func TestInitVaultFromFS_FailuresSurface(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	initVault := cli.ExportInitVaultFromFS(realFSForTest())
+
+	blocked := filepath.Join(t.TempDir(), "isfile")
+	g.Expect(os.WriteFile(blocked, []byte("x"), 0o600)).To(Succeed())
+	g.Expect(initVault(filepath.Join(blocked, "vault"))).To(MatchError(ContainSubstring("mkdir")))
+
+	readOnly := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(readOnly, ".obsidian"), 0o750)).To(Succeed())
+	g.Expect(os.Chmod(readOnly, 0o500)).To(Succeed())
+	t.Cleanup(func() { _ = os.Chmod(readOnly, 0o700) })
+
+	g.Expect(initVault(readOnly)).To(MatchError(ContainSubstring("write if missing")))
+}
+
+// TestInitVaultFromFS_IdempotentAndPreservesEdits: re-initializing over an
+// existing layout never clobbers user-edited starter files.
+func TestInitVaultFromFS_IdempotentAndPreservesEdits(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	vault := filepath.Join(t.TempDir(), "vault")
-	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
+	initVault := cli.ExportInitVaultFromFS(realFSForTest())
 
-	g.Expect(deps.InitVault(vault)).To(Succeed())
+	g.Expect(initVault(vault)).To(Succeed())
 
 	readme := filepath.Join(vault, "README.md")
-	g.Expect(os.WriteFile(readme, []byte("user edit"), 0o644)).To(Succeed())
-
-	g.Expect(deps.InitVault(vault)).To(Succeed())
+	g.Expect(os.WriteFile(readme, []byte("user edit"), 0o600)).To(Succeed())
+	g.Expect(initVault(vault)).To(Succeed())
 
 	got, readErr := os.ReadFile(readme)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(got)).To(Equal("user edit"), "re-init must not clobber existing files")
-}
-
-func TestNewLearnDeps_InitVault_MkdirFailureSurfaces(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Parent is a regular file, so the vault MkdirAll fails with ENOTDIR.
-	blocked := filepath.Join(t.TempDir(), "isfile")
-	g.Expect(os.WriteFile(blocked, []byte("x"), 0o600)).To(Succeed())
-
-	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
-	g.Expect(deps.InitVault(filepath.Join(blocked, "vault"))).
-		To(MatchError(ContainSubstring("mkdir")))
 }
 
 func TestNewLearnDeps_ListBasenames_SkipsSubdirsAndNonLuhmann(t *testing.T) {
@@ -104,27 +112,6 @@ func TestNewLearnDeps_LogWarning_WritesToDepsStderr(t *testing.T) {
 	deps.LogWarning("hello %s", "world")
 
 	g.Expect(stderr.String()).To(Equal("warning: hello world\n"))
-}
-
-func TestNewLearnDeps_StatDir_FileIsNotADirectory(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	path := filepath.Join(t.TempDir(), "file.txt")
-	g.Expect(os.WriteFile(path, []byte("x"), 0o600)).To(Succeed())
-
-	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
-	g.Expect(deps.StatDir(path)).To(MatchError(ContainSubstring("not a directory")))
-}
-
-func TestNewLearnDeps_StatDir_MissingReturnsErrNotExist(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
-
-	err := deps.StatDir(filepath.Join(t.TempDir(), "absent"))
-	g.Expect(errors.Is(err, fs.ErrNotExist)).To(BeTrue())
 }
 
 func TestNewLearnDeps_WriteNew_PreservesErrExist(t *testing.T) {

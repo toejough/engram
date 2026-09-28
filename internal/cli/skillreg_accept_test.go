@@ -1105,7 +1105,6 @@ func registerSkillLearnDeps(vault *skillAcceptFixtureVault, writtenPath *string,
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, 9, 25, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       noLock,
 		WriteNew: func(path string, data []byte) error {

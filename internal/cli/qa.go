@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"path/filepath"
 	"strings"
 	"time"
@@ -29,8 +28,6 @@ type LearnQAArgs struct {
 type LearnQADeps struct {
 	Now        func() time.Time
 	Getenv     func(string) string
-	StatDir    func(string) error
-	InitVault  func(string) error
 	ListMD     func(string) ([]string, error)
 	Lock       func(vault string) (release func(), err error)
 	WriteNew   func(path string, data []byte) error
@@ -62,11 +59,6 @@ func RunLearnQA(ctx context.Context, args LearnQAArgs, deps LearnQADeps, stdout 
 	}
 
 	vault := args.Vault
-
-	ensureErr := ensureQAVault(deps, vault)
-	if ensureErr != nil {
-		return ensureErr
-	}
 
 	// Resolve answer body.
 	answerBody := args.Answer
@@ -210,32 +202,6 @@ func countQAPairs(names []string) int {
 	return count
 }
 
-// ensureQAVault checks that vault exists, creating it if missing.
-// Returns an error for non-ErrNotExist stat failures or init failures.
-func ensureQAVault(deps LearnQADeps, vault string) error {
-	return ensureVaultDir(deps.StatDir, deps.InitVault, vault, "learn qa")
-}
-
-// ensureVaultDir stats the vault dir and initializes it when absent — the
-// shared init path for every note-writing subcommand (learn, learn qa, ...).
-func ensureVaultDir(statDir, initVault func(string) error, vault, prefix string) error {
-	dirErr := statDir(vault)
-	if dirErr == nil {
-		return nil
-	}
-
-	if !errors.Is(dirErr, fs.ErrNotExist) {
-		return fmt.Errorf("%s: vault %s: %w", prefix, vault, dirErr)
-	}
-
-	initErr := initVault(vault)
-	if initErr != nil {
-		return fmt.Errorf("%s: %w", prefix, initErr)
-	}
-
-	return nil
-}
-
 // isQAQuestionFilename reports whether a filename is a QA question note
 // (prefix "qa." AND suffix ".q.md").
 func isQAQuestionFilename(name string) bool {
@@ -261,8 +227,6 @@ func newQaDeps(d Deps) LearnQADeps {
 	return LearnQADeps{
 		Now:          d.Now,
 		Getenv:       d.Getenv,
-		StatDir:      statDirFromFS(d.FS),
-		InitVault:    initVaultFromFS(d.FS),
 		ListMD:       listMDFromFS(d.FS),
 		Lock:         vaultLockFromLocker(d.Lock),
 		WriteNew:     writeNewFromFS(d.FS),

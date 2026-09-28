@@ -33,6 +33,8 @@ const (
 		"(%s — a copied, moved or cloned vault?); exchange with the parent is paused; " +
 		"if this vault is a copy, run `engram vault-id --regenerate`; " +
 		"if it is the same vault moved or re-cloned, run `engram vault-id --claim`\n"
+	// repairedVaultFormat is repairVaultID's single stderr line.
+	repairedVaultFormat = "engram: stamped the missing vault ID of %s\n"
 	// selfParentWarningFormat is the self-parent guard's one warning.
 	selfParentWarningFormat = "engram: warning: the parent reports this vault's own ID (%s) — skipping exchange " +
 		"with it; if this vault is a copy of the parent, run `engram vault-id --regenerate`\n"
@@ -47,10 +49,12 @@ const (
 
 // unexported variables.
 var (
-	errNoVaultIDToClaim  = errors.New("vault-id --claim: this vault has no vault ID yet")
-	errVaultIDInvalid    = errors.New("invalid vault id (want 32 lowercase hex characters)")
-	errVaultIDRereadGave = errors.New("vault id: re-read after a lost exclusive create never saw a valid id")
-	errVaultIDShortRead  = errors.New("vault id: short random read")
+	errNoVaultIDToClaim = errors.New("vault-id --claim: this vault has no vault ID yet")
+	errVaultIDInvalid   = errors.New("invalid vault id: .engram-vault-id must hold 32 lowercase hex characters " +
+		"(empty or corrupt after a partial write or a git conflict?) — run `engram vault-id --regenerate`")
+	errVaultIDRereadGave = errors.New("vault id: .engram-vault-id is empty or corrupt " +
+		"(a partial write or a git conflict?) — run `engram vault-id --regenerate`")
+	errVaultIDShortRead = errors.New("vault id: short random read")
 )
 
 // exchangeState is the exchange-state adapter: the vault-ID file, the
@@ -187,9 +191,13 @@ func ensureStateDir(state exchangeState, vault string) error {
 // line. An existing vault is left completely untouched — read-only use never
 // creates the ID (serve and first parent contact stamp it lazily).
 func ensureVault(deps Deps, vault string) error {
-	_, statErr := deps.FS.Stat(vault)
+	info, statErr := deps.FS.Stat(vault)
 	if statErr == nil {
-		return nil
+		if !info.IsDir() {
+			return fmt.Errorf("vault %s: %w", vault, errNotADirectory)
+		}
+
+		return repairVaultID(deps, vault)
 	}
 
 	if !errors.Is(statErr, fs.ErrNotExist) {
@@ -201,7 +209,16 @@ func ensureVault(deps Deps, vault string) error {
 		return initErr
 	}
 
-	_, stampErr := stampVaultID(exchangeStateFromDeps(deps), vault)
+	// .engram/ first: it marks the vault as created-by-engram, so a stamp
+	// that fails below is repaired by the next run (repairVaultID).
+	state := exchangeStateFromDeps(deps)
+
+	dirErr := ensureStateDir(state, vault)
+	if dirErr != nil {
+		return dirErr
+	}
+
+	_, stampErr := stampVaultID(state, vault)
 	if stampErr != nil {
 		return stampErr
 	}
@@ -299,6 +316,31 @@ func regenerateVaultID(state exchangeState, vault string) (string, error) {
 	return id, nil
 }
 
+// repairVaultID finishes a vault a failed first-use stamp left half-created:
+// it has the .engram/ state dir (created before the ID) but no ID file.
+// Every other existing vault — including a pre-existing vault with neither
+// — is left untouched, so read-only use never creates the ID.
+func repairVaultID(deps Deps, vault string) error {
+	_, idErr := deps.FS.Stat(filepath.Join(vault, vaultIDFileName))
+	if !errors.Is(idErr, fs.ErrNotExist) {
+		return nil
+	}
+
+	_, dirErr := deps.FS.Stat(filepath.Join(vault, stateDirName))
+	if dirErr != nil {
+		return nil //nolint:nilerr // no state dir: a pre-existing vault, not a half-created one
+	}
+
+	_, stampErr := stampVaultID(exchangeStateFromDeps(deps), vault)
+	if stampErr != nil {
+		return stampErr
+	}
+
+	_, _ = fmt.Fprintf(deps.Stderr, repairedVaultFormat, vault)
+
+	return nil
+}
+
 // rereadWinningVaultID re-reads the ID file after an exclusive create lost
 // the race. The winner may still be mid-write (created but empty), so an
 // invalid read is retried a bounded number of times.
@@ -376,8 +418,8 @@ func stampVaultID(state exchangeState, vault string) (string, error) {
 }
 
 // vaultIDUncommitted is `engram update`'s notify-only detector: true when
-// the ID file exists and git (run in the vault) reports it untracked or
-// uncommitted. A vault that is not a git repo (git fails) or has no ID
+// the ID file exists in a git work tree and is not in the index (untracked
+// or ignored) or is staged/modified but not committed. A vault that is not a git repo (git fails) or has no ID
 // file is silent.
 func vaultIDUncommitted(
 	ctx context.Context, vaultPath string, fileSystem update.Filesystem, cmd update.Commander,
@@ -387,8 +429,21 @@ func vaultIDUncommitted(
 		return false
 	}
 
-	stdout, _, runErr := cmd.Run(ctx, vaultPath, "git", "status", "--porcelain", "--", vaultIDFileName)
-	if runErr != nil {
+	_, _, repoErr := cmd.Run(ctx, vaultPath, "git", "rev-parse", "--is-inside-work-tree")
+	if repoErr != nil {
+		return false
+	}
+
+	// Not in the index at all — untracked, or ignored (which `git status`
+	// alone would hide).
+	_, _, trackedErr := cmd.Run(ctx, vaultPath, "git", "ls-files", "--error-unmatch", "--", vaultIDFileName)
+	if trackedErr != nil {
+		return true
+	}
+
+	// In the index but staged or modified relative to HEAD.
+	stdout, _, statusErr := cmd.Run(ctx, vaultPath, "git", "status", "--porcelain", "--", vaultIDFileName)
+	if statusErr != nil {
 		return false
 	}
 

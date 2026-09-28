@@ -212,7 +212,10 @@ func ingestQueryTargets(
 		targ.Targ(func(ctx context.Context, a IngestArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			errHandler(RunIngest(withLog(ctx), a, newIngestDeps(deps), deps.Stdout))
+
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return RunIngest(withLog(ctx), a, newIngestDeps(deps), deps.Stdout)
+			}))
 		}).Name("ingest").Description("Chunk+embed transcripts/markdown into a chunk index (zero-LLM)"),
 		targ.Targ(func(ctx context.Context, a PruneArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)

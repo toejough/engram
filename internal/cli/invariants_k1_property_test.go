@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -42,7 +41,7 @@ func TestInvariant_K1_ConcurrentLearnNeverCollides(t *testing.T) {
 			vault := t.TempDir()
 			g.Expect(os.MkdirAll(vault, 0o755)).To(Succeed())
 
-			deps := k1RealLockDeps(vault)
+			deps := k1RealLockDeps()
 
 			paths := make([]string, workers)
 			errs := make([]error, workers)
@@ -120,24 +119,12 @@ func TestInvariant_K1_ConcurrentLearnNeverCollides(t *testing.T) {
 	}
 }
 
-// unexported variables.
-var (
-	errK1VaultMissing = errors.New("k1: vault should already exist")
-)
-
 // k1RealLockDeps wires LearnDeps through the PRODUCTION composition
 // (newLearnDeps) over the internally-composed primFS EdgeFS and primLocker
 // FileLocker with real OS primitives — the exact flock + exclusive-create
 // (EdgeFS.WriteFileExcl over the base WriteFileExcl primitive) path the
 // shipped binary builds via cli.NewDeps. Embed is nil (newTestDeps forces
-// it) so auto-embed skips; InitVault errors because the caller
-// pre-creates the vault.
-func k1RealLockDeps(vault string) cli.LearnDeps {
-	deps := cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
-
-	deps.InitVault = func(string) error {
-		return fmt.Errorf("%w: %s", errK1VaultMissing, vault)
-	}
-
-	return deps
+// it) so auto-embed skips; the caller pre-creates the vault.
+func k1RealLockDeps() cli.LearnDeps {
+	return cli.ExportNewLearnDeps(newTestDeps(io.Discard, io.Discard))
 }

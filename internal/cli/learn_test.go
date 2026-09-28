@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -177,8 +176,6 @@ func TestLearnFact_ChunkSources_WrittenToFrontmatter(t *testing.T) {
 		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
-		StatDir:       func(string) error { return nil },
-		InitVault:     func(string) error { return nil },
 		ListIDs:       func(string) ([]string, error) { return nil, nil },
 		ListBasenames: func(string) ([]string, error) { return nil, nil },
 		Lock:          func(string) (func(), error) { return func() {}, nil },
@@ -216,8 +213,6 @@ func TestLearnFact_EmptyChunkSources_NoSourcesKey(t *testing.T) {
 		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
-		StatDir:       func(string) error { return nil },
-		InitVault:     func(string) error { return nil },
 		ListIDs:       func(string) ([]string, error) { return nil, nil },
 		ListBasenames: func(string) ([]string, error) { return nil, nil },
 		Lock:          func(string) (func(), error) { return func() {}, nil },
@@ -253,8 +248,6 @@ func TestLearnFact_EmptyTags_NoTagsKey(t *testing.T) {
 		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
-		StatDir:       func(string) error { return nil },
-		InitVault:     func(string) error { return nil },
 		ListIDs:       func(string) ([]string, error) { return nil, nil },
 		ListBasenames: func(string) ([]string, error) { return nil, nil },
 		Lock:          func(string) (func(), error) { return func() {}, nil },
@@ -303,8 +296,6 @@ func TestLearnFact_InvalidTag_RejectedBeforeWrite(t *testing.T) {
 			DetectUser:    func(context.Context) string { return "" },
 			Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
 			Getenv:        func(string) string { return "" },
-			StatDir:       func(string) error { return nil },
-			InitVault:     func(string) error { return nil },
 			ListIDs:       func(string) ([]string, error) { return nil, nil },
 			ListBasenames: func(string) ([]string, error) { return nil, nil },
 			Lock:          func(string) (func(), error) { return func() {}, nil },
@@ -339,8 +330,6 @@ func TestLearnFact_Tags_WrittenToFrontmatter(t *testing.T) {
 		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
-		StatDir:       func(string) error { return nil },
-		InitVault:     func(string) error { return nil },
 		ListIDs:       func(string) ([]string, error) { return nil, nil },
 		ListBasenames: func(string) ([]string, error) { return nil, nil },
 		Lock:          func(string) (func(), error) { return func() {}, nil },
@@ -386,8 +375,6 @@ func TestLearnFeedback_Tags_WrittenToFrontmatter(t *testing.T) {
 		DetectUser:    func(context.Context) string { return "" },
 		Now:           func() time.Time { return time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC) },
 		Getenv:        func(string) string { return "" },
-		StatDir:       func(string) error { return nil },
-		InitVault:     func(string) error { return nil },
 		ListIDs:       func(string) ([]string, error) { return nil, nil },
 		ListBasenames: func(string) ([]string, error) { return nil, nil },
 		Lock:          func(string) (func(), error) { return func() {}, nil },
@@ -1033,37 +1020,6 @@ func TestRenderRunbookFrontmatter_SkillKeySourceRoundtripProperty(t *testing.T) 
 	})
 }
 
-func TestRunLearn_BootstrapsVaultWhenMissing(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	initCalled := false
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        func() time.Time { return time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return fs.ErrNotExist },
-		InitVault:  func(string) error { initCalled = true; return nil },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(string, []byte) error { return nil },
-	}
-	args := cli.LearnArgs{
-		Type:      "feedback",
-		Slug:      "x",
-		Vault:     "/v",
-		Position:  "top",
-		Source:    "test",
-		Situation: "bootstrapping the vault",
-	}
-
-	var stdout strings.Builder
-
-	g.Expect(cli.ExportRunLearn(t.Context(), args, deps, &stdout)).To(Succeed())
-	g.Expect(initCalled).To(BeTrue())
-}
-
 func TestRunLearn_Fact_WritesExpectedFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1078,7 +1034,6 @@ func TestRunLearn_Fact_WritesExpectedFile(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(path string, data []byte) error {
@@ -1129,7 +1084,6 @@ func TestRunLearn_Feedback_WritesExpectedFile(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs: func(string) ([]string, error) {
 			return []string{"1", "2"}, nil
 		},
@@ -1185,7 +1139,6 @@ func TestRunLearn_PropagatesListIDsError(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, errors.New("io fail") },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(string, []byte) error { return nil },
@@ -1207,7 +1160,6 @@ func TestRunLearn_PropagatesLockError(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return nil, errors.New("locked") },
 		WriteNew:   func(string, []byte) error { return nil },
@@ -1220,28 +1172,6 @@ func TestRunLearn_PropagatesLockError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("acquiring lock")))
 }
 
-func TestRunLearn_PropagatesStatDirError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	deps := cli.LearnDeps{
-		DetectRepo: func(context.Context) string { return "" },
-		DetectUser: func(context.Context) string { return "" },
-		Now:        time.Now,
-		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return errors.New("nope") },
-		ListIDs:    func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(string, []byte) error { return nil },
-	}
-	args := cli.LearnArgs{Type: "fact", Slug: "x", Vault: "/v", Position: "top"}
-
-	var stdout strings.Builder
-
-	err := cli.ExportRunLearn(t.Context(), args, deps, &stdout)
-	g.Expect(err).To(MatchError(ContainSubstring("vault")))
-}
-
 func TestRunLearn_RejectsInvalidSlug(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -1251,7 +1181,6 @@ func TestRunLearn_RejectsInvalidSlug(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        time.Now,
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(string, []byte) error { return nil },
@@ -1273,7 +1202,6 @@ func TestRunLearn_RejectsMissingRunbookDoneWhen(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        time.Now,
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(string, []byte) error { return nil },
@@ -1298,7 +1226,6 @@ func TestRunLearn_RejectsMissingRunbookSituation(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        time.Now,
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(string, []byte) error { return nil },
@@ -1322,8 +1249,6 @@ func TestRunLearn_RejectsUnknownType(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        time.Now,
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
-		InitVault:  func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(string, []byte) error { return nil },
@@ -1377,7 +1302,6 @@ func TestRunLearn_Runbook_NeverWritesSkillHash(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(_ string, data []byte) error { written = data; return nil },
@@ -1409,7 +1333,6 @@ func TestRunLearn_Runbook_NeverWritesSkillKeyOrSource(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(_ string, data []byte) error { written = data; return nil },
@@ -1492,7 +1415,6 @@ func TestRunLearn_Runbook_WritesExpectedFile(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(path string, data []byte) error {
@@ -1545,7 +1467,6 @@ func TestRunLearn_Runbook_WritesRedFlagsWhenProvided(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(_ string, data []byte) error {
@@ -1660,7 +1581,6 @@ func TestRunLearn_StampsIdentityFields(t *testing.T) {
 				DetectUser: func(context.Context) string { return "agent@example.com" },
 				Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 				Getenv:     func(string) string { return "" },
-				StatDir:    func(string) error { return nil },
 				ListIDs:    func(string) ([]string, error) { return nil, nil },
 				Lock:       func(string) (func(), error) { return func() {}, nil },
 				WriteNew: func(_ string, data []byte) error {
@@ -1698,7 +1618,6 @@ func TestTierFrontmatter_BadTierRejected(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(string, []byte) error { return nil },
@@ -1736,7 +1655,6 @@ func TestTierFrontmatter_FactDefaultsToL2(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(_ string, data []byte) error { writtenContent = data; return nil },
@@ -1779,7 +1697,6 @@ func TestTierFrontmatter_FeedbackDefaultsToL2(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(_ string, data []byte) error { writtenContent = data; return nil },
@@ -1822,7 +1739,6 @@ func TestTierFrontmatter_OverrideL3(t *testing.T) {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(_ string, data []byte) error { writtenContent = data; return nil },
@@ -1990,7 +1906,6 @@ func runbookTriggerDeps(written *[]byte, writes *int) cli.LearnDeps {
 		DetectUser: func(context.Context) string { return "" },
 		Now:        func() time.Time { return time.Date(2026, time.May, 9, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
 		ListIDs:    func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(_ string, data []byte) error {

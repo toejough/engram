@@ -88,7 +88,7 @@ func RunQuery(ctx context.Context, args QueryArgs, deps QueryDeps, stdout io.Wri
 		return fmt.Errorf("query: scan: %w", scanErr)
 	}
 
-	notes, pendingOffers := excludePendingOffers(dropVaultStarterNotes(notes), args.VaultPath, deps.Read)
+	notes, pendingOffers := excludePendingOffers(notes, args.VaultPath, deps.Read)
 
 	modelID := deps.Embedder.ModelID()
 	loaded := loadCompatibleSidecars(notes, args.VaultPath, deps.Read, modelID)

@@ -41,7 +41,8 @@ func (e edgeVaultInitFS) WriteFileIfMissing(path string, data []byte, perm fs.Fi
 	return nil
 }
 
-// initVaultFromFS returns an InitVault func composed over the injected EdgeFS.
+// initVaultFromFS returns ensureVault's starter-layout initializer composed
+// over the injected EdgeFS.
 func initVaultFromFS(fsys EdgeFS) func(string) error {
 	return func(path string) error { return initializeVault(edgeVaultInitFS{fsys: fsys}, path) }
 }
@@ -107,27 +108,6 @@ func listMDFromFS(fsys EdgeFS) func(string) ([]string, error) {
 func logWarningTo(w io.Writer) func(string, ...any) {
 	return func(format string, args ...any) {
 		_, _ = fmt.Fprintf(w, "warning: "+format+"\n", args...)
-	}
-}
-
-// statDirFromFS returns a StatDir func: fs.ErrNotExist when the directory is
-// missing, errNotADirectory when the path is a file, wrapped error otherwise.
-func statDirFromFS(fsys EdgeFS) func(string) error {
-	return func(path string) error {
-		info, err := fsys.Stat(path)
-		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				return fs.ErrNotExist
-			}
-
-			return fmt.Errorf("vault stat: %w", err)
-		}
-
-		if !info.IsDir() {
-			return fmt.Errorf("%w: %s", errNotADirectory, path)
-		}
-
-		return nil
 	}
 }
 

@@ -94,6 +94,7 @@ var (
 	ExportFinishUpdate                     = finishUpdate
 	ExportIDAndDateFromNoteFilename        = idAndDateFromNoteFilename
 	ExportIndexPathFor                     = indexPathFor
+	ExportInitVaultFromFS                  = initVaultFromFS
 	ExportInitializeVault                  = initializeVault
 	ExportIsQAQuestionFilename             = isQAQuestionFilename
 	ExportIsQueryExcludedKind              = isQueryExcludedKind
@@ -1065,6 +1066,12 @@ func ExportTermsWithExploitEvidence(
 	exploitPaths map[string]struct{},
 ) map[string]bool {
 	return termsWithExploitEvidence(members, exploitPaths)
+}
+
+// ExportUpdateFSFromEdge adapts an EdgeFS to update.Filesystem the way
+// newUpdateDeps does.
+func ExportUpdateFSFromEdge(fsys EdgeFS) update.Filesystem {
+	return &updateFSFromEdge{fs: fsys}
 }
 
 // resolvedItemLessForTest exposes resolvedItemLess over bare provenance/score

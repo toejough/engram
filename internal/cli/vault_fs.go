@@ -14,9 +14,30 @@ type vaultFS struct {
 	fs EdgeFS
 }
 
-// ListMD returns the .md filenames in dir. Missing dir → empty, nil.
+// ListMD returns the .md filenames in dir. Missing dir → empty, nil. The
+// untouched starter README (identified by content) is left out — this is
+// the one shared point where every vault scanner (query, check, embed,
+// count, ...) stops seeing it, so a freshly created vault reads as empty.
 func (v *vaultFS) ListMD(dir string) ([]string, error) {
-	return listMDFromFS(v.fs)(dir)
+	names, err := listMDFromFS(v.fs)(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	kept := make([]string, 0, len(names))
+
+	for _, name := range names {
+		if name == vaultReadmeFile {
+			content, readErr := v.fs.ReadFile(filepath.Join(dir, name))
+			if readErr == nil && isVaultStarterReadme(name, content) {
+				continue
+			}
+		}
+
+		kept = append(kept, name)
+	}
+
+	return kept, nil
 }
 
 // ReadFile reads the file at path.

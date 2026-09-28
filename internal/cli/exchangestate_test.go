@@ -202,6 +202,43 @@ func TestEnsureVault_RandFailureIsError(t *testing.T) {
 	g.Expect(filepath.Join(vault, ".engram-vault-id")).NotTo(BeAnExistingFile())
 }
 
+// TestEnsureVault_RegularFileIsNotAVault: a vault path naming a regular file
+// is refused, not treated as an existing vault.
+func TestEnsureVault_RegularFileIsNotAVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	file := filepath.Join(t.TempDir(), "file")
+	g.Expect(os.WriteFile(file, []byte("x"), 0o600)).To(Succeed())
+	g.Expect(cli.ExportEnsureVault(exchangeDeps(io.Discard, 1), file)).To(MatchError(ContainSubstring("not a directory")))
+}
+
+// TestEnsureVault_RepairsHalfCreatedVault: a first-use stamp that failed
+// (random source down) leaves .engram/ but no ID; the next run stamps it
+// with one line, and later runs print nothing.
+func TestEnsureVault_RepairsHalfCreatedVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := filepath.Join(t.TempDir(), "vault")
+	broken := exchangeDeps(io.Discard, 1)
+	broken.RandRead = func([]byte) (int, error) { return 0, errInjected }
+	g.Expect(cli.ExportEnsureVault(broken, vault)).To(HaveOccurred())
+	g.Expect(filepath.Join(vault, ".engram")).To(BeADirectory())
+
+	var stderr bytes.Buffer
+
+	g.Expect(cli.ExportEnsureVault(exchangeDeps(&stderr, 6), vault)).To(Succeed())
+	g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(seqID(6) + "\n"))
+	g.Expect(nonEmptyLines(stderr.String())).To(HaveLen(1))
+	g.Expect(readHomeRecord(t, vault)).To(HaveKeyWithValue("vault_id", seqID(6)))
+
+	var quiet bytes.Buffer
+
+	g.Expect(cli.ExportEnsureVault(exchangeDeps(&quiet, 9), vault)).To(Succeed())
+	g.Expect(quiet.String()).To(BeEmpty())
+}
+
 // TestEnsureVault_SecondRunCreatesAndPrintsNothing: idempotence — the second
 // call leaves the tree byte-identical and prints nothing.
 func TestEnsureVault_SecondRunCreatesAndPrintsNothing(t *testing.T) {
@@ -282,7 +319,7 @@ func TestExchangeState_ErrorPaths(t *testing.T) {
 		g.Expect(checkErr).To(MatchError(ContainSubstring("invalid vault id")))
 
 		_, stampErr := cli.ExportStampVaultID(scriptedState(fsys), vault)
-		g.Expect(stampErr).To(MatchError(ContainSubstring("never saw a valid id")))
+		g.Expect(stampErr).To(MatchError(ContainSubstring("engram vault-id --regenerate")))
 	})
 
 	t.Run("record-read-failure", func(t *testing.T) {

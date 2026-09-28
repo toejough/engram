@@ -169,12 +169,10 @@ func TestRunLearnQA_AWriteAndRemoveFailure_OrphanWarning(t *testing.T) {
 
 	writeCount := 0
 	deps := cli.LearnQADeps{
-		Now:       func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
-		Getenv:    func(string) string { return "" },
-		StatDir:   func(string) error { return nil },
-		InitVault: func(string) error { return nil },
-		ListMD:    func(string) ([]string, error) { return nil, nil },
-		Lock:      func(string) (func(), error) { return func() {}, nil },
+		Now:    func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		Getenv: func(string) string { return "" },
+		ListMD: func(string) ([]string, error) { return nil, nil },
+		Lock:   func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(_ string, _ []byte) error {
 			writeCount++
 			if writeCount == 2 {
@@ -203,12 +201,10 @@ func TestRunLearnQA_AWriteFailure_RemovesQAndErrors(t *testing.T) {
 
 	writeCount := 0
 	deps := cli.LearnQADeps{
-		Now:       func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
-		Getenv:    func(string) string { return "" },
-		StatDir:   func(string) error { return nil },
-		InitVault: func(string) error { return nil },
-		ListMD:    func(string) ([]string, error) { return nil, nil },
-		Lock:      func(string) (func(), error) { return func() {}, nil },
+		Now:    func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
+		Getenv: func(string) string { return "" },
+		ListMD: func(string) ([]string, error) { return nil, nil },
+		Lock:   func(string) (func(), error) { return func() {}, nil },
 		WriteNew: func(_ string, _ []byte) error {
 			writeCount++
 			if writeCount == 2 {
@@ -234,26 +230,6 @@ func TestRunLearnQA_AWriteFailure_RemovesQAndErrors(t *testing.T) {
 	}
 
 	g.Expect(removed[0]).To(ContainSubstring(".q.md"))
-}
-
-func TestRunLearnQA_InitVaultFailure_Error(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	initErr := errors.New("mkdir: read-only filesystem")
-	deps := cli.LearnQADeps{
-		Now:       time.Now,
-		Getenv:    func(string) string { return "" },
-		StatDir:   func(string) error { return os.ErrNotExist },
-		InitVault: func(string) error { return initErr },
-	}
-
-	var buf strings.Builder
-
-	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
-		Slug: "slug", Question: "Q?", Answer: "body-a", Source: "src",
-	}, deps, &buf)
-	g.Expect(err).To(MatchError(initErr))
 }
 
 // Coverage tests for RunLearnQA and writeQANotesUnderLock branches.
@@ -286,8 +262,6 @@ func TestRunLearnQA_LockFailure_Error(t *testing.T) {
 	deps := cli.LearnQADeps{
 		Now:        func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
-		InitVault:  func(string) error { return nil },
 		ListMD:     func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return nil, lockErr },
 		WriteNew:   func(string, []byte) error { return nil },
@@ -303,51 +277,6 @@ func TestRunLearnQA_LockFailure_Error(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("acquiring lock")))
 }
 
-func TestRunLearnQA_MissingVault_Initialized(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	initCalled := 0
-	deps := cli.LearnQADeps{
-		Now:        func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
-		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return os.ErrNotExist },
-		InitVault:  func(string) error { initCalled++; return nil },
-		ListMD:     func(string) ([]string, error) { return nil, nil },
-		Lock:       func(string) (func(), error) { return func() {}, nil },
-		WriteNew:   func(string, []byte) error { return nil },
-		RemoveFile: func(string) error { return nil },
-		ReadFile:   func(string) ([]byte, error) { return nil, nil },
-	}
-
-	var buf strings.Builder
-
-	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
-		Slug: "slug", Question: "Q?", Answer: "body-a", Source: "src",
-	}, deps, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(initCalled).To(Equal(1), "missing vault must be initialized")
-}
-
-func TestRunLearnQA_StatDirFailure_Error(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	statErr := errors.New("stat: permission denied")
-	deps := cli.LearnQADeps{
-		Now:     time.Now,
-		Getenv:  func(string) string { return "" },
-		StatDir: func(string) error { return statErr },
-	}
-
-	var buf strings.Builder
-
-	err := cli.RunLearnQA(context.Background(), cli.LearnQAArgs{
-		Slug: "slug", Question: "Q?", Answer: "body-a", Source: "src",
-	}, deps, &buf)
-	g.Expect(err).To(MatchError(statErr))
-}
-
 func TestRunLearnQA_UnknownContributor_ErrorBeforeWrite(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -356,8 +285,6 @@ func TestRunLearnQA_UnknownContributor_ErrorBeforeWrite(t *testing.T) {
 	deps := cli.LearnQADeps{
 		Now:        time.Now,
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
-		InitVault:  func(string) error { return nil },
 		ListMD:     func(string) ([]string, error) { return []string{"100.note.md"}, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(string, []byte) error { writeCallCount++; return nil },
@@ -385,8 +312,6 @@ func TestRunLearnQA_WithAnswerFile(t *testing.T) {
 	deps := cli.LearnQADeps{
 		Now:        func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
-		InitVault:  func(string) error { return nil },
 		ListMD:     func(string) ([]string, error) { return nil, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(path string, _ []byte) error { written = append(written, path); return nil },
@@ -415,8 +340,6 @@ func TestRunLearnQA_WritesQAndAFiles(t *testing.T) {
 	deps := cli.LearnQADeps{
 		Now:        func() time.Time { return time.Date(2026, 7, 3, 0, 0, 0, 0, time.UTC) },
 		Getenv:     func(string) string { return "" },
-		StatDir:    func(string) error { return nil },
-		InitVault:  func(string) error { return nil },
 		ListMD:     func(string) ([]string, error) { return []string{"100.note.md"}, nil },
 		Lock:       func(string) (func(), error) { return func() {}, nil },
 		WriteNew:   func(path string, _ []byte) error { written = append(written, path); return nil },

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
-
-	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 // VaultInitFS is the filesystem surface needed to bootstrap a fresh vault.
@@ -40,24 +38,6 @@ type vaultStarterFile struct {
 	body    string
 }
 
-// dropVaultStarterNotes removes the vault's own starter README (written by
-// initializeVault) from a scanned note list: it is not a memory note, and a
-// freshly created vault (design D2: every command creates a missing one)
-// must query as empty rather than as "notes without embeddings".
-func dropVaultStarterNotes(notes []vaultgraph.Note) []vaultgraph.Note {
-	kept := make([]vaultgraph.Note, 0, len(notes))
-
-	for _, note := range notes {
-		if note.Basename+".md" == vaultReadmeFile {
-			continue
-		}
-
-		kept = append(kept, note)
-	}
-
-	return kept
-}
-
 // initializeVault creates the standard layout under vaultPath: Permanent/,
 // a minimal .obsidian/app.json so Obsidian recognizes the directory as a
 // vault, a .gitignore, and a short README. All file writes are
@@ -83,6 +63,13 @@ func initializeVault(vaultFS VaultInitFS, vaultPath string) error {
 	}
 
 	return nil
+}
+
+// isVaultStarterReadme reports whether name/content is the untouched
+// starter README initializeVault writes. It is identified by CONTENT, so a
+// user's own README.md (or an edited starter) stays a normal note.
+func isVaultStarterReadme(name string, content []byte) bool {
+	return name == vaultReadmeFile && string(content) == readmeBody
 }
 
 // vaultStarters returns the starter content set written by initializeVault.

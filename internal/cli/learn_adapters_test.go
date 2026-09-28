@@ -56,49 +56,23 @@ func TestLearnFactArgs_AcceptsProjectAndIssueFlags(t *testing.T) {
 	g.Expect(string(body)).To(ContainSubstring("issue: \"636\"\n"))
 }
 
-func TestRunLearnFromFactArgs_BootstrapsMissingVault(t *testing.T) {
+// TestLearnFact_BootstrapsMissingVault: `engram learn fact` on a missing
+// vault creates it in dispatch (design D2's single ensureVault path) and
+// the note lands.
+func TestLearnFact_BootstrapsMissingVault(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// Vault dir does NOT exist; runLearn must bootstrap it before writing.
 	vault := filepath.Join(t.TempDir(), "fresh-vault")
 
-	args := cli.LearnFactArgs{
-		CommonLearnArgs: cli.CommonLearnArgs{
-			Slug:     "bootstrap-fact",
-			Vault:    vault,
-			Position: "top",
-			Source:   "test",
-		},
-		Situation: "first run",
-		Subject:   "engram",
-		Predicate: "bootstraps",
-		Object:    "the vault",
-	}
+	stdout, stderr := runWithRand(t, []string{
+		"engram", "learn", "fact", "--vault", vault, "--slug", "bootstrap-fact", "--source", "test", "--position", "top",
+		"--situation", "first run", "--subject", "engram", "--predicate", "bootstraps", "--object", "the vault",
+	}, 1)
 
-	err := cli.ExportRunLearnFromFactArgs(context.Background(), args, newTestDeps(io.Discard, io.Discard), io.Discard)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Bootstrap created  and .obsidian/.
-	for _, sub := range []string{".obsidian"} {
-		info, statErr := os.Stat(filepath.Join(vault, sub))
-		g.Expect(statErr).NotTo(HaveOccurred())
-
-		if statErr != nil {
-			return
-		}
-
-		g.Expect(info.IsDir()).To(BeTrue())
-	}
-
-	// And the actual fact note landed.
-	entries, readErr := os.ReadDir(vault)
-	g.Expect(readErr).NotTo(HaveOccurred())
-	g.Expect(entries).NotTo(BeEmpty())
+	g.Expect(filepath.Join(vault, ".obsidian")).To(BeADirectory())
+	g.Expect(strings.TrimSpace(stdout)).To(HaveSuffix(".bootstrap-fact.md"), stderr)
+	g.Expect(strings.TrimSpace(stdout)).To(BeAnExistingFile())
 }
 
 // TestRunLearnFromFactArgs_RequiresSituation asserts a fact write rejects an

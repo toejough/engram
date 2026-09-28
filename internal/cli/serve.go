@@ -90,12 +90,14 @@ func RunServe(ctx context.Context, args ServeArgs, deps Deps) error {
 	// turn a false positive into a host outage.
 	state := exchangeStateFromDeps(deps)
 
+	// A corrupt or empty ID file (a partial write, a git conflict) only
+	// warns, naming the remedy — refusing would crash-loop under launchd.
 	_, stampErr := stampVaultID(state, args.Vault)
 	if stampErr != nil {
-		return fmt.Errorf("serve: %w", stampErr)
+		_, _ = fmt.Fprintf(deps.Stderr, "engram: warning: serve: %v; serving anyway\n", stampErr)
+	} else {
+		warnVaultLocation(state, args.Vault, deps.Stderr)
 	}
-
-	warnVaultLocation(state, args.Vault, deps.Stderr)
 
 	mux := deps.NewServeMux()
 

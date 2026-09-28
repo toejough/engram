@@ -18,6 +18,31 @@ import (
 	"github.com/toejough/engram/internal/update"
 )
 
+// TestRunServe_CorruptVaultIDWarnsAndStarts: a corrupt or empty ID file (a
+// partial write, a git conflict) never stops serve — it warns, naming
+// `engram vault-id --regenerate`, and serves; the file is left alone.
+func TestRunServe_CorruptVaultIDWarnsAndStarts(t *testing.T) {
+	t.Parallel()
+
+	for _, content := range []string{"", "<<<<<<< HEAD\n"} {
+		g := NewWithT(t)
+
+		vault := t.TempDir()
+		idPath := filepath.Join(vault, ".engram-vault-id")
+		g.Expect(os.WriteFile(idPath, []byte(content), 0o600)).To(Succeed())
+
+		var stderr bytes.Buffer
+
+		served := false
+		args := cli.ServeArgs{Addr: "127.0.0.1:0", Vault: vault, VaultName: "personal", ChunksDir: t.TempDir()}
+
+		g.Expect(cli.RunServe(context.Background(), args, fakeServeDeps(&stderr, 1, &served))).To(Succeed())
+		g.Expect(served).To(BeTrue())
+		g.Expect(stderr.String()).To(ContainSubstring("engram vault-id --regenerate"))
+		g.Expect(readFileString(t, idPath)).To(Equal(content))
+	}
+}
+
 // TestRunServe_StampsMissingVaultIDAndReusesIt: serve stamps an existing
 // vault's missing ID at startup; a later start reuses it unchanged.
 func TestRunServe_StampsMissingVaultIDAndReusesIt(t *testing.T) {
@@ -107,6 +132,9 @@ func TestTargets_EveryVaultCommandCreatesMissingVault(t *testing.T) {
 		{"embed-status", func(v, _ string) []string { return []string{"embed", "status", "--vault", v} }},
 		{"vocab-stats", func(v, _ string) []string { return []string{"vocab", "stats", "--vault", v} }},
 		{"vault-id", func(v, _ string) []string { return []string{"vault-id", "--vault", v} }},
+		{"ingest", func(v, s string) []string {
+			return []string{"ingest", "--vault", v, "--chunks-dir", s, "--sweep", s}
+		}},
 		{"learn-fact", func(v, _ string) []string {
 			return []string{
 				"learn", "fact", "--vault", v, "--situation", "s", "--source", "test",
@@ -217,6 +245,7 @@ func TestTargets_QueryWithParent_UnstampableIDOnlyWarns(t *testing.T) {
 			}
 		})
 	g.Expect(stderr).To(ContainSubstring("could not stamp the vault ID"))
+	g.Expect(stderr).To(ContainSubstring("engram vault-id --regenerate"))
 
 	var parsed queryParsed
 	g.Expect(yaml.Unmarshal([]byte(stdout), &parsed)).To(Succeed())
@@ -243,6 +272,32 @@ func TestTargets_ServeCreatesMissingVault(t *testing.T) {
 	g.Expect(served).To(BeTrue())
 	g.Expect(stderr.String()).To(Equal(createdVaultLine + vault + "\n"))
 	g.Expect(readFileString(t, filepath.Join(vault, ".engram-vault-id"))).To(Equal(seqID(2) + "\n"))
+}
+
+// TestTargets_StarterReadmeHiddenUserReadmeVisible: the untouched starter
+// README (identified by content) is invisible to check and embed status, so
+// a fresh vault is clean; a user's own README.md stays a visible note.
+func TestTargets_StarterReadmeHiddenUserReadmeVisible(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := createdVault(t)
+
+	checkOut, checkErr := runWithRand(t, []string{"engram", "check", "--vault", vault}, 1)
+	g.Expect(checkErr).To(BeEmpty())
+	g.Expect(checkOut).NotTo(ContainSubstring("missing a sidecar"))
+
+	statusOut, _ := runWithRand(t, []string{"engram", "embed", "status", "--vault", vault}, 1)
+	g.Expect(statusOut).To(MatchRegexp(`total: +0\n`))
+	g.Expect(statusOut).To(MatchRegexp(`without: +0\n`))
+
+	g.Expect(os.WriteFile(filepath.Join(vault, "README.md"), []byte("# my notes\n"), 0o600)).To(Succeed())
+
+	userOut, _ := runWithRand(t, []string{"engram", "embed", "status", "--vault", vault}, 1)
+	g.Expect(userOut).To(MatchRegexp(`total: +1\n`))
+
+	userCheck, _ := runWithRand(t, []string{"engram", "check", "--vault", vault}, 1)
+	g.Expect(userCheck).To(ContainSubstring("1 note(s) missing a sidecar"))
 }
 
 // TestTargets_VaultID covers `engram vault-id [--regenerate | --claim]`: no
@@ -350,7 +405,14 @@ func TestTargets_VaultID(t *testing.T) {
 func TestVaultIDUncommitted(t *testing.T) {
 	t.Parallel()
 
-	const statusArgs = "status --porcelain -- .engram-vault-id"
+	const (
+		repoArgs   = "rev-parse --is-inside-work-tree"
+		lsArgs     = "ls-files --error-unmatch -- .engram-vault-id"
+		statusArgs = "status --porcelain -- .engram-vault-id"
+	)
+
+	inRepo := scriptedGitReply{out: "true\n"}
+	tracked := scriptedGitReply{out: ".engram-vault-id\n"}
 
 	table := []struct {
 		name   string
@@ -358,11 +420,15 @@ func TestVaultIDUncommitted(t *testing.T) {
 		script scriptedGit
 		want   bool
 	}{
-		{"untracked", true, scriptedGit{statusArgs: {out: "?? .engram-vault-id\n"}}, true},
-		{"staged-not-committed", true, scriptedGit{statusArgs: {out: "A  .engram-vault-id\n"}}, true},
-		{"committed", true, scriptedGit{statusArgs: {out: ""}}, false},
+		{"untracked", true, scriptedGit{repoArgs: inRepo, statusArgs: {out: "?? .engram-vault-id\n"}}, true},
+		{"ignored", true, scriptedGit{repoArgs: inRepo, statusArgs: {out: ""}}, true},
+		{"staged-not-committed", true, scriptedGit{
+			repoArgs: inRepo, lsArgs: tracked, statusArgs: {out: "A  .engram-vault-id\n"},
+		}, true},
+		{"committed", true, scriptedGit{repoArgs: inRepo, lsArgs: tracked, statusArgs: {out: ""}}, false},
+		{"status-fails", true, scriptedGit{repoArgs: inRepo, lsArgs: tracked}, false},
 		{"not-a-git-repo", true, scriptedGit{}, false},
-		{"no-id-file", false, scriptedGit{statusArgs: {out: "?? .engram-vault-id\n"}}, false},
+		{"no-id-file", false, scriptedGit{repoArgs: inRepo}, false},
 	}
 
 	for _, tc := range table {
@@ -381,6 +447,33 @@ func TestVaultIDUncommitted(t *testing.T) {
 			g.Expect(got).To(Equal(tc.want))
 		})
 	}
+}
+
+// TestVaultIDUncommitted_RealGitIgnoredAndCommitted drives the detector
+// against real git: an ignored ID file is still flagged (git status alone
+// hides it), and a committed one is not.
+func TestVaultIDUncommitted_RealGitIgnoredAndCommitted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	commander := newTestDeps(io.Discard, io.Discard).Commander
+	fileSystem := cli.ExportUpdateFSFromEdge(realFSForTest())
+	gitIn := func(args ...string) {
+		_, stderr, err := commander.Run(t.Context(), vault, "git", args...)
+		g.Expect(err).NotTo(HaveOccurred(), string(stderr))
+	}
+
+	gitIn("init", "-q")
+	g.Expect(os.WriteFile(filepath.Join(vault, ".gitignore"), []byte(".engram-vault-id\n"), 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(vault, ".engram-vault-id"), []byte(seqID(1)+"\n"), 0o600)).To(Succeed())
+
+	g.Expect(cli.ExportVaultIDUncommitted(t.Context(), vault, fileSystem, commander)).To(BeTrue())
+
+	gitIn("add", "-f", ".engram-vault-id")
+	gitIn("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "vault: add vault id")
+
+	g.Expect(cli.ExportVaultIDUncommitted(t.Context(), vault, fileSystem, commander)).To(BeFalse())
 }
 
 // TestWriteUpdateReport_VaultIDUncommittedNotice: the report asks for the
