@@ -87,11 +87,15 @@ The server SHALL place every new pending note at top level, ignoring any caller-
 - **THEN** the pending note receives a new top-level Luhmann ID
 
 ### Requirement: Served learn SHALL NOT let callers set link, identity, or registration fields
-The request decoding SHALL NOT populate a note's `parent`, `aliases`, `xid`, `offer.prior_keys`, `skill_hash`, `skill_key`, or `skill_source`, whatever the key spelling in the request body. The only caller-settable exchange fields SHALL be `offer.origin`, `offer.key`, `offer.for`, and `offer.path`, and they SHALL land only on pending notes.
+The request decoding SHALL NOT populate a note's `parent`, `aliases`, `xid`, `offer.prior_keys`, `skill_hash`, `skill_key`, or `skill_source`, whatever the key spelling in the request body. The only caller-settable exchange fields SHALL be `offer.origin`, `offer.key`, `offer.for`, and `offer.path`, and they SHALL land only on pending notes. Served learn SHALL drop any `tags` in the request: offers carry no tags, and the receiving vault's own vocab assigns them (design D5).
 
 #### Scenario: Remote-set origin fields are ignored
 - **WHEN** a served `learn` request body includes `parent`, `aliases`, `xid`, `skillHash`, or `SkillKey` keys (camelCase or PascalCase)
 - **THEN** the written pending note carries none of those fields
+
+#### Scenario: Wire tags are dropped
+- **WHEN** a served `learn` request body carries `tags`
+- **THEN** the pending note, new or updated in place, carries none of those tags
 
 ### Requirement: Served show SHALL offer a raw JSON envelope
 The served `show` route SHALL accept a `raw` parameter. With `raw=1`, it SHALL resolve the `note` parameter against basenames and then against `aliases`, and SHALL return a JSON object carrying:
@@ -100,7 +104,7 @@ The served `show` route SHALL accept a `raw` parameter. With `raw=1`, it SHALL r
 - `content`: the note file's bytes, unmodified, with no `red_flags` preview cap and no appended links section;
 - `exchange_hash` (capability `vault-parent-offers`).
 
-A missing note SHALL produce a 404 with an error body, not a 500. Without `raw`, the route SHALL return exactly the local `engram show` output, including the exchange-hash header line for notes carrying `xid` (capability `vault-offer-curation`).
+A missing note SHALL produce a 404 with an error body, not a 500. A pending note SHALL be treated as missing on the raw route, whether it is named by basename or by alias: it is an unvetted offer, not the vault's note, so it is never pulled down as one. Without `raw`, the route SHALL return exactly the local `engram show` output, including the exchange-hash header line for notes carrying `xid` (capability `vault-offer-curation`).
 
 #### Scenario: Raw show is exact
 - **WHEN** `GET /show?note=<basename>&raw=1` is served for an existing note
@@ -113,6 +117,32 @@ A missing note SHALL produce a 404 with an error body, not a 500. Without `raw`,
 #### Scenario: Missing note is not found
 - **WHEN** `GET /show?note=<missing>&raw=1` is served
 - **THEN** the response is a 404 with an error body
+
+#### Scenario: A pending note is not served raw
+- **WHEN** `GET /show?note=<basename or alias of a pending note>&raw=1` is served
+- **THEN** the response is a 404 with an error body
+
+### Requirement: Served activate SHALL resolve refs only against the vault's note names
+The served `activate` route SHALL resolve each ref only against the vault's listed note names (with or without `.md`), as the raw `show` route does; a ref SHALL never be joined into a filesystem path. A request with any ref that is an absolute path, contains a path separator (`/` or `\`), or contains `..` SHALL be answered 400, and nothing SHALL be read or written. The local `engram activate` command keeps accepting absolute and vault-relative paths.
+
+#### Scenario: A path ref is rejected
+- **WHEN** `POST /activate` names `/etc/x`, `../x.md`, or an absolute path to a note outside the vault
+- **THEN** the response is a 400, and no sidecar inside or outside the vault is changed
+
+#### Scenario: A listed note name is activated
+- **WHEN** `POST /activate` names a vault note's basename, with or without `.md`
+- **THEN** that note's sidecar `LastUsed` is bumped
+
+### Requirement: Served request and parent response bodies SHALL be size-capped
+`engram serve` SHALL read at most 4 MiB of a request body; a body it could not read in full SHALL be answered 413 by every route, and nothing SHALL be written. A child SHALL accept at most 16 MiB of a parent response; a longer response SHALL be an error, never a truncated payload.
+
+#### Scenario: An oversized request is refused
+- **WHEN** a served request's body exceeds the cap
+- **THEN** the response is a 413, and the vault is unchanged
+
+#### Scenario: An oversized parent response is refused
+- **WHEN** a parent's response body exceeds the child's cap
+- **THEN** the request fails as the parent's failure, and nothing from it is stored
 
 ### Requirement: Served query SHALL return dedupe keys on request
 The served `query` route SHALL accept a `dedupe-keys` parameter. With `dedupe-keys=1`, the returned payload SHALL carry a top-level `vault_id`, and each note item SHALL carry its `exchange_hash` and, when non-empty, its `aliases`. Without the parameter, the payload SHALL be unchanged.

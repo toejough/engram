@@ -780,9 +780,11 @@ The `parent:` frontmatter block (`vault`, `links: [{note, via, hash}]`, `author`
 to its counterpart(s) in the configured parent's vault, keyed by that parent's vault ID rather
 than by URL. `via` is `offered`/`pulled` for the note's one primary counterpart, or `covered` for
 a parent note this note was judged (by a curation fold) to also cover. Set only by the exchange
-paths — the offer receipt, pull-down, `amend --discard --into`, and served learn — and preserved
-byte-for-byte by every other rewrite, including a rename (which appends to `aliases` only, never
-touching `parent:`) (design D4).
+paths — the offer receipt, pull-down and `amend --discard --into` — and preserved byte-for-byte by
+every other rewrite, including a rename (which appends to `aliases` only, never touching
+`parent:`). Served learn never sets or changes `parent:`: it sets only a pending offer's `xid` and
+`offer`, carrying an existing note's `parent:`/`aliases` through an in-place update unchanged
+(design D4).
 
 ### pull-down
 `engram activate`'s parent path (design D8, Q2): on a local miss, a basename-shaped ref that isn't
@@ -791,13 +793,17 @@ found is fetched from the parent's `GET /show?raw=1` and written as a **new loca
 knowledge. A pull is skipped when a local note already links the same basename/alias at the same
 hash, or the pull was previously declined at that hash (`.engram/declined.json`). After the write,
 `engram` best-effort bumps the note's use on the parent (`POST /activate`) — a failure there is
-never fatal and never queued. A pulled note is never offered back up unless it is later edited
-locally (then it goes up once, as design D12's "bounce-once").
+never fatal and never queued. A local hit on a note linked to a parent note re-checks that parent
+note the same way (ruling S31): a changed, undeclined version arrives as another pending offer, and
+an unchanged one writes nothing — this is how a parent-side change reaches a child whose merged
+query shows its local copy instead. A pulled note is never offered back up unless it is later
+edited locally (then it goes up once, as design D12's "bounce-once").
 
 ### vault ID
 A stable 32-hex-character random ID stored in the tracked `<vault>/.engram-vault-id` file,
-created (with an untracked `.engram/home.json` location record) the first time a vault contacts a
-parent or serves one. Exchange links and the outbox's parent cache key on this ID, never on URL or
+created (with an untracked `.engram/home.json` location record) when a command creates a new vault
+(the first command that resolves a missing vault path), and otherwise stamped lazily the first
+time an existing vault contacts a parent or serves one. Exchange links and the outbox's parent cache key on this ID, never on URL or
 hostname, so a DNS/IP change breaks nothing. `engram vault-id` prints the ID and a copy/clone
 check against `home.json`; `--regenerate` mints a fresh ID for a copy (`cp -R`), `--claim`
 re-records the same vault's new location (design D2).

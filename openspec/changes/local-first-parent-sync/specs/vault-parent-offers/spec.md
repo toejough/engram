@@ -172,7 +172,7 @@ After a transport failure or timeout against the parent, the vault's parent cach
 - **THEN** the parent returns the receipt of the pending note it already has, and the parent vault holds one pending note for that offer
 
 ### Requirement: A receipt SHALL record the parent counterpart on the local note
-When the parent returns an offer receipt, the local note SHALL record the parent's vault ID. It SHALL set its primary link to `{note: <resolved target basename when the receipt names one, else the receipt's basename>, via: offered, hash: <the receipt's stored_hash>}`. The link records the hash the parent stored, not the hash the child computed. Recording the link SHALL be a frontmatter-only rewrite under the vault lock. It SHALL NOT re-embed the note, and SHALL NOT re-stamp `repo`/`user`/`vault`. A receipt that lacks a vault ID or a basename SHALL stop exchange with an error saying the parent is too old, and SHALL leave the entry queued.
+When the parent returns an offer receipt, the local note SHALL record the parent's vault ID. It SHALL set its primary link to `{note: <resolved target basename when the receipt names one, else the receipt's basename>, via: offered, hash: <the receipt's stored_hash>}`. The link records the hash the parent stored, not the hash the child computed. Recording the link SHALL be a frontmatter-only rewrite under the vault lock. It SHALL NOT re-embed the note, and SHALL NOT re-stamp `repo`/`user`/`vault`. A receipt that lacks a vault ID or a basename SHALL stop exchange with an error saying the parent is too old, and SHALL leave the entry queued. A receipt whose `vault_id` is not 32 lowercase hex characters, or whose `basename` or `for` is not a Luhmann basename free of `/`, `\` and `|`, SHALL be treated as an undecodable reply: nothing is recorded on the note, and the entry stays queued with the failure recorded. A 409 loop refusal whose `vault_id` is malformed SHALL count as a refusal without a vault ID. A malformed vault ID SHALL never be cached as the parent's.
 
 #### Scenario: Receipt links the note
 - **WHEN** the parent answers a learn-offer for local note L with basename `1100.2026-09-27.x`
@@ -185,6 +185,10 @@ When the parent returns an offer receipt, the local note SHALL record the parent
 #### Scenario: A pre-change parent is detected
 - **WHEN** a receipt carries no `vault_id`
 - **THEN** the command reports that the parent is too old, and the entry stays queued
+
+#### Scenario: A malformed receipt is not recorded
+- **WHEN** a receipt's basename contains `|` or `/`, or its `vault_id` is not 32 lowercase hex characters
+- **THEN** the local note gains no parent link, and the entry stays queued with the failure recorded
 
 ### Requirement: Outbox state SHALL be reported
 `engram update` SHALL include a notify-only notice when the outbox is non-empty or a backoff is active. The notice SHALL give the queued-entry count, the age of the oldest entry, each rejected entry with its error, and the backoff retry time.

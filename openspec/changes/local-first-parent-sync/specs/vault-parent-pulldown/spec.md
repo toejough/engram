@@ -12,7 +12,7 @@ On a local miss with `ENGRAM_PARENT` set, or for any ref when `--parent` is give
 - **THEN** the parent note is pulled down as a local pending offer
 
 #### Scenario: A local hit never contacts the parent
-- **WHEN** `engram activate --note <ref>` runs and the ref's note file exists locally
+- **WHEN** `engram activate --note <ref>` runs and the ref's note file exists locally, and that note has no parent link
 - **THEN** the local sidecar's `LastUsed` is bumped, and no parent request is made
 
 #### Scenario: Bare Luhmann IDs stay local
@@ -28,7 +28,7 @@ On a local miss with `ENGRAM_PARENT` set, or for any ref when `--parent` is give
 - **THEN** the command errors, and no note is read or written
 
 ### Requirement: A pulled-down note SHALL be an exact-content local pending offer
-A pull-down SHALL fetch the parent note through the served `show` raw envelope (capability `vault-serve-api`), holding no vault lock while it does. It SHALL reject a response that is not a valid envelope; that means the parent is too old. Under the vault lock, it SHALL write a new local note with:
+A pull-down SHALL fetch the parent note through the served `show` raw envelope (capability `vault-serve-api`), holding no vault lock while it does. It SHALL reject a response that is not a valid envelope; that means the parent is too old. It SHALL also reject, writing nothing, an envelope whose `vault_id` is not 32 lowercase hex characters or whose `basename` is not a Luhmann basename free of `/`, `\` and `|` (a malformed reply). Under the vault lock, it SHALL write a new local note with:
 - a fresh local top-level Luhmann ID and its own `xid`;
 - the parent's body unchanged, so its exchange hash equals the envelope's;
 - the pending-offer marker;
@@ -83,6 +83,25 @@ A bare `engram amend --discard` of a note whose primary link is `via: pulled` SH
 #### Scenario: Accepting a pulled note sends nothing up
 - **WHEN** curation clears the pending marker on a pulled note
 - **THEN** no offer is queued for it
+
+### Requirement: Activating a linked local note SHALL re-check its parent note
+The merged query shows a linked local note in place of its parent note (capability `vault-merged-recall`), so a parent-side change reaches the child through the local note's use. When `engram activate` resolves a ref to a local note that has parent links under the configured parent's vault ID, and `ENGRAM_PARENT` is set, it SHALL, after the local bump and with no vault lock held, fetch each linked parent note's raw envelope through the same gated, backoff-aware parent contact a pull-down uses. It SHALL then apply the pull-down write step under the lock: when the parent note's current exchange hash equals the link's hash, or is declined, nothing SHALL be written; otherwise the parent note SHALL arrive as a new local pending offer, exactly as a pull-down writes one. A link under another parent vault SHALL NOT be re-checked. The re-check SHALL NOT send the best-effort `activate` request to the parent. Its failure — the parent unreachable, backed off, or the note gone there — SHALL NOT fail the local activate.
+
+#### Scenario: A changed parent note arrives through its local copy
+- **WHEN** P is pulled down and accepted as local note L, then P changes on the parent, the merged query still returns L in P's place, and L is activated
+- **THEN** a new local pending offer for P exists, carrying P's new exchange hash, and activating L again writes nothing more
+
+#### Scenario: An unchanged parent note writes nothing
+- **WHEN** a linked local note L is activated and its parent note's exchange hash equals L's link hash
+- **THEN** nothing is written, and only L's `LastUsed` changes
+
+#### Scenario: A declined update is not pulled again
+- **WHEN** the pending offer a re-check pulled down is discarded outright, and L is activated again with the parent note unchanged since
+- **THEN** nothing is written
+
+#### Scenario: An unreachable parent does not fail the local activate
+- **WHEN** a linked local note is activated while the parent is unreachable
+- **THEN** the command succeeds, the local `LastUsed` is bumped, and the failure is recorded for backoff
 
 ### Requirement: Pull-down SHALL also signal use to the parent
 After a pull-down or a skip, once the vault lock is released, `activate` SHALL send a best-effort `activate` request for the parent note to the parent. A failure of that request SHALL NOT fail the command, and SHALL NOT be queued. A served `activate` SHALL answer with a server-error status only for a failure on the server side: when no ref was found it SHALL answer 404, and when only some refs were found it SHALL answer 200; both carry the per-ref result (the activated refs, and each failed ref with its error).

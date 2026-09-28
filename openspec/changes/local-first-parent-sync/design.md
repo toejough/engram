@@ -184,11 +184,11 @@ Every new field (`xid`, `parent` and its members, `aliases`, `offer` and its mem
 - `covered`: a parent note this local note was judged to cover when a pulled offer was folded into it.
 
 **How fields are set.** Only the exchange paths may set or change `parent`, `aliases`, `xid` and `offer`:
-- the offer receipt (D6);
-- pull-down (D8);
-- `amend --discard --into` (D10);
-- a rename (below);
-- served learn (D7).
+- the offer receipt (D6): `parent`;
+- pull-down (D8): `parent` and `xid` on the new copy;
+- `amend --discard --into` (D10): `parent` and `aliases`;
+- a rename (below): `aliases`;
+- served learn (D7): `xid` and `offer` only. It never sets or changes `parent` or `aliases`; an in-place update of a pending offer carries the note's existing `parent`/`aliases` through unchanged.
 
 All other rewrite paths preserve all four byte-for-byte, and each path gets a survival test (review M13, G3):
 - `amend` (every flag);
@@ -310,9 +310,13 @@ A served learn is handled as follows:
      - If it doesn't resolve, `offer.for` is dropped and the offer becomes a new pending note.
 - **Receipt.** `{status: "offer received", luhmann, basename, pending, vault_id, stored_hash, for}`. `pending` is the note's true state: `true` for a pending offer, `false` when a retry matched an already-accepted live note. `stored_hash` is the exchange hash of what the server stored. `for` is the resolved **live** target's basename, when there is one.
 - **Pending detection (G1).** Any note type with `pending: true` is pending. The real vault was checked read-only on 2026-09-27 and holds zero pending notes.
+- **Served activate (final review F2).** `POST /activate` resolves each ref only against the vault's listed note names, as the raw show does; a ref is never joined into a path. Any ref that is absolute, contains `/` or `\`, or contains `..` makes the whole request a 400 before anything is touched. The local CLI keeps its path resolution.
+- **Body caps (final review F7).** The HTTP edge reads at most 4 MiB of a request body (`http.MaxBytesReader`); a body not read in full is a 413 on every route. A child reads at most 16 MiB + 1 byte of a parent response and rejects anything over 16 MiB, never a silently truncated payload.
+- **Parent-supplied identifiers (final review F6).** A child stores a parent's `vault_id` and basenames in frontmatter, `declined.json`, `parent.json` and later offers, so it validates them: a vault ID must be 32 lowercase hex, and a basename (receipt `basename`/`for`, envelope `basename`) must be a Luhmann basename with no `/`, `\` or `|`. Anything else is a malformed reply, handled at each call site as an undecodable one (the outbox keeps the entry and records the failure; a pull writes nothing), and a malformed ID is never cached.
+- **Wire tags (D5, ruling S15; final review F9).** Served learn drops any `tags` in the request, next to the placement override.
 - **Wire safety.** `LearnArgs` carries `Parent`, `Aliases`, `Xid`, `SkillHash`, `SkillKey` and `SkillSource` as `json:"-"`. The only new remote-settable fields are `offer.{origin,key,for,path}`, and they land only on pending notes, which curation reviews.
 
-`GET /show?note=<basename>&raw=1` (H7) returns a JSON envelope, `{vault_id, basename, content, exchange_hash}`. `content` is the file's bytes verbatim, and `basename` is the current name after alias resolution. A missing note returns 404. A parent that predates this change returns rendered text, and the child detects this (not JSON, or no `vault_id`) and fails with "parent too old".
+`GET /show?note=<basename>&raw=1` (H7) returns a JSON envelope, `{vault_id, basename, content, exchange_hash}`. `content` is the file's bytes verbatim, and `basename` is the current name after alias resolution. A missing note returns 404, and so does a pending note, by basename or alias: it is an unvetted offer, so a child never pulls another child's offer down as a parent note (final review F8). A parent that predates this change returns rendered text, and the child detects this (not JSON, or no `vault_id`) and fails with "parent too old".
 
 `GET /query?dedupe-keys=1` adds a top-level `vault_id` and, on each note item, `exchange_hash` plus a non-empty `aliases` list. Without the parameter the payload is byte-identical to a local query.
 
@@ -345,6 +349,7 @@ A served learn is handled as follows:
 **Other activate behavior.**
 - Each ref that could not be activated is reported on stderr. The command exits non-zero if any ref failed (the #746 addendum).
 - **Declines (H5).** A bare `amend --discard` of a pulled note (one with a `via: pulled` primary link) adds `{vault, basename, hash}` to `declined.json`, keyed by the link's parent vault ID as links are (S16, S18). With no parent configured and no vault ID, nothing is recorded, since recording would stamp an ID (S18). The decline check matches the envelope's basename **or any alias in the fetched content**, so a parent-side rename doesn't bring a declined note back (r3-8). A declined note is not pulled again unless its hash changes. A changed parent note is new information (Joe's decision 6).
+- **Re-check of a linked local note (ruling S31, final review F1).** The merged query keeps a linked local copy in place of its parent note (D9 dedupe, "keep local"), so its parent note never surfaces as `from_parent` and is never pulled through step 2. Instead, when a ref resolves to a local note with parent links under the configured parent's vault ID, activate re-checks each linked parent note after the local bump, with no lock held: it fetches `/show?raw=1` through the same pre-exchange checks and backoff gate as a pull (the self-parent guard, and no contact at all for a link under another vault when the parent's ID is cached), then applies step 4 unchanged. An equal hash or a declined version writes nothing; any other hash is written as a new pending offer, exactly as a pull. The re-check never signals use (step 5), and its failure never fails the local activate. Cost: one gated `GET /show?raw=1` per linked parent note per activate of a linked note.
 - **Loop rule.** A pulled note is never offered back up:
   - it is pending;
   - `--clear-pending` is bookkeeping;
@@ -542,7 +547,7 @@ A served learn is handled as follows:
   - Pulled notes (`via: pulled`) are never propagated, because their accept is bookkeeping (D8).
   - *Rejected:* stopping at the first level. It is inconsistent with near folds propagating, and it defeats the personal → team → org tree.
 - **B1: the bounce-once is intended (decided: yes).** A pulled note P that local curation judges *near* is folded into local note L through a content amend. L is then offered up once: as an amend-offer targeting L's primary link, or as a learn-offer when L has none. Parent curation then judges P's content plus the local addition.
-  - The exchange ends there. The parent's curated result comes back down only on the next use (activate), and only if its exchange hash changed.
+  - The exchange ends there. The parent's curated result comes back down only on the next use (activate) — including the activate of the linked local note the merged query returns in its place (D8's re-check) — and only if its exchange hash changed.
   - *Rejected:* a `--from-pull` fold marker that suppresses the offer. It would lose the local addition upstream, which is the point of decision 3.
 
 ## Risks / Trade-offs
