@@ -41,6 +41,7 @@ type FSPrims struct {
 	Symlink      func(target, link string) error                             // os.Symlink
 	Readlink     func(path string) (string, error)                           // os.Readlink
 	Lstat        func(path string) (fs.FileInfo, error)                      // os.Lstat
+	EvalSymlinks func(path string) (string, error)                           // filepath.EvalSymlinks
 }
 
 // HTTPPrims groups the raw HTTP capabilities: opaque mux creation, one
@@ -130,6 +131,10 @@ type ProcPrims struct {
 	// and so can't distinguish a real tty from a non-interactive
 	// `</dev/null` redirection.
 	IsTerminal func() bool
+	// RandRead fills buf from the OS CSPRNG (crypto/rand.Read) — the
+	// first random source here, used for vault IDs and xids only (design
+	// D2, r3-4).
+	RandRead func(buf []byte) (int, error)
 }
 
 // SpawnPrims groups the raw process-spawn capability: run a binary with
@@ -177,6 +182,8 @@ func NewDeps(prims Primitives, stdin io.Reader, stdout, stderr io.Writer, exit f
 		RegisterRoute:  prims.HTTP.RegisterRoute,
 		ListenAndServe: prims.HTTP.ListenAndServe,
 		Fetch:          prims.HTTP.Fetch,
+		RandRead:       prims.Proc.RandRead,
+		EvalSymlinks:   prims.FS.EvalSymlinks,
 	}
 
 	// The lazy embedder is constructed exactly once, here: NewDeps is the

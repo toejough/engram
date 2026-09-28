@@ -18,6 +18,10 @@ const (
 	ExportDefaultRecentFill         = defaultRecentFill
 	ExportExploreMatchEvidenceBonus = exploreMatchEvidenceBonus
 	ExportExploreTemperatureDefault = exploreTemperatureDefault
+	ExportLocationMismatch          = locationMismatch
+	ExportLocationMissing           = locationMissing
+	ExportLocationNoID              = locationNoID
+	ExportLocationOK                = locationOK
 	ExportVocabNameMatchThreshold   = vocabNameMatchThreshold
 	ExportVocabOriginDerived        = vocabOriginDerived
 	ExportVocabOriginProposed       = vocabOriginProposed
@@ -66,8 +70,10 @@ var (
 	ExportBumpMajorVersion                 = bumpMajorVersion
 	ExportBumpMinorVersion                 = bumpMinorVersion
 	ExportCheckAndPersistVocabRefitTrigger = checkAndPersistVocabRefitTrigger
+	ExportCheckVaultLocation               = checkVaultLocation
 	ExportChunkIndexHasEmptyFiles          = chunkIndexHasEmptyFiles
 	ExportChunkIndexHasPrunableDuplicates  = chunkIndexHasPrunableDuplicates
+	ExportClaimVaultLocation               = claimVaultLocation
 	ExportClearRemovedTermsFromMembers     = clearRemovedTermsFromMembers
 	ExportCountQAPairs                     = countQAPairs
 	ExportCountTriggerVaultNotes           = countTriggerVaultNotes
@@ -77,8 +83,10 @@ var (
 	ExportDetectRepo                       = detectRepo
 	ExportDetectUser                       = detectUser
 	ExportDiscardNote                      = discardNote
+	ExportEnsureVault                      = ensureVault
 	ExportEnsureVocabFamilyNote            = ensureVocabFamilyNote
 	ExportEvaluateVocabTriggers            = evaluateVocabTriggers
+	ExportExchangeStateFromDeps            = exchangeStateFromDeps
 	ExportExcludePendingOffers             = excludePendingOffers
 	ExportExtractLuhmannFromFilename       = extractLuhmannFromFilename
 	ExportFetchQueryPayload                = fetchQueryPayload
@@ -106,6 +114,7 @@ var (
 	ExportNewActivateDeps                  = newActivateDeps
 	ExportNewAmendDeps                     = newAmendDeps
 	ExportNewErrHandler                    = newErrHandler
+	ExportNewExchangeState                 = newExchangeState
 	ExportNewIdentityDeps                  = newIdentityDeps
 	// ExportNewUpdateDeps exposes the production pure composition for tests.
 	ExportNewUpdateDeps              = newUpdateDeps
@@ -136,6 +145,7 @@ var (
 	ExportReadCentroidsDoc              = readCentroidsDoc
 	ExportRecencyMultiplier             = recencyMultiplier
 	ExportRegenVocab                    = regenVocab
+	ExportRegenerateVaultID             = regenerateVaultID
 	ExportRemoveNoteReferences          = removeNoteReferences
 	ExportRenderDefinitionNoteContent   = renderDefinitionNoteContent
 	ExportRenderFactBody                = renderFactBody
@@ -161,12 +171,14 @@ var (
 	ExportRunVocabTagDefinitions        = runVocabTagDefinitions
 	ExportScanNonVocabNotes             = scanNonVocabNotes
 	ExportSelectStates                  = selectStates
+	ExportSelfParentGuard               = selfParentGuard
 	ExportShouldEmbed                   = func(args EmbedApplyArgs, state embed.State) bool {
 		return selectStates(args).shouldEmbed(state)
 	}
 	ExportShouldSkipDir                   = shouldSkipDir
 	ExportSlugFromNoteFilename            = slugFromNoteFilename
 	ExportSplitFrontmatter                = splitFrontmatter
+	ExportStampVaultID                    = stampVaultID
 	ExportStripLegacyVocabChannel         = stripLegacyVocabChannel
 	ExportTermFromDefinitionSlug          = termFromDefinitionSlug
 	ExportTildify                         = tildify
@@ -178,9 +190,11 @@ var (
 	ExportValidateTags                    = validateTags
 	ExportVaultHasOnlyTopLevelNotes       = vaultHasOnlyTopLevelNotes
 	ExportVaultHasPendingOffers           = vaultHasPendingOffers
+	ExportVaultIDUncommitted              = vaultIDUncommitted
 	ExportVocabDefinitionsMissingSelfTags = vocabDefinitionsMissingSelfTags
 	ExportVocabTermsFromTags              = vocabTermsFromTags
 	ExportWarnIfPendingOffers             = warnIfPendingOffers
+	ExportWarnVaultLocation               = warnVaultLocation
 	ExportWithAgentsChainOverrides        = withAgentsChainOverrides
 	ExportWriteCentroidsDocRaw            = writeCentroidsDocRaw
 	ExportWriteCentroidsFile              = writeCentroidsFile
@@ -190,6 +204,10 @@ var (
 	ExportWriteVocabVersionToFamilyNote   = writeVocabVersionToFamilyNote
 	IsReservedPluginNameForTest           = isReservedPluginName
 )
+
+// ExchangeStateForTest exposes the unexported exchange-state adapter type
+// so tests can name it in helper signatures.
+type ExchangeStateForTest = exchangeState
 
 // ExportAllVaultNotesMeta aliases AllVaultNotesMeta for cli_test fixtures.
 type ExportAllVaultNotesMeta = AllVaultNotesMeta

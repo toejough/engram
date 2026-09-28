@@ -25,7 +25,7 @@ func TestTargets_Query_MergedMode_CombinesLocalAndParent(t *testing.T) {
 	vault := t.TempDir()
 	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 	plantRealVaultNote(t, vault, "1.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0}, "m@4")
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0})
 
 	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
 
@@ -95,7 +95,7 @@ func TestTargets_Query_MergedMode_ParentUnavailableFallsBackToLocal(t *testing.T
 	vault := t.TempDir()
 	g.Expect(os.MkdirAll(vault, 0o750)).To(Succeed())
 	plantRealVaultNote(t, vault, "1.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0}, "m@4")
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0})
 
 	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
 
@@ -133,7 +133,7 @@ func TestTargets_ShowFallback_SurfacesParentRunbookAfterMergedQuery(t *testing.T
 	// The local vault holds an unrelated note; the runbook below exists only
 	// in the parent.
 	plantRealVaultNote(t, vault, "1.fact.md",
-		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0}, "m@4")
+		"---\ntype: fact\ntier: L2\nsituation: x\n---\n\nlocal body\n", []float32{1, 0, 0, 0})
 
 	t.Setenv("ENGRAM_PARENT", "http://parent-host:8420")
 
@@ -177,11 +177,16 @@ func TestTargets_ShowFallback_SurfacesParentRunbookAfterMergedQuery(t *testing.T
 	g.Expect(showStdout).To(Equal("# from_parent: true\n" + parentShowOutput))
 }
 
+// unexported constants.
+const (
+	plantedModelID = "m@4"
+)
+
 // plantRealVaultNote writes a note and a matching sidecar to a real vault
 // directory on disk — the real-filesystem analog of query_helpers_test.go's
 // plantWithFixedVector, needed here because merged-mode dispatch tests run
 // through Targets() with a real EdgeFS, not the in-memory test double.
-func plantRealVaultNote(t *testing.T, vault, relPath, body string, vec []float32, modelID string) {
+func plantRealVaultNote(t *testing.T, vault, relPath, body string, vec []float32) {
 	t.Helper()
 
 	notePath := filepath.Join(vault, relPath)
@@ -190,7 +195,7 @@ func plantRealVaultNote(t *testing.T, vault, relPath, body string, vec []float32
 
 	sidecar := embed.Sidecar{
 		SchemaVersion:    embed.SidecarSchemaVersion,
-		EmbeddingModelID: modelID,
+		EmbeddingModelID: plantedModelID,
 		Dims:             len(vec),
 		SituationVector:  vec,
 		BodyVector:       vec,

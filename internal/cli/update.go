@@ -62,7 +62,9 @@ const (
 	// topLevelLuhmannDepth is the segment count of a top-level (unbranched)
 	// Luhmann ID: just the leading digit run, e.g. "12" — no letter/digit
 	// branch segments appended.
-	topLevelLuhmannDepth = 1
+	topLevelLuhmannDepth     = 1
+	vaultIDUncommittedNotice = "vault ID file .engram-vault-id is not committed — commit it once in the vault " +
+		"(`git add .engram-vault-id && git commit -m 'vault: add vault id'`)\n"
 	vocabMigrationNotice = "old-format vocab files found — run `engram update --regen-vocab` to migrate them " +
 		"(preview with `engram update --regen-vocab --dry-run`)\n"
 	vocabSelfTagNotice = "vocab definition notes missing their vocab/<term> self-tag found — " +
@@ -479,6 +481,7 @@ func runPostUpdateChecks(
 	report.ChunkIndexHasPrunableDuplicates = chunkIndexHasPrunableDuplicates(chunksDir, deps.FS)
 	report.VaultHasNotesMissingIdentity = notesMissingIdentityFields(vaultPath, deps.FS)
 	report.VaultHasPendingOffers = vaultHasPendingOffers(vaultPath, deps.FS)
+	report.VaultIDUncommitted = vaultIDUncommitted(ctx, vaultPath, deps.FS, deps.Cmd)
 
 	if args.RegenVocab {
 		regenErr := applyVocabRegen(ctx, vaultPath, deps.Vocab, args.DryRun, deps.FS, report)
@@ -993,6 +996,7 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	writeDuplicatesHint(&buffer, report)
 	writeIdentityBackfillHint(&buffer, report)
 	writePendingOfferHint(&buffer, report)
+	writeVaultIDUncommittedHint(&buffer, report)
 	writeSkillRegistrationErrorHint(&buffer, report)
 
 	_, err := out.Write(buffer.Bytes())
@@ -1001,6 +1005,16 @@ func writeUpdateReport(out io.Writer, report update.Report) error {
 	}
 
 	return nil
+}
+
+// writeVaultIDUncommittedHint prints a one-line notice asking for the
+// deliberate one-time vault commit while a git-backed vault's
+// .engram-vault-id is untracked or uncommitted (design D2, migration step
+// 3). Notify-only: update never commits to the vault itself.
+func writeVaultIDUncommittedHint(buffer *bytes.Buffer, report update.Report) {
+	if report.VaultIDUncommitted {
+		buffer.WriteString(vaultIDUncommittedNotice)
+	}
 }
 
 // writeVocabMigrationHint prints a one-line notice naming `engram update

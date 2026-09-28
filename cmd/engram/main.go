@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"io"
 	"io/fs"
 	"os"
@@ -73,9 +74,10 @@ func fsPrimitives() cli.FSPrims {
 		OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
 			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm) //nolint:gosec // operator-controlled path
 		},
-		Symlink:  os.Symlink,
-		Readlink: os.Readlink,
-		Lstat:    os.Lstat,
+		Symlink:      os.Symlink,
+		Readlink:     os.Readlink,
+		Lstat:        os.Lstat,
+		EvalSymlinks: filepath.EvalSymlinks,
 	}
 }
 
@@ -110,6 +112,7 @@ func procPrimitives() cli.ProcPrims {
 		Now:         time.Now,
 		Getwd:       os.Getwd,
 		UserHomeDir: os.UserHomeDir,
+		RandRead:    rand.Read,
 		Username: func() (string, error) {
 			// Doctrine survivor: single call + the one field extraction
 			// (*user.User -> string) that a func() (string, error)

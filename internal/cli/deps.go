@@ -78,6 +78,12 @@ type Deps struct {
 	// primitive types (production: real net/http.Client, composed in
 	// cmd/engram). Used for parent requests (ENGRAM_PARENT).
 	Fetch func(ctx context.Context, method, url string, body []byte) (FetchResponse, error)
+	// RandRead fills buf with cryptographically random bytes (production:
+	// crypto/rand.Read) — the vault-ID source (design D2).
+	RandRead func(buf []byte) (int, error)
+	// EvalSymlinks resolves every symlink in path (production:
+	// filepath.EvalSymlinks) — the vault location record's canonical path.
+	EvalSymlinks func(path string) (string, error)
 }
 
 // EdgeFS is the filesystem capability surface for production wiring. All

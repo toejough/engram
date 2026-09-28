@@ -85,6 +85,18 @@ type ServeRoute struct {
 // per-route loop is here (internal/cli), never in cmd/engram, which
 // targ check-thin-api forbids from containing loops.
 func RunServe(ctx context.Context, args ServeArgs, deps Deps) error {
+	// Design D2: serve stamps a missing vault ID at startup (later starts
+	// reuse it), and a failed location check only warns — refusing would
+	// turn a false positive into a host outage.
+	state := exchangeStateFromDeps(deps)
+
+	_, stampErr := stampVaultID(state, args.Vault)
+	if stampErr != nil {
+		return fmt.Errorf("serve: %w", stampErr)
+	}
+
+	warnVaultLocation(state, args.Vault, deps.Stderr)
+
 	mux := deps.NewServeMux()
 
 	for _, route := range ServeRoutes(deps, args.Vault, args.VaultName, args.ChunksDir) {

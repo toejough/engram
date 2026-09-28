@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+
+	"github.com/toejough/engram/internal/vaultgraph"
 )
 
 // VaultInitFS is the filesystem surface needed to bootstrap a fresh vault.
@@ -28,12 +30,32 @@ The ` + "`.obsidian/`" + ` directory lets Obsidian open this vault directly.
 `
 	vaultDirPerm  fs.FileMode = 0o755
 	vaultFilePerm fs.FileMode = 0o644
+	// vaultReadmeFile is the starter README initializeVault writes.
+	vaultReadmeFile = "README.md"
 )
 
 // vaultStarterFile is one (path, body) tuple in the bootstrap content set.
 type vaultStarterFile struct {
 	relPath string
 	body    string
+}
+
+// dropVaultStarterNotes removes the vault's own starter README (written by
+// initializeVault) from a scanned note list: it is not a memory note, and a
+// freshly created vault (design D2: every command creates a missing one)
+// must query as empty rather than as "notes without embeddings".
+func dropVaultStarterNotes(notes []vaultgraph.Note) []vaultgraph.Note {
+	kept := make([]vaultgraph.Note, 0, len(notes))
+
+	for _, note := range notes {
+		if note.Basename+".md" == vaultReadmeFile {
+			continue
+		}
+
+		kept = append(kept, note)
+	}
+
+	return kept
 }
 
 // initializeVault creates the standard layout under vaultPath: Permanent/,
@@ -72,6 +94,6 @@ func vaultStarters() []vaultStarterFile {
 	return []vaultStarterFile{
 		{".obsidian/app.json", "{}\n"},
 		{".gitignore", ".luhmann.lock\n.obsidian/workspace*\n.obsidian/cache\n"},
-		{"README.md", readmeBody},
+		{vaultReadmeFile, readmeBody},
 	}
 }

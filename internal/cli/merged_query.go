@@ -135,6 +135,23 @@ func mergeQueryPayloads(local, parent queryPayload, args QueryArgs) queryPayload
 	}
 }
 
+// prepareParentContact runs design D2's parent-contact bookkeeping: the
+// first command that contacts a parent stamps a missing vault ID, and a
+// failed location check prints its one warning (a merged query is
+// read-only, so it still runs). Neither is fatal to the query.
+func prepareParentContact(deps Deps, vault string) {
+	state := exchangeStateFromDeps(deps)
+
+	_, stampErr := stampVaultID(state, vault)
+	if stampErr != nil {
+		logWarningTo(deps.Stderr)("query: could not stamp the vault ID: %v", stampErr)
+
+		return
+	}
+
+	warnVaultLocation(state, vault, deps.Stderr)
+}
+
 // resolveLimit maps the raw --limit flag value to the effective cap: 0
 // (unset) → the baked default (defaultQueryLimit); positive → that
 // explicit value.
@@ -175,6 +192,8 @@ func runLocalQueryPayload(ctx context.Context, deps Deps, args QueryArgs) (query
 // degrades to local-only results"). On success, both sources are fetched
 // at unbounded budgets and merged.
 func runMergedQuery(ctx context.Context, deps Deps, parentBaseURL string, args QueryArgs, stdout io.Writer) error {
+	prepareParentContact(deps, args.VaultPath)
+
 	parentPayload, parentErr := fetchQueryPayload(ctx, deps, parentBaseURL, unboundedQueryArgs(args))
 	if parentErr != nil {
 		logWarningTo(deps.Stderr)("query: parent unavailable, returning local-only results: %v", parentErr)

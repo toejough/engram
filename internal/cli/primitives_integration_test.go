@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"io"
 	"io/fs"
@@ -507,9 +508,10 @@ func realFSPrims() cli.FSPrims {
 		OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
 			return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 		},
-		Symlink:  os.Symlink,
-		Readlink: os.Readlink,
-		Lstat:    os.Lstat,
+		Symlink:      os.Symlink,
+		Readlink:     os.Readlink,
+		Lstat:        os.Lstat,
+		EvalSymlinks: filepath.EvalSymlinks,
 	}
 }
 
@@ -553,6 +555,7 @@ func realProcPrims() cli.ProcPrims {
 		Now:         time.Now,
 		Getwd:       os.Getwd,
 		UserHomeDir: os.UserHomeDir,
+		RandRead:    rand.Read,
 		OpenDebugFile: func(path string, perm fs.FileMode) (cli.WriteSyncer, error) {
 			return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
 		},

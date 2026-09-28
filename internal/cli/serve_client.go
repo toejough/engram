@@ -105,6 +105,11 @@ func describeErrorBody(body []byte) string {
 func dispatchShow(ctx context.Context, deps Deps, args ShowArgs, home string, stdout io.Writer) error {
 	args.VaultPath = resolveVault(args.VaultPath, home, deps.Getenv)
 
+	ensureErr := ensureVault(deps, args.VaultPath)
+	if ensureErr != nil {
+		return ensureErr
+	}
+
 	localErr := RunShow(ctx, args, newShowDeps(deps), stdout)
 	if localErr == nil || !errors.Is(localErr, errShowNoteNotFound) {
 		return localErr

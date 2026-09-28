@@ -134,7 +134,10 @@ func amendResituateTargets(
 	return []any{
 		targ.Targ(func(ctx context.Context, a ResituateArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			errHandler(RunResituate(withLog(ctx), a, newResituateDeps(deps), deps.Stdout))
+
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return RunResituate(withLog(ctx), a, newResituateDeps(deps), deps.Stdout)
+			}))
 		}).Name("resituate").Description("Rewrite a note's situation in sync (frontmatter + body + sidecar) (D4/INV-S2)"),
 		targ.Targ(func(ctx context.Context, a AmendArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
@@ -146,7 +149,9 @@ func amendResituateTargets(
 				a.Pending = &notPending
 			}
 
-			errHandler(RunAmend(withLog(ctx), a, newAmendDeps(deps), deps.Stdout))
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return RunAmend(withLog(ctx), a, newAmendDeps(deps), deps.Stdout)
+			}))
 		}).Name("amend").Description(
 			"Amend a note in place: supersedes, provenance-merge, field-replacement, activate, discard"),
 	}
@@ -196,13 +201,13 @@ func ingestQueryTargets(
 			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
 
-			if parent := parentBase(deps); parent != "" {
-				errHandler(runMergedQuery(withLog(ctx), deps, parent, a, deps.Stdout))
+			errHandler(runInVault(deps, a.VaultPath, func() error {
+				if parent := parentBase(deps); parent != "" {
+					return runMergedQuery(withLog(ctx), deps, parent, a, deps.Stdout)
+				}
 
-				return
-			}
-
-			errHandler(RunQuery(withLog(ctx), a, newQueryDeps(deps), deps.Stdout))
+				return RunQuery(withLog(ctx), a, newQueryDeps(deps), deps.Stdout)
+			}))
 		}).Name("query").Description("Semantic search over vault + chunk index (YAML output)"),
 		targ.Targ(func(ctx context.Context, a IngestArgs) {
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
@@ -223,8 +228,51 @@ func ingestQueryTargets(
 	}, showActivateTargets(deps, withLog, errHandler, home)...)
 }
 
-// learnUpdateTargets returns the learn and update subcommands (learn group,
-// update, embed group). Split from coreTargets to stay within the
+// learnTargets returns the learn group (feedback, fact, runbook, qa). Split
+// out of learnUpdateTargets to stay within the per-function length budget.
+func learnTargets(
+	deps Deps,
+	withLog func(context.Context) context.Context,
+	errHandler func(error),
+	home string,
+) any {
+	return targ.Group("learn",
+		targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return runLearnFromFeedbackArgs(withLog(ctx), a, deps, deps.Stdout)
+			}))
+		}).Name("feedback").Description("Write a feedback note to the vault"),
+		targ.Targ(func(ctx context.Context, a LearnFactArgs) {
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return runLearnFromFactArgs(withLog(ctx), a, deps, deps.Stdout)
+			}))
+		}).Name("fact").Description("Write a fact note to the vault"),
+		targ.Targ(func(ctx context.Context, a LearnRunbookArgs) {
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
+
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return runLearnFromRunbookArgs(withLog(ctx), a, deps, deps.Stdout)
+			}))
+		}).Name("runbook").Description("Write a runbook note to the vault"),
+		targ.Targ(func(ctx context.Context, a LearnQAArgs) {
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return RunLearnQA(withLog(ctx), a, newQaDeps(deps), deps.Stdout)
+			}))
+		}).Name("qa").Description("Write a QA pair (Q+A notes) to the vault"),
+	)
+}
+
+// learnUpdateTargets returns the learn group (via learnTargets), update, and
+// the embed group. Split from coreTargets to stay within the
 // per-function length budget.
 func learnUpdateTargets(
 	deps Deps,
@@ -234,38 +282,26 @@ func learnUpdateTargets(
 	home := homeOrEmpty(deps)
 
 	return []any{
-		targ.Group("learn",
-			targ.Targ(func(ctx context.Context, a LearnFeedbackArgs) {
-				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
-				errHandler(runLearnFromFeedbackArgs(withLog(ctx), a, deps, deps.Stdout))
-			}).Name("feedback").Description("Write a feedback note to the vault"),
-			targ.Targ(func(ctx context.Context, a LearnFactArgs) {
-				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
-				errHandler(runLearnFromFactArgs(withLog(ctx), a, deps, deps.Stdout))
-			}).Name("fact").Description("Write a fact note to the vault"),
-			targ.Targ(func(ctx context.Context, a LearnRunbookArgs) {
-				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
-				errHandler(runLearnFromRunbookArgs(withLog(ctx), a, deps, deps.Stdout))
-			}).Name("runbook").Description("Write a runbook note to the vault"),
-			targ.Targ(func(ctx context.Context, a LearnQAArgs) {
-				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunLearnQA(withLog(ctx), a, newQaDeps(deps), deps.Stdout))
-			}).Name("qa").Description("Write a QA pair (Q+A notes) to the vault"),
-		),
+		learnTargets(deps, withLog, errHandler, home),
 		targ.Targ(func(ctx context.Context, a UpdateArgs) {
-			errHandler(runUpdate(withLog(ctx), a, newUpdateDeps(deps), deps.Stdout))
+			errHandler(runInVault(deps, resolveVault("", home, deps.Getenv), func() error {
+				return runUpdate(withLog(ctx), a, newUpdateDeps(deps), deps.Stdout)
+			}))
 		}).Name("update").Description("Refresh engram binary and harness skills"),
 		targ.Group("embed",
 			targ.Targ(func(ctx context.Context, a EmbedApplyArgs) {
 				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-				errHandler(RunEmbedApply(withLog(ctx), a, newEmbedDeps(deps), deps.Stdout))
+
+				errHandler(runInVault(deps, a.VaultPath, func() error {
+					return RunEmbedApply(withLog(ctx), a, newEmbedDeps(deps), deps.Stdout)
+				}))
 			}).Name("apply").Description("Embed notes (default: missing only)"),
 			targ.Targ(func(ctx context.Context, a EmbedStatusArgs) {
 				a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-				errHandler(RunEmbedStatus(withLog(ctx), a, newEmbedDeps(deps), deps.Stdout))
+
+				errHandler(runInVault(deps, a.VaultPath, func() error {
+					return RunEmbedStatus(withLog(ctx), a, newEmbedDeps(deps), deps.Stdout)
+				}))
 			}).Name("status").Description("Report embedding state counts"),
 		),
 	}
@@ -347,11 +383,26 @@ func registerSkillsTargets(
 				Adopt:       adopt,
 			}
 
-			errHandler(RunSkillRegistration(withLog(ctx), args, newSkillRegistrationDeps(deps), deps.Stdout))
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return RunSkillRegistration(withLog(ctx), args, newSkillRegistrationDeps(deps), deps.Stdout)
+			}))
 		}).Name("register-skills").Description(
 			"Offer to register, refresh, or remove vault runbook notes mirroring the skills, commands and " +
 				"prompt templates in the default folders"),
 	}
+}
+
+// runInVault runs the shared first-use step (design D2, #766) for a
+// resolved vault path — a missing vault is created and announced, an
+// existing one is untouched — then the command. When creating the vault
+// fails, the command does not run.
+func runInVault(deps Deps, vault string, run func() error) error {
+	ensureErr := ensureVault(deps, vault)
+	if ensureErr != nil {
+		return ensureErr
+	}
+
+	return run()
 }
 
 // serveTargets returns the `engram serve` subcommand (vault-serve-api).
@@ -368,7 +419,10 @@ func serveTargets(
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
 			a.VaultName = resolveVaultName(a.VaultName, deps.Getenv)
 			a.ChunksDir = ResolveChunksDir(a.ChunksDir, home, deps.Getenv)
-			errHandler(RunServe(withLog(ctx), a, deps))
+
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return RunServe(withLog(ctx), a, deps)
+			}))
 		}).Name("serve").Description(
 			"Serve query/query-chunks/show/show-chunk/activate/learn/amend over HTTP: this node's " +
 				"network door (explicit bind address required; the local CLI is the same node's local " +
@@ -389,17 +443,34 @@ func showActivateTargets(
 	return append([]any{
 		targ.Targ(func(_ context.Context, a ActivateArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			errHandler(RunActivate(a, newActivateDeps(deps)))
+
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return RunActivate(a, newActivateDeps(deps))
+			}))
 		}).Name("activate").Description("Mark note(s) as recently used (bumps LastUsed in sidecar)"),
 		targ.Targ(func(_ context.Context, a CountArgs) {
 			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-			errHandler(RunCount(a, newCountDeps(deps), deps.Stdout))
+
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return RunCount(a, newCountDeps(deps), deps.Stdout)
+			}))
 		}).Name("count").Description(
 			"Count notes by a frontmatter attribute or a note's wikilink in-degree (read-only)"),
 		targ.Targ(func(ctx context.Context, a CheckArgs) {
 			a.VaultPath = resolveVault(a.VaultPath, home, deps.Getenv)
-			errHandler(RunCheck(withLog(ctx), a, newCheckDeps(deps), deps.Stdout))
+
+			errHandler(runInVault(deps, a.VaultPath, func() error {
+				return RunCheck(withLog(ctx), a, newCheckDeps(deps), deps.Stdout)
+			}))
 		}).Name("check").Description("Run vault-invariant checks (exit non-zero on FAIL)"),
+		targ.Targ(func(_ context.Context, a VaultIDArgs) {
+			a.Vault = resolveVault(a.Vault, home, deps.Getenv)
+
+			errHandler(runInVault(deps, a.Vault, func() error {
+				return RunVaultID(a, deps, deps.Stdout)
+			}))
+		}).Name("vault-id").Description(
+			"Print this vault's ID and location check; --regenerate (a copy: new ID) or --claim (moved/re-cloned)"),
 	}, showTargets(deps, withLog, errHandler, home)...)
 }
 
@@ -460,26 +531,41 @@ func vocabTargets(
 		targ.Group("vocab",
 			targ.Targ(func(ctx context.Context, a VocabBootstrapArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunVocabBootstrap(withLog(ctx), a, newVocabDeps(deps), deps.Stdout))
+
+				errHandler(runInVault(deps, a.Vault, func() error {
+					return RunVocabBootstrap(withLog(ctx), a, newVocabDeps(deps), deps.Stdout)
+				}))
 			}).Name("bootstrap").Description("Seed vocab term notes + tag all existing notes (idempotent)"),
 			targ.Targ(func(_ context.Context, a VocabStatsArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunVocabStats(a, newVocabStatsDeps(deps), deps.Stdout))
+
+				errHandler(runInVault(deps, a.Vault, func() error {
+					return RunVocabStats(a, newVocabStatsDeps(deps), deps.Stdout)
+				}))
 			}).Name("stats").Description("Print vocab health report (per-term counts, hubs, orphans, untagged rate)"),
 			targ.Targ(func(ctx context.Context, a VocabProposeArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunVocabPropose(withLog(ctx), a, newVocabDeps(deps), deps.Stdout))
+
+				errHandler(runInVault(deps, a.Vault, func() error {
+					return RunVocabPropose(withLog(ctx), a, newVocabDeps(deps), deps.Stdout)
+				}))
 			}).Name("propose").Description("Add a new vocab term note + minor version bump (LLM gate runs agent-side)"),
 			targ.Targ(func(ctx context.Context, a VocabRefitArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunVocabRefit(withLog(ctx), a, newVocabDeps(deps), deps.Stdout))
+
+				errHandler(runInVault(deps, a.Vault, func() error {
+					return RunVocabRefit(withLog(ctx), a, newVocabDeps(deps), deps.Stdout)
+				}))
 			}).Name("refit").Description(
 				"Derive vocab from note clustering: match/retire terms, emit naming requests "+
 					"(--names to answer, --dry-run for diff)",
 			),
 			targ.Targ(func(ctx context.Context, a VocabTagDefinitionsArgs) {
 				a.Vault = resolveVault(a.Vault, home, deps.Getenv)
-				errHandler(RunVocabTagDefinitions(withLog(ctx), a, newVocabDeps(deps), deps.Stdout))
+
+				errHandler(runInVault(deps, a.Vault, func() error {
+					return RunVocabTagDefinitions(withLog(ctx), a, newVocabDeps(deps), deps.Stdout)
+				}))
 			}).Name("tag-definitions").Description(
 				"Add missing vocab/<term> self-tags to existing definition notes (idempotent)",
 			),

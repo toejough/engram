@@ -7,6 +7,7 @@ package cli
 
 import (
 	"context"
+	"crypto/rand"
 	"io"
 	"io/fs"
 	"os"
@@ -41,6 +42,7 @@ func ExportNewTestOsDeps() Deps {
 			OpenFileExcl: func(path string, perm fs.FileMode) (io.WriteCloser, error) {
 				return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 			},
+			EvalSymlinks: filepath.EvalSymlinks,
 		},
 		Exec: ExecPrims{
 			RunCommand: func(ctx context.Context, dir, name string, args []string, stdout, stderr io.Writer) error {
@@ -72,6 +74,7 @@ func ExportNewTestOsDeps() Deps {
 			Now:         time.Now,
 			Getwd:       os.Getwd,
 			UserHomeDir: os.UserHomeDir,
+			RandRead:    rand.Read,
 			Username: func() (string, error) {
 				u, err := user.Current()
 				if err != nil {

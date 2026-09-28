@@ -369,6 +369,12 @@ type Report struct {
 	// unlike the vocab-refit trigger.
 	VaultHasPendingOffers bool
 
+	// VaultIDUncommitted is true when a git-backed vault's tracked
+	// .engram-vault-id exists but is untracked or uncommitted (design D2's
+	// deliberate one-time vault commit). Set by the cli package after Run
+	// returns (via vaultIDUncommitted); opaque data here.
+	VaultIDUncommitted bool
+
 	// SkillRegistrationErr, when non-empty, is a skill-registration failure's
 	// message (skill-runbook-registration). Set by the cli package after
 	// running its post-deploy registration hook — Updater.Run itself never
