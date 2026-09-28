@@ -308,6 +308,9 @@ func runServedLearn(ctx context.Context, args LearnArgs, deps servedLearnDeps) (
 	args.Target = ""
 	args.Position = positionTop
 	args.Pending = true
+	// Offers carry no tags: tags are the child's vocab assignment, and this
+	// vault's own vocab assigns them on receipt (design D5, ruling S15).
+	args.Tags = nil
 
 	release, lockErr := deps.learn.Lock(args.Vault)
 	if lockErr != nil {

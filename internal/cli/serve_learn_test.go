@@ -689,6 +689,38 @@ func TestServeLearn_UnreadableNoteFailsTheRequest(t *testing.T) {
 	g.Expect(noteFiles(t, vault)).To(HaveLen(1), "no second pending note")
 }
 
+// TestServeLearn_WireTagsAreDropped (design D5, ruling S15; final review
+// F9): offers carry no tags — the parent's own vocab assigns them — so a
+// served learn drops any tags the caller sent, both on a new pending note
+// and on a same-origin in-place rewrite.
+func TestServeLearn_WireTagsAreDropped(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := newServeVault(t)
+	deps := serveTestDeps()
+
+	first := offeredFact("tagged", "first-object", offerOf(childOrigin, "key-one", "", childVaultID))
+	first.Tags = []string{"wire-family/first-tag"}
+
+	firstResp := serveLearnWith(t, deps, vault, first)
+	g.Expect(firstResp.Status).To(Equal(200))
+
+	notePath := filepath.Join(vault, decodeReceipt(t, firstResp).Basename+".md")
+	g.Expect(readFileString(t, notePath)).NotTo(ContainSubstring("first-tag"))
+
+	second := offeredFact("tagged", "second-object", offerOf(childOrigin, "key-two", "", childVaultID))
+	second.Tags = []string{"wire-family/second-tag"}
+
+	secondResp := serveLearnWith(t, deps, vault, second)
+	g.Expect(secondResp.Status).To(Equal(200))
+
+	written := readFileString(t, notePath)
+	g.Expect(written).To(ContainSubstring("second-object"))
+	g.Expect(written).NotTo(ContainSubstring("second-tag"))
+	g.Expect(written).NotTo(ContainSubstring("wire-family"))
+}
+
 // unexported constants.
 const (
 	childOrigin         = childVaultID + ":" + childXID
