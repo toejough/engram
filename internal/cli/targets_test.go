@@ -564,11 +564,18 @@ func TestTargets_QueryEmptyVault(t *testing.T) {
 	g.Expect(os.MkdirAll(vault, 0o750)).To(gomega.Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(vault, "MOCs"), 0o750)).To(gomega.Succeed())
 
+	// UserHomeDir is also pinned to scratch (S34 residual): with Getenv
+	// stubbed to "" but UserHomeDir left real, ResolveChunksDir would still
+	// fall back to the developer's real ~/.local/share/engram/chunks since
+	// this test passes no --chunks-dir.
+	home := t.TempDir()
+
 	stderr := executeForTestWithDeps(t,
 		[]string{"engram", "query", "--phrase", "anything", "--vault", vault},
 		func(d *cli.Deps) {
 			d.Embed = stubEmbedder{modelID: "test-model", dims: 8}
 			d.Getenv = func(string) string { return "" }
+			d.UserHomeDir = func() (string, error) { return home, nil }
 		})
 	g.Expect(stderr).To(gomega.BeEmpty())
 }

@@ -56,8 +56,12 @@ func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 
 	binPath := sharedEngramBinary(t)
 
+	// Both subprocesses also get isolatedHomeEnv (S34 residual): --vault is
+	// explicit, but with no --chunks-dir, ResolveChunksDir falls back to
+	// $XDG_DATA_HOME (or $HOME/.local/share/engram)/chunks, which would
+	// otherwise resolve into the developer's real chunk index.
 	embedRun := exec.Command(binPath, "embed", "apply", "--missing", "--vault", vault)
-	embedRun.Env = envWithoutEngramRemotes()
+	embedRun.Env = append(envWithoutEngramRemotes(), isolatedHomeEnv(t)...)
 
 	var embedOut bytes.Buffer
 
@@ -66,7 +70,7 @@ func TestEngramQuery_F6F91_EndToEnd(t *testing.T) {
 	g.Expect(embedRun.Run()).To(Succeed(), "embed apply failed: %s", embedOut.String())
 
 	run := exec.Command(binPath, "query", "--phrase", clusterThemes[1], "--vault", vault, "--limit", "5")
-	run.Env = envWithoutEngramRemotes()
+	run.Env = append(envWithoutEngramRemotes(), isolatedHomeEnv(t)...)
 
 	var stdout bytes.Buffer
 

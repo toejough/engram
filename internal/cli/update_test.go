@@ -9,6 +9,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -424,7 +425,8 @@ func TestRunUpdate_BackfillIdentityFlag_RunsBackfillAndUpdatesReport(t *testing.
 		Getenv:     func(string) string { return "" },
 	}
 
-	deps := cli.ExportNewUpdateDepsFromWithIdentity(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{}, identityDeps)
+	deps := cli.ExportNewUpdateDepsFromWithIdentity(
+		liveUpdateFS{}, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)}, identityDeps)
 
 	stdout := &bytes.Buffer{}
 	err := cli.ExportRunUpdate(
@@ -442,7 +444,7 @@ func TestRunUpdate_DryRunFromCwd(t *testing.T) {
 	g := NewWithT(t)
 
 	stdout := &bytes.Buffer{}
-	deps := cli.ExportNewUpdateDepsFrom(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{})
+	deps := cli.ExportNewUpdateDepsFrom(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)})
 
 	// Dry-run against the live filesystem: cwd is inside the engram
 	// worktree, so source resolution picks local mode without `go install`.
@@ -457,6 +459,40 @@ func TestRunUpdate_DryRunFromCwd(t *testing.T) {
 
 	g.Expect(out).To(ContainSubstring("[dry-run] engram update"))
 	g.Expect(out).To(ContainSubstring("source: local clone at "))
+}
+
+// TestRunUpdate_DryRunNeverTouchesRealHome guards the liveUpdateEnv/
+// liveUpdateFS dry-run smoke-test fixtures (S34 residual): runPostUpdate-
+// Checks resolves vaultPath/chunksDir from Env.UserHomeDir/Getenv
+// unconditionally, even under --dry-run, so a fixture whose UserHomeDir
+// or Getenv answers for real would have runUpdate read the developer's
+// actual ~/.local/share/engram vault and ~/.claude skills directory. This
+// pins a scratch home and asserts no path the filesystem sees during a
+// dry run falls under the real home's data or Claude directories.
+func TestRunUpdate_DryRunNeverTouchesRealHome(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	spy := &pathSpyUpdateFS{Filesystem: liveUpdateFS{}}
+	deps := cli.ExportNewUpdateDepsFrom(spy, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)})
+
+	stdout := &bytes.Buffer{}
+	_ = cli.ExportRunUpdate(context.Background(), cli.UpdateArgs{DryRun: true}, deps, stdout)
+
+	realHome, homeErr := os.UserHomeDir()
+	g.Expect(homeErr).NotTo(HaveOccurred())
+
+	forbidden := []string{
+		filepath.Join(realHome, ".local", "share", "engram"),
+		filepath.Join(realHome, ".claude"),
+	}
+
+	for _, touched := range spy.snapshot() {
+		for _, bad := range forbidden {
+			g.Expect(touched).NotTo(HavePrefix(bad), "dry-run touched the real home: %s", touched)
+		}
+	}
 }
 
 // TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport verifies runUpdate
@@ -482,7 +518,8 @@ func TestRunUpdate_RegenVocabFlag_RunsRegenAndUpdatesReport(t *testing.T) {
 		Now:        time.Now,
 	}
 
-	deps := cli.ExportNewUpdateDepsFromWithVocab(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{}, vocabDeps)
+	deps := cli.ExportNewUpdateDepsFromWithVocab(
+		liveUpdateFS{}, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)}, vocabDeps)
 
 	stdout := &bytes.Buffer{}
 	err := cli.ExportRunUpdate(
@@ -530,7 +567,7 @@ func TestRunUpdate_WithGuidanceFlagMapsToOptions(t *testing.T) {
 	g := NewWithT(t)
 
 	stdout := &bytes.Buffer{}
-	deps := cli.ExportNewUpdateDepsFrom(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{})
+	deps := cli.ExportNewUpdateDepsFrom(liveUpdateFS{}, stubCommander{}, liveUpdateEnv{home: isolatedUpdateHome(t)})
 
 	// Dry-run with --with-guidance; only verifies the flag maps to Options.
 	err := cli.ExportRunUpdate(
@@ -1657,19 +1694,23 @@ func (fixedHomeUpdateEnv) Getwd() (string, error) { return "/cwd", nil }
 
 func (fixedHomeUpdateEnv) UserHomeDir() (string, error) { return "/home/test", nil }
 
-// liveUpdateEnv adapts the real process environment to update.Env for the
-// dry-run smoke tests (production Env is composed from cli.Deps).
-type liveUpdateEnv struct{}
+// liveUpdateEnv adapts the real Getwd (needed so the dry-run smoke tests'
+// cwd-based local-mode source detection exercises the real module tree) to
+// update.Env, but isolates Getenv/UserHomeDir behind a fixed per-test home
+// (S34 residual): runPostUpdateChecks resolves vaultPath/chunksDir from
+// Env.UserHomeDir/Getenv unconditionally, even under --dry-run, so a real
+// Getenv/UserHomeDir here — or an ambient ENGRAM_VAULT_PATH/XDG_DATA_HOME —
+// would have runUpdate read the developer's actual ~/.local/share/engram
+// vault and ~/.claude skills directory.
+type liveUpdateEnv struct{ home string }
 
-func (liveUpdateEnv) Getenv(key string) string { return os.Getenv(key) }
+func (liveUpdateEnv) Getenv(string) string { return "" }
 
 func (liveUpdateEnv) Getwd() (string, error) {
 	return os.Getwd() // test adapter
 }
 
-func (liveUpdateEnv) UserHomeDir() (string, error) {
-	return os.UserHomeDir() // test adapter
-}
+func (e liveUpdateEnv) UserHomeDir() (string, error) { return e.home, nil }
 
 // liveUpdateFS is an os-backed update.Filesystem for the dry-run smoke
 // tests (dry-run never writes; write methods exist to satisfy the interface).
@@ -1731,6 +1772,60 @@ func (liveUpdateFS) WriteFile(path string, data []byte, perm fs.FileMode) error 
 	return os.WriteFile(path, data, perm) // test adapter
 }
 
+// pathSpyUpdateFS wraps an update.Filesystem, recording every path its read
+// methods see (S34 residual regression guard: TestRunUpdate_DryRunNever-
+// TouchesRealHome asserts none of them fall under the real home).
+type pathSpyUpdateFS struct {
+	update.Filesystem
+
+	mu      sync.Mutex
+	touched []string
+}
+
+func (s *pathSpyUpdateFS) Lstat(path string) (update.FileInfo, error) {
+	s.record(path)
+
+	return s.Filesystem.Lstat(path)
+}
+
+func (s *pathSpyUpdateFS) ReadDir(path string) ([]update.DirEntry, error) {
+	s.record(path)
+
+	return s.Filesystem.ReadDir(path)
+}
+
+func (s *pathSpyUpdateFS) ReadFile(path string) ([]byte, error) {
+	s.record(path)
+
+	return s.Filesystem.ReadFile(path)
+}
+
+func (s *pathSpyUpdateFS) ReadLink(path string) (string, error) {
+	s.record(path)
+
+	return s.Filesystem.ReadLink(path)
+}
+
+func (s *pathSpyUpdateFS) Stat(path string) (update.FileInfo, error) {
+	s.record(path)
+
+	return s.Filesystem.Stat(path)
+}
+
+func (s *pathSpyUpdateFS) record(path string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.touched = append(s.touched, path)
+}
+
+func (s *pathSpyUpdateFS) snapshot() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return append([]string(nil), s.touched...)
+}
+
 // stubCommander satisfies update.Commander; dry-run local mode only uses it
 // for revision resolution (git rev-parse), never go install.
 type stubCommander struct{}
@@ -1750,6 +1845,24 @@ func claudeHarnessReport(guidanceFiles ...string) update.HarnessReport {
 		ImportsFileRel:    ".claude/CLAUDE.md",
 		GuidanceFiles:     guidanceFiles,
 	}
+}
+
+// isolatedUpdateHome returns a fresh temp home containing an empty
+// .claude/ dir, satisfying detectHarnesses' Claude Code probe (ProbeRel
+// ".claude") so the liveUpdateEnv-driven dry-run smoke tests reach their
+// real success path (S34 residual) without depending on — or touching —
+// the developer's actual ~/.claude installation.
+func isolatedUpdateHome(t *testing.T) string {
+	t.Helper()
+
+	home := t.TempDir()
+
+	mkdirErr := os.MkdirAll(filepath.Join(home, ".claude"), 0o750)
+	if mkdirErr != nil {
+		t.Fatal(mkdirErr)
+	}
+
+	return home
 }
 
 // piHarnessReport builds a Pi HarnessReport with spec-derived guidance paths,

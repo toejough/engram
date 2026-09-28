@@ -327,6 +327,37 @@ func TestUpdateExchange_ReportsRejectedEntry(t *testing.T) {
 	g.Expect(notice).To(MatchRegexp(`rejected: \S+\.refused: .*no thanks`))
 }
 
+// TestWiringEnv_DepsIsolateRealUserHome guards the wiring test helper
+// itself (final re-review residual, ruling S34): every wiringEnv-driven
+// command must resolve UserHomeDir/XDG_DATA_HOME to a per-test scratch
+// dir, never the developer's real $HOME, so a future test that forgets
+// --chunks-dir (or any other explicit path flag) lands in scratch instead
+// of silently reading or writing the real ~/.local/share/engram.
+func TestWiringEnv_DepsIsolateRealUserHome(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	deps := env.deps()
+
+	g.Expect(deps.UserHomeDir).NotTo(BeNil())
+
+	home, homeErr := deps.UserHomeDir()
+	g.Expect(homeErr).NotTo(HaveOccurred())
+	g.Expect(home).NotTo(BeEmpty())
+
+	realHome, realErr := os.UserHomeDir()
+	g.Expect(realErr).NotTo(HaveOccurred())
+	g.Expect(home).NotTo(Equal(realHome))
+
+	// A future caller that forgets --chunks-dir must resolve into scratch,
+	// never the developer's real chunk index.
+	chunksDir := cli.ResolveChunksDir("", home, deps.Getenv)
+	realChunksDir := cli.ResolveChunksDir("", realHome, os.Getenv)
+	g.Expect(chunksDir).To(HavePrefix(home))
+	g.Expect(chunksDir).NotTo(Equal(realChunksDir))
+}
+
 // TestWriteUpdateReport_OutboxNotice: the report carries the notice.
 func TestWriteUpdateReport_OutboxNotice(t *testing.T) {
 	t.Parallel()
@@ -545,8 +576,13 @@ func (p *recordingParent) setStoredHash(hash string) {
 // wiringEnv is one child vault on disk with a fake parent and a settable
 // clock, driven through cli.Targets.
 type wiringEnv struct {
-	t          failer
-	vault      string
+	t     failer
+	vault string
+	// home is a per-test scratch dir wired as deps.UserHomeDir (S34
+	// residual): any future caller that forgets --vault/--chunks-dir must
+	// resolve into scratch, never the developer's real
+	// ~/.local/share/engram or ~/.claude.
+	home       string
 	parentURL  string
 	parent     *recordingParent
 	embeds     *atomic.Int32
@@ -569,7 +605,8 @@ func (e *wiringEnv) advance(by time.Duration) {
 }
 
 func (e *wiringEnv) customize(deps *cli.Deps) {
-	deps.Getenv = parentOnlyGetenv(e.parentURL)
+	deps.Getenv = wiringEnvGetenv(e.parentURL, e.home)
+	deps.UserHomeDir = func() (string, error) { return e.home, nil }
 	deps.Now = e.now
 	deps.Fetch = e.parent.fetch
 	deps.Embed = embedCounter{calls: e.embeds}
@@ -695,16 +732,43 @@ func newWiringEnv(t *testing.T) *wiringEnv {
 }
 
 // newWiringEnvIn is newWiringEnv over a given vault directory, reporting
-// through tb (a *rapid.T inside a property, so rapid can shrink).
-func newWiringEnvIn(tb failer, vault string) *wiringEnv {
-	tb.Helper()
+// through reporter (a *rapid.T inside a property, so rapid can shrink).
+// The home dir is a fresh scratch directory beside vault (same removed-
+// with-the-temp-root reasoning as wiringEnv.tempDir), so it needs no
+// *testing.T of its own and works from a rapid property too.
+func newWiringEnvIn(reporter failer, vault string) *wiringEnv {
+	reporter.Helper()
+
+	home, homeErr := os.MkdirTemp(filepath.Dir(vault), "home-*")
+	if homeErr != nil {
+		reporter.Fatal(homeErr)
+	}
 
 	return &wiringEnv{
-		t: tb, vault: vault, parentURL: parentURL, parent: &recordingParent{},
+		t: reporter, vault: vault, home: home, parentURL: parentURL, parent: &recordingParent{},
 		embeds: &atomic.Int32{}, clock: time.Date(2026, 9, 28, 10, 0, 0, 0, time.UTC),
 	}
 }
 
 func noteBasename(path string) string {
 	return strings.TrimSuffix(filepath.Base(path), ".md")
+}
+
+// wiringEnvGetenv returns a Getenv stub reporting only ENGRAM_PARENT and
+// XDG_DATA_HOME (pinned inside the wiring env's own isolated home), so a
+// parallel test needs no t.Setenv and never depends on — or leaks into —
+// the ambient environment. Named distinctly from parentOnlyGetenv (used by
+// other test suites) since only the wiring env needs the XDG_DATA_HOME
+// pin.
+func wiringEnvGetenv(parent, home string) func(string) string {
+	return func(key string) string {
+		switch key {
+		case "ENGRAM_PARENT":
+			return parent
+		case "XDG_DATA_HOME":
+			return filepath.Join(home, ".local", "share")
+		default:
+			return ""
+		}
+	}
 }

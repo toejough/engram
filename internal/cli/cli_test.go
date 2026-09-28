@@ -31,7 +31,7 @@ func TestEngramLearn_Fact_EndToEnd(t *testing.T) {
 		"--predicate", "leak when",
 		"--object", "ctx is ignored",
 	)
-	run.Env = envWithoutEngramRemotes()
+	run.Env = append(envWithoutEngramRemotes(), isolatedHomeEnv(t)...)
 	runOut, runErr := run.CombinedOutput()
 	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
 
@@ -86,7 +86,7 @@ func TestEngramLearn_Feedback_EndToEnd(t *testing.T) {
 		"--impact", "leaks goroutines",
 		"--action", "check ctx.Done()",
 	)
-	run.Env = envWithoutEngramRemotes()
+	run.Env = append(envWithoutEngramRemotes(), isolatedHomeEnv(t)...)
 	runOut, runErr := run.CombinedOutput()
 	g.Expect(runErr).NotTo(HaveOccurred(), "run failed: %s", runOut)
 
