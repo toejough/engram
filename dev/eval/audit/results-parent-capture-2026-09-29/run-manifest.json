@@ -1,0 +1,17 @@
+{
+  "finished_at": "2026-09-29T13:54:44.616198+00:00",
+  "judge_model": "sonnet",
+  "cost_usd_actual": 7.9895,
+  "projected_cost_usd": {
+    "a": 1.19,
+    "b_upper_bound": 10.35,
+    "total": 11.54
+  },
+  "args": {
+    "output_dir": "dev/eval/audit/results-parent-capture-2026-09-29",
+    "vault": "/Users/joe/.local/share/engram/vault",
+    "dry_run": false,
+    "run": true,
+    "budget_usd": 25.0
+  }
+}

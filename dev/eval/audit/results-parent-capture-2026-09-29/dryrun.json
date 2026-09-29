@@ -1,0 +1,73 @@
+{
+  "generated_at": "2026-09-29T13:16:00.475674+00:00",
+  "population": {
+    "main_enumerated": 165,
+    "dropped_by_since": {
+      "before_since": 22,
+      "no_timestamp": 0
+    },
+    "after_since": 143,
+    "excluded_by_rule": {
+      "excluded_session": 1,
+      "eval_subject_description": 0,
+      "eval_subject_prompt": 0,
+      "headless_eval_arm": 7,
+      "automated_security_review": 126
+    },
+    "eligible_main_sessions": 9,
+    "sessions_with_any_lessons_receipt": 2,
+    "population_sessions": 2
+  },
+  "per_session": {
+    "23a08637-d9a1-431d-9ac8-7770901edb97": {
+      "items": 130,
+      "receipts_with_lessons": 80,
+      "receipts_none": 6,
+      "t_end": "2026-09-15T01:46:52.997Z",
+      "first_receipt": "2026-09-09T23:38:09.481Z"
+    },
+    "01e43979-d6c4-4a08-9aab-a8b63a822517": {
+      "items": 35,
+      "receipts_with_lessons": 32,
+      "receipts_none": 0,
+      "t_end": "2026-09-26T16:01:30.072Z",
+      "first_receipt": "2026-09-24T18:05:06.064Z"
+    }
+  },
+  "items": 165,
+  "vault": {
+    "notes": 1792,
+    "by_source": {
+      "deleted": 839,
+      "head": 953
+    },
+    "exact_write_time": 251,
+    "learn_call_index_entries": 272
+  },
+  "candidates": {
+    "post_per_item_mean": 46.7,
+    "post_per_item_max": 102,
+    "coverage_per_item": 10
+  },
+  "judge_calls": {
+    "a": 17,
+    "b_upper_bound": 36
+  },
+  "prompt_chars": {
+    "a_total": 78550,
+    "b_total": 3225899,
+    "b_max": 145938
+  },
+  "cost_model": {
+    "intercept_usd": 0.0464,
+    "per_kchar_usd": 0.00205,
+    "margin": 1.25,
+    "basis": "linear fit to results-re-measure-2026-09-28/cost-log.jsonl sonnet calls"
+  },
+  "projected_cost_usd": {
+    "a": 1.19,
+    "b_upper_bound": 10.35,
+    "total": 11.54
+  },
+  "budget_usd": 25.0
+}

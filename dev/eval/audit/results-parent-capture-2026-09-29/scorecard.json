@@ -1,0 +1,189 @@
+{
+  "metrics": {
+    "worth": {
+      "numerator": 114,
+      "denominator": 165,
+      "rate_pct": 69.1,
+      "ci95": {
+        "lo_pct": 61.8,
+        "hi_pct": 75.8
+      }
+    },
+    "C1": {
+      "numerator": 93,
+      "denominator": 114,
+      "rate_pct": 81.6,
+      "ci95": {
+        "lo_pct": 74.6,
+        "hi_pct": 87.7
+      }
+    },
+    "C1_new": {
+      "numerator": 53,
+      "denominator": 74,
+      "rate_pct": 71.6,
+      "ci95": {
+        "lo_pct": 60.8,
+        "hi_pct": 81.1
+      }
+    },
+    "C1_strict": {
+      "numerator": 81,
+      "denominator": 114,
+      "rate_pct": 71.1,
+      "ci95": {
+        "lo_pct": 62.3,
+        "hi_pct": 78.9
+      }
+    },
+    "outcomes": {
+      "captured": 53,
+      "lost": 21,
+      "covered": 40
+    }
+  },
+  "C0": {
+    "any_learn_after_last_lessons": {
+      "numerator": 0,
+      "denominator": 2
+    },
+    "non_mid_cycle_learn_after_last_lessons": {
+      "numerator": 0,
+      "denominator": 2
+    }
+  },
+  "kinds": {
+    "1": 78,
+    "3": 17,
+    "4": 18,
+    "2": 1
+  },
+  "attribution": {
+    "parent_tree": 41,
+    "unknown": 12
+  },
+  "ambiguous_only_captures": 12,
+  "judge_errors": 0,
+  "per_session": {
+    "23a08637-d9a1-431d-9ac8-7770901edb97": {
+      "closing_learn": {
+        "any": false,
+        "non_mid_cycle": false
+      },
+      "learn_invocations": [
+        {
+          "ts": "2026-09-10T11:29:13.093Z",
+          "via": "skill",
+          "mid_cycle": true
+        },
+        {
+          "ts": "2026-09-12T17:11:18.543Z",
+          "via": "skill",
+          "mid_cycle": true
+        }
+      ],
+      "last_lessons_receipt": "2026-09-13T13:35:33.728Z",
+      "metrics": {
+        "worth": {
+          "numerator": 82,
+          "denominator": 130,
+          "rate_pct": 63.1,
+          "ci95": {
+            "lo_pct": 54.6,
+            "hi_pct": 71.5
+          }
+        },
+        "C1": {
+          "numerator": 68,
+          "denominator": 82,
+          "rate_pct": 82.9,
+          "ci95": {
+            "lo_pct": 75.6,
+            "hi_pct": 91.5
+          }
+        },
+        "C1_new": {
+          "numerator": 33,
+          "denominator": 47,
+          "rate_pct": 70.2,
+          "ci95": {
+            "lo_pct": 55.3,
+            "hi_pct": 83.0
+          }
+        },
+        "C1_strict": {
+          "numerator": 56,
+          "denominator": 82,
+          "rate_pct": 68.3,
+          "ci95": {
+            "lo_pct": 58.5,
+            "hi_pct": 78.0
+          }
+        },
+        "outcomes": {
+          "captured": 33,
+          "lost": 14,
+          "covered": 35
+        }
+      }
+    },
+    "01e43979-d6c4-4a08-9aab-a8b63a822517": {
+      "closing_learn": {
+        "any": false,
+        "non_mid_cycle": false
+      },
+      "learn_invocations": [
+        {
+          "ts": "2026-09-24T14:14:53.508Z",
+          "via": "skill",
+          "mid_cycle": true
+        }
+      ],
+      "last_lessons_receipt": "2026-09-26T15:57:55.813Z",
+      "metrics": {
+        "worth": {
+          "numerator": 32,
+          "denominator": 35,
+          "rate_pct": 91.4,
+          "ci95": {
+            "lo_pct": 80.0,
+            "hi_pct": 100.0
+          }
+        },
+        "C1": {
+          "numerator": 25,
+          "denominator": 32,
+          "rate_pct": 78.1,
+          "ci95": {
+            "lo_pct": 62.5,
+            "hi_pct": 90.6
+          }
+        },
+        "C1_new": {
+          "numerator": 20,
+          "denominator": 27,
+          "rate_pct": 74.1,
+          "ci95": {
+            "lo_pct": 55.6,
+            "hi_pct": 88.9
+          }
+        },
+        "C1_strict": {
+          "numerator": 25,
+          "denominator": 32,
+          "rate_pct": 78.1,
+          "ci95": {
+            "lo_pct": 62.5,
+            "hi_pct": 90.6
+          }
+        },
+        "outcomes": {
+          "captured": 20,
+          "lost": 7,
+          "covered": 5
+        }
+      }
+    }
+  },
+  "cost_usd_actual": 7.9895
+}
