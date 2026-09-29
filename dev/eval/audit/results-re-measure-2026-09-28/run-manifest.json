@@ -1,0 +1,22 @@
+{
+  "status": "completed",
+  "finished_at": "2026-09-29T06:34:58.334878+00:00",
+  "instrument_version": 2,
+  "model_tiers": {
+    "detect": "haiku",
+    "judge": "sonnet"
+  },
+  "items_total": 47,
+  "items_done": 47,
+  "cost_usd_recorded": 89.9066,
+  "cost_method": "sum of total_cost_usd reported by each claude -p call (cost-log.jsonl)",
+  "args": {
+    "output_dir": "results-re-measure-2026-09-28",
+    "since": "2026-09-07",
+    "sample_size": 47,
+    "seed": 739,
+    "limit": null,
+    "prior_spend_usd": 17.65,
+    "cost_cap_usd": 150.0
+  }
+}

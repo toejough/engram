@@ -73,7 +73,23 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "output_dir": "results-rerun",
     "model_tiers": dict(INSTRUMENT_MODEL_TIERS),
     "seed": 739,
+    # Optional corpus cutoff (YYYY-MM-DD, UTC): keep only transcripts whose FIRST
+    # timestamp is on or after this date. None = whole live corpus (the original
+    # behavior). Added 2026-09-28 for the learn-rate-skill-only re-measure, which
+    # must measure post-ship (2026-09-07) natural usage only.
+    "since": None,
 }
+
+# Project-dir exclusion rules for corpus enumeration (named, not inline):
+# - prefixes: ephemeral eval dirs (corpus.json's excluded_directories rationale)
+# - substrings: eval-harness trial project dirs -- the audit's own working
+#   session (-...-dev-eval-audit, excluded from the 2026-09 baseline too) and
+#   pressure-test fixture sessions (-...-dev-eval-cumulative-...). Neither is
+#   natural usage. Added 2026-09-28 (learn-rate re-measure, Joe's reading B).
+EXCLUDED_PROJECT_DIR_PREFIXES = ("-private-tmp",)
+EXCLUDED_PROJECT_DIR_SUBSTRINGS = ("-dev-eval-",)
+
+_SINCE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # The two files holding the real per-moment-call costs this audit recorded
 # (each record's cost_usd is the total_cost_usd claude -p itself reported).
@@ -129,6 +145,10 @@ def load_config(path: str) -> Dict[str, Any]:
     for stage in cfg["stages"]:
         if stage not in VALID_STAGES:
             raise ValueError(f"invalid stage {stage!r} (valid: {list(VALID_STAGES)})")
+    if cfg["since"] is not None and (
+        not isinstance(cfg["since"], str) or not _SINCE_PATTERN.match(cfg["since"])
+    ):
+        raise ValueError(f"since must be null or a YYYY-MM-DD date, got {cfg['since']!r}")
     if cfg["model_tiers"] != INSTRUMENT_MODEL_TIERS:
         raise ValueError(
             f"model_tiers {cfg['model_tiers']} differ from the instrument's pinned "
@@ -168,8 +188,9 @@ def enumerate_corpus(projects_root: Optional[str] = None) -> List[str]:
     - subagents (fork/fresh): <project>/<session-id>/subagents/agent-*.jsonl
     - workflows:          <project>/<session-id>/subagents/workflows/**.jsonl
     - .meta.json sidecars are not transcripts (not matched -- *.jsonl only)
-    - project dirs named -private-tmp* are ephemeral eval dirs (corpus.json's
-      excluded_directories rationale) and are skipped
+    - project dirs matching EXCLUDED_PROJECT_DIR_PREFIXES (-private-tmp*:
+      ephemeral eval dirs) or EXCLUDED_PROJECT_DIR_SUBSTRINGS (-dev-eval-:
+      eval-harness trial dirs) are skipped
 
     Returns a sorted list of absolute paths (sorted for deterministic
     sampling regardless of filesystem order).
@@ -181,12 +202,170 @@ def enumerate_corpus(projects_root: Optional[str] = None) -> List[str]:
     for project_dir in root.iterdir():
         if not project_dir.is_dir():
             continue
-        if project_dir.name.startswith("-private-tmp"):
+        if project_dir.name.startswith(EXCLUDED_PROJECT_DIR_PREFIXES):
+            continue
+        if any(sub in project_dir.name for sub in EXCLUDED_PROJECT_DIR_SUBSTRINGS):
             continue
         for transcript in project_dir.rglob("*.jsonl"):
             if transcript.is_file():
                 paths.append(str(transcript))
     return sorted(paths)
+
+
+def first_timestamp(transcript_path: str) -> Optional[str]:
+    """
+    Return the first `timestamp` field found in a transcript's JSONL lines (the
+    session's start), or None if no line carries one. Unparseable lines are
+    skipped.
+    """
+    with open(transcript_path) as f:
+        for line in f:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(record, dict) and record.get("timestamp"):
+                return str(record["timestamp"])
+    return None
+
+
+def filter_since(paths: List[str], since: str) -> "tuple[List[str], Dict[str, int]]":
+    """
+    Keep transcripts whose FIRST timestamp's UTC date is on or after `since`
+    (YYYY-MM-DD). A session started before the cutoff is dropped even if it
+    continued past it (it ran under the pre-cutoff setup at start). Transcripts
+    with no timestamp cannot be dated and are dropped. Returns (sorted kept
+    paths, drop counts by reason).
+    """
+    kept: List[str] = []
+    dropped = {"before_since": 0, "no_timestamp": 0}
+    for path in paths:
+        ts = first_timestamp(path)
+        if ts is None:
+            dropped["no_timestamp"] += 1
+        elif ts[:10] < since:
+            dropped["before_since"] += 1
+        else:
+            kept.append(path)
+    return sorted(kept), dropped
+
+
+# ---------------------------------------------------------------------------
+# Re-measure exclusion rules (learn-rate-skill-only re-measure, 2026-09-28).
+# Each rule is a concrete, recorded signal in the transcript or its sidecar;
+# exclusion_reason() returns the first rule that matches.
+# ---------------------------------------------------------------------------
+
+# (a) The session that orchestrated the re-measure itself: its main transcript
+# and every subagent under <session>/subagents/ (it is live while the audit runs
+# and is the audit's own build activity -- the baseline excluded its audit's
+# working session the same way).
+EXCLUDED_SESSION_IDS = ("f6dfe139-52a1-4f7d-aee0-2bb16645d7ff",)
+
+# (b1) Pressure-test / probe SUBJECT subagents, by the dispatch description the
+# orchestrator recorded in agent-*.meta.json. Anchored at the start for RED/GREEN
+# so dev work ABOUT a test ("Build harness + run 2.1 RED baseline") is kept.
+EVAL_SUBJECT_DESCRIPTION_PATTERN = re.compile(
+    r"^(RED|GREEN)\b|^pressure test\b|^rate-limit probe\b", re.IGNORECASE
+)
+
+# (b2) Pressure-test subjects whose prompt casts them as a skill under test.
+EVAL_SUBJECT_PROMPT_PREFIXES = (
+    "You are role-playing as",
+    'You are acting as the "',
+)
+
+# (b3) Headless eval arms: a main session launched through `claude -p`
+# (entrypoint "sdk-cli") with its cwd inside an engram checkout, where the
+# eval harnesses live. Headless sessions elsewhere (e.g. the phone-llm relay)
+# are natural usage and are kept.
+HEADLESS_EVAL_ENTRYPOINT = "sdk-cli"
+HEADLESS_EVAL_CWD_MARKER = "/repos/personal/engram"
+
+# (c) Automated security-review sessions: main sessions launched through the
+# Python SDK (entrypoint "sdk-py") with this fixed reviewer prompt. Tooling, not
+# natural agent work; the 2026-09 baseline sample had none. Added 2026-09-28 by
+# Joe's decision after the option-1 smoke (16/47 of that sample were these).
+AUTOMATED_REVIEW_ENTRYPOINT = "sdk-py"
+AUTOMATED_REVIEW_PROMPT_PREFIX = "Review this change for security vulnerabilities."
+
+
+def _first_record_fields(transcript_path: str) -> Dict[str, Any]:
+    """First cwd, entrypoint, and first user prompt text found in a transcript."""
+    found: Dict[str, Any] = {"cwd": None, "entrypoint": None, "prompt": None}
+    with open(transcript_path) as f:
+        for line in f:
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(record, dict):
+                continue
+            if found["cwd"] is None and record.get("cwd"):
+                found["cwd"] = record["cwd"]
+            if found["entrypoint"] is None and record.get("entrypoint"):
+                found["entrypoint"] = record["entrypoint"]
+            if found["prompt"] is None and record.get("type") == "user":
+                content = (record.get("message") or {}).get("content")
+                if isinstance(content, list):
+                    content = " ".join(
+                        c.get("text", "") for c in content if isinstance(c, dict)
+                    )
+                found["prompt"] = str(content or "")
+            if all(v is not None for v in found.values()):
+                break
+    return found
+
+
+def exclusion_reason(transcript_path: str) -> Optional[str]:
+    """Return the name of the first exclusion rule the transcript matches, or None."""
+    if any(
+        f"/{sid}/" in transcript_path or transcript_path.endswith(f"/{sid}.jsonl")
+        for sid in EXCLUDED_SESSION_IDS
+    ):
+        return "excluded_session"
+    is_subagent = "/subagents/" in transcript_path
+    fields = _first_record_fields(transcript_path)
+    if is_subagent:
+        meta = transcript_path[: -len(".jsonl")] + ".meta.json"
+        if os.path.exists(meta):
+            try:
+                with open(meta) as f:
+                    description = json.load(f).get("description") or ""
+            except (json.JSONDecodeError, OSError):
+                description = ""
+            if EVAL_SUBJECT_DESCRIPTION_PATTERN.search(description.strip()):
+                return "eval_subject_description"
+        if (fields["prompt"] or "").lstrip().startswith(EVAL_SUBJECT_PROMPT_PREFIXES):
+            return "eval_subject_prompt"
+    elif fields["entrypoint"] == HEADLESS_EVAL_ENTRYPOINT and HEADLESS_EVAL_CWD_MARKER in (
+        fields["cwd"] or ""
+    ):
+        return "headless_eval_arm"
+    elif fields["entrypoint"] == AUTOMATED_REVIEW_ENTRYPOINT and (
+        fields["prompt"] or ""
+    ).startswith(AUTOMATED_REVIEW_PROMPT_PREFIX):
+        return "automated_security_review"
+    return None
+
+
+def filter_exclusions(paths: List[str]) -> "tuple[List[str], Dict[str, int]]":
+    """Drop transcripts matching an exclusion rule. Returns (sorted kept, counts per rule)."""
+    counts = {
+        "excluded_session": 0,
+        "eval_subject_description": 0,
+        "eval_subject_prompt": 0,
+        "headless_eval_arm": 0,
+        "automated_security_review": 0,
+    }
+    kept: List[str] = []
+    for path in paths:
+        reason = exclusion_reason(path)
+        if reason is None:
+            kept.append(path)
+        else:
+            counts[reason] += 1
+    return sorted(kept), counts
 
 
 def sample_corpus(paths: List[str], sample_size: int, seed: int) -> List[str]:
@@ -460,10 +639,15 @@ def _load_or_create_sample(
         return list(persisted["sample"])
 
     corpus = enumerate_corpus(projects_root)
+    corpus_size_before_since = len(corpus)
+    dropped_by_since = None
+    if config.get("since"):
+        corpus, dropped_by_since = filter_since(corpus, config["since"])
     if not corpus:
         raise ValueError(
             f"live corpus enumeration found no transcripts under "
-            f"{projects_root or DEFAULT_PROJECTS_ROOT} -- refusing to run on nothing"
+            f"{projects_root or DEFAULT_PROJECTS_ROOT} (since={config.get('since')}) "
+            "-- refusing to run on nothing"
         )
     sample = sample_corpus(corpus, config["sample_size"], config["seed"])
     sample_record = {
@@ -472,6 +656,11 @@ def _load_or_create_sample(
             "seed": config["seed"],
             "sample_size": len(sample),
             "corpus_size": len(corpus),
+            "since": config.get("since"),
+            "corpus_size_before_since": corpus_size_before_since,
+            "dropped_by_since": dropped_by_since,
+            "excluded_project_dir_prefixes": list(EXCLUDED_PROJECT_DIR_PREFIXES),
+            "excluded_project_dir_substrings": list(EXCLUDED_PROJECT_DIR_SUBSTRINGS),
             "projects_root": projects_root or DEFAULT_PROJECTS_ROOT,
             "note": (
                 "corpus enumerated fresh from the live ~/.claude/projects layout "

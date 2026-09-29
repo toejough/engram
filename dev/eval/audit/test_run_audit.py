@@ -284,6 +284,184 @@ class TestEnumerationAndSampling:
         s = run_audit.sample_corpus(corpus, sample_size=10, seed=1)
         assert sorted(s) == sorted(corpus)
 
+    def test_enumerate_corpus_excludes_dev_eval_harness_dirs(self, fixture_projects_root):
+        # Eval-harness trial project dirs (the audit's own session dir, pressure-test
+        # fixture sessions) are not natural usage -- the named exclusion rule.
+        for name in (
+            "-Users-fake-repo-dev-eval-audit",
+            "-Users-fake-repo--claude-worktrees-x-dev-eval-cumulative-taskBF-RED-red1",
+        ):
+            d = fixture_projects_root / name
+            d.mkdir(parents=True)
+            (d / "y.jsonl").write_text('{"type":"user"}\n')
+        paths = run_audit.enumerate_corpus(str(fixture_projects_root))
+        assert not any("-dev-eval-" in p for p in paths)
+        # real repo transcripts still enumerated
+        assert any(p.endswith("sess1.jsonl") for p in paths)
+        assert "-dev-eval-" in run_audit.EXCLUDED_PROJECT_DIR_SUBSTRINGS
+        assert "-private-tmp" in run_audit.EXCLUDED_PROJECT_DIR_PREFIXES
+
+
+def _write_transcript(path: Path, lines):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(json.dumps(line) + "\n" for line in lines))
+
+
+class TestExclusionRules:
+    """Named re-measure exclusion rules (2026-09-28, Joe's option 1 + corpus rule)."""
+
+    def _subagent(self, root, session, agent, prompt, description=None):
+        path = root / "-Users-fake-repo" / session / "subagents" / f"agent-{agent}.jsonl"
+        _write_transcript(
+            path,
+            [{"type": "user", "timestamp": "2026-09-10T00:00:00Z",
+              "message": {"role": "user", "content": prompt}}],
+        )
+        if description is not None:
+            (path.parent / f"agent-{agent}.meta.json").write_text(
+                json.dumps({"agentType": "general-purpose", "description": description})
+            )
+        return str(path)
+
+    def _main(self, root, session, entrypoint, cwd, prompt="hi"):
+        path = root / "-Users-fake-repo" / f"{session}.jsonl"
+        _write_transcript(
+            path,
+            [{"type": "user", "timestamp": "2026-09-10T00:00:00Z", "entrypoint": entrypoint,
+              "cwd": cwd, "message": {"role": "user", "content": prompt}}],
+        )
+        return str(path)
+
+    def test_excluded_session_matches_main_and_all_its_subagents(self, tmp_path):
+        sid = "f6dfe139-52a1-4f7d-aee0-2bb16645d7ff"
+        assert sid in run_audit.EXCLUDED_SESSION_IDS
+        main = self._main(tmp_path, sid, "cli", "/Users/joe")
+        sub = self._subagent(tmp_path, sid, "a1", "do work")
+        other = self._main(tmp_path, "other-session", "cli", "/Users/joe")
+        assert run_audit.exclusion_reason(main) == "excluded_session"
+        assert run_audit.exclusion_reason(sub) == "excluded_session"
+        assert run_audit.exclusion_reason(other) is None
+
+    def test_pressure_test_subject_by_dispatch_description(self, tmp_path):
+        for i, desc in enumerate(
+            ["RED baseline: write-memory handoff", "GREEN rep 1: recall citation",
+             "Pressure test: recall must refuse", "Rate-limit probe 2"]
+        ):
+            p = self._subagent(tmp_path, "s1", f"d{i}", "work", description=desc)
+            assert run_audit.exclusion_reason(p) == "eval_subject_description", desc
+        # dev work ABOUT an eval harness is natural usage, not a test subject
+        for i, desc in enumerate(
+            ["Build harness + run 2.1 RED baseline", "Scope task 2.1 RED baseline eval",
+             "Review phase-2 Task 3 (probe_phase2)"]
+        ):
+            p = self._subagent(tmp_path, "s2", f"k{i}", "work", description=desc)
+            assert run_audit.exclusion_reason(p) is None, desc
+
+    def test_pressure_test_subject_by_roleplay_prompt(self, tmp_path):
+        p = self._subagent(
+            tmp_path, "s3", "r1", "You are role-playing as an agent executing the recall skill"
+        )
+        assert run_audit.exclusion_reason(p) == "eval_subject_prompt"
+        p = self._subagent(tmp_path, "s3", "r2", 'You are acting as the "write-memory" skill')
+        assert run_audit.exclusion_reason(p) == "eval_subject_prompt"
+
+    def test_headless_eval_arm_main_session(self, tmp_path):
+        arm = self._main(
+            tmp_path, "arm1", "sdk-cli",
+            "/Users/joe/repos/personal/engram/.claude/worktrees/runbook-vs-skill",
+        )
+        assert run_audit.exclusion_reason(arm) == "headless_eval_arm"
+        # headless session outside an engram checkout (e.g. phone-llm relay) is kept
+        phone = self._main(tmp_path, "ph1", "sdk-cli", "/Users/joe/repos/personal/local-llm-optimization")
+        assert run_audit.exclusion_reason(phone) is None
+        # interactive session inside engram is kept
+        inter = self._main(tmp_path, "in1", "cli", "/Users/joe/repos/personal/engram")
+        assert run_audit.exclusion_reason(inter) is None
+
+    def test_automated_security_review_main_session(self, tmp_path):
+        prompt = "Review this change for security vulnerabilities.\n\nChanged files: x"
+        review = self._main(tmp_path, "rv1", "sdk-py", "/Users/joe/repos/personal/phone-llm", prompt)
+        assert run_audit.exclusion_reason(review) == "automated_security_review"
+        # same entrypoint, different prompt: kept
+        other = self._main(tmp_path, "rv2", "sdk-py", "/Users/joe/repos/personal/phone-llm", "hello")
+        assert run_audit.exclusion_reason(other) is None
+        # same prompt typed interactively: kept
+        typed = self._main(tmp_path, "rv3", "cli", "/Users/joe", prompt)
+        assert run_audit.exclusion_reason(typed) is None
+
+    def test_filter_exclusions_counts_per_rule(self, tmp_path):
+        keep = self._main(tmp_path, "k", "cli", "/Users/joe")
+        drop = self._subagent(tmp_path, "s4", "x", "w", description="RED baseline: x")
+        kept, counts = run_audit.filter_exclusions([drop, keep])
+        assert kept == [keep]
+        assert counts["eval_subject_description"] == 1
+        assert sum(counts.values()) == 1
+
+
+class TestSinceFilter:
+    def test_first_timestamp_skips_untimestamped_lines(self, tmp_path):
+        p = tmp_path / "t.jsonl"
+        _write_transcript(
+            p,
+            [{"type": "summary"}, {"type": "user", "timestamp": "2026-09-08T01:02:03Z"}],
+        )
+        assert run_audit.first_timestamp(str(p)) == "2026-09-08T01:02:03Z"
+
+    def test_first_timestamp_none_when_absent(self, tmp_path):
+        p = tmp_path / "t.jsonl"
+        _write_transcript(p, [{"type": "summary"}])
+        assert run_audit.first_timestamp(str(p)) is None
+
+    def test_filter_keeps_on_or_after_since_by_first_timestamp(self, tmp_path):
+        before = tmp_path / "before.jsonl"
+        on = tmp_path / "on.jsonl"
+        after = tmp_path / "after.jsonl"
+        undated = tmp_path / "undated.jsonl"
+        # started before the cutoff, continued after it: still excluded (FIRST timestamp)
+        _write_transcript(
+            before,
+            [
+                {"timestamp": "2026-09-06T23:59:59Z"},
+                {"timestamp": "2026-09-10T00:00:00Z"},
+            ],
+        )
+        _write_transcript(on, [{"timestamp": "2026-09-07T00:00:00Z"}])
+        _write_transcript(after, [{"timestamp": "2026-09-20T12:00:00Z"}])
+        _write_transcript(undated, [{"type": "summary"}])
+        kept, dropped = run_audit.filter_since(
+            [str(before), str(on), str(after), str(undated)], "2026-09-07"
+        )
+        assert kept == sorted([str(on), str(after)])
+        assert dropped == {"before_since": 1, "no_timestamp": 1}
+
+    def test_config_since_defaults_to_none_and_validates(self, tmp_path):
+        cfg = run_audit.load_config(str(write_config(tmp_path, {})))
+        assert cfg["since"] is None
+        cfg = run_audit.load_config(str(write_config(tmp_path, {"since": "2026-09-07"})))
+        assert cfg["since"] == "2026-09-07"
+        with pytest.raises(ValueError):
+            run_audit.load_config(str(write_config(tmp_path, {"since": "Sept 7"})))
+
+    def test_run_applies_since_before_sampling_and_records_it(
+        self, monkeypatch, base_config, out_dir, tmp_path
+    ):
+        old = tmp_path / "c" / "old.jsonl"
+        new1 = tmp_path / "c" / "new1.jsonl"
+        new2 = tmp_path / "c" / "new2.jsonl"
+        _write_transcript(old, [{"timestamp": "2026-09-01T00:00:00Z"}])
+        _write_transcript(new1, [{"timestamp": "2026-09-08T00:00:00Z"}])
+        _write_transcript(new2, [{"timestamp": "2026-09-09T00:00:00Z"}])
+        make_stub_stages(monkeypatch, [str(old), str(new1), str(new2)])
+        config = {**base_config, "since": "2026-09-07", "sample_size": 5}
+        run_audit.run(config)
+        sample = json.loads((out_dir / "sample.json").read_text())
+        assert sorted(sample["sample"]) == sorted([str(new1), str(new2)])
+        meta = sample["metadata"]
+        assert meta["since"] == "2026-09-07"
+        assert meta["corpus_size_before_since"] == 3
+        assert meta["corpus_size"] == 2
+        assert meta["dropped_by_since"] == {"before_since": 1, "no_timestamp": 0}
+
 
 # ---------------------------------------------------------------------------
 # Run mode: resume-skip, manifest, halt

@@ -1,0 +1,365 @@
+{
+  "metadata": {
+    "generated_at": "2026-09-28T23:38:14.453647+00:00",
+    "seed": 739,
+    "since": "2026-09-07",
+    "sample_size_requested": 47,
+    "sample_size": 47,
+    "corpus_enumerated": 892,
+    "dropped_by_since": {
+      "before_since": 312,
+      "no_timestamp": 29
+    },
+    "corpus_after_since": 551,
+    "excluded_by_rule": {
+      "excluded_session": 118,
+      "eval_subject_description": 14,
+      "eval_subject_prompt": 0,
+      "headless_eval_arm": 7,
+      "automated_security_review": 124
+    },
+    "corpus_eligible": 288,
+    "excluded_project_dir_prefixes": [
+      "-private-tmp"
+    ],
+    "excluded_project_dir_substrings": [
+      "-dev-eval-"
+    ],
+    "excluded_session_ids": [
+      "f6dfe139-52a1-4f7d-aee0-2bb16645d7ff"
+    ],
+    "window_rule": "uniform: random.Random(seed).randrange(total_windows), in sample order",
+    "instrument_version": 2
+  },
+  "items": [
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a146fbcd0d6b83279.jsonl",
+      "total_windows": 4,
+      "window_index": 1,
+      "location_start": 6,
+      "location_end": 12
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-ae121114a22cab26a.jsonl",
+      "total_windows": 4,
+      "window_index": 2,
+      "location_start": 13,
+      "location_end": 20
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-local-llm-optimization/1f6a9980-7d87-539f-9441-34a827a8707d/subagents/agent-a3f8011fbef1b2ced.jsonl",
+      "total_windows": 1,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 28
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a10fb548130da113a.jsonl",
+      "total_windows": 13,
+      "window_index": 11,
+      "location_start": 217,
+      "location_end": 244
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-acef3024d52dce150.jsonl",
+      "total_windows": 2,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 33
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-a3502c75394ce021d.jsonl",
+      "total_windows": 6,
+      "window_index": 5,
+      "location_start": 248,
+      "location_end": 249
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-a61fed4470591bb25.jsonl",
+      "total_windows": 3,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 49
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/517db494-4711-49d2-8a29-25d872236d24/subagents/agent-a6528a7e9c87d8065.jsonl",
+      "total_windows": 6,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 6
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a2a9f510ecd20a817.jsonl",
+      "total_windows": 5,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 5
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a0b247a14874f3429.jsonl",
+      "total_windows": 11,
+      "window_index": 6,
+      "location_start": 92,
+      "location_end": 113
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/517db494-4711-49d2-8a29-25d872236d24/subagents/agent-aca95c97bc5087562.jsonl",
+      "total_windows": 7,
+      "window_index": 3,
+      "location_start": 28,
+      "location_end": 79
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/01e43979-d6c4-4a08-9aab-a8b63a822517/subagents/agent-afffeea93bf4d5020.jsonl",
+      "total_windows": 4,
+      "window_index": 1,
+      "location_start": 16,
+      "location_end": 33
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-ab2a57db6c3ac9a7d.jsonl",
+      "total_windows": 5,
+      "window_index": 1,
+      "location_start": 6,
+      "location_end": 13
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-ac06f80bfb41df543.jsonl",
+      "total_windows": 15,
+      "window_index": 14,
+      "location_start": 427,
+      "location_end": 445
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a7317a530a48116a0.jsonl",
+      "total_windows": 6,
+      "window_index": 5,
+      "location_start": 86,
+      "location_end": 102
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-a86a794494b682906.jsonl",
+      "total_windows": 5,
+      "window_index": 3,
+      "location_start": 74,
+      "location_end": 123
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-a0ce78c1e9c05d943.jsonl",
+      "total_windows": 5,
+      "window_index": 4,
+      "location_start": 123,
+      "location_end": 134
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-aaef4828378ad30c4.jsonl",
+      "total_windows": 7,
+      "window_index": 4,
+      "location_start": 52,
+      "location_end": 100
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/517db494-4711-49d2-8a29-25d872236d24/subagents/agent-a692ade780dc3a169.jsonl",
+      "total_windows": 11,
+      "window_index": 5,
+      "location_start": 126,
+      "location_end": 198
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-ad516f8f7973b442e.jsonl",
+      "total_windows": 7,
+      "window_index": 2,
+      "location_start": 14,
+      "location_end": 19
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/517db494-4711-49d2-8a29-25d872236d24/subagents/agent-aea55c6170b7513da.jsonl",
+      "total_windows": 5,
+      "window_index": 2,
+      "location_start": 16,
+      "location_end": 52
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-abe62f9d418005dd6.jsonl",
+      "total_windows": 5,
+      "window_index": 4,
+      "location_start": 38,
+      "location_end": 72
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/01e43979-d6c4-4a08-9aab-a8b63a822517/subagents/agent-ac9eeb8011113fbc0.jsonl",
+      "total_windows": 4,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 14
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-a14b79ee885c64d51.jsonl",
+      "total_windows": 30,
+      "window_index": 21,
+      "location_start": 1165,
+      "location_end": 1225
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/517db494-4711-49d2-8a29-25d872236d24/subagents/agent-ae69a014d92ab3662.jsonl",
+      "total_windows": 8,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 6
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a49016820da055331.jsonl",
+      "total_windows": 8,
+      "window_index": 5,
+      "location_start": 68,
+      "location_end": 93
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-ad8e0c054cb3f860f.jsonl",
+      "total_windows": 4,
+      "window_index": 3,
+      "location_start": 32,
+      "location_end": 51
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-abecd12b748772a68.jsonl",
+      "total_windows": 6,
+      "window_index": 2,
+      "location_start": 16,
+      "location_end": 23
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-afdf9d09e75b602f1.jsonl",
+      "total_windows": 1,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 44
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-ae2ec9dcd72142094.jsonl",
+      "total_windows": 5,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 50
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-aa7c850b9ae23cda6.jsonl",
+      "total_windows": 6,
+      "window_index": 2,
+      "location_start": 16,
+      "location_end": 32
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a5e18c24eae9dfe1b.jsonl",
+      "total_windows": 3,
+      "window_index": 2,
+      "location_start": 20,
+      "location_end": 40
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/517db494-4711-49d2-8a29-25d872236d24/subagents/agent-a6dbfe099d504f508.jsonl",
+      "total_windows": 6,
+      "window_index": 5,
+      "location_start": 87,
+      "location_end": 117
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-ad062c75ccef6debc.jsonl",
+      "total_windows": 11,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 23
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/01e43979-d6c4-4a08-9aab-a8b63a822517/subagents/agent-a3f09ef7ebb0ea7e7.jsonl",
+      "total_windows": 9,
+      "window_index": 6,
+      "location_start": 171,
+      "location_end": 195
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a48263bd34c32757b.jsonl",
+      "total_windows": 5,
+      "window_index": 1,
+      "location_start": 6,
+      "location_end": 13
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a6a6a1c5e30232429.jsonl",
+      "total_windows": 4,
+      "window_index": 2,
+      "location_start": 13,
+      "location_end": 31
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-phone-llm/01e43979-d6c4-4a08-9aab-a8b63a822517/subagents/agent-a7847ef01c92c42b1.jsonl",
+      "total_windows": 4,
+      "window_index": 2,
+      "location_start": 35,
+      "location_end": 87
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a71236a390679daa4.jsonl",
+      "total_windows": 7,
+      "window_index": 1,
+      "location_start": 6,
+      "location_end": 13
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-a6030e70988c748be.jsonl",
+      "total_windows": 4,
+      "window_index": 1,
+      "location_start": 28,
+      "location_end": 59
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a3e122146a8dc94bc.jsonl",
+      "total_windows": 4,
+      "window_index": 2,
+      "location_start": 41,
+      "location_end": 72
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a305671de17b65d47.jsonl",
+      "total_windows": 6,
+      "window_index": 2,
+      "location_start": 16,
+      "location_end": 21
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-a71dd11322e42966a.jsonl",
+      "total_windows": 3,
+      "window_index": 1,
+      "location_start": 53,
+      "location_end": 115
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-local-llm-optimization/1f6a9980-7d87-539f-9441-34a827a8707d/subagents/agent-a093ae09b18785a0f.jsonl",
+      "total_windows": 2,
+      "window_index": 0,
+      "location_start": 1,
+      "location_end": 47
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-a29b1d50a9ab4829d.jsonl",
+      "total_windows": 8,
+      "window_index": 7,
+      "location_start": 420,
+      "location_end": 457
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/3613955e-2aa0-4754-bc4e-9d8aa0e8ea6e/subagents/agent-a595bc23237e8333d.jsonl",
+      "total_windows": 4,
+      "window_index": 1,
+      "location_start": 6,
+      "location_end": 12
+    },
+    {
+      "transcript_path": "/Users/joe/.claude/projects/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill/23a08637-d9a1-431d-9ac8-7770901edb97/subagents/agent-aa1fcd10016d1b954.jsonl",
+      "total_windows": 3,
+      "window_index": 2,
+      "location_start": 42,
+      "location_end": 67
+    }
+  ]
+}

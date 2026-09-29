@@ -1,0 +1,192 @@
+{
+  "method": "build_scorecard.py functions imported (bootstrap_ci/rate_block/pct: percentile bootstrap n=2000 seed=739, per-moment); definitions identical to build_scorecard.main(). Baseline recomputed from the frozen results/moments.jsonl as a reproduction check.",
+  "baseline_2026_09_02": {
+    "n_moments": 150,
+    "moment_type_counts": {
+      "success": 72,
+      "failure": 27,
+      "rework": 17,
+      "dispatch": 28,
+      "correction": 6
+    },
+    "role_counts": {
+      "main": 36,
+      "fork": 25,
+      "fresh": 39,
+      "workflow": 50
+    },
+    "repo_counts": {
+      "-Users-joe-repos-personal-engram": 56,
+      "-Users-joe-repos-personal-targ": 8,
+      "-Users-joe-repos-personal-llmcpp": 16,
+      "-Users-joe-repos-personal-phone-llm": 59,
+      "-Users-joe": 3,
+      "-Users-joe-dotfiles": 7,
+      "-Users-joe-repos-personal-local-llm-optimization": 1
+    },
+    "instrument_versions": {
+      "None": 150
+    },
+    "W1_worth_learning": {
+      "question": "Was this moment worth learning from?",
+      "counting_unit": "per-moment",
+      "label": "DERIVED",
+      "denominator": {
+        "n": 150,
+        "definition": "all 150 audited moments"
+      },
+      "numerator": {
+        "n": 71,
+        "definition": "writing_side.worth_learning_from == true"
+      },
+      "rate_pct": 47.3,
+      "ci95": {
+        "lo_pct": 39.3,
+        "hi_pct": 55.3
+      },
+      "extra": {
+        "null_n_data_gap": 0
+      }
+    },
+    "W2_learn_fired": {
+      "question": "Did a learn/write-memory step actually execute?",
+      "counting_unit": "per-moment",
+      "label": "DERIVED",
+      "denominator": {
+        "n": 71,
+        "definition": "W1-passing moments: worth_learning_from == true (71)"
+      },
+      "numerator": {
+        "n": 4,
+        "definition": "writing_side.learn_fired == true"
+      },
+      "rate_pct": 5.6,
+      "ci95": {
+        "lo_pct": 1.4,
+        "hi_pct": 11.3
+      }
+    },
+    "lost_lessons": {
+      "definition": "worth_learning_from == true AND learn_fired == false",
+      "n": 67,
+      "pct_of_all_moments": 44.7,
+      "failure_category_counts": {
+        "nothing_could_have_caught_it": 26,
+        "fixable": 40,
+        "found_but_not_followed": 1
+      },
+      "fixable_n": 40,
+      "fixable_pct_of_lost": 59.7,
+      "fixable_ci95": {
+        "lo_pct": 47.8,
+        "hi_pct": 71.6
+      },
+      "fixable_role_breakdown": {
+        "main": 7,
+        "fork": 8,
+        "fresh": 11,
+        "workflow": 14
+      },
+      "lost_moment_type_breakdown": {
+        "success": 39,
+        "failure": 14,
+        "rework": 6,
+        "dispatch": 6,
+        "correction": 2
+      }
+    }
+  },
+  "remeasure": {
+    "n_moments": 119,
+    "moment_type_counts": {
+      "failure": 33,
+      "correction": 6,
+      "rework": 24,
+      "success": 53,
+      "dispatch": 3
+    },
+    "role_counts": {
+      "fresh": 117,
+      "fork": 2
+    },
+    "repo_counts": {
+      "-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill": 103,
+      "-Users-joe-repos-personal-local-llm-optimization": 6,
+      "-Users-joe-repos-personal-phone-llm": 10
+    },
+    "instrument_versions": {
+      "2": 119
+    },
+    "W1_worth_learning": {
+      "question": "Was this moment worth learning from?",
+      "counting_unit": "per-moment",
+      "label": "DERIVED",
+      "denominator": {
+        "n": 119,
+        "definition": "all 119 audited moments"
+      },
+      "numerator": {
+        "n": 66,
+        "definition": "writing_side.worth_learning_from == true"
+      },
+      "rate_pct": 55.5,
+      "ci95": {
+        "lo_pct": 47.1,
+        "hi_pct": 63.9
+      },
+      "extra": {
+        "null_n_data_gap": 0
+      }
+    },
+    "W2_learn_fired": {
+      "question": "Did a learn/write-memory step actually execute?",
+      "counting_unit": "per-moment",
+      "label": "DERIVED",
+      "denominator": {
+        "n": 66,
+        "definition": "W1-passing moments: worth_learning_from == true (66)"
+      },
+      "numerator": {
+        "n": 3,
+        "definition": "writing_side.learn_fired == true"
+      },
+      "rate_pct": 4.5,
+      "ci95": {
+        "lo_pct": 0.0,
+        "hi_pct": 10.6
+      }
+    },
+    "lost_lessons": {
+      "definition": "worth_learning_from == true AND learn_fired == false",
+      "n": 63,
+      "pct_of_all_moments": 52.9,
+      "failure_category_counts": {
+        "None": 9,
+        "fixable": 50,
+        "nothing_could_have_caught_it": 4
+      },
+      "fixable_n": 50,
+      "fixable_pct_of_lost": 79.4,
+      "fixable_ci95": {
+        "lo_pct": 68.3,
+        "hi_pct": 88.9
+      },
+      "fixable_role_breakdown": {
+        "fresh": 50
+      },
+      "lost_moment_type_breakdown": {
+        "failure": 18,
+        "correction": 4,
+        "rework": 15,
+        "success": 25,
+        "dispatch": 1
+      }
+    }
+  },
+  "W2_delta_pp": -1.1,
+  "W2_delta_ci95_pp": {
+    "lo_pp": -8.5,
+    "hi_pp": 6.3
+  },
+  "sensitivity_without_automated_security_review": "n/a -- automated security-review sessions are excluded from the corpus by run_audit.exclusion_reason ('automated_security_review') since 2026-09-28"
+}
