@@ -19,7 +19,8 @@ Two jobs, in order: (1) mechanically true up the chunk index so every conversati
 > (`engram transcript`, `engram learn episode`) — it is gone.
 
 > **Mid-cycle capture (fast path).** When you fire at a CORRECTION moment mid-task — a review, a
-> failing check, or the user just rejected your approach or named a different convention — this is a
+> failing check, or the user just rejected your approach or named a different convention — or at a
+> subagent return whose `LESSONS:` line carries a lesson that clears the bar, this is a
 > focused single-note capture, NOT the open/close of a cycle. **SKIP Step 1 (sweep) and Step 1.5
 > (vocab); go straight to Step 2** and crystallize the ONE confirmed correction (hand off to
 > write-memory as always). Do NOT run `engram ingest --auto` mid-task — the sweep is a
@@ -86,12 +87,16 @@ autonomously — it requires Joe's oversight.
 
 ## Step 2 — Crystallize explicit lessons (only when they exist)
 
-**Collected LESSONS lines are an explicit scan input.** When the orchestrator (following the `please` runbook) hands
-you the session's collected `LESSONS:` lines from dispatched work (route's completion-report
-contract), scan that list alongside the raw session content — every line, `none` entries
-included (skip those trivially). Judge each line against the same four kinds and the same
-quality bar below (confirmed, not hypothesized; a general reusable principle, not a
-session-specific narrative). A line that doesn't clear the bar is discarded silently — no vault
+**Returned LESSONS lines are judged at the return; the closing learn is the backstop.** When a
+subagent's report returns with a `LESSONS:` line (route's completion-report contract) that isn't
+`none`, apply the bar below to each lesson in it right then, on the mid-cycle fast path above: one
+note per lesson that clears the bar, no sweep. At the closing learn, scan the session's collected
+`LESSONS:` lines from dispatched work (the `please` runbook hands them over) alongside the raw
+session content — every line, `none` entries included (skip those trivially). A line is
+**captured** when a note written earlier this session covers it (please marks such lines captured):
+skip captured lines — never write one a second time. Judge every other line against the same four
+kinds and the same quality bar below (confirmed, not hypothesized; a general reusable principle, not
+a session-specific narrative). A line that doesn't clear the bar is discarded silently — no vault
 note, no logged discard — the line is a low-bar offer, not a pre-judged lesson.
 
 Scan THIS session for exactly four kinds of moments. For each note you crystallize, first decide
