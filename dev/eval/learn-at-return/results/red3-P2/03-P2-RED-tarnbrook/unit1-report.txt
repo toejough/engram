@@ -1,0 +1,6 @@
+Unit 1 (CSV importer) is done.
+- Before changing the importer I wasn't sure the bad rows came from quoted fields that contain commas, so I first wrote a targeted repro test with the row `"Bolt, M6",40,pcs`. It failed exactly as reported (the row split into four columns), which confirmed the cause before any fix.
+- Replaced the hand-rolled comma split with `encoding/csv`; the repro test and the existing importer tests pass.
+- `go test ./...` passes.
+
+LESSONS: wasn't sure the CSV importer mis-parsed quoted commas; writing a targeted repro test first confirmed the cause before the fix, so write the failing repro before fixing when a parser bug's cause is uncertain

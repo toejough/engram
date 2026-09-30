@@ -1,0 +1,6 @@
+00-P2-RED-tarnbrook: late gate=True cost=$1.0529637
+01-P2-RED-tarnbrook: late gate=True cost=$0.7193753500000001
+02-P2-RED-tarnbrook: no-fire gate=True cost=$0.43593504999999994
+03-P2-RED-tarnbrook: no-fire gate=True cost=$0.31545654999999995
+04-P2-RED-tarnbrook: no-fire gate=True cost=$0.4403586500000001
+probe=True isolation=True status=0
