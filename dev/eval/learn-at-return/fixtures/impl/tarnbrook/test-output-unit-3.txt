@@ -1,0 +1,13 @@
+$ go test -v ./...
+=== RUN   TestAcquire/creates_lock_with_pid
+=== RUN   TestAcquire/held_lock_names_pid
+=== RUN   TestRelease/removes_lock
+=== RUN   TestRelease/missing_lock_is_ok
+    --- PASS: TestAcquire/creates_lock_with_pid (0.00s)
+    --- PASS: TestAcquire/held_lock_names_pid (0.00s)
+    --- PASS: TestRelease/removes_lock (0.00s)
+    --- PASS: TestRelease/missing_lock_is_ok (0.00s)
+--- PASS: TestAcquire (0.00s)
+--- PASS: TestRelease (0.00s)
+PASS
+ok  	tarnbrook/internal/lock	0.044s

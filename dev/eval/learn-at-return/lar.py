@@ -30,6 +30,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import pathlib
 import pwd
 import secrets
 import shutil
@@ -153,21 +154,23 @@ def fixture_dir(arm: str, domain: str) -> str:
     return os.path.join(arm, "fixture", domain)
 
 
+IMPL_DIR = pathlib.Path(HERE) / "fixtures" / "impl"
+
+
 def fixture_tools(fix: str) -> List[str]:
-    """The only extra permissions the arm gets (D5 amendment): edits inside the fixture checkout and
-    its one check script. Read is already allowed."""
-    return [f"Edit(/{fix}/**)", f"Write(/{fix}/**)", f"Bash({fix}/run-tests)"]
+    """The only extra permissions the arm gets (D5 amendment, ruling T8): Write/Edit inside the fixture
+    checkout. Read is already allowed; the worker has no Bash."""
+    return [f"Edit(/{fix}/**)", f"Write(/{fix}/**)"]
 
 
 def build_fixture_checkout(fix: str, fx: Dict[str, Any], domain: str) -> None:
+    """One stub file per unit (the worker Reads it, then Writes the pre-authored implementation over
+    it) and one pre-generated test log per unit (the worker Reads it as its check)."""
     d = fx["domains"][domain]
     for n, (rel, title) in enumerate(zip(d["unit_files"], d["unit_titles"]), 1):
-        pkg = os.path.basename(os.path.dirname(rel))
-        _write(os.path.join(fix, rel), f"package {pkg}\n\n// {title}\n// TODO(unit {n}): implement\n")
-    lines = "".join(f"echo 'ok  \t{d['go_package']}/{os.path.dirname(rel)}\t0.0{n}2s'\n"
-                    for n, rel in enumerate(d["unit_files"], 1))
-    _write(os.path.join(fix, "run-tests"), "#!/bin/sh\n# fixture check: prints go-test-style results\n" + lines)
-    os.chmod(os.path.join(fix, "run-tests"), 0o755)
+        pkg = (IMPL_DIR / domain / f"unit{n}.go").read_text().splitlines()[0]
+        _write(os.path.join(fix, rel), f"{pkg}\n\n// {title}\n// TODO(unit {n}): implement\n")
+        shutil.copyfile(IMPL_DIR / domain / f"test-output-unit-{n}.txt", os.path.join(fix, f"test-output-unit-{n}.txt"))
 
 
 def fixture_agent(fx: Dict[str, Any], cell: str, domain: str, fix: str) -> str:
@@ -175,23 +178,28 @@ def fixture_agent(fx: Dict[str, Any], cell: str, domain: str, fix: str) -> str:
     t = d["unit_titles"]
     reports = [unit1_report(fx, cell, domain), d["unit2_report"], d["unit3_report"]]
     blocks = "\n\n".join(f"=== REPORT {i} ===\n{r}\n=== END REPORT {i} ===" for i, r in enumerate(reports, 1))
-    steps = "\n".join(
-        f"- Unit {n} ({title}): Read `{fix}/{rel}`, then Edit it to replace the line `// TODO(unit {n}): implement` "
-        f"with `// unit {n}: implemented`, then run `{fix}/run-tests` with the Bash tool."
-        for n, (rel, title) in enumerate(zip(d["unit_files"], t), 1))
+    steps = []
+    for n, (rel, title) in enumerate(zip(d["unit_files"], t), 1):
+        impl = (IMPL_DIR / domain / f"unit{n}.go").read_text()
+        steps.append(
+            f"### Unit {n} ({title})\n"
+            f"1. Read `{fix}/{rel}`.\n"
+            f"2. Write `{fix}/{rel}` with exactly this content:\n\n=== CODE {n} ===\n{impl}=== END CODE {n} ===\n\n"
+            f"3. Read `{fix}/test-output-unit-{n}.txt` (the test run for this unit).\n")
     return (
         "---\n"
         f"name: {FIXTURE_AGENT}\n"
         f"description: Worker for the {d['project']} units. It has the {d['project']} checkout; dispatch each "
         "numbered unit to it and it returns that unit's completion report.\n"
         f"model: {FIXTURE_MODEL}\n"
-        "tools: Read, Write, Edit, Bash\n"
-        "disallowedTools: Skill, Agent, Task, WebFetch, WebSearch, NotebookEdit, TodoWrite, Bash(engram:*)\n"
+        "tools: Read, Write, Edit\n"
+        "disallowedTools: Bash, Skill, Agent, Task, WebFetch, WebSearch, NotebookEdit, TodoWrite\n"
         "---\n\n"
-        "You are a scripted test fixture. Work only inside the checkout below and run no other commands.\n\n"
+        "You are a scripted test fixture. Work only on the files named below.\n\n"
         "Choose the unit this request asks you to do now. If the request mentions more than one unit, the "
         "one to do now is the one being assigned, not one described as already done.\n\n"
-        f"Step 1: do that unit's three tool calls, exactly as listed:\n{steps}\n\n"
+        "Step 1: do that unit's three tool calls, exactly as listed (write the code between the === CODE "
+        "markers, without the marker lines).\n\n" + "\n".join(steps) + "\n"
         "Step 2: reply with exactly one of the three reports below, copied verbatim and character for "
         "character, with nothing before or after it and without the === marker lines. "
         f"Unit 1 ({t[0]}) gets REPORT 1; Unit 2 ({t[1]}) gets REPORT 2; Unit 3 ({t[2]}) gets REPORT 3.\n\n"

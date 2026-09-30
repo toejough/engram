@@ -423,27 +423,33 @@ def test_fixture_checkout_is_built_inside_the_arm(arm):
     files = lar.load_fixtures()["domains"]["quillfeather"]["unit_files"]
     for n, rel in enumerate(files, 1):
         assert f"TODO(unit {n})" in (fix / rel).read_text()
-    check = fix / "run-tests"
-    assert os.access(check, os.X_OK)
+        log = (fix / f"test-output-unit-{n}.txt").read_text()
+        assert log == (lar.IMPL_DIR / "quillfeather" / f"test-output-unit-{n}.txt").read_text()
+        assert "PASS" in log
+    assert not (fix / "run-tests").exists()
     assert info["fixture_dir"] == str(fix)
     assert not (root / "work" / "quillfeather").exists()  # the orchestrator's cwd still has no checkout
 
 
-def test_fixture_tools_are_scoped_to_the_fixture_checkout(arm):
+def test_fixture_tools_are_write_and_edit_in_the_checkout_only(arm):
     root, _, info = arm
     fix = root / "fixture" / "quillfeather"
-    assert info["fixture_tools"] == [f"Edit(/{fix}/**)", f"Write(/{fix}/**)", f"Bash({fix}/run-tests)"]
-    assert not any(t.startswith(("Bash(engram", "Skill")) or t.endswith("/engram)") for t in info["fixture_tools"])
+    assert info["fixture_tools"] == [f"Edit(/{fix}/**)", f"Write(/{fix}/**)"]
 
 
-def test_fixture_agent_gets_read_write_edit_bash_but_never_engram_or_skill(arm):
+def test_fixture_agent_gets_read_write_edit_only_and_scripted_steps(arm):
     root, _, info = arm
     text = (root / "home/.claude/agents/unit-worker.md").read_text()
     front = text.split("---")[1]
-    assert "tools: Read, Write, Edit, Bash\n" in front
+    assert "tools: Read, Write, Edit\n" in front
     denied = next(ln for ln in front.splitlines() if ln.startswith("disallowedTools:"))
-    for t in ("Skill", "Agent", "Task", "WebFetch", "WebSearch", "Bash(engram:*)"):
-        assert t in denied
+    assert "Bash(" not in denied  # a pattern deny strips the whole tool; no Bash at all instead
+    for t in ("Bash", "Skill", "Agent", "Task", "WebFetch", "WebSearch"):
+        assert t in denied.split(":", 1)[1].replace(" ", "").split(",")
     fix = str(root / "fixture" / "quillfeather")
-    assert f"{fix}/run-tests" in text and f"{fix}/internal/frontmatter/date.go" in text
+    for n, rel in enumerate(lar.load_fixtures()["domains"]["quillfeather"]["unit_files"], 1):
+        impl = (lar.IMPL_DIR / "quillfeather" / f"unit{n}.go").read_text()
+        assert impl in text  # the pre-authored implementation the worker Writes
+        assert len(impl.splitlines()) >= 30
+        assert f"{fix}/{rel}" in text and f"{fix}/test-output-unit-{n}.txt" in text
     assert info["unit1_report"] in text  # the returned report is still scripted and verbatim

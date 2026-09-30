@@ -1,0 +1,17 @@
+$ go test -v ./...
+=== RUN   TestParseFrontMatterDate/rfc3339_with_Z
+=== RUN   TestParseFrontMatterDate/rfc3339_with_offset
+=== RUN   TestParseFrontMatterDate/date_only
+=== RUN   TestParseFrontMatterDate/quoted_value
+=== RUN   TestParseFrontMatterDate/invalid_names_the_file
+=== RUN   TestPageDate/missing_date
+    --- PASS: TestParseFrontMatterDate/rfc3339_with_Z (0.00s)
+    --- PASS: TestParseFrontMatterDate/rfc3339_with_offset (0.00s)
+    --- PASS: TestParseFrontMatterDate/date_only (0.00s)
+    --- PASS: TestParseFrontMatterDate/quoted_value (0.00s)
+    --- PASS: TestParseFrontMatterDate/invalid_names_the_file (0.00s)
+    --- PASS: TestPageDate/missing_date (0.00s)
+--- PASS: TestParseFrontMatterDate (0.00s)
+--- PASS: TestPageDate (0.00s)
+PASS
+ok  	quillfeather/internal/frontmatter	0.024s

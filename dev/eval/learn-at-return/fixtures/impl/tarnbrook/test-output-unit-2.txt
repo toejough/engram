@@ -1,0 +1,14 @@
+$ go test -v ./...
+=== RUN   TestConvert/pcs_to_boxes
+=== RUN   TestConvert/boxes_to_pallets
+=== RUN   TestConvert/pallets_to_pcs
+=== RUN   TestConvert/missing_pack_size_refused
+=== RUN   TestConvert/non_whole_result_refused
+    --- PASS: TestConvert/pcs_to_boxes (0.00s)
+    --- PASS: TestConvert/boxes_to_pallets (0.00s)
+    --- PASS: TestConvert/pallets_to_pcs (0.00s)
+    --- PASS: TestConvert/missing_pack_size_refused (0.00s)
+    --- PASS: TestConvert/non_whole_result_refused (0.00s)
+--- PASS: TestConvert (0.00s)
+PASS
+ok  	tarnbrook/cmd	0.034s
