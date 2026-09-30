@@ -1,0 +1,3 @@
+00-P1-GREEN-quillfeather: pass gate=True cost=$0.42043795000000006
+01-N1-RED-quillfeather: no-fire gate=True cost=$0.26947040000000005
+probe=True isolation=True status=0

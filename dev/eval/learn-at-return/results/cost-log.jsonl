@@ -1,0 +1,3 @@
+{"batch": "smoke", "arm_id": "probe", "kind": "probe", "cost_usd": 0.067351}
+{"batch": "smoke", "arm_id": "00-P1-GREEN-quillfeather", "kind": "arm", "cell": "P1", "arm": "GREEN", "cost_usd": 0.42043795000000006, "label": "pass"}
+{"batch": "smoke", "arm_id": "01-N1-RED-quillfeather", "kind": "arm", "cell": "N1", "arm": "RED", "cost_usd": 0.26947040000000005, "label": "no-fire"}

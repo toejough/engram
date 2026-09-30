@@ -16,7 +16,8 @@ Definitions, verbatim from D5:
   pass: fired-with-sweep, fired-no-write, captured-not-via-skill, late.
 - False fire (N): any Skill(learn) or `engram learn` inside the window.
 - Not scored: gate-fail, degenerate (API error / no or empty result / unit 1 never dispatched to
-  unit-worker / its report never came back), question-stop (turn ends on a question before the
+  unit-worker / its report never came back / the return is not the fixture's unit-1 report verbatim),
+  question-stop (turn ends on a question before the
   unit-2 dispatch).
 
 Only top-level events (parent_tool_use_id null) count; the fixture subagent's own events do not.
