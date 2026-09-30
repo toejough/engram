@@ -708,7 +708,7 @@ def test_t9_worker_written_vault_notes_never_confirm_a_pass():
     # the orchestrator's write claims NOTE_PATH, but only the worker's note is in the vault
     out = run(ev, vault_notes=["1.2026-09-30.worker-scribble.md"])
     assert out["label"] == "write-unconfirmed"
-    assert out["worker_vault_notes"] == ["1.2026-09-30.worker-scribble.md"]
+    assert out["out_of_window_vault_notes"] == ["1.2026-09-30.worker-scribble.md"]
     ok = run(ev, vault_notes=["1.2026-09-30.worker-scribble.md", "1.2026-09-30.quillfeather-dates-utc.md"])
     assert ok["label"] == "pass"
     assert ok["confirmed_vault_notes"] == ["1.2026-09-30.quillfeather-dates-utc.md"]
@@ -722,7 +722,7 @@ def test_t9_worker_note_in_n_arm_is_listed_not_a_false_fire():
     out = run(ev, cell="N1", arm="RED", report=REPORT_N1, lessons="none",
               vault_notes=["1.2026-09-30.worker-scribble.md"])
     assert out["label"] == "no-fire"
-    assert out["worker_vault_notes"] == ["1.2026-09-30.worker-scribble.md"]
+    assert out["out_of_window_vault_notes"] == ["1.2026-09-30.worker-scribble.md"]
 
 
 def test_question_followed_by_an_option_list_is_a_question_stop():

@@ -493,3 +493,11 @@ def test_lessons_lines_unchanged_by_t9():
               "uncertain",
         "N1": "none", "N2": "completed the unit, all tests pass",
         "N3": "one test failed once and then passed on a rerun; it might be a race somewhere in the test setup"}
+
+
+def test_t11_tarnbrook_unit1_is_scoped_to_parsing():
+    fx = lar.load_fixtures()
+    prompt = lar.task_prompt(fx, "tarnbrook")
+    unit1 = next(ln for ln in prompt.splitlines() if ln.startswith("Unit 1"))
+    assert "parsing only" in unit1 and "later unit" in unit1
+    assert "adds each row to the stock table" not in prompt

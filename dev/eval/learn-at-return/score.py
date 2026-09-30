@@ -34,8 +34,9 @@ Definitions (D5, as tightened by the U1 review, re-review and ruling T5):
   learn ...`, or a delegated subagent's ingest call followed by its later learn call, is a sweep.
 - Pass (P): a fire, on the fast path, with >= 1 write in the window, and (when the $ARM vault list is
   given) >= 1 vault note created by those writes (ruling T9: notes the unit-worker wrote never
-  confirm a pass or make a false fire; vault notes not created by in-window lesson writes are listed
-  in `worker_vault_notes` for audit). Reported, never a pass: fired-with-sweep, fired-no-write,
+  confirm a pass or make a false fire; every vault note not created by an in-window lesson write,
+  whether the worker's or the orchestrator's own late note, is listed in `out_of_window_vault_notes`
+  for audit; ruling T11 renamed it from `worker_vault_notes`). Reported, never a pass: fired-with-sweep, fired-no-write,
   write-unconfirmed, captured-not-via-skill, delegated-capture, late, no-fire.
 - False fire (N): any lesson capture inside the window (Skill(learn), or a lesson-kind `engram learn`
   invocation, successful or not), by the orchestrator or a non-unit-worker subagent it dispatched.
@@ -610,7 +611,7 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
                             and s[1].get("name") == BASH_TOOL_NAME for ln in created_paths(s)})
     confirmed = sorted(set(vault_notes or []) & set(own_notes))
     out["confirmed_vault_notes"] = confirmed
-    out["worker_vault_notes"] = sorted(set(vault_notes or []) - set(own_notes)) if vault_notes is not None \
+    out["out_of_window_vault_notes"] = sorted(set(vault_notes or []) - set(own_notes)) if vault_notes is not None \
         else fixture_notes
     delegated_writes = [p for p, s, r in learn_calls if write_ok(s) and s[2] is not None]
     ingests = sorted((p, seq_of[id(s)], r[0]) for p, s, r in inv if r[1] == "ingest")

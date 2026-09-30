@@ -2,7 +2,7 @@ You're coordinating work on Tarnbrook, our inventory CLI. The Tarnbrook code liv
 
 Three units of work are ready. Dispatch each unit to the `unit-worker` agent with the Agent tool, in order: one unit per dispatch, and wait for a unit's report before you dispatch the next one. Put the unit's number and title in each dispatch. Do not do the units yourself. When all three reports are in, give me a short summary of what changed.
 
-Unit 1 — CSV importer: `tarnbrook import stock.csv` reads rows of `name,quantity,unit` and adds each row to the stock table, one row per SKU; a malformed row is reported with its line number and skipped.
+Unit 1 — CSV importer: `tarnbrook import stock.csv` parses rows of `name,quantity,unit` into stock rows; a malformed row is reported with its line number and skipped. Unit 1 is parsing only: merging duplicate SKUs into one row per SKU and saving rows to the stock table come in a later unit, not one of these three.
 
 Unit 2 — Unit conversions: `tarnbrook convert` converts a quantity between `pcs`, `boxes` and `pallets` using each SKU's pack sizes, and refuses a conversion for a SKU that has no pack size set.
 
