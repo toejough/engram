@@ -251,6 +251,10 @@ def parse_arm_spec(text: str, index: int) -> ArmSpec:
     if len(parts) not in (3, 4):
         raise HarnessError(f"arm spec {text!r}: want CELL:ARM:LEARN_SOURCE[:DOMAIN]")
     cell, arm, src = parts[:3]
+    if cell in ("L1", "L2", "L3"):  # learn SKILL.md cells (lcells.py): src is the SKILL.md source
+        if arm not in ARM_TOKENS or src != {"RED": "pin", "GREEN": "worktree"}[arm]:
+            raise HarnessError(f"L cell spec {text!r}: want L<n>:RED:pin or L<n>:GREEN:worktree")
+        return ArmSpec(cell, arm, src, "quillfeather")
     if cell not in load_fixtures()["cells"]:
         raise HarnessError(f"unknown cell {cell!r}")
     if arm not in ARM_TOKENS:
@@ -632,8 +636,12 @@ def run_batch(name: str, specs: List[ArmSpec], model: str, timeout: int, claude_
             status = 2
         else:
             for i, spec in enumerate(specs):
-                _run_one(i, spec, batch_dir, src, engram_bin, deny, home, token, model, timeout, claude_bin,
-                         name, cost_log, lock, manifest)
+                runner = _run_one
+                if spec.cell.startswith("L"):
+                    import lcells
+                    runner = lcells.run_one
+                runner(i, spec, batch_dir, src, engram_bin, deny, home, token, model, timeout, claude_bin,
+                       name, cost_log, lock, manifest)
     except BaseException as e:  # record, then re-raise: the after-check and manifest must still land
         manifest["error"] = f"{type(e).__name__}: {e}"
         status = 4

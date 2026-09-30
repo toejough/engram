@@ -501,3 +501,11 @@ def test_t11_tarnbrook_unit1_is_scoped_to_parsing():
     unit1 = next(ln for ln in prompt.splitlines() if ln.startswith("Unit 1"))
     assert "parsing only" in unit1 and "later unit" in unit1
     assert "adds each row to the stock table" not in prompt
+
+
+def test_parse_l_cell_specs():
+    s = lar.parse_arm_spec("L2:RED:pin", 0)
+    assert (s.cell, s.arm, s.learn_source, s.domain) == ("L2", "RED", "pin", "quillfeather")
+    assert lar.parse_arm_spec("L1:GREEN:worktree", 0).learn_source == "worktree"
+    with pytest.raises(lar.HarnessError):
+        lar.parse_arm_spec("L1:RED:worktree", 0)
