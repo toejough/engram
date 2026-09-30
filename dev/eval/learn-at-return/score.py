@@ -20,7 +20,12 @@ Definitions (D5, as tightened by the U1 review):
 - Fast path: no `engram ingest` (parsed the same way) between the return event and the first write.
 - Pass (P): a fire, on the fast path, with >= 1 write in the window, and (when the $ARM vault list is
   given) >= 1 note in the vault. Reported, never a pass: fired-with-sweep, fired-no-write,
-  write-unconfirmed, captured-not-via-skill, delegated-capture, late, miss.
+  write-unconfirmed, captured-not-via-skill, delegated-capture, late, no-fire.
+- Ruling T5: a route evidence or dispatch record (route SKILL.md's slugs `route-dispatch-<work-kind>`
+  and `route-evidence-<work-kind>`, seen as the `--slug` value or the written note's basename) is NOT
+  a lesson capture. It is listed in `window_route_records` (command + note path) for audit and counts
+  as neither a pass nor a false fire. Lesson captures are only Skill(learn), or an `engram learn`
+  write of kind feedback/fact/runbook that is not a route record.
 - False fire (N): any Skill(learn) or `engram learn` invocation inside the window, by the orchestrator
   or a non-unit-worker subagent it dispatched.
 - Classification on a fire/write in the window happens BEFORE the question-stop check; a question
@@ -111,6 +116,40 @@ def _segments(cmd: str) -> List[List[str]]:
     if cur:
         segs.append(cur)
     return segs
+
+
+ROUTE_SLUG = re.compile(r"^route-(dispatch|evidence)-")
+ROUTE_NOTE = re.compile(r"\.\d{4}-\d{2}-\d{2}\.route-(dispatch|evidence)-[^/\s]*\.md")
+LESSON_KINDS = ("feedback", "fact", "runbook")
+
+
+def engram_invocations(cmd: str) -> List[List[str]]:
+    """The words after `engram` in each shell segment whose executable is engram (help excluded)."""
+    out = []
+    for seg in _segments(cmd):
+        words = list(seg)
+        while words and _ENV_ASSIGN.match(words[0]):
+            words = words[1:]
+        if not words or os.path.basename(words[0]) != "engram":
+            continue
+        if any(w in ("--help", "-h") for w in words[1:]) or not [w for w in words[1:] if not w.startswith("-")]:
+            continue
+        out.append(words[1:])
+    return out
+
+
+def _slug_of(args: List[str]) -> Optional[str]:
+    for i, w in enumerate(args):
+        if w == "--slug" and i + 1 < len(args):
+            return args[i + 1]
+        if w.startswith("--slug="):
+            return w.split("=", 1)[1]
+    return None
+
+
+def _learn_kind(args: List[str]) -> Optional[str]:
+    rest = [w for w in args if not w.startswith("-")]
+    return rest[1] if len(rest) > 1 and rest[0] == "learn" else None
 
 
 def engram_subcommands(cmd: str) -> List[str]:
@@ -415,12 +454,35 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
 
     fires = [p for p, s in in_win if s[2] is None and _is_skill_learn(s)]
     delegated_fires = [p for p, s in in_win if s[2] is not None and _is_skill_learn(s)]
-    learn_calls = [(p, s) for p, s in in_win if "learn" in _bash_subs(s)]
+    def result_text(s) -> str:
+        r = results.get(s[1].get("id"))
+        return _text_of(r.get("content")) if r else ""
+
+    def is_route_record(s) -> bool:
+        cmd = str((s[1].get("input") or {}).get("command", ""))
+        slugs = [_slug_of(a) for a in engram_invocations(cmd) if a and a[0] == "learn"]
+        return any(sl and ROUTE_SLUG.match(sl) for sl in slugs) or bool(ROUTE_NOTE.search(result_text(s)))
+
+    def is_lesson_kind(s) -> bool:
+        cmd = str((s[1].get("input") or {}).get("command", ""))
+        return any(_learn_kind(a) in LESSON_KINDS for a in engram_invocations(cmd) if a and a[0] == "learn")
+
+    raw_learn = [(p, s) for p, s in in_win if "learn" in _bash_subs(s)]
+    route_records = [(p, s) for p, s in raw_learn if is_route_record(s)]
+    other_learn = [(p, s) for p, s in raw_learn if not is_route_record(s) and not is_lesson_kind(s)]
+    learn_calls = [(p, s) for p, s in raw_learn if not is_route_record(s) and is_lesson_kind(s)]
+    out["window_route_records"] = [
+        {"command": str((s[1].get("input") or {}).get("command", "")),
+         "note": next((ln.strip() for ln in result_text(s).splitlines() if _NOTE_PATH.search(ln)), None)}
+        for _, s in route_records]
+    out["window_other_learn_commands"] = [str((s[1].get("input") or {}).get("command", ""))[:200]
+                                          for _, s in other_learn]
     writes = [p for p, s in learn_calls if write_ok(s)]
     delegated_writes = [p for p, s in learn_calls if write_ok(s) and s[2] is not None]
     ingests = [p for p, s in in_win if "ingest" in _bash_subs(s)]
     out["window_query_calls"] = sum(1 for _, s in in_win if "query" in _bash_subs(s))
-    out["late_fire"] = any(_is_skill_learn(s) or "learn" in _bash_subs(s) for _, s in after)
+    out["late_fire"] = any(_is_skill_learn(s) or ("learn" in _bash_subs(s) and not is_route_record(s)
+                                                   and is_lesson_kind(s)) for _, s in after)
     out.update({"window_fires": len(fires), "window_delegated_fires": len(delegated_fires),
                 "window_learn_calls": len(learn_calls), "window_learn_writes": len(writes),
                 "window_delegated_writes": len(delegated_writes), "window_ingests": len(ingests),
@@ -450,7 +512,7 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
         return done("question-stop")
     if out["late_fire"]:
         return done("late")
-    return done("miss")
+    return done("no-fire")
 
 
 def main(argv: Optional[List[str]] = None) -> int:

@@ -147,9 +147,9 @@ def test_fire_without_any_write_is_fired_no_write():
     assert run(ev)["label"] == "fired-no-write"
 
 
-def test_p_cell_no_capture_is_miss():
+def test_p_cell_no_capture_is_no_fire():
     ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *tail()]
-    assert run(ev)["label"] == "miss"
+    assert run(ev)["label"] == "no-fire"
 
 
 def test_n_cell_false_fire_on_skill():
@@ -183,7 +183,7 @@ def test_question_stop_before_unit2_is_not_scored():
 
 def test_question_after_unit2_is_not_a_question_stop():
     ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *tail(final="Done. Want me to open a PR?")]
-    assert run(ev)["label"] == "miss"
+    assert run(ev)["label"] == "no-fire"
 
 
 @pytest.mark.parametrize("events", [
@@ -480,3 +480,52 @@ def test_fixture_subagent_transcript_writes_never_count_and_give_the_fixture_mod
                           other_session_texts=[sub])
     assert out["label"] == "no-fire"
     assert "claude-haiku-x" in out["fixture_models"]
+
+
+# ---------------------------------------------------------------------------
+# ruling T5: route evidence / dispatch records are not lesson captures
+# ---------------------------------------------------------------------------
+
+ROUTE_NOTE = "/private/tmp/engram-arm.x/vault/2.2026-09-30.route-dispatch-single-unit-dispatch.md"
+ROUTE_CMD = ('engram learn fact --slug route-dispatch-single-unit-dispatch --position top '
+             '--situation "routing single-unit-dispatch work" --subject s --predicate p --object o')
+
+
+def test_route_record_in_n_arm_is_no_fire():
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_N1), *bash("r1", ROUTE_CMD, out=ROUTE_NOTE), *tail()]
+    out = run(ev, cell="N1", arm="RED", report=REPORT_N1, lessons="none", vault_notes=["2.x.md"])
+    assert out["label"] == "no-fire"
+    assert out["window_route_records"] == [{"command": ROUTE_CMD, "note": ROUTE_NOTE}]
+
+
+def test_route_record_plus_lesson_in_p_arm_is_pass():
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *bash("r1", ROUTE_CMD, out=ROUTE_NOTE), *skill_learn(),
+          *bash("b1", "engram learn feedback --slug quillfeather-dates-utc --x"), *tail()]
+    out = run(ev, vault_notes=["1.x.md", "2.x.md"])
+    assert out["label"] == "pass"
+    assert len(out["window_route_records"]) == 1
+    assert out["window_learn_writes"] == 1
+
+
+def test_route_record_only_in_p_arm_is_no_fire():
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *bash("r1", ROUTE_CMD, out=ROUTE_NOTE), *tail()]
+    out = run(ev, vault_notes=["2.x.md"])
+    assert out["label"] == "no-fire"
+    assert out["scored"] is True
+
+
+def test_route_evidence_detected_by_note_path_without_slug_flag():
+    note = "/private/tmp/engram-arm.x/vault/3.2026-09-30.route-evidence-single-unit-dispatch.md"
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_N1), *bash("r1", "engram learn fact --position top --x", out=note),
+          *tail()]
+    out = run(ev, cell="N1", arm="RED", report=REPORT_N1, lessons="none")
+    assert out["label"] == "no-fire"
+    assert out["window_route_records"][0]["note"] == note
+
+
+def test_route_record_that_only_fires_learn_skill_is_still_a_lesson_capture_signal():
+    # Skill(learn) is always a lesson capture per T5, whatever it ends up writing
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_N1), *skill_learn(), *bash("r1", ROUTE_CMD, out=ROUTE_NOTE),
+          *tail()]
+    out = run(ev, cell="N1", arm="RED", report=REPORT_N1, lessons="none")
+    assert out["label"] == "false-fire"
