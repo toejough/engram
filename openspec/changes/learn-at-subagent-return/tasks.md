@@ -7,22 +7,23 @@
     - `ARM=$(mktemp -d /private/tmp/engram-arm.XXXXXX)`;
     - `$ARM/{home,work,tmp,xdg,vault,bin}`;
     - `$ARM/home/.claude/settings.json`, with D5's sandbox and permissions;
-    - `$ARM/home/.claude/CLAUDE.md`, the arm's guidance text plus its token line;
-    - the pinned `learn` and `write-memory` SKILL.md copies;
+    - `$ARM/home/.claude/engram/{recall,delegate,learn,shim}.md`, the full production guidance set, each with its marker line (`learn.md` also gets the arm token). recall, delegate and shim are pinned to 67911117; `learn.md` is the arm's version.
+    - `$ARM/home/.claude/CLAUDE.md`, importing the four files with the same `@` lines and order as the real `~/.claude/CLAUDE.md`;
+    - all six engram skills, pinned to 67911117;
     - the `unit-worker` fixture agent;
     - `$ARM/bin/engram`.
   - It launches the arm with `env -i` and exactly D5's variable allowlist, with the token read from the keychain per batch and never echoed.
   - It records `run-manifest.json` for each batch: the `claude` version, orchestrator model id, fixture model, commit SHAs of every text installed, and the tokens.
 - [ ] 1.2 Freeze the fixtures. Write two three-unit task prompts, one for Quillfeather and one for Tarnbrook, and the five unit-1 reports (P1, P2, N1, N2, N3) per D5's table. Before any arm runs, a fresh-context reviewer checks each P line against learn's Step-2 bar ("clears the bar") and each N line against it ("fails the bar"), and confirms each prompt is unambiguous (vault notes 1030/1037).
-- [ ] 1.3 Write the mechanical scorer over the arm's stream-json transcript. It implements D5's return event, window, fire, fast-path, pass, false-fire, not-scored and degenerate definitions, and the delivery-gate grep over every record type in the arm's session JSONL (vault note 939). Offline tests give each classification at least one hand-built transcript: pass, fired-with-sweep, direct `engram learn`, late fire, false fire, question-stop, degenerate, gate-fail (vault note 988a1).
+- [ ] 1.3 Write the mechanical scorer over the arm's stream-json transcript. It implements D5's return event, window, fire, fast-path, pass, false-fire, not-scored and degenerate definitions, and the delivery-gate grep over every record type in the arm's session JSONL (vault note 939). The gate requires all four file markers and the arm's own token, and the other arm's token must be absent. Offline tests give each classification at least one hand-built transcript: pass, fired-with-sweep, direct `engram learn`, late fire, false fire, question-stop, degenerate, gate-fail (vault note 988a1).
 - [ ] 1.4 Write the per-batch guards:
   - **denyWrite list:** generate it from `ls /private/tmp/claude-<uid>` at batch setup.
   - **Write probe:** a probe arm tries to `touch` inside an existing entry. The batch aborts unless the touch fails and the file is absent afterwards.
   - **Isolation check:** save the files under the real vault (outside `.git/`) and the top-level `~/.claude` entries newer than the batch start, before and after the batch, to `results/<batch>/isolation.json`. A real-vault entry newer than the batch start fails the batch.
 - [ ] 1.5 Smoke: run one P1 GREEN arm and one N1 RED arm, using a provisional GREEN text; the smoke is not scored.
   - Confirm that the `Skill` and `Agent` tool names are right for the installed `claude`.
-  - Confirm that the delivery gate passes, the fixture agent returns its report verbatim, and the scorer classifies both arms.
-  - Report the per-arm cost and the projected total for D5's cells to Joe, and get confirmation before task 2.1.
+  - Confirm that all five delivery-gate tokens appear in each arm's transcript (if the imported files' content is not recorded, stop and ask Joe), the fixture agent returns its report verbatim, and the scorer classifies both arms.
+  - Re-measure the per-arm cost with the full guidance set loaded; do not reuse any earlier figure. Report it and the projected total for D5's cells to Joe, and get confirmation before task 2.1.
 
 ## 2. Guidance RED (design D5, D7 step 1)
 
@@ -39,7 +40,7 @@
   - **Ship gate:** GREEN P ≥ 8/10, N ≤ 1/15, and N1 0/5.
   - **Effect label:** from RED P.
   - **On a failed gate:** one wording revision with new tokens, then a fresh rerun of only the failing GREEN cells. A second failure stops the work and goes to Joe.
-  - Record the verdict table. Columns: cell, arm, n scored, passes or false fires, discards, question-stops.
+  - Record the verdict table. Columns: cell, arm, n scored, passes or false fires, discards, question-stops. State the full-guidance-set noise caveat (design Risks) next to it; no bar is adjusted for it.
 
 ## 4. learn SKILL.md (writing-skills TDD, design D3, D6)
 

@@ -48,7 +48,7 @@ Current texts this change touches:
 
 Vault note 855: a rule that must hold at every delegation, whichever skill (if any) mediated it, belongs in always-loaded guidance, not in a route or please template. Parent-capture shows the dispatches that matter are often ad hoc; `01e43979` never invoked please's closing learn at all. `learn.md` is always loaded and already owns "when to fire `/learn` mid-task", so the return cue joins its cue list.
 
-- **Alternative: `delegate.md`.** Note 855's own example names delegate.md, which already says "Reviewing what returns … is your job." Rejected as the home: the rule is about *when to learn*, and learn.md already carries the fast-path instruction and the confirmed-not-guess bar the cue depends on. Splitting them would put the trigger in one file and its bar in another. Putting it only in learn.md also keeps one variable for the eval (D5). (Open question 1.)
+- **Alternative: `delegate.md`.** Note 855's own example names delegate.md, which already says "Reviewing what returns … is your job." Rejected as the home: the rule is about *when to learn*, and learn.md already carries the fast-path instruction and the confirmed-not-guess bar the cue depends on. Splitting them would put the trigger in one file and its bar in another. Putting it only in learn.md also keeps one variable for the eval (D5). **Decided by Joe, 2026-09-29: the cue goes in `learn.md` only.**
 - **Alternative: route/please templates.** Rejected per note 855; route and please only get the consistency edits in D4.
 
 ### D2: The guidance text
@@ -69,6 +69,8 @@ The implementing task checks this pre-written wording against the final spec bef
 - The closing learn keeps its always-sweep rule (Step 1). The backstop matters because the return cue is prose and will miss some returns (vault note 198).
 
 ### D4: Consistency edits in please and route (scoped)
+
+**Decided by Joe, 2026-09-29: make the route wording edit, with its own RED/GREEN at n = 5 (D6 R1).**
 
 Each edit is limited to the wording that tells the orchestrator not to judge at return. Nothing else in either skill changes.
 
@@ -94,10 +96,10 @@ Subagents inherit session context and would carry the treatment into a RED contr
 - **Per-batch write probe.** Before each batch, one probe arm with the batch's settings, plus `Bash(touch:*)`, tries to `touch` a file inside one existing entry of `/private/tmp/claude-<uid>`. The batch runs only if the touch fails and the file is absent afterwards.
 - **Per-batch isolation check.** Before and after each batch, the harness saves to `results/<batch>/isolation.json`: the list of files under the real vault (outside `.git/`) newer than the batch start, and the top-level `~/.claude` entries newer than the batch start. Any real-vault entry newer than the batch start fails the batch. Per vault note 956, the orchestrating session writes nothing to the real vault while a batch runs; route-evidence and learn writes wait until the batch ends.
 
-**Arm contents (held constant except the guidance text):**
+**Arm contents (held constant except `learn.md`):**
 
-- `$ARM/home/.claude/CLAUDE.md` is the learn guidance text plus one marker line (below). RED uses `learn.md` at this change's base commit (67911117); GREEN uses the edited `learn.md`. No other guidance file is loaded in either arm; this keeps one variable and lowers cost, at the price of being less like production (Risks).
-- `$ARM/home/.claude/skills/{learn,write-memory}/SKILL.md` are the repo's pre-edit copies (commit 67911117) in **both** arms, so the SKILL.md edit is not a second variable.
+- **Full production guidance set (decided by Joe, 2026-09-29).** Both arms load the same four guidance files that production imports: `recall.md`, `delegate.md`, `learn.md` and `shim.md`. They are copied to `$ARM/home/.claude/engram/` and imported by `$ARM/home/.claude/CLAUDE.md` with the same `@` import lines and order as the real `~/.claude/CLAUDE.md`. `recall.md`, `delegate.md` and `shim.md` are byte-identical to the repo at 67911117 in both arms. **The only difference between the arms is `learn.md`:** RED gets `learn.md` at 67911117, and GREEN gets the edited `learn.md`. Each copy also carries the marker lines described under the delivery gate below.
+- `$ARM/home/.claude/skills/` holds all six engram skills (`recall`, `learn`, `please`, `route`, `curate`, `write-memory`), copied from 67911117, in **both** arms. The full guidance set refers to recall, route and please, so these skills have to be present, and pinning them to the pre-edit commit keeps the SKILL.md edits from becoming a second variable.
 - `$ARM/bin/engram` is the installed engram binary. `$ARM/vault` starts empty.
 - `$ARM/home/.claude/agents/unit-worker.md` is the fixture subagent: `model: haiku`, no tools, and a system prompt that returns one fixed report verbatim, whatever the input. The report is chosen per cell.
 
@@ -116,7 +118,19 @@ Subagents inherit session context and would carry the treatment into a RED contr
 | N2 | a bare success ("completed the unit, all tests pass") | no fire |
 | N3 | an unconfirmed hunch ("the lock-file flake might be a race in the cache warmer") | no fire |
 
-**Delivery gate (MEMORY: verify treatment delivery; vault notes 284, 939).** The harness appends one plain line, `Session tracking token: LAR-GREEN-7Q4K`, to the GREEN arm's copy of the guidance, and `Session tracking token: LAR-RED-3M8T` to the RED arm's copy. The shipped `learn.md` never carries a token. After each arm, the harness greps every record type in the arm's session JSONL under `$ARM/home/.claude/projects/` (note 939: `claude -p` attaches CLAUDE.md as a non-message record). A GREEN arm must contain the GREEN token and not the RED token; a RED arm the reverse. Arms that fail the gate are discarded and replaced, never scored. The prompt does not ask for the token to be echoed.
+**Delivery gate (MEMORY: verify treatment delivery; vault notes 284, 939).** The arm must prove it loaded the whole guidance set as well as its own arm's `learn.md`.
+
+- **Markers.** The harness appends one plain `Session tracking token: …` line to each arm copy:
+  - `recall.md` gets `LAR-RECALL-2H6W`;
+  - `delegate.md` gets `LAR-DELEGATE-9C3N`;
+  - `shim.md` gets `LAR-SHIM-5V1R`;
+  - `learn.md` gets `LAR-LEARN-8J2D`, plus the arm token: `LAR-GREEN-7Q4K` in GREEN, `LAR-RED-3M8T` in RED.
+
+  The shipped files never carry a token.
+- **Check.** After each arm, the harness greps every record type in the arm's session JSONL under `$ARM/home/.claude/projects/`. Note 939: `claude -p` attaches CLAUDE.md, and its imports, as non-message records. A scored arm must contain all four file markers and its own arm token, and must not contain the other arm's token.
+- Arms that fail the gate are discarded and replaced, never scored.
+- The prompt does not ask for any token to be echoed.
+- **If imports are not recorded.** If the smoke (task 1.5) shows that imported file content does not appear in the transcript, so the gate cannot be checked, the implementer stops and asks Joe. It does not substitute another delivery mechanism.
 
 **Scoring (mechanical, from the arm's stream-json transcript):**
 
@@ -151,11 +165,11 @@ About 44 scored arms, plus probes and replacements.
    - Revise the wording once. The revised text gets new tokens (`LAR-GREEN2-…`).
    - Rerun only the failing GREEN cells, fresh, at the same n.
    - A second failure stops the work, and the result goes to Joe with the transcripts. The implementer does not loosen a bar.
-4. **Cost:** a 2-arm smoke (one P1 GREEN, one N1 RED) gives the per-arm cost. The implementer then confirms the projected total with Joe before the first scored batch. There is no mid-run spend cap (MEMORY: no spend cap on eval runs). The running tally is kept in `cost-log.jsonl`.
+4. **Cost:** a 2-arm smoke (one P1 GREEN, one N1 RED) re-measures the per-arm cost with the full guidance set loaded. The prompts are larger than a `learn.md`-only arm, and shim's `engram query` and recall add tool calls, so no earlier per-arm figure is reused. The implementer then confirms the projected total with Joe before the first scored batch. There is no mid-run spend cap (MEMORY: no spend cap on eval runs). The running tally is kept in `cost-log.jsonl`.
 
 ### D6: SKILL.md edits under writing-skills TDD
 
-Each of the three SKILL.md edits runs `superpowers:writing-skills` (RED → GREEN → REFACTOR/pressure). The arms use the D5 confinement and delivery-gate pattern. The variable is the SKILL.md under test, with a skill-specific token appended to the arm's copy. The GREEN `learn.md` is present in both arms, because that is the text the skills ship alongside. Each cell has n = 5 per arm, and the bars are fixed now:
+Each of the three SKILL.md edits runs `superpowers:writing-skills` (RED → GREEN → REFACTOR/pressure). The arms use the D5 confinement and delivery-gate pattern. The variable is the SKILL.md under test, with a skill-specific token appended to the arm's copy. Both arms load the full production guidance set with the GREEN `learn.md` and the D5 file markers, because that is the text the skills ship alongside. The other five skills stay pinned to 67911117. Each cell has n = 5 per arm, and the bars are fixed now:
 
 | Skill | Cell | Scenario | RED expectation | GREEN bar |
 |---|---|---|---|---|
@@ -208,7 +222,7 @@ This proposal carries the pointer now; the tick waits for close-out, so that 3.4
 - **[Clean probe over-fires, so GREEN may look better than production]** (vault note 277). → Buried-subtask fixture: three units, and the lesson is incidental (note 283). The RED arm measures the baseline under the same load. The ship gate is on GREEN, and the effect label is reported honestly.
 - **[RED is already high]** Parents already capture midstream (the parent-capture report). → The pre-registered effect label ("high baseline — lift not attributable") covers this, and it does not block shipping. The ask is to reinforce the tendency and move capture to the return; the false-fire gate is what guards against harm.
 - **[Over-capture: writing trivial or unconfirmed lessons mid-task rots the vault]** → False-fire gate (≤ 1/15, and 0/5 on `none`). The cue restates the existing bar; the curate skill remains downstream.
-- **[Arm guidance is less than production]** (only `learn.md`, no recall/delegate/shim). → Accepted, to keep one variable and the cost down. Deployment makes no claim about the interaction with shim or delegate beyond what the skill cycles exercise.
+- **[Noise from the full guidance set]** Joe chose production realism (2026-09-29). shim's `engram query`, recall firing and delegate's dispatch doctrine add behaviour and variance to every arm, and they can compete with the learn cue for attention. The set is identical in both arms, so it is not a confound, but it widens per-arm variance at these n. → Accepted as a caveat and reported with the results. **No bar is lowered to compensate.** Any recall or query activity inside the window is recorded but does not change a pass or false-fire classification.
 - **[A scripted haiku subagent is not a real worker]** → What is under test is the orchestrator's reaction to a return, not the worker. A fixed report makes the LESSONS content controlled and identical across arms.
 - **[Dedupe relies on "a note written this session covers it"]** → The L2/L3 cells test it. please's captured marks make it explicit on the please path. Off the please path, the closing learn reads its own session's writes.
 - **[Prose caps below ~95%]** (vault note 198). → The closing backstop stays, and the parked mechanical layers remain the escalation path.
@@ -220,6 +234,8 @@ Markdown only. Deploy with `engram update --with-guidance` (learn.md) and `engra
 
 ## Open Questions
 
-1. **learn.md or delegate.md (D1).** Default: learn.md only. Vault note 855's example names delegate.md, but the trigger and its bar belong together, and one file keeps the eval to one variable.
-2. **Route's wording edit (D4, third row; D6 R1).** Default: make it, with its n = 5 RED/GREEN. It is one phrase, but an orchestrator that has just read route sees "for the closing `/learn` to judge" at the moment the cue should fire.
-3. **Guidance set in the arms (D5).** Default: learn.md alone in both arms. The alternative is the full production set (recall, delegate, learn, shim): more realistic, but costlier per arm, and shim's `engram query` adds noise.
+None open. Joe settled the three earlier questions on 2026-09-29:
+
+- `learn.md` only (D1);
+- the route wording edit with its own RED/GREEN at n = 5 (D4);
+- the full production guidance set in both arms (D5).
