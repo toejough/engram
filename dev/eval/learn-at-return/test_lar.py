@@ -448,7 +448,7 @@ def test_fixture_agent_gets_read_write_edit_only_and_scripted_steps(arm):
         assert t in denied.split(":", 1)[1].replace(" ", "").split(",")
     fix = str(root / "fixture" / "quillfeather")
     for n, rel in enumerate(lar.load_fixtures()["domains"]["quillfeather"]["unit_files"], 1):
-        impl = (lar.IMPL_DIR / "quillfeather" / f"unit{n}.go").read_text()
+        impl = (lar.IMPL_DIR / "quillfeather" / f"unit{n}.go.txt").read_text()
         assert impl in text  # the pre-authored implementation the worker Writes
         assert len(impl.splitlines()) >= 30
         assert f"{fix}/{rel}" in text and f"{fix}/test-output-unit-{n}.txt" in text

@@ -168,7 +168,7 @@ def build_fixture_checkout(fix: str, fx: Dict[str, Any], domain: str) -> None:
     it) and one pre-generated test log per unit (the worker Reads it as its check)."""
     d = fx["domains"][domain]
     for n, (rel, title) in enumerate(zip(d["unit_files"], d["unit_titles"]), 1):
-        pkg = (IMPL_DIR / domain / f"unit{n}.go").read_text().splitlines()[0]
+        pkg = (IMPL_DIR / domain / f"unit{n}.go.txt").read_text().splitlines()[0]
         _write(os.path.join(fix, rel), f"{pkg}\n\n// {title}\n// TODO(unit {n}): implement\n")
         shutil.copyfile(IMPL_DIR / domain / f"test-output-unit-{n}.txt", os.path.join(fix, f"test-output-unit-{n}.txt"))
 
@@ -180,7 +180,7 @@ def fixture_agent(fx: Dict[str, Any], cell: str, domain: str, fix: str) -> str:
     blocks = "\n\n".join(f"=== REPORT {i} ===\n{r}\n=== END REPORT {i} ===" for i, r in enumerate(reports, 1))
     steps = []
     for n, (rel, title) in enumerate(zip(d["unit_files"], t), 1):
-        impl = (IMPL_DIR / domain / f"unit{n}.go").read_text()
+        impl = (IMPL_DIR / domain / f"unit{n}.go.txt").read_text()
         steps.append(
             f"### Unit {n} ({title})\n"
             f"1. Read `{fix}/{rel}`.\n"
