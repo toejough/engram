@@ -33,7 +33,9 @@ Definitions (D5, as tightened by the U1 review, re-review and ruling T5):
   nested step within its dispatch, position within the command), so `engram ingest --auto && engram
   learn ...`, or a delegated subagent's ingest call followed by its later learn call, is a sweep.
 - Pass (P): a fire, on the fast path, with >= 1 write in the window, and (when the $ARM vault list is
-  given) >= 1 note in the vault. Reported, never a pass: fired-with-sweep, fired-no-write,
+  given) >= 1 vault note created by those writes (ruling T9: notes the unit-worker wrote never
+  confirm a pass or make a false fire; vault notes not created by in-window lesson writes are listed
+  in `worker_vault_notes` for audit). Reported, never a pass: fired-with-sweep, fired-no-write,
   write-unconfirmed, captured-not-via-skill, delegated-capture, late, no-fire.
 - False fire (N): any lesson capture inside the window (Skill(learn), or a lesson-kind `engram learn`
   invocation, successful or not), by the orchestrator or a non-unit-worker subagent it dispatched.
@@ -590,6 +592,16 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
         and not any(r[1] in ("lesson", "route", "qa", "other-learn") for r in invocations(s))
         and not any(r[1] == "query" for r in invocations(s))]
     writes = sorted({(p, seq_of[id(s)], r[0]) for p, s, r in learn_calls if write_ok(s)})
+    # T9: only notes the orchestrator's own (or delegated non-worker) writes created confirm a pass
+    own_notes = sorted({os.path.basename(ln) for _, s, _ in learn_calls if write_ok(s)
+                        for ln in created_paths(s)})
+    fixture_notes = sorted({os.path.basename(ln) for s in all_steps
+                            if s[0] == "use" and s[2] is not None and root(s[2]) in fixture_ids
+                            and s[1].get("name") == BASH_TOOL_NAME for ln in created_paths(s)})
+    confirmed = sorted(set(vault_notes or []) & set(own_notes))
+    out["confirmed_vault_notes"] = confirmed
+    out["worker_vault_notes"] = sorted(set(vault_notes or []) - set(own_notes)) if vault_notes is not None \
+        else fixture_notes
     delegated_writes = [p for p, s, r in learn_calls if write_ok(s) and s[2] is not None]
     ingests = sorted((p, seq_of[id(s)], r[0]) for p, s, r in inv if r[1] == "ingest")
     out["window_query_calls"] = sum(1 for _, _, r in inv if r[1] == "query")
@@ -612,7 +624,7 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
             return done("fired-no-write")
         if any(i < writes[0] for i in ingests):  # (step position, nested sequence, order within command)
             return done("fired-with-sweep")
-        if vault_notes is not None and not vault_notes:
+        if vault_notes is not None and not confirmed:
             return done("write-unconfirmed")
         return done("pass")
     if delegated_fires and writes:

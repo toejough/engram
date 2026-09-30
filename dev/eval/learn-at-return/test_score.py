@@ -62,6 +62,7 @@ def skill_learn(tid="s1"):
 
 
 NOTE_PATH = "/private/tmp/engram-arm.x/vault/1.2026-09-30.quillfeather-dates-utc.md"
+NOTE_NAME = os.path.basename(NOTE_PATH)
 
 
 def bash(tid, cmd, out=None, is_error=False, parent=None):
@@ -461,7 +462,7 @@ def test_delegated_write_seen_only_in_the_subagent_transcript_counts():
     main = good_session("GREEN") + [_main_link("g1", "agx")]
     sub = _sub_file("agx", "sb1", "engram learn feedback --x", NOTE_PATH)
     out = score.score_arm(lines(ev), main, cell="P1", arm="GREEN", unit1_report=REPORT_P1, lessons=LESSONS_P1,
-                          other_session_texts=[sub], vault_notes=["n.md"])
+                          other_session_texts=[sub], vault_notes=[NOTE_NAME])
     assert out["label"] == "pass"
     assert out["window_delegated_writes"] == 1
     n = score.score_arm(lines([init(), dispatch("a1", 1), ret("a1", REPORT_N1),
@@ -501,7 +502,7 @@ def test_route_record_in_n_arm_is_no_fire():
 def test_route_record_plus_lesson_in_p_arm_is_pass():
     ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *bash("r1", ROUTE_CMD, out=ROUTE_NOTE), *skill_learn(),
           *bash("b1", "engram learn feedback --slug quillfeather-dates-utc --x"), *tail()]
-    out = run(ev, vault_notes=["1.x.md", "2.x.md"])
+    out = run(ev, vault_notes=[NOTE_NAME, "2.x.md"])
     assert out["label"] == "pass"
     assert len(out["window_route_records"]) == 1
     assert out["window_learn_writes"] == 1
@@ -541,13 +542,13 @@ N_KW = dict(cell="N1", arm="RED", report=REPORT_N1, lessons="none")
 def test_n1_ingest_before_learn_in_the_same_command_is_a_sweep():
     ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *skill_learn(),
           *bash("b1", "engram ingest --auto && engram learn feedback --slug x --y"), *tail()]
-    assert run(ev, vault_notes=["n.md"])["label"] == "fired-with-sweep"
+    assert run(ev, vault_notes=[NOTE_NAME])["label"] == "fired-with-sweep"
 
 
 def test_n1_learn_before_ingest_in_the_same_command_stays_pass():
     ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *skill_learn(),
           *bash("b1", "engram learn feedback --slug x --y && engram ingest --auto"), *tail()]
-    assert run(ev, vault_notes=["n.md"])["label"] == "pass"
+    assert run(ev, vault_notes=[NOTE_NAME])["label"] == "pass"
 
 
 @pytest.mark.parametrize("cmd", [
@@ -623,7 +624,7 @@ def test_n5_prompt_body_mentioning_unit2_does_not_end_the_window():
           asst(tu("a1b", "Agent", {"subagent_type": "unit-worker", "description": "Front-matter dates: show diff",
                                    "prompt": "Front-matter dates\n\nShow me the diff before I move on to Unit 2."})),
           ret("a1b", REPORT_P1), *skill_learn(), *bash("b1", "engram learn feedback --x"), *tail()]
-    out = run(ev, vault_notes=["n.md"])
+    out = run(ev, vault_notes=[NOTE_NAME])
     assert out["label"] == "pass"
     assert out["unit1_redispatched"] is True
 
@@ -633,7 +634,7 @@ def test_n5_unidentified_dispatch_ends_the_window_and_is_flagged():
           asst(tu("ax", "Agent", {"subagent_type": "unit-worker", "description": "next one", "prompt": "carry on"})),
           ret("ax", "Unit 2 done.\n\nLESSONS: none"), *skill_learn(), *bash("b1", "engram learn feedback --x"),
           *tail(unit2=False)]
-    out = run(ev, vault_notes=["n.md"])
+    out = run(ev, vault_notes=[NOTE_NAME])
     assert out["label"] == "late"
     assert out["window_end_unit"] is None
 
@@ -658,7 +659,7 @@ def test_n7_delegated_ingest_then_later_learn_call_is_a_sweep():
     sub = "\n".join([_sub_file("agx", "sb1", "engram ingest --auto", "ingested 12 files"),
                      _sub_file("agx", "sb2", "engram learn feedback --slug x", NOTE_PATH)])
     out = score.score_arm(lines(ev), main, cell="P1", arm="GREEN", unit1_report=REPORT_P1, lessons=LESSONS_P1,
-                          other_session_texts=[sub], vault_notes=["n.md"])
+                          other_session_texts=[sub], vault_notes=[NOTE_NAME])
     assert out["label"] == "fired-with-sweep"
 
 
@@ -670,7 +671,7 @@ def test_n7_delegated_learn_then_later_ingest_stays_pass():
     sub = "\n".join([_sub_file("agx", "sb2", "engram learn feedback --slug x", NOTE_PATH),
                      _sub_file("agx", "sb1", "engram ingest --auto", "ingested 12 files")])
     out = score.score_arm(lines(ev), main, cell="P1", arm="GREEN", unit1_report=REPORT_P1, lessons=LESSONS_P1,
-                          other_session_texts=[sub], vault_notes=["n.md"])
+                          other_session_texts=[sub], vault_notes=[NOTE_NAME])
     assert out["label"] == "pass"
 
 
@@ -692,5 +693,33 @@ def test_fixture_worker_real_tool_calls_never_count():
     p = score.score_arm(lines([init(), dispatch("a1", 1), *bash("w4", "engram learn feedback --x", parent="a1"),
                                ret("a1", REPORT_P1), *tail()]),
                         good_session("GREEN"), cell="P1", arm="GREEN", unit1_report=REPORT_P1, lessons=LESSONS_P1,
-                        vault_notes=["n.md"])
+                        vault_notes=[NOTE_NAME])
     assert p["label"] == "no-fire"
+
+
+def test_t9_worker_written_vault_notes_never_confirm_a_pass():
+    """T9: only notes created by the orchestrator's own (or delegated non-worker) writes confirm a pass;
+    notes the unit-worker wrote are listed for audit."""
+    worker_note = "/private/tmp/engram-arm.x/vault/1.2026-09-30.worker-scribble.md"
+    ev = [init(), dispatch("a1", 1), *bash("w1", "engram learn fact --slug worker-scribble", out=worker_note,
+                                           parent="a1"),
+          ret("a1", REPORT_P1), *skill_learn(),
+          *bash("b1", "engram learn feedback --x"), *tail()]
+    # the orchestrator's write claims NOTE_PATH, but only the worker's note is in the vault
+    out = run(ev, vault_notes=["1.2026-09-30.worker-scribble.md"])
+    assert out["label"] == "write-unconfirmed"
+    assert out["worker_vault_notes"] == ["1.2026-09-30.worker-scribble.md"]
+    ok = run(ev, vault_notes=["1.2026-09-30.worker-scribble.md", "1.2026-09-30.quillfeather-dates-utc.md"])
+    assert ok["label"] == "pass"
+    assert ok["confirmed_vault_notes"] == ["1.2026-09-30.quillfeather-dates-utc.md"]
+
+
+def test_t9_worker_note_in_n_arm_is_listed_not_a_false_fire():
+    worker_note = "/private/tmp/engram-arm.x/vault/1.2026-09-30.worker-scribble.md"
+    ev = [init(), dispatch("a1", 1), *bash("w1", "engram learn fact --slug worker-scribble", out=worker_note,
+                                           parent="a1"),
+          ret("a1", REPORT_N1), *tail()]
+    out = run(ev, cell="N1", arm="RED", report=REPORT_N1, lessons="none",
+              vault_notes=["1.2026-09-30.worker-scribble.md"])
+    assert out["label"] == "no-fire"
+    assert out["worker_vault_notes"] == ["1.2026-09-30.worker-scribble.md"]

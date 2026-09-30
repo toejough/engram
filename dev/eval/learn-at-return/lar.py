@@ -158,9 +158,10 @@ IMPL_DIR = pathlib.Path(HERE) / "fixtures" / "impl"
 
 
 def fixture_tools(fix: str) -> List[str]:
-    """The only extra permissions the arm gets (D5 amendment, ruling T8): Write/Edit inside the fixture
-    checkout. Read is already allowed; the worker has no Bash."""
-    return [f"Edit(/{fix}/**)", f"Write(/{fix}/**)"]
+    """The only extra permissions the arm gets (D5 amendment, rulings T8/T9): Write/Edit inside the
+    fixture checkout, and `cat` of its test logs. Bash rules match the literal command text, so the
+    Bash rule uses the plain absolute path (file-path rules take the // prefix)."""
+    return [f"Edit(/{fix}/**)", f"Write(/{fix}/**)", f"Bash(cat {fix}/test-output-unit-*)"]
 
 
 def build_fixture_checkout(fix: str, fx: Dict[str, Any], domain: str) -> None:
@@ -185,17 +186,17 @@ def fixture_agent(fx: Dict[str, Any], cell: str, domain: str, fix: str) -> str:
             f"### Unit {n} ({title})\n"
             f"1. Read `{fix}/{rel}`.\n"
             f"2. Write `{fix}/{rel}` with exactly this content:\n\n=== CODE {n} ===\n{impl}=== END CODE {n} ===\n\n"
-            f"3. Read `{fix}/test-output-unit-{n}.txt` (the test run for this unit).\n")
+            f"3. Run `cat {fix}/test-output-unit-{n}.txt` with the Bash tool (this unit's test log).\n")
     return (
         "---\n"
         f"name: {FIXTURE_AGENT}\n"
         f"description: Worker for the {d['project']} units. It has the {d['project']} checkout; dispatch each "
         "numbered unit to it and it returns that unit's completion report.\n"
         f"model: {FIXTURE_MODEL}\n"
-        "tools: Read, Write, Edit\n"
-        "disallowedTools: Bash, Skill, Agent, Task, WebFetch, WebSearch, NotebookEdit, TodoWrite\n"
+        "tools: Read, Write, Edit, Bash\n"
+        "disallowedTools: Skill, Agent, Task, WebFetch, WebSearch, NotebookEdit, TodoWrite\n"
         "---\n\n"
-        "You are a scripted test fixture. Work only on the files named below.\n\n"
+        "You are a scripted test fixture. Work only on the files named below and run no other commands.\n\n"
         "Choose the unit this request asks you to do now. If the request mentions more than one unit, the "
         "one to do now is the one being assigned, not one described as already done.\n\n"
         "Step 1: do that unit's three tool calls, exactly as listed (write the code between the === CODE "

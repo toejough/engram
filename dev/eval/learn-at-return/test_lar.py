@@ -431,25 +431,54 @@ def test_fixture_checkout_is_built_inside_the_arm(arm):
     assert not (root / "work" / "quillfeather").exists()  # the orchestrator's cwd still has no checkout
 
 
-def test_fixture_tools_are_write_and_edit_in_the_checkout_only(arm):
+def test_fixture_tools_are_write_edit_and_cat_of_the_test_logs_only(arm):
     root, _, info = arm
     fix = root / "fixture" / "quillfeather"
-    assert info["fixture_tools"] == [f"Edit(/{fix}/**)", f"Write(/{fix}/**)"]
+    # Bash rules match the literal command text, so the path is the plain absolute path
+    assert info["fixture_tools"] == [f"Edit(/{fix}/**)", f"Write(/{fix}/**)", f"Bash(cat {fix}/test-output-unit-*)"]
 
 
-def test_fixture_agent_gets_read_write_edit_only_and_scripted_steps(arm):
+def test_fixture_agent_gets_read_write_edit_bash_and_cats_its_log(arm):
     root, _, info = arm
     text = (root / "home/.claude/agents/unit-worker.md").read_text()
     front = text.split("---")[1]
-    assert "tools: Read, Write, Edit\n" in front
+    assert "tools: Read, Write, Edit, Bash\n" in front
     denied = next(ln for ln in front.splitlines() if ln.startswith("disallowedTools:"))
-    assert "Bash(" not in denied  # a pattern deny strips the whole tool; no Bash at all instead
-    for t in ("Bash", "Skill", "Agent", "Task", "WebFetch", "WebSearch"):
-        assert t in denied.split(":", 1)[1].replace(" ", "").split(",")
+    names = denied.split(":", 1)[1].replace(" ", "").split(",")
+    assert "Bash" not in names and not any(n.startswith("Bash(") for n in names)
+    for t in ("Skill", "Agent", "Task", "WebFetch", "WebSearch"):
+        assert t in names
     fix = str(root / "fixture" / "quillfeather")
     for n, rel in enumerate(lar.load_fixtures()["domains"]["quillfeather"]["unit_files"], 1):
         impl = (lar.IMPL_DIR / "quillfeather" / f"unit{n}.go.txt").read_text()
-        assert impl in text  # the pre-authored implementation the worker Writes
-        assert len(impl.splitlines()) >= 30
-        assert f"{fix}/{rel}" in text and f"{fix}/test-output-unit-{n}.txt" in text
+        assert impl in text and len(impl.splitlines()) >= 30
+        assert f"{fix}/{rel}" in text
+        assert f"`cat {fix}/test-output-unit-{n}.txt`" in text
     assert info["unit1_report"] in text  # the returned report is still scripted and verbatim
+
+
+def test_report_test_lines_match_what_the_worker_did():
+    """T9: every scripted report claims only a check of its unit's test log, with the log's real count."""
+    fx = lar.load_fixtures()
+    for dom, d in fx["domains"].items():
+        bodies = {1: [d["unit1_neutral_body"]] + [c["unit1_body"][dom] for c in fx["cells"].values()
+                                                   if dom in c.get("unit1_body", {})],
+                  2: [d["unit2_report"]], 3: [d["unit3_report"]]}
+        for n, texts in bodies.items():
+            log = (lar.IMPL_DIR / dom / f"test-output-unit-{n}.txt").read_text()
+            k = log.count("    --- PASS:")
+            for t in texts:
+                assert "go test ./..." not in t
+                assert f"Checked the unit's test log (`test-output-unit-{n}.txt`): all {k} tests pass." in t
+
+
+def test_lessons_lines_unchanged_by_t9():
+    fx = lar.load_fixtures()
+    assert {c: v["lessons"] for c, v in fx["cells"].items()} == {
+        "P1": "reviewer rejected local-time front-matter dates; Quillfeather's convention is UTC ISO-8601 for "
+              "every front-matter date",
+        "P2": "wasn't sure the CSV importer mis-parsed quoted commas; writing a targeted repro test first confirmed "
+              "the cause before the fix, so write the failing repro before fixing when a parser bug's cause is "
+              "uncertain",
+        "N1": "none", "N2": "completed the unit, all tests pass",
+        "N3": "one test failed once and then passed on a rerun; it might be a race somewhere in the test setup"}
