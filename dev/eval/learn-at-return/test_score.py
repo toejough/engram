@@ -436,3 +436,47 @@ def test_vault_note_list_confirms_the_write():
     out = run(ev, vault_notes=[])
     assert out["label"] == "write-unconfirmed"
     assert out["scored"] is True
+
+
+def _main_link(tool_use_id, agent_id, agent_type="general-purpose", model="claude-sonnet-test"):
+    return json.dumps({"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": tool_use_id}]},
+                       "toolUseResult": {"agentId": agent_id, "agentType": agent_type, "resolvedModel": model}})
+
+
+def _sub_file(agent_id, tid, cmd, out):
+    return "\n".join([
+        json.dumps({"type": "user", "agentId": agent_id, "message": {"content": "do it"}}),
+        json.dumps({"type": "assistant", "agentId": agent_id,
+                    "message": {"content": [{"type": "tool_use", "id": tid, "name": "Bash", "input": {"command": cmd}}]}}),
+        json.dumps({"type": "user", "agentId": agent_id,
+                    "message": {"content": [{"type": "tool_result", "tool_use_id": tid, "content": out}]}}),
+    ])
+
+
+def test_delegated_write_seen_only_in_the_subagent_transcript_counts():
+    """stream-json does not reliably carry subagent tool calls; the subagent session file does."""
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *skill_learn(),
+          asst(tu("g1", "Agent", {"subagent_type": "general-purpose", "prompt": "write the note"})),
+          user(tr("g1", "done")), *tail()]
+    main = good_session("GREEN") + [_main_link("g1", "agx")]
+    sub = _sub_file("agx", "sb1", "engram learn feedback --x", NOTE_PATH)
+    out = score.score_arm(lines(ev), main, cell="P1", arm="GREEN", unit1_report=REPORT_P1, lessons=LESSONS_P1,
+                          other_session_texts=[sub], vault_notes=["n.md"])
+    assert out["label"] == "pass"
+    assert out["window_delegated_writes"] == 1
+    n = score.score_arm(lines([init(), dispatch("a1", 1), ret("a1", REPORT_N1),
+                               asst(tu("g1", "Agent", {"subagent_type": "general-purpose", "prompt": "x"})),
+                               user(tr("g1", "done")), *tail()]),
+                        main, cell="N1", arm="GREEN", unit1_report=REPORT_N1, lessons="none",
+                        other_session_texts=[sub])
+    assert n["label"] == "false-fire"
+
+
+def test_fixture_subagent_transcript_writes_never_count_and_give_the_fixture_model():
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_N1), *tail()]
+    main = good_session("RED") + [_main_link("a1", "fx1", agent_type="unit-worker", model="claude-haiku-x")]
+    sub = _sub_file("fx1", "sb1", "engram learn fact --x", NOTE_PATH)
+    out = score.score_arm(lines(ev), main, cell="N1", arm="RED", unit1_report=REPORT_N1, lessons="none",
+                          other_session_texts=[sub])
+    assert out["label"] == "no-fire"
+    assert "claude-haiku-x" in out["fixture_models"]

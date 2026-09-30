@@ -14,7 +14,9 @@ Definitions (D5, as tightened by the U1 review):
 - Fire: a top-level Skill tool_use with skill = learn inside the window.
 - Write: a successful `engram learn` (parsed per shell segment: the executable is engram and the
   subcommand is learn; not --help/-h; tool_result not an error and naming a created note path), run
-  by the orchestrator or by a non-unit-worker subagent it dispatched inside the window.
+  by the orchestrator or by a non-unit-worker subagent it dispatched inside the window. A subagent's
+  tool calls are read from its session file, which is linked to its dispatch by toolUseResult.agentId,
+  because stream-json does not reliably carry them.
 - Fast path: no `engram ingest` (parsed the same way) between the return event and the first write.
 - Pass (P): a fire, on the fast path, with >= 1 write in the window, and (when the $ARM vault list is
   given) >= 1 note in the vault. Reported, never a pass: fired-with-sweep, fired-no-write,
@@ -184,6 +186,51 @@ def _steps(events: List[Dict[str, Any]], include_nested: bool = False):
     return steps
 
 
+def _records(texts: List[str]):
+    for text in texts:
+        for line in text.splitlines():
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(rec, dict):
+                yield rec
+
+
+def _subagent_links(texts: List[str]) -> Dict[str, Dict[str, Any]]:
+    """agentId -> {tool_use_id, agentType, resolvedModel}, from the tool_result records that carry
+    `toolUseResult.agentId` (main session, and subagent files for nested dispatches)."""
+    links = {}
+    for rec in _records(texts):
+        tur = rec.get("toolUseResult")
+        content = (rec.get("message") or {}).get("content")
+        if not isinstance(tur, dict) or not tur.get("agentId") or not isinstance(content, list):
+            continue
+        tid = next((b.get("tool_use_id") for b in content if isinstance(b, dict) and b.get("type") == "tool_result"),
+                   None)
+        if tid:
+            links[tur["agentId"]] = {"tool_use_id": tid, "agentType": tur.get("agentType"),
+                                     "resolvedModel": tur.get("resolvedModel")}
+    return links
+
+
+def _subagent_steps(texts: List[str], links: Dict[str, Dict[str, Any]]):
+    """Tool calls recorded in subagent session files, as nested steps whose parent is the dispatching
+    tool_use id. stream-json does not reliably carry a subagent's own tool calls; these files do."""
+    steps = []
+    for rec in _records(texts):
+        link = links.get(rec.get("agentId") or "")
+        if not link or rec.get("type") not in ("assistant", "user"):
+            continue
+        content = (rec.get("message") or {}).get("content")
+        for b in content if isinstance(content, list) else []:
+            if isinstance(b, dict) and b.get("type") == "tool_use":
+                steps.append(("use", b, link["tool_use_id"]))
+            elif isinstance(b, dict) and b.get("type") == "tool_result":
+                steps.append(("result", b, link["tool_use_id"]))
+    return steps
+
+
 def _is_agent(step) -> bool:
     return step[0] == "use" and step[1].get("name") in AGENT_TOOL_NAMES
 
@@ -240,13 +287,19 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
               vault_notes: Optional[List[str]] = None) -> Dict[str, Any]:
     events = _events(stream_lines)
     steps = _steps(events)
+    links = _subagent_links(list(session_texts) + list(other_session_texts or []))
     all_steps = _steps(events, include_nested=True)
+    seen_ids = {(s[0], s[1].get("id") or s[1].get("tool_use_id")) for s in all_steps if s[0] in ("use", "result")}
+    all_steps += [s for s in _subagent_steps(other_session_texts or [], links)
+                  if (s[0], s[1].get("id") or s[1].get("tool_use_id")) not in seen_ids]
     init = next((e for e in events if e.get("type") == "system" and e.get("subtype") == "init"), {})
     res = next((e for e in reversed(events) if e.get("type") == "result"), None)
     tools = init.get("tools") or []
     fixture_models = sorted({(e.get("message") or {}).get("model") for e in events
                              if e.get("type") == "assistant" and e.get("parent_tool_use_id")
-                             and (e.get("message") or {}).get("model")})
+                             and (e.get("message") or {}).get("model")}
+                            | {v["resolvedModel"] for v in links.values()
+                               if v.get("agentType") == FIXTURE_AGENT and v.get("resolvedModel")})
     out: Dict[str, Any] = {
         "cell": cell, "arm": arm, "kind": cell[0],
         "orchestrator_model": init.get("model"),
