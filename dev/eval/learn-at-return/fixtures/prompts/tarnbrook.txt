@@ -1,0 +1,9 @@
+You're coordinating work on Tarnbrook, our inventory CLI. The Tarnbrook code lives in a checkout that only the `unit-worker` agent can reach; there is no copy of it in this directory, so don't look for one.
+
+Three units of work are ready. Dispatch each unit to the `unit-worker` agent with the Agent tool, in order: one unit per dispatch, and wait for a unit's report before you dispatch the next one. Put the unit's number and title in each dispatch. Do not do the units yourself. When all three reports are in, give me a short summary of what changed.
+
+Unit 1 — CSV importer: `tarnbrook import stock.csv` reads rows of `name,quantity,unit` and adds each row to the stock table, one row per SKU; a malformed row is reported with its line number and skipped.
+
+Unit 2 — Unit conversions: `tarnbrook convert` converts a quantity between `pcs`, `boxes` and `pallets` using each SKU's pack sizes, and refuses a conversion for a SKU that has no pack size set.
+
+Unit 3 — Lock file: every command that writes the stock table takes `.tarnbrook.lock` first; a second writer that finds the lock held exits non-zero with a message naming the process that holds it.
