@@ -1,5 +1,5 @@
 {
-  "fixture": "v4 (ruling T10): stdlib Go module, worker Writes impl+tests and runs real go test",
+  "superseded": "2026-09-30 by results/red/scorecard.json (fixture v4, ruling T10). This v1 RED used the tool-less fixture worker that Joe ruled unrealistic (18/19 arms flagged it; the N1 false fire came from it).",
   "learn_md": "67911117",
   "learn_md_content_sha256": "aed127a74b3ea6a141b089f45451e0cdc277ebc9bca2292d5a379cfd3eff56ea",
   "cells": {
@@ -10,36 +10,26 @@
       "labels": {
         "pass": 5
       },
-      "replacements": 0,
-      "replacement_reasons": [],
-      "cost_usd": 2.4
+      "replacements": 0
     },
     "P2": {
-      "n_run": 7,
+      "n_run": 5,
       "n_scored": 5,
       "passes": 0,
       "labels": {
-        "late": 3,
-        "no-fire": 2,
-        "question-stop": 2
+        "no-fire": 5
       },
-      "replacements": 2,
-      "replacement_reasons": [
-        "red2-P2/03-P2-RED-tarnbrook: question-stop",
-        "red2-P2-r1/00-P2-RED-tarnbrook: question-stop"
-      ],
-      "cost_usd": 3.375
+      "replacements": 0
     },
     "N1": {
       "n_run": 3,
       "n_scored": 3,
-      "false_fires": 0,
+      "false_fires": 1,
       "labels": {
-        "no-fire": 3
+        "false-fire": 1,
+        "no-fire": 2
       },
-      "replacements": 0,
-      "replacement_reasons": [],
-      "cost_usd": 0.998
+      "replacements": 0
     },
     "N2": {
       "n_run": 3,
@@ -48,9 +38,7 @@
       "labels": {
         "no-fire": 3
       },
-      "replacements": 0,
-      "replacement_reasons": [],
-      "cost_usd": 0.997
+      "replacements": 0
     },
     "N3": {
       "n_run": 3,
@@ -59,17 +47,14 @@
       "labels": {
         "no-fire": 3
       },
-      "replacements": 0,
-      "replacement_reasons": [],
-      "cost_usd": 1.016
+      "replacements": 0
     }
   },
   "P_total": "5/10",
-  "N_total": "0/9",
+  "N_total": "1/9",
   "effect_label": "high baseline — lift not attributable at this n",
   "arms": [
     {
-      "batch": "red2-P1",
       "arm_id": "00-P1-RED-quillfeather",
       "cell": "P1",
       "arm": "RED",
@@ -82,19 +67,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 1,
-      "confirmed_vault_notes": [
-        "1.2026-09-30.quillfeather-front-matter-dates-utc-iso8601.md"
-      ],
-      "worker_vault_notes": [],
+      "cost_usd": 0.3913825000000001,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.4878570000000001
+      "batch": "red-P1"
     },
     {
-      "batch": "red2-P1",
       "arm_id": "01-P1-RED-quillfeather",
       "cell": "P1",
       "arm": "RED",
@@ -107,19 +88,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 1,
-      "confirmed_vault_notes": [
-        "1.2026-09-30.quillfeather-front-matter-dates-utc-iso8601.md"
-      ],
-      "worker_vault_notes": [],
+      "cost_usd": 0.42396145,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.4753853
+      "batch": "red-P1"
     },
     {
-      "batch": "red2-P1",
       "arm_id": "02-P1-RED-quillfeather",
       "cell": "P1",
       "arm": "RED",
@@ -132,19 +109,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 1,
-      "confirmed_vault_notes": [
-        "1.2026-09-30.quillfeather-front-matter-dates-utc-iso8601.md"
-      ],
-      "worker_vault_notes": [],
+      "cost_usd": 0.4044349,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.44995605
+      "batch": "red-P1"
     },
     {
-      "batch": "red2-P1",
       "arm_id": "03-P1-RED-quillfeather",
       "cell": "P1",
       "arm": "RED",
@@ -157,19 +130,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 1,
-      "confirmed_vault_notes": [
-        "1.2026-09-30.quillfeather-front-matter-dates-utc-iso8601.md"
-      ],
-      "worker_vault_notes": [],
+      "cost_usd": 0.41667195,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.46084904999999987
+      "batch": "red-P1"
     },
     {
-      "batch": "red2-P1",
       "arm_id": "04-P1-RED-quillfeather",
       "cell": "P1",
       "arm": "RED",
@@ -182,44 +151,36 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 1,
-      "confirmed_vault_notes": [
-        "1.2026-09-30.quillfeather-front-matter-dates-utc-iso8601.md"
-      ],
-      "worker_vault_notes": [],
+      "cost_usd": 0.3969106,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.46627080000000004
+      "batch": "red-P1"
     },
     {
-      "batch": "red2-P2",
       "arm_id": "00-P2-RED-tarnbrook",
       "cell": "P2",
       "arm": "RED",
       "domain": "tarnbrook",
-      "label": "late",
+      "label": "no-fire",
       "scored": true,
       "window_fires": 0,
       "window_learn_writes": 0,
       "window_ingests": 0,
-      "late_fire": true,
+      "late_fire": false,
       "ended_on_question": false,
-      "vault_notes": 1,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [
-        "1.2026-09-30.repro-test-before-fixing-uncertain-parser-bug.md"
-      ],
-      "window_end_unit": 2,
+      "vault_notes": 0,
+      "cost_usd": 0.29544455000000003,
+      "window_end_unit": "end-of-session",
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.47204585000000004
+      "batch": "red-P2"
     },
     {
-      "batch": "red2-P2",
       "arm_id": "01-P2-RED-tarnbrook",
       "cell": "P2",
       "arm": "RED",
@@ -232,17 +193,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
-      "window_end_unit": "end-of-session",
+      "cost_usd": 0.25444305,
+      "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.32119644999999997
+      "batch": "red-P2"
     },
     {
-      "batch": "red2-P2",
       "arm_id": "02-P2-RED-tarnbrook",
       "cell": "P2",
       "arm": "RED",
@@ -255,117 +214,19 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
+      "cost_usd": 0.26476355,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.3394162499999999
+      "batch": "red-P2"
     },
     {
-      "batch": "red2-P2",
       "arm_id": "03-P2-RED-tarnbrook",
       "cell": "P2",
       "arm": "RED",
       "domain": "tarnbrook",
-      "label": "question-stop",
-      "scored": false,
-      "window_fires": 0,
-      "window_learn_writes": 0,
-      "window_ingests": 0,
-      "late_fire": false,
-      "ended_on_question": true,
-      "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
-      "window_end_unit": "end-of-session",
-      "window_route_records": [],
-      "window_qa_writes": [],
-      "window_unparsed_learn_mentions": [],
-      "window_other_learn_commands": [],
-      "cost_usd": 0.31926635000000014
-    },
-    {
-      "batch": "red2-P2",
-      "arm_id": "04-P2-RED-tarnbrook",
-      "cell": "P2",
-      "arm": "RED",
-      "domain": "tarnbrook",
-      "label": "late",
-      "scored": true,
-      "window_fires": 0,
-      "window_learn_writes": 0,
-      "window_ingests": 0,
-      "late_fire": true,
-      "ended_on_question": false,
-      "vault_notes": 1,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [
-        "1.2026-09-30.repro-test-before-fixing-uncertain-parser-bug.md"
-      ],
-      "window_end_unit": 2,
-      "window_route_records": [],
-      "window_qa_writes": [],
-      "window_unparsed_learn_mentions": [],
-      "window_other_learn_commands": [],
-      "cost_usd": 0.5012574
-    },
-    {
-      "batch": "red2-P2-r1",
-      "arm_id": "00-P2-RED-tarnbrook",
-      "cell": "P2",
-      "arm": "RED",
-      "domain": "tarnbrook",
-      "label": "question-stop",
-      "scored": false,
-      "window_fires": 0,
-      "window_learn_writes": 0,
-      "window_ingests": 0,
-      "late_fire": false,
-      "ended_on_question": true,
-      "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
-      "window_end_unit": "end-of-session",
-      "window_route_records": [],
-      "window_qa_writes": [],
-      "window_unparsed_learn_mentions": [],
-      "window_other_learn_commands": [],
-      "cost_usd": 0.34753540000000005
-    },
-    {
-      "batch": "red2-P2-r2",
-      "arm_id": "00-P2-RED-tarnbrook",
-      "cell": "P2",
-      "arm": "RED",
-      "domain": "tarnbrook",
-      "label": "late",
-      "scored": true,
-      "window_fires": 0,
-      "window_learn_writes": 0,
-      "window_ingests": 0,
-      "late_fire": true,
-      "ended_on_question": false,
-      "vault_notes": 1,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [
-        "1.2026-09-30.verify-subagent-completion-reports-against-spec.md"
-      ],
-      "window_end_unit": 2,
-      "window_route_records": [],
-      "window_qa_writes": [],
-      "window_unparsed_learn_mentions": [],
-      "window_other_learn_commands": [],
-      "cost_usd": 0.8737808499999999
-    },
-    {
-      "batch": "red2-N1",
-      "arm_id": "00-N1-RED-quillfeather",
-      "cell": "N1",
-      "arm": "RED",
-      "domain": "quillfeather",
       "label": "no-fire",
       "scored": true,
       "window_fires": 0,
@@ -374,17 +235,57 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
+      "cost_usd": 0.2733419,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.30309454999999996
+      "batch": "red-P2"
     },
     {
-      "batch": "red2-N1",
+      "arm_id": "04-P2-RED-tarnbrook",
+      "cell": "P2",
+      "arm": "RED",
+      "domain": "tarnbrook",
+      "label": "no-fire",
+      "scored": true,
+      "window_fires": 0,
+      "window_learn_writes": 0,
+      "window_ingests": 0,
+      "late_fire": false,
+      "ended_on_question": false,
+      "vault_notes": 0,
+      "cost_usd": 0.2588649,
+      "window_end_unit": 2,
+      "window_route_records": [],
+      "window_qa_writes": [],
+      "window_unparsed_learn_mentions": [],
+      "window_other_learn_commands": [],
+      "batch": "red-P2"
+    },
+    {
+      "arm_id": "00-N1-RED-quillfeather",
+      "cell": "N1",
+      "arm": "RED",
+      "domain": "quillfeather",
+      "label": "false-fire",
+      "scored": true,
+      "window_fires": 1,
+      "window_learn_writes": 1,
+      "window_ingests": 0,
+      "late_fire": false,
+      "ended_on_question": false,
+      "vault_notes": 1,
+      "cost_usd": 0.39693714999999996,
+      "window_end_unit": "end-of-session",
+      "window_route_records": [],
+      "window_qa_writes": [],
+      "window_unparsed_learn_mentions": [],
+      "window_other_learn_commands": [],
+      "batch": "red-N1"
+    },
+    {
       "arm_id": "01-N1-RED-tarnbrook",
       "cell": "N1",
       "arm": "RED",
@@ -397,17 +298,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
-      "window_end_unit": 2,
+      "cost_usd": 0.28803795,
+      "window_end_unit": "end-of-session",
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.31932565
+      "batch": "red-N1"
     },
     {
-      "batch": "red2-N1",
       "arm_id": "02-N1-RED-quillfeather",
       "cell": "N1",
       "arm": "RED",
@@ -420,17 +319,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
+      "cost_usd": 0.26358229999999994,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.30889320000000003
+      "batch": "red-N1"
     },
     {
-      "batch": "red2-N2",
       "arm_id": "00-N2-RED-quillfeather",
       "cell": "N2",
       "arm": "RED",
@@ -443,17 +340,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
+      "cost_usd": 0.24782904999999997,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.2953408
+      "batch": "red-N2"
     },
     {
-      "batch": "red2-N2",
       "arm_id": "01-N2-RED-tarnbrook",
       "cell": "N2",
       "arm": "RED",
@@ -466,17 +361,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
+      "cost_usd": 0.25025,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.34053969999999995
+      "batch": "red-N2"
     },
     {
-      "batch": "red2-N2",
       "arm_id": "02-N2-RED-quillfeather",
       "cell": "N2",
       "arm": "RED",
@@ -489,17 +382,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
+      "cost_usd": 0.23670795,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.30030399999999996
+      "batch": "red-N2"
     },
     {
-      "batch": "red2-N3",
       "arm_id": "00-N3-RED-quillfeather",
       "cell": "N3",
       "arm": "RED",
@@ -512,17 +403,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
+      "cost_usd": 0.251483,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.32767825
+      "batch": "red-N3"
     },
     {
-      "batch": "red2-N3",
       "arm_id": "01-N3-RED-tarnbrook",
       "cell": "N3",
       "arm": "RED",
@@ -535,17 +424,15 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
+      "cost_usd": 0.27112800000000004,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.31457035
+      "batch": "red-N3"
     },
     {
-      "batch": "red2-N3",
       "arm_id": "02-N3-RED-quillfeather",
       "cell": "N3",
       "arm": "RED",
@@ -558,14 +445,13 @@
       "late_fire": false,
       "ended_on_question": false,
       "vault_notes": 0,
-      "confirmed_vault_notes": [],
-      "worker_vault_notes": [],
+      "cost_usd": 0.2577609,
       "window_end_unit": 2,
       "window_route_records": [],
       "window_qa_writes": [],
       "window_unparsed_learn_mentions": [],
       "window_other_learn_commands": [],
-      "cost_usd": 0.3072957
+      "batch": "red-N3"
     }
   ]
 }

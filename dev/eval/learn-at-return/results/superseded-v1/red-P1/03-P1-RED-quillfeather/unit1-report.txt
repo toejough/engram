@@ -1,0 +1,6 @@
+Unit 1 (Front-matter dates) is done.
+- Added `parseFrontMatterDate` in `internal/frontmatter/date.go`; a page whose `date:` doesn't parse now fails the build with `invalid date in <file>`.
+- My first version parsed dates in the machine's local time zone. The code reviewer rejected it and named the project convention: Quillfeather stores and compares every front-matter date as UTC, written in ISO-8601 (`2026-03-14T09:30:00Z`). I switched the parser to UTC and added tests for both the `Z` and the offset forms.
+- `go test ./...` passes.
+
+LESSONS: reviewer rejected local-time front-matter dates; Quillfeather's convention is UTC ISO-8601 for every front-matter date

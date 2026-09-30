@@ -1,0 +1,6 @@
+00-P1-RED-quillfeather: pass gate=True cost=$0.4878570000000001
+01-P1-RED-quillfeather: pass gate=True cost=$0.4753853
+02-P1-RED-quillfeather: pass gate=True cost=$0.44995605
+03-P1-RED-quillfeather: pass gate=True cost=$0.46084904999999987
+04-P1-RED-quillfeather: pass gate=True cost=$0.46627080000000004
+probe=True isolation=True status=0

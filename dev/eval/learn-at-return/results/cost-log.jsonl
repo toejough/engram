@@ -34,3 +34,34 @@
 {"batch": "smoke-t8", "arm_id": "00-N1-RED-quillfeather", "kind": "arm", "cell": "N1", "arm": "RED", "cost_usd": 0.45088595, "label": "no-fire"}
 {"batch": "smoke-t9", "arm_id": "probe", "kind": "probe", "cost_usd": 0.06667419999999999}
 {"batch": "smoke-t9", "arm_id": "00-N1-RED-quillfeather", "kind": "arm", "cell": "N1", "arm": "RED", "cost_usd": 0.26516314999999996, "label": "no-fire"}
+{"batch": "gocheck-t10", "arm_id": "gocheck", "kind": "probe", "cost_usd": 0.0259796}
+{"batch": "smoke-t10", "arm_id": "probe", "kind": "probe", "cost_usd": 0.065177}
+{"batch": "smoke-t10", "arm_id": "00-N1-RED-quillfeather", "kind": "arm", "cell": "N1", "arm": "RED", "cost_usd": 0.32071915, "label": "no-fire"}
+{"batch": "red2-P1", "arm_id": "probe", "kind": "probe", "cost_usd": 0.0599797}
+{"batch": "red2-P1", "arm_id": "00-P1-RED-quillfeather", "kind": "arm", "cell": "P1", "arm": "RED", "cost_usd": 0.4878570000000001, "label": "pass"}
+{"batch": "red2-P1", "arm_id": "01-P1-RED-quillfeather", "kind": "arm", "cell": "P1", "arm": "RED", "cost_usd": 0.4753853, "label": "pass"}
+{"batch": "red2-P1", "arm_id": "02-P1-RED-quillfeather", "kind": "arm", "cell": "P1", "arm": "RED", "cost_usd": 0.44995605, "label": "pass"}
+{"batch": "red2-P1", "arm_id": "03-P1-RED-quillfeather", "kind": "arm", "cell": "P1", "arm": "RED", "cost_usd": 0.46084904999999987, "label": "pass"}
+{"batch": "red2-P1", "arm_id": "04-P1-RED-quillfeather", "kind": "arm", "cell": "P1", "arm": "RED", "cost_usd": 0.46627080000000004, "label": "pass"}
+{"batch": "red2-P2", "arm_id": "probe", "kind": "probe", "cost_usd": 0.0679695}
+{"batch": "red2-P2", "arm_id": "00-P2-RED-tarnbrook", "kind": "arm", "cell": "P2", "arm": "RED", "cost_usd": 0.47204585000000004, "label": "late"}
+{"batch": "red2-P2", "arm_id": "01-P2-RED-tarnbrook", "kind": "arm", "cell": "P2", "arm": "RED", "cost_usd": 0.32119644999999997, "label": "no-fire"}
+{"batch": "red2-P2", "arm_id": "02-P2-RED-tarnbrook", "kind": "arm", "cell": "P2", "arm": "RED", "cost_usd": 0.3394162499999999, "label": "no-fire"}
+{"batch": "red2-P2", "arm_id": "03-P2-RED-tarnbrook", "kind": "arm", "cell": "P2", "arm": "RED", "cost_usd": 0.31926635000000014, "label": "question-stop"}
+{"batch": "red2-P2", "arm_id": "04-P2-RED-tarnbrook", "kind": "arm", "cell": "P2", "arm": "RED", "cost_usd": 0.5012574, "label": "late"}
+{"batch": "red2-N1", "arm_id": "probe", "kind": "probe", "cost_usd": 0.06709470000000001}
+{"batch": "red2-N1", "arm_id": "00-N1-RED-quillfeather", "kind": "arm", "cell": "N1", "arm": "RED", "cost_usd": 0.30309454999999996, "label": "no-fire"}
+{"batch": "red2-N1", "arm_id": "01-N1-RED-tarnbrook", "kind": "arm", "cell": "N1", "arm": "RED", "cost_usd": 0.31932565, "label": "no-fire"}
+{"batch": "red2-N1", "arm_id": "02-N1-RED-quillfeather", "kind": "arm", "cell": "N1", "arm": "RED", "cost_usd": 0.30889320000000003, "label": "no-fire"}
+{"batch": "red2-N2", "arm_id": "probe", "kind": "probe", "cost_usd": 0.060771900000000004}
+{"batch": "red2-N2", "arm_id": "00-N2-RED-quillfeather", "kind": "arm", "cell": "N2", "arm": "RED", "cost_usd": 0.2953408, "label": "no-fire"}
+{"batch": "red2-N2", "arm_id": "01-N2-RED-tarnbrook", "kind": "arm", "cell": "N2", "arm": "RED", "cost_usd": 0.34053969999999995, "label": "no-fire"}
+{"batch": "red2-N2", "arm_id": "02-N2-RED-quillfeather", "kind": "arm", "cell": "N2", "arm": "RED", "cost_usd": 0.30030399999999996, "label": "no-fire"}
+{"batch": "red2-N3", "arm_id": "probe", "kind": "probe", "cost_usd": 0.06685630000000001}
+{"batch": "red2-N3", "arm_id": "00-N3-RED-quillfeather", "kind": "arm", "cell": "N3", "arm": "RED", "cost_usd": 0.32767825, "label": "no-fire"}
+{"batch": "red2-N3", "arm_id": "01-N3-RED-tarnbrook", "kind": "arm", "cell": "N3", "arm": "RED", "cost_usd": 0.31457035, "label": "no-fire"}
+{"batch": "red2-N3", "arm_id": "02-N3-RED-quillfeather", "kind": "arm", "cell": "N3", "arm": "RED", "cost_usd": 0.3072957, "label": "no-fire"}
+{"batch": "red2-P2-r1", "arm_id": "probe", "kind": "probe", "cost_usd": 0.0660488}
+{"batch": "red2-P2-r1", "arm_id": "00-P2-RED-tarnbrook", "kind": "arm", "cell": "P2", "arm": "RED", "cost_usd": 0.34753540000000005, "label": "question-stop"}
+{"batch": "red2-P2-r2", "arm_id": "probe", "kind": "probe", "cost_usd": 0.066228}
+{"batch": "red2-P2-r2", "arm_id": "00-P2-RED-tarnbrook", "kind": "arm", "cell": "P2", "arm": "RED", "cost_usd": 0.8737808499999999, "label": "late"}
