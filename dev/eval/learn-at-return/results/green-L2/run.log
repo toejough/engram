@@ -1,0 +1,6 @@
+00-L2-GREEN: pass gate=True cost=$0.3059878
+01-L2-GREEN: pass gate=True cost=$0.3010182
+02-L2-GREEN: pass gate=True cost=$0.3011538
+03-L2-GREEN: pass gate=True cost=$0.3092498
+04-L2-GREEN: pass gate=True cost=$0.3277658
+probe=True isolation=True status=0

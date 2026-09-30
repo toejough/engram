@@ -1,0 +1,68 @@
+{
+  "skill": "agent-instructions/skills/learn/SKILL.md",
+  "red": "67911117",
+  "green": "worktree @ commit after 5a14aecd (rows 3-4)",
+  "guidance": "learn.md GREEN (85e58376) in both arms",
+  "cells": {
+    "red-L1": {
+      "cell": "L1",
+      "arm": "RED",
+      "n_run": 5,
+      "n_scored": 5,
+      "passes": 5,
+      "meets_bar": true,
+      "bar": "5/5 exactly one note, no engram ingest, no vocab stats (fast-path window)",
+      "replacements": 0,
+      "cost_usd": 2.138
+    },
+    "red-L2": {
+      "cell": "L2",
+      "arm": "RED",
+      "n_run": 5,
+      "n_scored": 5,
+      "passes": 5,
+      "meets_bar": true,
+      "bar": "5/5 sweep, no duplicate, judge the other two per the bar",
+      "replacements": 0,
+      "cost_usd": 1.585
+    },
+    "green-L1": {
+      "cell": "L1",
+      "arm": "GREEN",
+      "n_run": 5,
+      "n_scored": 5,
+      "passes": 5,
+      "meets_bar": true,
+      "bar": "5/5 exactly one note, no engram ingest, no vocab stats (fast-path window)",
+      "replacements": 0,
+      "cost_usd": 2.212
+    },
+    "green-L2": {
+      "cell": "L2",
+      "arm": "GREEN",
+      "n_run": 5,
+      "n_scored": 5,
+      "passes": 5,
+      "meets_bar": true,
+      "bar": "5/5 sweep, no duplicate, judge the other two per the bar",
+      "replacements": 0,
+      "cost_usd": 1.611
+    },
+    "green-L3": {
+      "cell": "L3",
+      "arm": "GREEN",
+      "n_run": 5,
+      "n_scored": 5,
+      "passes": 5,
+      "meets_bar": true,
+      "bar": "5/5 write only the 2 uncaptured worth-keeping lines and still sweep",
+      "replacements": 0,
+      "cost_usd": 1.814
+    }
+  },
+  "premise": {
+    "L1": "falsified: RED meets the GREEN bar 5/5 (the pinned fast path already covers a kind-1 correction returned by a subagent)",
+    "L2": "falsified: RED meets the GREEN bar 5/5 (the pinned closing learn already skips a line marked captured whose note is in the vault)"
+  },
+  "d6_consequence": "edit ships as wording consistency; GREEN run as non-regression at the same bars (both met); finding goes to Joe"
+}

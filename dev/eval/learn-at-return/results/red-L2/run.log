@@ -1,0 +1,6 @@
+00-L2-RED: pass gate=True cost=$0.3084412
+01-L2-RED: pass gate=True cost=$0.3059288
+02-L2-RED: pass gate=True cost=$0.30350699999999997
+03-L2-RED: pass gate=True cost=$0.298575
+04-L2-RED: pass gate=True cost=$0.304068
+probe=True isolation=True status=0

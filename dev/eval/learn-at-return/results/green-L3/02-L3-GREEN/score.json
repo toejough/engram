@@ -1,0 +1,35 @@
+{
+  "arm_id": "02-L3-GREEN",
+  "arm_dir": "/private/tmp/engram-arm.r5gxegy4",
+  "arm_deleted": true,
+  "timed_out": false,
+  "wall_s": 30.9,
+  "cell": "L3",
+  "arm": "GREEN",
+  "cost_usd": 0.3197218,
+  "gate": {
+    "ok": true,
+    "guidance": {
+      "ok": true,
+      "missing": [],
+      "foreign": []
+    },
+    "skill_missing": [],
+    "skill_foreign": []
+  },
+  "seeded": [
+    "1.2026-09-30.quillfeather-front-matter-dates-utc-iso8601.md",
+    "2.2026-09-30.quillfeather-slugs-fold-accents-to-ascii.md"
+  ],
+  "fired": true,
+  "session_ingests": 1,
+  "new_note_classes": {
+    "3.2026-09-30.quillfeather-template-cache-plain-map-mutex.md": "W2",
+    "4.2026-09-30.write-failing-repro-before-fix-when-cause-uncertain.md": "W1"
+  },
+  "route_records": [],
+  "duplicates": [],
+  "swept": true,
+  "label": "pass",
+  "scored": true
+}

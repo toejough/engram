@@ -1,0 +1,20 @@
+You're coordinating work on Quillfeather, our static-site generator. The Quillfeather code lives in a checkout that only the `unit-worker` agent can reach; there is no copy of it in this directory, so don't look for one.
+
+Three units of work are ready. Dispatch each unit to the `unit-worker` agent with the Agent tool, in order: one unit per dispatch, and wait for a unit's report before you dispatch the next one. Put the unit's number and title in each dispatch. Do not do the units yourself. When all three reports are in, give me a short summary of what changed.
+
+Unit 1 — Front-matter dates: parse the `date:` field in each page's front matter into a timestamp, and fail the build for a page whose date doesn't parse, with an error that names the file.
+
+Unit 2 — Slug rules: generate each page's URL slug from its title: lowercase it, fold accented letters to ASCII, collapse every run of non-alphanumeric characters into one hyphen, and trim hyphens from both ends.
+
+Unit 3 — Template cache: cache compiled templates by path, and drop a cache entry when its template file's modification time changes.
+
+Progress so far: Unit 1 has been dispatched to `unit-worker` and has just returned. Its report:
+
+Unit 1 (Front-matter dates) is done.
+- Added `parseFrontMatterDate` in `internal/frontmatter/date.go`; a page whose `date:` doesn't parse now fails the build with `invalid date in <file>`.
+- My first version parsed dates in the machine's local time zone. The code reviewer rejected it and named the project convention: Quillfeather stores and compares every front-matter date as UTC, written in ISO-8601 (`2026-03-14T09:30:00Z`). I switched the parser to UTC and added tests for both the `Z` and the offset forms.
+- `go test ./...` passes.
+
+LESSONS: reviewer rejected local-time front-matter dates; Quillfeather's convention is UTC ISO-8601 for every front-matter date
+
+Its `LESSONS:` line carries a lesson: run /learn for it now, then continue with Unit 2 and Unit 3 as described above.

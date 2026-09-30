@@ -1,0 +1,33 @@
+{
+  "arm_id": "02-L2-RED",
+  "arm_dir": "/private/tmp/engram-arm.vbq00ld7",
+  "arm_deleted": true,
+  "timed_out": false,
+  "wall_s": 23.6,
+  "cell": "L2",
+  "arm": "RED",
+  "cost_usd": 0.30350699999999997,
+  "gate": {
+    "ok": true,
+    "guidance": {
+      "ok": true,
+      "missing": [],
+      "foreign": []
+    },
+    "skill_missing": [],
+    "skill_foreign": []
+  },
+  "seeded": [
+    "1.2026-09-30.quillfeather-front-matter-dates-utc-iso8601.md"
+  ],
+  "fired": true,
+  "session_ingests": 1,
+  "new_note_classes": {
+    "2.2026-09-30.repro-test-before-fix-when-bug-cause-uncertain.md": "W1"
+  },
+  "route_records": [],
+  "duplicates": [],
+  "swept": true,
+  "label": "pass",
+  "scored": true
+}

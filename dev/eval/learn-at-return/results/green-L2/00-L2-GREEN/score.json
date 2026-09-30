@@ -1,0 +1,33 @@
+{
+  "arm_id": "00-L2-GREEN",
+  "arm_dir": "/private/tmp/engram-arm.7ns8kn7o",
+  "arm_deleted": true,
+  "timed_out": false,
+  "wall_s": 23.2,
+  "cell": "L2",
+  "arm": "GREEN",
+  "cost_usd": 0.3059878,
+  "gate": {
+    "ok": true,
+    "guidance": {
+      "ok": true,
+      "missing": [],
+      "foreign": []
+    },
+    "skill_missing": [],
+    "skill_foreign": []
+  },
+  "seeded": [
+    "1.2026-09-30.quillfeather-front-matter-dates-utc-iso8601.md"
+  ],
+  "fired": true,
+  "session_ingests": 1,
+  "new_note_classes": {
+    "2.2026-09-30.write-failing-repro-before-fixing-uncertain-bug-cause.md": "W1"
+  },
+  "route_records": [],
+  "duplicates": [],
+  "swept": true,
+  "label": "pass",
+  "scored": true
+}

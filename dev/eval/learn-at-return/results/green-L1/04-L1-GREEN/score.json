@@ -1,0 +1,35 @@
+{
+  "arm_id": "04-L1-GREEN",
+  "arm_dir": "/private/tmp/engram-arm.68vvpbc_",
+  "arm_deleted": true,
+  "timed_out": false,
+  "wall_s": 97.4,
+  "cell": "L1",
+  "arm": "GREEN",
+  "cost_usd": 0.43569199999999997,
+  "gate": {
+    "ok": true,
+    "guidance": {
+      "ok": true,
+      "missing": [],
+      "foreign": []
+    },
+    "skill_missing": [],
+    "skill_foreign": []
+  },
+  "seeded": [],
+  "fired": true,
+  "session_ingests": 0,
+  "new_note_classes": {
+    "1.2026-09-30.quillfeather-front-matter-dates-utc-iso8601.md": "C1"
+  },
+  "route_records": [],
+  "window_notes": 1,
+  "window_note_classes": [
+    "C1"
+  ],
+  "window_ingests": 0,
+  "window_vocab_stats": 0,
+  "label": "pass",
+  "scored": true
+}
