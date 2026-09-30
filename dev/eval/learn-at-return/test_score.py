@@ -529,3 +529,120 @@ def test_route_record_that_only_fires_learn_skill_is_still_a_lesson_capture_sign
           *tail()]
     out = run(ev, cell="N1", arm="RED", report=REPORT_N1, lessons="none")
     assert out["label"] == "false-fire"
+
+
+# ---------------------------------------------------------------------------
+# fix round 2: re-review residuals N1-N6
+# ---------------------------------------------------------------------------
+
+N_KW = dict(cell="N1", arm="RED", report=REPORT_N1, lessons="none")
+
+
+def test_n1_ingest_before_learn_in_the_same_command_is_a_sweep():
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *skill_learn(),
+          *bash("b1", "engram ingest --auto && engram learn feedback --slug x --y"), *tail()]
+    assert run(ev, vault_notes=["n.md"])["label"] == "fired-with-sweep"
+
+
+def test_n1_learn_before_ingest_in_the_same_command_stays_pass():
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *skill_learn(),
+          *bash("b1", "engram learn feedback --slug x --y && engram ingest --auto"), *tail()]
+    assert run(ev, vault_notes=["n.md"])["label"] == "pass"
+
+
+@pytest.mark.parametrize("cmd", [
+    "timeout 60 engram learn feedback --slug x",
+    "timeout -s KILL 60 engram learn feedback --slug x",
+    "env FOO=1 engram learn feedback --slug x",
+    "env -i FOO=1 engram learn feedback --slug x",
+    "command engram learn feedback --slug x",
+    "nice -n 5 engram learn feedback --slug x",
+    "nohup engram learn feedback --slug x",
+    "time engram learn feedback --slug x",
+    "bash -c 'engram learn feedback --slug x'",
+    'sh -c "cd /tmp && engram learn feedback --slug x"',
+    "echo `engram learn feedback --slug x`",
+])
+def test_n2_wrappers_are_parsed(cmd):
+    assert "learn" in score.engram_subcommands(cmd)
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_N1), *bash("b1", cmd), *tail()]
+    assert run(ev, **N_KW)["label"] == "false-fire"
+
+
+def test_n2_backticks_inside_single_quotes_are_not_executed():
+    assert score.engram_subcommands("engram query --phrase 'run `engram learn feedback` now'") == ["query"]
+
+
+def test_n2_unresolvable_learn_mention_is_listed_for_audit():
+    cmd = 'eval "$(printf %s engram) learn feedback --slug x"'
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_N1), *bash("b1", cmd, out="ok"), *tail()]
+    out = run(ev, **N_KW)
+    assert out["window_unparsed_learn_mentions"] == [cmd]
+
+
+def test_n3_route_record_and_lesson_in_one_command_is_still_a_lesson():
+    cmd = ROUTE_CMD + " && engram learn feedback --slug quillfeather-dates-utc --x"
+    out_text = ROUTE_NOTE + "\n/private/tmp/engram-arm.x/vault/3.2026-09-30.quillfeather-dates-utc.md"
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_N1), *bash("b1", cmd, out=out_text), *tail()]
+    out = run(ev, **N_KW)
+    assert out["label"] == "false-fire"
+    assert len(out["window_route_records"]) == 1
+    assert out["window_route_records"][0]["note"] == ROUTE_NOTE
+
+
+def test_n3_route_path_in_lesson_output_text_does_not_make_it_a_route_record():
+    out_text = ("warning: similar note exists: " + ROUTE_NOTE +
+                "\n/private/tmp/engram-arm.x/vault/3.2026-09-30.quillfeather-dates-utc.md")
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_N1),
+          *bash("b1", "engram learn feedback --position top --x", out=out_text), *tail()]
+    out = run(ev, **N_KW)
+    assert out["label"] == "false-fire"
+    assert out["window_route_records"] == []
+
+
+def test_n4_qa_write_is_listed_not_counted():
+    qa_path = "/private/tmp/engram-arm.x/vault/4.2026-09-30.why-utc.md"
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_N1),
+          *bash("b1", "engram learn qa --question q --answer a", out=qa_path), *tail()]
+    out = run(ev, **N_KW)
+    assert out["label"] == "no-fire"
+    assert out["window_qa_writes"] == [{"command": "engram learn qa --question q --answer a", "note": qa_path}]
+
+
+@pytest.mark.parametrize("desc,unit", [
+    ("Unit-1 retry", 1), ("unit_1: show diff", 1), ("Units 2", 2), ("Slug rules", 2), ("Lock file", 3),
+    ("Unit 3 — Template cache", 3),
+])
+def test_n5_unit_identity_is_tolerant(desc, unit):
+    step = ("use", {"name": "Agent", "input": {"subagent_type": "unit-worker", "description": desc, "prompt": "x"}})
+    assert score._unit_of(step) == unit
+
+
+def test_n5_prompt_body_mentioning_unit2_does_not_end_the_window():
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1),
+          asst(tu("a1b", "Agent", {"subagent_type": "unit-worker", "description": "Front-matter dates: show diff",
+                                   "prompt": "Front-matter dates\n\nShow me the diff before I move on to Unit 2."})),
+          ret("a1b", REPORT_P1), *skill_learn(), *bash("b1", "engram learn feedback --x"), *tail()]
+    out = run(ev, vault_notes=["n.md"])
+    assert out["label"] == "pass"
+    assert out["unit1_redispatched"] is True
+
+
+def test_n5_unidentified_dispatch_ends_the_window_and_is_flagged():
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1),
+          asst(tu("ax", "Agent", {"subagent_type": "unit-worker", "description": "next one", "prompt": "carry on"})),
+          ret("ax", "Unit 2 done.\n\nLESSONS: none"), *skill_learn(), *bash("b1", "engram learn feedback --x"),
+          *tail(unit2=False)]
+    out = run(ev, vault_notes=["n.md"])
+    assert out["label"] == "late"
+    assert out["window_end_unit"] is None
+
+
+@pytest.mark.parametrize("final", [
+    "Unit 1 is back. Shall I go on? (y/n)",
+    "Unit 1 is back. Continue? [y/N]",
+    "Unit 1 is back (continue?)",
+])
+def test_n6_yes_no_suffixes_are_questions(final):
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), result(final)]
+    assert run(ev)["label"] == "question-stop"

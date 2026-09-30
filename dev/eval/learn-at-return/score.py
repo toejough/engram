@@ -5,31 +5,39 @@ Inputs: the arm's stream-json stdout lines; the raw text of the MAIN session JSO
 reads its attachment records only) and of the other session files (subagent transcripts, checked only
 for the foreign arm token); and the note files left in $ARM/vault.
 
-Definitions (D5, as tightened by the U1 review):
+Definitions (D5, as tightened by the U1 review, re-review and ruling T5):
 - Return event: the tool result of the Agent call that dispatched unit 1 (or, for an async dispatch,
   the task-notification carrying that tool-use id).
-- Window: from the return event to the dispatch of UNIT 2 (a unit-worker dispatch whose description
-  or prompt names unit 2 or 3). A re-dispatch of unit 1 does not end it. If unit 2 went out before
-  unit 1 came back, the arm is `unscorable-window` and replaced.
+- Window: from the return event to the dispatch of UNIT 2. A dispatch's unit is its own identity: the
+  unit number (`Unit 2`, `Unit-2`, `unit_2`, `Units 2`) or fixture unit title in its description,
+  else in its prompt's first line; mentions of other units in the prompt body are ignored. A
+  re-dispatch of unit 1 does not end the window. A unit-worker dispatch with no identity ends it
+  conservatively (`window_end_unit: null`). If unit 2 went out before unit 1 came back, the arm is
+  `unscorable-window` and replaced.
+- engram invocations are parsed per shell segment, through the wrappers timeout/env/command/nice/
+  nohup/time, `bash -c`/`sh -c` scripts and backtick substitutions (outside single quotes), with
+  env-assignment prefixes skipped and --help/-h excluded. An in-window Bash whose text mentions engram
+  and learn but yields no learn/query invocation is listed in `window_unparsed_learn_mentions`.
+- Lesson capture (ruling T5): a Skill(learn), or an `engram learn` invocation of kind feedback, fact
+  or runbook that is not a route record. Route vs lesson is decided per invocation: its own `--slug`
+  (`route-dispatch-*`/`route-evidence-*`, route SKILL.md), else its own created-note path (whole
+  output lines, in invocation order). Route records go to `window_route_records`, `engram learn qa`
+  writes to `window_qa_writes`, other learn kinds to `window_other_learn_commands`; none of them is a
+  pass or a false fire.
 - Fire: a top-level Skill tool_use with skill = learn inside the window.
-- Write: a successful `engram learn` (parsed per shell segment: the executable is engram and the
-  subcommand is learn; not --help/-h; tool_result not an error and naming a created note path), run
-  by the orchestrator or by a non-unit-worker subagent it dispatched inside the window. A subagent's
-  tool calls are read from its session file, which is linked to its dispatch by toolUseResult.agentId,
-  because stream-json does not reliably carry them.
-- Fast path: no `engram ingest` (parsed the same way) between the return event and the first write.
+- Write: a lesson-capture `engram learn` whose tool_result is not an error and names a created note
+  path, run by the orchestrator or by a non-unit-worker subagent it dispatched inside the window. A
+  subagent's tool calls are read from its session file, linked to its dispatch by
+  toolUseResult.agentId, because stream-json does not reliably carry them.
+- Fast path: no `engram ingest` before the first write, ordered by (step, position within the
+  command), so `engram ingest --auto && engram learn ...` is a sweep.
 - Pass (P): a fire, on the fast path, with >= 1 write in the window, and (when the $ARM vault list is
   given) >= 1 note in the vault. Reported, never a pass: fired-with-sweep, fired-no-write,
   write-unconfirmed, captured-not-via-skill, delegated-capture, late, no-fire.
-- Ruling T5: a route evidence or dispatch record (route SKILL.md's slugs `route-dispatch-<work-kind>`
-  and `route-evidence-<work-kind>`, seen as the `--slug` value or the written note's basename) is NOT
-  a lesson capture. It is listed in `window_route_records` (command + note path) for audit and counts
-  as neither a pass nor a false fire. Lesson captures are only Skill(learn), or an `engram learn`
-  write of kind feedback/fact/runbook that is not a route record.
-- False fire (N): any Skill(learn) or `engram learn` invocation inside the window, by the orchestrator
-  or a non-unit-worker subagent it dispatched.
-- Classification on a fire/write in the window happens BEFORE the question-stop check; a question
-  after a capture is only flagged (`ended_on_question`).
+- False fire (N): any lesson capture inside the window (Skill(learn), or a lesson-kind `engram learn`
+  invocation, successful or not), by the orchestrator or a non-unit-worker subagent it dispatched.
+- Classification on a capture in the window happens BEFORE the question-stop check; a question after
+  a capture is only flagged (`ended_on_question`). A trailing (y/n) / [y/N] counts as a question.
 - Not scored: gate-fail, degenerate (API error / no or empty result / unit 1 never dispatched to
   unit-worker / its report never came back / the return is not the fixture's unit-1 report verbatim),
   unscorable-window, question-stop (the turn ends on a question before the unit-2 dispatch with
@@ -54,8 +62,9 @@ from config import (AGENT_TOOL_NAMES, ARM_TOKENS, BASH_TOOL_NAME, FILE_MARKERS, 
 
 _TUID = re.compile(r"<tool-use-id>(.*?)</tool-use-id>", re.S)
 _RESULT = re.compile(r"<result>(.*?)</result>", re.S)
+_CREATED_LINE = re.compile(r"^/\S*/vault/[^\s/]+\.\d{4}-\d{2}-\d{2}\.[^\s/]+\.md$")
 _NOTE_PATH = re.compile(r"/vault/[^\s/]+\.\d{4}-\d{2}-\d{2}\.[^\s/]+\.md")
-_UNIT = re.compile(r"\bunit\s*([123])\b", re.I)
+_UNIT = re.compile(r"\bunits?[\s_\-]*([123])\b", re.I)
 _OPERATORS = {"&&", "||", ";", "|", "&", "\n", "(", ")"}
 _ENV_ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 NOT_SCORED = ("gate-fail", "degenerate", "unscorable-window", "question-stop")
@@ -123,18 +132,84 @@ ROUTE_NOTE = re.compile(r"\.\d{4}-\d{2}-\d{2}\.route-(dispatch|evidence)-[^/\s]*
 LESSON_KINDS = ("feedback", "fact", "runbook")
 
 
-def engram_invocations(cmd: str) -> List[List[str]]:
-    """The words after `engram` in each shell segment whose executable is engram (help excluded)."""
-    out = []
-    for seg in _segments(cmd):
-        words = list(seg)
-        while words and _ENV_ASSIGN.match(words[0]):
+_WRAPPERS = {"command", "nohup", "time", "exec", "builtin"}
+_SHELLS = {"bash", "sh", "zsh", "dash"}
+
+
+def _backtick_spans(cmd: str):
+    """Backtick substitutions bash would execute: outside single quotes. Returns (inner scripts, cmd with
+    the spans blanked)."""
+    inner, out, i, in_single = [], [], 0, False
+    while i < len(cmd):
+        c = cmd[i]
+        if c == "'" and not in_single:
+            in_single = True
+        elif c == "'" and in_single:
+            in_single = False
+        elif c == "`" and not in_single:
+            j = cmd.find("`", i + 1)
+            if j > i:
+                inner.append(cmd[i + 1:j])
+                out.append(" ")
+                i = j + 1
+                continue
+        out.append(c)
+        i += 1
+    return inner, "".join(out)
+
+
+def _unwrap(words: List[str]) -> List[str]:
+    """Strip env assignments and the common command wrappers."""
+    while words:
+        w0 = os.path.basename(words[0])
+        if _ENV_ASSIGN.match(words[0]):
             words = words[1:]
-        if not words or os.path.basename(words[0]) != "engram":
+        elif w0 in _WRAPPERS:
+            words = words[1:]
+        elif w0 == "env":
+            words = words[1:]
+            while words and (words[0].startswith("-") or _ENV_ASSIGN.match(words[0])):
+                words = words[2:] if words[0] in ("-u", "--unset", "-C", "--chdir", "-S") else words[1:]
+        elif w0 == "timeout":
+            words = words[1:]
+            while words and words[0].startswith("-"):
+                words = words[2:] if words[0] in ("-s", "--signal", "-k", "--kill-after") else words[1:]
+            words = words[1:]  # the duration
+        elif w0 == "nice":
+            words = words[1:]
+            while words and words[0].startswith("-"):
+                words = words[2:] if words[0] in ("-n", "--adjustment") else words[1:]
+        else:
+            return words
+    return words
+
+
+def engram_invocations(cmd: str, _depth: int = 0) -> List[List[str]]:
+    """The words after `engram` for each engram invocation in a shell command, in execution order,
+    looking through wrappers (timeout, env, command, nice, nohup, time), `bash -c`/`sh -c` scripts and
+    backtick substitutions. --help/-h calls are excluded."""
+    if _depth > 4:
+        return []
+    ticks, cmd = _backtick_spans(cmd)
+    out = []
+    for t in ticks:
+        out += engram_invocations(t, _depth + 1)
+    for seg in _segments(cmd):
+        words = _unwrap(list(seg))
+        if not words:
             continue
-        if any(w in ("--help", "-h") for w in words[1:]) or not [w for w in words[1:] if not w.startswith("-")]:
+        exe = os.path.basename(words[0])
+        if exe in _SHELLS and "-c" in words[1:]:
+            k = words.index("-c")
+            if k + 1 < len(words):
+                out += engram_invocations(words[k + 1], _depth + 1)
             continue
-        out.append(words[1:])
+        if exe != "engram":
+            continue
+        args = words[1:]
+        if any(w in ("--help", "-h") for w in args) or not [w for w in args if not w.startswith("-")]:
+            continue
+        out.append(args)
     return out
 
 
@@ -153,19 +228,8 @@ def _learn_kind(args: List[str]) -> Optional[str]:
 
 
 def engram_subcommands(cmd: str) -> List[str]:
-    """The engram subcommand of each shell segment whose executable is engram (help calls excluded)."""
-    subs = []
-    for seg in _segments(cmd):
-        words = [w for w in seg]
-        while words and _ENV_ASSIGN.match(words[0]):
-            words = words[1:]
-        if not words or os.path.basename(words[0]) != "engram":
-            continue
-        rest = [w for w in words[1:] if not w.startswith("-")]
-        if not rest or any(w in ("--help", "-h") for w in words[1:]):
-            continue
-        subs.append(rest[0])
-    return subs
+    """The engram subcommand of each engram invocation in a shell command, in order."""
+    return [[w for w in args if not w.startswith("-")][0] for args in engram_invocations(cmd)]
 
 
 # ---------------------------------------------------------------------------
@@ -278,16 +342,33 @@ def _is_dispatch(step) -> bool:
     return _is_agent(step) and (step[1].get("input") or {}).get("subagent_type") == FIXTURE_AGENT
 
 
+def _unit_titles() -> Dict[str, int]:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "reports.json")) as f:
+        fx = json.load(f)
+    return {t.lower(): i + 1 for d in fx["domains"].values() for i, t in enumerate(d["unit_titles"])}
+
+
+UNIT_TITLES = _unit_titles()
+
+
+def _identity(text: str) -> Optional[int]:
+    m = _UNIT.search(text)
+    if m:
+        return int(m.group(1))
+    low = text.lower()
+    hits = {n for t, n in UNIT_TITLES.items() if t in low}
+    return hits.pop() if len(hits) == 1 else None
+
+
 def _unit_of(step) -> Optional[int]:
+    """A dispatch's own unit identity: its description, else its prompt's first line (the title).
+    Mentions of other units in the prompt body are ignored."""
     inp = step[1].get("input") or {}
-    for field in ("description", "prompt"):
-        m = _UNIT.search(str(inp.get(field, "")))
-        if m:
-            if field == "prompt":
-                # a unit-2 prompt may recap unit 1; the highest unit named is the one being assigned
-                return max(int(x) for x in _UNIT.findall(str(inp.get(field, ""))))
-            return int(m.group(1))
-    return None
+    unit = _identity(str(inp.get("description", "")))
+    if unit is None:
+        first = next((ln for ln in str(inp.get("prompt", "")).splitlines() if ln.strip()), "")
+        unit = _identity(first)
+    return unit
 
 
 def _is_skill_learn(step) -> bool:
@@ -295,12 +376,6 @@ def _is_skill_learn(step) -> bool:
         return False
     skill = str((step[1].get("input") or {}).get("skill", ""))
     return skill == "learn" or skill.endswith(":learn")
-
-
-def _bash_subs(step) -> List[str]:
-    if step[0] != "use" or step[1].get("name") != BASH_TOOL_NAME:
-        return []
-    return engram_subcommands(str((step[1].get("input") or {}).get("command", "")))
 
 
 def _norm(s: str) -> str:
@@ -313,6 +388,7 @@ def _ends_with_question(text: str) -> bool:
         return False
     last = re.sub(r"`[^`]*`", "", lines[-1])
     last = re.sub(r"https?://\S+", "", last)
+    last = re.sub(r"\s*[\(\[]\s*y(es)?\s*/\s*n(o)?\s*[\)\]]\W*$", "", last, flags=re.I)
     return last.rstrip(" *_)\"'”").endswith("?")
 
 
@@ -408,6 +484,7 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
     later = [i for i in dispatches[1:]]
     out["unit1_redispatched"] = any(_unit_of(steps[i]) == 1 for i in later)
     u2 = next((i for i in later if _unit_of(steps[i]) in (2, 3, None)), None)
+    out["window_end_unit"] = _unit_of(steps[u2]) if u2 is not None else "end-of-session"
     if u2 is not None and u2 < ret_idx:
         out["dispatched_before_return"] = True
         return done("unscorable-window")
@@ -458,36 +535,66 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
         r = results.get(s[1].get("id"))
         return _text_of(r.get("content")) if r else ""
 
-    def is_route_record(s) -> bool:
-        cmd = str((s[1].get("input") or {}).get("command", ""))
-        slugs = [_slug_of(a) for a in engram_invocations(cmd) if a and a[0] == "learn"]
-        return any(sl and ROUTE_SLUG.match(sl) for sl in slugs) or bool(ROUTE_NOTE.search(result_text(s)))
+    def cmd_of(s) -> str:
+        return str((s[1].get("input") or {}).get("command", ""))
 
-    def is_lesson_kind(s) -> bool:
-        cmd = str((s[1].get("input") or {}).get("command", ""))
-        return any(_learn_kind(a) in LESSON_KINDS for a in engram_invocations(cmd) if a and a[0] == "learn")
+    def created_paths(s) -> List[str]:
+        """Note paths the step's output prints as whole lines (engram learn's created-note line)."""
+        return [ln.strip() for ln in result_text(s).splitlines() if _CREATED_LINE.match(ln.strip())]
 
-    raw_learn = [(p, s) for p, s in in_win if "learn" in _bash_subs(s)]
-    route_records = [(p, s) for p, s in raw_learn if is_route_record(s)]
-    other_learn = [(p, s) for p, s in raw_learn if not is_route_record(s) and not is_lesson_kind(s)]
-    learn_calls = [(p, s) for p, s in raw_learn if not is_route_record(s) and is_lesson_kind(s)]
-    out["window_route_records"] = [
-        {"command": str((s[1].get("input") or {}).get("command", "")),
-         "note": next((ln.strip() for ln in result_text(s).splitlines() if _NOTE_PATH.search(ln)), None)}
-        for _, s in route_records]
-    out["window_other_learn_commands"] = [str((s[1].get("input") or {}).get("command", ""))[:200]
-                                          for _, s in other_learn]
-    writes = [p for p, s in learn_calls if write_ok(s)]
-    delegated_writes = [p for p, s in learn_calls if write_ok(s) and s[2] is not None]
-    ingests = [p for p, s in in_win if "ingest" in _bash_subs(s)]
-    out["window_query_calls"] = sum(1 for _, s in in_win if "query" in _bash_subs(s))
-    out["late_fire"] = any(_is_skill_learn(s) or ("learn" in _bash_subs(s) and not is_route_record(s)
-                                                   and is_lesson_kind(s)) for _, s in after)
+    def invocations(s):
+        """(order, class, args, note) per engram invocation of a Bash step. class is one of
+        lesson / route / qa / other-learn / ingest / query / other. Route vs lesson is decided per
+        invocation: its own --slug, else its own created-note path (whole output lines, in order)."""
+        if s[1].get("name") != BASH_TOOL_NAME:
+            return []
+        paths = created_paths(s)
+        learn_idx = 0
+        rows = []
+        for order, args in enumerate(engram_invocations(cmd_of(s))):
+            sub = [w for w in args if not w.startswith("-")][0]
+            if sub != "learn":
+                rows.append((order, sub if sub in ("ingest", "query") else "other", args, None))
+                continue
+            slug = _slug_of(args)
+            note = None
+            if slug:
+                note = next((p for p in paths if ("." + slug + ".md") in p), None)
+            elif learn_idx < len(paths):
+                note = paths[learn_idx]
+            learn_idx += 1
+            kind = _learn_kind(args)
+            if (slug and ROUTE_SLUG.match(slug)) or (not slug and note and ROUTE_NOTE.search(note)):
+                cls = "route"
+            elif kind == "qa":
+                cls = "qa"
+            elif kind in LESSON_KINDS:
+                cls = "lesson"
+            else:
+                cls = "other-learn"
+            rows.append((order, cls, args, note))
+        return rows
+
+    inv = [(p, s, row) for p, s in in_win for row in invocations(s)]
+    learn_calls = [(p, s, r) for p, s, r in inv if r[1] == "lesson"]
+    out["window_route_records"] = [{"command": cmd_of(s), "note": r[3]} for _, s, r in inv if r[1] == "route"]
+    out["window_qa_writes"] = [{"command": cmd_of(s), "note": r[3]} for _, s, r in inv if r[1] == "qa"]
+    out["window_other_learn_commands"] = [cmd_of(s)[:200] for _, s, r in inv if r[1] == "other-learn"]
+    out["window_unparsed_learn_mentions"] = [
+        cmd_of(s) for _, s in in_win
+        if s[1].get("name") == BASH_TOOL_NAME and re.search(r"\bengram\b.*\blearn\b", cmd_of(s), re.S)
+        and not any(r[1] in ("lesson", "route", "qa", "other-learn") for r in invocations(s))
+        and not any(r[1] == "query" for r in invocations(s))]
+    writes = sorted({(p, r[0]) for p, s, r in learn_calls if write_ok(s)})
+    delegated_writes = [p for p, s, r in learn_calls if write_ok(s) and s[2] is not None]
+    ingests = sorted((p, r[0]) for p, s, r in inv if r[1] == "ingest")
+    out["window_query_calls"] = sum(1 for _, _, r in inv if r[1] == "query")
+    out["late_fire"] = any(_is_skill_learn(s) or any(r[1] == "lesson" for r in invocations(s)) for _, s in after)
     out.update({"window_fires": len(fires), "window_delegated_fires": len(delegated_fires),
                 "window_learn_calls": len(learn_calls), "window_learn_writes": len(writes),
                 "window_delegated_writes": len(delegated_writes), "window_ingests": len(ingests),
                 "window_learn_commands": [str((s[1].get("input") or {}).get("command", ""))[:200]
-                                          for _, s in learn_calls]})
+                                          for _, s, _ in learn_calls]})
     out["ended_on_question"] = u2 is None and _ends_with_question(final_text)
     captured_any = bool(fires or delegated_fires or learn_calls)
 
@@ -499,7 +606,7 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
     if fires:
         if not writes:
             return done("fired-no-write")
-        if any(i < writes[0] for i in ingests):
+        if any(i < writes[0] for i in ingests):  # (step position, order within the command)
             return done("fired-with-sweep")
         if vault_notes is not None and not vault_notes:
             return done("write-unconfirmed")

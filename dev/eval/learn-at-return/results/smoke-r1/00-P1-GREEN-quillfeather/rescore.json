@@ -28,6 +28,11 @@
     "foreign": []
   },
   "read_fixture_agent": false,
+  "window_end_unit": 2,
+  "window_route_records": [],
+  "window_qa_writes": [],
+  "window_other_learn_commands": [],
+  "window_unparsed_learn_mentions": [],
   "window_fires": 1,
   "window_delegated_fires": 0,
   "window_learn_calls": 1,
