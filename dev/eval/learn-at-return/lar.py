@@ -157,21 +157,38 @@ def fixture_dir(arm: str, domain: str) -> str:
 IMPL_DIR = pathlib.Path(HERE) / "fixtures" / "impl"
 
 
+GO_BIN = "/opt/homebrew/bin/go"
+GO_MOD_VERSION = "1.22"
+
+
+def go_env(arm: str) -> List[str]:
+    """Ruling T10: Go state inside $ARM, module mode; toolchain download, module proxy and telemetry off
+    (the sandbox has no network anyway)."""
+    return [f"GOCACHE={arm}/gocache", f"GOPATH={arm}/gopath", f"GOMODCACHE={arm}/gopath/pkg/mod",
+            "GOFLAGS=-mod=mod", "GOTOOLCHAIN=local", "GOPROXY=off", "GOTELEMETRY=off"]
+
+
 def fixture_tools(fix: str) -> List[str]:
-    """The only extra permissions the arm gets (D5 amendment, rulings T8/T9): Write/Edit inside the
-    fixture checkout, and `cat` of its test logs. Bash rules match the literal command text, so the
-    Bash rule uses the plain absolute path (file-path rules take the // prefix)."""
-    return [f"Edit(/{fix}/**)", f"Write(/{fix}/**)", f"Bash(cat {fix}/test-output-unit-*)"]
+    """The only extra permissions the arm gets (D5 amendment, rulings T8-T10): Write/Edit inside the
+    fixture module and `go -C <module> test`. Bash rules match the literal command text, so the Bash
+    rule uses the plain absolute path (file-path rules take the // prefix)."""
+    return [f"Edit(/{fix}/**)", f"Write(/{fix}/**)", f"Bash(go -C {fix} test:*)"]
+
+
+def _test_path(rel: str) -> str:
+    return rel[:-3] + "_test.go"
 
 
 def build_fixture_checkout(fix: str, fx: Dict[str, Any], domain: str) -> None:
-    """One stub file per unit (the worker Reads it, then Writes the pre-authored implementation over
-    it) and one pre-generated test log per unit (the worker Reads it as its check)."""
+    """A stdlib-only Go module: go.mod, one stub file per unit (the worker Reads it, then Writes the
+    pre-authored implementation and test file), plus any static files the module needs."""
     d = fx["domains"][domain]
+    _write(os.path.join(fix, "go.mod"), f"module {domain}\n\ngo {GO_MOD_VERSION}\n")
     for n, (rel, title) in enumerate(zip(d["unit_files"], d["unit_titles"]), 1):
         pkg = (IMPL_DIR / domain / f"unit{n}.go.txt").read_text().splitlines()[0]
         _write(os.path.join(fix, rel), f"{pkg}\n\n// {title}\n// TODO(unit {n}): implement\n")
-        shutil.copyfile(IMPL_DIR / domain / f"test-output-unit-{n}.txt", os.path.join(fix, f"test-output-unit-{n}.txt"))
+    for rel, src_name in d.get("static_files", {}).items():
+        _write(os.path.join(fix, rel), (IMPL_DIR / domain / src_name).read_text())
 
 
 def fixture_agent(fx: Dict[str, Any], cell: str, domain: str, fix: str) -> str:
@@ -182,11 +199,14 @@ def fixture_agent(fx: Dict[str, Any], cell: str, domain: str, fix: str) -> str:
     steps = []
     for n, (rel, title) in enumerate(zip(d["unit_files"], t), 1):
         impl = (IMPL_DIR / domain / f"unit{n}.go.txt").read_text()
+        test = (IMPL_DIR / domain / f"unit{n}_test.go.txt").read_text()
         steps.append(
             f"### Unit {n} ({title})\n"
             f"1. Read `{fix}/{rel}`.\n"
             f"2. Write `{fix}/{rel}` with exactly this content:\n\n=== CODE {n} ===\n{impl}=== END CODE {n} ===\n\n"
-            f"3. Run `cat {fix}/test-output-unit-{n}.txt` with the Bash tool (this unit's test log).\n")
+            f"3. Write `{fix}/{_test_path(rel)}` with exactly this content:\n\n"
+            f"=== TEST {n} ===\n{test}=== END TEST {n} ===\n\n"
+            f"4. Run `go -C {fix} test ./...` with the Bash tool.\n")
     return (
         "---\n"
         f"name: {FIXTURE_AGENT}\n"
@@ -199,8 +219,8 @@ def fixture_agent(fx: Dict[str, Any], cell: str, domain: str, fix: str) -> str:
         "You are a scripted test fixture. Work only on the files named below and run no other commands.\n\n"
         "Choose the unit this request asks you to do now. If the request mentions more than one unit, the "
         "one to do now is the one being assigned, not one described as already done.\n\n"
-        "Step 1: do that unit's three tool calls, exactly as listed (write the code between the === CODE "
-        "markers, without the marker lines).\n\n" + "\n".join(steps) + "\n"
+        "Step 1: do that unit's four tool calls, exactly as listed (write the text between the === CODE "
+        "or === TEST markers, without the marker lines).\n\n" + "\n".join(steps) + "\n"
         "Step 2: reply with exactly one of the three reports below, copied verbatim and character for "
         "character, with nothing before or after it and without the === marker lines. "
         f"Unit 1 ({t[0]}) gets REPORT 1; Unit 2 ({t[1]}) gets REPORT 2; Unit 3 ({t[2]}) gets REPORT 3.\n\n"
@@ -303,6 +323,7 @@ def build_arm(arm: str, spec: ArmSpec, src, engram_bin: str, deny_entries: List[
     prompt = task_prompt(fx, spec.domain)
     texts.append({"path": f"prompt:{spec.domain}", "commit": head, "sha256": _sha(prompt)})
     shutil.copy2(engram_bin, os.path.join(arm, "bin", "engram"))
+    os.symlink(os.path.realpath(GO_BIN), os.path.join(arm, "bin", "go"))
     return {"texts": texts, "prompt": prompt, "unit1_report": unit1_report(fx, spec.cell, spec.domain),
             "fixture_dir": fix, "fixture_tools": fixture_tools(fix),
             "lessons": fx["cells"][spec.cell]["lessons"]}
@@ -317,7 +338,8 @@ def build_arm(arm: str, spec: ArmSpec, src, engram_bin: str, deny_entries: List[
 # `env -i`, so its environment is exactly the allowlist) reads it from the inherited fd, closes the
 # fd, adds it to its own environment and execs claude. argv carries only the fd number.
 HANDOFF_PYTHON = os.path.realpath(sys.executable)
-ENV_ALLOWLIST = ("HOME", "USER", "PATH", "TERM", "TMPDIR", "XDG_DATA_HOME", "ENGRAM_VAULT_PATH")
+ENV_ALLOWLIST = ("HOME", "USER", "PATH", "TERM", "TMPDIR", "XDG_DATA_HOME", "ENGRAM_VAULT_PATH",
+                 "GOCACHE", "GOPATH", "GOMODCACHE", "GOFLAGS", "GOTOOLCHAIN", "GOPROXY", "GOTELEMETRY")
 # The handoff execs claude with an explicit env of exactly the allowlist plus the token, dropping
 # anything the interpreter itself adds (macOS python sets LC_CTYPE and __CF_USER_TEXT_ENCODING).
 HANDOFF_CODE = ("import os,sys\n"
@@ -330,7 +352,7 @@ HANDOFF_CODE = ("import os,sys\n"
 def arm_argv(arm: str, model: str, user: str, claude_bin: str, token_fd: int, extra_tools=()) -> List[str]:
     env_pairs = [
         f"HOME={arm}/home", f"USER={user}", f"PATH={arm}/bin:/usr/bin:/bin", "TERM=dumb",
-        f"TMPDIR={arm}/tmp", f"XDG_DATA_HOME={arm}/xdg", f"ENGRAM_VAULT_PATH={arm}/vault",
+        f"TMPDIR={arm}/tmp", f"XDG_DATA_HOME={arm}/xdg", f"ENGRAM_VAULT_PATH={arm}/vault", *go_env(arm),
     ]
     return (["/usr/bin/env", "-i", *env_pairs, HANDOFF_PYTHON, "-I", "-c", HANDOFF_CODE, str(token_fd),
              claude_bin, "-p", "--output-format", "stream-json", "--verbose",

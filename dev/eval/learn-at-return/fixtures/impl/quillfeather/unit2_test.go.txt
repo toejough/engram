@@ -1,0 +1,27 @@
+package slug
+
+import "testing"
+
+func TestSlugify(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		title string
+		want  string
+	}{
+		{"plain title", "Hello World", "hello-world"},
+		{"accents fold to ascii", "Crème Brûlée à la Café", "creme-brulee-a-la-cafe"},
+		{"punctuation runs collapse", "Go -- Fast!!! & Safe", "go-fast-safe"},
+		{"leading and trailing symbols trimmed", "  ...Why Slugs?!  ", "why-slugs"},
+		{"digits kept", "Top 10 Tips for 2026", "top-10-tips-for-2026"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := Slugify(tc.title); got != tc.want {
+				t.Fatalf("Slugify(%q) = %q, want %q", tc.title, got, tc.want)
+			}
+		})
+	}
+}

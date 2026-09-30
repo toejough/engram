@@ -1,0 +1,87 @@
+package render
+
+import (
+	"html/template"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+func newCountingCache(t *testing.T) (*TemplateCache, *int) {
+	t.Helper()
+	compiles := 0
+	cache := NewTemplateCache()
+	inner := cache.compile
+	cache.compile = func(path string) (*template.Template, error) {
+		compiles++
+		return inner(path)
+	}
+	return cache, &compiles
+}
+
+func writeTemplate(t *testing.T, dir, body string) string {
+	t.Helper()
+	path := filepath.Join(dir, "page.html")
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestTemplateCache(t *testing.T) {
+	t.Parallel()
+
+	t.Run("miss compiles", func(t *testing.T) {
+		t.Parallel()
+		cache, compiles := newCountingCache(t)
+		path := writeTemplate(t, t.TempDir(), "<p>{{.}}</p>")
+		if _, err := cache.Get(path); err != nil {
+			t.Fatal(err)
+		}
+		if *compiles != 1 {
+			t.Fatalf("compiles = %d, want 1", *compiles)
+		}
+	})
+
+	t.Run("hit same mtime no recompile", func(t *testing.T) {
+		t.Parallel()
+		cache, compiles := newCountingCache(t)
+		path := writeTemplate(t, t.TempDir(), "<p>{{.}}</p>")
+		for range 3 {
+			if _, err := cache.Get(path); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if *compiles != 1 {
+			t.Fatalf("compiles = %d, want 1", *compiles)
+		}
+	})
+
+	t.Run("touched file is recompiled", func(t *testing.T) {
+		t.Parallel()
+		cache, compiles := newCountingCache(t)
+		path := writeTemplate(t, t.TempDir(), "<p>{{.}}</p>")
+		if _, err := cache.Get(path); err != nil {
+			t.Fatal(err)
+		}
+		later := time.Now().Add(time.Hour)
+		if err := os.Chtimes(path, later, later); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := cache.Get(path); err != nil {
+			t.Fatal(err)
+		}
+		if *compiles != 2 {
+			t.Fatalf("compiles = %d, want 2", *compiles)
+		}
+	})
+
+	t.Run("stat error propagates", func(t *testing.T) {
+		t.Parallel()
+		cache, _ := newCountingCache(t)
+		if _, err := cache.Get(filepath.Join(t.TempDir(), "missing.html")); err == nil {
+			t.Fatal("want an error for a missing template")
+		}
+	})
+}

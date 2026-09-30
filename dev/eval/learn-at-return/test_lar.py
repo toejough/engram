@@ -222,8 +222,15 @@ def test_env_is_exactly_the_d5_allowlist(tmp_path):
     hi = argv.index(lar.HANDOFF_PYTHON)
     pairs = dict(a.split("=", 1) for a in argv[2:hi])
     # the token is not in argv; the handoff adds it from the inherited fd (see the end-to-end test)
-    assert set(pairs) == {"HOME", "USER", "PATH", "TERM", "TMPDIR", "XDG_DATA_HOME", "ENGRAM_VAULT_PATH"}
+    assert set(pairs) == {"HOME", "USER", "PATH", "TERM", "TMPDIR", "XDG_DATA_HOME", "ENGRAM_VAULT_PATH",
+                          "GOCACHE", "GOPATH", "GOMODCACHE", "GOFLAGS", "GOTOOLCHAIN", "GOPROXY", "GOTELEMETRY"}
     assert pairs["HOME"] == f"{tmp_path}/home"
+    # ruling T10: every Go state dir inside $ARM, module mode, and no toolchain/proxy/telemetry fetch
+    assert pairs["GOCACHE"] == f"{tmp_path}/gocache"
+    assert pairs["GOPATH"] == f"{tmp_path}/gopath"
+    assert pairs["GOMODCACHE"] == f"{tmp_path}/gopath/pkg/mod"
+    assert pairs["GOFLAGS"] == "-mod=mod"
+    assert (pairs["GOTOOLCHAIN"], pairs["GOPROXY"], pairs["GOTELEMETRY"]) == ("local", "off", "off")
     assert pairs["PATH"] == f"{tmp_path}/bin:/usr/bin:/bin"
     assert pairs["TERM"] == "dumb"
     assert pairs["TMPDIR"] == f"{tmp_path}/tmp"
@@ -261,7 +268,7 @@ def test_token_reaches_the_arm_env_but_never_argv_or_files(tmp_path):
     assert rec["returncode"] == 0
     seen = json.loads(dump.read_text())
     assert set(seen["env"]) == {"HOME", "USER", "PATH", "TERM", "TMPDIR", "XDG_DATA_HOME", "ENGRAM_VAULT_PATH",
-                                "CLAUDE_CODE_OAUTH_TOKEN"}
+                                "GOCACHE", "GOPATH", "GOMODCACHE", "GOFLAGS", "GOTOOLCHAIN", "GOPROXY", "GOTELEMETRY", "CLAUDE_CODE_OAUTH_TOKEN"}
     assert seen["env"]["CLAUDE_CODE_OAUTH_TOKEN"] == FAKE_TOKEN
     assert FAKE_TOKEN not in json.dumps(seen["argv"])
     assert seen["argv"][1:3] == ["-p", "--output-format"]
@@ -417,59 +424,63 @@ def test_parse_arm_spec():
 # ---------------------------------------------------------------------------
 
 
-def test_fixture_checkout_is_built_inside_the_arm(arm):
+def test_fixture_checkout_is_a_go_module_with_stubs(arm):
     root, _, info = arm
     fix = root / "fixture" / "quillfeather"
+    assert (fix / "go.mod").read_text() == "module quillfeather\n\ngo 1.22\n"
     files = lar.load_fixtures()["domains"]["quillfeather"]["unit_files"]
     for n, rel in enumerate(files, 1):
         assert f"TODO(unit {n})" in (fix / rel).read_text()
-        log = (fix / f"test-output-unit-{n}.txt").read_text()
-        assert log == (lar.IMPL_DIR / "quillfeather" / f"test-output-unit-{n}.txt").read_text()
-        assert "PASS" in log
-    assert not (fix / "run-tests").exists()
+        assert not (fix / rel.replace(".go", "_test.go")).exists()  # the worker writes the tests
+    assert not list(fix.glob("test-output-unit-*"))
     assert info["fixture_dir"] == str(fix)
     assert not (root / "work" / "quillfeather").exists()  # the orchestrator's cwd still has no checkout
+    assert os.path.realpath(root / "bin" / "go") == os.path.realpath(lar.GO_BIN)
 
 
-def test_fixture_tools_are_write_edit_and_cat_of_the_test_logs_only(arm):
+def test_tarnbrook_module_ships_its_main(tmp_path):
+    root = tmp_path / "engram-arm.T"
+    root.mkdir()
+    fe = tmp_path / "e"
+    fe.write_text("")
+    spec = lar.ArmSpec(cell="P2", arm="RED", learn_source="pin", domain="tarnbrook")
+    lar.build_arm(str(root), spec, FakeSource(), engram_bin=str(fe), deny_entries=[], home="/h")
+    assert "func main()" in (root / "fixture" / "tarnbrook" / "cmd" / "main.go").read_text()
+
+
+def test_fixture_tools_are_write_edit_and_go_test_in_the_module_only(arm):
     root, _, info = arm
     fix = root / "fixture" / "quillfeather"
-    # Bash rules match the literal command text, so the path is the plain absolute path
-    assert info["fixture_tools"] == [f"Edit(/{fix}/**)", f"Write(/{fix}/**)", f"Bash(cat {fix}/test-output-unit-*)"]
+    assert info["fixture_tools"] == [f"Edit(/{fix}/**)", f"Write(/{fix}/**)", f"Bash(go -C {fix} test:*)"]
 
 
-def test_fixture_agent_gets_read_write_edit_bash_and_cats_its_log(arm):
+def test_fixture_agent_writes_impl_and_tests_then_runs_go_test(arm):
     root, _, info = arm
     text = (root / "home/.claude/agents/unit-worker.md").read_text()
     front = text.split("---")[1]
     assert "tools: Read, Write, Edit, Bash\n" in front
-    denied = next(ln for ln in front.splitlines() if ln.startswith("disallowedTools:"))
-    names = denied.split(":", 1)[1].replace(" ", "").split(",")
+    names = next(ln for ln in front.splitlines() if ln.startswith("disallowedTools:")).split(":", 1)[1]
+    names = names.replace(" ", "").split(",")
     assert "Bash" not in names and not any(n.startswith("Bash(") for n in names)
     for t in ("Skill", "Agent", "Task", "WebFetch", "WebSearch"):
         assert t in names
     fix = str(root / "fixture" / "quillfeather")
     for n, rel in enumerate(lar.load_fixtures()["domains"]["quillfeather"]["unit_files"], 1):
         impl = (lar.IMPL_DIR / "quillfeather" / f"unit{n}.go.txt").read_text()
-        assert impl in text and len(impl.splitlines()) >= 30
-        assert f"{fix}/{rel}" in text
-        assert f"`cat {fix}/test-output-unit-{n}.txt`" in text
-    assert info["unit1_report"] in text  # the returned report is still scripted and verbatim
+        test = (lar.IMPL_DIR / "quillfeather" / f"unit{n}_test.go.txt").read_text()
+        assert impl in text and test in text
+        assert f"`{fix}/{rel}`" in text and f"`{fix}/{rel.replace('.go', '_test.go')}`" in text
+    assert f"`go -C {fix} test ./...`" in text
+    assert info["unit1_report"] in text
 
 
-def test_report_test_lines_match_what_the_worker_did():
-    """T9: every scripted report claims only a check of its unit's test log, with the log's real count."""
+def test_reports_say_go_test_passes_again_and_lessons_are_unchanged():
     fx = lar.load_fixtures()
     for dom, d in fx["domains"].items():
-        bodies = {1: [d["unit1_neutral_body"]] + [c["unit1_body"][dom] for c in fx["cells"].values()
-                                                   if dom in c.get("unit1_body", {})],
-                  2: [d["unit2_report"]], 3: [d["unit3_report"]]}
-        for n, texts in bodies.items():
-            log = (lar.IMPL_DIR / dom / f"test-output-unit-{n}.txt").read_text()
-            k = log.count("    --- PASS:")
-            for t in texts:
-                assert "go test ./..." not in t
-                assert f"Checked the unit's test log (`test-output-unit-{n}.txt`): all {k} tests pass." in t
+        texts = [d["unit1_neutral_body"], d["unit2_report"], d["unit3_report"]] + [
+            c["unit1_body"][dom] for c in fx["cells"].values() if dom in c.get("unit1_body", {})]
+        for t in texts:
+            assert "- `go test ./...` passes." in t and "test log" not in t
 
 
 def test_lessons_lines_unchanged_by_t9():

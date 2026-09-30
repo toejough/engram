@@ -1,0 +1,55 @@
+package frontmatter
+
+import (
+	"errors"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestParseFrontMatterDate(t *testing.T) {
+	t.Parallel()
+
+	valid := []struct {
+		name string
+		raw  string
+		want time.Time
+	}{
+		{"rfc3339 with Z", "2026-03-14T09:30:00Z", time.Date(2026, 3, 14, 9, 30, 0, 0, time.UTC)},
+		{"rfc3339 with offset", "2026-03-14T11:30:00+02:00", time.Date(2026, 3, 14, 9, 30, 0, 0, time.UTC)},
+		{"date only", "2026-03-14", time.Date(2026, 3, 14, 0, 0, 0, 0, time.UTC)},
+		{"quoted value", `"2026-03-14T09:30:00Z"`, time.Date(2026, 3, 14, 9, 30, 0, 0, time.UTC)},
+	}
+	for _, tc := range valid {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := parseFrontMatterDate("posts/pi-day.md", tc.raw)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !got.Equal(tc.want) || got.Location() != time.UTC {
+				t.Fatalf("got %v, want %v in UTC", got, tc.want)
+			}
+		})
+	}
+
+	t.Run("invalid names the file", func(t *testing.T) {
+		t.Parallel()
+		_, err := parseFrontMatterDate("posts/bad.md", "14 March 2026")
+		if err == nil || !strings.Contains(err.Error(), "invalid date in posts/bad.md") {
+			t.Fatalf("want an error naming the file, got %v", err)
+		}
+	})
+}
+
+func TestPageDate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("missing date", func(t *testing.T) {
+		t.Parallel()
+		_, err := PageDate("posts/draft.md", map[string]string{"title": "Draft"})
+		if !errors.Is(err, ErrNoDate) {
+			t.Fatalf("want ErrNoDate, got %v", err)
+		}
+	})
+}

@@ -1,0 +1,46 @@
+package main
+
+import (
+	"errors"
+	"testing"
+)
+
+func TestConvert(t *testing.T) {
+	t.Parallel()
+
+	sizes := map[string]PackSizes{"BOLT-M6": {PiecesPerBox: 50, BoxesPerPallet: 40}}
+
+	cases := []struct {
+		name     string
+		qty      int
+		from, to string
+		want     int
+	}{
+		{"pcs to boxes", 150, "pcs", "boxes", 3},
+		{"boxes to pallets", 80, "boxes", "pallets", 2},
+		{"pallets to pcs", 1, "pallets", "pcs", 2000},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := Convert("BOLT-M6", sizes, tc.qty, tc.from, tc.to)
+			if err != nil || got != tc.want {
+				t.Fatalf("Convert = %d, %v; want %d", got, err, tc.want)
+			}
+		})
+	}
+
+	t.Run("missing pack size refused", func(t *testing.T) {
+		t.Parallel()
+		if _, err := Convert("NUT-M8", sizes, 1, "boxes", "pcs"); !errors.Is(err, ErrNoPackSize) {
+			t.Fatalf("want ErrNoPackSize, got %v", err)
+		}
+	})
+
+	t.Run("non whole result refused", func(t *testing.T) {
+		t.Parallel()
+		if _, err := Convert("BOLT-M6", sizes, 7, "pcs", "boxes"); err == nil {
+			t.Fatal("want an error for 7 pcs in boxes of 50")
+		}
+	})
+}

@@ -1,0 +1,54 @@
+package importer
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestReadStock(t *testing.T) {
+	t.Parallel()
+
+	t.Run("good rows", func(t *testing.T) {
+		t.Parallel()
+		rows, bad, err := ReadStock(strings.NewReader("Washer,200,pcs\nNut M6,50,boxes\n"))
+		if err != nil || len(bad) != 0 {
+			t.Fatalf("err=%v bad=%v", err, bad)
+		}
+		if len(rows) != 2 || rows[1] != (Row{Name: "Nut M6", Quantity: 50, Unit: "boxes"}) {
+			t.Fatalf("rows = %+v", rows)
+		}
+	})
+
+	t.Run("quoted comma in name", func(t *testing.T) {
+		t.Parallel()
+		rows, bad, err := ReadStock(strings.NewReader("\"Bolt, M6\",40,pcs\n"))
+		if err != nil || len(bad) != 0 {
+			t.Fatalf("err=%v bad=%v", err, bad)
+		}
+		if len(rows) != 1 || rows[0].Name != "Bolt, M6" || rows[0].Quantity != 40 {
+			t.Fatalf("rows = %+v", rows)
+		}
+	})
+
+	t.Run("short row skipped with line number", func(t *testing.T) {
+		t.Parallel()
+		rows, bad, err := ReadStock(strings.NewReader("Washer,200,pcs\nNut M6,50\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rows) != 1 || len(bad) != 1 || bad[0].Line != 2 {
+			t.Fatalf("rows=%+v bad=%+v", rows, bad)
+		}
+	})
+
+	t.Run("non numeric quantity skipped", func(t *testing.T) {
+		t.Parallel()
+		rows, bad, err := ReadStock(strings.NewReader("Washer,lots,pcs\n"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rows) != 0 || len(bad) != 1 || bad[0].Line != 1 {
+			t.Fatalf("rows=%+v bad=%+v", rows, bad)
+		}
+	})
+}

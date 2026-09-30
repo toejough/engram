@@ -3,27 +3,36 @@ package slug
 import (
 	"strings"
 	"unicode"
-
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 )
 
-// foldAccents strips combining marks after NFD decomposition, so "é" becomes "e".
-var foldAccents = transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
+// asciiFold maps the accented Latin letters that appear in titles to their plain ASCII base.
+var asciiFold = map[rune]string{
+	'à': "a", 'á': "a", 'â': "a", 'ä': "a", 'ã': "a", 'å': "a",
+	'ç': "c",
+	'è': "e", 'é': "e", 'ê': "e", 'ë': "e",
+	'ì': "i", 'í': "i", 'î': "i", 'ï': "i",
+	'ñ': "n",
+	'ò': "o", 'ó': "o", 'ô': "o", 'ö': "o", 'õ': "o", 'ø': "o",
+	'ù': "u", 'ú': "u", 'û': "u", 'ü': "u",
+	'ý': "y", 'ÿ': "y",
+	'ß': "ss", 'æ': "ae", 'œ': "oe",
+}
 
 // Slugify builds a page's URL slug from its title: lowercase, ASCII-folded, with every run of
 // non-alphanumeric characters collapsed to one hyphen and hyphens trimmed from both ends.
 func Slugify(title string) string {
-	folded, _, err := transform.String(foldAccents, title)
-	if err != nil {
-		folded = title
-	}
-
 	var out strings.Builder
 	pendingHyphen := false
 
-	for _, r := range strings.ToLower(folded) {
+	for _, r := range strings.ToLower(title) {
+		if folded, ok := asciiFold[r]; ok {
+			if pendingHyphen && out.Len() > 0 {
+				out.WriteByte('-')
+			}
+			out.WriteString(folded)
+			pendingHyphen = false
+			continue
+		}
 		if r < unicode.MaxASCII && (unicode.IsLetter(r) || unicode.IsDigit(r)) {
 			if pendingHyphen && out.Len() > 0 {
 				out.WriteByte('-')
