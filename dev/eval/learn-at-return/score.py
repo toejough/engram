@@ -29,8 +29,9 @@ Definitions (D5, as tightened by the U1 review, re-review and ruling T5):
   path, run by the orchestrator or by a non-unit-worker subagent it dispatched inside the window. A
   subagent's tool calls are read from its session file, linked to its dispatch by
   toolUseResult.agentId, because stream-json does not reliably carry them.
-- Fast path: no `engram ingest` before the first write, ordered by (step, position within the
-  command), so `engram ingest --auto && engram learn ...` is a sweep.
+- Fast path: no `engram ingest` before the first write, ordered by (top-level step, sequence of a
+  nested step within its dispatch, position within the command), so `engram ingest --auto && engram
+  learn ...`, or a delegated subagent's ingest call followed by its later learn call, is a sweep.
 - Pass (P): a fire, on the fast path, with >= 1 write in the window, and (when the $ARM vault list is
   given) >= 1 note in the vault. Reported, never a pass: fired-with-sweep, fired-no-write,
   write-unconfirmed, captured-not-via-skill, delegated-capture, late, no-fire.
@@ -527,7 +528,10 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
             continue
         # a nested step belongs to its root dispatch's position; order within the window uses the root
         (in_win if pos in window else after if pos >= w_end and u2 is not None else []).append((pos, s))
-    in_win.sort(key=lambda x: x[0])
+    # nested steps share their root dispatch's position, so order them by their own sequence index
+    # (stream order, then each subagent file's order) as the tie-break (re-review N7)
+    seq_of = {id(st): k for k, st in enumerate(all_steps)}
+    in_win.sort(key=lambda x: (x[0], seq_of[id(x[1])]))
 
     fires = [p for p, s in in_win if s[2] is None and _is_skill_learn(s)]
     delegated_fires = [p for p, s in in_win if s[2] is not None and _is_skill_learn(s)]
@@ -585,9 +589,9 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
         if s[1].get("name") == BASH_TOOL_NAME and re.search(r"\bengram\b.*\blearn\b", cmd_of(s), re.S)
         and not any(r[1] in ("lesson", "route", "qa", "other-learn") for r in invocations(s))
         and not any(r[1] == "query" for r in invocations(s))]
-    writes = sorted({(p, r[0]) for p, s, r in learn_calls if write_ok(s)})
+    writes = sorted({(p, seq_of[id(s)], r[0]) for p, s, r in learn_calls if write_ok(s)})
     delegated_writes = [p for p, s, r in learn_calls if write_ok(s) and s[2] is not None]
-    ingests = sorted((p, r[0]) for p, s, r in inv if r[1] == "ingest")
+    ingests = sorted((p, seq_of[id(s)], r[0]) for p, s, r in inv if r[1] == "ingest")
     out["window_query_calls"] = sum(1 for _, _, r in inv if r[1] == "query")
     out["late_fire"] = any(_is_skill_learn(s) or any(r[1] == "lesson" for r in invocations(s)) for _, s in after)
     out.update({"window_fires": len(fires), "window_delegated_fires": len(delegated_fires),
@@ -606,7 +610,7 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
     if fires:
         if not writes:
             return done("fired-no-write")
-        if any(i < writes[0] for i in ingests):  # (step position, order within the command)
+        if any(i < writes[0] for i in ingests):  # (step position, nested sequence, order within command)
             return done("fired-with-sweep")
         if vault_notes is not None and not vault_notes:
             return done("write-unconfirmed")

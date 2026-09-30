@@ -646,3 +646,29 @@ def test_n5_unidentified_dispatch_ends_the_window_and_is_flagged():
 def test_n6_yes_no_suffixes_are_questions(final):
     ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), result(final)]
     assert run(ev)["label"] == "question-stop"
+
+
+def test_n7_delegated_ingest_then_later_learn_call_is_a_sweep():
+    """Nested steps of one delegated dispatch keep their own order: an ingest call followed by a later
+    learn call inside the subagent is a sweep, not a fast-path write."""
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *skill_learn(),
+          asst(tu("g1", "Agent", {"subagent_type": "general-purpose", "prompt": "save the lesson"})),
+          user(tr("g1", "done")), *tail()]
+    main = good_session("GREEN") + [_main_link("g1", "agx")]
+    sub = "\n".join([_sub_file("agx", "sb1", "engram ingest --auto", "ingested 12 files"),
+                     _sub_file("agx", "sb2", "engram learn feedback --slug x", NOTE_PATH)])
+    out = score.score_arm(lines(ev), main, cell="P1", arm="GREEN", unit1_report=REPORT_P1, lessons=LESSONS_P1,
+                          other_session_texts=[sub], vault_notes=["n.md"])
+    assert out["label"] == "fired-with-sweep"
+
+
+def test_n7_delegated_learn_then_later_ingest_stays_pass():
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *skill_learn(),
+          asst(tu("g1", "Agent", {"subagent_type": "general-purpose", "prompt": "save the lesson"})),
+          user(tr("g1", "done")), *tail()]
+    main = good_session("GREEN") + [_main_link("g1", "agx")]
+    sub = "\n".join([_sub_file("agx", "sb2", "engram learn feedback --slug x", NOTE_PATH),
+                     _sub_file("agx", "sb1", "engram ingest --auto", "ingested 12 files")])
+    out = score.score_arm(lines(ev), main, cell="P1", arm="GREEN", unit1_report=REPORT_P1, lessons=LESSONS_P1,
+                          other_session_texts=[sub], vault_notes=["n.md"])
+    assert out["label"] == "pass"
