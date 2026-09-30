@@ -1,0 +1,6 @@
+Unit 1 (Front-matter dates) is done.
+- Added `parseFrontMatterDate` in `internal/frontmatter/date.go`; a page whose `date:` doesn't parse now fails the build with `invalid date in <file>`.
+- Added table tests for valid and invalid dates.
+- Checked the unit's test log (`test-output-unit-1.txt`): all 6 tests pass.
+
+LESSONS: none

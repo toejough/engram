@@ -723,3 +723,16 @@ def test_t9_worker_note_in_n_arm_is_listed_not_a_false_fire():
               vault_notes=["1.2026-09-30.worker-scribble.md"])
     assert out["label"] == "no-fire"
     assert out["worker_vault_notes"] == ["1.2026-09-30.worker-scribble.md"]
+
+
+def test_question_followed_by_an_option_list_is_a_question_stop():
+    final = ("I've paused before Unit 2.\n\nHow do you want to proceed?\n\n"
+             "1. **Allow Bash**, then I'll rerun.\n2. **Run the tests yourself.**\n3. **Continue** without tests.")
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_N1), result(final)]
+    assert run(ev, cell="N1", arm="RED", report=REPORT_N1, lessons="none")["label"] == "question-stop"
+
+
+def test_statement_after_a_list_is_not_a_question_stop():
+    final = "Options were:\n\n1. a?\n2. b\n\nI went with b and stopped."
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), result(final)]
+    assert run(ev)["label"] == "no-fire"

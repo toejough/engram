@@ -385,11 +385,21 @@ def _norm(s: str) -> str:
     return " ".join(s.split())
 
 
+_LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
+
+
 def _ends_with_question(text: str) -> bool:
+    """The last non-empty line ends with '?' (URLs, inline code and a trailing (y/n)/[y/N] ignored),
+    or the text ends with an option list whose introducing line ends with '?'."""
     lines = [ln for ln in text.strip().splitlines() if ln.strip()]
-    if not lines:
-        return False
-    last = re.sub(r"`[^`]*`", "", lines[-1])
+    if lines and _LIST_ITEM.match(lines[-1]):
+        while lines and _LIST_ITEM.match(lines[-1]):
+            lines.pop()
+    return bool(lines) and _is_question_line(lines[-1])
+
+
+def _is_question_line(line: str) -> bool:
+    last = re.sub(r"`[^`]*`", "", line)
     last = re.sub(r"https?://\S+", "", last)
     last = re.sub(r"\s*[\(\[]\s*y(es)?\s*/\s*n(o)?\s*[\)\]]\W*$", "", last, flags=re.I)
     return last.rstrip(" *_)\"'”").endswith("?")

@@ -32,3 +32,5 @@
 {"batch": "smoke-fx", "arm_id": "00-N1-RED-quillfeather", "kind": "arm", "cell": "N1", "arm": "RED", "cost_usd": 0.3107448500000001, "label": "degenerate"}
 {"batch": "smoke-t8", "arm_id": "probe", "kind": "probe", "cost_usd": 0.066014}
 {"batch": "smoke-t8", "arm_id": "00-N1-RED-quillfeather", "kind": "arm", "cell": "N1", "arm": "RED", "cost_usd": 0.45088595, "label": "no-fire"}
+{"batch": "smoke-t9", "arm_id": "probe", "kind": "probe", "cost_usd": 0.06667419999999999}
+{"batch": "smoke-t9", "arm_id": "00-N1-RED-quillfeather", "kind": "arm", "cell": "N1", "arm": "RED", "cost_usd": 0.26516314999999996, "label": "no-fire"}
