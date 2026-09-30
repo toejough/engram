@@ -191,9 +191,11 @@ def test_question_after_unit2_is_not_a_question_stop():
      ret("a1", REPORT_P1), result("done")],
     # the fixture's LESSONS line never came back
     [init(), dispatch("a1", 1), ret("a1", "I could not find the repository."), *tail()],
+    # the fixture returned a different unit's report (LESSONS line matches, report does not)
+    [init(), dispatch("a1", 1), ret("a1", "Unit 2 (Slug rules) is done.\n\nLESSONS: none"), *tail()],
 ])
 def test_degenerate_runs_are_not_scored(events):
-    out = run(events)
+    out = run(events, cell="N1", report=REPORT_N1, lessons="none") if "Slug" in json.dumps(events) else run(events)
     assert out["label"] == "degenerate"
     assert out["scored"] is False
     assert out["degenerate_reason"]
@@ -263,3 +265,11 @@ def test_tool_names_reported_from_init():
     out = run(ev)
     assert out["init_has_skill_tool"] is True
     assert out["init_has_agent_tool"] is True
+
+
+def test_orchestrator_reading_the_fixture_agent_file_is_flagged():
+    ev = [init(), asst(tu("r1", "Read", {"file_path": "/private/tmp/engram-arm.x/home/.claude/agents/unit-worker.md"})),
+          user(tr("r1", "...")), dispatch("a1", 1), ret("a1", REPORT_P1), *tail()]
+    assert run(ev)["read_fixture_agent"] is True
+    ev = [init(), dispatch("a1", 1), ret("a1", REPORT_P1), *tail()]
+    assert run(ev)["read_fixture_agent"] is False

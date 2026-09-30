@@ -170,6 +170,9 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
         "report_verbatim": False, "return_via": None, "late_fire": False,
         "window_query_calls": 0, "degenerate_reason": None,
         "gate": gate(session_texts, arm),
+        "read_fixture_agent": any(
+            s[0] == "use" and s[1].get("name") in ("Read", "Glob", "Grep")
+            and "agents" in json.dumps(s[1].get("input") or {}) for s in steps),
     }
 
     def done(label: str) -> Dict[str, Any]:
@@ -214,6 +217,10 @@ def score_arm(stream_lines: List[str], session_texts: List[str], cell: str, arm:
         out["degenerate_reason"] = "unit-1 report with the cell's LESSONS line never returned"
         return done("degenerate")
     out["report_verbatim"] = _norm(unit1_report) in _norm(body)
+    if not out["report_verbatim"]:
+        # a `LESSONS: none` substring also matches the unit-2/3 reports, so only the exact report counts
+        out["degenerate_reason"] = "unit-1 return is not the fixture's unit-1 report verbatim"
+        return done("degenerate")
 
     # --- window
     u2 = dispatches[1] if len(dispatches) > 1 else None

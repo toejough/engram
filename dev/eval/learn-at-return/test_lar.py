@@ -145,6 +145,7 @@ def test_fixture_agent_carries_the_cells_reports_and_haiku_no_tools(arm):
     assert "name: unit-worker" in text
     assert "model: haiku" in text
     assert "disallowedTools:" in text
+    assert "the unit this request asks you to do now" in text
     fx = lar.load_fixtures()
     assert info["unit1_report"] in text
     assert info["unit1_report"].rstrip().endswith("LESSONS: " + fx["cells"]["P1"]["lessons"])
@@ -264,6 +265,29 @@ def test_probe_verdict_requires_blocked_target_and_home_plus_working_control():
     assert lar.probe_verdict(target_exists=False, home_exists=True, control_exists=True)["ok"] is False
     v = lar.probe_verdict(target_exists=False, home_exists=False, control_exists=False)
     assert v["ok"] is False and "control" in v["reason"]
+
+
+def test_layer2_probe_needs_seatbelt_evidence_for_the_target():
+    v = lar.probe_verdict(target_exists=False, home_exists=False, control_exists=True, seatbelt_blocked=False)
+    assert v["ok"] is False and "layer 2" in v["reason"]
+    v = lar.probe_verdict(target_exists=False, home_exists=False, control_exists=True, seatbelt_blocked=True)
+    assert v["ok"] is True
+
+
+def test_seatbelt_evidence_reads_the_touch_result():
+    def ev(cmd, out):
+        return [json.dumps({"type": "assistant", "parent_tool_use_id": None, "message": {"content": [
+                    {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": cmd}}]}}),
+                json.dumps({"type": "user", "parent_tool_use_id": None, "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": "t1", "is_error": True, "content": out}]}})]
+    blocked = ev("touch /private/tmp/claude-501/x/p", "touch: /private/tmp/claude-501/x/p: Operation not permitted")
+    assert lar.seatbelt_blocked(blocked, "/private/tmp/claude-501/x/p") is True
+    asked = ev("touch /private/tmp/claude-501/x/p", "This command requires approval")
+    assert lar.seatbelt_blocked(asked, "/private/tmp/claude-501/x/p") is False
+
+
+def test_probe_variants_are_d5_letter_and_d11_layer2():
+    assert lar.PROBE_VARIANTS == {"layer1+2": ("Bash(touch:*)",), "layer2": ("Bash",)}
 
 
 def test_probe_target_is_inside_an_existing_directory_entry(tmp_path):

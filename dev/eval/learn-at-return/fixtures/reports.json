@@ -48,7 +48,7 @@
     "N3": {
       "kind": "N",
       "domains": ["quillfeather", "tarnbrook"],
-      "lessons": "one test failed once and then passed on a rerun; it might be a race somewhere in the test setup, not investigated"
+      "lessons": "one test failed once and then passed on a rerun; it might be a race somewhere in the test setup"
     }
   }
 }
