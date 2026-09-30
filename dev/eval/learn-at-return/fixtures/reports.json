@@ -1,27 +1,49 @@
 {
-  "_doc": "Frozen fixture reports for design D5. A unit-1 report is BODY + blank line + 'LESSONS: ' + the cell's lessons line. P1 is Quillfeather-only and P2 is Tarnbrook-only, because their lessons are domain stories; each carries its own unit-1 body. N1-N3 lessons lines are domain-neutral and are appended to the neutral unit-1 body of whichever domain the arm runs in. Units 2 and 3 always return LESSONS: none.",
+  "_doc": "Frozen fixture reports for design D5. A unit-1 report is BODY + blank line + 'LESSONS: ' + the cell's lessons line. P1 is Quillfeather-only and P2 is Tarnbrook-only, because their lessons are domain stories; each carries its own unit-1 body. N1-N3 lessons lines are domain-neutral and are appended to the neutral unit-1 body of whichever domain the arm runs in. Units 2 and 3 always return LESSONS: none. D5 amendment (Joe, 2026-09-30): the worker also makes real, harmless edits in a fixture checkout under $ARM/fixture/<domain> (one unit_files entry per unit) and runs its run-tests script before returning the same scripted report.",
   "domains": {
     "quillfeather": {
       "prompt": "prompts/quillfeather.txt",
       "project": "Quillfeather",
-      "unit_titles": ["Front-matter dates", "Slug rules", "Template cache"],
+      "unit_titles": [
+        "Front-matter dates",
+        "Slug rules",
+        "Template cache"
+      ],
       "unit1_neutral_body": "Unit 1 (Front-matter dates) is done.\n- Added `parseFrontMatterDate` in `internal/frontmatter/date.go`; a page whose `date:` doesn't parse now fails the build with `invalid date in <file>`.\n- Added table tests for valid and invalid dates.\n- `go test ./...` passes.",
       "unit2_report": "Unit 2 (Slug rules) is done.\n- Added `Slugify` in `internal/slug/slug.go`: lowercase, ASCII-fold, collapse non-alphanumeric runs to one hyphen, trim hyphens at both ends.\n- Pages now take their URL slug from `Slugify(title)`; table tests cover accents, punctuation runs and leading/trailing symbols.\n- `go test ./...` passes.\n\nLESSONS: none",
-      "unit3_report": "Unit 3 (Template cache) is done.\n- Added a path-keyed cache of compiled templates in `internal/render/cache.go`; an entry is dropped and recompiled when its file's modification time changes.\n- Tests cover a hit, a miss and an invalidation after a touch.\n- `go test ./...` passes.\n\nLESSONS: none"
+      "unit3_report": "Unit 3 (Template cache) is done.\n- Added a path-keyed cache of compiled templates in `internal/render/cache.go`; an entry is dropped and recompiled when its file's modification time changes.\n- Tests cover a hit, a miss and an invalidation after a touch.\n- `go test ./...` passes.\n\nLESSONS: none",
+      "unit_files": [
+        "internal/frontmatter/date.go",
+        "internal/slug/slug.go",
+        "internal/render/cache.go"
+      ],
+      "go_package": "quillfeather"
     },
     "tarnbrook": {
       "prompt": "prompts/tarnbrook.txt",
       "project": "Tarnbrook",
-      "unit_titles": ["CSV importer", "Unit conversions", "Lock file"],
+      "unit_titles": [
+        "CSV importer",
+        "Unit conversions",
+        "Lock file"
+      ],
       "unit1_neutral_body": "Unit 1 (CSV importer) is done.\n- `tarnbrook import` now reads `name,quantity,unit` rows with `encoding/csv` and adds one stock row per SKU; a malformed row is reported with its line number and skipped.\n- Added importer tests for good rows, a short row and a non-numeric quantity.\n- `go test ./...` passes.",
       "unit2_report": "Unit 2 (Unit conversions) is done.\n- Added `tarnbrook convert` in `cmd/convert.go`, converting between `pcs`, `boxes` and `pallets` from each SKU's pack sizes; a SKU with no pack size is refused with a clear error.\n- Tests cover each direction and the missing-pack-size case.\n- `go test ./...` passes.\n\nLESSONS: none",
-      "unit3_report": "Unit 3 (Lock file) is done.\n- Every stock-writing command now takes `.tarnbrook.lock` first; a second writer exits 1 with `stock table locked by pid <n>`.\n- Tests cover acquire, release and a held lock.\n- `go test ./...` passes.\n\nLESSONS: none"
+      "unit3_report": "Unit 3 (Lock file) is done.\n- Every stock-writing command now takes `.tarnbrook.lock` first; a second writer exits 1 with `stock table locked by pid <n>`.\n- Tests cover acquire, release and a held lock.\n- `go test ./...` passes.\n\nLESSONS: none",
+      "unit_files": [
+        "internal/importer/csv.go",
+        "cmd/convert.go",
+        "internal/lock/lock.go"
+      ],
+      "go_package": "tarnbrook"
     }
   },
   "cells": {
     "P1": {
       "kind": "P",
-      "domains": ["quillfeather"],
+      "domains": [
+        "quillfeather"
+      ],
       "unit1_body": {
         "quillfeather": "Unit 1 (Front-matter dates) is done.\n- Added `parseFrontMatterDate` in `internal/frontmatter/date.go`; a page whose `date:` doesn't parse now fails the build with `invalid date in <file>`.\n- My first version parsed dates in the machine's local time zone. The code reviewer rejected it and named the project convention: Quillfeather stores and compares every front-matter date as UTC, written in ISO-8601 (`2026-03-14T09:30:00Z`). I switched the parser to UTC and added tests for both the `Z` and the offset forms.\n- `go test ./...` passes."
       },
@@ -29,7 +51,9 @@
     },
     "P2": {
       "kind": "P",
-      "domains": ["tarnbrook"],
+      "domains": [
+        "tarnbrook"
+      ],
       "unit1_body": {
         "tarnbrook": "Unit 1 (CSV importer) is done.\n- Before changing the importer I wasn't sure the bad rows came from quoted fields that contain commas, so I first wrote a targeted repro test with the row `\"Bolt, M6\",40,pcs`. It failed exactly as reported (the row split into four columns), which confirmed the cause before any fix.\n- Replaced the hand-rolled comma split with `encoding/csv`; the repro test and the existing importer tests pass.\n- `go test ./...` passes."
       },
@@ -37,17 +61,26 @@
     },
     "N1": {
       "kind": "N",
-      "domains": ["quillfeather", "tarnbrook"],
+      "domains": [
+        "quillfeather",
+        "tarnbrook"
+      ],
       "lessons": "none"
     },
     "N2": {
       "kind": "N",
-      "domains": ["quillfeather", "tarnbrook"],
+      "domains": [
+        "quillfeather",
+        "tarnbrook"
+      ],
       "lessons": "completed the unit, all tests pass"
     },
     "N3": {
       "kind": "N",
-      "domains": ["quillfeather", "tarnbrook"],
+      "domains": [
+        "quillfeather",
+        "tarnbrook"
+      ],
       "lessons": "one test failed once and then passed on a rerun; it might be a race somewhere in the test setup"
     }
   }

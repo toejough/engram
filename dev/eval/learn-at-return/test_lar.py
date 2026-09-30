@@ -410,3 +410,40 @@ def test_parse_arm_spec():
     assert s.domain == "tarnbrook"
     with pytest.raises(lar.HarnessError):
         lar.parse_arm_spec("P1:BLUE:pin", 0)
+
+
+# ---------------------------------------------------------------------------
+# D5 amendment (Joe, 2026-09-30): the fixture worker makes real, harmless edits in $ARM
+# ---------------------------------------------------------------------------
+
+
+def test_fixture_checkout_is_built_inside_the_arm(arm):
+    root, _, info = arm
+    fix = root / "fixture" / "quillfeather"
+    files = lar.load_fixtures()["domains"]["quillfeather"]["unit_files"]
+    for n, rel in enumerate(files, 1):
+        assert f"TODO(unit {n})" in (fix / rel).read_text()
+    check = fix / "run-tests"
+    assert os.access(check, os.X_OK)
+    assert info["fixture_dir"] == str(fix)
+    assert not (root / "work" / "quillfeather").exists()  # the orchestrator's cwd still has no checkout
+
+
+def test_fixture_tools_are_scoped_to_the_fixture_checkout(arm):
+    root, _, info = arm
+    fix = root / "fixture" / "quillfeather"
+    assert info["fixture_tools"] == [f"Edit(/{fix}/**)", f"Write(/{fix}/**)", f"Bash({fix}/run-tests)"]
+    assert not any(t.startswith(("Bash(engram", "Skill")) or t.endswith("/engram)") for t in info["fixture_tools"])
+
+
+def test_fixture_agent_gets_read_write_edit_bash_but_never_engram_or_skill(arm):
+    root, _, info = arm
+    text = (root / "home/.claude/agents/unit-worker.md").read_text()
+    front = text.split("---")[1]
+    assert "tools: Read, Write, Edit, Bash\n" in front
+    denied = next(ln for ln in front.splitlines() if ln.startswith("disallowedTools:"))
+    for t in ("Skill", "Agent", "Task", "WebFetch", "WebSearch", "Bash(engram:*)"):
+        assert t in denied
+    fix = str(root / "fixture" / "quillfeather")
+    assert f"{fix}/run-tests" in text and f"{fix}/internal/frontmatter/date.go" in text
+    assert info["unit1_report"] in text  # the returned report is still scripted and verbatim

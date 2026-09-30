@@ -672,3 +672,25 @@ def test_n7_delegated_learn_then_later_ingest_stays_pass():
     out = score.score_arm(lines(ev), main, cell="P1", arm="GREEN", unit1_report=REPORT_P1, lessons=LESSONS_P1,
                           other_session_texts=[sub], vault_notes=["n.md"])
     assert out["label"] == "pass"
+
+
+def test_fixture_worker_real_tool_calls_never_count():
+    """D5 amendment: the worker Reads/Edits/runs its check (and even an engram call) under its own
+    dispatch; none of it is a capture, in the stream or in its session file."""
+    fix = "/private/tmp/engram-arm.x/fixture/quillfeather"
+    ev = [init(), dispatch("a1", 1),
+          asst(tu("w1", "Read", {"file_path": fix + "/internal/frontmatter/date.go"}), parent="a1"),
+          asst(tu("w2", "Edit", {"file_path": fix + "/internal/frontmatter/date.go"}), parent="a1"),
+          *bash("w3", fix + "/run-tests", out="ok", parent="a1"),
+          *bash("w4", "engram learn feedback --slug x", parent="a1"),
+          ret("a1", REPORT_N1), *tail()]
+    main = good_session("RED") + [_main_link("a1", "fx1", agent_type="unit-worker")]
+    sub = _sub_file("fx1", "sb1", "engram learn feedback --slug y", NOTE_PATH)
+    out = score.score_arm(lines(ev), main, cell="N1", arm="RED", unit1_report=REPORT_N1, lessons="none",
+                          other_session_texts=[sub])
+    assert out["label"] == "no-fire"
+    p = score.score_arm(lines([init(), dispatch("a1", 1), *bash("w4", "engram learn feedback --x", parent="a1"),
+                               ret("a1", REPORT_P1), *tail()]),
+                        good_session("GREEN"), cell="P1", arm="GREEN", unit1_report=REPORT_P1, lessons=LESSONS_P1,
+                        vault_notes=["n.md"])
+    assert p["label"] == "no-fire"

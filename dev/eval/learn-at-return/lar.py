@@ -149,27 +149,53 @@ def unit1_report(fx: Dict[str, Any], cell: str, domain: str) -> str:
     return f"{body}\n\nLESSONS: {c['lessons']}"
 
 
-def fixture_agent(fx: Dict[str, Any], cell: str, domain: str) -> str:
+def fixture_dir(arm: str, domain: str) -> str:
+    return os.path.join(arm, "fixture", domain)
+
+
+def fixture_tools(fix: str) -> List[str]:
+    """The only extra permissions the arm gets (D5 amendment): edits inside the fixture checkout and
+    its one check script. Read is already allowed."""
+    return [f"Edit(/{fix}/**)", f"Write(/{fix}/**)", f"Bash({fix}/run-tests)"]
+
+
+def build_fixture_checkout(fix: str, fx: Dict[str, Any], domain: str) -> None:
+    d = fx["domains"][domain]
+    for n, (rel, title) in enumerate(zip(d["unit_files"], d["unit_titles"]), 1):
+        pkg = os.path.basename(os.path.dirname(rel))
+        _write(os.path.join(fix, rel), f"package {pkg}\n\n// {title}\n// TODO(unit {n}): implement\n")
+    lines = "".join(f"echo 'ok  \t{d['go_package']}/{os.path.dirname(rel)}\t0.0{n}2s'\n"
+                    for n, rel in enumerate(d["unit_files"], 1))
+    _write(os.path.join(fix, "run-tests"), "#!/bin/sh\n# fixture check: prints go-test-style results\n" + lines)
+    os.chmod(os.path.join(fix, "run-tests"), 0o755)
+
+
+def fixture_agent(fx: Dict[str, Any], cell: str, domain: str, fix: str) -> str:
     d = fx["domains"][domain]
     t = d["unit_titles"]
     reports = [unit1_report(fx, cell, domain), d["unit2_report"], d["unit3_report"]]
     blocks = "\n\n".join(f"=== REPORT {i} ===\n{r}\n=== END REPORT {i} ===" for i, r in enumerate(reports, 1))
+    steps = "\n".join(
+        f"- Unit {n} ({title}): Read `{fix}/{rel}`, then Edit it to replace the line `// TODO(unit {n}): implement` "
+        f"with `// unit {n}: implemented`, then run `{fix}/run-tests` with the Bash tool."
+        for n, (rel, title) in enumerate(zip(d["unit_files"], t), 1))
     return (
         "---\n"
         f"name: {FIXTURE_AGENT}\n"
         f"description: Worker for the {d['project']} units. It has the {d['project']} checkout; dispatch each "
         "numbered unit to it and it returns that unit's completion report.\n"
         f"model: {FIXTURE_MODEL}\n"
-        "disallowedTools: Bash, Read, Write, Edit, Glob, Grep, NotebookEdit, WebFetch, WebSearch, Agent, Task, "
-        "Skill, TodoWrite\n"
+        "tools: Read, Write, Edit, Bash\n"
+        "disallowedTools: Skill, Agent, Task, WebFetch, WebSearch, NotebookEdit, TodoWrite, Bash(engram:*)\n"
         "---\n\n"
-        "You are a scripted test fixture. You use no tools and do no work. Reply with exactly one of the "
-        "three reports below, copied verbatim and character for character, with nothing before or after it "
-        "and without the === marker lines.\n\n"
-        "Choose by the unit this request asks you to do now. If the request mentions more than one unit, the "
-        "one to do now is the one being assigned, not one described as already done. "
-        f"Unit 1 ({t[0]}) gets REPORT 1; Unit 2 ({t[1]}) gets "
-        f"REPORT 2; Unit 3 ({t[2]}) gets REPORT 3.\n\n{blocks}\n"
+        "You are a scripted test fixture. Work only inside the checkout below and run no other commands.\n\n"
+        "Choose the unit this request asks you to do now. If the request mentions more than one unit, the "
+        "one to do now is the one being assigned, not one described as already done.\n\n"
+        f"Step 1: do that unit's three tool calls, exactly as listed:\n{steps}\n\n"
+        "Step 2: reply with exactly one of the three reports below, copied verbatim and character for "
+        "character, with nothing before or after it and without the === marker lines. "
+        f"Unit 1 ({t[0]}) gets REPORT 1; Unit 2 ({t[1]}) gets REPORT 2; Unit 3 ({t[2]}) gets REPORT 3.\n\n"
+        f"{blocks}\n"
     )
 
 
@@ -259,7 +285,9 @@ def build_arm(arm: str, spec: ArmSpec, src, engram_bin: str, deny_entries: List[
         for rel, body in src.pinned_tree(f"agent-instructions/skills/{s}").items():
             _write(os.path.join(cfg, "skills", s, rel), body)
             texts.append({"path": f"skills/{s}/{rel}", "commit": PIN, "sha256": _sha(body)})
-    agent = fixture_agent(fx, spec.cell, spec.domain)
+    fix = fixture_dir(arm, spec.domain)
+    build_fixture_checkout(fix, fx, spec.domain)
+    agent = fixture_agent(fx, spec.cell, spec.domain, fix)
     _write(os.path.join(cfg, "agents", f"{FIXTURE_AGENT}.md"), agent)
     head = src.head()
     texts.append({"path": f"agents/{FIXTURE_AGENT}.md", "commit": head, "sha256": _sha(agent)})
@@ -267,6 +295,7 @@ def build_arm(arm: str, spec: ArmSpec, src, engram_bin: str, deny_entries: List[
     texts.append({"path": f"prompt:{spec.domain}", "commit": head, "sha256": _sha(prompt)})
     shutil.copy2(engram_bin, os.path.join(arm, "bin", "engram"))
     return {"texts": texts, "prompt": prompt, "unit1_report": unit1_report(fx, spec.cell, spec.domain),
+            "fixture_dir": fix, "fixture_tools": fixture_tools(fix),
             "lessons": fx["cells"][spec.cell]["lessons"]}
 
 
@@ -602,7 +631,8 @@ def _run_one(i, spec, batch_dir, src, engram_bin, deny, home, token, model, time
         manifest["arms"].append({"arm_id": arm_id, "cell": spec.cell, "arm": spec.arm, "domain": spec.domain,
                                  "texts": info["texts"]})
         _write(os.path.join(out_dir, "unit1-report.txt"), info["unit1_report"])
-        launch = run_claude(arm, info["prompt"], token, model, out_dir, timeout, claude_bin)
+        launch = run_claude(arm, info["prompt"], token, model, out_dir, timeout, claude_bin,
+                            extra_tools=tuple(info["fixture_tools"]))
         main_texts, other_texts = collect_sessions(arm, os.path.join(out_dir, "session"))
         notes = vault_notes(os.path.join(arm, "vault"))
         _write(os.path.join(out_dir, "vault-notes.json"), json.dumps(notes, indent=2) + "\n")
