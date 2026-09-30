@@ -1,0 +1,6 @@
+Unit 1 (CSV importer) is done.
+- `tarnbrook import` now reads `name,quantity,unit` rows with `encoding/csv` and adds one stock row per SKU; a malformed row is reported with its line number and skipped.
+- Added importer tests for good rows, a short row and a non-numeric quantity.
+- `go test ./...` passes.
+
+LESSONS: one test failed once and then passed on a rerun; it might be a race somewhere in the test setup

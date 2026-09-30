@@ -1,0 +1,1009 @@
+{
+  "batch": "green-P2",
+  "started": "2026-09-30T20:24:02.502294+00:00",
+  "arms": [
+    {
+      "arm_id": "00-P2-GREEN-tarnbrook",
+      "cell": "P2",
+      "arm": "GREEN",
+      "domain": "tarnbrook",
+      "texts": [
+        {
+          "path": "engram/recall.md",
+          "sha256": "65cc783280ec09413e179aa75e60068cb0374fd8dbccc1223da4bcb7d6e9564d",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "54d0080281473ec0512ee7ef4193cb6891eacef2a8b0a71fe923be7202030547"
+        },
+        {
+          "path": "engram/delegate.md",
+          "sha256": "ec0e385abd5182175398be1322cc73ddabc9d92810778b4dce2e032b8b24c144",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "8d9bb9ac2367440835a9bc75d9fed405b0d0ed0de59894c9547845d7ae6aecec"
+        },
+        {
+          "path": "engram/learn.md",
+          "sha256": "fbdcfc3977e6bea02ebd215ae621afd094c2200ef01e5149c089f50521ad39a5",
+          "source": "worktree",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "content_sha256": "2c3befe9add688e9175a1f17497dcea52078329635cc670c4d049b41f3c0dfc9",
+          "dirty": false,
+          "git_blob": "9a7355d5c2c5c53669c9130e3a496f0da9c57c91"
+        },
+        {
+          "path": "engram/shim.md",
+          "sha256": "8e71bfd53a1c4d8bd219894ac6313d92ad11b29c96bb76ce95d40d70a617799a",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "0ace7a760d1674e41826fb3ac723e2bd9d6889b8b534615bfdc346ebc7ca4ed1"
+        },
+        {
+          "path": "skills/recall/SKILL.md",
+          "commit": "67911117",
+          "sha256": "3dc7f34b55fbda1834aa75d185c890eb25a273642bb36086d4a10dc886839b1f"
+        },
+        {
+          "path": "skills/recall/tests/README.md",
+          "commit": "67911117",
+          "sha256": "7e79abd404f28103cb32096687655784c90d5111f8e13efaf4ac26da050140bd"
+        },
+        {
+          "path": "skills/recall/tests/baseline-bootstrap-create.md",
+          "commit": "67911117",
+          "sha256": "5e7371a3e09c65011cec8aedd7cb5e12570e5a835bef26978b51952dd00a7ca4"
+        },
+        {
+          "path": "skills/recall/tests/baseline-empty-vault-skip-l2.md",
+          "commit": "67911117",
+          "sha256": "9ff6954ad74ead59c1be02ca15941fab62dd11240ddaeaf87cb74e3ff1b86937"
+        },
+        {
+          "path": "skills/recall/tests/baseline-judgement-and-synthesis.md",
+          "commit": "67911117",
+          "sha256": "086101a9a9ba9847d523e4355cc2b787726dadc4ebf833c3dee6794f03772ec2"
+        },
+        {
+          "path": "skills/recall/tests/baseline-multi-query.md",
+          "commit": "67911117",
+          "sha256": "5ac3d905e4a45676ab1c0b24024fac261deb5d7dbb5962c56af31c504c3f3488"
+        },
+        {
+          "path": "skills/recall/tests/baseline-recency-conflict.md",
+          "commit": "67911117",
+          "sha256": "d45a2e611822ea0d5d1c7a2f85f80d1064274d6ad8c6c23649ac7f3fba73097e"
+        },
+        {
+          "path": "skills/learn/SKILL.md",
+          "commit": "67911117",
+          "sha256": "a217650a2174342856ab0f96cdc95ccc63c72c13ca67159337a045eedb1c3b76"
+        },
+        {
+          "path": "skills/learn/tests/README.md",
+          "commit": "67911117",
+          "sha256": "0c7471947b03ce258bac90c0ced0f19a48a19e78f1cb7dd5e5d37969370e6ac1"
+        },
+        {
+          "path": "skills/learn/tests/baseline-autonomous-trigger.md",
+          "commit": "67911117",
+          "sha256": "decea582e73578f8c5d7b956b245f013434885f1c606246c0567ea64c6298118"
+        },
+        {
+          "path": "skills/learn/tests/baseline-clean-write.md",
+          "commit": "67911117",
+          "sha256": "a5939af5ecaaf132f49aea9a5025571bfc4327b3d1d8f7b14ee6e8da995c7aee"
+        },
+        {
+          "path": "skills/learn/tests/baseline-confirmed-approach.md",
+          "commit": "67911117",
+          "sha256": "2ba5ad4fcc30256b5a701c95f62bc80a53db3a0c4d209173c462cbd8c32adf3b"
+        },
+        {
+          "path": "skills/learn/tests/baseline-hindsight-framing.md",
+          "commit": "67911117",
+          "sha256": "bd5c8d0b85b8fb66d015a2ffa845ffaa5939f83456f8d884951434a9e971e093"
+        },
+        {
+          "path": "skills/learn/tests/baseline-information-not-knowledge.md",
+          "commit": "67911117",
+          "sha256": "5ddf2cee6925136e709fffb8d26ae56928cc4ad541f9283d6e2699a5bd2a7680"
+        },
+        {
+          "path": "skills/learn/tests/baseline-project-specific.md",
+          "commit": "67911117",
+          "sha256": "d946b8f6b51e7c350235d7b92cdac8a0bd384d474c3318f1d16e011e39353d2c"
+        },
+        {
+          "path": "skills/learn/tests/baseline-vocab-refit.md",
+          "commit": "67911117",
+          "sha256": "7fa6979a61864605115b60b78f7ae8614dc8853eec39160f4804dfb91620530e"
+        },
+        {
+          "path": "skills/please/SKILL.md",
+          "commit": "67911117",
+          "sha256": "50e40c12d0720efb24c202d23eaeeaa8ce1618ae3c70a9936ac89160650d4faa"
+        },
+        {
+          "path": "skills/route/SKILL.md",
+          "commit": "67911117",
+          "sha256": "7a6d0fbbb9a0d9541390ca14797c2bb07aba12ed7bb96630fba20a72f4102857"
+        },
+        {
+          "path": "skills/route/price-table.md",
+          "commit": "67911117",
+          "sha256": "85e6c73486771e91f9aeba4e754eb417f9d07c293ac13cc1ccc2f263d7501c59"
+        },
+        {
+          "path": "skills/route/tests/README.md",
+          "commit": "67911117",
+          "sha256": "5a0f50a05f616ae10b8aff8eeba9223b2fac82c6a6c733f975f42527e81de0c7"
+        },
+        {
+          "path": "skills/route/tests/memory-discount-microtest.json",
+          "commit": "67911117",
+          "sha256": "495c350ea5e143dd9f7a8a14f6eb0744d32b02161be8de5fd8c3f528ceecc09b"
+        },
+        {
+          "path": "skills/curate/SKILL.md",
+          "commit": "67911117",
+          "sha256": "fc6443df5160d20b5553e6a82bee8a6380017ed67b43d15f4b50b38a90da647f"
+        },
+        {
+          "path": "skills/write-memory/SKILL.md",
+          "commit": "67911117",
+          "sha256": "edd3c8b8e01dd380310183c3ef4590490d84957427d1e94a58c09bff3841c77b"
+        },
+        {
+          "path": "agents/unit-worker.md",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "sha256": "e4d7e15f1778242715d2c9044296cac388ff66ec5f70dfb52af402570a51eee7"
+        },
+        {
+          "path": "prompt:tarnbrook",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "sha256": "4100eeb2843e3b1882c2bb584d592ee7f80f3da5a70426d25096d40729594886"
+        }
+      ],
+      "orchestrator_model": "claude-opus-5-5",
+      "fixture_models": [
+        "claude-haiku-4-5-20251001"
+      ]
+    },
+    {
+      "arm_id": "01-P2-GREEN-tarnbrook",
+      "cell": "P2",
+      "arm": "GREEN",
+      "domain": "tarnbrook",
+      "texts": [
+        {
+          "path": "engram/recall.md",
+          "sha256": "65cc783280ec09413e179aa75e60068cb0374fd8dbccc1223da4bcb7d6e9564d",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "54d0080281473ec0512ee7ef4193cb6891eacef2a8b0a71fe923be7202030547"
+        },
+        {
+          "path": "engram/delegate.md",
+          "sha256": "ec0e385abd5182175398be1322cc73ddabc9d92810778b4dce2e032b8b24c144",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "8d9bb9ac2367440835a9bc75d9fed405b0d0ed0de59894c9547845d7ae6aecec"
+        },
+        {
+          "path": "engram/learn.md",
+          "sha256": "fbdcfc3977e6bea02ebd215ae621afd094c2200ef01e5149c089f50521ad39a5",
+          "source": "worktree",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "content_sha256": "2c3befe9add688e9175a1f17497dcea52078329635cc670c4d049b41f3c0dfc9",
+          "dirty": false,
+          "git_blob": "9a7355d5c2c5c53669c9130e3a496f0da9c57c91"
+        },
+        {
+          "path": "engram/shim.md",
+          "sha256": "8e71bfd53a1c4d8bd219894ac6313d92ad11b29c96bb76ce95d40d70a617799a",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "0ace7a760d1674e41826fb3ac723e2bd9d6889b8b534615bfdc346ebc7ca4ed1"
+        },
+        {
+          "path": "skills/recall/SKILL.md",
+          "commit": "67911117",
+          "sha256": "3dc7f34b55fbda1834aa75d185c890eb25a273642bb36086d4a10dc886839b1f"
+        },
+        {
+          "path": "skills/recall/tests/README.md",
+          "commit": "67911117",
+          "sha256": "7e79abd404f28103cb32096687655784c90d5111f8e13efaf4ac26da050140bd"
+        },
+        {
+          "path": "skills/recall/tests/baseline-bootstrap-create.md",
+          "commit": "67911117",
+          "sha256": "5e7371a3e09c65011cec8aedd7cb5e12570e5a835bef26978b51952dd00a7ca4"
+        },
+        {
+          "path": "skills/recall/tests/baseline-empty-vault-skip-l2.md",
+          "commit": "67911117",
+          "sha256": "9ff6954ad74ead59c1be02ca15941fab62dd11240ddaeaf87cb74e3ff1b86937"
+        },
+        {
+          "path": "skills/recall/tests/baseline-judgement-and-synthesis.md",
+          "commit": "67911117",
+          "sha256": "086101a9a9ba9847d523e4355cc2b787726dadc4ebf833c3dee6794f03772ec2"
+        },
+        {
+          "path": "skills/recall/tests/baseline-multi-query.md",
+          "commit": "67911117",
+          "sha256": "5ac3d905e4a45676ab1c0b24024fac261deb5d7dbb5962c56af31c504c3f3488"
+        },
+        {
+          "path": "skills/recall/tests/baseline-recency-conflict.md",
+          "commit": "67911117",
+          "sha256": "d45a2e611822ea0d5d1c7a2f85f80d1064274d6ad8c6c23649ac7f3fba73097e"
+        },
+        {
+          "path": "skills/learn/SKILL.md",
+          "commit": "67911117",
+          "sha256": "a217650a2174342856ab0f96cdc95ccc63c72c13ca67159337a045eedb1c3b76"
+        },
+        {
+          "path": "skills/learn/tests/README.md",
+          "commit": "67911117",
+          "sha256": "0c7471947b03ce258bac90c0ced0f19a48a19e78f1cb7dd5e5d37969370e6ac1"
+        },
+        {
+          "path": "skills/learn/tests/baseline-autonomous-trigger.md",
+          "commit": "67911117",
+          "sha256": "decea582e73578f8c5d7b956b245f013434885f1c606246c0567ea64c6298118"
+        },
+        {
+          "path": "skills/learn/tests/baseline-clean-write.md",
+          "commit": "67911117",
+          "sha256": "a5939af5ecaaf132f49aea9a5025571bfc4327b3d1d8f7b14ee6e8da995c7aee"
+        },
+        {
+          "path": "skills/learn/tests/baseline-confirmed-approach.md",
+          "commit": "67911117",
+          "sha256": "2ba5ad4fcc30256b5a701c95f62bc80a53db3a0c4d209173c462cbd8c32adf3b"
+        },
+        {
+          "path": "skills/learn/tests/baseline-hindsight-framing.md",
+          "commit": "67911117",
+          "sha256": "bd5c8d0b85b8fb66d015a2ffa845ffaa5939f83456f8d884951434a9e971e093"
+        },
+        {
+          "path": "skills/learn/tests/baseline-information-not-knowledge.md",
+          "commit": "67911117",
+          "sha256": "5ddf2cee6925136e709fffb8d26ae56928cc4ad541f9283d6e2699a5bd2a7680"
+        },
+        {
+          "path": "skills/learn/tests/baseline-project-specific.md",
+          "commit": "67911117",
+          "sha256": "d946b8f6b51e7c350235d7b92cdac8a0bd384d474c3318f1d16e011e39353d2c"
+        },
+        {
+          "path": "skills/learn/tests/baseline-vocab-refit.md",
+          "commit": "67911117",
+          "sha256": "7fa6979a61864605115b60b78f7ae8614dc8853eec39160f4804dfb91620530e"
+        },
+        {
+          "path": "skills/please/SKILL.md",
+          "commit": "67911117",
+          "sha256": "50e40c12d0720efb24c202d23eaeeaa8ce1618ae3c70a9936ac89160650d4faa"
+        },
+        {
+          "path": "skills/route/SKILL.md",
+          "commit": "67911117",
+          "sha256": "7a6d0fbbb9a0d9541390ca14797c2bb07aba12ed7bb96630fba20a72f4102857"
+        },
+        {
+          "path": "skills/route/price-table.md",
+          "commit": "67911117",
+          "sha256": "85e6c73486771e91f9aeba4e754eb417f9d07c293ac13cc1ccc2f263d7501c59"
+        },
+        {
+          "path": "skills/route/tests/README.md",
+          "commit": "67911117",
+          "sha256": "5a0f50a05f616ae10b8aff8eeba9223b2fac82c6a6c733f975f42527e81de0c7"
+        },
+        {
+          "path": "skills/route/tests/memory-discount-microtest.json",
+          "commit": "67911117",
+          "sha256": "495c350ea5e143dd9f7a8a14f6eb0744d32b02161be8de5fd8c3f528ceecc09b"
+        },
+        {
+          "path": "skills/curate/SKILL.md",
+          "commit": "67911117",
+          "sha256": "fc6443df5160d20b5553e6a82bee8a6380017ed67b43d15f4b50b38a90da647f"
+        },
+        {
+          "path": "skills/write-memory/SKILL.md",
+          "commit": "67911117",
+          "sha256": "edd3c8b8e01dd380310183c3ef4590490d84957427d1e94a58c09bff3841c77b"
+        },
+        {
+          "path": "agents/unit-worker.md",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "sha256": "20374d695afdb881de884dea4d7621a8f251892d90eebdb05eb3de329e6371f0"
+        },
+        {
+          "path": "prompt:tarnbrook",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "sha256": "4100eeb2843e3b1882c2bb584d592ee7f80f3da5a70426d25096d40729594886"
+        }
+      ],
+      "orchestrator_model": "claude-opus-5-5",
+      "fixture_models": [
+        "claude-haiku-4-5-20251001"
+      ]
+    },
+    {
+      "arm_id": "02-P2-GREEN-tarnbrook",
+      "cell": "P2",
+      "arm": "GREEN",
+      "domain": "tarnbrook",
+      "texts": [
+        {
+          "path": "engram/recall.md",
+          "sha256": "65cc783280ec09413e179aa75e60068cb0374fd8dbccc1223da4bcb7d6e9564d",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "54d0080281473ec0512ee7ef4193cb6891eacef2a8b0a71fe923be7202030547"
+        },
+        {
+          "path": "engram/delegate.md",
+          "sha256": "ec0e385abd5182175398be1322cc73ddabc9d92810778b4dce2e032b8b24c144",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "8d9bb9ac2367440835a9bc75d9fed405b0d0ed0de59894c9547845d7ae6aecec"
+        },
+        {
+          "path": "engram/learn.md",
+          "sha256": "fbdcfc3977e6bea02ebd215ae621afd094c2200ef01e5149c089f50521ad39a5",
+          "source": "worktree",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "content_sha256": "2c3befe9add688e9175a1f17497dcea52078329635cc670c4d049b41f3c0dfc9",
+          "dirty": false,
+          "git_blob": "9a7355d5c2c5c53669c9130e3a496f0da9c57c91"
+        },
+        {
+          "path": "engram/shim.md",
+          "sha256": "8e71bfd53a1c4d8bd219894ac6313d92ad11b29c96bb76ce95d40d70a617799a",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "0ace7a760d1674e41826fb3ac723e2bd9d6889b8b534615bfdc346ebc7ca4ed1"
+        },
+        {
+          "path": "skills/recall/SKILL.md",
+          "commit": "67911117",
+          "sha256": "3dc7f34b55fbda1834aa75d185c890eb25a273642bb36086d4a10dc886839b1f"
+        },
+        {
+          "path": "skills/recall/tests/README.md",
+          "commit": "67911117",
+          "sha256": "7e79abd404f28103cb32096687655784c90d5111f8e13efaf4ac26da050140bd"
+        },
+        {
+          "path": "skills/recall/tests/baseline-bootstrap-create.md",
+          "commit": "67911117",
+          "sha256": "5e7371a3e09c65011cec8aedd7cb5e12570e5a835bef26978b51952dd00a7ca4"
+        },
+        {
+          "path": "skills/recall/tests/baseline-empty-vault-skip-l2.md",
+          "commit": "67911117",
+          "sha256": "9ff6954ad74ead59c1be02ca15941fab62dd11240ddaeaf87cb74e3ff1b86937"
+        },
+        {
+          "path": "skills/recall/tests/baseline-judgement-and-synthesis.md",
+          "commit": "67911117",
+          "sha256": "086101a9a9ba9847d523e4355cc2b787726dadc4ebf833c3dee6794f03772ec2"
+        },
+        {
+          "path": "skills/recall/tests/baseline-multi-query.md",
+          "commit": "67911117",
+          "sha256": "5ac3d905e4a45676ab1c0b24024fac261deb5d7dbb5962c56af31c504c3f3488"
+        },
+        {
+          "path": "skills/recall/tests/baseline-recency-conflict.md",
+          "commit": "67911117",
+          "sha256": "d45a2e611822ea0d5d1c7a2f85f80d1064274d6ad8c6c23649ac7f3fba73097e"
+        },
+        {
+          "path": "skills/learn/SKILL.md",
+          "commit": "67911117",
+          "sha256": "a217650a2174342856ab0f96cdc95ccc63c72c13ca67159337a045eedb1c3b76"
+        },
+        {
+          "path": "skills/learn/tests/README.md",
+          "commit": "67911117",
+          "sha256": "0c7471947b03ce258bac90c0ced0f19a48a19e78f1cb7dd5e5d37969370e6ac1"
+        },
+        {
+          "path": "skills/learn/tests/baseline-autonomous-trigger.md",
+          "commit": "67911117",
+          "sha256": "decea582e73578f8c5d7b956b245f013434885f1c606246c0567ea64c6298118"
+        },
+        {
+          "path": "skills/learn/tests/baseline-clean-write.md",
+          "commit": "67911117",
+          "sha256": "a5939af5ecaaf132f49aea9a5025571bfc4327b3d1d8f7b14ee6e8da995c7aee"
+        },
+        {
+          "path": "skills/learn/tests/baseline-confirmed-approach.md",
+          "commit": "67911117",
+          "sha256": "2ba5ad4fcc30256b5a701c95f62bc80a53db3a0c4d209173c462cbd8c32adf3b"
+        },
+        {
+          "path": "skills/learn/tests/baseline-hindsight-framing.md",
+          "commit": "67911117",
+          "sha256": "bd5c8d0b85b8fb66d015a2ffa845ffaa5939f83456f8d884951434a9e971e093"
+        },
+        {
+          "path": "skills/learn/tests/baseline-information-not-knowledge.md",
+          "commit": "67911117",
+          "sha256": "5ddf2cee6925136e709fffb8d26ae56928cc4ad541f9283d6e2699a5bd2a7680"
+        },
+        {
+          "path": "skills/learn/tests/baseline-project-specific.md",
+          "commit": "67911117",
+          "sha256": "d946b8f6b51e7c350235d7b92cdac8a0bd384d474c3318f1d16e011e39353d2c"
+        },
+        {
+          "path": "skills/learn/tests/baseline-vocab-refit.md",
+          "commit": "67911117",
+          "sha256": "7fa6979a61864605115b60b78f7ae8614dc8853eec39160f4804dfb91620530e"
+        },
+        {
+          "path": "skills/please/SKILL.md",
+          "commit": "67911117",
+          "sha256": "50e40c12d0720efb24c202d23eaeeaa8ce1618ae3c70a9936ac89160650d4faa"
+        },
+        {
+          "path": "skills/route/SKILL.md",
+          "commit": "67911117",
+          "sha256": "7a6d0fbbb9a0d9541390ca14797c2bb07aba12ed7bb96630fba20a72f4102857"
+        },
+        {
+          "path": "skills/route/price-table.md",
+          "commit": "67911117",
+          "sha256": "85e6c73486771e91f9aeba4e754eb417f9d07c293ac13cc1ccc2f263d7501c59"
+        },
+        {
+          "path": "skills/route/tests/README.md",
+          "commit": "67911117",
+          "sha256": "5a0f50a05f616ae10b8aff8eeba9223b2fac82c6a6c733f975f42527e81de0c7"
+        },
+        {
+          "path": "skills/route/tests/memory-discount-microtest.json",
+          "commit": "67911117",
+          "sha256": "495c350ea5e143dd9f7a8a14f6eb0744d32b02161be8de5fd8c3f528ceecc09b"
+        },
+        {
+          "path": "skills/curate/SKILL.md",
+          "commit": "67911117",
+          "sha256": "fc6443df5160d20b5553e6a82bee8a6380017ed67b43d15f4b50b38a90da647f"
+        },
+        {
+          "path": "skills/write-memory/SKILL.md",
+          "commit": "67911117",
+          "sha256": "edd3c8b8e01dd380310183c3ef4590490d84957427d1e94a58c09bff3841c77b"
+        },
+        {
+          "path": "agents/unit-worker.md",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "sha256": "be12779d01ee7e9af9ad4be41185a4651ea39d42d928c123e023f8e771df9da5"
+        },
+        {
+          "path": "prompt:tarnbrook",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "sha256": "4100eeb2843e3b1882c2bb584d592ee7f80f3da5a70426d25096d40729594886"
+        }
+      ],
+      "orchestrator_model": "claude-opus-5-5",
+      "fixture_models": [
+        "claude-haiku-4-5-20251001"
+      ]
+    },
+    {
+      "arm_id": "03-P2-GREEN-tarnbrook",
+      "cell": "P2",
+      "arm": "GREEN",
+      "domain": "tarnbrook",
+      "texts": [
+        {
+          "path": "engram/recall.md",
+          "sha256": "65cc783280ec09413e179aa75e60068cb0374fd8dbccc1223da4bcb7d6e9564d",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "54d0080281473ec0512ee7ef4193cb6891eacef2a8b0a71fe923be7202030547"
+        },
+        {
+          "path": "engram/delegate.md",
+          "sha256": "ec0e385abd5182175398be1322cc73ddabc9d92810778b4dce2e032b8b24c144",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "8d9bb9ac2367440835a9bc75d9fed405b0d0ed0de59894c9547845d7ae6aecec"
+        },
+        {
+          "path": "engram/learn.md",
+          "sha256": "fbdcfc3977e6bea02ebd215ae621afd094c2200ef01e5149c089f50521ad39a5",
+          "source": "worktree",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "content_sha256": "2c3befe9add688e9175a1f17497dcea52078329635cc670c4d049b41f3c0dfc9",
+          "dirty": false,
+          "git_blob": "9a7355d5c2c5c53669c9130e3a496f0da9c57c91"
+        },
+        {
+          "path": "engram/shim.md",
+          "sha256": "8e71bfd53a1c4d8bd219894ac6313d92ad11b29c96bb76ce95d40d70a617799a",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "0ace7a760d1674e41826fb3ac723e2bd9d6889b8b534615bfdc346ebc7ca4ed1"
+        },
+        {
+          "path": "skills/recall/SKILL.md",
+          "commit": "67911117",
+          "sha256": "3dc7f34b55fbda1834aa75d185c890eb25a273642bb36086d4a10dc886839b1f"
+        },
+        {
+          "path": "skills/recall/tests/README.md",
+          "commit": "67911117",
+          "sha256": "7e79abd404f28103cb32096687655784c90d5111f8e13efaf4ac26da050140bd"
+        },
+        {
+          "path": "skills/recall/tests/baseline-bootstrap-create.md",
+          "commit": "67911117",
+          "sha256": "5e7371a3e09c65011cec8aedd7cb5e12570e5a835bef26978b51952dd00a7ca4"
+        },
+        {
+          "path": "skills/recall/tests/baseline-empty-vault-skip-l2.md",
+          "commit": "67911117",
+          "sha256": "9ff6954ad74ead59c1be02ca15941fab62dd11240ddaeaf87cb74e3ff1b86937"
+        },
+        {
+          "path": "skills/recall/tests/baseline-judgement-and-synthesis.md",
+          "commit": "67911117",
+          "sha256": "086101a9a9ba9847d523e4355cc2b787726dadc4ebf833c3dee6794f03772ec2"
+        },
+        {
+          "path": "skills/recall/tests/baseline-multi-query.md",
+          "commit": "67911117",
+          "sha256": "5ac3d905e4a45676ab1c0b24024fac261deb5d7dbb5962c56af31c504c3f3488"
+        },
+        {
+          "path": "skills/recall/tests/baseline-recency-conflict.md",
+          "commit": "67911117",
+          "sha256": "d45a2e611822ea0d5d1c7a2f85f80d1064274d6ad8c6c23649ac7f3fba73097e"
+        },
+        {
+          "path": "skills/learn/SKILL.md",
+          "commit": "67911117",
+          "sha256": "a217650a2174342856ab0f96cdc95ccc63c72c13ca67159337a045eedb1c3b76"
+        },
+        {
+          "path": "skills/learn/tests/README.md",
+          "commit": "67911117",
+          "sha256": "0c7471947b03ce258bac90c0ced0f19a48a19e78f1cb7dd5e5d37969370e6ac1"
+        },
+        {
+          "path": "skills/learn/tests/baseline-autonomous-trigger.md",
+          "commit": "67911117",
+          "sha256": "decea582e73578f8c5d7b956b245f013434885f1c606246c0567ea64c6298118"
+        },
+        {
+          "path": "skills/learn/tests/baseline-clean-write.md",
+          "commit": "67911117",
+          "sha256": "a5939af5ecaaf132f49aea9a5025571bfc4327b3d1d8f7b14ee6e8da995c7aee"
+        },
+        {
+          "path": "skills/learn/tests/baseline-confirmed-approach.md",
+          "commit": "67911117",
+          "sha256": "2ba5ad4fcc30256b5a701c95f62bc80a53db3a0c4d209173c462cbd8c32adf3b"
+        },
+        {
+          "path": "skills/learn/tests/baseline-hindsight-framing.md",
+          "commit": "67911117",
+          "sha256": "bd5c8d0b85b8fb66d015a2ffa845ffaa5939f83456f8d884951434a9e971e093"
+        },
+        {
+          "path": "skills/learn/tests/baseline-information-not-knowledge.md",
+          "commit": "67911117",
+          "sha256": "5ddf2cee6925136e709fffb8d26ae56928cc4ad541f9283d6e2699a5bd2a7680"
+        },
+        {
+          "path": "skills/learn/tests/baseline-project-specific.md",
+          "commit": "67911117",
+          "sha256": "d946b8f6b51e7c350235d7b92cdac8a0bd384d474c3318f1d16e011e39353d2c"
+        },
+        {
+          "path": "skills/learn/tests/baseline-vocab-refit.md",
+          "commit": "67911117",
+          "sha256": "7fa6979a61864605115b60b78f7ae8614dc8853eec39160f4804dfb91620530e"
+        },
+        {
+          "path": "skills/please/SKILL.md",
+          "commit": "67911117",
+          "sha256": "50e40c12d0720efb24c202d23eaeeaa8ce1618ae3c70a9936ac89160650d4faa"
+        },
+        {
+          "path": "skills/route/SKILL.md",
+          "commit": "67911117",
+          "sha256": "7a6d0fbbb9a0d9541390ca14797c2bb07aba12ed7bb96630fba20a72f4102857"
+        },
+        {
+          "path": "skills/route/price-table.md",
+          "commit": "67911117",
+          "sha256": "85e6c73486771e91f9aeba4e754eb417f9d07c293ac13cc1ccc2f263d7501c59"
+        },
+        {
+          "path": "skills/route/tests/README.md",
+          "commit": "67911117",
+          "sha256": "5a0f50a05f616ae10b8aff8eeba9223b2fac82c6a6c733f975f42527e81de0c7"
+        },
+        {
+          "path": "skills/route/tests/memory-discount-microtest.json",
+          "commit": "67911117",
+          "sha256": "495c350ea5e143dd9f7a8a14f6eb0744d32b02161be8de5fd8c3f528ceecc09b"
+        },
+        {
+          "path": "skills/curate/SKILL.md",
+          "commit": "67911117",
+          "sha256": "fc6443df5160d20b5553e6a82bee8a6380017ed67b43d15f4b50b38a90da647f"
+        },
+        {
+          "path": "skills/write-memory/SKILL.md",
+          "commit": "67911117",
+          "sha256": "edd3c8b8e01dd380310183c3ef4590490d84957427d1e94a58c09bff3841c77b"
+        },
+        {
+          "path": "agents/unit-worker.md",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "sha256": "38c3ebf7e5cd2760f118565274d30a4585feb87817db21c4e54c5a9366a04fa3"
+        },
+        {
+          "path": "prompt:tarnbrook",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "sha256": "4100eeb2843e3b1882c2bb584d592ee7f80f3da5a70426d25096d40729594886"
+        }
+      ],
+      "orchestrator_model": "claude-opus-5-5",
+      "fixture_models": [
+        "claude-haiku-4-5-20251001"
+      ]
+    },
+    {
+      "arm_id": "04-P2-GREEN-tarnbrook",
+      "cell": "P2",
+      "arm": "GREEN",
+      "domain": "tarnbrook",
+      "texts": [
+        {
+          "path": "engram/recall.md",
+          "sha256": "65cc783280ec09413e179aa75e60068cb0374fd8dbccc1223da4bcb7d6e9564d",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "54d0080281473ec0512ee7ef4193cb6891eacef2a8b0a71fe923be7202030547"
+        },
+        {
+          "path": "engram/delegate.md",
+          "sha256": "ec0e385abd5182175398be1322cc73ddabc9d92810778b4dce2e032b8b24c144",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "8d9bb9ac2367440835a9bc75d9fed405b0d0ed0de59894c9547845d7ae6aecec"
+        },
+        {
+          "path": "engram/learn.md",
+          "sha256": "fbdcfc3977e6bea02ebd215ae621afd094c2200ef01e5149c089f50521ad39a5",
+          "source": "worktree",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "content_sha256": "2c3befe9add688e9175a1f17497dcea52078329635cc670c4d049b41f3c0dfc9",
+          "dirty": false,
+          "git_blob": "9a7355d5c2c5c53669c9130e3a496f0da9c57c91"
+        },
+        {
+          "path": "engram/shim.md",
+          "sha256": "8e71bfd53a1c4d8bd219894ac6313d92ad11b29c96bb76ce95d40d70a617799a",
+          "source": "pin",
+          "commit": "67911117",
+          "content_sha256": "0ace7a760d1674e41826fb3ac723e2bd9d6889b8b534615bfdc346ebc7ca4ed1"
+        },
+        {
+          "path": "skills/recall/SKILL.md",
+          "commit": "67911117",
+          "sha256": "3dc7f34b55fbda1834aa75d185c890eb25a273642bb36086d4a10dc886839b1f"
+        },
+        {
+          "path": "skills/recall/tests/README.md",
+          "commit": "67911117",
+          "sha256": "7e79abd404f28103cb32096687655784c90d5111f8e13efaf4ac26da050140bd"
+        },
+        {
+          "path": "skills/recall/tests/baseline-bootstrap-create.md",
+          "commit": "67911117",
+          "sha256": "5e7371a3e09c65011cec8aedd7cb5e12570e5a835bef26978b51952dd00a7ca4"
+        },
+        {
+          "path": "skills/recall/tests/baseline-empty-vault-skip-l2.md",
+          "commit": "67911117",
+          "sha256": "9ff6954ad74ead59c1be02ca15941fab62dd11240ddaeaf87cb74e3ff1b86937"
+        },
+        {
+          "path": "skills/recall/tests/baseline-judgement-and-synthesis.md",
+          "commit": "67911117",
+          "sha256": "086101a9a9ba9847d523e4355cc2b787726dadc4ebf833c3dee6794f03772ec2"
+        },
+        {
+          "path": "skills/recall/tests/baseline-multi-query.md",
+          "commit": "67911117",
+          "sha256": "5ac3d905e4a45676ab1c0b24024fac261deb5d7dbb5962c56af31c504c3f3488"
+        },
+        {
+          "path": "skills/recall/tests/baseline-recency-conflict.md",
+          "commit": "67911117",
+          "sha256": "d45a2e611822ea0d5d1c7a2f85f80d1064274d6ad8c6c23649ac7f3fba73097e"
+        },
+        {
+          "path": "skills/learn/SKILL.md",
+          "commit": "67911117",
+          "sha256": "a217650a2174342856ab0f96cdc95ccc63c72c13ca67159337a045eedb1c3b76"
+        },
+        {
+          "path": "skills/learn/tests/README.md",
+          "commit": "67911117",
+          "sha256": "0c7471947b03ce258bac90c0ced0f19a48a19e78f1cb7dd5e5d37969370e6ac1"
+        },
+        {
+          "path": "skills/learn/tests/baseline-autonomous-trigger.md",
+          "commit": "67911117",
+          "sha256": "decea582e73578f8c5d7b956b245f013434885f1c606246c0567ea64c6298118"
+        },
+        {
+          "path": "skills/learn/tests/baseline-clean-write.md",
+          "commit": "67911117",
+          "sha256": "a5939af5ecaaf132f49aea9a5025571bfc4327b3d1d8f7b14ee6e8da995c7aee"
+        },
+        {
+          "path": "skills/learn/tests/baseline-confirmed-approach.md",
+          "commit": "67911117",
+          "sha256": "2ba5ad4fcc30256b5a701c95f62bc80a53db3a0c4d209173c462cbd8c32adf3b"
+        },
+        {
+          "path": "skills/learn/tests/baseline-hindsight-framing.md",
+          "commit": "67911117",
+          "sha256": "bd5c8d0b85b8fb66d015a2ffa845ffaa5939f83456f8d884951434a9e971e093"
+        },
+        {
+          "path": "skills/learn/tests/baseline-information-not-knowledge.md",
+          "commit": "67911117",
+          "sha256": "5ddf2cee6925136e709fffb8d26ae56928cc4ad541f9283d6e2699a5bd2a7680"
+        },
+        {
+          "path": "skills/learn/tests/baseline-project-specific.md",
+          "commit": "67911117",
+          "sha256": "d946b8f6b51e7c350235d7b92cdac8a0bd384d474c3318f1d16e011e39353d2c"
+        },
+        {
+          "path": "skills/learn/tests/baseline-vocab-refit.md",
+          "commit": "67911117",
+          "sha256": "7fa6979a61864605115b60b78f7ae8614dc8853eec39160f4804dfb91620530e"
+        },
+        {
+          "path": "skills/please/SKILL.md",
+          "commit": "67911117",
+          "sha256": "50e40c12d0720efb24c202d23eaeeaa8ce1618ae3c70a9936ac89160650d4faa"
+        },
+        {
+          "path": "skills/route/SKILL.md",
+          "commit": "67911117",
+          "sha256": "7a6d0fbbb9a0d9541390ca14797c2bb07aba12ed7bb96630fba20a72f4102857"
+        },
+        {
+          "path": "skills/route/price-table.md",
+          "commit": "67911117",
+          "sha256": "85e6c73486771e91f9aeba4e754eb417f9d07c293ac13cc1ccc2f263d7501c59"
+        },
+        {
+          "path": "skills/route/tests/README.md",
+          "commit": "67911117",
+          "sha256": "5a0f50a05f616ae10b8aff8eeba9223b2fac82c6a6c733f975f42527e81de0c7"
+        },
+        {
+          "path": "skills/route/tests/memory-discount-microtest.json",
+          "commit": "67911117",
+          "sha256": "495c350ea5e143dd9f7a8a14f6eb0744d32b02161be8de5fd8c3f528ceecc09b"
+        },
+        {
+          "path": "skills/curate/SKILL.md",
+          "commit": "67911117",
+          "sha256": "fc6443df5160d20b5553e6a82bee8a6380017ed67b43d15f4b50b38a90da647f"
+        },
+        {
+          "path": "skills/write-memory/SKILL.md",
+          "commit": "67911117",
+          "sha256": "edd3c8b8e01dd380310183c3ef4590490d84957427d1e94a58c09bff3841c77b"
+        },
+        {
+          "path": "agents/unit-worker.md",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "sha256": "143db960459918f70fd0b36250070419b9ca9d3d2268b08b84b2d3873e377948"
+        },
+        {
+          "path": "prompt:tarnbrook",
+          "commit": "85e58376f31c75be12fa6aeb289ff4137473b094",
+          "sha256": "4100eeb2843e3b1882c2bb584d592ee7f80f3da5a70426d25096d40729594886"
+        }
+      ],
+      "orchestrator_model": "claude-opus-5-5",
+      "fixture_models": [
+        "claude-haiku-4-5-20251001"
+      ]
+    }
+  ],
+  "claude_bin": "/Users/joe/.local/share/claude/versions/2.1.282",
+  "claude_version": "2.1.282 (Claude Code)",
+  "engram_bin": "/Users/joe/go/bin/engram",
+  "engram_bin_sha256": "48fc11c9c0a4af709621c1b95e9a56786bbbc5d5e35c51aa233aa9dc517d048e",
+  "orchestrator_model_requested": "opus",
+  "fixture_model_requested": "haiku",
+  "repo_head": "85e58376f31c75be12fa6aeb289ff4137473b094",
+  "pin": "67911117",
+  "tokens": {
+    "file_markers": {
+      "recall": "LAR-RECALL-2H6W",
+      "delegate": "LAR-DELEGATE-9C3N",
+      "learn": "LAR-LEARN-8J2D",
+      "shim": "LAR-SHIM-5V1R"
+    },
+    "arm_tokens": {
+      "RED": "LAR-RED-3M8T",
+      "GREEN": "LAR-GREEN-7Q4K"
+    }
+  },
+  "allowed_tools": [
+    "Bash(engram:*)",
+    "Read",
+    "Glob",
+    "Grep",
+    "Skill",
+    "Agent"
+  ],
+  "disallowed_tools": [
+    "WebFetch",
+    "WebSearch",
+    "Bash(git:*)",
+    "Bash(curl:*)",
+    "Bash(security:*)"
+  ],
+  "deny_write": [
+    "/private/tmp/claude-501/-Users-joe--local-share-engram-vault",
+    "/private/tmp/claude-501/-Users-joe-repos-personal-engram",
+    "/private/tmp/claude-501/-Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill",
+    "/private/tmp/claude-501/-Users-joe-repos-personal-phone-llm",
+    "/private/tmp/claude-501/-private-tmp-claude-501--Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill-f6dfe139-52a1-4f7d-aee0-2bb16645d7ff-scratchpad-arm-probe-work",
+    "/private/tmp/claude-501/-private-tmp-claude-501--Users-joe-repos-personal-engram--claude-worktrees-runbook-vs-skill-f6dfe139-52a1-4f7d-aee0-2bb16645d7ff-scratchpad-arm-probe2-work",
+    "/private/tmp/claude-501/-private-tmp-claude-501--Users-joe-repos-personal-engram-23a08637-d9a1-431d-9ac8-7770901edb97-scratchpad-runbook-vs-skill-runs-p2-please-sonnet5-1789843522-db40b7-trials-please-S-1-repo",
+    "/private/tmp/claude-501/-private-tmp-claude-501--Users-joe-repos-personal-engram-23a08637-d9a1-431d-9ac8-7770901edb97-scratchpad-runbook-vs-skill-runs-p2-please-sonnet5-1789843522-db40b7-trials-please-S-2-repo",
+    "/private/tmp/claude-501/-private-tmp-claude-501--Users-joe-repos-personal-engram-23a08637-d9a1-431d-9ac8-7770901edb97-scratchpad-runbook-vs-skill-runs-p2-please-sonnet5-1789920771-1abfc4-trials-please-R-2-repo",
+    "/private/tmp/claude-501/-private-tmp-claude-501--Users-joe-repos-personal-engram-23a08637-d9a1-431d-9ac8-7770901edb97-scratchpad-runbook-vs-skill-runs-p2-please-sonnet5-1789922627-1065d6-trials-please-R-2-repo",
+    "/private/tmp/claude-501/-private-tmp-claude-501--Users-joe-repos-personal-engram-23a08637-d9a1-431d-9ac8-7770901edb97-scratchpad-runbook-vs-skill-runs-p2-please-sonnet5-1789937025-559a7a-trials-please-R-0-repo",
+    "/private/tmp/claude-501/-private-tmp-claude-501--Users-joe-repos-personal-engram-23a08637-d9a1-431d-9ac8-7770901edb97-scratchpad-runbook-vs-skill-runs-p2-please-sonnet5-1789937025-559a7a-trials-please-R-1-repo",
+    "/private/tmp/claude-501/-private-tmp-claude-501--Users-joe-repos-personal-engram-23a08637-d9a1-431d-9ac8-7770901edb97-scratchpad-runbook-vs-skill-runs-p2-please-sonnet5-1789937025-559a7a-trials-please-R-2-repo",
+    "/private/tmp/claude-501/-private-tmp-claude-501--Users-joe-repos-personal-engram-23a08637-d9a1-431d-9ac8-7770901edb97-scratchpad-runbook-vs-skill-runs-p2-write-memory-sonnet5-1790107424-5c5748-trials-write-memory-R-2-repo",
+    "/private/tmp/claude-501/-private-tmp-engram-arm--4rfv811-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm--86pz77i-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm--diz3oyy-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm--j6ljke9-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm--nw6efnt-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-04fscw-a-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-09ypyi66-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-0pebnwh5-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-0qala2f1-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-0ubpiq1c-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-0vyea7es-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-1fvel2lu-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-1gli47f3-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-2ht17x5s-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-2ywygk1p-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-3-6ijpwh-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-33tavuvy-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-4ey3h1k0-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-4syagujk-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-5y-x-av8-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-6neqs0hr-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-7ck15hza-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-8epi5qgl-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-8jy14k-d-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-96b9u3zt-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-9al26ujd-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-9wn8lcxp-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-YihVgc-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-a6-1uhik-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-a9n8w36z-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-akt0ogb8-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-an-v27wt-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-bgfsaqb2-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-bm9jvxa6-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-bwdx52cr-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-c25rbuwt-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-ctas9m17-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-cw158k03-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-d4kd7jet-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-db3q4lwv-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-dx5lhr0a-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-e24pv76l-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-flbb3c22-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-g3mk5zu8-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-hozct8jv-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-huh3ws4v-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-ij5xttzp-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-j06v-36l-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-j186z7vf-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-jaqq2f4w-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-jioxespx-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-ju-lzpsb-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-kazrmuer-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-kfc2ak2r-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-kh24pzh5-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-lgdr70kn-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-lhk8t1hx-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-lml03ed1-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-m2o5nnf8-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-no-cdpw0-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-nq3x0qk9-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-ns8kh997-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-nsjjt7xh-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-nu4p3e7y-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-nv5qib3p-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-o16uw7o7-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-o86rnbmr-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-p--2s80y-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-p2tadw-g-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-p5clvb1c-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-p6wosr7c-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-pyy3uuht-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-qp93vlop-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-r7o2pw5w-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-rcey1ryz-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-rk2o2wps-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-rv6288in-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-sjd1juoq-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-sk7exqpm-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-sq2d1072-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-ten8t1if-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-tncpm3x8-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-tpxh5eu8-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-tu4bzxd6-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-v63avvix-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-vksgunzh-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-vx365el7-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-wdoov18w-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-wsjwtoj3-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-x4jsyqdl-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-y6xhu57k-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-y8o29saw-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-yfp8pxga-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-ygg-mw0e-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-z6ujc5db-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-zct9zfs9-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-zesyeqj0-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-zskr1m17-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-ztgbkydw-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-zwpfvika-work",
+    "/private/tmp/claude-501/-private-tmp-engram-arm-zwrnkj63-work",
+    "/private/tmp/claude-501/bash-edit-diff",
+    "/private/tmp/claude-501/cache-break-state-36f13699-56c5-4552-9eca-c39945b57d43.json",
+    "/private/tmp/claude-501/cache-break-state-809e206f-2f0a-4793-9ca1-26a3f95631e6.json",
+    "/private/tmp/claude-501/cache-break-state-95f1f03b-646d-4bef-8361-070ac89a8bb3.json",
+    "/private/tmp/claude-501/cache-break-state-cf1385e7-8cbc-41cd-964b-c80da9997309.json",
+    "/private/tmp/claude-501/cache-break-state-f4f28baf-23b5-431e-aef9-e3a4a13e883b.json",
+    "/private/tmp/claude-501/claude-501",
+    "/private/tmp/claude-501/d.md",
+    "/private/tmp/claude-501/f.go"
+  ],
+  "probe": {
+    "ok": true,
+    "reason": "both probe invocations blocked; controls landed",
+    "cost_usd": 0.0656536
+  },
+  "isolation_ok": true,
+  "finished": "2026-09-30T20:43:04.490220+00:00"
+}

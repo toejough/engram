@@ -1,0 +1,6 @@
+00-N1-GREEN-quillfeather: no-fire gate=True cost=$0.3146290500000001
+01-N1-GREEN-tarnbrook: no-fire gate=True cost=$0.9499576000000002
+02-N1-GREEN-quillfeather: no-fire gate=True cost=$0.31448455
+03-N1-GREEN-tarnbrook: no-fire gate=True cost=$0.55583775
+04-N1-GREEN-quillfeather: no-fire gate=True cost=$0.3185311000000001
+probe=True isolation=True status=0

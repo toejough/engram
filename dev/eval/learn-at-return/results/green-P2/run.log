@@ -1,0 +1,6 @@
+00-P2-GREEN-tarnbrook: pass gate=True cost=$0.57413965
+01-P2-GREEN-tarnbrook: pass gate=True cost=$1.19691625
+02-P2-GREEN-tarnbrook: pass gate=True cost=$0.4793890499999999
+03-P2-GREEN-tarnbrook: pass gate=True cost=$0.7754135999999997
+04-P2-GREEN-tarnbrook: pass gate=True cost=$0.7314795500000001
+probe=True isolation=True status=0

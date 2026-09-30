@@ -1,0 +1,6 @@
+00-P1-GREEN-quillfeather: pass gate=True cost=$0.44246385000000005
+01-P1-GREEN-quillfeather: pass gate=True cost=$0.4887752
+02-P1-GREEN-quillfeather: pass gate=True cost=$0.4766105000000001
+03-P1-GREEN-quillfeather: pass gate=True cost=$0.44650855
+04-P1-GREEN-quillfeather: pass gate=True cost=$0.47291264999999993
+probe=True isolation=True status=0

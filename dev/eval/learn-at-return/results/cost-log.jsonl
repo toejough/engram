@@ -71,3 +71,36 @@
 {"batch": "red3-P2", "arm_id": "02-P2-RED-tarnbrook", "kind": "arm", "cell": "P2", "arm": "RED", "cost_usd": 0.43593504999999994, "label": "no-fire"}
 {"batch": "red3-P2", "arm_id": "03-P2-RED-tarnbrook", "kind": "arm", "cell": "P2", "arm": "RED", "cost_usd": 0.31545654999999995, "label": "no-fire"}
 {"batch": "red3-P2", "arm_id": "04-P2-RED-tarnbrook", "kind": "arm", "cell": "P2", "arm": "RED", "cost_usd": 0.4403586500000001, "label": "no-fire"}
+{"batch": "green-P1", "arm_id": "probe", "kind": "probe", "cost_usd": 0.0658367}
+{"batch": "green-P1", "arm_id": "00-P1-GREEN-quillfeather", "kind": "arm", "cell": "P1", "arm": "GREEN", "cost_usd": 0.44246385000000005, "label": "pass"}
+{"batch": "green-P1", "arm_id": "01-P1-GREEN-quillfeather", "kind": "arm", "cell": "P1", "arm": "GREEN", "cost_usd": 0.4887752, "label": "pass"}
+{"batch": "green-P1", "arm_id": "02-P1-GREEN-quillfeather", "kind": "arm", "cell": "P1", "arm": "GREEN", "cost_usd": 0.4766105000000001, "label": "pass"}
+{"batch": "green-P1", "arm_id": "03-P1-GREEN-quillfeather", "kind": "arm", "cell": "P1", "arm": "GREEN", "cost_usd": 0.44650855, "label": "pass"}
+{"batch": "green-P1", "arm_id": "04-P1-GREEN-quillfeather", "kind": "arm", "cell": "P1", "arm": "GREEN", "cost_usd": 0.47291264999999993, "label": "pass"}
+{"batch": "green-P2", "arm_id": "probe", "kind": "probe", "cost_usd": 0.0656536}
+{"batch": "green-P2", "arm_id": "00-P2-GREEN-tarnbrook", "kind": "arm", "cell": "P2", "arm": "GREEN", "cost_usd": 0.57413965, "label": "pass"}
+{"batch": "green-P2", "arm_id": "01-P2-GREEN-tarnbrook", "kind": "arm", "cell": "P2", "arm": "GREEN", "cost_usd": 1.19691625, "label": "pass"}
+{"batch": "green-P2", "arm_id": "02-P2-GREEN-tarnbrook", "kind": "arm", "cell": "P2", "arm": "GREEN", "cost_usd": 0.4793890499999999, "label": "pass"}
+{"batch": "green-P2", "arm_id": "03-P2-GREEN-tarnbrook", "kind": "arm", "cell": "P2", "arm": "GREEN", "cost_usd": 0.7754135999999997, "label": "pass"}
+{"batch": "green-P2", "arm_id": "04-P2-GREEN-tarnbrook", "kind": "arm", "cell": "P2", "arm": "GREEN", "cost_usd": 0.7314795500000001, "label": "pass"}
+{"batch": "green-N1", "arm_id": "probe", "kind": "probe", "cost_usd": 0.06526}
+{"batch": "green-N1", "arm_id": "00-N1-GREEN-quillfeather", "kind": "arm", "cell": "N1", "arm": "GREEN", "cost_usd": 0.3146290500000001, "label": "no-fire"}
+{"batch": "green-N1", "arm_id": "01-N1-GREEN-tarnbrook", "kind": "arm", "cell": "N1", "arm": "GREEN", "cost_usd": 0.9499576000000002, "label": "no-fire"}
+{"batch": "green-N1", "arm_id": "02-N1-GREEN-quillfeather", "kind": "arm", "cell": "N1", "arm": "GREEN", "cost_usd": 0.31448455, "label": "no-fire"}
+{"batch": "green-N1", "arm_id": "03-N1-GREEN-tarnbrook", "kind": "arm", "cell": "N1", "arm": "GREEN", "cost_usd": 0.55583775, "label": "no-fire"}
+{"batch": "green-N1", "arm_id": "04-N1-GREEN-quillfeather", "kind": "arm", "cell": "N1", "arm": "GREEN", "cost_usd": 0.3185311000000001, "label": "no-fire"}
+{"batch": "green-N2", "arm_id": "probe", "kind": "probe", "cost_usd": 0.061405}
+{"batch": "green-N2", "arm_id": "00-N2-GREEN-quillfeather", "kind": "arm", "cell": "N2", "arm": "GREEN", "cost_usd": 0.30518035, "label": "no-fire"}
+{"batch": "green-N2", "arm_id": "01-N2-GREEN-tarnbrook", "kind": "arm", "cell": "N2", "arm": "GREEN", "cost_usd": 0.4426692, "label": "no-fire"}
+{"batch": "green-N2", "arm_id": "02-N2-GREEN-quillfeather", "kind": "arm", "cell": "N2", "arm": "GREEN", "cost_usd": 0.32999064999999994, "label": "no-fire"}
+{"batch": "green-N2", "arm_id": "03-N2-GREEN-tarnbrook", "kind": "arm", "cell": "N2", "arm": "GREEN", "cost_usd": 0.4500101, "label": "no-fire"}
+{"batch": "green-N2", "arm_id": "04-N2-GREEN-quillfeather", "kind": "arm", "cell": "N2", "arm": "GREEN", "cost_usd": 0.30063625, "label": "no-fire"}
+{"batch": "green-N3", "arm_id": "probe", "kind": "probe", "cost_usd": 0.0659212}
+{"batch": "green-N3", "arm_id": "00-N3-GREEN-quillfeather", "kind": "arm", "cell": "N3", "arm": "GREEN", "cost_usd": 0.31164625, "label": "no-fire"}
+{"batch": "green-N3", "arm_id": "01-N3-GREEN-tarnbrook", "kind": "arm", "cell": "N3", "arm": "GREEN", "cost_usd": 0.44072075, "label": "degenerate"}
+{"batch": "green-N3", "arm_id": "02-N3-GREEN-quillfeather", "kind": "arm", "cell": "N3", "arm": "GREEN", "cost_usd": 0.32724885, "label": "degenerate"}
+{"batch": "green-N3", "arm_id": "03-N3-GREEN-tarnbrook", "kind": "arm", "cell": "N3", "arm": "GREEN", "cost_usd": 0.723569, "label": "no-fire"}
+{"batch": "green-N3", "arm_id": "04-N3-GREEN-quillfeather", "kind": "arm", "cell": "N3", "arm": "GREEN", "cost_usd": 0.33753060000000007, "label": "no-fire"}
+{"batch": "green-N3-r1", "arm_id": "probe", "kind": "probe", "cost_usd": 0.0669503}
+{"batch": "green-N3-r1", "arm_id": "00-N3-GREEN-tarnbrook", "kind": "arm", "cell": "N3", "arm": "GREEN", "cost_usd": 0.5303295, "label": "no-fire"}
+{"batch": "green-N3-r1", "arm_id": "01-N3-GREEN-quillfeather", "kind": "arm", "cell": "N3", "arm": "GREEN", "cost_usd": 0.31585965, "label": "no-fire"}

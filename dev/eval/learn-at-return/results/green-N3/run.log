@@ -1,0 +1,6 @@
+00-N3-GREEN-quillfeather: no-fire gate=True cost=$0.31164625
+01-N3-GREEN-tarnbrook: degenerate gate=True cost=$0.44072075
+02-N3-GREEN-quillfeather: degenerate gate=True cost=$0.32724885
+03-N3-GREEN-tarnbrook: no-fire gate=True cost=$0.723569
+04-N3-GREEN-quillfeather: no-fire gate=True cost=$0.33753060000000007
+probe=True isolation=True status=0

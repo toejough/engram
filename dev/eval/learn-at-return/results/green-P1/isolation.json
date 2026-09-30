@@ -1,0 +1,21 @@
+{
+  "batch_start": "2026-09-30T20:12:35.368457+00:00",
+  "batch_start_epoch": 1790799155.368457,
+  "real_vault": "/Users/joe/.local/share/engram/vault",
+  "claude_dir": "/Users/joe/.claude",
+  "before": {
+    "vault_newer": [],
+    "claude_top_newer": []
+  },
+  "after": {
+    "vault_newer": [],
+    "claude_top_newer": [
+      "backups",
+      "session-env",
+      "sessions",
+      "shell-snapshots"
+    ]
+  },
+  "ok": true,
+  "rule": "any real-vault file (outside .git/) newer than batch start fails the batch; ~/.claude top-level entries are recorded, not failed (the host session writes there)"
+}
