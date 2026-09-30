@@ -42,6 +42,9 @@ class FakeSource:
     def head(self):
         return "deadbeef"
 
+    def worktree_state(self, path):
+        return {"dirty": True, "git_blob": "b" * 40}
+
 
 @pytest.fixture
 def arm(tmp_path):
@@ -214,12 +217,12 @@ def test_deny_entries_lists_each_entry_not_the_dir(tmp_path):
 
 
 def test_env_is_exactly_the_d5_allowlist(tmp_path):
-    argv = lar.arm_argv(str(tmp_path), FAKE_TOKEN, model="opus", user="tester", claude_bin="/x/claude")
+    argv = lar.arm_argv(str(tmp_path), model="opus", user="tester", claude_bin="/x/claude", token_fd=7)
     assert argv[:2] == ["/usr/bin/env", "-i"]
-    ci = argv.index("/x/claude")
-    pairs = dict(a.split("=", 1) for a in argv[2:ci])
-    assert set(pairs) == {"HOME", "USER", "PATH", "TERM", "TMPDIR", "XDG_DATA_HOME", "ENGRAM_VAULT_PATH",
-                          "CLAUDE_CODE_OAUTH_TOKEN"}
+    hi = argv.index(lar.HANDOFF_PYTHON)
+    pairs = dict(a.split("=", 1) for a in argv[2:hi])
+    # the token is not in argv; the handoff adds it from the inherited fd (see the end-to-end test)
+    assert set(pairs) == {"HOME", "USER", "PATH", "TERM", "TMPDIR", "XDG_DATA_HOME", "ENGRAM_VAULT_PATH"}
     assert pairs["HOME"] == f"{tmp_path}/home"
     assert pairs["PATH"] == f"{tmp_path}/bin:/usr/bin:/bin"
     assert pairs["TERM"] == "dumb"
@@ -230,21 +233,97 @@ def test_env_is_exactly_the_d5_allowlist(tmp_path):
 
 
 def test_tool_flags_match_d5(tmp_path):
-    argv = lar.arm_argv(str(tmp_path), FAKE_TOKEN, model="opus", user="t", claude_bin="/x/claude")
+    argv = lar.arm_argv(str(tmp_path), model="opus", user="t", claude_bin="/x/claude", token_fd=7)
     a, d = argv.index("--allowedTools"), argv.index("--disallowedTools")
     assert argv[a + 1:d] == list(ALLOWED_TOOLS)
     assert argv[d + 1:d + 1 + len(DISALLOWED_TOOLS)] == list(DISALLOWED_TOOLS)
-    probe = lar.arm_argv(str(tmp_path), FAKE_TOKEN, model="haiku", user="t", claude_bin="/x/claude",
+    probe = lar.arm_argv(str(tmp_path), model="haiku", user="t", claude_bin="/x/claude", token_fd=7,
                          extra_tools=(PROBE_EXTRA_TOOL,))
     a, d = probe.index("--allowedTools"), probe.index("--disallowedTools")
     assert probe[a + 1:d] == list(ALLOWED_TOOLS) + [PROBE_EXTRA_TOOL]
 
 
-def test_redacted_argv_never_holds_the_token(tmp_path):
-    argv = lar.arm_argv(str(tmp_path), FAKE_TOKEN, model="opus", user="t", claude_bin="/x/claude")
-    red = lar.redact(argv, FAKE_TOKEN)
-    assert FAKE_TOKEN not in json.dumps(red)
-    assert "CLAUDE_CODE_OAUTH_TOKEN=<redacted>" in red
+def test_token_reaches_the_arm_env_but_never_argv_or_files(tmp_path):
+    """End to end with a stub claude: the arm process sees exactly the D5 allowlist including the
+    token, while argv, launch.json, stdout and stderr never hold it."""
+    arm = tmp_path / "arm"
+    (arm / "work").mkdir(parents=True)
+    dump = tmp_path / "seen.json"
+    stub = tmp_path / "claude-stub"
+    # a perl stub: unlike python, perl adds nothing to the environment it reports
+    stub.write_text("#!/usr/bin/perl\nuse JSON::PP;\n"
+                    f"open(my $fh, '>', '{dump}') or die;\n"
+                    "print $fh encode_json({env => {%ENV}, argv => [$0, @ARGV]});\nclose $fh;\n"
+                    "print encode_json({type => 'result', subtype => 'success', result => 'ok'}), \"\\n\";\n")
+    stub.chmod(0o755)
+    out = tmp_path / "out"
+    rec = lar.run_claude(str(arm), "hello", FAKE_TOKEN, "opus", str(out), 30, str(stub))
+    assert rec["returncode"] == 0
+    seen = json.loads(dump.read_text())
+    assert set(seen["env"]) == {"HOME", "USER", "PATH", "TERM", "TMPDIR", "XDG_DATA_HOME", "ENGRAM_VAULT_PATH",
+                                "CLAUDE_CODE_OAUTH_TOKEN"}
+    assert seen["env"]["CLAUDE_CODE_OAUTH_TOKEN"] == FAKE_TOKEN
+    assert FAKE_TOKEN not in json.dumps(seen["argv"])
+    assert seen["argv"][1:3] == ["-p", "--output-format"]
+    for f in out.iterdir():
+        assert FAKE_TOKEN not in f.read_text()
+
+
+def test_worktree_learn_records_content_hash_and_dirty_state(tmp_path):
+    fake_engram = tmp_path / "engram-bin"
+    fake_engram.write_text("#!/bin/sh\n")
+    root = tmp_path / "engram-arm.W"
+    root.mkdir()
+    spec = lar.ArmSpec(cell="P1", arm="GREEN", learn_source="worktree", domain="quillfeather")
+    info = lar.build_arm(str(root), spec, FakeSource(), engram_bin=str(fake_engram), deny_entries=[], home="/h")
+    learn = next(t for t in info["texts"] if t["path"] == "engram/learn.md")
+    body = FakeSource().worktree("agent-instructions/guidance/learn.md")
+    assert learn["content_sha256"] == lar._sha(body)
+    assert learn["dirty"] is True
+    assert learn["git_blob"] == "b" * 40
+
+
+def test_collect_sessions_splits_main_from_subagents(tmp_path):
+    proj = tmp_path / "arm" / "home" / ".claude" / "projects" / "-w"
+    (proj / "sess" / "subagents").mkdir(parents=True)
+    (proj / "sess.jsonl").write_text("MAIN\n")
+    (proj / "sess" / "subagents" / "agent-a.jsonl").write_text("SUB\n")
+    main, others = lar.collect_sessions(str(tmp_path / "arm"), str(tmp_path / "dest"))
+    assert main == ["MAIN\n"] and others == ["SUB\n"]
+    assert (tmp_path / "dest" / "-w" / "sess" / "subagents" / "agent-a.jsonl").exists()
+
+
+def test_vault_notes_lists_note_files_outside_git(tmp_path):
+    v = tmp_path / "vault"
+    (v / ".git").mkdir(parents=True)
+    (v / ".git" / "x.md").write_text("")
+    (v / "1.2026-09-30.a.md").write_text("")
+    (v / "1.2026-09-30.a.vec.json").write_text("")
+    assert lar.vault_notes(str(v)) == ["1.2026-09-30.a.md"]
+
+
+def test_batch_writes_isolation_and_manifest_even_when_an_arm_crashes(tmp_path, monkeypatch):
+    vault, cdir = tmp_path / "vault", tmp_path / "dotclaude"
+    vault.mkdir()
+    cdir.mkdir()
+    monkeypatch.setattr(lar, "RESULTS", str(tmp_path / "results"))
+    monkeypatch.setattr(lar, "real_paths", lambda: ("/h", str(vault), str(cdir)))
+    monkeypatch.setattr(lar, "read_token", lambda: FAKE_TOKEN)
+    monkeypatch.setattr(lar, "claude_version", lambda b: "stub")
+    monkeypatch.setattr(lar, "deny_entries", lambda r: [])
+    monkeypatch.setattr(lar, "run_probe", lambda *a: {"ok": True, "reason": "stub", "cost_usd": 0.0})
+
+    def boom(*a, **k):
+        raise lar.HarnessError("arm build exploded")
+    monkeypatch.setattr(lar, "build_arm", boom)
+    eng = tmp_path / "engram"
+    eng.write_text("")
+    with pytest.raises(lar.HarnessError):
+        lar.run_batch("b1", [lar.ArmSpec("N1", "RED", "pin", "quillfeather")], "opus", 10, "/x/claude", str(eng))
+    bd = tmp_path / "results" / "b1"
+    assert (bd / "isolation.json").exists()
+    m = json.loads((bd / "run-manifest.json").read_text())
+    assert "arm build exploded" in m["error"]
 
 
 def test_extract_token_parses_keychain_json_without_leaking_on_error():

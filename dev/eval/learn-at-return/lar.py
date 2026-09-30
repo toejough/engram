@@ -6,7 +6,8 @@ HOME=$ARM/home under /private/tmp, the D5 permissions (no bypassPermissions) and
 and a guidance set identical across arms except learn.md. Per batch:
 
   1. results/<batch>/ is created; the batch start time is taken; isolation "before" snapshot.
-  2. The OAuth token is read from the keychain (never echoed, logged, or written to a file).
+  2. The OAuth token is read from the keychain (never echoed, logged, written to a file, or put in argv:
+     it is handed to the arm through an inherited pipe fd).
   3. denyWrite is generated from `ls /private/tmp/claude-<uid>`.
   4. A probe arm (batch settings + Bash(touch:*)) tries to touch a file inside an existing entry of
      /private/tmp/claude-<uid> and under the real home; both must fail while a control touch in
@@ -87,6 +88,10 @@ class GitSource:
 
     def head(self) -> str:
         return self._git("rev-parse", "HEAD").strip()
+
+    def worktree_state(self, path: str) -> Dict[str, Any]:
+        return {"dirty": bool(self._git("status", "--porcelain", "--", path).strip()),
+                "git_blob": self._git("hash-object", path).strip()}
 
 
 # Design D2, draft wording (the provisional GREEN text for the smoke only; task 3.1 applies the
@@ -239,11 +244,13 @@ def build_arm(arm: str, spec: ArmSpec, src, engram_bin: str, deny_entries: List[
             body = learn_text(spec.learn_source, src)
             tail = MARKER_PREFIX + FILE_MARKERS[g] + "\n" + MARKER_PREFIX + ARM_TOKENS[spec.arm] + "\n"
             commit = PIN if spec.learn_source in ("pin", "provisional") else src.head()
-            meta = {"source": spec.learn_source, "commit": commit, "body_sha256": _sha(body)}
+            meta = {"source": spec.learn_source, "commit": commit, "content_sha256": _sha(body)}
+            if spec.learn_source == "worktree":
+                meta.update(src.worktree_state(LEARN_REL))
         else:
             body = src.pinned(f"agent-instructions/guidance/{g}.md")
             tail = MARKER_PREFIX + FILE_MARKERS[g] + "\n"
-            meta = {"source": "pin", "commit": PIN, "body_sha256": _sha(body)}
+            meta = {"source": "pin", "commit": PIN, "content_sha256": _sha(body)}
         text = body + "\n" + tail
         _write(os.path.join(cfg, "engram", f"{g}.md"), text)
         texts.append({"path": f"engram/{g}.md", "sha256": _sha(text), **meta})
@@ -268,20 +275,29 @@ def build_arm(arm: str, spec: ArmSpec, src, engram_bin: str, deny_entries: List[
 # ---------------------------------------------------------------------------
 
 
-def arm_argv(arm: str, token: str, model: str, user: str, claude_bin: str, extra_tools=()) -> List[str]:
+# The token never enters argv: the launcher writes it into a pipe, and this handoff (run under
+# `env -i`, so its environment is exactly the allowlist) reads it from the inherited fd, closes the
+# fd, adds it to its own environment and execs claude. argv carries only the fd number.
+HANDOFF_PYTHON = os.path.realpath(sys.executable)
+ENV_ALLOWLIST = ("HOME", "USER", "PATH", "TERM", "TMPDIR", "XDG_DATA_HOME", "ENGRAM_VAULT_PATH")
+# The handoff execs claude with an explicit env of exactly the allowlist plus the token, dropping
+# anything the interpreter itself adds (macOS python sets LC_CTYPE and __CF_USER_TEXT_ENCODING).
+HANDOFF_CODE = ("import os,sys\n"
+                "fd=int(sys.argv[1]);t=os.read(fd,65536).decode().strip();os.close(fd)\n"
+                f"env={{k:os.environ[k] for k in {ENV_ALLOWLIST!r} if k in os.environ}}\n"
+                "env['CLAUDE_CODE_OAUTH_TOKEN']=t\n"
+                "os.execve(sys.argv[2],sys.argv[2:],env)\n")
+
+
+def arm_argv(arm: str, model: str, user: str, claude_bin: str, token_fd: int, extra_tools=()) -> List[str]:
     env_pairs = [
         f"HOME={arm}/home", f"USER={user}", f"PATH={arm}/bin:/usr/bin:/bin", "TERM=dumb",
         f"TMPDIR={arm}/tmp", f"XDG_DATA_HOME={arm}/xdg", f"ENGRAM_VAULT_PATH={arm}/vault",
-        f"CLAUDE_CODE_OAUTH_TOKEN={token}",
     ]
-    return (["/usr/bin/env", "-i", *env_pairs, claude_bin, "-p", "--output-format", "stream-json", "--verbose",
+    return (["/usr/bin/env", "-i", *env_pairs, HANDOFF_PYTHON, "-I", "-c", HANDOFF_CODE, str(token_fd),
+             claude_bin, "-p", "--output-format", "stream-json", "--verbose",
              "--model", model, "--allowedTools", *ALLOWED_TOOLS, *extra_tools,
              "--disallowedTools", *DISALLOWED_TOOLS])
-
-
-def redact(argv: List[str], token: str) -> List[str]:
-    return ["CLAUDE_CODE_OAUTH_TOKEN=<redacted>" if a.startswith("CLAUDE_CODE_OAUTH_TOKEN=")
-            else a.replace(token, "<redacted>") for a in argv]
 
 
 def extract_token(keychain_json: str) -> str:
@@ -302,35 +318,56 @@ def read_token() -> str:
 def run_claude(arm: str, prompt: str, token: str, model: str, out_dir: str, timeout: int,
                claude_bin: str, extra_tools=()) -> Dict[str, Any]:
     os.makedirs(out_dir, exist_ok=True)
-    argv = arm_argv(arm, token, model, pwd.getpwuid(os.getuid()).pw_name, claude_bin, extra_tools)
+    r, w = os.pipe()
+    try:
+        os.write(w, token.encode())
+    finally:
+        os.close(w)
+    argv = arm_argv(arm, model, pwd.getpwuid(os.getuid()).pw_name, claude_bin, r, extra_tools)
     t0 = time.time()
     timed_out = False
-    with open(os.path.join(out_dir, "stream.jsonl"), "w") as so, open(os.path.join(out_dir, "stderr.txt"), "w") as se:
-        try:
-            p = subprocess.run(argv, input=prompt, stdout=so, stderr=se, text=True, cwd=os.path.join(arm, "work"),
-                               timeout=timeout)
-            rc = p.returncode
-        except subprocess.TimeoutExpired:
-            rc, timed_out = None, True
-    rec = {"argv": redact(argv, token), "returncode": rc, "timed_out": timed_out, "wall_s": round(time.time() - t0, 1)}
+    try:
+        with open(os.path.join(out_dir, "stream.jsonl"), "w") as so, \
+                open(os.path.join(out_dir, "stderr.txt"), "w") as se:
+            try:
+                p = subprocess.run(argv, input=prompt, stdout=so, stderr=se, text=True,
+                                   cwd=os.path.join(arm, "work"), timeout=timeout, pass_fds=(r,))
+                rc = p.returncode
+            except subprocess.TimeoutExpired:
+                rc, timed_out = None, True
+    finally:
+        os.close(r)
+    rec = {"argv": argv, "returncode": rc, "timed_out": timed_out, "wall_s": round(time.time() - t0, 1)}
+    if token in json.dumps(rec):
+        raise HarnessError("token reached the launch record")
     _write(os.path.join(out_dir, "launch.json"), json.dumps(rec, indent=2) + "\n")
     return rec
 
 
-def collect_sessions(arm: str, dest: str) -> List[str]:
-    """Copy every session JSONL (incl. subagent transcripts) out of $ARM before it is deleted."""
+def collect_sessions(arm: str, dest: str):
+    """Copy every session JSONL out of $ARM before it is deleted. Returns (main texts, subagent texts)."""
     root = os.path.join(arm, "home", ".claude", "projects")
-    texts = []
+    main, others = [], []
     for dirpath, _, files in os.walk(root):
         for f in sorted(files):
             if f.endswith(".jsonl"):
                 src = os.path.join(dirpath, f)
-                dst = os.path.join(dest, os.path.relpath(src, root))
+                rel = os.path.relpath(src, root)
+                dst = os.path.join(dest, rel)
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 shutil.copy2(src, dst)
                 with open(src, errors="replace") as fh:
-                    texts.append(fh.read())
-    return texts
+                    (others if "subagents" in rel.split(os.sep) else main).append(fh.read())
+    return main, others
+
+
+def vault_notes(vault: str) -> List[str]:
+    notes = []
+    for dirpath, dirnames, files in os.walk(vault):
+        if ".git" in dirnames:
+            dirnames.remove(".git")
+        notes += [os.path.relpath(os.path.join(dirpath, f), vault) for f in files if f.endswith(".md")]
+    return sorted(notes)
 
 
 def remove_arm(arm: str) -> None:
@@ -494,75 +531,96 @@ def claude_version(claude_bin: str) -> str:
                           capture_output=True, text=True, timeout=60).stdout.strip()
 
 
+def real_paths():
+    home = pwd.getpwuid(os.getuid()).pw_dir
+    return home, os.path.join(home, ".local", "share", "engram", "vault"), os.path.join(home, ".claude")
+
+
 def run_batch(name: str, specs: List[ArmSpec], model: str, timeout: int, claude_bin: str, engram_bin: str) -> int:
     batch_dir = os.path.join(RESULTS, name)
     if os.path.exists(batch_dir):
         raise HarnessError(f"{batch_dir} exists; pick a new batch name")
     os.makedirs(batch_dir)
-    home = pwd.getpwuid(os.getuid()).pw_dir
-    vault = os.path.join(home, ".local", "share", "engram", "vault")
-    claude_dir = os.path.join(home, ".claude")
+    home, vault, claude_dir = real_paths()
     start = time.time()
     before = isolation_snapshot(vault, claude_dir, start)
     lock = threading.Lock()
     cost_log = os.path.join(RESULTS, "cost-log.jsonl")
-    src = GitSource()
-    manifest: Dict[str, Any] = {
-        "batch": name, "started": dt.datetime.fromtimestamp(start, dt.timezone.utc).isoformat(),
-        "claude_bin": claude_bin, "claude_version": claude_version(claude_bin),
-        "engram_bin": engram_bin, "engram_bin_sha256": hashlib.sha256(open(engram_bin, "rb").read()).hexdigest(),
-        "orchestrator_model_requested": model, "fixture_model_requested": FIXTURE_MODEL,
-        "repo_head": src.head(), "pin": PIN,
-        "tokens": {"file_markers": FILE_MARKERS, "arm_tokens": ARM_TOKENS},
-        "allowed_tools": list(ALLOWED_TOOLS), "disallowed_tools": list(DISALLOWED_TOOLS), "arms": [],
-    }
-    token = read_token()
-    deny = deny_entries(claude_tmp_root())
-    manifest["deny_write"] = deny
-    probe = run_probe(batch_dir, token, deny, home, claude_bin)
-    _append(cost_log, {"batch": name, "arm_id": "probe", "kind": "probe", "cost_usd": probe["cost_usd"]}, lock)
-    manifest["probe"] = {k: probe[k] for k in ("ok", "reason", "cost_usd")}
+    manifest: Dict[str, Any] = {"batch": name, "started": dt.datetime.fromtimestamp(start, dt.timezone.utc).isoformat(),
+                                "arms": []}
     status = 0
-    if not probe["ok"]:
-        manifest["aborted"] = "probe failed: " + probe["reason"]
-        status = 2
-    else:
-        for i, spec in enumerate(specs):
-            arm_id = f"{i:02d}-{spec.cell}-{spec.arm}-{spec.domain}"
-            out_dir = os.path.join(batch_dir, arm_id)
-            arm = new_arm_dir()
-            try:
-                info = build_arm(arm, spec, src, engram_bin, deny, home)
-                _write(os.path.join(out_dir, "unit1-report.txt"), info["unit1_report"])
-                launch = run_claude(arm, info["prompt"], token, model, out_dir, timeout, claude_bin)
-                sessions = collect_sessions(arm, os.path.join(out_dir, "session"))
-            finally:
-                remove_arm(arm)
-            with open(os.path.join(out_dir, "stream.jsonl")) as f:
-                verdict = score.score_arm(f.readlines(), sessions, spec.cell, spec.arm, info["unit1_report"],
-                                          info["lessons"])
-            rec = {"arm_id": arm_id, "arm_dir": arm, "arm_deleted": not os.path.exists(arm),
-                   "learn_source": spec.learn_source, "domain": spec.domain, "timed_out": launch["timed_out"],
-                   "wall_s": launch["wall_s"], **verdict}
-            _write(os.path.join(out_dir, "score.json"), json.dumps(rec, indent=2) + "\n")
-            _append(os.path.join(batch_dir, "arms.jsonl"), rec, lock)
-            _append(cost_log, {"batch": name, "arm_id": arm_id, "kind": "arm", "cell": spec.cell, "arm": spec.arm,
-                               "cost_usd": rec["cost_usd"], "label": rec["label"]}, lock)
-            manifest["arms"].append({"arm_id": arm_id, "cell": spec.cell, "arm": spec.arm, "domain": spec.domain,
-                                     "orchestrator_model": rec["orchestrator_model"],
-                                     "fixture_models": rec["fixture_models"], "texts": info["texts"]})
-            print(f"{arm_id}: {rec['label']} gate={rec['gate']['ok']} cost=${rec['cost_usd']}", flush=True)
-    after = isolation_snapshot(vault, claude_dir, start)
-    iso = isolation_record(start, vault, claude_dir, before, after)
-    _write(os.path.join(batch_dir, "isolation.json"), json.dumps(iso, indent=2) + "\n")
-    manifest["isolation_ok"] = iso["ok"]
-    if not iso["ok"]:
-        manifest["failed"] = "real-vault entry newer than batch start"
-        status = status or 3
-    manifest["finished"] = dt.datetime.now(dt.timezone.utc).isoformat()
-    _write(os.path.join(batch_dir, "run-manifest.json"), json.dumps(manifest, indent=2) + "\n")
-    print(f"probe={probe['ok']} isolation={iso['ok']} status={status}", flush=True)
+    try:
+        src = GitSource()
+        with open(engram_bin, "rb") as fh:
+            engram_sha = hashlib.sha256(fh.read()).hexdigest()
+        manifest.update({
+            "claude_bin": claude_bin, "claude_version": claude_version(claude_bin),
+            "engram_bin": engram_bin, "engram_bin_sha256": engram_sha,
+            "orchestrator_model_requested": model, "fixture_model_requested": FIXTURE_MODEL,
+            "repo_head": src.head(), "pin": PIN,
+            "tokens": {"file_markers": FILE_MARKERS, "arm_tokens": ARM_TOKENS},
+            "allowed_tools": list(ALLOWED_TOOLS), "disallowed_tools": list(DISALLOWED_TOOLS),
+        })
+        token = read_token()
+        deny = deny_entries(claude_tmp_root())
+        manifest["deny_write"] = deny
+        probe = run_probe(batch_dir, token, deny, home, claude_bin)
+        _append(cost_log, {"batch": name, "arm_id": "probe", "kind": "probe", "cost_usd": probe["cost_usd"]}, lock)
+        manifest["probe"] = {k: probe[k] for k in ("ok", "reason", "cost_usd")}
+        if not probe["ok"]:
+            manifest["aborted"] = "probe failed: " + probe["reason"]
+            status = 2
+        else:
+            for i, spec in enumerate(specs):
+                _run_one(i, spec, batch_dir, src, engram_bin, deny, home, token, model, timeout, claude_bin,
+                         name, cost_log, lock, manifest)
+    except BaseException as e:  # record, then re-raise: the after-check and manifest must still land
+        manifest["error"] = f"{type(e).__name__}: {e}"
+        status = 4
+        raise
+    finally:
+        after = isolation_snapshot(vault, claude_dir, start)
+        iso = isolation_record(start, vault, claude_dir, before, after)
+        _write(os.path.join(batch_dir, "isolation.json"), json.dumps(iso, indent=2) + "\n")
+        manifest["isolation_ok"] = iso["ok"]
+        if not iso["ok"]:
+            manifest["failed"] = "real-vault entry newer than batch start"
+            status = status or 3
+        manifest["finished"] = dt.datetime.now(dt.timezone.utc).isoformat()
+        _write(os.path.join(batch_dir, "run-manifest.json"), json.dumps(manifest, indent=2) + "\n")
+        print(f"probe={manifest.get('probe', {}).get('ok')} isolation={iso['ok']} status={status}", flush=True)
     return status
+
+
+def _run_one(i, spec, batch_dir, src, engram_bin, deny, home, token, model, timeout, claude_bin, name, cost_log,
+             lock, manifest) -> None:
+    arm_id = f"{i:02d}-{spec.cell}-{spec.arm}-{spec.domain}"
+    out_dir = os.path.join(batch_dir, arm_id)
+    arm = new_arm_dir()
+    try:
+        info = build_arm(arm, spec, src, engram_bin, deny, home)
+        manifest["arms"].append({"arm_id": arm_id, "cell": spec.cell, "arm": spec.arm, "domain": spec.domain,
+                                 "texts": info["texts"]})
+        _write(os.path.join(out_dir, "unit1-report.txt"), info["unit1_report"])
+        launch = run_claude(arm, info["prompt"], token, model, out_dir, timeout, claude_bin)
+        main_texts, other_texts = collect_sessions(arm, os.path.join(out_dir, "session"))
+        notes = vault_notes(os.path.join(arm, "vault"))
+        _write(os.path.join(out_dir, "vault-notes.json"), json.dumps(notes, indent=2) + "\n")
+    finally:
+        remove_arm(arm)
+    with open(os.path.join(out_dir, "stream.jsonl")) as f:
+        verdict = score.score_arm(f.readlines(), main_texts, spec.cell, spec.arm, info["unit1_report"],
+                                  info["lessons"], other_texts, notes)
+    rec = {"arm_id": arm_id, "arm_dir": arm, "arm_deleted": not os.path.exists(arm),
+           "learn_source": spec.learn_source, "domain": spec.domain, "timed_out": launch["timed_out"],
+           "wall_s": launch["wall_s"], **verdict}
+    _write(os.path.join(out_dir, "score.json"), json.dumps(rec, indent=2) + "\n")
+    _append(os.path.join(batch_dir, "arms.jsonl"), rec, lock)
+    _append(cost_log, {"batch": name, "arm_id": arm_id, "kind": "arm", "cell": spec.cell, "arm": spec.arm,
+                       "cost_usd": rec["cost_usd"], "label": rec["label"]}, lock)
+    manifest["arms"][-1].update({"orchestrator_model": rec["orchestrator_model"],
+                                 "fixture_models": rec["fixture_models"]})
+    print(f"{arm_id}: {rec['label']} gate={rec['gate']['ok']} cost=${rec['cost_usd']}", flush=True)
 
 
 def main(argv: Optional[List[str]] = None) -> int:
