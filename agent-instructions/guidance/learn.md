@@ -13,7 +13,7 @@ vault note (via `engram learn`). NOT a plain note file, NOT Claude Code's native
 you do is a native memory write, you have missed the cue.
 
 **You do NOT need the full learn sweep mid-cycle.** This is a focused, single-note capture: crystallize
-the one confirmed correction now (the `/learn` skill's mid-cycle fast path — skip its Step 1 sweep, go
+the one confirmed lesson now (the `/learn` skill's mid-cycle fast path — skip its Step 1 sweep, go
 straight to the crystallize step). Do NOT run `engram ingest --auto` mid-task — the sweep is a
 cycle-close job; running it here is wasteful, can block on a large corpus, and losing the capture to a
 hung sweep is the failure mode.
@@ -27,6 +27,13 @@ Fire at these cues:
   `/learn` it so the next session doesn't re-hit it.
 - **You caught your own approach being wrong mid-task** — a self-discovered reversal is the same cue;
   `/learn` the root cause at the moment you catch it.
+- **A subagent just returned, and its report's `LESSONS:` line isn't `none`** — the lesson is in hand
+  now, and at the closing learn it is one line in a long list (if the closing learn runs at all).
+  Judge each lesson as you read the report: if it is a confirmed correction, reversal, explicit
+  save-request, or confirmed approach that states a reusable rule, `/learn` it on the fast path — one
+  note per lesson — **before your next dispatch** (or before you end your turn, if no dispatch is
+  left). Skip `none`, "done, tests pass", and anything the report doesn't confirm ("might be a
+  race") — those are not lessons, and the closing learn will discard them anyway.
 
 **Even a one-line fix earns the note.** Small is not below the capture threshold — the value is in the
 *rule you were just corrected on*, which is identical whether the fix is one line or ten. "It's a
