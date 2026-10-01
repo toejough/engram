@@ -322,8 +322,10 @@ func adoptRenderInput(raw []byte, oldBasename, newBasename string) ([]byte, erro
 // included). It preserves every frontmatter key it doesn't set — situation,
 // done_when, red_flags, triggers, created, identity, supersedes, and keys
 // the typed runbook note model does not define — with its value;
-// comments best-effort (yaml.v3 round-trip). Shared by RefreshSkill
-// (pending=true) and AdoptSkillNote (pending=false).
+// comments best-effort (yaml.v3 round-trip). A note whose edited key
+// carries an anchor is refused (errFrontmatterAnchoredKey), and the result
+// is decoded again before it is returned (errFrontmatterUndecodable).
+// Shared by RefreshSkill (pending=true) and AdoptSkillNote (pending=false).
 func applySkillNoteBody(raw []byte, source SkillNoteSource, pending bool) (string, error) {
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
@@ -343,6 +345,11 @@ func applySkillNoteBody(raw []byte, source SkillNoteSource, pending bool) (strin
 		return "", fmt.Errorf("register-skills: parsing runbook frontmatter: %w", decodeErr)
 	}
 
+	anchorErr := refuseAnchoredKeys(mapping, "skill_hash", "skill_key", "skill_source", "pending")
+	if anchorErr != nil {
+		return "", fmt.Errorf("register-skills: %w", anchorErr)
+	}
+
 	setMappingValue(mapping, "skill_hash", encodeNode(SkillContentHash(source.Content)))
 	setMappingValue(mapping, "skill_key", encodeNode(source.Key))
 	setMappingValue(mapping, "skill_source", encodeNode(source.SkillSource))
@@ -358,7 +365,14 @@ func applySkillNoteBody(raw []byte, source SkillNoteSource, pending bool) (strin
 		Supersedes: doc.Supersedes,
 	})
 
-	return marshalFrontmatter(mapping) + body, nil
+	rendered := marshalFrontmatter(mapping) + body
+
+	verifyErr := verifyFrontmatterDecodes(rendered)
+	if verifyErr != nil {
+		return "", fmt.Errorf("register-skills: %w", verifyErr)
+	}
+
+	return rendered, nil
 }
 
 // checkAdoptConflict errors when key is already registered to a different

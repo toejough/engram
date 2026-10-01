@@ -400,7 +400,9 @@ func TestRunResituate_IOErrors(t *testing.T) {
 // TestRunResituate_KeepsEveryKeyButSituationProperty is P3 (design D7): for
 // a fact or feedback note carrying 0-3 unknown keys (scalar, list, nested
 // map) and optionally an anchored unknown value aliased by another key,
-// every key except situation decodes to the same value after resituate.
+// every key except situation decodes to the same value after resituate —
+// unless situation: or created: carries an aliased anchor, which refuses
+// the note unwritten (ruling V3).
 func TestRunResituate_KeepsEveryKeyButSituationProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
@@ -413,7 +415,24 @@ func TestRunResituate_KeepsEveryKeyButSituationProperty(t *testing.T) {
 
 		before := resituateUnknownKeysNote(noteType, unknown)
 
-		after, _, err := runExchangeSurvivalResituate(context.Background(), before)
+		// An anchor on a key resituate sets refuses the note unwritten
+		// (ruling V3).
+		edited := rapid.SampledFrom([]string{"", "situation: ", "created: "}).Draw(rt, "anchoredEditedKey")
+		if edited != "" {
+			before = strings.Replace(before, "\n"+edited, "\n"+edited+"&e ", 1)
+			before = strings.Replace(before, "vault: v\n", "vault: v\nx_edit_ref: *e\n", 1)
+		}
+
+		after, writes, err := runExchangeSurvivalResituate(context.Background(), before)
+
+		if edited != "" {
+			if !errors.Is(err, cli.ErrFrontmatterAnchoredKeyForTest) || writes != 0 {
+				rt.Fatalf("anchored %q: err = %v, writes = %d; want the anchored-key refusal, unwritten", edited, err, writes)
+			}
+
+			return
+		}
+
 		if err != nil {
 			rt.Fatalf("resituate: %v", err)
 		}

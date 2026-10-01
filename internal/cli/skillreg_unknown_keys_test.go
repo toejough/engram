@@ -8,6 +8,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -71,22 +72,40 @@ func TestAdoptAndRefresh_PendingParity(t *testing.T) {
 	}
 }
 
-// TestAdoptAndRefresh_UnknownKeysProperty is P2 (design D7): for LF,
-// anchor-free runbook notes carrying 0-3 unknown keys (scalar, list or
-// nested map), adopt and refresh write frontmatter that decodes, sets the
-// skill fields, and keeps every other key — unknown ones included — at its
-// decoded value.
+// TestAdoptAndRefresh_UnknownKeysProperty is P2 (design D7): for LF
+// runbook notes carrying 0-3 unknown keys (scalar, list or nested map),
+// adopt and refresh write frontmatter that decodes, sets the skill fields,
+// and keeps every other key — unknown ones, and luhmann (and, for refresh,
+// aliases) included — at its decoded value. When a key the edit sets or
+// deletes carries an anchor another key aliases, the note is refused
+// unwritten instead (ruling V3).
 func TestAdoptAndRefresh_UnknownKeysProperty(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		mode := rapid.SampledFrom([]string{"refresh", "adopt"}).Draw(rt, "mode")
 		unknown := skillUnknownKeysGen().Draw(rt, "unknown")
+		anchored := rapid.SampledFrom([]string{"", "skill_key", "skill_hash", "skill_source", "pending"}).
+			Draw(rt, "anchoredEditedKey")
+
+		if anchored != "" {
+			unknown += anchored + ": &e " + map[string]string{
+				"skill_key": `"claude:curate"`, "skill_hash": `"sha256:00"`, "skill_source": `"s"`, "pending": "true",
+			}[anchored] + "\nx_edit_ref: *e\n"
+		}
+
 		// created: quoted, as learn writes it, so a decoded date compares as
 		// the same string on both sides.
 		before := strings.Replace(curatePromotedNoteFixture(), "vault: personal\n", "vault: personal\n"+unknown, 1)
 		before = strings.Replace(before, "created: 2026-09-21\n", "created: \"2026-09-21\"\n", 1)
 
 		after, err := runSkillAcceptMode(context.Background(), mode, before)
+
+		if anchored != "" {
+			assertSkillAcceptRefused(rt, mode, before, after, err)
+
+			return
+		}
+
 		if err != nil {
 			rt.Fatalf("%s: %v", mode, err)
 		}
@@ -97,8 +116,13 @@ func TestAdoptAndRefresh_UnknownKeysProperty(t *testing.T) {
 		}
 
 		beforeFields := frontmatterOf(before)
+		ignored := []string{"skill_key", "skill_hash", "skill_source", "pending"}
 
-		for _, key := range []string{"skill_key", "skill_hash", "skill_source", "pending", "luhmann", "aliases"} {
+		if mode == "adopt" {
+			ignored = append(ignored, "aliases") // the adopt rename records the old basename
+		}
+
+		for _, key := range ignored {
 			delete(beforeFields, key)
 			delete(fields, key)
 		}
@@ -107,6 +131,19 @@ func TestAdoptAndRefresh_UnknownKeysProperty(t *testing.T) {
 			rt.Fatalf("%s changed a key it does not set:\nbefore %v\nafter  %v", mode, beforeFields, fields)
 		}
 	})
+}
+
+// assertSkillAcceptRefused checks an anchored-edited-key refusal: the
+// sentinel error, and nothing written (refresh leaves the note's bytes;
+// adopt never reaches its new basename).
+func assertSkillAcceptRefused(rt *rapid.T, mode, before, after string, err error) {
+	if !errors.Is(err, cli.ErrFrontmatterAnchoredKeyForTest) {
+		rt.Fatalf("%s of an anchored edited key: err = %v, want the anchored-key refusal", mode, err)
+	}
+
+	if mode == "refresh" && after != before || mode == "adopt" && after != "" {
+		rt.Fatalf("%s of an anchored edited key wrote the note:\n%s", mode, after)
+	}
 }
 
 // runSkillAcceptMode refreshes or adopts the curate note content (basename

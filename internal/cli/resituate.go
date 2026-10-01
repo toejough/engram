@@ -234,7 +234,10 @@ func resituateContent(raw []byte, situation string) (string, error) {
 // exchange fields among them. The typed doc is decoded from the node only
 // to validate the note and to build the body opener. The body keeps
 // everything after its first line; only that opener is rebuilt around the
-// new situation.
+// new situation. A note whose situation: or created: carries a YAML anchor
+// is refused untouched (errFrontmatterAnchoredKey): replacing the value
+// would leave its aliases dangling. The rendered frontmatter is decoded
+// again before it is returned (errFrontmatterUndecodable).
 //
 // created: is re-emitted as the string the note holds (quoted by the
 // frontmatter writer, as learn writes it), not rebuilt from the parsed date.
@@ -267,13 +270,24 @@ func resituateTyped[T any](
 		return "", createdErr
 	}
 
+	anchorErr := refuseAnchoredKeys(mapping, "situation", "created")
+	if anchorErr != nil {
+		return "", fmt.Errorf("resituate: %w", anchorErr)
+	}
+
 	setMappingValue(mapping, "situation", encodeNode(situation))
 	setMappingValue(mapping, "created", encodeNode(created))
 
 	newOpener, _, _ := strings.Cut(opener(doc), "\n")
 	_, rest, _ := bytes.Cut(body, []byte("\n"))
+	rendered := marshalFrontmatter(mapping) + newOpener + "\n" + string(rest)
 
-	return marshalFrontmatter(mapping) + newOpener + "\n" + string(rest), nil
+	verifyErr := verifyFrontmatterDecodes(rendered)
+	if verifyErr != nil {
+		return "", fmt.Errorf("resituate: %w", verifyErr)
+	}
+
+	return rendered, nil
 }
 
 // runResituateLocked is RunResituate's locked section: the rewrite, the

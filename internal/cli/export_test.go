@@ -54,6 +54,7 @@ var (
 	ErrCountNoModeForTest                  = errCountNoMode
 	ErrDuplicateAdoptKeyForTest            = errDuplicateAdoptKey
 	ErrDuplicateSkillNoteForTest           = errDuplicateSkillNote
+	ErrFrontmatterAnchoredKeyForTest       = errFrontmatterAnchoredKey
 	ErrLearnBadTierForTest                 = errLearnBadTier
 	ErrOfferWithdrawnForTest               = errOfferWithdrawn
 	ErrParentTooOldForTest                 = errParentTooOld
