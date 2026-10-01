@@ -196,7 +196,9 @@ func foldParentLinks(into, offer parentLinks) parentLinks {
 
 // foldedContent is into's content after folding the offer into it: only
 // the aliases: and parent: keys change, and only when the fold adds to
-// them.
+// them. They are edited as YAML nodes (editExchangeBlocks, ruling V7), so
+// unknown keys under parent: and its links survive, and an anchor on an
+// edited key refuses the fold before anything is written or deleted.
 func foldedContent(intoRaw []byte, intoBase string, offerRaw []byte, offerBase string) (string, error) {
 	into, intoErr := decodeExchangeFrontmatter(intoRaw)
 	if intoErr != nil {
@@ -208,30 +210,20 @@ func foldedContent(intoRaw []byte, intoBase string, offerRaw []byte, offerBase s
 		return "", offerErr
 	}
 
-	content := string(intoRaw)
-
 	aliases := foldAliases(into.Aliases, intoBase, offerBase, offer.Aliases)
-	if !slices.Equal(aliases, into.Aliases) {
-		var setErr error
 
-		content, setErr = setFrontmatterBlock(content, aliasesKey, map[string][]string{aliasesKey: aliases}, offerFieldKey)
-		if setErr != nil {
-			return "", fmt.Errorf("amend: fold: %w", setErr)
-		}
+	folded, editErr := editExchangeBlocks(intoRaw, exchangeBlocksEdit{
+		aliases:       aliases,
+		setAliases:    !slices.Equal(aliases, into.Aliases),
+		parentBefore:  into.Parent,
+		parentAfter:   foldParentLinks(into.Parent, offer.Parent),
+		setParentLink: true,
+	})
+	if editErr != nil {
+		return "", fmt.Errorf("amend: fold: %w", editErr)
 	}
 
-	parent := foldParentLinks(into.Parent, offer.Parent)
-	if !sameParentLinks(parent, into.Parent) {
-		var setErr error
-
-		content, setErr = setFrontmatterBlock(content, parentKey, map[string]parentLinks{parentKey: parent},
-			aliasesKey, offerFieldKey)
-		if setErr != nil {
-			return "", fmt.Errorf("amend: fold: %w", setErr)
-		}
-	}
-
-	return content, nil
+	return folded, nil
 }
 
 // isPrimaryLink reports whether a link role is a note's primary

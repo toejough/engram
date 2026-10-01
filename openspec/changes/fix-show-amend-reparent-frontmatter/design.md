@@ -30,6 +30,7 @@ The capabilities affected are `recall-runbook-surfacing`, `vault-offer-curation`
 - General CRLF support in `embed.SplitFrontmatter`. It has more than 9 callers, including exchange-hash and vocab code. CRLF is converted only on notes that a rename or rewrite already writes.
 - Converting CRLF notes that no write touches.
 - Amend converting CRLF notes. Amend still refuses a CRLF note (`errAmendNoFrontmatter`), untouched; ruling V6 folded in only refresh and resituate.
+- Unknown sub-keys inside a modeled list entry that amend replaces (for example a `supersedes:` entry's extra field when `--supersedes` changes the list) are dropped, as before (V6 F4 step 3).
 - Other typed re-marshal writers: identity backfill (`identity_backfill.go`) still drops unmodeled keys. It is not in ruling V6's scope; a follow-up issue should move it onto the same node edit.
 - `user:` fallback on first-write paths (`learn.go:1046`, `serve_learn.go:257`, `pulldown.go:351`). They have no prior value to keep.
 - Any edit to the learn SKILL.md or vault note 1067.
@@ -168,9 +169,18 @@ Every other key survives, including keys the typed doc does not define. The same
 
 1. Parse the frontmatter into a mapping, decode the typed doc from it, and encode the doc before the edit (`before`).
 2. Apply the edit to the typed doc, as before, and encode it again (`after`).
-3. For each key `after` carries: set it in place when its encoding differs from `before`'s, or insert it at the typed writer's key position when the mapping lacks it. Delete each key `after` omits (an omitempty field the edit cleared). `created` is also re-emitted when the file's own text differs from the typed quoted form, as the typed re-marshal always did.
+3. For each key `after` carries: set it in place when its encoding differs from `before`'s, or insert it at the typed writer's key position when the mapping lacks it. Delete each key `after` omits (an omitempty field the edit cleared). `created` is also re-emitted when the file's own text differs from the typed quoted form, as the typed re-marshal always did. A changed key's value is replaced whole, so replacing a modeled list (for example `supersedes:` when `--supersedes` changes it) still drops unknown sub-keys inside its entries. That is the pre-change behaviour; an unchanged list keeps them.
 4. Leave every other key exactly as parsed: unedited modeled keys, unmodeled keys, and their anchors and style.
 5. Refuse untouched (`errFrontmatterAnchoredKey`) when a key step 3 would set or delete carries an anchor, and decode the result again before writing (`errFrontmatterUndecodable`), the same ruling V3 guards.
+
+**Ruling V7 (re-review N1): the fold and the offer receipt edit aliases: and parent: as nodes too.** `amend --discard --into` (`foldedContent`) and the receipt (`applyReceiptToContent`) used the line-based `setFrontmatterBlock`, which re-rendered the whole `parent:` block from the typed `parentLinks`: an anchored `parent:` aliased elsewhere was written undecodable (and the fold then deleted the offer), and unknown keys under `parent:` or inside its links were dropped. Both now go through `editExchangeBlocks` (`exchange_blocks.go`):
+
+- `aliases:` is replaced whole when the fold changes it.
+- `parent:` is edited in place: `vault` and `author` as typed node edits, and the `links` sequence rebuilt from the new links, reusing the node of the old link to the same note (its `note`, `via` and `hash` set by node edit). Unknown keys under `parent:`, and inside every link that is kept, survive. A link the edit drops, for example under a parent vault the receipt or fold replaces, goes with its keys, as before.
+- An anchor on an edited key (`aliases:`, `parent:`, or anything beneath them) refuses the edit untouched (`errFrontmatterAnchoredKey`). The output is decoded again before it is returned (`errFrontmatterUndecodable`). The fold runs both checks before it writes into or deletes the offer, so a refusal leaves both files untouched. A note the edit does not change is returned byte-for-byte, so the receipt's no-write-when-unchanged check still holds.
+- New blocks are inserted in the frontmatter writer's order (`parent:`, `aliases:`, `offer:`), exactly where `setFrontmatterBlock` put them. The fold still never re-stamps identity (ruling S7). `setXIDField` is insert-only, and now uses `insertFrontmatterBlock`, the insert half of the old `setFrontmatterBlock` (its replace half had no other caller).
+
+`TestFoldAndReceipt_ParityWithPreChangeRewrite` pins 6 fold and 5 receipt cases, without unknown keys or anchors, against goldens written by the pre-change code. That code is unchanged from `49cfc120` to the commit before V7. The test asserts equal bytes and exchange hashes, that the fold deletes the offer, and that the fold runs no identity detection. The 6 fold goldens also match, byte-for-byte, a binary built from `49cfc120` that ran the same folds.
 
 For a note without unmodeled keys or anchors, this writes the same bytes as the typed re-marshal. `TestRunAmend_ExchangeHashParityWithPreChangeAmend` pins it on 32 inputs (fact, feedback and runbook; full exchange notes and minimal older-style notes; every amend kind that writes frontmatter) against goldens written by the pre-change amend at `49cfc120`. It asserts equal exchange hashes and equal bytes. A binary built from `49cfc120` matched the goldens' `engram show` exchange hash on all 26 cases that need no chunk index. So the offer paths, which stage and compare these bytes and hashes, behave exactly as before for such notes.
 

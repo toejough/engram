@@ -393,8 +393,6 @@ func TestTargets_ActivateNoNotes(t *testing.T) {
 // vault: "". This test is expected to PASS as written (regression guard,
 // not a RED->GREEN pair): the unit test in TestRunAmend_EmptyUserDetection*
 // is the evidence for the part of #776 that WAS broken (user:).
-//
-// Not parallel: t.Setenv forbids combining with t.Parallel.
 func TestTargets_AmendDefaultVaultName(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
