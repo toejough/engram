@@ -91,10 +91,10 @@ autonomously — it requires Joe's oversight.
 subagent's report returns with a `LESSONS:` line (route's completion-report contract) that isn't
 `none`, apply the bar below to each lesson in it right then, on the mid-cycle fast path above: one
 note per lesson that clears the bar, no sweep. At the closing learn, scan the session's collected
-`LESSONS:` lines from dispatched work (the `please` runbook hands them over) alongside the raw
+`LESSONS:` lines from dispatched work (the `please` skill hands them over) alongside the raw
 session content — every line, `none` entries included (skip those trivially). A line is
-**captured** when a note written earlier this session covers it:
-skip captured lines — never write one a second time. Judge every other line against the same four
+**captured** when a note written earlier this session covers it: skip captured lines — never write
+one a second time. Judge every other line against the same four
 kinds and the same quality bar below (confirmed, not hypothesized; a general reusable principle, not
 a session-specific narrative). A line that doesn't clear the bar is discarded silently — no vault
 note, no logged discard — the line is a low-bar offer, not a pre-judged lesson.

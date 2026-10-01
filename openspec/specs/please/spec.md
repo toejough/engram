@@ -2,7 +2,7 @@
 
 ## Purpose
 
-What the please workflow does with the `LESSONS:` lines its dispatched units return: it records each line, unjudged, as every dispatch resolves, hands the full set to the closing `/learn` at step 7 alongside the lessons-audit output, and never lets its gates filter that collection. Distinct from `lessons-contract`, which defines the line itself; this is where please carries it. Why: change `learn-rate-skill-only` routes subagent lessons to one curation point, the closing learn.
+What the please workflow does with the `LESSONS:` lines its dispatched units return: it records each line verbatim as every dispatch resolves, judges each lesson at that moment per the ambient learn guidance's return cue (a fast-path `/learn` for each that clears learn's bar), hands the full set to the closing `/learn` at step 7 alongside the lessons-audit output, and never lets its gates filter that collection. Distinct from `lessons-contract`, which defines the line itself; this is where please carries it. Why: `learn-rate-skill-only` routed subagent lessons to the closing learn; `learn-at-subagent-return` moved the judgment to the return and kept the closing learn as backstop.
 
 ## Requirements
 ### Requirement: Orchestrator collects LESSONS lines from all dispatched work

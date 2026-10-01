@@ -77,7 +77,7 @@ The three additions: the spec's four kinds include the explicit save-request, wh
 ### D3: The learn skill applies the bar per return; the closing learn is the backstop
 
 - **Fast-path block (SKILL.md lines 21–27).** The trigger widens from "a CORRECTION moment mid-task" to also "a subagent return whose `LESSONS:` line carries a lesson that clears the bar". The body (skip Step 1 and 1.5, go to Step 2, no `engram ingest --auto`) is unchanged.
-- **LESSONS paragraph (lines 89–95).** Rewritten to say: the bar applies to each returned result, at the return, on the fast path, one note per lesson that clears it. At the closing learn, the collected list is scanned for lines not yet captured; a line is captured when a note written earlier this session covers it (please marks such lines). Captured lines are skipped, and the rest are judged as before. The silent-discard rule and the bar itself do not change.
+- **LESSONS paragraph (lines 89–95).** Rewritten to say: the bar applies to each returned result, at the return, on the fast path, one note per lesson that clears it. At the closing learn, the collected list is scanned for lines not yet captured; a line is captured when a note written earlier this session covers it (Joe, 2026-10-01: please's captured marks were dropped; the closing learn dedupes by vault coverage alone — see the D6 design-change note). Captured lines are skipped, and the rest are judged as before. The silent-discard rule and the bar itself do not change.
 - The closing learn keeps its always-sweep rule (Step 1). The backstop matters because the return cue is prose and will miss some returns (vault note 198).
 
 ### D4: Consistency edits in please and route (scoped)

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-How the learn skill's closing capture treats the `LESSONS:` lines collected from a session's dispatched subagents: each line is judged against Step 2's existing four-kind bar and silently discarded if it fails, and the kind-4 (confirmed-approach) scan is anchored to the moment a unit's outcome is confirmed, with audit-derived exemplars. Why: the memory-loop audit (`dev/eval/audit/REPORT-2026-09-02.md`) found learn fired for 5.6% of worth-learning moments, with missed success-reinforcements the largest lost bucket; this is the curation half of capture-then-curate (change `learn-rate-skill-only`).
+How the learn skill treats the `LESSONS:` lines returned by a session's dispatched subagents — judged at each return on the mid-cycle fast path, with the closing capture as a backstop that skips lines a note written earlier this session already covers: each line is judged against Step 2's existing four-kind bar and silently discarded if it fails, and the kind-4 (confirmed-approach) scan is anchored to the moment a unit's outcome is confirmed, with audit-derived exemplars. Why: the memory-loop audit (`dev/eval/audit/REPORT-2026-09-02.md`) found learn fired for 5.6% of worth-learning moments, with missed success-reinforcements the largest lost bucket; this is the curation half of capture-then-curate (change `learn-rate-skill-only`).
 
 ## Requirements
 ### Requirement: Closing learn curates collected LESSONS lines
