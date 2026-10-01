@@ -1,0 +1,26 @@
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": ["Session tracking token: LAR-RECALL-2H6W\"}, {\"path\": \"/private/tmp/engram-arm.09ypyi66/home/.claude/engram/delegate.md\", \"type\": \"User\", \"content\": \"## Delegate object-level work — plan it, route it, review it, report it", "Session tracking token: LAR-DELEGATE-9C3N\"}, {\"path\": \"/private/tmp/engram-arm.09ypyi66/home/.claude/engram/learn.md\", \"type\": \"User\", \"content\": \"## Capture at the correction moment — fire engram `/learn`, right then", "Session tracking token: LAR-LEARN-8J2D", "Session tracking token: LAR-RED-3M8T\"}, {\"path\": \"/private/tmp/engram-arm.09ypyi66/home/.claude/engram/shim.md\", \"type\": \"User\", \"content\": \"## Before your first tool call, on every request: run `engram query`", "Session tracking token: LAR-SHIM-5V1R\"}]}"]}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "toolu_01VN87P1jYvUDkDQ5bfMmiP8"}]}, "toolUseResult": {"agentId": "a721bcffd50f5bd69", "agentType": "unit-worker", "resolvedModel": "claude-haiku-4-5-20251001"}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "toolu_017HbprTJTgdDZnECy6qCuAv"}]}, "toolUseResult": {"agentId": "a61f02e8ee13a6f4c", "agentType": "unit-worker", "resolvedModel": "claude-haiku-4-5-20251001"}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "toolu_01MRfYJtnXD81FcYnyAjCYte"}]}, "toolUseResult": {"agentId": "a8c6004fdf1a9c0ae", "agentType": "unit-worker", "resolvedModel": "claude-haiku-4-5-20251001"}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}

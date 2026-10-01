@@ -1,0 +1,2 @@
+{"type": "user", "agentId": "a7288b1f218eab42e", "message": {"content": [{"type": "tool_result", "tool_use_id": "toolu_01NtJyfRTj94etUpoV3aHMRc", "content": [{"type": "tool_reference", "tool_name": "SendMessage"}]}]}}
+{"type": "user", "agentId": "ab0e55a14690c8f6f", "message": {"content": [{"type": "tool_result", "tool_use_id": "toolu_01NzMbqb6iwzkUemAWDsXqLa", "content": [{"type": "tool_reference", "tool_name": "SendMessage"}]}]}}

@@ -1,0 +1,1 @@
+{"type": "user", "agentId": "a4351b4a421b8c8e8", "message": {"content": [{"type": "tool_result", "tool_use_id": "toolu_01UgWkzsXT5fvA1EtET1wtmM", "content": [{"type": "tool_reference", "tool_name": "SendMessage"}]}]}}

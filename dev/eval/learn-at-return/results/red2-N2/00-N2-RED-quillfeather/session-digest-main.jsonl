@@ -1,0 +1,20 @@
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": ["Session tracking token: LAR-RECALL-2H6W\"}, {\"path\": \"/private/tmp/engram-arm.4ey3h1k0/home/.claude/engram/delegate.md\", \"type\": \"User\", \"content\": \"## Delegate object-level work — plan it, route it, review it, report it", "Session tracking token: LAR-DELEGATE-9C3N\"}, {\"path\": \"/private/tmp/engram-arm.4ey3h1k0/home/.claude/engram/learn.md\", \"type\": \"User\", \"content\": \"## Capture at the correction moment — fire engram `/learn`, right then", "Session tracking token: LAR-LEARN-8J2D", "Session tracking token: LAR-RED-3M8T\"}, {\"path\": \"/private/tmp/engram-arm.4ey3h1k0/home/.claude/engram/shim.md\", \"type\": \"User\", \"content\": \"## Before your first tool call, on every request: run `engram query`", "Session tracking token: LAR-SHIM-5V1R\"}]}"]}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "toolu_01YV3jQmqE18AkdC4TVdag8V"}]}, "toolUseResult": {"agentId": "a544c84d58de9fe6a", "agentType": "unit-worker", "resolvedModel": "claude-haiku-4-5-20251001"}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "toolu_01HhRxZtHg2uGTVEyaHUnaNh"}]}, "toolUseResult": {"agentId": "a137711dee24d542a", "agentType": "unit-worker", "resolvedModel": "claude-haiku-4-5-20251001"}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
+{"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "toolu_01ScoSFtHrtTAb9kfvDrmfTE"}]}, "toolUseResult": {"agentId": "a9908c318b5266be0", "agentType": "unit-worker", "resolvedModel": "claude-haiku-4-5-20251001"}}
+{"type": "attachment", "attachment": {"marker_lines": []}}
