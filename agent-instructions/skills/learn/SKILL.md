@@ -93,7 +93,7 @@ subagent's report returns with a `LESSONS:` line (route's completion-report cont
 note per lesson that clears the bar, no sweep. At the closing learn, scan the session's collected
 `LESSONS:` lines from dispatched work (the `please` runbook hands them over) alongside the raw
 session content — every line, `none` entries included (skip those trivially). A line is
-**captured** when a note written earlier this session covers it (please marks such lines captured):
+**captured** when a note written earlier this session covers it:
 skip captured lines — never write one a second time. Judge every other line against the same four
 kinds and the same quality bar below (confirmed, not hypothesized; a general reusable principle, not
 a session-specific narrative). A line that doesn't clear the bar is discarded silently — no vault

@@ -10,7 +10,7 @@ The learn skill MUST apply its LESSONS rule to each returned subagent result, on
 
 Lessons that pass both crystallize into vault notes via write-memory (the standard flow), one note per distinct principle. Lessons that do not pass are discarded silently (no logging, no storage, no offer archive).
 
-**Closing backstop.** At the closing learn step (the final write-to-vault step in a session), the learn skill MUST still run its sweep, and MUST scan the collected `LESSONS:` lines from all dispatched work for lines not yet captured at return. A line counts as captured when a note written earlier in this session covers it (please's running list marks such lines). Uncaptured lines are judged against the same bar and crystallized or silently discarded as above; captured lines are skipped, never written a second time.
+**Closing backstop.** At the closing learn step (the final write-to-vault step in a session), the learn skill MUST still run its sweep, and MUST scan the collected `LESSONS:` lines from all dispatched work for lines not yet captured at return. A line counts as captured when a note written earlier in this session covers it. Uncaptured lines are judged against the same bar and crystallized or silently discarded as above; captured lines are skipped, never written a second time.
 
 #### Scenario: LESSONS line clears quality gate
 
