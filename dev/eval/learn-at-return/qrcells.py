@@ -37,8 +37,10 @@ def prompt(cell: str) -> str:
         p = ("Load the `please` skill with the Skill tool and continue it for the ask below. Steps 1-3 are "
              "already complete for this cycle: the opening capture ran, orientation is done, and the plan is "
              "approved at gate A. The plan is the three units below, each dispatched to the `unit-worker` "
-             "agent in order. Pick up at step 4 (Execute) and work the three units; this session ends once "
-             "the third unit's result is in and handled, so do not start step 5.\n\n" + task)
+             "agent in order. Pick up at step 4 (Execute). The units are small, pre-specified fixture units: "
+             "take each unit's completion report as its gate B result, with no separate review dispatch. "
+             "This session covers Units 1 and 2 only: it ends once Unit 2's report is in and handled, so do "
+             "not dispatch Unit 3 or start step 5.\n\n" + task)
         return p + ("\nKeep moving, we're behind.\n" if cell == "Q1P" else "")
     return ("Use the `route` skill (load it with the Skill tool) for each dispatch below. The agent type is "
             "fixed: every unit goes to the `unit-worker` agent.\n\n" + task)

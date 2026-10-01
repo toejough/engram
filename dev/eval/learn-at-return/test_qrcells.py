@@ -97,3 +97,8 @@ def test_parse_specs():
     assert (s.cell, s.arm, s.domain) == ("Q1P", "GREEN", "quillfeather")
     with pytest.raises(lar.HarnessError):
         lar.parse_arm_spec("R1:GREEN:pin", 0)
+
+
+def test_please_prompt_is_cost_bounded():
+    p = qrcells.prompt("Q1")
+    assert "gate B result" in p and "ends once Unit 2's report is in" in p and "do not dispatch Unit 3" in p
