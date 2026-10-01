@@ -55,45 +55,6 @@ func TestRunShow_ListsOutboundTargetsFenceAware(t *testing.T) {
 		"a fenced wikilink must not be reported as an outbound target")
 }
 
-func TestRunShow_NotFoundErrors(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	memFS := newInMemoryFS()
-	plantHub(t, memFS, vault)
-
-	var out bytes.Buffer
-
-	err := cli.RunShow(context.Background(),
-		cli.ShowArgs{Ref: "99.nonexistent", VaultPath: vault}, newShowDeps(memFS), &out)
-
-	g.Expect(err).To(MatchError(ContainSubstring("not found")))
-}
-
-func TestRunShow_OsDepsReadRealVault(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	vault := t.TempDir()
-	perm := vault
-	g.Expect(os.MkdirAll(perm, 0o755)).To(Succeed())
-
-	body := "---\ntype: fact\ntier: L2\n---\nreal note body, see [[2.other]].\n"
-	g.Expect(os.WriteFile(filepath.Join(perm, "1.real.md"), []byte(body), 0o600)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(perm, "2.other.md"),
-		[]byte("---\ntype: fact\n---\nother\n"), 0o600)).To(Succeed())
-
-	var out bytes.Buffer
-
-	err := cli.RunShow(context.Background(),
-		cli.ShowArgs{Ref: "1.real", VaultPath: vault}, cli.ExportNewShowDeps(realFSForTest()), &out)
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("real note body"))
-	g.Expect(out.String()).To(ContainSubstring("2.other"))
-}
-
 // TestRunShow_NeverTruncatesOversizedRedFlags proves engram show is the
 // full-fidelity source the guidance shim names: unlike engram query, it
 // never applies the red_flags preview budget (D1/#772,
@@ -141,6 +102,45 @@ func TestRunShow_NeverTruncatesOversizedRedFlags(t *testing.T) {
 		g.Expect(index).To(BeNumerically(">", lastIndex), "entry %q must appear in file order", entry)
 		lastIndex = index
 	}
+}
+
+func TestRunShow_NotFoundErrors(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	memFS := newInMemoryFS()
+	plantHub(t, memFS, vault)
+
+	var out bytes.Buffer
+
+	err := cli.RunShow(context.Background(),
+		cli.ShowArgs{Ref: "99.nonexistent", VaultPath: vault}, newShowDeps(memFS), &out)
+
+	g.Expect(err).To(MatchError(ContainSubstring("not found")))
+}
+
+func TestRunShow_OsDepsReadRealVault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	vault := t.TempDir()
+	perm := vault
+	g.Expect(os.MkdirAll(perm, 0o755)).To(Succeed())
+
+	body := "---\ntype: fact\ntier: L2\n---\nreal note body, see [[2.other]].\n"
+	g.Expect(os.WriteFile(filepath.Join(perm, "1.real.md"), []byte(body), 0o600)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(perm, "2.other.md"),
+		[]byte("---\ntype: fact\n---\nother\n"), 0o600)).To(Succeed())
+
+	var out bytes.Buffer
+
+	err := cli.RunShow(context.Background(),
+		cli.ShowArgs{Ref: "1.real", VaultPath: vault}, cli.ExportNewShowDeps(realFSForTest()), &out)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(out.String()).To(ContainSubstring("real note body"))
+	g.Expect(out.String()).To(ContainSubstring("2.other"))
 }
 
 // TestRunShow_RendersRunbookRedFlags proves `engram show` returns the full

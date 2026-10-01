@@ -50,6 +50,21 @@ func TestRunAmend_BookkeepingAmendsKeepIdentity(t *testing.T) {
 	}
 }
 
+// TestRunAmend_ClearPendingKeepsOfferAuthor is the spec scenario "Accepting
+// an offer keeps its author": clearing a pending offer written by alice,
+// from an environment whose detected user is bob, keeps user: alice.
+func TestRunAmend_ClearPendingKeepsOfferAuthor(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cleared := false
+
+	written, err := runIdentityAmend(t.Context(), "fact", cli.AmendArgs{Pending: &cleared})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(written).To(ContainSubstring("user: alice@example.com"))
+	g.Expect(written).NotTo(ContainSubstring("pending: true"))
+}
+
 // TestRunAmend_EmptyUserDetectionKeepsPriorUser: design D3 (#776) — a
 // re-stamping amend (--object) whose user detection resolves to an empty
 // string (both git config user.email and the OS username lookup failed)
@@ -69,6 +84,11 @@ func TestRunAmend_EmptyUserDetectionKeepsPriorUser(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(written).To(ContainSubstring("user: alice@example.com"))
 	g.Expect(warnings).To(HaveLen(1), "LogWarning must be called exactly once")
+
+	if len(warnings) != 1 {
+		return
+	}
+
 	g.Expect(warnings[0]).To(ContainSubstring(emptyUserDetectionBasename), "the warning must name the note")
 }
 
@@ -84,21 +104,6 @@ func TestRunAmend_EmptyUserDetectionNoPriorUserWritesEmpty(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(written).To(ContainSubstring("user: \"\"\n"))
 	g.Expect(warnings).To(BeEmpty(), "nothing to warn about when there was no prior user to keep")
-}
-
-// TestRunAmend_ClearPendingKeepsOfferAuthor is the spec scenario "Accepting
-// an offer keeps its author": clearing a pending offer written by alice,
-// from an environment whose detected user is bob, keeps user: alice.
-func TestRunAmend_ClearPendingKeepsOfferAuthor(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	cleared := false
-
-	written, err := runIdentityAmend(t.Context(), "fact", cli.AmendArgs{Pending: &cleared})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(written).To(ContainSubstring("user: alice@example.com"))
-	g.Expect(written).NotTo(ContainSubstring("pending: true"))
 }
 
 // TestRunAmend_IdentityRestampProperty: over any combination of amend flags,
@@ -138,8 +143,8 @@ func TestRunAmend_IdentityRestampProperty(t *testing.T) {
 
 // unexported constants.
 const (
-	identityAmendChunk         = "session.jsonl#a1"
 	emptyUserDetectionBasename = "1zz.2026-02-01.identity-empty-user"
+	identityAmendChunk         = "session.jsonl#a1"
 )
 
 // unexported variables.
@@ -203,63 +208,6 @@ func expectDeclaredIdentity(g Gomega, written string) {
 	g.Expect(written).NotTo(ContainSubstring("bob"))
 }
 
-// runIdentityAmend amends a pending note of noteType declared by alice from
-// an environment that detects bob, returning the written note ("" when the
-// note was never written).
-func runIdentityAmend(ctx context.Context, noteType string, args cli.AmendArgs) (string, error) {
-	const basename = "1aa.2026-01-01.offer.md"
-
-	content := map[string]string{
-		"fact":     "situation: ctx\nsubject: A\npredicate: has\nobject: B\n",
-		"feedback": "situation: ctx\nbehavior: skipped\nimpact: broke\naction: do it\n",
-		"runbook":  "situation: ctx\ndone_when: done\n",
-	}[noteType]
-	body := map[string]string{
-		"fact":     "Information learned: when in ctx, A has B.\n\n",
-		"feedback": "Lesson learned: when ctx, do it.\n\n",
-		"runbook":  "1. step\n",
-	}[noteType]
-
-	note := []byte("---\ntype: " + noteType + "\ntier: L2\n" + content +
-		"luhmann: \"1aa\"\ncreated: \"2026-01-01\"\nsource: test\n" +
-		"repo: github.com/alice/widgets\nuser: alice@example.com\nvault: alice-vault\npending: true\n" +
-		"---\n\n" + body)
-
-	var written []byte
-
-	deps := cli.AmendDeps{
-		DetectRepo: func(context.Context) string { return "github.com/bob/gadgets" },
-		DetectUser: func(context.Context) string { return "bob@example.com" },
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
-		},
-		Read: func(path string) ([]byte, error) {
-			if strings.HasSuffix(path, ".md") {
-				return note, nil
-			}
-
-			return []byte(`{"last_used":"2026-01-01"}`), nil
-		},
-		Write: func(path string, data []byte) error {
-			if strings.HasSuffix(path, ".md") {
-				written = data
-			}
-
-			return nil
-		},
-		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
-			return map[string]bool{identityAmendChunk: true}, nil
-		},
-		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
-	}
-
-	args.Vault, args.Target, args.VaultName = "/vault", "1aa", "bob-vault"
-
-	err := cli.ExportRunAmend(ctx, args, deps, &bytes.Buffer{})
-
-	return string(written), err
-}
-
 // runEmptyUserDetectionAmend runs a re-stamping (--object) amend against a
 // fact note whose user: is priorUser ("" omits the field entirely), with
 // DetectUser forced empty — as if both git config user.email and the OS
@@ -315,4 +263,61 @@ func runEmptyUserDetectionAmend(ctx context.Context, priorUser string) (string, 
 	err := cli.ExportRunAmend(ctx, args, deps, &bytes.Buffer{})
 
 	return string(written), warnings, err
+}
+
+// runIdentityAmend amends a pending note of noteType declared by alice from
+// an environment that detects bob, returning the written note ("" when the
+// note was never written).
+func runIdentityAmend(ctx context.Context, noteType string, args cli.AmendArgs) (string, error) {
+	const basename = "1aa.2026-01-01.offer.md"
+
+	content := map[string]string{
+		"fact":     "situation: ctx\nsubject: A\npredicate: has\nobject: B\n",
+		"feedback": "situation: ctx\nbehavior: skipped\nimpact: broke\naction: do it\n",
+		"runbook":  "situation: ctx\ndone_when: done\n",
+	}[noteType]
+	body := map[string]string{
+		"fact":     "Information learned: when in ctx, A has B.\n\n",
+		"feedback": "Lesson learned: when ctx, do it.\n\n",
+		"runbook":  "1. step\n",
+	}[noteType]
+
+	note := []byte("---\ntype: " + noteType + "\ntier: L2\n" + content +
+		"luhmann: \"1aa\"\ncreated: \"2026-01-01\"\nsource: test\n" +
+		"repo: github.com/alice/widgets\nuser: alice@example.com\nvault: alice-vault\npending: true\n" +
+		"---\n\n" + body)
+
+	var written []byte
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "github.com/bob/gadgets" },
+		DetectUser: func(context.Context) string { return "bob@example.com" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: basename, LuhmannID: "1aa"}}, nil
+		},
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, ".md") {
+				return note, nil
+			}
+
+			return []byte(`{"last_used":"2026-01-01"}`), nil
+		},
+		Write: func(path string, data []byte) error {
+			if strings.HasSuffix(path, ".md") {
+				written = data
+			}
+
+			return nil
+		},
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{identityAmendChunk: true}, nil
+		},
+		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+	}
+
+	args.Vault, args.Target, args.VaultName = "/vault", "1aa", "bob-vault"
+
+	err := cli.ExportRunAmend(ctx, args, deps, &bytes.Buffer{})
+
+	return string(written), err
 }

@@ -73,17 +73,6 @@ func capRedFlagsForPreview(content, basename string) string {
 	return content[:listStart] + newList + content[listStart+consumed:]
 }
 
-// redFlagsOmittedMarker renders the in-band omission marker naming how many
-// entries were dropped, the list's total, and the real `engram show
-// <basename>` command that returns every entry (recall-runbook-surfacing,
-// "Oversized red_flags list keeps its newest entry in query").
-func redFlagsOmittedMarker(dropped, total int, basename string) string {
-	return fmt.Sprintf(
-		"    - \"[%d EARLIER RED_FLAGS OMITTED — run engram show %s for all %d]\"\n",
-		dropped, basename, total,
-	)
-}
-
 // keepNewestEntriesWithinBudget walks entryLines from the end, keeping
 // whole lines until adding the next (older) one would exceed budget.
 func keepNewestEntriesWithinBudget(entryLines []string, budget int) []string {
@@ -100,6 +89,17 @@ func keepNewestEntriesWithinBudget(entryLines []string, budget int) []string {
 	}
 
 	return kept
+}
+
+// redFlagsOmittedMarker renders the in-band omission marker naming how many
+// entries were dropped, the list's total, and the real `engram show
+// <basename>` command that returns every entry (recall-runbook-surfacing,
+// "Oversized red_flags list keeps its newest entry in query").
+func redFlagsOmittedMarker(dropped, total int, basename string) string {
+	return fmt.Sprintf(
+		"    - \"[%d EARLIER RED_FLAGS OMITTED — run engram show %s for all %d]\"\n",
+		dropped, basename, total,
+	)
 }
 
 // scanRedFlagsEntries reads consecutive "    - " list-item lines starting at

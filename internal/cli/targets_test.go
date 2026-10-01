@@ -384,24 +384,6 @@ func TestTargets_ActivateNoNotes(t *testing.T) {
 	g.Expect(stderr).To(gomega.BeEmpty())
 }
 
-// TestTargets_Amend_NoSkillHashFlag proves `engram amend` has no --skill-hash
-// flag either — amend can only preserve skill_hash, never set it. See
-// TestTargets_LearnRunbook_NoSkillHashFlag for why "exit code 1" is the right
-// assertion here.
-func TestTargets_Amend_NoSkillHashFlag(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	vault := t.TempDir()
-
-	stderr := executeForTest(t, []string{
-		"engram", "amend",
-		"--skill-hash", "deadbeef",
-		"--vault", vault, "--target", "1",
-	})
-	g.Expect(stderr).To(gomega.Equal("exit code 1\n"))
-}
-
 // TestTargets_AmendDefaultVaultName is the evidence design D3 (#776) cites
 // for the already-fixed part of the issue: targets.go:144 already resolves
 // vault: through resolveVaultName (flag -> ENGRAM_VAULT_NAME -> "personal",
@@ -433,6 +415,24 @@ func TestTargets_AmendDefaultVaultName(t *testing.T) {
 	g.Expect(readErr).NotTo(gomega.HaveOccurred())
 	g.Expect(string(written)).To(gomega.ContainSubstring("vault: personal"))
 	g.Expect(string(written)).NotTo(gomega.ContainSubstring("vault: \"\""))
+}
+
+// TestTargets_Amend_NoSkillHashFlag proves `engram amend` has no --skill-hash
+// flag either — amend can only preserve skill_hash, never set it. See
+// TestTargets_LearnRunbook_NoSkillHashFlag for why "exit code 1" is the right
+// assertion here.
+func TestTargets_Amend_NoSkillHashFlag(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	vault := t.TempDir()
+
+	stderr := executeForTest(t, []string{
+		"engram", "amend",
+		"--skill-hash", "deadbeef",
+		"--vault", vault, "--target", "1",
+	})
+	g.Expect(stderr).To(gomega.Equal("exit code 1\n"))
 }
 
 // TestTargets_CheckEmptyVault exercises the check closure's local

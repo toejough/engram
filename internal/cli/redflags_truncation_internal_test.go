@@ -54,32 +54,58 @@ func TestCapRedFlagsForPreview_KeepsNewestEntryWhenOverBudget(t *testing.T) {
 		"content before the red_flags block must be untouched")
 }
 
-// TestCapRedFlagsForPreview_NoRedFlagsBlockUnchanged proves a note without a
-// red_flags field at all (fact/feedback kinds, or a runbook with none set)
-// passes through unmodified.
-func TestCapRedFlagsForPreview_NoRedFlagsBlockUnchanged(t *testing.T) {
+// TestCapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow is the guard
+// test D1 requires: an agent reading only the query preview's marker must be
+// able to parse out `engram show <basename>`, run it, and get back every
+// entry — including the ones the preview itself omitted. engram show never
+// truncates (#772), so the full original note (not the capped preview) is
+// what the vault actually holds and what RunShow must return in full.
+func TestCapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	content := "---\ntype: fact\nsituation: x\n---\n\nbody\n"
+	const (
+		basename   = "1.guard-fixture"
+		totalCount = 15
+	)
 
-	g.Expect(capRedFlagsForPreview(content, "1.no-red-flags")).To(Equal(content))
-}
+	entries := fixedWidthRedFlagEntries(totalCount)
+	fullContent := "---\ntype: runbook\nsituation: x\ndone_when: y\nred_flags:\n" +
+		strings.Join(entries, "") + "luhmann: \"1\"\n---\n\nbody\n"
 
-// TestCapRedFlagsForPreview_UnderBudgetUnchanged proves a red_flags block
-// already within the preview budget is returned byte-identical — this
-// function must not touch notes that were never at truncation risk.
-func TestCapRedFlagsForPreview_UnderBudgetUnchanged(t *testing.T) {
-	t.Parallel()
+	preview := capRedFlagsForPreview(fullContent, basename)
 
-	g := NewWithT(t)
+	commandPattern := regexp.MustCompile(`run engram show (\S+) for all`)
 
-	content := "---\ntype: runbook\nsituation: x\ndone_when: y\n" +
-		"red_flags:\n    - short one\n    - short two\n" +
-		"luhmann: \"1\"\n---\n\nbody\n"
+	match := commandPattern.FindStringSubmatch(preview)
+	g.Expect(match).To(HaveLen(2), "marker must contain a parseable `engram show <basename>` command")
 
-	g.Expect(capRedFlagsForPreview(content, "1.under-budget")).To(Equal(content))
+	if match == nil {
+		return
+	}
+
+	parsedBasename := match[1]
+	g.Expect(parsedBasename).To(Equal(basename), "the parsed basename must be the note's real basename")
+
+	deps := ShowDeps{
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: parsedBasename}}, nil
+		},
+		// The vault always holds the FULL, untruncated note — only the
+		// query preview is capped.
+		Read: func(string) ([]byte, error) { return []byte(fullContent), nil },
+	}
+
+	var out bytes.Buffer
+
+	err := RunShow(context.Background(), ShowArgs{Ref: parsedBasename, VaultPath: "/vault"}, deps, &out)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	for _, entry := range entries {
+		g.Expect(out.String()).To(ContainSubstring(strings.TrimSpace(entry)),
+			"engram show must return every entry, including ones the query preview omitted")
+	}
 }
 
 // TestCapRedFlagsForPreview_MarkerNamesCountTotalAndRealBasename pins #772's
@@ -129,54 +155,32 @@ func TestCapRedFlagsForPreview_MarkerNamesCountTotalAndRealBasename(t *testing.T
 	}
 }
 
-// TestCapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow is the guard
-// test D1 requires: an agent reading only the query preview's marker must be
-// able to parse out `engram show <basename>`, run it, and get back every
-// entry — including the ones the preview itself omitted. engram show never
-// truncates (#772), so the full original note (not the capped preview) is
-// what the vault actually holds and what RunShow must return in full.
-func TestCapRedFlagsForPreview_MarkerCommandReturnsFullListViaShow(t *testing.T) {
+// TestCapRedFlagsForPreview_NoRedFlagsBlockUnchanged proves a note without a
+// red_flags field at all (fact/feedback kinds, or a runbook with none set)
+// passes through unmodified.
+func TestCapRedFlagsForPreview_NoRedFlagsBlockUnchanged(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
 
-	const (
-		basename   = "1.guard-fixture"
-		totalCount = 15
-	)
+	content := "---\ntype: fact\nsituation: x\n---\n\nbody\n"
 
-	entries := fixedWidthRedFlagEntries(totalCount)
-	fullContent := "---\ntype: runbook\nsituation: x\ndone_when: y\nred_flags:\n" +
-		strings.Join(entries, "") + "luhmann: \"1\"\n---\n\nbody\n"
+	g.Expect(capRedFlagsForPreview(content, "1.no-red-flags")).To(Equal(content))
+}
 
-	preview := capRedFlagsForPreview(fullContent, basename)
+// TestCapRedFlagsForPreview_UnderBudgetUnchanged proves a red_flags block
+// already within the preview budget is returned byte-identical — this
+// function must not touch notes that were never at truncation risk.
+func TestCapRedFlagsForPreview_UnderBudgetUnchanged(t *testing.T) {
+	t.Parallel()
 
-	commandPattern := regexp.MustCompile("run engram show (\\S+) for all")
+	g := NewWithT(t)
 
-	match := commandPattern.FindStringSubmatch(preview)
-	g.Expect(match).To(HaveLen(2), "marker must contain a parseable `engram show <basename>` command")
+	content := "---\ntype: runbook\nsituation: x\ndone_when: y\n" +
+		"red_flags:\n    - short one\n    - short two\n" +
+		"luhmann: \"1\"\n---\n\nbody\n"
 
-	parsedBasename := match[1]
-	g.Expect(parsedBasename).To(Equal(basename), "the parsed basename must be the note's real basename")
-
-	deps := ShowDeps{
-		Scan: func(string) ([]vaultgraph.Note, error) {
-			return []vaultgraph.Note{{Basename: parsedBasename}}, nil
-		},
-		// The vault always holds the FULL, untruncated note — only the
-		// query preview is capped.
-		Read: func(string) ([]byte, error) { return []byte(fullContent), nil },
-	}
-
-	var out bytes.Buffer
-
-	err := RunShow(context.Background(), ShowArgs{Ref: parsedBasename, VaultPath: "/vault"}, deps, &out)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	for _, entry := range entries {
-		g.Expect(out.String()).To(ContainSubstring(strings.TrimSpace(entry)),
-			"engram show must return every entry, including ones the query preview omitted")
-	}
+	g.Expect(capRedFlagsForPreview(content, "1.under-budget")).To(Equal(content))
 }
 
 // TestProperty_CapRedFlagsForPreview_SizeAndContiguity: for any red_flags
