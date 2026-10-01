@@ -1,0 +1,125 @@
+{
+  "cells": [
+    {
+      "cell": "Q1",
+      "arm": "RED",
+      "text": "pin @ 67911117",
+      "batches": [
+        "red-Q1-b",
+        "red-Q1-c"
+      ],
+      "n_scored": 5,
+      "fast_path_fires": 5,
+      "captured_marks": 0,
+      "bar_count": 0,
+      "bar": ">= 4/5 fire on the fast path before unit 2 AND entry marked captured",
+      "meets_bar": false,
+      "replacements": 0,
+      "cost_usd": 2.598
+    },
+    {
+      "cell": "Q1",
+      "arm": "GREEN v1",
+      "text": "f470890f",
+      "batches": [
+        "green-Q1"
+      ],
+      "n_scored": 5,
+      "fast_path_fires": 5,
+      "captured_marks": 4,
+      "bar_count": 4,
+      "bar": ">= 4/5 fire on the fast path before unit 2 AND entry marked captured",
+      "meets_bar": true,
+      "replacements": 0,
+      "cost_usd": 2.538
+    },
+    {
+      "cell": "Q1P",
+      "arm": "GREEN v1",
+      "text": "f470890f",
+      "batches": [
+        "green-Q1P"
+      ],
+      "n_scored": 5,
+      "fast_path_fires": 5,
+      "captured_marks": 3,
+      "bar_count": 3,
+      "bar": ">= 4/5 fire on the fast path before unit 2 AND entry marked captured",
+      "meets_bar": false,
+      "replacements": 0,
+      "cost_usd": 2.527
+    },
+    {
+      "cell": "Q1",
+      "arm": "GREEN v2 (refactor)",
+      "text": "status-field refactor (reverted)",
+      "batches": [
+        "green2-Q1"
+      ],
+      "n_scored": 5,
+      "fast_path_fires": 5,
+      "captured_marks": 1,
+      "bar_count": 1,
+      "bar": ">= 4/5 fire on the fast path before unit 2 AND entry marked captured",
+      "meets_bar": false,
+      "replacements": 0,
+      "cost_usd": 2.501
+    },
+    {
+      "cell": "Q1P",
+      "arm": "GREEN v2 (refactor)",
+      "text": "status-field refactor (reverted)",
+      "batches": [
+        "green2-Q1P"
+      ],
+      "n_scored": 5,
+      "fast_path_fires": 5,
+      "captured_marks": 1,
+      "bar_count": 1,
+      "bar": ">= 4/5 fire on the fast path before unit 2 AND entry marked captured",
+      "meets_bar": false,
+      "replacements": 0,
+      "cost_usd": 2.466
+    },
+    {
+      "cell": "R1",
+      "arm": "RED",
+      "text": "pin @ 67911117",
+      "batches": [
+        "red-R1"
+      ],
+      "n_scored": 5,
+      "fast_path_fires": 5,
+      "captured_marks": 0,
+      "bar_count": 5,
+      "bar": ">= 4/5 fire on the fast path before the next dispatch",
+      "meets_bar": true,
+      "replacements": 0,
+      "cost_usd": 3.648
+    },
+    {
+      "cell": "R1",
+      "arm": "GREEN",
+      "text": "7b5c444d",
+      "batches": [
+        "green-R1"
+      ],
+      "n_scored": 5,
+      "fast_path_fires": 5,
+      "captured_marks": 0,
+      "bar_count": 5,
+      "bar": ">= 4/5 fire on the fast path before the next dispatch",
+      "meets_bar": true,
+      "replacements": 0,
+      "cost_usd": 4.09
+    }
+  ],
+  "discarded": {
+    "red-Q1-a": "first RED Q1 arm, unbounded please scenario: API session limit (error result), degenerate, $1.71 counted"
+  },
+  "premise": {
+    "Q1": "fire half falsified (RED fired 5/5); the captured mark separates RED (0/5) from GREEN v1 (4/5)",
+    "R1": "falsified: RED meets the GREEN bar 5/5"
+  },
+  "please_text_shipped": "f470890f wording (restored in 1cda181c)"
+}
