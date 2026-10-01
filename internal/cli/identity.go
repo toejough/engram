@@ -21,6 +21,15 @@ type identityStamp struct {
 	Repo  string
 	User  string
 	Vault string
+
+	// basename and warn are set only on the amend path (amendIdentity), so
+	// stampPreservingUser can name the note and log a warning when user
+	// detection resolves empty (design D3, #776). Every other construction
+	// site (learn, pulldown, serve_learn, identity backfill) leaves them
+	// zero and never calls stampPreservingUser — those paths have no prior
+	// value to keep (Non-Goals).
+	basename string
+	warn     func(string, ...any)
 }
 
 // stamp overwrites repo, user and vault with the stamp's values. A nil stamp
@@ -31,6 +40,32 @@ func (s *identityStamp) stamp(repo, user, vault *string) {
 	}
 
 	*repo, *user, *vault = s.Repo, s.User, s.Vault
+}
+
+// stampPreservingUser overwrites repo and vault the same as stamp. User is
+// overwritten with the freshly detected value, UNLESS that detected value is
+// empty (both git config user.email and the OS username lookup failed) and
+// the note already carries a non-empty user: — then the note's existing
+// value is kept instead of being blanked to user: "", and a warning naming
+// the stamp's basename is emitted through warn (design D3, #776; a nil stamp
+// is a no-op, matching stamp). A nil warn (no basename/warn set — not the
+// amend path) silently keeps the behavior of stamp.
+func (s *identityStamp) stampPreservingUser(repo, user, vault *string) {
+	if s == nil {
+		return
+	}
+
+	priorUser := *user
+
+	s.stamp(repo, user, vault)
+
+	if s.User == "" && priorUser != "" {
+		*user = priorUser
+
+		if s.warn != nil {
+			s.warn("amend: user detection resolved empty; keeping user: %s on %s", priorUser, s.basename)
+		}
+	}
 }
 
 // detectRepo resolves the repo: frontmatter field: the working directory's

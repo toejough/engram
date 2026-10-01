@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v3"
@@ -227,16 +228,20 @@ func amendContent(
 // amendIdentity returns the identity a content-changing amend re-stamps, or
 // nil for a bookkeeping amend, which preserves the note's declared
 // repo:/user:/vault: (vault-note-identity, design D10 M6/G11). Only a
-// re-stamping amend runs identity detection.
-func amendIdentity(ctx context.Context, args AmendArgs, deps AmendDeps) *identityStamp {
+// re-stamping amend runs identity detection. basename names the note being
+// amended, carried on the stamp so a user-detection warning (design D3,
+// #776) can name it.
+func amendIdentity(ctx context.Context, args AmendArgs, deps AmendDeps, basename string) *identityStamp {
 	if !amendRestampsIdentity(args) {
 		return nil
 	}
 
 	return &identityStamp{
-		Repo:  deps.DetectRepo(ctx),
-		User:  deps.DetectUser(ctx),
-		Vault: args.VaultName,
+		Repo:     deps.DetectRepo(ctx),
+		User:     deps.DetectUser(ctx),
+		Vault:    args.VaultName,
+		basename: basename,
+		warn:     deps.LogWarning,
 	}
 }
 
@@ -366,7 +371,7 @@ func applyRunbookAmend(
 	}
 
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
-	identity.stamp(&doc.Repo, &doc.User, &doc.Vault)
+	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
 
 	if args.Pending != nil {
 		doc.Pending = *args.Pending
@@ -588,7 +593,7 @@ func overrideFactFields(
 	doc *factFrontmatterDoc, args AmendArgs, parsedSupersedes []supersedesEntry, identity *identityStamp,
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
-	identity.stamp(&doc.Repo, &doc.User, &doc.Vault)
+	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
 
 	if args.Pending != nil {
 		doc.Pending = *args.Pending
@@ -616,7 +621,7 @@ func overrideFeedbackFields(
 	identity *identityStamp,
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
-	identity.stamp(&doc.Repo, &doc.User, &doc.Vault)
+	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
 
 	if args.Pending != nil {
 		doc.Pending = *args.Pending
@@ -798,7 +803,7 @@ func runAmendLocked(ctx context.Context, args AmendArgs, deps AmendDeps, stdout 
 		return false, validateErr
 	}
 
-	identity := amendIdentity(ctx, args, deps)
+	identity := amendIdentity(ctx, args, deps, strings.TrimSuffix(filepath.Base(relPath), mdExt))
 
 	rendered, contentChanged, amendErr := amendContent(raw, args, parsedSupersedes, identity)
 	if amendErr != nil {

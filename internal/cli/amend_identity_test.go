@@ -9,6 +9,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -47,6 +48,42 @@ func TestRunAmend_BookkeepingAmendsKeepIdentity(t *testing.T) {
 			})
 		}
 	}
+}
+
+// TestRunAmend_EmptyUserDetectionKeepsPriorUser: design D3 (#776) — a
+// re-stamping amend (--object) whose user detection resolves to an empty
+// string (both git config user.email and the OS username lookup failed)
+// keeps the note's existing non-empty user: instead of blanking it to
+// user: "", and warns once naming the note (vault-note-identity, "Empty
+// user detection keeps the prior user"). Plain closures, not an impgen
+// interactive mock: AmendDeps is a struct of injected funcs, not an
+// interface impgen can target — generating one would need a new production
+// interface this change doesn't otherwise require, and impgen itself could
+// not be exercised in this sandbox (its own binary needs a go1.26.2
+// toolchain that isn't installed here).
+func TestRunAmend_EmptyUserDetectionKeepsPriorUser(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	written, warnings, err := runEmptyUserDetectionAmend(t.Context(), "alice@example.com")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(written).To(ContainSubstring("user: alice@example.com"))
+	g.Expect(warnings).To(HaveLen(1), "LogWarning must be called exactly once")
+	g.Expect(warnings[0]).To(ContainSubstring(emptyUserDetectionBasename), "the warning must name the note")
+}
+
+// TestRunAmend_EmptyUserDetectionNoPriorUserWritesEmpty: a note with no
+// prior user: has nothing to preserve, so empty detection writes the field
+// as detected (empty) — same as any other re-stamping amend. The
+// preservation in D3 only applies when there IS a prior value to keep.
+func TestRunAmend_EmptyUserDetectionNoPriorUserWritesEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	written, warnings, err := runEmptyUserDetectionAmend(t.Context(), "")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(written).To(ContainSubstring("user: \"\"\n"))
+	g.Expect(warnings).To(BeEmpty(), "nothing to warn about when there was no prior user to keep")
 }
 
 // TestRunAmend_ClearPendingKeepsOfferAuthor is the spec scenario "Accepting
@@ -101,7 +138,8 @@ func TestRunAmend_IdentityRestampProperty(t *testing.T) {
 
 // unexported constants.
 const (
-	identityAmendChunk = "session.jsonl#a1"
+	identityAmendChunk         = "session.jsonl#a1"
+	emptyUserDetectionBasename = "1zz.2026-02-01.identity-empty-user"
 )
 
 // unexported variables.
@@ -220,4 +258,61 @@ func runIdentityAmend(ctx context.Context, noteType string, args cli.AmendArgs) 
 	err := cli.ExportRunAmend(ctx, args, deps, &bytes.Buffer{})
 
 	return string(written), err
+}
+
+// runEmptyUserDetectionAmend runs a re-stamping (--object) amend against a
+// fact note whose user: is priorUser ("" omits the field entirely), with
+// DetectUser forced empty — as if both git config user.email and the OS
+// username lookup failed. Returns the written note, every LogWarning
+// message (in call order), and any error.
+func runEmptyUserDetectionAmend(ctx context.Context, priorUser string) (string, []string, error) {
+	userLine := ""
+	if priorUser != "" {
+		userLine = "user: " + priorUser + "\n"
+	}
+
+	note := []byte("---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: old\n" +
+		"luhmann: \"1zz\"\ncreated: \"2026-02-01\"\nsource: test\n" +
+		"repo: github.com/alice/widgets\n" + userLine + "vault: alice-vault\n" +
+		"---\n\nInformation learned: when in ctx, A has old.\n\n")
+
+	var (
+		written  []byte
+		warnings []string
+	)
+
+	deps := cli.AmendDeps{
+		DetectRepo: func(context.Context) string { return "github.com/alice/widgets" },
+		DetectUser: func(context.Context) string { return "" },
+		Scan: func(string) ([]vaultgraph.Note, error) {
+			return []vaultgraph.Note{{Basename: emptyUserDetectionBasename, LuhmannID: "1zz"}}, nil
+		},
+		Read: func(path string) ([]byte, error) {
+			if strings.HasSuffix(path, ".md") {
+				return note, nil
+			}
+
+			return []byte(`{"last_used":"2026-02-01"}`), nil
+		},
+		Write: func(path string, data []byte) error {
+			if strings.HasSuffix(path, ".md") {
+				written = data
+			}
+
+			return nil
+		},
+		LoadChunkIDs: func(string, func(string) ([]string, error), func(string) ([]byte, error)) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		LogWarning: func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		},
+		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
+	}
+
+	args := cli.AmendArgs{Vault: "/vault", Target: "1zz", VaultName: "alice-vault", Object: "new"}
+
+	err := cli.ExportRunAmend(ctx, args, deps, &bytes.Buffer{})
+
+	return string(written), warnings, err
 }
