@@ -407,6 +407,43 @@ func TestRunReparentLuhmann_DeriveEmitsCandidates(t *testing.T) {
 	g.Expect(found).To(BeTrue(), "expected a 7→12 candidate pair, got %v", candidates)
 }
 
+// TestRunReparentLuhmann_DeriveInstructionNamesLearnBatchMode pins design D4
+// (#770): the derive payload's instruction defers to the learn skill's
+// batch mode instead of telling the answering pass to re-run apply itself.
+// It must name "learn" and "batch mode" as the disposition procedure, the
+// answers-file shape's "distinct" per-note requirement, and the
+// --dry-run-then-apply hand-back — and it must NOT say "then re-run", which
+// told the answering pass to invoke apply directly (update-reparent-luhmann-
+// batch spec, "Derive instruction routes to learn's batch mode").
+func TestRunReparentLuhmann_DeriveInstructionNamesLearnBatchMode(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	files, names := twoRelatedTopLevelNotesFixture()
+	deps, _ := newReparentDeps(files, names)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReparentLuhmann(context.Background(), "/vault", "/chunks", "", false, deps, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var payload map[string]any
+
+	decodeErr := json.Unmarshal(stdout.Bytes(), &payload)
+	g.Expect(decodeErr).NotTo(HaveOccurred(), "derive must print a JSON payload: %s", stdout.String())
+
+	instruction, ok := payload["instruction"].(string)
+	g.Expect(ok).To(BeTrue(), "payload must carry a string instruction field")
+
+	g.Expect(instruction).To(ContainSubstring("learn"))
+	g.Expect(instruction).To(ContainSubstring("batch mode"))
+	g.Expect(instruction).To(ContainSubstring("--dry-run"))
+	g.Expect(instruction).To(ContainSubstring("distinct"))
+	g.Expect(instruction).NotTo(ContainSubstring("then re-run"),
+		"the answering pass must not be told to invoke apply itself")
+}
+
 func TestRunReparentLuhmann_DeriveNeverWrites(t *testing.T) {
 	t.Parallel()
 

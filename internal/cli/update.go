@@ -56,7 +56,7 @@ const (
 		"`engram update --backfill-identity` to stamp them " +
 		"(preview with `engram update --backfill-identity --dry-run`)\n"
 	luhmannBranchingNotice = "vault holds only top-level notes — run `engram update --reparent-luhmann` " +
-		"to derive and apply branching\n"
+		"to derive and apply branching (answers come from the learn skill's batch mode)\n"
 	oldVocabFilePrefix = "vocab."
 	oldVocabFileSuffix = ".md"
 	// topLevelLuhmannDepth is the segment count of a top-level (unbranched)

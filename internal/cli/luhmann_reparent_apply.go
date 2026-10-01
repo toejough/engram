@@ -536,11 +536,14 @@ func runReparentDerive(vault string, deps RenameRewriteDeps, stdout io.Writer) e
 
 	payload := reparentDerivePayload{
 		Candidates: candidates,
-		Instruction: "For each candidate note, judge whether it is a continuation (a deeper elaboration of " +
-			"target), a sibling (a related but distinct point next to target), or unrelated (top — no change). " +
+		Instruction: "Hand this payload to the learn skill's batch mode (\"Batch mode — Luhmann re-eval " +
+			"answers\"), which holds the continuation (a deeper elaboration of target) / sibling (a related " +
+			"but distinct point next to target) / top (unrelated — no change) disposition test. " +
 			`Write an answers file: {"reparenting":[{"note":"<id>","position":"top|continuation|sibling",` +
-			`"target":"<id>"}],"fingerprint":"<echoed>"}, one entry per candidate note, then re-run ` +
-			"`engram update --reparent-luhmann --answers <file>` echoing this payload's fingerprint verbatim.",
+			`"target":"<id>"}],"fingerprint":"<echoed>"}, exactly one entry per distinct candidate "note". ` +
+			"Hand the finished answers file back to the user or orchestrating agent: preview it first with " +
+			"`next_command` plus --dry-run, then apply it by running `next_command` again without --dry-run. " +
+			"The answering pass itself does not run apply.",
 		NextCommand: "engram update --reparent-luhmann --answers <path-to-answers-file>",
 		Fingerprint: reparentFingerprint(notes),
 	}

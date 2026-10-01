@@ -1354,6 +1354,10 @@ func TestWriteUpdateReport_LuhmannBranchingHint(t *testing.T) {
 	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasOnlyTopLevelNotes: true})
 	g.Expect(writeErr).NotTo(HaveOccurred())
 	g.Expect(buffer.String()).To(ContainSubstring("engram update --reparent-luhmann"))
+	// #770/D4: the notice must also name the learn skill's batch mode as
+	// the answering procedure (update-flat-vault-luhmann-notice spec,
+	// "Notice names the answering procedure").
+	g.Expect(buffer.String()).To(ContainSubstring("batch mode"))
 
 	var clean bytes.Buffer
 

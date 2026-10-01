@@ -867,7 +867,7 @@ disposition):
   parent/sibling relationships among top-level notes by embedding-sidecar
   cosine similarity (top-3 neighbors above a 0.75 floor), printed as a
   JSON payload (`candidates` + `fingerprint` + a `next_command` field
-  naming the literal follow-up command); never writes.
+  naming the literal follow-up command, and an `instruction` naming the learn skill's batch mode as the disposition procedure); never writes.
 - **Answer**: the `learn` skill's batch mode (see `agent-instructions/skills/learn/SKILL.md`,
   "Batch mode — Luhmann re-eval answers") applies the same
   continuation/sibling/top disposition test as its per-capture Step 2 to
@@ -890,9 +890,9 @@ disposition):
   as a manual fallback). Apply's final output also reports whether
   further above-floor candidates remain in the vault's new state (with
   the next `--reparent-luhmann` command to run) or that the vault is
-  fully evaluated — so an agent can drive the whole derive→judge→apply
-  loop from one initial ask to a fully re-evaluated vault without any
-  further manual step.
+  fully evaluated. The loop is not fully automatic: the user or
+  orchestrating agent runs each apply after the learn skill's batch-mode
+  pass hands back the answers.
 - `--dry-run` requires `--answers` (rejected as a usage error without it,
   since derive never writes regardless of the flag) and previews the
   exact rename/rewrite the apply would perform, without touching the
