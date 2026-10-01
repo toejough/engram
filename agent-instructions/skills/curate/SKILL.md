@@ -41,8 +41,8 @@ Amend the note: `engram amend --target <basename> --situation "<text>" --done-wh
 `engram show` prints no `# exchange_hash` line and there is no `--expect-hash` to pass).
 
 **For refreshed notes (fields already present):** Re-check each field against the skill's current body.
-Amend any that no longer fit — aim for the 1200-byte `engram query` preview budget (rendered YAML
-bytes); never drop a valid red flag to fit. Then clear the marker:
+Amend any that no longer fit — aim for the 1200-byte `engram query` preview budget
+(rendered YAML bytes); never drop a valid red flag to fit. Then clear the marker:
 `engram amend --target <basename> --clear-pending`.
 
 ## Step 1 — Find pending offers

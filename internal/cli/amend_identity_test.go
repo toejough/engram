@@ -66,44 +66,59 @@ func TestRunAmend_ClearPendingKeepsOfferAuthor(t *testing.T) {
 }
 
 // TestRunAmend_EmptyUserDetectionKeepsPriorUser: design D3 (#776) — a
-// re-stamping amend (--object) whose user detection resolves to an empty
-// string (both git config user.email and the OS username lookup failed)
-// keeps the note's existing non-empty user: instead of blanking it to
-// user: "", and warns once naming the note (vault-note-identity, "Empty
-// user detection keeps the prior user"). Plain closures, not an impgen
-// interactive mock: AmendDeps is a struct of injected funcs, not an
-// interface impgen can target — generating one would need a new production
-// interface this change doesn't otherwise require, and impgen itself could
-// not be exercised in this sandbox (its own binary needs a go1.26.2
-// toolchain that isn't installed here).
+// re-stamping amend whose user detection resolves to an empty string (both
+// git config user.email and the OS username lookup failed) keeps the
+// note's existing non-empty user: instead of blanking it to user: "", on
+// every note type (fact via applyTypedAmend's overrideFactFields, feedback
+// via overrideFeedbackFields, runbook via applyRunbookAmend), and warns
+// once naming the note and the failed detection (vault-note-identity,
+// "Empty user detection keeps the prior user"). Plain closures, not an
+// impgen interactive mock — see design D7 and tasks.md task 2.1 for why.
 func TestRunAmend_EmptyUserDetectionKeepsPriorUser(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	written, warnings, err := runEmptyUserDetectionAmend(t.Context(), "alice@example.com")
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(written).To(ContainSubstring("user: alice@example.com"))
-	g.Expect(warnings).To(HaveLen(1), "LogWarning must be called exactly once")
+	for _, noteType := range identityAmendTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
 
-	if len(warnings) != 1 {
-		return
+			written, warnings, err := runEmptyUserDetectionAmend(t.Context(), noteType, "alice@example.com")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(written).To(ContainSubstring("user: alice@example.com"))
+			g.Expect(warnings).To(HaveLen(1), "LogWarning must be called exactly once")
+
+			if len(warnings) != 1 {
+				return
+			}
+
+			g.Expect(warnings[0]).To(ContainSubstring(emptyUserDetectionBasename), "the warning must name the note")
+			g.Expect(warnings[0]).To(ContainSubstring("user detection"),
+				"the warning must name the failed detection")
+			g.Expect(warnings[0]).To(ContainSubstring("empty"),
+				"the warning must say detection resolved empty")
+		})
 	}
-
-	g.Expect(warnings[0]).To(ContainSubstring(emptyUserDetectionBasename), "the warning must name the note")
 }
 
 // TestRunAmend_EmptyUserDetectionNoPriorUserWritesEmpty: a note with no
 // prior user: has nothing to preserve, so empty detection writes the field
-// as detected (empty) — same as any other re-stamping amend. The
-// preservation in D3 only applies when there IS a prior value to keep.
+// as detected (empty) — same as any other re-stamping amend, on every note
+// type. The preservation in D3 only applies when there IS a prior value to
+// keep.
 func TestRunAmend_EmptyUserDetectionNoPriorUserWritesEmpty(t *testing.T) {
 	t.Parallel()
-	g := NewWithT(t)
 
-	written, warnings, err := runEmptyUserDetectionAmend(t.Context(), "")
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(written).To(ContainSubstring("user: \"\"\n"))
-	g.Expect(warnings).To(BeEmpty(), "nothing to warn about when there was no prior user to keep")
+	for _, noteType := range identityAmendTypes {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			written, warnings, err := runEmptyUserDetectionAmend(t.Context(), noteType, "")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(written).To(ContainSubstring("user: \"\"\n"))
+			g.Expect(warnings).To(BeEmpty(), "nothing to warn about when there was no prior user to keep")
+		})
+	}
 }
 
 // TestRunAmend_IdentityRestampProperty: over any combination of amend flags,
@@ -208,21 +223,39 @@ func expectDeclaredIdentity(g Gomega, written string) {
 	g.Expect(written).NotTo(ContainSubstring("bob"))
 }
 
-// runEmptyUserDetectionAmend runs a re-stamping (--object) amend against a
-// fact note whose user: is priorUser ("" omits the field entirely), with
+// runEmptyUserDetectionAmend runs a re-stamping amend against a note of
+// noteType whose user: is priorUser ("" omits the field entirely), with
 // DetectUser forced empty — as if both git config user.email and the OS
-// username lookup failed. Returns the written note, every LogWarning
+// username lookup failed. The content flag that triggers re-stamping is
+// the one specific to noteType (Object for fact, Action for feedback,
+// DoneWhen for runbook). Returns the written note, every LogWarning
 // message (in call order), and any error.
-func runEmptyUserDetectionAmend(ctx context.Context, priorUser string) (string, []string, error) {
+func runEmptyUserDetectionAmend(ctx context.Context, noteType, priorUser string) (string, []string, error) {
 	userLine := ""
 	if priorUser != "" {
 		userLine = "user: " + priorUser + "\n"
 	}
 
-	note := []byte("---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: old\n" +
+	content := map[string]string{
+		"fact":     "situation: ctx\nsubject: A\npredicate: has\nobject: old\n",
+		"feedback": "situation: ctx\nbehavior: skipped\nimpact: broke\naction: old\n",
+		"runbook":  "situation: ctx\ndone_when: old\n",
+	}[noteType]
+	body := map[string]string{
+		"fact":     "Information learned: when in ctx, A has old.\n\n",
+		"feedback": "Lesson learned: when ctx, old.\n\n",
+		"runbook":  "1. old step\n",
+	}[noteType]
+	restampArgs := map[string]cli.AmendArgs{
+		"fact":     {Object: "new"},
+		"feedback": {Action: "new"},
+		"runbook":  {DoneWhen: "new"},
+	}[noteType]
+
+	note := []byte("---\ntype: " + noteType + "\ntier: L2\n" + content +
 		"luhmann: \"1zz\"\ncreated: \"2026-02-01\"\nsource: test\n" +
 		"repo: github.com/alice/widgets\n" + userLine + "vault: alice-vault\n" +
-		"---\n\nInformation learned: when in ctx, A has old.\n\n")
+		"---\n\n" + body)
 
 	var (
 		written  []byte
@@ -258,7 +291,8 @@ func runEmptyUserDetectionAmend(ctx context.Context, priorUser string) (string, 
 		Now: func() time.Time { return time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC) },
 	}
 
-	args := cli.AmendArgs{Vault: "/vault", Target: "1zz", VaultName: "alice-vault", Object: "new"}
+	args := restampArgs
+	args.Vault, args.Target, args.VaultName = "/vault", "1zz", "alice-vault"
 
 	err := cli.ExportRunAmend(ctx, args, deps, &bytes.Buffer{})
 

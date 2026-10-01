@@ -48,8 +48,9 @@ func (s *identityStamp) stamp(repo, user, vault *string) {
 // the note already carries a non-empty user: — then the note's existing
 // value is kept instead of being blanked to user: "", and a warning naming
 // the stamp's basename is emitted through warn (design D3, #776; a nil stamp
-// is a no-op, matching stamp). A nil warn (no basename/warn set — not the
-// amend path) silently keeps the behavior of stamp.
+// is a no-op, matching stamp). The user-preserving behavior itself does not
+// depend on warn: a nil warn (no basename/warn set — not the amend path)
+// still keeps the prior user, it only skips logging the warning.
 func (s *identityStamp) stampPreservingUser(repo, user, vault *string) {
 	if s == nil {
 		return

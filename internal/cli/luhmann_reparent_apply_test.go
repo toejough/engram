@@ -440,6 +440,9 @@ func TestRunReparentLuhmann_DeriveInstructionNamesLearnBatchMode(t *testing.T) {
 	g.Expect(instruction).To(ContainSubstring("batch mode"))
 	g.Expect(instruction).To(ContainSubstring("--dry-run"))
 	g.Expect(instruction).To(ContainSubstring("distinct"))
+	g.Expect(instruction).To(ContainSubstring("answering pass itself does not run apply"),
+		"the hand-back must say so positively, not just avoid one banned phrase (spec: "+
+			`"The answering pass itself SHALL NOT be told to run apply")`)
 	g.Expect(instruction).NotTo(ContainSubstring("then re-run"),
 		"the answering pass must not be told to invoke apply itself")
 }

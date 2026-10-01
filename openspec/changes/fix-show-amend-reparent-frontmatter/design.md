@@ -156,6 +156,7 @@ Every other key survives, including keys the typed doc does not define. Update t
 All tests follow TDD, with the failing test written first, and use `t.Parallel()`. Each subtest builds its own fixture.
 
 - Mocks for `RenameRewriteDeps`, `AmendDeps` and `ShowDeps` are imptest mocks where the tests drive the interaction. In-memory map fakes are used where only the final state is asserted.
+  - **Deviation recorded during U1 (task 2.1, #776 tests):** `AmendDeps` (like `RenameRewriteDeps`) is a struct of injected closures, not an interface — `impgen` mocks interfaces only, and the package's own precedent (`Commander`, `SkillSourceFS`) confirms this: both are real interfaces consumed directly as parameters, never a struct-of-funcs assigned field-by-field. Every existing `cli.AmendDeps{…}` literal in `amend_test.go`, `amend_fold_test.go` and `amend_identity_test.go` already uses plain closures, and D7's own next sentence ("fakes … where only the final state is asserted") already covers this case, since the #776 tests assert the written note plus the captured `LogWarning` calls, not an ordered call sequence. The #776 tests (task 2.1) therefore use plain closures, matching the file's convention, not a generated imptest mock. This also means the `impgen`-mock sentence above does not bind task 2.1, and the same question will recur for groups 4–6's `RenameRewriteDeps` tests.
 - Assertions use gomega.
 - The #780 property is `rapid.Check`. It generates a frontmatter mapping containing:
   - the required keys;
