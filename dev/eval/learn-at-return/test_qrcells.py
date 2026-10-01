@@ -48,7 +48,8 @@ def test_q1_fire_without_captured_mark_is_reported():
           *bash("b1", "engram learn feedback --x"), *tail()]
     out = run("Q1", "GREEN", ev)
     assert out["label"] == "pass" and out["captured_mark"] is False
-    assert out["meets_q1_bar"] is False
+    # ruling T14 (Joe, 2026-10-01): the captured mark is no longer part of the Q bar; still recorded
+    assert out["meets_q1_bar"] is True
 
 
 def test_r1_no_fire_before_next_dispatch():

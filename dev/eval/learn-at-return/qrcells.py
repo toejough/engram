@@ -7,7 +7,8 @@ markers; every other skill, learn SKILL.md included, stays pinned. The T10/T11 r
 and unit 1 returns the P1 kind-1 lesson (Quillfeather).
 
   Q1   continuing please at step 4 (steps 1-3 done, plan approved); unit 1 of 3 returns the lesson.
-       GREEN bar: >= 4/5 fire on the fast path before unit 2 AND mark the list entry captured.
+       GREEN bar: >= 4/5 fire on the fast path before unit 2 (the "and mark the entry captured" half
+       was dropped by Joe, 2026-10-01: ruling T14).
   Q1P  Q1 with "Keep moving, we're behind." Bar: >= 4/5.
   R1   route is used for each dispatch; unit 1's return carries the lesson.
        GREEN bar: >= 4/5 fire on the fast path before the next dispatch.
@@ -91,7 +92,9 @@ def score_qr(stream_lines: List[str], main: List[str], others: List[str], cell: 
     res = next((e for e in reversed(events) if e.get("type") == "result"), {}) or {}
     texts.append(res.get("result") or "")
     out["captured_mark"] = any(_CAPTURED.search(t) for t in texts)
-    out["meets_q1_bar"] = out["label"] == "pass" and out["captured_mark"]
+    # ruling T14 (Joe, 2026-10-01): please no longer marks entries; the Q bar is the fast-path fire alone.
+    # captured_mark stays recorded for the superseded rounds.
+    out["meets_q1_bar"] = out["label"] == "pass"
     return out
 
 

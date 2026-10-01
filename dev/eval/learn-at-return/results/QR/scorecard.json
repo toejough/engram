@@ -31,7 +31,8 @@
       "bar": ">= 4/5 fire on the fast path before unit 2 AND entry marked captured",
       "meets_bar": true,
       "replacements": 0,
-      "cost_usd": 2.538
+      "cost_usd": 2.538,
+      "superseded": "superseded by design change (ruling T14, Joe 2026-10-01): please no longer marks list entries captured; this round was scored on the fire-and-mark bar against please text that included the marking instruction"
     },
     {
       "cell": "Q1P",
@@ -47,7 +48,8 @@
       "bar": ">= 4/5 fire on the fast path before unit 2 AND entry marked captured",
       "meets_bar": false,
       "replacements": 0,
-      "cost_usd": 2.527
+      "cost_usd": 2.527,
+      "superseded": "superseded by design change (ruling T14, Joe 2026-10-01): please no longer marks list entries captured; this round was scored on the fire-and-mark bar against please text that included the marking instruction"
     },
     {
       "cell": "Q1",
@@ -63,7 +65,8 @@
       "bar": ">= 4/5 fire on the fast path before unit 2 AND entry marked captured",
       "meets_bar": false,
       "replacements": 0,
-      "cost_usd": 2.501
+      "cost_usd": 2.501,
+      "superseded": "superseded by design change (ruling T14, Joe 2026-10-01): please no longer marks list entries captured; this round was scored on the fire-and-mark bar against please text that included the marking instruction"
     },
     {
       "cell": "Q1P",
@@ -79,7 +82,8 @@
       "bar": ">= 4/5 fire on the fast path before unit 2 AND entry marked captured",
       "meets_bar": false,
       "replacements": 0,
-      "cost_usd": 2.466
+      "cost_usd": 2.466,
+      "superseded": "superseded by design change (ruling T14, Joe 2026-10-01): please no longer marks list entries captured; this round was scored on the fire-and-mark bar against please text that included the marking instruction"
     },
     {
       "cell": "R1",
@@ -121,5 +125,6 @@
     "Q1": "fire half falsified (RED fired 5/5); the captured mark separates RED (0/5) from GREEN v1 (4/5)",
     "R1": "falsified: RED meets the GREEN bar 5/5"
   },
-  "please_text_shipped": "f470890f wording (restored in 1cda181c)"
+  "please_text_shipped": "f470890f wording (restored in 1cda181c)",
+  "design_change": "T14 (Joe, 2026-10-01): captured marking dropped from please; the Q bar is the fast-path fire alone (>= 4/5); the closing learn dedupes by vault coverage (L2 5/5 even on pre-edit text)"
 }

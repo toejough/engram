@@ -76,12 +76,12 @@ Each edit is limited to the wording that tells the orchestrator not to judge at 
 
 | File:lines | Current | New |
 |---|---|---|
-| please SKILL.md:95–99 (step 4) | record the line verbatim; "not judged in-flight; it is handed to the closing `/learn` as-is" | record the line verbatim (unchanged); judge each lesson then, per the learn guidance's return cue, and mark the entry captured when a fast-path `/learn` writes it; the full list, with marks, still goes to the closing learn |
-| please SKILL.md:119–122 (step 7) | hand over the full list; "`/learn`'s Step 2 curates that list … step 7 does not pre-filter it" | hand over the full list with captured marks; the closing learn skips captured lines and curates the rest; step 7 still does not drop lines |
+| please SKILL.md:95–99 (step 4) | record the line verbatim; "not judged in-flight; it is handed to the closing `/learn` as-is" | record the line verbatim (unchanged); judge each lesson then, per the learn guidance's return cue, with a fast-path `/learn` before the next dispatch for each that clears the bar; the full list still goes to the closing learn (Joe, 2026-10-01: captured marking dropped; see the D6 design-change note) |
+| please SKILL.md:119–122 (step 7) | hand over the full list; "`/learn`'s Step 2 curates that list … step 7 does not pre-filter it" | hand over the full list; the closing learn skips any lesson a vault note written earlier this session already covers and curates the rest; step 7 still does not drop lines (Joe, 2026-10-01: captured marking dropped; see the D6 design-change note) |
 | route SKILL.md:72–73 | "offers for the closing `/learn` to judge" | "offers the orchestrator judges when the report returns (fast-path `/learn` for those that clear the bar), with the closing `/learn` as backstop" |
 
 - **Unchanged:** route's mandatory line, format, and one-re-ask rule; please's red-flag row about reaching step 7 without the list; the `lessons-contract` spec; please's lessons audit.
-- **Spec impact:** please's two LESSONS requirements are MODIFIED (the collection requirement drops "collection is not judging"; the hand-off requirement adds the captured marks). Route's requirements do not mention who judges, so route has no delta.
+- **Spec impact:** please's two LESSONS requirements are MODIFIED (the collection requirement drops "collection is not judging"; the hand-off requirement adds the closing learn's dedupe by vault coverage; Joe, 2026-10-01, dropped the captured marks it first added). Route's requirements do not mention who judges, so route has no delta.
 
 ### D5: Guidance eval, confined headless RED/GREEN
 
@@ -176,8 +176,10 @@ Each of the three SKILL.md edits runs `superpowers:writing-skills` (RED → GREE
 | learn | L1 fast path at return | Prompt: a subagent just returned with one kind-1 `LESSONS:` lesson; `/learn` it now, then continue to unit 2 | the skill treats it as closing-learn input and sweeps (`engram ingest`) or writes no note, in ≥ 2/5 | 5/5 write exactly one note, with no `engram ingest` and no `vocab stats` |
 | learn | L2 closing dedupe | Closing learn with 3 collected lines; one is marked captured, and its note is already in `$ARM/vault` | the captured line is written again in ≥ 2/5 | 5/5 sweep, write no duplicate, and judge the other two per the bar |
 | learn | L3 pressure | L2 with 6 lines (2 captured, 1 trivial, 1 hunch, 2 worth keeping) under "we're out of time, just write them all" | — | 5/5 write only the 2 uncaptured worth-keeping lines and still sweep |
-| please | Q1 step-4 return | Continuing please at step 4: unit 1 of 3 returns a kind-1 lesson | no fire before unit 2 in ≥ 2/5 ("not judged in-flight") | ≥ 4/5 fire on the fast path before unit 2, and the list entry is marked captured |
+| please | Q1 step-4 return | Continuing please at step 4: unit 1 of 3 returns a kind-1 lesson | no fire before unit 2 in ≥ 2/5 ("not judged in-flight") | ≥ 4/5 fire on the fast path before unit 2 (the original "and the list entry is marked captured" half was dropped by Joe, 2026-10-01: a design change, see below) |
 | route | R1 return after a routed dispatch | route was invoked for the dispatch; the return carries a kind-1 lesson | no fire before the next dispatch in ≥ 2/5 | ≥ 4/5 fire on the fast path before the next dispatch |
+
+**Design change (Joe, 2026-10-01): please drops the captured mark.** Q1's GREEN bar first required both a fast-path fire and marking the running-list entry captured. The fire held at 5/5 in every please arm, RED included. The mark did not hold: GREEN Q1 4/5, Q1P pressure 3/5, and a structural refactor (a required status field) regressed both cells to 1/5. Joe dropped the marking requirement. please still judges each lesson at its return and fires the fast-path `/learn` before the next dispatch. At close, the closing learn dedupes by vault coverage (a note written earlier this session covers the lesson), which L2 showed working at 5/5 even on the pre-edit learn SKILL.md (`results/red-L2`). This is a recorded design change, not a loosened bar: the Q1/Q1P bar is now the fire alone, at the same ≥ 4/5. The two earlier please GREEN rounds are kept, marked superseded by the design change.
 
 **RED shows no gap.** If a RED cell meets its GREEN bar, the premise is falsified for that cell (MEMORY: a RED baseline can falsify the design premise). Record the numbers. The edit then ships only as wording consistency, with GREEN run as a non-regression check at the same bar, and the finding goes to Joe. The fixture is not re-engineered to force a RED.
 
@@ -185,7 +187,7 @@ Each of the three SKILL.md edits runs `superpowers:writing-skills` (RED → GREE
 
 1. RED guidance arms, against the unedited `learn.md`.
 2. Edit `learn.md`, then GREEN guidance arms.
-3. writing-skills cycles for learn, please and route. Their GREEN arms carry the GREEN `learn.md`.
+3. writing-skills cycles for learn, please and route. Their GREEN arms carry the GREEN `learn.md`. (Joe, 2026-10-01: please's captured marking was dropped after two GREEN rounds missed the Q1P pressure bar on the mark alone; the please GREEN cell reruns on the unmarked text. See D6.)
 4. Docs from `enumeration.md`.
 5. Deploy, verify, close out (D8, D9).
 
@@ -224,7 +226,7 @@ This proposal carries the pointer now; the tick waits for close-out, so that 3.4
 - **[Over-capture: writing trivial or unconfirmed lessons mid-task rots the vault]** → False-fire gate (≤ 1/15, and 0/5 on `none`). The cue restates the existing bar; the curate skill remains downstream.
 - **[Noise from the full guidance set]** Joe chose production realism (2026-09-29). shim's `engram query`, recall firing and delegate's dispatch doctrine add behaviour and variance to every arm, and they can compete with the learn cue for attention. The set is identical in both arms, so it is not a confound, but it widens per-arm variance at these n. → Accepted as a caveat and reported with the results. **No bar is lowered to compensate.** Any recall or query activity inside the window is recorded but does not change a pass or false-fire classification.
 - **[A scripted haiku subagent is not a real worker]** → What is under test is the orchestrator's reaction to a return, not the worker. A fixed report makes the LESSONS content controlled and identical across arms.
-- **[Dedupe relies on "a note written this session covers it"]** → The L2/L3 cells test it. please's captured marks make it explicit on the please path. Off the please path, the closing learn reads its own session's writes.
+- **[Dedupe relies on "a note written this session covers it"]** → The L2/L3 cells test it. On every path, the closing learn reads its own session's writes (please's captured marks were dropped by Joe, 2026-10-01; L2 showed vault-coverage dedupe at 5/5 even on the pre-edit text).
 - **[Prose caps below ~95%]** (vault note 198). → The closing backstop stays, and the parked mechanical layers remain the escalation path.
 - **[Archive dependency on a sibling change]** → D9 fixes the order, and the collision sweep reads the sibling's full tasks.md (vault note 757).
 
