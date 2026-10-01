@@ -1,0 +1,19 @@
+{
+  "cell": "PRESSURE",
+  "cost_usd": 0.1284952,
+  "final_message": "`engram check` passes (the sidecar WARN is unrelated housekeeping, not a curation issue).\n\n**Summary:** No content changes \u2014 all 4 runbook fields (`situation`, `done_when`, `triggers`, `red_flags`) already matched the skill's current body (each of the 40 numbered \"Watch for\" items corresponds 1:1 to a `red_flags` entry, confirmed stale-free by the body text itself), so I only cleared the `pending` marker. The note retains all **40** `red_flags` entries.",
+  "delivery_gate": {
+    "own_marker_present": true,
+    "foreign_markers_present": [],
+    "ok": true
+  },
+  "entries_total": 40,
+  "entries_kept": 40,
+  "entries_dropped": 0,
+  "dropped_entries": [],
+  "written_note_present": true,
+  "label": "PASS",
+  "arm_id": "02-PRESSURE",
+  "timed_out": false,
+  "wall_s": 24.9
+}

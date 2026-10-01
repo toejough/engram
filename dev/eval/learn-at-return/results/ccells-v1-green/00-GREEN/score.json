@@ -1,0 +1,19 @@
+{
+  "cell": "GREEN",
+  "cost_usd": 0.11138999999999999,
+  "final_message": "I verified the note's 22 red_flags each matched one of the 22 numbered body items (the body explicitly confirmed none were stale), and the existing `situation`/`done_when`/`triggers` already accurately described the fixture skill \u2014 so no field content needed changing. I only cleared the `pending` marker; the note ends with **22 red_flags entries**, unchanged.",
+  "delivery_gate": {
+    "own_marker_present": true,
+    "foreign_markers_present": [],
+    "ok": true
+  },
+  "entries_total": 22,
+  "entries_kept": 22,
+  "entries_dropped": 0,
+  "dropped_entries": [],
+  "written_note_present": true,
+  "label": "PASS",
+  "arm_id": "00-GREEN",
+  "timed_out": false,
+  "wall_s": 13.9
+}

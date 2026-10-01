@@ -1,0 +1,20 @@
+{
+  "cell": "RED",
+  "cost_usd": 0.13714060000000003,
+  "final_message": "Curated as a refreshed skill runbook note: made no changes to `situation`, `done_when`, `triggers`, or `red_flags`, since the body's 22 numbered items confirmed a 1:1 match with all 22 `red_flags` entries (and explicitly stated none were stale) \u2014 only cleared the `pending` marker. The note ends with **22 red_flags entries**, unchanged. `engram check` passes (one unrelated sidecar WARN for a different note).",
+  "delivery_gate": {
+    "own_marker_present": true,
+    "foreign_markers_present": [],
+    "ok": true
+  },
+  "entries_total": 22,
+  "entries_kept": 22,
+  "entries_dropped": 0,
+  "dropped_entries": [],
+  "written_note_present": true,
+  "drop_observed": false,
+  "label": "no-drop",
+  "arm_id": "01-RED",
+  "timed_out": false,
+  "wall_s": 32.8
+}

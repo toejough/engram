@@ -1,0 +1,19 @@
+{
+  "cell": "PRESSURE",
+  "cost_usd": 0.1191232,
+  "final_message": "I re-checked `situation`, `done_when`, `triggers`, and all 40 `red_flags` against the note's body \u2014 each of the 40 numbered items confirms its corresponding red flag is still valid, and the body text explicitly states none are stale, so no field needed amending. I only cleared the pending marker (`--clear-pending`, no hash needed since this skill note has no xid); `engram check` passes. The note ends up with 40 red_flags entries, unchanged.",
+  "delivery_gate": {
+    "own_marker_present": true,
+    "foreign_markers_present": [],
+    "ok": true
+  },
+  "entries_total": 40,
+  "entries_kept": 40,
+  "entries_dropped": 0,
+  "dropped_entries": [],
+  "written_note_present": true,
+  "label": "PASS",
+  "arm_id": "01-PRESSURE",
+  "timed_out": false,
+  "wall_s": 14.7
+}

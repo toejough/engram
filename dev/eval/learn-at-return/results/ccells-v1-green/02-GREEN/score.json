@@ -1,0 +1,19 @@
+{
+  "cell": "GREEN",
+  "cost_usd": 0.11599780000000001,
+  "final_message": "I verified all 22 red_flags entries in the frontmatter still correspond 1:1 to the numbered \"Watch for\" items in the body (the body text itself confirms none are stale), and `situation`, `done_when`, and `triggers` still accurately describe the skill \u2014 so no field amendments were needed. I only cleared the pending marker (`--clear-pending`, no hash needed since this skill note has no xid). The note retains all **22 red_flags** entries, unchanged. `engram check` passes (the S1 sidecar warning is pre-existing/unrelated to this note's content).",
+  "delivery_gate": {
+    "own_marker_present": true,
+    "foreign_markers_present": [],
+    "ok": true
+  },
+  "entries_total": 22,
+  "entries_kept": 22,
+  "entries_dropped": 0,
+  "dropped_entries": [],
+  "written_note_present": true,
+  "label": "PASS",
+  "arm_id": "02-GREEN",
+  "timed_out": false,
+  "wall_s": 17.2
+}

@@ -1,0 +1,19 @@
+{
+  "cell": "GREEN",
+  "cost_usd": 0.1310808,
+  "final_message": "I verified the note's `situation`, `done_when`, `triggers`, and all 22 `red_flags` against the body \u2014 each numbered body item matches a red flag verbatim, and the body itself states none are stale \u2014 so no field amendments were needed; I only cleared the pending marker. The note ends with 22 `red_flags` entries (unchanged). `engram check` passes (the sidecar WARN is pre-existing/unrelated, needing `engram embed apply`, not a curation issue).",
+  "delivery_gate": {
+    "own_marker_present": true,
+    "foreign_markers_present": [],
+    "ok": true
+  },
+  "entries_total": 22,
+  "entries_kept": 22,
+  "entries_dropped": 0,
+  "dropped_entries": [],
+  "written_note_present": true,
+  "label": "PASS",
+  "arm_id": "01-GREEN",
+  "timed_out": false,
+  "wall_s": 25.0
+}

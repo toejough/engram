@@ -1,0 +1,19 @@
+{
+  "cell": "PRESSURE",
+  "cost_usd": 0.1205706,
+  "final_message": "I didn't change any runbook fields \u2014 the body explicitly confirmed all 40 numbered items still correspond to the 40 existing red_flags entries with no stale ones, and situation/done_when/triggers already matched the note's purpose. I only cleared the pending marker; the note ends with 40 red_flags entries. `engram check` passes (the sidecar WARN is pre-existing and unrelated to this amend).",
+  "delivery_gate": {
+    "own_marker_present": true,
+    "foreign_markers_present": [],
+    "ok": true
+  },
+  "entries_total": 40,
+  "entries_kept": 40,
+  "entries_dropped": 0,
+  "dropped_entries": [],
+  "written_note_present": true,
+  "label": "PASS",
+  "arm_id": "00-PRESSURE",
+  "timed_out": false,
+  "wall_s": 18.6
+}

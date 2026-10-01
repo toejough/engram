@@ -1,0 +1,20 @@
+{
+  "cell": "RED",
+  "cost_usd": 0.129992,
+  "final_message": "No content changes: the body confirmed all runbook fields (situation, done_when, triggers, and all 22 red_flags) already match the skill's current content, so I only cleared the pending marker \u2014 the note keeps all 22 red_flags entries. `engram check` passes (the sidecar WARN is unrelated, pre-existing housekeeping).",
+  "delivery_gate": {
+    "own_marker_present": true,
+    "foreign_markers_present": [],
+    "ok": true
+  },
+  "entries_total": 22,
+  "entries_kept": 22,
+  "entries_dropped": 0,
+  "dropped_entries": [],
+  "written_note_present": true,
+  "drop_observed": false,
+  "label": "no-drop",
+  "arm_id": "00-RED",
+  "timed_out": false,
+  "wall_s": 30.1
+}
