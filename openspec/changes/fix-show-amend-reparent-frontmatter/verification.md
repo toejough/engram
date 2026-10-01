@@ -238,3 +238,34 @@ written; nothing under it was ever referenced by any committed artifact.
 | #780(c) resituate keeps `luhmann_old` | PASS |
 | resituate refuses an anchored key (extra check) | PASS |
 | Real vault unchanged by this session | PASS, with 2 untracked notes (1075b, 1084) beyond the ruling's list — not from this session, flagged for the controller |
+
+# Task 7.2 re-run for amend and resituate (final-review fix wave, ruling V6, 2026-10-01)
+
+After the final-review fixes (amend moved onto the YAML-node edit; refresh and resituate convert CRLF),
+the amend and resituate checks were re-run against a fresh scratch build of the working tree on top of
+`49cfc120`. As before, nothing was `go install`ed. Every command ran from `/tmp` under
+`env -i PATH=/usr/bin:/bin HOME=$S/home XDG_DATA_HOME=$S/data`, with `--vault $S/vault`, so
+`ENGRAM_VAULT_NAME` and `ENGRAM_PARENT` were unset. No command named the real vault or `~/.claude`.
+
+```
+S=$(mktemp -d …/scratchpad/v72.XXXX); mkdir -p $S/bin $S/data $S/vault $S/home
+go build -o $S/bin/engram ./cmd/engram   # exit 0
+```
+
+The fixtures were hand-written fact notes (`user: alice`, `vault: personal`, quoted `created:`).
+
+| # | Check | Command | Result |
+|---|---|---|---|
+| A1 | Content amend keeps unmodeled keys; `vault:` defaults | `engram amend --target 1 --object sprocket` on a note with `luhmann_old: "12"` and `provenance: {origin: import, steps: [a, b]}` | exit 0. `object: sprocket`; `luhmann_old: "12"` and the whole `provenance` map intact; `vault: personal`. `user:` re-stamped to the OS user (`joe`), as expected on macOS. **PASS** |
+| A2 | An anchor on an unedited key survives | `engram amend --target 2 --object sprocket` on a note with `source: &src test` and `x_src: *src` | exit 0. `source: &src test` and `x_src: *src` are byte-preserved. **PASS** |
+| A3 | An anchored edited key is refused untouched | `engram amend --target 3 --object sprocket` on a note with `object: &o gear` and `x_obj: *o` | exit 1: `amend: frontmatter key the edit replaces carries a YAML anchor: object`. sha256 `cd577c4a…5c9d23` is the same before and after. **PASS** |
+| A4 | A supersedes-only amend keeps unmodeled keys | `engram amend --target 4 --supersedes "1.2026-10-01.amend-unknown\|narrows\|old claim"` | exit 0. `supersedes:` was added; `luhmann_old: "14"` is intact. **PASS** |
+| R1 | Resituate converts a CRLF note and keeps unmodeled keys | `engram resituate --note 5 --situation "re-verifying resituate"` on an all-CRLF note (16 CR lines) with `luhmann_old: "15"` | exit 0. 0 CR lines after; `situation:` changed; `luhmann_old: "15"` is intact. **PASS** |
+| E | Sidecars | `engram embed status` | `stale: 0`, `broken: 0`. 3 with embeddings: the three content writes. The 2 without are the refused note and the supersedes-only note, which amend does not re-embed (provenance-only, D3). **PASS** |
+
+Exchange-hash parity with the pre-change amend:
+- A binary built from `49cfc120` (amend unchanged there) amended the same 26 inputs that need no chunk index (fact, feedback and runbook; content, supersedes, red-flags, triggers, body and clear-pending kinds).
+- `engram show`'s `# exchange_hash:` matched the committed goldens on all 26. The 6 `--chunk-source` cases are pinned in-process only.
+- The new code reproduces every golden byte-for-byte (`TestRunAmend_ExchangeHashParityWithPreChangeAmend`, 32 cases).
+
+The scratch root `$S` was removed afterwards.
