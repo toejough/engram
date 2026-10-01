@@ -212,3 +212,42 @@ def test_build_installs_skill_under_test_with_its_token_and_seeds_the_vault(tmp_
     assert len(info["seeded"]) == 2
     for name in info["seeded"]:
         assert str(root) in info["seed_log"][name]  # written inside $ARM only
+
+
+# ---------------------------------------------------------------------------
+# L2u: unmarked closing learn (final-review finding 1)
+# ---------------------------------------------------------------------------
+
+
+def test_l2u_prompt_is_l2_without_any_captured_marker():
+    l2 = lcells.prompt("L2", {"C1": SEED})
+    l2u = lcells.prompt("L2u", {"C1": SEED})
+    assert "captured" not in l2u.lower() and SEED[:-3] not in l2u
+    assert l2u == l2.replace(f" [captured at return → {SEED[:-3]}]", "")
+
+
+def test_l2u_scores_like_l2():
+    ev = [*skill(), *bash("i1", "engram ingest --auto"), *learn_write("b1", "repro-first"), result()]
+    assert score("L2u", ev, {SEED: P1_NOTE, "9.2026-09-30.repro-first.md": W_NOTE}, seeded=[SEED])["label"] == "pass"
+    ev = [*skill(), *bash("i1", "engram ingest --auto"), *learn_write("b1", "repro-first"),
+          *learn_write("b2", "utc-dates"), result()]
+    out = score("L2u", ev, {SEED: P1_NOTE, "9.2026-09-30.repro-first.md": W_NOTE,
+                            "9.2026-09-30.utc-dates.md": P1_NOTE}, seeded=[SEED])
+    assert out["label"] == "fail" and out["duplicates"] == ["9.2026-09-30.utc-dates.md"]
+
+
+def test_l2u_seed_reads_as_this_session_and_installs_head_please(tmp_path):
+    from test_lar import FakeSource
+    eng = tmp_path / "engram"
+    eng.write_text("#!/bin/sh\nslug=$(echo \"$@\" | sed -E 's/.*--slug ([^ ]+).*/\\1/')\n"
+                   "p=\"$ENGRAM_VAULT_PATH/1.2026-10-01.$slug.md\"; echo \"$@\" > \"$p\"; echo \"$p\"\n")
+    eng.chmod(0o755)
+    root = tmp_path / "engram-arm.U"
+    root.mkdir()
+    info = lcells.build_l_arm(str(root), "L2u", "GREEN", FakeSource(), str(eng), [], "/h", today="2026-10-01")
+    seeded = (root / "vault" / info["seeded"][0]).read_text()
+    assert "session 2026-10-01, context: Quillfeather unit 1 (front-matter dates) returned" in seeded
+    assert "captured" not in info["prompt"].lower()
+    assert (root / "home/.claude/skills/please/SKILL.md").read_text() == \
+        FakeSource().worktree("agent-instructions/skills/please/SKILL.md")
+    assert lar.parse_arm_spec("L2u:GREEN:worktree", 0).cell == "L2u"

@@ -27,7 +27,7 @@ import lar
 import score
 from config import ARM_TOKENS, MARKER_PREFIX, PIN
 
-L_CELLS = ("L1", "L2", "L3")
+L_CELLS = ("L1", "L2", "L3", "L2u")
 SKILL_TOKENS = {"RED": "LAR-LSK-RED-6P1V", "GREEN": "LAR-LSK-GREEN-4T9X"}
 SKILL_REL = "agent-instructions/skills/learn/SKILL.md"
 GUIDANCE_ARM = "GREEN"  # D6: both skill arms load the GREEN learn.md
@@ -47,19 +47,23 @@ LINES = {
 
 SEEDS = {
     "C1": ["--slug", "quillfeather-front-matter-dates-utc-iso8601", "--position", "top",
-           "--source", "session 2026-09-30, context: Quillfeather unit 1 (front-matter dates) returned",
+           "--source", "session {date}, context: Quillfeather unit 1 (front-matter dates) returned",
            "--situation", "writing or reviewing front-matter date handling in Quillfeather",
            "--behavior", "parsed front-matter dates in the machine's local time zone",
            "--impact", "the code reviewer rejected it",
            "--action", "store and compare every front-matter date as UTC, written in ISO-8601"],
     "C2": ["--slug", "quillfeather-slugs-fold-accents-to-ascii", "--position", "top",
-           "--source", "session 2026-09-30, context: Quillfeather unit 2 (slug rules) returned",
+           "--source", "session {date}, context: Quillfeather unit 2 (slug rules) returned",
            "--situation", "building URL slugs from page titles in Quillfeather",
            "--behavior", "stripped accented letters out of slugs",
            "--impact", "the code reviewer rejected it",
            "--action", "fold accented letters to ASCII before collapsing separators"],
 }
-SEEDED_FOR = {"L1": [], "L2": ["C1"], "L3": ["C1", "C2"]}
+SEEDED_FOR = {"L1": [], "L2": ["C1"], "L3": ["C1", "C2"], "L2u": ["C1"]}
+# L2u (final-review finding 1): L2 with no `[captured at return → …]` marker, so only vault coverage can
+# stop a duplicate; its seed carries today's date so the note reads as written earlier this session.
+# L2/L3 keep the 2026-09-30 source date they ran with.
+SEED_DATE = {"L2": "2026-09-30", "L3": "2026-09-30"}
 
 # note-content classifier: first match wins; order keeps paraphrases apart
 _CLASSES = [
@@ -92,7 +96,7 @@ def prompt(cell: str, seeded: Dict[str, str]) -> str:
                 "Unit 3 as described above.\n")
 
     def line(n: int, unit: int, key: str) -> str:
-        mark = f" [captured at return → {seeded[key][:-3]}]" if key in seeded else ""
+        mark = f" [captured at return → {seeded[key][:-3]}]" if key in seeded and cell != "L2u" else ""
         return f"{n}. Unit {unit}: {LINES[key]}{mark}"
 
     head = ("You're coordinating work on Quillfeather, our static-site generator. All three units of today's "
@@ -100,7 +104,7 @@ def prompt(cell: str, seeded: Dict[str, str]) -> str:
             "dispatch. Now run the closing /learn for this session.\n\n"
             "These are the `LESSONS:` lines collected from the three reports, as the running list recorded "
             "them:\n\n")
-    if cell == "L2":
+    if cell in ("L2", "L2u"):
         return head + "\n".join([line(1, 1, "C1"), line(2, 2, "W1"), line(3, 3, "T")]) + "\n"
     return (head + "\n".join([line(1, 1, "C1"), line(2, 1, "T"), line(3, 2, "C2"), line(4, 2, "W1"),
                               line(5, 3, "H"), line(6, 3, "W2")]) +
@@ -112,11 +116,11 @@ def prompt(cell: str, seeded: Dict[str, str]) -> str:
 # ---------------------------------------------------------------------------
 
 
-def seed_note(arm: str, key: str) -> str:
+def seed_note(arm: str, key: str, date: str) -> str:
     env = {"HOME": f"{arm}/home", "PATH": f"{arm}/bin:/usr/bin:/bin", "TMPDIR": f"{arm}/tmp",
            "XDG_DATA_HOME": f"{arm}/xdg", "ENGRAM_VAULT_PATH": f"{arm}/vault"}
     argv = ["/usr/bin/env", "-i", *[f"{k}={v}" for k, v in env.items()], f"{arm}/bin/engram", "learn", "feedback",
-            *SEEDS[key]]
+            *[a.format(date=date) for a in SEEDS[key]]]
     p = subprocess.run(argv, capture_output=True, text=True, cwd=os.path.join(arm, "work"), timeout=300)
     lines = [ln.strip() for ln in p.stdout.splitlines() if ln.strip()]
     created = lines[-1] if lines else ""
@@ -125,7 +129,8 @@ def seed_note(arm: str, key: str) -> str:
     return created
 
 
-def build_l_arm(arm: str, cell: str, skill_arm: str, src, engram_bin: str, deny: List[str], home: str):
+def build_l_arm(arm: str, cell: str, skill_arm: str, src, engram_bin: str, deny: List[str], home: str,
+                today: Optional[str] = None):
     spec = lar.ArmSpec(cell="P1", arm=GUIDANCE_ARM, learn_source="worktree", domain="quillfeather")
     info = lar.build_arm(arm, spec, src, engram_bin, deny, home)
     body = src.pinned(SKILL_REL) if skill_arm == "RED" else src.worktree(SKILL_REL)
@@ -139,9 +144,17 @@ def build_l_arm(arm: str, cell: str, skill_arm: str, src, engram_bin: str, deny:
     if skill_arm == "GREEN":
         meta.update(src.worktree_state(SKILL_REL))
     info["texts"] = [t for t in info["texts"] if t["path"] != "skills/learn/SKILL.md"] + [meta]
+    if cell == "L2u":  # the shipped no-mark behaviour: HEAD please too
+        please_rel = "agent-instructions/skills/please/SKILL.md"
+        body_p = src.worktree(please_rel)
+        lar._write(os.path.join(arm, "home", ".claude", "skills", "please", "SKILL.md"), body_p)
+        info["texts"] = [t for t in info["texts"] if t["path"] != "skills/please/SKILL.md"] + [
+            {"path": "skills/please/SKILL.md", "source": "worktree", "commit": src.head(),
+             "content_sha256": lar._sha(body_p), "sha256": lar._sha(body_p), **src.worktree_state(please_rel)}]
+    date = SEED_DATE.get(cell) or today or __import__("datetime").date.today().isoformat()
     seeded, log = {}, {}
     for key in SEEDED_FOR[cell]:
-        created = seed_note(arm, key)
+        created = seed_note(arm, key, date)
         seeded[key] = os.path.basename(created)
         log[os.path.basename(created)] = created
     info.update({"prompt": prompt(cell, seeded), "seeded": list(seeded.values()), "seeded_keys": seeded,
@@ -222,7 +235,7 @@ def score_l(stream_lines: List[str], main: List[str], others: List[str], cell: s
     out["swept"] = out["session_ingests"] > 0
     if not classes and score._ends_with_question(res.get("result") or ""):
         return done("question-stop")
-    want = ["W1"] if cell == "L2" else ["W1", "W2"]
+    want = ["W1"] if cell in ("L2", "L2u") else ["W1", "W2"]
     ok = out["swept"] and sorted(classes) == want
     return done("pass" if ok else "fail")
 

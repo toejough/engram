@@ -251,7 +251,7 @@ def parse_arm_spec(text: str, index: int) -> ArmSpec:
     if len(parts) not in (3, 4):
         raise HarnessError(f"arm spec {text!r}: want CELL:ARM:LEARN_SOURCE[:DOMAIN]")
     cell, arm, src = parts[:3]
-    if cell in ("L1", "L2", "L3", "Q1", "Q1P", "R1"):  # SKILL.md cells (lcells/qrcells): src = SKILL.md source
+    if cell in ("L1", "L2", "L3", "L2u", "Q1", "Q1P", "R1"):  # SKILL.md cells (lcells/qrcells): src = SKILL.md source
         if arm not in ARM_TOKENS or src != {"RED": "pin", "GREEN": "worktree"}[arm]:
             raise HarnessError(f"L cell spec {text!r}: want L<n>:RED:pin or L<n>:GREEN:worktree")
         return ArmSpec(cell, arm, src, "quillfeather")
