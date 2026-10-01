@@ -32,26 +32,44 @@ answering pass itself SHALL NOT be told to run apply.
 
 ## ADDED Requirements
 
-### Requirement: Rename and rewrite SHALL refuse unsafe frontmatter before any write
-The shared rename and rewrite step that reparent apply and `register-skills --adopt` both use SHALL check
-every note it is about to rename before it renames or writes any file. For each such note it SHALL compute
-the rewritten content (new `luhmann:`, alias, and reference rewrites). The note SHALL be refused when:
-- its rewritten frontmatter does not decode as a YAML mapping, for example because the old `luhmann:`
-  value carried an anchor that another key aliases; or
-- the decoded `luhmann:` value is not the new id; or
-- the note's frontmatter opening delimiter uses CRLF line endings.
-A refusal SHALL fail the whole invocation with an error naming each refused note and the reason, and no
-note SHALL be renamed or written by that invocation. `--dry-run` SHALL report the same refusals without
-writing.
+### Requirement: Rename and rewrite SHALL refuse undecodable frontmatter and convert written CRLF notes to LF
+Reparent apply and `register-skills --adopt` share one rename and rewrite step. That step SHALL check every
+note it is about to rename before it renames or writes any file. For each such note, it SHALL compute the
+rewritten content: the new `luhmann:`, the alias, and the reference rewrites. It SHALL refuse the note when
+the rewritten frontmatter does not decode as a YAML mapping. One way this happens is when the old
+`luhmann:` value carried an anchor that another key aliases. It SHALL also refuse the note when the decoded
+`luhmann:` value is not the new id. A refusal SHALL fail the whole invocation with an error that names
+each refused note and its reason. That invocation SHALL NOT rename or write any note. `--dry-run` SHALL
+report the same refusals without writing.
+
+Before rewriting a note that uses CRLF line endings, the step SHALL convert every `\r\n` to `\n`. That
+applies to the note's frontmatter and body, and to a renamed note as well as a referrer. The step SHALL
+convert only notes it writes anyway. The conversion SHALL happen inside the same single atomic write as
+that note's rewrite. A CRLF note that the step does not otherwise write SHALL remain byte-identical. Every
+converted note SHALL have its embedding sidecar rebuilt in the same invocation, so that afterwards it is
+not stale. A converted note's exchange hash SHALL equal the hash of the same note authored with LF line
+endings. A note whose frontmatter was already LF SHALL keep its exchange hash unchanged.
 
 #### Scenario: Anchored luhmann value is refused, not corrupted
 - **WHEN** an apply would rename a note whose frontmatter has `luhmann: &a "1050"` and `issue: *a`
 - **THEN** the invocation fails naming that note, and no note file or sidecar in the vault is renamed or rewritten
 
-#### Scenario: CRLF note is refused, not left stale
-- **WHEN** an apply would rename a note whose frontmatter lines end in `\r\n`
-- **THEN** the invocation fails naming that note as CRLF, and no file is renamed, so no note ends up with a basename id that disagrees with its `luhmann:` field
+#### Scenario: CRLF renamed note is converted and rewritten
+- **WHEN** an apply renames a note whose lines end in `\r\n`
+- **THEN** the written note contains no `\r\n`, its `luhmann:` equals its new id, its alias is recorded, every other key decodes to its prior value, and its sidecar is fresh after the invocation
+
+#### Scenario: CRLF referrer gets its supersedes rewritten
+- **WHEN** a CRLF note's frontmatter `supersedes:` names a note the apply renames
+- **THEN** the referrer is written as LF with its `supersedes:` note rewritten to the new basename
+
+#### Scenario: Untouched CRLF notes stay byte-identical
+- **WHEN** a CRLF note is neither renamed nor references a renamed note
+- **THEN** its bytes are unchanged after the apply
+
+#### Scenario: Exchange hash survives conversion
+- **WHEN** a note with LF frontmatter and a CRLF body is converted by a rename
+- **THEN** its exchange hash is unchanged, and a note converted from CRLF frontmatter hashes the same as its LF-authored equivalent
 
 #### Scenario: Safe notes rename with every other key intact
-- **WHEN** an apply renames notes whose frontmatter is LF and anchor-free
+- **WHEN** an apply renames notes whose frontmatter is anchor-free
 - **THEN** each renamed note decodes, its `luhmann:` equals its new id, and every other top-level key other than `aliases` decodes to the same value as before

@@ -30,3 +30,31 @@
 #### Scenario: Amend with no vault name configured stamps the default
 - **WHEN** a re-stamping `engram amend` runs with neither `--vault-name` nor `ENGRAM_VAULT_NAME` set
 - **THEN** the amended note's `vault:` is `personal`, never an empty string
+
+### Requirement: Exchange fields SHALL survive every frontmatter rewrite
+`xid`, `parent`, `aliases`, and `offer` SHALL be preserved unchanged by every path that rewrites a note's frontmatter and is not one of the exchange paths named above. Those paths are:
+- `engram amend` (every flag, including `--activate` and `--clear-pending`);
+- `engram resituate`;
+- identity backfill;
+- Luhmann reparenting and rename-and-rewrite of wikilinks (which only append to `aliases`);
+- vocab tag rewrites, clear, legacy cleanup, self-tag, and version stamp;
+- scrubbing references to deleted notes;
+- skill registration refresh and adopt.
+
+`engram resituate` SHALL also preserve every other frontmatter key it does not change, with its value, changing only `situation` and the body opener. This includes `pending`, `sources`, `tags`, `supersedes`, `vocab_version`, `issue`, and `project`, and keys the typed note model does not define.
+
+#### Scenario: Amend preserves the exchange fields
+- **WHEN** `engram amend --target L --clear-pending` (or any content amend) rewrites a note carrying `xid`, `parent`, `aliases`, and `offer`
+- **THEN** all four are unchanged in the written note
+
+#### Scenario: Resituate preserves every untouched field
+- **WHEN** `engram resituate` rewrites a pending note carrying `tags`, `sources`, `supersedes`, `parent`, and `aliases`
+- **THEN** all of them, and the pending marker, are unchanged, and only `situation` and the body opener differ
+
+#### Scenario: Identity backfill preserves the link
+- **WHEN** `engram update --backfill-identity` rewrites a note carrying `parent`
+- **THEN** `parent` is unchanged
+
+#### Scenario: Resituate keeps an unmodeled key
+- **WHEN** `engram resituate` rewrites a note whose frontmatter carries a key the typed note model does not define (e.g. `luhmann_old: "12"`)
+- **THEN** the written note still carries that key with the same value

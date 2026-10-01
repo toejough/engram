@@ -1,6 +1,6 @@
 ## Context
 
-This change fixes four open defects together, with Joe's approval of 2026-10-01. Each claim was checked against the code at `b48d6557` before any design work. The table gives the result for each.
+This change fixes four open defects together, with Joe's approval of 2026-10-01. It also fixes the same-class `resituateTyped` key drop reported in a comment on #780. Joe ruled on every open question on 2026-10-01; see the decision record at the end. Each claim was checked against the code at `b48d6557` before any design work. The table gives the result for each.
 
 | Issue | Claim | Verified at | Status |
 |---|---|---|---|
@@ -12,7 +12,9 @@ This change fixes four open defects together, with Joe's approval of 2026-10-01.
 | #770 | The payload says "re-run" apply, never names learn, and skips `--dry-run` | `luhmann_reparent_apply.go:537-545`. The notice at `update.go:58-59` doesn't name learn either. No test asserts on `Instruction`. | **Confirmed** |
 | #780(a) | Anchor dropped on reparent, with no validation before the write | `luhmann_reparent.go:284-304` replaces the `luhmann:` lines as text, so `&a` is lost. `renameOneNote` (`:250-275`) renames and writes without decoding again. Adopt is protected only as a side effect of `checkAdoptRenders`. | **Confirmed** |
 | #780(b) | A CRLF note silently skips the rewrite | `embed/hash.go:98-119`: the delimiter must be the LF-only `"---\n"`. `rewriteLuhmannIDField` (`:285-288`) and `appendAliasField` (`:134-137`) return the content unchanged, and `renameOneNote` still renames the file and its sidecar. Adopt already refuses CRLF (`applySkillNoteBody` → `errSkillNoteNoFrontmatter`). | **Confirmed** for reparent |
+| #780(b) follow-on | A CRLF *referrer* loses its frontmatter `supersedes:` rewrite | `rewriteNoteReferences` (`luhmann_reparent.go:318-330`) handles CRLF content as having no frontmatter. Only `[[...]]` wikilinks are rewritten; `rewriteSupersedesFrontmatterNotes` never runs. | **Found during verification**. It is fixed by the same conversion (D5). |
 | #780(c) | Adopt and refresh drop unknown keys | `skillreg_accept.go:323-347`: plain `yaml.Unmarshal` into `runbookFrontmatterDoc` (`learn.go:~415-447`), then `marshalFrontmatter`. The docstrings at `:92` and `:172` claim that "every other frontmatter field" is preserved. | **Confirmed** |
+| #780 comment | resituate drops unknown keys | `resituate.go:242-264`: `resituateTyped` decodes into the typed doc with plain `yaml.Unmarshal` and re-marshals with `marshalFrontmatter`. Keys the doc does not define are lost. | **Confirmed** |
 
 The capabilities affected are `recall-runbook-surfacing`, `vault-offer-curation`, `vault-note-identity`, `update-reparent-luhmann-batch`, `update-flat-vault-luhmann-notice` and `skill-runbook-registration`.
 
@@ -22,11 +24,11 @@ The capabilities affected are `recall-runbook-surfacing`, `vault-offer-curation`
 - `engram show` is a full-fidelity source of every red_flag. The query marker gives a count and a command that works.
 - A re-stamping amend never blanks a non-empty `user:`.
 - The reparent payload, the notice and the learn batch mode agree.
-- No rename or rewrite writes undecodable frontmatter or leaves a stale `luhmann:`. Adopt and refresh keep keys they don't model.
+- No rename or rewrite writes undecodable frontmatter or leaves a stale `luhmann:`. Adopt, refresh and resituate keep keys they don't model. A CRLF note that a rename or rewrite writes comes out as LF, and its sidecar is rebuilt.
 
 **Non-Goals:**
-- General CRLF support in `embed.SplitFrontmatter`. It has more than 9 callers, including exchange-hash and vocab code, and vault notes are written as LF by engram.
-- `resituateTyped` dropping unknown keys. This is the same class of bug, reported in a comment on #780. See Open Questions.
+- General CRLF support in `embed.SplitFrontmatter`. It has more than 9 callers, including exchange-hash and vocab code. CRLF is converted only on notes that a rename or rewrite already writes.
+- Converting CRLF notes that no write touches.
 - `user:` fallback on first-write paths (`learn.go:1046`, `serve_learn.go:257`, `pulldown.go:351`). They have no prior value to keep.
 - Any edit to the learn SKILL.md or vault note 1067.
 - Any change to the order or layout of show's output.
@@ -78,25 +80,51 @@ A new unit test pins these key phrases: `learn`, `batch mode`, `--dry-run`, `dis
 
 Option 2 was rejected. It would edit the skill and remove the red flag in note 1067, which loses a human checkpoint before bulk renames. The GLOSSARY claim that the loop needs "no further manual step" (`docs/GLOSSARY.md:893-895`) is reworded to match.
 
-### D5 (#780 a, b): pre-flight check inside `RenameAndRewriteReferences`
+### D5 (#780 a, b): CRLF→LF conversion on written notes, and a pre-flight inside `RenameAndRewriteReferences`
 
-Before the loop at `luhmann_reparent.go:100`, add `preflightRenames(deps, vault, renameMap)`. For each source basename in the map it:
+**Conversion (Joe, 2026-10-01: convert, don't refuse).**
 
-- reads the note;
-- refuses it with `errRenameCRLF` if the note starts with `"---\r\n"`;
-- otherwise computes `appendAliasField(rewriteLuhmannIDField(rewriteNoteReferences(raw)), …)`;
-- decodes the result's frontmatter into a `yaml.Node`, and refuses with `errRenameUndecodable` on an error or a non-mapping;
-- decodes `luhmann`, and refuses with `errRenameStaleLuhmann` if it is not the new id.
+- **Scope.** `renameAndRewriteOneNote` first applies `toLF` to the raw bytes it reads: every `\r\n` becomes `\n`, and a lone `\r` is left as it is. All rewriting (references, `luhmann:`, aliases) then runs on the LF text. A note is written, and so converted, only when it would have been written anyway: it is renamed, or its references changed after conversion. A CRLF note the rename does not otherwise touch is never written and never converted.
+- **Atomicity.** The converted bytes go in the same single `WriteFile` as the rewrite. `WriteFile` is wired to `FS.WriteFileAtomic` (`update.go:374-380`), so conversion adds no extra write and no window of its own. The existing order (rename the file, then write it) is unchanged.
+- **CRLF referrers.** This also closes the follow-on gap where a CRLF referrer's `supersedes:` was never rewritten. After conversion the frontmatter splits and `rewriteSupersedesFrontmatterNotes` runs.
 
-The pre-flight collects every refusal and returns one joined error before any `Rename` or `WriteFile`. Reparent apply and adopt both go through this function (`luhmann_reparent_apply.go:144`, `skillreg_accept.go:420`), so both are covered. Reparent `--dry-run` calls the same pre-flight and prints the refusals.
+**Pre-flight.** Before the loop at `luhmann_reparent.go:100`, `preflightRenames(deps, vault, renameMap)` checks each source basename in the map:
 
-Alternatives:
+1. Read the note and apply `toLF`.
+2. Compute `appendAliasField(rewriteLuhmannIDField(rewriteNoteReferences(lf)), …)`.
+3. Decode the result's frontmatter into a `yaml.Node`. Refuse with `errRenameUndecodable` on an error or a non-mapping (for example, a dangling anchor alias).
+4. Decode `luhmann`, and refuse with `errRenameStaleLuhmann` if it is not the new id.
 
-- Making `rewriteLuhmannIDField` anchor-aware, for example rewriting to `luhmann: &a "new"`. That would silently change the value of every alias, so it is a semantic change.
-- CRLF normalization (rewrite the file as LF). It changes bytes the user didn't ask to change. See Open Questions.
-- Fixing `embed.SplitFrontmatter`. That is out of scope (Non-Goals).
+The pre-flight collects every refusal and returns one joined error before any `Rename` or `WriteFile`.
 
-The pre-flight is a pure function over injected `ReadFile`. Its rapid property is in D7.
+Reparent apply and adopt both go through this function (`luhmann_reparent_apply.go:144`, `skillreg_accept.go:420`), and reparent `--dry-run` runs the same pre-flight. Adopt also needs `toLF` earlier: `adoptRenderInput` applies it first, so that `checkAdoptRenders` and `applySkillNoteBody` see LF text. Adopt now converts a CRLF note instead of refusing it with `errSkillNoteNoFrontmatter`.
+
+**Exchange hash.** Joe asked for the exchange hash to stay the same, citing ruling S6. Reading `exchangehash.go` shows that this is **only partly true**:
+
+- `canonicalExchangeBody` (`exchangehash.go:48-62`) normalizes CRLF in the **body** only.
+- The offered **fields** are read only when `embed.SplitFrontmatter` succeeds (`exchangehash.go:88-95`), and it never succeeds on a CRLF delimiter.
+
+The effect depends on where the CRLF line endings are:
+
+- **LF frontmatter, CRLF body:** conversion leaves the hash unchanged. A test pins `exchangeHash(pre) == exchangeHash(toLF(pre))`.
+- **CRLF frontmatter:** before conversion, the hash is computed as if the note had no frontmatter. The fields are empty and the whole file is the body. Conversion therefore changes the hash. **This is a deviation from the stated requirement. It cannot be avoided without making `SplitFrontmatter` CRLF-tolerant, which is out of scope.** It is harmless, for two reasons:
+  - Before conversion the note's `xid` cannot be read: `decodeExchangeFrontmatter` (`amend_fold.go:59-63`) returns `errAmendNoFrontmatter`. So no exchange path can have recorded a hash for the CRLF form.
+  - The converted note hashes the same as its LF original, so a hash recorded before the file became CRLF matches again.
+
+  Tests pin both: `decodeExchangeFrontmatter(crlf)` returns an error, and `exchangeHash(toLF(crlfNote)) == exchangeHash(lfNote)`.
+
+**Sidecar freshness.** Conversion changes `embed.ContentHash` (`embed/hash.go:49-56`) for every converted note:
+
+- **CRLF frontmatter:** `SituationText` was empty, and `BodyText` included the frontmatter.
+- **CRLF body:** `BodyText` is not CRLF-normalized.
+
+In both cases the stored vectors were built from the wrong inputs, or are now stale. So every converted note is added to the `rewritten` list that `RenameAndRewriteReferences` returns. Today a note that is only renamed is left out of that list (`luhmann_reparent.go:81-85`). The callers already pass the list to `RebuildNoteSidecars` (`luhmann_reparent_apply.go:149`, `skillreg_accept.go:548`), so converted notes are re-embedded in the same invocation. A test asserts that `embed.ComputeState` (`embed/state.go:25-58`) returns `StateOK` for every converted note after apply.
+
+**Alternatives rejected:**
+
+- Refusing CRLF. This was the earlier default, and Joe overruled it.
+- Making `rewriteLuhmannIDField` anchor-aware, e.g. `luhmann: &a "new"`. This would silently change every alias's value.
+- Making `embed.SplitFrontmatter` CRLF-tolerant. It is out of scope; see Non-Goals.
 
 ### D6 (#780 c): adopt and refresh edit the frontmatter as a `yaml.Node`
 
@@ -112,6 +140,17 @@ Every other key keeps its value, and unknown keys survive. `pulldown.go:377-490,
 
 The alternative is to narrow only the docstrings. That leaves the data loss in place, and the spec now requires unknown keys to be preserved.
 
+### D6b (#780 comment): resituate edits the frontmatter as a `yaml.Node` (Joe, 2026-10-01: fold it in)
+
+Rewrite `resituateTyped` (`resituate.go:242-264`):
+
+1. Parse the frontmatter into a `yaml.Node`.
+2. Decode the typed doc from it only to validate the note and to build the body opener. `parseCreated` keeps refusing malformed notes untouched.
+3. Set `situation` with `setMappingValue`.
+4. Encode the mapping.
+
+Every other key survives, including keys the typed doc does not define. Update the function's docstring and the `vault-note-identity` requirement to match. resituate's re-embed and offer path is unchanged.
+
 ### D7: tests
 
 All tests follow TDD, with the failing test written first, and use `t.Parallel()`. Each subtest builds its own fixture.
@@ -122,9 +161,19 @@ All tests follow TDD, with the failing test written first, and use `t.Parallel()
   - the required keys;
   - 0–3 unknown keys with scalar or list values;
   - optionally, an anchor on the `luhmann:` value with an alias from another key;
-  - LF or CRLF line endings.
+  - line endings that are all LF, all CRLF, CRLF only in the frontmatter, or CRLF only in the body (a separate CRLF-shape generator).
 - It checks two properties:
-  - **P1, rename:** either `RenameAndRewriteReferences` returns an error and the fake records zero renames and writes, or every renamed note decodes, its `luhmann` equals the new id, and every other top-level key except `aliases` decodes to the same value as before. An anchored or CRLF input always takes the error branch.
+  - **P1, rename:** either `RenameAndRewriteReferences` returns an error and the fake records zero renames and writes, or both of these hold:
+    - every renamed note decodes, its `luhmann` equals the new id, and every other top-level key except `aliases` decodes to the same value as before;
+    - every written note contains no `\r\n`.
+
+    An anchored input always takes the error branch. A CRLF input never does on its own.
+  - **P1-CRLF:**
+    - Notes that are not written are byte-identical afterwards.
+    - Every converted note appears in the returned `rewritten` list.
+    - `exchangeHash(written) == exchangeHash(lfEquivalent)`.
+    - For a note with an LF frontmatter and a CRLF body, `exchangeHash(written) == exchangeHash(original)`.
+  - **P3, resituate:** for any generated note, every key except `situation` decodes to the same value afterwards, including unknown keys.
   - **P2, adopt/refresh:** for LF, anchor-free input, `applySkillNoteBody`'s output decodes, the skill fields are set, and every unknown key's decoded value equals the input's.
 
 ## Risks / Trade-offs
@@ -132,30 +181,19 @@ All tests follow TDD, with the failing test written first, and use `t.Parallel()
 - [Risk] A large `engram show` output gets cut by the harness preview again, which is the risk from #763. → Mitigation: the harness keeps the full output in a persisted file, and show no longer removes entries itself. A future issue can reorder show to put red_flags earlier if it is measured to matter. This change does not reorder it.
 - [Risk] The yaml.Node re-encode in adopt and refresh reformats quoting and whitespace for keys it doesn't touch. → Mitigation: the typed-struct path already re-marshalled the whole document, so formatting changes no more than it did before. P2 asserts decoded values, not bytes.
 - [Risk] The pre-flight reads each renamed note twice, once in the pre-flight and once in the loop. → This is acceptable. Reparent and adopt are rare, one-shot operations.
-- [Trade-off] A refused CRLF note blocks the whole reparent run. → The error names the note, so the user can convert it and run again.
+- [Risk] Converting a CRLF note changes its exchange hash when its frontmatter was CRLF. → No recorded hash can name the CRLF form, since its xid is unreadable. The converted note matches the hash of its LF original. Both facts are pinned by tests (D5).
+- [Risk] A converted note's vectors are rebuilt during apply, which adds embed time. → Only CRLF notes that are written are affected, and that is rare.
 
 ## Migration Plan
 
 No vault migration is needed. After the merge, run `go install ./cmd/engram` and `engram update` from the merged main checkout. Rollback is `git revert`, because no on-disk format changes.
 
-## Open Questions
+## Decision record (Joe, 2026-10-01)
 
-These need Joe's decision. Each has a recommended default, and the design above assumes it.
+1. **#776 `user:` fallback:** keep the prior non-empty `user:` and warn (D3).
+2. **#772:** Option A. `show` never truncates. The query marker gives the count, the total and the real basename (D1).
+3. **#770:** Option 1. The payload defers to learn's batch mode: preview with `--dry-run`, then apply (D4).
+4. **#780(b) CRLF:** convert to LF, only on notes the rename or rewrite writes, inside the same atomic write. The sidecar is rebuilt. The exchange hash is unchanged for a CRLF body. It changes, harmlessly, for CRLF frontmatter (D5); this deviation is recorded above.
+5. **`resituateTyped` drops unknown keys:** folded into this change with the same YAML-node fix (D6b).
 
-1. **#776 `user:` fallback.** The options are:
-   - (a) keep the prior non-empty value and warn (**default**);
-   - (b) refuse the amend with an error;
-   - (c) keep the prior value silently.
-2. **#772 option.** The options are:
-   - A: show never truncates, and the query marker gives a count and a basename (**default**);
-   - B: bounded show plus a `--red-flags` or `--full` retrieval flag.
-3. **#770 canonical side.** The options are:
-   - Option 1: the payload defers to learn batch mode, with `--dry-run` and the user applying (**default**);
-   - Option 2: edit the skill and note 1067 so the agent may apply directly.
-4. **#780(b) CRLF.** The options are:
-   - refuse at the rename boundary (**default**);
-   - normalize the renamed note to LF;
-   - make `embed.SplitFrontmatter` CRLF-tolerant everywhere.
-5. **`resituateTyped` drops unknown keys** (comment on #780). The options are:
-   - leave it out of this change and file a follow-up issue (**default**);
-   - fold it into D6, using the same node helpers.
+No open questions remain.

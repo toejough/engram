@@ -5,12 +5,13 @@ This change alters four behaviors that are documented:
 - `engram show` returns every red_flag, and the 1200 bytes becomes a query *preview budget*.
 - amend keeps the prior `user:` when detection comes back empty.
 - The reparent payload defers to learn's batch mode and its hand-back and `--dry-run` flow.
-- Adopt and refresh keep unknown keys, and rename refuses unsafe frontmatter.
+- Adopt, refresh and resituate keep unknown keys.
+- Rename refuses undecodable rewrites, and converts the CRLF notes it writes to LF (Joe, 2026-10-01).
 
 **Search** (2026-10-01, worktree `runbook-vs-skill`, branch `defect-batch-show-amend-reparent-frontmatter` @ `b48d6557`):
 
 ```
-grep -rn -E "1200|rendered cap|OMITTED|engram show|reparent-luhmann|preserves every|user: \"\"|CRLF" \
+grep -rn -E "1200|rendered cap|OMITTED|engram show|reparent-luhmann|preserves every|user: \"\"|CRLF|resituate" \
   --include='*.md' agent-instructions docs README.md openspec/specs
 ```
 
@@ -40,7 +41,9 @@ The C4 docs (`docs/architecture/c1-system-context.md` and `c2-containers.md`) me
 | 12 | `openspec/specs/update-flat-vault-luhmann-notice/spec.md` | 30-40 | spec delta | `grep -n "Notice names the answering procedure" openspec/specs/update-flat-vault-luhmann-notice/spec.md` | — |
 | 13 | `openspec/specs/vault-note-identity/spec.md` | 46-67 | spec delta | `grep -n "Empty user detection keeps the prior user" openspec/specs/vault-note-identity/spec.md` | — |
 | 14 | `openspec/specs/skill-runbook-registration/spec.md` | 95-111, 146-158 | spec delta | `grep -n "keeps an unmodeled key" openspec/specs/skill-runbook-registration/spec.md` (2 hits) | — |
-| 15 | `docs/architecture/adr.md` | 1232 | no change: "`resituate` preserves every field it doesn't change" is about resituate, which is out of scope (design Open Question 5) | — | — |
+| 15 | `docs/architecture/adr.md` | 1232 | no change: "`resituate` preserves every field it doesn't change". D6b makes this true for unmodeled keys too | — | — |
 | 16 | `docs/ROADMAP.md` | 92, 96, 97, 100 (#780, #772, #776, #770) | rewrite at close-out: mark done, citing this change; record that the #776 `vault:` part was already fixed | `grep -n "fix-show-amend-reparent-frontmatter" docs/ROADMAP.md` | — |
 | 17 | `internal/cli/skillreg_accept.go` docstrings | 92, 172, 317-322 | rewrite (code comments, task 5.3): "preserves every frontmatter key it doesn't set; comments best-effort" | `grep -n "comments best-effort" internal/cli/skillreg_accept.go` | `grep -n "preserves every other frontmatter field" internal/cli/skillreg_accept.go` → none |
 | 18 | Vault note `skill-claude-curate`, which mirrors curate SKILL.md | — | no direct edit: `engram update` raises a refresh offer after rows 1-2 deploy, and the offer is left for Joe | — | — |
+| 19 | `internal/cli/resituate.go` docstring | 230-241 | rewrite (code comment, task 6.3): "every other frontmatter key, including keys the typed doc does not define, survives" | `grep -n "typed doc does not define" internal/cli/resituate.go` | `grep -n "is re-marshaled as parsed" internal/cli/resituate.go` → none |
+| 20 | `internal/cli/luhmann_reparent.go` docstring | 72-85 | rewrite (code comment, task 4.3): converted CRLF notes are listed in the returned paths | `grep -n "CRLF" internal/cli/luhmann_reparent.go` | — |
