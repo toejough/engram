@@ -88,13 +88,15 @@ func NewSkillNoteSource(candidate SkillCandidate, homes ...string) SkillNoteSour
 // RenameAndRewriteReferences (same Luhmann id and date, inbound wikilinks
 // rewritten, sidecar moved, old basename appended to aliases), replaces its body with the current source file
 // and preamble, stamps skill_hash, skill_key and skill_source, preserves
-// every other frontmatter field, and clears any pending marker — an adopted
+// every frontmatter key it doesn't set (keys the typed runbook model does
+// not define included; comments best-effort), and removes any pending
+// marker — an adopted
 // note is a direct field-for-field promotion, never awaiting curation
 // (design D6: "the fields are kept and the note is not marked pending").
 // Adopting a note already carrying the key's slug is a no-op rename
 // (idempotent) that still refreshes body and fields.
 //
-// Decision: pending is unconditionally cleared (set false), not merely left
+// Decision: pending is unconditionally cleared (the key removed), not merely left
 // alone — the spec's postcondition is "SHALL NOT be marked pending", and a
 // stray pre-existing pending marker would otherwise keep an adopted note
 // excluded from query results even after adoption supplies real fields.
@@ -168,9 +170,10 @@ func AdoptSkillNote(
 // current source file (preamble included), sets skill_hash to the current
 // hash and skill_key/skill_source to the current key and source — following
 // a plugin version bump's new path — sets pending: true (so curation re-checks the fields
-// against the new text), and preserves every other frontmatter field —
-// situation, done_when, red_flags, triggers, created, and the basename all
-// survive untouched (skill-runbook-registration: "Accepting a refresh SHALL
+// against the new text), and preserves every frontmatter key it doesn't set
+// (comments best-effort) — situation, done_when, red_flags, triggers,
+// created, keys the typed runbook model does not define, and the basename
+// all survive untouched (skill-runbook-registration: "Accepting a refresh SHALL
 // replace the body, keep the fields, and mark the note pending").
 func RefreshSkill(
 	ctx context.Context,
@@ -312,37 +315,50 @@ func adoptRenderInput(raw []byte, oldBasename, newBasename string) ([]byte, erro
 	return []byte(aliased), nil
 }
 
-// applySkillNoteBody parses raw as a runbook note's frontmatter, replaces its
-// body with source's current file (preamble included), sets skill_hash,
-// skill_key and skill_source from source, sets pending, and leaves every
-// other frontmatter field (situation, done_when, red_flags, triggers,
-// created, source, repo, user, vault, issue, sources, tags, supersedes)
-// exactly as parsed — shared by RefreshSkill (pending=true) and
-// AdoptSkillNote (pending=false).
+// applySkillNoteBody edits raw's runbook frontmatter as a YAML node: it
+// sets skill_hash, skill_key and skill_source from source, sets pending:
+// true (pending) or removes the pending key (not pending — omitempty
+// parity), and replaces the body with source's current file (preamble
+// included). It preserves every frontmatter key it doesn't set — situation,
+// done_when, red_flags, triggers, created, identity, supersedes, and keys
+// the typed runbook note model does not define — with its value;
+// comments best-effort (yaml.v3 round-trip). Shared by RefreshSkill
+// (pending=true) and AdoptSkillNote (pending=false).
 func applySkillNoteBody(raw []byte, source SkillNoteSource, pending bool) (string, error) {
 	frontmatter, ok := splitFrontmatter(raw)
 	if !ok {
 		return "", errSkillNoteNoFrontmatter
 	}
 
-	var doc runbookFrontmatterDoc
-
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil {
-		return "", fmt.Errorf("register-skills: parsing runbook frontmatter: %w", unmarshalErr)
+	mapping, parseErr := parseFrontmatterMapping(frontmatter)
+	if parseErr != nil {
+		return "", fmt.Errorf("register-skills: parsing runbook frontmatter: %w", parseErr)
 	}
 
-	doc.SkillHash = SkillContentHash(source.Content)
-	doc.SkillKey = source.Key
-	doc.SkillSource = source.SkillSource
-	doc.Pending = pending
+	// The typed doc is read only, for validation and the supersedes tail.
+	var doc runbookFrontmatterDoc
+
+	decodeErr := mapping.Decode(&doc)
+	if decodeErr != nil {
+		return "", fmt.Errorf("register-skills: parsing runbook frontmatter: %w", decodeErr)
+	}
+
+	setMappingValue(mapping, "skill_hash", encodeNode(SkillContentHash(source.Content)))
+	setMappingValue(mapping, "skill_key", encodeNode(source.Key))
+	setMappingValue(mapping, "skill_source", encodeNode(source.SkillSource))
+
+	if pending {
+		setMappingValue(mapping, "pending", encodeNode(true))
+	} else {
+		deleteMappingKeys(mapping, "pending")
+	}
 
 	body := renderRunbookBody(runbookFields{
 		Body:       skillNoteBody(source),
 		Supersedes: doc.Supersedes,
 	})
 
-	return marshalFrontmatter(doc) + body, nil
+	return marshalFrontmatter(mapping) + body, nil
 }
 
 // checkAdoptConflict errors when key is already registered to a different

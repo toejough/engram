@@ -439,19 +439,6 @@ func buildPulledNote(source pulledSource, envelope rawShowResponse, stamp pulled
 	return content, nil
 }
 
-// cloneNode deep-copies a YAML node, so building a copy never mutates the
-// parsed source.
-func cloneNode(node *yaml.Node) *yaml.Node {
-	clone := *node
-	clone.Content = make([]*yaml.Node, 0, len(node.Content))
-
-	for _, child := range node.Content {
-		clone.Content = append(clone.Content, cloneNode(child))
-	}
-
-	return &clone
-}
-
 // declineMatches reports whether declined.json holds a decline, under
 // parentVaultID, of one of names whose hash is not changed from hash
 // (unknown counts as not changed, D3).
@@ -465,30 +452,6 @@ func declineMatches(file declinedFile, parentVaultID string, names []string, has
 // declinedPath is <vault>/.engram/declined.json.
 func declinedPath(vault string) string {
 	return filepath.Join(vault, stateDirName, declinedFileName)
-}
-
-// deleteMappingKeys removes each key (and its value) from a YAML mapping.
-func deleteMappingKeys(mapping *yaml.Node, keys ...string) {
-	kept := make([]*yaml.Node, 0, len(mapping.Content))
-
-	for index := 0; index+1 < len(mapping.Content); index += 2 {
-		if slices.Contains(keys, mapping.Content[index].Value) {
-			continue
-		}
-
-		kept = append(kept, mapping.Content[index], mapping.Content[index+1])
-	}
-
-	mapping.Content = kept
-}
-
-// encodeNode is value as a YAML node, rendered as yaml.Marshal would.
-func encodeNode(value any) *yaml.Node {
-	var node yaml.Node
-
-	_ = node.Encode(value) // strings, bools and plain structs always encode
-
-	return &node
 }
 
 // linkedLocalNotes returns the local notes (live or pending) holding any
@@ -702,18 +665,4 @@ func recordDeclinedPull(state exchangeState, vault string, entry declinedPull) e
 	}
 
 	return nil
-}
-
-// setMappingValue sets key's value in a YAML mapping, in place when the
-// key exists, otherwise appended.
-func setMappingValue(mapping *yaml.Node, key string, value *yaml.Node) {
-	for index := 0; index+1 < len(mapping.Content); index += 2 {
-		if mapping.Content[index].Value == key {
-			mapping.Content[index+1] = value
-
-			return
-		}
-	}
-
-	mapping.Content = append(mapping.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, value)
 }
