@@ -1,0 +1,6 @@
+00-Q1P-GREEN: pass gate=True/True captured_mark=True cost=$0.48958605
+01-Q1P-GREEN: pass gate=True/True captured_mark=True cost=$0.4816253999999999
+02-Q1P-GREEN: pass gate=True/True captured_mark=False cost=$0.5175238999999999
+03-Q1P-GREEN: pass gate=True/True captured_mark=True cost=$0.48761235
+04-Q1P-GREEN: pass gate=True/True captured_mark=False cost=$0.48514035
+probe=True isolation=True status=0

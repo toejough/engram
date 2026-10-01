@@ -69,8 +69,9 @@ before the model. Every dispatch MUST hand the subagent:
 - **The subagent's recall-first instruction** (see the "Two rules every dispatch obeys" section below).
 - **The completion-report contract:** the subagent's final report MUST end with a `LESSONS:` line
   — `LESSONS: none`, or 1–3 comma-separated one-line lessons (confirmed corrections, surprising
-  findings, validated approaches; deliberately low bar — these are offers for the closing `/learn`
-  to judge, not vault notes the subagent decides on itself). If a returned report is missing the
+  findings, validated approaches; deliberately low bar — these are offers the orchestrator judges
+  when the report returns (fast-path `/learn` for those that clear the bar), with the closing `/learn`
+  as backstop — not vault notes the subagent decides on itself). If a returned report is missing the
   line, send ONE targeted follow-up asking for it — never a second re-ask; if it's still missing
   after that one follow-up, record `LESSONS: none` and move on rather than blocking the pipeline.
 
