@@ -396,18 +396,31 @@ func TestTargets_ActivateNoNotes(t *testing.T) {
 //
 // Not parallel: t.Setenv forbids combining with t.Parallel.
 func TestTargets_AmendDefaultVaultName(t *testing.T) {
+	t.Parallel()
 	g := gomega.NewWithT(t)
-	t.Setenv("ENGRAM_VAULT_NAME", "")
 
 	vault := t.TempDir()
+	home := t.TempDir()
 	notePath := filepath.Join(vault, "1.2026-01-01.fact.md")
 	note := "---\ntype: fact\ntier: L2\nsituation: ctx\nsubject: A\npredicate: has\nobject: old\n" +
 		"luhmann: \"1\"\ncreated: \"2026-01-01\"\nsource: test\n---\n\n" +
 		"Information learned: when in ctx, A has old.\n\n"
 	g.Expect(os.WriteFile(notePath, []byte(note), 0o600)).To(gomega.Succeed())
 
-	stderr := executeForTest(t, []string{
+	// The DI seam pins the environment (ruling S34): a scratch home and
+	// XDG_DATA_HOME, and no ENGRAM_VAULT_NAME or ENGRAM_PARENT — so the
+	// developer's shell can neither name the vault nor route an offer.
+	stderr := executeForTestWithDeps(t, []string{
 		"engram", "amend", "--vault", vault, "--target", "1", "--object", "new",
+	}, func(d *cli.Deps) {
+		d.UserHomeDir = func() (string, error) { return home, nil }
+		d.Getenv = func(key string) string {
+			if key == "XDG_DATA_HOME" {
+				return filepath.Join(home, "data")
+			}
+
+			return ""
+		}
 	})
 	g.Expect(stderr).To(gomega.BeEmpty())
 
