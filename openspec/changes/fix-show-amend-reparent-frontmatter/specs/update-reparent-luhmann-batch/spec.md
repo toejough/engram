@@ -37,8 +37,8 @@ Reparent apply and `register-skills --adopt` share one rename and rewrite step. 
 note it is about to rename before it renames or writes any file. For each such note, it SHALL compute the
 rewritten content: the new `luhmann:`, the alias, and the reference rewrites. It SHALL refuse the note when
 the rewritten frontmatter does not decode as a YAML mapping. One way this happens is when the old
-`luhmann:` value carried an anchor that another key aliases. It SHALL also refuse the note when the decoded
-`luhmann:` value is not the new id. A refusal SHALL fail the whole invocation with an error that names
+`luhmann:` value carried an anchor that another key aliases. It SHALL also refuse the note when the rewritten
+frontmatter carries a `luhmann:` value that is not the new id. A refusal SHALL fail the whole invocation with an error that names
 each refused note and its reason. That invocation SHALL NOT rename or write any note. `--dry-run` SHALL
 report the same refusals without writing.
 

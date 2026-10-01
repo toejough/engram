@@ -1163,6 +1163,14 @@ pulled note bouncing back up once is intended (B1).
   `--expect-hash` all require an *equal* hash and never pass on *unknown*; only the pull-down skip,
   decline matching, the rejected-offer re-arm, and the send/apply change check treat *unknown* as
   *not changed*.
+  The canonical body of one layout, LF frontmatter followed by a CRLF blank separator line, changed
+  in place under `xh1:` (fix-show-amend-reparent-frontmatter, ruling V2): it now hashes the same as
+  its LF conversion. Across a binary-version skew, only notes in that layout get a spurious offer,
+  a missed dedupe-rule-2 merge, a refused pull-down (hash mismatch), and a one-time re-arm of hashes
+  recorded under the old binary. These effects stop once both sides upgrade and the next receipt,
+  pull or decline re-records the hash. The prefix was not bumped to `xh2:` because a bump turns
+  *every* note's comparison into *unknown* across versions, which is far more disruptive than one
+  rare layout.
 - **D4 — Multi-valued parent links, aliases, and a rename-stable exchange ID.** New optional
   frontmatter: `xid` (this note's own exchange ID, stamped lazily, never backfilled); `parent`
   (`vault`, `links: [{note, via: offered|pulled|covered, hash}]`, `author`) — at most one primary

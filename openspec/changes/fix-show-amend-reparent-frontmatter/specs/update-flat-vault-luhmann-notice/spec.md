@@ -12,6 +12,7 @@ payload's answers are produced. It SHALL NOT modify any note's ID.
 
 #### Scenario: Silent when not all-top-level
 - **WHEN** the update Report does NOT record the vault as all-top-level
+- **THEN** `engram update`'s output includes no Luhmann-branching notice
 
 #### Scenario: Notice names the answering procedure
 - **WHEN** the update Report records the vault as all-top-level
