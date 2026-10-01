@@ -107,6 +107,8 @@ Reparent apply and adopt both go through this function (`luhmann_reparent_apply.
 The effect depends on where the CRLF line endings are:
 
 - **LF frontmatter, CRLF body:** conversion leaves the hash unchanged. A test pins `exchangeHash(pre) == exchangeHash(toLF(pre))`.
+  - **Ruling V2 (U2 implementation, 2026-10-01).** As first written, this held only when the blank separator line right after the closing `---\n` was LF. When the whole body is CRLF, that line is `\r\n` too, and `embed.ExtractBody` strips only a leading `\n`, so the old `canonicalExchangeBody` kept a leading blank line and conversion moved the hash. `canonicalExchangeBody` now converts the text after an LF frontmatter's closing line to LF before extracting the body, so this bullet holds for both separator layouts.
+  - Exactly one layout's hash changed compared with older binaries: **LF frontmatter whose text right after the closing `---\n` begins with `\r\n`** (a CRLF separator line). It now hashes the same as its LF conversion, as ruling S6 intends. Pure-LF notes rebuild byte-for-byte and hash as before; CRLF-frontmatter notes don't split and take the same path as before. In a vault exchange with mixed binary versions, such a note can compare as changed across the version boundary, which can cause at most one spurious offer (or re-arm) per such note. The S6 property now draws the separator line's ending, and `CRLFBodyUnchangedByConversion` pins both separator layouts.
 - **CRLF frontmatter:** before conversion, the hash is computed as if the note had no frontmatter. The fields are empty and the whole file is the body. Conversion therefore changes the hash. **This is a deviation from the stated requirement. It cannot be avoided without making `SplitFrontmatter` CRLF-tolerant, which is out of scope.** It is harmless, for two reasons:
   - Before conversion the note's `xid` cannot be read: `decodeExchangeFrontmatter` (`amend_fold.go:59-63`) returns `errAmendNoFrontmatter`. So no exchange path can have recorded a hash for the CRLF form.
   - The converted note hashes the same as its LF original, so a hash recorded before the file became CRLF matches again.
@@ -136,7 +138,7 @@ Rewrite `applySkillNoteBody` to:
 4. call `setMappingValue` for `pending: true`, or `deleteMappingKeys` for `pending` (omitempty parity);
 5. encode the mapping.
 
-Every other key keeps its value, and unknown keys survive. `pulldown.go:377-490,709` already uses this pattern. Move `setMappingValue`, `deleteMappingKeys`, `encodeNode` and `cloneNode` into a shared `frontmatter_node.go` so that two call paths don't import pulldown-specific code. Narrow both docstrings to the guarantee: "preserves every frontmatter key it doesn't set; comments are best-effort (`yaml.v3` round-trip)".
+Every other key keeps its value, and unknown keys survive. **Ruling V3 (review finding 1):** before replacing or deleting a key, `refuseAnchoredKeys` refuses the note untouched (`errFrontmatterAnchoredKey`) when that key, its value, or any node beneath the value carries an anchor — any anchor, aliased or not, for simplicity — because dropping the value would leave its aliases dangling, and moving the anchor would silently change what they mean. As a guard, the rendered frontmatter is decoded again before it is returned (`errFrontmatterUndecodable`). Adopt refuses before its rename, through `checkAdoptRenders`. `pulldown.go:377-490,709` already uses this pattern. Move `setMappingValue`, `deleteMappingKeys`, `encodeNode` and `cloneNode` into a shared `frontmatter_node.go` so that two call paths don't import pulldown-specific code. Narrow both docstrings to the guarantee: "preserves every frontmatter key it doesn't set; comments are best-effort (`yaml.v3` round-trip)".
 
 The alternative is to narrow only the docstrings. That leaves the data loss in place, and the spec now requires unknown keys to be preserved.
 
@@ -149,13 +151,14 @@ Rewrite `resituateTyped` (`resituate.go:242-264`):
 3. Set `situation` with `setMappingValue`.
 4. Encode the mapping.
 
-Every other key survives, including keys the typed doc does not define. Update the function's docstring and the `vault-note-identity` requirement to match. resituate's re-embed and offer path is unchanged.
+Every other key survives, including keys the typed doc does not define. The same ruling V3 refusal applies to `situation` and `created` (resituate re-emits `created` as its own string), and the same decode-again guard runs before the write. Update the function's docstring and the `vault-note-identity` requirement to match. resituate's re-embed and offer path is unchanged.
 
 ### D7: tests
 
 All tests follow TDD, with the failing test written first, and use `t.Parallel()`. Each subtest builds its own fixture.
 
 - Mocks for `RenameRewriteDeps`, `AmendDeps` and `ShowDeps` are imptest mocks where the tests drive the interaction. In-memory map fakes are used where only the final state is asserted.
+  - **Deviation recorded during U2 (groups 4–6, #780 tests):** the same holds for `RenameRewriteDeps`, `ReparentDeps`, `SkillAdoptDeps`, `SkillAcceptDeps` and `ResituateDeps`, all structs of closures. The #780 tests use the files' existing closure fakes (`reparentFixture`, `newReparentDeps`, `skillAcceptFixtureVault`, `runExchangeSurvivalResituate`), which record renames and writes and assert final state. Sidecar freshness is checked with `embed.ComputeState` against an in-memory map FS (`reparentFileMapFS`), the option D5 names, instead of an imptest embedder mock.
   - **Deviation recorded during U1 (task 2.1, #776 tests):** `AmendDeps` (like `RenameRewriteDeps`) is a struct of injected closures, not an interface — `impgen` mocks interfaces only, and the package's own precedent (`Commander`, `SkillSourceFS`) confirms this: both are real interfaces consumed directly as parameters, never a struct-of-funcs assigned field-by-field. Every existing `cli.AmendDeps{…}` literal in `amend_test.go`, `amend_fold_test.go` and `amend_identity_test.go` already uses plain closures, and D7's own next sentence ("fakes … where only the final state is asserted") already covers this case, since the #776 tests assert the written note plus the captured `LogWarning` calls, not an ordered call sequence. The #776 tests (task 2.1) therefore use plain closures, matching the file's convention, not a generated imptest mock. This also means the `impgen`-mock sentence above does not bind task 2.1, and the same question will recur for groups 4–6's `RenameRewriteDeps` tests.
 - Assertions use gomega.
 - The #780 property is `rapid.Check`. It generates a frontmatter mapping containing:
@@ -183,6 +186,8 @@ All tests follow TDD, with the failing test written first, and use `t.Parallel()
 - [Risk] The yaml.Node re-encode in adopt and refresh reformats quoting and whitespace for keys it doesn't touch. → Mitigation: the typed-struct path already re-marshalled the whole document, so formatting changes no more than it did before. P2 asserts decoded values, not bytes.
 - [Risk] The pre-flight reads each renamed note twice, once in the pre-flight and once in the loop. → This is acceptable. Reparent and adopt are rare, one-shot operations.
 - [Risk] Converting a CRLF note changes its exchange hash when its frontmatter was CRLF. → No recorded hash can name the CRLF form, since its xid is unreadable. The converted note matches the hash of its LF original. Both facts are pinned by tests (D5).
+- [Risk] Ruling V2 changed the exchange hash of one layout: LF frontmatter followed by a CRLF separator line. Between binary versions such a note compares as changed, which can cause a spurious offer or re-arm for it. → The layout is rare (hand-converted or Windows-edited notes), the effect is bounded to one exchange per note, and after both sides upgrade the hash is stable and equal to the LF form (D5).
+- [Risk] A node edit (adopt, refresh, resituate) meets an anchor on a key it sets or deletes. → It refuses the note untouched (ruling V3) instead of writing dangling aliases; such anchors only occur in hand-authored YAML.
 - [Risk] A converted note's vectors are rebuilt during apply, which adds embed time. → Only CRLF notes that are written are affected, and that is rare.
 
 ## Migration Plan
@@ -194,7 +199,7 @@ No vault migration is needed. After the merge, run `go install ./cmd/engram` and
 1. **#776 `user:` fallback:** keep the prior non-empty `user:` and warn (D3).
 2. **#772:** Option A. `show` never truncates. The query marker gives the count, the total and the real basename (D1).
 3. **#770:** Option 1. The payload defers to learn's batch mode: preview with `--dry-run`, then apply (D4).
-4. **#780(b) CRLF:** convert to LF, only on notes the rename or rewrite writes, inside the same atomic write. The sidecar is rebuilt. The exchange hash is unchanged for a CRLF body. It changes, harmlessly, for CRLF frontmatter (D5); this deviation is recorded above.
+4. **#780(b) CRLF:** convert to LF, only on notes the rename or rewrite writes, inside the same atomic write. The sidecar is rebuilt. The exchange hash is unchanged for a CRLF body. It changes, harmlessly, for CRLF frontmatter (D5); this deviation is recorded above. Ruling V2 (during implementation): `canonicalExchangeBody` normalizes the text after an LF frontmatter, so a CRLF separator line no longer moves the hash on conversion; that one layout hashes differently from older binaries, which can cause one spurious offer per such note between versions (D5, Risks).
 5. **`resituateTyped` drops unknown keys:** folded into this change with the same YAML-node fix (D6b).
 
 No open questions remain.

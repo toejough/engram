@@ -114,8 +114,9 @@ func TestRenameAndRewriteReferences_AnchoredLuhmannRefusedUntouched(t *testing.T
 }
 
 // TestRenameAndRewriteReferences_CRLFProperty is P1 and P1-CRLF (design D7):
-// over notes with unknown keys, an optionally anchored luhmann: value, and
-// every CRLF shape, either the rename refuses (always when anchored) and
+// over notes with unknown keys, an optionally anchored luhmann: value, a
+// pre-existing aliases: list (block, flow, or anchored and aliased),
+// optional comments, and every CRLF shape, either the rename refuses (always when anchored) and
 // touches nothing, or every renamed note decodes with its new luhmann and
 // every other key unchanged, no written note holds CRLF, unwritten notes
 // are byte-identical, converted notes are listed for a sidecar rebuild, and
@@ -372,6 +373,26 @@ const (
 	shapeCRLFFrontmatter = "crlf-frontmatter"
 )
 
+// reparentAliases is a renamed note's pre-existing aliases: list in one of
+// the styles a hand-edited note can carry.
+type reparentAliases string
+
+// lines renders the aliases: block and reports whether it is anchored (and
+// aliased by another key, so the rename's alias rewrite would leave that
+// alias dangling and must be refused).
+func (style reparentAliases) lines() ([]string, bool) {
+	switch style {
+	case "block":
+		return []string{"aliases:", "    - 5.2026-01-01.older"}, false
+	case "flow":
+		return []string{"aliases: [5.2026-01-01.older]"}, false
+	case "anchored":
+		return []string{"aliases: &al [5.2026-01-01.older]", "x_alias_ref: *al"}, true
+	default:
+		return nil, false
+	}
+}
+
 // reparentFileMapFS adapts a test file map to embed.FS.
 type reparentFileMapFS map[string][]byte
 
@@ -560,6 +581,12 @@ func frontmatterBlock(content string) string {
 	return block
 }
 
+// reparentAliasesGen draws no aliases list, a block or flow list, or an
+// anchored list another key aliases.
+func reparentAliasesGen() *rapid.Generator[reparentAliases] {
+	return rapid.SampledFrom([]reparentAliases{"", "block", "flow", "anchored"})
+}
+
 // reparentShapeGen draws one of the four CRLF layouts design D7 names.
 func reparentShapeGen() *rapid.Generator[string] {
 	return rapid.SampledFrom([]string{shapeAllLF, shapeAllCRLF, shapeCRLFFrontmatter, shapeCRLFBody})
@@ -617,7 +644,15 @@ func reparentVaultGen() *rapid.Generator[reparentPropVault] {
 			}
 
 			frontmatter = append(frontmatter, `created: "2026-01-02"`)
+
+			aliases, aliasesAnchored := reparentAliasesGen().Draw(rt, "aliases"+id).lines()
+			vault.anchored = vault.anchored || aliasesAnchored
+			frontmatter = append(frontmatter, aliases...)
 			frontmatter = append(frontmatter, reparentUnknownKeysGen().Draw(rt, "unknown"+id)...)
+
+			if rapid.Bool().Draw(rt, "comment"+id) {
+				frontmatter = slices.Insert(frontmatter, 1, "# hand-written comment")
+			}
 
 			vault.notes[oldBasename+".md"] = reparentPropNote{
 				frontmatter: frontmatter,

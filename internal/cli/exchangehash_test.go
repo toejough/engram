@@ -23,8 +23,9 @@ import (
 
 // TestExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty (ruling S6): the
 // canonical body normalizes CRLF to LF and ends in exactly one newline, so the
-// LF, CRLF, and missing-final-newline spellings of the same body hash equally
-// on both sides of an exchange.
+// LF, CRLF, and missing-final-newline spellings of the same body — a CRLF
+// body's blank separator line included — hash equally on both sides of an
+// exchange.
 func TestExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty(t *testing.T) {
 	t.Parallel()
 
@@ -32,16 +33,19 @@ func TestExchangeHash_BodyLineEndingsDoNotMoveTheHashProperty(t *testing.T) {
 		note := exchangeHashNoteGen().Draw(rt, "note")
 		lines := rapid.SliceOfN(exchangeBodyGen(), 1, 4).Draw(rt, "lines")
 		frontmatter, _ := yaml.Marshal(note.fields)
-		head := "---\n" + string(frontmatter) + "---\n\n"
+		head := "---\n" + string(frontmatter) + "---\n"
+		// The blank separator line after the closing delimiter is part of
+		// the body, so a CRLF body may carry it as CRLF too (ruling V2).
+		separator := rapid.SampledFrom([]string{"\n", "\r\n"}).Draw(rt, "separator")
 
 		lf := strings.Join(lines, "\n")
 		crlf := strings.Join(lines, "\r\n")
-		want := mustExchangeHash(rt, head+lf+"\n")
+		want := mustExchangeHash(rt, head+"\n"+lf+"\n")
 
 		for name, body := range map[string]string{
-			"LF, no final newline":   lf,
-			"CRLF":                   crlf + "\r\n",
-			"CRLF, no final newline": crlf,
+			"LF, no final newline":   "\n" + lf,
+			"CRLF":                   separator + crlf + "\r\n",
+			"CRLF, no final newline": separator + crlf,
 		} {
 			if got := mustExchangeHash(rt, head+body); got != want {
 				rt.Fatalf("%s body hashed %s, LF body hashed %s", name, got, want)

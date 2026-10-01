@@ -219,26 +219,16 @@ func checkRenamedNote(updated, oldBasename, newBasename string) error {
 		return nil
 	}
 
-	var document yaml.Node
-
-	decodeErr := yaml.Unmarshal(frontmatter, &document)
-	if decodeErr != nil {
-		return fmt.Errorf("%w: %s: %w", errRenameUndecodable, oldBasename, decodeErr)
-	}
-
-	if document.Kind == 0 {
-		return nil
-	}
-
-	if len(document.Content) == 0 || document.Content[0].Kind != yaml.MappingNode {
-		return fmt.Errorf("%w: %s: frontmatter is not a mapping", errRenameUndecodable, oldBasename)
+	mapping, parseErr := parseFrontmatterMapping(frontmatter)
+	if parseErr != nil {
+		return fmt.Errorf("%w: %s: %w", errRenameUndecodable, oldBasename, parseErr)
 	}
 
 	var probe struct {
 		Luhmann *string `yaml:"luhmann"`
 	}
 
-	probeErr := document.Decode(&probe)
+	probeErr := mapping.Decode(&probe)
 	if probeErr != nil {
 		return fmt.Errorf("%w: %s: %w", errRenameUndecodable, oldBasename, probeErr)
 	}
