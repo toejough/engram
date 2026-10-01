@@ -12,7 +12,6 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/toejough/engram/internal/embed"
-	"github.com/toejough/engram/internal/luhmann"
 	"github.com/toejough/engram/internal/vaultgraph"
 )
 
@@ -292,20 +291,20 @@ var (
 )
 
 // adoptRenderInput returns the content an adopt's rename leaves for the
-// note before its body is rendered: raw with its luhmann: field rewritten to
+// note before its body is rendered: raw converted from CRLF to LF (toLF, as
+// the rename converts it — design D5) with its luhmann: field rewritten to
 // newBasename's id and oldBasename appended to its aliases (as renameOneNote
 // does) when the adopt renames the note, or raw itself when the basename is
 // unchanged and no rename runs. Rendering this before the rename covers
 // exactly what the post-rename render sees, short of the inbound-wikilink
 // rewrite, so a note the rename would refuse is refused untouched.
 func adoptRenderInput(raw []byte, oldBasename, newBasename string) ([]byte, error) {
+	lf := toLF(raw)
 	if oldBasename == newBasename {
-		return raw, nil
+		return lf, nil
 	}
 
-	newID, _ := luhmann.FromBasename(newBasename)
-
-	aliased, aliasErr := appendAliasField(rewriteLuhmannIDField(string(raw), newID), oldBasename, newBasename)
+	aliased, aliasErr := stampRenamedNote(string(lf), oldBasename, newBasename)
 	if aliasErr != nil {
 		return nil, fmt.Errorf("register-skills: adopt: recording alias on %s: %w", oldBasename, aliasErr)
 	}
@@ -473,7 +472,8 @@ func homeRelativePath(path string, homes []string) string {
 }
 
 // resolveAdoptTarget scans the vault, resolves noteRef the same way `engram
-// amend --target` does, and returns its basename and raw content — erroring
+// amend --target` does, and returns its basename and raw content, converted
+// from CRLF to LF — erroring
 // when the ref doesn't resolve to any note, or resolves to a note that isn't
 // type runbook (skill-runbook-registration: "Must be a runbook note; error
 // otherwise").
@@ -494,6 +494,10 @@ func resolveAdoptTarget(vault, noteRef string, deps SkillAdoptDeps) (basename st
 	if readErr != nil {
 		return "", nil, fmt.Errorf("register-skills: adopt: read %s: %w", basename, readErr)
 	}
+
+	// Adopt always rewrites the note, so a CRLF note is converted to LF here
+	// and every later step sees LF text (design D5).
+	raw = toLF(raw)
 
 	frontmatter, hasFrontmatter := splitFrontmatter(raw)
 	if !hasFrontmatter || peekNoteType(frontmatter) != typeRunbook {

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -51,7 +52,17 @@ type exchangeHashFields struct {
 // whatever line endings or final newline a file or transport gave it (ruling
 // S6). A note whose leading "---" block never closes has no frontmatter, as
 // everywhere else in engram, so its whole text is the body.
+//
+// The text after an LF frontmatter's closing line is normalized before the
+// body is extracted, so a CRLF blank separator line is dropped exactly as an
+// LF one is: a note with LF frontmatter and a CRLF body hashes the same as
+// its LF conversion (fix-show-amend-reparent-frontmatter design D5).
 func canonicalExchangeBody(raw []byte) string {
+	frontmatter, rest, ok := embed.SplitFrontmatter(raw)
+	if ok {
+		raw = slices.Concat([]byte(fmStart), frontmatter, []byte(fmStart), toLF(rest))
+	}
+
 	body := strings.ReplaceAll(string(embed.BodyText(raw)), "\r\n", "\n")
 	body = strings.TrimRight(body, "\n")
 

@@ -297,6 +297,22 @@ func loadTopLevelReparentNotes(vault string, deps RenameRewriteDeps) ([]reparent
 	return notes, nil
 }
 
+// previewReparentRenames is apply's --dry-run: the same pre-flight the
+// rename runs (preflightRenames), so a refused note is reported without any
+// write, then the preview (printReparentPreview).
+func previewReparentRenames(
+	stdout io.Writer, vault string, deps RenameRewriteDeps, renameMap map[string]string,
+) error {
+	preflightErr := preflightRenames(deps, vault, renameMap)
+	if preflightErr != nil {
+		return fmt.Errorf("update --reparent-luhmann (dry-run): %w", preflightErr)
+	}
+
+	printReparentPreview(stdout, vault, deps, renameMap)
+
+	return nil
+}
+
 // printReparentPreview prints the old→new basename map and, for each, the
 // list of other notes whose references would be rewritten (design.md
 // Decision 5) — reusing rewriteNoteReferences (the exact function
@@ -338,7 +354,7 @@ func printReparentPreview(stdout io.Writer, vault string, deps RenameRewriteDeps
 			continue
 		}
 
-		_, changed := rewriteNoteReferences(string(raw), renameMap)
+		_, changed := rewriteNoteReferences(string(toLF(raw)), renameMap)
 		if changed {
 			_, _ = fmt.Fprintf(stdout, "  references rewritten in: %s\n", name)
 		}
@@ -461,9 +477,7 @@ func runReparentApply(
 	}
 
 	if dryRun {
-		printReparentPreview(stdout, vault, deps.Rename, renameMap)
-
-		return nil
+		return previewReparentRenames(stdout, vault, deps.Rename, renameMap)
 	}
 
 	applyErr := applyReparentRenames(ctx, vault, renameMap, deps)

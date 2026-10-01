@@ -62,6 +62,8 @@ var (
 	ErrQAContributorNotFound               = errQAContributorNotFound
 	ErrQAQuestionRequired                  = errQAQuestionRequired
 	ErrQASourceRequired                    = errQASourceRequired
+	ErrRenameStaleLuhmannForTest           = errRenameStaleLuhmann
+	ErrRenameUndecodableForTest            = errRenameUndecodable
 	ErrResituateNoteNotFoundForTest        = errResituateNoteNotFound
 	ErrSkillOfferConflictForTest           = errSkillOfferConflict
 	ErrSkillOfferSourceMissingForTest      = errSkillOfferSourceMissing

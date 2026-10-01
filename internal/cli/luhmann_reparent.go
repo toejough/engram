@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -78,11 +80,24 @@ func RebuildNoteSidecars(
 //
 // renameMap being empty is a no-op: ListMD is not even called.
 //
+// Before any rename or write, a pre-flight (preflightRenameNotes) renders
+// every renamed note's new content and refuses the whole invocation — one
+// joined error naming each refused note — when that content's frontmatter
+// does not decode as a YAML mapping (errRenameUndecodable: e.g. the old
+// luhmann: value carried an anchor another key aliases) or its luhmann: is
+// not the new id (errRenameStaleLuhmann).
+//
+// A note with CRLF line endings is converted to LF (toLF) before any
+// rewrite, but only when it is written anyway — renamed, or its references
+// changed — and in that same single write. A CRLF note the rename does not
+// otherwise touch is never written.
+//
 // It returns the (post-rename) path of every note whose references it
-// rewrote, in ListMD order: those notes' embedded content changed, so their
-// .vec.json sidecars are stale until rebuilt (RebuildNoteSidecars). A renamed
-// note whose only changes are its luhmann: field and aliases is not listed —
-// frontmatter outside situation: does not feed embed.ContentHash.
+// rewrote, and of every note it converted from CRLF, in ListMD order: those
+// notes' embedded content changed, so their .vec.json sidecars are stale
+// until rebuilt (RebuildNoteSidecars). A renamed LF note whose only changes
+// are its luhmann: field and aliases is not listed — frontmatter outside
+// situation: does not feed embed.ContentHash.
 func RenameAndRewriteReferences(
 	deps RenameRewriteDeps, vault string, renameMap map[string]string,
 ) ([]string, error) {
@@ -93,6 +108,11 @@ func RenameAndRewriteReferences(
 	names, err := deps.ListMD(vault)
 	if err != nil {
 		return nil, fmt.Errorf("listing %s: %w", vault, err)
+	}
+
+	preflightErr := preflightRenameNotes(deps, vault, names, renameMap)
+	if preflightErr != nil {
+		return nil, preflightErr
 	}
 
 	rewritten := make([]string, 0, len(names))
@@ -118,6 +138,12 @@ const (
 
 // unexported variables.
 var (
+	// errRenameStaleLuhmann refuses a renamed note whose rewritten luhmann:
+	// would not be its new id.
+	errRenameStaleLuhmann = errors.New("rename: luhmann: would not be the new id")
+	// errRenameUndecodable refuses a renamed note whose rewritten
+	// frontmatter would not decode as a YAML mapping.
+	errRenameUndecodable    = errors.New("rename: rewritten frontmatter does not decode")
 	reparentWikilinkPattern = regexp.MustCompile(`\[\[([^\]\n]+)\]\]`)
 )
 
@@ -178,6 +204,53 @@ func appendAliasField(content, alias, current string) (string, error) {
 	return fmStart + strings.Join(kept, "\n") + fmEnd + body, nil
 }
 
+// checkRenamedNote stamps updated (an LF, reference-rewritten note) as the
+// rename of oldBasename to newBasename and returns a refusal naming
+// oldBasename when the result's frontmatter does not decode as a YAML
+// mapping or its luhmann: is not newBasename's id; nil otherwise.
+func checkRenamedNote(updated, oldBasename, newBasename string) error {
+	stamped, stampErr := stampRenamedNote(updated, oldBasename, newBasename)
+	if stampErr != nil {
+		return fmt.Errorf("%w: %s: %w", errRenameUndecodable, oldBasename, stampErr)
+	}
+
+	frontmatter, found := splitFrontmatter([]byte(stamped))
+	if !found {
+		return nil
+	}
+
+	var document yaml.Node
+
+	decodeErr := yaml.Unmarshal(frontmatter, &document)
+	if decodeErr != nil {
+		return fmt.Errorf("%w: %s: %w", errRenameUndecodable, oldBasename, decodeErr)
+	}
+
+	if document.Kind == 0 {
+		return nil
+	}
+
+	if len(document.Content) == 0 || document.Content[0].Kind != yaml.MappingNode {
+		return fmt.Errorf("%w: %s: frontmatter is not a mapping", errRenameUndecodable, oldBasename)
+	}
+
+	var probe struct {
+		Luhmann *string `yaml:"luhmann"`
+	}
+
+	probeErr := document.Decode(&probe)
+	if probeErr != nil {
+		return fmt.Errorf("%w: %s: %w", errRenameUndecodable, oldBasename, probeErr)
+	}
+
+	newID, _ := luhmann.FromBasename(newBasename)
+	if probe.Luhmann != nil && *probe.Luhmann != newID {
+		return fmt.Errorf("%w: %s: luhmann: %q, want %q", errRenameStaleLuhmann, oldBasename, *probe.Luhmann, newID)
+	}
+
+	return nil
+}
+
 // isTopLevelYAMLLine reports whether line starts a top-level frontmatter key:
 // it is non-blank and starts neither with indentation nor with a column-0
 // sequence item or comment (both of which continue the preceding key).
@@ -194,13 +267,70 @@ func isTopLevelYAMLLine(line string) bool {
 	}
 }
 
-// renameAndRewriteOneNote handles a single vault note: rewrites its references
-// (regardless of whether it is itself being renamed), and — if it is being
-// renamed — renames the note file and its sidecar and updates its own luhmann:
-// frontmatter field.
+// preflightRenameNotes renders the content the rename would write for every
+// note in names that renameMap renames — CRLF converted, references
+// rewritten, luhmann: set, alias appended (the same steps
+// renameAndRewriteOneNote takes) — and refuses each whose frontmatter would
+// not decode as a YAML mapping (errRenameUndecodable) or whose luhmann:
+// would not be its new id (errRenameStaleLuhmann). Every refusal is
+// collected into one joined error, returned before anything is renamed or
+// written. A note with no frontmatter, or none with a luhmann: key, passes.
+func preflightRenameNotes(deps RenameRewriteDeps, vault string, names []string, renameMap map[string]string) error {
+	refusals := make([]error, 0, len(renameMap))
+
+	for _, name := range names {
+		basename, ok := vaultgraph.ParseBasename(name)
+		if !ok {
+			continue
+		}
+
+		newBasename, renaming := renameMap[basename]
+		if !renaming {
+			continue
+		}
+
+		path := filepath.Join(vault, name)
+
+		raw, err := deps.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", path, err)
+		}
+
+		updated, _ := rewriteNoteReferences(string(toLF(raw)), renameMap)
+
+		refusal := checkRenamedNote(updated, basename, newBasename)
+		if refusal != nil {
+			refusals = append(refusals, refusal)
+		}
+	}
+
+	return errors.Join(refusals...)
+}
+
+// preflightRenames is preflightRenameNotes over every note in vault, for a
+// caller (reparent --dry-run) that previews a rename without applying it.
+func preflightRenames(deps RenameRewriteDeps, vault string, renameMap map[string]string) error {
+	if len(renameMap) == 0 {
+		return nil
+	}
+
+	names, err := deps.ListMD(vault)
+	if err != nil {
+		return fmt.Errorf("listing %s: %w", vault, err)
+	}
+
+	return preflightRenameNotes(deps, vault, names, renameMap)
+}
+
+// renameAndRewriteOneNote handles a single vault note: converts it from CRLF
+// to LF (toLF), rewrites its references (regardless of whether it is itself
+// being renamed), and — if it is being renamed — renames the note file and
+// its sidecar and updates its own luhmann: frontmatter field. A note neither
+// renamed nor carrying a renamed reference is never written, so a CRLF note
+// it does not otherwise touch keeps its bytes.
 //
-// It returns the note's final path when its references were rewritten, or ""
-// when they were not.
+// It returns the note's final path when its references were rewritten or a
+// renamed note was converted from CRLF, or "" otherwise.
 func renameAndRewriteOneNote(
 	deps RenameRewriteDeps, vault, name string, renameMap map[string]string,
 ) (string, error) {
@@ -216,7 +346,10 @@ func renameAndRewriteOneNote(
 		return "", fmt.Errorf("reading %s: %w", oldPath, err)
 	}
 
-	updated, refsChanged := rewriteNoteReferences(string(raw), renameMap)
+	lf := toLF(raw)
+	converted := !bytes.Equal(lf, raw)
+
+	updated, refsChanged := rewriteNoteReferences(string(lf), renameMap)
 
 	finalPath := oldPath
 
@@ -235,7 +368,9 @@ func renameAndRewriteOneNote(
 		}
 	}
 
-	if !refsChanged {
+	// A converted note is written only when renamed or rewritten; either
+	// way its embedded content changed (design D5).
+	if !refsChanged && (!converted || !renaming) {
 		return "", nil
 	}
 
@@ -248,10 +383,7 @@ func renameAndRewriteOneNote(
 // reference-rewritten) updated content to the new path in one write, and
 // returns that new path.
 func renameOneNote(deps RenameRewriteDeps, oldPath, vault, oldBasename, newBasename, updated string) (string, error) {
-	newID, _ := luhmann.FromBasename(newBasename)
-	updated = rewriteLuhmannIDField(updated, newID)
-
-	updated, aliasErr := appendAliasField(updated, oldBasename, newBasename)
+	updated, aliasErr := stampRenamedNote(updated, oldBasename, newBasename)
 	if aliasErr != nil {
 		return "", fmt.Errorf("recording alias on %s: %w", oldPath, aliasErr)
 	}
@@ -402,6 +534,21 @@ func rewriteWikilinks(text string, renameMap map[string]string) (string, bool) {
 	})
 
 	return rewritten, changed
+}
+
+// stampRenamedNote is a renamed note's own frontmatter edit: luhmann: set to
+// newBasename's id and oldBasename appended to its aliases (design D4 H2).
+func stampRenamedNote(content, oldBasename, newBasename string) (string, error) {
+	newID, _ := luhmann.FromBasename(newBasename)
+
+	return appendAliasField(rewriteLuhmannIDField(content, newID), oldBasename, newBasename)
+}
+
+// toLF converts every CRLF line ending in raw to LF; a lone CR is left as
+// it is. A rename applies it to a note it writes before any rewrite, so a
+// CRLF note's frontmatter splits and is rewritten (design D5).
+func toLF(raw []byte) []byte {
+	return bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n"))
 }
 
 // yamlBlockValueEndLine returns the index one past the last continuation
