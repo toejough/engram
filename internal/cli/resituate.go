@@ -227,40 +227,53 @@ func resituateContent(raw []byte, situation string) (string, error) {
 	}
 }
 
-// resituateTyped round-trips a note's typed frontmatter doc with only its
-// situation replaced (design D10 M7): every other field, including pending,
-// sources, tags, supersedes, vocab_version, issue, project and the exchange
-// fields, is re-marshaled as parsed. The body keeps everything after its
-// first line; only that opener is rebuilt around the new situation.
+// resituateTyped edits a note's frontmatter as a YAML node with only its
+// situation replaced (design D10 M7, D6b): every other frontmatter key,
+// including keys the typed doc does not define, survives with its value —
+// pending, sources, tags, supersedes, vocab_version, issue, project and the
+// exchange fields among them. The typed doc is decoded from the node only
+// to validate the note and to build the body opener. The body keeps
+// everything after its first line; only that opener is rebuilt around the
+// new situation.
 //
-// created: is re-emitted as the string the note holds, not rebuilt from the
-// parsed date (the old hand-copy re-formatted it through time.Time). It is
-// still parsed, only to refuse a malformed note untouched: parseCreated is
-// strict about the 2006-01-02 layout, so any value that passes is already
-// in canonical form, and keeping the string means resituate can never
-// reformat a date it did not change.
+// created: is re-emitted as the string the note holds (quoted by the
+// frontmatter writer, as learn writes it), not rebuilt from the parsed date.
+// It is still parsed, only to refuse a malformed note untouched:
+// parseCreated is strict about the 2006-01-02 layout, so any value that
+// passes is already in canonical form, and keeping the string means
+// resituate can never reformat a date it did not change.
 func resituateTyped[T any](
 	frontmatter, body []byte,
 	situation, kind string,
 	resituate func(doc *T, situation string) (created string),
 	opener func(doc T) string,
 ) (string, error) {
-	var doc T
-
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil {
-		return "", fmt.Errorf("resituate: parsing %s frontmatter: %w", kind, unmarshalErr)
+	mapping, parseErr := parseFrontmatterMapping(frontmatter)
+	if parseErr != nil {
+		return "", fmt.Errorf("resituate: parsing %s frontmatter: %w", kind, parseErr)
 	}
 
-	_, createdErr := parseCreated(resituate(&doc, situation))
+	var doc T
+
+	decodeErr := mapping.Decode(&doc)
+	if decodeErr != nil {
+		return "", fmt.Errorf("resituate: parsing %s frontmatter: %w", kind, decodeErr)
+	}
+
+	created := resituate(&doc, situation)
+
+	_, createdErr := parseCreated(created)
 	if createdErr != nil {
 		return "", createdErr
 	}
 
+	setMappingValue(mapping, "situation", encodeNode(situation))
+	setMappingValue(mapping, "created", encodeNode(created))
+
 	newOpener, _, _ := strings.Cut(opener(doc), "\n")
 	_, rest, _ := bytes.Cut(body, []byte("\n"))
 
-	return marshalFrontmatter(doc) + newOpener + "\n" + string(rest), nil
+	return marshalFrontmatter(mapping) + newOpener + "\n" + string(rest), nil
 }
 
 // runResituateLocked is RunResituate's locked section: the rewrite, the

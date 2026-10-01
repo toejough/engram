@@ -1,16 +1,19 @@
 package cli_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/gomega"
+	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/cli"
 	"github.com/toejough/engram/internal/embed"
@@ -394,6 +397,70 @@ func TestRunResituate_IOErrors(t *testing.T) {
 	})
 }
 
+// TestRunResituate_KeepsEveryKeyButSituationProperty is P3 (design D7): for
+// a fact or feedback note carrying 0-3 unknown keys (scalar, list, nested
+// map) and optionally an anchored unknown value aliased by another key,
+// every key except situation decodes to the same value after resituate.
+func TestRunResituate_KeepsEveryKeyButSituationProperty(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		noteType := rapid.SampledFrom([]string{"fact", "feedback"}).Draw(rt, "type")
+		unknown := skillUnknownKeysGen().Draw(rt, "unknown")
+
+		if rapid.Bool().Draw(rt, "anchored") {
+			unknown += "x_anchor: &k \"shared value\"\nx_alias: *k\n"
+		}
+
+		before := resituateUnknownKeysNote(noteType, unknown)
+
+		after, _, err := runExchangeSurvivalResituate(context.Background(), before)
+		if err != nil {
+			rt.Fatalf("resituate: %v", err)
+		}
+
+		beforeFields := frontmatterOf(before)
+		afterFields := frontmatterOf(after)
+
+		if afterFields["situation"] != "resituated context" {
+			rt.Fatalf("situation = %v", afterFields["situation"])
+		}
+
+		delete(beforeFields, "situation")
+		delete(afterFields, "situation")
+
+		if !reflect.DeepEqual(beforeFields, afterFields) {
+			rt.Fatalf("resituate changed a key other than situation:\nbefore %v\nafter  %v", beforeFields, afterFields)
+		}
+	})
+}
+
+// TestRunResituate_KeepsUnmodeledKeys is the scenario "Resituate keeps an
+// unmodeled key" (vault-note-identity; design D6b): on a fact and on a
+// feedback note, `luhmann_old: "12"` and a nested unknown map survive.
+func TestRunResituate_KeepsUnmodeledKeys(t *testing.T) {
+	t.Parallel()
+
+	const unknown = "luhmann_old: \"12\"\nprovenance:\n    origin: import\n    steps: [a, b]\n"
+
+	for _, noteType := range []string{"fact", "feedback"} {
+		t.Run(noteType, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			before := resituateUnknownKeysNote(noteType, unknown)
+
+			after, writes, err := runExchangeSurvivalResituate(t.Context(), before)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(writes).To(Equal(1))
+
+			fields := frontmatterOf(after)
+			g.Expect(fields["situation"]).To(Equal("resituated context"))
+			g.Expect(fields["luhmann_old"]).To(Equal("12"))
+			g.Expect(fields["provenance"]).To(Equal(map[string]any{"origin": "import", "steps": []any{"a", "b"}}))
+		})
+	}
+}
+
 // TestRunResituate_LocatesByFullBasename verifies the note can be found by
 // its complete basename, not just the leading luhmann id.
 func TestRunResituate_LocatesByFullBasename(t *testing.T) {
@@ -653,6 +720,22 @@ func readSidecarHash(t *testing.T, notePath string) string {
 // note, used by the I/O-error subtests.
 func resituateArgs() cli.ResituateArgs {
 	return cli.ResituateArgs{Vault: "/v", Note: injectedNoteID, Situation: resituateNewSituation}
+}
+
+// resituateUnknownKeysNote renders a fact or feedback note (Luhmann id 1aa,
+// learn's quoted created:) with unknown appended to its frontmatter.
+func resituateUnknownKeysNote(noteType, unknown string) string {
+	content := "subject: the widget\npredicate: uses\nobject: a gear\n"
+	opener := "Information learned: when working on it, the widget uses a gear."
+
+	if noteType == "feedback" {
+		content = "behavior: skipped it\nimpact: it broke\naction: do it\n"
+		opener = "Lesson learned: when working on it, do it."
+	}
+
+	return "---\ntype: " + noteType + "\nsituation: working on it\n" + content +
+		"luhmann: \"1aa\"\ncreated: \"2026-01-01\"\nsource: test\nuser: u\nvault: v\n" + unknown +
+		"---\n\n" + opener + "\n\nMore text.\n"
 }
 
 // writeResituateFixture writes a note plus a stale sidecar (so the re-embed
