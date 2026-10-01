@@ -161,3 +161,9 @@
 {"batch": "red-R1", "arm_id": "02-R1-RED", "kind": "arm", "cell": "R1", "arm": "RED", "cost_usd": 0.6113483000000002, "label": "pass"}
 {"batch": "red-R1", "arm_id": "03-R1-RED", "kind": "arm", "cell": "R1", "arm": "RED", "cost_usd": 0.94364655, "label": "pass"}
 {"batch": "red-R1", "arm_id": "04-R1-RED", "kind": "arm", "cell": "R1", "arm": "RED", "cost_usd": 0.76832475, "label": "pass"}
+{"batch": "green-R1", "arm_id": "probe", "kind": "probe", "cost_usd": 0.06644810000000001}
+{"batch": "green-R1", "arm_id": "00-R1-GREEN", "kind": "arm", "cell": "R1", "arm": "GREEN", "cost_usd": 0.84066265, "label": "pass"}
+{"batch": "green-R1", "arm_id": "01-R1-GREEN", "kind": "arm", "cell": "R1", "arm": "GREEN", "cost_usd": 0.7893169, "label": "pass"}
+{"batch": "green-R1", "arm_id": "02-R1-GREEN", "kind": "arm", "cell": "R1", "arm": "GREEN", "cost_usd": 0.6540010999999999, "label": "pass"}
+{"batch": "green-R1", "arm_id": "03-R1-GREEN", "kind": "arm", "cell": "R1", "arm": "GREEN", "cost_usd": 0.8625077500000001, "label": "pass"}
+{"batch": "green-R1", "arm_id": "04-R1-GREEN", "kind": "arm", "cell": "R1", "arm": "GREEN", "cost_usd": 0.8769268499999999, "label": "pass"}

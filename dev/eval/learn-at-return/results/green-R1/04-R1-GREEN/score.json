@@ -1,0 +1,84 @@
+{
+  "arm_id": "04-R1-GREEN",
+  "arm_dir": "/private/tmp/engram-arm.4qjawlw8",
+  "arm_deleted": true,
+  "timed_out": false,
+  "wall_s": 160.0,
+  "cell": "R1",
+  "arm": "GREEN",
+  "kind": "P",
+  "orchestrator_model": "claude-opus-5-5",
+  "fixture_models": [
+    "claude-haiku-4-5-20251001",
+    "claude-sonnet-5"
+  ],
+  "init_tools_agent_names": [
+    "Task"
+  ],
+  "init_has_skill_tool": true,
+  "init_has_agent_tool": true,
+  "cost_usd": 0.8769268499999999,
+  "duration_ms": 158939,
+  "num_turns": 20,
+  "report_verbatim": true,
+  "return_via": "tool_result",
+  "late_fire": false,
+  "ended_on_question": false,
+  "unit1_redispatched": false,
+  "window_query_calls": 1,
+  "degenerate_reason": null,
+  "vault_notes": 6,
+  "gate": {
+    "ok": true,
+    "missing": [],
+    "foreign": []
+  },
+  "read_fixture_agent": false,
+  "window_end_unit": 2,
+  "window_route_records": [
+    {
+      "command": "ls /private/tmp/engram-arm.4qjawlw8/vault/ | grep -i \"route-evidence-go-package-implementation\" ; echo \"exit:$?\"\nengram learn fact --slug route-dispatch-go-package-implementation --position top \\\n  --source \"route dispatch record, Quillfeather, 2026-09-30\" \\\n  --situation \"routing go-package-implementation work\" \\\n  --subject \"go-package-implementation dispatch at cheap (haiku)\" --predicate \"resolved as\" \\\n  --object \"pass per code-review verdict relayed in the worker's report (after one reviewer-requested fix to UTC); not independently re-verified by orchestrator; why: cold-start default (misapplied \u2014 evidence-backed prior says mid); escalation: none; duration: 30289 ms; cost: 20164 tok (no rate on hand)\" \\\n  --tag work-kind/go-package-implementation --tag tier/cheap --tag outcome/pass",
+      "note": null
+    },
+    {
+      "command": "engram learn fact --slug route-dispatch-go-package-implementation --position top --source \"route dispatch record, Quillfeather, 2026-09-30\" --situation \"routing go-package-implementation work\" --subject \"go-package-implementation dispatch at cheap (haiku)\" --predicate \"resolved as\" --object \"pass per code-review verdict relayed in the worker's report (after one reviewer-requested fix to UTC); not independently re-verified by orchestrator; why: cold-start default (misapplied, evidence-backed prior says mid); escalation: none; duration: 30289 ms; cost: 20164 tok (no rate on hand)\" --tag work-kind/go-package-implementation --tag tier/cheap --tag outcome/pass",
+      "note": "/private/tmp/engram-arm.4qjawlw8/vault/3.2026-09-30.route-dispatch-go-package-implementation.md"
+    },
+    {
+      "command": "engram learn fact --slug route-evidence-go-package-implementation --position top --source \"route dispatch record, Quillfeather, 2026-09-30\" --situation \"routing go-package-implementation work: which tier the evidence supports\" --subject \"route evidence for go-package-implementation\" --predicate \"tallies\" --object \"cheap 1/1 as of 2026-09-30 \u2014 evidence: [[3.2026-09-30.route-dispatch-go-package-implementation]]\"",
+      "note": "/private/tmp/engram-arm.4qjawlw8/vault/4.2026-09-30.route-evidence-go-package-implementation.md"
+    }
+  ],
+  "window_qa_writes": [],
+  "window_other_learn_commands": [],
+  "window_unparsed_learn_mentions": [],
+  "confirmed_vault_notes": [
+    "1.2026-09-30.quillfeather-front-matter-dates-utc-iso8601.md",
+    "2.2026-09-30.route-check-evidence-backed-cold-start-rows.md"
+  ],
+  "out_of_window_vault_notes": [
+    "3.2026-09-30.route-dispatch-go-package-implementation.md",
+    "4.2026-09-30.route-evidence-go-package-implementation.md",
+    "5.2026-09-30.route-dispatch-go-package-implementation.md",
+    "6.2026-09-30.route-dispatch-go-package-implementation.md"
+  ],
+  "window_fires": 1,
+  "window_delegated_fires": 0,
+  "window_learn_calls": 2,
+  "window_learn_writes": 2,
+  "window_delegated_writes": 0,
+  "window_ingests": 0,
+  "window_learn_commands": [
+    "engram learn feedback --slug quillfeather-front-matter-dates-utc-iso8601 --position top \\\n  --source \"session 2026-09-30, context: Unit 1 Front-matter dates dispatched to unit-worker; code reviewer re",
+    "engram learn feedback --slug route-check-evidence-backed-cold-start-rows --position top \\\n  --source \"session 2026-09-30, context: routing Quillfeather units; dispatched a Go package unit at cheap des"
+  ],
+  "label": "pass",
+  "scored": true,
+  "skill_gate": {
+    "ok": true,
+    "foreign": []
+  },
+  "skill": "route",
+  "captured_mark": false,
+  "meets_q1_bar": false
+}

@@ -102,3 +102,12 @@ def test_parse_specs():
 def test_please_prompt_is_cost_bounded():
     p = qrcells.prompt("Q1")
     assert "gate B result" in p and "ends once Unit 2's report is in" in p and "do not dispatch Unit 3" in p
+
+
+def test_not_captured_status_is_not_a_captured_mark():
+    ev = [init(), *load("please"), dispatch("a1", 1), ret("a1", REPORT), *skill_learn(),
+          *bash("b1", "engram learn feedback --x"),
+          asst({"type": "text", "text": "List: unit 1 — reviewer rejected… — not captured"}), *tail()]
+    assert run("Q1", "GREEN", ev)["captured_mark"] is False
+    ev2 = ev[:-4] + [asst({"type": "text", "text": "List: unit 1 — status: captured → 1.utc"})] + ev[-4:]
+    assert run("Q1", "GREEN", ev2)["captured_mark"] is True

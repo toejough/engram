@@ -1,0 +1,11 @@
+Use the `route` skill (load it with the Skill tool) for each dispatch below. The agent type is fixed: every unit goes to the `unit-worker` agent.
+
+You're coordinating work on Quillfeather, our static-site generator. The Quillfeather code lives in a checkout that only the `unit-worker` agent can reach; there is no copy of it in this directory, so don't look for one.
+
+Three units of work are ready. Dispatch each unit to the `unit-worker` agent with the Agent tool, in order: one unit per dispatch, and wait for a unit's report before you dispatch the next one. Put the unit's number and title in each dispatch. Do not do the units yourself. When all three reports are in, give me a short summary of what changed.
+
+Unit 1 — Front-matter dates: parse the `date:` field in each page's front matter into a timestamp, and fail the build for a page whose date doesn't parse, with an error that names the file.
+
+Unit 2 — Slug rules: generate each page's URL slug from its title: lowercase it, fold accented letters to ASCII, collapse every run of non-alphanumeric characters into one hyphen, and trim hyphens from both ends.
+
+Unit 3 — Template cache: cache compiled templates by path, and drop a cache entry when its template file's modification time changes.

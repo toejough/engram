@@ -28,7 +28,7 @@ CELL_SKILL = {"Q1": "please", "Q1P": "please", "R1": "route"}
 SKILL_TOKENS = {"please": {"RED": "LAR-PSK-RED-2K7M", "GREEN": "LAR-PSK-GREEN-8R3W"},
                 "route": {"RED": "LAR-RSK-RED-5D2F", "GREEN": "LAR-RSK-GREEN-9H6B"}}
 GUIDANCE_ARM = "GREEN"
-_CAPTURED = re.compile(r"captured", re.I)
+_CAPTURED = re.compile(r"(?<!not )(?<!un)captured", re.I)
 
 
 def prompt(cell: str) -> str:

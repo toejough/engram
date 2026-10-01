@@ -1,0 +1,6 @@
+00-R1-GREEN: pass gate=True/True captured_mark=False cost=$0.84066265
+01-R1-GREEN: pass gate=True/True captured_mark=False cost=$0.7893169
+02-R1-GREEN: pass gate=True/True captured_mark=False cost=$0.6540010999999999
+03-R1-GREEN: pass gate=True/True captured_mark=False cost=$0.8625077500000001
+04-R1-GREEN: pass gate=True/True captured_mark=False cost=$0.8769268499999999
+probe=True isolation=True status=0
