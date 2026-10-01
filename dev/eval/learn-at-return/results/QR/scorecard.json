@@ -116,6 +116,22 @@
       "meets_bar": true,
       "replacements": 0,
       "cost_usd": 4.09
+    },
+    {
+      "cell": "Q1P",
+      "arm": "GREEN T14 (unmarked text)",
+      "text": "please after ruling T14",
+      "batches": [
+        "green3-Q1P"
+      ],
+      "n_scored": 5,
+      "fast_path_fires": 5,
+      "captured_marks": 0,
+      "bar_count": 5,
+      "bar": ">= 4/5 fire on the fast path before unit 2 (T14)",
+      "meets_bar": true,
+      "replacements": 0,
+      "cost_usd": 2.484
     }
   ],
   "discarded": {
@@ -125,6 +141,6 @@
     "Q1": "fire half falsified (RED fired 5/5); the captured mark separates RED (0/5) from GREEN v1 (4/5)",
     "R1": "falsified: RED meets the GREEN bar 5/5"
   },
-  "please_text_shipped": "f470890f wording (restored in 1cda181c)",
+  "please_text_shipped": "T14 wording (no captured marking)",
   "design_change": "T14 (Joe, 2026-10-01): captured marking dropped from please; the Q bar is the fast-path fire alone (>= 4/5); the closing learn dedupes by vault coverage (L2 5/5 even on pre-edit text)"
 }
