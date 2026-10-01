@@ -269,3 +269,23 @@ Exchange-hash parity with the pre-change amend:
 - The new code reproduces every golden byte-for-byte (`TestRunAmend_ExchangeHashParityWithPreChangeAmend`, 32 cases).
 
 The scratch root `$S` was removed afterwards.
+
+# Fold real-binary check (ruling V7, re-review N1, 2026-10-01)
+
+This ran a scratch build of the V7 working tree (`go build -o $S/bin/engram ./cmd/engram`, no
+`go install`) from `/tmp` under `env -i PATH=/usr/bin:/bin HOME=$S/home XDG_DATA_HOME=$S/data`
+with `--vault $S/vault`. The fixtures were hand-written fact notes. Each offer was a pending note
+with a `pulled` link under parent vault `9a1e…e7f8` and no `offer.origin`, so no `--expect-hash`
+was needed.
+
+| # | Check | Command | Result |
+|---|---|---|---|
+| F1 | A fold into a note whose `parent: &p` is aliased by `parent_copy: *p` is refused, and both files are untouched | `engram amend --target 5.2026-09-28.offer-a --discard --into 2.2026-09-20.anchored-into` | exit 1: `amend: fold: frontmatter key the edit replaces carries a YAML anchor: parent`. Into sha256 `8283a816…bd031f42` and offer sha256 `ba9366b6…05573e70` are unchanged; the offer was **not** deleted. **PASS** |
+| F2 | A fold keeps unknown keys under `parent:` and inside its links | `engram amend --target 6.2026-09-28.offer-b --discard --into 3.2026-09-20.unknown-into` | exit 0; the offer was deleted. The into note's `parent:` keeps `extra_parent_field: keep`, and its link `9.2026-09-01.other` keeps `extra_link_field: keep`. The offer's pulled link joined as `covered`, and `aliases:` gained `6.2026-09-28.offer-b`. A follow-up `engram amend --target 3 --activate` read the note (exit 0), so it decodes. **PASS** |
+
+Parity: the 6 fold cases in `TestFoldAndReceipt_ParityWithPreChangeRewrite` were also run with a
+binary built from `49cfc120`. Its output matched the committed goldens byte-for-byte, 6/6. The 5
+receipt cases are pinned in-process: the receipt path needs a parent server, and the code was
+unchanged from `49cfc120` until V7.
+
+The scratch root `$S` was removed afterwards.
