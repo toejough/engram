@@ -1,0 +1,5 @@
+00-Q1-RED: pass gate=True/True captured_mark=False cost=$0.4828182999999999
+01-Q1-RED: pass gate=True/True captured_mark=False cost=$0.4836335
+02-Q1-RED: pass gate=True/True captured_mark=False cost=$0.49338395
+03-Q1-RED: pass gate=True/True captured_mark=False cost=$0.497755
+probe=True isolation=True status=0
