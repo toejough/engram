@@ -423,7 +423,13 @@ func TestRunResituate_KeepsEveryKeyButSituationProperty(t *testing.T) {
 			before = strings.Replace(before, "vault: v\n", "vault: v\nx_edit_ref: *e\n", 1)
 		}
 
-		after, writes, err := runExchangeSurvivalResituate(context.Background(), before)
+		// A CRLF note is converted to LF in the same write (design D5).
+		input := before
+		if rapid.Bool().Draw(rt, "crlf") {
+			input = crlf(before)
+		}
+
+		after, writes, err := runExchangeSurvivalResituate(context.Background(), input)
 
 		if edited != "" {
 			if !errors.Is(err, cli.ErrFrontmatterAnchoredKeyForTest) || writes != 0 {
@@ -433,23 +439,7 @@ func TestRunResituate_KeepsEveryKeyButSituationProperty(t *testing.T) {
 			return
 		}
 
-		if err != nil {
-			rt.Fatalf("resituate: %v", err)
-		}
-
-		beforeFields := frontmatterOf(before)
-		afterFields := frontmatterOf(after)
-
-		if afterFields["situation"] != "resituated context" {
-			rt.Fatalf("situation = %v", afterFields["situation"])
-		}
-
-		delete(beforeFields, "situation")
-		delete(afterFields, "situation")
-
-		if !reflect.DeepEqual(beforeFields, afterFields) {
-			rt.Fatalf("resituate changed a key other than situation:\nbefore %v\nafter  %v", beforeFields, afterFields)
-		}
+		assertOnlySituationChanged(rt, before, after, err)
 	})
 }
 
@@ -666,6 +656,32 @@ Related to:
 var (
 	errInjectedIO = errors.New("injected io failure")
 )
+
+// assertOnlySituationChanged checks a successful resituate: LF output, the
+// new situation, and every other key at its decoded value.
+func assertOnlySituationChanged(rt *rapid.T, before, after string, err error) {
+	if err != nil {
+		rt.Fatalf("resituate: %v", err)
+	}
+
+	if strings.Contains(after, "\r") {
+		rt.Fatalf("resituate wrote CRLF")
+	}
+
+	beforeFields := frontmatterOf(before)
+	afterFields := frontmatterOf(after)
+
+	if afterFields["situation"] != "resituated context" {
+		rt.Fatalf("situation = %v", afterFields["situation"])
+	}
+
+	delete(beforeFields, "situation")
+	delete(afterFields, "situation")
+
+	if !reflect.DeepEqual(beforeFields, afterFields) {
+		rt.Fatalf("resituate changed a key other than situation:\nbefore %v\nafter  %v", beforeFields, afterFields)
+	}
+}
 
 // factNoteBody builds a fact note whose body is a single line with no
 // trailing newline, exercising resituate's no-rest-of-body branch.

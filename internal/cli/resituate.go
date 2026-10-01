@@ -321,7 +321,9 @@ func runResituateLocked(ctx context.Context, args ResituateArgs, deps ResituateD
 		return false, fmt.Errorf("resituate: read %s: %w", relPath, readErr)
 	}
 
-	rendered, renderErr := resituateContent(raw, args.Situation)
+	// Resituate always rewrites the note, so a CRLF note is converted to LF
+	// in that same write (design D5, final review F5).
+	rendered, renderErr := resituateContent(toLF(raw), args.Situation)
 	if renderErr != nil {
 		return false, renderErr
 	}

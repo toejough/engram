@@ -43,6 +43,10 @@
 
 `engram resituate` SHALL also preserve every other frontmatter key it does not change, with its value, changing only `situation` and the body opener. This includes `pending`, `sources`, `tags`, `supersedes`, `vocab_version`, `issue`, and `project`, and keys the typed note model does not define.
 
+`engram amend` SHALL likewise preserve every frontmatter key it does not change, with its value — including keys the typed note model does not define, and YAML anchors on keys it does not edit — for every amend kind that writes frontmatter: content flags, `--supersedes`, `--chunk-source`, `--clear-pending`, and identity re-stamping. Amend edits only the keys whose value its edit changes (plus `created`, re-emitted in its quoted form), as YAML-node edits. When such a key — or its value, or anything beneath the value — carries a YAML anchor, amend SHALL refuse the note untouched and name the key (`errFrontmatterAnchoredKey`). Before writing, amend SHALL decode the rewritten frontmatter again and refuse to write it if it does not decode (`errFrontmatterUndecodable`). For a note without such keys, amend SHALL write the same bytes, and so the same exchange hash, as before this requirement.
+
+`engram resituate` SHALL convert a CRLF note to LF inside the single write it already makes, as rename and adopt do; it SHALL NOT refuse the note for its line endings.
+
 `engram resituate` edits `situation` and `created` as a YAML node. When `situation` or `created` — or that key's value, or anything beneath the value — carries a YAML anchor, resituate SHALL refuse the note untouched and name the key (`errFrontmatterAnchoredKey`), rather than drop the value and leave an alias to it dangling. Before writing, resituate SHALL decode the rewritten frontmatter again and refuse to write it if it does not decode (`errFrontmatterUndecodable`).
 
 #### Scenario: Amend preserves the exchange fields
@@ -64,3 +68,23 @@
 #### Scenario: Resituate refuses an anchored key
 - **WHEN** `engram resituate` would replace `situation` or `created` on a note whose `situation` or `created` key carries a YAML anchor, or whose value does
 - **THEN** the resituate is refused, naming the key, and the note is unchanged
+
+#### Scenario: Amend keeps an unmodeled key
+- **WHEN** `engram amend` with any content flag, `--supersedes`, `--chunk-source`, or `--clear-pending` rewrites a fact, feedback, or runbook note whose frontmatter carries a key the typed note model does not define (e.g. `luhmann_old: "12"`, or a nested map)
+- **THEN** the written note still carries that key with the same value
+
+#### Scenario: Amend keeps an anchor on a key it does not edit
+- **WHEN** `engram amend --object new` rewrites a fact note whose `source: &src test` is aliased by another key
+- **THEN** the amend succeeds, and `source` and the aliasing key both still decode to `test`
+
+#### Scenario: Amend refuses an anchored edited key
+- **WHEN** `engram amend --object new` targets a fact note whose `object:` value carries a YAML anchor that another key aliases
+- **THEN** the amend fails naming `object`, and the note is not written
+
+#### Scenario: Amend output is unchanged for notes without unknown keys
+- **WHEN** any amend kind rewrites a note whose frontmatter holds only keys the typed note model defines and no anchors
+- **THEN** the written note is byte-identical to what amend wrote before this requirement, so its exchange hash is unchanged
+
+#### Scenario: Resituate converts a CRLF note
+- **WHEN** `engram resituate` rewrites a fact or feedback note whose lines end in `\r\n`
+- **THEN** the rewrite succeeds, the written note contains no `\r`, and only `situation` and the body opener changed

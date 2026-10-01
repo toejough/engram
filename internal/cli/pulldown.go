@@ -400,7 +400,7 @@ func buildPulledNote(source pulledSource, envelope rawShowResponse, stamp pulled
 
 	deleteMappingKeys(mapping, pullStrippedKeys()...)
 	setMappingValue(mapping, "luhmann", &yaml.Node{
-		Kind: yaml.ScalarNode, Tag: "!!str", Style: yaml.DoubleQuotedStyle, Value: stamp.luhmann,
+		Kind: yaml.ScalarNode, Tag: yamlStringTag, Style: yaml.DoubleQuotedStyle, Value: stamp.luhmann,
 	})
 	setMappingValue(mapping, "created", encodeNode(stamp.created))
 

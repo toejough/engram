@@ -24,11 +24,13 @@ The capabilities affected are `recall-runbook-surfacing`, `vault-offer-curation`
 - `engram show` is a full-fidelity source of every red_flag. The query marker gives a count and a command that works.
 - A re-stamping amend never blanks a non-empty `user:`.
 - The reparent payload, the notice and the learn batch mode agree.
-- No rename or rewrite writes undecodable frontmatter or leaves a stale `luhmann:`. Adopt, refresh and resituate keep keys they don't model. A CRLF note that a rename or rewrite writes comes out as LF, and its sidecar is rebuilt.
+- No rename or rewrite writes undecodable frontmatter or leaves a stale `luhmann:`. Adopt, refresh, resituate and amend keep keys they don't model (amend folded in under ruling V6). A CRLF note that a rename, adopt, refresh or resituate writes comes out as LF, and its sidecar is rebuilt.
 
 **Non-Goals:**
 - General CRLF support in `embed.SplitFrontmatter`. It has more than 9 callers, including exchange-hash and vocab code. CRLF is converted only on notes that a rename or rewrite already writes.
 - Converting CRLF notes that no write touches.
+- Amend converting CRLF notes. Amend still refuses a CRLF note (`errAmendNoFrontmatter`), untouched; ruling V6 folded in only refresh and resituate.
+- Other typed re-marshal writers: identity backfill (`identity_backfill.go`) still drops unmodeled keys. It is not in ruling V6's scope; a follow-up issue should move it onto the same node edit.
 - `user:` fallback on first-write paths (`learn.go:1046`, `serve_learn.go:257`, `pulldown.go:351`). They have no prior value to keep.
 - Any edit to the learn SKILL.md or vault note 1067.
 - Any change to the order or layout of show's output.
@@ -108,7 +110,14 @@ The effect depends on where the CRLF line endings are:
 
 - **LF frontmatter, CRLF body:** conversion leaves the hash unchanged. A test pins `exchangeHash(pre) == exchangeHash(toLF(pre))`.
   - **Ruling V2 (U2 implementation, 2026-10-01).** As first written, this held only when the blank separator line right after the closing `---\n` was LF. When the whole body is CRLF, that line is `\r\n` too, and `embed.ExtractBody` strips only a leading `\n`, so the old `canonicalExchangeBody` kept a leading blank line and conversion moved the hash. `canonicalExchangeBody` now converts the text after an LF frontmatter's closing line to LF before extracting the body, so this bullet holds for both separator layouts.
-  - Exactly one layout's hash changed compared with older binaries: **LF frontmatter whose text right after the closing `---\n` begins with `\r\n`** (a CRLF separator line). It now hashes the same as its LF conversion, as ruling S6 intends. Pure-LF notes rebuild byte-for-byte and hash as before; CRLF-frontmatter notes don't split and take the same path as before. In a vault exchange with mixed binary versions, such a note can compare as changed across the version boundary, which can cause at most one spurious offer (or re-arm) per such note. The S6 property now draws the separator line's ending, and `CRLFBodyUnchangedByConversion` pins both separator layouts.
+  - Exactly one layout's hash changed compared with older binaries: **LF frontmatter whose text right after the closing `---\n` begins with `\r\n`** (a CRLF separator line). It now hashes the same as its LF conversion, as ruling S6 intends. Pure-LF notes rebuild byte-for-byte and hash as before; CRLF-frontmatter notes don't split and take the same path as before. The S6 property now draws the separator line's ending, and `CRLFBodyUnchangedByConversion` pins both separator layouts.
+  - **Version skew (final review F2).** For notes in that one layout only, while a parent and a child run different binaries (one before this change, one after), the two sides compute different `xh1:` hashes for the same content. Every comparison that needs *equal* hashes fails for those notes, and every *changed* check fires:
+    - **Spurious offers:** loop suppression (`offer_classify.go`, `offerWithdrawnReason`) does not fire, so an offer of the note can echo back to the parent.
+    - **Missed dedupe:** merged-query dedupe rule 2 (`merged_dedupe.go`) does not merge the parent item with the local note, so it shows twice.
+    - **Refused pull-down:** a pulled copy's hash no longer equals the parent's envelope hash, so pulling such a note fails with `errPullHashMismatch` and writes nothing.
+    - **One-time re-arm:** hashes recorded under the old binary (a link's `hash`, outbox step and rejected hashes, decline entries) compare as changed. That re-offers, re-arms or re-presents the note once.
+  - **Self-correcting, checked against the code.** Once both sides run the new binary, live hashes agree, so dedupe, loop suppression and pull-down behave normally again. Each stale recorded hash is replaced the next time that exchange runs: an offer receipt stores the parent's new `StoredHash` (`offer_receipt.go:67`), a pull records the envelope hash (`pulldown.go:419`), and a re-decline or re-reject records the current hash (`outbox.go:202`). So the effect is bounded to the skew window plus one exchange per note.
+  - **Why no `xh2:` bump.** Bumping the prefix would make *every* note compare as *unknown* across versions. Under ADR D3, unknown never passes loop suppression, dedupe rule 2 or `--expect-hash`, so the whole vault would degrade during the skew window, not just one rare layout. The affected layout is rare (a hand- or Windows-edited body under engram-written LF frontmatter), and its effect is bounded and self-correcting, so the canonical form changed in place under `xh1:`.
 - **CRLF frontmatter:** before conversion, the hash is computed as if the note had no frontmatter. The fields are empty and the whole file is the body. Conversion therefore changes the hash. **This is a deviation from the stated requirement. It cannot be avoided without making `SplitFrontmatter` CRLF-tolerant, which is out of scope.** It is harmless, for two reasons:
   - Before conversion the note's `xid` cannot be read: `decodeExchangeFrontmatter` (`amend_fold.go:59-63`) returns `errAmendNoFrontmatter`. So no exchange path can have recorded a hash for the CRLF form.
   - The converted note hashes the same as its LF original, so a hash recorded before the file became CRLF matches again.
@@ -153,6 +162,18 @@ Rewrite `resituateTyped` (`resituate.go:242-264`):
 
 Every other key survives, including keys the typed doc does not define. The same ruling V3 refusal applies to `situation` and `created` (resituate re-emits `created` as its own string), and the same decode-again guard runs before the write. Update the function's docstring and the `vault-note-identity` requirement to match. resituate's re-embed and offer path is unchanged.
 
+**Ruling V6 (final review F5): refresh and resituate convert CRLF.** Like adopt and rename, refresh (`RefreshSkill`) and resituate (`runResituateLocked`) apply `toLF` at their read site. Both always rewrite the note on success, so the conversion lands in that single atomic write and only on notes they write. A refused note (anchored key, malformed `created`) stays untouched, CRLF included.
+
+**Ruling V6 (final review F4): amend edits the frontmatter as a `yaml.Node` too.** Amend keeps its typed flow for deciding *what* changes (overrides, identity re-stamp, chunk-source merge, supersedes, pending), but writes the change as node edits (`amendFrontmatter`, `applyTypedEdit` in `frontmatter_node.go`):
+
+1. Parse the frontmatter into a mapping, decode the typed doc from it, and encode the doc before the edit (`before`).
+2. Apply the edit to the typed doc, as before, and encode it again (`after`).
+3. For each key `after` carries: set it in place when its encoding differs from `before`'s, or insert it at the typed writer's key position when the mapping lacks it. Delete each key `after` omits (an omitempty field the edit cleared). `created` is also re-emitted when the file's own text differs from the typed quoted form, as the typed re-marshal always did.
+4. Leave every other key exactly as parsed: unedited modeled keys, unmodeled keys, and their anchors and style.
+5. Refuse untouched (`errFrontmatterAnchoredKey`) when a key step 3 would set or delete carries an anchor, and decode the result again before writing (`errFrontmatterUndecodable`), the same ruling V3 guards.
+
+For a note without unmodeled keys or anchors, this writes the same bytes as the typed re-marshal. `TestRunAmend_ExchangeHashParityWithPreChangeAmend` pins it on 32 inputs (fact, feedback and runbook; full exchange notes and minimal older-style notes; every amend kind that writes frontmatter) against goldens written by the pre-change amend at `49cfc120`. It asserts equal exchange hashes and equal bytes. A binary built from `49cfc120` matched the goldens' `engram show` exchange hash on all 26 cases that need no chunk index. So the offer paths, which stage and compare these bytes and hashes, behave exactly as before for such notes.
+
 ### D7: tests
 
 All tests follow TDD, with the failing test written first, and use `t.Parallel()`. Each subtest builds its own fixture.
@@ -186,7 +207,7 @@ All tests follow TDD, with the failing test written first, and use `t.Parallel()
 - [Risk] The yaml.Node re-encode in adopt and refresh reformats quoting and whitespace for keys it doesn't touch. → Mitigation: the typed-struct path already re-marshalled the whole document, so formatting changes no more than it did before. P2 asserts decoded values, not bytes.
 - [Risk] The pre-flight reads each renamed note twice, once in the pre-flight and once in the loop. → This is acceptable. Reparent and adopt are rare, one-shot operations.
 - [Risk] Converting a CRLF note changes its exchange hash when its frontmatter was CRLF. → No recorded hash can name the CRLF form, since its xid is unreadable. The converted note matches the hash of its LF original. Both facts are pinned by tests (D5).
-- [Risk] Ruling V2 changed the exchange hash of one layout: LF frontmatter followed by a CRLF separator line. Between binary versions such a note compares as changed, which can cause a spurious offer or re-arm for it. → The layout is rare (hand-converted or Windows-edited notes), the effect is bounded to one exchange per note, and after both sides upgrade the hash is stable and equal to the LF form (D5).
+- [Risk] Ruling V2 changed the exchange hash of one layout: LF frontmatter followed by a CRLF separator line. While a parent and a child run different binaries, those notes can get a spurious offer (loop suppression doesn't fire), fail to dedupe in merged queries (shown twice), and fail to pull down (`errPullHashMismatch`, nothing written). Hashes recorded under the old binary re-arm once after the upgrade. → The layout is rare. The effect is bounded to the skew window plus one exchange per note, and self-correcting, because receipts, pulls and declines re-record the new hash. No `xh2:` bump, because a bump would make every note compare as unknown across versions (D5).
 - [Risk] A node edit (adopt, refresh, resituate) meets an anchor on a key it sets or deletes. → It refuses the note untouched (ruling V3) instead of writing dangling aliases; such anchors only occur in hand-authored YAML.
 - [Risk] A converted note's vectors are rebuilt during apply, which adds embed time. → Only CRLF notes that are written are affected, and that is rare.
 

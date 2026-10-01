@@ -197,7 +197,9 @@ func RefreshSkill(
 		return fmt.Errorf("register-skills: refresh: read %s: %w", basename, readErr)
 	}
 
-	updated, renderErr := applySkillNoteBody(raw, source, true)
+	// Refresh always rewrites the note, so a CRLF note is converted to LF in
+	// that same write (design D5, final review F5).
+	updated, renderErr := applySkillNoteBody(toLF(raw), source, true)
 	if renderErr != nil {
 		return renderErr
 	}

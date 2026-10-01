@@ -8,9 +8,19 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 
 	"go.yaml.in/yaml/v3"
+)
+
+// unexported constants.
+const (
+	// mappingStride is the step between a YAML mapping node's key nodes:
+	// its Content alternates key, value.
+	mappingStride = 2
+	// yamlStringTag is the YAML tag of a plain string scalar.
+	yamlStringTag = "!!str"
 )
 
 // unexported variables.
@@ -24,6 +34,38 @@ var (
 	// frontmatter does not decode (a guard behind errFrontmatterAnchoredKey).
 	errFrontmatterUndecodable = errors.New("rewritten frontmatter does not decode")
 )
+
+// applyTypedEdit edits mapping — a note's parsed frontmatter — so it carries
+// a typed doc's edit, as node edits: before and after are the typed doc's
+// encodings (encodeNode) as decoded from mapping and after the edit. A key
+// after carries is set in place when its encoding differs from before's, or
+// inserted at after's key position when mapping lacks it (as the typed
+// writer always emitted it); a key after omits is deleted. Each normalized
+// key is also re-emitted whenever mapping's own text for it differs from
+// after's encoding (the typed writer's canonical form, e.g. a quoted
+// created: date). Every other key — an unedited modeled key, or one the
+// typed doc does not define — is left exactly as parsed, anchors and style
+// included. A key the edit would set or delete that carries an anchor
+// refuses the whole edit (errFrontmatterAnchoredKey) before anything
+// changes.
+func applyTypedEdit(mapping, before, after *yaml.Node, normalized ...string) error {
+	order, changed, deleted := planTypedEdit(mapping, before, after, normalized)
+
+	anchorErr := refuseAnchoredKeys(mapping, append(slices.Collect(maps.Keys(changed)), deleted...)...)
+	if anchorErr != nil {
+		return anchorErr
+	}
+
+	deleteMappingKeys(mapping, deleted...)
+
+	for _, key := range order {
+		if value, ok := changed[key]; ok {
+			setMappingValueOrdered(mapping, key, value, order)
+		}
+	}
+
+	return nil
+}
 
 // cloneNode deep-copies a YAML node, so building a copy never mutates the
 // parsed source.
@@ -72,6 +114,17 @@ func hasAnchor(node *yaml.Node) bool {
 	return slices.ContainsFunc(node.Content, hasAnchor)
 }
 
+// mappingKeyIndex is the Content index of key's key node in mapping, or -1.
+func mappingKeyIndex(mapping *yaml.Node, key string) int {
+	for index := 0; index+1 < len(mapping.Content); index += mappingStride {
+		if mapping.Content[index].Value == key {
+			return index
+		}
+	}
+
+	return -1
+}
+
 // parseFrontmatterMapping parses a frontmatter block into its top-level
 // YAML mapping node. An empty block yields an empty mapping; a block that is
 // not a mapping is an error (errFrontmatterNotMapping).
@@ -94,6 +147,39 @@ func parseFrontmatterMapping(frontmatter []byte) (*yaml.Node, error) {
 	return document.Content[0], nil
 }
 
+// planTypedEdit is applyTypedEdit's plan: after's key order, the keys to
+// set (with their new value nodes), and the keys to delete.
+func planTypedEdit(
+	mapping, before, after *yaml.Node, normalized []string,
+) (order []string, changed map[string]*yaml.Node, deleted []string) {
+	beforeValues := make(map[string]string, len(before.Content)/mappingStride)
+	for index := 0; index+1 < len(before.Content); index += mappingStride {
+		beforeValues[before.Content[index].Value] = renderNode(before.Content[index+1])
+	}
+
+	order = make([]string, 0, len(after.Content)/mappingStride)
+	changed = make(map[string]*yaml.Node, len(after.Content)/mappingStride)
+
+	for index := 0; index+1 < len(after.Content); index += mappingStride {
+		key, value := after.Content[index].Value, after.Content[index+1]
+		order = append(order, key)
+
+		if typedKeyChanged(mapping, key, value, beforeValues, normalized) {
+			changed[key] = value
+		}
+	}
+
+	deleted = make([]string, 0, len(beforeValues))
+
+	for key := range beforeValues {
+		if !slices.Contains(order, key) {
+			deleted = append(deleted, key)
+		}
+	}
+
+	return order, changed, deleted
+}
+
 // refuseAnchoredKeys returns errFrontmatterAnchoredKey naming the first of
 // keys present in mapping whose key node, value node, or any node beneath
 // the value carries an anchor — the keys a node edit is about to replace or
@@ -114,6 +200,13 @@ func refuseAnchoredKeys(mapping *yaml.Node, keys ...string) error {
 	return nil
 }
 
+// renderNode is a value node's YAML text, for comparing two encodings.
+func renderNode(node *yaml.Node) string {
+	rendered, _ := yaml.Marshal(node) // an encoded value node always marshals
+
+	return string(rendered)
+}
+
 // setMappingValue sets key's value in a YAML mapping, in place when the
 // key exists, otherwise appended.
 func setMappingValue(mapping *yaml.Node, key string, value *yaml.Node) {
@@ -125,7 +218,60 @@ func setMappingValue(mapping *yaml.Node, key string, value *yaml.Node) {
 		}
 	}
 
-	mapping.Content = append(mapping.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, value)
+	mapping.Content = append(mapping.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: yamlStringTag, Value: key}, value)
+}
+
+// setMappingValueOrdered sets key's value in mapping: in place when the key
+// exists, otherwise inserted after the nearest key that precedes it in
+// order (before the nearest following one when none precedes it, else at
+// the end), so a new key lands where the typed frontmatter writer puts it.
+func setMappingValueOrdered(mapping *yaml.Node, key string, value *yaml.Node, order []string) {
+	if index := mappingKeyIndex(mapping, key); index >= 0 {
+		mapping.Content[index+1] = value
+
+		return
+	}
+
+	position := slices.Index(order, key)
+	insertAt := -1
+
+	for previous := position - 1; previous >= 0 && insertAt < 0; previous-- {
+		if index := mappingKeyIndex(mapping, order[previous]); index >= 0 {
+			insertAt = index + mappingStride
+		}
+	}
+
+	if insertAt < 0 {
+		insertAt = len(mapping.Content)
+
+		for next := position + 1; next < len(order); next++ {
+			if index := mappingKeyIndex(mapping, order[next]); index >= 0 {
+				insertAt = index
+
+				break
+			}
+		}
+	}
+
+	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: yamlStringTag, Value: key}
+	mapping.Content = slices.Insert(mapping.Content, insertAt, keyNode, value)
+}
+
+// typedKeyChanged reports whether key, with value as after's encoding, must
+// be written: mapping lacks it, before lacked it or encoded it differently,
+// or it is a normalized key whose text in mapping differs from value's.
+func typedKeyChanged(
+	mapping *yaml.Node, key string, value *yaml.Node, beforeValues map[string]string, normalized []string,
+) bool {
+	keyIndex := mappingKeyIndex(mapping, key)
+	previous, known := beforeValues[key]
+	rendered := renderNode(value)
+
+	if keyIndex < 0 || !known || previous != rendered {
+		return true
+	}
+
+	return slices.Contains(normalized, key) && renderNode(mapping.Content[keyIndex+1]) != rendered
 }
 
 // verifyFrontmatterDecodes decodes content's frontmatter again, as a guard

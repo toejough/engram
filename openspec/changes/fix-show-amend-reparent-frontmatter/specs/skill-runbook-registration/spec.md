@@ -11,6 +11,8 @@ Accepting a refresh offer SHALL do the following:
 - rebuild the sidecar;
 - set `pending: true`, so curation re-checks the fields against the new text.
 
+A refresh of a CRLF note SHALL convert it to LF inside the same single write, as adopt does.
+
 Refresh edits `skill_hash`, `skill_key`, `skill_source`, and `pending` as a YAML node. When a key it is about to set or delete — or that key's value, or anything beneath the value — carries a YAML anchor, refresh SHALL refuse the note untouched and name the key (`errFrontmatterAnchoredKey`), rather than drop the value and leave an alias to it dangling. Before writing, refresh SHALL decode the rewritten frontmatter again and refuse to write it if it does not decode (`errFrontmatterUndecodable`).
 
 #### Scenario: Accepted refresh
@@ -24,6 +26,10 @@ Refresh edits `skill_hash`, `skill_key`, `skill_source`, and `pending` as a YAML
 #### Scenario: Refresh keeps an unmodeled key
 - **WHEN** a refresh is accepted for a note whose frontmatter carries a key the runbook note model does not define (e.g. `luhmann_old: "12"`)
 - **THEN** the refreshed note still carries that key with the same value
+
+#### Scenario: Refresh converts a CRLF note
+- **WHEN** a refresh is accepted for a skill note whose lines end in `\r\n`
+- **THEN** the refresh succeeds, inside its single write the note is converted to LF, and its authored fields are unchanged
 
 #### Scenario: Refresh refuses an anchored key
 - **WHEN** an accepted refresh would replace or delete a frontmatter key (`skill_hash`, `skill_key`, `skill_source`, or `pending`) that carries a YAML anchor, or whose value does

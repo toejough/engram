@@ -98,39 +98,56 @@ func TestAdoptAndRefresh_UnknownKeysProperty(t *testing.T) {
 		before := strings.Replace(curatePromotedNoteFixture(), "vault: personal\n", "vault: personal\n"+unknown, 1)
 		before = strings.Replace(before, "created: 2026-09-21\n", "created: \"2026-09-21\"\n", 1)
 
-		after, err := runSkillAcceptMode(context.Background(), mode, before)
+		// A CRLF note is converted to LF in the same write (design D5).
+		input := before
+		if rapid.Bool().Draw(rt, "crlf") {
+			input = crlf(before)
+		}
+
+		after, err := runSkillAcceptMode(context.Background(), mode, input)
 
 		if anchored != "" {
-			assertSkillAcceptRefused(rt, mode, before, after, err)
+			assertSkillAcceptRefused(rt, mode, input, after, err)
 
 			return
 		}
 
-		if err != nil {
-			rt.Fatalf("%s: %v", mode, err)
-		}
-
-		fields := frontmatterOf(after)
-		if fields["skill_key"] != "claude:curate" || fields["skill_hash"] == nil || fields["skill_source"] == nil {
-			rt.Fatalf("%s did not set the skill fields: %v", mode, fields)
-		}
-
-		beforeFields := frontmatterOf(before)
-		ignored := []string{"skill_key", "skill_hash", "skill_source", "pending"}
-
-		if mode == "adopt" {
-			ignored = append(ignored, "aliases") // the adopt rename records the old basename
-		}
-
-		for _, key := range ignored {
-			delete(beforeFields, key)
-			delete(fields, key)
-		}
-
-		if !reflect.DeepEqual(beforeFields, fields) {
-			rt.Fatalf("%s changed a key it does not set:\nbefore %v\nafter  %v", mode, beforeFields, fields)
-		}
+		assertSkillAcceptKeptKeys(rt, mode, before, after, err)
 	})
+}
+
+// assertSkillAcceptKeptKeys checks a successful adopt or refresh: LF output,
+// the skill fields set, and every other key — luhmann included, and for
+// refresh aliases too — at its decoded value.
+func assertSkillAcceptKeptKeys(rt *rapid.T, mode, before, after string, err error) {
+	if err != nil {
+		rt.Fatalf("%s: %v", mode, err)
+	}
+
+	if strings.Contains(after, "\r") {
+		rt.Fatalf("%s wrote CRLF", mode)
+	}
+
+	fields := frontmatterOf(after)
+	if fields["skill_key"] != "claude:curate" || fields["skill_hash"] == nil || fields["skill_source"] == nil {
+		rt.Fatalf("%s did not set the skill fields: %v", mode, fields)
+	}
+
+	beforeFields := frontmatterOf(before)
+	ignored := []string{"skill_key", "skill_hash", "skill_source", "pending"}
+
+	if mode == "adopt" {
+		ignored = append(ignored, "aliases") // the adopt rename records the old basename
+	}
+
+	for _, key := range ignored {
+		delete(beforeFields, key)
+		delete(fields, key)
+	}
+
+	if !reflect.DeepEqual(beforeFields, fields) {
+		rt.Fatalf("%s changed a key it does not set:\nbefore %v\nafter  %v", mode, beforeFields, fields)
+	}
 }
 
 // assertSkillAcceptRefused checks an anchored-edited-key refusal: the

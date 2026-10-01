@@ -191,13 +191,14 @@ type fieldOverride struct {
 //     avoiding a second unmarshal of the frontmatter just to recover the date)
 //   - override: applies args' field overrides to the decoded doc, returning
 //     the per-field changed flags; it also merges chunk sources into the doc
-//   - render:   produces (frontmatter+body) for the (possibly) updated doc,
-//     re-rendering the body only when contentChanged is true
+//   - render:   produces the body for the (possibly) updated doc,
+//     re-rendering it only when contentChanged is true; the frontmatter is
+//     written as node edits (amendFrontmatter)
 type typedAmend[T any] struct {
 	kind     string
 	created  func(doc T) string
 	override func(doc *T, args AmendArgs, parsedSupersedes []supersedesEntry, identity *identityStamp) bool
-	render   func(doc T, when time.Time, body string, contentChanged bool) string
+	render   func(doc T, when time.Time, body string, contentChanged bool) string // body only
 }
 
 // amendContent applies all amendments to raw note bytes. Returns the
@@ -223,6 +224,31 @@ func amendContent(
 	}
 
 	return updated, contentChanged, nil
+}
+
+// amendFrontmatter writes an amend's typed-doc edit onto the note's parsed
+// frontmatter mapping as node edits (applyTypedEdit) — so keys the typed
+// doc does not define, and anchors on keys the amend does not edit,
+// survive — then prepends it to body. created: is re-emitted in the typed
+// writer's quoted form, as the typed re-marshal did. An anchor on an edited key refuses
+// the amend (errFrontmatterAnchoredKey), and the result is decoded again
+// before it is returned (errFrontmatterUndecodable). For a note without
+// unknown keys the decoded frontmatter, and so the exchange hash, equal the
+// typed re-marshal this replaces (pinned against the pre-change amend).
+func amendFrontmatter(mapping, before *yaml.Node, after any, body string) (string, error) {
+	editErr := applyTypedEdit(mapping, before, encodeNode(after), "created")
+	if editErr != nil {
+		return "", fmt.Errorf("amend: %w", editErr)
+	}
+
+	rendered := marshalFrontmatter(mapping) + body
+
+	verifyErr := verifyFrontmatterDecodes(rendered)
+	if verifyErr != nil {
+		return "", fmt.Errorf("amend: %w", verifyErr)
+	}
+
+	return rendered, nil
 }
 
 // amendIdentity returns the identity a content-changing amend re-stamps, or
@@ -358,12 +384,19 @@ func applyRunbookAmend(
 	parsedSupersedes []supersedesEntry,
 	identity *identityStamp,
 ) (string, bool, error) {
+	mapping, parseErr := parseFrontmatterMapping(frontmatter)
+	if parseErr != nil {
+		return "", false, fmt.Errorf("amend: parsing runbook frontmatter: %w", parseErr)
+	}
+
 	var doc runbookFrontmatterDoc
 
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
+	unmarshalErr := mapping.Decode(&doc)
 	if unmarshalErr != nil {
 		return "", false, fmt.Errorf("amend: parsing runbook frontmatter: %w", unmarshalErr)
 	}
+
+	before := encodeNode(doc)
 
 	when, createdErr := parseCreated(doc.Created)
 	if createdErr != nil {
@@ -391,7 +424,13 @@ func applyRunbookAmend(
 	listsChanged := applyRunbookListOverrides(&doc, args)
 	contentChanged := fieldsChanged || bodyChanged || listsChanged
 
-	return renderAmendedRunbook(doc, when, body, currentSteps, args.Body, contentChanged), contentChanged, nil
+	rendered, renderErr := amendFrontmatter(mapping, before, doc,
+		renderAmendedRunbook(doc, when, body, currentSteps, args.Body, contentChanged))
+	if renderErr != nil {
+		return "", false, renderErr
+	}
+
+	return rendered, contentChanged, nil
 }
 
 // applyRunbookListOverrides replaces the runbook's red_flags and triggers lists
@@ -423,12 +462,19 @@ func applyTypedAmend[T any](
 	identity *identityStamp,
 	spec typedAmend[T],
 ) (string, bool, error) {
+	mapping, parseErr := parseFrontmatterMapping(frontmatter)
+	if parseErr != nil {
+		return "", false, fmt.Errorf("amend: parsing %s frontmatter: %w", spec.kind, parseErr)
+	}
+
 	var doc T
 
-	err := yaml.Unmarshal(frontmatter, &doc)
+	err := mapping.Decode(&doc)
 	if err != nil {
 		return "", false, fmt.Errorf("amend: parsing %s frontmatter: %w", spec.kind, err)
 	}
+
+	before := encodeNode(doc)
 
 	when, createdErr := parseCreated(spec.created(doc))
 	if createdErr != nil {
@@ -437,7 +483,12 @@ func applyTypedAmend[T any](
 
 	contentChanged := spec.override(&doc, args, parsedSupersedes, identity)
 
-	return spec.render(doc, when, body, contentChanged), contentChanged, nil
+	rendered, renderErr := amendFrontmatter(mapping, before, doc, spec.render(doc, when, body, contentChanged))
+	if renderErr != nil {
+		return "", false, renderErr
+	}
+
+	return rendered, contentChanged, nil
 }
 
 // applyVocabAssignmentAfterAmend assigns vocab terms to an amended note,
@@ -680,7 +731,8 @@ func reEmbedAndActivate(
 	}
 }
 
-// renderAmendedFact re-renders a fact note from the (possibly updated) doc.
+// renderAmendedFact re-renders a fact note's body from the (possibly updated)
+// doc; amendFrontmatter writes its frontmatter.
 // When a semantic field changed, the body formula is rebuilt from scratch and
 // the supersedes lines are appended. Otherwise, the body is preserved but
 // supersedes lines are replaced in place.
@@ -702,13 +754,14 @@ func renderAmendedFact(
 		body = replaceSupersedes(body, doc.Supersedes)
 	}
 
-	return marshalFrontmatter(doc) + body
+	return body
 }
 
-// renderAmendedFeedback re-renders a feedback note from the (possibly updated)
-// doc. When a semantic field changed, the body formula is rebuilt from scratch
-// and supersedes lines are appended. Otherwise, the body is preserved but
-// supersedes lines are replaced in place.
+// renderAmendedFeedback re-renders a feedback note's body from the (possibly
+// updated) doc; amendFrontmatter writes its frontmatter. When a semantic
+// field changed, the body formula is rebuilt from scratch and supersedes
+// lines are appended. Otherwise, the body is preserved but supersedes lines
+// are replaced in place.
 func renderAmendedFeedback(
 	doc feedbackFrontmatterDoc,
 	_ time.Time,
@@ -727,11 +780,12 @@ func renderAmendedFeedback(
 		body = replaceSupersedes(body, doc.Supersedes)
 	}
 
-	return marshalFrontmatter(doc) + body
+	return body
 }
 
-// renderAmendedRunbook re-renders a runbook note from the (possibly updated)
-// doc. When contentChanged, the body is rebuilt from newSteps (args.Body when
+// renderAmendedRunbook re-renders a runbook note's body from the (possibly
+// updated) doc; amendFrontmatter writes its frontmatter. When
+// contentChanged, the body is rebuilt from newSteps (args.Body when
 // supplied, else the note's existing steps) and fresh supersedes lines are
 // appended. Otherwise the body is preserved but supersedes lines are replaced
 // in place — mirrors renderAmendedFact/renderAmendedFeedback.
@@ -742,7 +796,7 @@ func renderAmendedRunbook(
 	contentChanged bool,
 ) string {
 	if !contentChanged {
-		return marshalFrontmatter(doc) + replaceSupersedes(body, doc.Supersedes)
+		return replaceSupersedes(body, doc.Supersedes)
 	}
 
 	steps := currentSteps
@@ -758,7 +812,7 @@ func renderAmendedRunbook(
 		Triggers: doc.Triggers,
 	}
 
-	return marshalFrontmatter(doc) + renderRunbookBody(f)
+	return renderRunbookBody(f)
 }
 
 // runAmendLocked is RunAmend's locked section: the note read-modify-write,
