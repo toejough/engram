@@ -94,12 +94,11 @@ At the start of execution, push all seven steps below to the task list via `Task
 
    Every dispatched unit's completion report ends with a `LESSONS:` line (route's completion-report
    contract). The moment a unit's result comes back — before moving to the next unit — record that
-   line verbatim in a running list for this cycle, including `LESSONS: none` entries. Every entry has
-   a REQUIRED status: `captured → <note>` or `not captured`. Then judge each lesson in it right away,
-   per the learn guidance's subagent-return cue: a lesson that clears learn's bar gets a fast-path
-   `/learn` before the next dispatch, and its entry's status becomes `captured → <the note it wrote>`.
-   State the entry, status included, before you dispatch the next unit. This list is separate from
-   the lessons audit (step 7); the full list, statuses included, goes to the closing `/learn`.
+   line verbatim in a running list for this cycle, including `LESSONS: none` entries. Then judge each
+   lesson in it right away, per the learn guidance's subagent-return cue: a lesson that clears learn's
+   bar gets a fast-path `/learn` before the next dispatch, and its list entry is marked captured (with
+   the note it wrote). This list is separate from the lessons audit (step 7); the full list, marks
+   included, goes to the closing `/learn`.
 5. **Document.** Update every piece of documentation the changes touch — `README.md`, `CLAUDE.md`, `docs/`, glossaries, skill references — so the docs match the new reality. The step completes only when **gate C** closes over every touched doc.
 6. **Complete.** If the work originated from an issue, close it. Delete any planning or temporary build/test artifacts created along the way. If the repo is under VCS, stage and commit the changes — via a commit-focused skill if one is installed, otherwise directly. Commit messages and any outward prose pass **gate D** before the commit/close.
 7. **Capture (close) — `/learn`.** Before invoking the closing `/learn`, run the **lessons audit** over the cycle's mechanical corpus:
@@ -122,7 +121,7 @@ At the start of execution, push all seven steps below to the task list via `Task
 
    Then: Run the `learn` skill again to preserve the lessons from this session, handing it the
    full list of `LESSONS:` lines collected across step 4's dispatches (including any `none`
-   entries), with their statuses, alongside the lessons-audit map above — the closing
+   entries), with their captured marks, alongside the lessons-audit map above — the closing
    `/learn` skips the captured lines and curates the rest against its own quality bar; step 7
    drops no line. The learn skill's Step 2.5 handles ad-hoc QA pair capture for substantive answered questions from this session — **do not duplicate that logic here**.
 
