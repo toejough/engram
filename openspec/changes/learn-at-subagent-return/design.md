@@ -62,6 +62,18 @@ Two edits to `learn.md`; the other text stays byte-identical.
 
 The implementing task checks this pre-written wording against the final spec before applying it (vault note 1072). The GREEN arms test the text as applied, not this draft.
 
+**Amendment (U2+U3 review F5): the applied text, as tested, differs from the draft above.** The 3.1 wording check against the final `guidance-learn-moments` spec (vault note 1072) found three coverage gaps in the draft and closed them before applying, so GREEN tests this text, not item 2's draft:
+
+> - **A subagent just returned, and its report's `LESSONS:` line isn't `none`** — the lesson is in hand
+>   now, and at the closing learn it is one line in a long list (if the closing learn runs at all).
+>   Judge each lesson as you read the report: if it is a confirmed correction, reversal, explicit
+>   save-request, or confirmed approach that states a reusable rule, `/learn` it on the fast path — one
+>   note per lesson — **before your next dispatch** (or before you end your turn, if no dispatch is
+>   left). Skip `none`, "done, tests pass", and anything the report doesn't confirm ("might be a
+>   race") — those are not lessons, and the closing learn will discard them anyway.
+
+The three additions: the spec's four kinds include the explicit save-request, which the draft's three-kind list omitted; the spec requires firing "before it dispatches the next subagent **or ends its turn**", so "one note per lesson" and "(or before you end your turn, if no dispatch is left)" were added so the last return (unit 3, no further dispatch) still triggers the cue; and "one note per lesson" makes explicit the spec's counting unit, which the draft left implicit. Shipped as commit `85e58376`; `git diff` shows exactly two hunks (U1-report.md:354–361).
+
 ### D3: The learn skill applies the bar per return; the closing learn is the backstop
 
 - **Fast-path block (SKILL.md lines 21–27).** The trigger widens from "a CORRECTION moment mid-task" to also "a subagent return whose `LESSONS:` line carries a lesson that clears the bar". The body (skip Step 1 and 1.5, go to Step 2, no `engram ingest --auto`) is unchanged.
@@ -102,6 +114,14 @@ Subagents inherit session context and would carry the treatment into a RED contr
 - `$ARM/home/.claude/skills/` holds all six engram skills (`recall`, `learn`, `please`, `route`, `curate`, `write-memory`), copied from 67911117, in **both** arms. The full guidance set refers to recall, route and please, so these skills have to be present, and pinning them to the pre-edit commit keeps the SKILL.md edits from becoming a second variable.
 - `$ARM/bin/engram` is the installed engram binary. `$ARM/vault` starts empty.
 - `$ARM/home/.claude/agents/unit-worker.md` is the fixture subagent: `model: haiku`, no tools, and a system prompt that returns one fixed report verbatim, whatever the input. The report is chosen per cell.
+
+**Amendment (task 1 ruling T3): the worker is keyed by unit, not a single fixed report.** D5's "one fixed report, whatever the input" cannot produce unit 2's and unit 3's `LESSONS: none` reports from a single template; the harness instead keys the worker's scripted report by unit number (1, 2 or 3), identical across arms and cells. Accepted per ruling T3.
+
+**Amendment (ruling T10, Joe 2026-09-30): the fixture worker does real work.** The tool-less worker above was visibly fake — RED v1 showed 18/19 arms flagging "0 tool uses" and 3/19 abandoning the task, which produced N1's one false fire from worker-doubt rather than the LESSONS cue (not a RED/GREEN confound, since the fixture is identical across arms, but a realism threat to both RED and GREEN). After two further STOPs (T8: Read/Write/Edit with a scripted implementation and a pre-generated test-output log — the orchestrator still fired `/learn` about the worker's unverifiable claim, outside the window; T9: narrow Bash limited to `cat`-ing the log — the orchestrator sent the worker back to run real tests and abandoned when it couldn't), the shipped fixture (T10) is a real, stdlib-only Go module per domain: the worker Reads a stub, Writes a pre-authored implementation and `_test.go`, and runs real `go -C <module> test ./...` under the D5/D11 sandbox (`$ARM/bin/go`, `GOCACHE`/`GOPATH`/`GOMODCACHE` inside `$ARM`, `GOPROXY=off`). The report lines, including every `LESSONS:` line, are unchanged and pinned by a test. The v1 tool-less results are superseded (`dev/eval/learn-at-return/results/superseded-v1/`).
+
+**Amendment (ruling T5, T6): route records and `qa` writes are excluded from the window scoring.** A route-evidence or route-dispatch note (`engram learn --slug route-dispatch-*`/`route-evidence-*`, or a written note basename `<id>.<date>.route-(dispatch|evidence)-*.md`) written inside the window counts as neither a pass nor a false fire — it is listed in `window_route_records` for audit. Likewise, `engram learn qa` is not a lesson capture for this gate; it is listed in `window_qa_writes` for audit. Only `Skill`(learn), or an `engram learn` write of kind `feedback`/`fact`/`runbook` that is not a route record, count as lesson captures.
+
+**Amendment (ruling T7): every scored arm is hand-audited, not just gated on the mechanical flags.** Before any cell's verdict counts, the scoring step hand-audits every arm carrying `window_end_unit: null`, an unparsed in-window learn mention, a route record, or a `qa` write — and, in practice, every arm regardless of flags — to confirm the mechanical label against a read of the transcript (see the hand audits in `.superpowers/sdd/tasks/U1-report.md`, tasks 2.1, 3.2 and 4.1/4.3).
 
 **Scenario (fictional domains; vault notes 283, 1037).** The `-p` prompt gives the orchestrator a three-unit task in a fictional project and says to dispatch each unit, in order, to the `unit-worker` agent and not to do the units itself. The task is unambiguous, so a question-stop is not the expected response. Unit 1's report carries the cell's `LESSONS:` line; units 2 and 3 return `LESSONS: none`. The lesson is incidental to a substantive task, not the point of the prompt (buried-subtask shape, note 283). Two domains alternate across arms:
 
@@ -144,7 +164,11 @@ Subagents inherit session context and would carry the treatment into a RED contr
   - **Question-stop** (the turn ends with a question before the unit-2 dispatch; vault notes 1030/1037). Reported as an instruction-clarity finding, not a failure. At most 2 replacements per cell; a third question-stop in a cell stops that cell, the fixture's clarity gap is fixed, and the cell is rerun in both arms from scratch.
   - **Degenerate run** (API error, empty result, or unit 1 never dispatched to `unit-worker`). Discard counts are reported per cell (MEMORY: detect degraded builds).
 
-**Sample sizes and bars (pre-registered).** Arms run in batches, one cell per batch, interleaving RED and GREEN.
+**Amendment (U2+U3 review F6): a fourth degenerate class exists beyond the three above.** Because both arms load the GREEN `learn.md` (the full guidance set includes it for the fixture worker too, not only the orchestrator — see "Arm contents" above), the worker itself is exposed to the treatment. In the GREEN N3 cell, 2 of the first 7 arms had the worker return `LESSONS: none` instead of the scripted hunch line — "unit-1 `LESSONS:` line never returned / not verbatim" — and were discarded and replaced (`results/green-N3-r1`). This is legitimate (the treatment was not delivered as scripted) but was not one of D5's three listed kinds; it does not hide a false fire, because in both discarded arms the orchestrator made no learn call of any kind and the vault stayed empty.
+
+**Sample sizes and bars (pre-registered).** Arms run in batches, one cell per batch.
+
+**Amendment (U2+U3 review F10): batches did not interleave RED and GREEN.** D7's order (RED first, then the `learn.md` edit, then GREEN) makes interleaving within a batch impossible; batches instead ran all-RED (19:02–19:53 UTC, 2026-09-30) and then all-GREEN (20:12–21:24 UTC). Drift risk is accepted as low: one ~2.5 h span, the same `claude` 2.1.282 and `claude-opus-5-5`, and the same engram binary sha across both halves.
 
 | Cell | GREEN n | RED n |
 |---|---|---|
@@ -209,6 +233,8 @@ At close-out, the implementer:
 
 This proposal carries the pointer now; the tick waits for close-out, so that 3.4 is not marked done before the lever it names has shipped.
 
+**Amendment (ruling T1): 3.4 was ticked early, at Joe's explicit 2026-09-30 instruction.** Joe instructed "sync and archive `learn-rate-skill-only`, then apply this one" before this change's own tasks 1–8 completed. `dev/eval/audit/escalation-decision-2026-09-29.md` was written, 3.4 was ticked with the pointer to that file and this change, and `learn-rate-skill-only` was archived (commits `d66facd4`, `a9d39cb2`) — all ahead of this change's own close-out (D8 steps 1–2, and D9 step 2). Joe's explicit instruction overrides this design's "tick only after ship" ordering; D9's archive-order steps 1–2 ran before this change's tasks 1–7, not after.
+
 ### D9: Archive order
 
 `learn` and `please` are delta specs in the unarchived `learn-rate-skill-only`, so `openspec/specs/{learn,please}` do not exist yet. `openspec validate --strict` passes without them (checked 2026-09-29); `openspec archive` applies MODIFIED against the main specs and would fail. The close-out order is therefore:
@@ -229,6 +255,7 @@ This proposal carries the pointer now; the tick waits for close-out, so that 3.4
 - **[Dedupe relies on "a note written this session covers it"]** → The L2/L3 cells test it. On every path, the closing learn reads its own session's writes (please's captured marks were dropped by Joe, 2026-10-01; L2 showed vault-coverage dedupe at 5/5 even on the pre-edit text).
 - **[Prose caps below ~95%]** (vault note 198). → The closing backstop stays, and the parked mechanical layers remain the escalation path.
 - **[Archive dependency on a sibling change]** → D9 fixes the order, and the collision sweep reads the sibling's full tasks.md (vault note 757).
+- **[Info note, U2+U3 review F4] `delegate.md`'s "never trust the builder's own done" versus the return cue's "confirmed".** `delegate.md` says reviewing what returns is the orchestrator's job and warns against trusting "done" as the subagent reports it. The return cue (D2) has the orchestrator judge a lesson as "confirmed" directly from the subagent's own report. These are not a contradiction: the cue judges the *lesson's* confirmation (is it a correction, reversal, or validated approach the report states as fact, not a hypothesis), not the *unit's* completion — delegate.md's skepticism about "done" is a separate axis. No rule reconciles the two in text today, though GREEN transcripts show orchestrators doing both (capturing the lesson, then separately challenging the worker with SendMessage). No action is required for ship; worth reconsidering if `please`/`route` wording is revisited again.
 
 ## Migration Plan
 
