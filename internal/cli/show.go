@@ -57,7 +57,11 @@ func RunShow(_ context.Context, args ShowArgs, deps ShowDeps, stdout io.Writer) 
 		return fmt.Errorf("show: read %s: %w", notePath, readErr)
 	}
 
-	renderShow(stdout, exchangeHashHeader(body)+capRedFlagsForPreview(string(body)), note.Outgoing)
+	// engram show is the full-fidelity source the guidance shim names: it
+	// never applies the query preview budget (D1/#772,
+	// recall-runbook-surfacing "Show never truncates red flags"), so the
+	// raw body is printed verbatim.
+	renderShow(stdout, exchangeHashHeader(body)+string(body), note.Outgoing)
 
 	return nil
 }

@@ -113,6 +113,12 @@ func TestRunQuery_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
 
 	g.Expect(runbookContent).To(ContainSubstring("the newly added red flag entry for this specific defect"))
 	g.Expect(runbookContent).To(ContainSubstring("EARLIER RED_FLAGS OMITTED"))
+	// #772: the marker must name a count and the note's real basename, not
+	// the fixed, countless `<basename>` placeholder — and running the exact
+	// command it names must return every entry (recall-runbook-surfacing,
+	// "The omission marker's command does not itself truncate").
+	g.Expect(runbookContent).To(ContainSubstring(
+		"run engram show 1.2026-09-18.oversized-red-flags for all 21"))
 }
 
 // TestRunQuery_RunbookCompetesInMainMatchedSet proves runbook notes receive no

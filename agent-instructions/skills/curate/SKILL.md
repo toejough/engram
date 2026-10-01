@@ -34,14 +34,16 @@ never discard it, and always keep it in the vault.
 - `situation`: when would an agent reach for this skill (retrieval-shaped phrasing, e.g. "reviewing code for style violations")
 - `done_when`: the observable end state (e.g. "all flagged issues fixed or documented")
 - `triggers`: literal user phrasings that should fire it (e.g. "code review", "style check"; may be empty)
-- `red_flags`: the skill's key failure modes, total rendered under 1200 bytes
+- `red_flags`: the skill's key failure modes — aim for the 1200-byte `engram query` preview budget
+  (rendered YAML bytes); never drop a valid red flag to fit
 
 Amend the note: `engram amend --target <basename> --situation "<text>" --done-when "<text>" --red-flag "<text>" --trigger "<phrase>"` (repeat `--trigger` and `--red-flag` for multiple entries). Then clear the marker: `engram amend --target <basename> --clear-pending` (a skill note has no xid, so
 `engram show` prints no `# exchange_hash` line and there is no `--expect-hash` to pass).
 
 **For refreshed notes (fields already present):** Re-check each field against the skill's current body.
-Amend any that no longer fit, keeping `red_flags` under the 1200-byte rendered cap. Then clear the
-marker: `engram amend --target <basename> --clear-pending`.
+Amend any that no longer fit — aim for the 1200-byte `engram query` preview budget (rendered YAML
+bytes); never drop a valid red flag to fit. Then clear the marker:
+`engram amend --target <basename> --clear-pending`.
 
 ## Step 1 — Find pending offers
 

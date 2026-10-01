@@ -230,7 +230,7 @@ func substituteLocalItem(parentItem queryItem, local exchangeNote, localModelID 
 	if hasProvenance(parentItem, provenanceExplore) {
 		sourceTerm = parentItem.SourceTerm
 	} else {
-		content = capRedFlagsForPreview(content)
+		content = capRedFlagsForPreview(content, local.basename)
 	}
 
 	return queryItem{

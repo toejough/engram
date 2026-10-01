@@ -549,7 +549,7 @@ func TestMergeQueryPayloads_SubstitutesUnrankedLocalCopy(t *testing.T) {
 		Kind:        typeFact,
 		Score:       0.6,
 		Provenances: []string{provenanceDirect, provenanceClusterRep},
-		Content:     capRedFlagsForPreview(stripWikilinks(string(local.raw))),
+		Content:     capRedFlagsForPreview(stripWikilinks(string(local.raw)), local.basename),
 		ModelID:     testLocalModel,
 		FromParent:  new(false),
 	}))

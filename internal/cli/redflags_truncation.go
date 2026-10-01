@@ -1,20 +1,28 @@
 package cli
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 )
 
 // unexported constants.
 const (
-	redFlagsBlockStart    = "\nred_flags:\n"
-	redFlagsOmittedMarker = "    - \"[EARLIER RED_FLAGS OMITTED — run `engram show <basename>` for the full list]\"\n"
+	redFlagsBlockStart = "\nred_flags:\n"
+	// redFlagsPreviewBudget is engram query's red_flags preview budget,
+	// measured in rendered YAML bytes — not a cap on what a runbook may
+	// carry. engram show never applies it (recall-runbook-surfacing,
+	// "Show never truncates red flags"); only the query preview callers in
+	// this package do.
 	redFlagsPreviewBudget = 1200
 )
 
-// capRedFlagsForPreview truncates an overlong red_flags list to fit within
-// redFlagsPreviewBudget, keeping entries from the END of the list rather
-// than the start.
+// capRedFlagsForPreview truncates an overlong red_flags list in a query
+// preview to fit within redFlagsPreviewBudget, keeping entries from the END
+// of the list rather than the start. basename is the note's real basename,
+// substituted into the omission marker so `engram show <basename>` (the
+// command the marker names) actually resolves and returns the full list —
+// engram show itself never truncates (D1/#772).
 //
 // Callers append new red_flags entries (engram learn runbook --red-flag /
 // engram amend --red-flag), so the newest entry is conventionally last —
@@ -27,7 +35,7 @@ const (
 // Content with no red_flags block, or a red_flags list already within
 // budget, is returned unchanged (byte-identical) — this function must never
 // touch a note that was never at truncation risk.
-func capRedFlagsForPreview(content string) string {
+func capRedFlagsForPreview(content, basename string) string {
 	blockStart := strings.Index(content, redFlagsBlockStart)
 	if blockStart < 0 {
 		return content
@@ -40,10 +48,40 @@ func capRedFlagsForPreview(content string) string {
 		return content
 	}
 
-	kept := keepNewestEntriesWithinBudget(entryLines, redFlagsPreviewBudget-len(redFlagsOmittedMarker))
-	newList := redFlagsOmittedMarker + strings.Join(kept, "")
+	total := len(entryLines)
+	kept := entryLines
+
+	// The marker's length depends on how many entries it says were dropped
+	// and on the total count, both of which depend on how many entries fit
+	// — so fit, measure the real marker, then re-fit against it, until the
+	// kept set stops shrinking (converges in at most a few passes, since
+	// dropped/total only grow in digit-length rarely).
+	for {
+		marker := redFlagsOmittedMarker(total-len(kept), total, basename)
+
+		refit := keepNewestEntriesWithinBudget(entryLines, redFlagsPreviewBudget-len(marker))
+		if len(refit) == len(kept) {
+			break
+		}
+
+		kept = refit
+	}
+
+	marker := redFlagsOmittedMarker(total-len(kept), total, basename)
+	newList := marker + strings.Join(kept, "")
 
 	return content[:listStart] + newList + content[listStart+consumed:]
+}
+
+// redFlagsOmittedMarker renders the in-band omission marker naming how many
+// entries were dropped, the list's total, and the real `engram show
+// <basename>` command that returns every entry (recall-runbook-surfacing,
+// "Oversized red_flags list keeps its newest entry in query").
+func redFlagsOmittedMarker(dropped, total int, basename string) string {
+	return fmt.Sprintf(
+		"    - \"[%d EARLIER RED_FLAGS OMITTED — run engram show %s for all %d]\"\n",
+		dropped, basename, total,
+	)
 }
 
 // keepNewestEntriesWithinBudget walks entryLines from the end, keeping

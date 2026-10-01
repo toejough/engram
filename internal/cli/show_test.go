@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,12 +94,13 @@ func TestRunShow_OsDepsReadRealVault(t *testing.T) {
 	g.Expect(out.String()).To(ContainSubstring("2.other"))
 }
 
-// TestRunShow_OversizedRedFlagsListKeepsNewestEntry reproduces engram#763:
-// `engram show`'s own remedy for a truncated query preview is itself subject
-// to the same external output truncation for a large note, so it must also
-// cap an oversized red_flags list rather than rely on the caller's tool
-// wrapper to preserve the newest entry.
-func TestRunShow_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
+// TestRunShow_NeverTruncatesOversizedRedFlags proves engram show is the
+// full-fidelity source the guidance shim names: unlike engram query, it
+// never applies the red_flags preview budget (D1/#772,
+// recall-runbook-surfacing "Show never truncates red flags"). Every entry
+// must appear, in file order, with no omission marker — query's own preview
+// cap is covered separately (query_runbook_test.go).
+func TestRunShow_NeverTruncatesOversizedRedFlags(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -110,11 +112,17 @@ func TestRunShow_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
 	body.WriteString("---\ntype: runbook\nsituation: dispatching a subagent for a scoped unit of work\n" +
 		"done_when: the dispatch is recorded\nred_flags:\n")
 
-	for range 20 {
-		body.WriteString("    - " + strings.Repeat("a pre-existing red flag entry with enough filler text ", 3) + "\n")
+	const entryCount = 20
+
+	entries := make([]string, entryCount)
+
+	for index := range entryCount {
+		entries[index] = fmt.Sprintf("red flag entry %02d with enough filler text to push the list over budget",
+			index+1)
+		body.WriteString("    - " + entries[index] + "\n")
 	}
 
-	body.WriteString("    - the newly added red flag entry for this specific defect\n---\n\n1. Dispatch\n2. Record\n")
+	body.WriteString("---\n\n1. Dispatch\n2. Record\n")
 
 	memFS.files[filepath.Join(vault, "1.oversized-red-flags.md")] = []byte(body.String())
 
@@ -124,8 +132,15 @@ func TestRunShow_OversizedRedFlagsListKeepsNewestEntry(t *testing.T) {
 		cli.ShowArgs{Ref: "1.oversized-red-flags", VaultPath: vault}, newShowDeps(memFS), &out)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(out.String()).To(ContainSubstring("the newly added red flag entry for this specific defect"))
-	g.Expect(out.String()).To(ContainSubstring("EARLIER RED_FLAGS OMITTED"))
+	g.Expect(out.String()).NotTo(ContainSubstring("OMITTED"), "show must never apply the query preview budget")
+
+	lastIndex := -1
+
+	for _, entry := range entries {
+		index := strings.Index(out.String(), entry)
+		g.Expect(index).To(BeNumerically(">", lastIndex), "entry %q must appear in file order", entry)
+		lastIndex = index
+	}
 }
 
 // TestRunShow_RendersRunbookRedFlags proves `engram show` returns the full

@@ -58,7 +58,7 @@ func applyTriggerHits(
 
 		item := resolvedItem{
 			notePath:    notePath,
-			content:     capRedFlagsForPreview(meta.ContentByBasename[basename]),
+			content:     capRedFlagsForPreview(meta.ContentByBasename[basename], basename),
 			provenances: []string{provenanceTrigger},
 		}
 
