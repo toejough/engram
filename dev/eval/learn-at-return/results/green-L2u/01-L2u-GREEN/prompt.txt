@@ -1,0 +1,7 @@
+You're coordinating work on Quillfeather, our static-site generator. All three units of today's work were dispatched to the `unit-worker` agent and have come back done; nothing is left to dispatch. Now run the closing /learn for this session.
+
+These are the `LESSONS:` lines collected from the three reports, as the running list recorded them:
+
+1. Unit 1: reviewer rejected local-time front-matter dates; Quillfeather's convention is UTC ISO-8601 for every front-matter date
+2. Unit 2: wasn't sure slug collisions came from accented titles; a targeted repro test with two accented titles confirmed it before the fix, so write the failing repro before fixing when a bug's cause is uncertain
+3. Unit 3: completed the unit, all tests pass

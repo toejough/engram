@@ -58,6 +58,18 @@
       "bar": "5/5 write only the 2 uncaptured worth-keeping lines and still sweep",
       "replacements": 0,
       "cost_usd": 1.814
+    },
+    "green-L2u": {
+      "cell": "L2u",
+      "arm": "GREEN (HEAD texts)",
+      "n_run": 5,
+      "n_scored": 5,
+      "passes": 5,
+      "meets_bar": true,
+      "bar": "5/5 sweep, no duplicate of the covered lesson, judge the other lines per the bar (no captured marker in the list)",
+      "replacements": 0,
+      "cost_usd": 1.615,
+      "note": "final-review finding 1: L2/L2 GREEN lines carried an explicit [captured at return → note] marker; L2u removes it. Coverage found via the opening engram query (shim) in every arm."
     }
   },
   "premise": {

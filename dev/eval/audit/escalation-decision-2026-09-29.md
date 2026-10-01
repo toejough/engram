@@ -21,5 +21,5 @@ Task 3.3's verdict: W2 did not rise detectably. The parent-side check shows capt
 ## Decision
 
 - **Escalate:** none of D-F's three layers (watcher/metacognition layer, mechanical LESSONS validator, hooks/harness push).
-- **Park further:** no. The layers stay parked with D-F's revisit condition unchanged.
+- **Park further:** no. The layers stay parked (not parked further), with D-F's revisit condition unchanged; the next lever is this change.
 - **Next lever:** the md-only change `learn-at-subagent-return` (`openspec/changes/learn-at-subagent-return/`), which moves capture to the subagent-return moment and keeps the closing learn as a backstop.

@@ -68,7 +68,7 @@
 
 ## 7. Deploy and verify
 
-- [ ] 7.1 Run `engram update --with-guidance`, then `engram update`, from a directory outside the repo. Confirm that the deployed `learn.md` is byte-identical to `agent-instructions/guidance/learn.md` (`cmp`), at every canonical path the update output names, including at least `~/.claude/engram/guidance/learn.md` and `~/.pi/agent/engram/guidance/learn.md`. Confirm that the compat symlinks (`~/.claude/engram/learn.md`, and the Pi surface path) resolve to those files.
+- [ ] 7.1 Only after this branch is merged to main AND pushed, run `engram update --with-guidance`, then `engram update`, from inside the merged main checkout (local mode; from outside a repo, `engram update` clones GitHub's default branch, which would deploy the old text before the push). Confirm that the deployed `learn.md` is byte-identical to `agent-instructions/guidance/learn.md` (`cmp`), at every canonical path the update output names, including at least `~/.claude/engram/guidance/learn.md` and `~/.pi/agent/engram/guidance/learn.md`. Confirm that the compat symlinks (`~/.claude/engram/learn.md`, and the Pi surface path) resolve to those files.
 - [ ] 7.2 Confirm that the deployed `learn`, `please` and `route` SKILL.md files, at the paths `engram update` names, are byte-identical to their sources (`cmp`). Leave the skill-mirror refresh offers for Joe; do not accept or decline them.
 
 ## 8. Close-out (design D8, D9)
