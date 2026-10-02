@@ -4,8 +4,9 @@ package cli_test
 // design D2): moving backfill onto the YAML-node edit must write exactly
 // what the typed re-marshal wrote for notes without unknown keys or
 // anchors. The goldens under testdata/backfill_identity_parity were written
-// by the backfill at 0f5d91b7, before any change, on these same inputs, and
-// cross-checked against a binary built from that commit.
+// in-process by the backfill at 0f5d91b7, before any change, on these same
+// inputs (a binary cannot run the backfill in isolation: engram update
+// self-updates and re-execs first).
 
 import (
 	"context"
