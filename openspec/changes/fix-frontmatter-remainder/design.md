@@ -19,11 +19,11 @@ Each claim was checked against the code at `0f5d91b7`:
 - identity backfill keeps every key it does not set, with the same anchor and decode guards as every other node edit.
 - a refused receipt is reported once, is never re-sent, stays visible, and resumes by itself.
 - amend and backfill write the same bytes as before for notes without CRLF, unknown keys or anchors.
+- identity backfill stamps CRLF notes too, converting them to LF only when it writes them, with fresh sidecars (coordinator follow-up, 2026-10-02: no exception for this pre-existing gap).
 
 **Non-Goals:**
 - General CRLF support in `embed.SplitFrontmatter`, or in `engram show`'s `# exchange_hash:` header. A hand-converted CRLF-frontmatter note still gets no header (see Risks).
 - Converting a note amend does not write: a bare `--discard` target, a fold's offer, or a fold's existing note when the fold changes nothing.
-- CRLF in identity backfill. It still skips a CRLF note as unparseable, as before, and `engram update`'s missing-identity notice still does not count it.
 - Unknown sub-keys inside a modeled list entry that amend replaces (unchanged from the archived change, V6 F4 step 3).
 - Re-offering a note's new content while its entry needs attention. The note must take the old receipt first; then the hash-change check queues it again.
 
@@ -61,6 +61,8 @@ Amend's `amendFrontmatter` is generalized into a shared `nodeEditFrontmatter(map
 4. An `errFrontmatterAnchoredKey` or `errFrontmatterUndecodable` refusal is returned to `backfillIdentity`, which records it, leaves the note untouched, and continues. After the loop it returns the stamped count and `errors.Join` of the refusals, each naming the note. `--dry-run` computes the edit too, so it reports the same refusals.
 5. Otherwise write once (`WriteFileAtomic`), as now.
 
+**CRLF (follow-up, 2026-10-02).** Backfill used to skip a CRLF note as unparseable, and `notesMissingIdentityFields` did not count it, so such a note was never stamped and never reported. Now `backfillOneNote` reads the note through `toLF` before splitting the frontmatter, and `notesMissingIdentityFields` detects on the LF form. The stamped note is written as LF in the same single `WriteFileAtomic`. When the note was converted, `writeBackfilledNote` rebuilds its sidecar through a new `IdentityDeps.Embedder` (wired from `Deps.Embed`), because conversion changes `embed.ContentHash`; a rebuild failure fails the run like a write failure. An already-stamped, refused or dry-run note is not written, so it stays CRLF. `backfillTypedNote` now only computes the edit, and `backfillOneNote` owns the dry-run gate and the write.
+
 Collecting refusals and continuing matches the archived reparent pre-flight, which reports every refusal at once. Stopping at the first refusal would leave a whole vault unstamped behind one hand-edited note.
 
 The node edit writes the same bytes as `marshalFrontmatter(doc)` for a note in the typed writer's form, which is how every note that predates identity was written. `TestBackfillIdentity_ParityWithPreChangeBackfill` pins this against goldens generated in-process by the code at `0f5d91b7` before any change. A binary cross-check is not possible here: `engram update --backfill-identity` runs the backfill only after its self-update and re-exec, so a `0f5d91b7` binary never runs it in isolation (verification.md, task 0.3).
@@ -91,7 +93,7 @@ Strict TDD, a failing test first for each defect, `t.Parallel()` everywhere, gom
 
 - `AmendDeps` and `IdentityDeps` are structs of closures, so the tests use closure fakes, as the archived design D7 recorded. The outbox tests use the existing `outboxEnv` / `memVaultFS` / `fakeParent` harness with a receipt applier that runs the real `applyReceiptToContent` on the in-memory note.
 - Rapid properties:
-  - **P1 (backfill):** for a generated fact or feedback note missing identity, with 0–3 unknown keys (scalars, lists or maps) and optionally an anchor on an unedited key (`source`, aliased by another key), backfill succeeds, every unknown key decodes to its input value, the anchored key and its alias decode to the same value, and `repo`/`user`/`vault` are set.
+  - **P1 (backfill):** for a generated fact or feedback note missing identity, with 0–3 unknown keys (scalars, lists or maps), optionally an anchor on an unedited key (`source`, aliased by another key), and a CRLF layout (none, all, frontmatter only, body only), backfill succeeds, writes no `\r\n`, every unknown key decodes to its input value, the anchored key and its alias decode to the same value, and `repo`/`user`/`vault` are set.
   - **P2 (amend CRLF):** for a generated note and amend kind, amend of the all-CRLF form equals, byte for byte, amend of the LF form, and contains no `\r\n`.
 - Parity: `TestBackfillIdentity_ParityWithPreChangeBackfill` (14 goldens from `0f5d91b7`, generated before any code change). Amend's parity is pinned by the existing `TestRunAmend_ExchangeHashParityWithPreChangeAmend` (32 goldens); this change re-generated those 32 outputs with the code at `0f5d91b7` before any change (32/32 byte-identical to the committed goldens), and a binary built from `0f5d91b7` reproduced the 26 that need no chunk index byte for byte.
 

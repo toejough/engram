@@ -89,7 +89,9 @@ The curation fold (`engram amend --discard --into`) and the offer receipt SHALL 
 ### Requirement: Backfill for pre-existing notes missing identity fields
 `engram update` SHALL detect notes missing `repo:`, `user:`, or `vault:` frontmatter fields and surface a notify-only notice naming the `--backfill-identity` flag, following the same detect-and-notify convention as the vocab-migration, Luhmann-branching, and chunk-pruning notices. `engram update --backfill-identity` SHALL rewrite each flagged note's `repo:`, `user:`, and `vault:` fields using the same `user:`/`vault:` detection as `learn`/`amend`, and the project-field-preferred `repo:` fallback described above, leaving all other note fields unchanged.
 
-Identity backfill SHALL make that edit on the parsed frontmatter as YAML-node edits: it sets `repo:`, `user:` and `vault:`, and re-emits `created:` in its quoted form when the file's text for it differs. Every other key SHALL keep its value, including keys the typed note model does not define and YAML anchors on keys it does not edit. When a key it would set or re-emit, or that key's value, or anything beneath the value, carries a YAML anchor, backfill SHALL leave that note untouched, continue with the other notes, and then fail naming each refused note and key (`errFrontmatterAnchoredKey`). Before writing, it SHALL decode the rewritten frontmatter again and refuse to write a note whose frontmatter does not decode (`errFrontmatterUndecodable`). `--dry-run` SHALL report the same refusals without writing. For a note without unknown keys or anchors, backfill SHALL write the same bytes as before this requirement.
+Identity backfill SHALL make that edit on the parsed frontmatter as YAML-node edits: it sets `repo:`, `user:` and `vault:`, and re-emits `created:` in its quoted form when the file's text for it differs. Every other key SHALL keep its value, including keys the typed note model does not define and YAML anchors on keys it does not edit. When a key it would set or re-emit, or that key's value, or anything beneath the value, carries a YAML anchor, backfill SHALL leave that note untouched, continue with the other notes, and then fail naming each refused note and key (`errFrontmatterAnchoredKey`). Before writing, it SHALL decode the rewritten frontmatter again and refuse to write a note whose frontmatter does not decode (`errFrontmatterUndecodable`). `--dry-run` SHALL report the same refusals without writing. For a note without CRLF line endings, unknown keys or anchors, backfill SHALL write the same bytes as before this requirement.
+
+Identity backfill, and `engram update`'s missing-identity detection, SHALL read every note as LF, converting each `\r\n` to `\n`, and SHALL NOT skip a note for its line endings. A note backfill stamps SHALL be written as LF in the single atomic write backfill already makes, and its sidecar SHALL be rebuilt when it was converted, because conversion changes its content hash. A note backfill does not write (already stamped, refused, or under `--dry-run`) SHALL NOT be converted.
 
 #### Scenario: Update detects notes missing identity fields
 - **WHEN** `engram update` runs and the vault contains one or more notes with no `repo:`, `user:`, or `vault:` frontmatter fields
@@ -118,6 +120,10 @@ Identity backfill SHALL make that edit on the parsed frontmatter as YAML-node ed
 #### Scenario: Backfill refuses an anchored identity key
 - **WHEN** `engram update --backfill-identity` runs on a vault where one flagged note's `user:` key carries a YAML anchor that another key aliases, and a second flagged note has none
 - **THEN** the second note is stamped, the first note is byte-identical, and the command fails naming the first note and `user`
+
+#### Scenario: Backfill converts a CRLF note
+- **WHEN** `engram update --backfill-identity` runs on a vault holding a fact or feedback note missing identity whose lines end in `\r\n`
+- **THEN** the note is stamped and written with no `\r\n`, byte-identical to the backfill of its LF form, and its sidecar is fresh; `engram update` without the flag had counted it in the missing-identity notice
 
 #### Scenario: Backfill output is unchanged for notes without unknown keys
 - **WHEN** `engram update --backfill-identity` stamps a note whose frontmatter holds only keys the typed note model defines and no anchors

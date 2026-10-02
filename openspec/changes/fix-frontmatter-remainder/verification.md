@@ -53,3 +53,17 @@ A scratch parent ran `engram serve --addr 127.0.0.1:18789 --vault $S/pvault` (it
 **PASS** on every row: the new binary warns once, never re-sends, reports the entry, and records the kept receipt by itself once the note is fixed; the pre-change binary re-sends and warns on every drain.
 
 The parent server was stopped, and the temporary `0f5d91b7` worktree used for the pre-change binary was removed (`git worktree remove`).
+
+## Follow-up: identity backfill converts CRLF (2026-10-02)
+
+Same setup as task 5.1: a fresh scratch build (`go build`, no `go install`), `env -i` with scratch `HOME`/`XDG_DATA_HOME`, `ENGRAM_VAULT_PATH` in scratch, and `engram update` run from a plain copy of the source tree with `GOBIN` in scratch. Two fact notes were learned. Note A had `repo:`/`user:`/`vault:` stripped, `luhmann_old: "12"` added, and was converted to all-CRLF (15 CR lines). Note B kept its identity and was converted to all-CRLF (16 CR lines). `engram embed status`: `stale: 2`.
+
+| # | Check | Result |
+|---|---|---|
+| D1 | `engram update --dry-run` | the notice `notes missing repo:/user:/vault: provenance found — run engram update --backfill-identity …` appears: the CRLF note is now detected. **PASS** |
+| D2 | `engram update --backfill-identity` | exit 0; `stamped 1 note(s)`. **PASS** |
+| D3 | Note A | 0 CR lines; `user: joe`, `vault: personal` added; `luhmann_old: "12"` kept. **PASS** |
+| D4 | Note B (already stamped, so not written) | still 16 CR lines; sha256 `4453e6b0a9997232…` unchanged. **PASS** |
+| D5 | `engram embed status` | `stale: 1` (was 2): A's sidecar was rebuilt; the remaining stale sidecar is B's, from the hand conversion, and backfill does not write B. **PASS** |
+
+`TestBackfillIdentity_ParityWithPreChangeBackfill` still reproduces all 14 goldens byte for byte.

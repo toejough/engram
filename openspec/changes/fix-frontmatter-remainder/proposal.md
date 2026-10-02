@@ -11,7 +11,7 @@ Joe asked for all three to be finished as one change on 2026-10-02.
 ## What Changes
 
 - **Amend converts CRLF.** Amend reads every note it touches through `toLF`, as rename, adopt, refresh and resituate do. A note amend already writes (the target of a content or bookkeeping amend, or the existing note of a fold) is written as LF in that same atomic write and re-embedded, because conversion changes its content hash. A note amend does not write is never converted. The `--expect-hash` check runs on the LF form, the form amend edits.
-- **Identity backfill edits frontmatter as YAML nodes.** It sets `repo:`, `user:` and `vault:` (and re-emits `created:` in its quoted form, as before) through the shared node edit in `frontmatter_node.go`. Keys the typed model does not define, and anchors on keys it does not edit, survive. An anchored key it would edit refuses that note untouched (`errFrontmatterAnchoredKey`), the rewritten frontmatter is decoded again before the write (`errFrontmatterUndecodable`), and the run stamps every other note and then fails naming each refused note. A note without unknown keys or anchors is written byte-for-byte as before.
+- **Identity backfill edits frontmatter as YAML nodes.** It sets `repo:`, `user:` and `vault:` (and re-emits `created:` in its quoted form, as before) through the shared node edit in `frontmatter_node.go`. Keys the typed model does not define, and anchors on keys it does not edit, survive. An anchored key it would edit refuses that note untouched (`errFrontmatterAnchoredKey`), the rewritten frontmatter is decoded again before the write (`errFrontmatterUndecodable`), and the run stamps every other note and then fails naming each refused note. A note without unknown keys or anchors is written byte-for-byte as before. Backfill also stops skipping CRLF notes: it reads every note as LF, writes a stamped CRLF note as LF in the same atomic write, and rebuilds its sidecar.
 - **A refused receipt needs attention instead of being re-sent.** When the parent accepts an offer but its receipt cannot be recorded because the local note's frontmatter refuses the edit (an anchored `parent:`, or frontmatter that does not decode), the outbox entry moves to a new `attention` state. It keeps the receipt and the hash that was sent. The drain warns once, naming the note and the reason, and never re-sends that entry. Each later drain retries recording the kept receipt locally, without contacting the parent. Once the note decodes and is anchor-free, the receipt is recorded and the entry finishes as an accepted one would. The `engram update` outbox notice lists entries that need attention.
 
 ## Capabilities
@@ -22,7 +22,7 @@ None.
 
 ### Modified Capabilities
 
-- `vault-note-identity`: amend converts the CRLF notes it writes to LF instead of refusing them. Identity backfill keeps every key it does not set, including unmodeled keys, with the shared anchor refusal and decode-again guard.
+- `vault-note-identity`: amend converts the CRLF notes it writes to LF instead of refusing them. Identity backfill keeps every key it does not set, including unmodeled keys, with the shared anchor refusal and decode-again guard, and stamps CRLF notes instead of skipping them.
 - `vault-parent-offers`: a receipt the local note refuses puts the entry in a terminal `attention` state that is never re-sent, is reported, and resumes on its own once the note can take the receipt.
 
 ## Impact
