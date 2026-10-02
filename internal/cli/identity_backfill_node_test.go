@@ -19,7 +19,76 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/toejough/engram/internal/cli"
+	"github.com/toejough/engram/internal/embed"
 )
+
+// TestBackfillIdentity_ConvertsCRLFNote: backfill reads a CRLF note as LF
+// (#789 design D2): a flagged note in any CRLF layout is stamped and
+// written as LF — byte-identical to the backfill of its LF form — with its
+// sidecar rebuilt; a note backfill does not write stays CRLF; a dry run
+// counts it and writes nothing.
+func TestBackfillIdentity_ConvertsCRLFNote(t *testing.T) {
+	t.Parallel()
+
+	lfNote := backfillNodeNote("fact", "source: agent\nluhmann_old: \"12\"\n")
+
+	for _, layout := range []string{"all", "frontmatter", "body"} {
+		t.Run(layout, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			crlf := newBackfillVault(map[string]string{"1.2026-01-01.a.md": crlfLayout(lfNote, layout)})
+			lfVault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": lfNote})
+
+			stamped, err := crlf.backfill(t.Context(), false)
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(stamped).To(Equal(1), "a CRLF note missing identity is stamped, not skipped")
+
+			_, lfErr := lfVault.backfill(t.Context(), false)
+			g.Expect(lfErr).NotTo(HaveOccurred())
+
+			written := crlf.files["/vault/1.2026-01-01.a.md"]
+			g.Expect(written).NotTo(ContainSubstring("\r\n"))
+			g.Expect(written).To(Equal(lfVault.files["/vault/1.2026-01-01.a.md"]))
+
+			sidecar, sidecarErr := embed.UnmarshalSidecar([]byte(crlf.files["/vault/1.2026-01-01.a.vec.json"]))
+			g.Expect(sidecarErr).NotTo(HaveOccurred())
+
+			if sidecarErr != nil {
+				return
+			}
+
+			g.Expect(sidecar.ContentHash).To(Equal(embed.ContentHash([]byte(written))),
+				"a converted note's sidecar is rebuilt")
+		})
+	}
+
+	t.Run("already stamped stays CRLF", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		stampedNote := toCRLF(backfillNodeNote("fact", "source: agent\nuser: alice@example.com\nvault: personal\n"))
+		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": stampedNote})
+
+		stamped, err := vault.backfill(t.Context(), false)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(stamped).To(BeZero())
+		g.Expect(vault.writes).To(BeZero())
+		g.Expect(vault.files["/vault/1.2026-01-01.a.md"]).To(Equal(stampedNote))
+	})
+
+	t.Run("dry run", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": toCRLF(lfNote)})
+
+		stamped, err := vault.backfill(t.Context(), true)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(stamped).To(Equal(1))
+		g.Expect(vault.writes).To(BeZero())
+	})
+}
 
 // TestBackfillIdentity_KeepsAnchorOnUneditedKey: an anchor on a key
 // backfill does not edit, and the key aliasing it, both survive.
@@ -78,9 +147,9 @@ func TestBackfillIdentity_KeepsUnmodeledKeys(t *testing.T) {
 }
 
 // TestBackfillIdentity_PreservesUnknownKeysAndAnchorsProperty: for any
-// fact or feedback note missing identity, with unknown keys and optionally
-// an anchor on an unedited key, backfill stamps it and every other key
-// decodes to its input value.
+// fact or feedback note missing identity, with unknown keys, optionally an
+// anchor on an unedited key, and any CRLF layout, backfill stamps it, writes
+// it as LF, and every other key decodes to its input value.
 func TestBackfillIdentity_PreservesUnknownKeysAndAnchorsProperty(t *testing.T) {
 	t.Parallel()
 
@@ -93,8 +162,15 @@ func TestBackfillIdentity_PreservesUnknownKeysAndAnchorsProperty(t *testing.T) {
 			source = "source: &src agent\nx_src: *src\n"
 		}
 
-		input := backfillNodeNote(noteType, source+extra)
-		before := decodeBackfillFrontmatter(rt, input)
+		lfInput := backfillNodeNote(noteType, source+extra)
+		before := decodeBackfillFrontmatter(rt, lfInput)
+
+		layout := rapid.SampledFrom([]string{"none", "all", "frontmatter", "body"}).Draw(rt, "crlf")
+
+		input := lfInput
+		if layout != "none" {
+			input = crlfLayout(lfInput, layout)
+		}
 
 		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": input})
 
@@ -103,7 +179,12 @@ func TestBackfillIdentity_PreservesUnknownKeysAndAnchorsProperty(t *testing.T) {
 			rt.Fatalf("backfill: stamped %d, err %v", stamped, err)
 		}
 
-		after := decodeBackfillFrontmatter(rt, vault.files["/vault/1.2026-01-01.a.md"])
+		written := vault.files["/vault/1.2026-01-01.a.md"]
+		if strings.Contains(written, "\r\n") {
+			rt.Fatalf("CRLF (%s) left in the written note: %q", layout, written)
+		}
+
+		after := decodeBackfillFrontmatter(rt, written)
 
 		for key, value := range before {
 			if slices.Contains([]string{"repo", "user", "vault", "created"}, key) {
@@ -188,6 +269,7 @@ func (v *backfillVault) backfill(ctx context.Context, dryRun bool) (int, error) 
 		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
 		DetectUser: func(context.Context) string { return "bob@example.com" },
 		Getenv:     func(string) string { return "" },
+		Embedder:   stubEmbedder{modelID: "stub@4", dims: 4},
 	}
 
 	return cli.ExportBackfillIdentity(ctx, "/vault", deps, dryRun)

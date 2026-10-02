@@ -25,6 +25,10 @@ type IdentityDeps struct {
 	DetectRepo func(ctx context.Context) string
 	DetectUser func(ctx context.Context) string
 	Getenv     func(string) string
+	// Embedder rebuilds the sidecar of a note backfill converted from CRLF
+	// to LF (#789 design D2), since conversion changes its content hash.
+	// Nil skips the rebuild.
+	Embedder embed.Embedder
 }
 
 // noteIdentityFields points at a typed note doc's identity fields, so one
@@ -129,58 +133,71 @@ func backfillOneNote(
 		return false, fmt.Errorf("backfill-identity: read %s: %w", notePath, readErr)
 	}
 
-	frontmatter, ok := splitFrontmatter(raw)
+	// Read as LF (#789 design D2): a CRLF note is converted only when
+	// backfill writes it, in that same write, and its sidecar is rebuilt.
+	lfRaw := toLF(raw)
+
+	frontmatter, ok := splitFrontmatter(lfRaw)
 	if !ok {
 		return false, nil
 	}
 
+	var (
+		rendered string
+		stamped  bool
+		editErr  error
+	)
+
 	switch peekNoteType(frontmatter) {
 	case typeFact:
-		return backfillTypedNote(ctx, notePath, raw, frontmatter, deps, dryRun,
+		rendered, stamped, editErr = backfillTypedNote(ctx, lfRaw, frontmatter, deps,
 			func(doc *factFrontmatterDoc) noteIdentityFields {
 				return noteIdentityFields{project: doc.Project, repo: &doc.Repo, user: &doc.User, vault: &doc.Vault}
 			})
 	case typeFeedback:
-		return backfillTypedNote(ctx, notePath, raw, frontmatter, deps, dryRun,
+		rendered, stamped, editErr = backfillTypedNote(ctx, lfRaw, frontmatter, deps,
 			func(doc *feedbackFrontmatterDoc) noteIdentityFields {
 				return noteIdentityFields{project: doc.Project, repo: &doc.Repo, user: &doc.User, vault: &doc.Vault}
 			})
 	default:
 		return false, nil
 	}
+
+	if editErr != nil || !stamped || dryRun {
+		return stamped, editErr
+	}
+
+	return true, writeBackfilledNote(ctx, deps, notePath, rendered, len(lfRaw) != len(raw))
 }
 
-// backfillTypedNote stamps repo:/user:/vault: on a fact or feedback note
-// whose identity is missing, as YAML-node edits on its parsed frontmatter
-// (nodeEditFrontmatter, #789 design D2): every key it does not set —
-// including keys the typed doc T does not define, and anchors on keys it
-// does not edit — keeps its value. created: is re-emitted in its quoted
+// backfillTypedNote computes the stamp of repo:/user:/vault: on a fact or
+// feedback note whose identity is missing, as YAML-node edits on its parsed
+// frontmatter (nodeEditFrontmatter, #789 design D2): every key it does not
+// set — including keys the typed doc T does not define, and anchors on keys
+// it does not edit — keeps its value. created: is re-emitted in its quoted
 // form, as the typed re-marshal did, so a note without unknown keys is
-// written byte-for-byte as before. Returns stamped=false, err=nil for an
+// stamped byte-for-byte as before. Returns stamped=false, err=nil for an
 // unparseable or already-stamped note (self-silencing — a detection/parse
 // failure must never fail the backfill); an anchored identity key or an
-// undecodable result is returned as the node edit's refusal, and the note
-// is not written. Under dryRun the edit is still computed, so a dry run
-// reports the same refusals, but nothing is written.
+// undecodable result is returned as the node edit's refusal.
 func backfillTypedNote[T any](
-	ctx context.Context, notePath string, raw, frontmatter []byte, deps IdentityDeps, dryRun bool,
-	identityOf func(doc *T) noteIdentityFields,
-) (bool, error) {
+	ctx context.Context, raw, frontmatter []byte, deps IdentityDeps, identityOf func(doc *T) noteIdentityFields,
+) (string, bool, error) {
 	mapping, parseErr := parseFrontmatterMapping(frontmatter)
 	if parseErr != nil {
-		return false, nil //nolint:nilerr // unparseable self-silences, same as oldVocabFilesPresent
+		return "", false, nil //nolint:nilerr // unparseable self-silences, same as oldVocabFilesPresent
 	}
 
 	var doc T
 
 	decodeErr := mapping.Decode(&doc)
 	if decodeErr != nil {
-		return false, nil //nolint:nilerr // unparseable self-silences, same as oldVocabFilesPresent
+		return "", false, nil //nolint:nilerr // unparseable self-silences, same as oldVocabFilesPresent
 	}
 
 	fields := identityOf(&doc)
 	if !identityMissing(*fields.user, *fields.vault) {
-		return false, nil
+		return "", false, nil
 	}
 
 	before := encodeNode(doc)
@@ -189,19 +206,10 @@ func backfillTypedNote[T any](
 
 	rendered, editErr := nodeEditFrontmatter(mapping, before, doc, string(embed.ExtractBody(raw)))
 	if editErr != nil {
-		return false, editErr
+		return "", false, editErr
 	}
 
-	if dryRun {
-		return true, nil
-	}
-
-	writeErr := deps.WriteFile(notePath, []byte(rendered))
-	if writeErr != nil {
-		return false, fmt.Errorf("backfill-identity: write %s: %w", notePath, writeErr)
-	}
-
-	return true, nil
+	return rendered, true, nil
 }
 
 // identityMissing reports whether a note's user:/vault: are both empty —
@@ -232,7 +240,8 @@ func newIdentityDeps(d Deps) IdentityDeps {
 		DetectUser: func(ctx context.Context) string {
 			return detectUser(ctx, d.Commander, d.Username)
 		},
-		Getenv: d.Getenv,
+		Getenv:   d.Getenv,
+		Embedder: d.Embed,
 	}
 }
 
@@ -259,7 +268,7 @@ func notesMissingIdentityFields(vaultPath string, fileSystem update.Filesystem) 
 			continue
 		}
 
-		frontmatter, ok := splitFrontmatter(raw)
+		frontmatter, ok := splitFrontmatter(toLF(raw)) // a CRLF note is backfilled too (#789)
 		if !ok {
 			continue
 		}
@@ -300,4 +309,30 @@ func resolvedBackfillIdentity(
 		User:  deps.DetectUser(ctx),
 		Vault: resolveVaultName("", deps.Getenv),
 	}
+}
+
+// writeBackfilledNote writes a stamped note in one atomic write and, when
+// backfill converted it from CRLF, rebuilds its sidecar: conversion changes
+// its content hash (#789 design D2). A nil Embedder skips the rebuild.
+func writeBackfilledNote(ctx context.Context, deps IdentityDeps, notePath, rendered string, converted bool) error {
+	writeErr := deps.WriteFile(notePath, []byte(rendered))
+	if writeErr != nil {
+		return fmt.Errorf("backfill-identity: write %s: %w", notePath, writeErr)
+	}
+
+	if !converted || deps.Embedder == nil {
+		return nil
+	}
+
+	sidecar, embedErr := embed.BuildSidecar(ctx, deps.Embedder, []byte(rendered))
+	if embedErr != nil {
+		return fmt.Errorf("backfill-identity: re-embedding %s: %w", notePath, embedErr)
+	}
+
+	sidecarErr := deps.WriteFile(embed.SidecarPath(notePath), embed.MarshalSidecar(sidecar))
+	if sidecarErr != nil {
+		return fmt.Errorf("backfill-identity: writing sidecar for %s: %w", notePath, sidecarErr)
+	}
+
+	return nil
 }

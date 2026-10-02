@@ -7,6 +7,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -368,6 +369,13 @@ func TestNotesMissingIdentityFields(t *testing.T) {
 			name:  "note missing identity flags the vault",
 			files: map[string][]byte{"/vault/1.2026-01-01.a.md": []byte(missingIdentityNote)},
 			want:  true,
+		},
+		{
+			name: "CRLF note missing identity flags the vault",
+			files: map[string][]byte{
+				"/vault/1.2026-01-01.a.md": []byte(strings.ReplaceAll(missingIdentityNote, "\n", "\r\n")),
+			},
+			want: true,
 		},
 		{
 			name:  "already-stamped note does not flag",
