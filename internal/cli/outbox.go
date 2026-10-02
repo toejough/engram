@@ -70,12 +70,15 @@ var (
 	errOfferLoopRefused = errors.New("the parent refused the offer as a loop (its vault ID is on offer.path)")
 	errOfferMalformed   = errors.New("the parent's offer receipt is malformed: its vault_id is not 32 lowercase " +
 		"hex, or its basename or for is not a Luhmann basename free of '/', '\\' and '|'")
-	errOfferRejected    = errors.New("the parent rejected the offer")
-	errOfferSelfParent  = errors.New("the parent reports this vault's own ID")
-	errOfferServerError = errors.New("the parent failed the offer")
-	errOfferUndecodable = errors.New("the parent's offer receipt does not decode")
-	errOfferWithdrawn   = errors.New("offer withdrawn at send time")
-	errParentTooOld     = errors.New("the parent is too old: its offer receipt carries no vault_id or basename " +
+	// errOfferNoUserIdentity: the note has no user: and none is detected,
+	// so no offer can be built.
+	errOfferNoUserIdentity = errors.New("cannot offer: no user identity detected; set git user.email")
+	errOfferRejected       = errors.New("the parent rejected the offer")
+	errOfferSelfParent     = errors.New("the parent reports this vault's own ID")
+	errOfferServerError    = errors.New("the parent failed the offer")
+	errOfferUndecodable    = errors.New("the parent's offer receipt does not decode")
+	errOfferWithdrawn      = errors.New("offer withdrawn at send time")
+	errParentTooOld        = errors.New("the parent is too old: its offer receipt carries no vault_id or basename " +
 		"(upgrade engram on the parent host)")
 	// errReceiptNeedsAttention marks a receipt the local note refused: the
 	// entry moved to the attention state, and the merge warns once instead
@@ -253,7 +256,7 @@ func applyDrainStep(
 	case offerFailed, offerTooOld, offerSkipped:
 	}
 
-	return applyUnsentStep(step, box, cache, now, parentURL, result), nil
+	return applyNotSentStep(step, box, cache, now, parentURL, result)
 }
 
 // applyHeldStep retries recording an attention entry's kept receipt on the
@@ -276,6 +279,35 @@ func applyHeldStep(
 	}
 
 	return finishAcceptedEntry(box, step, note), nil
+}
+
+// applyNotSentStep folds a send that produced no receipt. An offer that
+// could not be built for want of a user identity puts its entry in the
+// attention state (#789 design D9): the first time, the cause is returned
+// for the merge to warn once; while it stays there, silently. Each later
+// drain builds the payload again, so the entry is sent once detection
+// works. Anything else is applyUnsentStep.
+func applyNotSentStep(
+	step drainStep, box outboxFile, cache *parentCache, now time.Time, parentURL string, result *drainResult,
+) (outboxFile, error) {
+	if !errors.Is(step.outcome.Err, errOfferNoUserIdentity) {
+		return applyUnsentStep(step, box, cache, now, parentURL, result), nil
+	}
+
+	alreadyHeld := slices.ContainsFunc(box.Entries, func(entry outboxEntry) bool {
+		return entry.XID == step.xid && entry.State == outboxStateAttention
+	})
+
+	held := updateOutboxEntry(box, step, func(entry *outboxEntry) {
+		entry.State = outboxStateAttention
+		entry.LastError = step.outcome.Err.Error()
+	})
+
+	if alreadyHeld {
+		return held, nil
+	}
+
+	return held, step.outcome.Err
 }
 
 // applyUnsentStep folds a send that produced no receipt: an unreachable
@@ -595,7 +627,7 @@ func mergeDrainSteps(
 		var stepErr error
 
 		box, stepErr = applyDrainStep(step, box, &cache, current, apply, store.now(), parentURL, &result)
-		if errors.Is(stepErr, errReceiptNeedsAttention) {
+		if needsAttentionWarning(stepErr) {
 			_, _ = fmt.Fprintf(store.stderr, receiptAttentionWarningFormat, stepErr)
 
 			continue
@@ -617,6 +649,13 @@ func mergeDrainSteps(
 	}
 
 	return result, errors.Join(applyErrs...)
+}
+
+// needsAttentionWarning reports whether a drain step's error is the one
+// warning of an entry moving to the attention state (a refused receipt, or
+// no user identity), printed by the merge rather than returned.
+func needsAttentionWarning(err error) bool {
+	return errors.Is(err, errReceiptNeedsAttention) || errors.Is(err, errOfferNoUserIdentity)
 }
 
 // newOfferSender is the production send step: build the payload from the

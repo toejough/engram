@@ -57,6 +57,7 @@ var (
 	ErrDuplicateSkillNoteForTest           = errDuplicateSkillNote
 	ErrFrontmatterAnchoredKeyForTest       = errFrontmatterAnchoredKey
 	ErrLearnBadTierForTest                 = errLearnBadTier
+	ErrOfferNoUserIdentityForTest          = errOfferNoUserIdentity
 	ErrOfferWithdrawnForTest               = errOfferWithdrawn
 	ErrParentTooOldForTest                 = errParentTooOld
 	ErrQAAnswerSourceRequired              = errQAAnswerSourceRequired

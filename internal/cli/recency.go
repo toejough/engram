@@ -246,7 +246,7 @@ func noteAgeDays(lastUsed, created string, now time.Time) float64 {
 // inside a block scalar does not end it), and only unindented lines match,
 // so body text or block-scalar lines starting with `created:` are ignored.
 func parseCreatedFromNote(note []byte) string {
-	frontmatter, _, ok := embed.SplitFrontmatter(note)
+	frontmatter, _, ok := embed.SplitFrontmatter(toLF(note)) // CRLF reads as LF (#789 design D8)
 	if !ok {
 		return ""
 	}

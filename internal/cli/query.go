@@ -1174,7 +1174,7 @@ func itemMatchesProject(item resolvedItem, project string) bool {
 		return false
 	}
 
-	front, _, ok := embed.SplitFrontmatter([]byte(item.content))
+	front, _, ok := embed.SplitFrontmatter(toLF([]byte(item.content))) // CRLF reads as LF (#789 design D8)
 	if !ok {
 		return false
 	}

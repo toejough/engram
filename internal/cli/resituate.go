@@ -356,7 +356,7 @@ func runResituateLocked(ctx context.Context, args ResituateArgs, deps ResituateD
 // the block early). Returns (nil, false) when the note has no leading
 // frontmatter block.
 func splitFrontmatter(raw []byte) ([]byte, bool) {
-	frontmatter, _, ok := embed.SplitFrontmatter(raw)
+	frontmatter, _, ok := embed.SplitFrontmatter(toLF(raw)) // CRLF reads as LF (#789 design D8)
 	if !ok {
 		return nil, false
 	}

@@ -397,6 +397,7 @@ func applyRunbookAmend(
 
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
 	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
+	fillEmptyVault(&doc.Vault, args.VaultName)
 
 	if args.Pending != nil {
 		doc.Pending = *args.Pending
@@ -563,6 +564,16 @@ func discardWithDecline(deps AmendDeps, vault, full string, stdout io.Writer) er
 	return discardNote(deps, full, stdout)
 }
 
+// fillEmptyVault sets an amended note's empty vault: to the resolved vault
+// name (targets.go resolves it through resolveVaultName), so no amend —
+// bookkeeping included — writes vault: "" (#789 design D10). A declared
+// vault: is never touched here.
+func fillEmptyVault(vault *string, resolved string) {
+	if *vault == "" {
+		*vault = resolved
+	}
+}
+
 // mergeChunkSources returns a deduped union of existing and incoming chunk ids.
 func mergeChunkSources(existing, incoming []string) []string {
 	seen := make(map[string]struct{}, len(existing)+len(incoming))
@@ -637,6 +648,7 @@ func overrideFactFields(
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
 	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
+	fillEmptyVault(&doc.Vault, args.VaultName)
 
 	if args.Pending != nil {
 		doc.Pending = *args.Pending
@@ -665,6 +677,7 @@ func overrideFeedbackFields(
 ) bool {
 	doc.Sources = mergeChunkSources(doc.Sources, args.ChunkSources)
 	identity.stampPreservingUser(&doc.Repo, &doc.User, &doc.Vault)
+	fillEmptyVault(&doc.Vault, args.VaultName)
 
 	if args.Pending != nil {
 		doc.Pending = *args.Pending
@@ -867,6 +880,8 @@ func runAmendLocked(ctx context.Context, args AmendArgs, deps AmendDeps, stdout 
 		return false, amendErr
 	}
 
+	warnIfNoVault(deps.LogWarning, relPath, rendered)
+
 	staged, xid := deps.Offers.stageWrite(args.Vault,
 		offerWrite{command: offerCmdAmend, amend: args, raw: []byte(rendered)})
 	amended := string(staged)
@@ -929,6 +944,28 @@ func validateChunkSources(args AmendArgs, deps AmendDeps) error {
 	}
 
 	return nil
+}
+
+// warnIfNoVault warns when an amended note is written with no vault: —
+// no vault name resolved, so the key is omitted rather than written empty
+// (#789 design D10).
+func warnIfNoVault(warn func(string, ...any), relPath, rendered string) {
+	if warn == nil {
+		return
+	}
+
+	frontmatter, found := splitFrontmatter([]byte(rendered))
+	if !found {
+		return
+	}
+
+	var probe struct {
+		Vault string `yaml:"vault"`
+	}
+
+	if yaml.Unmarshal(frontmatter, &probe) == nil && probe.Vault == "" {
+		warn("amend: no vault name resolved; writing %s without vault:", relPath)
+	}
 }
 
 // writeAmendedSidecar re-embeds the amended note and writes its sidecar.

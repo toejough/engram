@@ -45,11 +45,14 @@ func TestRunAmend_ExchangeHashParityWithPreChangeAmend(t *testing.T) {
 			want, readErr := os.ReadFile(filepath.Join("testdata", "amend_hash_parity", tc.name+".md"))
 			g.Expect(readErr).NotTo(HaveOccurred())
 
-			// The pre-change amend wrote user: "" when a bookkeeping amend
-			// met a note with no user: (the typed writer's user field had no
-			// omitempty). #789 design D6 never writes user: "", so that one
-			// line is absent; every other byte, and the exchange hash, match.
-			want = bytes.Replace(want, []byte("user: \"\"\n"), nil, 1)
+			// The pre-change amend wrote user: "" and vault: "" when a
+			// bookkeeping amend met a note with no identity (the typed
+			// writer's fields had no omitempty). #789 never writes either
+			// empty: user: is omitted (design D6, ruling W1) and vault: takes
+			// the resolved vault name (design D10, ruling W2). Those two lines
+			// are the only difference; every other byte, and the exchange
+			// hash, match.
+			want = bytes.Replace(want, []byte("user: \"\"\nvault: \"\"\n"), []byte("vault: personal\n"), 1)
 
 			gotHash, _ := cli.ExportExchangeHash([]byte(got))
 			wantHash, _ := cli.ExportExchangeHash(want)

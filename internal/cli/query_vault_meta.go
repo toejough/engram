@@ -214,7 +214,7 @@ func loadAllVaultNotesMeta(
 // namespace entries) and supersedes: fields from note content's YAML
 // frontmatter. Returns zero-value fields on any parse failure.
 func parseNoteQueryFrontmatter(content string) noteQueryFrontmatter {
-	frontmatter, _, ok := embed.SplitFrontmatter([]byte(content))
+	frontmatter, _, ok := embed.SplitFrontmatter(toLF([]byte(content))) // CRLF reads as LF (#789 design D8)
 	if !ok {
 		return noteQueryFrontmatter{}
 	}

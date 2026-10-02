@@ -65,6 +65,8 @@ func ContentHash(raw []byte) string {
 // closing delimiter is also stripped so notes whose frontmatter blocks
 // differ but whose bodies match produce identical hashes.
 func ExtractBody(raw []byte) []byte {
+	raw = toLF(raw)
+
 	_, body, ok := SplitFrontmatter(raw)
 	if !ok {
 		return raw
@@ -76,7 +78,7 @@ func ExtractBody(raw []byte) []byte {
 // SituationText returns the `situation:` frontmatter field for any note
 // type ("" when absent or unparseable). It is the situation-vector source.
 func SituationText(raw []byte) []byte {
-	frontmatter, _, ok := SplitFrontmatter(raw)
+	frontmatter, _, ok := SplitFrontmatter(toLF(raw))
 	if !ok {
 		return nil
 	}
@@ -213,4 +215,14 @@ func stripMachineLines(body []byte) []byte {
 	}
 
 	return result
+}
+
+// toLF is raw with every CRLF line ending converted to LF (a lone CR is
+// kept). The embedding readers (ExtractBody, SituationText, and so BodyText
+// and ContentHash) read a note as its LF form, so a note with CRLF line
+// endings embeds and hashes exactly as its LF conversion (#789 design D8).
+// SplitFrontmatter itself stays LF-only: callers that splice its slices back
+// into a file decide for themselves whether to convert.
+func toLF(raw []byte) []byte {
+	return bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n"))
 }

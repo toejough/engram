@@ -139,7 +139,7 @@ func applyVocabAssignmentCore(
 	assigned := AssignVocabTerms(bodyVec, terms, DefaultVocabFloor)
 	updated := WriteVocabAssignment(content, assigned)
 
-	if updated == content {
+	if vocabAssignmentUnchanged(content, updated) {
 		return
 	}
 
@@ -343,12 +343,20 @@ func sortTermScores(candidates []termScore) {
 // leading frontmatter block. An empty block ("---\n---\n") yields "" —
 // rebuilt as "---\n\n---\n", which parses identically.
 func splitFrontmatterAndBody(content string) (string, string, bool) {
-	frontmatter, body, found := embed.SplitFrontmatter([]byte(content))
+	frontmatter, body, found := embed.SplitFrontmatter(toLF([]byte(content))) // CRLF reads as LF (#789 design D8)
 	if !found {
 		return "", "", false
 	}
 
 	return strings.TrimSuffix(string(frontmatter), "\n"), string(body), true
+}
+
+// vocabAssignmentUnchanged reports whether a vocab assignment changed
+// nothing worth writing: updated is content itself, or only its LF form —
+// a CRLF note is converted only by a write that changes its tags, never
+// written just to convert it (#789 design D8).
+func vocabAssignmentUnchanged(content, updated string) bool {
+	return updated == content || updated == string(toLF([]byte(content)))
 }
 
 // vocabTermsFromTags returns the terms of the vocab namespace entries

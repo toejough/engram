@@ -752,7 +752,6 @@ func TestRenderFrontmatter_Feedback(t *testing.T) {
 		"luhmann":   "9z",
 		"created":   "2026-05-09",
 		"source":    "session log foo, 2026-05-09 12:00 UTC",
-		"vault":     "",
 	}))
 }
 
@@ -774,7 +773,6 @@ func TestRenderFrontmatter_Runbook(t *testing.T) {
 		"luhmann":   "7a",
 		"created":   "2026-05-09",
 		"source":    "session log foo, 2026-05-09 12:00 UTC",
-		"vault":     "",
 	}))
 }
 

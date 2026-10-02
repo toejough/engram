@@ -427,7 +427,7 @@ func assignVocabToNote(deps VocabDeps, vault, name string, terms []TermWithVecto
 	}
 
 	updated := WriteVocabAssignment(string(noteData), assigned)
-	if updated == string(noteData) {
+	if vocabAssignmentUnchanged(string(noteData), updated) {
 		return assigned
 	}
 
@@ -567,7 +567,7 @@ func clearRemovedTermsFromNote(deps VocabDeps, notePath string, removals []strin
 	}
 
 	updated := clearRemovalsFromNoteContent(raw, removalSet)
-	if updated == string(raw) {
+	if vocabAssignmentUnchanged(string(raw), updated) {
 		return
 	}
 

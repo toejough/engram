@@ -139,6 +139,10 @@ func firstWriteIdentity(ctx context.Context, deps LearnDeps, vaultName, command 
 			"writing the note without user:", command)
 	}
 
+	if stamp.Vault == "" && deps.LogWarning != nil {
+		deps.LogWarning("%s: no vault name resolved; writing the note without vault:", command)
+	}
+
 	return stamp
 }
 

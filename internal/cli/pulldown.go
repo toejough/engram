@@ -418,7 +418,11 @@ func buildPulledNote(source pulledSource, envelope rawShowResponse, stamp pulled
 		deleteMappingKeys(mapping, "user")
 	}
 
-	setMappingValue(mapping, "vault", encodeNode(stamp.identity.Vault))
+	if stamp.identity.Vault != "" {
+		setMappingValue(mapping, "vault", encodeNode(stamp.identity.Vault))
+	} else {
+		deleteMappingKeys(mapping, "vault") // never vault: "", never the parent's (#789 design D10)
+	}
 	setMappingValue(mapping, "pending", encodeNode(true))
 	setMappingValue(mapping, xidKey, encodeNode(stamp.xid))
 	setMappingValue(mapping, parentKey, encodeNode(parentLinks{

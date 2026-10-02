@@ -296,7 +296,7 @@ type factFrontmatterDoc struct {
 	Project      string            `yaml:"project,omitempty"`
 	Repo         string            `yaml:"repo,omitempty"`
 	User         string            `yaml:"user,omitempty"`
-	Vault        string            `yaml:"vault"`
+	Vault        string            `yaml:"vault,omitempty"`
 	Pending      bool              `yaml:"pending,omitempty"`
 	Issue        quotedString      `yaml:"issue,omitempty"`
 	Sources      []string          `yaml:"sources,omitempty"`
@@ -342,7 +342,7 @@ type feedbackFrontmatterDoc struct {
 	Project    string            `yaml:"project,omitempty"`
 	Repo       string            `yaml:"repo,omitempty"`
 	User       string            `yaml:"user,omitempty"`
-	Vault      string            `yaml:"vault"`
+	Vault      string            `yaml:"vault,omitempty"`
 	Pending    bool              `yaml:"pending,omitempty"`
 	Issue      quotedString      `yaml:"issue,omitempty"`
 	Sources    []string          `yaml:"sources,omitempty"`
@@ -425,7 +425,7 @@ type runbookFrontmatterDoc struct {
 	Project   string       `yaml:"project,omitempty"`
 	Repo      string       `yaml:"repo,omitempty"`
 	User      string       `yaml:"user,omitempty"`
-	Vault     string       `yaml:"vault"`
+	Vault     string       `yaml:"vault,omitempty"`
 	// SkillHash marks this note as a registered skill's runbook mirror
 	// (vault-note-identity spec). Never set by `engram learn`'s CLI surface;
 	// `engram amend` never overrides it (no --skill-hash flag exists), so a

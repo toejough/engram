@@ -137,6 +137,12 @@ func buildOfferPayload(note offerNote, pctx offerPayloadContext) ([]byte, error)
 		Offer: offerRecordFor(note, doc.Exchange, pctx),
 	}
 
+	if payload.User == "" {
+		// The parent rejects an offer without a user (its identity floor):
+		// build none, so the entry waits in attention (#789 design D9).
+		return nil, errOfferNoUserIdentity
+	}
+
 	if doc.Type == typeRunbook {
 		payload.Body = runbookSteps(raw)
 	}
