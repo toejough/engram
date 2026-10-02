@@ -1,5 +1,24 @@
 ## MODIFIED Requirements
 
+### Requirement: Vault field resolved from explicit configuration
+`engram learn` SHALL stamp the note's `vault:` frontmatter field by resolving, in order: a `--vault-name` flag, then an `ENGRAM_VAULT_NAME` environment variable, then the default value `"personal"` — the same flag-then-env-then-default order the existing `--vault`/`ENGRAM_VAULT_PATH` resolution already uses. No write SHALL produce `vault: ""`. An amend, bookkeeping included, SHALL write the resolved vault name into a note whose `vault:` is absent or empty, and SHALL keep a declared `vault:`. A writer that has no resolved vault name (a direct caller that skipped the resolution) SHALL omit the key and print one warning.
+
+#### Scenario: Vault name flag supplied
+- **WHEN** `engram learn --vault-name <name>` is run
+- **THEN** the note's `vault:` frontmatter field is set to `<name>`
+
+#### Scenario: Vault name from environment
+- **WHEN** `engram learn` runs with `ENGRAM_VAULT_NAME` set in the environment and no `--vault-name` flag supplied
+- **THEN** the note's `vault:` frontmatter field is set to the environment variable's value
+
+#### Scenario: Vault name defaulted
+- **WHEN** `engram learn` runs with neither `--vault-name` nor `ENGRAM_VAULT_NAME` set
+- **THEN** the note's `vault:` frontmatter field is set to `"personal"`
+
+#### Scenario: A bookkeeping amend on a note without vault
+- **WHEN** `engram amend --clear-pending` runs on a pending note that predates identity (no `user:`, no `vault:`), with no vault name configured
+- **THEN** the note gains `vault: personal`, gains no `user:` key, and the pending marker is cleared
+
 ### Requirement: User field auto-detected at note creation
 `engram learn` SHALL stamp the note's `user:` frontmatter field from `git config user.email` resolved at the working directory, falling back to the machine's OS username when no `user.email` is configured. The same detection SHALL stamp every first write: `engram learn`, a served learn's in-place rewrite of a pending offer, and a pull-down. When both sources resolve empty, the note SHALL be written with no `user:` key, never `user: ""`, and the command SHALL print one warning saying user detection resolved empty. A pull-down SHALL NOT keep the parent note's own `user:` in that case. Identity backfill, or a later re-stamping amend, fills the key in.
 
@@ -58,7 +77,7 @@
 
 `engram resituate` SHALL also preserve every other frontmatter key it does not change, with its value, changing only `situation` and the body opener. This includes `pending`, `sources`, `tags`, `supersedes`, `vocab_version`, `issue`, and `project`, and keys the typed note model does not define.
 
-`engram amend` SHALL likewise preserve every frontmatter key it does not change, with its value — including keys the typed note model does not define, and YAML anchors on keys it does not edit — for every amend kind that writes frontmatter: content flags, `--supersedes`, `--chunk-source`, `--clear-pending`, and identity re-stamping. Amend edits only the keys whose value its edit changes (plus `created`, re-emitted in its quoted form), as YAML-node edits. When such a key — or its value, or anything beneath the value — carries a YAML anchor, amend SHALL refuse the note untouched and name the key (`errFrontmatterAnchoredKey`). Before writing, amend SHALL decode the rewritten frontmatter again and refuse to write it if it does not decode (`errFrontmatterUndecodable`). When amend replaces a modeled list of mappings (`supersedes:`), an entry of the new list that names the same note as an entry of the old list (compared as basenames, a trailing `.md` ignored) SHALL keep the old entry's keys the typed entry does not define, with the new modeled values; only an entry naming a note the old list did not name SHALL be written fresh. For a note without such keys, amend SHALL write the same bytes, and so the same exchange hash, as before this requirement, except that it SHALL NOT write `user: ""` where the earlier amend did.
+`engram amend` SHALL likewise preserve every frontmatter key it does not change, with its value — including keys the typed note model does not define, and YAML anchors on keys it does not edit — for every amend kind that writes frontmatter: content flags, `--supersedes`, `--chunk-source`, `--clear-pending`, and identity re-stamping. Amend edits only the keys whose value its edit changes (plus `created`, re-emitted in its quoted form), as YAML-node edits. When such a key — or its value, or anything beneath the value — carries a YAML anchor, amend SHALL refuse the note untouched and name the key (`errFrontmatterAnchoredKey`). Before writing, amend SHALL decode the rewritten frontmatter again and refuse to write it if it does not decode (`errFrontmatterUndecodable`). When amend replaces a modeled list of mappings (`supersedes:`), an entry of the new list that names the same note as an entry of the old list (compared as basenames, a trailing `.md` ignored) SHALL keep the old entry's keys the typed entry does not define, with the new modeled values; only an entry naming a note the old list did not name SHALL be written fresh. For a note without such keys, amend SHALL write the same bytes, and so the same exchange hash, as before this requirement, except that it SHALL write neither `user: ""` nor `vault: ""` where the earlier amend did (`user:` is omitted, and `vault:` takes the resolved vault name).
 
 The curation fold (`engram amend --discard --into`) and the offer receipt SHALL edit `aliases:` and `parent:` as YAML nodes. They SHALL keep unknown keys under `parent:` and inside every link they keep. When `aliases:` or `parent:` — or anything beneath it — carries a YAML anchor and the edit would change that key, they SHALL refuse untouched and name the key (`errFrontmatterAnchoredKey`). They SHALL decode the rewritten frontmatter again before writing (`errFrontmatterUndecodable`). The fold SHALL do both before it writes the existing note or deletes the offer, so a refusal leaves both files untouched. For a note without unknown keys or anchors, both SHALL write the same bytes as before this requirement.
 
@@ -184,3 +203,20 @@ Identity backfill, and `engram update`'s missing-identity detection, SHALL read 
 #### Scenario: Backfill output is unchanged for notes without unknown keys
 - **WHEN** `engram update --backfill-identity` stamps a note whose frontmatter holds only keys the typed note model defines and no anchors
 - **THEN** the written note is byte-identical to what backfill wrote before this requirement
+
+## ADDED Requirements
+
+### Requirement: Note readers SHALL read a CRLF note as its LF form
+Every reader of a note's frontmatter or body SHALL read the note as its LF form (each `\r\n` converted to `\n`), so a note with CRLF line endings is read exactly as its LF conversion: the situation and body it is embedded from and its content hash, `engram query`'s project filter, recency and vault metadata (tags, supersedes, triggers), vocab tagging, removal and refit, `engram check` and `engram count`. `embed.SplitFrontmatter` SHALL stay LF-only; the readers convert before splitting. No reader SHALL write a note only to convert it: a writer converts a CRLF note only inside a write it makes anyway, and an assignment that changes nothing writes nothing.
+
+#### Scenario: A CRLF note embeds and hashes as its LF form
+- **WHEN** a note's lines end in `\r\n`
+- **THEN** its situation text, body text and content hash equal those of its LF form, so its sidecar is not reported stale for its line endings
+
+#### Scenario: Query, check and count read a CRLF note
+- **WHEN** `engram query --project <p>`, `engram check` and `engram count` run on a vault holding a CRLF note whose `project:` is `<p>`
+- **THEN** query returns the note, check judges its `situation:`, and count includes it
+
+#### Scenario: Vocab tagging reads a CRLF note
+- **WHEN** vocab assignment tags a CRLF note with a new term
+- **THEN** the tag is written and the note is written as LF; a CRLF note whose tags do not change is not written

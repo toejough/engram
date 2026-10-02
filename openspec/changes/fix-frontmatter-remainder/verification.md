@@ -85,3 +85,19 @@ A scratch build of the working tree (`go build`, no `go install`), every command
 The parent server was stopped afterwards and `$S` removed.
 
 Parity after D4–D6: `TestRunAmend_ExchangeHashParityWithPreChangeAmend` matches all 32 exchange hashes and 29 of 32 notes byte for byte; the other 3 (`{fact,feedback,runbook}-minimal-clear-pending`) match byte for byte once the golden's `user: ""` line is removed, the one intended difference (design D6). `TestBackfillIdentity_ParityWithPreChangeBackfill` still matches all 14 goldens.
+
+## Ruling W2: real-binary check (2026-10-02)
+
+Same setup: a scratch build (`go build`, no `go install`), `env -i PATH=/usr/bin:/bin HOME=$S/home XDG_DATA_HOME=$S/data`, cwd `$S/plain`, every vault in `$S`. Two notes were learned and converted to all-CRLF: A (`project: widgets`, 17 CR lines) and B (situation edited to `""`, 16 CR lines).
+
+| # | Check | Result |
+|---|---|---|
+| R1 | `engram embed status` | `with-embeddings: 1`, `stale: 1`: A's sidecar is fresh although A is now CRLF (its content hash equals its LF form's); the stale one is B, whose situation was edited. **PASS** |
+| R2 | `engram check` | `FAIL M5 situation-presence: 1 note(s) missing a situation — 2.2026-10-02.crlf-empty-situation`: the CRLF note's frontmatter is read (before, it was skipped as having none). **PASS** |
+| R3 | `engram count --group-by type` | `fact 3`: both CRLF notes are counted. **PASS** |
+| R4 | `engram query --phrase … --project widgets` | returns `1.2026-10-02.crlf-reader` (the CRLF note matches the project filter). **PASS** |
+| R5 | CR lines after R1–R4 | A 17, B 16: no reader wrote a note. **PASS** |
+| V1 | A hand-written pending note with no `user:`/`vault:`; `engram amend --clear-pending` with no vault name configured | exit 0; `vault: personal` written; no `user:` key; `pending:` gone. **PASS** |
+| N1 | Offering with no detectable user | Not reachable from the real binary on this machine (macOS resolves the OS username, as recorded for U1). Pinned through the production wiring by `TestUpdateExchange_NoUserIdentityWaitsThenOffers`: learn omits `user:`, the offer is not sent and the warning says `cannot offer`, update reports `1 need attention` with the reason, and once detection works the next exchange offers it. **Recorded.** |
+
+Parity after W2: amend 32/32 exchange hashes; 29/32 byte-identical and the 3 `minimal-clear-pending` notes byte-identical after the golden's `user: ""` and `vault: ""` lines are replaced by `vault: personal` (rulings W1, W2; design D10). Backfill 14/14 and fold/receipt 11/11 byte-identical.

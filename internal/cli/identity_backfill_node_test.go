@@ -422,7 +422,7 @@ func decodeBackfillFrontmatter(tester failer, content string) map[string]any {
 func drawBackfillExtraKeys(rt *rapid.T) string {
 	var lines strings.Builder
 
-	const maxUnknownKeys = 3 // design D7: 0–3 unknown keys
+	const maxUnknownKeys = 3 // design D11: 0–3 unknown keys
 
 	count := rapid.IntRange(0, maxUnknownKeys).Draw(rt, "unknown-count")
 

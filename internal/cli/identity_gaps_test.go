@@ -160,3 +160,27 @@ func runVaultlessClearPending(ctx context.Context, vaultName string) (string, []
 
 	return written, warnings
 }
+
+// TestUpdateExchange_NoUserIdentityWaitsThenOffers: through the production
+// wiring, a note learned where no user is detectable is not offered (no
+// request reaches the parent's /learn); update reports it as needing
+// attention; once detection works, the next exchange offers it.
+func TestUpdateExchange_NoUserIdentityWaitsThenOffers(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := newWiringEnv(t)
+	env.wrap = withoutUserDetection
+	env.learnFact("userless")
+	g.Expect(env.lastStderr).To(ContainSubstring("cannot offer"))
+	g.Expect(env.parent.offers()).To(BeEmpty(), "no offer is sent without a user")
+
+	notice := cli.ExportUpdateExchange(env.deps())(context.Background(), env.vault, false)
+	g.Expect(notice).To(ContainSubstring("1 need attention"))
+	g.Expect(notice).To(ContainSubstring("no user identity detected; set git user.email"))
+	g.Expect(env.parent.offers()).To(BeEmpty())
+
+	env.wrap = nil
+	g.Expect(cli.ExportUpdateExchange(env.deps())(context.Background(), env.vault, false)).To(BeEmpty())
+	g.Expect(env.parent.offers()).To(HaveLen(1), "offered once a user is detected")
+}

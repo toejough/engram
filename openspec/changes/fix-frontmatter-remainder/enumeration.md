@@ -8,7 +8,10 @@ This change alters four documented behaviours:
 - `engram update`'s outbox notice reports `attention` entries;
 - exchange readers, `engram show`'s header included, read a note as its LF form;
 - amend keeps unknown sub-keys of surviving `supersedes:` entries;
-- no write produces `user: ""`.
+- no write produces `user: ""`;
+- every note reader (embedding, query, vocab, check, count) reads a CRLF note as its LF form;
+- no offer is sent without a user identity;
+- no write produces `vault: ""`.
 
 **Search** (2026-10-02, worktree `runbook-vs-skill`, branch `fix-789-frontmatter-remainder`):
 
@@ -34,6 +37,9 @@ grep -rn -i -E "crlf|backfill-identity|identity backfill|outbox|receipt|rejected
 | 6d | `openspec/specs/vault-note-identity/spec.md` "User field auto-detected at note creation", "Amend re-stamps identity fields on every write" | spec delta: omit an undetectable user, never `user: ""` | `grep -n "No user detectable" openspec/changes/fix-frontmatter-remainder/specs/vault-note-identity/spec.md` | — |
 | 6e | `openspec/specs/update-reparent-luhmann-batch/spec.md:157` ("a note converted from CRLF frontmatter hashes the same as its LF-authored equivalent") | no change: still true, and now holds before conversion too | — | — |
 | 6f | `docs/architecture/adr.md` D3 (lines ~1166-1173, CRLF separator layout) | no change: describes the archived ruling V2, which still holds | — | — |
+| 6g | `openspec/specs/vault-note-identity/spec.md` "Vault field resolved from explicit configuration" | spec delta: amend fills an empty `vault:`; never `vault: ""` | `grep -n "A bookkeeping amend on a note without vault" openspec/changes/fix-frontmatter-remainder/specs/vault-note-identity/spec.md` | — |
+| 6h | `openspec/specs/vault-note-identity/spec.md` | spec delta (ADDED): note readers read a CRLF note as its LF form | `grep -n "Note readers SHALL read a CRLF note as its LF form" openspec/changes/fix-frontmatter-remainder/specs/vault-note-identity/spec.md` | — |
+| 6i | `openspec/specs/vault-parent-offers/spec.md` receipt requirement | spec delta: no-identity offers wait in `attention` | `grep -n "No user identity holds the offer" openspec/changes/fix-frontmatter-remainder/specs/vault-parent-offers/spec.md` | — |
 | 7 | `openspec/specs/vault-parent-offers/spec.md` "The outbox SHALL drain …" | no change: queued/rejected rules are unchanged; `attention` is specified under the receipt requirement | — | — |
 | 8 | `openspec/specs/update-reparent-luhmann-batch`, `skill-runbook-registration` CRLF requirements | no change: rename, adopt and refresh already convert | — | — |
 | 9 | `docs/architecture/adr.md` lines 702, 744, 814 ("out of scope") | no change: unrelated (shadowed copies, chunk-index cleanup, update version skew) | — | — |

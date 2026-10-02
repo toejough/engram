@@ -19,6 +19,8 @@ Joe asked for all three to be finished as one change on 2026-10-02.
   - When amend replaces `supersedes:`, an entry naming the same note keeps its unknown sub-keys.
   - No write produces `user: ""`: an undetectable user is omitted with one warning, and backfill fills it in later.
 
+- **Ruling W2 (2026-10-02).** Every other note reader (embedding, query, vocab, check, count) reads a CRLF note as its LF form; an offer is never sent without a user identity (the entry waits in `attention`); and no write produces `vault: ""`.
+
 ## Capabilities
 
 ### New Capabilities

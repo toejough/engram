@@ -5,6 +5,8 @@ When the parent returns an offer receipt, the local note SHALL record the parent
 
 When the local note refuses the receipt because its frontmatter cannot take the edit (its `parent:` carries a YAML anchor, or its frontmatter does not decode), the note SHALL be left untouched and the entry SHALL move to the `attention` state, keeping the receipt and the exchange hash that was sent. The drain SHALL print one warning naming the note and the reason, at that transition only. An `attention` entry SHALL NOT be re-sent to the parent. Each later drain SHALL retry recording the kept receipt on the note, without contacting the parent and without a warning. When the retry succeeds, the entry SHALL finish as an accepted entry does: removed, or queued again when the note's exchange hash changed since it was sent. An entry whose note is gone or pending SHALL be dropped, as for any other state. A receipt that fails to record for any other reason (for example a write error) SHALL keep the entry queued with the failure recorded, as before.
 
+An offer that cannot be built because the note has no `user:` and no user identity is detected SHALL NOT be sent (the parent would reject `user: ""`). Its entry SHALL move to the `attention` state with the reason "cannot offer: no user identity detected; set git user.email", and the drain SHALL print one warning naming the note, at that transition only. Each later drain SHALL try to build the offer again, without contacting the parent and without a warning while it still cannot; once a user identity is detected the entry SHALL be sent as a queued one.
+
 #### Scenario: Receipt links the note
 - **WHEN** the parent answers a learn-offer for local note L with basename `1100.2026-09-27.x`
 - **THEN** L's primary link is `{note: 1100.2026-09-27.x, via: offered, hash: <stored_hash>}` under the parent's vault ID, and L's sidecar vector is unchanged
@@ -28,6 +30,10 @@ When the local note refuses the receipt because its frontmatter cannot take the 
 #### Scenario: An attention entry is not re-sent
 - **WHEN** the outbox holds an `attention` entry for L, L is unchanged, and the outbox drains twice more
 - **THEN** nothing is sent for L, no further warning is printed, and the entry stays in the `attention` state
+
+#### Scenario: No user identity holds the offer
+- **WHEN** the outbox drains an entry whose note has no `user:` on a host where user detection resolves empty, and then drains twice more
+- **THEN** nothing is sent, the entry is in `attention` with the no-identity reason, and one warning was printed; after user detection starts to resolve, the next drain sends the offer
 
 #### Scenario: An attention entry resumes once the note is fixed
 - **WHEN** the anchor is removed from L's `parent:` and the outbox drains

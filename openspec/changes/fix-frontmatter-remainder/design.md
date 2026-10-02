@@ -25,8 +25,12 @@ Each claim was checked against the code at `0f5d91b7`:
 - amend keeps unknown sub-keys inside a `supersedes:` entry that survives a replacement (Joe, 2026-10-02; D5).
 - no write ever produces `user: ""`: an undetectable user is omitted and warned once, and backfill fills it in later (Joe, 2026-10-02; D6).
 
+- every other reader of a note (embedding, query, vocab, check, count) reads a CRLF note as its LF form (ruling W2; D8).
+- no offer is sent without a user identity; such an entry waits in `attention` (ruling W2; D9).
+- no write produces `vault: ""` (ruling W2; D10).
+
 **Non-Goals:**
-- General CRLF support in `embed.SplitFrontmatter` (Joe, 2026-10-02: keep it unchanged). Readers outside exchange still treat a CRLF note's frontmatter as absent; see Risks.
+- None. Every known-broken behaviour found in this area is fixed in this change or is intended behaviour (below).
 
 **Intended behaviour (not deferrals; Joe, 2026-10-02):**
 - A note amend does not write is never converted: a bare `--discard` target, a fold's offer, or a fold's existing note when the fold changes nothing. Conversion happens only inside a write a path already makes, as on every other path.
@@ -122,11 +126,43 @@ For a note without unknown sub-keys every kept entry ends up with exactly the en
 
 `user:` gets `omitempty` on the typed fact, feedback and runbook docs. The first-write sites (`engram learn`, a served learn's in-place rewrite, a pull-down) build their identity with `firstWriteIdentity`, which prints one warning (`<command>: user detection resolved empty …; writing the note without user:`) when detection is empty. A pull-down sets `user:` on its node-edited copy only when detected and otherwise deletes the key, so the parent's own `user:` never stands in. A served learn cannot reach the empty case: its identity floor already rejects an empty declared user (`TestServeLearn_EmptyDeclaredIdentity_Rejected`), so that site is covered by the shared helper and that guard.
 
-Amend never writes `user: ""` either: when detection is empty and there is no prior value, the key stays absent. That changes 3 of the 32 amend goldens (`{fact,feedback,runbook}-minimal-clear-pending`) by exactly one line: the pre-change bookkeeping amend inserted `user: ""` into a note with no `user:` because the typed field had no `omitempty`. The parity test removes that line from those goldens before comparing (the golden files stay as written at `49cfc120`); every other byte, and all 32 exchange hashes, match.
+Amend never writes `user: ""` either: when detection is empty and there is no prior value, the key stays absent. That changes 3 of the 32 amend goldens (`{fact,feedback,runbook}-minimal-clear-pending`) by exactly one line: the pre-change bookkeeping amend inserted `user: ""` into a note with no `user:` because the typed field had no `omitempty`. The parity test adjusts those goldens before comparing (the golden files stay as written at `49cfc120`; D10 extends the adjustment to their `vault: ""` line); every other byte, and all 32 exchange hashes, match.
 
 Readers of a missing `user:`: the exchange hash excludes identity; `engram show` prints the file; the offer payload falls back to detection (`TestBuildOfferPayload_DeclaresNotesOwnIdentity`); backfill now counts a note as missing identity when it has no `user:`, and for a note that has `vault:` it fills in only `user:` (and leaves the note alone while detection is still empty), so `repo:`/`vault:` from the first write are kept.
 
-### D7: tests
+**Ruling W1 (2026-10-02): the parity deviation is accepted.** Removing `user: ""` is the requested fix and all 32 exchange hashes match, so the 3 goldens' one-line byte difference is intended. (D10 changes the same 3 goldens' `vault: ""` line; see there.)
+
+### D8 (ruling W2, item 1): every note reader reads a CRLF note as its LF form
+
+Two options were weighed:
+
+1. **Make `embed.SplitFrontmatter` CRLF-aware.** It returns sub-slices of the raw bytes, and about a dozen writers splice those slices back into a file with LF delimiters (`fmStart`/`fmEnd`): the vocab tag writers, legacy vocab stripping, reference scrubbing, the Luhmann and alias rewrites, the receipt and xid inserts, `editExchangeBlocks`. A CRLF-aware split would hand them CRLF frontmatter lines, and they would write mixed-ending files; writers that today skip a CRLF note would start writing it. Each would need its own audit and conversion anyway, so the change is wide and its failure mode (silently corrupted line endings in written notes) is worse than the bug.
+2. **Route the readers through `toLF`.** The conversion happens at the reader, before the split; writers that already work on the LF form are unaffected, and a writer converts only inside a write it makes.
+
+**Chosen: 2.** It is the narrower change, it keeps `SplitFrontmatter`'s contract (LF-only, slices of the input) that every splicing writer depends on, and it matches how every exchange reader (D4) and every rewrite path (D1, D2, archived D5) already handle CRLF.
+
+The readers converted:
+
+| Family | Reader | Effect |
+|---|---|---|
+| embedding | `embed.ExtractBody`, `embed.SituationText` (so `BodyText`, `ContentHash`) | a CRLF note embeds from its real situation and body; its content hash equals its LF form's, so conversion no longer stales a sidecar |
+| shared cli split | `splitFrontmatter` (`resituate.go`), `splitFrontmatterAndBody` (`vocab.go`) | every cli reader built on them: `engram check` (M5 situation presence), `engram count` (`readNoteAttrs`), vocab definition detection, legacy term parsing, the self-tag check, and the update notices |
+| query | `itemMatchesProject` (`--project`), `parseCreatedFromNote` (recency), `parseNoteQueryFrontmatter` (vault metadata: tags, supersedes, triggers) | CRLF notes filter, age and carry metadata like LF notes |
+| vocab writers | `WriteVocabAssignment`, tag removal, via `splitFrontmatterAndBody` | tags are written into a CRLF note, as LF; `vocabAssignmentUnchanged` compares against the LF form so an assignment that changes nothing never writes a note just to convert it |
+
+LF notes are untouched: `toLF` is the identity on them. The amend (32), backfill (14) and fold/receipt (11) parity tests all still pass. A CRLF note's sidecar built before this change was built from the wrong text, so `engram embed status` reports it stale once, which is correct; LF notes' sidecars are unaffected.
+
+### D9 (ruling W2, item 2): no offer without a user identity
+
+`buildOfferPayload` refuses with `errOfferNoUserIdentity` ("cannot offer: no user identity detected; set git user.email") when neither the note's `user:` nor detection gives a user, instead of sending `user: ""` into the parent's 400. The sender turns it into an unsent step as for any payload that cannot be built; `applyNotSentStep` moves the entry to `attention` (no kept receipt) and returns the cause once, for the merge's one warning, staying silent while the entry is already in `attention`. Because an `attention` entry without a kept receipt is treated as queued (D3, version skew), each drain tries to build the payload again — locally, the parent is not contacted — so the entry is sent as soon as detection works.
+
+### D10 (ruling W2, item 3): no write produces `vault: ""`
+
+`vault:` gets `omitempty` on the typed docs. Amend fills an empty `vault:` with `args.VaultName` (`fillEmptyVault`), which the `amend` target has already resolved with `resolveVaultName` (flag, then `ENGRAM_VAULT_NAME`, then `personal`); a declared `vault:` is never changed, so an accepted offer keeps its author. If no name was resolved (a direct caller), the key is omitted and `warnIfNoVault` warns. First writes warn the same way through `firstWriteIdentity`, and pull-down deletes the parent's `vault:` rather than keep it or write it empty. Backfill already resolves a non-empty name.
+
+Parity: the same 3 amend goldens (`{fact,feedback,runbook}-minimal-clear-pending`) were written by a bookkeeping amend that inserted `user: ""` and `vault: ""` into a note with no identity. They now get no `user:` and `vault: personal`; the parity test replaces those two golden lines with `vault: personal` before comparing. Every other byte, and all 32 exchange hashes, match. This is the same class of deviation ruling W1 accepted.
+
+### D11: tests
 
 Strict TDD, a failing test first for each defect, `t.Parallel()` everywhere, gomega assertions, a fresh fixture per subtest.
 
@@ -139,7 +175,6 @@ Strict TDD, a failing test first for each defect, `t.Parallel()` everywhere, gom
 
 ## Risks / Trade-offs
 
-- [Risk] Readers outside exchange (the query situation text and recency, vocab tagging and refit, `engram check`/`count`, chunk dedupe of note sources) still treat a CRLF note's frontmatter as absent, because `embed.SplitFrontmatter` is unchanged by decision. → Every rewrite path converts the CRLF notes it writes, so such notes are only ones hand-converted and not yet rewritten.
 - [Risk] Hashing the LF form changes the exchange hash of a note with CRLF frontmatter compared with older binaries. → Before, such a note's `xid` was unreadable, so no exchange path can have recorded a hash for its CRLF form; it now hashes as its LF form, which is what every recorded hash for that note describes.
 - [Risk] A note whose entry needs attention is not re-offered when its content changes, until the anchor is removed. → The warning names the note and the reason, and the notice keeps listing it. Re-sending would fail to record again.
 - [Risk] Backfill now fails the command when it refuses a note. → It still stamps every other note first, and the refusal names the note and key. Such anchors exist only in hand-written YAML.
