@@ -630,6 +630,10 @@ def test_restated_as_plan_true_when_no_mutation_occurs_at_all():
 
 
 # ----- question_stop (task 4.1): a legitimate clarity stop, never a failure (design.md D8) -----
+# #755/D11: order-awareness relative to task completion. end_state is now a REQUIRED third
+# argument (never a default) so a future call site can't silently skip wiring it and regress to
+# the exact bug #755 found. Every pre-existing test below passes end_state=False explicitly —
+# none of them simulate genuine completion, so False preserves their original expected outcome.
 
 def test_question_stop_true_when_ambiguity_text_ends_transcript_with_no_further_calls():
     """Question-stop-with-no-further-calls: the transcript simply ends right after the assistant
@@ -638,7 +642,7 @@ def test_question_stop_true_when_ambiguity_text_ends_transcript_with_no_further_
         _tool_use("Bash", {"command": "git status"}, idx=0),
         _text_ev("Should I use approach A or approach B here?", idx=1),
     ]
-    assert pp.detect_question_stop(events, "A") is True
+    assert pp.detect_question_stop(events, "A", end_state=False) is True
 
 
 def test_question_stop_true_when_question_is_mid_paragraph_not_at_the_very_end():
@@ -655,7 +659,7 @@ def test_question_stop_true_when_question_is_mid_paragraph_not_at_the_very_end()
             idx=1,
         ),
     ]
-    assert pp.detect_question_stop(events, "A") is True
+    assert pp.detect_question_stop(events, "A", end_state=False) is True
 
 
 def test_question_stop_false_when_mutation_follows_the_ambiguity_text():
@@ -665,7 +669,7 @@ def test_question_stop_false_when_mutation_follows_the_ambiguity_text():
         _text_ev("I'm not sure whether to use approach A or B here.", idx=0),
         _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=1),
     ]
-    assert pp.detect_question_stop(events, "A") is False
+    assert pp.detect_question_stop(events, "A", end_state=False) is False
 
 
 def test_question_stop_false_when_no_ambiguity_ever_raised():
@@ -674,7 +678,7 @@ def test_question_stop_false_when_no_ambiguity_ever_raised():
         _text_ev("Everything looks good, committing now.", idx=1),
         _tool_use("Bash", {"command": "git add pkg/version.go"}, idx=2),
     ]
-    assert pp.detect_question_stop(events, "A") is False
+    assert pp.detect_question_stop(events, "A", end_state=False) is False
 
 
 def test_question_stop_true_when_ask_user_question_tool_follows_ambiguity_with_no_mutation():
@@ -682,7 +686,7 @@ def test_question_stop_true_when_ask_user_question_tool_follows_ambiguity_with_n
         _text_ev("Which approach would you like: A or B?", idx=0),
         _tool_use("AskUserQuestion", {"question": "A or B?"}, idx=1),
     ]
-    assert pp.detect_question_stop(events, "A") is True
+    assert pp.detect_question_stop(events, "A", end_state=False) is True
 
 
 def test_question_stop_uses_the_last_ambiguity_mention_not_the_first():
@@ -693,7 +697,35 @@ def test_question_stop_uses_the_last_ambiguity_mention_not_the_first():
         _tool_use("Bash", {"command": "git status"}, idx=1),
         _text_ev("Actually, before I proceed: do you want me to also prune the remote?", idx=2),
     ]
-    assert pp.detect_question_stop(events, "A") is True
+    assert pp.detect_question_stop(events, "A", end_state=False) is True
+
+
+def test_question_stop_false_when_end_state_true_despite_trailing_question():
+    """5.1/D11: the real R-0 shape from #755 -- a trial that fully completes and verifies its
+    task, then asks a separate, genuinely trailing follow-up question with no further mutation.
+    end_state=True must short-circuit this to False: that ambiguity cannot have blocked any
+    required mutation, since end_state=True already proves every required mutation happened."""
+    events = [
+        _tool_use("Bash", {"command": "git commit -m 'feat: finish the task'"}, idx=0),
+        _text_ev(
+            "All done, and the gate is green. By the way, would you also like me to update "
+            "the changelog while I'm in here?",
+            idx=1,
+        ),
+    ]
+    assert pp.detect_question_stop(events, "A", end_state=True) is False
+
+
+def test_question_stop_true_when_end_state_false_and_ambiguity_raised():
+    """5.2/D11: the real R-1 shape from #755 -- a genuine pre-completion stop. The exact same
+    ambiguity-posing shape as the very first test above, but passed end_state=False explicitly
+    (the task never actually completed) -- must still score True. Confirms the fix doesn't
+    regress the real, intended case."""
+    events = [
+        _tool_use("Bash", {"command": "git status"}, idx=0),
+        _text_ev("Should I use approach A or approach B here?", idx=1),
+    ]
+    assert pp.detect_question_stop(events, "A", end_state=False) is True
 
 
 # ----- FOUND: Arm S (skill: commit) -----
@@ -1638,6 +1670,59 @@ def test_live_scoring_and_rescore_emit_the_same_scored_field_set(tmp_path):
     rescore_added_keys = set(rescored_record.keys()) - set(minimal_record.keys())
 
     assert rescore_added_keys - {"rescored_from"} == live_scored_keys
+
+
+# ----- #755 D11: both detect_question_stop call sites wire end_state through correctly -----
+
+def test_score_trial_question_stop_false_when_end_state_true_despite_trailing_question(monkeypatch):
+    """5.4, call site 1 (_score_trial / the live scoring path): a trailing follow-up question
+    after genuine completion must score question_stop=False. Proves _score_trial computes
+    end_state BEFORE calling detect_question_stop and actually passes it through -- it would
+    TypeError (missing required arg) if the call site weren't updated at all, and would wrongly
+    score question_stop=True if end_state were computed AFTER (or never passed)."""
+    monkeypatch.setattr(pp, "check_end_state_phase2",
+                         lambda task_key, repo_path, env=None: (True, "all checks passed"))
+    events = [
+        _tool_use("Bash", {"command": "git commit -m 'feat: done'"}, idx=0),
+        _text_ev("All done. Would you also like me to update the README?", idx=1),
+    ]
+    scored = pp._score_trial("A", "R", events, repo_path="/does/not/exist", carrier_basename=None)
+    assert scored["end_state"] is True
+    assert scored["question_stop"] is False
+
+
+def test_rescore_file_question_stop_false_when_end_state_true_despite_trailing_question(tmp_path, monkeypatch):
+    """5.4, call site 2 (rescore_file / the --rescore path): same wiring check as above, through
+    the rescore entry point. The rescore path already computed end_state before calling
+    detect_question_stop -- this confirms the new required argument is actually passed."""
+    monkeypatch.setattr(pp, "check_end_state_phase2",
+                         lambda task_key, repo_path, env=None: (True, "all checks passed"))
+    repo_path = pp.setup_trial_repo(str(tmp_path / "trial"), "A", "R",
+                                     marker="RUNBOOK-VS-SKILL-PROBE2-qstop-rescore")
+
+    transcript_path = tmp_path / "session.jsonl"
+    lines = [
+        json.dumps({
+            "type": "assistant", "timestamp": "2026-09-11T00:00:00.000Z",
+            "message": {"content": [{"type": "text", "text":
+                "All done and verified. Would you also like me to update the changelog?"}]}
+        }),
+    ]
+    with open(transcript_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+    minimal_record = {"task": "A", "arm": "R", "repo_path": repo_path,
+                       "transcript_path": str(transcript_path), "carrier_basename": None}
+    results_path = tmp_path / "minimal.jsonl"
+    with open(results_path, "w") as f:
+        f.write(json.dumps(minimal_record) + "\n")
+    rescored_path = tmp_path / "minimal.rescored.jsonl"
+    pp.rescore_file(str(results_path), str(rescored_path))
+    rescored_record = pp.load_jsonl(str(rescored_path))[0]
+
+    assert rescored_record.get("error") is None, rescored_record.get("error")
+    assert rescored_record["end_state"] is True
+    assert rescored_record["question_stop"] is False
 
 
 def test_score_trial_load_steps_exception_is_captured_not_raised(monkeypatch, tmp_path):
@@ -3022,6 +3107,36 @@ def test_bisect_before_fix_step7_false_when_step6_never_matched():
     events = [_tool_use("Bash", {"command": "bash gate.sh"}, idx=0)]
     results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
     assert results["7"] is False
+
+
+def test_bisect_before_fix_step8_file_issue_via_native_edit_after_step6():
+    """#755 D12/D13: runbook 846's step 6 requires filing the pre-existing bar.py regression as
+    its own follow-up issue; the fixture now gives it a local ISSUES.md target. Tracked, not
+    gating end_state (D13) -- a new step 8, after step 6."""
+    steps = pp.load_steps("bisect-before-fix")
+    events = [
+        _tool_use("Bash", {"command": "sed -i '' '/print(/d' bar.py"}, idx=0),
+        _tool_use("Edit", {"file_path": "/repo/ISSUES.md"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results.get("8") is True
+
+
+def test_bisect_before_fix_step8_file_issue_via_bash_append_after_step6():
+    steps = pp.load_steps("bisect-before-fix")
+    events = [
+        _tool_use("Bash", {"command": "sed -i '' '/print(/d' bar.py"}, idx=0),
+        _tool_use("Bash", {"command": "cat >> ISSUES.md <<'EOF'\n## bar.py pre-existing bug\nEOF"}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results.get("8") is True
+
+
+def test_bisect_before_fix_step8_false_when_step6_never_matched():
+    steps = pp.load_steps("bisect-before-fix")
+    events = [_tool_use("Edit", {"file_path": "/repo/ISSUES.md"}, idx=0)]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results.get("8") is False
 
 
 # --- tdd-order ---

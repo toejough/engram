@@ -770,7 +770,7 @@ def _poses_ambiguity(text):
     return bool(_AMBIGUITY_RE.search(text)) or "?" in text
 
 
-def detect_question_stop(events, task_key):
+def detect_question_stop(events, task_key, end_state):
     """TRUE when the transcript shows a legitimate clarity stop: the LAST assistant text block
     posing an ambiguity/uncertainty (_poses_ambiguity — matches _AMBIGUITY_RE, or contains a '?'
     anywhere) has NO mutating tool call (is_first_mutating_step — Edit/Write/MultiEdit, or a
@@ -781,7 +781,20 @@ def detect_question_stop(events, task_key):
     never a real stop) scores False, the same as a trial that never raised any ambiguity at all.
     Reported as a clarity finding (design.md D8, tasks.md 4.1 item 4) — a question_stop=True
     trial is excluded from found/restated/every-step/end-state's failure aggregates, never
-    scored as a failure itself."""
+    scored as a failure itself.
+
+    `end_state` (REQUIRED, never a default — #755/D11) is the trial's already-computed
+    end-state-check result. Order-awareness: if the trial's final on-disk state already
+    satisfies done_when_checks.sh (end_state=True), every mutation the task required already
+    happened — so any ambiguity text with no mutation after it cannot have blocked a required
+    mutation, and is necessarily a trailing, already-irrelevant remark (e.g. a closing offer to
+    do more, asked AFTER the task was done and verified). Short-circuits to False in that case,
+    before the scan below even runs; a non-default argument so a future call site can't skip
+    wiring it and regress to the exact bug that caused a trailing follow-up question (asked after
+    full completion) to score identically to a genuine pre-completion stop."""
+    if end_state:
+        return False
+
     ambiguity_idx = None
     for ev in events:
         if ev["kind"] != "text":
@@ -1585,15 +1598,17 @@ def _score_trial(task_key, arm, events, repo_path, carrier_basename, env=None):
         scored["found_index"] = found_idx
         scored["first_procedure_step_index"] = first_mutating_step_index(events, task_key)
         scored["restated_as_plan"] = detect_restated_as_plan(events, task_key)
-        scored["question_stop"] = detect_question_stop(events, task_key)
         scored["recall_fired"] = p1.score_recall_fired(events)
         followed_steps, followed_k, followed_all = evaluate_steps(steps, events, repo_path)
         scored["followed_steps"] = followed_steps
         scored["followed_k"] = followed_k
         scored["followed_all"] = followed_all
+        # end_state must be computed BEFORE question_stop (#755/D11) -- detect_question_stop's
+        # order-awareness short-circuit requires it as an input.
         end_state, end_state_output = check_end_state_phase2(task_key, repo_path, env=env)
         scored["end_state"] = end_state
         scored["end_state_output"] = end_state_output
+        scored["question_stop"] = detect_question_stop(events, task_key, end_state)
         if task_key == "A":
             scored["trailer"] = classify_trailer(repo_path)
     except Exception as exc:  # noqa: BLE001 — record and let the trial (and batch) continue
@@ -2470,7 +2485,7 @@ def rescore_file(in_path, out_path):
             stalled_asking = detect_stalled_asking(transcript_paths_for_parsing) and not end_state
             record["stalled_asking"] = stalled_asking
             record["restated_as_plan"] = detect_restated_as_plan(events, task_key)
-            record["question_stop"] = detect_question_stop(events, task_key)
+            record["question_stop"] = detect_question_stop(events, task_key, end_state)
 
             record["rescored_from"] = in_path
         except Exception as e:  # noqa: BLE001
