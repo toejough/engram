@@ -348,7 +348,7 @@ func (s *pullSession) writeUnderLock(ctx context.Context, envelope rawShowRespon
 	}
 
 	when := s.learn.Now()
-	identity := identityStamp{Repo: s.learn.DetectRepo(ctx), User: s.learn.DetectUser(ctx), Vault: s.vaultName}
+	identity := firstWriteIdentity(ctx, s.learn, s.vaultName, "pull-down")
 
 	content, buildErr := buildPulledNote(source, envelope, pulledStamp{
 		luhmann: luhmannID, created: when.Format(dateFormat), identity: identity, xid: xid,
@@ -410,7 +410,14 @@ func buildPulledNote(source pulledSource, envelope rawShowResponse, stamp pulled
 		deleteMappingKeys(mapping, "repo")
 	}
 
-	setMappingValue(mapping, "user", encodeNode(stamp.identity.User))
+	// An undetectable user is omitted, never written as "" — and never left
+	// as the parent's own user: (#789 design D6).
+	if stamp.identity.User != "" {
+		setMappingValue(mapping, "user", encodeNode(stamp.identity.User))
+	} else {
+		deleteMappingKeys(mapping, "user")
+	}
+
 	setMappingValue(mapping, "vault", encodeNode(stamp.identity.Vault))
 	setMappingValue(mapping, "pending", encodeNode(true))
 	setMappingValue(mapping, xidKey, encodeNode(stamp.xid))
@@ -522,7 +529,8 @@ func newPullingActivateDeps(deps Deps, args ActivateArgs) ActivateDeps {
 // parsePulledSource parses a fetched note: it must have frontmatter and be
 // a fact, feedback or runbook.
 func parsePulledSource(envelope rawShowResponse) (pulledSource, error) {
-	frontmatter, body, found := splitFrontmatterAndBody(envelope.Content)
+	// A CRLF envelope is pulled as its LF form (#789 design D4).
+	frontmatter, body, found := splitFrontmatterAndBody(string(toLF([]byte(envelope.Content))))
 	if !found {
 		return pulledSource{}, errPullNoFrontmatter
 	}
@@ -571,7 +579,7 @@ func pullStrippedKeys() []string {
 // primary link, when that link is via pulled, under the note's parent
 // vault ID (design D8).
 func pulledDecline(raw []byte) (declinedPull, bool) {
-	frontmatter, found := splitFrontmatter(raw)
+	frontmatter, found := splitFrontmatter(toLF(raw))
 	if !found {
 		return declinedPull{}, false
 	}

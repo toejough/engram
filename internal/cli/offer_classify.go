@@ -121,7 +121,7 @@ func originIsVault(origin, vaultID string) bool {
 // false for a note that is not a fact, feedback or runbook, or does not
 // parse.
 func parseOfferClassNote(raw []byte) (offerClassNote, bool) {
-	frontmatter, found := splitFrontmatter(raw)
+	frontmatter, found := splitFrontmatter(toLF(raw))
 	if !found {
 		return offerClassNote{}, false
 	}

@@ -100,12 +100,12 @@ func TestRunAmend_EmptyUserDetectionKeepsPriorUser(t *testing.T) {
 	}
 }
 
-// TestRunAmend_EmptyUserDetectionNoPriorUserWritesEmpty: a note with no
-// prior user: has nothing to preserve, so empty detection writes the field
-// as detected (empty) — same as any other re-stamping amend, on every note
+// TestRunAmend_EmptyUserDetectionNoPriorUserOmitsUser: a note with no
+// prior user: has nothing to preserve, and an empty detection is never
+// written as user: "" (#789 design D6): the key stays absent, on every note
 // type. The preservation in D3 only applies when there IS a prior value to
 // keep.
-func TestRunAmend_EmptyUserDetectionNoPriorUserWritesEmpty(t *testing.T) {
+func TestRunAmend_EmptyUserDetectionNoPriorUserOmitsUser(t *testing.T) {
 	t.Parallel()
 
 	for _, noteType := range identityAmendTypes {
@@ -115,7 +115,7 @@ func TestRunAmend_EmptyUserDetectionNoPriorUserWritesEmpty(t *testing.T) {
 
 			written, warnings, err := runEmptyUserDetectionAmend(t.Context(), noteType, "")
 			g.Expect(err).NotTo(HaveOccurred())
-			g.Expect(written).To(ContainSubstring("user: \"\"\n"))
+			g.Expect(written).NotTo(ContainSubstring("user:"))
 			g.Expect(warnings).To(BeEmpty(), "nothing to warn about when there was no prior user to keep")
 		})
 	}

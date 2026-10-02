@@ -45,6 +45,12 @@ func TestRunAmend_ExchangeHashParityWithPreChangeAmend(t *testing.T) {
 			want, readErr := os.ReadFile(filepath.Join("testdata", "amend_hash_parity", tc.name+".md"))
 			g.Expect(readErr).NotTo(HaveOccurred())
 
+			// The pre-change amend wrote user: "" when a bookkeeping amend
+			// met a note with no user: (the typed writer's user field had no
+			// omitempty). #789 design D6 never writes user: "", so that one
+			// line is absent; every other byte, and the exchange hash, match.
+			want = bytes.Replace(want, []byte("user: \"\"\n"), nil, 1)
+
 			gotHash, _ := cli.ExportExchangeHash([]byte(got))
 			wantHash, _ := cli.ExportExchangeHash(want)
 			g.Expect(gotHash).To(Equal(wantHash), "exchange hash moved:\ngot:\n%s\nwant:\n%s", got, want)

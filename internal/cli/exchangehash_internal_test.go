@@ -12,15 +12,21 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// TestDecodeExchangeFrontmatter_CRLFFrontmatterHasNoReadableXID pins that a
-// note whose frontmatter is CRLF has no readable exchange fields: no
-// exchange path can have recorded a hash for its CRLF form.
-func TestDecodeExchangeFrontmatter_CRLFFrontmatterHasNoReadableXID(t *testing.T) {
+// TestDecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF pins that a note
+// whose frontmatter is CRLF has its exchange fields read from its LF form
+// (#789 design D4), replacing fix-show-amend-reparent-frontmatter's pin
+// that such a note had no readable xid.
+func TestDecodeExchangeFrontmatter_CRLFFrontmatterReadsAsLF(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	_, err := decodeExchangeFrontmatter([]byte(crlfExchangeNoteLF(true, true)))
-	g.Expect(err).To(MatchError(errAmendNoFrontmatter))
+	crlf, err := decodeExchangeFrontmatter([]byte(crlfExchangeNoteLF(true, true)))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	lf, lfErr := decodeExchangeFrontmatter(toLF([]byte(crlfExchangeNoteLF(true, true))))
+	g.Expect(lfErr).NotTo(HaveOccurred())
+	g.Expect(crlf).To(Equal(lf))
+	g.Expect(crlf.XID).NotTo(BeEmpty())
 }
 
 // TestExchangeHash_CRLFBodyUnchangedByConversion pins that converting a note

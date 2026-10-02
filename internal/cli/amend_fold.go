@@ -56,9 +56,10 @@ func checkJudgedVersion(args AmendArgs, raw []byte) error {
 	return nil
 }
 
-// decodeExchangeFrontmatter reads a note's exchange frontmatter.
+// decodeExchangeFrontmatter reads a note's exchange frontmatter, from its
+// LF form (toLF, #789 design D4).
 func decodeExchangeFrontmatter(raw []byte) (exchangeFrontmatter, error) {
-	frontmatter, found := splitFrontmatter(raw)
+	frontmatter, found := splitFrontmatter(toLF(raw))
 	if !found {
 		return exchangeFrontmatter{}, errAmendNoFrontmatter
 	}

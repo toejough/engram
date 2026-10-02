@@ -107,7 +107,7 @@ func drainForCommand(ctx context.Context, deps Deps, vault, parentURL string, ig
 
 	result, drainErr := drainOutbox(ctx, store, vault, parentURL,
 		newOfferSender(deps.Fetch, parentURL, newPayloadBuilder(ctx, deps, store, vault, parentURL)),
-		newReceiptApplier(deps))
+		newReceiptApplier(ctx, deps))
 
 	if result.Unreachable {
 		queued := 0
@@ -261,8 +261,9 @@ func newPayloadBuilder(
 
 // newReceiptApplier is the production receipt step: a frontmatter-only
 // rewrite of the note (applyReceiptToContent), written atomically. It
-// never re-embeds and never re-stamps identity.
-func newReceiptApplier(deps Deps) func(offerNote, offerReceipt) error {
+// never re-stamps identity, and re-embeds only a note the write converted
+// from CRLF.
+func newReceiptApplier(ctx context.Context, deps Deps) func(offerNote, offerReceipt) error {
 	write := writeAtomicFromFS(deps.FS, "write note")
 
 	return func(note offerNote, receipt offerReceipt) error {
@@ -271,11 +272,19 @@ func newReceiptApplier(deps Deps) func(offerNote, offerReceipt) error {
 			return applyErr
 		}
 
-		if updated == string(note.Raw) {
-			return nil
+		lfRaw := toLF(note.Raw)
+		if updated == string(lfRaw) {
+			return nil // nothing to record: a CRLF note is not converted
 		}
 
-		return write(note.Path, []byte(updated))
+		writeErr := write(note.Path, []byte(updated))
+		if writeErr != nil || len(lfRaw) == len(note.Raw) {
+			return writeErr
+		}
+
+		// The receipt write converted a CRLF note, which changes its
+		// content hash: rebuild its sidecar (#789 design D4).
+		return rebuildConvertedSidecar(ctx, deps.Embed, write, note.Path, updated)
 	}
 }
 

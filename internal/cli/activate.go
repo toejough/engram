@@ -258,7 +258,7 @@ func appendParentLinks(
 		return links
 	}
 
-	frontmatter, found := splitFrontmatter(raw)
+	frontmatter, found := splitFrontmatter(toLF(raw)) // a CRLF note is read as LF (#789 design D4)
 	if !found {
 		return links
 	}

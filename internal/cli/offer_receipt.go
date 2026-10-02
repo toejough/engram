@@ -36,6 +36,8 @@ var (
 // and every other field are untouched (no re-stamp, and nothing here
 // re-embeds).
 func applyReceiptToContent(raw []byte, receipt offerReceipt) (string, error) {
+	raw = toLF(raw) // a CRLF note takes the receipt as LF, converted in that write (#789 design D4)
+
 	frontmatter, found := splitFrontmatter(raw)
 	if !found {
 		return "", errNoteNoFrontmatter

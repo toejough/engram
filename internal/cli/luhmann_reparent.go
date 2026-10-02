@@ -312,6 +312,30 @@ func preflightRenames(deps RenameRewriteDeps, vault string, renameMap map[string
 	return preflightRenameNotes(deps, vault, names, renameMap)
 }
 
+// rebuildConvertedSidecar re-embeds a note a write converted from CRLF to
+// LF and writes its sidecar through write: conversion changes the note's
+// content hash, so its stored vectors are stale (#789). A nil embedder
+// skips the rebuild.
+func rebuildConvertedSidecar(
+	ctx context.Context, embedder embed.Embedder, write func(string, []byte) error, notePath, content string,
+) error {
+	if embedder == nil {
+		return nil
+	}
+
+	sidecar, embedErr := embed.BuildSidecar(ctx, embedder, []byte(content))
+	if embedErr != nil {
+		return fmt.Errorf("re-embedding %s: %w", notePath, embedErr)
+	}
+
+	writeErr := write(embed.SidecarPath(notePath), embed.MarshalSidecar(sidecar))
+	if writeErr != nil {
+		return fmt.Errorf("writing sidecar for %s: %w", notePath, writeErr)
+	}
+
+	return nil
+}
+
 // renameAndRewriteOneNote handles a single vault note: converts it from CRLF
 // to LF (toLF), rewrites its references (regardless of whether it is itself
 // being renamed), and — if it is being renamed — renames the note file and

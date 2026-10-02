@@ -125,6 +125,23 @@ func detectUser(
 	return name
 }
 
+// firstWriteIdentity is the identity a note's first write stamps (learn, a
+// served learn's in-place rewrite, a pull-down): repo:/user: freshly
+// detected, vault: as resolved by the caller. When user detection resolves
+// empty, user: is left empty, so the writer omits the key (user,omitempty)
+// instead of writing user: "", and one warning names the command (#789
+// design D6). Backfill or a later re-stamping amend fills it in.
+func firstWriteIdentity(ctx context.Context, deps LearnDeps, vaultName, command string) identityStamp {
+	stamp := identityStamp{Repo: deps.DetectRepo(ctx), User: deps.DetectUser(ctx), Vault: vaultName}
+
+	if stamp.User == "" && deps.LogWarning != nil {
+		deps.LogWarning("%s: user detection resolved empty (no git user.email and no OS username); "+
+			"writing the note without user:", command)
+	}
+
+	return stamp
+}
+
 // gitOriginURL returns dir's `git remote get-url origin`, trimmed; found is
 // false when the command fails or prints nothing.
 func gitOriginURL(ctx context.Context, commander update.Commander, dir string) (string, bool) {

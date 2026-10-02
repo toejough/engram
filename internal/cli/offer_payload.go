@@ -103,7 +103,9 @@ type offerPayloadContext struct {
 // sha256(origin + exchange hash), and offer.path — the local ID, appended
 // to an accepted served offer's own path when the note is one (M14).
 func buildOfferPayload(note offerNote, pctx offerPayloadContext) ([]byte, error) {
-	frontmatter, found := splitFrontmatter(note.Raw)
+	raw := toLF(note.Raw) // a CRLF note is offered as its LF form (#789 design D4)
+
+	frontmatter, found := splitFrontmatter(raw)
 	if !found {
 		return nil, errOfferNoteUnparseable
 	}
@@ -136,7 +138,7 @@ func buildOfferPayload(note offerNote, pctx offerPayloadContext) ([]byte, error)
 	}
 
 	if doc.Type == typeRunbook {
-		payload.Body = runbookSteps(note.Raw)
+		payload.Body = runbookSteps(raw)
 	}
 
 	encoded, marshalErr := json.Marshal(payload)

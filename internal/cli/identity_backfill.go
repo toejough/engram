@@ -196,13 +196,23 @@ func backfillTypedNote[T any](
 	}
 
 	fields := identityOf(&doc)
-	if !identityMissing(*fields.user, *fields.vault) {
+	if !identityMissing(*fields.user) {
 		return "", false, nil
 	}
 
 	before := encodeNode(doc)
 	identity := resolvedBackfillIdentity(ctx, fields.project, deps)
-	*fields.repo, *fields.user, *fields.vault = identity.Repo, identity.User, identity.Vault
+
+	switch {
+	case *fields.vault == "":
+		// Predates identity: stamp all three, as always.
+		*fields.repo, *fields.user, *fields.vault = identity.Repo, identity.User, identity.Vault
+	case identity.User != "":
+		// First written without a detectable user: fill in only user:.
+		*fields.user = identity.User
+	default:
+		return "", false, nil // still nothing to fill in
+	}
 
 	rendered, editErr := nodeEditFrontmatter(mapping, before, doc, string(embed.ExtractBody(raw)))
 	if editErr != nil {
@@ -212,14 +222,14 @@ func backfillTypedNote[T any](
 	return rendered, true, nil
 }
 
-// identityMissing reports whether a note's user:/vault: are both empty —
-// the unambiguous signal that it predates the note-origin-identity
-// capability. Every note written since always gets a non-empty user: and
-// vault:, even when repo: is legitimately omitted for a non-git working
-// directory, so checking repo: alone would false-positive forever on
-// git-repo-less notes; checking user:/vault: together never does.
-func identityMissing(user, vault string) bool {
-	return user == "" && vault == ""
+// identityMissing reports whether a note lacks user: — either it predates
+// the note-origin-identity capability (user:/vault: both empty), or it was
+// first written where user detection resolved empty, which omits user:
+// rather than writing user: "" (#789 design D6). repo: is never checked: it
+// is legitimately omitted for a non-git working directory, so checking it
+// would false-positive forever on git-repo-less notes.
+func identityMissing(user string) bool {
+	return user == ""
 }
 
 // newIdentityDeps composes engram update --backfill-identity's dependencies
@@ -283,7 +293,7 @@ func notesMissingIdentityFields(vaultPath string, fileSystem update.Filesystem) 
 			continue
 		}
 
-		if yaml.Unmarshal(frontmatter, &probe) == nil && identityMissing(probe.User, probe.Vault) {
+		if yaml.Unmarshal(frontmatter, &probe) == nil && identityMissing(probe.User) {
 			return true
 		}
 	}
@@ -320,18 +330,13 @@ func writeBackfilledNote(ctx context.Context, deps IdentityDeps, notePath, rende
 		return fmt.Errorf("backfill-identity: write %s: %w", notePath, writeErr)
 	}
 
-	if !converted || deps.Embedder == nil {
+	if !converted {
 		return nil
 	}
 
-	sidecar, embedErr := embed.BuildSidecar(ctx, deps.Embedder, []byte(rendered))
-	if embedErr != nil {
-		return fmt.Errorf("backfill-identity: re-embedding %s: %w", notePath, embedErr)
-	}
-
-	sidecarErr := deps.WriteFile(embed.SidecarPath(notePath), embed.MarshalSidecar(sidecar))
-	if sidecarErr != nil {
-		return fmt.Errorf("backfill-identity: writing sidecar for %s: %w", notePath, sidecarErr)
+	rebuildErr := rebuildConvertedSidecar(ctx, deps.Embedder, deps.WriteFile, notePath, rendered)
+	if rebuildErr != nil {
+		return fmt.Errorf("backfill-identity: %w", rebuildErr)
 	}
 
 	return nil

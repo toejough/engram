@@ -84,7 +84,7 @@ func excludePendingOffers(
 // marker SHALL apply to every note type", design D7 G1). Any other note type
 // (e.g. vocab definitions) and unparseable content report false.
 func noteHasPendingMarker(raw []byte) bool {
-	frontmatter, ok := splitFrontmatter(raw)
+	frontmatter, ok := splitFrontmatter(toLF(raw)) // a CRLF offer is still pending (#789 design D4)
 	if !ok {
 		return false
 	}

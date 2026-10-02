@@ -94,9 +94,13 @@ func compareExchangeHashes(first, second string) hashComparison {
 // absent fields as empty strings or lists. It is the one function both the
 // server and the child use, so the same file hashes the same on both sides.
 // It depends on no non-offered field — identity, pending, tags, sources, supersedes, skill
-// fields, or the exchange fields themselves.
+// fields, or the exchange fields themselves. The note is hashed as its LF
+// form (toLF), so a note with CRLF line endings hashes exactly as its LF
+// conversion, whichever part carries them (#789 design D4).
 func exchangeHash(raw []byte) (string, error) {
 	var fields exchangeHashFields
+
+	raw = toLF(raw)
 
 	frontmatter, _, ok := embed.SplitFrontmatter(raw)
 	if ok {

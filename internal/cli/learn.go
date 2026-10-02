@@ -295,7 +295,7 @@ type factFrontmatterDoc struct {
 	Source       string            `yaml:"source"`
 	Project      string            `yaml:"project,omitempty"`
 	Repo         string            `yaml:"repo,omitempty"`
-	User         string            `yaml:"user"`
+	User         string            `yaml:"user,omitempty"`
 	Vault        string            `yaml:"vault"`
 	Pending      bool              `yaml:"pending,omitempty"`
 	Issue        quotedString      `yaml:"issue,omitempty"`
@@ -341,7 +341,7 @@ type feedbackFrontmatterDoc struct {
 	Source     string            `yaml:"source"`
 	Project    string            `yaml:"project,omitempty"`
 	Repo       string            `yaml:"repo,omitempty"`
-	User       string            `yaml:"user"`
+	User       string            `yaml:"user,omitempty"`
 	Vault      string            `yaml:"vault"`
 	Pending    bool              `yaml:"pending,omitempty"`
 	Issue      quotedString      `yaml:"issue,omitempty"`
@@ -424,7 +424,7 @@ type runbookFrontmatterDoc struct {
 	Source    string       `yaml:"source"`
 	Project   string       `yaml:"project,omitempty"`
 	Repo      string       `yaml:"repo,omitempty"`
-	User      string       `yaml:"user"`
+	User      string       `yaml:"user,omitempty"`
 	Vault     string       `yaml:"vault"`
 	// SkillHash marks this note as a registered skill's runbook mirror
 	// (vault-note-identity spec). Never set by `engram learn`'s CLI surface;
@@ -1043,11 +1043,7 @@ func writeLearnLocked(
 	when := deps.Now()
 	path := learnPath(vault, luhmann, args.Slug, when)
 
-	identity := identityStamp{
-		Repo:  deps.DetectRepo(ctx),
-		User:  deps.DetectUser(ctx),
-		Vault: args.VaultName,
-	}
+	identity := firstWriteIdentity(ctx, deps, args.VaultName, "learn")
 
 	content, contentErr := assembleLearnContent(args, luhmann, when, identity)
 	if contentErr != nil {

@@ -91,6 +91,54 @@ func TestBackfillIdentity_ConvertsCRLFNote(t *testing.T) {
 	})
 }
 
+// TestBackfillIdentity_FillsAnOmittedUser: a note first written where user
+// detection was empty carries repo: and vault: but no user: (#789 design
+// D6). Backfill flags it and fills in only user:, keeping its repo: and
+// vault:; where detection is still empty it writes nothing.
+func TestBackfillIdentity_FillsAnOmittedUser(t *testing.T) {
+	t.Parallel()
+
+	userless := backfillNodeNote("fact", "source: agent\nrepo: github.com/acme/widgets\nvault: work\n")
+
+	t.Run("detected", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": userless})
+
+		stamped, err := vault.backfill(t.Context(), false)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(stamped).To(Equal(1))
+
+		decoded := decodeBackfillFrontmatter(t, vault.files["/vault/1.2026-01-01.a.md"])
+		g.Expect(decoded).To(HaveKeyWithValue("user", "bob@example.com"))
+		g.Expect(decoded).To(HaveKeyWithValue("vault", "work"))
+		g.Expect(decoded).To(HaveKeyWithValue("repo", "github.com/acme/widgets"))
+	})
+
+	t.Run("still undetectable", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		vault := newBackfillVault(map[string]string{"1.2026-01-01.a.md": userless})
+		vault.user = ""
+
+		stamped, err := vault.backfill(t.Context(), false)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(stamped).To(BeZero())
+		g.Expect(vault.writes).To(BeZero())
+	})
+
+	t.Run("flagged by update", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		fileSystem := newU1FS()
+		fileSystem.files["/vault/1.2026-01-01.a.md"] = []byte(userless)
+		g.Expect(cli.ExportNotesMissingIdentityFields("/vault", fileSystem)).To(BeTrue())
+	})
+}
+
 // TestBackfillIdentity_KeepsAnchorOnUneditedKey: an anchor on a key
 // backfill does not edit, and the key aliasing it, both survive.
 func TestBackfillIdentity_KeepsAnchorOnUneditedKey(t *testing.T) {
@@ -282,6 +330,7 @@ var (
 type backfillVault struct {
 	files  map[string]string
 	writes int
+	user   string
 }
 
 func (v *backfillVault) backfill(ctx context.Context, dryRun bool) (int, error) {
@@ -305,7 +354,7 @@ func (v *backfillVault) backfill(ctx context.Context, dryRun bool) (int, error) 
 			return nil
 		},
 		DetectRepo: func(context.Context) string { return "git@github.com:example/vault.git" },
-		DetectUser: func(context.Context) string { return "bob@example.com" },
+		DetectUser: func(context.Context) string { return v.user },
 		Getenv:     func(string) string { return "" },
 		Embedder:   stubEmbedder{modelID: "stub@4", dims: 4},
 	}
@@ -373,7 +422,7 @@ func decodeBackfillFrontmatter(tester failer, content string) map[string]any {
 func drawBackfillExtraKeys(rt *rapid.T) string {
 	var lines strings.Builder
 
-	const maxUnknownKeys = 3 // design D4: 0–3 unknown keys
+	const maxUnknownKeys = 3 // design D7: 0–3 unknown keys
 
 	count := rapid.IntRange(0, maxUnknownKeys).Draw(rt, "unknown-count")
 
@@ -400,5 +449,5 @@ func newBackfillVault(notes map[string]string) *backfillVault {
 		files["/vault/"+name] = content
 	}
 
-	return &backfillVault{files: files}
+	return &backfillVault{files: files, user: "bob@example.com"}
 }

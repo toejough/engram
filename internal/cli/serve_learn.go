@@ -154,7 +154,7 @@ func offerKeysMatch(recorded, incoming string) bool {
 // parseExchangeNote reads one listed note for the lookup; ok is false for a
 // note that is not a fact, feedback or runbook, or does not parse.
 func parseExchangeNote(vault, name string, raw []byte) (exchangeNote, bool) {
-	frontmatter, found := splitFrontmatter(raw)
+	frontmatter, found := splitFrontmatter(toLF(raw)) // a CRLF note is parsed as LF (#789 design D4)
 	if !found {
 		return exchangeNote{}, false
 	}
@@ -254,11 +254,7 @@ func rewritePendingOffer(
 		when = deps.learn.Now()
 	}
 
-	identity := identityStamp{
-		Repo:  deps.learn.DetectRepo(ctx),
-		User:  deps.learn.DetectUser(ctx),
-		Vault: args.VaultName,
-	}
+	identity := firstWriteIdentity(ctx, deps.learn, args.VaultName, "serve")
 
 	content, contentErr := assembleLearnContent(args, luhmannOfBasename(note.basename), when, identity)
 	if contentErr != nil {

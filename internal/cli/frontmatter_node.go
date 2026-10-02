@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -20,6 +21,10 @@ const (
 	// mappingStride is the step between a YAML mapping node's key nodes:
 	// its Content alternates key, value.
 	mappingStride = 2
+	// supersedesIdentityKey identifies a supersedes entry: the note it names.
+	supersedesIdentityKey = "note"
+	// supersedesListKey is the frontmatter key of the supersedes list.
+	supersedesListKey = "supersedes"
 	// yamlStringTag is the YAML tag of a plain string scalar.
 	yamlStringTag = "!!str"
 )
@@ -34,6 +39,11 @@ var (
 	// errFrontmatterUndecodable refuses to write a node edit whose rendered
 	// frontmatter does not decode (a guard behind errFrontmatterAnchoredKey).
 	errFrontmatterUndecodable = errors.New("rewritten frontmatter does not decode")
+	// listEntryIdentity names, for each modeled list of mappings amend may
+	// replace, the entry key that identifies an entry across the
+	// replacement (#789 design D5): a supersedes entry is the note it names.
+	//nolint:gochecknoglobals // a fixed lookup table
+	listEntryIdentity = map[string]string{supersedesListKey: supersedesIdentityKey}
 )
 
 // applyTypedEdit edits mapping — a note's parsed frontmatter — so it carries
@@ -58,6 +68,14 @@ func applyTypedEdit(mapping, before, after *yaml.Node, normalized ...string) err
 	}
 
 	deleteMappingKeys(mapping, deleted...)
+
+	for key, value := range changed {
+		if identityKey, isList := listEntryIdentity[key]; isList {
+			if index := mappingKeyIndex(mapping, key); index >= 0 {
+				changed[key] = mergeListEntries(mapping.Content[index+1], value, identityKey)
+			}
+		}
+	}
 
 	for _, key := range order {
 		if value, ok := changed[key]; ok {
@@ -115,6 +133,18 @@ func hasAnchor(node *yaml.Node) bool {
 	return slices.ContainsFunc(node.Content, hasAnchor)
 }
 
+// listEntryID is a list entry's identity: identityKey's value, as a note
+// basename (a trailing .md dropped); found is false when the entry has no
+// such key (the typed decode already guarantees each entry is a mapping).
+func listEntryID(entry *yaml.Node, identityKey string) (string, bool) {
+	index := mappingKeyIndex(entry, identityKey)
+	if index < 0 {
+		return "", false
+	}
+
+	return strings.TrimSuffix(entry.Content[index+1].Value, mdExt), true
+}
+
 // mappingKeyIndex is the Content index of key's key node in mapping, or -1.
 func mappingKeyIndex(mapping *yaml.Node, key string) int {
 	for index := 0; index+1 < len(mapping.Content); index += mappingStride {
@@ -124,6 +154,68 @@ func mappingKeyIndex(mapping *yaml.Node, key string) int {
 	}
 
 	return -1
+}
+
+// matchingListEntry is the index of the first unused mapping entry of
+// before whose identity equals entry's, or -1.
+func matchingListEntry(before, entry *yaml.Node, identityKey string, used []bool) int {
+	identity, found := listEntryID(entry, identityKey)
+	if !found {
+		return -1
+	}
+
+	for index, candidate := range before.Content {
+		if used[index] {
+			continue
+		}
+
+		if other, ok := listEntryID(candidate, identityKey); ok && other == identity {
+			return index
+		}
+	}
+
+	return -1
+}
+
+// mergeListEntries is the replacement list after for a modeled list whose
+// value was before, keeping each surviving entry's unknown sub-keys: an
+// entry of after whose identity (identityKey's value, as a basename) names
+// an entry of before is that before entry with after's modeled keys set in
+// it; any other entry of after is written as encoded. A value that is not a
+// list of mappings on both sides is after, unchanged.
+func mergeListEntries(before, after *yaml.Node, identityKey string) *yaml.Node {
+	if before.Kind != yaml.SequenceNode || after.Kind != yaml.SequenceNode {
+		return after
+	}
+
+	merged := *after
+	merged.Content = make([]*yaml.Node, 0, len(after.Content))
+	used := make([]bool, len(before.Content))
+
+	for _, entry := range after.Content {
+		match := matchingListEntry(before, entry, identityKey, used)
+		if match < 0 {
+			merged.Content = append(merged.Content, entry)
+
+			continue
+		}
+
+		used[match] = true
+		kept := cloneNode(before.Content[match])
+		order := make([]string, 0, len(entry.Content)/mappingStride)
+
+		for index := 0; index+1 < len(entry.Content); index += mappingStride {
+			order = append(order, entry.Content[index].Value)
+		}
+
+		for index := 0; index+1 < len(entry.Content); index += mappingStride {
+			setMappingValueOrdered(kept, entry.Content[index].Value, entry.Content[index+1], order)
+		}
+
+		merged.Content = append(merged.Content, kept)
+	}
+
+	return &merged
 }
 
 // nodeEditFrontmatter writes a typed doc's edit onto a note's parsed
