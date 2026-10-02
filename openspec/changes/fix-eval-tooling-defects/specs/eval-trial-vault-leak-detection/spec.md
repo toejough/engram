@@ -41,3 +41,9 @@ The trial-side guard SHALL NOT be described or relied upon as an unconditional l
 - **GIVEN** a trial's env was built through the standard isolation primitive, and that trial itself leaks a note into the real vault
 - **WHEN** the leaked note's content does not name any registered trial directory or session identifier
 - **THEN** the guard does not flag it as a leak, and this is a documented limitation, not a silent gap
+
+#### Scenario: A same-filename in-place content mutation is not caught
+
+- **GIVEN** the guard's fingerprint is based on the real vault's set of `.md` basenames, not on file modification times
+- **WHEN** an existing real-vault note's content is mutated in place, with no change to the vault's set of note basenames
+- **THEN** the guard does not flag it as a leak, because the basename-based fingerprint is identical before and after — this is a documented limitation (a capability the guard's prior mtime-based fingerprint had, dropped when the mechanism changed), accepted because a mutation of this shape is only reachable through the same unmediated code path already named above, never through a trial env built via the standard isolation primitive
