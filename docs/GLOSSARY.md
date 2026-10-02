@@ -757,7 +757,10 @@ of the parent. The drain builds each entry's payload from the note's *current* c
 time (an offline learn followed by amends goes up as one offer), sends oldest-`queued`-first with
 no lock held, then re-locks and merges the result. A transport error or 5xx keeps the entry queued
 and backs the parent off (`.engram/parent.json`'s `backoff_until`); a 4xx marks it `rejected` until
-the note's exchange hash changes (design D6).
+the note's exchange hash changes (design D6). When the parent accepts an offer but the local note
+refuses its receipt (an anchored `parent:`, or frontmatter that does not decode), the entry moves to
+`attention`: it keeps the receipt, warns once, is never re-sent, is listed by `engram update`'s
+notice, and records the kept receipt on a later drain once the note is fixed (#789).
 
 ### exchange hash
 `xh1:` + a SHA-256 over the canonical JSON of every **offered** content field (`type`, `situation`,

@@ -1194,7 +1194,10 @@ pulled note bouncing back up once is intended (B1).
   because of the parent. The drain builds each entry's payload from the note's *current* content at
   send time, sends oldest-first with no lock held, then re-locks and merges. A transport
   error/timeout/5xx keeps the entry queued and backs the parent off
-  (`min(15m, 30s × 2^(failures-1))`); a 4xx marks it rejected until the note's hash changes.
+  (`min(15m, 30s × 2^(failures-1))`); a 4xx marks it rejected until the note's hash changes. A
+  receipt the local note refuses (an anchored `parent:`, or undecodable frontmatter) marks the
+  entry `attention`: it keeps the receipt, warns once, is never re-sent, and the receipt is
+  recorded locally on a later drain once the note is fixed (fix-frontmatter-remainder, #789).
   `offer.key = sha256(offer.origin + exchange hash)` makes retries idempotent.
 - **D7 — `/learn` is the only write route; pending offers update in place.** The served set shrinks
   to `query`, `show`, `activate`, `learn` — `/amend`, `/query-chunks` and `/show-chunk` are deleted.
