@@ -525,7 +525,7 @@ func declinePulledNote(deps AmendDeps, vault, full string) error {
 		return fmt.Errorf("amend: discard: %w", readErr)
 	}
 
-	entry, pulled := pulledDecline(raw)
+	entry, pulled := pulledDecline(toLF(raw))
 	if !pulled {
 		return nil
 	}
@@ -713,11 +713,8 @@ func reEmbedAndActivate(
 	full, relPath, amended string,
 	contentChanged bool,
 ) {
-	if contentChanged && deps.Embedder != nil {
-		embedErr := writeAmendedSidecar(ctx, deps, full, amended)
-		if embedErr != nil && deps.LogWarning != nil {
-			deps.LogWarning("amend: embed failed for %s: %v", relPath, embedErr)
-		}
+	if contentChanged {
+		reEmbedNote(ctx, deps, full, relPath, amended)
 	}
 
 	if args.Activate && deps.Now != nil {
@@ -728,6 +725,20 @@ func reEmbedAndActivate(
 		if bumpErr != nil && deps.LogWarning != nil {
 			deps.LogWarning("amend: activate failed for %s: %v", relPath, bumpErr)
 		}
+	}
+}
+
+// reEmbedNote re-embeds a note amend wrote and writes its sidecar (a no-op
+// without an embedder). A failure is warned, never returned: the note
+// write already succeeded.
+func reEmbedNote(ctx context.Context, deps AmendDeps, full, relPath, content string) {
+	if deps.Embedder == nil {
+		return
+	}
+
+	embedErr := writeAmendedSidecar(ctx, deps, full, content)
+	if embedErr != nil && deps.LogWarning != nil {
+		deps.LogWarning("amend: embed failed for %s: %v", relPath, embedErr)
 	}
 }
 
@@ -843,13 +854,13 @@ func runAmendLocked(ctx context.Context, args AmendArgs, deps AmendDeps, stdout 
 
 	full := filepath.Join(args.Vault, relPath)
 
-	raw, readErr := readJudgedTarget(args, deps, full, relPath)
+	raw, converted, readErr := readJudgedTarget(args, deps, full, relPath)
 	if readErr != nil {
 		return false, readErr
 	}
 
 	if args.Discard {
-		return false, discardTarget(deps, args, notes, full, raw, stdout)
+		return false, discardTarget(ctx, deps, args, notes, full, raw, stdout)
 	}
 
 	parsedSupersedes, validateErr := validateAmendInputs(args, deps)
@@ -875,7 +886,9 @@ func runAmendLocked(ctx context.Context, args AmendArgs, deps AmendDeps, stdout 
 
 	queued := deps.Offers.queue(args.Vault, xid)
 
-	reEmbedAndActivate(ctx, args, deps, full, relPath, amended, contentChanged)
+	// A converted CRLF note's content hash changed, so it is re-embedded
+	// even when the amend itself would not re-embed (#789 design D1).
+	reEmbedAndActivate(ctx, args, deps, full, relPath, amended, contentChanged || converted)
 	applyVocabAssignmentAfterAmend(deps, args.Vault, full, amended)
 
 	_, _ = fmt.Fprintln(stdout, full)

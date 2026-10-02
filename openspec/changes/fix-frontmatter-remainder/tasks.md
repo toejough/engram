@@ -6,9 +6,9 @@
 
 ## 1. Defect 1: amend converts CRLF (design D1)
 
-- [ ] 1.1 RED: in a new `amend_crlf_test.go`, example tests: a content amend (`--object`), a `--supersedes` amend and an `--activate` amend on an all-CRLF fact note each succeed, write no `\r\n`, and re-embed (the sidecar is written); a fold into a CRLF existing note E succeeds and writes E as LF; a fold that changes nothing leaves a CRLF E byte-identical; a bare `--discard` of a CRLF pulled note records its decline. Confirm they fail on today's code.
-- [ ] 1.2 RED: rapid property P2: amend of the all-CRLF form equals amend of the LF form, byte for byte, with no `\r\n`, across fact, feedback and runbook notes and every frontmatter-writing amend kind. Confirm it fails.
-- [ ] 1.3 GREEN: `toLF` in `readJudgedTarget` (after the judged-version check moves onto the LF bytes), in `foldInto` and in `declinePulledNote`; compare the fold's output with E's LF text; force the re-embed when the target was converted; re-embed a converted E the fold wrote. Run `targ test`.
+- [x] 1.1 RED: in a new `amend_crlf_test.go`, example tests: a content amend (`--object`), a `--supersedes` amend and an `--activate` amend on an all-CRLF fact note each succeed, write no `\r\n`, and re-embed (the sidecar is written); a fold into a CRLF existing note E succeeds and writes E as LF; a fold that changes nothing leaves a CRLF E byte-identical; a bare `--discard` of a CRLF pulled note records its decline. Confirm they fail on today's code. (RED: every example failed for the expected reason — content/`--supersedes`/`--activate`/`--clear-pending` and both folds with `amend: note has no parseable frontmatter`, the judged-version case with a hash mismatch, and the bare discard recorded no decline.)
+- [x] 1.2 RED: rapid property P2: amend of the all-CRLF form equals amend of the LF form, byte for byte, with no `\r\n`, across fact, feedback and runbook notes and every frontmatter-writing amend kind. Confirm it fails. (RED: failed on the first draw, `fact-exchange-object CRLF (all) amend refused: amend: note has no parseable frontmatter`.)
+- [x] 1.3 GREEN: `toLF` in `readJudgedTarget` (after the judged-version check moves onto the LF bytes), in `foldInto` and in `declinePulledNote`; compare the fold's output with E's LF text; force the re-embed when the target was converted; re-embed a converted E the fold wrote. Run `targ test`.
 
 ## 2. Defect 2: identity backfill uses the node edit (design D2)
 

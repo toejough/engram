@@ -70,7 +70,7 @@ func backfillParityCases() []backfillParityCase {
 		},
 	}
 
-	cases := make([]backfillParityCase, 0, 2*7) //nolint:mnd // two note types × seven shapes
+	cases := make([]backfillParityCase, 0, 2*7)
 
 	for _, noteType := range []string{"fact", "feedback"} {
 		fields, body := content[noteType].fields, content[noteType].body

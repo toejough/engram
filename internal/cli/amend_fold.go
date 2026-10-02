@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -77,10 +78,11 @@ func decodeExchangeFrontmatter(raw []byte) (exchangeFrontmatter, error) {
 // discardTarget is --discard: with --into, the fold (foldInto); bare, the
 // decline-recording delete (discardWithDecline).
 func discardTarget(
-	deps AmendDeps, args AmendArgs, notes []vaultgraph.Note, full string, raw []byte, stdout io.Writer,
+	ctx context.Context, deps AmendDeps, args AmendArgs, notes []vaultgraph.Note, full string, raw []byte,
+	stdout io.Writer,
 ) error {
 	if args.Into != "" {
-		return foldInto(deps, args.Vault, notes, full, raw, args.Into, stdout)
+		return foldInto(ctx, deps, args.Vault, notes, full, raw, args.Into, stdout)
 	}
 
 	return discardWithDecline(deps, args.Vault, full, stdout)
@@ -109,8 +111,8 @@ func foldAliases(into []string, intoBase, offerBase string, offer []string) []st
 // recorded — the links themselves keep the parent note from being pulled
 // again.
 func foldInto(
-	deps AmendDeps, vault string, notes []vaultgraph.Note, offerFull string, offerRaw []byte, into string,
-	stdout io.Writer,
+	ctx context.Context, deps AmendDeps, vault string, notes []vaultgraph.Note, offerFull string, offerRaw []byte,
+	into string, stdout io.Writer,
 ) error {
 	intoRel, findErr := findNote(notes, into)
 	if findErr != nil {
@@ -127,16 +129,24 @@ func foldInto(
 		return fmt.Errorf("amend: read %s: %w", intoRel, readErr)
 	}
 
-	folded, foldErr := foldedContent(intoRaw, strings.TrimSuffix(intoRel, mdExt), offerRaw,
+	// into is read as LF (#789 design D1): a CRLF into is converted only
+	// when the fold writes it, and is then re-embedded.
+	intoLF := toLF(intoRaw)
+
+	folded, foldErr := foldedContent(intoLF, strings.TrimSuffix(intoRel, mdExt), offerRaw,
 		strings.TrimSuffix(filepath.Base(offerFull), mdExt))
 	if foldErr != nil {
 		return foldErr
 	}
 
-	if folded != string(intoRaw) {
+	if folded != string(intoLF) {
 		writeErr := deps.Write(intoFull, []byte(folded))
 		if writeErr != nil {
 			return fmt.Errorf("amend: write %s: %w", intoRel, writeErr)
+		}
+
+		if len(intoLF) != len(intoRaw) {
+			reEmbedNote(ctx, deps, intoFull, intoRel, folded)
 		}
 	}
 
@@ -250,21 +260,25 @@ func noteOfferOrigin(raw []byte) string {
 	return exchange.Offer.Origin
 }
 
-// readJudgedTarget reads the amend's target note and runs the
-// judged-version check on it (checkJudgedVersion) before anything is
-// written.
-func readJudgedTarget(args AmendArgs, deps AmendDeps, full, relPath string) ([]byte, error) {
+// readJudgedTarget reads the amend's target note as LF (toLF: amend edits
+// a CRLF note's LF form, #789 design D1) and runs the judged-version check
+// on that form (checkJudgedVersion) before anything is written. converted
+// reports whether the note on disk had CRLF line endings, so a write of it
+// is a conversion that needs a fresh sidecar.
+func readJudgedTarget(args AmendArgs, deps AmendDeps, full, relPath string) ([]byte, bool, error) {
 	raw, readErr := deps.Read(full)
 	if readErr != nil {
-		return nil, fmt.Errorf("amend: read %s: %w", relPath, readErr)
+		return nil, false, fmt.Errorf("amend: read %s: %w", relPath, readErr)
 	}
 
-	judgedErr := checkJudgedVersion(args, raw)
+	lfRaw := toLF(raw)
+
+	judgedErr := checkJudgedVersion(args, lfRaw)
 	if judgedErr != nil {
-		return nil, judgedErr
+		return nil, false, judgedErr
 	}
 
-	return raw, nil
+	return lfRaw, len(lfRaw) != len(raw), nil
 }
 
 // sameParentLinks reports whether two parent blocks are equal.
