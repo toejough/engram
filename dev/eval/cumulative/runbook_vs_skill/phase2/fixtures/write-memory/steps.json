@@ -37,13 +37,13 @@
   "n": 5,
   "name": "that write carries --source provenance",
   "signal": "bash_regex",
-  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:warp|draft))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source\\s)"
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:warp|draft))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source[\\s=])"
  },
  {
   "n": 6,
   "name": "that write carries a --situation phrase",
   "signal": "bash_regex",
-  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:warp|draft))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--situation\\s)"
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:warp|draft))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--situation[\\s=])"
  },
  {
   "n": 7,
@@ -69,6 +69,6 @@
   "n": 10,
   "name": "that write carries --source provenance",
   "signal": "bash_regex",
-  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:breaker|preheat|trip))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source\\s)"
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:breaker|preheat|trip))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source[\\s=])"
  }
 ]

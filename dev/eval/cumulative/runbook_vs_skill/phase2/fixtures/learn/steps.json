@@ -29,13 +29,13 @@
   "n": 5,
   "name": "that write carries --source provenance",
   "signal": "bash_regex",
-  "pattern": "engram\\s+learn\\s+feedback(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:[Aa]irlock|[Kk]rausen))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source\\s)"
+  "pattern": "engram\\s+learn\\s+feedback(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:[Aa]irlock|[Kk]rausen))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source[\\s=])"
  },
  {
   "n": 6,
   "name": "that write carries a --situation phrase",
   "signal": "bash_regex",
-  "pattern": "engram\\s+learn\\s+feedback(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:[Aa]irlock|[Kk]rausen))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--situation\\s)"
+  "pattern": "engram\\s+learn\\s+feedback(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:[Aa]irlock|[Kk]rausen))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--situation[\\s=])"
  },
  {
   "n": 7,
@@ -62,12 +62,12 @@
   "n": 10,
   "name": "that write carries --source provenance",
   "signal": "bash_regex",
-  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*[Cc]ampden)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source\\s)"
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*[Cc]ampden)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source[\\s=])"
  },
  {
   "n": 11,
   "name": "that write carries a --situation phrase",
   "signal": "bash_regex",
-  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*[Cc]ampden)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--situation\\s)"
+  "pattern": "engram\\s+learn\\s+fact(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*[Cc]ampden)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--situation[\\s=])"
  }
 ]

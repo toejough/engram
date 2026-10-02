@@ -39,13 +39,13 @@
   "n": 5,
   "name": "that write carries --supersedes naming the old peat-mix note",
   "signal": "bash_regex",
-  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:coir|coconut))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--supersedes\\s)"
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:coir|coconut))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--supersedes[\\s=])"
  },
  {
   "n": 6,
   "name": "that write carries --source provenance",
   "signal": "bash_regex",
-  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:coir|coconut))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source\\s)"
+  "pattern": "engram\\s+learn\\s+(?:fact|feedback)(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*(?:coir|coconut))(?=(?:[^&|\\n\\\\]|\\\\\\r?\\n)*--source[\\s=])"
  },
  {
   "n": 7,

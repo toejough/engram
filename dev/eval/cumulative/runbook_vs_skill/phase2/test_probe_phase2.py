@@ -3171,6 +3171,105 @@ def test_bisect_before_fix_step8_false_for_unanchored_append_or_mention(command)
     assert results.get("8") is False
 
 
+# --- learn (#755/D16/7.1: no pre-existing evaluate_steps-level unit tests for this fixture, so
+# each test below covers BOTH the space-separated form (regression) and the new `=` form (the
+# fix) directly -- there's no separate existing test to rely on as the regression guard) ---
+
+def test_learn_step5_source_accepts_both_forms():
+    """learn/steps.json:32: learn's own commands are composed via write-memory's template (learn
+    invokes write-memory natively, per this repo's own CLAUDE.md), so this regex needs the same
+    `=`-form fix even though learn/SKILL.md itself shows no example directly."""
+    steps = pp.load_steps("learn")
+    step5 = next(s for s in steps if s["n"] == 5)
+    space_cmd = 'engram learn feedback --source "user report" --situation "x" --object "krausen"'
+    events = [_tool_use("Bash", {"command": space_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step5], events, repo_path="/does/not/matter")
+    assert results["5"] is True
+
+    equals_cmd = 'engram learn feedback --source="user report" --situation "x" --object "krausen"'
+    events = [_tool_use("Bash", {"command": equals_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step5], events, repo_path="/does/not/matter")
+    assert results["5"] is True
+
+
+def test_learn_step6_situation_accepts_both_forms():
+    """learn/steps.json:38."""
+    steps = pp.load_steps("learn")
+    step6 = next(s for s in steps if s["n"] == 6)
+    space_cmd = 'engram learn feedback --source "x" --situation "an airlock stall" --object "o"'
+    events = [_tool_use("Bash", {"command": space_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step6], events, repo_path="/does/not/matter")
+    assert results["6"] is True
+
+    equals_cmd = 'engram learn feedback --source "x" --situation="an airlock stall" --object "o"'
+    events = [_tool_use("Bash", {"command": equals_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step6], events, repo_path="/does/not/matter")
+    assert results["6"] is True
+
+
+def test_learn_step10_source_accepts_both_forms():
+    """learn/steps.json:65."""
+    steps = pp.load_steps("learn")
+    step10 = next(s for s in steps if s["n"] == 10)
+    space_cmd = 'engram learn fact --source "user report" --situation "x" --object "Campden"'
+    events = [_tool_use("Bash", {"command": space_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step10], events, repo_path="/does/not/matter")
+    assert results["10"] is True
+
+    equals_cmd = 'engram learn fact --source="user report" --situation "x" --object "Campden"'
+    events = [_tool_use("Bash", {"command": equals_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step10], events, repo_path="/does/not/matter")
+    assert results["10"] is True
+
+
+def test_learn_step11_situation_accepts_both_forms():
+    """learn/steps.json:71."""
+    steps = pp.load_steps("learn")
+    step11 = next(s for s in steps if s["n"] == 11)
+    space_cmd = 'engram learn fact --source "x" --situation "a Campden dose question" --object "o"'
+    events = [_tool_use("Bash", {"command": space_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step11], events, repo_path="/does/not/matter")
+    assert results["11"] is True
+
+    equals_cmd = 'engram learn fact --source "x" --situation="a Campden dose question" --object "o"'
+    events = [_tool_use("Bash", {"command": equals_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step11], events, repo_path="/does/not/matter")
+    assert results["11"] is True
+
+
+# --- recall-escalation (#755/D16/7.1: no pre-existing evaluate_steps-level unit tests for this
+# fixture either -- same both-forms coverage rationale as learn above) ---
+
+def test_recall_escalation_step5_supersedes_accepts_both_forms():
+    """recall-escalation/steps.json:42."""
+    steps = pp.load_steps("recall-escalation")
+    step5 = next(s for s in steps if s["n"] == 5)
+    space_cmd = 'engram learn fact --supersedes "3.2026-09-01.peat-mix" --object "coir switch"'
+    events = [_tool_use("Bash", {"command": space_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step5], events, repo_path="/does/not/matter")
+    assert results["5"] is True
+
+    equals_cmd = 'engram learn fact --supersedes="3.2026-09-01.peat-mix" --object "coir switch"'
+    events = [_tool_use("Bash", {"command": equals_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step5], events, repo_path="/does/not/matter")
+    assert results["5"] is True
+
+
+def test_recall_escalation_step6_source_accepts_both_forms():
+    """recall-escalation/steps.json:48."""
+    steps = pp.load_steps("recall-escalation")
+    step6 = next(s for s in steps if s["n"] == 6)
+    space_cmd = 'engram learn fact --source "session 2026-09-23" --object "coconut switch"'
+    events = [_tool_use("Bash", {"command": space_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step6], events, repo_path="/does/not/matter")
+    assert results["6"] is True
+
+    equals_cmd = 'engram learn fact --source="session 2026-09-23" --object "coconut switch"'
+    events = [_tool_use("Bash", {"command": equals_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step6], events, repo_path="/does/not/matter")
+    assert results["6"] is True
+
+
 # --- tdd-order ---
 
 def test_tdd_order_steps_json_is_valid_and_registered():
@@ -3774,6 +3873,42 @@ def test_route_step10_false_when_step8_never_matched():
     events = [_tool_use("Bash", {"command": create_aggregate_cmd}, idx=0)]
     results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
     assert results["10"] is False
+
+
+def test_route_step8_slug_accepts_equals_form():
+    """#755/D16/7.1 (route/steps.json:58): route's SKILL.md now teaches `--slug="value"`
+    (Route A). Step 8's old pattern only matched the space-separated `--slug value` form (still
+    covered by test_route_step8_write_evidence_note_bash_and_negative, the regression guard) --
+    a real future trial using the `=` form must not false-negative the same way #754's
+    history-rewrite step 3 did before its own fix."""
+    steps = pp.load_steps("route")
+    step8 = next(s for s in steps if s["n"] == 8)
+    equals_cmd = (
+        'engram learn fact --slug=route-dispatch-cli-flag-implementation --tag work-kind/x '
+        '--tag tier/cheap --tag outcome/pass'
+    )
+    events = [_tool_use("Bash", {"command": equals_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step8], events, repo_path="/does/not/matter")
+    assert results["8"] is True
+
+
+def test_route_step10_slug_accepts_equals_form():
+    """#755/D16/7.1 (route/steps.json:78): same `=`-form fix for step 10's third any_of
+    alternative (the create-new-aggregate branch). The space form stays covered by
+    test_route_step10_create_new_aggregate_after_step8_real_transcript_shape (regression
+    guard)."""
+    steps = pp.load_steps("route")
+    equals_create_cmd = (
+        'engram learn fact --slug=route-evidence-cli-flag-implementation --position top '
+        '--source "route dispatch record" --situation "s" --subject "s" --predicate "p" '
+        '--object "o"'
+    )
+    events = [
+        _ROUTE_EVIDENCE_WRITE_EVENT,
+        _tool_use("Bash", {"command": equals_create_cmd}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["10"] is True
 
 
 # ----- rate-limited stub detection (vault note 988a) -----
@@ -5652,6 +5787,50 @@ def test_write_memory_steps_json_tolerates_a_semicolon_in_prose_before_the_break
     assert results["7"] is True  # breaker/preheat/trip present (already passed before the fix)
     assert results["8"] is True  # --tag component/electrical present, after the embedded ';'
     assert results["10"] is True  # --source present
+
+
+def test_write_memory_step5_source_accepts_equals_form():
+    """#755/D16/7.1 (write-memory/steps.json:40): write-memory's SKILL.md now teaches
+    `--source="value"` (Route A). The space form stays covered by the semicolon-tolerance
+    tests above (regression guard)."""
+    steps = pp.load_steps("write-memory")
+    command = (
+        'engram learn fact --slug bay-door-draft-warping-diagnosis --position top '
+        '--source="session 2026-09-22" --situation "a printer near the propped-open bay door" '
+        '--subject "s" --predicate "p" --object "a cross-draft causing warping" '
+        '--tag component/cooling'
+    )
+    events = [_tool_use("Bash", {"command": command}, idx=0)]
+    results, _k, _all = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["5"] is True
+
+
+def test_write_memory_step6_situation_accepts_equals_form():
+    """#755/D16/7.1 (write-memory/steps.json:46): same `=`-form fix for --situation."""
+    steps = pp.load_steps("write-memory")
+    command = (
+        'engram learn fact --slug bay-door-draft-warping-diagnosis --position top '
+        '--source "session 2026-09-22" --situation="a printer near the propped-open bay door" '
+        '--subject "s" --predicate "p" --object "a cross-draft causing warping" '
+        '--tag component/cooling'
+    )
+    events = [_tool_use("Bash", {"command": command}, idx=0)]
+    results, _k, _all = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["6"] is True
+
+
+def test_write_memory_step10_source_accepts_equals_form():
+    """#755/D16/7.1 (write-memory/steps.json:72): same `=`-form fix for the breaker/preheat
+    fact's --source, step 10."""
+    steps = pp.load_steps("write-memory")
+    command = (
+        'engram learn fact --slug printer-preheat-circuit-trip --position top '
+        '--source="user-reported, printer farm shop" --situation "starting up multiple printers" '
+        '--subject "s" --predicate "trips if" --object "o" --tag component/electrical'
+    )
+    events = [_tool_use("Bash", {"command": command}, idx=0)]
+    results, _k, _all = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["10"] is True
 
 
 def test_write_memory_steps_json_still_rejects_the_plural_tags_mistake():
