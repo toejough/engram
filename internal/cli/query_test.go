@@ -162,7 +162,7 @@ func TestQueryPayload_PendingOffersHintPresentWhenTrue(t *testing.T) {
 
 	g.Expect(yaml.Unmarshal([]byte(out), &decoded)).To(Succeed())
 	g.Expect(decoded.Hint).To(Equal(cli.ExportPendingOfferCurateInstruction))
-	g.Expect(decoded.Hint).To(ContainSubstring(`engram query --text "curate pending offers"`))
+	g.Expect(decoded.Hint).To(ContainSubstring(`engram query --text="curate pending offers"`))
 }
 
 // TestQueryPayload_PendingOffersLeadPayload: pending_offers and its hint
@@ -202,7 +202,7 @@ func TestQueryPayload_PendingOffersLeadPayload(t *testing.T) {
 
 	head := out[:previewSize]
 	g.Expect(head).To(ContainSubstring("pending_offers: true"))
-	g.Expect(head).To(ContainSubstring(`engram query --text "curate pending offers"`))
+	g.Expect(head).To(ContainSubstring(`engram query --text="curate pending offers"`))
 }
 
 func TestQueryPayload_RefitPendingOmittedWhenFalse(t *testing.T) {

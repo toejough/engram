@@ -33,7 +33,7 @@ type LearnArgs struct {
 	Issue     string `json:"issue"`
 	Tier      string `json:"tier"`
 
-	// Supersedes carries `--supersedes "<basename>|<type>|<claim>"` flags. Each
+	// Supersedes carries `--supersedes="<basename>|<type>|<claim>"` flags. Each
 	// entry is validated and written to both the frontmatter supersedes: list and
 	// the body Supersedes: wikilink lines.
 	Supersedes []string `json:"supersedes"`

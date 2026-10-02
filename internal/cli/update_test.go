@@ -1381,7 +1381,7 @@ func TestWriteUpdateReport_PendingOfferHint(t *testing.T) {
 	writeErr := cli.ExportWriteUpdateReport(&buffer, update.Report{VaultHasPendingOffers: true})
 	g.Expect(writeErr).NotTo(HaveOccurred())
 	g.Expect(buffer.String()).To(ContainSubstring("pending_offers"))
-	g.Expect(buffer.String()).To(ContainSubstring(`engram query --text "curate pending offers"`))
+	g.Expect(buffer.String()).To(ContainSubstring(`engram query --text="curate pending offers"`))
 	g.Expect(buffer.String()).To(ContainSubstring("--phrase"))
 	g.Expect(buffer.String()).NotTo(ContainSubstring("skill"))
 	g.Expect(buffer.String()).To(ContainSubstring(cli.ExportPendingOfferCurateInstruction))

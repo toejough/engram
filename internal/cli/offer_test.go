@@ -242,7 +242,7 @@ func TestWarnIfPendingOffers(t *testing.T) {
 	}
 
 	// The nudge carries the curate runbook's trigger query, not a skill name.
-	g.Expect(warnings[0]).To(ContainSubstring(`engram query --text "curate pending offers"`))
+	g.Expect(warnings[0]).To(ContainSubstring(`engram query --text="curate pending offers"`))
 	g.Expect(warnings[0]).To(ContainSubstring("--phrase"))
 	g.Expect(warnings[0]).NotTo(ContainSubstring("skill"))
 	g.Expect(warnings[0]).To(ContainSubstring(cli.ExportPendingOfferCurateInstruction))

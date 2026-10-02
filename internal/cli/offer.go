@@ -17,7 +17,7 @@ const (
 	// provenance; the --phrase is the process-shaped semantic fallback. A
 	// runbook has no harness-read description the way a skill did, so each
 	// cue itself has to say what to run (curate-skill-to-runbook D4, D9).
-	pendingOfferCurateCommand = "engram query --text \"curate pending offers\" --phrase \"reviewing pending " +
+	pendingOfferCurateCommand = "engram query --text=\"curate pending offers\" --phrase=\"reviewing pending " +
 		"offers in a vault and judging each against existing notes\""
 	// pendingOfferCurateInstruction is the one shared instruction: the query
 	// payload's pending_offers_hint, the update notice and the write nudge
