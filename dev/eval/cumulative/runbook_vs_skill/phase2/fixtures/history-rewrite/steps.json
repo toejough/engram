@@ -17,7 +17,7 @@
     "n": 3,
     "name": "Run the history rewrite tool (filter-branch or filter-repo) against the whole ref set",
     "signal": "bash_regex",
-    "pattern": "git\\s+(filter-branch|filter-repo)\\b"
+    "pattern": "(?<![\\w-])git[\\s-]+(filter-branch|filter-repo)\\b"
   },
   {
     "n": 4,

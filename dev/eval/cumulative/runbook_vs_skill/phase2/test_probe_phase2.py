@@ -2767,6 +2767,87 @@ def test_history_rewrite_step3_run_rewrite_tool_bash_and_negative():
     )
 
 
+# The issue's own suggested widening of step 3's pattern -- `\s+` broadened to `[\s-]+` with no
+# left-boundary guard on `git`. Refuted (design.md D4): treating `-` as an acceptable separator
+# also makes the bare substring `git-filter-repo` match inside `digit-filter-repo`/
+# `mygit-filter-repo`, a new false-positive class the original space-only pattern never had.
+# Kept here only so the two discrimination tests below can prove they actually distinguish the
+# refuted draft from the corrected (real, fixed-fixture) pattern -- never installed into
+# steps.json itself.
+_HISTORY_REWRITE_REFUTED_DRAFT_PATTERN = r"git[\s-]+(filter-branch|filter-repo)\b"
+
+
+def test_history_rewrite_step3_matches_hyphenated_filter_repo_form_and_negative():
+    """#754: `git-filter-repo` -- the standalone hyphenated invocation (pip/brew-installed onto
+    PATH) -- is an equally valid real-world invocation the original space-only pattern missed,
+    false-negativing a genuine success and cascading to steps 4-6 (gated behind it). The
+    unrelated-substring negative (a filename merely containing `filter-repo`) must still not
+    match."""
+    steps = pp.load_steps("history-rewrite")
+    _assert_bash_step(
+        steps, 3,
+        "git-filter-repo --path secrets.env --invert-paths --refs main --force",
+        "cat notes-about-filter-repo.md",
+    )
+
+
+def test_history_rewrite_step3_still_matches_space_separated_filter_repo_form():
+    """Regression guard: the space-separated `git filter-repo` form (distinct from the
+    `git filter-branch` form the existing test above covers) must also keep matching."""
+    steps = pp.load_steps("history-rewrite")
+    events = [
+        _tool_use(
+            "Bash",
+            {"command": "git filter-repo --path secrets.env --invert-paths --refs main --force"},
+            idx=0,
+        )
+    ]
+    results, _, _ = pp.evaluate_steps([next(s for s in steps if s["n"] == 3)], events, repo_path="/does/not/matter")
+    assert results["3"] is True
+
+
+@pytest.mark.parametrize("command", ["digit-filter-repo --some-arg", "mygit-filter-repo --some-arg"])
+def test_history_rewrite_step3_discriminates_letter_adjacent_false_positives(command):
+    """The refuted draft pattern (no left-boundary guard on `git`) DOES match both
+    `digit-filter-repo` and `mygit-filter-repo` -- the substring `git-filter-repo` appears right
+    after a word character in each -- which is the new false-positive class D4 rejected. The
+    real, corrected fixture pattern must NOT match either. Asserting both halves proves this
+    test actually discriminates between the two candidate patterns, not just that the installed
+    one happens to pass."""
+    assert re.search(_HISTORY_REWRITE_REFUTED_DRAFT_PATTERN, command) is not None, (
+        "sanity check: the refuted draft pattern was expected to match this false positive"
+    )
+    steps = pp.load_steps("history-rewrite")
+    events = [_tool_use("Bash", {"command": command}, idx=0)]
+    results, _, _ = pp.evaluate_steps([next(s for s in steps if s["n"] == 3)], events, repo_path="/does/not/matter")
+    assert results["3"] is False
+
+
+def test_history_rewrite_full_trial_scores_followed_all_true_with_hyphenated_form():
+    """#754 REFACTOR: reproduce the real history-rewrite-R-0/R-1 shape end-to-end through
+    evaluate_steps directly -- the original trial directories no longer exist on disk, and
+    rescore_fork_followed.py is the wrong tool (phase2's rescore entry point expects a prior
+    run's JSONL + kept trial dirs, neither of which exists here). A trial using the hyphenated
+    form for step 3 should score followed_all=True, proving the real scoring function end to
+    end, not just the regex in isolation."""
+    steps = pp.load_steps("history-rewrite")
+    events = [
+        _tool_use("Bash", {"command": "git log --all -- secrets.env"}, idx=0),
+        _tool_use("Bash", {"command": "git rev-parse HEAD"}, idx=1),
+        _tool_use(
+            "Bash",
+            {"command": "git-filter-repo --path secrets.env --invert-paths --refs main --force"},
+            idx=2,
+        ),
+        _tool_use("Bash", {"command": "git fetch origin"}, idx=3),
+        _tool_use("Bash", {"command": "git push origin main --force-with-lease"}, idx=4),
+        _tool_use("Bash", {"command": "git log --all -- secrets.env"}, idx=5),
+    ]
+    results, k, all_ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert all_ is True
+    assert k == len(steps)
+
+
 def test_history_rewrite_step4_fetch_after_step3():
     steps = pp.load_steps("history-rewrite")
     events = [
