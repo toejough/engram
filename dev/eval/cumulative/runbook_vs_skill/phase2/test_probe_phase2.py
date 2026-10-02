@@ -3911,6 +3911,41 @@ def test_route_step10_slug_accepts_equals_form():
     assert results["10"] is True
 
 
+@pytest.mark.parametrize("quoted_cmd", [
+    'engram learn fact --slug="route-dispatch-cli-flag-implementation" --tag work-kind/x '
+    '--tag tier/cheap --tag outcome/pass',
+    'engram learn fact --slug "route-dispatch-cli-flag-implementation" --tag work-kind/x '
+    '--tag tier/cheap --tag outcome/pass',
+])
+def test_route_step8_slug_accepts_a_quoted_value(quoted_cmd):
+    """Gate-B follow-up: a quoted slug value (`--slug="value"` or `--slug "value"`) must also
+    match -- pre-existing gap, not live today, but cheap to close while the pattern is open."""
+    steps = pp.load_steps("route")
+    step8 = next(s for s in steps if s["n"] == 8)
+    events = [_tool_use("Bash", {"command": quoted_cmd}, idx=0)]
+    results, _, _ = pp.evaluate_steps([step8], events, repo_path="/does/not/matter")
+    assert results["8"] is True
+
+
+@pytest.mark.parametrize("quoted_cmd", [
+    'engram learn fact --slug="route-evidence-cli-flag-implementation" --position top '
+    '--source "route dispatch record" --situation "s" --subject "s" --predicate "p" '
+    '--object "o"',
+    'engram learn fact --slug "route-evidence-cli-flag-implementation" --position top '
+    '--source "route dispatch record" --situation "s" --subject "s" --predicate "p" '
+    '--object "o"',
+])
+def test_route_step10_slug_accepts_a_quoted_value(quoted_cmd):
+    """Same quoted-value fix for step 10's third any_of alternative."""
+    steps = pp.load_steps("route")
+    events = [
+        _ROUTE_EVIDENCE_WRITE_EVENT,
+        _tool_use("Bash", {"command": quoted_cmd}, idx=1),
+    ]
+    results, _, _ = pp.evaluate_steps(steps, events, repo_path="/does/not/matter")
+    assert results["10"] is True
+
+
 # ----- rate-limited stub detection (vault note 988a) -----
 
 # Compact-JSON snippet matching the real transcript bytes verified in

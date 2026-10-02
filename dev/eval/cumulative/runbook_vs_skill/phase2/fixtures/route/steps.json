@@ -55,7 +55,7 @@
     "n": 8,
     "name": "Write evidence note with route-dispatch-* slug",
     "signal": "bash_regex",
-    "pattern": "engram\\s+learn\\s+fact.*--slug[\\s=]+route-dispatch-"
+    "pattern": "engram\\s+learn\\s+fact.*--slug[\\s=]+[\"']?route-dispatch-"
   },
   {
     "n": 9,
@@ -75,7 +75,7 @@
     "any_of": [
       {"signal": "bash_regex", "pattern": "engram\\s+query.*route[- ]evidence.*engram\\s+(?:amend|learn)"},
       {"signal": "bash_regex", "pattern": "engram\\s+(?:amend|learn).*--target.*route-evidence"},
-      {"signal": "bash_regex", "pattern": "engram\\s+learn\\s+fact.*--slug[\\s=]+route-evidence-"}
+      {"signal": "bash_regex", "pattern": "engram\\s+learn\\s+fact.*--slug[\\s=]+[\"']?route-evidence-"}
     ],
     "after": 8
   }
