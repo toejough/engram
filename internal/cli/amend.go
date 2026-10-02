@@ -227,25 +227,17 @@ func amendContent(
 }
 
 // amendFrontmatter writes an amend's typed-doc edit onto the note's parsed
-// frontmatter mapping as node edits (applyTypedEdit) — so keys the typed
-// doc does not define, and anchors on keys the amend does not edit,
-// survive — then prepends it to body. created: is re-emitted in the typed
-// writer's quoted form, as the typed re-marshal did. An anchor on an edited key refuses
-// the amend (errFrontmatterAnchoredKey), and the result is decoded again
-// before it is returned (errFrontmatterUndecodable). For a note without
-// unknown keys the decoded frontmatter, and so the exchange hash, equal the
-// typed re-marshal this replaces (pinned against the pre-change amend).
+// frontmatter mapping as node edits (nodeEditFrontmatter) — so keys the
+// typed doc does not define, and anchors on keys the amend does not edit,
+// survive. An anchor on an edited key refuses the amend
+// (errFrontmatterAnchoredKey), and the result is decoded again before it is
+// returned (errFrontmatterUndecodable). For a note without unknown keys the
+// decoded frontmatter, and so the exchange hash, equal the typed re-marshal
+// this replaces (pinned against the pre-change amend).
 func amendFrontmatter(mapping, before *yaml.Node, after any, body string) (string, error) {
-	editErr := applyTypedEdit(mapping, before, encodeNode(after), "created")
+	rendered, editErr := nodeEditFrontmatter(mapping, before, after, body)
 	if editErr != nil {
 		return "", fmt.Errorf("amend: %w", editErr)
-	}
-
-	rendered := marshalFrontmatter(mapping) + body
-
-	verifyErr := verifyFrontmatterDecodes(rendered)
-	if verifyErr != nil {
-		return "", fmt.Errorf("amend: %w", verifyErr)
 	}
 
 	return rendered, nil

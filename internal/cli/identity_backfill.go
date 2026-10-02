@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -24,6 +25,15 @@ type IdentityDeps struct {
 	DetectRepo func(ctx context.Context) string
 	DetectUser func(ctx context.Context) string
 	Getenv     func(string) string
+}
+
+// noteIdentityFields points at a typed note doc's identity fields, so one
+// backfill stamper serves fact and feedback notes.
+type noteIdentityFields struct {
+	project string
+	repo    *string
+	user    *string
+	vault   *string
 }
 
 // applyIdentityBackfill runs backfillIdentity over vaultPath and copies its
@@ -54,72 +64,15 @@ func applyIdentityBackfill(
 	return nil
 }
 
-// backfillFactNote stamps repo:/user:/vault: on a fact note when its
-// identity is missing, leaving every other field untouched. Returns
-// stamped=false, err=nil for an unparseable or already-stamped note
-// (self-silencing — a detection/parse failure must never fail the backfill).
-func backfillFactNote(
-	ctx context.Context, notePath string, raw, frontmatter []byte, deps IdentityDeps, dryRun bool,
-) (bool, error) {
-	var doc factFrontmatterDoc
-
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil || !identityMissing(doc.User, doc.Vault) {
-		return false, nil //nolint:nilerr // unparseable/already-stamped self-silences, same as oldVocabFilesPresent
-	}
-
-	identity := resolvedBackfillIdentity(ctx, doc.Project, deps)
-	doc.Repo, doc.User, doc.Vault = identity.Repo, identity.User, identity.Vault
-
-	if dryRun {
-		return true, nil
-	}
-
-	writeErr := deps.WriteFile(
-		notePath,
-		[]byte(marshalFrontmatter(doc)+string(embed.ExtractBody(raw))),
-	)
-	if writeErr != nil {
-		return false, fmt.Errorf("backfill-identity: write %s: %w", notePath, writeErr)
-	}
-
-	return true, nil
-}
-
-// backfillFeedbackNote mirrors backfillFactNote for feedback notes.
-func backfillFeedbackNote(
-	ctx context.Context, notePath string, raw, frontmatter []byte, deps IdentityDeps, dryRun bool,
-) (bool, error) {
-	var doc feedbackFrontmatterDoc
-
-	unmarshalErr := yaml.Unmarshal(frontmatter, &doc)
-	if unmarshalErr != nil || !identityMissing(doc.User, doc.Vault) {
-		return false, nil //nolint:nilerr // unparseable/already-stamped self-silences, same as oldVocabFilesPresent
-	}
-
-	identity := resolvedBackfillIdentity(ctx, doc.Project, deps)
-	doc.Repo, doc.User, doc.Vault = identity.Repo, identity.User, identity.Vault
-
-	if dryRun {
-		return true, nil
-	}
-
-	writeErr := deps.WriteFile(
-		notePath,
-		[]byte(marshalFrontmatter(doc)+string(embed.ExtractBody(raw))),
-	)
-	if writeErr != nil {
-		return false, fmt.Errorf("backfill-identity: write %s: %w", notePath, writeErr)
-	}
-
-	return true, nil
-}
-
 // backfillIdentity finds vault notes missing repo:/user:/vault: provenance
 // and stamps them, under the vault lock so it cannot race a concurrent
 // learn/amend. Idempotent: already-stamped notes are left untouched, so a
 // second run with nothing newly missing modifies no files. Returns the
-// number of notes stamped (or, under dryRun, that would be stamped).
+// number of notes stamped (or, under dryRun, that would be stamped). A
+// note the node edit refuses (an anchored key it would set, or a result
+// that does not decode) is left untouched; every other note is still
+// stamped, and the run then fails with every refusal joined, each naming
+// its note (#789 design D2).
 func backfillIdentity(
 	ctx context.Context,
 	vaultPath string,
@@ -138,9 +91,16 @@ func backfillIdentity(
 	}
 
 	stamped := 0
+	refusals := make([]error, 0)
 
 	for _, name := range names {
 		ok, noteErr := backfillOneNote(ctx, filepath.Join(vaultPath, name), deps, dryRun)
+		if errors.Is(noteErr, errFrontmatterAnchoredKey) || errors.Is(noteErr, errFrontmatterUndecodable) {
+			refusals = append(refusals, fmt.Errorf("backfill-identity: refused %s: %w", name, noteErr))
+
+			continue
+		}
+
 		if noteErr != nil {
 			return stamped, noteErr
 		}
@@ -150,7 +110,7 @@ func backfillIdentity(
 		}
 	}
 
-	return stamped, nil
+	return stamped, errors.Join(refusals...)
 }
 
 // backfillOneNote reads one vault file, dispatches to the fact/feedback
@@ -176,12 +136,72 @@ func backfillOneNote(
 
 	switch peekNoteType(frontmatter) {
 	case typeFact:
-		return backfillFactNote(ctx, notePath, raw, frontmatter, deps, dryRun)
+		return backfillTypedNote(ctx, notePath, raw, frontmatter, deps, dryRun,
+			func(doc *factFrontmatterDoc) noteIdentityFields {
+				return noteIdentityFields{project: doc.Project, repo: &doc.Repo, user: &doc.User, vault: &doc.Vault}
+			})
 	case typeFeedback:
-		return backfillFeedbackNote(ctx, notePath, raw, frontmatter, deps, dryRun)
+		return backfillTypedNote(ctx, notePath, raw, frontmatter, deps, dryRun,
+			func(doc *feedbackFrontmatterDoc) noteIdentityFields {
+				return noteIdentityFields{project: doc.Project, repo: &doc.Repo, user: &doc.User, vault: &doc.Vault}
+			})
 	default:
 		return false, nil
 	}
+}
+
+// backfillTypedNote stamps repo:/user:/vault: on a fact or feedback note
+// whose identity is missing, as YAML-node edits on its parsed frontmatter
+// (nodeEditFrontmatter, #789 design D2): every key it does not set —
+// including keys the typed doc T does not define, and anchors on keys it
+// does not edit — keeps its value. created: is re-emitted in its quoted
+// form, as the typed re-marshal did, so a note without unknown keys is
+// written byte-for-byte as before. Returns stamped=false, err=nil for an
+// unparseable or already-stamped note (self-silencing — a detection/parse
+// failure must never fail the backfill); an anchored identity key or an
+// undecodable result is returned as the node edit's refusal, and the note
+// is not written. Under dryRun the edit is still computed, so a dry run
+// reports the same refusals, but nothing is written.
+func backfillTypedNote[T any](
+	ctx context.Context, notePath string, raw, frontmatter []byte, deps IdentityDeps, dryRun bool,
+	identityOf func(doc *T) noteIdentityFields,
+) (bool, error) {
+	mapping, parseErr := parseFrontmatterMapping(frontmatter)
+	if parseErr != nil {
+		return false, nil //nolint:nilerr // unparseable self-silences, same as oldVocabFilesPresent
+	}
+
+	var doc T
+
+	decodeErr := mapping.Decode(&doc)
+	if decodeErr != nil {
+		return false, nil //nolint:nilerr // unparseable self-silences, same as oldVocabFilesPresent
+	}
+
+	fields := identityOf(&doc)
+	if !identityMissing(*fields.user, *fields.vault) {
+		return false, nil
+	}
+
+	before := encodeNode(doc)
+	identity := resolvedBackfillIdentity(ctx, fields.project, deps)
+	*fields.repo, *fields.user, *fields.vault = identity.Repo, identity.User, identity.Vault
+
+	rendered, editErr := nodeEditFrontmatter(mapping, before, doc, string(embed.ExtractBody(raw)))
+	if editErr != nil {
+		return false, editErr
+	}
+
+	if dryRun {
+		return true, nil
+	}
+
+	writeErr := deps.WriteFile(notePath, []byte(rendered))
+	if writeErr != nil {
+		return false, fmt.Errorf("backfill-identity: write %s: %w", notePath, writeErr)
+	}
+
+	return true, nil
 }
 
 // identityMissing reports whether a note's user:/vault: are both empty —

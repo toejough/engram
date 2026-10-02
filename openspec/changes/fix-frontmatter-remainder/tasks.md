@@ -12,10 +12,10 @@
 
 ## 2. Defect 2: identity backfill uses the node edit (design D2)
 
-- [ ] 2.1 RED: in a new `identity_backfill_node_test.go`, example tests: an unmodeled key (scalar and nested map) survives; an anchor on `source` aliased by another key survives; an anchored `user:` refuses that note untouched while a second note is still stamped, and the error names the note and `user`; `--dry-run` reports the same refusal and writes nothing. Confirm they fail.
-- [ ] 2.2 RED: rapid property P1 (unknown keys and unedited-key anchors survive backfill). Confirm it fails.
-- [ ] 2.3 RED: `TestBackfillIdentity_ParityWithPreChangeBackfill` against the 0.1 goldens. It passes on today's code; record that, as the guard for 2.4.
-- [ ] 2.4 GREEN: move amend's `amendFrontmatter` body into a shared `nodeEditFrontmatter` in `frontmatter_node.go`; rewrite the backfill stampers as one generic node-edit stamper; collect refusals in `backfillIdentity`. Run `targ test`.
+- [x] 2.1 RED: in a new `identity_backfill_node_test.go`, example tests: an unmodeled key (scalar and nested map) survives; an anchor on `source` aliased by another key survives; an anchored `user:` refuses that note untouched while a second note is still stamped, and the error names the note and `user`; `--dry-run` reports the same refusal and writes nothing. Confirm they fail. (RED: the anchor and unmodeled-key cases failed because backfill dropped `x_src`, `luhmann_old` and `provenance`; both anchored-`user:` cases failed with `Expected an error, got nil`.)
+- [x] 2.2 RED: rapid property P1 (unknown keys and unedited-key anchors survive backfill). Confirm it fails. (RED: `failed after 0 tests: key x_src: before agent, after <nil>`.)
+- [x] 2.3 RED: `TestBackfillIdentity_ParityWithPreChangeBackfill` against the 0.1 goldens. It passes on today's code; record that, as the guard for 2.4. (Passed, 14/14, in the same run where 2.1 and 2.2 failed.)
+- [x] 2.4 GREEN: move amend's `amendFrontmatter` body into a shared `nodeEditFrontmatter` in `frontmatter_node.go`; rewrite the backfill stampers as one generic node-edit stamper; collect refusals in `backfillIdentity`. Run `targ test`.
 
 ## 3. Defect 3: a refused receipt needs attention (design D3)
 

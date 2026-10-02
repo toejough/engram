@@ -3,7 +3,8 @@ package cli
 // Shared YAML-node frontmatter edits: a rewrite that sets or deletes a few
 // keys on the parsed mapping, so every key it does not touch — including
 // keys no typed note model defines — survives with its value. Used by
-// pull-down, adopt/refresh (applySkillNoteBody) and resituate.
+// pull-down, adopt/refresh (applySkillNoteBody), resituate, amend and
+// identity backfill.
 
 import (
 	"errors"
@@ -123,6 +124,30 @@ func mappingKeyIndex(mapping *yaml.Node, key string) int {
 	}
 
 	return -1
+}
+
+// nodeEditFrontmatter writes a typed doc's edit onto a note's parsed
+// frontmatter mapping as node edits (applyTypedEdit, with created:
+// re-emitted in the typed writer's quoted form), prepends the result to
+// body, and decodes it again before returning it. before is the typed
+// doc's encoding as decoded from mapping; after is the edited doc. Every
+// key the edit does not change is left exactly as parsed. An anchor on a
+// key the edit sets or deletes refuses it (errFrontmatterAnchoredKey); a
+// result that does not decode is refused (errFrontmatterUndecodable).
+func nodeEditFrontmatter(mapping, before *yaml.Node, after any, body string) (string, error) {
+	editErr := applyTypedEdit(mapping, before, encodeNode(after), "created")
+	if editErr != nil {
+		return "", editErr
+	}
+
+	rendered := marshalFrontmatter(mapping) + body
+
+	verifyErr := verifyFrontmatterDecodes(rendered)
+	if verifyErr != nil {
+		return "", verifyErr
+	}
+
+	return rendered, nil
 }
 
 // parseFrontmatterMapping parses a frontmatter block into its top-level
